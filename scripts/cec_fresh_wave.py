@@ -116,7 +116,11 @@ BOARD_WH = {
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
-    "12vhpwr-standard": (60.0, 40.0),
+    "12vhpwr-standard": (60.0, 62.0),  # LADDER-PHASE seed (owner 2026-07-11: cells board-centered,
+    # RJ45/USB movable): 6 lanes at 6.8 = 43.5mm span leaves no flank for the
+    # 16x21 ESP on W60 -- it seats ABOVE the lane field beside J3. Geometry:
+    # J3 y0-9 / ESP+periph band / lanes centered / J4 band. Still -20% area vs
+    # the 58x80 hand board; the shrink pass walks it down after gate-clean.
 }
 
 # Per-board owner-ratified placement params (2026-07-08, 24-pin ground-up remake):
@@ -164,8 +168,28 @@ BOARD_PARAMS = {
 # rotation; cable_index drives the per-lane net map; ideal_internal False keeps
 # the B7 refined copper verbatim.
 _SENSE_LANE_BP = "modules/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+try:
+    import json as _json
+    with open(os.path.join(ROOT, _SENSE_LANE_BP)) as _f:
+        _BP_ROLES = _json.load(_f)["net_roles"]
+except Exception:                                  # noqa: BLE001 -- board sans blueprint still works
+    _BP_ROLES = {}
+
+
+def _lane_net_map(n):
+    """Per-lane net map (net_map_for_index's rule, pcbnew-free so this module
+    stays host-importable) + the beta sheets' lane-6 exception: J2's fan feed
+    taps PRE-SHUNT lane 6 (spec enclosed menu), so that node is /FAN_12V, not
+    /SENSEP6_HI (measured: lane 6 refused 'net not on destination board')."""
+    m = {role: (role.format(n=n) if role.count("{n}") == 1 else lit)
+         for role, lit in _BP_ROLES.items()}
+    if n == 6 and "/SENSEP{n}_HI" in m:
+        m["/SENSEP{n}_HI"] = "/FAN_12V"
+    return m
+
+
 BOARD_PARAMS["12vhpwr-standard"]["blueprint_cells"] = [
-    {"template": _SENSE_LANE_BP, "anchor_ref": f"RS{n}", "cable_index": n,
+    {"template": _SENSE_LANE_BP, "anchor_ref": f"RS{n}", "net_map": _lane_net_map(n),
      "ideal_internal": False,
      "ref_map": {"RS4": f"RS{n}", "RFH4": f"RFH{n}", "RFL4": f"RFL{n}",
                  "CF4": f"CF{n}", "U13": f"U{9 + n}", "C13": f"C{9 + n}"}}

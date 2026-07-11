@@ -3171,7 +3171,9 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
         _cols0 = sorted((anchors[sh][0], sh) for sh in seated if sh in anchors)
         _nat = min(b - a for (a, _r1), (b, _r2) in zip(_cols0, _cols0[1:]))
         if _nat < _lp:
-            _mid = sum(cc for cc, _r in _cols0) / len(_cols0)
+            # centered ON THE BOARD (owner 2026-07-11: 'cells should be stamped
+            # centered the board'); connector-column mean was the old centre
+            _mid = (W / 2.0) if W else sum(cc for cc, _r in _cols0) / len(_cols0)
             _n = len(_cols0)
             _new = [_mid + (k - (_n - 1) / 2.0) * _lp for k in range(_n)]
             if W:
@@ -4490,7 +4492,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         #      the INA 6-8mm away + inside the pour). Seated INAs drop from the annealed set below.
         seated_inas = []
         if os.environ.get("CEC_KELVIN_SEAT", "1") != "0":
+            # blueprint cells own their INAs (p4b runs FIRST now, pinned + LOCKED
+            # them): snapshot/restore so the kelvin seat cannot move them (a
+            # post-hoc list filter would leave the anchors mutated = lock violation)
+            _bp_save = {r: anchors[r] for r in (_bp_refs or ()) if r in anchors}
             seated_inas = _seat_sense_ics(_topo, anchors, nl, comps)
+            for _r, _v in _bp_save.items():
+                anchors[_r] = _v
+            seated_inas = [r for r in seated_inas if r not in (_bp_refs or ())]
         # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
         #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
         #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
@@ -4548,9 +4557,52 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if _seat_snags:
                 print("  [seat-repair] %d cell(s) not fully cleared: %s"
                       % (len(_seat_snags), _seat_snags), file=sys.stderr)
+        # BLUEPRINT-AWARE SEAT SETTLE (owner ladder 2026-07-11: p4b now runs FIRST,
+        # so these deliberate seats -- evac-exempt by design (lever 1) -- must seat
+        # AROUND the stamped cells while this pass still owns them): displace any
+        # seat whose courtyard center landed in a cell envelope out the nearest
+        # edge (fixpoint across the tiled lane boxes).
+        _env3 = _blueprint_env_boxes(lambda d: anchors.get(d))
+        if _env3:
+            for _r in ([_esp] if _esp else []) + list(_can_seated) + list(_sw_seated):
+                if _r not in anchors or _r not in comps or _r in _bp_refs:
+                    continue
+                _sx, _sy = anchors[_r][0], anchors[_r][1]
+                _srot = anchors[_r][2] if len(anchors[_r]) > 2 else 0.0
+                _c0, _c1, _shw, _shh = _courtyard_info(comps[_r], _srot,
+                                                       drop_antenna=drop_antenna)
+                _scx, _scy = _sx + _c0, _sy + _c1
+                _mvd = False
+                for _rd in range(4):
+                    _hb = next((b for b in _env3
+                                if b[1] <= _scx <= b[2] and b[3] <= _scy <= b[4]), None)
+                    if _hb is None:
+                        break
+                    _nn, _x0, _x1, _y0, _y1 = _hb
+                    _pp = min((_scx - _x0, "L"), (_x1 - _scx, "R"),
+                              (_scy - _y0, "T"), (_y1 - _scy, "B"))
+                    if _pp[1] == "L":
+                        _scx = _x0 - 0.4 - _shw
+                    elif _pp[1] == "R":
+                        _scx = _x1 + 0.4 + _shw
+                    elif _pp[1] == "T":
+                        _scy = _y0 - 0.4 - _shh
+                    else:
+                        _scy = _y1 + 0.4 + _shh
+                    _mvd = True
+                if _mvd:
+                    anchors[_r] = (min(max(_scx - _c0, 2.0), W - 2.0),
+                                   min(max(_scy - _c1, 2.0), H - 2.0), _srot)
+                    if os.environ.get("CEC_BP_DEBUG"):
+                        print(f"  [p3crit] seat {_r} displaced out of a cell envelope",
+                              file=sys.stderr, flush=True)
         anneal_units = [r for r in (ics + free_shunts)
                         if r != _esp and r not in seated_inas and r not in _sw_seated
-                        and r not in _can_seated]
+                        and r not in _can_seated
+                        # p4b runs BEFORE this pass now (owner ladder): the stamped
+                        # cell refs are locked -- this rebuild must not re-arm them
+                        # for the anneal (measured: p6 moved locked U10)
+                        and r not in (_bp_refs or ())]
 
     def _blueprint_env_boxes(pos_of):
         """Envelope boxes of every stamped blueprint cell: part courtyards UNION the
@@ -5225,15 +5277,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              locks_out=lambda _s: [r for r in anchors
                                    if r.startswith(("TB", "J_OUT"))],
              doc="form per-cable corridors: align J_OUT under J_IN + seat the shunt inline"),
+        Pass("p4b_blueprint_stamp", _p4b_blueprint_stamp, phase="P4",
+             # LOCKS the stamped cell's refs -- rigid from here (internal copper laid at
+             # materialize). No-op + locks nothing when blueprint_cells is absent (byte-identical).
+             # RUNS BEFORE critical seats (owner ladder 2026-07-11: connectors -> SENSING
+             # FRONT-END -> everything else): the ESP/CAN/button seats must seat AROUND
+             # the cells, not the cells around the seats (measured: the evac-exempt CAN
+             # seat landed inside lane envelopes on every probe).
+             locks_out=lambda _s: sorted(_bp_refs),
+             doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
         Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
              locks_out=lambda _s: (list(seated) + list(seated_inas) + ([_esp] if _esp else [])
                                    + list(_sw_seated) + list(_can_seated)),
              doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat + cell Y-stagger repair"),
-        Pass("p4b_blueprint_stamp", _p4b_blueprint_stamp, phase="P4",
-             # LOCKS the stamped cell's refs -- rigid from here (internal copper laid at
-             # materialize). No-op + locks nothing when blueprint_cells is absent (byte-identical).
-             locks_out=lambda _s: sorted(_bp_refs),
-             doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
         Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
              doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
         Pass("p5_relative_place", _p5_relative_place, phase="P5",
