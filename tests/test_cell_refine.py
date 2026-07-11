@@ -327,6 +327,35 @@ class TestAcceptanceCheck(unittest.TestCase):
         self.assertTrue(gvias)
 
 
+class TestEnvelopeAndViaInPad(unittest.TestCase):
+    def test_envelope_gate_fires_and_search_respects_it(self):
+        # envelope that the BASELINE violates on x (U sits at x17)
+        m = cr.CellModel(lane_template(), pitch_axis="y", envelope=(-6.0, 14.0, -6.0, 6.0))
+        routes = cr.synth_routes(m, m.base_pose)
+        fails = cr.gates(m, m.base_pose, routes)
+        self.assertTrue(any(f == "envelope:U" for f in fails), fails)
+        r = cr.refine(m, seed=0, iters=400, budget_evals=3000)
+        if r["best"] is not None:                  # search may or may not solve it --
+            bx = [m.courtyard(r["best"]["pose"], ref) for ref in m.parts]
+            for A in bx:                           # but an accepted best MUST fit
+                self.assertGreaterEqual(A[0], -6.0 - 1e-6)
+                self.assertLessEqual(A[1], 14.0 + 1e-6)
+
+    def test_no_via_touches_any_pad(self):
+        m = cr.CellModel(lane_template(), pitch_axis="y")
+        routes = cr.synth_routes(m, m.base_pose)
+        vias, _stubs, _missing = cr.synth_gnd_vias(m, m.base_pose, routes)
+        r_via = cr.GND_VIA_DIA / 2.0
+        for v in vias:
+            vx, vy = v["at_rel_mm"]
+            for (ref, pad), _r in m.pad_role.items():     # ALL pads, same-net included
+                x, y, hw, hh = m.pad_at(m.base_pose, ref, pad)
+                b = (x - hw, x + hw, y - hh, y + hh)
+                self.assertTrue(vx + r_via <= b[0] or vx - r_via >= b[1] or
+                                vy + r_via <= b[2] or vy - r_via >= b[3],
+                                f"via {v} touches pad {ref}.{pad}")
+
+
 class TestRenudge(unittest.TestCase):
     """Stamp-time loop-back (owner: 'send it back to the blueprint factory')."""
 

@@ -183,10 +183,17 @@ class CellModel:
     rot_deg)} in the anchor frame (anchor pinned at (0,0,0) -- the shunt's seat is
     lane-dictated, not the cell's to move)."""
 
-    def __init__(self, template, *, pitch_axis="y"):
+    def __init__(self, template, *, pitch_axis="y", envelope=None):
         self.t = template
         self.anchor = template["anchor"]["ref"]
         self.pitch_axis = pitch_axis
+        # HARD ENVELOPE (owner 2026-07-11 "fit inside of a certain footprint in
+        # a certain way"): anchor-frame (x0, x1, y0, y1) every part courtyard
+        # must stay inside -- the FULL-REDESIGN rung's constraint. The
+        # escalation ladder is: stamp blueprint -> renudge (small seat fixes) ->
+        # refine() on the DESTINATION-extracted template with this envelope
+        # (full redesign against the real board's context) -> human.
+        self.envelope = tuple(envelope) if envelope else None
         if template["anchor"].get("flipped"):
             raise ValueError("flipped anchor: dual-side templates deferred (owner ruling 2026-07-10)")
         self.parts = {}                          # ref -> (fp, base_off, base_rot)
@@ -666,6 +673,13 @@ def gates(model, pose, routes):
         a, b = sorted(tap_lens.values())
         if b - a > TAP_SKEW_MAX:
             fails.append(f"tap_skew:{b - a:.2f}mm")
+    # hard envelope: every courtyard inside the ruled box (full-redesign rung)
+    if model.envelope:
+        ex0, ex1, ey0, ey1 = model.envelope
+        for r in refs:
+            A = boxes[r]
+            if A[0] < ex0 - eps or A[1] > ex1 + eps or A[2] < ey0 - eps or A[3] > ey1 + eps:
+                fails.append(f"envelope:{r}")
     # stand-in encroachment: NO non-anchor pad may sit on/next to the fixed
     # pour/lane/via copper -- same-net included (owner 2026-07-10: RFL4 planted
     # on the LO lane + via fan "where it would be terrible" -- a via under a pad
@@ -783,6 +797,13 @@ def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
     missing = []
     laid = [(r, s) for r, ss in routes.items() for s in ss] + [("GND", s) for s in stubs]
     r_via = GND_VIA_DIA / 2.0
+    # VIA-IN-PAD guard (owner 2026-07-11): a barrel may not touch ANY pad --
+    # same-net included (solder wicking is net-blind; only foreign pads were
+    # checked before, so a GND via could land on the neighbouring GND pin)
+    all_pads = []
+    for (ref2, pad2), _r2 in model.pad_role.items():
+        x, y, hw, hh = model.pad_at(pose, ref2, pad2)
+        all_pads.append((x - hw, x + hw, y - hh, y + hh))
     for ref, pad in sorted(model.role_pads.get("GND", [])):
         if ref == model.anchor:
             continue
@@ -796,7 +817,9 @@ def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
         # at growing standoff
         dirs = sorted(((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)),
                       key=lambda d: -((px - cx) * d[0] + (py - cy) * d[1]))
-        for standoff in (0.55, 0.75, 1.0):
+        for standoff in (0.6, 0.8, 1.05):         # first rung sits 0.25 off the pad edge
+                                                  # (0.55 left exactly CLR -- float-tie
+                                                  # vs the new all-pads barrel guard)
             if placed:
                 break
             for dx, dy in dirs:
@@ -805,11 +828,12 @@ def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
                 vy = py + dy / n * (max(hw, hh) + r_via + standoff - 0.35)
                 vbox = (vx - r_via, vx + r_via, vy - r_via, vy + r_via)
                 stub = (px, py, vx, vy)
-                # the barrel pierces EVERY layer: clear F.Cu obstacles AND all
-                # stand-in copper on any layer (measured 2026-07-11: 3 GND vias
-                # landed on the B.Cu LO lane -- real DRC shorts on a model-clean
-                # board, second offense of single-layer thinking)
-                barrel_obs = obstacles + [b for r_, b in model.standin_all if r_ != "GND"]
+                # the barrel pierces EVERY layer: clear ALL pads (via-in-pad is
+                # net-blind), F.Cu obstacles, AND all stand-in copper on any
+                # layer (measured 2026-07-11: 3 GND vias landed on the B.Cu LO
+                # lane -- real DRC shorts on a model-clean board)
+                barrel_obs = all_pads + obstacles + \
+                    [b for r_, b in model.standin_all if r_ != "GND"]
                 clear = all(vbox[1] + CLR_MM <= b[0] or vbox[0] - CLR_MM >= b[1] or
                             vbox[3] + CLR_MM <= b[2] or vbox[2] - CLR_MM >= b[3]
                             for b in barrel_obs)
@@ -848,7 +872,8 @@ def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
             # every adjacent barrel (measured 2026-07-11: the INA240 got NO
             # ground via, only the bypass cap's); reach past the band with a
             # ROUTED stub to a barrel-legal site
-            barrel_obs = obstacles + [b for r_, b in model.standin_all if r_ != "GND"]
+            barrel_obs = all_pads + obstacles + \
+                [b for r_, b in model.standin_all if r_ != "GND"]
             for R in (1.6, 2.2, 2.8, 3.4):
                 if placed:
                     break
@@ -1711,6 +1736,9 @@ def main(argv=None):
     r.add_argument("--refs", required=True, help="comma-separated cell refs")
     r.add_argument("--anchor", required=True)
     r.add_argument("--pitch-axis", default="y", choices=("x", "y"))
+    r.add_argument("--envelope", default=None,
+                   help="x0,x1,y0,y1 (anchor frame, mm): HARD box every courtyard must "
+                        "fit inside -- the full-redesign rung (owner 2026-07-11)")
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--starts", type=int, default=6)
     r.add_argument("--iters", type=int, default=3000)
@@ -1756,7 +1784,8 @@ def main(argv=None):
                                        os.path.basename(args.board).split(".")[0] + "-" + args.anchor)
     os.makedirs(out_dir, exist_ok=True)
     template = cx.extract(args.board, refs, anchor_ref=args.anchor)
-    model = CellModel(template, pitch_axis=args.pitch_axis)
+    env = tuple(float(v) for v in args.envelope.split(",")) if args.envelope else None
+    model = CellModel(template, pitch_axis=args.pitch_axis, envelope=env)
 
     prof = cProfile.Profile() if args.profile else None
     t0 = time.perf_counter()
