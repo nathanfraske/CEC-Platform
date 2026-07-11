@@ -1,5 +1,18 @@
 # Current work handoff
 
+## (G20j) PINOUT SANITY + SI/FEM ANSWERS — 2026-07-11 ~07:10
+Owner sanity round: (1) INA240 PINOUT VERIFIED from the live board netlist vs the
+recorded SBOS662C audit -- all 8 pins correct (1 IN-=/IN4_N, 2 GND, 3 REF2=GND, 4 NC=GND
+sanctioned, 5 OUT=/ISENSEP4, 6 V+=+3V3, 7 REF1=GND, 8 IN+=/IN4_P; HI->IN+ forward
+polarity; SOIC-8 D land, never PW). Blueprint role map preserves it. (2) Power-in layer
+hop = harmless (bypass loop local + gated; feed upstream of C13; hop-sensitive nets =
+Kelvin pair + output, both probe-verified single-layer). (3) Via modeling: THERMAL yes
+(thermal2d couples layers through real vias; electrothermal per-transition split + real
+drill/dia barrels; blueprint GND vias emit real 0.6/0.3); SI/EM no by scope (no L/C
+parasitic model; irrelevant at DC-17kHz/CAN-500k; USB = rule-routed). No code changes
+this round. B7 remains the blueprint candidate; owner gates: panel verdict + copper
+trade; then stamp lanes 1-6 + thermals-first.
+
 ## (G20i) ESCAPE PROBE (owner acceptance test) — 2026-07-11 ~06:20
 Owner near-final verdict ("right close to perfect") + designed the blueprint acceptance
 test himself: escape_test() = ring of approach traces at 8mm routed INTO each external
