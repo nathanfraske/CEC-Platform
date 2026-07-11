@@ -356,6 +356,40 @@ class TestEnvelopeAndViaInPad(unittest.TestCase):
                                 f"via {v} touches pad {ref}.{pad}")
 
 
+class TestEscapeProbe(unittest.TestCase):
+    """Blueprint acceptance probe (owner 2026-07-11): external ports must be
+    reachable from outside on F.Cu, or honestly report layer-hop-needed."""
+
+    def test_open_cell_ports_are_clean(self):
+        m = cr.CellModel(lane_template(), pitch_axis="y")
+        routes, gvias, gstubs, _gm = cr.finalize_cell(m, m.base_pose)
+        esc = cr.escape_test(m, m.base_pose, routes, gvias=gvias, gstubs=gstubs)
+        self.assertEqual(sorted(esc), ["+{n}V{n}", "/ISENSEP{n}"])
+        for role, r in esc.items():
+            self.assertEqual(r["verdict"], "clean", (role, r))
+            self.assertGreater(r["clear_dirs"], 0)
+
+    def test_walled_port_reports_layer_hop(self):
+        t = lane_template()
+        # closed annulus of foreign zones around the ISENSEP pad U.5
+        # (14.5, -1.9): sized to strand the pad without severing the cell's
+        # own chains (which run at y >= -0.9 and x >= 16.5 here)
+        t["standins"] = [
+            {"net_role": "/SENSEP{n}_HI", "kind": "zone", "layer": "F.Cu",
+             "box_rel_mm": [12.5, 12.9, -3.5, -1.15]},   # left
+            {"net_role": "/SENSEP{n}_HI", "kind": "zone", "layer": "F.Cu",
+             "box_rel_mm": [16.1, 16.5, -3.5, -1.15]},   # right
+            {"net_role": "/SENSEP{n}_HI", "kind": "zone", "layer": "F.Cu",
+             "box_rel_mm": [12.5, 16.5, -1.35, -1.15]},  # top
+            {"net_role": "/SENSEP{n}_HI", "kind": "zone", "layer": "F.Cu",
+             "box_rel_mm": [12.5, 16.5, -3.5, -3.3]},    # bottom
+        ]
+        m = cr.CellModel(t, pitch_axis="y")
+        routes = cr.synth_routes(m, m.base_pose)
+        esc = cr.escape_test(m, m.base_pose, routes)
+        self.assertEqual(esc["/ISENSEP{n}"]["verdict"], "layer-hop-needed", esc)
+
+
 class TestRenudge(unittest.TestCase):
     """Stamp-time loop-back (owner: 'send it back to the blueprint factory')."""
 

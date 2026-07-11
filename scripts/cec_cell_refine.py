@@ -917,6 +917,44 @@ def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
     return vias, stubs, missing
 
 
+def escape_test(model, pose, routes, *, gvias=(), gstubs=(), radius=8.0, directions=12):
+    """BLUEPRINT ACCEPTANCE PROBE (owner 2026-07-11: "make a test-input trace in
+    from a distance out, and see if the router can make a correct, legal route
+    in, or if it needs to layer hop"): for every EXTERNAL port (not taps -- the
+    lane serves those; not GND -- the vias serve that), try routing from ring
+    points at `radius` in to the port pad on F.Cu alone, through the finished
+    cell's full field. verdict 'clean' = at least one legal single-layer
+    approach exists; 'layer-hop-needed' = every direction is blocked (fine for
+    some ports, not for others -- the caller/owner judges which)."""
+    laid = [(r, s) for r, ss in routes.items() for s in ss] + [("GND", s) for s in gstubs]
+    r_via = GND_VIA_DIA / 2.0
+    via_boxes = [(v["at_rel_mm"][0] - r_via, v["at_rel_mm"][0] + r_via,
+                  v["at_rel_mm"][1] - r_via, v["at_rel_mm"][1] + r_via) for v in gvias]
+    out = {}
+    ports = [r for r in sorted(model.port_roles) if r not in model.tap_roles and r != "GND"]
+    for role in ports:
+        obstacles = model.foreign_pad_boxes(pose, role) + via_boxes
+        clear, total, best = 0, 0, None
+        for ref, pad in model.role_pads[role]:
+            px, py, _hw, _hh = model.pad_at(pose, ref, pad)
+            for k in range(directions):
+                a = 2.0 * math.pi * k / directions
+                sx, sy = px + radius * math.cos(a), py + radius * math.sin(a)
+                total += 1
+                try:
+                    segs = _route_hop((sx, sy), (px, py), role, obstacles, laid)
+                except Refusal:
+                    continue
+                clear += 1
+                L = sum(_seg_len(s) for s in segs)
+                best = L if best is None else min(best, L)
+        out[role] = {"pads": [f"{r}.{p}" for r, p in model.role_pads[role]],
+                     "clear_dirs": clear, "total_dirs": total,
+                     "best_len_mm": None if best is None else round(best, 2),
+                     "verdict": "clean" if clear else "layer-hop-needed"}
+    return out
+
+
 def finalize_cell(model, pose, *, mitre=True):
     """Acceptance-time synthesis in DESIGNER ORDER (owner 2026-07-11: C13's
     bypass via was crowded out because chains routed first): TAPS -> GND VIAS
@@ -1860,6 +1898,8 @@ def main(argv=None):
         out["gnd_vias"] = len(gvias)
         if gmissing:
             out["gnd_via_missing"] = gmissing     # reported, never forced
+        out["escapes"] = escape_test(model, best_pose, best_routes,
+                                     gvias=gvias, gstubs=gstubs)
         out["best_metrics"] = _metrics_of(model, best_pose, best_routes)
         refined = to_refined_template(model, best_pose, best_routes)
         refined["gnd_vias"] = gvias
