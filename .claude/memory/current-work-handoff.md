@@ -55,6 +55,19 @@ test_phase2_default_placement_is_legal (residual 1), ablated NOT-mine, triage be
 placer wave. NEXT: owner render-verdict on the fix (needs a run he must green-light), then
 uniformity-merge lane per G16/G17 (eps diff=F regression + pcie kelvin still open).
 
+## (G17b) RUN-3 VERDICT (2026-07-10): CONFIRMED winner (20260709T1524-prop-snagfix-
+dataflow-s1) rendered by ME -- STILL not the expected centred straight-through: power
+path compressed into the RIGHT column (J3 upper / J4 lower, same x~58, shunt row
+horizontal between them -- topologically in->shunts->out but squeezed right), USB-C not
+visible. TWO live hypotheses: (a) corridor-spine/cable-column seating picks a right-side
+X column for the lane (plain intent didn't change WHERE the column sits); (b) ALL hpwr
+renders crop the RIGHT EDGE identically (the 'T' cutoff -- kicad-cli auto-frame pushed by
+overhanging 12V-2x6 STEP models?) so some judgment may be on cropped views -- fix the
+render framing FIRST (--zoom/ppi or 2D plot fallback) before further placement blame.
+GUARANTEED side-step if probing stalls: explicit coordinate pins J3 top-centre / J4
+bottom-centre (seed_anchors honors user pins). Dashboard :8090 alive (32 boards) but its
+managed wrapper died -- supervision gap noted in FOLLOWUPS.
+
 ## (G17) 12VHPWR FUN-RUN — STRAIGHT-THROUGH STILL NOT ACHIEVED (2026-07-09 ~16:00)
 Owner fun-run: 12vhpwr fresh at 60x40, connectors-only. THREE runs so far; owner render
 verdicts (trust renders over coordinate probes -- twice proven): run1 J3+J4 STACKED at
