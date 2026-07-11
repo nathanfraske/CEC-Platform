@@ -93,6 +93,11 @@ def board_thermal_config(board_path):
             nc["/SENSEP%d_LO" % n] = 8.33
             ov["/SENSEP%d_HI" % n] = {"refs_src": ["J3"], "refs_sink": ["RS%d" % n]}
             ov["/SENSEP%d_LO" % n] = {"refs_src": ["RS%d" % n], "refs_sink": ["J4"]}
+        # BETA sheets (2026-07-11): lane 6's pre-shunt node is /FAN_12V (J2 fan
+        # feed taps it, spec enclosed menu) -- same 8.33A lane current; absent
+        # nets are ignored, so alpha boards are unaffected.
+        nc["/FAN_12V"] = 8.33
+        ov["/FAN_12V"] = {"refs_src": ["J3"], "refs_sink": ["RS6"]}
         nc["GND"] = 50.0
         ov["GND"] = {"refs_src": ["J4"], "refs_sink": ["J3"]}
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
