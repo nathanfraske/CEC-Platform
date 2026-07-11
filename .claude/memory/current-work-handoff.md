@@ -1,5 +1,50 @@
 # Current work handoff
 
+## (G20m) LADDER BRING-UP: 3/6 CELLS LAYING — 2026-07-11 (RESUME POINT)
+The honest-ladder debug loop, every blocker MEASURED then fixed (all in working tree,
+commit pending suite green): (1) netcode(): KiCad-10 map RAISES -> named-refuse guard
+now works + names its collider (pad/track + net). (2) p7 owning-pass settle: everything
+p7 stamps (functional clusters + series) displaces out of cell envelopes BEFORE locking
+(fixpoint across tiled boxes) + _legalize_avoiding_pours so legalize can't push back
+(measured R13-out-R12-in oscillation). (3) _blueprint_env_boxes() shared helper
+(courtyards UNION transformed copper + 1.6 margin sized for center-out eviction).
+(4) LANE RE-FAN end-of-spine, topology-agnostic (hpwr lanes = SHARED-BUS topo; per-cable
+branch never saw them -> seats=0 trap): params['lane_pitch'] re-fans seated shunts;
+hpwr set 6.8 = MEASURED B7 copper cross-pitch span 6.25 + clearance. REFINER SCORING GAP
+FILED: pitch term counts parts only; B7 copper spans 6.25 vs parts 5.4 -> copper-aware
+pitch term + re-refine should return to hand 6.0 (FOLLOWUPS). PROGRESSION: 0 laid ->
+lane1 74 segs -> 2 cells 148 -> 3 cells 222 LOCKED segs; FR skips tap re-synthesis
+(locked taps detected + protected) -- the ladder's route leg composes.
+NEXT BLOCKER (design, not mechanics): U2 [CAN] inside lane-3 envelope -- six 6.8mm lanes
+span x16-60 of the 60mm board; periphery (ESP/CAN/RJ45/USB) has no legal region. The
+board plan needs lanes OFF-CENTER LEFT + consolidated periphery column (the hand board's
+own plan). Interacts with the G17 straight-through intent drop (periph_right intents
+were dropped because they relocated J3/J4; with anchor_roles pinning them, a periph
+intent variant that constrains ICs ONLY is the likely fix) and/or W 60 -> ~66-70 seed
+(the fun-run 60x40 predates rigid cells; the file's own comment: shrink AFTER gate-clean).
+Debug artifacts: build/grade-trace*.log (1-12), boards build/fresh-ladder-dbg*/.
+CEC_BP_DEBUG=1 prints spine re-fan + box + settle diagnostics.
+
+## (G20l) HONEST-LADDER RULING + WIRING — 2026-07-11 ~15:30 (SESSION HANDOFF POINT)
+OWNER ARCHITECTURE RULING (verbatim intent): rip the whole board; start with CONNECTORS
+ONLY in proper positions; then the SENSING FRONT-END; then ladder up the importance list,
+keeping the important bits' routability/rules/solves PERFECT as it goes; never retrofit
+into a half-baked old board. WIRED + COMMITTED: B7 blueprint promoted to
+modules/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json (DRAFT until thermals);
+cec_fresh_wave 12vhpwr blueprint_cells = 6 rigid stamps on the placer's lane seats
+(cable_index net maps, ideal_internal=False keeps refined copper); p4b seat-rotation
+inherit + no-op-move fix (the PASS-LOCK CHECKER refused a 0.4nm stamp-rounding 'move'
+of locked RS1 -- discipline armed and correct; fixed the stamp's claim not the checker).
+Suites green (placer_oracle, blueprint_cells). PROBE RUNS reach materialize: cells
+stamp, ONE lane's copper guard-refused per run (varies by strategy: placer packs
+foreign parts into the cell's ROUTE ENVELOPE -- courtyards don't describe copper), then
+grade dies IndexError 'key not found' (net lookup, post-WROTE). TWO NAMED BLOCKERS
+(FOLLOWUPS 2026-07-11): (1) emit cell copper envelopes as placement keepouts at p4b;
+(2) traceback the grade-path net lookup on build/fresh-work/12vhpwr-standard/plain-*.
+THEN: full 2-seed run -> gates (cell kelvin/DRC must hold through ladder+FR) -> owner
+panel -> thermals. Older threads: B7 panel verdict + copper trade still owner-open;
+stamp-run-1 (retrofit) artifacts remain as the ruling's evidence, path retired.
+
 ## (G20k) STAMP RUN 1 — 2026-07-11 ~14:00 (owner GO "stamp them in")
 scripts/cec_stamp_lanes.py COMMITTED: plan phase (original board only; per-lane context
 extract + blueprint check + renudge ladder) + apply split into 4 SINGLE-MUTATION

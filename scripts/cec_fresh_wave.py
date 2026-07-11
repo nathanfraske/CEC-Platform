@@ -132,6 +132,9 @@ BOARD_PARAMS = {
                          # at origin, measured), so pin them explicitly.
                          "anchor_roles": {"J3": "power_in", "J4": "power_out"},
                          "straight_through": True,
+                         "lane_pitch": 6.8,   # B7 blueprint copper spans 6.25mm across-pitch (MEASURED; gnd vias + tap waypoints) + 0.45 clearance + slack. The
+                         # refiner scoring gap (pitch counted parts only) is FOLLOWUPS --
+                         # a copper-aware re-refine should get back to the hand 6.0.
                          "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
     # OWNER LADDER RULING (2026-07-11, "start with the connectors placed only ...
     # then the sensing frontend ... ladder up the importance list"): the fresh

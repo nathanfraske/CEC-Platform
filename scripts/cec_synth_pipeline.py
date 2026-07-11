@@ -3083,6 +3083,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 seated.append(c["shunt"])
                 if c["j_out_blades"]:
                     blade_cables.append((c, col))
+    _lane_seats = []
     for c in topo:
         if c.get("shared_bus"):
             continue
@@ -3104,6 +3105,16 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             anchors[jout] = (ox + (col - out_col), oy, orot)
         anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
+        _lane_seats.append((sh, col))
+    # LANE RE-FAN moved to end-of-function (topology-agnostic; the 12vhpwr's six
+    # lanes classify as SHARED-BUS topology -- measured seats=0 in this branch).
+    # (owner ladder 2026-07-11 + the alpha board's own fan-out doctrine:
+    # connector pins at 3mm FAN OUT to the ~6mm SENSE pitch, routing tapers): rigid
+    # blueprint cells make the pitch a HARD floor -- adjacent cells' locked copper at
+    # sub-pitch seats collide at materialize (measured: /IN2_N vs lane 1 at 5.7mm).
+    # params['lane_pitch'] re-fans the shunt columns to a centered sequence at that
+    # pitch; absent -> raw connector-column seats, byte-identical.
+
     if blade_cables:
         _p = (params or {})
         _shared_row = any(c.get("shared_bus") for c, _col in blade_cables)
@@ -3149,6 +3160,29 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                             _ax, _ay = anchors[_r3][0] + _shift, anchors[_r3][1]
                             _rt = anchors[_r3][2] if len(anchors[_r3]) > 2 else 0.0
                             anchors[_r3] = (_ax, _ay, _rt)
+    # LANE RE-FAN (owner ladder 2026-07-11, topology-agnostic): rigid blueprint
+    # cells make the SENSE pitch a HARD floor -- adjacent cells' locked copper at
+    # sub-pitch seats collides at materialize (measured: /IN2_N vs lane 1 at 5.7mm;
+    # the alpha board's own doctrine fans 3mm connector pins out to ~6mm lanes).
+    _lp = float((params or {}).get("lane_pitch") or 0.0)
+    if os.environ.get("CEC_BP_DEBUG"):
+        print(f"  [spine] lane_pitch={_lp} seated={len(seated)}", file=sys.stderr, flush=True)
+    if _lp > 0 and len(seated) >= 2:
+        _cols0 = sorted((anchors[sh][0], sh) for sh in seated if sh in anchors)
+        _nat = min(b - a for (a, _r1), (b, _r2) in zip(_cols0, _cols0[1:]))
+        if _nat < _lp:
+            _mid = sum(cc for cc, _r in _cols0) / len(_cols0)
+            _n = len(_cols0)
+            _new = [_mid + (k - (_n - 1) / 2.0) * _lp for k in range(_n)]
+            if W:
+                _shift = max(0.0, 3.0 - _new[0]) - max(0.0, _new[-1] - (W - 3.0))
+                _new = [cc + _shift for cc in _new]
+            for (_oldc, sh), cc in zip(_cols0, _new):
+                _ax, _ay, _ar = anchors[sh]
+                anchors[sh] = (cc, _ay, _ar)
+            if os.environ.get("CEC_BP_DEBUG"):
+                print(f"  [spine] re-fanned {len(_cols0)} lanes {_nat:.2f} -> {_lp}mm",
+                      file=sys.stderr, flush=True)
     return seated
 
 
@@ -4518,6 +4552,44 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         if r != _esp and r not in seated_inas and r not in _sw_seated
                         and r not in _can_seated]
 
+    def _blueprint_env_boxes(pos_of):
+        """Envelope boxes of every stamped blueprint cell: part courtyards UNION the
+        cell's transformed copper, + margin sized for center-out eviction (pad-half +
+        clearance). Shared by p7 (series/functional stamping must not enter -- the
+        stamps LOCK, and a locked ref in a cell means whole-cell copper refusal at
+        materialize; measured: series R13 vs lane 1) and p8 (foreign-body evac)."""
+        if not _blueprint_stamps:
+            return []
+        import cec_cell_extract as _cx
+        boxes = []
+        for _st in _blueprint_stamps:
+            refs_ = [d for d in (_st.get("ref_map") or {}).values()
+                     if d in comps and pos_of(d) is not None]
+            xs, ys = [], []
+            for d in refs_:
+                p_ = pos_of(d)
+                cx0, cy0, hw, hh = _courtyard_info(comps[d], p_[2] if len(p_) > 2 else 0,
+                                                   drop_antenna=drop_antenna)
+                xs += [p_[0] + cx0 - hw, p_[0] + cx0 + hw]
+                ys += [p_[1] + cy0 - hh, p_[1] + cy0 + hh]
+            t_ = _st.get("template") or {}
+            ax_, ay_ = _st.get("at_mm", (0.0, 0.0))
+            rot_ = float(_st.get("rot", 0.0))
+            for tr_ in t_.get("internal_tracks", []):
+                for pt_ in (tr_["start_rel_mm"], tr_["end_rel_mm"]):
+                    g_ = _cx._to_global(pt_[0], pt_[1], ax_, ay_, rot_)
+                    xs.append(g_[0])
+                    ys.append(g_[1])
+            for v_ in t_.get("vias", []):
+                g_ = _cx._to_global(v_["at_rel_mm"][0], v_["at_rel_mm"][1], ax_, ay_, rot_)
+                xs.append(g_[0])
+                ys.append(g_[1])
+            if xs:
+                bm = 1.6
+                boxes.append(("__BLUEPRINT__", min(xs) - bm, max(xs) + bm,
+                              min(ys) - bm, max(ys) + bm))
+        return boxes
+
     # ============================================================ P4: blueprint cells (rigid stamp)
     def _p4b_blueprint_stamp(_state):
         nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
@@ -4798,8 +4870,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             pb = _pad_xy_global(nl, bR, bP, P, comps)
             if pa is None or pb is None:
                 continue
-            mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0   # midpoint of the VBUS->rail segment
             rot = 90.0 if abs(pb[1] - pa[1]) > abs(pb[0] - pa[0]) else 0.0   # orient along the segment
+            # BLUEPRINT-AWARE t: this stamp LOCKS, so landing inside a stamped cell's
+            # envelope would refuse that cell's copper at materialize (the p8 evac may
+            # not move locked refs -- repair belongs HERE, the owning pass). Slide t
+            # along the segment to the first envelope-free spot; midpoint when free.
+            _bp_env = _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+            mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0
+            for _t in (0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82, 0.12, 0.88):
+                _px = pa[0] + _t * (pb[0] - pa[0])
+                _py = pa[1] + _t * (pb[1] - pa[1])
+                if not any(x0 <= _px <= x1 and y0 <= _py <= y1
+                           for _nn, x0, x1, y0, y1 in _bp_env):
+                    mx, my = _px, _py
+                    break
             P[pref] = (mx, my, rot)
             _func_stamped.append(pref)
         # the functional target lands a part AT its connector pad / mid-segment -- which is a DENSE I/O
@@ -4815,6 +4899,58 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 elif r in comps:
                     _func_cy[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
             legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4, bounds=_bounds)
+        # BLUEPRINT-AWARE settle (owning-pass repair, 2026-07-11): everything THIS pass
+        # stamped locks at pass end -- p8's evac may not move it, and a stamped body
+        # inside a cell envelope refuses that cell's copper at materialize (measured:
+        # J3's sideband cluster fan R13 vs lane 1). Displace out the nearest envelope
+        # edge NOW, while this pass still owns the refs, then re-legalize the moved set.
+        _bp_env = _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+        if _bp_env:
+            _stamped_here = set(_func_stamped)
+            _stamped_here |= {pref for offs in cluster_offsets.values() for pref in offs}
+            _bp_moved = []
+            for _r in sorted(_stamped_here):
+                if _r not in P or _r not in comps or _r in _bp_refs:
+                    continue
+                _rx, _ry = P[_r][0], P[_r][1]
+                _rrot = P[_r][2] if len(P[_r]) > 2 else 0.0
+                _cx0, _cy0, _chw, _chh = _courtyard_info(comps[_r], _rrot,
+                                                         drop_antenna=drop_antenna)
+                _ccx, _ccy = _rx + _cx0, _ry + _cy0
+                _was_moved = False
+                for _round in range(4):           # fixpoint: adjacent lane boxes tile,
+                    _hit_box = next((b for b in _bp_env    # out of A can mean into B
+                                     if b[1] <= _ccx <= b[2] and b[3] <= _ccy <= b[4]), None)
+                    if _hit_box is None:
+                        break
+                    _nn, _x0, _x1, _y0, _y1 = _hit_box
+                    _push = min((_ccx - _x0, "L"), (_x1 - _ccx, "R"),
+                                (_ccy - _y0, "T"), (_y1 - _ccy, "B"))
+                    if _push[1] == "L":
+                        _ccx = _x0 - 0.4 - _chw
+                    elif _push[1] == "R":
+                        _ccx = _x1 + 0.4 + _chw
+                    elif _push[1] == "T":
+                        _ccy = _y0 - 0.4 - _chh
+                    else:
+                        _ccy = _y1 + 0.4 + _chh
+                    _was_moved = True
+                if _was_moved:
+                    P[_r] = (_ccx - _cx0, _ccy - _cy0, _rrot)
+                    _bp_moved.append(_r)
+            if _bp_moved:
+                _cy2 = {r: (macro[r] if r in macro else
+                            _courtyard_info(comps[r], P[r][2] if len(P[r]) > 2 else 0,
+                                            drop_antenna=drop_antenna))
+                        for r in P if r in comps}
+                # BOX-AWARE legalize (the mop's technique): envelopes injected as fixed
+                # pseudo-obstacles, else the plain legalize pushes a displaced body
+                # straight back into a cell (measured: R13 out -> R12 in)
+                _legalize_avoiding_pours(P, [r for r in _bp_moved if r in P], _cy2,
+                                         _bp_env, W, H, clr=0.4, bounds=_bounds)
+                if os.environ.get("CEC_BP_DEBUG"):
+                    print(f"  [p7] blueprint-aware settle displaced: {_bp_moved}",
+                          file=sys.stderr, flush=True)
 
     # ============================================================ P7: corridor/pour evac + final mop-up
     def _p8_evac_mop(_state):
@@ -4862,20 +4998,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # -> exempt). This is what lets materialize() lay the cell's internal copper without a foreign
         # collision on a dense board. Empty _bp_refs -> no boxes -> byte-identical.
         if _bp_refs:
-            for _st in _blueprint_stamps:
-                _crefs = [d for d in (_st.get("ref_map") or {}).values()
-                          if d in _bp_refs and d in P and d in comps] \
-                    or [d for d in _bp_refs if d in P and d in comps]
-                _xs, _ys = [], []
-                for _d in _crefs:
-                    _bcx, _bcy, _bhw, _bhh = _courtyard_info(
-                        comps[_d], P[_d][2] if len(P[_d]) > 2 else 0, drop_antenna=drop_antenna)
-                    _xs += [P[_d][0] + _bcx - _bhw, P[_d][0] + _bcx + _bhw]
-                    _ys += [P[_d][1] + _bcy - _bhh, P[_d][1] + _bcy + _bhh]
-                if _xs:
-                    _bm = 0.8      # a margin so the cell's escape stubs clear foreign copper too
-                    _pour_boxes = list(_pour_boxes) + [
-                        ("__BLUEPRINT__", min(_xs) - _bm, max(_xs) + _bm, min(_ys) - _bm, max(_ys) + _bm)]
+            _bpb = _blueprint_env_boxes(lambda d: P.get(d))
+            _pour_boxes = list(_pour_boxes) + _bpb
+            if os.environ.get("CEC_BP_DEBUG"):
+                for _nn, _x0, _x1, _y0, _y1 in _bpb:
+                    print(f"  [p8] blueprint box: ({_x0:.1f},{_x1:.1f},{_y0:.1f},{_y1:.1f})",
+                          file=sys.stderr, flush=True)
         # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
         _nets_of = defaultdict(set)
         for _nn, _mem in nl.nets.items():

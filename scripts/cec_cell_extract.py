@@ -525,11 +525,13 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None,
 #  as real LOCKED tracks/vias, guard-checked against foreign copper (whole-cell refusal).
 # =====================================================================================
 def _foreign_clear(board, shape, layer_id, foreign_codes, clr_nm):
-    """True iff `shape` (a SHAPE_SEGMENT/SHAPE_CIRCLE) has NO copper whose net code is in
-    `foreign_codes` within clr_nm on layer_id. The exact GetEffectiveShape().Collide()
-    geometry DRC uses (reused from cec_fr._tap_foreign_clear discipline), so a PASS here is
-    DRC-clean for copper clearance -- the guard that lets a cell REFUSE rather than short."""
+    """None iff `shape` (a SHAPE_SEGMENT/SHAPE_CIRCLE) has NO copper whose net code is in
+    `foreign_codes` within clr_nm on layer_id; else a STRING NAMING the collider (the
+    refusal reason must name its cause -- owner ladder debugging, 2026-07-11). The exact
+    GetEffectiveShape().Collide() geometry DRC uses (reused from cec_fr._tap_foreign_clear
+    discipline), so a None here is DRC-clean for copper clearance."""
     for fp in board.GetFootprints():
+        ref = fp.GetReference()
         for p in fp.Pads():
             if p.GetNetCode() not in foreign_codes:
                 continue
@@ -537,7 +539,7 @@ def _foreign_clear(board, shape, layer_id, foreign_codes, clr_nm):
                 continue
             try:
                 if p.GetEffectiveShape(layer_id).Collide(shape, clr_nm):
-                    return False
+                    return f"pad {ref}.{p.GetNumber()} [{p.GetNetname()}]"
             except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
                 continue
     for t in board.GetTracks():
@@ -550,10 +552,11 @@ def _foreign_clear(board, shape, layer_id, foreign_codes, clr_nm):
             continue
         try:
             if t.GetEffectiveShape(layer_id).Collide(shape, clr_nm):
-                return False
+                kind = "via" if t.Type() == pcbnew.PCB_VIA_T else "track"
+                return f"{kind} [{t.GetNetname()}]"
         except Exception:                           # noqa: BLE001
             continue
-    return True
+    return None
 
 
 def _lay_locked_copper(board, copper, *, clearance_mm=None):
@@ -582,8 +585,10 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
 
     # resolve nets; a net missing on the destination board = a HARD refuse (named).
     def netcode(name):
-        nc = board.GetNetcodeFromNetname(name)
-        return nc
+        try:
+            return board.GetNetcodeFromNetname(name)
+        except (IndexError, KeyError):            # KiCad-10 SWIG map RAISES on a
+            return -1                             # missing key instead of returning -1
 
     cell_codes = set()
     resolved_tracks, resolved_vias = [], []
@@ -619,10 +624,11 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         E = pcbnew.VECTOR2I(_nm(ex), _nm(ey))
         w = _nm(tr["width_mm"])
         seg = pcbnew.SHAPE_SEGMENT(S, E, w)
-        if not _foreign_clear(board, seg, ly, foreign_codes, clr_nm):
+        _hit = _foreign_clear(board, seg, ly, foreign_codes, clr_nm)
+        if _hit:
             report.update(refused=True,
                           reason=f"track on net {tr['net']!r} ({tr['layer']}) collides FOREIGN "
-                                 f"copper at clearance -- whole cell refused")
+                                 f"{_hit} at clearance -- whole cell refused")
             return report
         built.append(("track", tr, nc, ly, S, E, w))
     for v, nc in resolved_vias:
@@ -630,10 +636,11 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         at = pcbnew.VECTOR2I(_nm(v["at_mm"][0]), _nm(v["at_mm"][1]))
         dia = _nm(v["dia_mm"])
         circ = pcbnew.SHAPE_CIRCLE(at, dia // 2)
-        if not (_foreign_clear(board, circ, top, foreign_codes, clr_nm)
-                and _foreign_clear(board, circ, bot, foreign_codes, clr_nm)):
+        _hit = (_foreign_clear(board, circ, top, foreign_codes, clr_nm)
+                or _foreign_clear(board, circ, bot, foreign_codes, clr_nm))
+        if _hit:
             report.update(refused=True,
-                          reason=f"via on net {v['net']!r} collides FOREIGN copper -- whole cell refused")
+                          reason=f"via on net {v['net']!r} collides FOREIGN {_hit} -- whole cell refused")
             return report
         built.append(("via", v, nc, top, bot, at, dia))
 
