@@ -1131,7 +1131,13 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         elif s["kind"] == "via":
             xs.append(s["at_rel_mm"][0])
             ys.append(s["at_rel_mm"][1])
-    m = 2.0
+    # margin covers the widest copper's half-width (centerline extents alone put
+    # a 2.5mm lane stand-in inside edge clearance -- 8 DRC hits, run A)
+    wmax = max([s.get("width_mm", TRACK_W) for s in template.get("standins", [])
+                if s["kind"] == "track"] +
+               [tr.get("width_mm", TRACK_W) for tr in template.get("internal_tracks", [])] +
+               [TRACK_W])
+    m = 2.0 + wmax / 2.0
     x0, x1, y0, y1 = min(xs) - m, max(xs) + m, min(ys) - m, max(ys) + m
     corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
     for i in range(4):
