@@ -1,5 +1,20 @@
 # Current work handoff
 
+## (G20h) DETOUR GATE + STRANDED-VIA PRUNE + B7 — 2026-07-11 ~05:00
+Owner B6-refresh review: (1) 'loopback near RFH' = tap wandered 2.56x Manhattan behind
+legal textbook strokes -> tap_detour gate (routed <= 2x Manhattan + 2mm slack; hand
+taps 1.05x) + deeper inset ladder (0.6..2.8). (2) 'stranded via near pin 1' = +3V3
+context via kept after its companion copper was pruned -> stand-in vias must touch
+kept same-net copper. PROCESS FAILURE owned: the gate chain grep matched ANY line
+(incl. FAILED) -> commit shipped through a red suite (the red was only the new tooth's
+under-sized geometry, code fine; tooth fixed, chains now gate on tail -1 grep -q ^OK).
+B7 (all rules incl. detour): (5.4, 19.33, 62.836) vs hand (5.4, 24.53, 49.836) --
+FIRST fully-connected microboard (unconn EMPTY, no dangling vias); -21% length, taps
+8.5/8.2 skew 0.35, 3 GND barrels; HONEST TRADE surfaced on the dash panel: copper +26%
+vs hand under all rules -- owner call: accept trade / more evals / router-craft
+(coupled-pair + A* diagonal search, both FOLLOWUPS). Suite 44 pending final green.
+Wall now 10min/15k evals (acceptance checks) -- memoization FOLLOWUPS matters more.
+
 ## (G20g) OWNER-QUESTION ROUND: envelope + via-in-pad + SI answers — 2026-07-11 ~04:00
 Committed f893d6d (40 tests): (1) VIA-IN-PAD guard is NET-BLIND (all pads incl. same-net;
 owner suspected it, and it immediately caught B6's via on U13.7 -- relocated on
