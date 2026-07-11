@@ -1,5 +1,21 @@
 # Current work handoff
 
+## (G20n) LADDER MILESTONE: 6/6 CELLS LAID — 2026-07-11 (the sensing front-end stands)
+444 LOCKED segments, 0 refused, on the fresh 60x62 board (dbg18; render on dash).
+Owner directives all realized: cells BOARD-CENTERED (re-fan mid=W/2); ladder LITERAL
+(p4b before critical seats; ESP/CAN/SW seat AROUND cells w/ env settle -- U2 auto-
+displaced; kelvin seat snapshot-restores cell INAs; p3crit anneal rebuild excludes
+locked cells -- each ordering slip caught by the LOCK CHECKER, incl. p6-moved-U10);
+J2 = JST PH B2B-PH-K-S VERTICAL (derived footprint, beta sch edited, LCSC sourcing
+pending, resolves MCU overlap); lane-6 HI = /FAN_12V (J2 taps pre-shunt lane 6, spec
+enclosed menu -- encoded in _lane_net_map). Milestone committed+pushed (gated on
+placer+blueprint suites). NEXT RUNGS (importance order): force lanes/pours for the
+6 SENSEP columns (PourPlan/pour lever = the machinery), THEN periphery/FR residual,
+THEN gates green -> owner panel -> stamps-first THERMALS. Also owner offered ideas
+pending: alternating-180 cell nesting A/B (recover 6.0 pitch); copper-aware pitch
+re-refine (FOLLOWUPS). Grade debt now (gate F, drc ~567, unconn 53) = expected
+pre-force-copper state, NOT cell defects.
+
 ## (G20m) LADDER BRING-UP: 3/6 CELLS LAYING — 2026-07-11 (RESUME POINT)
 The honest-ladder debug loop, every blocker MEASURED then fixed (all in working tree,
 commit pending suite green): (1) netcode(): KiCad-10 map RAISES -> named-refuse guard
