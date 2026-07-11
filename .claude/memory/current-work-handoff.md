@@ -1,5 +1,87 @@
 # Current work handoff
 
+## (G20c) B-SIDE VERIFIED WIN + 3 REALITY BUGS FIXED — 2026-07-10 ~23:20
+GRADED-REFUSAL A/B: decisive. A (flat cost) = +1.1%, polish-only, 9/9 starts dead. B
+(graded) = exploration LIVE, 62.5 evals/s (4x A — feasible evals dodge the refusal
+double-BFS), best (5.4, 20.065, 32.762) vs hand (5.4, 24.53, 49.836): equal pitch,
+-18% length, -34% scored copper+skew, taps 4.3/4.5 skew 0.12 vs hand 12.6/11.2/1.39.
+**improved_vs_hand = TRUE, REAL-DRC VERIFIED** (copper-clean; unconn = external
++3V3/GND; dangling = windowed stand-in stubs). THREE model-vs-reality bugs the real
+tool caught (all committed b62df36): (1) emit SetOrientationDegrees(-rot) transposed
+90/270 pads (masked on 0/180 cells) -> 9 shorts on a "clean" board — KiCad y-down
+RotatePoint == _rot(+theta), minus dropped; (2) mitre chamfered T-junctions ->
+IN4_P split into 2 islands — chamfer now requires exactly-2-arrival corners;
+(3) courtyard exact-touch float tie flipped by 4dp round-trip -> eps on overlap gate.
+Run-B winner RE-FINALIZED under fixed code (score improved 34.3->32.76). BOTH panels
+on dash (cec_cell_panel.py; A + B entries, owner verdict REQUESTED). Compaction
+slide-to-contact landed in search+polish (owner: "not moving placements") — B2 IN
+FLIGHT (compact+graded, 15k evals, build/cell-refine-b2.log, REFINE_B2_DONE marker,
+out build/cell-refine/hpwr-RS4-b2) -> DRC+panel on landing. Speed answer for owner:
+route-in-the-loop pure Python; levers = per-role route memoization (~5x), numpy A*
+(~10x), honest budgets (B's winner found by ~9k evals). Suite 22 tests green.
+
+## (G20b) RUN A LANDED + GRADED-REFUSAL A/B IN FLIGHT — 2026-07-10 ~22:15
+RUN A (old flat-refusal cost, 40k evals/40min, seed 0): improved_vs_resynth TRUE but only
++1.1% (99.278->98.143) and ALL from the polish leg — 9/9 scrambled starts sat on the flat
+cost-85 refusal plateau, confirming the diagnosis. improved_vs_hand FALSE (hand 49.8 vs
+98.1 scored copper — hand still 2x better; the in-loop chain-router craft gap is the lever,
+FOLLOWUPS). Mitre engaged (42->68 segs). Microboard DRC: NO shorts/clearance; dangling +
+copper-edge hits = windowed stand-in context stubs (attributed hit-by-hit, e.g. the 42.7mm
+B.Cu LO lane stub); outline-margin fix for the edge hits landed (uncommitted with panel
+tweaks at session end — check git status). 3-way owner panel POSTED to dash
+(build/cell-panel-hpwr-RS4-deep.png via new scripts/cec_cell_panel.py e21cf8a).
+RUN B IN FLIGHT: same cell/seed/40k evals under the GRADED cost (e21cf8a) ->
+build/cell-refine/hpwr-RS4-deep-b (log build/cell-refine-deep-b.log, REFINE_B_DONE marker;
+expect slower evals — partial routing works through all roles). On landing: compare
+best_score + whether scrambled starts contribute (log cost lines != 85-flat), panel B,
+owner verdict. Dash pan fix verified served (hard-refresh needed browser-side).
+
+## (G20) CELL-REFINE IMPROVEMENT PASS — 2026-07-10 ~20:40 (branch claude/pipeline-consolidation)
+Owner asks all LANDED + committed (3079ccc, pushed): (1) POUR/LANE STAND-INS — extractor
+captures boundary-net force copper (>=0.5mm tracks/zones/vias in cell window, anchor-local);
+model: F.Cu standins = routing obstacles + standin_clash placement gate; emit: real copper
+(zones ZONE_FILLER-filled) so microboard DRC is honest. (2) 45s ("router only pouring 90s"):
+in-loop router stays Manhattan-for-speed; mitre_routes chamfers accepted corners; tap router
+gained the HAND BOARD'S OWN inner-edge exit + maze fallback (real standins kill both plain
+Ls at the hand pose — first deep run failed 100% infeasible until this, killed+fixed).
+(3) BUDGET: refine(budget_evals) + fine polish stage (grid 0.025), deterministic by evals.
+(4) HONEST HAND BASELINE: new port_tracks bucket (window-clipped Liang-Barsky) — hand Kelvin
+taps were counted NOWHERE (read 0); real hand taps HI 12.64/LO 11.25 skew 1.39 (the module
+header's old '~6mm skew' note was this artifact). Score reworked: parts-extents +
+tap+internal copper only (link copper = board context, gated not scored). Maze GRID
+0.2->0.1 (hand-pitch channels) + domain-bounded (suite 163s->fast, 17/17).
+DASH: horizontal-pan-when-zoomed fixed (grid 1fr min-content -> minmax(0,1fr)), :8090
+relaunched. Stale Jul-9 FR JVMs reaped. KNOWN GAP (FOLLOWUPS 2026-07-10): in-loop chain
+router still ~2.9x hand copper at the same pose (role-order interference IN_N-before-IN_P +
+no diagonal search; A*/turn-cost + precision-route final polish = next levers). IN FLIGHT:
+deep RS4 run --evals 40000 --render (build/cell-refine-deep.log, REFINE_DEEP_DONE marker,
+out build/cell-refine/hpwr-RS4-deep) -> on completion: DRC both microboards, 3-way owner
+panel (context-top.png + baseline + refined), worklog + owner verdict. Prior-session crash
+was the CC session itself (NOT WSL — uptime/dashboard verified for owner).
+
+## (G19) CELL-REFINE LOOP LANDED + FIRST OUTING — 2026-07-10 ~19:45 (branch claude/pipeline-consolidation)
+Prior session CRASHED mid-task (session death, NOT a WSL restart — uptime 1d22h, dashboard
+:8090 alive/serving; owner asked, verified). Picked up and FINISHED the owner-GO'd
+blueprint-cell refinement loop: **scripts/cec_cell_refine.py + tests/test_cell_refine.py
+COMMITTED** (10/10 host tests green). Owner rulings bound in the module header: single-face
+first (dual-side deferred until connector width limits), before/after OWNER panels (machine
+score ranks, owner ratifies), netlist-only finder, scope = blueprint refinement/routing only,
+NO waves. FIRST OUTING (12vhpwr RS4 lane, 6 parts): **improved: false** — 18,006 fully-routed
+gated variants in 78s (230/s) never beat the hand pose; resynth baseline routes taps in-cell
+(copper 95mm vs hand 20mm — hand serves taps/+3V3 from OUTER copper/pour, which is also why
+hand tap_lens reads 0, NOT a bug). REAL-TOOL ACCEPTANCE run post-crash: both microboards
+kicad-cli DRC copper-clean (silk-only cosmetics); refined unconn = GND only (plane-served by
+design); baseline's extra ratlines = the externally-served hand nets. Owner panel
+build/cell-refine-panel-hpwr-RS4.png logged to the dash feed (worklog). FINDER run on the
+12vhpwr board: groups lanes 1-5 + the NTC divider pair; lane 6 EXCLUDED because R5's divider
+tap on /SENSEP6_HI changes the fingerprint -> FOLLOWUPS (tolerate foreign taps on port nets).
+Cleanup: reaped 6 stale FR JVMs (Jul-9 leftovers, in-container); REVERTED 4 footprints'
+Jul-7 KiCad-10 resave churn (root-uuid drop!) + deleted stray routed-drc.json — a container
+leg is resaving lib footprints, writer unidentified (FOLLOWUPS). NEXT: owner denotes the
+panel verdict; next levers if pursuing = finer grid/score weights/EPS sense cell (FOLLOWUPS
+2026-07-10); G18's open threads unchanged (owner render-verdict on the seed_anchors fix,
+uniformity-merge lane, eps diff=F, pcie kelvin, test_corridor_model pre-existing red).
+
 ## (G18) SCOPING PASS + G17 ROOT CAUSE CLOSED — 2026-07-10 ~23:15 (branch claude/pipeline-consolidation)
 OWNER ASK (scoping only, NO runs/waves): shader-worthiness for GPU-run/router/placer/FEM +
 placer parallelization/packing + FEM completeness audit (opus agent). DELIVERED — standing
@@ -31,6 +113,19 @@ committed this session. (6) Pre-existing red host test: test_corridor_model
 test_phase2_default_placement_is_legal (residual 1), ablated NOT-mine, triage before next
 placer wave. NEXT: owner render-verdict on the fix (needs a run he must green-light), then
 uniformity-merge lane per G16/G17 (eps diff=F regression + pcie kelvin still open).
+
+## (G17b) RUN-3 VERDICT (2026-07-10): CONFIRMED winner (20260709T1524-prop-snagfix-
+dataflow-s1) rendered by ME -- STILL not the expected centred straight-through: power
+path compressed into the RIGHT column (J3 upper / J4 lower, same x~58, shunt row
+horizontal between them -- topologically in->shunts->out but squeezed right), USB-C not
+visible. TWO live hypotheses: (a) corridor-spine/cable-column seating picks a right-side
+X column for the lane (plain intent didn't change WHERE the column sits); (b) ALL hpwr
+renders crop the RIGHT EDGE identically (the 'T' cutoff -- kicad-cli auto-frame pushed by
+overhanging 12V-2x6 STEP models?) so some judgment may be on cropped views -- fix the
+render framing FIRST (--zoom/ppi or 2D plot fallback) before further placement blame.
+GUARANTEED side-step if probing stalls: explicit coordinate pins J3 top-centre / J4
+bottom-centre (seed_anchors honors user pins). Dashboard :8090 alive (32 boards) but its
+managed wrapper died -- supervision gap noted in FOLLOWUPS.
 
 ## (G17) 12VHPWR FUN-RUN — STRAIGHT-THROUGH STILL NOT ACHIEVED (2026-07-09 ~16:00)
 Owner fun-run: 12vhpwr fresh at 60x40, connectors-only. THREE runs so far; owner render
