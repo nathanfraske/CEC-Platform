@@ -623,13 +623,15 @@ def gates(model, pose, routes):
         a, b = sorted(tap_lens.values())
         if b - a > TAP_SKEW_MAX:
             fails.append(f"tap_skew:{b - a:.2f}mm")
-    # stand-in encroachment: a FOREIGN-net pad planted on/next to the fixed
-    # pour/lane copper is infeasible on the real board (the search must not
-    # reclaim the force copper's real estate)
+    # stand-in encroachment: NO non-anchor pad may sit on/next to the fixed
+    # pour/lane/via copper -- same-net included (owner 2026-07-10: RFL4 planted
+    # on the LO lane + via fan "where it would be terrible" -- a via under a pad
+    # is an assembly defect, and sensing off the force copper defeats Kelvin).
+    # Only the ANCHOR is exempt: the shunt sits in its lane by design.
     for (ref, pad), r in model.pad_role.items():
+        if ref == model.anchor:
+            continue
         for srole, (bx0, bx1, by0, by1) in model.standin_fcu:
-            if srole == r:
-                continue
             x, y, hw, hh = model.pad_at(pose, ref, pad)
             if not (x + hw + CLR_MM <= bx0 or x - hw - CLR_MM >= bx1 or
                     y + hh + CLR_MM <= by0 or y - hh - CLR_MM >= by1):
@@ -721,6 +723,66 @@ def _soft_cost(model, pose):
     return 40.0 * ov + ref_pen + gate_pen + base, routes
 
 
+GND_VIA_DIA = 0.6
+GND_VIA_DRILL = 0.3
+
+
+def synth_gnd_vias(model, pose, routes):
+    """Grounding vias (owner 2026-07-10): every non-anchor GND pad gets a
+    stitching via adjacent to it (short stub, via into the plane). Candidate
+    ring around the pad, first position whose via barrel AND stub lay clear of
+    all foreign copper, routes, stand-ins, and previously placed vias wins.
+    Returns (vias, stubs, missing): vias=[{at_rel_mm, dia_mm, drill_mm}],
+    stubs=[(x1,y1,x2,y2)], missing=[ref.pad] (reported, never forced)."""
+    vias, stubs, missing = [], [], []
+    laid = [(r, s) for r, ss in routes.items() for s in ss]
+    r_via = GND_VIA_DIA / 2.0
+    for ref, pad in sorted(model.role_pads.get("GND", [])):
+        if ref == model.anchor:
+            continue
+        px, py, hw, hh = model.pad_at(pose, ref, pad)
+        cx, cy, _ = pose[ref]
+        obstacles = model.foreign_pad_boxes(pose, "GND")
+        placed = False
+        # ring: outward from the part centre first, then the other directions,
+        # at growing standoff
+        dirs = sorted(((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)),
+                      key=lambda d: -((px - cx) * d[0] + (py - cy) * d[1]))
+        for standoff in (0.55, 0.75, 1.0):
+            if placed:
+                break
+            for dx, dy in dirs:
+                n = math.hypot(dx, dy)
+                vx = px + dx / n * (max(hw, hh) + r_via + standoff - 0.35)
+                vy = py + dy / n * (max(hw, hh) + r_via + standoff - 0.35)
+                vbox = (vx - r_via, vx + r_via, vy - r_via, vy + r_via)
+                stub = (px, py, vx, vy)
+                clear = all(vbox[1] + CLR_MM <= b[0] or vbox[0] - CLR_MM >= b[1] or
+                            vbox[3] + CLR_MM <= b[2] or vbox[2] - CLR_MM >= b[3]
+                            for b in obstacles)
+                clear = clear and all(
+                    _seg_box_clear((v["at_rel_mm"][0], v["at_rel_mm"][1],
+                                    v["at_rel_mm"][0], v["at_rel_mm"][1]), vbox,
+                                   CLR_MM + r_via) for v in vias)
+                clear = clear and all(_seg_box_clear(s, vbox, CLR_MM + TRACK_W / 2.0)
+                                      for _r, s in laid)
+                if not clear:
+                    continue
+                try:
+                    _check([stub], "GND", obstacles, laid)
+                except Refusal:
+                    continue
+                vias.append({"at_rel_mm": [round(vx, 4), round(vy, 4)],
+                             "dia_mm": GND_VIA_DIA, "drill_mm": GND_VIA_DRILL})
+                stubs.append(stub)
+                laid.append(("GND", stub))
+                placed = True
+                break
+        if not placed:
+            missing.append(f"{ref}.{pad}")
+    return vias, stubs, missing
+
+
 def lint_routes(model, pose, routes):
     """Route LINT (owner 2026-07-10: 'strange double-backs'): shortcut pass over
     each role's contiguous chains -- replace any sub-chain with a straight
@@ -732,11 +794,17 @@ def lint_routes(model, pose, routes):
     for role in sorted(routes):
         segs = [tuple(s) for s in routes[role]]
         obstacles = model.foreign_pad_boxes(pose, role)
+        # TEXTBOOK PROTECTION (owner 2026-07-10: B3's lint shortcut the inward
+        # exit into a direct outward run): a tap's first two strokes -- the
+        # inner-edge exit and the perpendicular 90 -- are load-bearing geometry,
+        # never lint fodder. They stay at indices 0/1 because replacements
+        # below never start before i0.
+        i0 = 2 if role in model.tap_roles else 0
         improved = True
         while improved:
             improved = False
             n = len(segs)
-            for i in range(n):
+            for i in range(i0, n):
                 if improved:
                     break
                 for j in range(i + 1, n):
@@ -791,10 +859,16 @@ def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
     for role in sorted(routes):
         segs = [list(s) for s in routes[role]]
         obstacles = model.foreign_pad_boxes(pose, role)
+        # TEXTBOOK PROTECTION: a tap's pad-exit corner and its perpendicular 90
+        # stay SQUARE (owner: "the textbook perpendicular 90"; B3's mitre had
+        # chamfered them into 45 ramps). Segs 0/1 = stub + perp; skipping
+        # corners before index 2 protects both corners, and chamfer insertions
+        # all land at i >= 2 so the indices hold.
+        c0 = 2 if role in model.tap_roles else 0
         changed = True
         while changed:
             changed = False
-            for i in range(len(segs) - 1):
+            for i in range(c0, len(segs) - 1):
                 a, b = segs[i], segs[i + 1]
                 # corner = a's end meets b's start, one horizontal + one vertical
                 if abs(a[2] - b[0]) > 1e-9 or abs(a[3] - b[1]) > 1e-9:
@@ -1033,6 +1107,69 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
     }
 
 
+def renudge(model, blueprint_pose, *, seed=0, budget_evals=1500, max_shift=0.8, grid=0.05):
+    """STAMP-TIME NUDGE (owner 2026-07-10: "send it back to the blueprint
+    factory to make small nudges as needed to build around the actual needs of
+    the board"): constrained re-refinement around a blueprint pose against THIS
+    model's context -- build the CellModel from a template whose stand-ins were
+    extracted at the DESTINATION instance, so the search sees the real board's
+    needs. Small moves only (slides + jitter capped at max_shift from the
+    blueprint, no rotation, no swaps): the blueprint's character is preserved,
+    its seating adapts. Returns {pose, routes, score} of the best gate-clean
+    variant, or None -- the caller escalates (never force-fits)."""
+    import random
+    movable = [r for r in model.parts if r != model.anchor]
+    rnd = random.Random(seed)
+    best = None
+
+    def accept(p):
+        nonlocal best
+        try:
+            routes = synth_routes(model, p)
+        except Refusal:
+            return
+        if gates(model, p, routes):
+            return
+        s = score(model, p, routes)
+        if best is None or s < best["score"]:
+            best = {"pose": dict(p), "routes": routes, "score": s}
+
+    pose = {r: tuple(blueprint_pose[r]) for r in model.parts}
+    accept(pose)
+    cost, _ = _soft_cost(model, pose)
+    n = 2
+    T = 0.5
+    while n < budget_evals:
+        r = rnd.choice(movable)
+        old = pose[r]
+        if rnd.random() < 0.35:
+            axis = rnd.randrange(2)
+            direction = -1.0 if old[axis] > 0 else 1.0
+            cand = _slide_to_contact(model, pose, r, axis, direction)
+        else:
+            step = grid * rnd.randrange(1, max(2, int(max_shift / grid) + 1))
+            cand = (old[0] + rnd.choice((-1, 1)) * step,
+                    old[1] + rnd.choice((-1, 1)) * step, old[2])
+        bp = blueprint_pose[r]
+        if cand is None or abs(cand[0] - bp[0]) > max_shift or abs(cand[1] - bp[1]) > max_shift:
+            continue                              # nudges stay nudges
+        pose[r] = cand
+        nc, routes = _soft_cost(model, pose)
+        n += 1
+        if nc > cost and rnd.random() >= math.exp((cost - nc) / max(T, 1e-3)):
+            pose[r] = old
+        else:
+            cost = nc
+            if routes:
+                g = gates(model, pose, routes)
+                if not g:
+                    s = score(model, pose, routes)
+                    if best is None or s < best["score"]:
+                        best = {"pose": dict(pose), "routes": routes, "score": s}
+        T *= 0.999
+    return best
+
+
 def to_refined_template(model, pose, routes):
     """A NEW template (stamp-compatible) carrying the refined poses + synthesized
     copper. Internal AND routed-port copper rides internal_tracks (stamp resolves
@@ -1242,6 +1379,17 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         if net in nets:
             t.SetNet(nets[net])
         board.Add(t)
+    # grounding vias (owner 2026-07-10) -- their stubs ride internal_tracks
+    gnd_net = (template.get("net_roles") or {}).get("GND")
+    for gv in template.get("gnd_vias", []):
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(pcbnew.VECTOR2I(int((ox + gv["at_rel_mm"][0]) * MM),
+                                      int((oy + gv["at_rel_mm"][1]) * MM)))
+        v.SetDrill(int(gv.get("drill_mm", GND_VIA_DRILL) * MM))
+        v.SetWidth(int(gv.get("dia_mm", GND_VIA_DIA) * MM))
+        if gnd_net in nets:
+            v.SetNet(nets[gnd_net])
+        board.Add(v)
     # boundary-copper stand-ins: the fixed pour/lane context, as REAL copper so
     # DRC judges taps landing on it and clearance to it (owner ask 2026-07-10)
     zones_to_fill = []
@@ -1321,6 +1469,18 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         s.SetStart(pcbnew.VECTOR2I(int((ox + ax) * MM), int((oy + ay) * MM)))
         s.SetEnd(pcbnew.VECTOR2I(int((ox + bx) * MM), int((oy + by) * MM)))
         board.Add(s)
+    # a real B.Cu GND plane when the cell carries grounding vias, so they land
+    # in copper instead of dangling (the stamped cell's plane is the board's)
+    if template.get("gnd_vias") and gnd_net in nets:
+        z = pcbnew.ZONE(board)
+        z.SetLayer(board.GetLayerID("B.Cu"))
+        z.SetNet(nets[gnd_net])
+        outline = z.Outline()
+        outline.NewOutline()
+        for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+            outline.Append(int((ox + px) * MM), int((oy + py) * MM))
+        board.Add(z)
+        zones_to_fill.append(z)
     if zones_to_fill:                             # real ZONE_FILLER (kicad-cli cannot fill)
         filler = pcbnew.ZONE_FILLER(board)
         filler.Fill(board.Zones())
@@ -1457,7 +1617,17 @@ def main(argv=None):
                 out["mitre"] = {"segments_before": n90,
                                 "segments_after": sum(len(s) for s in mitred.values())}
         out["best_metrics"] = _metrics_of(model, best_pose, best_routes)
+        gvias, gstubs, gmissing = synth_gnd_vias(model, best_pose, best_routes)
+        out["gnd_vias"] = len(gvias)
+        if gmissing:
+            out["gnd_via_missing"] = gmissing     # reported, never forced
         refined = to_refined_template(model, best_pose, best_routes)
+        refined["gnd_vias"] = gvias
+        refined["internal_tracks"] += [
+            {"net_role": "GND", "layer": "F.Cu",
+             "start_rel_mm": [round(s[0], 4), round(s[1], 4)],
+             "end_rel_mm": [round(s[2], 4), round(s[3], 4)], "width_mm": TRACK_W}
+            for s in gstubs]
         with open(os.path.join(out_dir, "refined-template.json"), "w") as fh:
             json.dump(refined, fh, indent=1)
         emit_microboard(model.t, os.path.join(out_dir, "baseline.kicad_pcb"))

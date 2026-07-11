@@ -227,6 +227,115 @@ class TestTextbookTap(unittest.TestCase):
             cr.synth_routes(self.model, pose)
 
 
+class TestTextbookProtection(unittest.TestCase):
+    """Owner 2026-07-10 (B3 review): lint/mitre must never touch the textbook
+    strokes -- B3's lint shortcut an inward exit into a direct outward run and
+    its mitre chamfered the perpendicular 90 into 45 ramps."""
+
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+        self.routes = cr.synth_routes(self.model, self.model.base_pose)
+
+    def _assert_textbook(self, routes):
+        for role in self.model.tap_roles:
+            s0, s1 = routes[role][0], routes[role][1]
+            self.assertAlmostEqual(s0[1], s0[3], places=6, msg=f"{role} stroke0 not row-axis")
+            self.assertAlmostEqual(s1[0], s1[2], places=6, msg=f"{role} stroke1 not perpendicular")
+            # the two textbook corners stay square (no 45 ramp replaced them)
+            self.assertAlmostEqual(s0[2], s1[0], places=6)
+            self.assertAlmostEqual(s0[3], s1[1], places=6)
+
+    def test_lint_then_mitre_preserve_textbook(self):
+        linted = cr.lint_routes(self.model, self.model.base_pose, self.routes)
+        self._assert_textbook(linted)
+        mitred = cr.mitre_routes(self.model, self.model.base_pose, linted)
+        self._assert_textbook(mitred)
+
+    def test_nonanchor_pad_on_own_lane_clashes(self):
+        t = lane_template()
+        # LO-net lane track right where RFL could be packed
+        t["standins"] = [{"net_role": "/SENSEP{n}_LO", "kind": "track", "layer": "F.Cu",
+                          "start_rel_mm": [5.0, -8.0], "end_rel_mm": [5.0, 0.0],
+                          "width_mm": 2.5}]
+        m = cr.CellModel(t)
+        pose = dict(m.base_pose)
+        pose["RFL"] = (5.0, -3.0, 0.0)             # RFL pad1 (same net!) onto the lane
+        try:
+            routes = cr.synth_routes(m, pose)
+        except cr.Refusal:
+            return
+        fails = cr.gates(m, pose, routes)
+        self.assertTrue(any(f.startswith("standin_clash:RFL") for f in fails), fails)
+
+
+class TestGndVias(unittest.TestCase):
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+        self.routes = cr.synth_routes(self.model, self.model.base_pose)
+
+    def test_vias_synthesized_for_gnd_pads(self):
+        vias, stubs, missing = cr.synth_gnd_vias(self.model, self.model.base_pose, self.routes)
+        n_gnd = sum(1 for r, _p in self.model.role_pads["GND"] if r != self.model.anchor)
+        self.assertEqual(missing, [])
+        self.assertEqual(len(vias), n_gnd)
+        self.assertEqual(len(stubs), n_gnd)
+        # every via clears every foreign pad by CLR
+        obstacles = self.model.foreign_pad_boxes(self.model.base_pose, "GND")
+        r_via = cr.GND_VIA_DIA / 2.0
+        for v in vias:
+            vx, vy = v["at_rel_mm"]
+            for b in obstacles:
+                self.assertTrue(vx + r_via + cr.CLR_MM <= b[0] or vx - r_via - cr.CLR_MM >= b[1] or
+                                vy + r_via + cr.CLR_MM <= b[2] or vy - r_via - cr.CLR_MM >= b[3],
+                                f"via {v} encroaches {b}")
+
+    def test_deterministic(self):
+        a = cr.synth_gnd_vias(self.model, self.model.base_pose, self.routes)
+        b = cr.synth_gnd_vias(self.model, self.model.base_pose, self.routes)
+        self.assertEqual(a[0], b[0])
+
+
+class TestRenudge(unittest.TestCase):
+    """Stamp-time loop-back (owner: 'send it back to the blueprint factory')."""
+
+    def test_recovers_blocked_blueprint(self):
+        t = lane_template()
+        # destination context: a lane stub NICKING the U pad column. MEASURED
+        # geometry (two guessed placements failed): SOIC pad right edge =
+        # 19.475 + hw 0.875 = 20.35; lane centre 21.0 (box left 20.5) makes the
+        # clash depth 20.55-20.5 = 0.05mm -- squarely nudge-recoverable.
+        # (x20.3 needed a 0.75mm shift that CF/CB courtyards block; x17 sat in
+        # the SOIC body zone clashing nothing.)
+        t["standins"] = [{"net_role": "/SENSEP{n}_HI", "kind": "track", "layer": "F.Cu",
+                          "start_rel_mm": [21.0, -6.0], "end_rel_mm": [21.0, 2.0],
+                          "width_mm": 1.0}]
+        m = cr.CellModel(t)
+        try:                                       # broken-at-destination premise:
+            base_fails = cr.gates(m, m.base_pose,  # gate fail OR routing refusal
+                                  cr.synth_routes(m, m.base_pose))
+            self.assertTrue(base_fails,
+                            "premise broken: blueprint should fail at the destination")
+        except cr.Refusal:
+            pass
+        r = cr.renudge(m, m.base_pose, budget_evals=800)
+        self.assertIsNotNone(r, "renudge failed to seat the blueprint")
+        # nudges stayed nudges
+        for ref, (dx, dy, rot) in r["pose"].items():
+            bx, by, brot = m.base_pose[ref]
+            self.assertLessEqual(abs(dx - bx), 0.8 + 1e-9)
+            self.assertLessEqual(abs(dy - by), 0.8 + 1e-9)
+            self.assertEqual(rot, brot)            # no rotation in a nudge
+
+    def test_returns_none_when_impossible(self):
+        t = lane_template()
+        # wall off the whole cell body band: nothing a <=0.8mm nudge can fix
+        t["standins"] = [{"net_role": "/SENSEP{n}_HI", "kind": "zone", "layer": "F.Cu",
+                          "box_rel_mm": [4.0, 30.0, -4.0, 4.0]}]
+        m = cr.CellModel(t)
+        r = cr.renudge(m, m.base_pose, budget_evals=400)
+        self.assertIsNone(r)
+
+
 class TestLintAndEfficacy(unittest.TestCase):
     def setUp(self):
         self.model = cr.CellModel(lane_template(), pitch_axis="y")
