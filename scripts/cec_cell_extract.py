@@ -501,8 +501,12 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None,
     if apply:
         if board is None:
             raise ValueError("apply=True requires a loaded pcbnew board")
+        # KiCad-10 SWIG footgun (5th of the recorded family): FindFootprintByReference
+        # returns an un-downcast SwigPyObject with no methods -- go through the
+        # properly-proxied GetFootprints() list instead
+        fps = {f.GetReference(): f for f in board.GetFootprints()}
         for dref, (x, y, r, _fl) in placement.items():
-            fp = board.FindFootprintByReference(dref)
+            fp = fps.get(dref)
             if fp is None:
                 raise KeyError(f"apply: dest ref {dref!r} not found on board")
             fp.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
