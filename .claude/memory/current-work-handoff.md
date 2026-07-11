@@ -1,5 +1,28 @@
 # Current work handoff
 
+## (G19) CELL-REFINE LOOP LANDED + FIRST OUTING — 2026-07-10 ~19:45 (branch claude/pipeline-consolidation)
+Prior session CRASHED mid-task (session death, NOT a WSL restart — uptime 1d22h, dashboard
+:8090 alive/serving; owner asked, verified). Picked up and FINISHED the owner-GO'd
+blueprint-cell refinement loop: **scripts/cec_cell_refine.py + tests/test_cell_refine.py
+COMMITTED** (10/10 host tests green). Owner rulings bound in the module header: single-face
+first (dual-side deferred until connector width limits), before/after OWNER panels (machine
+score ranks, owner ratifies), netlist-only finder, scope = blueprint refinement/routing only,
+NO waves. FIRST OUTING (12vhpwr RS4 lane, 6 parts): **improved: false** — 18,006 fully-routed
+gated variants in 78s (230/s) never beat the hand pose; resynth baseline routes taps in-cell
+(copper 95mm vs hand 20mm — hand serves taps/+3V3 from OUTER copper/pour, which is also why
+hand tap_lens reads 0, NOT a bug). REAL-TOOL ACCEPTANCE run post-crash: both microboards
+kicad-cli DRC copper-clean (silk-only cosmetics); refined unconn = GND only (plane-served by
+design); baseline's extra ratlines = the externally-served hand nets. Owner panel
+build/cell-refine-panel-hpwr-RS4.png logged to the dash feed (worklog). FINDER run on the
+12vhpwr board: groups lanes 1-5 + the NTC divider pair; lane 6 EXCLUDED because R5's divider
+tap on /SENSEP6_HI changes the fingerprint -> FOLLOWUPS (tolerate foreign taps on port nets).
+Cleanup: reaped 6 stale FR JVMs (Jul-9 leftovers, in-container); REVERTED 4 footprints'
+Jul-7 KiCad-10 resave churn (root-uuid drop!) + deleted stray routed-drc.json — a container
+leg is resaving lib footprints, writer unidentified (FOLLOWUPS). NEXT: owner denotes the
+panel verdict; next levers if pursuing = finer grid/score weights/EPS sense cell (FOLLOWUPS
+2026-07-10); G18's open threads unchanged (owner render-verdict on the seed_anchors fix,
+uniformity-merge lane, eps diff=F, pcie kelvin, test_corridor_model pre-existing red).
+
 ## (G18) SCOPING PASS + G17 ROOT CAUSE CLOSED — 2026-07-10 ~23:15 (branch claude/pipeline-consolidation)
 OWNER ASK (scoping only, NO runs/waves): shader-worthiness for GPU-run/router/placer/FEM +
 placer parallelization/packing + FEM completeness audit (opus agent). DELIVERED — standing
