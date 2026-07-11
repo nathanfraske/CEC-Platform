@@ -278,6 +278,24 @@ class CellModel:
         out.extend(box for r, box in self.standin_fcu if r != role)
         return out
 
+    def route_obstacles(self, pose, role):
+        """Routing obstacles for `role` -- foreign copper, PLUS for TAP roles the
+        SENSE DISCIPLINE set (owner 2026-07-11: the B4 LO tap doubled back
+        through the shunt pad and the via field, all same-net so the router
+        allowed it): a Kelvin tap that touches its own force copper after
+        leaving the pad senses the lane, not the pad's inner edge -- so the
+        role's own stand-ins AND its own anchor pad are obstacles too (the exit
+        stub, which lies on the pad by construction, is checked against the
+        foreign set only)."""
+        out = self.foreign_pad_boxes(pose, role)
+        if role in self.tap_roles:
+            out.extend(box for r, box in self.standin_fcu if r == role)
+            for ref, pad in self.role_pads[role]:
+                if ref == self.anchor:
+                    x, y, hw, hh = self.pad_at(pose, ref, pad)
+                    out.append((x - hw, x + hw, y - hh, y + hh))
+        return out
+
 
 # --------------------------------------------------------------------------
 # Routing synthesis (route-in-the-loop)
@@ -350,7 +368,8 @@ def synth_routes_partial(model, pose):
             (r1, p1), (r2, p2) = (r2, p2), (r1, p1)
         ax, ay, ahw, ahh = model.pad_at(pose, r1, p1)             # anchor pad
         tx, ty, _, _ = model.pad_at(pose, r2, p2)                 # target pad
-        obstacles = model.foreign_pad_boxes(pose, role)
+        obstacles = model.foreign_pad_boxes(pose, role)           # stub set (lies on the pad)
+        post_obs = model.route_obstacles(pose, role)              # + sense discipline
         if row_x:                                                 # pads run along X
             dir_in = math.copysign(1.0, (acx - ax) or 1.0)
             inner = ax + dir_in * ahw
@@ -381,20 +400,22 @@ def synth_routes_partial(model, pose):
                      (ax + sgn * (ahw + clear), turn[1])
                 perp = (turn[0], turn[1], wp[0], wp[1])
                 try:
-                    _check([stub, perp], role, obstacles, laid)
+                    _check([stub], role, obstacles, laid)
+                    _check([perp], role, post_obs, laid)
                 except Refusal as e:
                     last = e
                     continue
                 for l in _l_paths(wp, (tx, ty)):
                     try:
-                        lay(role, _check([stub, perp, *l], role, obstacles, laid))
+                        _check(list(l), role, post_obs, laid)
+                        lay(role, [stub, perp, *l])
                         done = True
                         break
                     except Refusal as e:
                         last = e
                 if not done:                                      # maze from the waypoint
                     try:
-                        segs = _route_hop(wp, (tx, ty), role, obstacles,
+                        segs = _route_hop(wp, (tx, ty), role, post_obs,
                                           laid + [(role, stub), (role, perp)])
                         lay(role, [stub, perp] + segs)
                         done = True
@@ -793,6 +814,51 @@ def synth_gnd_vias(model, pose, routes):
                 placed = True
                 break
         if not placed:
+            # rung 2: SHARE an already-placed GND via (adjacent pin clusters --
+            # the INA240's 4 GND-role pins do not need 4 barrels)
+            for v in vias:
+                try:
+                    segs = _route_hop((px, py), tuple(v["at_rel_mm"]), "GND", obstacles, laid)
+                except Refusal:
+                    continue
+                stubs.extend(segs)
+                laid.extend(("GND", s) for s in segs)
+                placed = True
+                break
+        if not placed:
+            # rung 3: WIDE REACH -- the lane band under a compacted cell blocks
+            # every adjacent barrel (measured 2026-07-11: the INA240 got NO
+            # ground via, only the bypass cap's); reach past the band with a
+            # ROUTED stub to a barrel-legal site
+            barrel_obs = obstacles + [b for r_, b in model.standin_all if r_ != "GND"]
+            for R in (1.6, 2.2, 2.8, 3.4):
+                if placed:
+                    break
+                for k in range(12):
+                    a = 2.0 * math.pi * k / 12.0
+                    vx, vy = px + R * math.cos(a), py + R * math.sin(a)
+                    vbox = (vx - r_via, vx + r_via, vy - r_via, vy + r_via)
+                    if not all(vbox[1] + CLR_MM <= b[0] or vbox[0] - CLR_MM >= b[1] or
+                               vbox[3] + CLR_MM <= b[2] or vbox[2] - CLR_MM >= b[3]
+                               for b in barrel_obs):
+                        continue
+                    if not all(math.hypot(v["at_rel_mm"][0] - vx, v["at_rel_mm"][1] - vy)
+                               >= GND_VIA_DIA + CLR_MM for v in vias):
+                        continue
+                    if not all(_seg_box_clear(s, vbox, CLR_MM + TRACK_W / 2.0)
+                               for _r, s in laid):
+                        continue
+                    try:
+                        segs = _route_hop((px, py), (vx, vy), "GND", obstacles, laid)
+                    except Refusal:
+                        continue
+                    vias.append({"at_rel_mm": [round(vx, 4), round(vy, 4)],
+                                 "dia_mm": GND_VIA_DIA, "drill_mm": GND_VIA_DRILL})
+                    stubs.extend(segs)
+                    laid.extend(("GND", s) for s in segs)
+                    placed = True
+                    break
+        if not placed:
             missing.append(f"{ref}.{pad}")
     return vias, stubs, missing
 
@@ -807,7 +873,7 @@ def lint_routes(model, pose, routes):
     all_other = [(r, s) for r, ss in routes.items() for s in ss]
     for role in sorted(routes):
         segs = [tuple(s) for s in routes[role]]
-        obstacles = model.foreign_pad_boxes(pose, role)
+        obstacles = model.route_obstacles(pose, role)   # taps: sense discipline holds in lint
         # TEXTBOOK PROTECTION (owner 2026-07-10: B3's lint shortcut the inward
         # exit into a direct outward run): a tap's first two strokes -- the
         # inner-edge exit and the perpendicular 90 -- are load-bearing geometry,
@@ -872,7 +938,7 @@ def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
     all_other = [(role, s) for role, segs in routes.items() for s in segs]
     for role in sorted(routes):
         segs = [list(s) for s in routes[role]]
-        obstacles = model.foreign_pad_boxes(pose, role)
+        obstacles = model.route_obstacles(pose, role)   # taps: sense discipline holds in mitre
         # TEXTBOOK PROTECTION: a tap's pad-exit corner and its perpendicular 90
         # stay SQUARE (owner: "the textbook perpendicular 90"; B3's mitre had
         # chamfered them into 45 ramps). Segs 0/1 = stub + perp; skipping
