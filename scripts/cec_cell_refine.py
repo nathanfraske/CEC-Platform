@@ -585,12 +585,14 @@ def gates(model, pose, routes):
     """Hard gates; returns [] when clean, else named failures."""
     fails = []
     refs = list(model.parts)
-    boxes = {r: model.courtyard(pose, r) for r in refs}
-    for i, a in enumerate(refs):
-        A = boxes[a]
+    eps = 1e-6                                    # exactly-touching courtyards are LEGAL;
+    boxes = {r: model.courtyard(pose, r) for r in refs}   # without eps a 4dp template
+    for i, a in enumerate(refs):                  # round-trip flips the tie by 1e-16
+        A = boxes[a]                              # (measured 2026-07-10)
         for b in refs[i + 1:]:
             B = boxes[b]
-            if not (A[1] <= B[0] or B[1] <= A[0] or A[3] <= B[2] or B[3] <= A[2]):
+            if not (A[1] <= B[0] + eps or B[1] <= A[0] + eps or
+                    A[3] <= B[2] + eps or B[3] <= A[2] + eps):
                 fails.append(f"overlap:{a}+{b}")
     tap_lens = {}
     for role in model.tap_roles:
@@ -722,6 +724,16 @@ def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
                 bh = abs(b[1] - b[3]) < 1e-9
                 if ah == bh:
                     continue
+                # T-junction guard: only a TRUE 2-segment corner may be cut --
+                # shortening both legs of a corner a third segment also lands on
+                # leaves that branch dangling (measured 2026-07-10: IN4_P split
+                # into two islands on the real board's connectivity)
+                px_, py_ = a[2], a[3]
+                arrivals = sum(1 for s in segs
+                               if (abs(s[0] - px_) < 1e-6 and abs(s[1] - py_) < 1e-6) or
+                                  (abs(s[2] - px_) < 1e-6 and abs(s[3] - py_) < 1e-6))
+                if arrivals != 2:
+                    continue
                 la = math.hypot(a[2] - a[0], a[3] - a[1])
                 lb = math.hypot(b[2] - b[0], b[3] - b[1])
                 d = min(d_max, 0.4 * la, 0.4 * lb)
@@ -745,6 +757,38 @@ def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
         out[role] = [tuple(s) for s in segs]
         all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss]
     return out
+
+
+def _slide_to_contact(model, pose, r, axis, direction, gap=0.1):
+    """Max slide of part r along axis (+/-1) before its courtyard contacts another
+    part's courtyard or an F.Cu stand-in, minus `gap`. Returns the new (dx, dy)
+    or None when there is no room (or nothing to slide toward within 25mm).
+    THE compaction move (owner 2026-07-10: 'not moving placements at all to
+    compact it down') -- jitter+hug alone rarely walk into tight packings before
+    the overlap penalty rejects the path; sliding TO contact jumps straight to
+    the packed frontier and lets routing/gates veto."""
+    rb = model.courtyard(pose, r)
+    lo, hi = (rb[2], rb[3]) if axis == 0 else (rb[0], rb[1])      # perpendicular span
+    lead = rb[1] if (axis == 0 and direction > 0) else rb[0] if axis == 0 \
+        else rb[3] if direction > 0 else rb[2]
+    limit = 25.0
+    solids = [model.courtyard(pose, o) for o in model.parts if o != r]
+    solids += [box for _role, box in model.standin_fcu]
+    for B in solids:
+        blo, bhi = (B[2], B[3]) if axis == 0 else (B[0], B[1])
+        if bhi <= lo or blo >= hi:                                # no perpendicular overlap
+            continue
+        near = (B[0] if direction > 0 else B[1]) if axis == 0 else \
+               (B[2] if direction > 0 else B[3])
+        far = (B[1] if direction > 0 else B[0]) if axis == 0 else \
+              (B[3] if direction > 0 else B[2])
+        if (far - lead) * direction <= 0:
+            continue                                              # entirely behind: not in path
+        limit = min(limit, max((near - lead) * direction - gap, 0.0))
+    if limit <= 1e-6 or limit >= 25.0:
+        return None
+    dx, dy, rot = pose[r]
+    return (dx + direction * limit, dy, rot) if axis == 0 else (dx, dy + direction * limit, rot)
 
 
 # --------------------------------------------------------------------------
@@ -804,11 +848,18 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
             r = rnd.choice(movable)
             old = pose[r]
             roll = rnd.random()
-            if roll < 0.55:                        # grid jitter
+            if roll < 0.45:                        # grid jitter
                 pose[r] = (snap(old[0] + rnd.choice((-1, 1)) * grid * rnd.randrange(1, 6)),
                            snap(old[1] + rnd.choice((-1, 1)) * grid * rnd.randrange(1, 6)), old[2])
-            elif roll < 0.72:                      # rotate in place
+            elif roll < 0.60:                      # rotate in place
                 pose[r] = (old[0], old[1], (old[2] + rnd.choice((90.0, 180.0, 270.0))) % 360.0)
+            elif roll < 0.78:                      # COMPACT: slide to contact toward the anchor
+                axis = rnd.randrange(2)
+                direction = -1.0 if (old[axis] > 0) else 1.0      # anchor sits at (0,0)
+                slid = _slide_to_contact(model, pose, r, axis, direction)
+                if slid is None:
+                    continue
+                pose[r] = slid                    # NOT snapped: snapping can round back into contact
             elif roll < 0.92 and len(movable) >= 2:  # HUG: pack against another part's courtyard
                 o = rnd.choice([x for x in model.parts if x != r])
                 ob = model.courtyard(pose, o)
@@ -866,10 +917,18 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
         while n_evals < budget_evals:
             r = rnd.choice(movable)
             old = pose[r]
-            step = polish_grid * rnd.randrange(1, 5)
-            pose[r] = (round((old[0] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
-                       round((old[1] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
-                       old[2])
+            if rnd.random() < 0.3:                # polish compacts too, not just dithers
+                axis = rnd.randrange(2)
+                direction = -1.0 if (old[axis] > 0) else 1.0
+                slid = _slide_to_contact(model, pose, r, axis, direction)
+                if slid is None:
+                    continue
+                pose[r] = slid
+            else:
+                step = polish_grid * rnd.randrange(1, 5)
+                pose[r] = (round((old[0] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
+                           round((old[1] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
+                           old[2])
             nc, routes = _soft_cost(model, pose)
             n_evals += 1
             if nc > cost and rnd.random() >= math.exp((cost - nc) / max(T, 1e-3)):
@@ -1052,7 +1111,12 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         board.Add(fp)
         fp.SetPosition(pcbnew.VECTOR2I(int((ox + sp["offset_mm"][0]) * MM),
                                        int((oy + sp["offset_mm"][1]) * MM)))
-        fp.SetOrientationDegrees(-float(sp.get("rot_delta", 0.0)))
+        # +rot_delta: KiCad's y-down RotatePoint IS this module's _rot(+theta);
+        # the old -rot emitted 90/270-rotated parts with their pads TRANSPOSED
+        # vs the model (masked on 0/180-only cells; caught coordinate-by-
+        # coordinate on the first searched pose that rotated parts, 2026-07-10:
+        # 9 real DRC shorts on a "gates-clean" refined board)
+        fp.SetOrientationDegrees(float(sp.get("rot_delta", 0.0)))
         for pad in fp.Pads():
             role = pad_role.get((ref, pad.GetNumber()))
             if role and template["net_roles"].get(role) in nets:

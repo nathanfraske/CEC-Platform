@@ -191,6 +191,44 @@ class TestMitre(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class TestCompaction(unittest.TestCase):
+    """Slide-to-contact compaction (owner 2026-07-10: 'not moving placements
+    at all to compact it down')."""
+
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+
+    def test_slide_reaches_contact_not_overlap(self):
+        pose = dict(self.model.base_pose)
+        pose["U"] = (30.0, 0.0, 180.0)             # park the SOIC far out +x
+        slid = cr._slide_to_contact(self.model, pose, "U", 0, -1.0)
+        self.assertIsNotNone(slid)
+        self.assertLess(slid[0], 30.0)             # moved toward the anchor
+        pose["U"] = slid
+        fails = [f for f in cr.gates(self.model, pose, {}) if f.startswith("overlap:U")]
+        self.assertEqual(fails, [], "slide must stop at contact, never overlap")
+
+    def test_slide_ignores_obstacles_behind(self):
+        pose = dict(self.model.base_pose)
+        pose["U"] = (30.0, 0.0, 180.0)
+        # CB sits behind U (x ~12): sliding U further +x must not be blocked by it
+        slid = cr._slide_to_contact(self.model, pose, "U", 0, 1.0)
+        self.assertIsNone(slid)                    # nothing ahead within 25mm -> no move
+
+    def test_search_compacts_spread_template(self):
+        t = lane_template()
+        for ref in ("RFH", "RFL", "CF", "U", "CB"):  # scatter the cell wide
+            off = t["parts"][ref]["offset_mm"]
+            t["parts"][ref]["offset_mm"] = [off[0] * 1.8, off[1] * 1.8]
+        m = cr.CellModel(t, pitch_axis="y")
+        r = cr.refine(m, seed=0, iters=400, budget_evals=2500)
+        self.assertIsNotNone(r["best"])
+        base_w, base_h = cr.parts_extents(m, m.base_pose)
+        best_w, best_h = cr.parts_extents(m, r["best"]["pose"])
+        self.assertLess(best_w * best_h, base_w * base_h,
+                        f"no compaction: {base_w:.1f}x{base_h:.1f} -> {best_w:.1f}x{best_h:.1f}")
+
+
 class TestGradedRefusal(unittest.TestCase):
     """synth_routes_partial + graded soft cost (2026-07-10): an infeasible pose
     must cost MORE the more roles refuse, and partial routes are never accepted."""
