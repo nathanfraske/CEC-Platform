@@ -1,5 +1,21 @@
 # Current work handoff
 
+## (G20b) RUN A LANDED + GRADED-REFUSAL A/B IN FLIGHT — 2026-07-10 ~22:15
+RUN A (old flat-refusal cost, 40k evals/40min, seed 0): improved_vs_resynth TRUE but only
++1.1% (99.278->98.143) and ALL from the polish leg — 9/9 scrambled starts sat on the flat
+cost-85 refusal plateau, confirming the diagnosis. improved_vs_hand FALSE (hand 49.8 vs
+98.1 scored copper — hand still 2x better; the in-loop chain-router craft gap is the lever,
+FOLLOWUPS). Mitre engaged (42->68 segs). Microboard DRC: NO shorts/clearance; dangling +
+copper-edge hits = windowed stand-in context stubs (attributed hit-by-hit, e.g. the 42.7mm
+B.Cu LO lane stub); outline-margin fix for the edge hits landed (uncommitted with panel
+tweaks at session end — check git status). 3-way owner panel POSTED to dash
+(build/cell-panel-hpwr-RS4-deep.png via new scripts/cec_cell_panel.py e21cf8a).
+RUN B IN FLIGHT: same cell/seed/40k evals under the GRADED cost (e21cf8a) ->
+build/cell-refine/hpwr-RS4-deep-b (log build/cell-refine-deep-b.log, REFINE_B_DONE marker;
+expect slower evals — partial routing works through all roles). On landing: compare
+best_score + whether scrambled starts contribute (log cost lines != 85-flat), panel B,
+owner verdict. Dash pan fix verified served (hard-refresh needed browser-side).
+
 ## (G20) CELL-REFINE IMPROVEMENT PASS — 2026-07-10 ~20:40 (branch claude/pipeline-consolidation)
 Owner asks all LANDED + committed (3079ccc, pushed): (1) POUR/LANE STAND-INS — extractor
 captures boundary-net force copper (>=0.5mm tracks/zones/vias in cell window, anchor-local);
