@@ -82,6 +82,9 @@ TAP_SKEW_MAX = 8.0     # mm, HI-vs-LO tap mismatch SANITY bound only -- the hand
                        # by the score (4x weight), never hard-gated below the owner's own design
 TAP_LEN_MAX = 14.0     # mm, a tap longer than this is not a Kelvin tap
 DECOUPLER_MM = 3.0     # bypass-cap pad must sit within this of its IC supply pad
+DECOUPLER_ROUTED_MM = 5.0  # ...and the ROUTED bypass link must stay under this
+                           # (efficacy = the actual loop, not just proximity;
+                           # owner 2026-07-10 "decoupler distance and efficacy")
 
 
 def _rot(lx, ly, a_deg):
@@ -319,14 +322,14 @@ def synth_routes_partial(model, pose):
         routes[role] = segs
         laid.extend((role, s) for s in segs)
 
-    # 1) anchor taps -- an EXIT LADDER, hand-board-calibrated (the RS4 hand cell,
-    #    measured 2026-07-10): (a) canonical perpendicular exit off the pad row
-    #    (798526e) with the two L completions; (b) INNER-EDGE exit along the row
-    #    toward the shunt centre -- the hand board's own Kelvin idiom (§6.8 inner
-    #    pad edge; the between-pads region carries no copper, only body); each
-    #    exit falls back to the maze router when no plain L lays clear (the fixed
-    #    lane/pour stand-ins routinely kill both Ls -- that is real geometry, not
-    #    an edge case). First clean candidate wins (deterministic order).
+    # 1) anchor taps -- TEXTBOOK KELVIN, owner-ruled 2026-07-10 ("perpendicular
+    #    90 out of the inside of the shunt pad and then a 90 and then route to
+    #    wherever after it comes inwards for a bit, the textbook"): the tap
+    #    leaves the pad ACROSS its INNER edge (the sense point is the element
+    #    side of the pad -- maximum accuracy, §6.8), runs INWARD along the row
+    #    a short inset, takes ONE perpendicular 90, then routes to the target
+    #    (L first, maze fallback). Textbook-or-refuse: a pose that cannot seat
+    #    the textbook exit is infeasible -- no silent fallback geometry.
     anc_pads = [model.pad_at(pose, r, p)
                 for role in model.tap_roles for r, p in model.role_pads[role] if r == model.anchor]
     row_x = (abs(anc_pads[0][0] - anc_pads[1][0]) >= abs(anc_pads[0][1] - anc_pads[1][1])) \
@@ -339,43 +342,59 @@ def synth_routes_partial(model, pose):
         ax, ay, ahw, ahh = model.pad_at(pose, r1, p1)             # anchor pad
         tx, ty, _, _ = model.pad_at(pose, r2, p2)                 # target pad
         obstacles = model.foreign_pad_boxes(pose, role)
-        d = CLR_MM + TRACK_W
-        exits = []
         if row_x:                                                 # pads run along X
-            exits.append((ax, ay + math.copysign(ahh + d, (ty - ay) or 1.0)))   # perp, toward
-            exits.append((ax + math.copysign(ahw + d, (acx - ax) or 1.0), ay))  # inner edge
-            exits.append((ax, ay - math.copysign(ahh + d, (ty - ay) or 1.0)))   # perp, away
+            dir_in = math.copysign(1.0, (acx - ax) or 1.0)
+            inner = ax + dir_in * ahw
+            turns = [(inner + dir_in * ins, ay) for ins in (0.6, 1.0, 1.6)]
         else:
-            exits.append((ax + math.copysign(ahw + d, (tx - ax) or 1.0), ay))
-            exits.append((ax, ay + math.copysign(ahh + d, (acy - ay) or 1.0)))
-            exits.append((ax - math.copysign(ahw + d, (tx - ax) or 1.0), ay))
+            dir_in = math.copysign(1.0, (acy - ay) or 1.0)
+            inner = ay + dir_in * ahh
+            turns = [(ax, inner + dir_in * ins) for ins in (0.6, 1.0, 1.6)]
         last = None
         done = False
-        for exit_pt in exits:
-            stub = (ax, ay, exit_pt[0], exit_pt[1])
+        clear = CLR_MM + TRACK_W + 0.05                           # past the pad band + margin
+        for turn in turns:
+            if done:
+                break
+            stub = (ax, ay, turn[0], turn[1])                     # across the inner edge, inward
             try:
                 _check([stub], role, obstacles, laid)
             except Refusal as e:
                 last = e
                 continue
-            for l in _l_paths(exit_pt, (tx, ty)):
+            # second stroke: the perpendicular 90 must clear the SHUNT PAD BAND
+            # (a 2512 pad face is ~3.4mm tall -- an L at the target's own y runs
+            # straight across the other pad, measured); waypoint ladder = target
+            # side first, then away
+            for sgn in (math.copysign(1.0, ((ty - ay) if row_x else (tx - ax)) or 1.0),
+                        -math.copysign(1.0, ((ty - ay) if row_x else (tx - ax)) or 1.0)):
+                wp = (turn[0], ay + sgn * (ahh + clear)) if row_x else \
+                     (ax + sgn * (ahw + clear), turn[1])
+                perp = (turn[0], turn[1], wp[0], wp[1])
                 try:
-                    lay(role, _check([stub, *l], role, obstacles, laid))
-                    done = True
+                    _check([stub, perp], role, obstacles, laid)
+                except Refusal as e:
+                    last = e
+                    continue
+                for l in _l_paths(wp, (tx, ty)):
+                    try:
+                        lay(role, _check([stub, perp, *l], role, obstacles, laid))
+                        done = True
+                        break
+                    except Refusal as e:
+                        last = e
+                if not done:                                      # maze from the waypoint
+                    try:
+                        segs = _route_hop(wp, (tx, ty), role, obstacles,
+                                          laid + [(role, stub), (role, perp)])
+                        lay(role, [stub, perp] + segs)
+                        done = True
+                    except Refusal as e:
+                        last = e
+                if done:
                     break
-                except Refusal as e:
-                    last = e
-            if not done:                                          # maze from this exit
-                try:
-                    segs = _route_hop(exit_pt, (tx, ty), role, obstacles, laid)
-                    lay(role, [stub] + segs)
-                    done = True
-                except Refusal as e:
-                    last = e
-            if done:
-                break
         if not done:
-            refused.append((role, f"{role}: no tap lays clear ({last})"))
+            refused.append((role, f"{role}: textbook tap refused ({last})"))
 
     # 2) internal chains + supply links: escape-L (synthesize_ideal_internal's
     #    algorithm, re-run on the variant geometry) hardened with a Manhattan
@@ -615,7 +634,8 @@ def gates(model, pose, routes):
             if not (x + hw + CLR_MM <= bx0 or x - hw - CLR_MM >= bx1 or
                     y + hh + CLR_MM <= by0 or y - hh - CLR_MM >= by1):
                 fails.append(f"standin_clash:{ref}.{pad}:{srole}")
-    # decoupler adjacency: each supply-link pair must stay tight (bypass loop)
+    # decoupler adjacency + EFFICACY: the pair must sit tight AND the routed
+    # bypass link must be short (proximity with a wandering route is a big loop)
     for role in model.link_roles:
         (r1, p1), (r2, p2) = model.role_pads[role]
         x1, y1, _, _ = model.pad_at(pose, r1, p1)
@@ -623,6 +643,9 @@ def gates(model, pose, routes):
         d = math.hypot(x2 - x1, y2 - y1)
         if d > DECOUPLER_MM:
             fails.append(f"decoupler_far:{role}:{d:.1f}mm")
+        L = sum(_seg_len(s) for s in routes.get(role, ()))
+        if L > DECOUPLER_ROUTED_MM:
+            fails.append(f"decoupler_loop:{role}:{L:.1f}mm")
     return fails
 
 
@@ -696,6 +719,62 @@ def _soft_cost(model, pose):
     if refused:
         routes = None                             # partial routes never accepted as best
     return 40.0 * ov + ref_pen + gate_pen + base, routes
+
+
+def lint_routes(model, pose, routes):
+    """Route LINT (owner 2026-07-10: 'strange double-backs'): shortcut pass over
+    each role's contiguous chains -- replace any sub-chain with a straight
+    (H/V/45 only) or L path when it lays clear and is strictly shorter. Corners
+    that other segments arrive at (junctions) are never cut. Runs to fixpoint;
+    deterministic. Apply BEFORE mitre (mitre then rounds the surviving 90s)."""
+    out = {}
+    all_other = [(r, s) for r, ss in routes.items() for s in ss]
+    for role in sorted(routes):
+        segs = [tuple(s) for s in routes[role]]
+        obstacles = model.foreign_pad_boxes(pose, role)
+        improved = True
+        while improved:
+            improved = False
+            n = len(segs)
+            for i in range(n):
+                if improved:
+                    break
+                for j in range(i + 1, n):
+                    if not all(abs(segs[k][2] - segs[k + 1][0]) < 1e-6 and
+                               abs(segs[k][3] - segs[k + 1][1]) < 1e-6 for k in range(i, j)):
+                        break                     # chain broken: later j can't reconnect
+                    interior = [(segs[k][2], segs[k][3]) for k in range(i, j)]
+                    if any(sum(1 for s in segs
+                               if (abs(s[0] - px) < 1e-6 and abs(s[1] - py) < 1e-6) or
+                                  (abs(s[2] - px) < 1e-6 and abs(s[3] - py) < 1e-6)) != 2
+                           for px, py in interior):
+                        continue                  # junction inside: not ours to cut
+                    a = (segs[i][0], segs[i][1])
+                    b = (segs[j][2], segs[j][3])
+                    cur_len = sum(_seg_len(s) for s in segs[i:j + 1])
+                    straight = (a[0], a[1], b[0], b[1])
+                    dx, dy = abs(b[0] - a[0]), abs(b[1] - a[1])
+                    cands = []
+                    if dx < 1e-6 or dy < 1e-6 or abs(dx - dy) < 1e-6:
+                        cands.append((straight,))  # H, V, or true 45 only
+                    cands.extend(_l_paths(a, b))
+                    laid = [(r, s) for r, s in all_other if r != role]
+                    for rep in cands:
+                        rep = [s for s in rep if _seg_len(s) > 1e-9]
+                        if sum(_seg_len(s) for s in rep) >= cur_len - 0.05:
+                            continue
+                        try:
+                            _check(rep, role, obstacles, laid)
+                        except Refusal:
+                            continue
+                        segs = segs[:i] + [tuple(s) for s in rep] + segs[j + 1:]
+                        improved = True
+                        break
+                    if improved:
+                        break
+        out[role] = segs
+        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss]
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -972,6 +1051,35 @@ def to_refined_template(model, pose, routes):
         if math.hypot(s[2] - s[0], s[3] - s[1]) > 1e-6]
     t["port_tracks"] = []                        # synthesized tap/link copper supersedes
     t["vias"] = []
+    # prune stand-ins the COMPACTED cell no longer interacts with -- context
+    # vias/stubs left floating in empty space read as strays on the emitted
+    # board (owner 2026-07-10). Zones (pours) always stay.
+    xs, ys = [], []
+    for r in model.parts:
+        x0, x1, y0, y1 = model.courtyard(pose, r)
+        xs += [x0, x1]
+        ys += [y0, y1]
+    for segs in routes.values():
+        for s in segs:
+            xs += [s[0], s[2]]
+            ys += [s[1], s[3]]
+    env = (min(xs) - 1.5, max(xs) + 1.5, min(ys) - 1.5, max(ys) + 1.5)
+
+    def _sb(s):
+        if s["kind"] == "track":
+            return (min(s["start_rel_mm"][0], s["end_rel_mm"][0]),
+                    max(s["start_rel_mm"][0], s["end_rel_mm"][0]),
+                    min(s["start_rel_mm"][1], s["end_rel_mm"][1]),
+                    max(s["start_rel_mm"][1], s["end_rel_mm"][1]))
+        if s["kind"] == "via":
+            x, y = s["at_rel_mm"]
+            r_ = s.get("dia_mm", 0.6) / 2.0
+            return (x - r_, x + r_, y - r_, y + r_)
+        return tuple(s["box_rel_mm"])
+    t["standins"] = [s for s in t.get("standins", [])
+                     if s["kind"] == "zone" or
+                     not (_sb(s)[1] < env[0] or _sb(s)[0] > env[1] or
+                          _sb(s)[3] < env[2] or _sb(s)[2] > env[3])]
     for bucket in ("ports", "internal_pads"):
         for role, spec in (t.get(bucket) or {}).items():
             for p in spec.get("pads", []):
@@ -1334,6 +1442,13 @@ def main(argv=None):
         best_pose = result["best"]["pose"]
         best_routes = result["best"]["routes"]
         out["best_score"] = result["best"]["score"]
+        linted = lint_routes(model, best_pose, best_routes)      # kill double-backs first
+        if not gates(model, best_pose, linted):
+            before = sum(_seg_len(s) for ss in best_routes.values() for s in ss)
+            after = sum(_seg_len(s) for ss in linted.values() for s in ss)
+            out["lint"] = {"copper_before_mm": round(before, 2),
+                           "copper_after_mm": round(after, 2)}
+            best_routes = linted
         if not args.no_mitre:                     # 45 the corners; keep only if gates hold
             mitred = mitre_routes(model, best_pose, best_routes)
             if not gates(model, best_pose, mitred):

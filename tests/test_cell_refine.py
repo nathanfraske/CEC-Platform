@@ -191,6 +191,92 @@ class TestMitre(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class TestTextbookTap(unittest.TestCase):
+    """Owner ruling 2026-07-10: taps exit ACROSS the pad's inner edge, run inward,
+    then ONE perpendicular 90 -- textbook-or-refuse."""
+
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+
+    def test_tap_first_stroke_is_inward(self):
+        routes = cr.synth_routes(self.model, self.model.base_pose)
+        for role in self.model.tap_roles:
+            s0 = routes[role][0]
+            self.assertAlmostEqual(s0[1], s0[3], places=6,
+                                   msg=f"{role} first stroke not along the pad row")
+            (r1, p1), _ = sorted(self.model.role_pads[role],
+                                 key=lambda rp: rp[0] != self.model.anchor)
+            ax, _ay, _hw, _hh = self.model.pad_at(self.model.base_pose, r1, p1)
+            inward = (s0[2] - s0[0]) * (0.0 - ax)                # toward anchor centre x=0
+            self.assertGreater(inward, 0, f"{role} first stroke exits OUTWARD")
+
+    def test_tap_second_stroke_perpendicular(self):
+        routes = cr.synth_routes(self.model, self.model.base_pose)
+        for role in self.model.tap_roles:
+            segs = [s for s in routes[role] if cr._seg_len(s) > 1e-9]
+            s1 = segs[1]
+            self.assertAlmostEqual(s1[0], s1[2], places=6,
+                                   msg=f"{role} second stroke is not the perpendicular 90")
+
+    def test_blocked_inner_gap_refuses(self):
+        pose = dict(self.model.base_pose)
+        # park the 0603 ON pad-2's inner-edge exit path (its pads straddle every
+        # inset the textbook stub can take) -- textbook-or-refuse, no fallback
+        pose["CF"] = (1.9, 0.0, 0.0)
+        with self.assertRaises(cr.Refusal):
+            cr.synth_routes(self.model, pose)
+
+
+class TestLintAndEfficacy(unittest.TestCase):
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+
+    def test_lint_removes_double_back(self):
+        routes = cr.synth_routes(self.model, self.model.base_pose)
+        role = "/IN{n}_P"
+        end = routes[role][-1]
+        # plant a synthetic double-back continuing from the chain's end
+        ex, ey = end[2], end[3]
+        routes = dict(routes)
+        routes[role] = routes[role] + [(ex, ey, ex + 1.4, ey), (ex + 1.4, ey, ex + 0.7, ey)]
+        before = sum(cr._seg_len(s) for s in routes[role])
+        linted = cr.lint_routes(self.model, self.model.base_pose, routes)
+        after = sum(cr._seg_len(s) for s in linted[role])
+        self.assertLess(after, before - 1.0, "double-back survived lint")
+
+    def test_lint_deterministic_and_gate_clean(self):
+        routes = cr.synth_routes(self.model, self.model.base_pose)
+        a = cr.lint_routes(self.model, self.model.base_pose, routes)
+        b = cr.lint_routes(self.model, self.model.base_pose, routes)
+        self.assertEqual(a, b)
+        self.assertEqual(cr.gates(self.model, self.model.base_pose, a), [])
+
+    def test_decoupler_loop_gate_fires(self):
+        routes = cr.synth_routes(self.model, self.model.base_pose)
+        routes = dict(routes)
+        role = self.model.link_roles[0]
+        s = routes[role][0]
+        # replace the link with a wandering 8mm detour between the same pads
+        routes[role] = [(s[0], s[1], s[0], s[1] + 4.0), (s[0], s[1] + 4.0, s[2], s[3])]
+        fails = cr.gates(self.model, self.model.base_pose, routes)
+        self.assertTrue(any(f.startswith("decoupler_loop:") for f in fails), fails)
+
+    def test_refined_template_prunes_far_standins(self):
+        t = lane_template()
+        t["standins"] = [
+            {"net_role": "/SENSEP{n}_HI", "kind": "via", "at_rel_mm": [80.0, 0.0],
+             "dia_mm": 0.6, "drill_mm": 0.3, "layers": ["F.Cu", "B.Cu"]},
+            {"net_role": "/SENSEP{n}_HI", "kind": "track", "layer": "F.Cu",
+             "start_rel_mm": [-2.9, -6.0], "end_rel_mm": [-2.9, 0.0], "width_mm": 2.5},
+        ]
+        m = cr.CellModel(t, pitch_axis="y")
+        routes = cr.synth_routes(m, m.base_pose)
+        t2 = cr.to_refined_template(m, m.base_pose, routes)
+        kinds = [(s["kind"], s["net_role"]) for s in t2["standins"]]
+        self.assertNotIn(("via", "/SENSEP{n}_HI"), kinds)         # 80mm away: pruned
+        self.assertIn(("track", "/SENSEP{n}_HI"), kinds)          # at the cell: kept
+
+
 class TestCompaction(unittest.TestCase):
     """Slide-to-contact compaction (owner 2026-07-10: 'not moving placements
     at all to compact it down')."""
