@@ -1,5 +1,25 @@
 # Current work handoff
 
+## (G20c) B-SIDE VERIFIED WIN + 3 REALITY BUGS FIXED — 2026-07-10 ~23:20
+GRADED-REFUSAL A/B: decisive. A (flat cost) = +1.1%, polish-only, 9/9 starts dead. B
+(graded) = exploration LIVE, 62.5 evals/s (4x A — feasible evals dodge the refusal
+double-BFS), best (5.4, 20.065, 32.762) vs hand (5.4, 24.53, 49.836): equal pitch,
+-18% length, -34% scored copper+skew, taps 4.3/4.5 skew 0.12 vs hand 12.6/11.2/1.39.
+**improved_vs_hand = TRUE, REAL-DRC VERIFIED** (copper-clean; unconn = external
++3V3/GND; dangling = windowed stand-in stubs). THREE model-vs-reality bugs the real
+tool caught (all committed b62df36): (1) emit SetOrientationDegrees(-rot) transposed
+90/270 pads (masked on 0/180 cells) -> 9 shorts on a "clean" board — KiCad y-down
+RotatePoint == _rot(+theta), minus dropped; (2) mitre chamfered T-junctions ->
+IN4_P split into 2 islands — chamfer now requires exactly-2-arrival corners;
+(3) courtyard exact-touch float tie flipped by 4dp round-trip -> eps on overlap gate.
+Run-B winner RE-FINALIZED under fixed code (score improved 34.3->32.76). BOTH panels
+on dash (cec_cell_panel.py; A + B entries, owner verdict REQUESTED). Compaction
+slide-to-contact landed in search+polish (owner: "not moving placements") — B2 IN
+FLIGHT (compact+graded, 15k evals, build/cell-refine-b2.log, REFINE_B2_DONE marker,
+out build/cell-refine/hpwr-RS4-b2) -> DRC+panel on landing. Speed answer for owner:
+route-in-the-loop pure Python; levers = per-role route memoization (~5x), numpy A*
+(~10x), honest budgets (B's winner found by ~9k evals). Suite 22 tests green.
+
 ## (G20b) RUN A LANDED + GRADED-REFUSAL A/B IN FLIGHT — 2026-07-10 ~22:15
 RUN A (old flat-refusal cost, 40k evals/40min, seed 0): improved_vs_resynth TRUE but only
 +1.1% (99.278->98.143) and ALL from the polish leg — 9/9 scrambled starts sat on the flat
