@@ -1,5 +1,21 @@
 # Current work handoff
 
+## (G20d) FULL RULESET + B3 — 2026-07-11 ~00:10
+Owner punch list (post-"significantly better packing" verdict) ALL LANDED (85a838a,
+29/29 teeth): textbook Kelvin taps (ACROSS the inner pad edge, inward inset, ONE
+perpendicular 90 that must clear the 3.4mm-tall 2512 pad band -- naive L crossed the
+other pad, measured; textbook-or-refuse), lint_routes (junction-guarded H/V/45+L
+shortcut pass to fixpoint -- kills double-backs, runs pre-mitre), decoupler_loop gate
+(routed bypass <=5mm on top of 3mm proximity), stand-in pruning in to_refined_template
+(strays gone; zones always kept). B3 RUN (all rules, 15k evals, 4.8min):
+best (5.4, 18.69, 35.828) vs hand (5.4, 24.53, 49.836) -- -24% length, lint stripped
+4.8mm, real DRC copper-clean (strays 3->1 via, remaining = lane-end transition field).
+Panel on dash (cell-panel-hpwr-RS4-b3), OWNER VERDICT REQUESTED. B2 datapoint:
+compaction reaches B's packed extents at 1/3 budget -> 15k is the standing budget.
+NEXT: owner verdict -> stamp-integration of the refined template (derive-once-stamp-N
+across lanes 1-6 + the eps/pcie sense cells), per-role route memoization (~5x speed,
+FOLLOWUPS), finder lane-6 fingerprint tolerance (FOLLOWUPS).
+
 ## (G20c) B-SIDE VERIFIED WIN + 3 REALITY BUGS FIXED — 2026-07-10 ~23:20
 GRADED-REFUSAL A/B: decisive. A (flat cost) = +1.1%, polish-only, 9/9 starts dead. B
 (graded) = exploration LIVE, 62.5 evals/s (4x A — feasible evals dodge the refusal
