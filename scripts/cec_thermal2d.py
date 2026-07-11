@@ -543,9 +543,17 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
         try:
             import pyamg
             ml = pyamg.smoothed_aggregation_solver(Aspmat.tocsr())
-            x = ml.solve(rhs, tol=1e-10, accel="cg", maxiter=300)
-            if np.all(np.isfinite(x)):
+            # CONVERGENCE GUARD (solver-roadmap 2026-07-10 FEM audit #1): pyamg's ml.solve
+            # returns the LAST ITERATE flagless even when unconverged (measured: dT swung
+            # 21<->174 on one artifact). Capture the residual history and REJECT an
+            # unconverged solve (fall through to the GPU/CG paths) instead of returning it.
+            _res = []
+            x = ml.solve(rhs, tol=1e-10, accel="cg", maxiter=300, residuals=_res)
+            _bnorm = float(np.linalg.norm(rhs)) or 1.0
+            if _res and _res[-1] <= 1e-8 * _bnorm and np.all(np.isfinite(x)):
                 return np.asarray(x)
+            print("[cec_thermal2d] AMG solve UNCONVERGED (rel resid %.2e); falling through"
+                  % ((_res[-1] / _bnorm) if _res else float("nan")), file=sys.stderr)
         except Exception:                                    # noqa: BLE001 -- no pyamg / AMG failure -> GPU/CG below
             pass
     use_gpu = False

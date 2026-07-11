@@ -1,5 +1,31 @@
 # Current work handoff
 
+## (G20o) FORCE-PROBE LEGAL COPPER + WORST-CASE THERMAL BATTERY + CENTERING — 2026-07-11
+The stripped force-path probe (scripts/cec_force_thermal_probe.py, owner: "run the fat
+traces to and from the shunts... they are what stops us from being a ball of slag") is
+now DRC-LEGAL fat copper after the owner caught the naive lay's detached traces (field
+solver is per-net meshed + DRC-blind -- the earlier dT 10.8 PASS was a copper-mass bound
+only). v2->v7 arc: 1.4mm pad stubs + 1.0mm jogs to per-lane unique barrel gaps (left trio
+pin-1.5 / right trio pin+1.5), 0.95mm necks through the 1.48mm GND-barrel gaps (1.0 left
+0.24<0.25 clearance -- ten-micron class), Manhattan nested fan bands pitch 2.9 (right trio
++1.45 y-offset for center-pair endcaps), LO via-fields (0.9/0.5) to B.Cu 1.2mm laterals ->
+2.0 collectors -> 2.5 verticals. v7 DRC: 0 shorts / 0 clearance / 12 track_dangling = the
+cells' own LOCKED GND seed stubs (benign, full board supplies zone context).
+WORST-CASE BATTERY (grid 0.25, ambient 50, production case-cooling, J3/J4 src-sink):
+balanced 8.33A dT ~10.8 PASS; 9.2A/pin connector rating dT 19.25 PASS; 12A lane-3 hog
+(others 7.6) dT 16.76 PASS; 16A OUT-OF-SPEC hog (others 6.8) dT 19.51 PASS -- >10C margin
+to the 30C gate at every case incl. out-of-spec. still-air + balanced-v7 tails in
+build/force-thermal-probe/tb-*/.
+CENTERING (owner cleanliness note): root cause J3 +4mm off = seed_anchors group-packs
+J2+J3 on the top edge. Pipeline fix landed in seed_anchors: role-pinned power_in/power_out
+on a horizontal edge centres its PAD FIELD on W/2 (one axis with the re-fanned lanes),
+co-edge connectors shift outboard side-aware (fit-checked both sides, clamp fallback).
+dbg18 retro-nudged to match: J3 pads now 22.5-37.5 = IDENTICAL to J4; J2 right of J3 at
+x44.87 (left slot re-overlapped U1 -- measured, courtyard-verified NONE). Suites 96 OK
+in-container. COMMIT PENDING battery tail. NEXT: probe rebuild on centered board
+(re-DRC + balanced re-confirm), dash panels + worklog, RJ-45 move-up (FOLLOWUPS), then
+the pipeline's own force-lane rung (PourPlan) so the fresh wave lays this copper itself.
+
 ## (G20n) LADDER MILESTONE: 6/6 CELLS LAID — 2026-07-11 (the sensing front-end stands)
 444 LOCKED segments, 0 refused, on the fresh 60x62 board (dbg18; render on dash).
 Owner directives all realized: cells BOARD-CENTERED (re-fan mid=W/2); ladder LITERAL

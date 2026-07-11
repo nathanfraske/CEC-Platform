@@ -2130,6 +2130,49 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
 
     for edge in ("top", "bottom", "left", "right"):
         place_edge(by_edge.get(edge, []), edge)
+    # STRAIGHT-THROUGH POWER CENTERING (owner 2026-07-11, "make the connectors centered
+    # on the board, like how the cells are"): a role-pinned power_in/power_out connector
+    # on a horizontal edge centres its PAD FIELD on W/2 -- the lanes re-fan centred there,
+    # so the pin field and the cell row share one axis (J4 already lands there when alone;
+    # J3 was group-packed beside the J2 fan header and sat +4mm off). Co-edge connectors
+    # keep their order and shift outboard just enough to clear, clamped on-board. Boards
+    # without anchor_roles are byte-identical (no prio ref -> no-op).
+    for edge in ("top", "bottom"):
+        _erefs = by_edge.get(edge, [])
+        _prio = [r for r in _erefs
+                 if (role_overrides or {}).get(r) in ("power_in", "power_out") and r in A]
+        if len(_prio) != 1:
+            continue
+        _pr = _prio[0]
+        _x0, _y0, _r0 = A[_pr]
+        (_pxl, _pxh), _ = _pad_band(fp_of.get(_pr, ""), _r0)
+        _dx = W / 2.0 - (_x0 + (_pxl + _pxh) / 2.0)
+        if abs(_dx) < 0.05:
+            continue
+        A[_pr] = (_x0 + _dx, _y0, _r0)
+        _pcx, _pcy_, _phw, _phh_ = _courtyard_info(fp_of.get(_pr, ""), _r0)
+        _plo, _phi = A[_pr][0] + _pcx - _phw, A[_pr][0] + _pcx + _phw
+        for _r in _erefs:
+            if _r == _pr or _r not in A:
+                continue
+            _xr, _yr, _rr = A[_r]
+            _rcx, _rcy_, _rhw, _rhh_ = _courtyard_info(fp_of.get(_r, ""), _rr)
+            _rlo, _rhi = _xr + _rcx - _rhw, _xr + _rcx + _rhw
+            if _rhi <= _plo - 0.5 or _rlo >= _phi + 0.5:
+                continue                              # already clear
+            _wid = _rhi - _rlo
+            _sh_l = (_plo - 2.0) - _rhi               # candidate: LEFT of the prio
+            _sh_r = (_phi + 2.0) - _rlo               # candidate: RIGHT of the prio
+            _fit_l = (_rlo + _sh_l) >= margin         # fully fits in the left span?
+            _fit_r = (_rhi + _sh_r) <= (W - margin)
+            _near_left = (_rlo + _rhi) / 2.0 <= (_plo + _phi) / 2.0
+            if _fit_l and (_near_left or not _fit_r):
+                _sh = _sh_l
+            elif _fit_r:
+                _sh = _sh_r
+            else:                                     # neither side fits fully: near side, clamped
+                _sh = max(_sh_l, margin - _rlo) if _near_left else min(_sh_r, (W - margin) - _rhi)
+            A[_r] = (_xr + _sh, _yr, _rr)
     for ref, xy in (pins or {}).items():               # honor user pins (override)
         if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in fp_of:
             A[ref] = (float(xy[0]), float(xy[1]), float(xy[2]) if len(xy) > 2 else 0.0)

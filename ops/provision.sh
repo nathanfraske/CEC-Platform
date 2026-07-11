@@ -107,6 +107,19 @@ provision() {
     ok "cec/routing:kicad10 built"
   fi
 
+  # GPU routing image (solver-roadmap 2026-07-10 durable fix #2: a disaster rebuild used to
+  # silently drop the GPU thermal path). cupy-cuda12x[ctk] + pyamg on top of the base image;
+  # the [ctk] extra is REQUIRED for sm_120 Blackwell JIT. Start it with the overlay:
+  #   docker compose -f docker/compose.yaml -f docker/compose.gpu.yaml up -d routing
+  step "5b/6  Build the GPU routing image (cec/routing:gpu -- cupy + pyamg for the 5090 thermal path)"
+  if SUDO docker image inspect cec/routing:gpu >/dev/null 2>&1; then
+    ok "cec/routing:gpu already built"
+  else
+    SUDO docker build -f "$REPO_ROOT/docker/Dockerfile.routing-gpu" -t cec/routing:gpu "$REPO_ROOT" \
+      || die "GPU routing image build failed"
+    ok "cec/routing:gpu built (start via the docker/compose.gpu.yaml overlay)"
+  fi
+
   step "6/6  Deploy + start the cec-llm-broker systemd unit (from the vendored repo copy)"
   # The broker source is vendored at ops/cec-llm-broker (WSL-ephemeral policy: it must be
   # recoverable from the remote, not WSL-only). Deploy it to $BROKER_DIR, preserving an

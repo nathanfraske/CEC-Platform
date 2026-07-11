@@ -142,10 +142,14 @@ extra is REQUIRED for sm_120 Blackwell JIT, ~153s one-time warmup measured 2026-
 built `cec/routing:gpu` image (8.98GB) is still on disk; nvidia-container-toolkit
 verified working against the 5090 (compute cap 12.0) on 2026-07-10. Durable fixes (in
 order): (1) bake pyamg+matplotlib+shapely into the BASE `Dockerfile.routing` (restores
-CPU-AMG, the biggest win per the 2026-06-20 note "the win was AMG, not the GPU");
-(2) add the `:gpu` image build + overlay mention to `ops/provision.sh` (today a
-disaster-rebuild silently drops the GPU path); (3) never runtime-pip into the container
-again.
+CPU-AMG, the biggest win per the 2026-06-20 note "the win was AMG, not the GPU") --
+**LANDED 2026-07-11** (Dockerfile edited; base-image rebuild picks it up, and the :gpu
+image chains FROM it); (2) add the `:gpu` image build + overlay mention to
+`ops/provision.sh` (today a disaster-rebuild silently drops the GPU path) -- **LANDED
+2026-07-11** (step 5b builds cec/routing:gpu); (3) never runtime-pip into the container
+again. GPU container STOOD UP 2026-07-11 (compose.gpu.yaml overlay live: cupy 14.1.1 +
+pyamg 5.3.0 + 5090 visible in docker-routing-1). The unconverged-iterate guard also
+landed same day (see the defect note in the table).
 
 **Shader (custom CUDA kernel) verdicts by engine:**
 - **FEM/thermal — the only engine where kernel work is even pending.** The V-cycle apply
