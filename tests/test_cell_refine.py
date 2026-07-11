@@ -313,6 +313,20 @@ class TestGndVias(unittest.TestCase):
                             f"via {v} barrel lands on the B.Cu lane")
 
 
+class TestAcceptanceCheck(unittest.TestCase):
+    def test_rejecting_check_blocks_best(self):
+        m = cr.CellModel(lane_template(), pitch_axis="y")
+        r = cr.refine(m, seed=0, starts=1, iters=100, acceptance_check=lambda p, rt: False)
+        self.assertIsNone(r["best"])              # even the feasible baseline is refused
+
+    def test_finalize_cell_grounds_everything(self):
+        m = cr.CellModel(lane_template(), pitch_axis="y")
+        routes, gvias, gstubs, gmissing = cr.finalize_cell(m, m.base_pose)
+        self.assertEqual(gmissing, [])
+        self.assertEqual(cr.gates(m, m.base_pose, routes), [])
+        self.assertTrue(gvias)
+
+
 class TestRenudge(unittest.TestCase):
     """Stamp-time loop-back (owner: 'send it back to the blueprint factory')."""
 

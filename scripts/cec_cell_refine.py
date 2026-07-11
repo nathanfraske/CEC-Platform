@@ -335,16 +335,23 @@ def synth_routes(model, pose):
     return routes
 
 
-def synth_routes_partial(model, pose):
+def synth_routes_partial(model, pose, extra_obstacles=()):
     """Like synth_routes but keeps going past refusals: returns (routes, refused)
     where refused = [(role, reason)]. The GRADED form the search cost needs -- an
     all-or-nothing Refusal makes every infeasible pose cost the same, so SA sees
     a flat plateau and scrambled starts never claw back to feasibility (measured
-    2026-07-10: 9/9 scrambled starts flat at cost 85 on the RS4 deep run)."""
+    2026-07-10: 9/9 scrambled starts flat at cost 85 on the RS4 deep run).
+    extra_obstacles: additional AABBs every net must clear (finalize_cell passes
+    the GND via barrels so chains route around them)."""
     laid = []                                                     # [(role, seg)]
     routes = {}
     refused = []
+    _synth_taps(model, pose, laid, routes, refused, extra_obstacles)
+    _synth_chains(model, pose, laid, routes, refused, extra_obstacles)
+    return routes, refused
 
+
+def _synth_taps(model, pose, laid, routes, refused, extra_obstacles=()):
     def lay(role, segs):
         routes[role] = segs
         laid.extend((role, s) for s in segs)
@@ -368,8 +375,8 @@ def synth_routes_partial(model, pose):
             (r1, p1), (r2, p2) = (r2, p2), (r1, p1)
         ax, ay, ahw, ahh = model.pad_at(pose, r1, p1)             # anchor pad
         tx, ty, _, _ = model.pad_at(pose, r2, p2)                 # target pad
-        obstacles = model.foreign_pad_boxes(pose, role)           # stub set (lies on the pad)
-        post_obs = model.route_obstacles(pose, role)              # + sense discipline
+        obstacles = model.foreign_pad_boxes(pose, role) + list(extra_obstacles)
+        post_obs = model.route_obstacles(pose, role) + list(extra_obstacles)
         if row_x:                                                 # pads run along X
             dir_in = math.copysign(1.0, (acx - ax) or 1.0)
             inner = ax + dir_in * ahw
@@ -426,6 +433,12 @@ def synth_routes_partial(model, pose):
         if not done:
             refused.append((role, f"{role}: textbook tap refused ({last})"))
 
+
+def _synth_chains(model, pose, laid, routes, refused, extra_obstacles=()):
+    def lay(role, segs):
+        routes[role] = segs
+        laid.extend((role, s) for s in segs)
+
     # 2) internal chains + supply links: escape-L (synthesize_ideal_internal's
     #    algorithm, re-run on the variant geometry) hardened with a Manhattan
     #    DOGLEG fallback per hop -- both L orders, then 3-leg detours probing
@@ -435,7 +448,7 @@ def synth_routes_partial(model, pose):
         if len(pads) < 2:
             continue
         try:
-            obstacles = model.foreign_pad_boxes(pose, role)
+            obstacles = model.foreign_pad_boxes(pose, role) + list(extra_obstacles)
             centers = [model.pad_at(pose, ref, pad)[:2] for ref, pad in pads]
             nodes = []
             for k, (ref, pad) in enumerate(pads):
@@ -757,20 +770,25 @@ GND_VIA_DIA = 0.6
 GND_VIA_DRILL = 0.3
 
 
-def synth_gnd_vias(model, pose, routes):
+def synth_gnd_vias(model, pose, routes, *, seed_vias=None, seed_stubs=None):
     """Grounding vias (owner 2026-07-10): every non-anchor GND pad gets a
-    stitching via adjacent to it (short stub, via into the plane). Candidate
-    ring around the pad, first position whose via barrel AND stub lay clear of
-    all foreign copper, routes, stand-ins, and previously placed vias wins.
-    Returns (vias, stubs, missing): vias=[{at_rel_mm, dia_mm, drill_mm}],
-    stubs=[(x1,y1,x2,y2)], missing=[ref.pad] (reported, never forced)."""
-    vias, stubs, missing = [], [], []
-    laid = [(r, s) for r, ss in routes.items() for s in ss]
+    stitching via adjacent to it (short stub, via into the plane). Ladder:
+    adjacent ring -> SHARE an existing via -> wide reach with a routed stub.
+    seed_vias/seed_stubs: already-committed placements (finalize negotiation) --
+    pads whose stub already exists are skipped, seeds constrain clearances, and
+    the returned lists INCLUDE the seeds. Returns (vias, stubs, missing);
+    missing is reported, never forced."""
+    vias = list(seed_vias or [])
+    stubs = list(seed_stubs or [])
+    missing = []
+    laid = [(r, s) for r, ss in routes.items() for s in ss] + [("GND", s) for s in stubs]
     r_via = GND_VIA_DIA / 2.0
     for ref, pad in sorted(model.role_pads.get("GND", [])):
         if ref == model.anchor:
             continue
         px, py, hw, hh = model.pad_at(pose, ref, pad)
+        if any(abs(s[0] - px) < 1e-6 and abs(s[1] - py) < 1e-6 for s in stubs):
+            continue                              # already served by a seed stub
         cx, cy, _ = pose[ref]
         obstacles = model.foreign_pad_boxes(pose, "GND")
         placed = False
@@ -863,17 +881,86 @@ def synth_gnd_vias(model, pose, routes):
     return vias, stubs, missing
 
 
-def lint_routes(model, pose, routes):
+def finalize_cell(model, pose, *, mitre=True):
+    """Acceptance-time synthesis in DESIGNER ORDER (owner 2026-07-11: C13's
+    bypass via was crowded out because chains routed first): TAPS -> GND VIAS
+    (first claim on the space next to their pads) -> CHAINS (routing around the
+    via barrels) -> lint -> mitre. Returns (routes, gvias, gstubs, gmissing) or
+    falls back to chains-first order when via-aware chains refuse (reported via
+    gmissing sentinel, never silently)."""
+    laid, routes, refused = [], {}, []
+    _synth_taps(model, pose, laid, routes, refused)
+    if refused:
+        raise Refusal(refused[0][1])
+    gvias, gstubs, gmissing = synth_gnd_vias(model, pose, routes)
+    r_via = GND_VIA_DIA / 2.0
+    via_boxes = [(v["at_rel_mm"][0] - r_via, v["at_rel_mm"][0] + r_via,
+                  v["at_rel_mm"][1] - r_via, v["at_rel_mm"][1] + r_via) for v in gvias]
+    laid2 = list(laid) + [("GND", s) for s in gstubs]
+    routes2, refused2 = dict(routes), []
+    _synth_chains(model, pose, laid2, routes2, refused2, via_boxes)
+    if refused2:
+        # NEGOTIATION (bounded): a chain lost its corridor to a via/stub -- drop
+        # the via nearest the refused hop, re-run chains, then re-seat the
+        # dropped pad's via against the final field (measured 2026-07-11: C13's
+        # vias-first stub walled off IN_N's only passage at the B5 pose)
+        reason = refused2[0][1]
+        import re as _re
+        mm_ = _re.findall(r"\((-?[\d.]+), (-?[\d.]+)\)", reason)
+        hop_mid = ((float(mm_[0][0]) + float(mm_[1][0])) / 2.0,
+                   (float(mm_[0][1]) + float(mm_[1][1])) / 2.0) if len(mm_) >= 2 else (0.0, 0.0)
+        order = sorted(range(len(gvias)),
+                       key=lambda i: (gvias[i]["at_rel_mm"][0] - hop_mid[0]) ** 2 +
+                                     (gvias[i]["at_rel_mm"][1] - hop_mid[1]) ** 2)
+        settled = False
+        for drop in order:
+            kept = [v for i, v in enumerate(gvias) if i != drop]
+            kept_boxes = [(v["at_rel_mm"][0] - r_via, v["at_rel_mm"][0] + r_via,
+                           v["at_rel_mm"][1] - r_via, v["at_rel_mm"][1] + r_via) for v in kept]
+            # stubs whose far end is the dropped via go too
+            dv = gvias[drop]["at_rel_mm"]
+            kept_stubs = [s for s in gstubs
+                          if math.hypot(s[2] - dv[0], s[3] - dv[1]) > 1e-6]
+            laid3 = list(laid) + [("GND", s) for s in kept_stubs]
+            routes3, refused3 = dict(routes), []
+            _synth_chains(model, pose, laid3, routes3, refused3, kept_boxes)
+            if refused3:
+                continue
+            gvias, gstubs, gmissing = synth_gnd_vias(model, pose, routes3,
+                                                     seed_vias=kept, seed_stubs=kept_stubs)
+            via_boxes = [(v["at_rel_mm"][0] - r_via, v["at_rel_mm"][0] + r_via,
+                          v["at_rel_mm"][1] - r_via, v["at_rel_mm"][1] + r_via) for v in gvias]
+            routes2 = routes3
+            settled = True
+            break
+        if not settled:
+            # full fallback: chains-first, via ladder fights the routed field
+            routes3, refused3 = synth_routes_partial(model, pose)
+            if refused3:
+                raise Refusal(refused3[0][1])
+            gvias, gstubs, gmissing = synth_gnd_vias(model, pose, routes3)
+            gmissing = gmissing + ["(fallback:chains-first)"]
+            via_boxes = [(v["at_rel_mm"][0] - r_via, v["at_rel_mm"][0] + r_via,
+                          v["at_rel_mm"][1] - r_via, v["at_rel_mm"][1] + r_via) for v in gvias]
+            routes2 = routes3
+    gnd_laid = [("GND", s) for s in gstubs]
+    routes2 = lint_routes(model, pose, routes2, extra_obstacles=via_boxes, extra_laid=gnd_laid)
+    if mitre:
+        routes2 = mitre_routes(model, pose, routes2, extra_obstacles=via_boxes, extra_laid=gnd_laid)
+    return routes2, gvias, gstubs, gmissing
+
+
+def lint_routes(model, pose, routes, *, extra_obstacles=(), extra_laid=()):
     """Route LINT (owner 2026-07-10: 'strange double-backs'): shortcut pass over
     each role's contiguous chains -- replace any sub-chain with a straight
     (H/V/45 only) or L path when it lays clear and is strictly shorter. Corners
     that other segments arrive at (junctions) are never cut. Runs to fixpoint;
     deterministic. Apply BEFORE mitre (mitre then rounds the surviving 90s)."""
     out = {}
-    all_other = [(r, s) for r, ss in routes.items() for s in ss]
+    all_other = [(r, s) for r, ss in routes.items() for s in ss] + list(extra_laid)
     for role in sorted(routes):
         segs = [tuple(s) for s in routes[role]]
-        obstacles = model.route_obstacles(pose, role)   # taps: sense discipline holds in lint
+        obstacles = model.route_obstacles(pose, role) + list(extra_obstacles)
         # TEXTBOOK PROTECTION (owner 2026-07-10: B3's lint shortcut the inward
         # exit into a direct outward run): a tap's first two strokes -- the
         # inner-edge exit and the perpendicular 90 -- are load-bearing geometry,
@@ -921,24 +1008,25 @@ def lint_routes(model, pose, routes):
                     if improved:
                         break
         out[role] = segs
-        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss]
+        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss] + list(extra_laid)
     return out
 
 
 # --------------------------------------------------------------------------
 # 45-degree corner mitre (post-acceptance finishing; owner: "only routing 90s")
 # --------------------------------------------------------------------------
-def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
+def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2,
+                 extra_obstacles=(), extra_laid=()):
     """Chamfer 90-degree corners of the ACCEPTED routes into 45s (hand-routing
     idiom). The in-loop router stays Manhattan for speed; this pass runs once on
     the result. Each chamfer is re-verified geometrically against the foreign
     copper and every other segment -- a chamfer that will not lay clear keeps
     its 90 (improve-never-force). Copper length only ever shrinks."""
     out = {}
-    all_other = [(role, s) for role, segs in routes.items() for s in segs]
+    all_other = [(role, s) for role, segs in routes.items() for s in segs] + list(extra_laid)
     for role in sorted(routes):
         segs = [list(s) for s in routes[role]]
-        obstacles = model.route_obstacles(pose, role)   # taps: sense discipline holds in mitre
+        obstacles = model.route_obstacles(pose, role) + list(extra_obstacles)
         # TEXTBOOK PROTECTION: a tap's pad-exit corner and its perpendicular 90
         # stay SQUARE (owner: "the textbook perpendicular 90"; B3's mitre had
         # chamfered them into 45 ramps). Segs 0/1 = stub + perp; skipping
@@ -988,7 +1076,7 @@ def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
                 changed = True
                 break
         out[role] = [tuple(s) for s in segs]
-        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss]
+        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss] + list(extra_laid)
     return out
 
 
@@ -1028,7 +1116,8 @@ def _slide_to_contact(model, pose, r, axis, direction, gap=0.1):
 # The refinement search
 # --------------------------------------------------------------------------
 def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
-           budget_evals=None, polish_frac=0.3, polish_grid=0.025, verbose=False):
+           budget_evals=None, polish_frac=0.3, polish_grid=0.025,
+           acceptance_check=None, verbose=False):
     """Multi-start SA over part poses (anchor fixed). Deterministic for a given
     (seed, starts, iters[, budget_evals]). budget_evals (owner 2026-07-10: a
     refined blueprint amortizes over N stamps -> spend much more) overrides
@@ -1051,9 +1140,14 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
         g = gates(model, pose, routes)
         return routes, g, (score(model, pose, routes) if not g else None)
 
+    def accepts(p, routes):
+        """acceptance_check hook (owner 2026-07-11: a pose that cannot ground
+        every GND pad must never win, however good its score)."""
+        return acceptance_check is None or acceptance_check(p, routes)
+
     base_routes, base_gates, base_score = evaluate(model.base_pose)
     best = None                                   # (score, pose, routes)
-    if base_score is not None:
+    if base_score is not None and accepts(model.base_pose, base_routes):
         best = (base_score, dict(model.base_pose), base_routes)
     n_evals = 0
     explore_budget = None if budget_evals is None else int(budget_evals * (1.0 - polish_frac))
@@ -1132,7 +1226,7 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
                     g = gates(model, pose, routes)
                     if not g:
                         s = score(model, pose, routes)
-                        if best is None or s < best[0]:
+                        if (best is None or s < best[0]) and accepts(pose, routes):
                             best = (s, dict(pose), routes)
             T *= 0.9985
         if verbose:
@@ -1172,7 +1266,7 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
                     g = gates(model, pose, routes)
                     if not g:
                         s = score(model, pose, routes)
-                        if best is None or s < best[0]:
+                        if (best is None or s < best[0]) and accepts(pose, routes):
                             best = (s, dict(pose), routes)
             T *= 0.9992
         if verbose:
@@ -1509,6 +1603,8 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
             for px, py in pts:
                 outline.Append(int((ox + px) * MM), int((oy + py) * MM))
             z.SetLocalClearance(int(CLR_MM * MM))
+            if hasattr(pcbnew, "ISLAND_REMOVAL_MODE_NEVER"):
+                z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_NEVER)
             board.Add(z)
             zones_to_fill.append(z)
     # outline: extents + margin
@@ -1561,6 +1657,8 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         for px, py in ((x0 + zi, y0 + zi), (x1 - zi, y0 + zi),
                        (x1 - zi, y1 - zi), (x0 + zi, y1 - zi)):
             outline.Append(int((ox + px) * MM), int((oy + py) * MM))
+        if hasattr(pcbnew, "ISLAND_REMOVAL_MODE_NEVER"):
+            z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_NEVER)
         board.Add(z)
         zones_to_fill.append(z)
     if zones_to_fill:                             # real ZONE_FILLER (kicad-cli cannot fill)
@@ -1623,6 +1721,9 @@ def main(argv=None):
                         "(owner 2026-07-10)")
     r.add_argument("--no-mitre", action="store_true",
                    help="skip the 45-degree corner chamfer pass on accepted routes")
+    r.add_argument("--allow-missing-gnd-vias", action="store_true",
+                   help="accept poses that cannot ground every GND pad (default: "
+                        "grounding-complete poses only, owner 2026-07-11)")
     r.add_argument("--render", action="store_true",
                    help="also kicad-cli render both microboards (container)")
     r.add_argument("--out", default=None)
@@ -1661,8 +1762,12 @@ def main(argv=None):
     t0 = time.perf_counter()
     if prof:
         prof.enable()
+    accept_fn = None
+    if not args.allow_missing_gnd_vias:
+        def accept_fn(p, routes):                 # grounding-complete poses only
+            return not synth_gnd_vias(model, p, routes)[2]
     result = refine(model, seed=args.seed, starts=args.starts, iters=args.iters,
-                    budget_evals=args.evals, verbose=True)
+                    budget_evals=args.evals, acceptance_check=accept_fn, verbose=True)
     if prof:
         prof.disable()
     wall = time.perf_counter() - t0
@@ -1684,25 +1789,24 @@ def main(argv=None):
         best_pose = result["best"]["pose"]
         best_routes = result["best"]["routes"]
         out["best_score"] = result["best"]["score"]
-        linted = lint_routes(model, best_pose, best_routes)      # kill double-backs first
-        if not gates(model, best_pose, linted):
-            before = sum(_seg_len(s) for ss in best_routes.values() for s in ss)
-            after = sum(_seg_len(s) for ss in linted.values() for s in ss)
-            out["lint"] = {"copper_before_mm": round(before, 2),
-                           "copper_after_mm": round(after, 2)}
-            best_routes = linted
-        if not args.no_mitre:                     # 45 the corners; keep only if gates hold
-            mitred = mitre_routes(model, best_pose, best_routes)
-            if not gates(model, best_pose, mitred):
-                n90 = sum(len(s) for s in best_routes.values())
-                best_routes = mitred
-                out["mitre"] = {"segments_before": n90,
-                                "segments_after": sum(len(s) for s in mitred.values())}
-        out["best_metrics"] = _metrics_of(model, best_pose, best_routes)
-        gvias, gstubs, gmissing = synth_gnd_vias(model, best_pose, best_routes)
+        # DESIGNER-ORDER finalize: taps -> GND vias (first claim) -> chains
+        # around the barrels -> lint -> mitre (owner 2026-07-11)
+        try:
+            final_routes, gvias, gstubs, gmissing = finalize_cell(model, best_pose,
+                                                                  mitre=not args.no_mitre)
+            if not gates(model, best_pose, final_routes):
+                best_routes = final_routes
+                out["finalize"] = "taps-vias-chains"
+            else:
+                gvias, gstubs, gmissing = synth_gnd_vias(model, best_pose, best_routes)
+                out["finalize"] = "search-routes (finalize gates failed)"
+        except Refusal as e:
+            gvias, gstubs, gmissing = synth_gnd_vias(model, best_pose, best_routes)
+            out["finalize"] = f"search-routes (finalize refused: {e})"
         out["gnd_vias"] = len(gvias)
         if gmissing:
             out["gnd_via_missing"] = gmissing     # reported, never forced
+        out["best_metrics"] = _metrics_of(model, best_pose, best_routes)
         refined = to_refined_template(model, best_pose, best_routes)
         refined["gnd_vias"] = gvias
         refined["internal_tracks"] += [
