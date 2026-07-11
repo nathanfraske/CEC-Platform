@@ -191,6 +191,32 @@ class TestMitre(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class TestGradedRefusal(unittest.TestCase):
+    """synth_routes_partial + graded soft cost (2026-07-10): an infeasible pose
+    must cost MORE the more roles refuse, and partial routes are never accepted."""
+
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+
+    def test_partial_keeps_going(self):
+        pose = dict(self.model.base_pose)
+        pose["CF"] = (4.7, 2.0, 90.0)             # kills the HI tap region
+        routes, refused = cr.synth_routes_partial(self.model, pose)
+        self.assertTrue(refused)
+        self.assertTrue(routes, "partial must still carry the routable roles")
+        refused_roles = {r for r, _ in refused}
+        self.assertTrue(set(routes) | refused_roles <= set(self.model.route_roles))
+
+    def test_cost_monotone_in_refusals(self):
+        c_feas, r = cr._soft_cost(self.model, self.model.base_pose)
+        self.assertTrue(r)                         # feasible pose returns its routes
+        pose = dict(self.model.base_pose)
+        pose["CF"] = (4.7, 2.0, 90.0)
+        c_blocked, r2 = cr._soft_cost(self.model, pose)
+        self.assertIsNone(r2)                      # partial never offered as acceptable
+        self.assertLess(c_feas, c_blocked)
+
+
 class TestBudget(unittest.TestCase):
     def setUp(self):
         self.model = cr.CellModel(lane_template(), pitch_axis="y")

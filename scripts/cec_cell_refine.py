@@ -299,8 +299,21 @@ def _check(segs, role, obstacles, laid):
 def synth_routes(model, pose):
     """Route every model.route_roles net on the VARIANT geometry. Returns
     {role: [segments]}; raises Refusal on the first un-layable net."""
+    routes, refused = synth_routes_partial(model, pose)
+    if refused:
+        raise Refusal(refused[0][1])
+    return routes
+
+
+def synth_routes_partial(model, pose):
+    """Like synth_routes but keeps going past refusals: returns (routes, refused)
+    where refused = [(role, reason)]. The GRADED form the search cost needs -- an
+    all-or-nothing Refusal makes every infeasible pose cost the same, so SA sees
+    a flat plateau and scrambled starts never claw back to feasibility (measured
+    2026-07-10: 9/9 scrambled starts flat at cost 85 on the RS4 deep run)."""
     laid = []                                                     # [(role, seg)]
     routes = {}
+    refused = []
 
     def lay(role, segs):
         routes[role] = segs
@@ -362,7 +375,7 @@ def synth_routes(model, pose):
             if done:
                 break
         if not done:
-            raise Refusal(f"{role}: no tap lays clear ({last})")
+            refused.append((role, f"{role}: no tap lays clear ({last})"))
 
     # 2) internal chains + supply links: escape-L (synthesize_ideal_internal's
     #    algorithm, re-run on the variant geometry) hardened with a Manhattan
@@ -372,30 +385,33 @@ def synth_routes(model, pose):
         pads = model.role_pads[role]
         if len(pads) < 2:
             continue
-        obstacles = model.foreign_pad_boxes(pose, role)
-        centers = [model.pad_at(pose, ref, pad)[:2] for ref, pad in pads]
-        nodes = []
-        for k, (ref, pad) in enumerate(pads):
-            others = [c for j, c in enumerate(centers) if j != k]
-            cen = (sum(c[0] for c in others) / len(others),
-                   sum(c[1] for c in others) / len(others)) if others else None
-            nodes.append(_escape(model, pose, ref, pad, role, obstacles, laid, toward=cen))
-        order, rem = [0], list(range(1, len(nodes)))
-        while rem:
-            lx, ly = nodes[order[-1]][1]
-            nxt = min(rem, key=lambda i: (nodes[i][1][0] - lx) ** 2 + (nodes[i][1][1] - ly) ** 2)
-            order.append(nxt)
-            rem.remove(nxt)
-        segs = []
-        for k, idx in enumerate(order):
-            (px, py), (ex, ey) = nodes[idx]
-            segs.extend(_check([(px, py, ex, ey)], role, obstacles, laid))
-            if k + 1 < len(order):
-                nx, ny = nodes[order[k + 1]][1]
-                segs.extend(_route_hop((ex, ey), (nx, ny), role, obstacles,
-                                       laid + [(role, s) for s in segs]))
-        lay(role, segs)
-    return routes
+        try:
+            obstacles = model.foreign_pad_boxes(pose, role)
+            centers = [model.pad_at(pose, ref, pad)[:2] for ref, pad in pads]
+            nodes = []
+            for k, (ref, pad) in enumerate(pads):
+                others = [c for j, c in enumerate(centers) if j != k]
+                cen = (sum(c[0] for c in others) / len(others),
+                       sum(c[1] for c in others) / len(others)) if others else None
+                nodes.append(_escape(model, pose, ref, pad, role, obstacles, laid, toward=cen))
+            order, rem = [0], list(range(1, len(nodes)))
+            while rem:
+                lx, ly = nodes[order[-1]][1]
+                nxt = min(rem, key=lambda i: (nodes[i][1][0] - lx) ** 2 + (nodes[i][1][1] - ly) ** 2)
+                order.append(nxt)
+                rem.remove(nxt)
+            segs = []
+            for k, idx in enumerate(order):
+                (px, py), (ex, ey) = nodes[idx]
+                segs.extend(_check([(px, py, ex, ey)], role, obstacles, laid))
+                if k + 1 < len(order):
+                    nx, ny = nodes[order[k + 1]][1]
+                    segs.extend(_route_hop((ex, ey), (nx, ny), role, obstacles,
+                                           laid + [(role, s) for s in segs]))
+            lay(role, segs)
+        except Refusal as e:
+            refused.append((role, str(e)))
+    return routes, refused
 
 
 def _escape(model, pose, ref, pad, role, obstacles, laid, esc=1.2, toward=None):
@@ -664,18 +680,19 @@ def _soft_cost(model, pose):
             dy = min(A[3], B[3]) - max(A[2], B[2])
             if dx > 0 and dy > 0:
                 ov += dx * dy
-    try:
-        routes = synth_routes(model, pose)
-        ref_pen = 0.0
-    except Refusal:
-        routes, ref_pen = {}, 25.0
-    if routes:
-        g = gates(model, pose, routes)
-        gate_pen = 8.0 * len(g)
-        s = score(model, pose, routes)
-        base = s[0] * 10.0 + s[1] * 2.0 + s[2] * 0.15
-    else:
-        gate_pen, base = 0.0, 60.0
+    routes, refused = synth_routes_partial(model, pose)
+    # GRADED refusal (2026-07-10): each unroutable role costs 15 on top of a
+    # flat 10, so "4 roles refused" > "1 role refused" > feasible -- SA can walk
+    # back to feasibility instead of wandering a flat all-refused plateau.
+    ref_pen = (10.0 + 15.0 * len(refused)) if refused else 0.0
+    g = gates(model, pose, routes) if routes else []
+    gate_pen = 8.0 * len(g)
+    # one uniform base formula (an empty-routes special case made 5-refused
+    # cost LESS than 4-refused: the missing copper term undercut the penalty)
+    s = score(model, pose, routes if routes else {})
+    base = s[0] * 10.0 + s[1] * 2.0 + s[2] * 0.15
+    if refused:
+        routes = None                             # partial routes never accepted as best
     return 40.0 * ov + ref_pen + gate_pen + base, routes
 
 
