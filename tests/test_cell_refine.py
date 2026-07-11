@@ -469,10 +469,12 @@ class TestLintAndEfficacy(unittest.TestCase):
         m = cr.CellModel(lane_template(), pitch_axis="y")
         routes = dict(cr.synth_routes(m, m.base_pose))
         role = m.tap_roles[0]
-        # graft a legal-stroke loop onto the tap: down 4 and back up 4
+        # graft a legal-stroke loop LONG enough to breach 2x Manhattan on THIS
+        # geometry (man ~12mm here, so the loop must add > man; the first
+        # version added 8mm and correctly did not fire -- gate math checked)
         end = routes[role][-1]
         ex, ey = end[2], end[3]
-        routes[role] = routes[role] + [(ex, ey, ex, ey - 4.0), (ex, ey - 4.0, ex, ey)]
+        routes[role] = routes[role] + [(ex, ey, ex, ey - 7.0), (ex, ey - 7.0, ex, ey)]
         fails = cr.gates(m, m.base_pose, routes)
         self.assertTrue(any(f.startswith("tap_detour:") for f in fails), fails)
 
