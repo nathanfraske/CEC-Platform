@@ -1,5 +1,18 @@
 # Current work handoff
 
+## (G20i) ESCAPE PROBE (owner acceptance test) — 2026-07-11 ~06:20
+Owner near-final verdict ("right close to perfect") + designed the blueprint acceptance
+test himself: escape_test() = ring of approach traces at 8mm routed INTO each external
+port through the finished field on F.Cu; verdict clean/layer-hop-needed per port (taps
+excluded -- lane-served; GND excluded -- via-served). Wired into the refine report.
+B7 VERDICTS: /ISENSEP output CLEAN (10/12 approaches, best 9.6mm -- owner requirement
+"outputs don't layer hop" MET); +3V3 power-in LAYER-HOP-NEEDED (0/24) -- matches the
+source board's own via-fed +3V3 idiom, now measured up front. ATTACHMENT AUDIT run:
+all roles attached (taps 8.5/8.2, chains, GND 5/5 pads via'd, link 2.3mm). Teeth: open
+cell clean x2 ports, walled pad reports hop (suite 46, gated commit in flight).
+STATE: B7 = the working blueprint candidate; owner trade question open (+26% copper);
+NEXT: owner verdict -> stamp lanes 1-6 w/ renudge -> owner's thermals-first pass.
+
 ## (G20h) DETOUR GATE + STRANDED-VIA PRUNE + B7 — 2026-07-11 ~05:00
 Owner B6-refresh review: (1) 'loopback near RFH' = tap wandered 2.56x Manhattan behind
 legal textbook strokes -> tap_detour gate (routed <= 2x Manhattan + 2mm slack; hand
