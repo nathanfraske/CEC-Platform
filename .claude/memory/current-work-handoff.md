@@ -28,7 +28,15 @@ the 16A hog (dT 48.8 interior); solver boundary is CONFIRMED nonlinear conv dT^1
 full epsilon*sigma*(T^4-Ta^4) radiation (eps 0.9, default-on; the cec_thermal_boundary
 'X1 radiation absent' docstring is STALE). g_chassis knob is PER-CELL (TIM model =
 clamp regime); the hs solve divided G_total/n_cells via a driver patch -- a proper
-G-total knob is a FOLLOWUPS item.
+G-total knob is a FOLLOWUPS item. SINK-PLACEMENT ABLATION (owner heat-pool read):
+sink moved to the J4 pool = WORSE (115.3 vs 104.8; hotspot flips to /SENSEP3_HI) --
+the J4 pool was an artifact of the shunt sink flattening the middle; sources are
+distributed (shunt I2R + both neck rows + stacked bands) and the shunt row is the
+midpoint + max power density = optimal single strap point. Passive 0.10 W/K fails
+worst-case at ANY placement -- capacity deficit, not placement. Windows-side note:
+sustained 5090 solver bursts caused a display-driver reset (dxg ioctl -22 burst;
+owner's AllMyStuff/WebView2 terminal dropped) -- interactive-hours solves default to
+CPU-AMG now; TdrDelay bump filed in owner-queue.
 CENTERING (owner cleanliness note): root cause J3 +4mm off = seed_anchors group-packs
 J2+J3 on the top edge. Pipeline fix landed in seed_anchors: role-pinned power_in/power_out
 on a horizontal edge centres its PAD FIELD on W/2 (one axis with the re-fanned lanes),
