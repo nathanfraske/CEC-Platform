@@ -1,5 +1,25 @@
 # Current work handoff
 
+## (G20q) OVERSEER-LOOP VERDICT + LOCKED-NET RECONCILE — 2026-07-12
+OWNER CATCH (dash renders): the wave "scrapped the nice traces... redid the shunt 90s".
+MEASURED double defect: (a) FR echoes protected wires back in the SES; the import re-adds
+them AS LOCKED -> compounding per route (552->641 locked on it1 best); (b) FR fails to
+credit protected taps/lanes as connecting their pins and re-routes the nets ITSELF at DSN
+class width (2.5mm F.Cu bulldozers through the tap region; ~28 spurious segs per cell-
+internal net). FIX: cec_fr.reconcile_locked_nets (coverage-tested ownership: fully-owned
+nets stripped of ALL FR additions; partial nets e.g. /FAN_12V lose exact echoes only;
+Delete not Remove -- proxy-leak flood), wired into route_oracle_grade. Validated: fat LO
+restored to exactly the 24 locked lane segs; held on all 32 it3 candidates. Commit 0891df3.
+LOOP VERDICT (owner ask "worth it to loop with overseers?"): **YES, +32% in one true
+cycle** -- it1 plain best unconn 63 (jitter 63-86, 16 plain candidates plateau 61-63);
+it3 with the seat's 3 proposals consumed (32 candidates): TOP SEVEN all prop-sense-chain-
+isolation, best 43. (it2's steering never loaded -- MY orchestration raced the seat's
+save: the BEST line prints before the intent-seat step; wait for the seat line, not
+BEST=.) CONDITIONS: (1) ESP FIRST-CLASS SEAT rung first (four rescue band-aids all
+bypassed by strategy/proposal moves; it3 winner has U1-over-J1 + off-board -- a code
+wall, loops plateau against it); (2) cap iterations w/ no-improvement stop.
+Boards: build/fresh-wave-loop{-work1,-work2,-work3}/; proposals intent-proposals.json.
+
 ## (G20p) FORCE-LANE RUNG COMPLETE — first 6/6 board (Option A ratified-pending) — 2026-07-12
 Owner rung "trace routing to/from the shunts SET and not infringed on" REALIZED:
 cec_force_lanes.py = the probe's DRC-proven v7 geometry as a shared module (locked lay +
