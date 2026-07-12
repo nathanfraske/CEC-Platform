@@ -38,7 +38,13 @@ worst-case at ANY placement -- capacity deficit, not placement. LADDER CLOSED
 convergence) = 90.7 FAIL (peak relocates to the uncovered J4 funnel); ALL THREE
 zones plated (0.35 W/K total) = 72.9 PASS w/ 13C margin, within 3C of the TIM
 case (69.7). Verdict: passive-vented is coherent ONLY with full three-zone
-coverage; spot sinks whack-a-mole. Runs tbg-hs-{vented,j4,2plate,3plate}/. Windows-side note:
+coverage; spot sinks whack-a-mole. Runs tbg-hs-{vented,j4,2plate,3plate}/. FAN RUNGS (owner): 40mm fan alone,
+no sinks: through-flow h25 = 110.6 FAIL (J4 hotspot is CONDUCTION-limited);
+impingement h60 (fan face-down over the board) = 77.9 dT 26.2 PASS ~4C margin.
+ENCLOSURE RULE: the fan must IMPINGE. Fan-control leg RATIFIED (3-pin tach,
+default-ON pullup, MCU-off-when-alive) -- sub-agent landing it on the beta sch
+(J2 B3B-PH-K-S + AO3400A low-side + SS14 flyback + tach GPIO, BOM + datasheets).
+Reference fan NF-A4x10 FLX (0.6W, 17.9dBA, consigned; PH-crimped lead, not KK). Windows-side note:
 sustained 5090 solver bursts caused a display-driver reset (dxg ioctl -22 burst;
 owner's AllMyStuff/WebView2 terminal dropped) -- interactive-hours solves default to
 CPU-AMG now; TdrDelay bump filed in owner-queue.
