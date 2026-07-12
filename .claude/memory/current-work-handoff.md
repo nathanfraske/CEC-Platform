@@ -21,7 +21,14 @@ iterate guard landed FIRST (roadmap order); deps baked into base Dockerfile.rout
 + provision.sh 5b builds :gpu (durable). FULL battery re-run at 0.1mm (~1.5M unk,
 GPU-AMG regime): balanced 15.78 / rating92 19.37 / hog12 16.89 / hog16 19.74 /
 still-air 91.52 -- every case within 0.25C of the 0.25mm CPU numbers = grid-
-converged, zero solver fallbacks. Heatmaps build/force-thermal-probe/tbg-*/.
+converged, zero solver fallbacks. Heatmaps build/force-thermal-probe/tbg-*/. COOLING LADDER (owner ask, hs-vented rung
+added): bare still-air 141.5 / strapped 0.10 W/K shunt-row heatsink in a vented case
+(+6C interior) 104.8 / TIM'd metal case 69.7 -- passive-sink-vented FAILS the gate at
+the 16A hog (dT 48.8 interior); solver boundary is CONFIRMED nonlinear conv dT^1.25 +
+full epsilon*sigma*(T^4-Ta^4) radiation (eps 0.9, default-on; the cec_thermal_boundary
+'X1 radiation absent' docstring is STALE). g_chassis knob is PER-CELL (TIM model =
+clamp regime); the hs solve divided G_total/n_cells via a driver patch -- a proper
+G-total knob is a FOLLOWUPS item.
 CENTERING (owner cleanliness note): root cause J3 +4mm off = seed_anchors group-packs
 J2+J3 on the top edge. Pipeline fix landed in seed_anchors: role-pinned power_in/power_out
 on a horizontal edge centres its PAD FIELD on W/2 (one axis with the re-fanned lanes),
