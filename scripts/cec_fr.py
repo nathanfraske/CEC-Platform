@@ -2398,6 +2398,83 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
+def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
+    """POST-FR LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
+    nice traces... and redid the shunt 90s"). Measured mechanism, both halves:
+    (a) FR echoes protected wires back in the SES and the import re-adds them as
+    UNLOCKED duplicates at the same coords; (b) FR fails to credit a protected
+    tap/lane as connecting its pin and re-routes the net ITSELF at the DSN class
+    width -- 2.5mm F.Cu bulldozers through the Kelvin-tap region on /SENSEP*_LO.
+
+    Rule: a locked net is FULLY OWNED by its lay iff EVERY pad on the net is
+    touched by a locked track endpoint (pad half-extent + 0.15mm). Fully-owned ->
+    strip ALL unlocked tracks/vias on the net (the lay connects it by
+    construction; anything FR added is echo or spurious). Partially-owned (e.g.
+    /FAN_12V, whose R5/J2/D5 spurs the lay does not cover) -> strip only EXACT
+    geometric echoes of locked copper; FR's legitimate spurs stay. GND/+3V3
+    (locked stubs only, pads mostly uncovered) are inherently partial -> safe.
+
+    SWIG discipline: fresh load, collect-then-batch-Remove, save, no board API
+    after Remove beyond SaveBoard. Returns {net: removed_count} + "_echoes"."""
+    board = pcbnew.LoadBoard(board_path)
+    locked_by_net, locked_pts, locked_geo = {}, {}, set()
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        locked_by_net.setdefault(n, []).append(t)
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p_ = t.GetPosition()
+            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        else:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
+            k = (round(s_.x / 1e4), round(s_.y / 1e4), round(e_.x / 1e4), round(e_.y / 1e4))
+            locked_geo.add(k)
+            locked_geo.add((k[2], k[3], k[0], k[1]))
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n in locked_by_net:
+                pos = pd.GetPosition()
+                sz = pd.GetSize()
+                pads_by_net.setdefault(n, []).append(
+                    (pos.x, pos.y, max(sz.x, sz.y) / 2 + int(0.15e6)))
+    owned = set()
+    for n, pads in pads_by_net.items():
+        pts = locked_pts.get(n, [])
+        if pts and all(any((px - x) ** 2 + (py - y) ** 2 <= r * r for x, y in pts)
+                       for px, py, r in pads):
+            owned.add(n)
+    doomed, report, echoes = [], {}, 0
+    for t in board.GetTracks():
+        if t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if n not in locked_by_net:
+            continue
+        if n in owned:
+            doomed.append(t)
+            report[n] = report.get(n, 0) + 1
+            continue
+        if t.Type() != pcbnew.PCB_VIA_T:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            k = (round(s_.x / 1e4), round(s_.y / 1e4), round(e_.x / 1e4), round(e_.y / 1e4))
+            if k in locked_geo:
+                doomed.append(t)
+                echoes += 1
+    for t in doomed:
+        # Delete (not Remove): Remove orphans the SWIG proxy -> a 'memory leak of
+        # type PCB_TRACK*' warning PER ITEM at GC (measured: 20k-line log flood).
+        board.Delete(t)
+    doomed.clear()
+    pcbnew.SaveBoard(out_path or board_path, board)
+    if echoes:
+        report["_echoes"] = echoes
+    return report
+
+
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
                fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
                kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:

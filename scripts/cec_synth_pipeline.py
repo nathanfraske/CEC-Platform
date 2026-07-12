@@ -4707,11 +4707,42 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                                        drop_antenna=drop_antenna)
                 _scx, _scy = _sx + _c0, _sy + _c1
                 _mvd = False
+                _occ = []                     # other placed anchors/seats (owner catch
+                for _o in anchors:            # 2026-07-12: the scan parked the ESP ON
+                    if _o == _r or _o not in comps:   # the RJ-45 -- boxes alone are blind
+                        continue                       # to parts)
+                    _op = anchors[_o]
+                    _oc0, _oc1, _ohw, _ohh = _courtyard_info(
+                        comps[_o], _op[2] if len(_op) > 2 else 0.0,
+                        drop_antenna=drop_antenna)
+                    _occ.append((_op[0] + _oc0 - _ohw, _op[0] + _oc0 + _ohw,
+                                 _op[1] + _oc1 - _ohh, _op[1] + _oc1 + _ohh))
+
                 def _clear_of_all(cx_, cy_):
-                    return (_shw <= cx_ <= W - _shw and _shh <= cy_ <= H - _shh
-                            and not any(b[1] - _shw < cx_ < b[2] + _shw
-                                        and b[3] - _shh < cy_ < b[4] + _shh
-                                        for b in _env3))
+                    if not (_shw <= cx_ <= W - _shw and _shh <= cy_ <= H - _shh):
+                        return False
+                    if any(b[1] - _shw < cx_ < b[2] + _shw
+                           and b[3] - _shh < cy_ < b[4] + _shh for b in _env3):
+                        return False
+                    return not any(o0 - _shw + 0.2 < cx_ < o1 + _shw - 0.2
+                                   and o2 - _shh + 0.2 < cy_ < o3 + _shh - 0.2
+                                   for o0, o1, o2, o3 in _occ)
+
+                def _scan_exit(cx0_, cy0_):
+                    # MULTI-HOP exit scan (FOLLOWUPS 2026-07-12: the single-hop exit
+                    # candidate landed 1.7mm short of clearing the NEIGHBORING cell
+                    # box and the 16.1mm ESP fell to nearest-edge -> off-board).
+                    # Walk outward in 1mm steps along each axis until clear; nearest
+                    # clear point wins.
+                    best_ = None
+                    for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        for step_ in range(1, 61):
+                            nx_, ny_ = cx0_ + ddx * step_, cy0_ + ddy * step_
+                            if _clear_of_all(nx_, ny_):
+                                if best_ is None or step_ < best_[0]:
+                                    best_ = (step_, nx_, ny_)
+                                break
+                    return best_
                 for _rd in range(4):
                     _hb = next((b for b in _env3
                                 if b[1] <= _scx <= b[2] and b[3] <= _scy <= b[4]), None)
@@ -4735,6 +4766,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                             _scx, _scy, _mvd, _took = _nx, _ny, True, True
                             break
                     if _took:
+                        break
+                    # single-hop failed: MULTI-HOP scan before the legacy fallback
+                    _mh = _scan_exit(_scx, _scy)
+                    if _mh is not None:
+                        _scx, _scy, _mvd = _mh[1], _mh[2], True
                         break
                     # no clean exit anywhere: legacy nearest-edge step and re-loop
                     _pp = min((_scx - _x0, "L"), (_x1 - _scx, "R"),
@@ -7065,6 +7101,22 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
+                # LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
+                # nice traces... redid the shunt 90s" -- FR echoes protected wires back
+                # as unlocked duplicates AND re-routes force nets it fails to credit as
+                # connected, at DSN class width: measured 2.5mm F.Cu bulldozers through
+                # the tap region). Strip FR's additions on nets the locked lay fully
+                # owns (pad-coverage-tested); partial nets lose exact echoes only. The
+                # grade's own DRC right after verifies connectivity survived.
+                if _locked_bp:
+                    try:
+                        _rec = cec_fr.reconcile_locked_nets(routed)
+                        if _rec:
+                            print("[route] locked-net reconcile removed: %s"
+                                  % _rec, file=sys.stderr)
+                    except Exception as e:                    # noqa: BLE001 -- surface, don't die
+                        print("[route] locked-net reconcile FAILED: %s: %s"
+                              % (type(e).__name__, e), file=sys.stderr)
                 # GND-FANOUT (owner rule 2026-07-08, wired post-wave-12): impedance-
                 # reducing per-GND-pin vias on the oracle's OWN routed copy, fully
                 # legality-guarded + teeth-verified DRC-neutral (cec_gnd_fanout).
