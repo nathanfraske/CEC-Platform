@@ -2398,6 +2398,42 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
+def owned_locked_nets(board_path: str) -> set:
+    """Read-only: nets FULLY OWNED by locked copper (every pad on the net touched by
+    a locked track endpoint, pad half-extent + 0.15mm) -- the ownership test
+    reconcile_locked_nets enforces after the route, exposed pre-route so the DSN can
+    EXCLUDE those nets from Freerouting entirely (owner 2026-07-12: "the router is
+    still touching the force copper")."""
+    board = pcbnew.LoadBoard(board_path)
+    locked_pts = {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p_ = t.GetPosition()
+            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        else:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n in locked_pts:
+                pos = pd.GetPosition()
+                sz = pd.GetSize()
+                pads_by_net.setdefault(n, []).append(
+                    (pos.x, pos.y, max(sz.x, sz.y) / 2 + int(0.15e6)))
+    owned = set()
+    for n, pads in pads_by_net.items():
+        pts = locked_pts.get(n, [])
+        if pts and all(any((px - x) ** 2 + (py - y) ** 2 <= r * r for x, y in pts)
+                       for px, py, r in pads):
+            owned.add(n)
+    return owned
+
+
 def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
     """POST-FR LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
     nice traces... and redid the shunt 90s"). Measured mechanism, both halves:
@@ -2813,6 +2849,20 @@ def route_once(
         if protect_nets:
             import cec_fr02
             cec_fr02.force_protect_in_dsn(dsn_path, list(protect_nets))
+            # OWNED-NET EXCLUSION (owner 2026-07-12: FR was re-routing the locked
+            # lanes/taps at DSN class width -- 2.5mm B.Cu crossings under the bands;
+            # reconcile stripped them AFTER, this stops the work happening at all):
+            # a net the locked lay fully owns is removed from FR's routable pin
+            # lists; its protected wires remain as obstacles.
+            try:
+                _owned = owned_locked_nets(hinted_board)
+                if _owned:
+                    n_x = cec_fr02.exclude_net_pins_in_dsn(dsn_path, sorted(_owned))
+                    print("[cec_fr] owned-net exclusion: %d net(s) removed from FR routing"
+                          % n_x, flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                print("[cec_fr] owned-net exclusion failed (%s) -- reconcile backstops"
+                      % _e, flush=True)
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
         fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)

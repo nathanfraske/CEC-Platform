@@ -1714,6 +1714,19 @@ def _connector_net_role(ref, nl):
     return None
 
 
+def _trimmable_rf(fp):
+    """True iff *fp* is an RF module whose courtyard still CARRIES a droppable antenna-keepout
+    lobe. A footprint already named *NoAntKeepout* has a BODY-ONLY courtyard (the 12vhpwr S2
+    MINI's was hand-tightened 45x35 -> 16x21) -- the pad-band trim heuristic in
+    cec_pcb.courtyard_bbox cannot tell body from lobe and UNDERSTATES it by ~5mm (measured
+    2026-07-12: real board-DRC courtyard overlaps -- U4/FID3 parked in the phantom band the
+    trimmed model called free, while build_board's materialize-side trim is a C6-coordinate
+    string replace that no-ops on this footprint). Name-gated so every non-NoAntKeepout
+    board's placement model is bit-for-bit unchanged."""
+    f = fp.lower()
+    return (("rf_module" in f) or ("esp32" in f)) and ("noantkeepout" not in f)
+
+
 def _half_extent(fp, *, drop_antenna=False):
     """(hw, hh) courtyard half-extent of a footprint. When *drop_antenna* and the part is an
     RF module (ESP32 / RF_Module), trim the PCB-antenna keepout lobe to the pad band -- the
@@ -1721,7 +1734,7 @@ def _half_extent(fp, *, drop_antenna=False):
     (Mounting holes now report their true ~6.9mm round courtyard via cec_pcb.courtyard_bbox's
     circle handling -- the old hardcoded (3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
-    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    is_rf = _trimmable_rf(fp)
     x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, drop_keepout=(drop_antenna and is_rf))
     return ((x1 - x0) / 2.0, (y1 - y0) / 2.0)
 
@@ -1754,7 +1767,7 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     (Mounting holes report their true round courtyard via cec_pcb's circle handling now; the old
     hardcoded (0,0,3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
-    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    is_rf = _trimmable_rf(fp)      # NoAntKeepout footprints are body-only: never trim (see fn)
     try:
         x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, 0.0, 0.0, rot,
                                                 drop_keepout=(drop_antenna and is_rf))
@@ -1998,7 +2011,11 @@ def place_mechanical(W, H, params):
     f = params.get("fiducials", "3")
     if f and f != "none":
         nf = int(f) if str(f).isdigit() else 3
-        fpts = [(W * 0.85, e), (W * 0.85, H - e), (W * 0.5, H - e)][:nf]
+        # STAGED OFF-BOARD (owner 2026-07-12: fiducials go to 3 OPEN corners, placed
+        # LAST -- "not considered until then"). Parked at x=-8 so no placement pass
+        # sees them as obstacles; the p11_fiducials_last pass seats them in the three
+        # most-open corners once everything else has settled.
+        fpts = [(-8.0, 6.0 + 8.0 * k) for k in range(nf)]
         for i, (x, y) in enumerate(fpts, 1):
             pos[f"FID{i}"] = (x, y, 0.0)
             fp[f"FID{i}"] = _FID_FP
@@ -2420,7 +2437,7 @@ def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0, back_refs=()):
     bb = {}
     face = {}
     for r in refs:
-        rf = drop_antenna and ("esp32" in comps[r].lower() or "rf_module" in comps[r].lower())
+        rf = drop_antenna and _trimmable_rf(comps[r])
         bb[r] = cec_pcb.courtyard_bbox(comps[r], *P[r], drop_keepout=rf)
         face[r] = "B" if r in back else "F"
     n = 0
@@ -4287,6 +4304,206 @@ def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, marg
     return esp, (x, y, 0.0)
 
 
+def _mcu_cluster_offsets(nl, passives, ic_refs, anchor_refs, esp, comps, *, drop_keepout=(),
+                         analog_refs=(), slim_axis=None, clr=0.45):
+    """Owner directive 2026-07-12 ('the ESP definitely needs to be moveable/rotatable as a
+    ladder piece ... pack [its decouplers, status LED, etc] together'): the passives *esp*
+    OWNS through the SAME ownership machinery p4_cluster_learn uses (derive_passive_spec --
+    decoupling, EN/boot pull resistors, a status LED + its resistor when they share a signal
+    with the ESP), packed around the ESP at (0,0,0) via cec_pcb.auto_cluster -- the identical
+    density engine every other IC cluster in this pipeline uses. SW* buttons can never land
+    here: _classify buckets SW as an IC, never a `passives`-bucket ref, so derive_passive_spec
+    never assigns one to *esp* -- they seat separately (_adjacent_pair_offsets), per the owner's
+    'Boot and Reset ... on their own next to each other' rule.
+
+    ANALOG-CHAIN FILTER (coordinator correction 2026-07-12, MEASURED on 12vhpwr seed 2: the
+    unfiltered 15-member macro was 21.1mm min-width vs an 18.35mm logic column -- a MEMBERSHIP
+    bug, not geometry): ownership-by-net hands *esp* every passive whose signal net terminates
+    at an ESP ADC pin, which wrongly sweeps in ANALOG FRONT-END parts whose placement doctrine
+    is elsewhere -- the NTC thermistors (TH1 = AT the shunt row for shunt temp, TH2 = AMBIENT,
+    both actively wrong packed against the warm MCU), their divider legs/filter caps, and the
+    VRAIL_DIV rail divider (taps a lane 12V node -- belongs near the lanes). The TRUE MCU
+    satellite set is only pure-decoupling caps on the ESP's power pins + digital-service
+    passives (EN/boot pulls, status-LED R). Realized as an ANALOG-TAINT walk, not a name list:
+    seed refs = every RS*/TH* ref + *analog_refs* (the power-path connectors, from the
+    caller's anchor roles); a non-rail net touching a tainted ref is tainted; a PASSIVE on a
+    tainted net is tainted (taint spreads through 2-pin chain elements -- R5's 12V tap taints
+    VRAIL_DIV and so R6/C24 two hops out -- but never through an IC: the ESP touching /TEMP1
+    must not condemn its own decouplers); fixpoint; a member touching any tainted net is
+    dropped. Rail nets (GND/+3V3/...) neither seed nor carry taint (everything shares them);
+    the force _HI/_LO nets are NOT rails here -- they are exactly the analog spine the walk
+    must travel (deliberately narrower than _is_power_net, which counts _HI/_LO as
+    power-like for ownership).
+
+    Returns (offsets, bbox): offsets = {ref:(dx,dy,rot)} INCLUDING the ESP itself at (0,0,0),
+    ESP-local (rot0) frame; bbox = (cx,cy,hw,hh) of the macro's courtyard union in that
+    same frame."""
+    import cec_pcb
+    spec, series = derive_passive_spec(nl, passives, ic_refs, anchor_refs=anchor_refs)
+    members = [(p, pad) for p, (own, pad) in spec.items() if own == esp and p not in series]
+    # ---- analog-taint walk (see docstring) ----
+    def _is_rail(n):
+        return bool(_POWER_NET.search(n)) or n.rsplit("/", 1)[-1].upper() == "GND"
+    _passive_set = set(passives)
+    _tainted_refs = ({r for r in nl.comps if r.startswith(("RS", "TH"))}
+                     | set(analog_refs or ()))
+    _tainted_nets = set()
+    _changed = True
+    while _changed:
+        _changed = False
+        for n, nodes in nl.nets.items():
+            if n in _tainted_nets or _is_rail(n):
+                continue
+            if any(r in _tainted_refs for r, _p in nodes):
+                _tainted_nets.add(n)
+                _changed = True
+                for r, _p in nodes:
+                    if r in _passive_set and r not in _tainted_refs:
+                        _tainted_refs.add(r)     # taint spreads through passives only
+    _dropped = sorted(p for p, _ in members if p in _tainted_refs)
+    members = [(p, pad) for p, pad in members if p not in _tainted_refs]
+    if _dropped and os.environ.get("CEC_BP_DEBUG"):
+        print(f"  [mcu-cluster] analog-chain satellites excluded (doctrine: shunt row/"
+              f"ambient/lane dividers, not MCU service): {_dropped}",
+              file=sys.stderr, flush=True)
+    Ptmp = {esp: (0.0, 0.0, 0.0)}
+    if members and slim_axis == "x":
+        # WIDTH-CONSTRAINED ROW PACK (2026-07-12, measured: the free auto_cluster fan
+        # parks satellites on the ESP's LEFT/RIGHT flanks -> macro 21.1mm wide vs the
+        # 12vhpwr force-lane logic column's 18.35mm, while the ESP body alone (16.05)
+        # fits. So when the caller's target is a width-limited column, satellites pack
+        # in TWO HORIZONTAL ROWS just outside the ESP's TOP/BOTTOM courtyard edges --
+        # macro width stays max(ESP, row); rows split by which half of the ESP holds
+        # each satellite's owner pad (nearest-half wiring), ordered by owner-pad x.
+        # Uses the FULL courtyard (no drop_keepout): the NoAntKeepout footprints carry
+        # a body-only courtyard the drop-trim heuristic UNDERSTATES (~5mm on the S2
+        # MINI, measured as real board-DRC courtyard overlaps in the lobe region).
+        ec = _courtyard_info(comps[esp], 0.0)
+        rows = {-1: [], +1: []}
+        for p, pad in sorted(members):
+            try:
+                px, py = cec_pcb.pad_global(esp, pad, {esp: (0.0, 0.0, 0.0)}, comps)
+            except Exception:                            # noqa: BLE001
+                px, py = 0.0, 0.0
+            rows[-1 if py < ec[1] else +1].append((px, p))
+        for sign, row in rows.items():
+            row.sort()
+            spans = [(p, _courtyard_info(comps[p], 0.0)) for _px, p in row]
+            total = sum(2.0 * c[2] for _p, c in spans) + clr * max(0, len(spans) - 1)
+            x = -total / 2.0
+            for p, c in spans:
+                y_edge = ec[1] + sign * (ec[3] + clr + c[3])
+                Ptmp[p] = (x + c[2] - c[0], y_edge - c[1], 0.0)
+                x += 2.0 * c[2] + clr
+    elif members:
+        cec_pcb.auto_cluster(Ptmp, comps, {p: (esp, pad) for p, pad in members},
+                             drop_keepout=drop_keepout)
+    xs, ys = [], []
+    for r in Ptmp:
+        x0, x1, y0, y1 = cec_pcb.courtyard_bbox(
+            comps[r], *Ptmp[r],
+            drop_keepout=(r in drop_keepout and slim_axis is None))
+        xs += [x0, x1]
+        ys += [y0, y1]
+    bbox = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0,
+            (max(xs) - min(xs)) / 2.0, (max(ys) - min(ys)) / 2.0)
+    return Ptmp, bbox
+
+
+def _adjacent_pair_offsets(comps, ref_a, ref_b, *, gap=2.0):
+    """*ref_a*/*ref_b* packed side-by-side (rot 0, both on one axis) with a *gap*mm
+    courtyard-to-courtyard clearance, centred on a local origin -- the owner's 'Boot and
+    Reset buttons should be on their own next to each other orthogonally always' pairing.
+    Returns {ref_a:(dx,dy,0), ref_b:(dx,dy,0)} in the same (dx,dy,rot)-offset shape
+    _seat_mcu_macro expects (it is agnostic to what the offsets represent)."""
+    ca = _courtyard_info(comps[ref_a], 0.0)
+    cb = _courtyard_info(comps[ref_b], 0.0)
+    # total pair span = full width A + gap + full width B; each courtyard CENTRE sits its
+    # own half-width in from the pair's edge. (The first cut mixed spans and half-widths --
+    # centres landed ha+hb closer than intended and the courtyards interpenetrated ~2mm,
+    # measured SW1/SW2 on the 12vhpwr seed-2 board.)
+    span = 2.0 * ca[2] + gap + 2.0 * cb[2]
+    xa = -span / 2.0 + ca[2]                  # centre of A: half-width in from the left edge
+    xb = span / 2.0 - cb[2]                   # centre of B: half-width in from the right edge
+    return {ref_a: (xa - ca[0], -ca[1], 0.0), ref_b: (xb - cb[0], -cb[1], 0.0)}
+
+
+def _box_clear(box, obstacles, margin):
+    """box/obstacles entries are (...,x0,x1,y0,y1) -- the last 4 fields, so this accepts both
+    the 4-tuples the seat-settle occupancy list uses and the 5-tuples (name,x0,x1,y0,y1)
+    _blueprint_env_boxes/_force_corridor_boxes return. True iff *box* clears every obstacle
+    by at least *margin*mm (plain AABB separation, cec_pcb._ovl's convention)."""
+    x0, x1, y0, y1 = box
+    for b in obstacles:
+        bx0, bx1, by0, by1 = b[-4], b[-3], b[-2], b[-1]
+        if not (x1 + margin <= bx0 or bx1 + margin <= x0
+                or y1 + margin <= by0 or by1 + margin <= y0):
+            return False
+    return True
+
+
+def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
+                    forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
+                    drop_antenna=False):
+    """Search a coarse grid x *rotations* for a LEGAL seat of the rigid macro *offsets*
+    ({ref:(dx,dy,rot)}, some local frame -- _mcu_cluster_offsets / _adjacent_pair_offsets)
+    inside *x_range* (default the full board width; the force-lane LOGIC COLUMN when the
+    caller passes one). LEGAL = every member's TRUE courtyard, transformed into the
+    candidate frame, lands fully on-board AND clears (by *margin*, real AABB separation --
+    not a centre-in-box test) every box in *forbid_boxes* (blueprint-cell + force-lane
+    envelopes) AND every box in *occ_boxes* (already-seated anchors'/seats' true
+    courtyards). Among legal candidates, ranks by (1) summed distance from *score_points*
+    [(x,y), ...] -- net proximity to the unit's already-seated peers -- then (2) macro
+    swept area, smaller first (compactness). Returns ({ref:(x,y,rot)}, rot) or (None, None)
+    -- NEVER forces an illegal seat; the caller decides how to refuse."""
+    import cec_pcb
+    x0r, x1r = (0.0, W) if x_range is None else x_range
+    x0r, x1r = max(0.0, x0r), min(W, x1r)
+    best, best_key = None, None
+    for rot in rotations:
+        parts = []
+        for ref, (dx, dy, prot) in offsets.items():
+            if ref not in comps:
+                continue
+            rdx, rdy = cec_pcb._rot(dx, dy, rot)
+            rrot = (prot + rot) % 360.0
+            ccx, ccy, chw, chh = _courtyard_info(comps[ref], rrot, drop_antenna=drop_antenna)
+            parts.append((ref, rdx, rdy, rrot, ccx, ccy, chw, chh))
+        if not parts:
+            continue
+        mlx = min(rdx + ccx - chw for _, rdx, _, _, ccx, _, chw, _ in parts)
+        mhx = max(rdx + ccx + chw for _, rdx, _, _, ccx, _, chw, _ in parts)
+        mly = min(rdy + ccy - chh for _, _, rdy, _, _, ccy, _, chh in parts)
+        mhy = max(rdy + ccy + chh for _, _, rdy, _, _, ccy, _, chh in parts)
+        area = (mhx - mlx) * (mhy - mly)
+        ax_lo, ax_hi = x0r - mlx, x1r - mhx
+        ay_lo, ay_hi = 0.0 - mly, H - mhy
+        if ax_hi < ax_lo or ay_hi < ay_lo:
+            continue                          # the macro doesn't fit the column at this rot
+        y = ay_lo
+        while y <= ay_hi + 1e-9:
+            x = ax_lo
+            while x <= ax_hi + 1e-9:
+                legal = True
+                for _ref, rdx, rdy, _rrot, ccx, ccy, chw, chh in parts:
+                    gcx, gcy = x + rdx + ccx, y + rdy + ccy
+                    box = (gcx - chw, gcx + chw, gcy - chh, gcy + chh)
+                    if not (_box_clear(box, forbid_boxes, margin)
+                            and _box_clear(box, occ_boxes, margin)):
+                        legal = False
+                        break
+                if legal:
+                    dist = sum(math.hypot(x - px, y - py) for px, py in score_points)
+                    key = (round(dist, 3), round(area, 3))
+                    if best_key is None or key < best_key:
+                        best_key = key
+                        best = ({ref: (x + rdx, y + rdy, rrot)
+                                for ref, rdx, rdy, rrot, *_rest in parts}, rot)
+                x += grid
+            y += grid
+    return best if best is not None else (None, None)
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
@@ -4678,6 +4895,122 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
                              min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
             _can_seated.append(_can)
+        # MCU-CLUSTER SEAT (owner directive 2026-07-12: "the ESP definitely needs to be
+        # moveable/rotatable as a ladder piece ... pack [decouplers, status LED, etc]
+        # together ... Boot and Reset ... on their own next to each other orthogonally
+        # always"). GENERIC gate (no board-name check): an ESP-like IC exists AND it
+        # was not already seated by the radio antenna-edge path above (_esp stays None
+        # there whenever antenna_edge is unset -- true today for every module board,
+        # the Hub is the only board that sets antenna_edge) AND the board declares
+        # force_lanes (the logic-column geometry this seat targets; 12vhpwr-standard is
+        # the only board that sets it today, but nothing here names it -- any future
+        # force-lane board picks this up for free). Absent that gate, ESP falls through
+        # to the ordinary relative_place/anneal IC path UNCHANGED (byte-identical
+        # elsewhere -- the golden-safety discipline).
+        if _esp is None and cfg.params.get("force_lanes"):
+            _mcu_esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
+                             or "rf_module" in (comps.get(r, "") or "").lower()), None)
+            if _mcu_esp:
+                # HONEST GEOMETRY throughout this seat (drop_antenna deliberately NOT
+                # forwarded, measured 2026-07-12): the placer-wide drop_antenna trim
+                # understates the NoAntKeepout footprints' BODY-ONLY courtyard (~5mm on
+                # the S2 MINI -- there is no droppable lobe left; build_board's trim is
+                # a C6-coordinate string replace, a no-op here), which let a "legal"
+                # trimmed seat intrude 2.5mm into the locked lane-6 cell on the real
+                # board's DRC courtyards. The seat gates on what pcbnew will measure.
+                def _mcu_true_box(_r, _pos):
+                    _cx, _cy, _hw, _hh = _courtyard_info(
+                        comps[_r], _pos[2] if len(_pos) > 2 else 0.0)
+                    return (_pos[0] + _cx - _hw, _pos[0] + _cx + _hw,
+                           _pos[1] + _cy - _hh, _pos[1] + _cy + _hh)
+                # exclude _bp_refs (blueprint-cell members p4b already stamped+locked,
+                # runs BEFORE this pass) from candidacy -- a lane's RFH/RFL/CF/etc. must
+                # never be re-claimed as an ESP satellite and relocated out from under
+                # its rigid cell stamp, mirroring p4_cluster_learn's own _bp_passives filter.
+                # analog_refs = the power-path connectors (role, not name): together with
+                # the built-in RS*/TH* seeds they root the analog-taint walk that keeps
+                # NTC/divider front-end parts OUT of the MCU macro (their placement
+                # doctrine is the shunt row / ambient / the lanes, never the MCU flank).
+                # slim_axis="x": satellites row-pack above/below the ESP so the macro
+                # stays ESP-wide -- the force-lane logic column is width-limited.
+                _mcu_offs, _mcu_bbox = _mcu_cluster_offsets(
+                    nl, [p for p in passives if p not in _bp_refs],
+                    [r for r in ics if not r.startswith("SW")],
+                    set(anchors_roles) | {r for r in shunts if r not in free_shunts},
+                    _mcu_esp, comps, slim_axis="x",
+                    analog_refs={r for r, _role2 in anchors_roles.items()
+                                 if _role2 in ("power_in", "power_out")})
+                _mcu_env = (_blueprint_env_boxes(lambda d: anchors.get(d))
+                           + _force_corridor_boxes(lambda d: anchors.get(d)))
+                _mcu_occ = [_mcu_true_box(_o, anchors[_o]) for _o in anchors if _o in comps]
+                _mcu_lanes = _force_corridor_boxes(lambda d: anchors.get(d))
+                _mcu_x0 = (max(b[2] for b in _mcu_lanes) + 1.0) if _mcu_lanes else 0.0
+                _mcu_nbrs = _adjacency(nl).get(_mcu_esp, set())
+                _mcu_score_pts = [anchors[r][:2] for r in _mcu_nbrs if r in anchors]
+                _mcu_placed, _mcu_rot = _seat_mcu_macro(
+                    _mcu_offs, comps, W, H, x_range=(_mcu_x0, W),
+                    forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts)
+                _mcu_locked = set()
+                if _mcu_placed is None:
+                    print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)
+                else:
+                    for _r, _xyz in _mcu_placed.items():
+                        anchors[_r] = _xyz
+                    _esp = _mcu_esp
+                    _esp_pos = _mcu_placed[_mcu_esp]
+                    _mcu_locked = set(_mcu_placed)
+                    # .update(), NOT |= -- an augmented-assignment `_bp_refs |= x` REBINDS the
+                    # name, which would make _bp_refs a compile-time LOCAL for this whole
+                    # function (Python's static scoping) and break every earlier/later read
+                    # of the enclosing set (e.g. the seat-settle loop below) with
+                    # UnboundLocalError; this pass never declares _bp_refs `nonlocal`.
+                    _bp_refs.update(_mcu_locked)       # exempt from re-cluster/evac/re-stamp
+                    if os.environ.get("CEC_BP_DEBUG"):
+                        print(f"  [p3crit] mcu-cluster seated {_mcu_esp} @ "
+                              f"({_esp_pos[0]:.1f},{_esp_pos[1]:.1f},{_esp_pos[2]:.0f}) rot"
+                              f" + {len(_mcu_locked) - 1} satellite(s)", file=sys.stderr)
+                # BOOT/RESET as an adjacent orthogonal pair (owner: "on their own next to
+                # each other orthogonally always"), REPLACING whatever the buttons_near=
+                # "usb" path above may already have seated. UNCONDITIONAL on the MCU
+                # macro itself finding a home (measured 2026-07-12: on the current 62x62/
+                # lane_center=22 floorplan the ESP+satellite macro, ~21x23mm, genuinely
+                # does not fit the ~18mm logic column at any of the 4 rotations -- a real
+                # infeasibility, correctly refused above -- but "always" reads as an
+                # unconditional owner rule, and leaving the buttons to ordinary
+                # relative_place/anneal is what let SW2 drift onto the force-lane
+                # corridor in the first place, since _sw_seated -- and so the corridor
+                # veto's sensitive-part list -- never covers it on this board). When the
+                # macro DID seat, the pair goes next to it (score = distance to the
+                # macro's own centroid); when it did not, the pair still seats clear of
+                # every forbid/occupied box, scored against the ESP's already-seated net
+                # neighbours (CAN transceiver / host jack) as the next-best proxy for
+                # "near the MCU".
+                _mcu_sws = sorted(r for r in ics if r.startswith("SW"))
+                if len(_mcu_sws) == 2:
+                    _sw_a, _sw_b = _mcu_sws
+                    if _mcu_locked:
+                        _pair_score_pts = [(sum(anchors[r][0] for r in _mcu_locked) / len(_mcu_locked),
+                                            sum(anchors[r][1] for r in _mcu_locked) / len(_mcu_locked))]
+                    else:
+                        _pair_score_pts = _mcu_score_pts
+                    _pair_offs = _adjacent_pair_offsets(comps, _sw_a, _sw_b)
+                    _pair_occ = _mcu_occ + [_mcu_true_box(_r, anchors[_r]) for _r in _mcu_locked]
+                    _pair_placed, _pair_rot = _seat_mcu_macro(
+                        _pair_offs, comps, W, H, x_range=(_mcu_x0, W),
+                        forbid_boxes=_mcu_env, occ_boxes=_pair_occ,
+                        score_points=_pair_score_pts)
+                    if _pair_placed is None:
+                        print("  [p3crit] mcu-cluster: SW pair NO legal seat "
+                             "(buttons left for ordinary placement)", file=sys.stderr)
+                    else:
+                        for _r, _xyz in _pair_placed.items():
+                            anchors[_r] = _xyz
+                        _sw_seated = [_sw_a, _sw_b]
+                        _bp_refs.update(_pair_placed)
+                elif _mcu_sws:
+                    print(f"  [p3crit] mcu-cluster: {len(_mcu_sws)} SW ref(s), "
+                         "expected exactly 2 for a pair -- left for ordinary placement",
+                         file=sys.stderr)
         # 1d. SEAT CONFLICT REPAIR (dual-sided fix): Y-stagger the rail sensing CELLS (rigidly, so
         #     Kelvin holds) clear of same-face overlaps AND opposite-face THT pin fields. Runs HERE --
         #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what
@@ -4744,8 +5077,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                 break
                     return best_
                 for _rd in range(4):
+                    # COURTYARD-OVERLAP hit test (coordinator scope-add 2026-07-12,
+                    # measured at seed 2: U2's courtyard CENTER can sit in the narrow
+                    # gap BETWEEN two adjacent lane-strip boxes while its BODY still
+                    # straddles both -- a centre-in-box test misses that; inflate each
+                    # box by this seat's own half-extent (_shw/_shh), the same
+                    # box-vs-point convention _clear_of_all already uses below, so a
+                    # true courtyard/box overlap is caught even when the centre point
+                    # itself lands outside every box.
                     _hb = next((b for b in _env3
-                                if b[1] <= _scx <= b[2] and b[3] <= _scy <= b[4]), None)
+                                if b[1] - _shw < _scx < b[2] + _shw
+                                and b[3] - _shh < _scy < b[4] + _shh), None)
                     if _hb is None:
                         break
                     _nn, _x0, _x1, _y0, _y1 = _hb
@@ -4963,7 +5305,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 by_owner[own].append((pref, pad))
             elif own in _fixed_anchor_refs:
                 fixed_owner[own].append((pref, pad))
-        drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
+        drop_kc = tuple(r for r in comps if _trimmable_rf(comps[r])) if drop_antenna else ()
         macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
         cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
         for unit in ics + free_shunts:
@@ -5009,6 +5351,35 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             else:
                 macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
                 cluster_offsets[unit] = {}
+        # MCU-CLUSTER SEAT-FRAME CONSISTENCY (2026-07-12, the p3crit MCU seat's p4 half;
+        # gated on the seat having fired -- _esp in _bp_refs -- and on a non-zero seat
+        # rotation, so every other board/path is byte-identical). The learn above is
+        # OWNER-FRAME-ROT-0 (Ptmp[unit]=(0,0,0)) and the p7/p9 stamps apply offsets
+        # UNROTATED, which was correct while every macro owner came out of relative_place
+        # at rot 0 -- but the seated ESP can sit at 90/180/270. Two concrete failures
+        # measured on the 12vhpwr seed-2 board without this block: (1) the ESP's REMAINING
+        # owned passives (the analog-chain parts the macro filter deliberately left to the
+        # ordinary flow -- TH*/divider/fan-gate) stamped at rot-0 offsets AROUND a rot-90
+        # ESP = straight onto its courtyard; (2) macro[_esp]'s rot-0 bbox understated the
+        # true obstacle, so p9's legalize could not see (and thus not clear) the real
+        # courtyard -- 8 residual overlaps on U1. Fix: rotate the ESP's cluster offsets +
+        # re-derive its macro bbox in the SEATED frame, so the existing stamp/legalize
+        # machinery reproduces the seat's geometry instead of fighting it.
+        if _esp and _esp in _bp_refs and _esp in anchors:
+            _erot = (anchors[_esp][2] if len(anchors[_esp]) > 2 else 0.0) % 360.0
+            if _erot and _esp in cluster_offsets:
+                cluster_offsets[_esp] = {
+                    p: (*cec_pcb._rot(dx, dy, _erot), (pr + _erot) % 360.0)
+                    for p, (dx, dy, pr) in cluster_offsets[_esp].items()}
+            # macro[_esp] = the ESP's FULL courtyard at the SEATED rotation, no drop trim
+            # (the seat's honest-geometry rule: the NoAntKeepout footprints are body-only
+            # -- the trim understates them, measured as U4/lobe-region board-DRC overlaps
+            # p9 could not clear) and deliberately NOT inflated by the remaining owned
+            # (analog-chain) passives' ring: a ring-inflated reserve over-claimed the
+            # thin logic column (measured: the compact seed-2 anneal then squeezed U3
+            # into force-lane 4 and U4 onto U1 -- worse than the smaller honest box).
+            # The ring parts are individually legalized against this honest box at p9.
+            macro[_esp] = _courtyard_info(comps[_esp], _erot)
         # 2b. FIXED-ANCHOR clusters: a part owned by a connector / seated shunt (CC pull-downs on J5, DETECT
         #     ESD on J1) clusters at that anchor's pad. The anchor is already at its final (fixed) position,
         #     so auto_cluster places the parts in absolute coords; we record them for a direct stamp after
@@ -5479,6 +5850,76 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     #      synth_one -- declared here as provenance no-ops so the journal carries the full ladder.
     #      locks_out/gate are recorded but ENFORCEMENT is opt-in (enforce_locks / gate_enabled);
     #      no real gate is enabled in S1 (that is later fixed-seed ablation work).
+    def _p11_fiducials_last(_state):
+        # FIDUCIALS LAST (owner 2026-07-12): parked off-board through every prior
+        # pass; now seat each in its own corner, corners ranked by OPENNESS (distance
+        # from the corner slot to the nearest placed courtyard). One fiducial per
+        # corner, most-open corners first.
+        _fids = sorted(r for r in (P or anchors) if r.startswith("FID") and r[3:].isdigit())
+        if not _fids:
+            return
+        _PP = P if P is not None else anchors
+        _e = 3.0
+        _corners = [(_e, _e), (W - _e, _e), (_e, H - _e), (W - _e, H - _e)]
+        _bodies = []
+        for _r, _pp in _PP.items():
+            if _r.startswith("FID") or _r not in comps:
+                continue
+            try:
+                _c0, _c1, _hw, _hh = _courtyard_info(comps[_r], _pp[2] if len(_pp) > 2 else 0.0,
+                                                     drop_antenna=drop_antenna)
+            except Exception:                                # noqa: BLE001
+                continue
+            _bodies.append((_pp[0] + _c0 - _hw, _pp[0] + _c0 + _hw,
+                            _pp[1] + _c1 - _hh, _pp[1] + _c1 + _hh))
+        def _openness(cx_, cy_):
+            _d = 1e9
+            for _x0, _x1, _y0, _y1 in _bodies:
+                _dx = max(_x0 - cx_, 0.0, cx_ - _x1)
+                _dy = max(_y0 - cy_, 0.0, cy_ - _y1)
+                _d = min(_d, (_dx * _dx + _dy * _dy) ** 0.5)
+            return _d
+        # Corner assignment with EDGE-SLIDE fallback (measured: the diagonal walk
+        # marched FID3 into the MCU macro mid-board). A fiducial takes a corner only
+        # if openness >= _FID_R there or at an edge-slide position (slide along each
+        # of the corner's two edges, staying in the edge band); corners that cannot
+        # host are skipped for the NEXT corner (4 corners, 3 fids = one spare).
+        _FID_R = 1.6
+        _ranked = sorted(_corners, key=lambda c: -_openness(c[0], c[1]))
+        _used = set()
+        _placed_f = {}
+        for _f in _fids:
+            _best = None
+            for _ci, (_cx, _cy) in enumerate(_ranked):
+                if _ci in _used:
+                    continue
+                _cands = [(_cx, _cy)]
+                _sx = 1.0 if _cx < W / 2 else -1.0
+                _sy = 1.0 if _cy < H / 2 else -1.0
+                for _k in range(1, 29):
+                    # slide up to ~half the edge (measured: the MCU macro owns 17mm of
+                    # the bottom-right corner -- 12mm never cleared it; the legal slot
+                    # is the J4<->macro gap further along the bottom edge)
+                    _cands.append((_cx + _sx * _k, _cy))       # slide along the x edge
+                    _cands.append((_cx, _cy + _sy * _k))       # slide along the y edge
+                _hit = next(((qx, qy) for qx, qy in _cands
+                             if _openness(qx, qy) >= _FID_R), None)
+                if _hit:
+                    _best = (_ci, _hit)
+                    break
+            if _best is None:
+                # no corner can host: most-open corner position as the honest fallback
+                _ci = next(i for i in range(len(_ranked)) if i not in _used)
+                _best = (_ci, _ranked[_ci])
+            _used.add(_best[0])
+            _placed_f[_f] = _best[1]
+        for _f, (_fx, _fy) in _placed_f.items():
+            _PP[_f] = (_fx, _fy, 0.0)
+        if os.environ.get("CEC_BP_DEBUG"):
+            print("  [p11] fiducials seated: %s" % {f: (round(_PP[f][0], 1), round(_PP[f][1], 1))
+                                                    for f in _fids},
+                  file=sys.stderr, flush=True)
+
     _passes = [
         Pass("p0_stackup_basis", lambda _s: None, phase="P0",
              doc="stackup/netclass basis (upstream: build_board + .kicad_dru author it)"),
@@ -5512,8 +5953,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              locks_out=lambda _s: sorted(_bp_refs),
              doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
         Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
+             # _bp_refs here also covers the MCU-cluster seat's satellites + SW pair
+             # (2026-07-12): they self-add to _bp_refs on success so this lambda locks
+             # them without a second bespoke list; harmless when empty/blueprint-only.
              locks_out=lambda _s: (list(seated) + list(seated_inas) + ([_esp] if _esp else [])
-                                   + list(_sw_seated) + list(_can_seated)),
+                                   + list(_sw_seated) + list(_can_seated) + sorted(_bp_refs)),
              doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat + cell Y-stagger repair"),
         Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
              doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
@@ -5530,6 +5974,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              doc="re-stamp clusters at owners' FINAL positions (the scatter fix)"),
         Pass("p10_intents", _p10_intents, phase="P7",
              doc="near()/order() intent levers, applied LAST so nothing undoes them"),
+        Pass("p11_fiducials_last", _p11_fiducials_last, phase="P7",
+             doc="seat FID1..n in the 3 most-open corners LAST (staged off-board until now)"),
     ]
 
     def _positions(_state):
@@ -5828,6 +6274,23 @@ def _oracle_hints_pours(board_path):
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_edge_keepout", "edge keepout skipped (%s)" % e)
     pours = plan.pour_polygons()
+    # LOCKED-LAY OWNERSHIP (owner 2026-07-12: the router "trying to connect the fan
+    # header with a *massive* pour when it won't actually take that much power"):
+    # a net that carries LOCKED copper has its fat path laid by the ladder -- never
+    # derive a pour for it. Kills the /FAN_12V mega-pour (the geometric deriver saw
+    # THT-connector+shunt pads and classified the 50mA fan net as a cable net); the
+    # J2/R5/D5 spur routes thin on its own class.
+    try:
+        import cec_cell_extract
+        _lkn = cec_cell_extract.locked_nets(board_path)
+        if _lkn:
+            _n0 = len(pours)
+            pours = [q for q in pours if q.get("net") not in _lkn]
+            if len(pours) != _n0:
+                print("[pours] skipped %d pour(s) on locked-lay nets" % (_n0 - len(pours)),
+                      file=sys.stderr)
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_pour_lockskip", "locked-net pour skip failed (%s)" % e)
     return hints, pours, rules
 
 
