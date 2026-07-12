@@ -33,7 +33,12 @@ sink moved to the J4 pool = WORSE (115.3 vs 104.8; hotspot flips to /SENSEP3_HI)
 the J4 pool was an artifact of the shunt sink flattening the middle; sources are
 distributed (shunt I2R + both neck rows + stacked bands) and the shunt row is the
 midpoint + max power density = optimal single strap point. Passive 0.10 W/K fails
-worst-case at ANY placement -- capacity deficit, not placement. Windows-side note:
+worst-case at ANY placement -- capacity deficit, not placement. LADDER CLOSED
+(owner-driven two-plate -> three-plate): mid 0.15 (shunt+INA) + top 0.10 (J3
+convergence) = 90.7 FAIL (peak relocates to the uncovered J4 funnel); ALL THREE
+zones plated (0.35 W/K total) = 72.9 PASS w/ 13C margin, within 3C of the TIM
+case (69.7). Verdict: passive-vented is coherent ONLY with full three-zone
+coverage; spot sinks whack-a-mole. Runs tbg-hs-{vented,j4,2plate,3plate}/. Windows-side note:
 sustained 5090 solver bursts caused a display-driver reset (dxg ioctl -22 burst;
 owner's AllMyStuff/WebView2 terminal dropped) -- interactive-hours solves default to
 CPU-AMG now; TdrDelay bump filed in owner-queue.
