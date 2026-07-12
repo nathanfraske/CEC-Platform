@@ -1,5 +1,27 @@
 # Current work handoff
 
+## (G20p) FORCE-LANE RUNG COMPLETE — first 6/6 board (Option A ratified-pending) — 2026-07-12
+Owner rung "trace routing to/from the shunts SET and not infringed on" REALIZED:
+cec_force_lanes.py = the probe's DRC-proven v7 geometry as a shared module (locked lay +
+per-lane refuse-with-named-collider + hook-descent fallback + true-pad-size guard);
+materialize lays it after the cells (locked -> fix -> protect = FR routes around);
+_force_corridor_boxes reserves the paths at placement. LOCK-CHECKER LESSON (the ladder
+disciplined its own builder): jack clearance was walked p3crit -> spine -> p2 (the true
+owner) by successive LockViolations; LockViolation/GateFailure got __reduce__ (unpicklable
+across the spawn pool read as opaque BrokenProcessPool -- cost a 5-run bisect).
+A/B (owner "try both", knobs CEC_LANE_CENTER/CEC_BOARD_W):
+  NUDGE (W60 centered, J1 top-packed): 4/6 -- lane-6-vs-RJ45 STRUCTURAL (jack pad columns
+  own x46-49 at any height); ESP off-board (16.1 vs 9.3mm columns). DEAD END measured.
+  OPTION A (W62, lane_center 22, alpha doctrine): **6/6 LANES + 6/6 CELLS, 552 locked**
+  (build/fresh-wave-optA4-work/.../plain-compact-s0), J1 top-right, FULL logic complement
+  packed in the 17.3mm right column. ONE straggler: U1/ESP off-board -- the seat-settle
+  exit search is single-hop (FOLLOWUPS); column AREA now sufficient (~1107 vs ~850mm2), so
+  it is a packing iteration, not geometry. Re-fan gained the axis trigger (re-fan also
+  when lane_center pinned + seats off-axis -- the optA2/3 half-shift trap).
+NEXT RUNGS: settle multi-hop exit (seats ESP in-column) -> gates/FR residual on the 6/6
+board -> stamps-first thermal on the REAL board -> owner panel. Fan-leg + worst-case
+thermal + cooling ladder all landed earlier this session (G20o + battery entries).
+
 ## (G20o) FORCE-PROBE LEGAL COPPER + WORST-CASE THERMAL BATTERY + CENTERING — 2026-07-11
 The stripped force-path probe (scripts/cec_force_thermal_probe.py, owner: "run the fat
 traces to and from the shunts... they are what stops us from being a ball of slag") is
