@@ -42,6 +42,13 @@ class LockViolation(RuntimeError):
             "§3.1). Fix by escalating a snag to the pass that OWNS %r, never by moving "
             "it here." % (pass_name, ref, locked_pos, moved_to, ref))
 
+    def __reduce__(self):
+        # spawn-pool transport (measured 2026-07-12: a LockViolation raised in a wave
+        # worker failed to UNPICKLE in the parent -- multi-arg __init__ vs the 1-arg
+        # RuntimeError default -- so the pool reported an opaque BrokenProcessPool
+        # instead of the named violation).
+        return (LockViolation, (self.pass_name, self.ref, self.locked_pos, self.moved_to))
+
 
 class GateFailure(RuntimeError):
     """A pass did not meet its own done-criteria; the next pass does not start (plan §3.2).
@@ -54,6 +61,9 @@ class GateFailure(RuntimeError):
             "PASS-GATE FAILED: pass %r did not meet its done-criteria; violations=%r "
             "(docs/pass-form-plan.md §3.2 -- the next pass does not start)."
             % (pass_name, self.violations))
+
+    def __reduce__(self):
+        return (GateFailure, (self.pass_name, self.violations))
 
 
 # ------------------------------------------------------------------ position equality

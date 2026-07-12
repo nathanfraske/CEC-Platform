@@ -116,7 +116,7 @@ BOARD_WH = {
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
-    "12vhpwr-standard": (60.0, 62.0),  # LADDER-PHASE seed (owner 2026-07-11: cells board-centered,
+    "12vhpwr-standard": (62.0, 62.0),  # ALPHA-DOCTRINE floorplan (owner Option-A ruling 2026-07-12: lanes left-of-center at lane_center, ESP/CAN/RJ-45 logic column right -- centered lanes + the 16.1mm ESP measured impossible at W=60). Prior: (owner 2026-07-11: cells board-centered,
     # RJ45/USB movable): 6 lanes at 6.8 = 43.5mm span leaves no flank for the
     # 16x21 ESP on W60 -- it seats ABOVE the lane field beside J3. Geometry:
     # J3 y0-9 / ESP+periph band / lanes centered / J4 band. Still -20% area vs
@@ -136,6 +136,14 @@ BOARD_PARAMS = {
                          # at origin, measured), so pin them explicitly.
                          "anchor_roles": {"J3": "power_in", "J4": "power_out"},
                          "straight_through": True,
+                         # force lanes: lay the DRC-proven fat J3->RS->J4 copper LOCKED at
+                         # materialize + reserve its corridors at placement (owner 2026-07-11,
+                         # "set and not infringed on")
+                         "force_lanes": True,
+                         # OPTION A (owner 2026-07-12): lane axis at x=22 (span 5..39), logic
+                         # column right (~x43..62). J3/J4 pad fields + cells center on THIS,
+                         # not W/2.
+                         "lane_center": float(os.environ.get("CEC_LANE_CENTER", "22.0")),  # 0 = board-centered (A/B knob, owner 2026-07-12 "try both")
                          "lane_pitch": 6.8,   # B7 blueprint copper spans 6.25mm across-pitch (MEASURED; gnd vias + tap waypoints) + 0.45 clearance + slack. The
                          # refiner scoring gap (pitch counted parts only) is FOLLOWUPS --
                          # a copper-aware re-refine should get back to the hand 6.0.
@@ -333,6 +341,8 @@ def _wave_workers():
 
 def run_board(board, seeds, passes, opt, out_root, work_root):
     W, H = BOARD_WH.get(board, (100.0, 44.0))
+    if os.environ.get("CEC_BOARD_W"):
+        W = float(os.environ["CEC_BOARD_W"])                # A/B knob (owner 2026-07-12)
     workers = _wave_workers()
     _wlog(f"wave started: {board}", tag="wave",
           detail=f"{len(_intents_for(board))} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, "

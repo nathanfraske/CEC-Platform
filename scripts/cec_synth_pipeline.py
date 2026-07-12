@@ -2024,6 +2024,7 @@ _ROLE_EDGE = {"power_in": "top", "power_out": "bottom", "host": "right", "usb": 
 
 
 def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8,
+                 lane_center=0.0, pack_right_top=False,
                  edge_override=None, role_overrides=None):
     """Place connector anchors at board edges. The edge a connector goes to is, by default, its
     role's generic edge (power_in->top, power_out->bottom, host/usb->right); MV2's *edge_override*
@@ -2122,6 +2123,11 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         total = sum(it[1] for it in items) + gap * (len(items) - 1)
         edge_len = W if horiz else H
         cursor = max(margin, (edge_len - total) / 2.0)
+        if pack_right_top and edge == "right":
+            # force-lane boards (owner 2026-07-12 "just nudge the RJ-45 up"): pack the
+            # right edge from the TOP so the jack sits in the corner and the column
+            # below stays free for the logic parts the corridors evict.
+            cursor = margin
         for ref, along, coff, perp in items:
             center = cursor + along / 2.0
             cursor += along + gap
@@ -2146,7 +2152,7 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         _pr = _prio[0]
         _x0, _y0, _r0 = A[_pr]
         (_pxl, _pxh), _ = _pad_band(fp_of.get(_pr, ""), _r0)
-        _dx = W / 2.0 - (_x0 + (_pxl + _pxh) / 2.0)
+        _dx = (float(lane_center or 0.0) or W / 2.0) - (_x0 + (_pxl + _pxh) / 2.0)
         if abs(_dx) < 0.05:
             continue
         A[_pr] = (_x0 + _dx, _y0, _r0)
@@ -3213,10 +3219,18 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
     if _lp > 0 and len(seated) >= 2:
         _cols0 = sorted((anchors[sh][0], sh) for sh in seated if sh in anchors)
         _nat = min(b - a for (a, _r1), (b, _r2) in zip(_cols0, _cols0[1:]))
-        if _nat < _lp:
+        _lc0 = float((params or {}).get("lane_center") or 0.0)
+        _cur_mid = sum(cc for cc, _r in _cols0) / len(_cols0)
+        # ALSO re-fan when a lane axis is pinned and the natural seats sit off it
+        # (measured optA2/3: natural pitch 8.2 >= 6.8 -> no-op -> lanes 12.6..53.7
+        # while J3's pad field centred on 22 = an incoherent half-shift).
+        if _nat < _lp or (_lc0 and abs(_cur_mid - _lc0) > 0.5):
             # centered ON THE BOARD (owner 2026-07-11: 'cells should be stamped
             # centered the board'); connector-column mean was the old centre
-            _mid = (W / 2.0) if W else sum(cc for cc, _r in _cols0) / len(_cols0)
+            # lane axis: params['lane_center'] (owner Option-A 2026-07-12, alpha
+            # doctrine: lanes left-of-center, logic column right) else board center
+            _mid = (float((params or {}).get("lane_center") or 0.0)
+                    or ((W / 2.0) if W else sum(cc for cc, _r in _cols0) / len(_cols0)))
             _n = len(_cols0)
             _new = [_mid + (k - (_n - 1) / 2.0) * _lp for k in range(_n)]
             if W:
@@ -4487,7 +4501,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     _eov.setdefault(_r, _jack_edge)
         anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
                                edge_override=_eov or None,
-                               role_overrides=cfg.params.get("anchor_roles"))
+                               role_overrides=cfg.params.get("anchor_roles"),
+                               lane_center=float(cfg.params.get("lane_center") or 0.0),
+                               pack_right_top=bool(cfg.params.get("force_lanes")))
         mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
         anchors.update(mech_pos)
         comps = dict(fp_of)
@@ -4502,6 +4518,80 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
                      for r in anchors if r in comps}
         legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
+        # ANCHOR-JACK CLEARANCE (owner: "the RJ-45 needs to be moved up"; DRC-measured
+        # J1-court-vs-RS6 + the lane-6 force-lane refusal). The LOCK CHECKER walked this
+        # to its true owner (measured: LockViolation from p3crit, then from the spine) --
+        # p2 locks the jacks, so p2 must seat them clear. At p2 the cell row is fully
+        # DERIVABLE from params: force_lanes waves re-fan the lanes to a centered
+        # lane_pitch sequence and anchor each cell to its shunt at (lane_x, H/2, 270),
+        # so the row boxes come from the declared templates + that formula -- the same
+        # data the spine/p4b/materialize chain realizes later.
+        _cells_p = cfg.params.get("blueprint_cells") or ()
+        _lp2 = float(cfg.params.get("lane_pitch") or 0.0)
+        if _cells_p and cfg.params.get("force_lanes") and _lp2 > 0:
+            try:
+                import json as _json
+                import cec_cell_extract as _cx
+                _n_l = len(_cells_p)
+                _lc2 = float(cfg.params.get("lane_center") or 0.0) or (W / 2.0)
+                _lanes2 = [_lc2 + (k - (_n_l - 1) / 2.0) * _lp2 for k in range(_n_l)]
+                _tpl_cache = {}
+                _jboxes = []
+                for _lx in _lanes2:
+                    _sx, _sy, _srot = _lx, H / 2.0, 270.0
+                    _tp = next((c.get("template") for c in _cells_p), None)
+                    if isinstance(_tp, str):
+                        if _tp not in _tpl_cache:
+                            with open(_tp) as _fh:
+                                _tpl_cache[_tp] = _json.load(_fh)
+                        _t = _tpl_cache[_tp]
+                    elif isinstance(_tp, dict):
+                        _t = _tp
+                    else:
+                        continue
+                    _xs, _ys = [], []
+                    for _tr in _t.get("internal_tracks", []):
+                        for _pt in (_tr["start_rel_mm"], _tr["end_rel_mm"]):
+                            _g = _cx._to_global(_pt[0], _pt[1], _sx, _sy, _srot)
+                            _xs.append(_g[0]); _ys.append(_g[1])
+                    for _v in _t.get("vias", []):
+                        _g = _cx._to_global(_v["at_rel_mm"][0], _v["at_rel_mm"][1],
+                                            _sx, _sy, _srot)
+                        _xs.append(_g[0]); _ys.append(_g[1])
+                    for _pr, _pd in (_t.get("parts") or {}).items():
+                        _off = _pd.get("offset_mm", (0, 0))
+                        _g = _cx._to_global(_off[0], _off[1], _sx, _sy, _srot)
+                        _c0p, _c1p, _hwp, _hhp = _courtyard_info(
+                            _pd.get("footprint", ""),
+                            (_srot + float(_pd.get("rot_delta", 0.0))) % 360.0)
+                        _xs += [_g[0] + _c0p - _hwp, _g[0] + _c0p + _hwp]
+                        _ys += [_g[1] + _c1p - _hhp, _g[1] + _c1p + _hhp]
+                    if _xs:
+                        _jboxes.append((min(_xs) - 1.6, max(_xs) + 1.6,
+                                        min(_ys) - 1.6, max(_ys) + 1.6))
+                for _r in sorted(anchors):
+                    if (not _r.startswith("J")) or _r in ("J3", "J4") or _r not in comps:
+                        continue
+                    _ax, _ay = anchors[_r][0], anchors[_r][1]
+                    _art = anchors[_r][2] if len(anchors[_r]) > 2 else 0.0
+                    _c0, _c1, _jhw, _jhh = _courtyard_info(comps[_r], _art)
+                    _mvd = False
+                    for _x0, _x1, _y0, _y1 in _jboxes:
+                        if (_ax + _c0 - _jhw < _x1 and _ax + _c0 + _jhw > _x0
+                                and _ay + _c1 - _jhh < _y1 and _ay + _c1 + _jhh > _y0):
+                            _up = (_ay + _c1) <= (_y0 + _y1) / 2.0
+                            _ay = (_y0 - 0.3 - _jhh - _c1) if _up else (_y1 + 0.3 + _jhh - _c1)
+                            _mvd = True
+                    if _mvd:
+                        anchors[_r] = (_ax, min(max(_ay, 1.0), H - 1.0), _art)
+                        if os.environ.get("CEC_BP_DEBUG"):
+                            print(f"  [p2] edge jack {_r} seated clear of the declared "
+                                  f"cell row (y={anchors[_r][1]:.1f})",
+                                  file=sys.stderr, flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                _tc.warn_once("p2_jack_clear",
+                              "p2 jack clearance skipped: %s: %s"
+                              % (type(_e).__name__, _e))
 
     # ============================================================ P3a: corridor spine (form the bands)
     def _p3_corridor_spine(_state):
@@ -4605,7 +4695,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # AROUND the stamped cells while this pass still owns them): displace any
         # seat whose courtyard center landed in a cell envelope out the nearest
         # edge (fixpoint across the tiled lane boxes).
-        _env3 = _blueprint_env_boxes(lambda d: anchors.get(d))
+        _env3 = (_blueprint_env_boxes(lambda d: anchors.get(d))
+                 + _force_corridor_boxes(lambda d: anchors.get(d)))
         if _env3:
             for _r in ([_esp] if _esp else []) + list(_can_seated) + list(_sw_seated):
                 if _r not in anchors or _r not in comps or _r in _bp_refs:
@@ -4616,12 +4707,36 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                                        drop_antenna=drop_antenna)
                 _scx, _scy = _sx + _c0, _sy + _c1
                 _mvd = False
+                def _clear_of_all(cx_, cy_):
+                    return (_shw <= cx_ <= W - _shw and _shh <= cy_ <= H - _shh
+                            and not any(b[1] - _shw < cx_ < b[2] + _shw
+                                        and b[3] - _shh < cy_ < b[4] + _shh
+                                        for b in _env3))
                 for _rd in range(4):
                     _hb = next((b for b in _env3
                                 if b[1] <= _scx <= b[2] and b[3] <= _scy <= b[4]), None)
                     if _hb is None:
                         break
                     _nn, _x0, _x1, _y0, _y1 = _hb
+                    # FIT-CHECKED exits, nearest first (measured 2026-07-12: blind
+                    # nearest-edge pushed the 16.1mm ESP off-board left and hopped U2
+                    # between adjacent lane strips instead of out of the band).
+                    _cands = sorted([
+                        (_scx - _x0, _x0 - 0.4 - _shw, None, "L"),
+                        (_x1 - _scx, _x1 + 0.4 + _shw, None, "R"),
+                        (_scy - _y0, None, _y0 - 0.4 - _shh, "T"),
+                        (_y1 - _scy, None, _y1 + 0.4 + _shh, "B")],
+                        key=lambda c: c[0])
+                    _took = False
+                    for _dd, _cxc, _cyc, _tag in _cands:
+                        _nx = _cxc if _cxc is not None else _scx
+                        _ny = _cyc if _cyc is not None else _scy
+                        if _clear_of_all(_nx, _ny):
+                            _scx, _scy, _mvd, _took = _nx, _ny, True, True
+                            break
+                    if _took:
+                        break
+                    # no clean exit anywhere: legacy nearest-edge step and re-loop
                     _pp = min((_scx - _x0, "L"), (_x1 - _scx, "R"),
                               (_scy - _y0, "T"), (_y1 - _scy, "B"))
                     if _pp[1] == "L":
@@ -4683,6 +4798,34 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 bm = 1.6
                 boxes.append(("__BLUEPRINT__", min(xs) - bm, max(xs) + bm,
                               min(ys) - bm, max(ys) + bm))
+        return boxes
+
+    def _force_corridor_boxes(pos_of):
+        """Placement keepouts for the FORCE-LANE copper (owner rung 2026-07-11,
+        'set and not infringed on'): the fat J3->shunt->J4 copper is laid LOCKED
+        at materialize (cec_force_lanes), so everything later must seat OUTSIDE
+        its path. Boxes mirror the v7 lay geometry from the same seat data the
+        lay will measure: (a) the top fan-band region under J3 (stubs + jogs +
+        necks + nested bands, depth 4.7 pad-row offset + 3.2 + 2x2.9 + 1.45
+        endcap + 1.25 half-width + 0.45 clr ~= 16.5 from the connector origin);
+        (b) the mirrored J4 return-band region (B.Cu, reserved anyway -- THT
+        barrels + honest 'not infringed'); (c) per-lane HI vertical strips from
+        band bottom into the cell row. Gated on params['force_lanes'] -> absent
+        = byte-identical."""
+        if not (_blueprint_stamps and cfg.params.get("force_lanes")):
+            return []
+        lanes = sorted(float(_st.get("at_mm", (0, 0))[0]) for _st in _blueprint_stamps)
+        j3 = pos_of("J3")
+        j4 = pos_of("J4")
+        if not lanes or j3 is None or j4 is None:
+            return []
+        x0, x1 = min(lanes) - 3.65, max(lanes) + 3.65
+        depth = 4.7 + 3.2 + 2.9 * 2 + 1.45 + 1.25 + 0.45          # 16.5mm from origin
+        boxes = [("__FORCELANE__", x0, x1, j3[1], j3[1] + depth),
+                 ("__FORCELANE__", x0, x1, j4[1] - depth, j4[1])]
+        ymid = (j3[1] + j4[1]) / 2.0
+        for lx in lanes:
+            boxes.append(("__FORCELANE__", lx - 1.7, lx + 1.7, j3[1] + depth, ymid))
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
@@ -4970,7 +5113,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # envelope would refuse that cell's copper at materialize (the p8 evac may
             # not move locked refs -- repair belongs HERE, the owning pass). Slide t
             # along the segment to the first envelope-free spot; midpoint when free.
-            _bp_env = _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+            _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                       + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
             mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0
             for _t in (0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82, 0.12, 0.88):
                 _px = pa[0] + _t * (pb[0] - pa[0])
@@ -4999,7 +5143,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # inside a cell envelope refuses that cell's copper at materialize (measured:
         # J3's sideband cluster fan R13 vs lane 1). Displace out the nearest envelope
         # edge NOW, while this pass still owns the refs, then re-legalize the moved set.
-        _bp_env = _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+        _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                   + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
         if _bp_env:
             _stamped_here = set(_func_stamped)
             _stamped_here |= {pref for offs in cluster_offsets.values() for pref in offs}
@@ -5093,7 +5238,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # -> exempt). This is what lets materialize() lay the cell's internal copper without a foreign
         # collision on a dense board. Empty _bp_refs -> no boxes -> byte-identical.
         if _bp_refs:
-            _bpb = _blueprint_env_boxes(lambda d: P.get(d))
+            _bpb = (_blueprint_env_boxes(lambda d: P.get(d))
+                    + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
             _pour_boxes = list(_pour_boxes) + _bpb
             if os.environ.get("CEC_BP_DEBUG"):
                 for _nn, _x0, _x1, _y0, _y1 in _bpb:
@@ -7429,6 +7575,21 @@ def materialize(cand, cfg, out, *, logo=None):
                 _tc.warn_once("blueprint_refuse", "blueprint cell copper REFUSED: %s" % _rep.get("reason"))
             else:
                 _laid += _rep.get("laid_tracks", 0) + _rep.get("laid_vias", 0)
+        # FORCE LANES (owner rung 2026-07-11, "the trace routing to and from the
+        # shunts needs to be SET and not infringed on"): lay the DRC-proven fat
+        # copper (cec_force_lanes, the probe's v7 geometry) LOCKED, right after
+        # the cells -- locked copper exports as "fix" and cec_fr upgrades it to
+        # protect, so the FR residual routes AROUND it, same as cell copper. A
+        # lane that would hit a foreign pad REFUSES with the collider named
+        # (corridor reservation failed at the placer -- fix there, never force).
+        if cfg.params.get("force_lanes"):
+            import cec_force_lanes
+            _flr = cec_force_lanes.lay_force_lanes(_bpb, lock=True)
+            _bad = {k: v for k, v in _flr.items() if not isinstance(v, dict)}
+            print("[materialize] force lanes: %d/6 laid%s"
+                  % (6 - len(_bad),
+                     (" -- " + "; ".join("lane %s %s" % kv for kv in sorted(_bad.items())))
+                     if _bad else ""), file=sys.stderr)
         pcbnew.SaveBoard(out, _bpb)
         print("[materialize] blueprint cells: laid %d LOCKED segment(s), %d cell(s) refused"
               % (_laid, _refused), file=sys.stderr)
