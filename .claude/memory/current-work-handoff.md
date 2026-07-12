@@ -1,5 +1,25 @@
 # Current work handoff
 
+## (G20r) OWNER REVIEW BATCH LANDED — six directives measured in — 2026-07-12
+Commit fc835a7 (suite-gated 96 OK, validated seed-2 both variants):
+(D) FR HANDS OFF owned nets: cec_fr.owned_locked_nets (pad-coverage ownership) +
+cec_fr02.exclude_net_pins_in_dsn (truncate to 1 pin) -- FR neither routes nor
+optimizes locked-lay nets; reconcile (G20q) backstops. (B) pours never derived on
+locked-copper nets (the /FAN_12V 50mA mega-pour). (C) fiducials staged OFF-BOARD all
+passes -> p11_fiducials_last seats 3 most-open corners, extent-aware + edge-slide
+(FID3 walks to the J4<->MCU gap at (41,62.6) when both right corners are owned).
+(A, sub-agent) MCU-CLUSTER SEAT in p3crit: ESP + TRUE satellites (taint walk excludes
+TH1/TH2/NTC-dividers/VRAIL chain/fan-gate R -- analog doctrine, FOLLOWUPS has their
+own-seat rung) auto_cluster-packed, seated rigid at 0/90/180/270 in the logic column,
+courtyard-legal, refuse-loud; SW1/SW2 = adjacent orthogonal pair (1.95mm); seat settle
+trigger center-in-box -> COURTYARD-OVERLAP (U2 straddled between strips); honest
+NoAntKeepout ESP courtyard (was ~5mm understated). RESULT: U1 seated ON-BOARD BY THE
+LADDER ITSELF first time, (51.6,51.1,180); 6/6 lanes; 444 cells; unconn 83 -> 33-36.
+RESIDUAL: U4 p8 least-overlap park vs the MCU macro (FOLLOWUPS: p8 fit-check).
+NEXT: analog-doctrine seats (TH1 shunt row / TH2 ambient / VRAIL near lane 6) ->
+FR-residual/gates rung on the honest board -> overseer loop (verdict G20q: worth it,
+now unblocked -- the ESP wall is gone) -> stamps-first thermals on the real board.
+
 ## (G20q) OVERSEER-LOOP VERDICT + LOCKED-NET RECONCILE — 2026-07-12
 OWNER CATCH (dash renders): the wave "scrapped the nice traces... redid the shunt 90s".
 MEASURED double defect: (a) FR echoes protected wires back in the SES; the import re-adds
