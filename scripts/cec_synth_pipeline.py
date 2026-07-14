@@ -4444,7 +4444,7 @@ def _box_clear(box, obstacles, margin):
 
 def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
                     forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
-                    drop_antenna=False):
+                    drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0)):
     """Search a coarse grid x *rotations* for a LEGAL seat of the rigid macro *offsets*
     ({ref:(dx,dy,rot)}, some local frame -- _mcu_cluster_offsets / _adjacent_pair_offsets)
     inside *x_range* (default the full board width; the force-lane LOGIC COLUMN when the
@@ -4455,7 +4455,18 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
     courtyards). Among legal candidates, ranks by (1) summed distance from *score_points*
     [(x,y), ...] -- net proximity to the unit's already-seated peers -- then (2) macro
     swept area, smaller first (compactness). Returns ({ref:(x,y,rot)}, rot) or (None, None)
-    -- NEVER forces an illegal seat; the caller decides how to refuse."""
+    -- NEVER forces an illegal seat; the caller decides how to refuse.
+
+    *antenna_ref* (owner defect report 2026-07-14: "the MCU is rotated such that the
+    antenna is downwards instead of out over the board edge"): when set, that member's
+    antenna end must FACE a board edge -- the PRIMARY rank key becomes the distance from
+    the antenna face of its true courtyard to the board edge it points toward (0 = flush,
+    interior-facing = the full run of board beyond it). Preference, not a hard filter, so
+    a cramped column still seats rather than refusing. *antenna_dir* is the antenna end's
+    direction in the footprint's LOCAL frame at rot 0 -- (0,-1) for every Espressif MINI
+    module vendored today (S2/S3 MINI + C6-MINI-1: pads stop ~y=-4.5/-4.95, the padless
+    antenna zone runs to y=-10.6/-10.98, both measured 2026-07-14); it co-rotates with
+    the member (cec_pcb._rot: 90->-x, 180->+y, 270->+x, KiCad y-down)."""
     import cec_pcb
     x0r, x1r = (0.0, W) if x_range is None else x_range
     x0r, x1r = max(0.0, x0r), min(W, x1r)
@@ -4494,7 +4505,20 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
                         break
                 if legal:
                     dist = sum(math.hypot(x - px, y - py) for px, py in score_points)
-                    key = (round(dist, 3), round(area, 3))
+                    ant_pen = 0.0
+                    if antenna_ref is not None:
+                        for _ref, rdx, rdy, _rrot, ccx, ccy, chw, chh in parts:
+                            if _ref != antenna_ref:
+                                continue
+                            adx, ady = cec_pcb._rot(antenna_dir[0], antenna_dir[1], _rrot)
+                            gcx, gcy = x + rdx + ccx, y + rdy + ccy
+                            if abs(adx) >= abs(ady):      # axis-aligned at 90-deg rots
+                                ant_pen = (W - (gcx + chw)) if adx > 0 else (gcx - chw)
+                            else:
+                                ant_pen = (H - (gcy + chh)) if ady > 0 else (gcy - chh)
+                            ant_pen = max(0.0, ant_pen)
+                            break
+                    key = (round(ant_pen, 1), round(dist, 3), round(area, 3))
                     if best_key is None or key < best_key:
                         best_key = key
                         best = ({ref: (x + rdx, y + rdy, rrot)
@@ -4947,9 +4971,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _mcu_x0 = (max(b[2] for b in _mcu_lanes) + 1.0) if _mcu_lanes else 0.0
                 _mcu_nbrs = _adjacency(nl).get(_mcu_esp, set())
                 _mcu_score_pts = [anchors[r][:2] for r in _mcu_nbrs if r in anchors]
+                # antenna_ref (owner 2026-07-14): the ESP's antenna end faces the nearest
+                # board edge -- primary rank key, ahead of peer-distance/compactness.
                 _mcu_placed, _mcu_rot = _seat_mcu_macro(
                     _mcu_offs, comps, W, H, x_range=(_mcu_x0, W),
-                    forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts)
+                    forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts,
+                    antenna_ref=_mcu_esp)
                 _mcu_locked = set()
                 if _mcu_placed is None:
                     print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)

@@ -13,7 +13,16 @@ WAVE LOOP (owner ask): 3 chained cec_fresh_wave runs on 12vhpwr-standard IN FLIG
 background docker (log build/fresh-wave-loop-2026-07-14.log, work dirs -work4/5/6,
 out build/fresh-wave-loop so it CONSUMES it3's intent-proposals.json + all G20r ladder
 gains; seeds 0,1). Baseline to beat: it3 best unconn 43 (prop-sense-chain-isolation).
-Monitor armed on BEST=/new-best/errors. On completion: compare wave reports
+RESULT (3 waves done 2026-07-14 ~20:30): BEST 36 -> 35 -> 33 unconn (vs it3's 43 = -23%,
+vs it1 plain 63 = -48%). Wave-3 WINNER = a SEAT proposal (prop-sense-cluster-compa,
+compact-s0, drc 285) beating plain 34 -- the between-wave seat is now pulling its weight
+post-G20r. Plateau shape confirms G20q: plains cluster 33-40; the STABLE criticals every
+wave = /FAN_12V + GND stranded -> next code rung evidence: the fan-leg parts (J2/Q1 fan
+gate, excluded from the MCU cluster by analog doctrine) have NO seat, and GND wants its
+stitch/pour treatment in the oracle view. Published winners + reports:
+build/fresh-wave-loop/12vhpwr-standard/20260714T{2010,2021,2029}-*. Renders on the dash
+activity feed. NEXT RUNG unchanged + now evidenced: analog-doctrine seats (TH1 shunt row/
+TH2 ambient/VRAIL near lane 6/fan-gate cluster) then FR-residual/gates. On completion: compare wave reports
 (build/fresh-wave-loop/12vhpwr-standard/*wave-report.json), summarize improvement curve
 to owner, dashboard activity feed has per-variant renders (port 8090).
 
