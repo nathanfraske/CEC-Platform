@@ -131,6 +131,19 @@ BOARD_WH = {
 BOARD_PARAMS = {
     "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
                          "respect_antenna_keepout": False,
+                         # MEASURED MITIGATION (ablation 2026-07-14, owner "routing
+                         # through the locked routes" report): the oracle's precision
+                         # branch is the cell bulldozer on THIS board -- identical
+                         # placed board scores drc 284 (101 shorts/69 crossings, all
+                         # through locked-cell space) with precision=True vs drc 38
+                         # with it False; bare FR is clean either way (A/B/C composite,
+                         # build/ab-copper-comparison-2026-07-14.png). On this board
+                         # precision only lays the USB pair anyway (kelvin taps 0 --
+                         # the blueprint cells own them), so the trade is ~9 locked
+                         # USB segs for ~250 structural DRC. Root-cause hunt in the
+                         # precision/skip_locked_taps branch is FOLLOWUPS; re-enable
+                         # when it lands.
+                         "wave_precision": False,
                          # straight-through power path (owner): 12V-2x6 IN top, OUT
                          # bottom -- J3/J4 defeat the net-role classifier (both stacked
                          # at origin, measured), so pin them explicitly.
