@@ -1,5 +1,24 @@
 # Current work handoff
 
+## FR-FORK SURGERY SESSION CLOSED — 2026-07-14 (night)
+cec2 fork BUILT+SHIPPED (jar de01c829..., patch scripts/patches/freerouting-1.7.0-cec2.patch,
+README addendum): -noecho VALIDATED (reconcile echoes 130->0), -progress VALIDATED (CEC_PASS
+lines re-emitted by cec_fr as [fr] CEC_PASS...), -maxstall EXPERIMENTAL-DO-NOT-WIRE (abort
+works but the improvement-bounded optimizer thrashes the incomplete board -> 900s timeout vs
+194s base; external plateau-kill on CEC_PASS is the right shape, FOLLOWUPS). THREE jar
+rebuilds this session (is_interrupted->break; -maxstall value consumption ++i -- stock
+value-flags survive dangling args only by arg ORDER, the trailing else eats a final token as
+the design file). FR_VERSION default = 1.7.0-cec2; golden identity vs stock held to the
+decimal (golden itself = pre-existing owner-gated red). Seed axis opt-in CEC_FR_SEED_AXIS=1
+(wave sets it).
+ROUTE_TIERED CONVICTED as the precision-branch cell bulldozer (M4 80 structural vs M3 24,
+only delta = tiered input; CEC_PASS failed~56 plateau from pass 1). Composite on the dash:
+build/tier-conviction-2026-07-14.png. Precision STAYS (owner: blind-AB ruling, important
+routes only); wave_precision=False is the labeled stopgap until route_tiered is repaired.
+MCP/AGENT TOOLS: scripts/cec_compute_mcp.py (MCP stdio + --call CLI, 6 tools), .mcp.json
+cec-compute, broker cec_agent.py extended (live-tested; durable copy ops/cec-llm-broker/
+-- the live broker dir is NOT a git repo).
+
 ## LOCKED-CELL BULLDOZING ROUND — 2026-07-14 (late evening)
 Owner defect report: FR routes THROUGH locked blueprint cells, no layer-change avoidance;
 cell-internal routes jank. MEASURED (wave-9 winner): 154/157 shorts, 91/94 clearance,
