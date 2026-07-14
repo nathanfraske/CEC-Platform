@@ -21,7 +21,12 @@ wave = /FAN_12V + GND stranded -> next code rung evidence: the fan-leg parts (J2
 gate, excluded from the MCU cluster by analog doctrine) have NO seat, and GND wants its
 stitch/pour treatment in the oracle view. Published winners + reports:
 build/fresh-wave-loop/12vhpwr-standard/20260714T{2010,2021,2029}-*. Renders on the dash
-activity feed. NEXT RUNG unchanged + now evidenced: analog-doctrine seats (TH1 shunt row/
+activity feed. ANTENNA SEAT FIX (owner defect report, same day): _seat_mcu_macro gained antenna_ref --
+PRIMARY rank key = antenna-face-to-faced-edge distance (preference not filter; antenna_dir
+(0,-1) measured on S2/S3-MINI + C6-MINI-1). Unit teeth: 22.5mm interior -> 0.0 flush.
+Wave-7 real-board validation: antenna faces bottom edge at 2.8mm (was 15mm of interior at
+rot180), best unconn 33 held (prop-sense-linear-flow-y). Residual flush-vs-overhang in
+FOLLOWUPS. NEXT RUNG unchanged + now evidenced: analog-doctrine seats (TH1 shunt row/
 TH2 ambient/VRAIL near lane 6/fan-gate cluster) then FR-residual/gates. On completion: compare wave reports
 (build/fresh-wave-loop/12vhpwr-standard/*wave-report.json), summarize improvement curve
 to owner, dashboard activity feed has per-variant renders (port 8090).

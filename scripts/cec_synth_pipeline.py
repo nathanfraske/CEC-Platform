@@ -7873,7 +7873,12 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 sort_key = (0, round(dT_for_key, 1), m.vias, round(silk_key, 1),
                             round(m.length, 1), 0)
             else:
-                sort_key = (1, safety_fails, ft, m.unconnected, m.drc, round(dT_for_key, 1))
+                # len(crit) ranks ahead of raw unconnected (owner-run finding 2026-07-14:
+                # wave-8's "best" stranded FIVE critical nets incl. two force lanes yet
+                # outranked cleaner boards on raw unconn -- _classify_unconnected already
+                # declares a critical ratline a HARD route failure; the key now agrees).
+                sort_key = (1, safety_fails, len(crit), ft, m.unconnected, m.drc,
+                            round(dT_for_key, 1))
 
             res = {
                 "gate": gate, "label": label, "route_s": route_s, "routed": routed,
