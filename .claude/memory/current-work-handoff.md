@@ -1,5 +1,22 @@
 # Current work handoff
 
+## PSU-TESTER TIERS RULED + 12VHPWR WAVE LOOP RUNNING — 2026-07-14 (later same session)
+TIER RULING (owner): Pro + Max only, NO Standard tester now (850W base config = shelved
+future-Standard). Numbers worked into study §6 addendum (docs/psu-tester-exploration-
+2026-07-14.md): Pro (1600W hybrid + fast transient channel, proper ATX 3.1 suite) landed
+$1,365-2,015 -> list $3,495/$3,995; Max (+HF digitizer/spec-grade ripple/per-cable
+spectral, +2nd fast channel, +OVP sourcing stage, +AC-interrupter = absolute hold-up,
+Pro/Max module set) landed $2,010-3,150 -> list $5,995-6,995. Owner-queue row updated.
+Gates unchanged: shop interviews + competitive check + transient bench gate; Max also
+gated on the Pro/Max module line existing.
+WAVE LOOP (owner ask): 3 chained cec_fresh_wave runs on 12vhpwr-standard IN FLIGHT,
+background docker (log build/fresh-wave-loop-2026-07-14.log, work dirs -work4/5/6,
+out build/fresh-wave-loop so it CONSUMES it3's intent-proposals.json + all G20r ladder
+gains; seeds 0,1). Baseline to beat: it3 best unconn 43 (prop-sense-chain-isolation).
+Monitor armed on BEST=/new-best/errors. On completion: compare wave reports
+(build/fresh-wave-loop/12vhpwr-standard/*wave-report.json), summarize improvement curve
+to owner, dashboard activity feed has per-variant renders (port 8090).
+
 ## 24-PIN ATX CONTROL-SIGNAL BLOCK LANDED (owner-approved) + PSU-TESTER EXPLORATION IN FLIGHT — 2026-07-14
 RULED same day: owner approved the sense-wire add INCL. PESD clamps; policy = self-test
 REFUSES to assert PS_ON# with host attached unless explicit user override (interlock 8).
