@@ -1,0 +1,282 @@
+diff --git a/src/main/java/app/freerouting/autoroute/BatchAutorouter.java b/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
+index bf41cc6..7587b79 100644
+--- a/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
++++ b/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
+@@ -34,6 +34,12 @@ public class BatchAutorouter {
+   private final HashSet<String> already_checked_board_hashes = new HashSet<String>();
+   private final LinkedList<Integer> diffBetweenBoards = new LinkedList<Integer>();
+   private boolean is_interrupted = false;
++  // CEC cec2 patch: per-pass metrics surfaced for -progress / -maxstall (see CecOptions).
++  private int last_pass_items = 0;
++  private int last_pass_failed = 0;
++  private int last_pass_ripped = 0;
++  private int cec_best_failed = Integer.MAX_VALUE;
++  private int cec_stall_streak = 0;
+   /** Used to draw the airline of the current routed incomplete. */
+   private FloatLine air_line = null;
+ 
+@@ -167,6 +173,33 @@ public class BatchAutorouter {
+       already_checked_board_hashes.add(this.routing_board.get_hash());
+       still_unrouted_items = autoroute_pass(curr_pass_no, true);
+ 
++      // CEC cec2 patch: structured per-pass progress + plateau abort, both opt-in.
++      if (app.freerouting.datastructures.CecOptions.progress) {
++        System.out.println(
++            "CEC_PASS pass=" + curr_pass_no
++                + " togo=" + this.last_pass_items
++                + " failed=" + this.last_pass_failed
++                + " ripped=" + this.last_pass_ripped);
++        System.out.flush();
++      }
++      int cec_max_stall = app.freerouting.datastructures.CecOptions.max_stall;
++      if (cec_max_stall > 0 && still_unrouted_items) {
++        if (this.last_pass_failed < this.cec_best_failed) {
++          this.cec_best_failed = this.last_pass_failed;
++          this.cec_stall_streak = 0;
++        } else {
++          ++this.cec_stall_streak;
++          if (this.cec_stall_streak >= cec_max_stall) {
++            System.out.println(
++                "CEC_STALL_ABORT pass=" + curr_pass_no
++                    + " best_failed=" + this.cec_best_failed
++                    + " streak=" + this.cec_stall_streak);
++            System.out.flush();
++            this.is_interrupted = true;
++          }
++        }
++      }
++
+       // let's check if there was enough change in the last pass, because if it were little, so
+       // should probably stop
+       int newTraceDifferences = this.routing_board.diff_traces(boardBefore);
+@@ -257,6 +290,20 @@ public class BatchAutorouter {
+         this.air_line = null;
+         return false;
+       }
++      // CEC seed patch: when -seed is given, perturb the per-pass net/item routing ORDER with a
++      // seeded PRNG (salted by pass number). This is the exploration-diversity axis (R-01): the
++      // net order is the one live routing degree of freedom in the -mt 1 batch path (the maze
++      // rip-up Random is gated behind ctrl.ripup_pass_no>=4, which the batch path never sets --
++      // it is dead code here, so seeding it alone yields no diversity). FR's stock
++      // ItemSelectionStrategy.RANDOM does the analogous thing in the MT optimizer; this extends
++      // it, OPT-IN, to the main batch autoroute pass. With no -seed the list keeps its exact
++      // stock (sorted) order, so an unflagged run stays byte-identical to stock.
++      if (app.freerouting.datastructures.Seed.isSet()
++          && autoroute_item_list instanceof java.util.List) {
++        java.util.Collections.shuffle(
++            (java.util.List<Item>) autoroute_item_list,
++            new java.util.Random(app.freerouting.datastructures.Seed.mix(p_pass_no)));
++      }
+       int items_to_go_count = autoroute_item_list.size();
+       int ripped_item_count = 0;
+       int not_found = 0;
+@@ -299,6 +346,10 @@ public class BatchAutorouter {
+         }
+         remove_tails(stop_connection_option);
+       }
++      // CEC cec2 patch: expose this pass's counters to the driver loop.
++      this.last_pass_items = autoroute_item_list.size();
++      this.last_pass_failed = not_found;
++      this.last_pass_ripped = ripped_item_count;
+       this.air_line = null;
+       return true;
+     } catch (Exception e) {
+diff --git a/src/main/java/app/freerouting/autoroute/BatchOptRouteMT.java b/src/main/java/app/freerouting/autoroute/BatchOptRouteMT.java
+index 470cbaf..7939e08 100644
+--- a/src/main/java/app/freerouting/autoroute/BatchOptRouteMT.java
++++ b/src/main/java/app/freerouting/autoroute/BatchOptRouteMT.java
+@@ -191,7 +191,17 @@ public class BatchOptRouteMT extends BatchOptRoute {
+       }
+ 
+       if (current_item_selection_strategy() == ItemSelectionStrategy.RANDOM) {
+-        Collections.shuffle(item_ids);
++        // CEC seed patch: stock shuffles with an internal wall-clock-seeded Random (a genuine
++        // run-to-run nondeterminism source in the -mt >1 RANDOM path). When -seed is given, use a
++        // Random derived from the master seed so the RANDOM strategy is reproducible; otherwise
++        // keep the exact stock (unseeded) shuffle.
++        if (app.freerouting.datastructures.Seed.isSet()) {
++          Collections.shuffle(
++              item_ids,
++              new java.util.Random(app.freerouting.datastructures.Seed.mix(item_ids.size())));
++        } else {
++          Collections.shuffle(item_ids);
++        }
+       }
+     }
+ 
+diff --git a/src/main/java/app/freerouting/autoroute/MazeSearchAlgo.java b/src/main/java/app/freerouting/autoroute/MazeSearchAlgo.java
+index 500d303..9e59420 100644
+--- a/src/main/java/app/freerouting/autoroute/MazeSearchAlgo.java
++++ b/src/main/java/app/freerouting/autoroute/MazeSearchAlgo.java
+@@ -51,7 +51,11 @@ public class MazeSearchAlgo {
+     autoroute_engine = p_autoroute_engine;
+     ctrl = p_ctrl;
+     random_generator.setSeed(
+-        p_ctrl.ripup_costs); // To get reproducable random numbers in the ripup algorithm.
++        app.freerouting.datastructures.Seed.mix(
++            p_ctrl.ripup_costs)); // To get reproducable random numbers in the ripup algorithm.
++    // CEC seed patch: Seed.mix returns ripup_costs UNCHANGED when no -seed was given (stock
++    // behavior), and combines it with the master seed otherwise, so distinct -seed values
++    // explore the rip-up search differently while a fixed seed stays reproducible.
+     this.search_tree = p_autoroute_engine.autoroute_search_tree;
+     maze_expansion_list = new TreeSet<MazeListElement>();
+     destination_distance =
+diff --git a/src/main/java/app/freerouting/datastructures/CecOptions.java b/src/main/java/app/freerouting/datastructures/CecOptions.java
+new file mode 100644
+index 0000000..844be06
+--- /dev/null
++++ b/src/main/java/app/freerouting/datastructures/CecOptions.java
+@@ -0,0 +1,33 @@
++package app.freerouting.datastructures;
++
++/**
++ * CEC cec2 patch (base FreeRouting 1.7.0 + the cec1 seed patch): process-global holders for the
++ * three surgical, ALL-OPT-IN additions of 2026-07-14. Like {@link Seed}, every flag defaults to
++ * the stock behavior, so an unflagged run stays byte-identical to stock 1.7.0 (the fork's
++ * standing guarantee, ops/README-fr-fork.md).
++ *
++ * <ul>
++ *   <li>{@code -noecho} — do not echo unmodified user-fixed ("protect") wires back into the SES.
++ *       Stock echoes every protect wire of every routed net; the CEC pipeline then has to strip
++ *       the re-imported duplicates (reconcile measured ~130 echo removals per route).
++ *   <li>{@code -maxstall <k>} — abort the batch autorouter after {@code k} consecutive passes
++ *       with no improvement in the failed-item count. Stock's own stall detector keys on a
++ *       trace-diff average and needs 200+ passes of bookkeeping to trigger; at CEC wave scale the
++ *       stalled candidates are where wall-clock dies.
++ *   <li>{@code -progress} — one machine-readable line per pass on stdout
++ *       ({@code CEC_PASS pass=<n> togo=<m> routed=<r> ripped=<p> failed=<f>}), the structured
++ *       contract for the pipeline's stage-0 pre-kill (which today scrapes human-oriented logs).
++ * </ul>
++ */
++public final class CecOptions {
++  private CecOptions() {}
++
++  /** -noecho: suppress unmodified protect-wire echo in the SES writer. */
++  public static boolean no_echo = false;
++
++  /** -maxstall: abort after this many consecutive no-improvement passes (0 = off = stock). */
++  public static int max_stall = 0;
++
++  /** -progress: emit one CEC_PASS line per autoroute pass on stdout. */
++  public static boolean progress = false;
++}
+diff --git a/src/main/java/app/freerouting/datastructures/Seed.java b/src/main/java/app/freerouting/datastructures/Seed.java
+new file mode 100644
+index 0000000..d56a4a4
+--- /dev/null
++++ b/src/main/java/app/freerouting/datastructures/Seed.java
+@@ -0,0 +1,53 @@
++package app.freerouting.datastructures;
++
++/**
++ * CEC seed patch (base FreeRouting 1.7.0): a process-global master seed for reproducible
++ * autorouting.
++ *
++ * <p>Stock FreeRouting 1.7.0 has no way to control the pseudo-random choices its rip-up
++ * maze search makes: {@code MazeSearchAlgo} seeds its {@link java.util.Random} solely from
++ * {@code ripup_costs}, so every run explores identically (no diversity axis, R-01) and the
++ * multi-threaded optimizer's {@code Collections.shuffle} is seeded from the wall clock (a
++ * genuine run-to-run nondeterminism source). This holder lets a single {@code -seed <long>}
++ * CLI flag steer both, without threading a seed argument through the deep autoroute call
++ * chain.
++ *
++ * <p><b>Default behavior is byte-identical to stock.</b> When {@link #isSet()} is false (no
++ * {@code -seed} on the command line) {@link #mix(long)} returns its argument unchanged, so
++ * every seeded call site reduces exactly to the stock expression. The flag is purely
++ * additive; an unflagged run matches the historical baseline.
++ */
++public final class Seed {
++
++  private static boolean set = false;
++  private static long value = 0L;
++
++  private Seed() {}
++
++  /** Records the master seed from the {@code -seed} CLI flag. Idempotent per process. */
++  public static synchronized void set(long p_seed) {
++    value = p_seed;
++    set = true;
++  }
++
++  /** True once {@link #set(long)} has been called (i.e. {@code -seed} was passed). */
++  public static synchronized boolean isSet() {
++    return set;
++  }
++
++  /** The raw master seed (0 when unset). */
++  public static synchronized long value() {
++    return value;
++  }
++
++  /**
++   * Mixes the master seed into a component-local seed. Returns {@code p_local} UNCHANGED when
++   * no master seed is set, so a patched, unflagged run is byte-identical to stock. When a seed
++   * is set, the two are combined with a Fibonacci-hashing XOR so distinct master seeds yield
++   * distinct low-bit streams (what {@link java.util.Random#setSeed(long)} consumes) even for
++   * the small integer local seeds FreeRouting uses (e.g. ripup_costs).
++   */
++  public static synchronized long mix(long p_local) {
++    return set ? (p_local ^ (value * 0x9E3779B97F4A7C15L)) : p_local;
++  }
++}
+diff --git a/src/main/java/app/freerouting/designforms/specctra/SpecctraSesFileWriter.java b/src/main/java/app/freerouting/designforms/specctra/SpecctraSesFileWriter.java
+index ba9b5ed..14e45fd 100644
+--- a/src/main/java/app/freerouting/designforms/specctra/SpecctraSesFileWriter.java
++++ b/src/main/java/app/freerouting/designforms/specctra/SpecctraSesFileWriter.java
+@@ -317,6 +317,12 @@ public class SpecctraSesFileWriter {
+       if (curr_item.get_fixed_state() == app.freerouting.board.FixedState.SYSTEM_FIXED) {
+         continue;
+       }
++      // CEC cec2 patch (-noecho): a user-fixed ("protect") item was an INPUT the router may not
++      // modify -- echoing it back into the SES only creates a duplicate at re-import (the CEC
++      // reconcile measured ~130 such echoes per route). Opt-in; stock echoes them.
++      if (app.freerouting.datastructures.CecOptions.no_echo && curr_item.is_user_fixed()) {
++        continue;
++      }
+       boolean is_wire = curr_item instanceof PolylineTrace;
+       boolean is_via = curr_item instanceof Via;
+       boolean is_conduction_area =
+diff --git a/src/main/java/app/freerouting/gui/StartupOptions.java b/src/main/java/app/freerouting/gui/StartupOptions.java
+index 0cc198b..dc8265a 100644
+--- a/src/main/java/app/freerouting/gui/StartupOptions.java
++++ b/src/main/java/app/freerouting/gui/StartupOptions.java
+@@ -29,6 +29,10 @@ public class StartupOptions {
+   float optimization_improvement_threshold = 0.00001f;
+   String[] ignore_net_classes_by_autorouter = new String[0];
+   boolean disable_logging_option = false;
++  // CEC seed patch: master seed for reproducible autorouting (-seed <long>). When unset, the
++  // autorouter behaves EXACTLY as stock FreeRouting 1.7.0.
++  boolean seed_option = false;
++  long seed = 0L;
+ 
+   private StartupOptions() {
+     if (!Arrays.stream(supported_languages).anyMatch(current_locale.getLanguage()::equals)) {
+@@ -156,6 +160,28 @@ public class StartupOptions {
+           } else if (p_args.length > i + 1 && p_args[i + 1].startsWith("ko")) {
+             current_locale = Locale.KOREAN;
+           }
++        } else if (p_args[i].startsWith("-noecho")) {
++          // CEC cec2 patch: suppress unmodified protect-wire echo in the SES (see CecOptions).
++          app.freerouting.datastructures.CecOptions.no_echo = true;
++        } else if (p_args[i].startsWith("-maxstall")) {
++          // CEC cec2 patch: abort after <k> consecutive no-improvement passes. Parsed before any
++          // "-m*" lookalike could ever be added; "-mp"/"-mt" do not prefix-match "-maxstall".
++          if (p_args.length > i + 1 && !p_args[i + 1].startsWith("-")) {
++            app.freerouting.datastructures.CecOptions.max_stall = Integer.decode(p_args[i + 1]);
++          }
++        } else if (p_args[i].startsWith("-progress")) {
++          // CEC cec2 patch: one machine-readable CEC_PASS line per pass on stdout.
++          app.freerouting.datastructures.CecOptions.progress = true;
++        } else if (p_args[i].startsWith("-seed")) {
++          // CEC seed patch: master PRNG seed for reproducible autorouting. MUST be tested before
++          // "-s" (session file) since "-seed".startsWith("-s") is also true. Accepts decimal or
++          // 0x-hex; a fresh, non-negative long (the leading-"-" guard mirrors the other numeric
++          // flags and rejects negative values, which is fine -- seeds are non-negative).
++          if (p_args.length > i + 1 && !p_args[i + 1].startsWith("-")) {
++            seed = Long.decode(p_args[i + 1]);
++            seed_option = true;
++            app.freerouting.datastructures.Seed.set(seed);
++          }
+         } else if (p_args[i].startsWith("-s")) {
+           session_file_option = true;
+         } else if (p_args[i].startsWith("-im")) {

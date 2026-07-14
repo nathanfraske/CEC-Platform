@@ -191,3 +191,26 @@ Reading the results:
   ±30-unconn noise is a **`-mt >1` / large-congested-board** phenomenon, not a
   `-mt 1` small-board one — but stock nonetheless has **no seed diversity axis**
   (every seed → identical), which is exactly the R-01 gap this patch fills.
+
+---
+
+# cec2 addendum (2026-07-14) — `freerouting-1.7.0-cec2`
+
+Owner GO ("do the surgery ... do the speedups and profile it"). cec2 = cec1 + three
+**opt-in** flags; the unflagged-equals-stock guarantee is preserved (every new site
+checks a `CecOptions` flag that defaults to stock behavior).
+
+| Flag | File(s) | What it does |
+|---|---|---|
+| `-noecho` | `designforms/specctra/SpecctraSesFileWriter.java`, `datastructures/CecOptions.java` *(new)* | Skip unmodified user-fixed ("protect") wires in the SES — they were router INPUTS; echoing them creates re-import duplicates (reconcile measured ~130 strips/route). |
+| `-maxstall <k>` | `autoroute/BatchAutorouter.java` | Abort the batch route after `k` consecutive passes with no improvement in the failed-item count (stock's trace-diff detector needs 200+ passes of bookkeeping). Prints `CEC_STALL_ABORT pass=… best_failed=…`. |
+| `-progress` | `autoroute/BatchAutorouter.java` | One machine-readable line per pass: `CEC_PASS pass=<n> togo=<m> failed=<f> ripped=<r>` — the stage-0 pre-kill contract (replaces log-scraping). |
+
+- **Patch (cumulative over v1.7.0, replaces applying cec1 separately):**
+  `scripts/patches/freerouting-1.7.0-cec2.patch`
+- **Jar sha256:** `13582a7253453686c650b60ea2b3672d10f4decf186b6c7ff2b1ff8be0105bde`
+  (durable copies: `/mnt/e/toolchain/fr-fork/` + `build/fr-fork/`)
+- **cec_fr wiring:** `-noecho` + `-progress` default ON where supported
+  (`CEC_FR_NOECHO=0` reverts the echo for A/Bs); `-maxstall` opt-in via
+  `CEC_FR_MAXSTALL=<k>`; the seed axis remains opt-in via `CEC_FR_SEED_AXIS=1`.
+- Rebuild: same recipe as above; apply the cec2 patch instead of the cec1 one.

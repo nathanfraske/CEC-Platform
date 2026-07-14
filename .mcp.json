@@ -15,6 +15,12 @@
       "args": [
         "scripts/cec_sch_mcp.py"
       ]
+    },
+    "cec-compute": {
+      "command": "python3",
+      "args": [
+        "scripts/cec_compute_mcp.py"
+      ]
     }
   }
 }
