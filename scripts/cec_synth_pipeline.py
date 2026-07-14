@@ -4444,7 +4444,8 @@ def _box_clear(box, obstacles, margin):
 
 def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
                     forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
-                    drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0)):
+                    drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0),
+                    antenna_overhang=0.0):
     """Search a coarse grid x *rotations* for a LEGAL seat of the rigid macro *offsets*
     ({ref:(dx,dy,rot)}, some local frame -- _mcu_cluster_offsets / _adjacent_pair_offsets)
     inside *x_range* (default the full board width; the force-lane LOGIC COLUMN when the
@@ -4466,7 +4467,14 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
     direction in the footprint's LOCAL frame at rot 0 -- (0,-1) for every Espressif MINI
     module vendored today (S2/S3 MINI + C6-MINI-1: pads stop ~y=-4.5/-4.95, the padless
     antenna zone runs to y=-10.6/-10.98, both measured 2026-07-14); it co-rotates with
-    the member (cec_pcb._rot: 90->-x, 180->+y, 270->+x, KiCad y-down)."""
+    the member (cec_pcb._rot: 90->-x, 180->+y, 270->+x, KiCad y-down).
+
+    *antenna_overhang* (owner GO 2026-07-14, the alpha hand-board form): let the antenna
+    member's courtyard hang PAST the board edge by up to this many mm on the antenna side
+    -- CONTAINMENT only relaxes (the full box still collision-checks against forbid/occ).
+    5.0mm is the safe ceiling for the vendored MINI lands: the padless antenna zone is
+    6.15mm (S2/S3) / 6.03mm (C6) deep, so 5.0 keeps the nearest pad row >=1.0mm inside
+    the edge -- clear of the boards' copper-edge-clearance rule."""
     import cec_pcb
     x0r, x1r = (0.0, W) if x_range is None else x_range
     x0r, x1r = max(0.0, x0r), min(W, x1r)
@@ -4482,10 +4490,29 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
             parts.append((ref, rdx, rdy, rrot, ccx, ccy, chw, chh))
         if not parts:
             continue
-        mlx = min(rdx + ccx - chw for _, rdx, _, _, ccx, _, chw, _ in parts)
-        mhx = max(rdx + ccx + chw for _, rdx, _, _, ccx, _, chw, _ in parts)
-        mly = min(rdy + ccy - chh for _, _, rdy, _, _, ccy, _, chh in parts)
-        mhy = max(rdy + ccy + chh for _, _, rdy, _, _, ccy, _, chh in parts)
+        # containment extents; the antenna member's antenna-side extent relaxes by
+        # antenna_overhang (containment ONLY -- forbid/occ legality below still uses
+        # the full courtyard box).
+        _o = antenna_overhang if antenna_ref is not None else 0.0
+        _exts = []
+        for _ref, rdx, rdy, rrot2, ccx, ccy, chw, chh in parts:
+            _lx, _hx = rdx + ccx - chw, rdx + ccx + chw
+            _ly, _hy = rdy + ccy - chh, rdy + ccy + chh
+            if _o > 0.0 and _ref == antenna_ref:
+                _adx, _ady = cec_pcb._rot(antenna_dir[0], antenna_dir[1], rrot2)
+                if _adx < -0.5:
+                    _lx += _o
+                elif _adx > 0.5:
+                    _hx -= _o
+                elif _ady < -0.5:
+                    _ly += _o
+                else:
+                    _hy -= _o
+            _exts.append((_lx, _hx, _ly, _hy))
+        mlx = min(e[0] for e in _exts)
+        mhx = max(e[1] for e in _exts)
+        mly = min(e[2] for e in _exts)
+        mhy = max(e[3] for e in _exts)
         area = (mhx - mlx) * (mhy - mly)
         ax_lo, ax_hi = x0r - mlx, x1r - mhx
         ay_lo, ay_hi = 0.0 - mly, H - mhy
@@ -4973,10 +5000,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _mcu_score_pts = [anchors[r][:2] for r in _mcu_nbrs if r in anchors]
                 # antenna_ref (owner 2026-07-14): the ESP's antenna end faces the nearest
                 # board edge -- primary rank key, ahead of peer-distance/compactness.
+                # antenna_overhang=5.0 (owner GO, same day): the antenna zone may hang
+                # past the edge like the alpha hand boards (pads stay >=1.0mm inside).
                 _mcu_placed, _mcu_rot = _seat_mcu_macro(
                     _mcu_offs, comps, W, H, x_range=(_mcu_x0, W),
                     forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts,
-                    antenna_ref=_mcu_esp)
+                    antenna_ref=_mcu_esp, antenna_overhang=5.0)
                 _mcu_locked = set()
                 if _mcu_placed is None:
                     print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)
@@ -5038,6 +5067,54 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     print(f"  [p3crit] mcu-cluster: {len(_mcu_sws)} SW ref(s), "
                          "expected exactly 2 for a pair -- left for ordinary placement",
                          file=sys.stderr)
+                # FAN-GATE SATELLITE SEAT (owner 2026-07-14 "see if the wave can get the
+                # boards down cleaner ... if you can make any fixes go ahead"): the fan
+                # header's discrete leg was the wave-7 winner's single largest stranded
+                # family (5 fan-net ratlines, measured via kicad-cli DRC) -- Q1/D5/R14/
+                # R16/R17 are passives-bucket refs the analog-taint walk rightly keeps
+                # OUT of the MCU macro, but nothing seated them AT the header either.
+                # Membership by NET, never by name list: a passives-bucket ref (never an
+                # IC/anchor/blueprint member) touching any net whose name contains "FAN"
+                # (/01-input/FAN_* + /FAN_12V + the MCU-side /FAN_EN, /FAN_TACH_GPIO
+                # halves -- U1 also touches those but is an IC, excluded by bucket).
+                # Packed as one courtyard-true row and seated by the same machinery,
+                # scored to the fan connector's anchor. Rides the same force-lanes gate
+                # as the MCU seat; boards without FAN nets no-op (empty member set).
+                _ref_nets = {}
+                for _net, _nodes in nl.nets.items():
+                    for _r2, _p2 in _nodes:
+                        _ref_nets.setdefault(_r2, set()).add(_net)
+                _fan_conn = next((r for r in anchors_roles if r in anchors and
+                                  any("FAN" in (n or "").upper()
+                                      for n in _ref_nets.get(r, ()))), None)
+                _fan_sats = sorted(p for p in passives
+                                   if p in comps and p not in _bp_refs and p not in anchors
+                                   and any("FAN" in (n or "").upper()
+                                           for n in _ref_nets.get(p, ())))
+                if _fan_conn and _fan_sats:
+                    _run = 0.0
+                    _fan_offs = {}
+                    for _r2 in _fan_sats:
+                        _fcx, _fcy, _fhw, _fhh = _courtyard_info(comps[_r2], 0.0)
+                        _fan_offs[_r2] = (_run + _fhw - _fcx, -_fcy, 0.0)
+                        _run += 2 * _fhw + 0.5
+                    _fan_occ = [_mcu_true_box(_o, anchors[_o])
+                                for _o in anchors if _o in comps]
+                    _fan_placed, _fan_rot = _seat_mcu_macro(
+                        _fan_offs, comps, W, H,
+                        forbid_boxes=_mcu_env, occ_boxes=_fan_occ,
+                        score_points=[anchors[_fan_conn][:2]])
+                    if _fan_placed is None:
+                        print("  [p3crit] fan-gate seat: NO legal seat "
+                              "(left for ordinary placement)", file=sys.stderr)
+                    else:
+                        for _r2, _xyz in _fan_placed.items():
+                            anchors[_r2] = _xyz
+                        _bp_refs.update(_fan_placed)
+                        if os.environ.get("CEC_BP_DEBUG"):
+                            print(f"  [p3crit] fan-gate seat: {len(_fan_placed)} part(s) "
+                                  f"rot {_fan_rot:.0f} by {_fan_conn} "
+                                  f"@ {anchors[_fan_conn][:2]}", file=sys.stderr)
         # 1d. SEAT CONFLICT REPAIR (dual-sided fix): Y-stagger the rail sensing CELLS (rigidly, so
         #     Kelvin holds) clear of same-face overlaps AND opposite-face THT pin fields. Runs HERE --
         #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what
