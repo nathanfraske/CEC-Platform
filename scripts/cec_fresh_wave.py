@@ -307,6 +307,10 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     role_keepouts merge into params (the params-level lever)."""
     label = f"{iname}-{strat}-s{seed}"
     t0 = time.monotonic()
+    # The wave is the consumer that WANTS the fork's real seed-diversity axis
+    # (R-01); everything else stays stock-order unless it opts in (see cec_fr
+    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
+    os.environ["CEC_FR_SEED_AXIS"] = "1"
     _p = _board_params(board)
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)

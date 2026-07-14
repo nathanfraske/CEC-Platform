@@ -188,7 +188,17 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
 # cec_fr.FR_VERSION, so an env override is automatically an AM-03 epoch boundary in every
 # decision log). The DEFAULT stays the banked-baseline pin until the FR-01 migration gate
 # passes on the successor.
-FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0")
+# DEFAULT FLIPPED to the CEC seed fork (owner directive 2026-07-14: "apply it so we
+# stop using stock now"). Unflagged behavior is byte-identical to stock 1.7.0
+# (ops/README-fr-fork.md leg 0b) and the seed axis is additionally OPT-IN via
+# CEC_FR_SEED_AXIS=1 (see run_freerouting), so this flip changes NO route anywhere
+# until a consumer opts in (the wave does). Version change = an AM-03 epoch (the
+# ledger manifest carries fr_version). SB-08 golden state at the flip, measured
+# 2026-07-14: RED-PENDING for PRE-EXISTING owner-gated reasons (item-3a
+# CEC_GOLDEN_SYNTH re-freeze) -- stock 1.7.0 and this fork produce IDENTICAL
+# golden metrics to the decimal (kelvin/unconn/drc/thermal; only elapsed_s
+# differs), logs build/golden-{stock-control,cec1-flip2}.log.
+FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec1")
 
 # Hash pins (sha256). The 2.2.4 jar digest matches the official GitHub release-asset
 # digest (verified 2026-06-10); 1.7.0 is the hash of the jar the banked baseline ran on.
@@ -689,7 +699,15 @@ def run_freerouting(
 
     cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
                       version=v, workdir=workdir)
-    if seed is not None and _seed_ok:
+    # SEED AXIS IS OPT-IN (CEC_FR_SEED_AXIS=1; 2026-07-14, the -cec1 default flip):
+    # every historical caller passes seed=N habitually because it was INERT on stock
+    # 1.7.0 -- activating it silently on the flip changed routes under them (measured:
+    # the SB-08 golden regressed kelvin/unconn/thermal on its frozen bands the moment
+    # the fork became default). Unflagged fork behavior is byte-identical to stock
+    # (leg 0b), so with the axis off the flip is bit-safe everywhere; consumers that
+    # WANT diversity (the wave) set the env explicitly.
+    if (seed is not None and _seed_ok
+            and os.environ.get("CEC_FR_SEED_AXIS", "0") == "1"):
         cmd += ["-seed", str(int(seed))]   # the A5 fork's real diversity axis
 
     run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
