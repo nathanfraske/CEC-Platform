@@ -1,5 +1,17 @@
 # Current work handoff
 
+## 24-PIN SENSE-WIRE STUDY DELIVERED (owner ask) — 2026-07-14
+Study: docs/standard-tier-review/atx24-sense-wire-interaction-study-2026-07-14.md +
+owner-queue §1 decision row + FOLLOWUPS resume line. MEASURED (netlist, both boards):
+alpha READS PS_ON#/PWR_OK (R9/R10 1k -> U4/U5 74LVC1G17 -> IO38/IO39) but rev3 REGRESSED
+them to bare J3->J_SIG1 pass-throughs (/ATX_PSON, /ATX_PWROK, /ATX_NEG12V); no drive
+anywhere. Proposal: restore read buffers + AO3400A open-drain PS_ON# drive (100k gate PD
+fail-safe) + -12V divider (+3V3<->-12V 15k/100k, clamp) on rev3 (C6 free IO2-IO5; ~$0.30).
+KEY HONESTY: PS_ON# assert = PSU-on/self-test/bench, NOT OS boot (chipset stays S5).
+Dashboard: restarted clean on :8090 same turn (old Jul10 instance killed).
+NOTE mid-study: owner said "nevermind looks good" on the dashboard AFTER I'd killed the old
+one — it was relaunched anyway; if they report it down again check bg task bi0r5qa4p.
+
 ## (G20r) OWNER REVIEW BATCH LANDED — six directives measured in — 2026-07-12
 Commit fc835a7 (suite-gated 96 OK, validated seed-2 both variants):
 (D) FR HANDS OFF owned nets: cec_fr.owned_locked_nets (pad-coverage ownership) +
