@@ -1,5 +1,22 @@
 # Current work handoff
 
+## LOCKED-CELL BULLDOZING ROUND — 2026-07-14 (late evening)
+Owner defect report: FR routes THROUGH locked blueprint cells, no layer-change avoidance;
+cell-internal routes jank. MEASURED (wave-9 winner): 154/157 shorts, 91/94 clearance,
+75/75 crossings touch locked-copper space. ROOT CAUSE: G20r owned-net exclusion truncates
+owned nets to 1 DSN pin -> FR 1.7.0 drops their protect wires from the obstacle model
+(fr02 bench only proved protect-vs-ripup on ROUTABLE nets; excluded+protect was an
+untested corner). FIX LANDED: cec_fr.locked_copper_keepouts (net-blind rule areas over
+FULLY-OWNED nets' locked copper, tight-union merge cap 1.15x, partial nets excluded to
+keep FR pad access) wired into route_once before bake_hints; same owned set reused for
+exclusion. WAVE-10 VALIDATION: shorts 157->113, crossings 75->62, clearance 94->64 (~30%
+cut, not collapse). RESIDUE MEASURED + QUEUED (FOLLOWUPS): (a) 43 locked-vs-locked
+self-collisions = lanes/cells don't mutual-legality-check (refusals check foreign pads
+only) — the DRC half of "jank inside"; (b) partially-owned nets (/SENSEP6_HI lane 6,
+/FAN_12V) have NO keepout -> FR still crosses their fat copper; (c) cell-blueprint
+internal audit at zoom once (a)+(b) land. New sort-key (crit-count) live and correctly
+re-ranking (wave-10 top-3 all crit=2). Winner: 35 unconn / crit 2 / drc 288.
+
 ## WAVES 8-9 + BLOCKER FIXES ROUND — 2026-07-14 (evening)
 Owner GO: overhang + any fixes from the last run. LANDED (commits 00d26d1 + next):
 (1) antenna_overhang=5.0 in _seat_mcu_macro (containment-only relax; teeth: isolated
