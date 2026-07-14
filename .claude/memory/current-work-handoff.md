@@ -1,5 +1,23 @@
 # Current work handoff
 
+## WAVES 8-9 + BLOCKER FIXES ROUND — 2026-07-14 (evening)
+Owner GO: overhang + any fixes from the last run. LANDED (commits 00d26d1 + next):
+(1) antenna_overhang=5.0 in _seat_mcu_macro (containment-only relax; teeth: isolated
+seat hangs 4.2mm past edge) — but on the REAL board the macro's satellites pack BELOW
+the ESP so the macro bottom, not the antenna face, is the bound -> winner unchanged
+(2.8mm standoff); satellite-side constraint = FOLLOWUPS. (2) FAN-GATE SEAT (net-keyed,
+passives-bucket-only): VERIFIED SEATED on wave-9 winner (Q1/D5/R14/R16/R17 column at
+x=45.25) — but /FAN_12V STILL stranded every wave: it's the fat lane-6-tap->J2 net FR
+can't complete + pours skip (G20r-B) -> needs a locked corridor or J2-near-lane-6
+anchor (FOLLOWUPS). (3) SORT-KEY HONESTY FIX: wave-8 "best" (31 unconn) stranded 5
+criticals incl 2 force lanes yet outranked cleaner boards — safety_fails counts only
+kelvin/diffpair booleans; len(crit) now ranks ahead of raw unconn (route_oracle_grade
+sort_key, 7-tuple now). Suites 59 OK. Waves 8-9 at passes 24/opt 40: best 31*/33 —
+higher FR effort did NOT move the floor (DRC went UP 285->342/377); the plateau is
+placement/corridor rungs, not router effort. Numbers chain: it1 63 -> it3 43 -> w1 36
+-> w2 35 -> w3 33 -> w8 31(dirty)/w9 33. NEXT RUNGS (evidence-ranked): FAN_12V corridor,
+analog seats (TEMP2/VRAIL), satellite-side-of-antenna, then gates chase.
+
 ## PSU-TESTER TIERS RULED + 12VHPWR WAVE LOOP RUNNING — 2026-07-14 (later same session)
 TIER RULING (owner): Pro + Max only, NO Standard tester now (850W base config = shelved
 future-Standard). Numbers worked into study §6 addendum (docs/psu-tester-exploration-
