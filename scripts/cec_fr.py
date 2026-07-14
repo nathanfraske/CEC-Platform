@@ -2434,6 +2434,69 @@ def owned_locked_nets(board_path: str) -> set:
     return owned
 
 
+def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float = 0.2):
+    """Rule-area keepout rects over LOCKED copper, per layer (owner defect report
+    2026-07-14: FR "is routing through the locked routes, and not layer changing
+    around it" -- MEASURED on the wave-9 winner: 154/157 shorting, 91/94 clearance,
+    75/75 tracks_crossing violations touch locked-copper space). Mechanism: the
+    owned-net exclusion truncates those nets to ONE DSN pin, and FR 1.7.0 treats
+    their '(type protect)' wires as dangling -- the fr02 bench proved protect stops
+    RIP-UP of a routable net's stubs, but an EXCLUDED net's copper drops out of the
+    obstacle model entirely. Rule-area keepouts are net-blind and proven respected
+    (the corridor lever), so FR must layer-change/route around the cells.
+
+    Scope: *only_nets* (pass the fully-owned set) -- a PARTIALLY-locked net (e.g.
+    /FAN_12V) must NOT contribute: FR still legitimately routes its remainder and
+    needs access to its pads. Same-layer rects merge only when the union stays
+    TIGHT (union area <= 1.15x the sum) so a dense cell collapses to a few zones
+    but a diagonal pair can never over-cover a foreign channel/pad."""
+    board = pcbnew.LoadBoard(board_path)
+    cl = int(clearance * 1e6)
+    per_layer = {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        if only_nets is not None and (t.GetNetname() or "") not in only_nets:
+            continue
+        bb = t.GetBoundingBox()
+        box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
+        if t.Type() == pcbnew.PCB_VIA_T:
+            lays = ("F.Cu", "B.Cu")
+        else:
+            lays = (board.GetLayerName(t.GetLayer()),)
+        for ly in lays:
+            per_layer.setdefault(ly, []).append(list(box))
+
+    def _area(b):
+        return max(0, b[2] - b[0]) * max(0, b[3] - b[1])
+
+    out = []
+    for ly, boxes in sorted(per_layer.items()):
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(boxes)):
+                for j in range(i + 1, len(boxes)):
+                    a, b = boxes[i], boxes[j]
+                    if not (a[0] <= b[2] and b[0] <= a[2]
+                            and a[1] <= b[3] and b[1] <= a[3]):
+                        continue
+                    u = [min(a[0], b[0]), min(a[1], b[1]),
+                         max(a[2], b[2]), max(a[3], b[3])]
+                    if _area(u) <= 1.15 * (_area(a) + _area(b)):
+                        boxes[i] = u
+                        del boxes[j]
+                        merged = True
+                        break
+                if merged:
+                    break
+        for k, (x0, y0, x1, y1) in enumerate(boxes):
+            out.append({"name": "lockedcu-%s-%d" % (ly.replace(".", ""), k),
+                        "x0": x0 / 1e6, "y0": y0 / 1e6,
+                        "x1": x1 / 1e6, "y1": y1 / 1e6, "layers": (ly,)})
+    return out
+
+
 def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
     """POST-FR LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
     nice traces... and redid the shunt 90s"). Measured mechanism, both halves:
@@ -2839,7 +2902,25 @@ def route_once(
     try:
         jar = ensure_jar(jar, version=v)
 
-        # 1. Bake hints (keepouts) into a working copy
+        # 1. Bake hints (keepouts) into a working copy. When locked-protected nets
+        # are in play, the FULLY-OWNED nets' locked copper ALSO bakes as rule-area
+        # keepouts (owner defect report 2026-07-14: FR routed straight through the
+        # blueprint cells -- an excluded net's protect wires drop out of FR's
+        # obstacle model, see locked_copper_keepouts). Computed on board_path
+        # (bake only adds zones; ownership reads tracks+pads, identical either way)
+        # so the SAME set drives the keepouts and the pin exclusion below.
+        _owned = set()
+        if protect_nets:
+            try:
+                _owned = owned_locked_nets(board_path)
+                if _owned:
+                    _lk = locked_copper_keepouts(board_path, only_nets=_owned)
+                    hints = list(hints) + _lk
+                    print("[cec_fr] locked-copper keepouts: %d zone(s) over %d owned "
+                          "net(s)" % (len(_lk), len(_owned)), flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                print("[cec_fr] locked-copper keepouts failed (%s) -- protect-only"
+                      % _e, flush=True)
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 
@@ -2853,9 +2934,8 @@ def route_once(
             # lanes/taps at DSN class width -- 2.5mm B.Cu crossings under the bands;
             # reconcile stripped them AFTER, this stops the work happening at all):
             # a net the locked lay fully owns is removed from FR's routable pin
-            # lists; its protected wires remain as obstacles.
+            # lists; its copper is obstacle-modelled by the keepouts baked above.
             try:
-                _owned = owned_locked_nets(hinted_board)
                 if _owned:
                     n_x = cec_fr02.exclude_net_pins_in_dsn(dsn_path, sorted(_owned))
                     print("[cec_fr] owned-net exclusion: %d net(s) removed from FR routing"
