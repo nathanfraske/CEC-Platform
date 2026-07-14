@@ -1,5 +1,5 @@
 diff --git a/src/main/java/app/freerouting/autoroute/BatchAutorouter.java b/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
-index bf41cc6..7587b79 100644
+index bf41cc6..fa405b2 100644
 --- a/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
 +++ b/src/main/java/app/freerouting/autoroute/BatchAutorouter.java
 @@ -34,6 +34,12 @@ public class BatchAutorouter {
@@ -15,7 +15,7 @@ index bf41cc6..7587b79 100644
    /** Used to draw the airline of the current routed incomplete. */
    private FloatLine air_line = null;
  
-@@ -167,6 +173,33 @@ public class BatchAutorouter {
+@@ -167,6 +173,37 @@ public class BatchAutorouter {
        already_checked_board_hashes.add(this.routing_board.get_hash());
        still_unrouted_items = autoroute_pass(curr_pass_no, true);
  
@@ -41,7 +41,11 @@ index bf41cc6..7587b79 100644
 +                    + " best_failed=" + this.cec_best_failed
 +                    + " streak=" + this.cec_stall_streak);
 +            System.out.flush();
-+            this.is_interrupted = true;
++            // Synthetic pass-exhaustion, NOT is_interrupted: the headless flow treats
++            // an interrupt as "user abort -- do not write the SES" (measured: the
++            // stall leg produced no output board). A plain break leaves
++            // still_unrouted_items=true, exactly the passes-exhausted end state.
++            break;
 +          }
 +        }
 +      }
@@ -49,7 +53,7 @@ index bf41cc6..7587b79 100644
        // let's check if there was enough change in the last pass, because if it were little, so
        // should probably stop
        int newTraceDifferences = this.routing_board.diff_traces(boardBefore);
-@@ -257,6 +290,20 @@ public class BatchAutorouter {
+@@ -257,6 +294,20 @@ public class BatchAutorouter {
          this.air_line = null;
          return false;
        }
@@ -70,7 +74,7 @@ index bf41cc6..7587b79 100644
        int items_to_go_count = autoroute_item_list.size();
        int ripped_item_count = 0;
        int not_found = 0;
-@@ -299,6 +346,10 @@ public class BatchAutorouter {
+@@ -299,6 +350,10 @@ public class BatchAutorouter {
          }
          remove_tails(stop_connection_option);
        }
@@ -237,7 +241,7 @@ index ba9b5ed..14e45fd 100644
        boolean is_via = curr_item instanceof Via;
        boolean is_conduction_area =
 diff --git a/src/main/java/app/freerouting/gui/StartupOptions.java b/src/main/java/app/freerouting/gui/StartupOptions.java
-index 0cc198b..dc8265a 100644
+index 0cc198b..5a4b054 100644
 --- a/src/main/java/app/freerouting/gui/StartupOptions.java
 +++ b/src/main/java/app/freerouting/gui/StartupOptions.java
 @@ -29,6 +29,10 @@ public class StartupOptions {
@@ -251,7 +255,7 @@ index 0cc198b..dc8265a 100644
  
    private StartupOptions() {
      if (!Arrays.stream(supported_languages).anyMatch(current_locale.getLanguage()::equals)) {
-@@ -156,6 +160,28 @@ public class StartupOptions {
+@@ -156,6 +160,32 @@ public class StartupOptions {
            } else if (p_args.length > i + 1 && p_args[i + 1].startsWith("ko")) {
              current_locale = Locale.KOREAN;
            }
@@ -263,6 +267,10 @@ index 0cc198b..dc8265a 100644
 +          // "-m*" lookalike could ever be added; "-mp"/"-mt" do not prefix-match "-maxstall".
 +          if (p_args.length > i + 1 && !p_args[i + 1].startsWith("-")) {
 +            app.freerouting.datastructures.CecOptions.max_stall = Integer.decode(p_args[i + 1]);
++            // CONSUME the value: stock value-flags leave it dangling and survive only by
++            // argument ORDER (the trailing else would swallow a final dangling token as the
++            // design filename -- measured: "-maxstall 3" appended last made FR load "3").
++            ++i;
 +          }
 +        } else if (p_args[i].startsWith("-progress")) {
 +          // CEC cec2 patch: one machine-readable CEC_PASS line per pass on stdout.

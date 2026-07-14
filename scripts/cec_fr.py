@@ -198,7 +198,7 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
 # CEC_GOLDEN_SYNTH re-freeze) -- stock 1.7.0 and this fork produce IDENTICAL
 # golden metrics to the decimal (kelvin/unconn/drc/thermal; only elapsed_s
 # differs), logs build/golden-{stock-control,cec1-flip2}.log.
-FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec1")
+FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec2")  # cec2 = cec1 + noecho/maxstall/progress (2026-07-14)
 
 # Hash pins (sha256). The 2.2.4 jar digest matches the official GitHub release-asset
 # digest (verified 2026-06-10); 1.7.0 is the hash of the jar the banked baseline ran on.
@@ -222,6 +222,23 @@ FR_RELEASES = {
         "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec1.jar",
                         "build/fr-fork/freerouting-1.7.0-cec1.jar"),
         "supports_seed": True,
+    },
+    # cec2 (2026-07-14, owner "do the surgery"): cec1 + three OPT-IN flags (unflagged
+    # still byte-identical to stock, the fork's standing guarantee): -noecho (no
+    # protect-wire SES echo -- retires reconcile's ~130 echo strips/route), -maxstall
+    # <k> (abort after k no-improvement passes; stock's own detector needs 200+ passes
+    # of bookkeeping), -progress (one CEC_PASS line/pass on stdout = the stage-0
+    # pre-kill contract). Patch: scripts/patches/freerouting-1.7.0-cec2.patch
+    # (cumulative over v1.7.0); rebuild per ops/README-fr-fork.md.
+    "1.7.0-cec2": {
+        "jar_sha256": "de01c829eab9406a1df6d1ad713a3334f138e77c122a61d2ba5a8364b8f904c2",
+        "min_java": 17,
+        "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec2.jar",
+                        "build/fr-fork/freerouting-1.7.0-cec2.jar"),
+        "supports_seed": True,
+        "supports_noecho": True,
+        "supports_maxstall": True,
+        "supports_progress": True,
     },
     "2.2.4": {
         "jar_sha256": "f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b",
@@ -709,8 +726,24 @@ def run_freerouting(
     if (seed is not None and _seed_ok
             and os.environ.get("CEC_FR_SEED_AXIS", "0") == "1"):
         cmd += ["-seed", str(int(seed))]   # the A5 fork's real diversity axis
+    _rel = FR_RELEASES.get(v) or {}
+    # cec2 flags (2026-07-14). -noecho defaults ON where supported: the echoes it
+    # suppresses are exactly the duplicates reconcile_locked_nets strips today, so
+    # behavior is net-identical with less work (CEC_FR_NOECHO=0 restores the echo
+    # for an A/B). -progress likewise ON (stdout-only; the runner captures it).
+    # -maxstall is a route-BEHAVIOR knob (aborts stalled candidates early), so it
+    # stays opt-in via CEC_FR_MAXSTALL=<k>; the wave sets it.
+    if _rel.get("supports_noecho") and os.environ.get("CEC_FR_NOECHO", "1") == "1":
+        cmd += ["-noecho"]
+    if _rel.get("supports_progress"):
+        cmd += ["-progress"]
+    _stall = os.environ.get("CEC_FR_MAXSTALL", "")
+    if _stall.isdigit() and int(_stall) > 0 and _rel.get("supports_maxstall"):
+        cmd += ["-maxstall", _stall]
 
     run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
+    # cec2: FR's stdout is captured; re-emit the machine-readable CEC_ lines
+    # (CEC_PASS / CEC_STALL_ABORT) so pipeline logs + the stage-0 pre-kill see them.
     if sys.platform == "win32":
         # Freerouting is a Java/Swing GUI app; on Windows (real desktop, no xvfb) its window
         # would pop to the foreground and steal focus from whatever you're doing. Ask Windows
@@ -736,6 +769,10 @@ def run_freerouting(
                 shutil.rmtree(workdir, ignore_errors=True)
             except Exception:
                 pass
+
+    for _ln in (result.stdout or "").splitlines():
+        if _ln.startswith(("CEC_PASS ", "CEC_STALL_ABORT ")):
+            print("[fr] " + _ln, flush=True)
 
     if result.returncode != 0:
         tail = (result.stdout + result.stderr)[-2000:]

@@ -203,12 +203,12 @@ checks a `CecOptions` flag that defaults to stock behavior).
 | Flag | File(s) | What it does |
 |---|---|---|
 | `-noecho` | `designforms/specctra/SpecctraSesFileWriter.java`, `datastructures/CecOptions.java` *(new)* | Skip unmodified user-fixed ("protect") wires in the SES — they were router INPUTS; echoing them creates re-import duplicates (reconcile measured ~130 strips/route). |
-| `-maxstall <k>` | `autoroute/BatchAutorouter.java` | Abort the batch route after `k` consecutive passes with no improvement in the failed-item count (stock's trace-diff detector needs 200+ passes of bookkeeping). Prints `CEC_STALL_ABORT pass=… best_failed=…`. |
+| `-maxstall <k>` **(EXPERIMENTAL — do not wire by default)** | `autoroute/BatchAutorouter.java` | Abort the batch route after `k` no-improvement passes. Bench 2026-07-14: the abort fires, but the post-route OPTIMIZER (improvement-bounded, not time-bounded) then thrashes on the incomplete board — the maxstall leg TIMED OUT at 900 s vs a 194 s full run. Completion (skip the optimizer on stall-abort) queued in FOLLOWUPS; the shipping pre-kill is EXTERNAL: watch the `CEC_PASS` lines and kill the JVM on plateau, which dodges the optimizer entirely. |
 | `-progress` | `autoroute/BatchAutorouter.java` | One machine-readable line per pass: `CEC_PASS pass=<n> togo=<m> failed=<f> ripped=<r>` — the stage-0 pre-kill contract (replaces log-scraping). |
 
 - **Patch (cumulative over v1.7.0, replaces applying cec1 separately):**
   `scripts/patches/freerouting-1.7.0-cec2.patch`
-- **Jar sha256:** `13582a7253453686c650b60ea2b3672d10f4decf186b6c7ff2b1ff8be0105bde`
+- **Jar sha256:** `de01c829eab9406a1df6d1ad713a3334f138e77c122a61d2ba5a8364b8f904c2`
   (durable copies: `/mnt/e/toolchain/fr-fork/` + `build/fr-fork/`)
 - **cec_fr wiring:** `-noecho` + `-progress` default ON where supported
   (`CEC_FR_NOECHO=0` reverts the echo for A/Bs); `-maxstall` opt-in via
