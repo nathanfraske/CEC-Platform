@@ -1,5 +1,25 @@
 # Current work handoff
 
+## 24-PIN ATX CONTROL-SIGNAL BLOCK LANDED (owner-approved) + PSU-TESTER EXPLORATION IN FLIGHT — 2026-07-14
+RULED same day: owner approved the sense-wire add INCL. PESD clamps; policy = self-test
+REFUSES to assert PS_ON# with host attached unless explicit user override (interlock 8).
+LANDED on modules/atx-24pin-rev3 via scripts/splice_24pin_atxctl.py: PWR_OK/PS_ON# read
+buffers (74LVC1G17, IO4/IO5) + AO3400A open-drain PS_ON# drive (IO3, 100k gate PD
+fail-safe) + -12V divider/clamp ADC (IO2, 15k/100k + BAT54S) + PESD on both signals.
+VERIFIED: ERC delta only +7 benign Unspecified warnings; netlist diff node-for-node (69
+nets untouched, 8 new); bom.csv regen (also trued stale J_SIG1 2x5->1x4 row). Gotcha
+caught+fixed: first splice collided D3 GND stub endpoint with Q1 gate endpoint at
+(403.86,264.16) -> ERC multiple_net_names -> PESD column moved to x=393.7. NOT committed
+yet at time of writing (commit intended same turn, scoped paths only -- branch also has
+someone's docker/compose.yaml modification, leave it out).
+12VHPWR sideband ANSWER (owner asked "did we lose it?"): NO -- all four taps alive on the
+hierarchical BETA board (SENSE0->IO15, SENSE1->IO9, PWR_STABLE->IO11, CBL_PRES->IO12),
+netlist-verified. SENSE0 on IO15 not IO8 by design (v3.8 freed IO8 for VREF).
+PSU-TESTER exploration (owner region: shop DC-load tester, sub-$10k gap claim): research
+agent running in background -> docs/psu-tester-exploration-2026-07-14.md; on completion
+review, summarize to owner, owner-queue row. Check TODO.md open entry.
+Dashboard: restarted clean on :8090 earlier this session.
+
 ## 24-PIN SENSE-WIRE STUDY DELIVERED (owner ask) — 2026-07-14
 Study: docs/standard-tier-review/atx24-sense-wire-interaction-study-2026-07-14.md +
 owner-queue §1 decision row + FOLLOWUPS resume line. MEASURED (netlist, both boards):
