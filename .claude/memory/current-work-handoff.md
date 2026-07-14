@@ -17,7 +17,7 @@ hierarchical BETA board (SENSE0->IO15, SENSE1->IO9, PWR_STABLE->IO11, CBL_PRES->
 netlist-verified. SENSE0 on IO15 not IO8 by design (v3.8 freed IO8 for VREF).
 PSU-TESTER exploration (owner region: shop DC-load tester, sub-$10k gap claim): research
 agent running in background -> docs/psu-tester-exploration-2026-07-14.md; on completion
-review, summarize to owner, owner-queue row. Check TODO.md open entry.
+review, summarize to owner, owner-queue row. COMPLETED same session: study reviewed (467 lines, cited), owner-queue go/no-go row added (verdict: gap substantially true; hybrid load; $2-3.5k target; #1 risk market size -> shop interviews first). FOLLOWUPS: PWR_OK T3 window is 100-250ms in ATX 3.1 (legacy 100-500) -> generation-aware firmware check.
 Dashboard: restarted clean on :8090 earlier this session.
 
 ## 24-PIN SENSE-WIRE STUDY DELIVERED (owner ask) — 2026-07-14

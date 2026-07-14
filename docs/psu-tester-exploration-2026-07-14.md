@@ -465,3 +465,70 @@ instrumentation story earns.
 and the gap is real, but SunMoon's niche history suggests this class sells in the hundreds,
 not tens of thousands; the counterweight is that the modules amortize the instrumentation
 across the consumer line, so the tester's incremental engineering is mostly the load + box.
+
+---
+
+## 6. ADDENDUM — TIER RULING + numbers (owner, 2026-07-14, same day)
+
+**Owner ruling:** the tester ships as **Pro and Max tiers only**. No Standard tester now —
+"Standard is not the shop spec anyway, that's our general one"; a Standard tester happens
+later only if demand shows up (the §4 Tier-1 850 W "Shop Kit" config is therefore SHELVED as
+the possible future Standard, not the launch product). **Pro = capable of the proper testing**
+(the full spec-derived suite including the transient engine). **Max = capable of doing it
+ALL, properly, to the level of the Max modules** (the §6.11/§6.13-ladder data-at-all-costs
+tier).
+
+### Tier definitions
+
+**PSU Tester Pro** — everything §2 calls proper, load-side: 1600 W continuous hybrid sink
+(§3c), the ONE fast transient channel running the full ATX 3.1 excursion profile
+(200/180/160/120 % @ 100 µs–100 ms, ≤5 A/µs — bench-gated per OQ-3), cross-load corners,
+OCP/OPP/SCP trip characterization with §6.13-comparator timestamping, PWR_OK T1/T3/T6 timing
+(T5/absolute hold-up = relative-only without the AC accessory), 5VSB + −12 V, the 12VHPWR
+per-pin melt-watch soak, ripple *indicator* + scope BNC taps, one-button sequence + customer
+report. Instrumentation = the standard module set (12VHPWR-Pro swap-in optional).
+
+**PSU Tester Max** — Pro plus everything a load-side box can honestly add, matching the Max
+modules' data model:
+1. **HF acquisition subsystem**: per-rail AC-coupled 20 MHz front ends into a muxed
+   50–65 MSPS digitizer (P4/FPGA capture) → **spec-grade ripple** (real Table 4-6 numbers
+   with the 0.1 µF+10 µF fixture, retiring the indicator-only fence at this tier),
+   excursion-regulation waveforms, per-cable spectral capture (the Max-module data model,
+   applied tester-side). BOM +$150–250.
+2. **Second fast channel / switch matrix** — the excursion profile at any 12 V interface
+   (12V-2x6 AND EPS), not just one path. +$150–250.
+3. **OVP trip verification** via a current-limited programmable sourcing stage (drives the
+   rail into the Table 4-13 windows: 12 V 13.4/15.6, 5 V 5.74/7.0, 3.3 V 3.76/4.3) —
+   retiring the "a sink cannot test OVP" fence at this tier. +$60–120.
+4. **Phase-controlled AC-interrupter accessory bundled** (separately-enclosed mains box,
+   §3e path ii) → **absolute hold-up** (12 ms @100 % / 17 ms @80 %) and true T5. +$80–150
+   BOM, own cert scope.
+5. **Pro/Max module instrumentation set** (12VHPWR Pro + EPS/PCIe Pro-class). DEPENDENCY,
+   honest: EPS/PCIe Pro are bounded-not-built and the Max modules are spec-PROPOSED (§6.11);
+   the Max tester either launches "Max-ready" on Pro modules or waits for that line.
+6. Optional 2000 W ballast (flagship 1600 W+ units; 200 % pulses ≈ 3.2 kW handled as pulse
+   SOA, not continuous). +$100–150 + thermal.
+
+Still out of scope at BOTH tiers (physics/product fences, unchanged): OTP (heat soak),
+efficiency/PFC scoring (AC-side measurement), "certifies ATX 3.1" language.
+
+### The numbers
+
+| | **Pro** | **Max** |
+|---|---|---|
+| Tester BOM (§3c basis) | $1,050–1,600 | $1,490–2,370 (adds 1–4, 6) |
+| Tester landed (+~18–20 % asm/test/freight) | $1,250–1,900 | $1,760–2,800 |
+| Instrumentation (landed, pricing-study figures) | ~$115 (12VHPWR-config system) | ~$250–350 (Pro-class set, est.) |
+| **Package landed** | **$1,365–2,015** | **$2,010–3,150** |
+| **List target** | **$3,495 tester-only / $3,995 w/ modules** | **$5,995–6,995 (w/ modules + AC accessory)** |
+| Implied multiple | 2.0–2.9× | 2.2–3.0× |
+| Competitive anchor | SunMoon-money, 2026 capability; only sub-$10k box with the spec transient profile | ~half a Chroma-class entry; nothing else load-side-complete under $10k |
+| Thermal | 1600 W / ~141 CFM, 3–4U (identical both tiers) | same (+2000 W option) |
+| Timeline | 6–12 mo to sellable (fast-channel bench gate first) | Pro + 4–6 mo (digitizer, OVP source, AC accessory; module-line dependency) |
+
+Margin honesty: the platform's ~3.0× landed convention holds only at the low-mid BOM end;
+at the high end these prices run 2.0–2.4× — either accept capital-equipment-class multiples
+(1.8–2.5× is industry-normal for test gear) or hold the line with BOM discipline to
+≤$1,250/$2,300 landed. Owner call at pricing lock, not now. The §5 OQ list stands unchanged
+— OQ-1 (shop interviews) and OQ-10 (competitive buy/quote) still gate everything, now with
+two price points to validate instead of three.
