@@ -1,5 +1,21 @@
 # Current work handoff
 
+## HUB-REV2 DAY CLOSED — wave-4 winner strong; owner batch NEXT — 2026-07-15 (night)
+Winner periph-left-compact-s0: unconn 11, safety_fails 0 (USB pair routed), crit 1 (GND
+fanout), copper collisions 3; DRC-62 residue = placement classes w/ scoped rungs (parks 21,
+mounts 9, edge 15, drill 12). Centerpiece WORKS (logo@ring center + keepout, jacks top,
+mezz interior, DL6 free). Black finish: template-baked (gen-module-pcb stackup colors) +
+patch for pre-bake boards; rounded corners 2.5mm from next materialize; hex panel =
+cec_render.hex_panel wired into wave snapshots. Rev2 schematic FINAL tonight: J6 col-paired
+mezz (DNP THT; 24-pin conjugate rewire queued), D8/D9 SMAJ5.0A TVS, C18-21 DETECT filters,
+F1-F4 port polyfuses (Sonnet-spliced, audited), D-11 DRU exception. Supercap chain CLOSED:
+Standard unchanged / Pro+Max DNP 2S radial provision hand-soldered (0.8-1.6F / 2-4F per
+cell) / ENT d-vs-e pending load bench. SPICE sanity harness live (teeth = rev2 erratum).
+PENDING: owner's batch of hub fixes (they were waiting on this wave); WROOM antenna
+overhang + logo-as-pads + hugged courtyard queued in FOLLOWUPS; hub wave pool bug
+(SwigPyObject under 6-worker spawn; serial workaround) forensic owed; 12vhpwr thread
+parked earlier (wave-14 resume in FOLLOWUPS).
+
 ## PARKED BY OWNER (CPU needed elsewhere) — 2026-07-15 ~21:35
 Wave 13 KILLED at 15/16 after an 80-min stall. STALL CAUSE (forensic'd + FIXED, committed):
 the plateau-kill Popen path had (a) an undrained stderr PIPE (JVM deadlocks at 64KB) and
