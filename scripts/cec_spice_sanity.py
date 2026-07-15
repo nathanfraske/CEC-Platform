@@ -147,6 +147,11 @@ def build_deck(comps, nets, *, state=None, sources=(), loads_scale=1.0):
         pref = re.sub(r"[0-9].*$", "", ref)
         pins = sorted({p for (r, p) in net_of_pin if r == ref})
         idx += 1
+        if pref == "F" and "PTC" in (val or "").upper():
+            # polyfuse (hub-rev2 F1-F4, owner ruling 2026-07-15): ~0.3 ohm hold-state
+            if len(pins) >= 2:
+                d.add(f"R{idx}_{ref} {N(ref, pins[0])} {N(ref, pins[1])} 0.3")
+            continue
         if pref in ("R", "RS", "RJ", "R_ILIM", "R_BYP_H", "R_BYP_L", "TH"):
             ohm = _r_ohms(val)
             if ohm is None or len(pins) < 2:

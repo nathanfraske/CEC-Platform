@@ -12365,80 +12365,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 546.1 195.58 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5b781f02-06a5-476c-83e4-3ac066b6a74b")
-		(property "Reference" "#PWR10"
-			(at 546.1 203.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 546.1 191.77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 546.1 195.58 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 546.1 195.58 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 546.1 195.58 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a9b92627-ff2c-451e-b2d7-bb105a8c176f")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR10")
-					(unit 1)
-				)
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:+3V3")
 		(at 367.03 64.77 180)
@@ -15492,80 +15419,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 546.1 86.36 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "98190688-9ae3-43b4-9043-7fdc9d7a0902")
-		(property "Reference" "#PWR08"
-			(at 546.1 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 546.1 82.55 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 546.1 86.36 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 546.1 86.36 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 546.1 86.36 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "45cd2735-ac98-4b90-8f7a-b09df8c1a262")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR08")
-					(unit 1)
-				)
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:+3V3")
 		(at 265.43 90.17 180)
@@ -16291,80 +16145,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 546.1 35.56 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "ae042e40-fe15-4ae4-bde8-c8a830fcf0b0")
-		(property "Reference" "#PWR07"
-			(at 546.1 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 546.1 31.75 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 546.1 35.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 546.1 35.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 546.1 35.56 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8837fdf3-65f5-4a15-846b-1c3ab2df7447")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR07")
-					(unit 1)
-				)
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 430.53 73.66 0)
@@ -16643,80 +16424,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 546.1 140.97 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b990a385-b97e-447f-aed1-e2b4a36895bc")
-		(property "Reference" "#PWR09"
-			(at 546.1 148.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 546.1 137.16 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 546.1 140.97 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 546.1 140.97 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 546.1 140.97 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "24417f94-7af9-4a9c-a392-404906f88b28")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR09")
-					(unit 1)
-				)
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 233.68 72.39 270)
@@ -23185,6 +22893,206 @@
 		(instances
 			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR01155") (unit 1))
+			)
+		)
+	)
+	(label "VCC_P1" (at 546.1 35.56 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9c796b65-65b4-42ab-b838-c79644633447"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 452.12 260.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3cb6133a-31f7-400f-be9a-d6f04bb2ecbe")
+		(property "Reference" "F1" (at 452.12 245.11 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PTC 500mA" (at 452.12 275.59 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0805_2012Metric" (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMD0805-050-6" (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "generic (JLC catalog)" (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C46640983" (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Per-port RJ45-VCC polyfuse (owner ruling 2026-07-15): fault isolation -- a shorted patch cable or failed module trips ONE port instead of browning out the shared 5VSB system (the TPS2121 limit is total, not per-port). 0805 PTC, 500mA hold, 6V rated. ~150mV drop at load absorbed by module LDO headroom." (at 452.12 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f50c6593-b965-474c-9cd0-3fa44ed48158"))
+		(pin "2" (uuid "6b05ce98-2903-401b-8a0e-88ccef281749"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "F1") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 452.12 257.81) (xy 452.12 255.27))
+		(stroke (width 0) (type default)) (uuid "c2f72c13-f284-409a-b10f-6a1166913374"))
+	(label "VCC_P1" (at 452.12 255.27 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "a496e02f-5d07-4fdc-ac5d-bc49c5a7b7ed"))
+	(wire (pts (xy 452.12 262.89) (xy 452.12 265.43))
+		(stroke (width 0) (type default)) (uuid "89d49b5d-2e12-4fdb-ab29-2befce62daa4"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 452.12 265.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "169d8a7b-322c-4cb3-b4f7-c3c1add2cec1")
+		(property "Reference" "#PWR9101" (at 452.12 262.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 452.12 269.24 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "033171aa-e1ac-449c-987c-faef62587d4d"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9101") (unit 1))
+			)
+		)
+	)
+	(label "VCC_P2" (at 546.1 86.36 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4aa6871f-f065-4ad4-95bd-cdbeddd90c66"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 472.44 260.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "46224243-03e8-4bdb-9b87-5e45956bb179")
+		(property "Reference" "F2" (at 472.44 245.11 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PTC 500mA" (at 472.44 275.59 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0805_2012Metric" (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMD0805-050-6" (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "generic (JLC catalog)" (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C46640983" (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Per-port RJ45-VCC polyfuse (owner ruling 2026-07-15): fault isolation -- a shorted patch cable or failed module trips ONE port instead of browning out the shared 5VSB system (the TPS2121 limit is total, not per-port). 0805 PTC, 500mA hold, 6V rated. ~150mV drop at load absorbed by module LDO headroom." (at 472.44 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "dfb168af-0a22-46b3-99b6-651cd4103c91"))
+		(pin "2" (uuid "cbe39279-80da-4549-ab7e-a2acbb92b0ef"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "F2") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 472.44 257.81) (xy 472.44 255.27))
+		(stroke (width 0) (type default)) (uuid "fefa11a9-4ff5-4292-b95e-ebfe0dff6e7c"))
+	(label "VCC_P2" (at 472.44 255.27 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9a76bd3d-673c-4213-958d-1e2f3024c571"))
+	(wire (pts (xy 472.44 262.89) (xy 472.44 265.43))
+		(stroke (width 0) (type default)) (uuid "e4715757-65b0-459f-9bee-a775dfe91c05"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 472.44 265.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "fef773ce-e2a9-486d-a3f5-f89a8c698cba")
+		(property "Reference" "#PWR9102" (at 472.44 262.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 472.44 269.24 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "3da86346-d6a9-4f81-99c4-be721b088078"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9102") (unit 1))
+			)
+		)
+	)
+	(label "VCC_P3" (at 546.1 140.97 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "e13eab25-25f7-4340-b8c0-17dde1ca41a0"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 492.76 260.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1ca9d299-aedb-4910-b433-e367aecc6b33")
+		(property "Reference" "F3" (at 492.76 245.11 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PTC 500mA" (at 492.76 275.59 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0805_2012Metric" (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMD0805-050-6" (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "generic (JLC catalog)" (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C46640983" (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Per-port RJ45-VCC polyfuse (owner ruling 2026-07-15): fault isolation -- a shorted patch cable or failed module trips ONE port instead of browning out the shared 5VSB system (the TPS2121 limit is total, not per-port). 0805 PTC, 500mA hold, 6V rated. ~150mV drop at load absorbed by module LDO headroom." (at 492.76 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "052285fe-b262-45e5-bc93-cd25d900b5b9"))
+		(pin "2" (uuid "5c01872d-4304-4f8e-9445-ee82dfd5d4c4"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "F3") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 492.76 257.81) (xy 492.76 255.27))
+		(stroke (width 0) (type default)) (uuid "ae2a6bb8-0b08-4e7a-8200-248cfa3c40c7"))
+	(label "VCC_P3" (at 492.76 255.27 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4830bbe9-472b-49da-b6da-d5bbb4dda347"))
+	(wire (pts (xy 492.76 262.89) (xy 492.76 265.43))
+		(stroke (width 0) (type default)) (uuid "47f362c1-79df-48f5-aa61-4eb80a6ef5a3"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 492.76 265.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "763f31de-732f-4efd-95ab-c903de2cc77a")
+		(property "Reference" "#PWR9103" (at 492.76 262.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 492.76 269.24 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ed9da980-1ece-4dd4-bb58-c1c659916d6f"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9103") (unit 1))
+			)
+		)
+	)
+	(label "VCC_P4" (at 546.1 195.58 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "cf1d7347-6123-4536-a2e8-5d6ce01fbc00"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 513.08 260.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "db85345e-2899-4dce-95ad-8311848f24cb")
+		(property "Reference" "F4" (at 513.08 245.11 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PTC 500mA" (at 513.08 275.59 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0805_2012Metric" (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMD0805-050-6" (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "generic (JLC catalog)" (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C46640983" (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Per-port RJ45-VCC polyfuse (owner ruling 2026-07-15): fault isolation -- a shorted patch cable or failed module trips ONE port instead of browning out the shared 5VSB system (the TPS2121 limit is total, not per-port). 0805 PTC, 500mA hold, 6V rated. ~150mV drop at load absorbed by module LDO headroom." (at 513.08 260.35 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "b10cddf3-1c32-49c0-aec1-2911cfec26e6"))
+		(pin "2" (uuid "94095d38-c418-4e25-9241-994c365e1e01"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "F4") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 513.08 257.81) (xy 513.08 255.27))
+		(stroke (width 0) (type default)) (uuid "b905ee27-0626-40ce-ba26-61aa8c00d6db"))
+	(label "VCC_P4" (at 513.08 255.27 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "80847d5e-15c3-4973-9518-b5259b35abf2"))
+	(wire (pts (xy 513.08 262.89) (xy 513.08 265.43))
+		(stroke (width 0) (type default)) (uuid "8f6289c9-7cc9-4f60-b83c-0eb8e46c38d0"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 513.08 265.43 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "535f5fd1-d2f9-4b0b-b5a2-6361cef2cfb3")
+		(property "Reference" "#PWR9104" (at 513.08 262.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 513.08 269.24 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "a268f987-6b65-4dde-9f8f-a464b77f05f8"))
+		(instances
+			(project "hub-standard-rev2"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9104") (unit 1))
 			)
 		)
 	)
