@@ -106,6 +106,10 @@ def _stamp_back_face(png):
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
 # (the shrink pass comes after a gate-clean baseline exists; SHUNT_GAP may grow H).
 BOARD_WH = {
+    # HUB REV2 (owner directive 2026-07-15: "get the Hub down properly ... start from
+    # just the connectors and go from there"): proto-V1 is ~120x95-class; the 4-jack
+    # row (~4x16mm + gaps) floors one edge at ~70mm. Aggressive seed; refusals teach.
+    "hub-standard-rev2": (88.0, 62.0),
     "eps-8pin": (96.0, 37.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
@@ -129,6 +133,37 @@ BOARD_WH = {
 # same-side-per-rail sensing constraint (mechanism pending -- the wave is GATED on the
 # shared-bus per-rail corridor package, see TODO).
 BOARD_PARAMS = {
+    # HUB REV2 (2026-07-15): connector-first, no force lanes (no shunt corridors on a
+    # hub) -- the MCU/fan seats stay dormant by their force_lanes gate; hub-specific
+    # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
+    # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
+    # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
+    "hub-standard-rev2": {"mount_holes": "corners", "connector_overhang": "edge",
+                          "respect_antenna_keepout": False,   # W9/D-6a: no Wi-Fi ever
+                          "anchor_roles": {"J_PWR": "power_in", "J_USB": "usb",
+                                           "J2": "host", "J3": "host",
+                                           "J4": "host", "J5": "host",
+                                           "J_KVM": "host",
+                                           # board-to-board, interior -- never an edge
+                                           "J6": "free"},
+                          # owner catch on wave-1 snapshots (2026-07-15): jacks were
+                          # seated on the RIGHT (the host-role default edge) -- the
+                          # 4-jack row belongs on the long TOP edge like the proto;
+                          # USB + KVM bottom, power feed right.
+                          "edge_override": {"J2": "top", "J3": "top", "J4": "top",
+                                            "J5": "top", "J_USB": "bottom",
+                                            "J_KVM": "bottom", "J_PWR": "right"},
+                          # centerpiece (owner: "the center logo and LEDs"): the ring
+                          # (DL1-5,DL7) as a RIGID group, offsets lifted verbatim from
+                          # the proto board's ring; scored to board center. DL6 is NOT
+                          # in the group = the free status LED. Logo = FRONT copper at
+                          # the seated ring's centroid (materialize logo_at=ring).
+                          "rigid_groups": [{"score": "center", "offsets": {
+                              "DL1": (-0.08, -10.42, 0), "DL2": (7.42, -4.32, 0),
+                              "DL3": (9.92, 5.68, 0), "DL4": (-0.08, 7.68, 0),
+                              "DL5": (-10.08, 5.68, 0), "DL7": (-7.08, -4.32, 0)}}],
+                          "logo_at": "ring",
+                          "logo_ring_refs": ("DL1", "DL2", "DL3", "DL4", "DL5", "DL7")},
     "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
                          "respect_antenna_keepout": False,
                          # PRECISION RE-ENABLED (2026-07-14, same day as the stopgap):

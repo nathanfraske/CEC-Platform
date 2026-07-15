@@ -429,7 +429,10 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         fps.append(place("cec-Fiducial:Fiducial_1mm_Mask2mm", f"FID{i}", x, y, 0,
                          padnet, code_of))
     if logo:
-        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=True))
+        # (x, y) = back copper logo (module convention); (x, y, False) = FRONT logo
+        # (hub-rev2 centerpiece: the shine-through CEC mark at the LED-ring center).
+        _lflip = logo[2] if len(logo) > 2 else True
+        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=_lflip))
     e = []
     r = float(corner_radius or 0.0)
     if r <= 0:

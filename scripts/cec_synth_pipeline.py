@@ -1802,6 +1802,11 @@ def _classify(nl, role_overrides=None):
         if not c.footprint or ":" not in c.footprint:
             continue
         role = (role_overrides or {}).get(ref) or _role(ref, c.value, c.footprint, nl=nl)
+        if role == "free":
+            # explicit opt-out (hub-rev2 J6 mezzanine, 2026-07-15): a connector that is
+            # NOT an edge part -- board-to-board, interior -- places as a deliberate IC.
+            ics.append(ref)
+            continue
         if role:
             anchors[ref] = role
         elif ref.startswith("RS"):
@@ -4946,6 +4951,37 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
                              min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
             _can_seated.append(_can)
+        # RIGID GROUPS (hub-rev2, owner 2026-07-15 "center logo and LEDs"): params
+        # rigid_groups = [{"offsets": {ref: (dx,dy,rot)}, "score": "center"}] -- a
+        # purely aesthetic/rigid formation (the LED ring) seated as one macro by the
+        # same legality machinery as the MCU seat. Board-agnostic; no param = no-op.
+        for _rg in (cfg.params.get("rigid_groups") or ()):
+            _offs = {r: tuple(v) for r, v in (_rg.get("offsets") or {}).items()
+                     if r in comps and r not in _bp_refs}
+            if not _offs:
+                continue
+            _rg_occ = [(anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                        - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                        anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                        + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                        anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                        - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3],
+                        anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                        + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3])
+                       for _o in anchors if _o in comps]
+            _rg_env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            _rg_pts = [(W / 2.0, H / 2.0)] if _rg.get("score") == "center" else []
+            _rg_placed, _rg_rot = _seat_mcu_macro(
+                _offs, comps, W, H, forbid_boxes=_rg_env, occ_boxes=_rg_occ,
+                score_points=_rg_pts, rotations=(0.0,))
+            if _rg_placed is None:
+                print("  [p3crit] rigid-group: NO legal seat "
+                      "(left for ordinary placement)", file=sys.stderr)
+            else:
+                for _r2, _xyz in _rg_placed.items():
+                    anchors[_r2] = _xyz
+                _bp_refs.update(_rg_placed)
+
         # MCU-CLUSTER SEAT (owner directive 2026-07-12: "the ESP definitely needs to be
         # moveable/rotatable as a ladder piece ... pack [decouplers, status LED, etc]
         # together ... Boot and Reset ... on their own next to each other orthogonally
@@ -8174,6 +8210,14 @@ def materialize(cand, cfg, out, *, logo=None):
     _dropk = ()
     if cfg.params.get("respect_antenna_keepout", True) is False:
         _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
+    if logo is None and cfg and (cfg.params.get("logo_at") == "ring"):
+        # hub-rev2 centerpiece: FRONT logo at the seated LED ring's centroid
+        # (+ the old board's measured logo offset within the ring).
+        _rr = [r for r in (cfg.params.get("logo_ring_refs") or ()) if r in cand.P]
+        if _rr:
+            _cx = sum(cand.P[r][0] for r in _rr) / len(_rr)
+            _cy = sum(cand.P[r][1] for r in _rr) / len(_rr)
+            logo = (_cx - 0.08, _cy - 1.82, False)
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
                         drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
