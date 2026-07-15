@@ -1767,6 +1767,15 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     (Mounting holes report their true round courtyard via cec_pcb's circle handling now; the old
     hardcoded (0,0,3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
+    if fp.endswith("CEC_Logo_Copper"):
+        # KEEPOUT-BY-COURTYARD (owner 2026-07-15: "Logo needs to be a keepout for
+        # placers and routing"): the art footprint has no courtyard layer, so every
+        # consumer read it as ~zero extent. Hardcode its measured copper extent
+        # (13.0 x 11.9mm) + 0.5mm margin -- the M3-mount degenerate-courtyard
+        # precedent. With LOGO1 injected as a fixed anchor (rigid-group seat), every
+        # placement stage then treats the logo area as occupied. The ROUTING half is
+        # the F.Cu keepout hint in _oracle_hints_pours.
+        return (0.0, 0.0, 7.0, 6.45)
     is_rf = _trimmable_rf(fp)      # NoAntKeepout footprints are body-only: never trim (see fn)
     try:
         x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, 0.0, 0.0, rot,
@@ -4981,6 +4990,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 for _r2, _xyz in _rg_placed.items():
                     anchors[_r2] = _xyz
                 _bp_refs.update(_rg_placed)
+                if _rg.get("logo"):
+                    # LOGO1 = a PHANTOM FIXED PART at the ring centroid: comps gains
+                    # its footprint (honest hardcoded courtyard above) and anchors
+                    # pins it, so legalize/anneal/parks all see the logo area as
+                    # OCCUPIED (owner 2026-07-15 keepout directive). materialize
+                    # places the real copper via logo_at=ring; build_board iterates
+                    # NETLIST comps only, so the phantom never double-places.
+                    _lcx = sum(_rg_placed[r][0] for r in _rg_placed) / len(_rg_placed)
+                    _lcy = sum(_rg_placed[r][1] for r in _rg_placed) / len(_rg_placed)
+                    comps["LOGO1"] = "cec:CEC_Logo_Copper"
+                    anchors["LOGO1"] = (_lcx - 0.08, _lcy - 1.82, 0.0)
+                    _bp_refs.add("LOGO1")
 
         # MCU-CLUSTER SEAT (owner directive 2026-07-12: "the ESP definitely needs to be
         # moveable/rotatable as a ladder piece ... pack [decouplers, status LED, etc]
@@ -6409,6 +6430,20 @@ def _oracle_hints_pours(board_path):
         hints += plan.keepout_hints(layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
+    # LOGO ROUTING KEEPOUT (owner 2026-07-15): the front copper art must see no
+    # tracks/vias -- net-less copper under a routed track is a short by definition.
+    try:
+        import re as _re
+        _bt = open(board_path).read()
+        _lm = _re.search(r'\(property "Reference" "LOGO1"', _bt)
+        if _lm:
+            _li = _bt.rindex("(footprint", 0, _lm.start())
+            _lat = _re.search(r'\(at ([\d.\-]+) ([\d.\-]+)', _bt[_li:_li + 400])
+            _lx, _ly = float(_lat.group(1)), float(_lat.group(2))
+            hints.append({"name": "logo-keepout", "x0": _lx - 7.0, "y0": _ly - 6.45,
+                          "x1": _lx + 7.0, "y1": _ly + 6.45, "layers": ("F.Cu",)})
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_logo_keepout", "logo keepout skipped (%s)" % e)
     try:
         hints += cec_fr.edge_keepout(board_path)
     except Exception as e:                                       # noqa: BLE001

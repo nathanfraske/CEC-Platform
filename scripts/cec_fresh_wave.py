@@ -158,7 +158,7 @@ BOARD_PARAMS = {
                           # the proto board's ring; scored to board center. DL6 is NOT
                           # in the group = the free status LED. Logo = FRONT copper at
                           # the seated ring's centroid (materialize logo_at=ring).
-                          "rigid_groups": [{"score": "center", "offsets": {
+                          "rigid_groups": [{"score": "center", "logo": True, "offsets": {
                               "DL1": (-0.08, -10.42, 0), "DL2": (7.42, -4.32, 0),
                               "DL3": (9.92, 5.68, 0), "DL4": (-0.08, 7.68, 0),
                               "DL5": (-10.08, 5.68, 0), "DL7": (-7.08, -4.32, 0)}}],
