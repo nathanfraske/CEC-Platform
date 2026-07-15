@@ -117,3 +117,87 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
+    """Owner ask 2026-07-15: the per-variant dash tile as a 3x2 array --
+    col 1: FRONT render over BACK render (back mirrored into front orientation so
+           features align across the row -- and labeled as such on-tile),
+    col 2: F.Cu plot over B.Cu plot (layer 1 / layer 4, board coordinates),
+    col 3: In1.Cu over In2.Cu (the inner pair),
+    cells butted together with distinct divider rules. Returns out_png or None.
+    Plots via kicad-cli svg + rsvg-convert (both in the routing container)."""
+    import subprocess
+    import tempfile
+    try:
+        from PIL import Image, ImageDraw, ImageOps
+    except Exception:                                   # noqa: BLE001
+        return None
+    wd = tempfile.mkdtemp(prefix="cec_hex_")
+    tiles = {}
+    # 1. side renders (reuse if the caller already made them)
+    for side in ("top", "bottom"):
+        p = (side_pngs or {}).get(side)
+        if not p or not os.path.isfile(p):
+            p = os.path.join(wd, side + ".png")
+            if not render(board_path, p, side=side, no_bodies=True):
+                return None
+        tiles[side] = p
+    # 2. layer plots
+    for key, layer in (("l1", "F.Cu"), ("l4", "B.Cu"), ("l2", "In1.Cu"), ("l3", "In2.Cu")):
+        svg = os.path.join(wd, key + ".svg")
+        r = subprocess.run(["kicad-cli", "pcb", "export", "svg", "--layers",
+                            layer + ",Edge.Cuts", "--page-size-mode", "2",
+                            "--exclude-drawing-sheet", "-o", svg, board_path],
+                           capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0 or not os.path.isfile(svg):
+            return None
+        png = os.path.join(wd, key + ".png")
+        subprocess.run(["rsvg-convert", "-w", "900", "-o", png, svg],
+                       capture_output=True, timeout=timeout)
+        if not os.path.isfile(png):
+            return None
+        tiles[key] = png
+
+    def board_crop(p):
+        im = Image.open(p).convert("RGB")
+        # crop the render's grey margins: board pixels are the non-background extent
+        import numpy as _np
+        a = _np.asarray(im).astype(int)
+        bg = a[2, 2]
+        mask = (abs(a - bg).sum(axis=2) > 40)
+        ys, xs = _np.where(mask)
+        if len(xs) < 100:
+            return im
+        return im.crop((xs.min(), ys.min(), xs.max(), ys.max()))
+
+    top = board_crop(tiles["top"])
+    bot = ImageOps.mirror(board_crop(tiles["bottom"]))     # into FRONT orientation
+    l1 = board_crop(tiles["l1"]); l4 = board_crop(tiles["l4"])
+    l2 = board_crop(tiles["l2"]); l3 = board_crop(tiles["l3"])
+    CW = 760
+    def fit(im):
+        return im.resize((CW, int(im.height * CW / im.width)))
+    cols = [(fit(top), fit(bot)), (fit(l1), fit(l4)), (fit(l2), fit(l3))]
+    rowh = [max(c[0].height for c in cols), max(c[1].height for c in cols)]
+    DIV = 5
+    W = CW * 3 + DIV * 4
+    H = sum(rowh) + DIV * 3 + 26
+    out = Image.new("RGB", (W, H), (16, 18, 22))
+    d = ImageDraw.Draw(out)
+    labels = [("FRONT", "BACK (mirrored to front orientation)"),
+              ("L1 F.Cu", "L4 B.Cu"), ("L2 In1", "L3 In2")]
+    for ci, (imt, imb) in enumerate(cols):
+        x = DIV + ci * (CW + DIV)
+        out.paste(imt, (x, DIV))
+        out.paste(imb, (x, DIV + rowh[0] + DIV))
+        d.text((x + 4, DIV + 2), labels[ci][0], fill=(255, 210, 90))
+        d.text((x + 4, DIV + rowh[0] + DIV + 2), labels[ci][1], fill=(255, 210, 90))
+    for i in range(4):                                    # vertical rules
+        x = i * (CW + DIV)
+        d.rectangle([x, 0, x + DIV - 1, H], fill=(90, 95, 105))
+    for y in (0, DIV + rowh[0], DIV + rowh[0] + DIV + rowh[1]):
+        d.rectangle([0, y, W, y + DIV - 1], fill=(90, 95, 105))
+    d.text((DIV + 4, H - 20), os.path.basename(board_path), fill=(170, 175, 185))
+    out.save(out_png)
+    return out_png

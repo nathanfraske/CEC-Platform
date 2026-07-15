@@ -64,6 +64,13 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
         png = cec_render.render(routed, png, side="top", no_bodies=True)
         if png:
             cec_render.render(routed, png.replace("-top.png", "-top-bodies.png"), side="top")
+        # HEX PANEL (owner ask 2026-07-15): the dash tile = 3x2 array -- front/back
+        # renders | L1/L4 plots | In1/In2 plots, aligned orientation, ruled dividers.
+        hexp = cec_render.hex_panel(routed,
+                                    os.path.join(work_root, board, f"{label}-hex.png"),
+                                    side_pngs={"top": png})
+        if hexp:
+            png = hexp
     except Exception:                                  # noqa: BLE001
         png = None
     star = "★ new best — " if best else ""
