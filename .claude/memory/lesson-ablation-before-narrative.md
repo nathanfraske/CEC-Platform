@@ -35,3 +35,14 @@ of the wrong story instead of testing it.
 Full write-up: docs/lessons-thermal-neck-artifact-2026-06-28.md (in the cec-placement
 worktree / claude/placement-corridor). Related: [[cec-thermal2d-field-solver]],
 [[thermal-gate-required]].
+
+**Instance 2026-07-15 (the "missing GND plane" false alarm):** a regex over .kicad_pcb
+text mis-parsed KiCad-10's multi-layer zone serialization as "no GND zones"; the reading
+fit the prior (GND stranded every wave) and shipped to the owner as a "huge issue" before
+a 30-second pcbnew check refuted it (plane present, filled, 7,505mm2). A regex over a file
+format is an INTERMEDIATE, not a measurement -- pcbnew/kicad-cli are the measurement.
+Corollary added: a RECURRING critical signal gets per-net/per-position LOCALIZATION before
+it gets an explanation or a named rung (the real defect -- unpierced cell GND stub islands
+-- had been visible-but-unlocalized for six waves). Full writeup:
+docs/gnd-plane-forensic-2026-07-15.md.
+
