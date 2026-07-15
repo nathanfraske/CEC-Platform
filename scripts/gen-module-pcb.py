@@ -226,20 +226,23 @@ LAYERS = """\t(layers
 \t)"""
 
 def stackup():
+    # MATTE-BLACK ENIG is the PLATFORM spec (CLAUDE.md Hub v1.1 decisions; owner
+    # 2026-07-15: winner renders must show the black finish) -- fresh boards are
+    # born black so every render matches the real product.
     def cu(n, t): return f'\t\t\t(layer "{n}" (type "copper") (thickness {t}))'
     def di(n, t): return (f'\t\t\t(layer "{n}" (type "core") (thickness {t}) '
                           f'(material "FR4") (epsilon_r 4.5) (loss_tangent 0.02))')
     return ("\t\t(stackup\n"
-            '\t\t\t(layer "F.SilkS" (type "Top Silk Screen"))\n'
+            '\t\t\t(layer "F.SilkS" (type "Top Silk Screen") (color "White"))\n'
             '\t\t\t(layer "F.Paste" (type "Top Solder Paste"))\n'
-            '\t\t\t(layer "F.Mask" (type "Top Solder Mask") (thickness 0.01))\n'
+            '\t\t\t(layer "F.Mask" (type "Top Solder Mask") (color "Black") (thickness 0.01))\n'
             + cu("F.Cu", 0.07) + "\n" + di("dielectric 1", 0.2) + "\n"
             + cu("In1.Cu", 0.035) + "\n" + di("dielectric 2", 1.065) + "\n"
             + cu("In2.Cu", 0.035) + "\n" + di("dielectric 3", 0.2) + "\n"
             + cu("B.Cu", 0.07) + "\n"
-            '\t\t\t(layer "B.Mask" (type "Bottom Solder Mask") (thickness 0.01))\n'
+            '\t\t\t(layer "B.Mask" (type "Bottom Solder Mask") (color "Black") (thickness 0.01))\n'
             '\t\t\t(layer "B.Paste" (type "Bottom Solder Paste"))\n'
-            '\t\t\t(layer "B.SilkS" (type "Bottom Silk Screen"))\n'
+            '\t\t\t(layer "B.SilkS" (type "Bottom Silk Screen") (color "White"))\n'
             '\t\t\t(copper_finish "ENIG")\n\t\t\t(dielectric_constraints no)\n\t\t)')
 
 def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, val=None):
