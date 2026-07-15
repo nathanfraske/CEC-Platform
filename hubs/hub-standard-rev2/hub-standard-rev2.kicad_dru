@@ -53,3 +53,11 @@
 
 # No special high-current / HV clearance rule. At <=5V the Default 0.2mm
 # clearance is electrically ample platform-wide on this board.
+
+# D-11 SETTLEMENT (owner ruling 2026-07-15, recommendation accepted: DRU exception,
+# not copper surgery): the XKB U262 USB-C land's own pad-to-locating-NPTH spacing is
+# 0.165-0.20mm BY MANUFACTURER DRAWING -- a proven vendor land the generic 0.25mm
+# board rule should not outrank. Scoped to that footprint's pads only.
+(rule usbc_vendor_land_hole_clearance
+  (condition "A.memberOfFootprint('J_USB') && B.memberOfFootprint('J_USB')")
+  (constraint hole_clearance (min 0.15mm)))
