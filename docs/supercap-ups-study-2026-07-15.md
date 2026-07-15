@@ -543,3 +543,58 @@ leakage measurement before any of this reaches a board.** Risks 2 and 3 in §5 a
 two items this study is least confident about because they were not measurable from
 public datasheets alone — they need the actual platform's TPS2121/5VSB front end on a
 bench with a real (initially fully-discharged) bank attached.
+
+---
+
+## 7. DECISION TABLE (owner steering 2026-07-15)
+
+**Owner steering folded in:** Pro/Max = 1 (maybe 2) supercaps, NO manager IC — either one
+low-ESR 5.4/5.0 V dual-cell EDLC module or 2S discrete cells with passive balance,
+dropped into the existing diode→hold-node→LDO topology (the Standard hub's C1 position)
+plus ONE charge-limit resistor, with a Schottky as the discharge bypass. Manager IC
+(LTC3350 4S) = ENT only. Standard = unchanged.
+
+**Window math used below (stated per the steering, applied to every no-IC row):** charge
+from the 5 V rail through the Schottky to ~4.65 V at the hold node; usable discharge
+window 4.65 V → 3.42 V (LDO dropout floor). Extractable energy
+`½·C·(4.65² − 3.42²) = ½·C·9.93 ≈ 4.96·C joules` → at the Standard hub's measured 0.4 W
+persist load, **≈ 12.4 seconds per farad** (matches the owner's ~12 s/F figure). A side
+benefit the owner's shape gets for free: charging to 4.65 V from the 5 V rail puts each
+cell of a 2-cell stack at ~2.33 V — already *below* this study's §3 lifetime derate of
+2.5 V/cell, i.e. the no-IC topology is inherently life-derated by construction.
+LTC3350 rows use §3's boost-extraction math instead (2.5 V/cell derate × 0.84
+boost-floor fraction × 0.70 EOL capacitance).
+
+| # | Option | Tier | Parts (MPN / source / qty-100 price) | BOM Δ$ | Area / height | Usable hold @ persist load | Inrush / leakage posture | Balancing | Risk (1-5) | What it buys over baseline |
+|---|---|---|---|---|---|---|---|---|---|---|
+| a | **Baseline: 4700 µF electrolytic** (reference row) | Pro/Max | Panasonic EEVFK1C472M-class + SB120/SS14 Schottky, already in the platform BOM (~$1-2 total) | $0 | 1 radial can, ~Ø16×~17 mm class | **16-26 ms MEASURED** (`cec_spice_sanity`, commit `ae4ee65`); window math predicts ~58 ms ideal at 0.4 W — the measured number is the honest one | Benign (µA-class electrolytic leakage; no inrush concern at 4700 µF) | None needed | 1 | Nothing — this is today. Covers the comparator trip, NOT a flash flush |
+| b1 | **1× dual-cell 5 V pack, 5 F** | Pro/Max | Eaton **PHB-5R0H505-R** — 5 F / 5.0 V / **130 mΩ** @100 Hz, [DigiKey $4.76 @100, 437 in stock](https://www.digikey.com/en/products/detail/eaton-electronics-division/PHB-5R0H505-R/2770532); [PHB datasheet](https://www.eaton.com/content/dam/eaton/products/electronic-components/resources/data-sheet/eaton-phb-supercapacitors-cylindrical-pack-data-sheet.pdf) ("integrates two HB cells with passive voltage management", [Eaton PHB page](https://www.eaton.com/gb/en-gb/catalog/electronic-components/phb-supercapacitor.html)) + 1 charge-limit R + 1 Schottky (~$0.10) | **~$5-6** | 32.5 × 21.3 mm, **11.0 mm seated height** (lies flat — enclosure-friendly) | **~62 s @ 0.4 W** (5 F × 12.4 s/F, diode-LDO window) — ~2,400× the measured baseline | ONE series R sets charge current (e.g. 10 Ω → <0.5 A cold-plug peak, decaying; must be budgeted vs the ~2.5 A shared 5VSB); pack leakage + internal balance bleed = new continuous 5VSB draw, bench item | Internal to the pack (passive, factory) | 2 | Finish-the-flush + CAN farewell with ~60× margin; zero firmware change; single BOM line |
+| b2 | **1× dual-cell 5.4 V pack, 2.5 F** (smaller/cheaper-fit variant) | Pro/Max | Eaton **PHV-5R4H255-R** — 2.5 F / 5.4 V / **0.08 Ω** ([Eaton SKU page](https://www.eaton.com/us/en-us/skuPage.PHV-5R4H255-R.html), [PHV datasheet](https://www.eaton.com/content/dam/eaton/products/electronic-components/resources/data-sheet/eaton-phv-supercapacitors-cylindrical-pack-data-sheet.pdf)); price anchor: sibling PHV-5R4H474-R $4.35 / PHV-5R4V505-R $20.42 at DigiKey per [search pass](https://www.digikey.com/en/products/detail/PHV-5R4H505-R/283-4190-ND/3878059) — **2.5 F price needs an RFQ**; alt: Kyocera AVX **SCMS22C255** 2.5 F/5 V ~$3.73 ([DigiKey](https://www.digikey.com/en/products/detail/kyocera-avx/SCMS22D255PRBB0/8028700), [SCM family: "very low ESR"](https://www.kyocera-avx.com/products/supercapacitors/scm-series/)) | **~$4-7 (RFQ)** | 1.5 F sibling is 21.5 × 16.8 × **8.5 mm**; 2.5 F slightly larger (datasheet check) | **~31 s @ 0.4 W** (2.5 F × 12.4 s/F) | Same single-R posture as b1; smaller C → proportionally smaller cold-plug charge dose | Internal to the pack | 2 | Same qualitative win as b1 at ~half the energy and a lower profile (8.5-11 mm class) |
+| c | **2S discrete 2.7 V cells + passive balance** | Pro/Max | 2× Eaton **HV1030-2R7106-R** — 10 F / 2.7 V / **34 mΩ** @100 Hz, [DigiKey $3.39/1, 16,389 in stock](https://www.digikey.com/en/products/detail/eaton-electronics-division/HV1030-2R7106-R/3878071); volume curve $2.26 @10 → $1.29 @3k at [TTI](https://www.tti.com/content/ttiinc/en/apps/part-detail.html?partsNumber=HV1030-2R7106-R&mfgShortname=COB) → 2S = **5 F bank**; + 2 balance Rs (~$0.04) + charge R + Schottky | **~$4-7** (≈$2.60-4.60 in cells @100-class) | 2 upright cans, HV series Ø10 mm class × ~30 mm tall each — **taller** than b1/b2, worse for enclosed SKUs | **~62 s @ 0.4 W** (5 F × 12.4 s/F; same window math; ~2.33 V/cell at full charge = inherently derated) | Same single-R posture; ADD: two bleed resistors are a second continuous 5VSB draw (10× cell leakage sizing rule, [passive-components.eu](https://passive-components.eu/supercapacitor-balancing-methods-comparison/)) | 2 external resistors (designer-owned — a mis-size is a real OV path, unlike b1/b2's factory-internal balance) | 3 | Same hold as b1 at possibly lower cell cost, deepest stock of any row (16k+), BUT you own the balancing and the height |
+| d | **ENT: LTC3350 + 4S stack** (§6, condensed) | ENT | **LTC3350EUHF** ~$5.25 @1k / ~$14.67 small-qty ([DigiKey](https://www.digikey.com/en/products/detail/analog-devices-inc/LTC3350IUHF-PBF/5030338)), **not on LCSC** (consigned/hand-place) + 2 N-FETs, inductor, sense R, ~10 passives + 4× 7-10 F 2.7 V cells (e.g. HV1030 class, ~$1.3-3.4 ea) | **~$15-38** (§4) | Largest: 4 cans + controller power stage, ~1.5-2× the b-row IC footprint + 4× can height | **§3 boost-extraction math**: 4S×10 F → 2.5 F bank @10 V derated; ×0.84×0.70 → ~73 J usable EOL → **25-147 s at ENT's 0.5-3.0 W estimate** (wide because the load is unmeasured) | Programmable CC charge limit (datasheet-native); IC-managed, best-in-table inrush control | Internal active balancer + per-cell shunt OVP ([ADI](https://www.analog.com/en/products/ltc3350.html)) | 3 | **I²C stack-health telemetry (V/I/C/ESR per position)** — the hold-up bank becomes attestable witness evidence; rides the heavier ENT load; real headroom for the 3 W ceiling case |
+| e | **ENT comparison: no-IC module shape at ENT load** | ENT | Same parts as b1 (PHB-5R0H505-R + R + Schottky), dropped into the ENT `01e-holdup` slot | **~$5-6** | Same as b1 (11 mm seated) | 5 F × 4.96 J/F ≈ 24.8 J in the diode-LDO window → **~50 s @ 0.5 W low-end / ~8 s @ 3.0 W ceiling** | Same as b1 | Internal to the pack | 2 | **Honest verdict: at ENT's LOW-end load estimate the no-IC shape already covers a graceful persist (~50 s)** — the LTC3350 earns its ENT place on (1) the telemetry-as-attestation feature and (2) the unmeasured 3 W ceiling, NOT on raw hold-time at the low end. If the ENT persist load benches ≤1 W and the owner doesn't value the bank-health attestation, row e is defensible at ENT too |
+
+**Footnote — coin-stack disqualification:** the cheap 5.5 V "memory-backup" coin-stack
+EDLCs (Kemet FT/FM, Panasonic EEC-S, CDA CHP — e.g. [Panasonic EEC-S5R5H105N, 1 F/5.5 V](https://www.digikey.com/en/products/detail/panasonic-electronic-components/EEC-S5R5H105N/5129520))
+carry ESR in the **30-75 Ω** class. At CEC's 100-300 mA persist currents that is a 3-20 V+
+instantaneous IR drop — the output collapses below the LDO floor on the first mA burst
+regardless of stored energy. Disqualified; every candidate above is in the 0.03-0.35 Ω
+class (the 9 V Kyocera [SCMR22L105SRBB0](https://www.digikey.com/en/products/detail/kyocera-avx/SCMR22L105SRBB0/7595432)
+at 350 mΩ was checked and is at the edge but is also the wrong voltage class and
+backorder-only — not carried into the table).
+
+**Recommendation per tier (one line each):**
+- **Pro/Max:** row **b1** (Eaton PHB-5R0H505-R, ~$5-6, 11 mm flat pack, ~62 s vs a
+  single-digit-seconds requirement) — factory-internal balancing beats row c's
+  designer-owned balance network for a near-identical price, and the flat can beats c's
+  height in enclosed SKUs.
+- **ENT:** row **d** (LTC3350 + 4S), conditional on §6's gates — with row **e** as the
+  explicitly-priced fallback if the persist load benches low and bank-health attestation
+  is judged not worth the consigned-part sourcing risk.
+- **Standard:** unchanged (electrolytic + DNP ladder hedge), per owner steering.
+
+**The two unmeasured gates, restated:** (1) **5VSB inrush/leakage bench** — cold-plug
+charge current through the chosen limit R plus continuous pack-leakage/balance-bleed
+draw, measured on the real TPS2121 front end against the ~2.5 A shared 5VSB budget;
+(2) **ENT persist-mode load** — the 0.5-3.0 W estimate spans 6×, and rows d vs e flip on
+where it lands; bench it before the owner-queue decision row is written.
