@@ -787,10 +787,19 @@ def run_freerouting(
                 if _ln.startswith("CEC_PASS "):
                     print("[fr] " + _ln.strip(), flush=True)
                     m_f = re.search(r"failed=(\d+)", _ln)
-                    if m_f:
-                        _f = int(m_f.group(1))
-                        if _best is None or _f < _best:
-                            _best, _streak = _f, 0
+                    m_g = re.search(r"togo=(\d+)", _ln)
+                    if m_f and m_g:
+                        # IMPROVEMENT = either counter dropping (wave-11 calibration,
+                        # 2026-07-15: failed= is the stable hard-core retry set and
+                        # sits flat from pass 2 while togo= is still falling 116->
+                        # 77->68->60 -- keying on failed alone culled ALL 16 live
+                        # candidates mid-progress. True plateau = BOTH flat.)
+                        _f, _g = int(m_f.group(1)), int(m_g.group(1))
+                        _cur = (_g, _f)
+                        if _best is None or _cur[0] < _best[0] or _cur[1] < _best[1]:
+                            _best = (_cur[0] if _best is None else min(_best[0], _cur[0]),
+                                     _cur[1] if _best is None else min(_best[1], _cur[1]))
+                            _streak = 0
                         elif _f > 0:
                             _streak += 1
                             if _streak >= _k:
@@ -802,11 +811,11 @@ def run_freerouting(
             if _own_workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
         if _killed:
-            print(f"[cec_fr] PLATEAU_KILL: failed={_best} flat for {_streak} pass(es) "
+            print(f"[cec_fr] PLATEAU_KILL: togo/failed={_best} flat for {_streak} pass(es) "
                   f"-- candidate rejected at {round(time.monotonic() - _t0, 1)}s",
                   flush=True)
             raise RuntimeError(
-                f"CEC_PLATEAU_KILL: unrouted plateau at failed={_best} "
+                f"CEC_PLATEAU_KILL: unrouted plateau at togo/failed={_best} "
                 f"({_streak} flat passes)")
         result = subprocess.CompletedProcess(
             cmd, proc.returncode, "".join(_lines), proc.stderr.read() if proc.stderr else "")
