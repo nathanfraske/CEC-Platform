@@ -772,18 +772,34 @@ def run_freerouting(
         _k = int(_pk)
         _pop_kw = {kk: vv for kk, vv in run_kw.items()
                    if kk not in ("capture_output", "text", "timeout")}
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        # stderr MERGED into stdout (wave-13 stall forensic, 2026-07-15: a separate
+        # stderr PIPE that nobody drains deadlocks the JVM once it fills 64KB; and a
+        # timeout checked only when a line ARRIVES never fires on a silent child --
+        # select() below enforces the deadline for real).
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
                                 text=True, bufsize=1, **_pop_kw)
         _best, _streak, _killed, _lines = None, 0, False, []
         _t0 = time.monotonic()
-        try:
-            for _ln in proc.stdout:
-                _lines.append(_ln)
+        import select as _select
+        def _next_line():
+            while True:
                 if time.monotonic() - _t0 > timeout:
                     proc.kill()
                     raise RuntimeError(
                         f"cec_fr.run_freerouting: timed out after {timeout}s "
                         f"(dsn={dsn_path!r}, jar={jar!r})")
+                r, _w, _x = _select.select([proc.stdout], [], [], 10.0)
+                if r:
+                    return proc.stdout.readline()
+                if proc.poll() is not None:
+                    return ""
+        try:
+            while True:
+                _ln = _next_line()
+                if _ln == "":
+                    break
+                _lines.append(_ln)
                 if _ln.startswith("CEC_PASS "):
                     print("[fr] " + _ln.strip(), flush=True)
                     m_f = re.search(r"failed=(\d+)", _ln)
