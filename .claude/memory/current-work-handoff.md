@@ -1,5 +1,18 @@
 # Current work handoff
 
+## PARKED BY OWNER (CPU needed elsewhere) — 2026-07-15 ~21:35
+Wave 13 KILLED at 15/16 after an 80-min stall. STALL CAUSE (forensic'd + FIXED, committed):
+the plateau-kill Popen path had (a) an undrained stderr PIPE (JVM deadlocks at 64KB) and
+(b) a timeout only checked when a stdout line arrives (silent child = infinite block).
+Fix: stderr=STDOUT merge + select()-sliced deadline in cec_fr.run_freerouting. NOT yet
+re-validated (owner parked compute). RESUME: relaunch wave as work14 (command in
+FOLLOWUPS), expect: GND 14 edges -> ~0 (island stitch), /FAN_12V 2 -> 0 (J2 at 48.5,23.5),
+kelvin gate candidate flip (lane-6 alias unpoisoned). THEN owner-asked-not-yet-GO'd:
+park-elimination + edge-margin (6 overlap pairs = all least-overlap parks incl U3<->J1;
+C3/R6 0.5mm from edge; board 51% covered — search-scope failures, not space).
+Wave-13 partial (15 variants, log build/fresh-wave-13-stitch-j2.log): stitch/J2 effects
+UNKNOWN (no report written; work13 dir has candidates if forensics wanted).
+
 ## SURGERY STACK LIVE — WAVE 12 REGIME CHANGE — 2026-07-15 (small hours)
 route_tiered CURED (locked-copper keepouts baked pre-export + refuse-loud structural gate
 +6 threshold; R1 config 284->61) -> wave_precision RE-ENABLED (owner blind-AB ruling).
