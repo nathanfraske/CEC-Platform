@@ -147,6 +147,11 @@ BOARD_PARAMS = {
     # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
     "hub-standard-rev2": {"mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
+                          # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
+                          # 21.5mm allowance = keepout-drawing depth (27.75) minus the
+                          # pad row (5.26) minus 1mm guard -- pads stay on-board.
+                          "mcu_cluster_seat": True,
+                          "antenna_overhang": 21.5,
                           "respect_antenna_keepout": False,   # W9/D-6a: no Wi-Fi ever
                           "anchor_roles": {"J_PWR": "power_in", "J_USB": "usb",
                                            "J2": "host", "J3": "host",

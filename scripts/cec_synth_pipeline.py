@@ -4459,7 +4459,7 @@ def _box_clear(box, obstacles, margin):
 def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
                     forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
                     drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0),
-                    antenna_overhang=0.0):
+                    antenna_overhang=0.0, edge_soft=0.0):
     """Search a coarse grid x *rotations* for a LEGAL seat of the rigid macro *offsets*
     ({ref:(dx,dy,rot)}, some local frame -- _mcu_cluster_offsets / _adjacent_pair_offsets)
     inside *x_range* (default the full board width; the force-lane LOGIC COLUMN when the
@@ -4546,6 +4546,13 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
                         break
                 if legal:
                     dist = sum(math.hypot(x - px, y - py) for px, py in score_points)
+                    if edge_soft > 0.0:
+                        # owner 2026-07-15 ("items parked out by the edges"): non-edge
+                        # parts prefer >=edge_soft mm of interior margin; a soft cost,
+                        # never a veto (connectors are seated by anchors, not here).
+                        _mrg = min(x + mlx, y + mly, W - (x + mhx), H - (y + mhy))
+                        if _mrg < edge_soft:
+                            dist += (edge_soft - _mrg) * 25.0
                     ant_pen = 0.0
                     if antenna_ref is not None:
                         for _ref, rdx, rdy, _rrot, ccx, ccy, chw, chh in parts:
@@ -5015,7 +5022,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # force-lane board picks this up for free). Absent that gate, ESP falls through
         # to the ordinary relative_place/anneal IC path UNCHANGED (byte-identical
         # elsewhere -- the golden-safety discipline).
-        if _esp is None and cfg.params.get("force_lanes"):
+        if _esp is None and (cfg.params.get("force_lanes")
+                             or cfg.params.get("mcu_cluster_seat")):
             _mcu_esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
                              or "rf_module" in (comps.get(r, "") or "").lower()), None)
             if _mcu_esp:
@@ -5053,6 +5061,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _mcu_occ = [_mcu_true_box(_o, anchors[_o]) for _o in anchors if _o in comps]
                 _mcu_lanes = _force_corridor_boxes(lambda d: anchors.get(d))
                 _mcu_x0 = (max(b[2] for b in _mcu_lanes) + 1.0) if _mcu_lanes else 0.0
+                # hub-class (mcu_cluster_seat, no lanes): full-board x_range; the
+                # antenna key + per-board overhang put the module ON the edge,
+                # antenna out (owner 2026-07-15) -- the WROOM's keepout drawing
+                # rides off-board with it, exactly the intended geometry.
                 _mcu_nbrs = _adjacency(nl).get(_mcu_esp, set())
                 _mcu_score_pts = [anchors[r][:2] for r in _mcu_nbrs if r in anchors]
                 # antenna_ref (owner 2026-07-14): the ESP's antenna end faces the nearest
@@ -5062,7 +5074,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _mcu_placed, _mcu_rot = _seat_mcu_macro(
                     _mcu_offs, comps, W, H, x_range=(_mcu_x0, W),
                     forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts,
-                    antenna_ref=_mcu_esp, antenna_overhang=5.0)
+                    antenna_ref=_mcu_esp,
+                    antenna_overhang=float(cfg.params.get("antenna_overhang", 5.0)))
                 _mcu_locked = set()
                 if _mcu_placed is None:
                     print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)
@@ -5645,6 +5658,60 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                       role_clr=_role_clr)
         legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
 
+    # ============================================================ P7b: affinity re-seat
+    def _p8b_affinity_reseat(_state):
+        """Owner 2026-07-15 ("overlaps and items parked out by the edges ... should go
+        next to other netlisted parts"): for every MOVABLE part that ended the earlier
+        passes either courtyard-OVERLAPPED (the least-overlap park residue) or hugging
+        an edge (<2mm interior margin, non-anchor), run a FULL-BOARD single-part seat
+        search scored by its NETLIST NEIGHBORS' positions (+ the seat's edge-soft cost)
+        -- affinity placement, never first-available-legal. A part with no legal
+        affinity seat stays put (refuse-loud print), never force-parked worse."""
+        nonlocal P, cyinfo_all, anchors
+        import math as _math
+        adj = _adjacency(nl)
+        fixed = set(anchors) | set(_bp_refs)
+        # measure overlaps + edge-huggers on the CURRENT P
+        def _box(r):
+            x, y, rot = P[r]
+            cx, cy, hw, hh = _courtyard_info(comps[r], rot)
+            return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
+        boxes = {r: _box(r) for r in P if r in comps}
+        bad = []
+        for r in P:
+            if r in fixed or r not in comps:
+                continue
+            l0, r0, t0, b0 = boxes[r]
+            edge_m = min(l0, t0, W - r0, H - b0)
+            olap = any(o != r and not (r0 <= boxes[o][0] or boxes[o][1] <= l0
+                                        or b0 <= boxes[o][2] or boxes[o][3] <= t0)
+                       for o in boxes)
+            if olap or edge_m < 2.0:
+                bad.append(r)
+        if not bad:
+            return
+        moved = 0
+        for r in bad:
+            nbr_pts = [P[o][:2] for o in adj.get(r, ()) if o in P and o != r]
+            if not nbr_pts:
+                nbr_pts = [(W / 2.0, H / 2.0)]
+            occ = [boxes[o] for o in boxes if o != r]
+            env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            offs = {r: (0.0, 0.0, P[r][2] if len(P[r]) > 2 else 0.0)}
+            placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
+                                           occ_boxes=occ, score_points=nbr_pts,
+                                           grid=1.0, edge_soft=2.0)
+            if placed:
+                P[r] = placed[r]
+                boxes[r] = _box(r)
+                moved += 1
+            else:
+                print(f"  [p8b] affinity re-seat: no legal seat for {r} -- left as-is",
+                      file=sys.stderr)
+        if moved:
+            print(f"  [p8b] affinity re-seat: {moved}/{len(bad)} overlapped/edge-parked "
+                  f"part(s) moved beside their netlist neighbors", file=sys.stderr)
+
     # ============================================================ P5: passive stamps (cluster + series)
     def _p7_stamps(_state):
         nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
@@ -6131,6 +6198,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              doc="stamp cluster passives + functional/series parts, legalize the stamped set"),
         Pass("p8_evac_mop", _p8_evac_mop, phase="P7",
              doc="evacuate corridors/pours of foreign bodies + final mop-up settle"),
+        Pass("p8b_affinity_reseat", _p8b_affinity_reseat, phase="P7",
+             doc="owner 2026-07-15: overlapped/edge-parked parts re-seated NEXT TO their "
+                 "netlist neighbors (full-board legal search, affinity-scored + edge-soft) "
+                 "instead of the least-overlap park"),
         Pass("p9_restamp", _p9_restamp, phase="P5",
              doc="re-stamp clusters at owners' FINAL positions (the scatter fix)"),
         Pass("p10_intents", _p10_intents, phase="P7",
@@ -8245,6 +8316,37 @@ def materialize(cand, cfg, out, *, logo=None):
     _dropk = ()
     if cfg.params.get("respect_antenna_keepout", True) is False:
         _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
+    # NETCLASS + DRU CARRIAGE (owner 2026-07-15: "trace width needs to be a thing"):
+    # fresh boards shipped with only a Default netclass and no DRU, so thin power was
+    # INVISIBLE to DRC. Carry the donor board dir's power-class netclasses (min track
+    # width >= 0.3mm -- Power/GND/CAN classes) + its .kicad_dru sidecar onto every
+    # materialized candidate. Signal-class floors are deliberately NOT carried yet:
+    # FR 1.7.0 routes at 0.2mm regardless (the measured 2026-06-06 limitation; the
+    # real fix = the queued FR width surgery), and a 0.22 signal floor would flood
+    # every candidate's DRC with hundreds of hits and drown the ranking signal --
+    # power-net hits are the honest pressure at the right magnitude.
+    try:
+        import glob as _glob
+        import json as _json
+        import shutil as _shutil
+        _bdir = os.path.join(ROOT, "hubs", cfg.board) if os.path.isdir(
+            os.path.join(ROOT, "hubs", cfg.board)) else os.path.join(ROOT, "modules", cfg.board)
+        _pros = sorted(_glob.glob(os.path.join(_bdir, "*.kicad_pro")), key=len)
+        _outpro = out[:-len(".kicad_pcb")] + ".kicad_pro"
+        if _pros and os.path.isfile(_outpro):
+            _donor = _json.load(open(_pros[0]))
+            _mine = _json.load(open(_outpro))
+            _dc = (_donor.get("net_settings") or {}).get("classes") or []
+            _keep = [c for c in _dc if c.get("name") == "Default"
+                     or float(c.get("track_width", 0) or 0) >= 0.3]
+            if len(_keep) > 1:
+                _mine.setdefault("net_settings", {})["classes"] = _keep
+                open(_outpro, "w").write(_json.dumps(_mine, indent=2))
+        for _dru in _glob.glob(os.path.join(_bdir, "*.kicad_dru")):
+            _shutil.copy(_dru, out[:-len(".kicad_pcb")] + ".kicad_dru")
+            break
+    except Exception as _e:                                     # noqa: BLE001 -- fail-safe
+        print(f"[materialize] netclass/dru carriage failed ({_e})", file=sys.stderr)
     if logo is None and cfg and (cfg.params.get("logo_at") == "ring"):
         # hub-rev2 centerpiece: FRONT logo at the seated LED ring's centroid
         # (+ the old board's measured logo offset within the ring).
