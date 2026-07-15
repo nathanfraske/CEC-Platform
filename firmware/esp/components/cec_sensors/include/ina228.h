@@ -1,9 +1,17 @@
 /*
  * INA228 driver for ESP-IDF 6.x
  *
- * The 24-pin module's production sensing: one INA228 per rail (12V/5V/3V3/5VSB),
+ * The 24-pin BENCH UNITS' sensing: one INA228 per rail (12V/5V/3V3/5VSB),
  * each giving BOTH bus voltage and current over I2C. Handle-based API mirroring
  * ina226.h so multiple instances share one bus.
+ *
+ * SCOPE (owner direction 2026-07-15): this driver serves the current bench
+ * units only — the 24-pin alpha/rev2 boards, frozen artifacts populated with
+ * the INA228. The production part going forward is the INA238 (spec v1.5.0:
+ * 24-pin rev3+; EPS/PCIe were always INA238 per cable). Same VSSOP-10 land
+ * and family register map, but 16-bit ADC, no energy/charge accumulators
+ * (energy integrates in firmware, OQ-13) — a separate ina238 driver, not an
+ * extension of this one. Keep this driver working; don't grow it.
  *
  * The INA228 is NOT register-compatible with the INA226 -- it is the
  * INA228/237/238 family map: a 20-bit ADC (shunt/bus/current returned in the top

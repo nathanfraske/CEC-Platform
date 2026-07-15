@@ -37,9 +37,16 @@ menu "CEC sensors"
         bool "INA228 I2C power monitor (20-bit, energy/charge) driver"
         default n
         help
-            24-pin PRODUCTION sensing: one INA228 per rail, giving bus
+            24-pin BENCH-UNIT sensing: one INA228 per rail, giving bus
             voltage + current over I2C. Distinct register map from the
             INA226 (20-bit, ADCRANGE, die temp, 40-bit accumulators).
+
+            SCOPE (owner direction 2026-07-15): the INA228 is kept for
+            the current bench units only — the 24-pin alpha/rev2 boards
+            are frozen artifacts populated with it. The production part
+            going forward is the INA238 (spec v1.5.0: 24-pin rev3+, and
+            EPS/PCIe were always INA238 per cable); new sensing work
+            targets the INA238 driver when it lands, this one is legacy.
 
     config CEC_SENSOR_NTC
         bool "NTC thermistor driver (eps-named API)"

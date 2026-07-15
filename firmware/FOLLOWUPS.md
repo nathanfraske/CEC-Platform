@@ -522,15 +522,19 @@ capture->organize->analyze path is the Concierge (Appendix C) precursor.
 
 `firmware/contracts/persist-on-fault.md` is the contract of record; the
 single-source budget constant is `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS`
-(cec_nvs Kconfig, default 15). Owner bench numbers (2026-07-15) for the Hub
+(cec_nvs Kconfig, default 15). Owner SPICE numbers (2026-07-15) for the Hub
 Standard 4700 µF hold-up: ~26 ms @ 80 mA base / ~23 ms @ 120 mA typical /
-~16 ms @ 240 mA worst case — these MEASURED windows supersede the beta-lock
-§L estimates (~25/36/65–75 ms) and close the ride-through half of OQ-56.
+~16 ms @ 240 mA worst case — SIMULATED (SPICE, not bench; provenance
+corrected 2026-07-15). They supersede the beta-lock §L back-of-envelope
+estimates (~25/36/65–75 ms) as numbers of record, but OQ-56's BENCH
+verification remains FULLY open — the SPICE decay model itself is on the
+bench list below.
 Open:
-- OWNER PEN: fold the measured numbers into spec/beta-lock §L (the §L text
-  still carries the pre-bench estimates as "numbers of record").
-- BENCH (OQ-56 remainder): ISR-entry-to-first-write latency, real WROOM
-  flash-program throughput, PSU 5VSB decay shape.
+- OWNER PEN: fold the simulated numbers into spec/beta-lock §L (the §L text
+  still carries the pre-SPICE estimates as "numbers of record").
+- BENCH (OQ-56, all of it): validate the SPICE ride-through table on real
+  hardware, ISR-entry-to-first-write latency, real WROOM flash-program
+  throughput, PSU 5VSB decay shape.
 - IMPLEMENTATION (beta Hub, needs the TLV7011→IO14 board): background-commit
   journal + pre-erased region + gasp path per the contract terms; the proto
   hub-standard app has no persist path yet. Term 5's background-commit task
@@ -539,8 +543,12 @@ Open:
 ## Beta-line production gaps (v1.5.0 spec vs this tree, 2026-07-15 review)
 
 Firmware today targets the ALPHA/rev2 boards (correct — alpha is frozen on
-INA228 as shipped). Still absent for the beta line and the other production
-modules:
+INA228 as shipped). **OWNER DIRECTION (2026-07-15, recorded): the INA238 is
+the production sensing part going forward across the digital-sensor line;
+the INA228 stays supported ONLY because the current bench units (24-pin
+alpha/rev2) are populated with it. New sensing firmware targets the INA238
+first; the INA228 driver is bench-unit legacy, kept, not extended.** Still
+absent for the beta line and the other production modules:
 - **INA238 driver** (cec_sensors has 228/226 only): atx-24pin-rev3 reverts
   to INA238 (v1.5.0, LCSC-supply ruling) and EPS/PCIe production boards are
   INA238 per cable — both need the driver + Kconfig select.

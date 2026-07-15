@@ -11,10 +11,11 @@ menu "CEC persistence (NVS / persist-on-fault)"
             never a bulk dump, and program-only (the persist region is
             pre-erased in normal operation).
 
-            The default 15 sits under the WORST-CASE measured hold-up
+            The default 15 sits under the WORST-CASE simulated hold-up
             ride-through of the Hub Standard 4700 uF reservoir (owner
-            bench 2026-07-15: ~26 ms @ 80 mA base, ~23 ms @ 120 mA
-            typical, ~16 ms @ 240 mA worst case). Re-tests update this
+            SPICE run 2026-07-15: ~26 ms @ 80 mA base, ~23 ms @ 120 mA
+            typical, ~16 ms @ 240 mA worst case; bench validation is
+            still owed under OQ-56). Re-sims/re-tests update this
             default together with the contract doc's table — this
             Kconfig is the single source firmware reads; never
             re-hardcode the number.

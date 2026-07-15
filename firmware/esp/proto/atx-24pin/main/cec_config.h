@@ -56,9 +56,13 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define TELEMETRY_UART_TX_BUF    4096   /* Burst dumps need headroom */
 
 /*
- * Production 24-pin sensing — 4x INA228 (one per rail), traced from the
- * board netlist (24pin-module.kicad_sch). Each INA228 gives bus voltage +
- * current; the ACS712/divider front end is retired. I2C SDA=IO8 / SCL=IO9.
+ * 24-pin sensing, THIS spin (the alpha/rev2 bench units) — 4x INA228 (one
+ * per rail), traced from the board netlist (24pin-module.kicad_sch). Each
+ * INA228 gives bus voltage + current; the ACS712/divider front end is
+ * retired. I2C SDA=IO8 / SCL=IO9. Owner direction 2026-07-15: the INA228
+ * stays because these bench units are populated with it; the production
+ * part going forward is the INA238 (spec v1.5.0, 24-pin rev3+ — separate
+ * driver, firmware-integrated energy per OQ-13).
  *
  *   Rail  U     I2C   shunt    ALERT   as-built shunt (THIS spin)
  *   12V   U10   0x40  2 mOhm   IO10    PSRP25K6FR002 (Prosemi; NiCr, 6 W, ±1%, ±75 ppm/°C)
