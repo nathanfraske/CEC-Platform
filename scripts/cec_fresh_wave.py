@@ -139,6 +139,7 @@ BOARD_PARAMS = {
     # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
     # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
     "hub-standard-rev2": {"mount_holes": "corners", "connector_overhang": "edge",
+                          "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           "respect_antenna_keepout": False,   # W9/D-6a: no Wi-Fi ever
                           "anchor_roles": {"J_PWR": "power_in", "J_USB": "usb",
                                            "J2": "host", "J3": "host",
