@@ -5670,7 +5670,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         nonlocal P, cyinfo_all, anchors
         import math as _math
         adj = _adjacency(nl)
-        fixed = set(anchors) | set(_bp_refs)
+        # RESPECT THE PASS-LOCK REGISTRY (wave-5 LockViolations, correctly raised by
+        # the pass-form discipline: C18/C9/D8 were locked by earlier owning passes).
+        fixed = set(anchors) | set(_bp_refs) | set(_state.locked_refs())
         # measure overlaps + edge-huggers on the CURRENT P
         def _box(r):
             x, y, rot = P[r]
