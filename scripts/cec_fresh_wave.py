@@ -145,6 +145,13 @@ BOARD_PARAMS = {
                          # bottom -- J3/J4 defeat the net-role classifier (both stacked
                          # at origin, measured), so pin them explicitly.
                          "anchor_roles": {"J3": "power_in", "J4": "power_out"},
+                         # J2 fan header PINNED beside the lane-6 pre-shunt tap
+                         # (owner GO 2026-07-15): internal + DNP, position free by
+                         # ruling; here /FAN_12V is a ~4mm spur instead of the
+                         # cross-board fat net that stranded critical every wave
+                         # (and poisoned the lane-6 kelvin pair check via its HI
+                         # alias). The net-keyed fan-gate seat follows J2.
+                         "anchor_pins": {"J2": (48.5, 23.5, 90)},
                          "straight_through": True,
                          # force lanes: lay the DRC-proven fat J3->RS->J4 copper LOCKED at
                          # materialize + reserve its corridors at placement (owner 2026-07-11,
@@ -316,7 +323,12 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)
         _p["role_keepouts"] = dict(proposal["role_keepouts"])
-    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
+    # anchor_pins (owner GO 2026-07-15, J2-near-lane-6): hard user pins for
+    # role-anchored connectors whose default edge seat is wrong for the design
+    # (J2 is internal + DNP; beside the lane-6 tap /FAN_12V collapses to a local
+    # spur -- the every-wave #1 critical strand + the kelvin-gate poisoner).
+    _pins = dict(_p.pop("anchor_pins", {}) or {})
+    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p, pins=_pins)
     if proposal is not None:
         import cec_wave_intents
         cec_wave_intents.apply_proposal(s, proposal)

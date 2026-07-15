@@ -189,6 +189,111 @@ def _spot_legal(x, y, r_need, boxes, segs, edge, zone_fills=()):
     return True
 
 
+def stitch_locked_islands(board_path, out_path=None, *, dia=0.6, drill=0.3,
+                          clearance=0.2, verbose=False):
+    """Owner must-fix 2026-07-15 (measured on the wave-12 winner: ALL 14 GND ratlines
+    were blueprint-cell GND stubs -- F.Cu islands over a FILLED 7,505mm2 inner plane
+    with no pierce; the pad-centric synthesize() starves for legal spots inside the
+    dense cells). For every connectivity ISLAND of GND track copper with NO through
+    connection (no via, no PTH GND pad), place ONE through-via centered ON the
+    island's own copper -- same-net, so only FOREIGN clearance constrains -- trying
+    every segment endpoint + midpoint. Vias are LOCKED (cell infrastructure).
+    The report also carries plane_mm2 (the filled GND zone area) -- the authoritative
+    plane-presence number, printed into every oracle verdict as a standing guard
+    against plane-loss regressions (and against mismeasuring them)."""
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    gnd = b.FindNet("GND")
+    if gnd is None:
+        return {"stitched": 0, "note": "no GND net"}
+    plane_mm2 = 0.0
+    for z in b.Zones():
+        if z.GetNetname() == "GND" and z.IsFilled():
+            try:
+                plane_mm2 += z.GetFilledArea() / 1e12
+            except Exception:                                   # noqa: BLE001
+                pass
+    tracks = [t for t in b.GetTracks() if t.GetNetname() == "GND"]
+    segs_g = [t for t in tracks if t.Type() == pcbnew.PCB_TRACE_T]
+    vias_g = [(t.GetPosition().x / MM, t.GetPosition().y / MM) for t in tracks
+              if t.Type() == pcbnew.PCB_VIA_T]
+    pth_g, smd_pads = [], []
+    for fp in b.GetFootprints():
+        for pd in fp.Pads():
+            if pd.GetNetname() != "GND":
+                continue
+            xy = (pd.GetPosition().x / MM, pd.GetPosition().y / MM)
+            r = max(pd.GetSize().x, pd.GetSize().y) / 2 / MM
+            (pth_g if pd.GetAttribute() == pcbnew.PAD_ATTRIB_PTH else smd_pads).append(
+                (xy[0], xy[1], r))
+    # union-find over segment endpoints (0.05mm snap) + join via pads/vias
+    parent = list(range(len(segs_g)))
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    def union(i, j):
+        parent[find(i)] = find(j)
+    ends = []
+    for t in segs_g:
+        s, e = t.GetStart(), t.GetEnd()
+        ends.append(((s.x / MM, s.y / MM), (e.x / MM, e.y / MM)))
+    for i in range(len(segs_g)):
+        for j in range(i + 1, len(segs_g)):
+            if any(abs(a[0] - c[0]) < 0.05 and abs(a[1] - c[1]) < 0.05
+                   for a in ends[i] for c in ends[j]):
+                union(i, j)
+    from collections import defaultdict
+    islands = defaultdict(list)
+    for i in range(len(segs_g)):
+        islands[find(i)].append(i)
+    boxes, segs_f = _foreign_obstacles(b)
+    zone_fills = _foreign_zone_fills(b)
+    bb = b.GetBoardEdgesBoundingBox()
+    edge = (bb.GetLeft() / MM, bb.GetTop() / MM, bb.GetRight() / MM, bb.GetBottom() / MM)
+    r_need = dia / 2.0 + clearance
+    added, unstitched = 0, 0
+    for root, members in islands.items():
+        pts = [p for i in members for p in ends[i]]
+        # pierced already? (via on the island, or a PTH GND pad touching it)
+        def _near(cands, r_extra=0.05):
+            return any(abs(px - qx) < 0.4 + r_extra and abs(py - qy) < 0.4 + r_extra
+                       for px, py in pts for qx, qy, *rest in cands)
+        if any(abs(px - vx) < 0.05 and abs(py - vy) < 0.05
+               for px, py in pts for vx, vy in vias_g):
+            continue
+        if any(_pt_seg_d(qx, qy, *ends[i][0], *ends[i][1]) < r + 0.05
+               for qx, qy, r in pth_g for i in members):
+            continue
+        cands = []
+        for i in members:
+            (x0, y0), (x1, y1) = ends[i]
+            cands += [(x0, y0), (x1, y1), ((x0 + x1) / 2, (y0 + y1) / 2)]
+        placed = False
+        for (cx, cy) in cands:
+            if _spot_legal(cx, cy, r_need, boxes, segs_f, edge, zone_fills):
+                v = pcbnew.PCB_VIA(b)
+                v.SetViaType(pcbnew.VIATYPE_THROUGH)
+                v.SetPosition(pcbnew.VECTOR2I(int(cx * MM), int(cy * MM)))
+                v.SetDrill(int(drill * MM))
+                v.SetWidth(int(dia * MM))
+                v.SetNet(gnd)
+                v.SetIsLocked(True)
+                b.Add(v)
+                added += 1
+                placed = True
+                if verbose:
+                    print(f"[gnd-stitch] island via at ({cx:.2f},{cy:.2f})", flush=True)
+                break
+        if not placed:
+            unstitched += 1
+    if added:
+        pcbnew.SaveBoard(out_path or board_path, b)
+    return {"stitched": added, "islands_unstitched": unstitched,
+            "islands": len(islands), "plane_mm2": round(plane_mm2, 1)}
+
+
 def synthesize(board_path, out_path=None, *, dia=0.6, drill=0.3, clearance=0.25,
                improve_frac=0.6, min_gain=0.5, skip_below=0.8, max_stub=1.8,
                verbose=False):

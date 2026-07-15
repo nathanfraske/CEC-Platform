@@ -7690,7 +7690,12 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # route=False leaves external input boards UNTOUCHED by design.
                 try:
                     import cec_gnd_fanout
+                    # ISLAND STITCH first (owner must-fix 2026-07-15): pierce locked
+                    # GND stub islands to the inner plane; the report's plane_mm2 is
+                    # the standing plane-presence guard in every verdict.
+                    stitch_rep = cec_gnd_fanout.stitch_locked_islands(routed)
                     gnd_rep = cec_gnd_fanout.synthesize(routed)
+                    gnd_rep["stitch"] = stitch_rep
                 except Exception as e:                        # noqa: BLE001 -- fail-safe
                     gnd_rep = {"added": 0, "error": "%s: %s" % (type(e).__name__, e)}
             else:

@@ -1,5 +1,17 @@
 # Current work handoff
 
+## SURGERY STACK LIVE — WAVE 12 REGIME CHANGE — 2026-07-15 (small hours)
+route_tiered CURED (locked-copper keepouts baked pre-export + refuse-loud structural gate
++6 threshold; R1 config 284->61) -> wave_precision RE-ENABLED (owner blind-AB ruling).
+PLATEAU-KILL: external, on cec2 CEC_PASS telemetry; wave-11 CALIBRATION FAILURE (killed all
+16 candidates keying on failed= alone -- failed is the stable retry core; togo carries
+progress) -> corrected to both-counters-flat; wave 12: 0 false kills. WAVE 12 (full stack:
+cec2 -noecho, seed axis, precision+gates, plateau-kill): BEST drc 51 (band was 288-377),
+safety_fails 2->1 (USB pair PASSES -- fresh-board first), 12 tier attempts refused, unconn
+49 (honest trade; less garbage copper). Visual: build/wave10-vs-12-2026-07-15.png (dash).
+NEXT RUNGS now purely connectivity: FAN_12V corridor, analog seats, CAN-pair strategy
+(tier refuses it consistently -- corridor or oracle-residual, owner-adjacent choice).
+
 ## FR-FORK SURGERY SESSION CLOSED — 2026-07-14 (night)
 cec2 fork BUILT+SHIPPED (jar de01c829..., patch scripts/patches/freerouting-1.7.0-cec2.patch,
 README addendum): -noecho VALIDATED (reconcile echoes 130->0), -progress VALIDATED (CEC_PASS
