@@ -45,6 +45,28 @@ def _carve(text, start):
     return text[start:], len(text)
 
 
+def _structural_count(board_path):
+    """Structural DRC count (shorts/crossings/clearance) via kicad-cli; None on failure.
+    The refuse-loud tier gate's measure -- cheap (~10s) and authoritative."""
+    import json as _j
+    import subprocess as _sp
+    import tempfile as _tf
+    out = _tf.mkstemp(suffix=".json")[1]
+    try:
+        r = _sp.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, board_path],
+                    capture_output=True, text=True, timeout=180)
+        d = _j.load(open(out))
+        return sum(1 for v in d.get("violations", [])
+                   if v["type"] in ("shorting_items", "tracks_crossing", "clearance"))
+    except Exception:                                           # noqa: BLE001
+        return None
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+
+
 def _dsn_restrict_to_nets(dsn_path, keep_nets):
     """Strip the PIN LISTS of every net NOT in *keep_nets* from the DSN's network
     section, so Freerouting routes ONLY the kept nets this pass. The stripped pads stay
@@ -142,7 +164,30 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
         t0 = time.monotonic()
         dsn = os.path.join(work, f"t{i}.dsn")
         ses = os.path.join(work, f"t{i}.ses")
-        cec_fr.export_dsn(cur, dsn)
+        export_src = cur
+        if not final:
+            # BLINDNESS CURE (2026-07-14, convicted by the M4 ablation + the pre-tier
+            # DRC jump 13 -> 219 structural): _dsn_restrict_to_nets strips foreign
+            # nets' PIN lists, and FR 1.7.0 drops protect wires of pin-less nets from
+            # its obstacle model (the same measured mechanism route_once cured) -- so
+            # the tier route plowed through locked cell/lane copper and _lock_nets_
+            # copper then LOCKED the damage in. Bake every OTHER net's locked copper
+            # as net-blind rule-area keepouts on the export copy (the SES still
+            # imports onto the clean `cur`, so no keepout zone ever reaches output).
+            try:
+                _all_locked = {tr.GetNetname() for tr in pcbnew.LoadBoard(cur).GetTracks()
+                               if tr.IsLocked()}
+                _ko = cec_fr.locked_copper_keepouts(cur, only_nets=_all_locked - set(tier))
+                if _ko:
+                    export_src = os.path.join(work, f"t{i}-hinted.kicad_pcb")
+                    cec_fr.bake_hints(cur, export_src, keepouts=_ko)
+                    if verbose:
+                        print(f"[staged-fr] tier {i}: {len(_ko)} locked-copper "
+                              f"keepout(s) baked for the tier route", flush=True)
+            except Exception as e:                              # noqa: BLE001 -- fail-safe
+                print(f"[staged-fr] tier {i}: keepout bake failed ({e}) -- "
+                      f"routing the tier blind (stock behavior)", flush=True)
+        cec_fr.export_dsn(export_src, dsn)
         if not final:
             kept, stripped = _dsn_restrict_to_nets(dsn, tier | locked_nets)
         else:
@@ -160,6 +205,19 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
         else:
             cec_fr.import_ses(cur, ses, nxt, fill_zones=False, fix_annular=False,
                               power_pours=(), kelvin_taps=False)
+            # REFUSE-LOUD GATE (ladder doctrine): a tier that ADDS structural DRC
+            # beyond a small routing allowance is laying through something it cannot
+            # see -- drop its result rather than lock damage in (the caller falls
+            # back to the oracle's own residual route for those nets).
+            _pre = _structural_count(cur)
+            _post = _structural_count(nxt)
+            if _pre is not None and _post is not None and _post - _pre > 6:
+                print(f"[staged-fr] tier {i} REFUSED: structural DRC {_pre} -> {_post} "
+                      f"(+{_post - _pre} > 6) -- tier result dropped", flush=True)
+                report["tiers"].append({"tier": sorted(tier), "refused": True,
+                                        "structural_pre": _pre, "structural_post": _post,
+                                        "wall_s": round(time.monotonic() - t0, 1)})
+                continue                       # cur unchanged; tier nets stay unrouted
             b = pcbnew.LoadBoard(nxt)
             nlocked = _lock_nets_copper(b, tier)
             b.Save(nxt)

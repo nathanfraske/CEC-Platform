@@ -131,19 +131,16 @@ BOARD_WH = {
 BOARD_PARAMS = {
     "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
                          "respect_antenna_keepout": False,
-                         # MEASURED MITIGATION (ablation 2026-07-14, owner "routing
-                         # through the locked routes" report): the oracle's precision
-                         # branch is the cell bulldozer on THIS board -- identical
-                         # placed board scores drc 284 (101 shorts/69 crossings, all
-                         # through locked-cell space) with precision=True vs drc 38
-                         # with it False; bare FR is clean either way (A/B/C composite,
-                         # build/ab-copper-comparison-2026-07-14.png). On this board
-                         # precision only lays the USB pair anyway (kelvin taps 0 --
-                         # the blueprint cells own them), so the trade is ~9 locked
-                         # USB segs for ~250 structural DRC. Root-cause hunt in the
-                         # precision/skip_locked_taps branch is FOLLOWUPS; re-enable
-                         # when it lands.
-                         "wave_precision": False,
+                         # PRECISION RE-ENABLED (2026-07-14, same day as the stopgap):
+                         # the bulldozer was CONVICTED as route_tiered routing its
+                         # refused-pair tier BLIND to locked cell/lane copper (the
+                         # restriction strips foreign pin lists; FR 1.7.0 drops
+                         # protect wires of pin-less nets -- pre-tier DRC 13 -> 219
+                         # structural, M3 24 vs M4 80). CURED: the tier now bakes
+                         # locked-copper keepouts + a refuse-loud structural gate
+                         # (cec_staged_fr). Precision-first stays the architecture
+                         # per the owner's blind-AB ruling (important routes only).
+                         "wave_precision": True,
                          # straight-through power path (owner): 12V-2x6 IN top, OUT
                          # bottom -- J3/J4 defeat the net-role classifier (both stacked
                          # at origin, measured), so pin them explicitly.
@@ -311,6 +308,10 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     # (R-01); everything else stays stock-order unless it opts in (see cec_fr
     # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
     os.environ["CEC_FR_SEED_AXIS"] = "1"
+    # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
+    # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
+    # JVM, grade it failed, spend the wall-clock on live candidates instead.
+    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
     _p = _board_params(board)
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)

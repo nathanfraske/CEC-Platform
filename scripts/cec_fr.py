@@ -38,6 +38,7 @@
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
 import re
+import time
 import sys
 import math
 import shutil
@@ -756,23 +757,76 @@ def run_freerouting(
         run_kw["startupinfo"] = si
         run_kw["creationflags"] = subprocess.CREATE_NO_WINDOW
 
-    try:
-        result = subprocess.run(cmd, **run_kw)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(
-            f"cec_fr.run_freerouting: timed out after {timeout}s "
-            f"(dsn={dsn_path!r}, jar={jar!r})"
-        ) from exc
-    finally:
-        if _own_workdir:
-            try:
+    # EXTERNAL PLATEAU-KILL (2026-07-14, replaces the in-FR -maxstall experiment: the
+    # in-jar abort left FR's improvement-bounded optimizer thrashing an incomplete
+    # board to timeout, 900s vs 194s). CEC_FR_PLATEAU_KILL=<k> + a -progress-capable
+    # jar: stream FR stdout, watch the CEC_PASS failed= counts, and KILL the JVM after
+    # k consecutive passes with no improvement while failures remain. The kill is
+    # CANDIDATE REJECTION (raises; route_once returns Candidate(ok=False)) -- a
+    # plateaued candidate is a loser whose board we do not want; the win is the
+    # wall-clock not spent finishing + optimizing garbage. Unset env = exactly the
+    # blocking subprocess.run path below.
+    _pk = os.environ.get("CEC_FR_PLATEAU_KILL", "")
+    if (_pk.isdigit() and int(_pk) > 0
+            and (FR_RELEASES.get(v) or {}).get("supports_progress")):
+        _k = int(_pk)
+        _pop_kw = {kk: vv for kk, vv in run_kw.items()
+                   if kk not in ("capture_output", "text", "timeout")}
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, bufsize=1, **_pop_kw)
+        _best, _streak, _killed, _lines = None, 0, False, []
+        _t0 = time.monotonic()
+        try:
+            for _ln in proc.stdout:
+                _lines.append(_ln)
+                if time.monotonic() - _t0 > timeout:
+                    proc.kill()
+                    raise RuntimeError(
+                        f"cec_fr.run_freerouting: timed out after {timeout}s "
+                        f"(dsn={dsn_path!r}, jar={jar!r})")
+                if _ln.startswith("CEC_PASS "):
+                    print("[fr] " + _ln.strip(), flush=True)
+                    m_f = re.search(r"failed=(\d+)", _ln)
+                    if m_f:
+                        _f = int(m_f.group(1))
+                        if _best is None or _f < _best:
+                            _best, _streak = _f, 0
+                        elif _f > 0:
+                            _streak += 1
+                            if _streak >= _k:
+                                _killed = True
+                                proc.kill()
+                                break
+            proc.wait(timeout=30)
+        finally:
+            if _own_workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
-            except Exception:
-                pass
-
-    for _ln in (result.stdout or "").splitlines():
-        if _ln.startswith(("CEC_PASS ", "CEC_STALL_ABORT ")):
-            print("[fr] " + _ln, flush=True)
+        if _killed:
+            print(f"[cec_fr] PLATEAU_KILL: failed={_best} flat for {_streak} pass(es) "
+                  f"-- candidate rejected at {round(time.monotonic() - _t0, 1)}s",
+                  flush=True)
+            raise RuntimeError(
+                f"CEC_PLATEAU_KILL: unrouted plateau at failed={_best} "
+                f"({_streak} flat passes)")
+        result = subprocess.CompletedProcess(
+            cmd, proc.returncode, "".join(_lines), proc.stderr.read() if proc.stderr else "")
+    else:
+        try:
+            result = subprocess.run(cmd, **run_kw)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"cec_fr.run_freerouting: timed out after {timeout}s "
+                f"(dsn={dsn_path!r}, jar={jar!r})"
+            ) from exc
+        finally:
+            if _own_workdir:
+                try:
+                    shutil.rmtree(workdir, ignore_errors=True)
+                except Exception:
+                    pass
+        for _ln in (result.stdout or "").splitlines():
+            if _ln.startswith(("CEC_PASS ", "CEC_STALL_ABORT ")):
+                print("[fr] " + _ln, flush=True)
 
     if result.returncode != 0:
         tail = (result.stdout + result.stderr)[-2000:]
