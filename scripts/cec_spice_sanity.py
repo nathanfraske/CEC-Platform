@@ -265,6 +265,26 @@ def sanity(board_dir, *, short_amps=0.8, json_out=False):
                                 f"(mux pos {pos}) -- verify intended (mux/diode path)")
             for note in d.notes[:0]:
                 pass
+    # COEXISTENCE LEG (owner GO 2026-07-15, #2: mezzanine + cable feeds): energize
+    # EVERY rail simultaneously at nominal. A source that SINKS current is being
+    # back-fed -- two supplies fighting through a path that should isolate them
+    # (mux/ORing contract). Same-net parallel feeds (hub J6 + J_PWR via the mux)
+    # pass when the isolation holds; any topology change that breaks it flags here.
+    if len(rails) >= 2:
+        for pos in (1, 2):
+            d = build_deck(comps, nets, state={"tps2121_pos": pos},
+                           sources=list(rails.items()))
+            got, raw, err = run_deck(d, [])
+            for i, (net, v) in enumerate(rails.items()):
+                isrc = got.get(f"i(vsrc{i})")
+                if isrc is not None and isrc > 0.05:
+                    findings.append(
+                        f"BACK-FED SOURCE: {net} SINKS {isrc:.3f}A with all rails up "
+                        f"(mux pos {pos}) -- supplies fighting through a non-isolating path")
+                elif isrc is not None and abs(isrc) > short_amps:
+                    findings.append(
+                        f"SHORT-CLASS (coexist): {net} sources {abs(isrc):.2f}A "
+                        f"with all rails up (mux pos {pos})")
     unmod = sorted({n for n in build_deck(comps, nets).notes})
     report = {"board": board_dir, "findings": findings, "couplings": sorted(set(info)),
               "unmodeled": unmod}
