@@ -2,7 +2,8 @@
  * CEC Hub Standard prototype — CAN receiver + CAN-OTA bridge.
  *
  * Runs on the Lonely Binary ESP32-S3-WROOM-1 N16R8 with a SN65HVD230 CAN
- * transceiver on IO5 (TX) / IO4 (RX). Two jobs:
+ * transceiver on IO17 (TX) / IO18 (RX) — the real Hub board's CAN pins;
+ * IO4/IO5 belong to DETECT1/DETECT2 (see cec_config.h). Two jobs:
  *
  *  1. RECEIVE telemetry: bring TWAI up in NORMAL mode so it ACKs the bus
  *     (which lets the 24-pin's transmits complete), drain can_receive(),

@@ -9,9 +9,9 @@
  * no port management, no host USB protocol yet.
  *
  * CAN wiring (set in sdkconfig.defaults, read by the shared cec_comms
- * component via Kconfig):
- *   CAN TX -> ESP IO5 (SN65HVD230 D / TXD)
- *   CAN RX <- ESP IO4 (SN65HVD230 R / RXD)
+ * component via Kconfig; the real-board pin map — IO4/IO5 are DETECT1/2):
+ *   CAN TX -> ESP IO17 (SN65HVD230 D / TXD)
+ *   CAN RX <- ESP IO18 (SN65HVD230 R / RXD)
  *   CONFIG_CEC_CAN_BITRATE_BPS = 125000  (the slope-controlled bench rate;
  *   500k is the platform target once the breakout's Rs is bridged to GND).
  *

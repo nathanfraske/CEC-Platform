@@ -1,0 +1,22 @@
+menu "CEC persistence (NVS / persist-on-fault)"
+
+    config CEC_PERSIST_WRITE_BUDGET_MS
+        int "Persist-on-fault flash write budget (ms)"
+        default 15
+        help
+            The persist-on-fault contract's binding write budget
+            (firmware/contracts/persist-on-fault.md): on the power-fail
+            trigger the gasp must complete ALL flash programming within
+            this many milliseconds — the RAM tail + commit record only,
+            never a bulk dump, and program-only (the persist region is
+            pre-erased in normal operation).
+
+            The default 15 sits under the WORST-CASE measured hold-up
+            ride-through of the Hub Standard 4700 uF reservoir (owner
+            bench 2026-07-15: ~26 ms @ 80 mA base, ~23 ms @ 120 mA
+            typical, ~16 ms @ 240 mA worst case). Re-tests update this
+            default together with the contract doc's table — this
+            Kconfig is the single source firmware reads; never
+            re-hardcode the number.
+
+endmenu

@@ -36,7 +36,10 @@ LANDED:
 - Dead dev-board code (ACS712 / divider / INA226) removed; those drivers de-selected.
 
 DEFERRED:
-- CAN (held per owner; the eps app's TWAI is the reference when it lands here).
+- ~~CAN (held per owner; the eps app's TWAI is the reference when it lands here).~~
+  **LANDED post-note** (commits 00b8bfd..2e9972f): the 24-pin sends the module-scoped
+  cec_telem burst on IO17/18 (TJA1051, netlist-verified), receives CAN-OTA, runs the
+  poke-ack responder inert (no tap on this spin), and originates/answers §6.10 FREEZE.
 - The INA228 ALERT lines (IO10-13) are wired in HW + mapped in cec_config but NOT used
   yet — the §6.10 ALERT-triggered fast capture is the next capture upgrade (the 1 kHz HS
   burst currently oversamples the ~315 Hz INA228 — real but stepped).
@@ -467,10 +470,9 @@ capture->organize->analyze path is the Concierge (Appendix C) precursor.
   main loop runs its own (non-equivalent) orchestration: per-rail
   severity tracking, per-(state,rail) L3 profiles, swing detectors,
   shutdown mute. Adoption means mapping those onto the ctx model.
-- **cec_comms on the 24-pin** (carried from the old A4/G item): the
-  component is shared now; the 24-pin still needs its CAN wiring,
-  frame layout / IDs for its payload, and a comms task when CAN ships
-  there (rev2 hardware).
+- ~~**cec_comms on the 24-pin** (carried from the old A4/G item)~~ — DONE
+  (00b8bfd + 3d8af61): CAN wiring IO17/18, the module-scoped cec_telem
+  frame layout, and can_comms_task all landed on the production board.
 - **`CEC_CAN_ENABLED` rides the shared `cec_state.h` (=1):** all three
   apps compile the esp_twai node code, which requires IDF >= 6.0 (see
   F-1). Consider Kconfig-ifying it at the next comms pass so a
@@ -511,10 +513,57 @@ capture->organize->analyze path is the Concierge (Appendix C) precursor.
 
 ## Hardware-driven (carried)
 
-- ACS712 → INA226 swap on all 24-pin rails (planned). Fixes the
-  residual trim drift and the i_5v zero-load noise, and brings the
-  per-rail current path onto the same I²C device family as 5VSB.
-  Brings a runtime INA226 cal command with it.
+- ~~ACS712 → INA226 swap on all 24-pin rails (planned).~~ OVERTAKEN: the
+  production board went straight to 4× INA228 (349fe8c/a8b1b19, dev-board
+  ACS712/divider/INA226 code retired 7286ec5), with the per-rail runtime
+  cal CLI landing in 09cde15. Kept for provenance only.
+
+## Persist-on-fault contract — STARTED (2026-07-15, owner direction)
+
+`firmware/contracts/persist-on-fault.md` is the contract of record; the
+single-source budget constant is `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS`
+(cec_nvs Kconfig, default 15). Owner bench numbers (2026-07-15) for the Hub
+Standard 4700 µF hold-up: ~26 ms @ 80 mA base / ~23 ms @ 120 mA typical /
+~16 ms @ 240 mA worst case — these MEASURED windows supersede the beta-lock
+§L estimates (~25/36/65–75 ms) and close the ride-through half of OQ-56.
+Open:
+- OWNER PEN: fold the measured numbers into spec/beta-lock §L (the §L text
+  still carries the pre-bench estimates as "numbers of record").
+- BENCH (OQ-56 remainder): ISR-entry-to-first-write latency, real WROOM
+  flash-program throughput, PSU 5VSB decay shape.
+- IMPLEMENTATION (beta Hub, needs the TLV7011→IO14 board): background-commit
+  journal + pre-erased region + gasp path per the contract terms; the proto
+  hub-standard app has no persist path yet. Term 5's background-commit task
+  is also the fix shape for lint item L3 above.
+
+## Beta-line production gaps (v1.5.0 spec vs this tree, 2026-07-15 review)
+
+Firmware today targets the ALPHA/rev2 boards (correct — alpha is frozen on
+INA228 as shipped). Still absent for the beta line and the other production
+modules:
+- **INA238 driver** (cec_sensors has 228/226 only): atx-24pin-rev3 reverts
+  to INA238 (v1.5.0, LCSC-supply ruling) and EPS/PCIe production boards are
+  INA238 per cable — both need the driver + Kconfig select.
+- **Firmware-integrated energy** (OQ-13 implementation basis post-v1.5.0):
+  integrate the INA238 power register at the reporting interval; the INA228
+  hardware accumulators (exposed by the driver, unreported by design) stop
+  being available on beta.
+- **§6.10 full posture**: INA228/238 ALERT-triggered freeze + ~2 s @ 1 kHz
+  averaged pre-roll ring (ALERT pins wired IO10-13, still unused; today's
+  posture is the 50 Hz loop + reactive 1 kHz HS burst).
+- **§6.13 comparator latch** (EPS/PCIe C6 boards): per-cable INA181/TLV7011
+  event GPIO -> timestamp + OR into FREEZE + CAN report; PWM threshold via
+  IO14/R10/C40. No firmware exists (proto rigs lack the front-end).
+- **C6 targets**: EPS/PCIe production apps are ESP32-C6 (CAN_TX/RX IO20/21
+  per the C6 pin map) — the proto apps are S3 rigs; new sdkconfig targets +
+  pin maps when the C6 boards reach the bench.
+- **CEC_MAX_MODULES=4** (cec_telem.h) bakes the Standard Hub's port count
+  into a shared header; the ID stride already fits 16 — hoist to app config
+  (or raise) when Hub Pro (8 ports) firmware starts.
+- **OQ-2/F2 LED budget**: no SK6812 code anywhere yet (proto Hub is a bare
+  dev board); the firmware 5VSB/LED current cap + port-LED semantics land
+  with the production Hub app and must fit under the OQ-2 cap when the
+  owner sets it.
 
 ## Validation backup
 
