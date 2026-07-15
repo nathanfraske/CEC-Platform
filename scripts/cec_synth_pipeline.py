@@ -5053,7 +5053,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     nl, [p for p in passives if p not in _bp_refs],
                     [r for r in ics if not r.startswith("SW")],
                     set(anchors_roles) | {r for r in shunts if r not in free_shunts},
-                    _mcu_esp, comps, slim_axis="x",
+                    _mcu_esp, comps,
+                    slim_axis=str(cfg.params.get("mcu_slim_axis", "x")),
                     analog_refs={r for r, _role2 in anchors_roles.items()
                                  if _role2 in ("power_in", "power_out")})
                 _mcu_env = (_blueprint_env_boxes(lambda d: anchors.get(d))

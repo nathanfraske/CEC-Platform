@@ -151,7 +151,12 @@ BOARD_PARAMS = {
                           # 21.5mm allowance = keepout-drawing depth (27.75) minus the
                           # pad row (5.26) minus 1mm guard -- pads stay on-board.
                           "mcu_cluster_seat": True,
-                          "antenna_overhang": 21.5,
+                          "antenna_overhang": 6.5,
+                          # wave-6 root cause was the stock WROOM courtyard (48x41 antenna
+                          # keepout wing, dropped per beta ruling W9 -> _NoAntKeepout
+                          # variant); overhang rescaled 21.5->6.5 for the body-only
+                          # courtyard (top -13.0, pads -5.26, >=1.2mm inside the edge).
+                          "mcu_slim_axis": "y",  # sideways pack: antenna column stays clean for the edge seat
                           "respect_antenna_keepout": False,   # W9/D-6a: no Wi-Fi ever
                           "anchor_roles": {"J_PWR": "power_in", "J_USB": "usb",
                                            "J2": "host", "J3": "host",
