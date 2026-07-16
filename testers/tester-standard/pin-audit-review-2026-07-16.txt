@@ -11,8 +11,63 @@ TPS54331DR: pin 3 'EN': unspecified -> input  (EN: enable/control pin (EN/ENABLE
 74HC595D,118: pin 16 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
 74HC165D,653: pin 8 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
 74HC165D,653: pin 16 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
+MM74HC273WM: pin 10 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
+MM74HC273WM: pin 20 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
+CD4051BM96: pin 8 'VSS': unspecified -> power_in  (GND: ground-return pin (VSS family))
+CD4051BM96: pin 16 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD family))
 
-## ADDENDUM (03-mcu capture): 74HC165D,653 (LCSC C5613, Nexperia) added.
+## ADDENDUM 2 (orchestrator safety check-in, before 03/06 close): TWO more
+## parts added, MM74HC273WM (LCSC C906662, octal D-FF w/ async CLEAR,
+## SOIC-20) and CD4051BM96 (LCSC C21379, 8-channel analog mux, SOIC-16).
+## REASON: the orchestrator's safety review of the shift-register-expander
+## plan (addendum 1, above) surfaced two real gaps, both now fixed in the
+## design (see 03-mcu.kicad_sch / 06a-06c's own notes for the as-drawn
+## detail):
+## (1) TRIP TIMESTAMPING: a trip signal that ONLY lives behind the polled
+##     74HC165 chain degrades a promised us-class stamp to poll cadence.
+##     Fix: all 12 trip-comparator outputs (4 loop + 5 bank + 3 SCP) feed a
+##     diode-OR "TRIP_ANY" node (pull-down default) landing on a DIRECT MCU
+##     GPIO interrupt AND the shared CLOCK input of 2x MM74HC273 (12 of 16
+##     D-inputs used, one per trip signal, D tied logic-high so the trip
+##     line's own rising edge self-clocks a permanent capture into Q,
+##     independent of what the source signal does afterward) -- the Q
+##     outputs then feed the 74HC165 poll chain for per-leg detail,
+##     "un-decayed" between polls. All 12+ latches share ONE async CLEAR
+##     line, which IS an expander output bit (matches the orchestrator's own
+##     allowed list: "arm/reset/test-fire" already named "reset" as an OK
+##     expander duty).
+## (2) PROTECTION PATHS NEVER TRANSIT THE EXPANDER:
+##     (a) SCP crowbar FIRE: the shared "fire" pulse is now its OWN DIRECT
+##         MCU GPIO (not an expander bit), ANDed per-block (SN74AHCT1G08,
+##         already platform-vendored, reused here as a genuine 2-input AND
+##         rather than its Hub-Standard buffer role) with that block's own
+##         ARM state (an expander bit -- arming stays slow/deliberate and
+##         CAN live on the expander per the orchestrator's allowed list).
+##         Neither signal alone can fire a crowbar; the expander is never
+##         the sole gate on a hard-short action.
+##     (b) De-gate dead-man rail: driven by its OWN direct MCU GPIO (not
+##         multiplexed) -- the DEGATE_RAIL net still reaches every hot-side
+##         gate driver as a project-wide `global_label` (a SCHEMATIC fan-out
+##         mechanism only; electrically it is the ONE direct GPIO).
+##     (c) Shift-chain OE#: a direct MCU GPIO, PULLED UP (not driven) by
+##         default -- 74HC595 OE# is active-LOW, so an un-driven/reset MCU
+##         leaves OE# HIGH = every '595 output Hi-Z = every hot-side gate
+##         pull-down (already local per-cluster, split-architecture rule)
+##         reads its default OFF state. Firmware only pulls OE# low after
+##         POST has verified sane bank/SCP state. This is the "standard fix"
+##         the orchestrator named; it also functionally reinforces (b), the
+##         dead-man rail.
+## GPIO-BUDGET REBALANCE (this forced a second pass on the 03-mcu map from
+## addendum 1): the 6 NTC + DETECT_SENSE analog channels (7, previously 7
+## DIRECT ADC pins) now route through the CD4051 mux -> ONE ADC pin, with
+## the 3 select lines on the expander (non-critical, slow-changing) --
+## netting SIX GPIOs back, which fully covers the four new direct-GPIO
+## safety additions (TRIP_ANY, SCP_FIRE_SHARED, DEGATE_RAIL drive,
+## SHIFT_OE#) with margin to spare. Final ESP32-C6-MINI-1-N4 map: 17 of 20
+## GPIOs used, 3 spare -- see 03-mcu.kicad_sch's own caption for the full
+## pin table.
+
+## ADDENDUM 1 (03-mcu capture): 74HC165D,653 (LCSC C5613, Nexperia) added.
 ## REASON -- a real GPIO-budget problem found during 03-mcu capture: the
 ## ESP32-C6-MINI-1-N4 exposes exactly 20 usable GPIOs, but the ST board's
 ## raw signal count (4 PWM setpoints, ~31 bank/SCP/display control bits,
