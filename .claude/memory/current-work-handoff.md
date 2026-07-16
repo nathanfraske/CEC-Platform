@@ -762,3 +762,13 @@ Max ≈$1,507 (+306 delta: AD9253 41.67 + GW5A 46.88 + AFE 26 + T1 6 + 2nd fast 
 15); PRO STATION street ≈$4,199 suggested; Max $6,995 top w/ MAX HUB PRICING = open lever
 (Task-13). Consumable: front plate $79-99 retail. Biggest swings: L2 ladder ±$150, chassis
 ±$100. All pushed, branch claude/pr50-firmware-review-wkvf7v.
+
+## Standard tester UN-SHELVED — 2026-07-16 (owner ruling evolution)
+ST-1000 $1,299 / ST-1300 $1,499 value line for small shops ("sane under load + does it
+work"). Fence: static/regulation/T1-T3-T6/cross-load/OCP-steps/SCP/5VSB-peak/-12V/per-pin
+12VHPWR soak; NO transient, NO OVP, NO streams. C6 MCU (tier symmetry C6/P4/P4+FPGA).
+BOM ~$537/$585 (R+chassis dominated), landed $639/$696, ~2x multiples (owner call vs 3x
+convention). KEY PROPOSAL pending owner sign-off: INTEGRATED module-DNA sensing on-board
+(one-box ready-to-go; bends actuator-not-instrument; RJ-45/DETECT kept so it composes into
+suites later as load node). Sketch §11, BOM doc §3a, FOLLOWUPS entry. Amends canonical §6
+shelving — fold at Task-13-class pass.
