@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 900" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="1240" height="900" fill="#f7f9fb"/>
+  <text x="620" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#16202c">Why the linear FETs need DOUBLE-SIDED TIM — the vernier mount stack (rule 25b)</text>
+  <text x="620" y="56" text-anchor="middle" font-size="13" fill="#5a6878">IXTH75N10L2 · TO-247 linear-grade · bolts to the shared forced-air extrusion · same stack for the TO-264 fast FETs and the 5VSB mini-loop TO-220</text>
+
+  <!-- ================= PANEL A: the part ================= -->
+  <rect x="24" y="76" width="312" height="420" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="180" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#16202c">THE PART</text>
+
+  <!-- front view -->
+  <rect x="52" y="118" width="110" height="132" rx="4" fill="#24272c"/>
+  <circle cx="107" cy="146" r="13" fill="#f7f9fb" stroke="#8a949e" stroke-width="2"/>
+  <text x="107" y="205" text-anchor="middle" font-size="9" fill="#9aa4ae">IXTH75N10L2</text>
+  <rect x="70"  y="250" width="7" height="56" fill="#b9c0c9"/>
+  <rect x="103" y="250" width="7" height="56" fill="#b9c0c9"/>
+  <rect x="136" y="250" width="7" height="56" fill="#b9c0c9"/>
+  <text x="73"  y="322" text-anchor="middle" font-size="12" fill="#3c4854">G</text>
+  <text x="106" y="322" text-anchor="middle" font-size="12" fill="#3c4854">D</text>
+  <text x="139" y="322" text-anchor="middle" font-size="12" fill="#3c4854">S</text>
+  <text x="107" y="342" text-anchor="middle" font-size="11" fill="#5a6878">FRONT — plastic</text>
+
+  <!-- back view -->
+  <rect x="196" y="118" width="110" height="132" rx="4" fill="#24272c"/>
+  <rect x="202" y="124" width="98" height="102" fill="#c98544"/>
+  <circle cx="251" cy="146" r="13" fill="#f7f9fb" stroke="#8a949e" stroke-width="2"/>
+  <rect x="214" y="250" width="7" height="56" fill="#b9c0c9"/>
+  <rect x="247" y="250" width="7" height="56" fill="#b9c0c9"/>
+  <rect x="280" y="250" width="7" height="56" fill="#b9c0c9"/>
+  <text x="251" y="342" text-anchor="middle" font-size="11" fill="#5a6878">BACK — exposed copper tab</text>
+
+  <text x="180" y="374" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">The metal back IS the drain terminal —</text>
+  <text x="180" y="392" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">electrically LIVE at its rail's voltage.</text>
+  <text x="180" y="416" text-anchor="middle" font-size="12" fill="#3c4854">Runs deliberately HALF-ON (linear CC duty):</text>
+  <text x="180" y="434" text-anchor="middle" font-size="12" fill="#3c4854">50–150 W of heat, ALL of it crossing this tab.</text>
+  <text x="180" y="460" text-anchor="middle" font-size="11" fill="#5a6878">$13.17 @ DigiKey · Pd 400 W class · RθJC ≈ 0.33 K/W</text>
+  <text x="180" y="478" text-anchor="middle" font-size="11" fill="#5a6878">(this duty is WHY it's the expensive linear-L2 part)</text>
+
+  <!-- ================= PANEL B: exploded ================= -->
+  <rect x="348" y="76" width="452" height="420" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="574" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#16202c">THE MOUNT — exploded (side view)</text>
+
+  <!-- extrusion + fins -->
+  <rect x="392" y="130" width="52" height="270" fill="#aeb9c4" stroke="#8a949e"/>
+  <rect x="362" y="142" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="362" y="196" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="362" y="250" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="362" y="304" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="362" y="358" width="30" height="9" fill="#aeb9c4"/>
+
+  <!-- exploded layers -->
+  <rect x="470" y="160" width="9"  height="210" fill="#f0932b"/>
+  <rect x="507" y="150" width="22" height="230" fill="#f5efdd" stroke="#c9bd9c"/>
+  <rect x="557" y="160" width="9"  height="210" fill="#f0932b"/>
+  <rect x="594" y="150" width="15" height="230" fill="#c98544"/>
+  <rect x="609" y="150" width="36" height="230" fill="#24272c"/>
+  <rect x="618" y="252" width="13" height="13" fill="#e74c3c"/>
+
+  <!-- screw axis + hardware -->
+  <line x1="404" y1="205" x2="700" y2="205" stroke="#77828d" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <rect x="668" y="192" width="8" height="26" fill="#dde2e8" stroke="#9aa4ae"/>
+  <rect x="676" y="196" width="15" height="18" fill="#7d8791"/>
+  <text x="700" y="182" font-size="11" fill="#3c4854">M3 screw (steel) →</text>
+  <text x="700" y="196" font-size="11" fill="#3c4854">tapped into extrusion</text>
+  <text x="700" y="222" font-size="11" font-weight="700" fill="#8e44ad">insulating SHOULDER</text>
+  <text x="700" y="236" font-size="11" font-weight="700" fill="#8e44ad">washer — screw must</text>
+  <text x="700" y="250" font-size="11" font-weight="700" fill="#8e44ad">never touch the tab</text>
+
+  <!-- leads to PCB -->
+  <path d="M 627 380 L 627 408 L 660 408" fill="none" stroke="#b9c0c9" stroke-width="4"/>
+  <rect x="660" y="396" width="118" height="24" rx="3" fill="#2e6b4f"/>
+  <text x="719" y="412" text-anchor="middle" font-size="10" fill="#e8f2ec">loop PCB (op-amp · shunt · gate)</text>
+
+  <!-- layer labels, staggered -->
+  <line x1="418" y1="404" x2="418" y2="420" stroke="#77828d" stroke-width="1"/>
+  <text x="418" y="436" text-anchor="middle" font-size="11" fill="#3c4854">extrusion</text>
+  <text x="418" y="450" text-anchor="middle" font-size="10" fill="#c0392b">grounded, SHARED by all rails</text>
+  <line x1="474" y1="370" x2="452" y2="470" stroke="#f0932b" stroke-width="1"/>
+  <text x="452" y="484" text-anchor="middle" font-size="11" font-weight="700" fill="#d97e14">paste #1</text>
+  <line x1="518" y1="380" x2="530" y2="462" stroke="#c9bd9c" stroke-width="1"/>
+  <text x="536" y="476" text-anchor="middle" font-size="11" font-weight="700" fill="#8a7a4a">AlN ceramic 0.635 mm</text>
+  <line x1="561" y1="370" x2="592" y2="440" stroke="#f0932b" stroke-width="1"/>
+  <text x="600" y="454" text-anchor="middle" font-size="11" font-weight="700" fill="#d97e14">paste #2</text>
+  <line x1="601" y1="380" x2="648" y2="474" stroke="#c98544" stroke-width="1"/>
+  <text x="660" y="488" text-anchor="middle" font-size="11" fill="#3c4854">copper tab (LIVE)</text>
+
+  <!-- ================= PANEL C: assembled ================= -->
+  <rect x="812" y="76" width="404" height="420" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="1014" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#16202c">ASSEMBLED — the heat path</text>
+
+  <rect x="856" y="130" width="52" height="270" fill="#aeb9c4" stroke="#8a949e"/>
+  <rect x="826" y="142" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="826" y="196" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="826" y="250" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="826" y="304" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="826" y="358" width="30" height="9" fill="#aeb9c4"/>
+  <rect x="908" y="160" width="6"  height="210" fill="#f0932b"/>
+  <rect x="914" y="152" width="18" height="226" fill="#f5efdd" stroke="#c9bd9c"/>
+  <rect x="932" y="160" width="6"  height="210" fill="#f0932b"/>
+  <rect x="938" y="152" width="13" height="226" fill="#c98544"/>
+  <rect x="951" y="152" width="34" height="226" fill="#24272c"/>
+  <rect x="959" y="252" width="13" height="13" fill="#e74c3c"/>
+  <text x="994" y="262" font-size="10" fill="#c0392b">die</text>
+
+  <!-- heat arrows -->
+  <g stroke="#e74c3c" stroke-width="3" fill="#e74c3c">
+    <line x1="957" y1="258" x2="902" y2="258"/><path d="M 902 258 l 9 -5 v 10 z"/>
+    <line x1="882" y1="252" x2="882" y2="180"/><path d="M 882 180 l -5 9 h 10 z"/>
+    <line x1="882" y1="266" x2="882" y2="338"/><path d="M 882 338 l -5 -9 h 10 z"/>
+  </g>
+  <g stroke="#2f80c2" stroke-width="2.5" fill="#2f80c2">
+    <line x1="822" y1="146" x2="790" y2="146"/><path d="M 790 146 l 9 -4.5 v 9 z"/>
+    <line x1="822" y1="254" x2="790" y2="254"/><path d="M 790 254 l 9 -4.5 v 9 z"/>
+    <line x1="822" y1="362" x2="790" y2="362"/><path d="M 790 362 l 9 -4.5 v 9 z"/>
+  </g>
+  <text x="789" y="132" text-anchor="end" font-size="10" fill="#2f80c2">air (duct fans)</text>
+
+  <!-- budget box -->
+  <rect x="1000" y="130" width="204" height="240" rx="6" fill="#f2f6fa" stroke="#c9d4de"/>
+  <text x="1102" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="#16202c">THE BUDGET (sketch §4)</text>
+  <text x="1012" y="176" font-size="11.5" fill="#3c4854">Tj ≤ 125 °C · sink ≤ 80 °C</text>
+  <text x="1012" y="194" font-size="11.5" fill="#3c4854">at 100–150 W per device</text>
+  <text x="1012" y="218" font-size="11.5" font-weight="700" fill="#16202c">⇒ whole case→sink stack</text>
+  <text x="1012" y="236" font-size="11.5" font-weight="700" fill="#16202c">allowed ≈ 0.10–0.15 K/W</text>
+  <text x="1012" y="262" font-size="11.5" fill="#1e7a3e">AlN + paste ×2 ≈ 0.06–0.12 ✓</text>
+  <text x="1012" y="282" font-size="11.5" fill="#c0392b">silicone pad 0.5–1.5 ✗ (5–10×)</text>
+  <text x="1012" y="302" font-size="11.5" fill="#c0392b">alumina ≈ 0.12 alone ✗ verniers</text>
+  <text x="1012" y="322" font-size="11.5" fill="#5a6878">(alumina OK at low-duty</text>
+  <text x="1012" y="338" font-size="11.5" fill="#5a6878">crowbar sites)</text>
+
+  <text x="1014" y="424" text-anchor="middle" font-size="11" fill="#5a6878">Heat: die → tab → paste → ceramic → paste →</text>
+  <text x="1014" y="440" text-anchor="middle" font-size="11" fill="#5a6878">extrusion → fins → duct air. Every layer is in series —</text>
+  <text x="1014" y="456" text-anchor="middle" font-size="11" fill="#5a6878">one bad joint throttles the whole chain.</text>
+
+  <!-- ================= BOTTOM CALLOUTS ================= -->
+  <rect x="24" y="516" width="384" height="352" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="216" y="542" text-anchor="middle" font-size="14" font-weight="700" fill="#16202c">WHY PASTE ON BOTH FACES</text>
+  <!-- microscopic sketch: dry -->
+  <text x="216" y="564" text-anchor="middle" font-size="11" fill="#5a6878">what a "flat" dry joint looks like up close:</text>
+  <path d="M 60 596 q 20 -14 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 32 0" fill="none" stroke="#8a949e" stroke-width="2.5"/>
+  <path d="M 60 604 q 20 12 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 32 0" fill="none" stroke="#8a949e" stroke-width="2.5"/>
+  <text x="216" y="632" text-anchor="middle" font-size="10.5" fill="#c0392b">touching only at the peaks — the rest is trapped AIR</text>
+  <!-- pasted -->
+  <path d="M 60 660 q 20 -14 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 32 0" fill="none" stroke="#8a949e" stroke-width="2.5"/>
+  <path d="M 60 674 q 20 12 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 32 0" fill="none" stroke="#f0932b" stroke-width="7" opacity="0.75"/>
+  <text x="216" y="702" text-anchor="middle" font-size="10.5" fill="#1e7a3e">paste floods the valleys — solid conduction everywhere</text>
+  <text x="42" y="732" font-size="11.5" fill="#3c4854">Air conducts ~0.03 W/mK — about 5,000× worse than the</text>
+  <text x="42" y="749" font-size="11.5" fill="#3c4854">AlN ceramic. The ceramic is a THIRD body in the joint, so</text>
+  <text x="42" y="766" font-size="11.5" fill="#3c4854">it creates TWO of these microscopic interfaces — one on</text>
+  <text x="42" y="783" font-size="11.5" fill="#3c4854">each face. Each face needs its own paste layer.</text>
+  <text x="42" y="808" font-size="11.5" font-weight="700" fill="#c0392b">Skip one face and that single dry interface can cost</text>
+  <text x="42" y="825" font-size="11.5" font-weight="700" fill="#c0392b">more than the entire rest of the stack combined.</text>
+
+  <rect x="428" y="516" width="384" height="352" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="620" y="542" text-anchor="middle" font-size="14" font-weight="700" fill="#16202c">WHY THE CERAMIC AT ALL</text>
+  <text x="446" y="570" font-size="11.5" fill="#3c4854">The tab is the DRAIN — live at its rail's voltage. Devices</text>
+  <text x="446" y="587" font-size="11.5" fill="#3c4854">from different rails (12 V verniers, 5VSB mini-loop) share</text>
+  <text x="446" y="604" font-size="11.5" fill="#3c4854">ONE grounded extrusion.</text>
+  <text x="446" y="628" font-size="11.5" font-weight="700" fill="#c0392b">Bolt it bare = rail shorted to chassis.</text>
+  <text x="446" y="654" font-size="11.5" fill="#3c4854">AlN ceramic does both jobs at once: an electrical</text>
+  <text x="446" y="671" font-size="11.5" fill="#3c4854">insulator (&gt;10 kV/mm) that CONDUCTS heat (~170 W/mK,</text>
+  <text x="446" y="688" font-size="11.5" fill="#3c4854">≈ half of aluminum metal). At 0.635 mm over the ~2 cm²</text>
+  <text x="446" y="705" font-size="11.5" fill="#3c4854">tab: AlN ≈ 0.02 K/W · alumina ≈ 0.12 (eats the whole</text>
+  <text x="446" y="722" font-size="11.5" fill="#3c4854">budget alone → AlN required at the verniers).</text>
+  <text x="446" y="748" font-size="11.5" font-weight="700" fill="#16202c">Alternative (rule 25b): cut the extrusion into per-rail</text>
+  <text x="446" y="765" font-size="11.5" font-weight="700" fill="#16202c">isolated segments → devices bolt bare, ONE paste layer,</text>
+  <text x="446" y="782" font-size="11.5" font-weight="700" fill="#16202c">no ceramic at all. Deck-mech drafting picks the side.</text>
+  <text x="446" y="808" font-size="11" fill="#5a6878">Hardware: one AlN pad + insulating shoulder washer per</text>
+  <text x="446" y="824" font-size="11" fill="#5a6878">device — ST ×3 · Pro ×13 · Max ×17 · W ×~20 · ≈$0.3–3/pad.</text>
+
+  <rect x="832" y="516" width="384" height="352" rx="8" fill="#ffffff" stroke="#d7dee6"/>
+  <text x="1024" y="542" text-anchor="middle" font-size="14" font-weight="700" fill="#16202c">WHAT GOES WHERE (owner rulings)</text>
+  <text x="850" y="572" font-size="11.5" font-weight="700" fill="#16202c">This FET stack (isolation site):</text>
+  <text x="850" y="589" font-size="11.5" fill="#3c4854">• shop-stock paste — Kryonaut / KPX / MX-7, by the gallon</text>
+  <text x="850" y="606" font-size="11.5" fill="#3c4854">• AlN pad + shoulder washer per device</text>
+  <text x="850" y="623" font-size="11.5" font-weight="700" fill="#c0392b">• KryoSheet / Carbonaut BANNED — graphite is electrically</text>
+  <text x="850" y="640" font-size="11.5" font-weight="700" fill="#c0392b">  conductive = it IS the short the ceramic prevents</text>
+  <text x="850" y="668" font-size="11.5" font-weight="700" fill="#16202c">Resistor → plate mounts (54–125 joints):</text>
+  <text x="850" y="685" font-size="11.5" fill="#3c4854">• both sides grounded metal → conductivity harmless</text>
+  <text x="850" y="702" font-size="11.5" fill="#1e7a3e">• sponsored graphite pads WELCOME here — reusable,</text>
+  <text x="850" y="719" font-size="11.5" fill="#1e7a3e">  no re-paste on leg swaps (service win for the cartridge)</text>
+  <text x="850" y="736" font-size="11.5" fill="#3c4854">• otherwise: same shop-stock paste, thin, torqued</text>
+  <text x="850" y="764" font-size="11.5" font-weight="700" fill="#16202c">Crowbar TO-220s / bimetal switches:</text>
+  <text x="850" y="781" font-size="11.5" fill="#3c4854">• standard pad + paste — ms-pulse duty, easy</text>
+  <text x="850" y="809" font-size="11" fill="#5a6878">Assembly doc carries torque + TIM part + thickness per</text>
+  <text x="850" y="825" font-size="11" fill="#5a6878">joint class; §4 ledger uses spec'd interface R, never bare.</text>
+
+  <text x="620" y="890" text-anchor="middle" font-size="10" fill="#8a949e">CEC ST tester — vernier FET mount stack · rule 25(b) · 2026-07-16</text>
+</svg>

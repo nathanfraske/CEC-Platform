@@ -235,17 +235,30 @@ product)**
     joints at W): thin paste, ~0.2–0.3 g/joint — the spec exists to guard
     the SHELL-FLATNESS LOTTERY (one warped budget shell dry = a point
     contact = the invisible hotspot among 125), not the nominal ~1 K
-    dry-vs-pasted delta. Class: long-term-stable high-viscosity bolted-
-    joint paste (TG Duronaut/Hydronaut class; industrial bulk $0.03/g is
-    the unsponsored fallback). ~15 g/unit ST, ~35 g/unit W — sponsorship
-    = real BOM relief ($30–90/unit retail-equivalent vs $1–2 industrial).
+    dry-vs-pasted delta. Class RULED (owner, 2026-07-16 night): shop-stock
+    premium paste bought in bulk (Kryonaut / Kingpin KPX / Arctic MX-7 —
+    "we buy by the gallon"); no separate industrial paste line, no retail
+    TG purchase. SPONSORED GRAPHITE PADS (KryoSheet/Carbonaut) are
+    ACCEPTABLE AT THIS JOINT CLASS ONLY — both sides are grounded metal,
+    so electrical conductivity is harmless — and they buy a real service
+    win: leg swaps need no re-paste (the pad stays on the plate,
+    reusable). If TG hands over sheets, use them here; coverage ≥~60 % of
+    the shell base still beats the flatness lottery. ~15 g/unit ST →
+    ~35 g/unit W when pasted. The rule-25(b) isolation-site BAN on
+    conductive sheets is UNCHANGED.
     (b) **Linear FETs → extrusion — THE load-bearing interface.** Sketch
     §4 budget: Tj ≤125 °C, Tsink ≤80 °C, 100–150 W/device, IXTH75N10L2
     RθJC ≈0.33 K/W ⇒ case-to-sink allowance ≈ 0.1–0.15 K/W TOTAL.
     Electrical isolation is REQUIRED (mixed drain potentials share the
-    extrusion) ⇒ the stack is ceramic insulator (AlN preferred, alumina
-    acceptable) + QUALITY paste on BOTH faces (~0.10–0.20 K/W — TG
-    Kryonaut-class genuinely earns here; grams are trivial, ~1 g/unit) —
+    extrusion) ⇒ the stack is ceramic insulator + QUALITY paste on BOTH
+    faces (~0.06–0.12 K/W total — shop-stock Kryonaut/KPX/MX-7 per the
+    owner ruling; grams are trivial, ~1 g/unit). Ceramic = AlN REQUIRED
+    at the verniers (0.635 mm AlN ≈0.02 K/W over the ~2 cm² tab vs
+    alumina ≈0.12 — alumina alone eats the whole budget; alumina OK at
+    the low-duty crowbar sites). Commodity sizes: TO-247 22×17×0.635,
+    TO-264 22×28×1. One pad + insulating shoulder washer per extrusion
+    device: ST ×3 / Pro ×13 / Max ×17 / W ×~20 ($0.3–3/pad class, BOM
+    §3d) —
     silicone insulator pads (0.5–1.5 K/W for TO-247) are PROHIBITED at
     this site, and **KryoSheet/Carbonaut are BANNED at every isolation
     site (electrically conductive graphene/carbon)**. Alternative under

@@ -277,4 +277,10 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   delid/direct-die line is directly adjacent to the IHS-cap concavity library — a TG
   partnership there feeds the demand-first gate conversations); (3) enclosed consumer SKUs
   (12VHPWR TIM-on-shunts case model, §6.6 TIM-baseplate menu) = the platform-side surface
-  if the relationship lands.
+  if the relationship lands. **OWNER RULED (same night):** no retail TG bulk purchase —
+  resistor-joint + FET-stack paste = shop-stock Kryonaut / Kingpin KPX / Arctic MX-7
+  ("we buy by the gallon"); sponsored KryoSheet/Carbonaut sheets ACCEPTED at the RESISTOR
+  MOUNTS only if TG hands them over (both sides grounded → conductivity harmless; reusable
+  across leg swaps = service win); isolation-site ban stands. The TG ask is therefore
+  SHEETS + CO-BRAND (and the SE/TTV threads), not paste supply. Remaining TIM hardware =
+  AlN insulator pads + shoulder washers (engineering line, BOM §3d, no owner action).
