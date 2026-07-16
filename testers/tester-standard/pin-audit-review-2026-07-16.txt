@@ -1,0 +1,150 @@
+# cec_sym_audit --fix review for lib/cec-tester.kicad_sym
+# 7 high-confidence change(s)
+
+CH224K: pin 1 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD family))
+CH224K: pin 4 'DP': unspecified -> bidirectional  (BUS: USB/differential data pin)
+CH224K: pin 5 'DM': unspecified -> bidirectional  (BUS: USB/differential data pin)
+CH224K: pin 11 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
+TPS54331DR: pin 3 'EN': unspecified -> input  (EN: enable/control pin (EN/ENABLE))
+74HC595D,118: pin 8 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
+74HC595D,118: pin 16 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
+
+# ===========================================================================
+# Phase A CAD punch list -- narrative review (STANDARD-TESTER SCHEMATIC
+# CAPTURE agent, 2026-07-16). cec_sym_audit's mechanical fix log is above;
+# this section records the ENGINEERING decisions made while promoting/
+# pulling/hand-drawing lib/cec-tester.kicad_sym + lib/cec-tester.pretty/,
+# per CLAUDE.md's "annotate, never silently" rule.
+# ===========================================================================
+
+## Promoted verbatim from lib/vendor/psu-tester-staging/ (symbol+footprint+3D
+## re-upgraded to modern KiCad-10 format via `kicad-cli sym/fp upgrade`, then
+## carved into lib/cec-tester.kicad_sym / lib/cec-tester.pretty/):
+- CH224K (USB-PD sink controller, ESSOP-10)
+- OPA2277UA (dual op-amp, SOIC-8) -- see "OPA2277 channel usage" below
+- IRLB3034 (logic-level MOSFET, TO-220-3) -- SCP crowbar FET
+- SMCJ15A-13-F (15A-class TVS, SMC) -- SCP surge/backstop clamp
+- Keystone 3557-10 (ATOF fuse holder, 4-pad THT) -- see "fuse position" below
+
+## Pulled fresh via easyeda2kicad (LCSC IDs from docs/psu-tester-bom-draft-
+## 2026-07-16.md / this task's own instructions), same upgrade treatment:
+- AOD4184A (C99124) -- 40V/50A logic MOSFET, TO-252/DPAK SMD (NOT THT --
+  the raw pull's `smd rect` pads were verified against the vendored
+  datasheet: "TO252 DPAK Top View", RDS(on)<7mOhm at VGS=10V). Bank-switch
+  low-side FET, one per group (a single TO-252 comfortably covers even the
+  largest 32-44A groups per I^2R: 7mOhm*32A^2 ~= 7.2W with a normal PCB
+  copper pour -- this REVISES an earlier worry in this agent's own planning
+  that big 12V groups might need paralleled FETs; not needed per the real
+  datasheet numbers, flagged as a layout-time thermal-gate confirmation
+  item, not a redesign).
+- TPS54331DR (C9865) -- 3A 28V buck, SOIC-8 (02-power aux rails).
+- DC-005-5A-2.0 (C381116) -- 12V aux barrel jack, 3-pin THT (pin3 = the
+  plug-detect switch contact, left NC in this capture -- no plug-detect
+  logic implemented, [wb] follow-up if wanted).
+- 74HC595D,118 (C5947) -- SPI-LCD CS fan-out shift register, SOIC-16.
+  Pinout verified against the pull: 1-7=Q1-Q7, 8=GND, 9=Q7S(cascade),
+  10=/MR, 11=SHCP, 12=STCP, 13=/OE, 14=DS, 15=Q0, 16=VCC (matches the
+  well-known 74HC595 pinout exactly).
+
+## Tooling bug found + fixed during promotion (not a part issue): the FIRST
+## promotion attempt failed `kicad-cli sym/fp upgrade` with an opaque
+## "Unable to load library" on AOD4184A specifically. Root-caused by
+## isolating single symbols and diffing a kicad-cli-upgraded copy against a
+## raw extraction: (1) a `descr`/`ki_description` string containing a
+## LITERAL embedded newline (a multi-line datasheet-link blurb easyeda2kicad
+## emitted for this part) breaks kicad-cli's loader for the older/compact
+## easyeda2kicad symbol format, even though the parens balance and a real
+## from-scratch parser (cec_sym_audit.py) reads it fine -- fixed by
+## flattening any multi-line string literal to one line before upgrading
+## (cosmetic-only field); (2) re-labeling an un-upgraded symbol body under a
+## modern `(version 20251024)` header (this agent's own first-draft
+## approach) makes kicad-cli parse it via the strict modern path, which the
+## older compact body does not satisfy (missing the per-symbol
+## `(embedded_fonts no)` child real KiCad-10 output always carries) -- fixed
+## by running `kicad-cli sym upgrade` on each SOURCE file individually
+## BEFORE extracting/concatenating, so every carved block is already fully
+## modern and self-contained. Both fixes are generic (in the promotion
+## script, not part-specific); every part in this library was re-verified to
+## load cleanly via `kicad-cli sym/fp upgrade --force` after the fix.
+
+## Hand-drawn (no LCSC/EasyEDA CAD exists):
+- IXTH75N10L2 (TO-247, Linear-L2 vernier FET, 12V rail pair): symbol CLONED
+  from the live-pulled IXTK90N25L2 (same LinearL2 family/graphic, G=1/D=2/
+  S=3 -- CONFIRMED against the vendored datasheet's own "TO-247 (IXTH)" pin
+  diagram, not just assumed from the sibling). Footprint: TO-247-3 vertical,
+  5.45mm pin pitch INDEPENDENTLY CONFIRMED against a live TO-247/JEDEC
+  mechanical reference (matches the sibling's pulled 5.46mm almost exactly);
+  pad geometry (oval THT, 2.3x1.7mm pad / 1.6x0.9mm drill) MIRRORED from the
+  sibling since no primary IXTH75N10L2 mechanical drawing was pulled --
+  VERIFY against the IXYS/Littelfuse mechanical drawing before fab (flagged,
+  not silently assumed correct).
+- CEC_CONN_1x8 / CEC_CONN_1x12: extended the PLATFORM'S OWN CEC_CONN_1x4
+  drafting style (lib/cec.kicad_sym, the atx24 J_SIG precedent) to 8/12
+  circuits. [wb] PLACEHOLDER generic-header representation for the
+  split-architecture hot-cluster<->cool-control harness boundary (mid-flight
+  owner directive, 2026-07-16) and the shared SPI-LCD header pinout -- the
+  real keyed connector CLASS/MPN is a layout-time decision pending the
+  split-architecture ratification; see each leaf's own notes for the
+  per-instance pin map.
+- PinHeader_1x04/08/12_P2.54mm_Vertical: generic 2.54mm THT header
+  footprints (fan headers, SPI-LCD headers, harness-boundary connectors),
+  standard KiCad PinHeader convention (pad-1 rectangular ID).
+- -12V power symbol (platform-shared, added to lib/vendor/cec-power.kicad_sym
+  not lib/cec-tester.kicad_sym -- the ATX -12V rail is a platform-wide
+  concept): mirrors the existing +12V symbol exactly, arrow flipped to point
+  down (the conventional negative-rail glyph). cec_sym_audit.py --audit
+  reports 0 findings on the whole cec-power.kicad_sym file after this add.
+
+## Real-part / BOM correction found (annotated, not silent):
+- **HoRX-50W-xxR (C2923747 family) is NOT a small radial-lead THT resistor.**
+  Its DigiKey mechanical listing (live-checked 2026-07-16,
+  digikey.com/en/products/detail/shenzhen-milliohm-electronic-co-ltd/
+  HoRX-50W-30R-5/27557628) gives: package/case "Axial, Box"; CHASSIS MOUNT
+  with flanges + SOLDER LUGS; body 50.00 x 29.00 x 15.49mm (aluminum housed
+  wirewound). This matches DESIGN-SHEET.md's own doctrine (Sec B floorplan
+  zones name "alu-shell resistors on two facing plates"; Sec G "R-plate lug
+  fields: M4 lug pads, wire gauge table per bank current") -- the resistor
+  is genuinely OFF-BOARD, chassis-plate-mounted; only its wire leads land on
+  the PCB. Drew `HoRX_50W_WireLug_2Pin.kicad_mod` as a 2-PAD WIRE-TO-BOARD
+  LANDING pattern (generic THT pads sized for 16-18AWG lead wire), NOT a
+  resistor-body silhouette -- the correct representation for a chassis-
+  mounted part. Symbol: reuses the platform's own `cec-vendor:R_Small` (the
+  same 2-pin resistor glyph already reused across every physical size class
+  platform-wide, e.g. the module shunts) with this footprint override, Value
+  = the leg's resistance. This is a documentation/footprint correction, not
+  a BOM MPN change -- the BOM doc's own text (Sec 1 "R-banks" row) never
+  claimed "radial THT" itself; that framing was this task's OWN Phase-A
+  brief, corrected here per CLAUDE.md's "annotate, never silently" rule.
+
+## Design decision: Littelfuse 0287 ATOF fuse "footprint" (fp to mate the
+## 3557-10 holder): rather than drawing a SEPARATE 2-pin generic Fuse symbol
+## and solving a pin-to-multi-pad footprint mapping puzzle, the promoted
+## Keystone 3557-10 HOLDER symbol (4 real pins, matching its 4 real pads
+## 1:1 -- pins 1+2 bridge one side/net, 3+4 the other, per the holder's own
+## pad coordinates) is reused DIRECTLY as each fuse POSITION in the
+## generator: ref class "F" (fuse), Value = the actual Littelfuse 0287xxx
+## current rating per instance, footprint = the holder land (what actually
+## solders to the board -- the fuse element itself plugs in, it has no
+## board footprint of its own). This is simpler and more electrically
+## honest than inventing a 2-pin symbol mapped onto a 4-pad land. A future
+## BOM-precision pass could split this into two BOM lines (holder + the
+## specific replaceable fuse P/N) if that level of purchasing detail is
+## wanted -- flagged in FOLLOWUPS.md, not implemented here.
+
+## Design decision: OPA2277UA-2K5 channel usage (the "engine limit" flag in
+## this task's brief). Verified: the vendored symbol IS multi-unit
+## (OPA2277UA_1_1 = channel A: OUTA/1, INA-/2, INA+/3, V-/4, V+/8;
+## OPA2277UA_2_1 = channel B: OUTB/7, INB+/5, INB-/6) and cec_sch.py's
+## generation engine always emits `(unit 1)` on a placed instance -- so a
+## SECOND unit of the SAME instantiated symbol cannot be wired. RESOLUTION:
+## every CC-loop leaf populates ONE OPA2277UA-2K5 package using ONLY channel
+## A (pins 1/2/3/4/8); channel B (pins 5/6/7) is intentionally left
+## no-connect/spare. This sidesteps the engine limit entirely (channel B is
+## never wired, so the unit-1-only restriction never bites) and matches the
+## Tester Pro BOM's own per-loop quantity convention (Sec 1 "CC loop amps"
+## row: qty 8 for Pro's 8 loops, i.e. one package per loop, not one package
+## per TWO loops). A future cost-down pass COULD pair 2 loops per package
+## (drawing a flattened single-unit dual-section local symbol to route
+## around the engine limit) -- flagged as a documented BOM-optimization
+## option in FOLLOWUPS.md, not implemented here to preserve per-loop
+## isolation and match the Pro-tier precedent.

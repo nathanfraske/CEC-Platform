@@ -1,0 +1,231 @@
+(footprint "DC-IN-TH_DC-005-5A-2.0"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -6.352 0)
+		(layer "F.SilkS")
+		(uuid "476bce25-52aa-46cd-a587-aebce433c7a9")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "DC-IN-TH_DC-005-5A-2.0"
+		(at 0 6.352 0)
+		(layer "F.Fab")
+		(uuid "51df55a7-d088-4040-80bf-ae17dc4221de")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0d87ce6e-28e9-40db-be6c-56fe19367f27")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bb08ee51-de96-4b1a-9651-9b7dc6fdb32b")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C381116"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8d36b8cc-3163-4f55-a86e-85804b1a6d6b")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -10.6 -6.85)
+		(end -10.6 2.15)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "8d914aff-cf9b-4aec-899a-cd909a87e1b8")
+	)
+	(fp_line
+		(start -10.6 2.15)
+		(end -2.21 2.15)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "d35e2103-660c-4167-9c66-23736ab01c1d")
+	)
+	(fp_line
+		(start -8.68 -6.85)
+		(end -8.68 2.15)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "8fbc6ea1-9f5e-4d9e-befd-e52e303e994c")
+	)
+	(fp_line
+		(start 2.21 2.15)
+		(end 3.4 2.15)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "7deae5ff-9fa6-4178-af5a-82891f112c0f")
+	)
+	(fp_line
+		(start 3.4 -6.85)
+		(end -10.6 -6.85)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "527f1328-d701-4474-b8fd-374697d232af")
+	)
+	(fp_line
+		(start 3.4 -4.61)
+		(end 3.4 -6.85)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f7e7a15a-09ea-4f4c-ae99-bc53114aa3ab")
+	)
+	(fp_line
+		(start 3.4 2.15)
+		(end 3.4 -0.09)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "1868884e-0898-49dd-8c0f-e9cd5add60d2")
+	)
+	(fp_circle
+		(center 3.4 -6.85)
+		(end 3.43 -6.85)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "da3c4422-96ce-43c1-8261-0aeae7a9ae56")
+	)
+	(fp_line
+		(start -10.6 -6.85)
+		(end 3.4 -6.85)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "57ca1896-0910-41e8-aaa7-3b66be35ceb0")
+	)
+	(fp_line
+		(start -10.6 2.15)
+		(end -10.6 -6.85)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "e80c43f7-79f7-4089-b613-544ebc5c7133")
+	)
+	(fp_line
+		(start 3.4 -6.85)
+		(end 3.4 2.15)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "dd0daff2-6a9a-457a-b01f-49a7246a8704")
+	)
+	(fp_line
+		(start 3.4 2.15)
+		(end -10.6 2.15)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "05c44b45-ec33-43a9-b1fc-7c35107b4a8e")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "b6609b79-84c3-4457-8ba1-e65f2a3152e6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" thru_hole oval
+		(at 3 -2.35 90)
+		(size 4.2 1.8)
+		(drill oval 3.499993 0.999998)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "3f186cdf-6139-42ec-8efb-18777f819332")
+	)
+	(pad "2" thru_hole oval
+		(at -3 -2.35 270)
+		(size 4 1.8)
+		(drill oval 3.299968 0.999998)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "9b43175c-a97d-4058-a40c-e1621c36b6e5")
+	)
+	(pad "3" thru_hole oval
+		(at 0 2.35)
+		(size 4 1.8)
+		(drill oval 3.299968 0.999998)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "ef17bced-7135-4605-aa32-ed47d63a0fae")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/cec-tester.3dshapes/DC-IN-TH_L14.4-W9.0-H11.0.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 90)
+		)
+	)
+)
