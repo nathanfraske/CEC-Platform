@@ -738,3 +738,15 @@ mechanism + host per-node clock fusion (a+b·t fit, 1Hz heartbeat vs ±10-20ppm 
 digitizer capture. §9 open sketch questions feed the schematic pass (front-plate mech ↔ OQ-89,
 MARK home ↔ OQ-85). Branch claude/pr50-firmware-review-wkvf7v; docs commits stack: research +
 sketch + reconciliation all pushed.
+
+## Tester REV B + protection coverage — 2026-07-16
+REV B (owner): tester = A MODULE in the bench suite (Hub stays; DETECT 4.7k Pro / 10k Max —
+the locked §2.3 codes fit exactly); own tier uplink RS-485 (Pro) / bidir T1 one-PHY (Max)
+carrying fast-channel pulse-actuals; standalone USB-C monitoring + PD self-power stands;
+suite instrumentation survives DUT death via the Hub §2.9 wall-wart leg (platform-native).
+P4 both tiers SURVIVES (tier-module pattern, 12VHPWR-Pro precedent); no FPGA Pro / GW5A Max
+digitizer-only unchanged. REV A tester-absorbs-Hub = deferred "Bench Unit" variant, sketch
+§9.7, owner: needs in-field testing — do NOT resolve. Protection coverage §3a added earlier
+this turn: OCP both (comparator-stamped staircase), OPP both (sink-bounded, + excursion-vs-
+OPP discrimination), OVP Max-only (TPS55289 source; sink physically can't), SCP both, UVP
+via T6, OTP fenced. All pushed on claude/pr50-firmware-review-wkvf7v.
