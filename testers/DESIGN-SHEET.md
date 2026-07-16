@@ -158,6 +158,30 @@ mess of wires" challenge)**
     REPLACES a radiator, ~0.19 m² at W-tier over double-sided plate walls;
     ST-1000 = one double-sided plate). Check: harness-count lint (≤3
     connections/plate assembly) + the §C.21 de-gate continuity rule.
+    Mechanical stack (owner Q&A 2026-07-16, v2 — the WALL-CARTRIDGE form,
+    owner's read): the plate IS the heatsink AND the duct wall. Resistors
+    mount in BACK-TO-BACK PAIRS, one on each face, sharing through-bolts
+    or a tapped plate (an HS-50-class housing is a 50 W part ONLY bolted
+    to metal; free-air ~20 W), tabs vertical. THE WALL SLOTS INTO THE DECK
+    BOARD: every pair's bottom tab drops past the plate's bottom edge into
+    receptacle rows (one per face) on the flat deck/slice PCB below the
+    duct floor — the daughterboard iteration-7 geometry (TE 63969-1
+    vertical top entry, blade enters edge-wise) scaled from 6–10 blades to
+    16–32. Top tabs common onto the wall's feed bar (one bolted drop per
+    wall to the laminated spine). STRUCTURE IS NEVER THE BLADES: wall
+    weight lands on chassis rails / end flanges + a registration key;
+    receptacle float absorbs the row tolerance stack; fan vibration +
+    thermal cycling must never work a load-bearing electrical joint. Gang
+    seat/unseat at 16–32 blades = hundreds of N, NOT a hand push — the
+    queued press-fit + lever de-fit tools are the wall service story. The
+    deck PCB (receptacles, leg FETs, fuses, shunts, trip comparators, gate
+    drivers, ONE keyed harness) lives under the duct floor, OUT of the hot
+    airstream — the split-architecture compartment goal realized. Verniers
+    /SCP are NOT cartridges: TO-247s bolt to a plate section with a narrow
+    PCB right at their leads (2.54 mm pins; the gate loop wants mm), same
+    blades-carry-current-not-structure logic. Deck drafting decides
+    full-width deck vs one strip per wall (panel size / service
+    granularity).
 
 **Displays (owner add 2026-07-16 — sketch §5)**
 23. **Main LCD (2.8″ IPS SPI) + per-bay LCDs (1.54″ IPS SPI)** → main screen
