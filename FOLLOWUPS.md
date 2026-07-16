@@ -499,7 +499,9 @@ Conventions:
   vendored into cec-ent-net (symbols w/ verified pin maps, footprints w/ 3D, STEPs, brief PDF,
   review log pin-audit/cec-ent-net-fix-review-2026-07-16.txt, auditor mux-secondary-EN
   calibration + regression test). Hub sheets 06/07 now LIBRARY-UNBLOCKED (strap detail owed
-  from full DS / LAN9371-72 proxy at capture; JXD0-vs-JXD1 tab decision in owner-queue).
+  from full DS / LAN9371-72 proxy at capture). SAME-DAY UPDATE: JXD1-0001NL (tab-up) CAD +
+  STEP landed and SUPERSEDES JXD0 (lands measured different; JXD0 CAD removed; owner-queue
+  variant bullet RESOLVED).
   Residual glance item: footprint↔STEP 3D alignment eyeball in the GUI (noted in each fp descr).
   ALSO NOTED during the audit sweep: modules/ent-kvm-carrier/ent-kvm-local.kicad_sym carries
   45 high pin-type findings (local FUNC symbols, never T2-passed) — fold into the KVM-carrier

@@ -46,3 +46,17 @@ OPEN FLAGS carried in the symbol Description fields:
     item (noted in each footprint descr).
 Post-fix gate: cec-ent-net high=0 (medium/low pre-existing classes tracked,
 not gating). Test suite 11/11.
+
+ADDENDUM (same day, later): JXD1-0001NL SUPERSEDES JXD0-0001NL.
+Owner supplied the UL JXD1 export + manufacturer STEP and ruled TAB-UP
+preferred (matches BOM-B of record). Land comparison (pad-by-pad, aligned at
+P1): the two variants' footprints are GENUINELY DIFFERENT (pin-numbering
+order around the field, LED-row offsets, post/shield-leg pattern) — no
+cross-substitution. Actions: JXD0 symbol/footprint/STEP REMOVED from
+cec-ent-net (git history retains them); JXD1 vendored with (a) UL's
+alternate-body unit _1_2 dropped (duplicate pin set, not used by platform
+convention), (b) all pins typed passive, (c) SH1/SH2 pins ADDED to the
+symbol and the footprint's shield legs CORRECTED from UL's NPTH modeling to
+PLATED pads (drill 1.6764 / pad 2.5) per the platform FTP shield-to-GND
+discipline, (d) manufacturer 3D STEP attached. Audit high=0; pin-count
+fixture unchanged at 187 (16 out, 16 in); all pins on-grid.

@@ -177,7 +177,7 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   tester nods still open: AD9253-105 grade + buy-ahead qty, TPS55288 final, slot-architecture
   adoption, Pro-W list ($4,995 @2.6× vs $5,295–5,495 @≈3×).
 
-- [2026-07-16] **ENT UPLINK JACK VARIANT — JXD0 vs JXD1 (decision before sheet-07 layout):** the
+- [2026-07-16] **ENT UPLINK JACK VARIANT — RESOLVED same day (owner: "tab up is preferred" + supplied the JXD1 UL export and STEP):** JXD1-0001NL is the part AND CAD of record (vendored, shield legs corrected to plated; JXD0 CAD removed — lands measured DIFFERENT, never substitute). Original bullet retained below for provenance:** the
   owner-supplied CAD assets are **JXD0-0001NL (TAB-DOWN)**; BOM-B of record names **JXD1-0001NL
   (TAB-UP, DK 553-3266-ND, $5.95)**. Same family/electricals otherwise. PICK: (a) flip BOM-B to
   JXD0 (assets already vendored, done), or (b) keep JXD1 and re-pull its CAD (SnapEDA has the

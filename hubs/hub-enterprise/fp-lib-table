@@ -18,7 +18,7 @@
   (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-ent-power")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/cec-ent-power.pretty")(options "")(descr "ENT power-group footprints (e.g. OSC-SMD_6P)"))
-  (lib (name "cec-ent-net")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-net.pretty")(options "")(descr "ENT network-group footprints (incl. LAN9370 VQFN-64 KCX, JXD0-0001NL MagJack)"))
+  (lib (name "cec-ent-net")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-net.pretty")(options "")(descr "ENT network-group footprints (incl. LAN9370 VQFN-64 KCX, JXD1-0001NL MagJack)"))
   (lib (name "cec-ent-mcu")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-mcu.pretty")(options "")(descr "ENT MCU-group footprints"))
   (lib (name "cec-ent-compute")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-compute.pretty")(options "")(descr "ENT compute-group footprints (MPFS095T FCVG484 BGA land)"))
   (lib (name "cec-ent-hub-local")(type "KiCad")(uri "${KIPRJMOD}/lib-local.pretty")(options "")(descr "hub-enterprise project-local stopgap footprints: L_VLS252010HBX-2R2M-1, PJ-002AH_THT_RA"))

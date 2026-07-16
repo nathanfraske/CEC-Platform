@@ -117,9 +117,10 @@ SerDes bank emitted as an explicit NC unit per the part-agnostic SerDes-free lan
 (symbol+VQFN-64-KCX footprint+STEP, pin map verified 64/64 against product brief
 DS00002819B Table 3-1 — the FULL datasheet is login-locked at Microchip, so strap/
 clock/rail detail beyond the brief is owed at 06a capture, LAN9371/72 public family
-docs as proxy) and the uplink MagJack (vendored as **JXD0-0001NL** TAB-DOWN from the
-owner's SnapEDA pull; BOM-B names JXD1-0001NL TAB-UP — variant decision in the owner
-queue before 07b layout) both live in `cec-ent-net` with review log
+docs as proxy) and the uplink MagJack **JXD1-0001NL** (TAB-UP, BOM-B part of record — owner-supplied
+UL export + manufacturer STEP; shield legs corrected to plated; the JXD0 tab-down
+sibling's land measured DIFFERENT and its CAD was removed) both live in `cec-ent-net`
+with review log
 `docs/enterprise-requirements/board-program/pin-audit/cec-ent-net-fix-review-2026-07-16.txt`.
 Remaining library gaps: FTSH-105 (02c), TPS7A20 pair (03c), TLV75801 + ABM3 crystal
 (07a), TLP172A + LM393 (08a) — all easy LCSC pulls (root FOLLOWUPS 2026-07-16); S32K
