@@ -913,3 +913,16 @@ no-workaround-tools ruling + construction-tools section) still queued in its con
 revival monitor armed. Intake agent finished earlier (easy parts 887ba38d, eMMC proposal
 ea36d238 FORESEE FEMDNN + Micron 2nd source, KVM footprints 48a7e83f 6-of-9). Next expected:
 agent's verified sheet-03 commit (supersedes d436d03c), then sheet 02 (MPFS decoupler banks).
+
+## 2026-07-16 ~21:30 — sheet-02 completion agent launched (branch claude/pr50-firmware-review-wkvf7v)
+Owner approved the (unit 1) root-cause path + critiqued 02a readability ("very messy, not
+really human readable" — suffices for now). NEW SONNET AGENT running, 3 phases: (1) cec_sch.py
+multi-unit emission fix, ABSOLUTE regression gate = regenerate all captured sheets + prove
+flattened-netlist identity + teeth test (two-unit fixture); (2) place U1 (MPFS units incl.
+POWER unit onto the existing 86-cap/17-rail bank) + capture 02b/c/d from the prior agent's
+banked FOLLOWUPS research + reconcile sheet-04's provisional MSSIO balls; (3) 02a readability
+pass per the charter (netlist-identity invariant, cec-schematic MCP readability_pipeline,
+per-rail labeled cap groups w/ DS60001681H provenance). Pathspec-commit discipline mandated
+(index-collision lesson). Prior capture agent COMPLETE (03=670702e4, 02a=1ef38dff, wishlist
+w/ construction section); intake agent COMPLETE earlier. Tester docs: §12b mezzanine dock
+(c5c3a477) awaiting ratification; §12a downgraded-then-superseded chain recorded.
