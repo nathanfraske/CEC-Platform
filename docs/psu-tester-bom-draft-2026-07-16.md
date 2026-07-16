@@ -1,5 +1,16 @@
 # PSU tester — BOM v1 (SOURCED) + full-retail roll-up
 
+**v1.2 (2026-07-16, owner steer round):** (1) **P4 supply: owner RULED ride
+out the blip** (Pro/Max are a distance from shipping) — §5.1 downgraded from
+escalation to standing discipline; (2) **fans RULED → Arctic S12038-4K**
+(11.45 mmH₂O beats the iPPC-3000's 7.63 at half the price; spec-sheet
+checked) — Pro −$60, ST unify recommended; (3) **2 kW ballast RETIRED →
+~3,000 W WORKSTATION tier** (Pro-W / Max-W, sketch §13) — first-cut BOMs in
+new §3c; (4) **displays added** (owner: main load readout + one LCD per
+module bay, off/logo when unpopulated — BOM-checked ~$3/bay, RULED IN) —
++$35 Pro-class. Totals: **Pro ≈ $1,064 / Max ≈ $1,357 / Pro-W ≈ $1,635 /
+Max-W ≈ $1,955 / ST ≈ $545/$589**.
+
 **v1 (2026-07-16, evening): four-agent live sourcing pass integrated** — every
 line now carries a real MPN/LCSC#/price/stock verified against lcsc.com
 product pages today (DigiKey where LCSC has nothing), superseding the v0
@@ -14,7 +25,7 @@ pre-schematic — freeze at schematic.
 
 | Subsystem | Part | Src | Qty | Unit $ | Ext $ | v0 Δ | Stock note |
 |---|---|---|---|---|---|---|---|
-| MCU | ESP32-P4NRW32 (bare chip, in-pkg PSRAM; no module SKU exists) + flash/support | [LCSC] C22387510 | 1 | ~6.50 set | 6.50 | −2.50 | **OOS TODAY, no confirmed distributor fallback — RISK #1** (also hits 12VHPWR Pro / Hub Pro) |
+| MCU | ESP32-P4NRW32 (bare chip, in-pkg PSRAM; no module SKU exists) + flash/support | [LCSC] C22387510 | 1 | ~6.50 set | 6.50 | −2.50 | supply blip: **OWNER RULED 2026-07-16 ride it out** (ships far out); design against v3.x NRW32X — §5.1 |
 | CAN | TJA1051T/3 + jack/DETECT 4.7 kΩ/PESD | [P] | set | 2.00 | 2.00 | — | healthy |
 | RS-485 TX | THVD1450DR (50 Mbps, ±18 kV; candidate for 12VHPWR-Pro reuse) | [LCSC] C2671361 | 1 | 0.70 | 0.70 | −0.50 | 4.7–7.2 k |
 | USB/PD | CH224K + XKB USB-C C319148 + USBLC6 | [LCSC] C970725/C319148 | set | 1.00 | 1.00 | −2.50 | deep stock; CH224K beat AP33772 (thin stock) |
@@ -33,15 +44,16 @@ pre-schematic — freeze at schematic.
 | OVP-A stage | **TPS55288RPMR** (in stock, 16 A superset) — RECOMMEND designing on it from the start; ruled TPS55289 is OOS at LCSC (DK bridge $6.42) and no layout exists yet, so the "footprint change" is free | [LCSC] C2864583 | set | 10.00 | 10.00 | −10.00 | 6.2 k; + VLS6045EX-2R2N L ($0.09, Isat 7.5 A vs 6.35 A limit = fine) + HFD4/5-SR relays ×3 |
 | Thermal | NTC [P] + bimetal 120 °C NC — **LCSC KSD9700 is listed NO not NC**: verify contact form or budget Cantherm CS7115/13025Y [DK] $5.38 ×2 | mixed | — | — | 11.00 | +7.00 | verification item before lock |
 | Aux rails | TPS54331DR ×3 + L/C | [LCSC] C9865 | 3 | 0.35 | 3.00 | −2.00 | 47 k |
-| Fans | **Noctua NF-F12 industrialPPC-3000 PWM** (7.63 mmH₂O — the duct-honest pick; round-2 verdict). Options: Arctic P12 Max $12.99 value (4.35 mmH₂O — pressure-margin risk on the 1600 W duct; FINE for ST's smaller duct), San Ace 9GA1212P4G001 max-margin (37.3 mmH₂O, 936 DK stock, $52@30, 57 dBA loud). Both named Deltas are dead (obsolete / non-PWM+OOS) | [DK/direct] | 4 | 29.95 | 120.00 | +80.00 | static pressure is THE spec in a resistor duct |
+| Fans | **Arctic S12038-4K — OWNER STEER 2026-07-16 (RULED)**: 120×120×**38 mm** server class, 11.45 mmH₂O / 106 CFM / 600–4000 rpm PWM / dual Japanese ball bearing / 3.96 W / 6-yr wty — MORE pressure than the round-2 Noctua iPPC-3000 pick (7.63) at HALF the price. Fallbacks retained: NF-F12 iPPC-3000 $29.95, San Ace 9GA1212P4G001 max-margin (37.3 mmH₂O, loud) | [Arctic/Amazon; value 3-packs ACFAN00303A] | 4 | 14.99 | 60.00 | +20.00 | duct P-Q at chassis proto is still the final lock (§6.8); 38 mm depth budgeted at the duct mouth |
 | FET extrusion | 300 mm forced-air 6063 class | (q) | 1 | 45.00 | 45.00 | — | validated $35–60 via live Alibaba-class quotes |
 | Chassis | sheet-metal console | (q) | 1 | 200.00 | 200.00 | — | fab-quote item |
 | Slot deck field | 63951-1 blades ~40× $0.136 + J_SIG + rails (§12 posture) | [LCSC] C591344 | set | — | 40.00 | — | blades healthy; **module-side 63969-1 receptacle is now FULLY OOS — program-wide escalation, see §5** |
 | 12 V aux jack | XKB DC-005-5A-2.0 | [LCSC] C381116 | 1 | 0.26 | 0.26 | — | 14.8 k; fit-check vs 5.5×2.1 plugs |
+| Displays | **OWNER ADD 2026-07-16 (sketch §5)**: main 2.8″ IPS 320×240 SPI (~$5) + 8× bay 1.54″ IPS 240×240 SPI module class (~$3/bay — per-bay RULED IN at this cost) + 74HC595 CS glue + bezels/harness; IPS not OLED (static-readout burn-in) | [LCSC] (module class; MPNs at schematic) | set | — | 35.00 | +35.00 | commodity class, no supply risk; unpopulated bay = dark/logo splash |
 | PCBs | main 4L 2 oz + slice + head | (q) | — | — | 75.00 | — | |
 | AC sense pod | PARKED (owner) — removed from base BOM; +$20 option when un-parked | — | — | — | 0.00 | −20.00 | |
 | Misc | passives/harness/hardware ~5 % | (~) | — | — | 45.00 | −10.00 | |
-| **Tester Pro BOM v1.1** | | | | | **≈ $1,089** | **−$112 vs v0** | band **$1,000–1,300** (chassis quote, P4 risk; fans now the honest iPPC pick) |
+| **Tester Pro BOM v1.2** | | | | | **≈ $1,064** | **−$137 vs v0** | band **$980–1,280** (chassis quote the main swing; fans −$60 on the Arctic steer, displays +$35) |
 
 ## 2. Tester Max — delta over Pro (v1 sourced)
 
@@ -54,34 +66,74 @@ pre-schematic — freeze at schematic.
 | 2nd fast channel | IXTK ×4 [DK] @28.05 + loop | [DK] | 122.00 | −48.00 | |
 | PCB delta | digitizer lane | (q) | 15.00 | — | |
 | **Max delta v1** | | | **≈ $293** | −$13 | |
-| **Tester Max BOM v1.1** | | | **≈ $1,382** | −$125 | band $1,300–1,650 (+$100–150 2 kW option) |
+| **Tester Max BOM v1.2** | | | **≈ $1,357** | −$150 | band $1,270–1,620 (2 kW ballast option RETIRED — owner 2026-07-16 → Workstation tier, §3c) |
 
-## 3. Full retail roll-up (v1.1)
+## 3. Full retail roll-up (v1.2)
 
-| | **Pro station** | **Max station** |
-|---|---|---|
-| Tester BOM v1.1 (mid) | ~$1,089 | ~$1,382 |
-| Tester landed (+19 %) | ~$1,296 | ~$1,645 |
-| Ruled tester list | $3,495 = **2.7×** landed | $5,995–6,995 = **3.6–4.3×** landed |
-| Bundle all-in (§3b posture: + module set + Hub + spares, landed) | ~$1,450 | ~$1,960 + Max-Hub TBD |
-| **Bundle list** | **$3,995 (2.8×)** | **$6,995 (≈3.3–3.6×)** |
+| | **Pro** | **Pro-W** | **Max** | **Max-W** |
+|---|---|---|---|---|
+| Tester BOM v1.2 (mid) | ~$1,064 | ~$1,635 | ~$1,357 | ~$1,955 |
+| Tester landed (+19 %) | ~$1,266 | ~$1,945 | ~$1,615 | ~$2,325 |
+| Tester list | $3,495 = **2.8×** | **$4,995 = 2.6×** (first-cut) | $5,995–6,995 = **3.7–4.3×** | **$7,995 = 3.4×** (first-cut) |
+| Bundle all-in (landed, § 3b posture) | ~$1,420 | +$800–1,500 (module manifest OPEN) | ~$1,930 + Max-Hub TBD | +$800–1,500 (manifest OPEN) |
+| **Bundle list** | **$3,995 (2.8×)** | TBD at manifest | **$6,995 (≈3.4–3.6×)** | TBD at manifest |
 
-**The sourced BOM still lands UNDER the v0 estimate** (−$112 Pro / −$125 Max
-after taking the honest fan pick), and the ruled lists hold at ≥2.7× landed
-— at or above the platform convention at bundle level. Remaining swings:
-chassis quote, P4 availability, AD9253 buy-ahead depth.
+**Ladder:** ST-1000 $1,299 / ST-1300 $1,499 / Pro $3,495 (bundle $3,995) /
+**Pro-W $4,995** / Max $5,995–6,995 / **Max-W $7,995**. Pro-W's 2.6× sits
+below the platform 3× convention but above capital-equipment norms — the
+standing owner margin call; $5,295–5,495 is the 3×-adjacent alternative.
+Remaining swings: chassis quotes (now incl. the W two-lane console), AD9253
+buy-ahead depth, W bundle module manifest.
 
-## 3a. Standard tester value line (v1.1)
+## 3a. Standard tester value line (v1.2)
 
-ST's smaller duct (~88–115 CFM) tolerates the Arctic P12 Max value fans
-($12.99, in stock): **ST-1000 ≈ $513 / ST-1300 ≈ $555** → landed ~$610/$660
-→ **$1,299 (2.1×) / $1,499 (2.3×)** — the single-SKU lists hold with margin
-slightly improved vs v1.
+Fan SKU unified on the Arctic S12038-4K (owner steer; +$4–6 over P12 Max
+buys one platform-wide spare SKU + pressure headroom) and displays added
+(main + ~6 bay screens ≈ $28 — the "ready to go" face): **ST-1000 ≈ $545 /
+ST-1300 ≈ $589** → landed ~$649/$700 → **$1,299 (2.0×) / $1,499 (2.1×)** —
+single-SKU lists hold; margin-honesty note stands (2×-class, the standing
+owner call).
 
 ## 3b. Slot-in bundle scenario — unchanged posture (sketch §12)
 
-Bundle deltas ride the v1.1 numbers; field kit $39–49 and saver pigtails
+Bundle deltas ride the v1.2 numbers; field kit $39–49 and saver pigtails
 $29–39 unchanged.
+
+## 3c. WORKSTATION tier first-cut (~3,000 W; owner ruling 2026-07-16, sketch §13)
+
+Pro-W = Tester Pro + this delta (population/scaling only — same board set,
+shared W chassis platform); Max-W = Pro-W + the §2 Max delta + ~$25
+(mux/shunt wiring for the extra heads).
+
+| Delta line (over Pro v1.2) | Ext $ | Basis |
+|---|---|---|
+| R-banks +~56× 50 W paralleled units (→ ~6.0 kW installed @50 % derate) | +146 | C2923747 class @~$2.60 |
+| Bank plates/metalwork | +40 | (q) |
+| Bank switching (+FETs/drivers/fuses/holders) | +20 | commodity |
+| Verniers +5× IXTH75N10L2 (8 → ~13 loops) | +66 | [DK] $13.17 |
+| +1× DAC80508 + loop amps + trip-watch cells | +20 | 2× DAC = 16 ch |
+| Loop shunts +5 | +2 | C4175647 |
+| Fixture bay +3× 12V-2x6 heads + harness | +35 | 4-GPU reality |
+| Slot-deck blade fields (4 HPWR slots) | +15 | §12 posture |
+| SCP +2 crowbar blocks (extra HPWR rails) | +10 | §3b math unchanged |
+| Chassis delta (two-lane duct, ~430×450×170) | +80 | (q) |
+| FET extrusion 300 → ~500 mm class | +45 | (q) |
+| Fans +2× S12038-4K (4 → 6) | +30 | §4 sketch, 263 CFM |
+| Displays +3 bay screens + harness | +10 | 11 bays |
+| PCBs (more slices, longer deck) | +30 | (q) |
+| Misc/harness | +20 | ~5 % |
+| **Pro-W delta** | **≈ +$570** | |
+| **Tester Pro-W BOM v1.2** | **≈ $1,635** | band $1,500–1,900 |
+| **Tester Max-W BOM v1.2** (+$293 Max delta +$25) | **≈ $1,955** | band $1,800–2,250 |
+
+Lists (first-cut, §3 ladder): **Pro-W $4,995 (2.6× landed) / Max-W $7,995
+(3.4× landed)**. The 2 kW Max ballast option is RETIRED (owner: "over a US
+breaker anyway" — a >1,800 W DUT already needs a 240 V/20 A drop, and that
+shop is servicing the 3 kW workstation class; market anchor ASUS Pro WS
+3000W Platinum ≈ $1,036 street). Whole-PSU 200 %/100 µs excursion honesty
+fences per sketch §13 (per-head always covered; whole-PSU to ~1.1 kW label
+on one fast channel, ~2 kW on Max-W's ganged pair; 10 ms+ steps recruit
+banks to the full 3 kW delta).
 
 ## 4. Sourcing-pass results (rounds 1 + 2)
 
@@ -102,19 +154,16 @@ $29–39 unchanged.
 
 ## 5. SUPPLY-RISK REGISTER v2 (post round-2; owner attention, ranked)
 
-1. **ESP32-P4 — ESCALATED (platform-wide, owner decision needed).** Not a
-   restock lag: a mid-stream silicon transition. v3.x ships under NEW
-   "X"-suffix MPNs (ESP32-P4NRW32X / NRW16X, per Espressif's v3.x user
-   guide); **firmware images are NOT portable v1.x↔v3.x** (pin-54 change,
-   50+ register/hardware deltas); Espressif briefly shipped new silicon
-   under the OLD SKU (documented channel confusion); TODAY there is ZERO
-   bare-chip stock and zero distributor listings for EITHER generation
-   (Mouser/DK/Arrow don't even list it), while other Espressif lines are
-   healthy. No module SKU exists. POSTURE: (a) OWNER: rule the target
-   revision now — recommend v3.x (NRW32X, LCSC C54540373) for all new
-   designs (testers, 12VHPWR Pro, Hub Pro); (b) watch C22387510 + C54540373;
-   (c) written revision confirmation on any order; (d) buy several
-   build-cycles deep at first restock — no backstop channel exists.
+1. **ESP32-P4 — OWNER RULED 2026-07-16: RIDE OUT THE BLIP** (Pro/Max are a
+   distance from shipping — no buy action now). The round-2 facts stand as
+   the standing discipline, not an escalation: mid-stream silicon transition,
+   v3.x ships under NEW "X"-suffix MPNs (ESP32-P4NRW32X / NRW16X);
+   **firmware images are NOT portable v1.x↔v3.x**; zero bare-chip stock or
+   distributor listings today for either generation; no module SKU. STANDING
+   POSTURE: design all new boards (testers, 12VHPWR Pro, Hub Pro) against
+   **v3.x (NRW32X)**; watch C22387510 + C54540373; written revision
+   confirmation on any eventual order; RE-CHECK the landscape at tester
+   design lock (it will have moved by then).
 2. **TE 63969-1 — DOWNGRADED to routine.** LCSC-direct is empty, but the
    depth is in mainstream Western distribution: DigiKey 30,855 ready-to-ship
    ($0.152@vol), Arrow 16,800 ($0.147), Farnell/Newark 8,400 each, TE direct
@@ -136,11 +185,14 @@ $29–39 unchanged.
    HMCAD1511 8-bit out-of-class). OWNER: nod the -105 grade (affects the
    Max MODULE program too) and set a buy-ahead quantity against the
    186-unit single-channel pool.
-5. **Fans — RESOLVED with a tiered answer.** Duct-honest pick = Noctua
-   NF-F12 industrialPPC-3000 PWM ($29.95, 7.63 mmH₂O) for Pro/Max; Arctic
-   P12 Max ($12.99, 4.35 mmH₂O) fine for ST's smaller duct; San Ace
-   9GA1212P4G001 (37.3 mmH₂O, 936 DK stock, 57 dBA) is the max-margin/loud
-   option. Verify against the real duct P-Q at the chassis prototype.
+5. **Fans — OWNER STEER 2026-07-16 (RULED): Arctic S12038-4K platform-wide.**
+   Spec-sheet checked: 11.45 mmH₂O / 106 CFM / 600–4000 rpm PWM / dual
+   Japanese ball bearing / 3.96 W / $14.99 — more pressure than the round-2
+   Noctua iPPC-3000 pick at half the price (note: 38 mm deep, not 30 —
+   budgeted at the duct mouth). ST unifies on it too (recommended, +$4–6:
+   one spare-fan SKU across the line). Fallbacks retained: NF-F12 iPPC-3000,
+   San Ace 9GA1212P4G001 (max-margin, loud). Final lock still gated on the
+   duct P-Q measurement at the chassis prototype (§6.8); W tier runs 6×.
 6. **Bimetal NC — RESOLVED.** LCSC has no verified-NC 120 °C part (KSD.301
    + KSD9700 attribute tables all read NO); the part is **Cantherm
    CS712025Y** [DK], SPST-NC explicit, 120 °C, $4.39@25, 506 stock. One
@@ -151,11 +203,18 @@ $29–39 unchanged.
 
 ## 6. Open items to the sourcing/pricing pass (carried)
 
-1. Chassis + extrusion formal quotes (the remaining big swings).
+1. Chassis + extrusion formal quotes (the remaining big swings) — now incl.
+   the W two-lane console + ~500 mm extrusion class.
 2. Max Hub pricing (Task-13; blocks Max-station all-in).
 3. Replacement front-plate/field-kit SKU pricing at OQ-89 lock.
 4. ADG1408 bandwidth confirmation (UNVERIFIED-by-table flag).
-5. R-bank parallel-ladder value engineering (exact step table, §C.12).
+5. R-bank parallel-ladder value engineering (exact step table, §C.12) — now
+   at two scales (Pro ~64 / W ~120 units).
 6. Pod BOM when un-parked.
 7. One manual LCSC "Other Suppliers" RFQ on 63969-1 (price the China path).
-8. Duct P-Q measurement at chassis prototype → final fan lock.
+8. Duct P-Q measurement at chassis prototype → final fan lock (S12038-4K
+   basis, 11.45 mmH₂O headroom; W duct needs the two-lane variant measured).
+9. Display panel MPNs (main 2.8″ + bay 1.54″ IPS SPI module class) + bezel
+   mechanicals at the chassis quote; S12038-4K volume/3-pack quote at order.
+10. W bundle module manifest (4× 12VHPWR modules vs 2× + move-them) — sets
+    the Pro-W/Max-W bundle lists.

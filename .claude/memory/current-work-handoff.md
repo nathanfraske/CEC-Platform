@@ -795,3 +795,34 @@ OOS (module program, pre-OQ-86 escalation); TPS55289 OOS → design on TPS55288 
 AD9253 -105 grade flip (Max module program too); fans/bimetal/L2-DigiKey-only items.
 R-bank pivot: paralleled 50W units. Traps recorded in BOM §4. Next: owner nods on §5 items
 1-4; schematic pass can start on tester-standard or fast-channel-slice (bench-gate vehicle).
+
+## Tester sourcing ROUND 2 integrated → BOM v1.1 — 2026-07-16
+Register v2 (BOM §5): P4 ESCALATED — silicon transition v1.x→v3.x (X-suffix MPNs, fw NOT
+portable, SKU-conflation history, ZERO stock+listings anywhere; owner rules target rev —
+recommend v3.x C54540373 — and buys deep on restock; hits testers+12VHPWR-Pro+Hub-Pro).
+63969-1 DOWNGRADED (DK 30.8k @$0.152 etc.; owner's "LCSC marketplace" = RFQ-gated Other-
+Suppliers, manual RFQ queued; 63968-1 is the dry one). AD9253-105 FORCED (LCSC sole channel
+186 units — owner nod + buy-ahead; Max module program too). TPS55288 dual-sourced RESOLVED.
+Fans tiered iPPC-3000/Arctic/SanAce. Bimetal = Cantherm CS712025Y NC. Totals v1.1: Pro
+$1,089 / Max $1,382 / ST $513-555; lists 2.7-4.3× landed. OWNER NODS OUTSTANDING: P4 target
+revision, AD9253-105 grade + buy-ahead qty, TPS55288 final, (earlier) slot-architecture +
+integrated-ST supersession + Bench-Unit field test. Next big step: schematic pass on
+fast-channel-slice (bench-gate vehicle) or tester-standard.
+
+## 2026-07-16 ~11:45 — Tester owner-steer round → BOM v1.2 (branch claude/pr50-firmware-review-wkvf7v)
+Owner steers, all landed+committed: (1) P4 RULED ride-out (design v3.x NRW32X, re-check at
+design lock; register §5.1 downgraded); (2) fans RULED Arctic S12038-4K (11.45mmH2O/106CFM/
+dual-ball/$14.99, spec-checked — beats iPPC-3000 at half price; 38mm not 30; duct P-Q still
+final lock; ST unified); (3) 2kW ballast RETIRED → ~3kW WORKSTATION tier, sketch NEW §13 +
+BOM NEW §3c: Pro-W ≈$1,635 → $4,995 (2.6×), Max-W ≈$1,955 → $7,995 (3.4×); POPULATION
+variants of pro/max boards (DESIGN-SHEET §H: design copper for W count day one — 13 loops/
+2×DAC/4×HPWR feeds/6 fans); anchor ASUS Pro WS 3000W ≈$1,036; excursion honesty fence stated
+(one fast ch ≈1.1kW-label whole-PSU 200%, Max-W ganged ≈2kW; 10ms+ recruits banks; also true
+on today's Pro — now explicit); (4) DISPLAYS (owner mid-turn): main 2.8" + per-bay 1.54" IPS
+SPI ~$3/bay RULED IN, empty=dark/logo, cec_telem renderers (sketch §5+§6, DESIGN-SHEET C.23,
+slot-deck headers). Totals v1.2: Pro $1,064 / Max $1,357 / ST $545/$589. Ladder: ST 1,299/
+1,499 / Pro 3,495 / Pro-W 4,995 / Max 5,995-6,995 / Max-W 7,995. Open owner nods: AD9253-105
++ buy-ahead, TPS55288 final, slot adoption, W bundle manifest (4×HPWR?), Pro-W list multiple.
+Files: sketch (§3a/§4/§5/§6/§8/§8a/§11/§13/§9.10-11), BOM v1.2 (header/§1/§2/§3/§3a/§3c/§5/
+§6), concept §1.2 annotation, testers/{tester-pro,tester-max,slot-deck}/README + DESIGN-SHEET
+(§A/§C.22-23/§H/§I), FOLLOWUPS, TODO.

@@ -16,8 +16,8 @@ verbatim.
 | Board | Tiers | Why it is its own board |
 |---|---|---|
 | `tester-standard/` | ST-1000/1300 (population variants, same copper) | C6-class control, no fast channel/OVP/streams — different compute + loop count than Pro |
-| `tester-pro/` | Pro | P4 + RS-485 + OVP-A + 8 verniers + SCP |
-| `tester-max/` | Max | Pro superset + on-board digitizer lane (AD9253+GW5A LVDS must stay short) + T1 PHY |
+| `tester-pro/` | Pro + **Pro-W** (~3 kW population variant, §H) | P4 + RS-485 + OVP-A + 8 verniers + SCP |
+| `tester-max/` | Max + **Max-W** (~3 kW population variant, §H) | Pro superset + on-board digitizer lane (AD9253+GW5A LVDS must stay short) + T1 PHY |
 | `fast-channel-slice/` | Pro ×1, Max ×2 | The µH-budget lives at the fixture — the slice's copper IS the circuit; separable bench-gate prototype |
 | `slot-deck/` | all | Thick-copper blade fields + load-bus routing + Hub bay; mechanically chassis-bound, revs with fixture geometry not electronics |
 | `hpwr-fixture-head/` | all | The per-test wear position; replaceable by design |
@@ -138,7 +138,20 @@ Format: component → board/zone → rule → why → how the pipeline checks it
     the de-gate rail (harness, not PCB) — the de-gate rail itself is a
     board net: route as a protected class, pull-downs at every gate driver.
 22. Fan headers: rear edge, tach lines to MCU; fan power from the PD/aux
-    domain never the load plane.
+    domain never the load plane. Fan SKU RULED (owner 2026-07-16): Arctic
+    S12038-4K, 4-pin PWM, 12 V/0.33 A class off a TPS54331 aux rail (6× on W
+    = 2 A — one buck, sized). 38 mm depth owned by the chassis duct drawing.
+
+**Displays (owner add 2026-07-16 — sketch §5)**
+23. **Main LCD (2.8″ IPS SPI) + per-bay LCDs (1.54″ IPS SPI)** → main screen
+    on the front-panel harness from Z1; bay screens mount at the deck slots
+    (header per slot — see slot-deck README) → ONE shared SPI bus (SPI/
+    Digital class) + 74HC595 CS fan-out + one shared backlight-PWM rail;
+    connectors keyed; harness lengths ≤400 mm at 10–20 MHz SPI (numeric
+    repaint only, 5–10 Hz). IPS TFT NOT OLED (static-readout burn-in —
+    reliability posture §10). Why: load readout on the box face; unpopulated
+    bay = dark/logo. Check: BOM-lint asserts panel MPN + 595 present when
+    any bay-LCD header is placed; SPI class length rule on the chain.
 
 ## D. Routing standards (netclass table — seeds .kicad_pro + .kicad_dru)
 
@@ -207,10 +220,21 @@ LVDS lane plane-integrity rule (new, Max only).
 
 - **ST**: 4 CC loops (12V/5V/3.3V/5VSB-peak), PWM+RC setpoints (no DAC),
   no OVP/no slice position/no stream silicon; otherwise identical rules.
+  Displays kept (main + ~6 bay, §C.23; C6 drives them via the same 595).
 - **Pro**: full §C as written.
 - **Max adds**: digitizer lane rules (LVDS class, AFE mux stubs ≤10 mm,
   AGND island policy per the AD9253 DS (grade: -105 recommended post-sourcing, C514281); AFE = ADA4930-1 LFCSP-16 drivers + ADG1408 TSSOP-16 mux (mux BW = confirm-before-lock flag)), T1 PHY cell,
   second slice position, OVP characterization = firmware only.
+- **Pro-W / Max-W (~3,000 W Workstation, owner 2026-07-16 — sketch §13, BOM
+  §3c): POPULATION variants of tester-pro/tester-max, NOT new boards.**
+  Design the Pro/Max copper for the W population count from day one: ~13
+  vernier loop positions (2× DAC80508 footprints, second DNP on Pro), bank
+  switching array sized for ~120× 50 W legs (Pro populates ~64), 4× HPWR
+  fixture feed positions (Pro populates 1), extrusion edge sized for the
+  ~500 mm class, 6 fan headers (Pro populates 4), 11 bay-LCD CS lines. The
+  W chassis (two-lane duct, ~430×450×170) and the W slot-deck length variant
+  are the only new mechanical items. Max-W gangs the two fast-channel slice
+  positions (whole-PSU 200 % fence per sketch §13).
 
 ## I. Open items on this sheet
 
@@ -218,7 +242,8 @@ LVDS lane plane-integrity rule (new, Max only).
    WQFN-16 3×3; OPA2277UA SOIC-8; TPH2502 SOP-8; CH224K ESSOP-10; THVD1450
    SOIC-8; TPS55288 VQFN-26-HR (the in-stock OVP pick); HFD4/5-SR SMD relay;
    ADA4930-1 LFCSP-16; ADG1408 TSSOP-16; 88Q2110 QFN-40. Supply-risk
-   register: BOM doc §5 (P4 OOS = risk #1).
+   register: BOM doc §5 (P4 blip = owner-ruled ride-out 2026-07-16; design
+   against v3.x NRW32X).
 2. Bank step ladder + leg fusing table (sketch §9.1) → freezes §C.12
    quantities.
 3. Slice bus geometry study (the µH budget worked example) before the

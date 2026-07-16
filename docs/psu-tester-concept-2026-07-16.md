@@ -29,7 +29,8 @@ is commentary.
    indicator-only fence), a second fast channel / switch matrix, an OVP
    sourcing stage (Table 4-13 windows), the phase-controlled AC-interrupter
    accessory (absolute hold-up + true T5), Pro/Max-class module set, optional
-   2000 W ballast.
+   2000 W ballast. *(2 kW ballast RETIRED 2026-07-16, owner — superseded by
+   the ~3,000 W WORKSTATION tier, Pro-W/Max-W: architecture sketch §13.)*
 3. **Pricing (canonical, supersedes the draft's $1.5–4k guesses):** Pro
    **$3,495 tester-only / $3,995 with modules**; Max **$5,995–6,995** with
    modules + AC accessory. BOM $1,050–1,600 / $1,490–2,370; margin honesty

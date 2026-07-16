@@ -11,4 +11,8 @@ per-family patterns (24-pin 10 + J_SIG 1×4 socket, EPS 6/cable, PCIe 6/cable)
 Routes slot fields to the load bus + carries the Hub dock bay RJ-45 channel
 positions. Keying checker must prove no family seats in another family's
 field INCLUDING any deck rotations. Gang-insertion mechanics (260–440 N on
-24-pin) = OQ-86-extension sample gate before fab.
+24-pin) = OQ-86-extension sample gate before fab. LENGTH VARIANTS: standard
+deck (Pro/Max/ST) vs the W deck (4× 12VHPWR slots — sketch §13(e); decide
+one-long-board vs deck-segments before the blade-field drawing freezes).
+Each slot position carries its bay LCD header (1.54″ SPI + CS line from the
+74HC595 chain, sketch §5) so the screen sits AT the slot it reports.

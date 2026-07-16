@@ -243,3 +243,4 @@ Times are UTC.
 - [x] [added 2026-07-07 · done 2026-07-07] Beta module additions + net sweep (owner directive): GPIO0 decoupler ×5 (+gen-modules), 24-pin 4-rail fast detection (INA181+TLV+2 caps each), decoupler/naming/trace-width sweep. Pushed 443c81e7..81b925de. Findings → owner-queue §8 (INA238 supply mis-wire CRITICAL, stale netclasses, TPS2121 input bypass).
 - [x] [added 2026-07-16 09:05] PSU tester: integrate 4-agent sourcing results → BOM v1 (sourced) + commit staged lib assets · done 2026-07-16 10:40
 - [x] [added 2026-07-16 09:05] PSU tester: board folders (testers/) + exhaustive DESIGN-SHEET.md; fill per-component packages after BOM v1 lands · done 2026-07-16 10:40
+- [x] [added 2026-07-16 11:05] PSU tester: owner steers round — P4 ride-out, fans → Arctic S12038-4K, 2 kW ballast RETIRED → ~3 kW Workstation tier (Pro-W/Max-W) engineering + per-bay LCD displays + BOM v1.2 · done 2026-07-16 11:45

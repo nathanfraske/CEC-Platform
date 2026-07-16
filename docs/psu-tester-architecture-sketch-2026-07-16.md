@@ -117,7 +117,7 @@ its own Kelvin shunt + fast comparator → µs "pulse-actual" stamp
 | Test | Pro | Max | How |
 |---|---|---|---|
 | **OCP** (per rail) | **YES** | YES | Vernier/bank staircase ramp until trip; trip edge stamped µs-grade by the §6.13 comparators (the 1 kHz INA path is the wrong clock — canonical OQ-11); records trip point + latch-vs-retry recovery via the PS_ON#/PWR_OK sequencer. Pass framing = Cybenetics convention (≤130 % single / ≤135 % multi; Intel publishes no numeric). |
-| **OPP** (whole-PSU) | **YES, bounded by installed sink** | YES (+2 kW option) | Coordinated multi-channel ramp. 1600 W installed hunts OPP on PSUs up to ~1.2 kW rated (OPP typically 120–150 % of label); the Max 2 kW ballast option extends to ~1.5 kW-class flagships. Plus the ATX 3.1 discrimination test the excursion channel makes possible: a compliant unit must RIDE 200 %/100 µs pulses without tripping yet still trip on sustained overload — both sides on one timeline. |
+| **OPP** (whole-PSU) | **YES, bounded by installed sink** | YES | Coordinated multi-channel ramp. 1600 W installed hunts OPP on PSUs up to ~1.2 kW rated (OPP typically 120–150 % of label); the **Workstation tier (§13, ~3 kW installed) extends the hunt to ~2.4 kW-class labels** — the old Max 2 kW ballast option is RETIRED (owner 2026-07-16, §13). Plus the ATX 3.1 discrimination test the excursion channel makes possible: a compliant unit must RIDE 200 %/100 µs pulses without tripping yet still trip on sustained overload — both sides on one timeline. |
 | **OVP** | **YES — check-grade (RULED §3d)**: go/no-go + module-measured trip voltage | **YES** (characterization: ramps, dV/dt, statistics) | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
 | **SCP** | YES | YES | Crowbar FET short (<0.1 Ω), spec-sanctioned-scary (canonical §3e): fire-posture workflow, PSU must survive by spec; 5VSB indefinite-short leg included. |
 | **UVP** | (via T6) | (via T6) | Intel defines no output-UVP number; the spec mechanism is PWR_OK deassert — covered by the T6 early-warning test (>1 ms before rails leave regulation), measured by the 24-pin module. |
@@ -241,9 +241,18 @@ FRONT INTAKE ─▶ [electronics + shunts + DAC/MCU  (cool zone, ≤45 °C)]
 ```
 
 - **Numbers (canonical Q=ṁcpΔT):** 1600 W @ ΔT_air 20 °C → ~141 CFM real
-  delivered → **3–4× 120×25 PWM high-static fans, or 2× 120×38 server class**,
-  ducted (open-frame CFM ratings don't survive a resistor tunnel; budget ~2×
-  nameplate). 2000 W Max option = +1 fan + longer duct.
+  delivered → **4× Arctic S12038-4K** (OWNER STEER 2026-07-16; spec-sheet
+  checked: 120×120×**38** mm server fan — 11.45 mmH₂O static / 106 CFM
+  free-air / 600–4000 rpm PWM / dual Japanese ball bearing in brass / 3.96 W
+  / motor-cooling hub impeller / 6-yr warranty / $14.99 — MORE pressure than
+  the round-2 Noctua iPPC-3000 pick at half the price; budget the duct mouth
+  for the 38 mm depth), ducted (open-frame CFM ratings don't survive a
+  resistor tunnel; budget ~2× nameplate). Workstation tier (§13): ~3,000 W @
+  ΔT 20 °C → ~263 CFM delivered → **6× S12038-4K**, two-lane duct (the extra
+  fans also let the PWM curve sit lower for the same flow). The old "2000 W
+  Max option = +1 fan" line is RETIRED with the ballast (owner 2026-07-16,
+  §13). Acoustics posture unchanged: PWM floor 600 rpm keeps small tests
+  civil; full-power is loud and documented as such.
 - **Linear FET sink (~):** ~400 W on one 300 mm forced-air extrusion needs
   Rθ(sink-air) ~0.1 K/W — big but standard e-load practice (Rigol/Array
   pattern: shared extrusion + fans). Per-device: 100–150 W with Tj ≤125 °C,
@@ -289,6 +298,22 @@ racks get it for free; benches get a flat-top console).
 - **DUT parking**: beside the tester (PSUs vary too much to swallow one);
   optional side tray accessory later. Front-bay cable reach sized for a PSU
   sitting flush left or right (~0.5 m harness envelope).
+- **DISPLAYS (owner add, 2026-07-16): the box shows its load on its face.**
+  One MAIN front-panel TFT (2.8″ IPS 320×240 SPI class, ~$5) above the
+  connector bay: total W, per-rail summary, sequence state
+  (IDLE/POST/ARMED/RUN/SAFE), fault code. Plus **one small screen per module
+  bay** on the deck (1.54″ IPS 240×240 SPI module class, ~$3/bay —
+  BOM-checked and RULED IN at that cost): each bay renders ITS module's live
+  readout (V/A/W for that connector family); an **unpopulated bay sits dark
+  or shows the CEC logo splash**. IPS TFT deliberately, NOT OLED — static
+  numeric readouts burn OLEDs over shop-years (§10 reliability posture).
+  Drive: one shared SPI bus + 74HC595 CS fan-out + shared backlight PWM
+  (trivial on the P4; fits the ST tier's C6 pin budget via the same
+  expander); 5–10 Hz numeric repaint. The bay screens are **cec_telem
+  renderers** (§6) — the tester already hears every module's telemetry on
+  the suite CAN, so this is firmware + glass, zero new protocol. Standalone
+  (no modules docked) they show the tester's own loop-shunt actuals tagged
+  "actuator-grade" — the accuracy doctrine stays honest on-glass.
 
 ## 6. Data plane (in and out)
 
@@ -324,6 +349,10 @@ racks get it for free; benches get a flat-top console).
   self-power — the §6.14 posture with the OQ-85 CDC/HID composite identity.
   Max digitizer windows: through the Max Hub's egress in-suite, or the
   tester USB standalone.
+- **Bay screens are pure telemetry renderers** (§5 displays): the per-bay
+  LCDs repaint the 5 Hz cec_telem frames the tester already receives as a
+  bus node — no new data path, no waveforms on glass, and the main screen's
+  total-load figure is the same joined view the host report uses.
 
 ## 7. Cross-timing to the modules (the measurement-truth clock)
 
@@ -361,7 +390,7 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
 | | Pro | Max |
 |---|---|---|
 | Compute | **ESP32-P4** + TJA1051 + RS-485 TX (REV B: the Pro-tier streaming-module pattern — same reason the 12VHPWR Pro is P4) | ESP32-P4 + GW5A-25 (digitizer only) + ONE 100BASE-T1 PHY (module link, §13.2a pattern) + TJA1051 |
-| Load plane | R-banks + 8 verniers + ONE fast channel (12V-2x6 path) | + switch matrix (fast channel → EPS too), optional 2000 W banks |
+| Load plane | R-banks + 8 verniers + ONE fast channel (12V-2x6 path) | + switch matrix (fast channel → EPS too); 2000 W bank option RETIRED (owner 2026-07-16 → Workstation tier, §13) |
 | Analog add-ons | ripple *indicator* + scope BNC taps | 20 MHz AFE ×4 → mux → AD9253 (spec-grade ripple, waveforms) |
 | OVP | not claimed | TPS55289 sourcing stage behind relay |
 | Hold-up | **absolute (12/17 ms) via the AC sense pod + any commodity listed cut switch** — §3c | same, + pod analog into the AFE = sample-exact cut waveform |
@@ -372,7 +401,7 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
 
 | Line (class prices, canonical + component-research basis) | **Pro** | **Max adds** |
 |---|---|---|
-| Resistive banks (~3.2 kW installed @100 W alu-shell + plates) | $200–300 | — (+$100–150 for the 2 kW option) |
+| Resistive banks (~3.2 kW installed @100 W alu-shell + plates) | $200–300 | — (2 kW option RETIRED → §13 Workstation) |
 | Bank switching (commodity FETs, drivers, fuses) | $50–80 | — |
 | Linear verniers (8× L2 + ballast + sink share; SKU-ladder swing TO-247 vs TO-264) | $150–350 | — |
 | Fast excursion channel (3–4× L2, fast loop, shaper, Kelvin shunt) | $150–250 | 2nd channel/matrix +$150–250 |
@@ -479,7 +508,12 @@ streams/digitizer, ripple = one BNC tap. The $15-tester kill-line:
   the load node (upgrade path intact); its integrated sensing then defers
   to inline modules when present.
 - Cooling: same doctrine, smaller — 1000 W ≈ 88 CFM (2 fans), 1300 W ≈
-  115 CFM (3 fans); same console family, shorter duct.
+  115 CFM (3 fans); same console family, shorter duct. Fan SKU: unify on the
+  Arctic S12038-4K (owner fan steer 2026-07-16; +$4–6 over the P12 Max buys
+  one spare-fan SKU platform-wide + kills any ST duct-pressure doubt).
+- **Displays KEPT at ST** (owner add 2026-07-16, §5): main screen + ~6 bay
+  screens ≈ $28 — the value line's "ready to go" face; a $1,299 box that
+  shows live per-connector numbers on glass is the whole demo.
 
 **BOM sketch (integrated config):** ST-1000 ≈ **$537** (sensing blocks ~$35,
 vernier pack $37, R-banks+switching $135, SCP $26, chassis/fans/sink $152,
@@ -560,6 +594,85 @@ cover: measured gang insertion on real boards, blade-field position
 tolerance across 10 joints, and module support rails vs the horizontal
 mating shear of PSU-cable insertion.
 
+## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
+
+**Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.
+Go big or go home, Max Workstation or Pro Workstation (if Pro tier is doable
+and makes sense price wise), ~3000W effective, as workstation grade PSUs of
+that price point are becoming mainstream."*
+
+**The breaker logic, spelled out (why the 2 kW half-step was dead anyway):** a
+DUT loaded past ~1,800 W already exceeds a US 15 A/120 V branch circuit — any
+shop testing above that has a 240 V (or 20 A/120 V) bench drop, and a shop
+with a 240 V drop is servicing the real workstation class, not a 2 kW
+half-step. Serve the class properly instead. The TESTER itself is unaffected
+by the wall question: it stays a SELV, PD-self-powered sink (6 fans ≈ 24 W +
+electronics ≈ 20 W — inside one USB-C PD budget); the DUT's mains circuit is
+the shop's problem, exactly as at 1600 W.
+
+**Market anchor (checked live 2026-07-16):** ASUS Pro WS Platinum ships
+1600/2200/**3000 W** ATX 3.1 workstation PSUs — the 3000 W at ~$1,036 street,
+positioned for 4× RTX 5090 / RTX PRO 6000 builds — with Super Flower (2800 W)
+and FSP (2500 W) in the same class. A ~$1k, 3 kW, 12V-2x6-native PSU is a
+mainstream workstation part now, and nothing on the market load-tests one
+ATX-natively. The owner's "becoming mainstream" read checks out.
+
+**What scales (population, not architecture — ONE Workstation chassis
+platform, two SKUs, same board set as Pro/Max):**
+
+- **Fixture bay:** **4× 12V-2x6 heads** (the 4-GPU reality) + 2× EPS + 2–3×
+  PCIe legacy + 24-pin ≈ 3.5 kW connector capacity, **3.0 kW continuous
+  rating** (same capacity-vs-rating convention as Pro's 1600-in-2.0 kW).
+- **Load plane:** R-banks → ~120× paralleled 50 W units (~6.0 kW installed at
+  the 50 % derate doctrine); verniers 8 → ~13 L2 devices (one per big
+  channel); 2× DAC80508 (16 ch); FET extrusion 300 → ~500 mm class (vernier
+  share ~600–750 W); SCP crowbars per-rail unchanged in design (+2 blocks for
+  the extra 12V-2x6 rails — per-rail energy stays DUT-OCP-bounded, same §3b
+  math).
+- **Thermal (§4):** ~263 CFM delivered → 6× Arctic S12038-4K, two-lane duct;
+  console grows to ~430 × 450 × 170 mm, ~14–16 kg; same IEC 62368 touch-limit
+  grille rules; PD self-power still holds.
+- **Displays (§5):** main + ~11 bay screens (4 HPWR bays).
+- **Excursion honesty at 3 kW (the one real fence — and it surfaces a fence
+  Pro already had implicitly):** per-HEAD excursions are FULLY covered on any
+  DUT — the matrix points a fast channel at any 12V-2x6/EPS head, and the
+  per-connector pulse class doesn't grow with DUT wattage. WHOLE-PSU
+  200 %/100 µs needs delta ≈ 100 % of label above the banks' base load: one
+  fast channel (~90–100 A ≈ 1.1–1.2 kW delta) covers whole-PSU 200 % on DUTs
+  to ~1.1 kW label — true on today's Pro too, now stated; Max-W's TWO
+  channels ganged ≈ 2.2–2.4 kW delta → whole-PSU 200 % into the ~2 kW-label
+  class. For 10 ms+ excursion steps the R-banks join (ms-class switching) →
+  full-3-kW-delta claims live there. 3 kW-label whole-PSU 200 %/100 µs is
+  **NOT claimed in v1** (the report prints the coverage explicitly); a third
+  fast-channel population could close it later (open question).
+- **OPP hunt** extends to ~2.4 kW labels (120–150 % rule); on a 3 kW flagship
+  the report prints "OPP not reached ≤3.0 kW" — itself a shop-useful verdict.
+
+**Is Pro Workstation "doable and price-sensible"? YES — recommended.** The
+delta over Pro is ~$570 BOM, almost all passive scaling (resistors, +5 FETs,
+metal, +2 fans, +3 screens) — zero new engineering beyond the shared W
+chassis/thermal platform Max-W needs anyway — and $4,995 fills the
+$3,495 ↔ $5,995 ladder gap cleanly. Two SKUs, one platform, population
+deltas only: the platform's SKU-ladder pattern.
+
+**First-cut numbers (BOM v1.2 §3c):** Pro-W BOM ≈ $1,635 → landed ≈ $1,945 →
+**$4,995 list (2.6×)**; Max-W ≈ $1,955 → landed ≈ $2,325 → **$7,995 list
+(3.4×)**. The full ladder: ST-1000 $1,299 / ST-1300 $1,499 / Pro $3,495
+(bundle $3,995) / **Pro-W $4,995** / Max $5,995–6,995 / **Max-W $7,995**;
+W bundles run +$800–1,500 over tester-only, dominated by the 4×
+12VHPWR-module manifest (open question below). Margin honesty: Pro-W's 2.6×
+sits below the platform 3× convention but above capital-equipment norms —
+same standing owner call as the other tiers; $5,295–5,495 is the 3×-adjacent
+alternative if the convention must hold.
+
+**W-tier open questions:** (a) bundle module manifest — do W bundles ship 4×
+12VHPWR modules (real landed money, especially 4× 12VHPWR-Pro on Max-W) or
+2× plus a move-them workflow? (b) the whole-PSU-200 % fast-vs-bank split
+wants the schematic-pass step-table treatment; (c) W chassis/two-lane-duct
+quote; (d) is a third fast-channel population worth offering to close the
+3 kW-label 200 % gap? (e) deck length for 4 HPWR slots — coordinate with §12
+before the blade-field drawing freezes.
+
 ## 9. Open sketch questions (for the schematic pass)
 
 1. R-bank step ladder per channel (binary vs 1-2-5) + exact leg counts.
@@ -593,3 +706,11 @@ mating shear of PSU-cable insertion.
    ingest — the hardware sketch for it lives in this doc's git history at
    the REV A commit). Owner's lean: consolidation "feels clumsy"; decide
    from field feedback, not architecture taste.
+10. **Workstation tier open set (§13):** W bundle module manifest (4× HPWR
+    modules vs 2× + move-them), whole-PSU-200 % fast-vs-bank step table, W
+    chassis/two-lane-duct quote, third-fast-channel population option, deck
+    length for 4 HPWR slots (coordinate with §12).
+11. **Display subsystem details (§5):** exact LCSC panel MPNs (main 2.8″ +
+    bay 1.54″ IPS SPI module class) + bezel/harness mechanicals at the
+    chassis quote; logo splash asset; bay-screen↔slot mapping when the deck
+    drawing lands.

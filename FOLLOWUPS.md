@@ -454,3 +454,19 @@ Conventions:
   (4) AD9253 grade flip (-105 now cheaper than doubled -80 — affects Max module program);
   (5) fan class re-select at order; (6) KSD9700 NC-contact verification; (7) L2 FETs =
   DigiKey-only class permanently. Design-sheet package rows filled; staging assets committed.
+- [2026-07-16] TESTER OWNER-STEER ROUND → **BOM v1.2** (docs/psu-tester-bom-draft-2026-07-16.md)
+  + sketch §13/§5-displays: (1) **P4 supply RULED ride-out** (Pro/Max ship far out; standing
+  discipline: design on v3.x NRW32X, written revision-confirm at order, re-check at design
+  lock — no buy action); (2) **fans RULED Arctic S12038-4K** (spec-checked 11.45 mmH₂O /
+  106 CFM / dual-ball / $14.99 — beats the iPPC-3000 pick at half price; 38 mm deep not 30;
+  duct P-Q stays the final lock; ST unify recommended); (3) **2 kW ballast RETIRED → ~3,000 W
+  WORKSTATION tier** (owner: over a US breaker anyway; anchor = ASUS Pro WS 3000W ≈$1,036):
+  Pro-W ≈$1,635 BOM → $4,995 (2.6×), Max-W ≈$1,955 → $7,995 (3.4×) — POPULATION variants of
+  the Pro/Max boards (copper designed for W count day one, DESIGN-SHEET §H); W open set =
+  bundle module manifest (4× HPWR modules?), whole-PSU-200% fast-vs-bank step table, W
+  two-lane chassis quote, 3rd-fast-channel option, deck length; (4) **DISPLAYS added**
+  (owner): main 2.8″ + per-bay 1.54″ IPS SPI (~$3/bay RULED IN; empty bay = dark/logo;
+  cec_telem renderers — no new data path; IPS not OLED). Totals: Pro ≈$1,064 / Max ≈$1,357 /
+  Pro-W ≈$1,635 / Max-W ≈$1,955 / ST ≈$545/$589. Resume: display MPNs + W quotes at the
+  chassis pass; owner nods still open: AD9253-105 grade + buy-ahead, TPS55288 final, slot
+  adoption, W bundle manifest, Pro-W list ($4,995 vs 3×-adjacent $5,295–5,495).
