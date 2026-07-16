@@ -659,3 +659,18 @@ production sensing part going forward (24-pin rev3+, EPS/PCIe always were); INA2
 ONLY for the current bench units (24-pin alpha/rev2) — legacy, not extended. Recorded at:
 cec_sensors Kconfig INA228 help, ina228.h header, atx cec_config.h sensing block, FOLLOWUPS
 beta-line section. Branch claude/pr50-firmware-review-wkvf7v @ ec20940 pushed.
+
+## FIRMWARE STACK MERGED TO MAIN — 2026-07-16 (PR #50, merge commit 9972298)
+Full stack on main: subtree histories + 10 shared components + 7 proto apps + RTL + firmware-ci
++ the review branch work (persist contract w/ SPICE provenance, CEC_PERSIST_WRITE_BUDGET_MS=15,
+INA238-forward docs). Conflicts resolved on the PR branch (7cc0ef1: versions.env UNION,
+settings.json = main hooks + timeout 1800); firmware CI green (rtl-sim + 7 apps, push+PR).
+KNOWN RED, PRE-EXISTING (not firmware): main's kicad-checks host-suite leg has been FAILING
+since 2026-07-07 (4+ runs incl. tip 9192c62 pre-merge) — 14F+5E in tests.test_corridor_model /
+test_placer_oracle / test_stagger_feedback (EPS/Hub geometry assertions; likely broken by the
+July board-outline work, PR #67/#68 era). Verified identical on clean main worktree. OWNER/next
+session: fix or re-baseline those 19 tests — checklist.sh swallows their output (>/dev/null).
+OWNER handoff (PR50 A5): archive cec-24pin-idf + cec-eps-idf, tag archived-pre-monorepo.
+NOTE: main sessions now run firmware/tools/setup-esp-idf.sh in SessionStart (timeout 1800).
+Branches claude/happy-albattani-sirlzt + claude/pr50-firmware-review-wkvf7v both = 7cc0ef1,
+fully contained in main — safe to delete.
