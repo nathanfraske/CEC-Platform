@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 660" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="fl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#b3541e"/></marker>
+    <marker id="sg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#2b6cb0"/></marker>
+  </defs>
+  <rect width="1240" height="660" fill="#fdfcf9"/>
+  <text x="24" y="34" font-size="19" font-weight="bold" fill="#1a202c">The three load paths — as schematics</text>
+  <text x="24" y="52" font-size="11.5" fill="#4a5568">Every path runs rail → return. Amber = load current · blue = sense · green = control · red dashes = the de-gate dead-man rail</text>
+
+  <!-- ================= PANEL 1: BANK LEG ================= -->
+  <text x="200" y="86" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#7b3410">1 · Bank leg — FET as light switch</text>
+  <line x1="90" y1="105" x2="310" y2="105" stroke="#1a202c" stroke-width="2.5"/>
+  <text x="92" y="99" font-size="11" font-weight="bold" fill="#1a202c">+12V BUS</text>
+  <line x1="200" y1="105" x2="200" y2="122" stroke="#1a202c" stroke-width="2"/>
+  <!-- resistor zigzag -->
+  <polyline points="200,122 208,128 192,140 208,152 192,164 208,176 200,182" fill="none" stroke="#1a202c" stroke-width="2"/>
+  <text x="214" y="150" font-size="11">R_leg 6Ω / 50 W</text>
+  <text x="214" y="164" font-size="10" fill="#718096">(on the chassis plate)</text>
+  <line x1="200" y1="182" x2="200" y2="212" stroke="#1a202c" stroke-width="2"/>
+  <!-- NFET: drain top, source bottom, gate left -->
+  <line x1="200" y1="212" x2="200" y2="224" stroke="#1a202c" stroke-width="2"/>
+  <line x1="184" y1="224" x2="184" y2="260" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="176" y1="228" x2="176" y2="256" stroke="#1a202c" stroke-width="2"/>
+  <line x1="184" y1="228" x2="200" y2="228" stroke="#1a202c" stroke-width="2"/>
+  <line x1="184" y1="256" x2="200" y2="256" stroke="#1a202c" stroke-width="2"/>
+  <path d="M192,242 L184,242" stroke="#1a202c" stroke-width="2"/>
+  <path d="M186,242 L193,238 L193,246 z" fill="#1a202c"/>
+  <line x1="200" y1="228" x2="200" y2="224" stroke="#1a202c" stroke-width="2"/>
+  <line x1="200" y1="256" x2="200" y2="268" stroke="#1a202c" stroke-width="2"/>
+  <text x="208" y="246" font-size="11">AOD4184A</text>
+  <text x="208" y="259" font-size="10" fill="#718096">low-side switch (mΩ)</text>
+  <!-- gate network -->
+  <line x1="100" y1="242" x2="130" y2="242" stroke="#276749" stroke-width="1.8"/>
+  <rect x="130" y="237" width="24" height="10" fill="none" stroke="#276749" stroke-width="1.5"/>
+  <line x1="154" y1="242" x2="176" y2="242" stroke="#276749" stroke-width="1.8"/>
+  <text x="98" y="232" font-size="10.5" fill="#276749">GROUP_EN</text>
+  <text x="132" y="231" font-size="9.5" fill="#276749">100R</text>
+  <!-- gate pulldown to de-gate -->
+  <line x1="163" y1="242" x2="163" y2="268" stroke="#9b2c2c" stroke-width="1.5"/>
+  <rect x="158" y="268" width="10" height="22" fill="none" stroke="#9b2c2c" stroke-width="1.5"/>
+  <line x1="163" y1="290" x2="163" y2="560" stroke="#9b2c2c" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="120" y="283" font-size="9.5" fill="#9b2c2c">pull-dn</text>
+  <!-- fuse -->
+  <line x1="200" y1="268" x2="200" y2="282" stroke="#1a202c" stroke-width="2"/>
+  <rect x="192" y="282" width="16" height="30" fill="none" stroke="#1a202c" stroke-width="2"/>
+  <line x1="200" y1="282" x2="200" y2="312" stroke="#1a202c" stroke-width="1.2"/>
+  <text x="214" y="301" font-size="11">ATOF fuse</text>
+  <line x1="200" y1="312" x2="200" y2="340" stroke="#1a202c" stroke-width="2"/>
+  <!-- GND -->
+  <line x1="184" y1="340" x2="216" y2="340" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="190" y1="346" x2="210" y2="346" stroke="#1a202c" stroke-width="2"/>
+  <line x1="196" y1="352" x2="204" y2="352" stroke="#1a202c" stroke-width="2"/>
+  <!-- current arrow -->
+  <path d="M250,120 L250,330" stroke="#b3541e" stroke-width="3" fill="none" marker-end="url(#fl)" opacity="0.85"/>
+  <text x="257" y="220" font-size="10.5" fill="#b3541e">2.0 A exactly</text>
+  <text x="257" y="233" font-size="10.5" fill="#b3541e">(Ohm's law:</text>
+  <text x="257" y="246" font-size="10.5" fill="#b3541e">12 V ÷ 6 Ω)</text>
+  <text x="60" y="380" font-size="10.5" fill="#4a5568">× N legs in parallel per switched GROUP</text>
+  <text x="60" y="394" font-size="10.5" fill="#4a5568">(1/1/2/4/8/16) — load in binary. FET is</text>
+  <text x="60" y="408" font-size="10.5" fill="#4a5568">fully ON or fully OFF, never in between;</text>
+  <text x="60" y="422" font-size="10.5" fill="#4a5568">the RESISTOR does all the dissipating.</text>
+
+  <!-- ================= PANEL 2: VERNIER ================= -->
+  <text x="620" y="86" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#7b3410">2 · Vernier — FET as the load (closed loop)</text>
+  <line x1="500" y1="105" x2="740" y2="105" stroke="#1a202c" stroke-width="2.5"/>
+  <text x="502" y="99" font-size="11" font-weight="bold">+12V BUS</text>
+  <line x1="660" y1="105" x2="660" y2="128" stroke="#1a202c" stroke-width="2"/>
+  <!-- L2 FET -->
+  <line x1="644" y1="128" x2="644" y2="164" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="636" y1="132" x2="636" y2="160" stroke="#1a202c" stroke-width="2"/>
+  <line x1="644" y1="132" x2="660" y2="132" stroke="#1a202c" stroke-width="2"/>
+  <line x1="644" y1="160" x2="660" y2="160" stroke="#1a202c" stroke-width="2"/>
+  <path d="M646,146 L653,142 L653,150 z" fill="#1a202c"/>
+  <line x1="660" y1="128" x2="660" y2="132" stroke="#1a202c" stroke-width="2"/>
+  <line x1="660" y1="160" x2="660" y2="176" stroke="#1a202c" stroke-width="2"/>
+  <text x="668" y="142" font-size="11">IXTH75N10L2</text>
+  <text x="668" y="155" font-size="10" fill="#718096">L2 linear FET, half-on:</text>
+  <text x="668" y="168" font-size="10" fill="#9b2c2c" font-weight="600">dissipates (12 V − drops) × I</text>
+  <text x="668" y="181" font-size="10" fill="#718096">tab bolted to the extrusion</text>
+  <!-- ballast -->
+  <polyline points="660,176 668,182 652,192 668,202 652,212 660,218" fill="none" stroke="#1a202c" stroke-width="2"/>
+  <text x="676" y="200" font-size="10.5">ballast R (share/stability)</text>
+  <line x1="660" y1="218" x2="660" y2="236" stroke="#1a202c" stroke-width="2"/>
+  <!-- shunt -->
+  <rect x="648" y="236" width="24" height="34" fill="#fff" stroke="#1a202c" stroke-width="2"/>
+  <text x="678" y="252" font-size="10.5">1 mΩ Kelvin shunt</text>
+  <circle cx="648" cy="240" r="2.2" fill="#2b6cb0"/>
+  <circle cx="648" cy="266" r="2.2" fill="#2b6cb0"/>
+  <line x1="660" y1="270" x2="660" y2="340" stroke="#1a202c" stroke-width="2"/>
+  <line x1="644" y1="340" x2="676" y2="340" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="650" y1="346" x2="670" y2="346" stroke="#1a202c" stroke-width="2"/>
+  <line x1="656" y1="352" x2="664" y2="352" stroke="#1a202c" stroke-width="2"/>
+  <!-- op-amp -->
+  <path d="M520,196 L520,244 L566,220 z" fill="#fff" stroke="#276749" stroke-width="2"/>
+  <text x="527" y="212" font-size="11" fill="#276749">+</text>
+  <text x="527" y="238" font-size="11" fill="#276749">−</text>
+  <text x="506" y="188" font-size="10.5" fill="#276749">OPA2277 ½</text>
+  <!-- setpoint in -->
+  <line x1="470" y1="208" x2="520" y2="208" stroke="#276749" stroke-width="1.8"/>
+  <text x="440" y="198" font-size="10" fill="#276749">SETPOINT</text>
+  <text x="440" y="210" font-size="9.5" fill="#276749">(PWM→RC,</text>
+  <text x="440" y="221" font-size="9.5" fill="#276749">crosses harness)</text>
+  <!-- sense feedback from shunt top pad -->
+  <path d="M648,240 L600,240 L600,232 L520,232" stroke="#2b6cb0" stroke-width="1.6" fill="none" marker-end="url(#sg)"/>
+  <text x="560" y="252" font-size="9.5" fill="#2b6cb0">sense: I × 1 mΩ (pad inner edge)</text>
+  <!-- opamp out to gate -->
+  <path d="M566,220 L600,220 L600,146 L618,146" stroke="#276749" stroke-width="1.8" fill="none"/>
+  <rect x="618" y="141" width="18" height="10" fill="none" stroke="#276749" stroke-width="1.4"/>
+  <line x1="636" y1="146" x2="636" y2="146" stroke="#276749" stroke-width="1.8"/>
+  <text x="604" y="136" font-size="9.5" fill="#276749">gate R</text>
+  <!-- gate pulldown to degate -->
+  <line x1="610" y1="146" x2="610" y2="282" stroke="#9b2c2c" stroke-width="1.5"/>
+  <rect x="605" y="282" width="10" height="22" fill="none" stroke="#9b2c2c" stroke-width="1.5"/>
+  <line x1="610" y1="304" x2="610" y2="560" stroke="#9b2c2c" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <!-- loop annotation -->
+  <path d="M700,120 L700,330" stroke="#b3541e" stroke-width="3" fill="none" marker-end="url(#fl)" opacity="0.85"/>
+  <text x="707" y="222" font-size="10.5" fill="#b3541e">any current you ask</text>
+  <text x="707" y="235" font-size="10.5" fill="#b3541e">for, held exactly</text>
+  <text x="470" y="380" font-size="10.5" fill="#4a5568">The op-amp finds whatever gate voltage makes</text>
+  <text x="470" y="394" font-size="10.5" fill="#4a5568">measured = commanded. Whole analog loop lives</text>
+  <text x="470" y="408" font-size="10.5" fill="#4a5568">ON the hot slice — only the DC setpoint, enables</text>
+  <text x="470" y="422" font-size="10.5" fill="#4a5568">and trip flags ever cross the harness.</text>
+
+  <!-- ================= PANEL 3: CROWBAR ================= -->
+  <text x="1040" y="86" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#7b3410">3 · SCP crowbar — timed act of violence</text>
+  <line x1="920" y1="105" x2="1160" y2="105" stroke="#1a202c" stroke-width="2.5"/>
+  <text x="922" y="99" font-size="11" font-weight="bold">+12V AT FIXTURE</text>
+  <line x1="1080" y1="105" x2="1080" y2="120" stroke="#1a202c" stroke-width="2"/>
+  <!-- time fuse -->
+  <rect x="1072" y="120" width="16" height="28" fill="none" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1080" y1="120" x2="1080" y2="148" stroke="#1a202c" stroke-width="1.2"/>
+  <text x="1094" y="138" font-size="10.5">time-delay fuse</text>
+  <text x="1094" y="150" font-size="9.5" fill="#718096">(backstop if DUT never trips)</text>
+  <line x1="1080" y1="148" x2="1080" y2="168" stroke="#1a202c" stroke-width="2"/>
+  <!-- TVS across -->
+  <line x1="1080" y1="160" x2="1140" y2="160" stroke="#1a202c" stroke-width="1.6"/>
+  <path d="M1140,160 L1140,180 M1132,180 L1148,180 M1140,180 L1132,196 L1148,196 z M1132,196 L1148,196 M1140,196 L1140,216" stroke="#1a202c" stroke-width="1.6" fill="none"/>
+  <path d="M1148,216 L1132,216" stroke="#1a202c" stroke-width="1.6"/>
+  <line x1="1140" y1="216" x2="1140" y2="330" stroke="#1a202c" stroke-width="1.6"/>
+  <text x="1152" y="192" font-size="10">SMCJ15A TVS</text>
+  <text x="1152" y="204" font-size="9.5" fill="#718096">(eats the inductive kick)</text>
+  <!-- big FET -->
+  <line x1="1064" y1="168" x2="1064" y2="204" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="1056" y1="172" x2="1056" y2="200" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1064" y1="172" x2="1080" y2="172" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1064" y1="200" x2="1080" y2="200" stroke="#1a202c" stroke-width="2"/>
+  <path d="M1066,186 L1073,182 L1073,190 z" fill="#1a202c"/>
+  <line x1="1080" y1="168" x2="1080" y2="172" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1080" y1="200" x2="1080" y2="218" stroke="#1a202c" stroke-width="2"/>
+  <text x="960" y="180" font-size="11" text-anchor="end">IRLB3034</text>
+  <text x="960" y="193" font-size="10" fill="#718096" text-anchor="end">mΩ switch, slammed</text>
+  <text x="960" y="205" font-size="10" fill="#718096" text-anchor="end">fully ON — opposite</text>
+  <text x="960" y="217" font-size="10" fill="#718096" text-anchor="end">philosophy to the L2</text>
+  <!-- fire gate -->
+  <line x1="1000" y1="186" x2="1056" y2="186" stroke="#276749" stroke-width="1.8"/>
+  <text x="1000" y="176" font-size="10" fill="#276749">FIRE (2-step arm)</text>
+  <line x1="1030" y1="186" x2="1030" y2="282" stroke="#9b2c2c" stroke-width="1.5"/>
+  <rect x="1025" y="282" width="10" height="22" fill="none" stroke="#9b2c2c" stroke-width="1.5"/>
+  <line x1="1030" y1="304" x2="1030" y2="560" stroke="#9b2c2c" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <!-- surge shunt -->
+  <rect x="1068" y="218" width="24" height="30" fill="#fff" stroke="#1a202c" stroke-width="2"/>
+  <text x="1098" y="236" font-size="10.5">surge shunt</text>
+  <circle cx="1068" cy="222" r="2.2" fill="#2b6cb0"/>
+  <path d="M1068,222 L1010,222 L1010,246" stroke="#2b6cb0" stroke-width="1.6" fill="none" marker-end="url(#sg)"/>
+  <text x="948" y="240" font-size="9.5" fill="#2b6cb0">comparator →</text>
+  <text x="948" y="252" font-size="9.5" fill="#2b6cb0">µs trip stamp</text>
+  <line x1="1080" y1="248" x2="1080" y2="340" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1064" y1="340" x2="1096" y2="340" stroke="#1a202c" stroke-width="2.5"/>
+  <line x1="1070" y1="346" x2="1090" y2="346" stroke="#1a202c" stroke-width="2"/>
+  <line x1="1076" y1="352" x2="1084" y2="352" stroke="#1a202c" stroke-width="2"/>
+  <path d="M1115,120 L1115,330" stroke="#b3541e" stroke-width="4" fill="none" marker-end="url(#fl)" opacity="0.85"/>
+  <text x="1120" y="280" font-size="10.5" fill="#b3541e">100s of amps,</text>
+  <text x="1120" y="293" font-size="10.5" fill="#b3541e">for milliseconds</text>
+  <text x="900" y="380" font-size="10.5" fill="#4a5568">Either the DUT's own protection trips (comparator</text>
+  <text x="900" y="394" font-size="10.5" fill="#4a5568">stamps the exact µs) or the time-fuse gives up.</text>
+  <text x="900" y="408" font-size="10.5" fill="#4a5568">Never dissipates long enough to need cooling.</text>
+
+  <!-- ============ SHARED RAILS ============ -->
+  <line x1="60" y1="560" x2="1180" y2="560" stroke="#9b2c2c" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="62" y="552" font-size="11" font-weight="bold" fill="#9b2c2c">DE-GATE RAIL — the dead-man line: pull-downs live ON the hot slice → unplugged harness = all gates grounded = NO LOAD. Default state is OFF.</text>
+
+  <path d="M200,470 L200,500 L620,500 M660,470 L660,500 M1080,470 L1080,500 L660,500" stroke="#1a202c" stroke-width="2.5" fill="none"/>
+  <circle cx="620" cy="500" r="5" fill="#1a202c"/>
+  <text x="200" y="464" font-size="9.5" fill="#718096" text-anchor="middle">bank returns</text>
+  <text x="660" y="464" font-size="9.5" fill="#718096" text-anchor="middle">vernier return</text>
+  <text x="1080" y="464" font-size="9.5" fill="#718096" text-anchor="middle">crowbar return</text>
+  <text x="620" y="524" font-size="11" font-weight="bold" text-anchor="middle">STAR POINT — every load return meets exactly once; sense/control grounds tie here and only here</text>
+  <text x="620" y="540" font-size="10" fill="#718096" text-anchor="middle">(a sense ground sharing a load return would read amps as phantom millivolts — the platform Kelvin doctrine at bus-bar scale)</text>
+
+  <text x="24" y="640" font-size="9.5" fill="#718096">CEC ST tester load paths · companion to the 2026-07-16 architecture chat · derived view of sketch §2/§3b + DESIGN-SHEET §C — values are LADDER v1 [wb]</text>
+</svg>
