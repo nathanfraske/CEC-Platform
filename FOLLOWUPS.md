@@ -385,3 +385,10 @@ Conventions:
   cleanest for the OEM/integrator channel. Owner raised 2026-07-16 ("we're a
   sub-assembly, should be documented"); write the posture into the spec/compliance doc
   when the regulatory section is drafted.
+- [2026-07-16] PSU tester component-class research done → docs/psu-tester-component-research-
+  2026-07-16.md (verdicts: Pro = ESP32-C6, NO FPGA; Max = P4 + GW5A-25, FPGA only for the
+  50-65MS/s digitizer lane reused from the Max module; linear-rated L2 FETs mandatory for
+  linear stages — IXTK90N25L2 verified LCSC C2831650 ~$40; DAC80508-class setpoint DAC;
+  TPS55289 OVP source; random-fire SSR for the AC accessory). Its §3 sourcing list (L2 SKU
+  ladder + pulse-SOA check, DAC80508 LCSC check, 50A 4-terminal shunt, fast op-amp, SSR MPN,
+  FT60x) is owed at the tester BOM-lock pass.
