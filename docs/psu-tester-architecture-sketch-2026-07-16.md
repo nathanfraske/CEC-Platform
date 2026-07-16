@@ -118,7 +118,7 @@ its own Kelvin shunt + fast comparator → µs "pulse-actual" stamp
 |---|---|---|---|
 | **OCP** (per rail) | **YES** | YES | Vernier/bank staircase ramp until trip; trip edge stamped µs-grade by the §6.13 comparators (the 1 kHz INA path is the wrong clock — canonical OQ-11); records trip point + latch-vs-retry recovery via the PS_ON#/PWR_OK sequencer. Pass framing = Cybenetics convention (≤130 % single / ≤135 % multi; Intel publishes no numeric). |
 | **OPP** (whole-PSU) | **YES, bounded by installed sink** | YES (+2 kW option) | Coordinated multi-channel ramp. 1600 W installed hunts OPP on PSUs up to ~1.2 kW rated (OPP typically 120–150 % of label); the Max 2 kW ballast option extends to ~1.5 kW-class flagships. Plus the ATX 3.1 discrimination test the excursion channel makes possible: a compliant unit must RIDE 200 %/100 µs pulses without tripping yet still trip on sustained overload — both sides on one timeline. |
-| **OVP** | **NO — physics, not a gap** | **YES** | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
+| **OVP** | **NO as ruled** — but a ~$15 minimal OVP-CHECK option exists (§3d, owner call) | **YES** (characterization) | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
 | **SCP** | YES | YES | Crowbar FET short (<0.1 Ω), spec-sanctioned-scary (canonical §3e): fire-posture workflow, PSU must survive by spec; 5VSB indefinite-short leg included. |
 | **UVP** | (via T6) | (via T6) | Intel defines no output-UVP number; the spec mechanism is PWR_OK deassert — covered by the T6 early-warning test (>1 ms before rails leave regulation), measured by the 24-pin module. |
 | OTP | NO | NO | Requires heat-soaking the DUT — out of scope both tiers (standing fence). |
@@ -196,6 +196,30 @@ being in the AC path**:
   be; the switching device is someone else's listed product. The
   phase-controlled AC-interrupter (a genuine mains product with its own
   listing burden) exits the roadmap entirely if this is ratified.
+
+## 3d. Minimal OVP on Pro (owner ask 2026-07-16 — OPTION, not yet ruled)
+
+The Max-only OVP fence was tier differentiation, not a cost wall — the
+sourcing stage is cheap. Two ways to give Pro a "minimal form":
+
+- **Option A (recommended): same part, firmware-scoped.** Put the identical
+  TPS55289 stage (+relay, ~$15–25) on Pro, but firmware-limit it to a
+  **go/no-go OVP CHECK**: lift the rail toward the Table 4-13 window-max
+  (time-boxed, current-limited, ceiling capped just past window-max so an
+  OVP-absent DUT sees only a ms-scale, margin-bounded lift), verdict =
+  trips/doesn't + the trip VOLTAGE — which the inline MODULES measure for
+  free (they are the voltmeter; 1 kHz is ample for a ms-class latch event).
+  Max keeps "OVP characterization": programmable approach ramps, per-window
+  dV/dt, repeatability statistics. One inventory line, honest tier split,
+  fits the platform's quality-first ruling ("better even if it costs a bit
+  more").
+- **Option B (cheaper, clunkier): fixed-point checker** — a fixed ~16 V
+  current-limited boost + resistor + rail-select signal relays (~$8–15),
+  same go/no-go verdict. Saves ~$10 over A, adds a second design to
+  maintain. Only worth it if Pro BOM pressure gets real.
+
+Either way the Pro report line upgrades from "OVP: not tested" to
+"OVP: checked (trip at X.XX V)" — a real shop-value bump for ~$15.
 
 ## 4. Cooling architecture (the big one — designed first)
 
@@ -340,6 +364,36 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
 | Hold-up | **absolute (12/17 ms) via the AC sense pod + any commodity listed cut switch** — §3c | same, + pod analog into the AFE = sample-exact cut waveform |
 | Data out | in-suite via Hub (CAN + RS-485 stream); standalone via own USB-HS | in-suite via Max Hub (CAN + T1 bidir); standalone via own USB-HS |
 | Chassis/cooling | identical 1600 W console | identical (+1 fan w/ 2 kW option) |
+
+## 8a. Honest BOM roll-up (REV B basis; sketch-grade ±, freeze at schematic)
+
+| Line (class prices, canonical + component-research basis) | **Pro** | **Max adds** |
+|---|---|---|
+| Resistive banks (~3.2 kW installed @100 W alu-shell + plates) | $200–300 | — (+$100–150 for the 2 kW option) |
+| Bank switching (commodity FETs, drivers, fuses) | $50–80 | — |
+| Linear verniers (8× L2 + ballast + sink share; SKU-ladder swing TO-247 vs TO-264) | $150–350 | — |
+| Fast excursion channel (3–4× L2, fast loop, shaper, Kelvin shunt) | $150–250 | 2nd channel/matrix +$150–250 |
+| Loops + analog (8 op-amps, DAC80508, 8× INA181+TLV7011, ref) | $60–90 | — |
+| SCP crowbar blocks (3–4 rails, §3b) | $40–70 | — |
+| Control (ESP32-P4, TJA1051, RS-485 TX, PD sink, misc) | $30–45 | T1 PHY +$5–8; PSRAM/support +$5–10 |
+| Digitizer lane (AD9253-80 + GW5A-25 + 4× 20 MHz AFE + mux) | — | +$115–130 |
+| OVP source (TPS55289 + relay + protection) | (Option A +$15–25, §3d) | +$15–25 |
+| AC sense pod (bundled, §3c) | $15–30 | — (pod analog → AFE is free) |
+| Fixture heads + front plate + internal bus | $80–120 | — |
+| PCBs (4-layer 2 oz, large) | $40–80 | +$10–20 |
+| Chassis, FET extrusion, fans, duct | $250–400 | — |
+| **BOM subtotal** | **~$1,065–1,815** | **~$1,365–2,260** (+2 kW option) |
+| Landed (+18–20 %, canonical convention) | ~$1,260–2,180 | ~$1,610–2,710 |
+| vs. ruled list ($3,495–3,995 / $5,995–6,995) | 1.8–2.8× | 2.2–3.7× |
+
+Deltas vs the canonical §6 table, honestly: the top of the Pro band rises
+~$100–200 because SCP blocks, the pod, and PCBs are now explicit lines the
+canonical folded into coarse classes; the Max band DROPS ~$100–150 because
+the mains AC-interrupter accessory ($80–150 + its own cert program) is
+replaced by the $15–30 sense pod. The canonical margin-honesty note stands:
+the low-mid BOM holds the ~3× convention; the high end runs
+capital-equipment multiples (1.8–2.5× is test-gear-normal) — owner call at
+pricing lock.
 
 ## 9. Open sketch questions (for the schematic pass)
 

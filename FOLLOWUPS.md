@@ -407,3 +407,9 @@ Conventions:
   hold-up/T5 to BOTH tester tiers and removes the AC-path cert burden entirely (sketch §3c).
   Bench items on ratification: edge latency vs cut phase, pickup geometry, CT class, resold
   listed trigger box vs shop-supplied.
+- [2026-07-16] Pro-tester minimal OVP option (owner ask, sketch §3d): recommend Option A —
+  same TPS55289 stage as Max (~$15-25), firmware-scoped to go/no-go + module-measured trip
+  voltage; Max keeps characterization (ramps/dV/dt/statistics). OWNER CALL to ratify (it
+  amends the canonical §6 tier split "OVP retiring fence at Max"). BOM roll-up landed in
+  sketch §8a: Pro ~$1,065-1,815 / Max ~$1,365-2,260 (+2kW option); Max DROPS vs canonical
+  because the mains interrupter died for the $15-30 sense pod.
