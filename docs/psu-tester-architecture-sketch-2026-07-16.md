@@ -861,6 +861,35 @@ SE up-tier $1,000–1,500 over the base SKU; built-to-order halo-unit
 economics; the unit doubles as a trade-counter demo of the shop's cooling
 work.
 
+**RIFF ADDENDUM (owner: "riff on it... commandeer CPU blocks — we dictate
+the mount... bling it out," 2026-07-16 night):**
+- **Commandeered-block architecture**: load banks become chassis-mounted
+  copper PEDESTALS (resistor legs soldered beneath) topped with standard
+  CPU mounting fields (LGA1700/AM5 hole patterns) — any premium retail
+  block bolts on; SE-W = six ~500 W "sockets." Pedestals torque against the
+  chassis plate, power via bus bars → ZERO PCB mounting stress (we dictate
+  the mount, so we delete the mounting problem).
+- **THE SLEEPER — thermal-test-vehicle mode**: bank-switch granularity =
+  programmable SPATIAL heat patterns per pedestal (center/edge/corner
+  hotspot emulation = a die simulator); loop in/out NTCs + flow turbine
+  (needed for interlocks anyway) → repeatable per-block CoP curves on the
+  CEC_MARK timeline. The SE is secretly a WATERBLOCK TEST BENCH — shop
+  content, review-lab sales (TTV buyers), a wedge nobody in the PSU-tester
+  or load-bank world occupies. Needs ONE calibration story: factory-
+  characterized pedestal thermal resistance (we control the whole stack).
+- **Partner co-brand numbered runs**: each block house supplies its block +
+  co-marketing (custom FET-rail block = the partner canvas; CPU-pattern
+  pedestals stay universal so owners re-block at will — which demos TTV).
+- **Bling with our own silicon**: lighting brain = the ARGB Standard module
+  (spec §7 — dogfoods a second platform product); light-as-instrumentation
+  (idle breathe / ARM amber sweep / RUN load-proportional color ramp /
+  pass green wave / SCP red strobe latched). Hardline runs, dual D5s,
+  edge-lit logo res, mirror-nickel sandwich plates w/ edge glow, anodized
+  QDC manifold w/ visible flow turbine, shop coolant dye.
+- **Keeps**: non-conductive coolant (shop practice), QDC + drain service
+  path, glass = built-to-order crating/mass, plates clear of the fast
+  channel, TTV factory pedestal calibration.
+
 **Open (before this leaves PROPOSED):** bank cold-plate trade study
 (array-on-plate vs chassis-mount resistors); leak-vs-electronics zoning in
 the shell; condensation non-issue confirm (loop runs above dew point — it
