@@ -1,0 +1,859 @@
+[22:57:00] promoted-corpus brief: 35 entrie(s) full (T5/T8 auditor) / 6 in-family (T1/T4 generation)
+[22:57:02] FULL-STACK: board=eps-8pin rounds=∞ hours=10.0 auditor=deepseek-v4-flash v4_every=4 verifier_budget=200 rule_cap=10 control_every=4 fence_nets=4 fence_refs=5
+[22:57:02] warming auditor seat deepseek-v4-flash at start (deep cold load)...
+[22:57:04]   warmed deepseek-v4-flash
+[22:57:05] GR-01 grid: 20 hotspots, contested=['GND', '+3V3', '/I2C_SDA', '+5VSB', '/I2C_SCL', '/THRESH']
+[22:57:05] board manifest: 49 placed refs, 54 nets
+[22:57:05] --- round 1/∞ [augmented] passes=24 opt=40 ---
+[22:57:51]   warmed cec-worker-vision
+[23:00:41]   T1 drop waypoint on fenced ref(s) ['U20'] (/DETAMPC1)
+[23:00:41]   T1 intents[model]: ['GND', '+3V3', '/THRESH', '/DETAMPC1'] -- The previous round successfully routed I2C and CAN nets. The current highest pri
+[23:00:58]   T2-3.5: gates=FAIL kelvin=True drc=11 plane=0 pours=4 max_T=120.5 fem_flags=7
+[23:01:20]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'accept')])
+[23:01:20]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 106.25, "foreign_cross": 15, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 88.64, "foreign_cross": 4, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.79, "foreign_cross": 4, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 112.06, "foreign_cross": 10, "components": 1}}
+./kicad/include/properties/property.h(607): assert "m_choices.GetCount() > 0" failed in PROPERTY_ENUM(): No enum choices defined
+./kicad/include/properties/property.h(607): assert "m_choices.GetCount() > 0" failed in PROPERTY_ENUM(): No enum choices defined
+./kicad/include/properties/property.h(607): assert "m_choices.GetCount() > 0" failed in PROPERTY_ENUM(): No enum choices defined
+[23:11:01]   T5: auditor=repair (no proposals)
+[23:11:01]   ACTUATOR: finding-delta D-r1-0 kind=noop status=pending -- unmapped lever: 'None'
+[23:11:01]   EI-07 real_anchor_ratio=0.8261 (det=19 model=4)
+[23:11:01] --- round 2/∞ [augmented] passes=38 opt=60 ---
+[23:11:04]   warmed cec-worker-vision
+[23:12:44]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (11) likely stemmed from nets passing through the SENSE CO
+[23:13:03]   T2-3.5: gates=FAIL kelvin=True drc=25 plane=0 pours=4 max_T=120.5 fem_flags=7
+[23:13:26]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'repair')])
+[23:13:26]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 121.0, "foreign_cross": 6, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.11, "foreign_cross": 6, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 83.88, "foreign_cross": 7, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 104.88, "foreign_cross": 9, "components": 1}}
+[23:13:29]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 25, 'unconnected': 2, 'length': 1150.01, 'vias': 123, 'tracks': 592, 'plane_signal_mm': 0, 'objective': 25274.6, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 7, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+[23:22:48]   T5: auditor=repair (no proposals)
+[23:22:48]   ACTUATOR: finding-delta D-r2-0 kind=noop status=pending -- unmapped lever: 'None'
+[23:22:48]   EI-07 real_anchor_ratio=0.8261 (det=19 model=4)
+[23:22:48] --- round 3/∞ [augmented] passes=46 opt=72 ---
+[23:22:50]   warmed cec-worker-vision
+[23:23:49]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (25) were likely caused by nets routing directly through t
+[23:24:06]   T2-3.5: gates=FAIL kelvin=True drc=14 plane=0 pours=4 max_T=120.5 fem_flags=7
+[23:24:30]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[23:24:30]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 83.97, "foreign_cross": 8, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 118.29, "foreign_cross": 8, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 119.87, "foreign_cross": 6, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.27, "foreign_cross": 6, "components": 1}}
+[23:33:01]   T5: auditor=repair (no proposals)
+[23:33:01]   ACTUATOR: finding-delta D-r3-0 kind=noop status=pending -- unmapped lever: 'None'
+[23:33:01]   EI-07 real_anchor_ratio=0.8261 (det=19 model=4)
+[23:33:01] --- round 4/∞ [control] passes=60 opt=92 ---
+[23:33:03]   warmed cec-worker-vision
+[23:34:11]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', 'GND'] -- Previous round failed due to structural DRC errors (14 violations). The router l
+[23:34:35]   T2-3.5: gates=FAIL kelvin=True drc=43 plane=0 pours=4 max_T=120.5 fem_flags=4
+[23:35:46]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept')])
+[23:35:47]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 84.71, "foreign_cross": 5, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 84.23, "foreign_cross": 24, "components": 2}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 75.34, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.7, "foreign_cross": 8, "components": 1}}
+[23:46:04]   T5: auditor=repair (no proposals)
+[23:46:04]   T8 V4 batch audit (4 rounds; warming V4)...
+[23:46:22]   warmed deepseek-v4-flash
+[23:53:01]   T8: risk=low declined=False findings=1
+[23:53:01]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[23:53:02] --- round 5/∞ [augmented] passes=60 opt=112 ---
+[23:53:09]   warmed cec-worker-vision
+[23:55:00]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (43) likely stem from nets passing through the 'Sense Corr
+[23:55:32]   T2-3.5: gates=FAIL kelvin=True drc=17 plane=0 pours=4 max_T=120.5 fem_flags=6
+[23:56:03]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[23:56:04]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 2, "area_mm2": 68.02, "foreign_cross": 9, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.38, "foreign_cross": 5, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 93.23, "foreign_cross": 11, "components": 1}, "/SENSEC2_HI": {"islands": 2, "area_mm2": 78.21, "foreign_cross": 10, "components": 2}}
+[23:56:07]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 17, 'unconnected': 3, 'length': 1098.88, 'vias': 138, 'tracks': 598, 'plane_signal_mm': 0, 'objective': 17382.31, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+23:56:07: Debug: Adding duplicate image handler for 'PNG file'
+23:56:07: Debug: Adding duplicate image handler for 'JPEG file'
+23:56:07: Debug: Adding duplicate image handler for 'TIFF file'
+23:56:07: Debug: Adding duplicate image handler for 'GIF file'
+23:56:07: Debug: Adding duplicate image handler for 'PNM file'
+23:56:07: Debug: Adding duplicate image handler for 'PCX file'
+23:56:07: Debug: Adding duplicate image handler for 'IFF file'
+23:56:07: Debug: Adding duplicate image handler for 'Windows icon file'
+23:56:07: Debug: Adding duplicate image handler for 'Windows cursor file'
+23:56:07: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+23:56:07: Debug: Adding duplicate image handler for 'TGA file'
+23:56:07: Debug: Adding duplicate image handler for 'XPM file'
+[00:08:34]   T5: auditor=repair (no proposals)
+[00:08:34]   ACTUATOR: finding-delta D-r5-0 kind=noop status=pending -- unmapped lever: 'None'
+[00:08:34]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[00:08:35] --- round 6/∞ [augmented] passes=60 opt=120 ---
+[00:08:40]   warmed cec-worker-vision
+[00:13:04]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (17) likely stem from nets passing through the 'Sense Corr
+[00:13:26]   T2-3.5: gates=FAIL kelvin=True drc=17 plane=0 pours=4 max_T=120.5 fem_flags=5
+[00:16:07]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[00:16:08]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 2, "area_mm2": 67.85, "foreign_cross": 10, "components": 1}, "/SENSEC2_LO": {"islands": 3, "area_mm2": 94.49, "foreign_cross": 20, "components": 2}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 83.04, "foreign_cross": 8, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 113.54, "foreign_cross": 15, "components": 1}}
+[00:16:11]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 17, 'unconnected': 2, 'length': 1079.03, 'vias': 135, 'tracks': 590, 'plane_signal_mm': 0, 'objective': 17280.98, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC2_HI', 'conf': 0.7}]})
+00:16:11: Debug: Adding duplicate image handler for 'PNG file'
+00:16:11: Debug: Adding duplicate image handler for 'JPEG file'
+00:16:11: Debug: Adding duplicate image handler for 'TIFF file'
+00:16:11: Debug: Adding duplicate image handler for 'GIF file'
+00:16:11: Debug: Adding duplicate image handler for 'PNM file'
+00:16:11: Debug: Adding duplicate image handler for 'PCX file'
+00:16:11: Debug: Adding duplicate image handler for 'IFF file'
+00:16:11: Debug: Adding duplicate image handler for 'Windows icon file'
+00:16:11: Debug: Adding duplicate image handler for 'Windows cursor file'
+00:16:11: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+00:16:11: Debug: Adding duplicate image handler for 'TGA file'
+00:16:11: Debug: Adding duplicate image handler for 'XPM file'
+[00:28:38]   T5: auditor=repair (no proposals)
+[00:28:38]   ACTUATOR: finding-delta D-r6-0 kind=noop status=pending -- unmapped lever: 'None'
+[00:28:38]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[00:28:39] --- round 7/∞ [augmented] passes=60 opt=120 ---
+[00:28:44]   warmed cec-worker-vision
+[00:30:26]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (17) likely stem from nets passing through the 'Sense Corr
+[00:30:50]   T2-3.5: gates=FAIL kelvin=True drc=6 plane=0 pours=4 max_T=203.6 fem_flags=5
+[00:31:21]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[00:31:22]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 82.33, "foreign_cross": 15, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 83.04, "foreign_cross": 8, "components": 1}, "/SENSEC2_HI": {"islands": 2, "area_mm2": 66.61, "foreign_cross": 17, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 119.85, "foreign_cross": 4, "components": 1}}
+[00:31:25]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 6, 'unconnected': 2, 'length': 1122.01, 'vias': 139, 'tracks': 596, 'plane_signal_mm': 0, 'objective': 6283.47, 'max_T': 203.6, 'max_dT': 153.6, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}]})
+00:31:25: Debug: Adding duplicate image handler for 'PNG file'
+00:31:25: Debug: Adding duplicate image handler for 'JPEG file'
+00:31:25: Debug: Adding duplicate image handler for 'TIFF file'
+00:31:25: Debug: Adding duplicate image handler for 'GIF file'
+00:31:25: Debug: Adding duplicate image handler for 'PNM file'
+00:31:25: Debug: Adding duplicate image handler for 'PCX file'
+00:31:25: Debug: Adding duplicate image handler for 'IFF file'
+00:31:25: Debug: Adding duplicate image handler for 'Windows icon file'
+00:31:25: Debug: Adding duplicate image handler for 'Windows cursor file'
+00:31:25: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+00:31:25: Debug: Adding duplicate image handler for 'TGA file'
+00:31:25: Debug: Adding duplicate image handler for 'XPM file'
+[00:42:27]   T5: auditor=repair (no proposals)
+[00:42:27]   ACTUATOR: finding-delta D-r7-0 kind=noop status=pending -- unmapped lever: 'None'
+[00:42:27]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[00:42:28] --- round 8/∞ [control] passes=60 opt=120 ---
+[00:42:33]   warmed cec-worker-vision
+[00:46:05]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors, likely caused by invalid way
+[00:46:27]   T2-3.5: gates=FAIL kelvin=True drc=16 plane=0 pours=4 max_T=270.3 fem_flags=5
+[00:47:17]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'accept')])
+[00:47:18]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 93.93, "foreign_cross": 10, "components": 1}, "/SENSEC2_HI": {"islands": 2, "area_mm2": 76.78, "foreign_cross": 14, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.85, "foreign_cross": 8, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 112.61, "foreign_cross": 8, "components": 1}}
+[01:01:55]   T5: auditor=repair (no proposals)
+[01:01:55]   T8 V4 batch audit (4 rounds; warming V4)...
+[01:01:57]   warmed deepseek-v4-flash
+[01:07:11]   T8: risk=high declined=True findings=0
+[01:07:11]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[01:07:12] --- round 9/∞ [augmented] passes=60 opt=120 ---
+[01:07:17]   warmed cec-worker-vision
+[01:09:17]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/THRESH'] -- Previous DRC failures (16) were likely caused by nets routing through the 'Sense
+[01:09:44]   T2-3.5: gates=FAIL kelvin=True drc=11 plane=0 pours=4 max_T=120.5 fem_flags=6
+[01:10:16]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[01:10:16]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 81.91, "foreign_cross": 9, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 93.47, "foreign_cross": 8, "components": 1}, "/SENSEC1_HI": {"islands": 2, "area_mm2": 68.02, "foreign_cross": 10, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 121.13, "foreign_cross": 7, "components": 1}}
+[01:10:19]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 11, 'unconnected': 2, 'length': 1068.6, 'vias': 140, 'tracks': 584, 'plane_signal_mm': 0, 'objective': 11283.84, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+01:10:19: Debug: Adding duplicate image handler for 'PNG file'
+01:10:19: Debug: Adding duplicate image handler for 'JPEG file'
+01:10:19: Debug: Adding duplicate image handler for 'TIFF file'
+01:10:19: Debug: Adding duplicate image handler for 'GIF file'
+01:10:19: Debug: Adding duplicate image handler for 'PNM file'
+01:10:19: Debug: Adding duplicate image handler for 'PCX file'
+01:10:19: Debug: Adding duplicate image handler for 'IFF file'
+01:10:19: Debug: Adding duplicate image handler for 'Windows icon file'
+01:10:19: Debug: Adding duplicate image handler for 'Windows cursor file'
+01:10:19: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+01:10:19: Debug: Adding duplicate image handler for 'TGA file'
+01:10:19: Debug: Adding duplicate image handler for 'XPM file'
+[01:21:26]   T5: auditor=repair (no proposals)
+[01:21:26]   ACTUATOR: finding-delta D-r9-0 kind=noop status=pending -- unmapped lever: 'None'
+[01:21:26]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[01:21:26] --- round 10/∞ [augmented] passes=60 opt=120 ---
+[01:21:30]   warmed cec-worker-vision
+[01:23:23]   T1 drop waypoint on fenced ref(s) ['U20'] (/DETAMPC1)
+[01:23:23]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETAMPC1'] -- Previous DRC failures (11) likely stemmed from nets passing through the 'Sense C
+[01:23:53]   T2-3.5: gates=FAIL kelvin=True drc=11 plane=0 pours=4 max_T=120.5 fem_flags=5
+[01:24:21]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[01:24:22]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 87.57, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 116.0, "foreign_cross": 10, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.8, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 87.86, "foreign_cross": 16, "components": 1}}
+[01:24:25]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 11, 'unconnected': 3, 'length': 1081.43, 'vias': 128, 'tracks': 562, 'plane_signal_mm': 0, 'objective': 11376.88, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC2_HI', 'conf': 0.7}]})
+01:24:25: Debug: Adding duplicate image handler for 'PNG file'
+01:24:25: Debug: Adding duplicate image handler for 'JPEG file'
+01:24:25: Debug: Adding duplicate image handler for 'TIFF file'
+01:24:25: Debug: Adding duplicate image handler for 'GIF file'
+01:24:25: Debug: Adding duplicate image handler for 'PNM file'
+01:24:25: Debug: Adding duplicate image handler for 'PCX file'
+01:24:25: Debug: Adding duplicate image handler for 'IFF file'
+01:24:25: Debug: Adding duplicate image handler for 'Windows icon file'
+01:24:25: Debug: Adding duplicate image handler for 'Windows cursor file'
+01:24:25: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+01:24:25: Debug: Adding duplicate image handler for 'TGA file'
+01:24:25: Debug: Adding duplicate image handler for 'XPM file'
+[01:35:41]   T5: auditor=repair (no proposals)
+[01:35:41]   ACTUATOR: finding-delta D-r10-0 kind=noop status=pending -- unmapped lever: 'None'
+[01:35:41]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[01:35:42] --- round 11/∞ [augmented] passes=60 opt=120 ---
+[01:35:47]   warmed cec-worker-vision
+[01:41:11]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 11 DRC errors, likely due to nets passing through the
+[01:41:35]   T2-3.5: gates=FAIL kelvin=True drc=18 plane=0 pours=4 max_T=249.7 fem_flags=6
+[01:43:00]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[01:43:01]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 97.98, "foreign_cross": 16, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 82.17, "foreign_cross": 11, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.0, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.31, "foreign_cross": 10, "components": 1}}
+[01:43:05]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 18, 'unconnected': 2, 'length': 1150.76, 'vias': 138, 'tracks': 607, 'plane_signal_mm': 0, 'objective': 18283.0, 'max_T': 249.7, 'max_dT': 199.7, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}]})
+01:43:05: Debug: Adding duplicate image handler for 'PNG file'
+01:43:05: Debug: Adding duplicate image handler for 'JPEG file'
+01:43:05: Debug: Adding duplicate image handler for 'TIFF file'
+01:43:05: Debug: Adding duplicate image handler for 'GIF file'
+01:43:05: Debug: Adding duplicate image handler for 'PNM file'
+01:43:05: Debug: Adding duplicate image handler for 'PCX file'
+01:43:05: Debug: Adding duplicate image handler for 'IFF file'
+01:43:05: Debug: Adding duplicate image handler for 'Windows icon file'
+01:43:05: Debug: Adding duplicate image handler for 'Windows cursor file'
+01:43:05: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+01:43:05: Debug: Adding duplicate image handler for 'TGA file'
+01:43:05: Debug: Adding duplicate image handler for 'XPM file'
+[01:54:30]   T5: auditor=repair (no proposals)
+[01:54:30]   ACTUATOR: finding-delta D-r11-0 kind=noop status=pending -- unmapped lever: 'None'
+[01:54:30]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[01:54:31] --- round 12/∞ [control] passes=60 opt=120 ---
+[01:54:36]   warmed cec-worker-vision
+[01:57:56]   T1 drop waypoint on fenced ref(s) ['U20'] (/DETAMPC1)
+[01:57:56]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETAMPC1'] -- Previous round failed due to structural DRC errors (18 violations). The router l
+[01:58:21]   T2-3.5: gates=FAIL kelvin=True drc=10 plane=0 pours=4 max_T=120.5 fem_flags=6
+[01:59:28]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'repair')])
+[01:59:29]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 85.79, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 118.43, "foreign_cross": 8, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.11, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 109.86, "foreign_cross": 9, "components": 1}}
+[02:10:37]   T5: auditor=repair (no proposals)
+[02:10:37]   T8 V4 batch audit (4 rounds; warming V4)...
+[02:10:38]   warmed deepseek-v4-flash
+[02:16:30]   T8: risk=low declined=True findings=0
+[02:16:30]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[02:16:30] --- round 13/∞ [augmented] passes=60 opt=100 ---
+[02:16:34]   warmed cec-worker-vision
+[02:18:40]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors (10 violations). The primary 
+[02:19:05]   T2-3.5: gates=FAIL kelvin=True drc=23 plane=0 pours=4 max_T=120.5 fem_flags=6
+[02:19:35]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'accept')])
+[02:19:36]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 3, "area_mm2": 73.26, "foreign_cross": 14, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 113.14, "foreign_cross": 14, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.93, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 85.58, "foreign_cross": 8, "components": 1}}
+[02:19:39]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 23, 'unconnected': 2, 'length': 1119.36, 'vias': 143, 'tracks': 599, 'plane_signal_mm': 0, 'objective': 23285.2, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}]})
+02:19:39: Debug: Adding duplicate image handler for 'PNG file'
+02:19:39: Debug: Adding duplicate image handler for 'JPEG file'
+02:19:39: Debug: Adding duplicate image handler for 'TIFF file'
+02:19:39: Debug: Adding duplicate image handler for 'GIF file'
+02:19:39: Debug: Adding duplicate image handler for 'PNM file'
+02:19:39: Debug: Adding duplicate image handler for 'PCX file'
+02:19:39: Debug: Adding duplicate image handler for 'IFF file'
+02:19:39: Debug: Adding duplicate image handler for 'Windows icon file'
+02:19:39: Debug: Adding duplicate image handler for 'Windows cursor file'
+02:19:39: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+02:19:39: Debug: Adding duplicate image handler for 'TGA file'
+02:19:39: Debug: Adding duplicate image handler for 'XPM file'
+[02:29:07]   T5: auditor=repair (no proposals)
+[02:29:07]   ACTUATOR: finding-delta D-r13-0 kind=noop status=pending -- unmapped lever: 'None'
+[02:29:07]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[02:29:08] --- round 14/∞ [augmented] passes=60 opt=100 ---
+[02:29:10]   warmed cec-worker-vision
+[02:30:38]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 23 DRC errors, likely due to nets passing through the
+[02:30:56]   T2-3.5: gates=FAIL kelvin=True drc=21 plane=0 pours=4 max_T=120.5 fem_flags=4
+[02:31:16]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[02:31:17]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 2, "area_mm2": 79.56, "foreign_cross": 11, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 100.07, "foreign_cross": 10, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.75, "foreign_cross": 11, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.81, "foreign_cross": 6, "components": 1}}
+[02:31:20]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 21, 'unconnected': 2, 'length': 1130.56, 'vias': 134, 'tracks': 587, 'plane_signal_mm': 0, 'objective': 21280.85, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}]})
+02:31:20: Debug: Adding duplicate image handler for 'PNG file'
+02:31:20: Debug: Adding duplicate image handler for 'JPEG file'
+02:31:20: Debug: Adding duplicate image handler for 'TIFF file'
+02:31:20: Debug: Adding duplicate image handler for 'GIF file'
+02:31:20: Debug: Adding duplicate image handler for 'PNM file'
+02:31:20: Debug: Adding duplicate image handler for 'PCX file'
+02:31:20: Debug: Adding duplicate image handler for 'IFF file'
+02:31:20: Debug: Adding duplicate image handler for 'Windows icon file'
+02:31:20: Debug: Adding duplicate image handler for 'Windows cursor file'
+02:31:20: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+02:31:20: Debug: Adding duplicate image handler for 'TGA file'
+02:31:20: Debug: Adding duplicate image handler for 'XPM file'
+[02:40:39]   T5: auditor=repair (no proposals)
+[02:40:39]   ACTUATOR: finding-delta D-r14-0 kind=noop status=pending -- unmapped lever: 'None'
+[02:40:39]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[02:40:39] --- round 15/∞ [augmented] passes=60 opt=120 ---
+[02:40:40]   warmed cec-worker-vision
+[02:41:53]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 21 DRC errors, likely due to nets passing through the
+[02:42:09]   T2-3.5: gates=FAIL kelvin=True drc=26 plane=0 pours=4 max_T=211.7 fem_flags=5
+[02:42:28]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[02:42:28]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 1, "area_mm2": 103.04, "foreign_cross": 18, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 117.88, "foreign_cross": 5, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 81.42, "foreign_cross": 8, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.88, "foreign_cross": 9, "components": 1}}
+[02:52:00]   T5: auditor=repair (no proposals)
+[02:52:00]   ACTUATOR: finding-delta D-r15-0 kind=noop status=pending -- unmapped lever: 'None'
+[02:52:00]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[02:52:00] --- round 16/∞ [control] passes=60 opt=120 ---
+[02:52:01]   warmed cec-worker-vision
+[02:52:28]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETC1'] -- Previous round failed with 26 DRC errors, likely due to nets routing through the
+[02:52:46]   T2-3.5: gates=FAIL kelvin=True drc=30 plane=0 pours=4 max_T=120.5 fem_flags=5
+[02:53:02]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'repair')])
+[02:53:03]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 119.02, "foreign_cross": 6, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.04, "foreign_cross": 5, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 97.77, "foreign_cross": 14, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 81.23, "foreign_cross": 8, "components": 1}}
+[03:01:43]   T5: auditor=repair (no proposals)
+[03:01:43]   T8 V4 batch audit (4 rounds; warming V4)...
+[03:01:44]   warmed deepseek-v4-flash
+[03:05:20]   T8: risk=low declined=True findings=0
+[03:05:20]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[03:05:21] --- round 17/∞ [augmented] passes=60 opt=100 ---
+[03:05:23]   warmed cec-worker-vision
+[03:06:45]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 30 DRC errors, likely due to nets passing through the
+[03:07:08]   T2-3.5: gates=FAIL kelvin=True drc=30 plane=0 pours=4 max_T=120.5 fem_flags=5
+[03:07:26]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[03:07:26]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 80.92, "foreign_cross": 11, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 111.25, "foreign_cross": 9, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 94.13, "foreign_cross": 10, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.97, "foreign_cross": 4, "components": 1}}
+[03:07:30]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 30, 'unconnected': 2, 'length': 1189.34, 'vias': 136, 'tracks': 633, 'plane_signal_mm': 0, 'objective': 30282.21, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}]})
+03:07:30: Debug: Adding duplicate image handler for 'PNG file'
+03:07:30: Debug: Adding duplicate image handler for 'JPEG file'
+03:07:30: Debug: Adding duplicate image handler for 'TIFF file'
+03:07:30: Debug: Adding duplicate image handler for 'GIF file'
+03:07:30: Debug: Adding duplicate image handler for 'PNM file'
+03:07:30: Debug: Adding duplicate image handler for 'PCX file'
+03:07:30: Debug: Adding duplicate image handler for 'IFF file'
+03:07:30: Debug: Adding duplicate image handler for 'Windows icon file'
+03:07:30: Debug: Adding duplicate image handler for 'Windows cursor file'
+03:07:30: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+03:07:30: Debug: Adding duplicate image handler for 'TGA file'
+03:07:30: Debug: Adding duplicate image handler for 'XPM file'
+[03:17:08]   T5: auditor=repair (no proposals)
+[03:17:08]   ACTUATOR: finding-delta D-r17-0 kind=noop status=pending -- unmapped lever: 'None'
+[03:17:08]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[03:17:08] --- round 18/∞ [augmented] passes=60 opt=120 ---
+[03:17:10]   warmed cec-worker-vision
+[03:18:40]   intent-manager fallback: JSONDecodeError: Unterminated string starting at: line 2 column 16 (char 17)
+[03:18:40]   T1 intents[fallback]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- fallback to previous intents
+[03:18:59]   T2-3.5: gates=FAIL kelvin=True drc=22 plane=0 pours=4 max_T=120.5 fem_flags=5
+[03:19:16]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[03:19:17]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 3, "area_mm2": 85.02, "foreign_cross": 12, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 87.1, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.49, "foreign_cross": 12, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 83.42, "foreign_cross": 7, "components": 1}}
+[03:19:20]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 22, 'unconnected': 2, 'length': 1126.72, 'vias': 141, 'tracks': 610, 'plane_signal_mm': 0, 'objective': 22283.97, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC2_HI', 'conf': 0.7}]})
+03:19:20: Debug: Adding duplicate image handler for 'PNG file'
+03:19:20: Debug: Adding duplicate image handler for 'JPEG file'
+03:19:20: Debug: Adding duplicate image handler for 'TIFF file'
+03:19:20: Debug: Adding duplicate image handler for 'GIF file'
+03:19:20: Debug: Adding duplicate image handler for 'PNM file'
+03:19:20: Debug: Adding duplicate image handler for 'PCX file'
+03:19:20: Debug: Adding duplicate image handler for 'IFF file'
+03:19:20: Debug: Adding duplicate image handler for 'Windows icon file'
+03:19:20: Debug: Adding duplicate image handler for 'Windows cursor file'
+03:19:20: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+03:19:20: Debug: Adding duplicate image handler for 'TGA file'
+03:19:20: Debug: Adding duplicate image handler for 'XPM file'
+[03:29:57]   T5: auditor=repair (no proposals)
+[03:29:57]   ACTUATOR: finding-delta D-r18-0 kind=noop status=pending -- unmapped lever: 'None'
+[03:29:57]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[03:29:58] --- round 19/∞ [augmented] passes=60 opt=120 ---
+[03:30:01]   warmed cec-worker-vision
+[03:31:23]   T1 drop waypoint on fenced ref(s) ['U20'] (GND)
+[03:31:23]   T1 drop waypoint on fenced ref(s) ['U21'] (+3V3)
+[03:31:23]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (22 errors), likely caused by nets p
+[03:31:47]   T2-3.5: gates=FAIL kelvin=True drc=30 plane=0 pours=4 max_T=260.0 fem_flags=7
+[03:32:07]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[03:32:07]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 84.31, "foreign_cross": 7, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 87.91, "foreign_cross": 12, "components": 2}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.95, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 109.33, "foreign_cross": 6, "components": 1}}
+[03:32:10]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 37, 'unconnected': 2, 'length': 1098.59, 'vias': 82, 'tracks': 601, 'plane_signal_mm': 0, 'objective': 37254.47, 'max_T': 260.0, 'max_dT': 210.0, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 7, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC2_LO', 'conf': 0.7}]})
+03:32:10: Debug: Adding duplicate image handler for 'PNG file'
+03:32:10: Debug: Adding duplicate image handler for 'JPEG file'
+03:32:10: Debug: Adding duplicate image handler for 'TIFF file'
+03:32:10: Debug: Adding duplicate image handler for 'GIF file'
+03:32:10: Debug: Adding duplicate image handler for 'PNM file'
+03:32:10: Debug: Adding duplicate image handler for 'PCX file'
+03:32:10: Debug: Adding duplicate image handler for 'IFF file'
+03:32:10: Debug: Adding duplicate image handler for 'Windows icon file'
+03:32:10: Debug: Adding duplicate image handler for 'Windows cursor file'
+03:32:10: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+03:32:10: Debug: Adding duplicate image handler for 'TGA file'
+03:32:10: Debug: Adding duplicate image handler for 'XPM file'
+[03:40:57]   T5: auditor=repair (no proposals)
+[03:40:57]   ACTUATOR: finding-delta D-r19-0 kind=noop status=pending -- unmapped lever: 'None'
+[03:40:57]   EI-07 real_anchor_ratio=0.8261 (det=19 model=4)
+[03:40:57] --- round 20/∞ [control] passes=60 opt=120 ---
+[03:41:00]   warmed cec-worker-vision
+[03:41:48]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETC1'] -- Previous round failed with 30 DRC errors, likely due to nets passing through the
+[03:42:07]   T2-3.5: gates=FAIL kelvin=True drc=14 plane=0 pours=4 max_T=132.2 fem_flags=5
+[03:42:27]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[03:42:28]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 86.36, "foreign_cross": 6, "components": 1}, "/SENSEC1_LO": {"islands": 3, "area_mm2": 75.1, "foreign_cross": 21, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.55, "foreign_cross": 7, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 109.86, "foreign_cross": 13, "components": 1}}
+[03:51:03]   T5: auditor=repair (no proposals)
+[03:51:03]   T8 V4 batch audit (4 rounds; warming V4)...
+[03:51:04]   warmed deepseek-v4-flash
+[03:56:47]   T8: risk=high declined=True findings=0
+[03:56:47]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[03:56:47] --- round 21/∞ [augmented] passes=60 opt=120 ---
+[03:56:49]   warmed cec-worker-vision
+[03:58:12]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors, likely caused by nets passin
+[03:58:34]   T2-3.5: gates=FAIL kelvin=True drc=13 plane=0 pours=4 max_T=120.5 fem_flags=5
+[03:58:56]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'accept')])
+[03:58:57]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 2, "area_mm2": 73.89, "foreign_cross": 8, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.69, "foreign_cross": 4, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 108.22, "foreign_cross": 15, "components": 1}, "/SENSEC1_LO": {"islands": 3, "area_mm2": 97.4, "foreign_cross": 17, "components": 1}}
+[03:59:00]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 13, 'unconnected': 2, 'length': 1084.0, 'vias': 140, 'tracks': 570, 'plane_signal_mm': 0, 'objective': 13283.62, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC2_HI', 'conf': 0.7}]})
+03:59:00: Debug: Adding duplicate image handler for 'PNG file'
+03:59:00: Debug: Adding duplicate image handler for 'JPEG file'
+03:59:00: Debug: Adding duplicate image handler for 'TIFF file'
+03:59:00: Debug: Adding duplicate image handler for 'GIF file'
+03:59:00: Debug: Adding duplicate image handler for 'PNM file'
+03:59:00: Debug: Adding duplicate image handler for 'PCX file'
+03:59:00: Debug: Adding duplicate image handler for 'IFF file'
+03:59:00: Debug: Adding duplicate image handler for 'Windows icon file'
+03:59:00: Debug: Adding duplicate image handler for 'Windows cursor file'
+03:59:00: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+03:59:00: Debug: Adding duplicate image handler for 'TGA file'
+03:59:00: Debug: Adding duplicate image handler for 'XPM file'
+[04:08:24]   T5: auditor=repair (no proposals)
+[04:08:24]   ACTUATOR: finding-delta D-r21-0 kind=noop status=pending -- unmapped lever: 'None'
+[04:08:24]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[04:08:24] --- round 22/∞ [augmented] passes=60 opt=120 ---
+[04:08:27]   warmed cec-worker-vision
+[04:09:40]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous DRC failures (13) likely stem from nets crossing the 'Sense Corridor' (
+[04:10:00]   T2-3.5: gates=FAIL kelvin=True drc=12 plane=0 pours=4 max_T=120.5 fem_flags=5
+[04:10:20]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[04:10:20]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 3, "area_mm2": 93.79, "foreign_cross": 15, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 72.74, "foreign_cross": 19, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.91, "foreign_cross": 8, "components": 1}, "/SENSEC1_HI": {"islands": 3, "area_mm2": 46.55, "foreign_cross": 13, "components": 1}}
+[04:10:23]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 12, 'unconnected': 2, 'length': 1116.76, 'vias': 134, 'tracks': 577, 'plane_signal_mm': 0, 'objective': 12280.45, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+04:10:23: Debug: Adding duplicate image handler for 'PNG file'
+04:10:23: Debug: Adding duplicate image handler for 'JPEG file'
+04:10:23: Debug: Adding duplicate image handler for 'TIFF file'
+04:10:23: Debug: Adding duplicate image handler for 'GIF file'
+04:10:23: Debug: Adding duplicate image handler for 'PNM file'
+04:10:23: Debug: Adding duplicate image handler for 'PCX file'
+04:10:23: Debug: Adding duplicate image handler for 'IFF file'
+04:10:23: Debug: Adding duplicate image handler for 'Windows icon file'
+04:10:23: Debug: Adding duplicate image handler for 'Windows cursor file'
+04:10:23: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+04:10:23: Debug: Adding duplicate image handler for 'TGA file'
+04:10:23: Debug: Adding duplicate image handler for 'XPM file'
+[04:20:36]   T5: auditor=repair (no proposals)
+[04:20:36]   ACTUATOR: finding-delta D-r22-0 kind=noop status=pending -- unmapped lever: 'None'
+[04:20:36]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[04:20:36] --- round 23/∞ [augmented] passes=60 opt=120 ---
+[04:20:39]   warmed cec-worker-vision
+[04:21:58]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (12 errors), likely caused by nets p
+[04:22:19]   T2-3.5: gates=FAIL kelvin=True drc=17 plane=0 pours=4 max_T=120.5 fem_flags=4
+[04:22:40]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'accept')])
+[04:22:40]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 106.37, "foreign_cross": 8, "components": 1}, "/SENSEC1_HI": {"islands": 2, "area_mm2": 77.67, "foreign_cross": 7, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 116.52, "foreign_cross": 15, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 83.9, "foreign_cross": 7, "components": 1}}
+[04:22:44]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 17, 'unconnected': 2, 'length': 1065.49, 'vias': 152, 'tracks': 594, 'plane_signal_mm': 0, 'objective': 17288.52, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}]})
+04:22:44: Debug: Adding duplicate image handler for 'PNG file'
+04:22:44: Debug: Adding duplicate image handler for 'JPEG file'
+04:22:44: Debug: Adding duplicate image handler for 'TIFF file'
+04:22:44: Debug: Adding duplicate image handler for 'GIF file'
+04:22:44: Debug: Adding duplicate image handler for 'PNM file'
+04:22:44: Debug: Adding duplicate image handler for 'PCX file'
+04:22:44: Debug: Adding duplicate image handler for 'IFF file'
+04:22:44: Debug: Adding duplicate image handler for 'Windows icon file'
+04:22:44: Debug: Adding duplicate image handler for 'Windows cursor file'
+04:22:44: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+04:22:44: Debug: Adding duplicate image handler for 'TGA file'
+04:22:44: Debug: Adding duplicate image handler for 'XPM file'
+[04:31:48]   T5: auditor=repair (no proposals)
+[04:31:48]   ACTUATOR: finding-delta D-r23-0 kind=noop status=pending -- unmapped lever: 'None'
+[04:31:48]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[04:31:48] --- round 24/∞ [control] passes=60 opt=120 ---
+[04:31:49]   warmed cec-worker-vision
+[04:32:34]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETC1'] -- Previous round failed due to structural DRC errors, likely caused by routing thr
+[04:32:52]   T2-3.5: gates=FAIL kelvin=True drc=13 plane=0 pours=4 max_T=120.5 fem_flags=5
+[04:33:11]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[04:33:12]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 82.69, "foreign_cross": 6, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.86, "foreign_cross": 4, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 72.65, "foreign_cross": 19, "components": 1}, "/SENSEC1_LO": {"islands": 2, "area_mm2": 108.79, "foreign_cross": 19, "components": 1}}
+[04:43:17]   T5: auditor=repair (no proposals)
+[04:43:17]   T8 V4 batch audit (4 rounds; warming V4)...
+[04:43:39]   warmed deepseek-v4-flash
+[04:46:42]   T8: risk=high declined=True findings=0
+[04:46:42]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[04:46:43] --- round 25/∞ [augmented] passes=60 opt=120 ---
+[04:46:47]   warmed cec-worker-vision
+[04:48:09]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (13 errors), likely caused by nets p
+[04:48:34]   T2-3.5: gates=FAIL kelvin=True drc=24 plane=0 pours=4 max_T=120.5 fem_flags=5
+[04:48:54]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'repair')])
+[04:48:54]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 2, "area_mm2": 78.14, "foreign_cross": 7, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 117.12, "foreign_cross": 11, "components": 1}, "/SENSEC1_HI": {"islands": 2, "area_mm2": 77.74, "foreign_cross": 9, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 94.68, "foreign_cross": 13, "components": 1}}
+[04:48:57]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 24, 'unconnected': 2, 'length': 1098.9, 'vias': 145, 'tracks': 606, 'plane_signal_mm': 0, 'objective': 24286.05, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}]})
+04:48:57: Debug: Adding duplicate image handler for 'PNG file'
+04:48:57: Debug: Adding duplicate image handler for 'JPEG file'
+04:48:57: Debug: Adding duplicate image handler for 'TIFF file'
+04:48:57: Debug: Adding duplicate image handler for 'GIF file'
+04:48:57: Debug: Adding duplicate image handler for 'PNM file'
+04:48:57: Debug: Adding duplicate image handler for 'PCX file'
+04:48:57: Debug: Adding duplicate image handler for 'IFF file'
+04:48:57: Debug: Adding duplicate image handler for 'Windows icon file'
+04:48:57: Debug: Adding duplicate image handler for 'Windows cursor file'
+04:48:57: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+04:48:57: Debug: Adding duplicate image handler for 'TGA file'
+04:48:57: Debug: Adding duplicate image handler for 'XPM file'
+[04:58:48]   T5: auditor=repair (no proposals)
+[04:58:48]   ACTUATOR: finding-delta D-r25-0 kind=noop status=pending -- unmapped lever: 'None'
+[04:58:48]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[04:58:48] --- round 26/∞ [augmented] passes=60 opt=120 ---
+[04:58:49]   warmed cec-worker-vision
+[04:59:23]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (24 errors), likely caused by nets p
+[04:59:39]   T2-3.5: gates=FAIL kelvin=True drc=37 plane=0 pours=4 max_T=120.5 fem_flags=4
+[04:59:56]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[04:59:57]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 107.39, "foreign_cross": 9, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 92.12, "foreign_cross": 14, "components": 1}, "/SENSEC1_HI": {"islands": 2, "area_mm2": 77.92, "foreign_cross": 8, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.37, "foreign_cross": 4, "components": 1}}
+[05:00:00]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 37, 'unconnected': 2, 'length': 1055.87, 'vias': 150, 'tracks': 585, 'plane_signal_mm': 0, 'objective': 37287.6, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}]})
+05:00:00: Debug: Adding duplicate image handler for 'PNG file'
+05:00:00: Debug: Adding duplicate image handler for 'JPEG file'
+05:00:00: Debug: Adding duplicate image handler for 'TIFF file'
+05:00:00: Debug: Adding duplicate image handler for 'GIF file'
+05:00:00: Debug: Adding duplicate image handler for 'PNM file'
+05:00:00: Debug: Adding duplicate image handler for 'PCX file'
+05:00:00: Debug: Adding duplicate image handler for 'IFF file'
+05:00:00: Debug: Adding duplicate image handler for 'Windows icon file'
+05:00:00: Debug: Adding duplicate image handler for 'Windows cursor file'
+05:00:00: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+05:00:00: Debug: Adding duplicate image handler for 'TGA file'
+05:00:00: Debug: Adding duplicate image handler for 'XPM file'
+[05:08:35]   T5: auditor=repair (no proposals)
+[05:08:35]   ACTUATOR: finding-delta D-r26-0 kind=noop status=pending -- unmapped lever: 'None'
+[05:08:35]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[05:08:35] --- round 27/∞ [augmented] passes=60 opt=120 ---
+[05:08:36]   warmed cec-worker-vision
+[05:09:20]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (37 errors), likely caused by nets p
+[05:09:37]   T2-3.5: gates=FAIL kelvin=True drc=11 plane=0 pours=4 max_T=264.1 fem_flags=5
+[05:09:56]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[05:09:56]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 84.71, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 3, "area_mm2": 87.22, "foreign_cross": 35, "components": 2}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.34, "foreign_cross": 6, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 113.98, "foreign_cross": 11, "components": 1}}
+[05:09:59]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 11, 'unconnected': 2, 'length': 1130.13, 'vias': 147, 'tracks': 604, 'plane_signal_mm': 0, 'objective': 11286.69, 'max_T': 264.1, 'max_dT': 214.1, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}]})
+05:09:59: Debug: Adding duplicate image handler for 'PNG file'
+05:09:59: Debug: Adding duplicate image handler for 'JPEG file'
+05:09:59: Debug: Adding duplicate image handler for 'TIFF file'
+05:09:59: Debug: Adding duplicate image handler for 'GIF file'
+05:09:59: Debug: Adding duplicate image handler for 'PNM file'
+05:09:59: Debug: Adding duplicate image handler for 'PCX file'
+05:09:59: Debug: Adding duplicate image handler for 'IFF file'
+05:09:59: Debug: Adding duplicate image handler for 'Windows icon file'
+05:09:59: Debug: Adding duplicate image handler for 'Windows cursor file'
+05:09:59: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+05:09:59: Debug: Adding duplicate image handler for 'TGA file'
+05:09:59: Debug: Adding duplicate image handler for 'XPM file'
+[05:18:17]   T5: auditor=repair (no proposals)
+[05:18:17]   ACTUATOR: finding-delta D-r27-0 kind=noop status=pending -- unmapped lever: 'None'
+[05:18:17]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[05:18:17] --- round 28/∞ [control] passes=60 opt=120 ---
+[05:18:18]   warmed cec-worker-vision
+[05:19:02]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA'] -- Previous round failed due to structural DRC errors, likely caused by routing thr
+[05:19:26]   T2-3.5: gates=FAIL kelvin=True drc=13 plane=0 pours=4 max_T=120.5 fem_flags=6
+[05:19:45]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[05:19:45]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 86.12, "foreign_cross": 3, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 80.76, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 3, "area_mm2": 91.68, "foreign_cross": 17, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 117.1, "foreign_cross": 7, "components": 1}}
+[05:27:29]   T5: auditor=repair (no proposals)
+[05:27:29]   T8 V4 batch audit (4 rounds; warming V4)...
+[05:27:31]   warmed deepseek-v4-flash
+[05:31:09]   T8: risk=high declined=True findings=0
+[05:31:09]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[05:31:10] --- round 29/∞ [augmented] passes=60 opt=120 ---
+[05:31:13]   warmed cec-worker-vision
+[05:32:37]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors, likely caused by nets passin
+[05:33:09]   T2-3.5: gates=FAIL kelvin=True drc=37 plane=0 pours=4 max_T=120.5 fem_flags=5
+[05:33:28]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[05:33:28]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 95.54, "foreign_cross": 9, "components": 1}, "/SENSEC2_HI": {"islands": 2, "area_mm2": 72.45, "foreign_cross": 15, "components": 1}, "/SENSEC1_HI": {"islands": 2, "area_mm2": 75.68, "foreign_cross": 9, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 110.14, "foreign_cross": 10, "components": 1}}
+[05:33:32]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 37, 'unconnected': 3, 'length': 1128.85, 'vias': 146, 'tracks': 604, 'plane_signal_mm': 0, 'objective': 37386.88, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}]})
+05:33:32: Debug: Adding duplicate image handler for 'PNG file'
+05:33:32: Debug: Adding duplicate image handler for 'JPEG file'
+05:33:32: Debug: Adding duplicate image handler for 'TIFF file'
+05:33:32: Debug: Adding duplicate image handler for 'GIF file'
+05:33:32: Debug: Adding duplicate image handler for 'PNM file'
+05:33:32: Debug: Adding duplicate image handler for 'PCX file'
+05:33:32: Debug: Adding duplicate image handler for 'IFF file'
+05:33:32: Debug: Adding duplicate image handler for 'Windows icon file'
+05:33:32: Debug: Adding duplicate image handler for 'Windows cursor file'
+05:33:32: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+05:33:32: Debug: Adding duplicate image handler for 'TGA file'
+05:33:32: Debug: Adding duplicate image handler for 'XPM file'
+[05:42:31]   T5: auditor=repair (no proposals)
+[05:42:31]   ACTUATOR: finding-delta D-r29-0 kind=noop status=pending -- unmapped lever: 'None'
+[05:42:31]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[05:42:31] --- round 30/∞ [augmented] passes=60 opt=120 ---
+[05:42:32]   warmed cec-worker-vision
+[05:43:31]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (37 errors), likely caused by nets p
+[05:43:53]   T2-3.5: gates=FAIL kelvin=True drc=12 plane=0 pours=4 max_T=120.5 fem_flags=7
+[05:44:11]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[05:44:11]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 80.78, "foreign_cross": 10, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 111.84, "foreign_cross": 12, "components": 1}, "/SENSEC1_HI": {"islands": 3, "area_mm2": 73.46, "foreign_cross": 5, "components": 2}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 115.19, "foreign_cross": 10, "components": 1}}
+[05:44:15]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 12, 'unconnected': 3, 'length': 1118.9, 'vias': 135, 'tracks': 591, 'plane_signal_mm': 0, 'objective': 12381.2, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 7, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+05:44:15: Debug: Adding duplicate image handler for 'PNG file'
+05:44:15: Debug: Adding duplicate image handler for 'JPEG file'
+05:44:15: Debug: Adding duplicate image handler for 'TIFF file'
+05:44:15: Debug: Adding duplicate image handler for 'GIF file'
+05:44:15: Debug: Adding duplicate image handler for 'PNM file'
+05:44:15: Debug: Adding duplicate image handler for 'PCX file'
+05:44:15: Debug: Adding duplicate image handler for 'IFF file'
+05:44:15: Debug: Adding duplicate image handler for 'Windows icon file'
+05:44:15: Debug: Adding duplicate image handler for 'Windows cursor file'
+05:44:15: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+05:44:15: Debug: Adding duplicate image handler for 'TGA file'
+05:44:15: Debug: Adding duplicate image handler for 'XPM file'
+[05:54:04]   T5: auditor=repair (no proposals)
+[05:54:04]   ACTUATOR: finding-delta D-r30-0 kind=noop status=pending -- unmapped lever: 'None'
+[05:54:04]   EI-07 real_anchor_ratio=0.8261 (det=19 model=4)
+[05:54:04] --- round 31/∞ [augmented] passes=60 opt=120 ---
+[05:54:05]   warmed cec-worker-vision
+[05:55:02]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 12 DRC errors, likely due to nets passing through the
+[05:55:20]   T2-3.5: gates=FAIL kelvin=True drc=21 plane=0 pours=4 max_T=138.9 fem_flags=6
+[05:55:35]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[05:55:35]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 106.18, "foreign_cross": 12, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.8, "foreign_cross": 4, "components": 1}, "/SENSEC2_HI": {"islands": 2, "area_mm2": 82.69, "foreign_cross": 6, "components": 2}, "/SENSEC2_LO": {"islands": 4, "area_mm2": 72.33, "foreign_cross": 17, "components": 1}}
+[05:55:38]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 21, 'unconnected': 2, 'length': 1206.78, 'vias': 129, 'tracks': 627, 'plane_signal_mm': 0, 'objective': 21278.45, 'max_T': 138.9, 'max_dT': 88.9, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+05:55:38: Debug: Adding duplicate image handler for 'PNG file'
+05:55:38: Debug: Adding duplicate image handler for 'JPEG file'
+05:55:38: Debug: Adding duplicate image handler for 'TIFF file'
+05:55:38: Debug: Adding duplicate image handler for 'GIF file'
+05:55:38: Debug: Adding duplicate image handler for 'PNM file'
+05:55:38: Debug: Adding duplicate image handler for 'PCX file'
+05:55:38: Debug: Adding duplicate image handler for 'IFF file'
+05:55:38: Debug: Adding duplicate image handler for 'Windows icon file'
+05:55:38: Debug: Adding duplicate image handler for 'Windows cursor file'
+05:55:38: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+05:55:38: Debug: Adding duplicate image handler for 'TGA file'
+05:55:38: Debug: Adding duplicate image handler for 'XPM file'
+[06:04:37]   T5: auditor=repair (no proposals)
+[06:04:37]   ACTUATOR: finding-delta D-r31-0 kind=noop status=pending -- unmapped lever: 'None'
+[06:04:37]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[06:04:37] --- round 32/∞ [control] passes=60 opt=120 ---
+[06:04:40]   warmed cec-worker-vision
+[06:05:55]   T1 drop waypoint on fenced ref(s) ['U20'] (/DETAMPC1)
+[06:05:55]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETAMPC1'] -- Previous round failed with 21 DRC errors, likely due to nets crossing the 'Sense
+[06:06:13]   T2-3.5: gates=FAIL kelvin=True drc=22 plane=0 pours=4 max_T=120.5 fem_flags=5
+[06:06:31]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[06:06:32]   T6 POUR (deterministic): {"/SENSEC2_HI": {"islands": 1, "area_mm2": 85.72, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 104.51, "foreign_cross": 14, "components": 2}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.89, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 99.6, "foreign_cross": 7, "components": 1}}
+[06:16:41]   T5: auditor=repair (no proposals)
+[06:16:41]   T8 V4 batch audit (4 rounds; warming V4)...
+[06:16:42]   warmed deepseek-v4-flash
+[06:20:57]   T8: risk=high declined=True findings=0
+[06:20:57]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[06:20:58] --- round 33/∞ [augmented] passes=60 opt=120 ---
+[06:21:00]   warmed cec-worker-vision
+[06:22:41]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 22 DRC errors, likely due to nets crossing the 'Sense
+[06:23:05]   T2-3.5: gates=FAIL kelvin=True drc=15 plane=0 pours=4 max_T=120.5 fem_flags=6
+[06:23:26]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[06:23:27]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 1, "area_mm2": 101.32, "foreign_cross": 17, "components": 1}, "/SENSEC2_HI": {"islands": 3, "area_mm2": 66.68, "foreign_cross": 18, "components": 2}, "/SENSEC1_HI": {"islands": 3, "area_mm2": 68.74, "foreign_cross": 14, "components": 2}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 120.81, "foreign_cross": 5, "components": 1}}
+[06:23:30]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 15, 'unconnected': 2, 'length': 1153.58, 'vias': 131, 'tracks': 623, 'plane_signal_mm': 0, 'objective': 15279.45, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+06:23:30: Debug: Adding duplicate image handler for 'PNG file'
+06:23:30: Debug: Adding duplicate image handler for 'JPEG file'
+06:23:30: Debug: Adding duplicate image handler for 'TIFF file'
+06:23:30: Debug: Adding duplicate image handler for 'GIF file'
+06:23:30: Debug: Adding duplicate image handler for 'PNM file'
+06:23:30: Debug: Adding duplicate image handler for 'PCX file'
+06:23:30: Debug: Adding duplicate image handler for 'IFF file'
+06:23:30: Debug: Adding duplicate image handler for 'Windows icon file'
+06:23:30: Debug: Adding duplicate image handler for 'Windows cursor file'
+06:23:30: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+06:23:30: Debug: Adding duplicate image handler for 'TGA file'
+06:23:30: Debug: Adding duplicate image handler for 'XPM file'
+[06:31:29]   T5: auditor=repair (no proposals)
+[06:31:29]   ACTUATOR: finding-delta D-r33-0 kind=noop status=pending -- unmapped lever: 'None'
+[06:31:29]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[06:31:29] --- round 34/∞ [augmented] passes=60 opt=120 ---
+[06:31:30]   warmed cec-worker-vision
+[06:32:06]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors (15 violations). The primary 
+[06:32:28]   T2-3.5: gates=FAIL kelvin=True drc=14 plane=0 pours=4 max_T=120.5 fem_flags=5
+[06:32:45]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'repair')])
+[06:32:45]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 2, "area_mm2": 110.4, "foreign_cross": 15, "components": 2}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 97.07, "foreign_cross": 13, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.17, "foreign_cross": 3, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.52, "foreign_cross": 7, "components": 1}}
+[06:32:48]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 14, 'unconnected': 3, 'length': 1100.42, 'vias': 137, 'tracks': 599, 'plane_signal_mm': 0, 'objective': 14381.33, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}]})
+06:32:48: Debug: Adding duplicate image handler for 'PNG file'
+06:32:48: Debug: Adding duplicate image handler for 'JPEG file'
+06:32:48: Debug: Adding duplicate image handler for 'TIFF file'
+06:32:48: Debug: Adding duplicate image handler for 'GIF file'
+06:32:48: Debug: Adding duplicate image handler for 'PNM file'
+06:32:48: Debug: Adding duplicate image handler for 'PCX file'
+06:32:48: Debug: Adding duplicate image handler for 'IFF file'
+06:32:48: Debug: Adding duplicate image handler for 'Windows icon file'
+06:32:48: Debug: Adding duplicate image handler for 'Windows cursor file'
+06:32:48: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+06:32:48: Debug: Adding duplicate image handler for 'TGA file'
+06:32:48: Debug: Adding duplicate image handler for 'XPM file'
+[06:42:15]   T5: auditor=repair (no proposals)
+[06:42:15]   ACTUATOR: finding-delta D-r34-0 kind=noop status=pending -- unmapped lever: 'None'
+[06:42:15]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[06:42:15] --- round 35/∞ [augmented] passes=60 opt=120 ---
+[06:42:18]   warmed cec-worker-vision
+[06:43:56]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous DRC failures (14) likely stemmed from nets passing through the 'Sense C
+[06:44:14]   T2-3.5: gates=FAIL kelvin=True drc=12 plane=0 pours=4 max_T=120.5 fem_flags=5
+[06:44:34]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[06:44:34]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 86.61, "foreign_cross": 4, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 83.71, "foreign_cross": 5, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 115.72, "foreign_cross": 6, "components": 1}, "/SENSEC2_LO": {"islands": 3, "area_mm2": 73.58, "foreign_cross": 20, "components": 2}}
+[06:44:37]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 12, 'unconnected': 2, 'length': 1081.12, 'vias': 145, 'tracks': 571, 'plane_signal_mm': 0, 'objective': 12286.06, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}]})
+06:44:37: Debug: Adding duplicate image handler for 'PNG file'
+06:44:37: Debug: Adding duplicate image handler for 'JPEG file'
+06:44:37: Debug: Adding duplicate image handler for 'TIFF file'
+06:44:37: Debug: Adding duplicate image handler for 'GIF file'
+06:44:37: Debug: Adding duplicate image handler for 'PNM file'
+06:44:37: Debug: Adding duplicate image handler for 'PCX file'
+06:44:37: Debug: Adding duplicate image handler for 'IFF file'
+06:44:37: Debug: Adding duplicate image handler for 'Windows icon file'
+06:44:37: Debug: Adding duplicate image handler for 'Windows cursor file'
+06:44:37: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+06:44:37: Debug: Adding duplicate image handler for 'TGA file'
+06:44:37: Debug: Adding duplicate image handler for 'XPM file'
+[06:52:45]   T5: auditor=repair (no proposals)
+[06:52:45]   ACTUATOR: finding-delta D-r35-0 kind=noop status=pending -- unmapped lever: 'None'
+[06:52:45]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[06:52:45] --- round 36/∞ [control] passes=60 opt=120 ---
+[06:52:47]   warmed cec-worker-vision
+[06:53:37]   T1 drop waypoint on fenced ref(s) ['U2'] (GND)
+[06:53:37]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', 'GND'] -- Previous round failed due to structural DRC errors, likely caused by routing thr
+[06:53:58]   T2-3.5: gates=FAIL kelvin=True drc=12 plane=0 pours=4 max_T=120.5 fem_flags=5
+[06:54:15]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'repair')])
+[06:54:16]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 1, "area_mm2": 108.79, "foreign_cross": 11, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.72, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 111.73, "foreign_cross": 18, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 85.29, "foreign_cross": 4, "components": 1}}
+[07:03:19]   T5: auditor=repair (no proposals)
+[07:03:19]   T8 V4 batch audit (4 rounds; warming V4)...
+[07:03:20]   warmed deepseek-v4-flash
+[07:07:09]   T8: risk=high declined=True findings=0
+[07:07:09]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[07:07:10] --- round 37/∞ [augmented] passes=60 opt=100 ---
+[07:07:13]   warmed cec-worker-vision
+[07:08:35]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (12 errors). The primary cause was l
+[07:08:58]   T2-3.5: gates=FAIL kelvin=True drc=12 plane=0 pours=4 max_T=120.5 fem_flags=5
+[07:09:15]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'accept')])
+[07:09:16]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 4, "area_mm2": 71.15, "foreign_cross": 18, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 116.66, "foreign_cross": 11, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.57, "foreign_cross": 3, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 87.21, "foreign_cross": 4, "components": 1}}
+[07:09:19]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 12, 'unconnected': 2, 'length': 1069.44, 'vias': 143, 'tracks': 583, 'plane_signal_mm': 0, 'objective': 12284.49, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'via over-temp', 'where': '/SENSEC1_HI', 'conf': 0.7}]})
+07:09:19: Debug: Adding duplicate image handler for 'PNG file'
+07:09:19: Debug: Adding duplicate image handler for 'JPEG file'
+07:09:19: Debug: Adding duplicate image handler for 'TIFF file'
+07:09:19: Debug: Adding duplicate image handler for 'GIF file'
+07:09:19: Debug: Adding duplicate image handler for 'PNM file'
+07:09:19: Debug: Adding duplicate image handler for 'PCX file'
+07:09:19: Debug: Adding duplicate image handler for 'IFF file'
+07:09:19: Debug: Adding duplicate image handler for 'Windows icon file'
+07:09:19: Debug: Adding duplicate image handler for 'Windows cursor file'
+07:09:19: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+07:09:19: Debug: Adding duplicate image handler for 'TGA file'
+07:09:19: Debug: Adding duplicate image handler for 'XPM file'
+[07:17:02]   T5: auditor=repair (no proposals)
+[07:17:02]   ACTUATOR: finding-delta D-r37-0 kind=noop status=pending -- unmapped lever: 'None'
+[07:17:02]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[07:17:02] --- round 38/∞ [augmented] passes=60 opt=120 ---
+[07:17:04]   warmed cec-worker-vision
+[07:17:58]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (12 errors). The primary cause is li
+[07:18:15]   T2-3.5: gates=FAIL kelvin=True drc=14 plane=0 pours=4 max_T=120.5 fem_flags=6
+[07:18:33]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[07:18:33]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 94.37, "foreign_cross": 15, "components": 2}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.14, "foreign_cross": 3, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 87.21, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 115.44, "foreign_cross": 7, "components": 1}}
+[07:18:36]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 14, 'unconnected': 2, 'length': 1083.28, 'vias': 143, 'tracks': 580, 'plane_signal_mm': 0, 'objective': 14284.59, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 6, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}]})
+07:18:36: Debug: Adding duplicate image handler for 'PNG file'
+07:18:36: Debug: Adding duplicate image handler for 'JPEG file'
+07:18:36: Debug: Adding duplicate image handler for 'TIFF file'
+07:18:36: Debug: Adding duplicate image handler for 'GIF file'
+07:18:36: Debug: Adding duplicate image handler for 'PNM file'
+07:18:36: Debug: Adding duplicate image handler for 'PCX file'
+07:18:36: Debug: Adding duplicate image handler for 'IFF file'
+07:18:36: Debug: Adding duplicate image handler for 'Windows icon file'
+07:18:36: Debug: Adding duplicate image handler for 'Windows cursor file'
+07:18:36: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+07:18:36: Debug: Adding duplicate image handler for 'TGA file'
+07:18:36: Debug: Adding duplicate image handler for 'XPM file'
+[07:25:57]   T5: auditor=repair (no proposals)
+[07:25:57]   ACTUATOR: finding-delta D-r38-0 kind=noop status=pending -- unmapped lever: 'None'
+[07:25:57]   EI-07 real_anchor_ratio=0.8182 (det=18 model=4)
+[07:25:57] --- round 39/∞ [augmented] passes=60 opt=120 ---
+[07:25:58]   warmed cec-worker-vision
+[07:26:44]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC errors, likely caused by nets passin
+[07:27:03]   T2-3.5: gates=FAIL kelvin=True drc=9 plane=0 pours=4 max_T=120.5 fem_flags=4
+[07:27:21]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'accept'), ('progress', 'escalate')])
+[07:27:21]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 86.84, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 115.69, "foreign_cross": 9, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.1, "foreign_cross": 4, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 94.43, "foreign_cross": 11, "components": 1}}
+[07:27:24]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 9, 'unconnected': 2, 'length': 1081.4, 'vias': 150, 'tracks': 617, 'plane_signal_mm': 0, 'objective': 9288.61, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}]})
+07:27:24: Debug: Adding duplicate image handler for 'PNG file'
+07:27:24: Debug: Adding duplicate image handler for 'JPEG file'
+07:27:24: Debug: Adding duplicate image handler for 'TIFF file'
+07:27:24: Debug: Adding duplicate image handler for 'GIF file'
+07:27:24: Debug: Adding duplicate image handler for 'PNM file'
+07:27:24: Debug: Adding duplicate image handler for 'PCX file'
+07:27:24: Debug: Adding duplicate image handler for 'IFF file'
+07:27:24: Debug: Adding duplicate image handler for 'Windows icon file'
+07:27:24: Debug: Adding duplicate image handler for 'Windows cursor file'
+07:27:24: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+07:27:24: Debug: Adding duplicate image handler for 'TGA file'
+07:27:24: Debug: Adding duplicate image handler for 'XPM file'
+[07:37:43]   T5: auditor=repair (no proposals)
+[07:37:43]   ACTUATOR: finding-delta D-r39-0 kind=noop status=pending -- unmapped lever: 'None'
+[07:37:43]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[07:37:43] --- round 40/∞ [control] passes=60 opt=120 ---
+[07:37:45]   warmed cec-worker-vision
+[07:38:47]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETC1'] -- Previous round failed due to structural DRC errors (9 violations). The router li
+[07:39:12]   T2-3.5: gates=FAIL kelvin=True drc=19 plane=0 pours=4 max_T=120.5 fem_flags=4
+[07:39:34]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[07:39:34]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 2, "area_mm2": 79.68, "foreign_cross": 7, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 120.41, "foreign_cross": 7, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 104.06, "foreign_cross": 10, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 84.21, "foreign_cross": 4, "components": 1}}
+[07:48:08]   T5: auditor=repair (no proposals)
+[07:48:08]   T8 V4 batch audit (4 rounds; warming V4)...
+[07:48:10]   warmed deepseek-v4-flash
+[07:50:42]   T8: risk=high declined=True findings=0
+[07:50:42]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[07:50:43] --- round 41/∞ [augmented] passes=60 opt=120 ---
+[07:50:44]   warmed cec-worker-vision
+[07:51:39]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 19 DRC errors, likely due to nets passing through the
+[07:52:00]   T2-3.5: gates=FAIL kelvin=True drc=15 plane=0 pours=4 max_T=120.5 fem_flags=4
+[07:52:19]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[07:52:19]   T6 POUR (deterministic): {"/SENSEC2_LO": {"islands": 2, "area_mm2": 85.86, "foreign_cross": 13, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.99, "foreign_cross": 4, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.84, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 116.31, "foreign_cross": 8, "components": 1}}
+[07:52:22]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 15, 'unconnected': 2, 'length': 1059.61, 'vias': 151, 'tracks': 595, 'plane_signal_mm': 0, 'objective': 15288.93, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}]})
+07:52:22: Debug: Adding duplicate image handler for 'PNG file'
+07:52:22: Debug: Adding duplicate image handler for 'JPEG file'
+07:52:22: Debug: Adding duplicate image handler for 'TIFF file'
+07:52:22: Debug: Adding duplicate image handler for 'GIF file'
+07:52:22: Debug: Adding duplicate image handler for 'PNM file'
+07:52:22: Debug: Adding duplicate image handler for 'PCX file'
+07:52:22: Debug: Adding duplicate image handler for 'IFF file'
+07:52:22: Debug: Adding duplicate image handler for 'Windows icon file'
+07:52:22: Debug: Adding duplicate image handler for 'Windows cursor file'
+07:52:22: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+07:52:22: Debug: Adding duplicate image handler for 'TGA file'
+07:52:22: Debug: Adding duplicate image handler for 'XPM file'
+[08:01:47]   T5: auditor=repair (no proposals)
+[08:01:47]   ACTUATOR: finding-delta D-r41-0 kind=noop status=pending -- unmapped lever: 'None'
+[08:01:47]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[08:01:47] --- round 42/∞ [augmented] passes=60 opt=120 ---
+[08:01:50]   warmed cec-worker-vision
+[08:03:50]   intent-manager fallback: JSONDecodeError: Unterminated string starting at: line 2 column 16 (char 17)
+[08:03:50]   T1 intents[fallback]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- fallback to previous intents
+[08:04:10]   T2-3.5: gates=FAIL kelvin=True drc=26 plane=0 pours=4 max_T=120.5 fem_flags=4
+[08:04:29]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[08:04:29]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 86.6, "foreign_cross": 5, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 91.3, "foreign_cross": 9, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.99, "foreign_cross": 4, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 116.42, "foreign_cross": 9, "components": 1}}
+[08:04:32]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 25, 'unconnected': 2, 'length': 1121.31, 'vias': 151, 'tracks': 614, 'plane_signal_mm': 0, 'objective': 25288.95, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 4, 'fem_flags': [{'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}]})
+08:04:32: Debug: Adding duplicate image handler for 'PNG file'
+08:04:32: Debug: Adding duplicate image handler for 'JPEG file'
+08:04:32: Debug: Adding duplicate image handler for 'TIFF file'
+08:04:32: Debug: Adding duplicate image handler for 'GIF file'
+08:04:32: Debug: Adding duplicate image handler for 'PNM file'
+08:04:32: Debug: Adding duplicate image handler for 'PCX file'
+08:04:32: Debug: Adding duplicate image handler for 'IFF file'
+08:04:32: Debug: Adding duplicate image handler for 'Windows icon file'
+08:04:32: Debug: Adding duplicate image handler for 'Windows cursor file'
+08:04:32: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+08:04:32: Debug: Adding duplicate image handler for 'TGA file'
+08:04:32: Debug: Adding duplicate image handler for 'XPM file'
+[08:15:26]   T5: auditor=repair (no proposals)
+[08:15:26]   ACTUATOR: finding-delta D-r42-0 kind=noop status=pending -- unmapped lever: 'None'
+[08:15:26]   EI-07 real_anchor_ratio=0.8 (det=16 model=4)
+[08:15:27] --- round 43/∞ [augmented] passes=60 opt=120 ---
+[08:15:29]   warmed cec-worker-vision
+[08:17:41]   intent-manager fallback: JSONDecodeError: Unterminated string starting at: line 2 column 16 (char 17)
+[08:17:41]   T1 intents[fallback]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- fallback to previous intents
+[08:18:05]   T2-3.5: gates=FAIL kelvin=True drc=13 plane=0 pours=4 max_T=120.5 fem_flags=5
+[08:18:23]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[08:18:23]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 1, "area_mm2": 116.14, "foreign_cross": 8, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 100.56, "foreign_cross": 12, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 82.03, "foreign_cross": 6, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.98, "foreign_cross": 3, "components": 1}}
+[08:27:08]   T5: auditor=repair (no proposals)
+[08:27:08]   ACTUATOR: finding-delta D-r43-0 kind=noop status=pending -- unmapped lever: 'None'
+[08:27:08]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[08:27:08] --- round 44/∞ [control] passes=60 opt=120 ---
+[08:27:09]   warmed cec-worker-vision
+[08:28:12]   T1 intents[model]: ['/I2C_SDA', '/I2C_SCL', '/THRESH', '/DETC1'] -- Previous round failed due to structural DRC errors (13 violations). The router l
+[08:28:32]   T2-3.5: gates=FAIL kelvin=True drc=10 plane=0 pours=4 max_T=120.5 fem_flags=5
+[08:28:51]   T4 panel: repair ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'repair')])
+[08:28:51]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 2, "area_mm2": 93.93, "foreign_cross": 17, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.99, "foreign_cross": 5, "components": 1}, "/SENSEC2_LO": {"islands": 1, "area_mm2": 107.2, "foreign_cross": 19, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 84.96, "foreign_cross": 3, "components": 1}}
+[08:37:24]   T5: auditor=repair (no proposals)
+[08:37:24]   T8 V4 batch audit (4 rounds; warming V4)...
+[08:37:25]   warmed deepseek-v4-flash
+[08:40:18]   T8: risk=high declined=True findings=0
+[08:40:18]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[08:40:19] --- round 45/∞ [augmented] passes=60 opt=100 ---
+[08:40:21]   warmed cec-worker-vision
+[08:41:35]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed with 10 DRC errors, likely due to nets passing through the
+[08:42:01]   T2-3.5: gates=FAIL kelvin=True drc=22 plane=0 pours=4 max_T=120.5 fem_flags=5
+[08:42:21]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[08:42:22]   T6 POUR (deterministic): {"/SENSEC1_LO": {"islands": 2, "area_mm2": 93.69, "foreign_cross": 16, "components": 1}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 85.82, "foreign_cross": 4, "components": 1}, "/SENSEC1_HI": {"islands": 1, "area_mm2": 86.84, "foreign_cross": 3, "components": 1}, "/SENSEC2_LO": {"islands": 3, "area_mm2": 96.77, "foreign_cross": 12, "components": 2}}
+[08:42:25]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 22, 'unconnected': 2, 'length': 1123.92, 'vias': 146, 'tracks': 605, 'plane_signal_mm': 0, 'objective': 22286.89, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}]})
+08:42:25: Debug: Adding duplicate image handler for 'PNG file'
+08:42:25: Debug: Adding duplicate image handler for 'JPEG file'
+08:42:25: Debug: Adding duplicate image handler for 'TIFF file'
+08:42:25: Debug: Adding duplicate image handler for 'GIF file'
+08:42:25: Debug: Adding duplicate image handler for 'PNM file'
+08:42:25: Debug: Adding duplicate image handler for 'PCX file'
+08:42:25: Debug: Adding duplicate image handler for 'IFF file'
+08:42:25: Debug: Adding duplicate image handler for 'Windows icon file'
+08:42:25: Debug: Adding duplicate image handler for 'Windows cursor file'
+08:42:25: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+08:42:25: Debug: Adding duplicate image handler for 'TGA file'
+08:42:25: Debug: Adding duplicate image handler for 'XPM file'
+[08:51:16]   T5: auditor=repair (no proposals)
+[08:51:16]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[08:51:16] --- round 46/∞ [augmented] passes=60 opt=120 ---
+[08:51:17]   warmed cec-worker-vision
+[08:51:47]   T1 intents[model]: ['GND', '+3V3', '/I2C_SDA', '/I2C_SCL'] -- Previous round failed due to structural DRC (22 errors), likely caused by nets p
+[08:52:06]   T2-3.5: gates=FAIL kelvin=True drc=19 plane=0 pours=4 max_T=120.5 fem_flags=5
+[08:52:23]   T4 panel: escalate ([('safety', 'escalate'), ('finishing', 'repair'), ('progress', 'escalate')])
+[08:52:24]   T6 POUR (deterministic): {"/SENSEC1_HI": {"islands": 1, "area_mm2": 86.56, "foreign_cross": 4, "components": 1}, "/SENSEC2_LO": {"islands": 2, "area_mm2": 88.78, "foreign_cross": 19, "components": 2}, "/SENSEC2_HI": {"islands": 1, "area_mm2": 86.1, "foreign_cross": 3, "components": 1}, "/SENSEC1_LO": {"islands": 1, "area_mm2": 113.72, "foreign_cross": 8, "components": 1}}
+[08:52:27]   layer-stagger: flipped 0 crossing(s) across F/B (reverted=True, rescored {'gates_pass': False, 'kelvin_ok': True, 'diffpair_ok': True, 'drc': 19, 'unconnected': 2, 'length': 1110.45, 'vias': 144, 'tracks': 599, 'plane_signal_mm': 0, 'objective': 19285.94, 'max_T': 120.5, 'max_dT': 70.5, 'fem_ambient': 50.0, 'fem_calibration': 'uncalibrated', 'n_fem_flags': 5, 'fem_flags': [{'name': 'conductor over-temp', 'where': '+5VSB', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_LO', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC1_HI', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': 'GND', 'conf': 0.85}, {'name': 'conductor over-temp', 'where': '/SENSEC2_HI', 'conf': 0.85}]})
+08:52:27: Debug: Adding duplicate image handler for 'PNG file'
+08:52:27: Debug: Adding duplicate image handler for 'JPEG file'
+08:52:27: Debug: Adding duplicate image handler for 'TIFF file'
+08:52:27: Debug: Adding duplicate image handler for 'GIF file'
+08:52:27: Debug: Adding duplicate image handler for 'PNM file'
+08:52:27: Debug: Adding duplicate image handler for 'PCX file'
+08:52:27: Debug: Adding duplicate image handler for 'IFF file'
+08:52:27: Debug: Adding duplicate image handler for 'Windows icon file'
+08:52:27: Debug: Adding duplicate image handler for 'Windows cursor file'
+08:52:27: Debug: Adding duplicate image handler for 'Windows animated cursor file'
+08:52:27: Debug: Adding duplicate image handler for 'TGA file'
+08:52:27: Debug: Adding duplicate image handler for 'XPM file'
+[09:01:17]   T5: auditor=repair (no proposals)
+[09:01:17]   ACTUATOR: finding-delta D-r46-0 kind=noop status=pending -- unmapped lever: 'None'
+[09:01:17]   EI-07 real_anchor_ratio=0.8095 (det=17 model=4)
+[09:01:18]   T7 end-of-run validation review on best candidate r3 (obj=959360.0)...
+[09:10:00]   warmed cec-manager-fast
+[09:10:00] A/B (control vs augmented):
+A/B  control(n=11)  vs  augmented(n=35)
+metric                    control   augmnt    delta
+gates_pass_rate               0.0      0.0      0.0
+kelvin_ok_rate                1.0      1.0      0.0
+convergence                   0.0      0.0      0.0
+plane_signal_mm_mean          0.0      0.0      0.0
+plane_signal_mm_min             0        0     --  
+drc_mean                   18.364     18.2   -0.164
+real_anchor_ratio_mean     0.8094    0.812   0.0026
+placement_moved_rate          0.0      0.0      0.0
+[09:10:00] DONE: 46 candidates, 0 gate-passing, 0 finalists, 0 rules (cap 10), verifier 11/200, deltas {'vindicated': 0, 'refuted': 0, 'overturned': 0} -> /home/nathan/cec-placement/docs/fullstack-run-2026-06-15

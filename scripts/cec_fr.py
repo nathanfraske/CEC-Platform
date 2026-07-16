@@ -37,6 +37,7 @@
 # Verified round-trip (EPS board, 2026-06-06): ExportSpecctraDSN -> FR exit 0 ->
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
+import re
 import sys
 import math
 import shutil
@@ -619,6 +620,135 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     return pours
 
 
+def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None):
+    """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
+    high-current-pour-integrity / kelvin-tap-inner-shunt-edge corpus rules).
+
+    Reserve each high-current FORCE corridor -- the cable connector THT pads' span extended to the 2-pad
+    Kelvin shunt -- as a Freerouting keepout, CLIPPED on the shunt's inner side so the tap window
+    (shunt-inner-edge -> INA, which the pour deliberately excludes) stays open. That clip IS the "notch":
+    FR routes foreign +3V3/GND/signal AROUND the corridor, so the post-route additive power pour fills it
+    SOLID instead of being cut into islands by a foreign trace (which would otherwise leave the thin
+    0.2mm FR trace carrying the 40A). allow_vias=True so a boxed-in sensor pad can still escape DOWN.
+
+    This is the piece cec_router.route() has (so it converges) and route_directed lacked (so the agentic
+    loop stalled on pour-clip). Force nets = the Kelvin _HI/_LO pairs + the 12V nets (derived from the
+    board via cec_score.Rules when not given). SELF-GATING: a net with no THT cable pad or no 2-pad shunt
+    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts."""
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    if nets_12v is None:
+        try:
+            import cec_score
+            nets_12v = cec_score.Rules.from_board(board_path).nets_12v
+        except Exception:                                    # noqa: BLE001 -- 12V nets are optional
+            nets_12v = []
+    force_nets = set(nets_12v)
+    for hi, lo in kelvin_pairs:
+        force_nets.add(hi)
+        force_nets.add(lo)
+
+    pads_by_net = {}
+    npads = {}
+    for fp in board.GetFootprints():
+        npads[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append(p)
+
+    hints = []
+    for net in sorted(force_nets):
+        entries = pads_by_net.get(net, [])
+        tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
+               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+        shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                 for fp in board.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
+                 for p in fp.Pads() if p.GetNetname() == net]
+        if not tht or not shunt:
+            continue                                         # not a cable-connector high-current net
+        sx, sy = shunt[0]
+        txs = [x for x, _ in tht]
+        tys = [y for _, y in tht]
+        tcy = sum(tys) / len(tys)
+        x0 = min(txs + [sx]) - 1.0
+        x1 = max(txs + [sx]) + 1.0
+        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom AT shunt
+            y0, y1 = min(tys) - 1.0, sy
+        else:                                                # shunt ABOVE the connector (cable-out): clip top AT shunt
+            y0, y1 = sy, max(tys) + 1.0
+        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
+                      "x1": round(x1, 2), "y1": round(y1, 2),
+                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
+                      # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
+                      # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
+                      "block_fills": False})
+    return hints
+
+
+def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
+                 layers=("F.Cu", "B.Cu")):
+    """Route-time board-EDGE keepout (lever B, 2026-06-17). Freerouting has NO board-edge-clearance
+    awareness -- the standard ExportSpecctraDSN gives it only the outline, so it routes signal tracks hard
+    against Edge.Cuts (measured: ~100% of a routed CEC board's DRC is copper_edge_clearance, incl. a 67mm
+    track run along the perimeter). Reserve a *margin*-wide strip just inside each board edge so FR keeps
+    tracks off it. The strip EXCLUDES the (inflated) bounding boxes of edge-resident footprints -- connectors
+    J* + mounts H* (and anything whose footprint name says Mounting/Conn/RJ45/USB) -- whose pads legitimately
+    sit at the edge and must stay routable. allow_vias=False (no copper of any kind in the strip);
+    block_fills=False so the high-current pours still fill to their own edge clamp. Returns bake_hints-ready
+    rects; SELF-GATING (a board with no outline / all-edge parts yields fewer/no strips). Stack with
+    corridor_keepouts in the same hints list."""
+    own = board if board is not None else pcbnew.LoadBoard(board_path)
+    bb = own.GetBoardEdgesBoundingBox()
+    if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
+        return []
+    L, T = bb.GetLeft() / MM, bb.GetTop() / MM
+    R, Bn = bb.GetRight() / MM, bb.GetBottom() / MM        # T<Bn (KiCad: top=min y, bottom=max y)
+
+    def _edge_resident(fp):
+        ref = fp.GetReference()
+        if ref[:1] in edge_refs:
+            return True
+        name = str(fp.GetFPID().GetLibItemName()).upper()
+        return any(k in name for k in ("MOUNTING", "CONN", "RJ45", "USB", "JST", "MOLEX"))
+
+    allow = []                                              # inflated bboxes that may touch the edge
+    for fp in own.GetFootprints():
+        if _edge_resident(fp):
+            fb = fp.GetBoundingBox()
+            allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
+                          fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
+
+    def _subtract(a0, a1, spans):                          # 1-D: [a0,a1] minus the exclude spans
+        cuts = sorted(s for s in spans if s[1] > a0 and s[0] < a1)
+        segs, cur = [], a0
+        for s0, s1 in cuts:
+            if s0 > cur:
+                segs.append((cur, min(s0, a1)))
+            cur = max(cur, s1)
+        if cur < a1:
+            segs.append((cur, a1))
+        return [(x, y) for x, y in segs if y - x > 0.5]    # drop slivers FR can't use anyway
+
+    hints = []
+    for nm, y0, y1 in (("top", T, T + margin), ("bottom", Bn - margin, Bn)):   # split by X
+        ex = [(a[0], a[2]) for a in allow if a[1] < y1 and a[3] > y0]
+        for i, (x0, x1) in enumerate(_subtract(L, R, ex)):
+            hints.append({"name": f"edge_{nm}_{i}", "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2), "layers": layers,
+                          "allow_vias": False, "block_fills": False})
+    for nm, x0, x1 in (("left", L, L + margin), ("right", R - margin, R)):      # split by Y
+        ex = [(a[1], a[3]) for a in allow if a[0] < x1 and a[2] > x0]
+        for i, (y0, y1) in enumerate(_subtract(T, Bn, ex)):
+            hints.append({"name": f"edge_{nm}_{i}", "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2), "layers": layers,
+                          "allow_vias": False, "block_fills": False})
+    return hints
+
+
 # ---------------------------------------------------------------------------
 # derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
 # ---------------------------------------------------------------------------
@@ -733,6 +863,271 @@ def add_via_field(board, fields):
             board.Add(v)
             added.append(v)
     return added
+
+
+# ---------------------------------------------------------------------------
+# stagger_corridor_crossings -- the LAYER-TIER lever (route-time corridor fix)
+# ---------------------------------------------------------------------------
+# The cc=6 floor (placement-strategy CORE-PREMISE FINDING): on a cable board some foreign signals MUST
+# cross the J_IN->shunt->J_OUT high-current corridor to reach the central ESP -- placement can't avoid
+# it. Each crossing on an outer layer cuts that layer's 12V pour. The cable boards carry 12V on BOTH
+# outers (GND on both inners), so the fix is to STAGGER the crossings across F.Cu vs B.Cu: no two cross
+# at the same x on the same layer, so the un-cut outer pour mirror always carries the current past each
+# single-layer cut (the additive F+B pours + via stitching from derive_power_pours/synthesize_power_
+# copper then carry it). The placement-side corridor-evict lever clears a body-IN-band; THIS lever
+# handles the unavoidable trace crossings -- the actual route-time fix.
+def _corridor_foreign_net(net, corridor_nets, sense_nets):
+    """A foreign net that, crossing a band, cuts the pour: not a corridor force net, not an INA sense
+    net, not GND/a power rail (those legitimately pour/stitch). Mirrors cec_constraints._is_corridor_signal."""
+    if not net or net in corridor_nets or net in sense_nets:
+        return False
+    base = net.rsplit("/", 1)[-1].upper()
+    if base in ("GND",) or re.search(r"(^|/)\+?(3V3|5VSB|5V|12V|VBUS|VCC)$", net, re.I):
+        return False
+    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")) or "unconnected-" in net.lower():
+        return False
+    return True
+
+
+def _seg_band_clip(t, band):
+    """Clip PCB_TRACE_T *t* against the band RECTANGLE [x0,x1]x[y0,y1] (Liang-Barsky). Returns
+    (p_in_nm, p_out_nm, edge_in, edge_out) for the in-band portion, or None if the segment does not
+    intersect the band. ``edge_in``/``edge_out`` are True when that clip endpoint is a real band-boundary
+    crossing (the segment continues OUTSIDE the band there, so a layer transition + via is needed) and
+    False when it is the segment's own endpoint sitting INSIDE the band (no transition).
+
+    Unlike the old _seg_crosses_band (which required ONE segment to span the whole band x-width), this
+    flags ANY segment with copper inside the band -- so an L-bend / 45-degree route whose crossing is
+    realised by several short segments is detected, not silently missed (the audit's "83% of real
+    crossings missed -> flipped=0 live")."""
+    x0, x1, y0, y1 = band
+    s, e = t.GetStart(), t.GetEnd()
+    sx, sy = s.x / MM, s.y / MM
+    dx, dy = e.x / MM - sx, e.y / MM - sy
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, sx - x0), (dx, x1 - sx), (-dy, sy - y0), (dy, y1 - sy)):
+        if abs(p) < 1e-12:                                  # segment parallel to this edge
+            if q < 0:
+                return None                                 # wholly outside this edge
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return None
+            if r > t0:
+                t0 = r
+        else:
+            if r < t0:
+                return None
+            if r < t1:
+                t1 = r
+    if t1 - t0 < 1e-9:                                       # only grazes a corner -> not a crossing
+        return None
+    p_in = (int(round((sx + dx * t0) * MM)), int(round((sy + dy * t0) * MM)))
+    p_out = (int(round((sx + dx * t1) * MM)), int(round((sy + dy * t1) * MM)))
+    return (p_in, p_out, t0 > 1e-9, t1 < 1.0 - 1e-9)
+
+
+def _relayer_segment_inband(board, t, clip, target_layer, *, drill=0.3, dia=0.6):
+    """Move the IN-BAND portion of track *t* (clip = the _seg_band_clip tuple) onto *target_layer*,
+    leaving any out-of-band portion on the original layer and adding a transition via at each real
+    band-boundary crossing so the net stays connected. *t* itself becomes the in-band (target-layer)
+    piece. Returns the list of added objects (0..4: up to a before-seg+via and an after-seg+via).
+
+    Generalises the old _flip_crossing (which handled only the both-ends-outside full-span case) to
+    every case: fully-inside (just re-layer, no via -- its neighbours carry the transition), straddling
+    one edge (one via), and spanning the band (two vias)."""
+    p_in_xy, p_out_xy, edge_in, edge_out = clip
+    nc, w, orig = t.GetNetCode(), t.GetWidth(), t.GetLayer()
+    start = pcbnew.VECTOR2I(t.GetStart().x, t.GetStart().y)
+    end = pcbnew.VECTOR2I(t.GetEnd().x, t.GetEnd().y)
+    p_in, p_out = pcbnew.VECTOR2I(*p_in_xy), pcbnew.VECTOR2I(*p_out_xy)
+    t.SetStart(p_in); t.SetEnd(p_out); t.SetLayer(target_layer)   # reuse t as the in-band middle piece
+    added = []
+    for (boundary, far, present) in ((p_in, start, edge_in), (p_out, end, edge_out)):
+        if not present:
+            continue                                        # the segment's own endpoint sits in-band
+        seg = pcbnew.PCB_TRACK(board)
+        seg.SetStart(boundary); seg.SetEnd(far); seg.SetWidth(w); seg.SetLayer(orig); seg.SetNetCode(nc)
+        board.Add(seg); added.append(seg)
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(boundary); v.SetDrill(_nm(drill)); v.SetWidth(_nm(dia))
+        v.SetLayerPair(orig, target_layer); v.SetNetCode(nc); board.Add(v); added.append(v)
+    return added
+
+
+def _rm_tmp_board(path):
+    """Remove a temp board AND the .kicad_pro/.kicad_prl sidecars pcbnew.SaveBoard writes next to it
+    (os.remove on the .kicad_pcb alone leaks the two sidecars on every staged stagger -- re-audit LOW)."""
+    base = path[:-len(".kicad_pcb")] if path.endswith(".kicad_pcb") else path
+    for p in (path, base + ".kicad_pro", base + ".kicad_prl"):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
+def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=print):
+    """LAYER-TIER lever (route-time): stagger the foreign signals that cross each formed high-current
+    corridor band across F.Cu/B.Cu so the un-cut outer pour mirror always carries. Per band: collect the
+    foreign crossing tracks, order by crossing-x, assign ALTERNATING target layers, and flip those not
+    already on their target (split + transition vias). SAFE: if *verify*, the route QUALITY
+    (_route_quality = structural DRC + unrouted ratlines + a hard-gate penalty) must not regress --
+    otherwise the whole transform is REVERTED, staged via a temp board so an in-place call can never
+    overwrite-then-fail-to-restore the original (panel G2/G5). This is safe to run in an overnight loop.
+    Returns a report dict. Cable-board / formed-corridor only (shared-bus + degenerate bands yield an
+    empty no-op)."""
+    import cec_synth_pipeline as sp
+    out_path = out_path or board_path
+    # SAFE (panel G2): NEVER mutate the original board_path. Stagger a loaded copy, write it to a TEMP,
+    # and only copy the temp onto out_path if it passes verify -- so an in-place call (out_path ==
+    # board_path) can't overwrite-then-fail-to-restore (the old copy2(path,path) SameFileError crash).
+    board = pcbnew.LoadBoard(board_path)
+    model, _P = sp._board_corridor_model(board)
+    bands = {c.base: c.band for c in model.cables if c.formed}
+    sense = _sense_input_nets(board)
+    report = {"bands": {}, "flipped": 0, "vias_added": 0, "reverted": False}
+    if not bands:
+        if out_path != board_path:
+            shutil.copy2(board_path, out_path)
+        return {**report, "note": "no formed cable corridor (shared-bus/degenerate) -- no-op"}
+    for base, band in bands.items():
+        x0, x1 = band[0], band[1]
+        # Collect, per foreign net: its in-band clipped segments AND the x-extent of ALL its F/B copper.
+        # NOTE: collection is read-only and FULLY completes before any board mutation below -- we hold the
+        # track refs and never re-call GetTracks() mid-mutation (the re-proxied-ids SWIG footgun).
+        by_net = {}                                          # net -> [(track, clip), ...]
+        spans = {}                                           # net -> (min endpoint x, max endpoint x) mm
+        inband_pts = {}                                      # net -> set of in-band clip endpoints (nm)
+        outband_pts = {}                                     # net -> {endpoint (nm): layer} of out-of-band segs
+        for t in board.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T or t.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
+                continue
+            n = t.GetNetname()
+            if not _corridor_foreign_net(n, model.corridor_nets, sense):
+                continue
+            sx, ex = t.GetStart().x / MM, t.GetEnd().x / MM
+            lo, hi = spans.get(n, (1e18, -1e18))
+            spans[n] = (min(lo, sx, ex), max(hi, sx, ex))
+            clip = _seg_band_clip(t, band)
+            if clip:
+                by_net.setdefault(n, []).append((t, clip))
+                inband_pts.setdefault(n, set()).update((clip[0], clip[1]))  # post-relayer target endpoints
+            else:
+                d = outband_pts.setdefault(n, {})
+                d[(t.GetStart().x, t.GetStart().y)] = t.GetLayer()
+                d[(t.GetEnd().x, t.GetEnd().y)] = t.GetLayer()
+        # A net CROSSES the band only if it has in-band copper AND its routed copper reaches BOTH x-sides
+        # of the band (so it severs the pour across the corridor, rather than merely dipping in). L-bend
+        # routes qualify now because the test is on the net's whole x-extent, not one spanning segment.
+        crossers = {n: segs for n, segs in by_net.items()
+                    if spans[n][0] < x0 and spans[n][1] > x1}
+        # Order by leftmost in-band entry x and ALTERNATE target layer so no two cross at the same x on
+        # the same layer -> the un-cut outer pour mirror always carries past each single-layer cut.
+        for i, n in enumerate(sorted(crossers, key=lambda nn: min(c[1][0][0] for c in crossers[nn]))):
+            target = pcbnew.F_Cu if i % 2 == 0 else pcbnew.B_Cu
+            flipped_any = False
+            via_pts = set()                                  # nm points where _relayer already placed a via
+            for t, clip in crossers[n]:
+                if t.GetLayer() != target:
+                    added = _relayer_segment_inband(board, t, clip, target)
+                    for o in added:
+                        if o.Type() == pcbnew.PCB_VIA_T:
+                            report["vias_added"] += 1
+                            via_pts.add((o.GetPosition().x, o.GetPosition().y))
+                    flipped_any = True
+            if flipped_any:
+                report["flipped"] += 1
+                # CONNECTIVITY REPAIR (re-audit finding 1): the per-segment edge-via rule misses a via where
+                # a relayered (now target-layer) segment's endpoint coincides with an out-of-band segment's
+                # endpoint on the OTHER layer (e.g. a fully-in-band segment ending exactly on the band edge,
+                # meeting an unclipped out-of-band neighbour) -> the net would be severed. Add the missing
+                # target<->other transition via at every such point not already vianed.
+                nc = board.FindNet(n).GetNetCode()
+                for pt, oly in outband_pts.get(n, {}).items():
+                    if oly != target and pt in inband_pts.get(n, set()) and pt not in via_pts:
+                        v = pcbnew.PCB_VIA(board)
+                        v.SetPosition(pcbnew.VECTOR2I(*pt)); v.SetDrill(_nm(0.3)); v.SetWidth(_nm(0.6))
+                        v.SetLayerPair(target, oly); v.SetNetCode(nc); board.Add(v)
+                        via_pts.add(pt); report["vias_added"] += 1
+        report["bands"][base] = len(crossers)
+    # RE-FILL after moving crossings (UnFill-first, like add_power_pours -- a double-fill in one process
+    # can segfault this SWIG build). Re-fills ALL zones (the real "Fill All Zones"); for the unchanged
+    # GND/12V planes this is idempotent (they were already filled by import_ses / synthesize_power_copper),
+    # but it HEALS the force pours around the new geometry: the F.Cu pour reclaims the clearance hole the
+    # now-departed foreign track left, and the B.Cu mirror re-carves clearance around the track moved onto
+    # it (otherwise the moved track would short the stale B.Cu fill). Without this the stagger moves copper
+    # but never updates the pours, so it is inert (the audit's "useless"). Only when something flipped.
+    if not report["flipped"]:
+        # Nothing changed -> ship the EXACT original bytes (no pcbnew re-serialize churn / version-stamp).
+        del board
+        if out_path != board_path:
+            shutil.copy2(board_path, out_path)
+        return report
+    for z in board.Zones():
+        z.UnFill()
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    _fd, tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)
+    os.close(_fd)                                          # don't leak the mkstemp fd (cec_score does this too)
+    pcbnew.SaveBoard(tmp, board)
+    del board
+    if verify:
+        pre, pre_u, _ = _route_quality_detail(board_path)        # original vs staggered
+        post, post_u, _ = _route_quality_detail(tmp)
+        # Revert if the staggered board is worse on the aggregate, OR opens ANY new ratline (post_u > pre_u
+        # -- a net disconnect, which a drc/heal improvement must never be allowed to mask, re-audit finding
+        # 2), OR cannot be scored at all (+inf). An unverifiable or connectivity-regressing transform must
+        # never ship over the original.
+        if post > pre or post_u > pre_u or not math.isfinite(post):
+            if out_path != board_path:
+                shutil.copy2(board_path, out_path)
+            _rm_tmp_board(tmp)
+            report.update(reverted=True, q_pre=pre, q_post=post, unconn_pre=pre_u, unconn_post=post_u,
+                          flipped=0, vias_added=0)
+            log(f"[cec_fr] stagger reverted: quality {pre}->{post} unconnected {pre_u}->{post_u} "
+                f"(kept the un-staggered route)")
+            return report
+    shutil.copy2(tmp, out_path)                            # accept the staggered board
+    _rm_tmp_board(tmp)
+    return report
+
+
+def _sense_input_nets(board):
+    """Nets at an INA current-sense input pin (the Kelvin/post-filter sense) -- exempt from staggering."""
+    out = set()
+    for fp in board.GetFootprints():
+        if "INA2" not in (fp.GetValue() or "").upper():
+            continue
+        for pad in fp.Pads():
+            nu = (pad.GetNetname() or "")
+            if nu and nu.upper().endswith(("_HI", "_LO", "_P", "_N")):
+                out.add(nu)
+    return out
+
+
+def _route_quality_detail(board_path):
+    """(scalar, unconnected, gates_ok) for the stagger safe-revert. The scalar combines structural DRC +
+    unrouted ratlines + a hard-gate (Kelvin/diff-pair) penalty (LOWER is better). The ``unconnected``
+    count is returned SEPARATELY because the scalar alone is not safe: the post-flip re-fill can LOWER drc
+    while a flip RAISES unconnected (a net disconnect), and the two would net out -- so the caller must
+    veto on any unconnected increase independently of the scalar (re-audit 2026-06-14, finding 2). A
+    measurement FAILURE returns (+inf, +inf, False) -- the worst on every axis, so an unscoreable result
+    is never accepted over the original board (the old `except: return 0` masked errors as a perfect
+    score)."""
+    try:
+        import cec_score
+        m = cec_score.score(board_path)
+        gates_ok = bool(m.kelvin_ok and m.diffpair_ok)
+        return float(m.drc + m.unconnected + (0 if gates_ok else 10_000)), int(m.unconnected), gates_ok
+    except Exception:
+        return float("inf"), float("inf"), False
+
+
+def _route_quality(board_path):
+    """Scalar form of :func:`_route_quality_detail` (see there). LOWER is better; +inf on a measurement
+    failure. Used where only the aggregate matters (e.g. the purely-additive mirror-pour adoption guard,
+    where unconnected can only fall)."""
+    return _route_quality_detail(board_path)[0]
 
 
 # ---------------------------------------------------------------------------
@@ -1001,11 +1396,16 @@ def bake_hints(
             # useful via here anyway (no F.Cu track may reach it), and cec_hc's gate still treats any via as
             # a tap obstacle, so tap cleanliness is preserved.
             z.SetDoNotAllowVias(not bool(ko.get("allow_vias", False)))
+            # block_fills=False (corridor keepouts) keeps FOREIGN tracks out during FR routing but lets
+            # the post-route additive SAME-NET power pour FILL the reserved corridor SOLID -- without it
+            # the keepout's DoNotAllowZoneFills blocks ~89% of the pour it was meant to protect (measured),
+            # leaving the thin 0.2mm trace carrying the 40A. Default True preserves the old behaviour.
+            block_fills = bool(ko.get("block_fills", True))
             # KiCad 9/10 renamed SetDoNotAllowCopperPour -> SetDoNotAllowZoneFills
             if hasattr(z, "SetDoNotAllowZoneFills"):
-                z.SetDoNotAllowZoneFills(True)
+                z.SetDoNotAllowZoneFills(block_fills)
             else:
-                z.SetDoNotAllowCopperPour(True)
+                z.SetDoNotAllowCopperPour(block_fills)
 
             ls = pcbnew.LSET()
             for lname in layers:

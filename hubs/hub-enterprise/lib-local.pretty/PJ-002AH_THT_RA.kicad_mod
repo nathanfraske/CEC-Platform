@@ -1,0 +1,78 @@
+(footprint "PJ-002AH_THT_RA"
+	(version 20241229)
+	(generator "kicad")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Same Sky (CUI) PJ-002AH right-angle THT DC barrel jack, 2.0mm center pin / 5.5mm OD, 5A. Pad positions APPROXIMATED from the datasheet's recommended-PCB-layout dimensions (10.70mm outer terminal span, 4.70mm row offset, 3.00mm center-terminal offsets) -- schematic-capture pass; verify exact pad coordinates against sameskydevices.com/product/resource/pj-002ah.pdf sheet 2 before layout/fab.")
+	(tags "connector barrel jack DC power THT")
+	(attr through_hole)
+	(property "Reference" "REF**"
+		(at 0 -6.5 0)
+		(layer "F.SilkS")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "PJ-002AH_THT_RA"
+		(at 0 7.5 0)
+		(layer "F.Fab")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_rect
+		(start -4.5 -5.5)
+		(end 4.5 3.5)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(fill no)
+	)
+	(fp_rect
+		(start -5.5 -6.5)
+		(end 5.5 4.5)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(fill no)
+	)
+	(fp_circle
+		(center 0 -3.5)
+		(end 3.25 -3.5)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(fill no)
+	)
+	(pad "1" thru_hole circle
+		(at 0 -5.35)
+		(size 1.6 1.6)
+		(drill 1.0)
+		(layers "*.Cu" "*.Mask")
+	)
+	(pad "2" thru_hole oval
+		(at -3.0 1.2)
+		(size 1.8 2.2)
+		(drill 1.0)
+		(layers "*.Cu" "*.Mask")
+	)
+	(pad "3" thru_hole oval
+		(at 3.0 1.2)
+		(size 1.8 2.2)
+		(drill 1.0)
+		(layers "*.Cu" "*.Mask")
+	)
+	(embedded_fonts no)
+)

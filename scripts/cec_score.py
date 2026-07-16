@@ -591,20 +591,73 @@ def objective_v2(*, gates_pass, drc, islands_excess, sense_copper, base=0.0, wei
 _SENSE_POUR_RE = re.compile(r"/?SENSEC\d+_(HI|LO)$", re.I)
 
 
+def sense_pour_components(board_path):
+    """F+B-mirror-AWARE pour fragmentation (SB-08 item-2 escalation, 2026-06-12). The original gate
+    counts F.Cu islands (OutlineCount); that PREDATES the synthesize_power_copper F+B mirror, where a
+    sense pour is legitimately SEVERAL F.Cu islands STITCHED into ONE conductor by the via field + the
+    THT connector/shunt pads -- so F.Cu OutlineCount over-reports fragmentation (measured: the synth
+    eps golden reads SENSEC2_LO at 3 F.Cu islands but ONE connected component). This counts CONNECTED
+    COMPONENTS of each sense net's pour copper across F.Cu + B.Cu, with same-net vias and THT pads as
+    inter-layer bridges -> 1 == intact. A genuinely clipped single-layer pour with no mirror/stitch
+    (the validation-run R4 shape: 3 F.Cu islands, no B.Cu, no bridges) still reads 3 -> FAIL. Returns
+    {net: components}. Needs pcbnew (in-container). Use to populate pour_facts[net]['components']."""
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    isl = {}                                              # net -> [(filled_polyset, outline_idx), ...]
+    for z in b.Zones():
+        nn = z.GetNetname()
+        if not _SENSE_POUR_RE.search(str(nn)):
+            continue
+        for L in (pcbnew.F_Cu, pcbnew.B_Cu):
+            if z.IsOnLayer(L):
+                ps = z.GetFilledPolysList(L)
+                for i in range(ps.OutlineCount()):
+                    isl.setdefault(nn, []).append((ps, i))
+    bridges = {}                                          # net -> [VECTOR2I positions] (vias + THT pads)
+    for t in b.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() in isl:
+            bridges.setdefault(t.GetNetname(), []).append(t.GetPosition())
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetname() in isl and p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH:
+                bridges.setdefault(p.GetNetname(), []).append(p.GetPosition())
+    out = {}
+    for nn, nodes in isl.items():
+        parent = list(range(len(nodes)))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        for pt in bridges.get(nn, []):
+            v = pcbnew.VECTOR2I(pt.x, pt.y)
+            touched = [i for i, (ps, oi) in enumerate(nodes) if ps.Contains(v, oi)]
+            for k in range(1, len(touched)):
+                parent[find(touched[0])] = find(touched[k])
+        out[nn] = len({find(i) for i in range(len(nodes))}) if nodes else 0
+    return out
+
+
 def pour_integrity_ok(pour_facts, *, min_copper_mm2=None):
-    """BLOCKING pour-integrity gate (PR #35 review item 2). Every sense-pour net (/SENSEC*_HI|LO)
-    must be ONE island (islands == 1). The existing kelvin_ok gate checks CONNECTIVITY only and is
-    BLIND to pour fragmentation -- it returned True on the round-4 board that had SENSEC2_HI at 3
-    islands and -21% sense copper. This is a NEW gate, not a tightening of kelvin. Optional
-    `min_copper_mm2` per-sense-net copper floor. Returns (ok: bool, reasons: list). Vacuously True
-    on a board with no sense pours (the gate scopes itself to the cable-interposer family)."""
+    """BLOCKING pour-integrity gate (PR #35 review item 2; F+B-aware SB-08 item 2, 2026-06-12). Every
+    sense-pour net (/SENSEC*_HI|LO) must be ONE connected conductor. The kelvin_ok gate checks PAD
+    CONNECTIVITY only and is BLIND to pour fragmentation -- it returned True on the round-4 board that
+    had SENSEC2_HI at 3 islands and -21% sense copper. This gate uses the F+B-mirror-AWARE component
+    count (`components`, from sense_pour_components: F.Cu islands stitched through the via field + THT
+    pads count as one) when present, falling back to the raw F.Cu `islands` otherwise. A synth board's
+    3-F.Cu-islands-but-1-component sense pour PASSES; R4's 3-islands-no-stitch FAILS. Optional
+    `min_copper_mm2` per-sense-net copper floor. Returns (ok, reasons). Vacuously True with no sense pours."""
     reasons = []
     for net, v in (pour_facts or {}).items():
         if not isinstance(v, dict) or not _SENSE_POUR_RE.search(str(net)):
             continue
-        isl = v.get("islands", 1) or 1
-        if isl != 1:
-            reasons.append(f"{net}: fragmented ({isl} islands, expected 1)")
+        # prefer the F+B-aware component count; fall back to the raw F.Cu island count
+        comp = v.get("components")
+        n = (comp if comp is not None else v.get("islands", 1)) or 1
+        if n != 1:
+            unit = "components" if comp is not None else "islands"
+            reasons.append(f"{net}: fragmented ({n} {unit}, expected 1)")
         if min_copper_mm2 is not None and (v.get("area_mm2", 0) or 0) < min_copper_mm2:
             reasons.append(f"{net}: copper {v.get('area_mm2')}mm2 < floor {min_copper_mm2}")
     return (not reasons), reasons

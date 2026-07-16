@@ -1,0 +1,1469 @@
+# Blade-interface fit-check memo (2026-07-04)
+
+Paper half of the owner's condition on adopting the Keystone universal-entry
+blade clip config (`output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
+config (i)). This is a **datasheet-vs-datasheet compatibility check**, not a
+substitute for the physical sample check the study already calls out (gang
+mating-force measurement + clip-cluster confirm-soak/thermal-cycle contact-R
+trend). That physical gate remains the owner's, unstarted here.
+
+Parts checked, all fetched 2026-07-04 from the manufacturer's own dimensioned
+drawing (not marketing copy): Keystone dwg no. 3586 rev D (LCSC-hosted, C238113),
+Keystone catalog M55 p.41 "2 IN 1 FUSE HOLDER" + p.53 "FEMALE PC QUICK-FIT
+TERMINALS" tables (C352820), TE dwg C=63849 rev F1 (LCSC-hosted, C86469).
+Cached at `lib/datasheets/Keystone_3586.pdf`, `Keystone_3557-2.pdf`,
+`TE_63849-1.pdf`.
+
+## 1. Accepted tab range (clip side)
+
+Keystone's universal-entry family (3557 top-entry / 3577 bottom-entry / 3586
+SMT top-&-side-entry / 3557-2's two "2 in 1" positions) is one clip design
+built in several PCB-mount forms. The catalog's own table for CAT NO. 3557
+(M55 p.53) states:
+
+> **ACCEPTS TAB: .110 (2.8) to .250 (6.4) × .020 (.50) to .032 (.80)**
+
+i.e. width .110″–.250″ (2.8–6.4 mm), thickness .020″–.032″ (0.51–0.81 mm).
+Keystone's own 3586 product page (keyelco.com/product.cfm/product_id/314)
+independently states the same width range ("accepts .110″(2.8) to
+.250″(6.4) male tabs") for the SMT sibling — the three PCB-mount variants
+share the same internal spring-clip geometry, so the same accepted range is
+taken to apply to all of 3557 / 3577 / 3586 / 3557-2's two positions. This is
+a **family-level inference**, not a per-P/N re-measurement of 3586 or
+3557-2's own contact spring individually — flagged UNVERIFIED at that
+resolution.
+
+## 2. Tab geometry (TE 63849-1)
+
+Per TE dwg C=63849 (sheet A3, rev F1):
+
+- Blade width: **6.35 mm ± 0.08** (.250″ ± .003″)
+- Blade thickness: **0.84 / 0.76 mm** (.033″ / .030″ — i.e. a 0.76–0.84 mm band)
+- Material: brass; finish tin plate (≥0.00381 mm) over ≥0.00254 mm copper, OR
+  tin plate (≥0.00381 mm) over ≥0.00127 mm nickel
+- "SUPPLIED IN LOOSE PIECE"
+
+## 3. Verdict: datasheet-compatible, with one tolerance note
+
+**Width — clean match.** 6.35 mm nominal sits exactly at the clip family's
+stated upper bound (6.4 mm / .250″); this is by design — the FASTON .250 tab
+is the size class the "up to .250" clip rating is written for, not an edge
+case.
+
+**Thickness — compatible, but tight at the tab's upper tolerance.** The tab's
+nominal/lower band (0.76–0.81 mm) sits inside the clip's stated 0.51–0.81 mm
+(.020–.032″) range. The tab's *upper* tolerance limit, 0.84 mm, is **0.04 mm
+(~5%) over** the clip's stated 0.80 mm (.032″) max. Quick-fit spring clips of
+this class are compliant members with real engagement margin beyond a
+catalog's nominal ceiling (the .032″ figure is itself Keystone's *standard*
+tab-stock thickness, not a hard mechanical limit), so this is not read as a
+blocking incompatibility — but it is exactly the kind of tight-tolerance
+condition the owner's physical sample check should specifically exercise:
+**measure insertion/extraction force and full seating at tabs drawn from the
+high end of the 63849-1 thickness tolerance**, not just a nominal-thickness
+sample.
+
+**Material/plating — compatible.** Both sides are tin-finished brass (clip:
+tin-nickel plate over brass per Keystone dwg; tab: tin over copper or tin
+over nickel per TE dwg). Tin-on-tin at the mating surface avoids a
+dissimilar-metal couple; this also matches the repo's general fretting-
+corrosion caveat already on record for this config (§8.9(c) of the study) —
+tin-tin friction joints are the classic fretting wear-out mode under thermal
+cycling, which is why the study promotes the §5 sense-return monitor to
+"recommended" for this config. That recommendation is reaffirmed here.
+
+## 4. Seating depth / insertion
+
+Keystone's 3586 drawing gives the clip's own body height (.282″/7.16 mm,
+±.010″) and top-entry slot opening (.062″/1.57 mm) but does **not** publish a
+"tab must insert to depth X" wipe-length figure on the one-page mechanical
+dwg fetched. Catalog copy for the family only says the clip "holds fuse
+securely, even after multiple insertions" and "accepts most Auto-Blade
+Fuses" — no numeric engagement-length spec was found in this pass.
+**UNVERIFIED**: full seating depth of a .250×.032 tab in the clip is not
+independently confirmed from paper; this is the other half of the owner's
+physical check (along with mating force).
+
+## 5. PCB retention and recommended anchor practice at 30 A
+
+- **3586 (SMT, 1 electrical node, 3 solder pads — 2 legs + a support foot):**
+  retention is solder-joint-only (no THT press-fit). At 30 A through 2 small
+  SMD legs, do not rely on the minimum footprint pad area alone — extend
+  copper into a filled pour/plane around and under the pads (matches this
+  repo's established practice of routing high-current joints as poured
+  copper, not thin traces, e.g. the EPS/PCIe/12VHPWR modules) and ensure the
+  reflow profile suits the part's thermal mass. Consider a secondary
+  mechanical anchor (chassis screw/bracket) per the study's "friction +
+  chassis screws" retention doctrine, since solder alone is carrying both the
+  mechanical clip-insertion reaction force and the current.
+- **3557-2 (THT, 2 independent clip positions, 4 legs, 1.6 mm drill, 1.40 mm
+  legs not specified but Keystone dwg calls the mounting hole .063″/1.6 mm):**
+  wave/hand solder into a plated through-hole; catalog language ("maintains
+  position during wave soldering") implies the legs are sized for a
+  friction-retained placement prior to reflow, not a barbed interference fit.
+  Route each leg's hole into the power pour directly — **no thermal-relief
+  spokes** on a 30 A joint; a spoked thermal relief is a deliberate
+  current bottleneck and defeats the point of using a rated clip.
+- **63849-1 (THT tab, barbed shank, press-fit before solder):** TE's drawing
+  shows an explicit barb geometry (the .070–.078″/1.78–1.98 mm dia barb
+  detail) sized against a **1.40 mm ± 0.05 mm** hole — this is a real
+  interference fit for mechanical retention ahead of soldering, which is why
+  the footprint's drill was corrected to 1.40 mm (see below); oversizing this
+  hole (as the raw EasyEDA/LCSC export did, at 1.6 mm) would defeat the
+  press-fit retention that the part is designed around, leaving the joint to
+  rely on solder alone during wave/hand assembly.
+- **System-level:** the study's promoted §5 sense-return contact-resistance
+  monitor is the recommended in-service check for this whole friction-joint
+  family — reaffirmed, not re-derived, here.
+
+## 6. Footprint corrections made during vendoring (recorded for traceability)
+
+The as-pulled EasyEDA/LCSC exports were not trusted blindly (this repo has
+been burned by exactly this class of error before — see the 45586 connector
+row-pitch note in `CLAUDE.md`). Verified against the manufacturer drawings
+above and corrected where they disagreed:
+
+| Part | As-exported | Corrected to | Source |
+|---|---|---|---|
+| Keystone 3557-2, all 4 THT holes | 1.8 mm drill | **1.6 mm** (.063″) | Keystone catalog M55 p.41 |
+| TE 63849-1, both THT holes | 1.6 mm drill | **1.40 mm** (⌀.055″ ± .002″) | TE dwg C=63849 |
+| Keystone 3586 SMD pad width/pitch | 2.66 mm pads, 4.90 mm center spacing | **unchanged — verified correct** (.105″/2.66 mm pad width and the .260″/6.60 mm outer envelope both match the dwg exactly once the pad height is subtracted) | Keystone dwg 3586 rev D |
+
+Pad *numbering* was also corrected to reflect true electrical topology (not a
+dimensional issue, but load-bearing for anyone using these footprints): 3586's
+3 SMD pads (2 legs + 1 support/anchor foot) now all carry pad `1` — one
+electrical node. 3557-2's 4 THT pads were split `1`/`1`/`2`/`2` — **this part
+is Keystone's "2 IN 1" dual-position fuse holder, i.e. it is two independent
+clip receptacles in one housing, not a single universal clip** (contrast with
+plain 3557/3577, which are single-position). Anyone reaching for "a
+universal-entry THT blade clip" and expecting a 1-node part should use 3557 or
+3577 instead of 3557-2, or use only one of 3557-2's two positions per node.
+63849-1's 2 THT pads were already both numbered `1` as exported (correct — a
+FASTON tab is one node with two mechanical feet).
+
+## 7. Open items (owner gate, unchanged from the study)
+
+1. Physical sample: gang mating-force measurement across a cluster of the
+   clip's rated joint count, **specifically including tabs at the high end of
+   the 63849-1 thickness tolerance** (0.84 mm).
+2. Physical sample: clip-cluster confirm-soak + thermal-cycle contact-R trend
+   (fretting-corrosion check).
+3. Seating/engagement depth is not confirmed from any datasheet fetched in
+   this pass — confirm on the physical sample alongside (1).
+
+None of the above are resolved by this memo; they are the paper half only.
+
+---
+
+## Addendum, 2026-07-05: connector-form change — TE 63849-1 → TE 63951-1 (right-angle/flat)
+
+**Per-CLAUDE.md-convention dated addendum — the text above (Sec.1–7) is left
+unedited (no-silent-rewrite); this section is the new record.** Same-day
+context: the owner ruled earlier on 2026-07-05 that the daughterboards
+should stand perpendicular to the main board with the (then-vendored)
+TE 63849-1 tab pointing its blade OUT of the board's face, side-entering the
+Keystone clip — that state is what Sec.1–7 above and the boards' first
+2026-07-05 revision describe. **Later the same day the owner refined this
+further**: the blade should instead be an **IN-PLANE FLAT tab** — "so the
+blade can come out at a 90" — hanging below the board's own bottom edge, in
+the standing board's own plane, so the whole daughterboard **drops
+vertically** into the clip's **top-entry** slot, rather than sliding in
+horizontally from the side. The owner uploaded **TE 1217061-1** (a
+.187-series FASTON flat PCB tab; TE dwg C=1217061, App Spec 114-2115) as the
+worked example of the target geometry, cached at
+`lib/datasheets/TE_1217061-1_FASTON_187_flat_PCB_tab.pdf`.
+
+### A.1 Why a NEW part, not just a re-orientation of 63849-1
+
+63849-1 is confirmed (independently, both from its own TE drawing C=63849
+and from three separate distributor listings — Future Electronics,
+RS Components, Amazon/TE catalog copy) to be a **"straight" mount-style**
+tab: its blade is co-axial with the leg-insertion axis (a one-piece straight
+stamping, per TE dwg C=63849's own profile view), so it stands perpendicular
+to the PCB once soldered — it cannot simply be rotated in the footprint to
+become a flat, in-plane tab; the mechanical part itself is the wrong shape.
+1217061-1's own drawing (dwg C=1217061, "TAB, FASTON, 4.75 [.187] SERIES")
+shows the opposite: its blade continues FLAT off the same plane the two
+mounting legs bend down from, at a genuine .187 (4.75 mm) width — the
+"right-angle"/flat family Keystone-and-TE terminology distinguishes from
+"straight." A NEW part search was required to find the SAME flat geometry
+at the .250 (6.35 mm) width class the ratified joint-count math (spec
+§2.8 v1.4.0) was sized on — swapping to 1217061-1's own .187 width directly
+would under-size every joint and force a recompute (and regrowth) of all
+three boards, which this addendum's hunt was explicitly tasked to avoid if
+a .250 alternative exists.
+
+### A.2 Hunt record — every .250-class candidate checked, and its style
+
+All confirmed against either TE's own product page/customer drawing or an
+authorized distributor's own parametric "Orientation"/"Mount Style" field —
+not inferred from marketing copy alone:
+
+| Part | Style (confirmed) | Source |
+|---|---|---|
+| 63849-1 | Straight | TE dwg C=63849 rev F1; Future Electronics ("straight mount angle") |
+| 1217125-1 | Straight | TE product page (te.com/en/product-1217125-1.html) |
+| 1217126-1 | Straight | TE product page |
+| 1217169-1 | Straight | TE product page (te.com/en/product-1217169-1.html), dwg ENG_CD_1217169_B1 |
+| 62409-1 | Straight | Amazon/TE catalog copy ("Straight Non-Insulated PCB Tab Terminal") |
+| 2376579-2 / 2376582-2 / 2376591-2 / 2376595-2 | Straight | TE's own 2025 "250 FASTON PCB Tab Terminals" flyer (`te.com/.../250-faston-pcb-tab-terminals-flyer.pdf`) + individual TE product pages — TE's newest (Ni-underplated) .250 tab line is straight-only |
+| 63969-1 | N/A — a **receptacle** (female), not a tab | RS Components — wrong gender, disregarded |
+| **63951-1** | **Right angle (flat)** | **TE dwg C=63951 rev L2** ("TAB, FASTON, 6.35 [.250] SERIES", App Spec 114-2115) + TE product page ("Terminal Orientation: Right Angle") + RS Components ("Orientation: Angled"; the RS-hosted datasheet file is literally named `Terminal TAB 6.35mm pcb r/a Faston` — "r/a" = right angle) |
+
+**TE 63951-1 is the pick.** Confirmed via its own primary manufacturer
+drawing (`lib/datasheets/TE_63951-1.pdf`, TE dwg C=63951 rev L2, cage code
+00779, same drafting lineage — JR RUTH / MS FEHER / G PORTA — as both
+63849-1 and 1217061-1), not just a distributor's paraphrase:
+
+| Dimension | 1217061-1 (.187, owner's example) | 63849-1 (.250, superseded) | **63951-1 (.250, PICKED)** |
+|---|---|---|---|
+| Style | Right angle (flat) | Straight | **Right angle (flat)** |
+| Blade width | 4.75 mm (.190/.184) | 6.35 mm ± 0.08 | **6.35 mm ± 0.08** |
+| Blade thickness | 0.83/0.77 mm | 0.84/0.76 mm | **0.83/0.77 mm** |
+| Leg pitch | 5.08 mm ± 0.08 | 5.08 mm ± 0.08 | **5.08 mm ± 0.08 (identical)** |
+| PCB hole dia | 1.40 mm ± 0.05 | 1.40 mm ± 0.05 | **1.40 mm ± 0.05 (identical)** |
+| Recurring "7.92 mm" figure | present | present | **present** |
+| Material/finish | Brass, tin/nickel | Brass, tin/copper or nickel | **Brass, tin over nickel** |
+| App Spec | 114-2115 | 114-2115 | **114-2115 (same as both)** |
+| Packaging | Reeled | Loose piece | **Reeled** |
+| LCSC | not checked (not needed — .250 already found) | C86469 | **C591344, in stock (4,345 units at time of check), $0.099–$0.164/unit by quantity break — within the $0.04–0.30/part class** |
+
+The recurring **7.92 mm** figure (present on all three drawings regardless
+of blade width — 4.75/6.35/6.35 mm) is read, as in the original Sec.1–7
+memo, as a family-wide dimension tied to the shared 5.08 mm leg/hole
+geometry rather than to blade width — now cross-confirmed across a THIRD
+independent drawing (63951-1's own), not just the original two. This is why
+the boards' existing `TAB_PITCH` values (8.9/8.6/8.2 mm) and the whole
+no-subset-seating keying proof carry over **unchanged and re-verified**
+(not just assumed) — see `scripts/check_output_daughterboards.py`'s clean
+run after the swap.
+
+**Current rating**: no standalone per-tab UL rating exists on TE's own dwg
+C=63951 either (same situation as 63849-1) — rating is set by the mating
+clip/receptacle, unchanged reasoning from Sec.1 of the original memo above.
+
+### A.3 Keystone 3586 clip — does a VERTICAL TOP-ENTRY drop still fit?
+
+Re-examined Keystone dwg 3586 (already cached, `lib/datasheets/Keystone_3586.pdf`)
+specifically for the entry-direction question this addendum adds (Sec.1–7
+above already covers width/thickness/plating compatibility, unchanged by
+the tab swap since 63951-1 shares 63849-1's blade class):
+
+- The part is named **"SM UNIVERSAL AUTO FUSE CLIP"** — its mechanical
+  ancestry is a standard automotive blade-fuse holder, whose native,
+  defining use case IS a straight vertical drop (a fuse's flat blade legs
+  press straight down into a split spring contact). The drawing's own front
+  view shows the slot opening squarely at the **top** (0.062″/1.57 mm wide)
+  with the internal fork/spring contact directly beneath it. Top-entry is
+  therefore not a secondary or marginal mode for this clip — it is the
+  mode its whole design is descended from.
+- This reaffirms (does not newly discover) what the original Sec.1 already
+  recorded: the family (3557/3577/3586/3557-2) is documented as accepting
+  entry "from the top or the side." A vertical drop uses the SAME internal
+  spring geometry the side-entry mode already relies on — no new spring
+  contact behavior is introduced.
+- **Slot width vs. blade thickness**: the 1.57 mm top-slot opening
+  comfortably clears the blade's 0.77–0.83 mm thickness (roughly 2×
+  clearance) — not a binding constraint either way.
+- **Blade travel depth — the one number that changed with this addendum**:
+  the clip's own body height is **7.16 mm** (0.282″, Keystone dwg 3586,
+  unchanged from Sec.4 above). This daughterboard's own new tab geometry
+  gives a blade hang-length of **6.89 mm** past the board's own edge (see
+  each board's README "Mating geometry", computed from
+  `scripts/gen-output-daughterboard.py`'s `_TAB_FAR_Y`/`_TAB_NEAR_Y`
+  constants) — a computed **~0.27 mm shortfall** versus the clip's full
+  body height, assuming ZERO standoff between the daughterboard's own edge
+  and the main-board clip row. **This is not asserted as a pass or a
+  fail** — full engagement/seating depth was already UNVERIFIED from paper
+  in Sec.4/Sec.7 above (no manufacturer figure for how far a tab must
+  travel into the clip for reliable contact, as opposed to the clip's
+  total body height), and that remains true here; this addendum only adds
+  the other half of the comparison (the tab's own reach) so the owner's
+  physical fit-check has a complete numeric picture. If OQ-87's
+  daughterboard standoff spec ends up wanting the two boards' edges further
+  apart, that directly subtracts from the 6.89 mm figure — a real
+  interaction worth resolving in the SAME physical pass as seating depth,
+  not two separate checks.
+
+### A.4 Board state after this addendum
+
+All three families (`atx24-out-db`, `eps-out-db`, `pcie-out-db`) regenerated
+on TE 63951-1 via `scripts/gen-output-daughterboard.py <family> --force`:
+board sizes essentially unchanged (81.1×16.6 / 52.9×14.6 / 34.5×14.6 mm —
+within 0.1 mm of the perpendicular-tab revision, since the new footprint's
+near-leg shoulder band was deliberately measured at the same 7.92 mm family
+width and a comparable ~2 mm near-side offset). ERC 0 errors, DRC 0 errors/0
+unconnected on all three, `check_output_daughterboards.py` fully green
+(including the geometric no-subset-seating proof, re-verified against the
+new tab's actual coordinates). New library assets:
+`cec-vendor:TE_63951-1_FASTON_Tab` /
+`cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT` (LCSC C591344),
+vendored from `lib/datasheets/TE_63951-1.pdf`. TE_63849-1 remains vendored
+(unreferenced, harmless). Full per-board detail in each family's own
+README "Posture"/"Mating geometry"/"Verification"/"Library assets" sections.
+
+### A.5 Open items carried forward (unchanged in kind, restated for this geometry)
+
+1. Physical sample: gang mating-force + full-seating-depth measurement —
+   NOW including the vertical-drop direction specifically (Sec.A.3), not
+   just the side-entry direction Sec.7 above was scoped to.
+2. Physical sample: clip-cluster confirm-soak + thermal-cycle contact-R
+   trend (fretting-corrosion check) — unchanged, still open.
+3. The 6.89 mm vs. 7.16 mm blade-reach-vs-clip-depth comparison (Sec.A.3) —
+   resolve together with OQ-87's standoff spec on the same physical sample.
+4. The "8.89 mm" TE attribute this addendum reads as "blade reach from the
+   leg row" is a single-datum interpretation (TE's own structured product
+   page, cross-checked against the raw drawing's position for that figure
+   but not re-derived from an independent third source) — worth a
+   confirming glance at TE's raw drawing coordinates before treating 6.89 mm
+   as load-bearing beyond a planning-level estimate.
+
+None of the above are resolved by this addendum; they remain the owner's
+physical gate, same as Sec.7.
+
+---
+
+## Addendum 2, 2026-07-05 (later): interim "vertical fin" direction — RETIRED UNBUILT
+
+A coordinator-relayed instruction (same day, between Addendum 1 and the
+owner's sketch below) directed reverting to the straight TE 63849-1 rotated
+90° in-plane as a vertical fin with side-exit blades. That instruction was
+the **coordinator's own misinterpretation of the owner's words** (its
+sender's correction, verbatim: "That geometry was MY misinterpretation of
+the owner's words, not his intent") and was **overridden by the owner's
+sketch before any of it landed in the repo** — no footprint, board, or
+script ever carried the fin geometry. Recorded here only so the day's full
+decision chain is auditable; its seating analysis is retired with it.
+
+---
+
+## Addendum 3, 2026-07-05 (final same-day form): OWNER SKETCH — TE 63951-1 true L geometry, blade-down vertical drop
+
+**Per-convention dated addendum — Addendum 1 (A.1–A.5) above is left
+unedited; this section supersedes its §A.3/A.4/A.5 geometry and seating
+analysis.** The owner provided a side-view SKETCH (verbatim: "No here's
+what I mean, spelled out with a sketch. The top one is the blade that has
+the 90 degree rotation in it. It needs to align vertically so it can
+actually *point down* and slot into the clip.") settling the connector
+form. **The PART is unchanged — TE 63951-1 stays** (Addendum 1's hunt
+result stands, LCSC C591344, in stock, $0.099–$0.164/unit by qty at the
+2026-07-05 check). What the sketch corrected is the **part model and
+mounting orientation**.
+
+### B.1 Part-model correction (what Addendum 1's footprint got wrong)
+
+TE 63951-1 is a flat **in-plane L stamping** (0.83/0.77 mm thick
+throughout, no out-of-plane bend — its own drawing's side profile is a flat
+strip): two barbed legs hang off ONE END of the strip, and the 6.35 mm
+blade runs **along the strip/leg-pitch axis** past the blade-side leg to
+the tip, its width band sitting **2.54–8.89 mm off the seating face**
+(8.89 = TE's "Profile Height from PCB"; 2.54 = 8.89 − 6.35). Addendum 1's
+first footprint mis-modeled the blade as extending perpendicular to the
+leg row, lying against the mounting plane — that produced the
+hang-past-the-edge form the owner rejected ("the tabs would just mount
+directly and collide with each other without hanging off the board
+bottom": at 7.92 mm shoulders on 8.2–8.9 mm pitches the bodies nearly
+touched, and the 6.89 mm hang under-reached the clip). The footprint
+(`cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT`) is REWRITTEN
+to the true geometry; Addendum 1's §A.3 hang-vs-clip-height comparison
+(the "~0.27 mm shortfall" item) and §A.5 items 3–4 are **retired with it**.
+
+Drawing-derived dimensions now carried in the footprint (TE dwg C=63951
+rev L2, `lib/datasheets/TE_63951-1.pdf`):
+
+| Dim | Value | Source/derivation |
+|---|---|---|
+| Blade width | 6.35 ± 0.08 | dwg, direct |
+| Blade thickness | 0.83/0.77 | dwg, direct |
+| Leg pitch / PCB holes | 5.08 ± 0.08 / ⌀1.40 ± 0.05 | dwg, direct (same as 63849-1) |
+| Legs below seating face | 3.81 | dwg, direct |
+| Blade band off seating face | 2.54 → 8.89 | 8.89 = TE profile height; 2.54 = 8.89 − 6.35 |
+| Blade tip from leg-pair midpoint | **15.75** | chain: 20.32 cut-off − 7.11 (cut-end→blade-side leg) + 2.54; cross-checked (a) drawn leg position ≈22 % of part length matches 4.57/20.32 = 22.5 % (the alternative reading, 47 %, is visibly contradicted), (b) the same chain pattern on the owner-referenced 1217061-1 places its detent hole just past the near leg exactly as drawn. FLAGGED: confirm on the OQ-86 physical sample — a ±1 mm error shifts assembly FLOAT, not clip engagement |
+| Carrier-side stub above the far leg | 2.03 (band to −4.57 from midpoint) | 7.11 − 5.08 |
+| Shoulder (face-contacting) region end | 3.33–3.48 past the blade-side leg | dwg .137/.131 |
+| Detent hole | ⌀1.78 at 7.92 from tip | dwg; height-in-blade ambiguous (7.11 [.280] vertical dim may place it 1.78 below the blade top rather than on-centre) — cosmetic only |
+
+### B.2 Mounting orientation (the sketch) and what it implies
+
+Legs HORIZONTAL through the vertical daughterboard face; leg pitch
+VERTICAL (legs stacked one above the other); blade therefore points
+STRAIGHT DOWN, descending past the board's bottom edge at the 2.54–8.89 mm
+Z-standoff. The assembly drops vertically; each blade enters its clip's
+top-entry jaws broadside. The daughterboard's bottom edge stays up and
+clear — the tab reaches down, not the board. Along the row each tab is
+only ~0.84 mm thin (stamping planes parallel, perpendicular to the face);
+its 2.5 mm leg pads are its widest row feature → adjacent-tab pad gaps
+5.7/6.1/6.4 mm at the 8.2/8.6/8.9 mm pitches — the Addendum-1 collision
+concern is gone by construction.
+
+**Clip side (Keystone 3586, re-derived for the rotated orientation)**: the
+clip turns 90° versus Addendum 1's implicit drawing — slot axis
+PERPENDICULAR to the daughterboard wall line (the descending blade's
+6.35 mm width runs along the wall normal, inside the clip family's rated
+.110–.250 in accepted-tab width), clip narrow dimension along the row.
+Row-fit numbers, measured off the vendored footprint (dwg: body
+.150 in/3.81 mm across the slot, .185 in/4.70 mm along it):
+
+| Pitch | Clip body gap (3.81/3.82 courtyard along-row) | Clip SMD-pad gap (6.60 span) |
+|---|---|---|
+| 8.9 (atx24) | 5.08 mm | 2.30 mm |
+| 8.6 (eps) | 4.78 mm | 2.00 mm |
+| 8.2 (pcie) | 4.38 mm | 1.60 mm |
+
+All asserted with printed numbers by `check_output_daughterboards.py` §3b.
+Clip slot centreline sits **5.72 mm from the daughterboard's front face**
+(the blade band's centre). Slot opening 1.57 mm vs blade 0.77–0.83 mm
+thickness — ~2× clearance. Top entry is the clip's native
+auto-blade-fuse mode (Keystone dwg 3586 front view: slot opening squarely
+at the top, spring fork beneath), so no new entry mode is being invented.
+
+### B.3 Seating model — the board FLOATS (replaces all prior seating analyses)
+
+The leg row sits **5.22 mm below each board's top edge** (uniform across
+all three families — pinned to the shared top margin band; asserted by the
+check script). With the blade tip 15.75 mm below the leg row, the tip
+descends **below each board's own bottom-edge level** (7.37 mm on atx24,
+9.97 mm on eps/pcie — off-board at the Z-standoff, no material conflict).
+**Edge-resting is impossible and not intended**: the board hangs on the
+clip grip (+ chassis strain relief, OQ-87), exactly the sketch's "bottom
+edge stays up and clear." Numbers at the recommended 1.0 mm tip clearance
+above the main-board surface (hard stop ≈0.4–0.5 mm when the tip meets the
+clip's own SMT base metal):
+
+| Family | H (board) | Leg row above bottom edge | Tip below edge | Bottom-edge float | Top edge above main board |
+|---|---|---|---|---|---|
+| atx24 | 13.6 | 8.38 | 7.37 | 8.4 | **21.97** |
+| eps | 11.0 | 5.78 | 9.97 | 11.0 | **21.97** |
+| pcie | 11.0 | 5.78 | 9.97 | 11.0 | **21.97** |
+
+(The identical 21.97 mm total is by construction: tip clearance + tip
+depth + board height = clearance + 15.75 + 5.22 regardless of H.)
+**Engagement**: the blade spans the clip's full 7.16 mm interior from the
+tip clearance up and protrudes fuse-like above the clip top — the jaw
+contact is covered wherever it sits in the body, the deepest engagement
+this part can give; the precise jaw height remains unpublished (Sec.4's
+UNVERIFIED carries) but no longer gates anything, since the blade covers
+the whole interior. Legs protrude 2.21 mm behind the daughterboard's back
+face (3.81 legs − 1.6 board) — keep clear.
+
+### B.4 Main-board clip disposition (measured, this branch)
+
+The four main boards (`atx-24pin-rev3`, `eps-8pin`, `pcie-8pin-2port`,
+`pcie-8pin-3port`) carry their TB clip symbols in **schematics only**
+(commit `b76a62a`); a repo-wide search finds **zero `Keystone_3586`
+footprints and zero TB references in any main-board `.kicad_pcb`** on this
+branch. **No clip orientation is encoded board-side anywhere** — the
+rotated-clip mating drawing exists only in the daughterboard model
+(`gen-output-daughterboard.py pcb_placement()` + this addendum), which is
+therefore authoritative and binds the future main-board clip-placement
+pass: mirror the per-family tab X grids, orient every clip slot-axis-
+perpendicular-to-the-wall, and set the clip row 5.72 mm off the planned
+wall plane.
+
+### B.5 Board state after this addendum
+
+All three families regenerated (`--force`): **atx24 145.1 × 13.6 mm, eps
+67.8 × 11.0 mm, pcie 49.4 × 11.0 mm** — heights all inside the ≤15 mm cap
+(the tab rows moved BESIDE the fields, descenders exiting through the
+bottom edge at zero height cost; lengths grew as the sanctioned trade).
+ERC 0 errors / DRC 0 errors + 0 unconnected (severity-error) on all three;
+full-severity DRC is silk-cosmetic only (23/8/6 hits, and the prior
+`silk_edge_clearance` category is gone — the new footprint keeps silk
+between the leg pads). `check_output_daughterboards.py` fully green,
+including new §3a orientation/uniform-height assertions and §3b clip-fit
+assertions; the no-subset-seating keying proof re-ran on the new
+coordinates and its teeth were re-verified (a sabotaged 8.3 mm EPS pitch
+correctly fails). Net maps and joint counts (9/6/4) unchanged —
+netlist-verified per tab, and net-group identity vs. the pre-rework
+baseline confirmed (15→15 / 2→2 / 2→2). One real regression was caught and
+fixed during regeneration: the first height-minimized atx24 put the
+corridor's deepest stub/via copper 0.30 mm from the new bottom edge (4
+`copper_edge_clearance` errors) — the bottom margin is now derived from
+the deepest copper, not the corridor outline.
+
+### B.6 Open items after this addendum
+
+1. Physical sample (OQ-86): gang mating-force + seating in the VERTICAL
+   drop direction; confirm the 15.75 mm tip-reach chain-dim reading (B.1);
+   thickness-tolerance high-end check carries from Sec.7.
+2. Clip-cluster confirm-soak + thermal-cycle contact-R trend — unchanged.
+3. OQ-87 chassis strain relief now also owns the FLOAT retention question:
+   the board hangs on the clips at 8.4–11.0 mm float; the strain relief,
+   not the board edge, sets the assembly's vertical datum tolerance.
+
+---
+
+## Addendum 4, 2026-07-05 (iteration 4): compact two-band layout — packed pitches
+
+**Dated addendum; addendum 3 above is left unedited.** Owner follow-up on
+the addendum-3 boards (verbatim): *"Good lord those are long, can the agent
+stack the blades right next to each other and put them below the pinout?
+That should tell us how tall these are really going to be."* Addendum 3's
+SIDE-BY-SIDE band placement (tab row beside the field; 145.1/67.8/49.4 mm
+long at 13.6/11.0/11.0 mm tall) is SUPERSEDED; its part model, orientation,
+clip rotation, standoff numbers (B.1–B.2), and main-board disposition (B.4)
+all STAND — only the band arrangement, pitches, and derived seating heights
+change. **The ≤15 mm height cap is explicitly relaxed by the owner for this
+form** — the deliverable is the honest minimum height.
+
+### C.1 Layout and the honest heights
+
+Two-band stack: solder field on top, packed tab row below it. Measured:
+
+| Family | Iter-3 (side-by-side) | **Iter-4 (two-band)** | Height decomposition |
+|---|---|---|---|
+| atx24 | 145.1 × 13.6 | **72.8 × 21.4** | 0.4 + 10.2 field + 0.1 + 2.25 corridor + 0.3 lane-pad clr + 7.58 pad band + 0.55 edge |
+| eps | 67.8 × 11.0 | **43.0 × 20.0** | 0.4 + 10.2 field + 0.25 gap + 4.82 tab top-ext + 3.79 pad half + 0.55 edge |
+| pcie | 49.4 × 11.0 | **26.3 × 20.0** | same as eps |
+
+The ~9 mm height cost over iter-3 is the tab band's own vertical extent
+(carrier stub + 5.08 mm leg pitch + pad radii) stacked under the field
+instead of beside it; the blade descender still exits through the bottom
+edge at no height cost. Lengths are tab-row-driven.
+
+### C.2 Pitch floor and the chosen pitches
+
+Row-axis floor, re-derived per element off the vendored 3586 footprint:
+clip courtyard along-row 3.82 mm (non-binding), clip SMD pad span
+**6.60 mm** (binding), tab pad envelope 2.5/3.0 mm (non-binding).
+**Floor = 6.60 + 0.50 stated adjacent-clip solder/paste clearance =
+7.10 mm.** Chosen: **pcie 7.1 (at the floor), eps 7.6, atx24 8.4.**
+- eps's +0.5 is pure KEYING (the delta to pcie that keeps the proof green).
+- atx24's 8.4 is ROUTING-driven, not slack: 8.4 = 4 × 2.1 mm, the period of
+  its field-stub X lattice (4.2 mm ATX columns + the +2.1 mm dodge), and
+  the row's x0 is grid-aligned to lattice + 1.05 mm — every tab stub/via in
+  the corridor's shared X-range then clears every field stub/via by
+  ≥1.05 mm against a ~0.7 mm conflict radius. At any non-multiple pitch the
+  9 tabs' lattice offsets sweep the full 2.1 mm cycle, so some tab always
+  lands in conflict; grid alignment buys the packed row with zero extra
+  jogs or vias.
+Clip-row gaps at these pitches (checker-asserted): body 4.58/3.78/3.28 mm;
+SMD pad 1.80/1.00/**0.50** mm (pcie sits exactly on the stated solder
+clearance — that IS the floor definition).
+
+### C.3 Keying at the floor — pitch differentiation SURVIVES
+
+(G/2)×Δpitch end errors vs. the checker's 0.5 mm tolerance: pcie-in-eps
+**0.75**, pcie-in-atx24 **1.95**, eps-in-atx24 **2.00** — all ≥1.5×
+tolerance, so no pattern keying (offset tab / asymmetric skip) was needed.
+The full no-subset-seating proof re-ran green on the packed coordinates,
+and its TEETH were re-verified at the floor: a sabotaged 7.2 mm eps pitch
+(Δ0.1 from pcie — the same failure mode as the historic 8.3/8.2 incident)
+makes the proof correctly FAIL.
+
+### C.4 Seating model update
+
+The tab band is now the LOWEST thing on every board, so the uniform seating
+invariant moves from addendum 3's "leg row 5.22 mm below the top edge" to
+**leg row 4.34 mm above the BOTTOM edge** (3.79 pad extent + 0.55 edge
+margin; the 0.55 bakes in iteration 3's `copper_edge_clearance` lesson —
+0.5 mm board constraint + slack — and this pass regenerated with zero
+copper-edge hits first try). Blade tip: 15.75 − 4.34 = **11.41 mm below the
+bottom-edge level**, uniform. At the recommended 1.0 mm tip clearance (hard
+stop ≈0.4–0.5 mm on the clip base): **float = 12.41 mm, uniform across all
+three families** (the invariant flipped from iter-3's uniform top-height to
+uniform float); top edges sit 33.8 (atx24) / 32.4 (eps, pcie) mm above the
+main board. Engagement unchanged (blade spans the clip's full interior).
+
+### C.5 Gates after this addendum
+
+ERC 0 ×3; DRC 0 violations / 0 unconnected at `--severity-error` ×3
+(full-severity: 25/17/15 hits, all cosmetic silk except one warning-class
+`silk_edge_clearance` Value text on atx24); checker fully green with the
+§3a seating invariant and §3b clip-fit floors updated to the packed model
+(floors: pad gap ≥ 0.5 = the stated solder clearance, body gap ≥ 3.0);
+net maps + joint counts 9/6/4 unchanged (netlist-verified; net-group
+identity vs. the pre-rework baseline 15→15 / 2→2 / 2→2). Main-board
+disposition unchanged from B.4 (clips still schematic-only; the packed
+grids + rotated-clip orientation + 5.72 mm standoff bind the future
+clip-placement pass).
+
+---
+
+## Addendum 5, 2026-07-05 (iteration 5): Keystone 3557 bare clip + 1×4 blind-mate signal stub
+
+**Dated addendum; addendum 4 above is left unedited.** Owner: *"We could
+just make them rotate 90 to be aligned with the way we're doing the
+daughterboard mounts, and couldn't we lower the pitch that way?"* (supplied
+the Keystone auto-fuse-clip catalog page = p.41 of the vendored
+`lib/datasheets/Keystone_3557-2.pdf`), plus the signal-stub scope additions
+(1×4 blind-mate, sense-return pads).
+
+### D.1 NAMING CORRECTION and the part
+
+What this repo vendored as "3557-2"/LCSC C352820 is the **2-IN-1 HOUSED
+FUSE HOLDER** — a different product on the same catalog page; the earlier
+intake's "dual-position housing" note conflated the two. The clip adopted
+here is **CAT 3557 "UNIVERSAL CLIP", Top Entry**: bare brass, tin-nickel,
+**UL 30 A @ 500 V AC**, THT, "maintains position during wave soldering,"
+**"Low insertion force"** (the catalog's own bullet — note the tension with
+the owner's high-insertion-force-as-feature ruling; the fit check should
+measure actual retention with our over-thickness tab, below). Body
+.150×.185×.400 in (3.8 × 4.7 × **10.2 mm tall**); jaw .062/.027
+(1.57/0.69); 2 legs ⌀.063 (1.60) at .134 (3.4 mm). New footprint
+`cec-Connector_Blade:Keystone_3557_THT_Universal_Clip_TopEntry` (drill 1.6
+= leg dia, friction fit; pads ⌀2.4; no thermal relief per §5). **LCSC**: the
+bare 3557 is not listed under its own number; LCSC carries **3557-10 /
+C3205403** in the same fuse-holder category (variant/pack UNVERIFIED — flag
+at order time); DigiKey/Mouser carry 3557 directly — consigned/owner-
+acquired fallback. **The SMD 3586 stays vendored and documented as the
+fallback** pending the OQ-86 physical sample.
+
+### D.2 Leg-pair axis — VERIFIED, and it contradicts the working assumption
+
+The brief's floor estimate (~4.5–4.8 mm) assumed the 3.4 mm leg pair runs
+along the jaw axis. The catalog's own mounting details say otherwise: the
+housed 3557-2's detail shows each clip's 3.4 mm leg pair PERPENDICULAR to
+the 13.5 mm fuse axis, and an ATO blade's 5.2 mm width runs ALONG the fuse
+axis (13.5 + 5.2 ≈ the fuse's ~18.7 mm width), so the slot is parallel to
+the fuse axis and the **legs are perpendicular to the slot**. In our mating
+orientation the slot MUST parallel the descending blade's 6.35 mm width
+(the wall normal) — forced — so the **leg pair lands ALONG the row**, and
+the along-row footprint is the leg pattern, not the 3.8 mm body:
+
+**Pitch floor = 3.4 (leg pitch) + 2.4 (pad) = 5.8 mm span + 0.5 mm stated
+adjacent-clip solder web = 6.3 mm.** (Electrical clearance at 12 V-class is
+<0.1 mm per IPC-2221 — the 0.5 is mechanical/solder.) The hoped-for ~4.5
+floor would need a clip with legs inline with the slot; this part
+measurably is not that. Net effect vs the 3586 (6.6 mm SMD span): the 3557
+rotation buys only **0.3–0.9 mm of pitch** — reported honestly.
+
+**Chosen pitches: atx24 6.3 (at the floor; = 3×2.1 mm, its field-stub
+lattice period, so the grid alignment carries over — the row anchor now
+steps by the FULL 6.3 to preserve the signal descents' mid-gap phase, a
+real shorting_items failure caught and fixed during regeneration), eps 6.7,
+pcie 7.2.** Keying margins (G/2)×Δ: eps-in-atx24 1.00, pcie-in-eps 0.75,
+pcie-in-atx24 1.35 — all ≥1.5× the 0.5 mm tolerance; pattern keying not
+needed; teeth re-verified (sabotaged eps = 7.1 → the proof correctly
+fails). Clip-row fit checker-asserted: courtyard gaps 0.8/1.2/1.7 mm, THT
+pad webs 0.5/0.9/1.4 mm.
+
+### D.3 #1 fit-check item: 0.81 mm FASTON tab vs 0.64 mm fuse-blade jaw design
+
+The 3557 family is designed around .025 in/0.64 mm standard fuse blades;
+the TE 63951-1 tab is 0.77–0.83 mm — **~27% over the design centre**,
+inside the family's published .020–.032 acceptance band but at its ceiling.
+Expected effect: stiffer grip — consistent with the owner's mating-force
+ruling (high retention is a feature), but this pairing is outside the
+catalog's listed fuse series and is **sample-gated (OQ-86, now the #1
+item)**: measure insertion/extraction and full seating with tabs at the
+thickness high end, in the vertical-drop direction, on the real 3557.
+
+### D.4 Seating numbers (clip 10.2 mm tall vs the 3586's 7.16)
+
+Uniform leg row 4.34 mm above each bottom edge (unchanged); tip 11.41 mm
+below the edge level; **float 12.41 mm** (uniform) at 1.0 mm tip clearance
+(hard stop = tip on the main board itself; the bare clip has no base
+floor → float 11.41 minimum). Board bottom edge clears the **taller clip's
+top by 2.21 mm** nominal (1.21 at the absolute stop); the blade fills the
+clip's full 10.2 mm interior from the tip clearance up — DEEPER engagement
+than the 3586 gave. Top edges: 33.8 (atx24) / 32.4 (eps, pcie) mm above the
+main board. Boards: **atx24 69.5 × 21.4, eps 38.5 × 20.0, pcie 26.6 ×
+20.0 mm**.
+
+### D.5 Signal stub: 1×4 blind-mate (scope items 9–12, owner-revised)
+
+J20 (CEC_CONN_2x5) is RETIRED on the daughterboard: replaced by a **1×4
+right-angle Dupont-class pin header** (new
+`cec:CEC_CONN_1x4` + `PinHeader_1x04_P2.54mm_Horizontal_LongPin`), mounted
+in the bottom band right of the tab row, pins pointing straight down past
+the edge parallel to the blades — **single-motion drop-in** (blades +
+signal pins together). NEW pin map, routing-derived: **1 = −12V, 2 =
+PS_ON#, 3 = PWR_OK, 4 = GND** (the three signals' field-column order, so
+the fan-down nests crossing-free; the 2×5's order dies with the part; the
+main-board mate mirrors this map). Blind-mate mechanics: (a) friction fit
+over a depth range like blade-in-jaw — does NOT over-constrain the float;
+engagement math: at 12.41 mm float and an ~8.5 mm Dupont female, below-edge
+pin length ≥ ~6.4 mm buys 2.5 mm engagement → **long-tail (10–15 mm class)
+header required**, commodity at LCSC (Ckmtw/Cankemeng RA lines), exact MPN
+at the OQ-89 SKU pass, consigned acceptable; (b) mis-insertion excluded by
+the blade keying (the pins can only land where the no-subset proof lets
+the board seat); (c) worst-case pin-to-socket misalignment = blade-keyed
+seating slop (<0.5 mm, the checker tolerance) + fab hole tolerance
+(±0.1 mm) vs a Dupont housing's ~±0.5–0.7 mm chamfered capture — plausible,
+**fit-check-gated**. Keyed JST-PH (S4B/B4B-PH-K-S, the Hub J_KVM family) is
+the demoted cabled fallback. The 2×5's six reserved positions become **six
+DNP solder pads SR1–SR6** (`CEC_SR_Pad_DNP`, PCB-only, silk-labelled, no
+nets) — this changes the OQ-88 sense-return **provision form only**; the
+decision itself stays open and the owner's.
+
+### D.6 Main-board disposition
+
+All 41 TB clip instances across the four main-board schematics
+(atx-24pin-rev3 9, eps-8pin 12, pcie-2port 8, pcie-3port 12) swapped by
+property (Value/MPN/LCSC/Footprint → Keystone 3557 + the new THT footprint;
+lib_id retained per the platform's value-swap precedent), with the swap
+provenance appended to each instance's Note. ERC before = after = 1
+pre-existing `pin_not_driven` per board — not worsened. **DEVIATION,
+flagged:** atx-24pin-rev3's J_SIG (the 2×5 mate) was NOT rewired to the 1×4
+female socket this pass — that is wire-level surgery on a hand-maintained
+schematic currently being edited by a parallel agent (changed pin count,
+changed pin map, new symbol); the full spec for that pass is above (mirror
+map −12V/PS_ON#/PWR_OK/GND, vertical 1×4 female socket, entry up, placed
+per the mating drawing just off the wall line, plus its own SR DNP pads).
+No clip placement exists on any main-board PCB (unchanged from B.4);
+`pcb_placement()` + addenda 3–5 remain the authoritative mating drawing.
+
+### D.7 Gates
+
+ERC 0 ×3 daughterboards; DRC 0/0 at `--severity-error` ×3 (one real
+regression — descents shorting tab pads at a rotated anchor phase — caught
+by DRC during regeneration and fixed by stepping the row anchor at the full
+6.3 mm); checker fully green (104 OKs) incl. the recomputed THT clip-fit
+assertions; tab net maps + joint counts 9/6/4 unchanged; the header net map
+deliberately changed per D.5 (the one intended connectivity delta this
+iteration); main-board ERC not worsened per board.
+
+## Addendum 6, 2026-07-06 (iteration 6): clip-class FEASIBILITY STUDY — Keystone 3522 vs a purpose-built FASTON PCB receptacle
+
+**Dated addendum; addendum 5 above is left unedited. STUDY ONLY — no board,
+footprint, or schematic was touched this pass; nothing regenerates until the
+owner picks.** Owner: *"Why not go to the 3522 class instead and get rid of
+the 'universal' mount? Or if they have a similar one that mounts the blade we
+chose even if it isn't keystone? This one has like a .125 pitch."* New primary
+source: `lib/datasheets/Keystone_auto_fuse_clips_p47.pdf` (owner-uploaded
+newer revision of the same catalog page; it resolves the bare 3522's rating =
+**UL 30 A @ 500 V AC** — the 20 A figures on the page belong to the HOUSED
+3522-2/3522-3 holders, whose spec blocks they sit in).
+
+### E.1 Bare 3522 geometry — derived, with the reading chain
+
+Page-47 data for CAT 3522 "VERTICAL ENTRY": .016 (0.41) brass, tin-nickel;
+top view **.271 [6.9] (slot axis) × .125 [3.2] (thickness)** with jaw window
+**.250 [6.4]**; front view .281 [7.2] wide at base × **.437 [11.1] tall**;
+stamped legs .076 [1.92] wide; jaw-mouth detail .070 [1.78]. Mounting detail
+for two clips: **four Ø.100 [2.6] holes IN ONE LINE at .200 [5.1] / .160
+[4.1] / .200 [5.1]**.
+
+Leg-pattern disambiguation (the same trap the 3557 set):
+1. **Within-clip = 5.1, between-clips = 4.1.** The symmetric parse pairs
+   holes (1,2)+(3,4); the alternative (within = 4.1) leaves holes 1 and 4
+   unowned — impossible for two 2-leg clips.
+2. **Legs run ALONG the slot axis** — the opposite of the 3557. A 5.1 mm leg
+   pair cannot fit across the 3.2 mm body thickness; the 6.9 mm slot-axis
+   dimension is the only axis that carries it.
+3. Cross-checks: four-in-line holes put the blade centres at the pair
+   midpoints = 2.55 + 4.1 + 2.55 = **9.2 mm apart**, matching the 3550
+   horizontal holder's independent .363 [9.2] on the same page; and the
+   housed 3522-2 (19.3 mm = one ATO footprint) carries the identical
+   5.1/4.1/5.1 row.
+
+In our forced mating frame (slot ∥ the descending blade's 6.35 width ∥ the
+wall normal): the 3522's legs land along the WALL NORMAL (columns at 5.72 ±
+2.55 = 3.17/8.27 mm off the wall line), **not along the row**. Along the row
+it presents only its 3.2 mm thickness / ~3.6 mm pads (Ø2.6 holes + annular):
+**along-row floor ≈ 3.6 + 0.5 web ≈ 4.1 mm** — the owner's ".125 pitch"
+instinct is structurally right; this is the best floor of any candidate.
+Height 11.1 mm: the 12.41 mm board-edge float clears it by 1.31 mm (vs 2.21
+over the 3557) — tighter but legal.
+
+### E.2 Blade-width fit — the killer. Verdict: does NOT reliably enter
+
+The 3522's jaw is a **CLOSED 6.4 mm window sized for 5.2 mm fuse blades**;
+the 3557 "universal" clip never saw our blade's width because the blade
+passes THROUGH its open sides — the 3522 removes that escape.
+- Window .250 [6.4], page default tolerance ±0.13 → 6.27–6.53.
+- Our TE 63951-1 blade 6.35 ± 0.08 → 6.27–6.43.
+- Nominal-on-nominal clearance **0.05 mm TOTAL** (0.025/side — zero seating
+  slop against a ±0.5 mm keyed-seating budget); worst case **−0.16 mm
+  interference**; even the best case (+0.26) absorbs half the slop budget.
+- Thickness stacks on top: jaws centred on 0.64; ours 0.77–0.83 (+27%), and
+  the 3522 has no published acceptance band (the .020–.032 band was the 3557
+  family's).
+**The .250 × .032 tab does not reliably enter the 3522. The 3522 is viable
+only with a fuse-blade-format tab — see E.3.** (Sourcing was NOT the
+problem: bare 3522 is on LCSC as **C3204022**, 102 pcs, ~$0.92; housed
+3522-2 = C3204137.)
+
+### E.3 Hunt A — fuse-blade-class PCB tabs: DEAD
+
+No vendor sells a male PCB stake in the 5.2 × 0.64 fuse-blade format — in
+that system the FUSE is the only male (searches return exclusively
+clips/holders/blocks: Keystone, Eaton 1Axxxx, Littelfuse FBA). Nearest
+miss: TE's .205-series PCB tabs (62411-1, 60284-2, catalog 82004 p.46) are
+5.21 wide but **0.51 thick** (under the 0.64 jaw centre → reduced grip) and
+**straight only** — no right-angle form exists, so they cannot point down
+off our vertical daughterboard at all. A custom stamping is tooling NRE for
+a $0.04-class part. Hunt A closes empty; option 1 (3522 + matching tab) is
+dead regardless of its best-in-class floor.
+
+### E.4 Hunt B — the find: TE FASTON .250/.205 PCB RECEPTACLES (catalog 82004 Style A)
+
+TE builds a PCB-mount receptacle **designed for exactly our blade**:
+**63968-1 (LIF, strip) / 63969-1 (standard, strip) / 1217080-1 (loose
+piece)** — new vendored docs `TE_63969_FASTON_250_PCB_receptacle.pdf`
+(customer drawing), `TE_114-2156_FASTON_PCB_receptacle_appspec.pdf`,
+`TE_108-1706_FASTON_PCB_receptacle_prodspec.pdf`,
+`TE_82004_FASTON_PCB_tabs_receptacles_catalog.pdf`.
+- **Mating tab spec: 6.35/5.21 wide × 0.81 ± 0.025 thick** (CD note 3) — our
+  tab's thickness is the DESIGN CENTRE, not an acceptance-band ceiling.
+  This erases addendum 5's #1 fit item by construction.
+- **Vertical top entry** (app spec 114-2156 Fig 1/10: the tab descends into
+  the standing receptacle; mating rolls + cantilevered floor grip the faces;
+  stabilizers seat on the board) — exactly the drop-in direction.
+- THT: 2 solder tails, **Ø1.40 ± 0.05 holes at 5.08 ± 0.08**, clinched;
+  height above board **8.38** (the 12.41 float clears it by 4.03), tails
+  3.81 below; width along the tab-width axis 7.42–7.49.
+- Ratings (108-1706): **22.9 A base rated current** (measured by the SAME
+  ≤30 °C-rise method as our margin policy; flat to 85 °C ambient), 600 VAC,
+  ≤1 mΩ termination, −40..105 °C, brass/tin-over-copper (metallurgy matched
+  to the tin-brass tab). Mate ≤26 N [LIF] / ≤44 N [std], unmate ≥13/≥18 N
+  per joint (app spec Fig 8; 108-1706's own figures are 54.5/17.8 N — doc
+  vintages disagree, sample measures it). Durability 6 mate cycles — fits
+  the not-for-constant-swapping posture.
+- Orientation in our frame: tab-width axis ∥ wall normal → the 5.08 leg pair
+  runs ⊥ the row. Along the row it presents its across-thickness depth,
+  **un-dimensioned in the CD/catalog — measured proportionally from the CD
+  section ≈ 3.4–3.7 mm** → **estimated floor ≈ 4.2 mm** (depth + 0.5 web;
+  the Ø2.2–2.4 pads sit within it). EXACT depth = the first checklist item
+  if this option is picked (TE STEP model or sample calipers).
+- Retention detail: FASTON retention uses the tab's Ø1.78 detent hole
+  (63951-1 HAS it, at 7.83 below the leg midpoint) — but at the nominal
+  12.41 float that hole rides near/above the receptacle's top, so detent
+  registration at our geometry is NOT established; retention may be
+  spring-friction only. Sample item, plus two family knobs if reach needs
+  tuning: RA tab siblings 928814-1 (L 16.0, E 9.09) and 63952-1 (L 25.4,
+  E 16.83).
+- **Gang insertion force is the new #1 practical item** (replacing the
+  fit-risk item): 9–12 joints × ≤26–44 N spec-max = ~230–530 N worst-case
+  bound per assembly (typical is well under max; LIF 63968-1 halves the
+  bound). Consistent with the owner's insertion-force-is-a-feature ruling,
+  but now at assembly-fixture scale — seat with a press/rock-in; sample
+  measures the real number.
+- **Margin policy vs 22.9 A** (ratified: continuous ≥125% of sustained worst
+  case): per-joint worst basis — atx24 3V3 24.0 A → **95% FAIL**; atx24 GND
+  18.0 A → 127% (hairline); EPS 17.3 A → 132% ✓; PCIe 19.5 A → **117%
+  FAIL**. Fix = joint-count bumps: **atx24 3V3 1→2 (board 9→10 tabs; a 5th
+  GND optional), PCIe 12V and GND 2→3 per cable (PCIe-2 8→12, PCIe-3
+  12→18), EPS unchanged at 12.** These counts are OWNER-RATIFIED numbers
+  (2026-07-04) — re-ratification required; the study only surfaces the
+  arithmetic.
+- Sourcing: **LCSC carries 63969-1 = C2961150** (~$0.32) but stock is **5
+  pcs** — thin; 63968-1 and 1217080-1 are not on LCSC; DigiKey stocks both
+  63968-1/63969-1 (~$0.30, ships today) → consigned/owner-acquired for
+  proto, LCSC restock watch for volume (same posture as the bare 3557,
+  which never had a verified C-number at all).
+
+### E.5 Options table
+
+| # | Option | Fits our tab? | Rating vs policy | Along-row floor | Pitches (est) | Boards W×H est (atx24 / eps / pcie) | Joint counts | Sourcing | Key risks |
+|---|--------|---------------|------------------|-----------------|---------------|--------------------------------------|--------------|----------|-----------|
+| 1 | Keystone 3522 + matching tab | **NO** (window 6.4 vs blade 6.27–6.43; −0.16 worst; E.2) | 30 A ✓ (=today) | **4.1** (best) | (4.2/4.6/5.0) | (52.7 / 28.0 / 20.0 ×~today's H) | 9/12/8/12 unchanged | 3522 = LCSC C3204022 (102) | **Dead**: blade doesn't enter; the tab that would fit doesn't exist in RA form (E.3) |
+| 2 | **TE FASTON PCB receptacle 63968-1 (LIF) / 63969-1** | **YES — designed for 6.35 × 0.81±0.025** | 22.9 A → joint bumps needed (atx24 10, pcie-2 12, pcie-3 18; EPS ok) | **≈4.2** (depth-gated; un-dimensioned axis ≈3.4–3.7) | 4.2 / 4.6 / 5.0 (atx24 4.2 = 2×2.1 lattice IF depth ≤3.7, else atx24 stays 6.3) | ~52.7–56.9×21.4 / ~28.0×20.0 / ~20.0 (4 tabs)–30.0 (6 tabs)×20.0 | 10 / 12 / 12 / 18 (re-ratify) | LCSC C2961150 (5 pcs!) + DigiKey depth ~$0.30 | exact depth un-dimensioned; gang insertion 230–530 N spec-bound; detent-hole registration unproven; 6-cycle durability; 105 °C class (vs Keystone 145) |
+| 3 | Stand pat: Keystone 3557 (as built) | Off-label: 0.81 vs 0.64 centre (+27%, inside .020–.032 band) | 30 A ✓, ratified counts stand | 6.3 | 6.3 / 6.7 / 7.2 (as built) | 69.5×21.4 / 38.5×20.0 / 26.6×20.0 (as built) | 9/12/8/12 (ratified) | bare 3557 NOT verified on LCSC (3557-10/C3205403 unverified); DigiKey/Mouser consigned | thickness sample gate (OQ-86 #1); low-insertion-force design vs owner's retention want |
+| 4 | Revert: Keystone 3586 (SMD) | Same off-label 0.81-over-centre | 30 A ✓ | ~6.6–7.1 (SMD land span) | ≥7-class | bigger than #3 on all three | 9/12/8/12 | LCSC C238113 (533) | SMD pads carry the retention pull-out load (THT preferred at 100 N+ per-assembly retention); tallest boards |
+
+Board figures are floor+keying estimates for ranking only; exact pitches,
+lattice phase, and dims are re-derived at regen. Rough seating for option 2:
+uniform leg row 4.34 above each bottom edge unchanged, float 12.41 at 1.0 mm
+tip clearance, receptacle top 8.38 cleared by 4.03 mm — strictly more
+clearance than the 3557 build.
+
+### E.6 Recommendation
+
+**Option 2 — the TE FASTON .250 PCB receptacle (63968-1 LIF as primary; std
+63969-1/C2961150 as the LCSC-listed sibling), NOT the 3522.** The owner's
+question decomposes cleanly: the 3522's pitch instinct is correct (its 3.2 mm
+thickness IS the along-row footprint, floor 4.1) but our blade measurably
+does not enter its fuse-width window, and the only tab that would fit does
+not exist in right-angle form. The receptacle keeps ~all of the 3522's pitch
+win (floor ≈4.2 vs 6.3 today) while being the first candidate in this whole
+chain that is DESIGNED for our exact blade — thickness at design centre,
+vertical top entry, spec'd mating/unmating forces, a 30 °C-rise-method
+current rating, and matched tin-brass metallurgy. Its costs are honest:
+22.9 A forces owner re-ratification of three joint counts (atx24 9→10,
+pcie-2 8→12, pcie-3 12→18), LCSC stock is 5 pcs today (DigiKey consignment
+until restock), and two sample-gate items replace the old thickness gate
+(exact across-thickness depth → confirms the 4.2 floor and atx24's 2×2.1
+lattice pitch; gang-insertion force + detent registration → confirms
+seating/retention). If the owner wants zero re-ratification and zero new
+parts, option 3 (stand pat on 3557) remains sound with its single known
+sample gate. Nothing regenerates until the owner picks.
+
+## Addendum 7, 2026-07-06 (iteration 7): TE 63969-1 REGEN — orientation proof, re-derived counts, 4.2/4.7/5.2 pitches
+
+**Dated addendum; addenda 5-6 above are left unedited. OWNER RATIFIED the
+addendum-6 recommendation** ("Sure, show me the pitch and everything on the
+boards") with an explicit orientation requirement: *"the blade's edge will
+be coming down into the board and slotting as an *edge* into the slot,
+which will make the receptacle be oriented such that the two PCB holes are
+aligned in the same way as the blade's holes."* Authoritative source:
+`lib/datasheets/TE_63969_customer_drawing_revE.pdf` (owner-uploaded;
+byte-identical to the study download — one source of truth). **The
+iteration-5 Keystone 3557 build is RETIRED** (its floor derivation stands
+as a correct record of that part; the 3557/3586 footprints stay vendored,
+unreferenced, as documented fallbacks).
+
+### F.1 Orientation — the reading chain (proven, not assumed)
+
+From rev E (ENG_CD_63969 rev E, 08MAY24):
+1. **Long axis:** the front view and Section B-B share it — 12.19 total =
+   8.38 body + 3.81 solder tails, matching TE's parametrics (profile
+   height 8.38 above board, 3.81 below). That axis is the VERTICAL mating
+   axis when mounted.
+2. **Horizontal cross-section** (end view; Section A-A at 8:1): two
+   vertical MATING ROLLS side by side spanning **7.42 along the tab-width
+   axis**, a 1.40 slit between their crowns, backed by the 0.41-thick
+   CANTILEVERED FLOOR plate. The descending blade is gripped between floor
+   and rolls — its bottom edge leads ("slots as an EDGE into the slot").
+   Note 3: **mating tab thickness 0.81 ± 0.025** — our blade at design
+   centre.
+3. **Third-angle adjacency:** the end view sits beside the front view
+   sharing its vertical sheet axis, so the **5.08 ± 0.08 tail spacing
+   (dimensioned in the front view) lies along the SAME axis as the 7.42
+   tab-width span**.
+4. Therefore, on the main board: **the receptacle's two Ø1.40 ± 0.05 holes
+   run along the tab-width axis = the WALL NORMAL, perpendicular to the
+   row** — and since the 63951-1 tab's own legs are Ø1.6 into Ø1.40 holes
+   at the same 5.08 pitch in the blade's vertical plane, the two parts'
+   hole patterns are **plan-congruent** (the owner's "aligned in the same
+   way as the blade's holes", exactly).
+
+This is now asserted STRUCTURALLY in `check_output_daughterboards.py`
+§3b: the receptacle footprint must carry its hole pair on local Y at
+(0, ±2.54) with Ø1.40 drills (a 90°-wrong footprint fails the checker),
+plan-congruence with the tab's leg holes is asserted, and §3a's rot-0
+check on every mating position closes the per-position half. New footprint:
+`cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT` (full
+reading chain + depth caveat in its descr).
+
+### F.2 Joint counts — re-derived at 22.9 A / 125% (owner-ratified)
+
+Allowable = 22.9 / 1.25 = **18.32 A/joint** (both figures on the same
+30 °C-rise method; TE 108-1706 Fig 4 / the platform margin policy).
+
+**24-pin** (6 A/circuit ATX bar): 12 V 2×6 = 12.0 A → 1 joint (191%);
+5 V 5×6 = 30.0 A → 2 (153%); **3V3 4×6 = 24.0 A → 2 joints** (was 1 =
+95%, FAIL; now 12.0 A each, 191%); 5VSB 6.0 A → 1 (382%); GND return =
+72.0 A → 4 joints = 18.0 A each = **127.2% — legal but hairline** (0.32 A
+headroom; a 5th GND joint = 158% at 11 total was surfaced; the owner
+ratified the policy application at the honest arithmetic total of **10**).
+**PCIe** (~39 A/cable): 2/polarity = 19.5 A = 117% FAIL → **3/polarity =
+13.0 A, 176%** → 6 tabs/cable (pcie-2 main board 12, pcie-3 main board 18).
+**EPS** (~52 A/cable): 3/polarity = 17.33 A = **132% — HOLDS** at 6/cable.
+
+### F.3 Pitches, keying, boards
+
+Along-row floor = receptacle across-thickness depth (UN-DIMENSIONED on
+rev E; 3.7 proportional estimate, band 3.4–3.7, constructive bound ~4.0)
++ 0.5 bare-brass air gap = **4.2 mm**. **DEPTH GATE (the #1 OQ-86 sample
+item for this part): if the sample measures > 4.0 mm, atx24 falls back to
+6.3 (3-lattice)**; the drawn footprint body is the 3.7 estimate and the
+checker's row-fit maths read it from the footprint, not a constant.
+Pitches: **atx24 4.2** (at the floor; = 2×2.1 field-stub lattice periods),
+**eps 4.7**, **pcie 5.2**. Keying at the new counts (eps and pcie now BOTH
+6 tabs — pitch differentiation alone carries that pair): worst
+centred-overlay deviation (G/2)|d| = eps-vs-pcie 1.25 / eps-in-atx24 1.25 /
+pcie-in-atx24 2.50, all ≥ 2.5× the 0.5 mm tolerance; the six-way no-subset
+bipartite proof passes and its teeth were re-verified (sabotaged pcie =
+4.8, d = 0.1 to eps → the proof correctly fails). atx24's descent phasing
+was REWORKED for the 4.2 pitch: lattice columns now land 1.05 from tab pad
+centres (collision), so each signal descent jogs at jog_y onto a COMPUTED
+mid-gap column (x0 + 2.1 mod 4.2, 0.85 mm pad-edge clearance), verified
+against the full bus-stub X set; nesting (m1 < m3 < m7) is asserted in
+code. The SR1-6 pad grid was repacked 2×3 and its extent folded into W
+(the shrunken board had put SR6 on the Edge.Cuts — 2 real
+copper_edge_clearance hits caught by DRC at regen and fixed by making
+`pcb_placement()` own the SR extent).
+
+Boards: **atx24 61.0 × 21.4** (was 69.5 × 21.4), **eps 28.5 × 20.0** (was
+38.5), **pcie 31.0 × 20.0** (was 26.6 — the +2 ratified joints outweigh
+the pitch win on the smallest board; honest number). atx24's W is now
+governed by its 24-pin solder field + SR grid, not the tab row.
+
+### F.4 Seating
+
+Unchanged frame: uniform leg row 4.34 above each bottom edge, tip 11.41
+below edge level, **float 12.41** at 1.0 mm tip clearance (the receptacle
+is open at the bottom between its tails — the tab tip's hard stop is the
+main-board surface; the cantilevered floor is a vertical backing plate,
+not a bottom stop). Board bottom edge clears the receptacle's 8.38 top by
+**4.03 mm** (vs 2.21 over the 10.2-tall 3557 — improved). Tops above main
+board: 33.79 (atx24) / 32.42 (eps, pcie). Retention: the rolls' detent
+engages the tab's Ø1.78 hole, but at the nominal float that hole rides
+~0.5 mm ABOVE the receptacle top → detent engagement NOT established;
+retention may be spring-friction only (spec unmate ≥ 13/18 N per joint is
+measured WITH detent) — **sample item**, alongside gang insertion force
+(9–18 joints × ≤26 N [63968-1 LIF] / ≤44 N [63969-1] spec max per 114-2156
+Fig 8).
+
+### F.5 Main boards
+
+All existing TB instances swapped by property (Value/Footprint/MPN
+63969-1/LCSC C2961150/Manufacturer/Datasheet + Note provenance appended;
+lib_id retained per the value-swap precedent) — 24pin 9, eps 12, pcie-2 8,
+pcie-3 12. NEW instances added at the ratified counts, each netlist-
+verified onto its post-shunt rail node: 24pin **TB10** → /SENSE3V3_LO
+(TB4's node); pcie-2 **TB15/TB25** → /SENSEC1_LO,/SENSEC2_LO + **TB16/
+TB26** → GND; pcie-3 **TB15/TB25/TB35** → /SENSEC{1,2,3}_LO + **TB16/TB26/
+TB36** → GND (numbering follows the existing TB<cable><idx> scheme; the
+12V group is non-contiguous by index — TB11/12/15 — chosen over renaming
+the hand-file's existing refs). Main-board BOM CSVs updated — including
+retiring their STALE "Keystone 3586" TB lines, which iteration 5 had
+missed. rev3's J_SIG 2×5→1×4 rework stays DEFERRED per addendum 5 D.6.
+No main-board PCB placement exists; `pcb_placement()` + addenda 3–7 remain
+the authoritative mating drawing.
+
+### F.6 Gates
+
+Daughterboards ×3: ERC 0 errors; DRC 0 errors / 0 unconnected at
+--severity-error (all-severity residue is cosmetic silk only: atx24 27 /
+eps 20 / pcie 18); checker fully green **113 OKs** incl. the new
+orientation, plan-congruence, and depth-parameterized row-fit assertions;
+keying proof + teeth as in F.3; route verify structural=0/unconnected=0
+per family. Main boards ×4: ERC unchanged (1 pre-existing pin_not_driven
+each, before = after); new-TB netlist checks as in F.5.
+
+## Addendum 8, 2026-07-06 (iteration 8): ampacity/size EXPLORATION — verdict: STAND PAT on TE 63969-1
+
+**Dated addendum; addendum 7 above is left unedited. STUDY ONLY — no board
+or library change.** Owner ratified the iteration-7 density and directed a
+hunt for *"any models that we can use that either increase the ampacity or
+decrease the size."* Score = net row length per family (joints × pitch) +
+margin quality + $/module vs the ratified $2.7–4.6 blade-config band.
+Baseline: TE 63969-1 — 22.9 A @30 °C rise, 4.2 mm floor (depth-est-gated),
+counts 10/6/6, rows 42.0 / 28.2 / 31.2 mm (boards 61.0×21.4 / 28.5×20.0 /
+31.0×20.0), ~$0.30/joint + the fixed $0.10–0.16 blade side.
+
+### G.1 The count-threshold ladder (what a rating is worth, policy math at 125%)
+
+| Rating/joint | atx24 | eps /cable | pcie /cable | Notes |
+|---|---|---|---|---|
+| 22.9 (baseline) | 10 | 6 | 6 | GND 127.2% hairline |
+| ≥24.4 | 10 | 6 | **4** | pcie 2/polarity unlocks |
+| 25 | 10 | 6 | 4 | GND → 139% (hairline absorbed) |
+| 30 | **8** | 6 | 4 | but 3V3×1 AND GND×3 both land AT 125.0% — two new hairlines |
+| ≥32.5 | 8 | **4** | 4 | eps 2/polarity unlocks |
+| ≥37.5 | **7** | 4 | 4 | 5V×1 unlocks |
+| ≥45 | **6** | 4 | 4 | GND×2 at exactly 125.0% |
+
+So the interesting unlock points are 24.4 (pcie), 30 (atx24), 32.5 (eps).
+
+### G.2 Lanes searched, honest results
+
+**Lane 1a — TE catalog 82004 (vendored, re-mined):** Style A
+(63968-1 LIF / 63969-1 / 1217080-1) is the ONLY PCB receptacle for a
+0.81 mm tab; product spec 108-1706 rates the whole PCB-receptacle line at
+22.9 A — no higher-current or narrower sibling exists. The .187 series
+appears as TABS ONLY (no .187 PCB receptacle at all), and the .187 contact
+class is ~17 A: even a hypothetical 3 mm-wide part gives eps 4/polarity ×
+~3.5 = 14.0 vs the baseline 3 × 4.7 = 14.1 — a wash at best, with worse
+margins everywhere else. The RAST 5 tab-header system (6.3×0.8 tabs on
+5 mm centres, p.50–51) mates appliance wire-side housings, not PCB
+receptacles — not board-to-board. **Nothing in FASTON-world beats the
+63969-1; it is the class ceiling for THT stamped verticals.**
+
+**Lane 1b — stamped-receptacle specialists:**
+- **Zierick** (catalogs 43 THT + SMT, read in full): the 25 A ".250" parts
+  that surface in searches (1285/6284/6285) are male TABS, not receptacles
+  (caught — the search summary conflated them). Their real THT .250×.032
+  tab receptacle (**1022/6022**: top entry, 2 holes Ø1.473 at 5.08 —
+  the same land class as the 63969) is **20 A with brass tab**, 10 mΩ,
+  −65..85 °C → BELOW baseline: counts grow (eps 4/polarity, atx24 GND 5).
+  Dead. Their SMT "Universal Tab Receptacles" (**1237** top-entry:
+  width-agnostic, .025–.032 tabs, LIF, **25 A** on the part table — the
+  family blurb's "30 A" is not the 1237's own number) would unlock pcie=4
+  and absorb the GND hairline, BUT: SMT (retention pull-out on pads — the
+  same structural objection that demoted the Keystone 3586), ~a dozen
+  mating cycles, 85 °C class, ~6.5 mm-class along-row universal body →
+  atx24's row balloons (~10×7 = 70 vs 42) — net LOSS platform-wide, wins
+  only pcie. Not LCSC. Dead on the score.
+- **Keystone non-fuse quick-fit (the retired 3586/3557, 30 A)** scored
+  honestly for comparison: at 30 A the ladder gives 8/6/4, but at their
+  6.3–7.2 pitches the rows are 50.4 / 40.2 / 28.8 = 119.4 total vs the
+  baseline's 101.4 — they win ONLY pcie (28.8 vs 31.2) and re-add the
+  0.81-vs-0.64 thickness gate plus two at-the-line 125.0% joints. Dead.
+- ETCO: same US-stamper class as Zierick, nothing surfaced above the
+  Zierick numbers; Vishay/Würth stamped lines carry no PCB FASTON
+  receptacle.
+
+**Lane 2 — bigger blade class:** the FASTON PCB-receptacle line stops at
+.250/.205 (TE's own line description) — no .375 PCB receptacle exists, and
+82004's tabs also top out at .250, so a bigger blade would need BOTH sides
+custom. Keystone MAXI fuse clips (40–80 A class) rate at the MAXI blade's
+full geometry; our 6.35-wide tab is roughly HALF a maxi blade's width, so
+the rating does not transfer (contact area/spring distribution) — an
+off-label, unquantifiable-without-bench posture, the exact thing
+iteration 7 just escaped. **Dead under quality-first.**
+
+**Lane 3 — purpose-built vertical b2b power, re-checked:**
+- **Samtec mPOWER (UMPT/UMPS)**: 18 A/blade — BELOW baseline → counts grow
+  AND $3–8/side. Dead immediately.
+- **Amphenol PwrBlade(+) / TE MULTI-BEAM XLE / Molex Ten60**: 30 A/contact
+  adjacent-loaded @30 °C rise (48 A single) — genuinely count-shrinking
+  (8/4/4-class) and, as housed guided blind-mates, they would ERASE the
+  bare-part sample items (depth gate, detent/friction retention, gang
+  insertion alignment) — their real advantage. But no near-band SKU
+  surfaced: the D-5a study's $13–26/module class pricing stands
+  unrefuted, 3–6× the ratified band, and both sides get replaced
+  (discarding the fixed $0.10 blade side). Documented as the premium rung,
+  not recommended.
+- **Würth REDCUBE PLUG**: up to 120 A, multi-pluggable — the REDCUBE class
+  was already priced at $12–19/module (D-5a §8.6); over band. Proto rung
+  unchanged.
+- **LCSC-native screen**: no vertical .250 receptacle class beyond
+  63969-1/C2961150 itself is findable on LCSC; the Keystone 3586
+  (C238113) remains the only LCSC-stocked 30 A alternative and loses per
+  the Keystone row above.
+
+### G.3 Options table (net row length, mm = joints × pitch)
+
+| Candidate | A/joint | Counts (atx24/eps/pcie per cable) | Rows atx24/eps/pcie | Total | $/module class | Kills baseline sample items? | Verdict |
+|---|---|---|---|---|---|---|---|
+| **TE 63969-1 (baseline)** | 22.9 THT | 10/6/6 | 42.0/28.2/31.2 | **101.4** | $2.7–4.6 ✓ | — (carries depth gate + detent/friction + gang force) | **KEEP** |
+| Keystone 3557/3586 (retired) | 30 | 8/6/4 | 50.4/40.2/28.8 | 119.4 | ✓ band | erases depth gate, re-adds thickness gate + 2× at-line 125.0% joints | dead (net −18) |
+| Zierick 1022 THT | 20 | ~12/8/6 | worse everywhere | >120 | ~band | no | dead |
+| Zierick 1237 SMT universal | 25 | 10/6/4 | ~70/~39/~26 | ~135 | ~band, not LCSC | erases depth gate; adds SMT retention + 12-cycle + 85 °C | dead (atx24 balloons) |
+| Samtec mPOWER | 18 | grows | — | — | $6–16 ✗ | yes (housed) | dead |
+| PwrBlade+/MULTI-BEAM/Ten60 | 30–48 | 8/4/4 | ~needs housings, not rows | — | **$13–26 ✗** | **YES — all of them** | premium rung only |
+| REDCUBE PLUG | 120 | 2–4 total/module | — | — | $12–19 ✗ | yes | proto rung only |
+| .375/MAXI blade class | 40–80 (full blade) | — | — | — | — | rating doesn't transfer to our half-width blade; no PCB receptacle/tab exists | dead |
+
+### G.4 Recommendation
+
+**STAND PAT on TE 63969-1 + 63951-1.** No candidate honestly beats the
+baseline on the combined score: the 63969-1 is the ampacity ceiling of the
+THT stamped-vertical class AND holds the tightest along-row floor; every
+higher-rated part either loses the floor (universal/SMT bodies), loses the
+rating fine print (maxi off-label), or costs 3–6× the band (housed b2b).
+The two genuine what-ifs are precisely bounded for the future: a
+**≥24.4 A THT vertical .250 receptacle** would drop pcie to 4 joints
+(none exists at any vendor searched), and the **housed-b2b premium rung**
+(PwrBlade+-class) remains the documented buy-out of ALL bare-part sample
+items if the owner ever re-prices the band. The atx24 GND 127.2% hairline
+stays accepted as ratified (the 30 A parts that would absorb it introduce
+two new 125.0% at-the-line joints of their own). Iteration-7 boards stand;
+the OQ-86 sample list is unchanged.
+
+## Addendum 9, 2026-07-06 (iteration 9): TAB-side study — catalog variants + the PCB-edge-finger option
+
+**Dated addendum; addendum 8 above is left unedited. STUDY ONLY — no board
+or library-geometry change (one datasheet vendored). The receptacle is
+FROZEN (TE 63969-1);** owner: *"Can we use a different tab now that we have
+all of the mount world classified?"* Relaxed requirements applied: the
+detent hole no longer disqualifies (iteration 7 showed the 63951-1's hole
+rides above the engagement zone anyway → retention is friction-only
+today), and carrier/top-extent height is a live board-height lever.
+
+### H.1 Lane 1 — full .250×.032 PCB-tab enumeration (TE 82004 + siblings)
+
+- **Straight tabs** (63839/63986/1217566/1217539/62409/1217056/62650/
+  63650/63900/63755/63862/63824/**63849**/1742188/1217136/1217421/1217126/
+  1217125/1217169/1217127/1217167/63949/63950; also the Ø2.54-hole
+  63066/63067): ALL mount blade-⊥-board — through our vertical face the
+  blade would point along the wall normal (horizontal), never down. Dead
+  as a class for the drop-in architecture (they live in lane 3's flip).
+- **SMT .250 tabs**: TE 82004 carries NONE. Zierick's exist (6284 /
+  1285/6285, 25 A, 0.81 brass) — but an SMT tab lies flat on the face, so
+  its blade is IN the board plane with the wide face parallel to the face:
+  blade width would run ALONG the row (the iteration-2 dead geometry →
+  pitch balloons past 7 mm), the frozen receptacle would have to rotate
+  90° (hole pair ∥ row — violating the owner's ratified orientation), and
+  a Y≈0 blade can't reach a receptacle at any standoff without the
+  receptacle colliding with the descending board edge. **Killed
+  explicitly.**
+- **Right-angle .250 table** (the only in-architecture class) has exactly
+  three members: **63951-1** (baseline; L 20.32, E 7.92, strip C591344
+  $0.10–0.16, loose sibling 1217754-1 = LCSC C305825 $0.156/1900 pcs),
+  **63952-1** (L 25.40, E 16.83 — longer and further off the wall in every
+  dimension; dead on sight), and **928814-1** — the one live variant:
+
+**TE 928814-1 "SOLDER TAB 6.3×0.8 FOR PCB"** (drawing C-928814 rev C now
+vendored: `lib/datasheets/TE_928814_solder_tab_63x08.pdf`): CuZn30, 3–8 µm
+Sn over 0.8–5 µm Ni, blade 6.3 × **0.8 ± 0.05**, Ø1.7 detent hole 4.45
+from the tip, **overall 16.0 vs the 63951-1's 20.32**; two flat stamped
+legs on a 5.0 ± 0.08 pitch, STAGGERED 2.5 mm across (the recommended hole
+pattern is a 2-row lattice — different drilling than the 63951's in-line
+Ø1.4 pair); LOOSE PIECE ONLY (no strip/reel), not LCSC-carried
+(DigiKey/Mouser class). What it buys and costs, honestly:
+- **Stack height −~4.1 mm**: shorter blade ⇒ tip ~11.6 below the leg
+  midpoint (vs 15.75) ⇒ float ~8.3 (vs 12.41) ⇒ eps/pcie tops ~28.3 (vs
+  32.42), atx24 ~29.7 (vs 33.79). Board HEIGHT is essentially unchanged
+  (top extent ≈4.4 vs 4.82 — the carrier saving is ~0.4 mm on eps/pcie
+  only; atx24's band is corridor-driven).
+- **Detent hole lands IN the engagement zone** (~5.5 above the main board,
+  inside the receptacle's 8.38 body) — the only tab in the table that
+  might give real detent retention; the roll-dimple height is
+  un-dimensioned, so still sample-proven.
+- **Caveats**: blade band sits closer to the wall (centre ~4.45 vs 5.72,
+  read from the 2:1 views ±) ⇒ the receptacle's near roll edge comes
+  within ~0.7 mm of the board face while the board edge dips ~0.1 below
+  the receptacle top at nominal float — a tight corner that needs either
+  a re-derived (higher) float or the exact band read off a sample; blade
+  tolerance 0.75–0.85 is WIDER than the mate's published 0.785–0.835
+  acceptance (low-tail preload loss — milder than the finger option's
+  same problem); loose-piece-only feeds hand assembly; sourcing off-LCSC.
+
+### H.2 Lane 2 — the PCB-edge-finger option (the board IS the blade)
+
+**(a) Thickness — the killer gate.** The 63969's published mating spec is
+**0.81 ± 0.025** (rev-E note 3; 108-1706's scope is ".032 thick tab"; no
+wider band is published anywhere, and the Style-A SKU split by tab
+thickness — 63969 for .032, 1217180/63994 for .025 — shows the spring is
+thickness-TUNED, not wide-band). PCB fab: JLC standard thickness tolerance
+±0.1 (0.70–0.90) **FAILS**; even a tight ±0.05 class (0.75–0.85) fails
+both tails of 0.785–0.835. No catalog fab class passes; only a custom
+±0.025-controlled core would — this gate is strictly HARDER than the
+receptacle depth gate it would sit beside. And the thickness is CHAINED:
+a stiffer 1.0 mm board is over-band by construction.
+**(b) Ampacity — passes with heavy copper, but conduction was never the
+issue.** Blade ≈ 5.1 mm² brass ≈ 1.44 mm² Cu-equivalent. Finger at 2 oz
+both faces = 6.35 × 0.07 × 2 = **0.89 mm²** (62% of blade); 4 oz both
+faces = **1.78 mm²** (124%) ✓; edge plating adds ~0.02 (negligible). The
+contact neck is short (~9.2 A/face on a 6.35 mm-wide 2 oz sheet ≈
+1.4 A/mm over <5 mm ⇒ few-°C class), so even 2 oz is thermally plausible —
+the REAL unknowns are the interface: ENIG's flash gold wears through in
+single-digit cycles under the 44 N-class roll force (→ Ni contact,
+rising R); hard gold 30 µ" + bevel is the edge-finger standard (JLC
+offers, cost bump; bevel at 0.8 mm marginal); the rolls' shear-edge
+geometry meeting a routed FR4 edge is unqualified by TE — fully
+off-label, bench-only.
+**(c) Mechanics.** 440 N spec-max gang insertion loads the 0.8 × 21-ish
+edge in compression — buckling resisted by the THT field band + 4-layer
+copper, plausibly OK; the service risk is FLEX (extension-cable pull on a
+0.8 × 61 sliver) → contact fretting. Fab: 0.8 mm 4-layer with 2 oz outers
++ hard-gold fingers is orderable at JLC with real cost adders (finger
+plating + bevel + non-standard stackup).
+**(d) Geometry — the honest, large upside.** Tab band deleted (fingers
+in-plane): H ≈ −2 to −3 mm per board; and the FLOAT DIES — the board's
+own edge descends to ~1.0–1.5 above the main board ⇒ **total stack ~19 mm
+vs 32.4–33.8 today (−13 mm)**, the single biggest compaction lever seen
+in this whole chain. Keying: the no-subset proof applies unchanged to
+finger X-positions. BOM: −22 tabs/system (−$2–3.5) and −22 hand/wave
+solder joints. Signal stub reworks to short pins or 3 signal fingers
+(minor). POSTURE FLAG, stated honestly: this reverses the owner's
+iteration-3 "the TAB does the reaching down, not the board" — the board
+itself would now enter the receptacle zone; the owner is explicitly
+inviting the question, but the reversal should be a conscious ruling.
+
+### H.3 Lane 3 — side-flip kill (one paragraph)
+
+Flipping sides (straight 63849-1 tabs blade-up on the MAIN board,
+receptacle on the daughterboard) requires a receptacle that mounts on a
+VERTICAL face with a vertical mating axis — i.e. an SMT/edge-mount .250
+receptacle. Iteration 8's enumeration found none in existence (TE's PCB
+receptacles are THT verticals whose mating axis is ⊥ their own seating
+plane — through our vertical face the axis goes horizontal; Zierick's SMT
+universals mount face-flat the same way, 25 A, and died on the row math
+regardless), and a THT receptacle through the daughterboard face cannot
+receive a vertically descending... rising blade. **Dead. Closed.**
+
+### H.4 Verdict table
+
+| Option | Board H (atx/eps/pcie) | Total stack | BOM parts/system | Assembly | New gates/risks | Cost/system delta | Sample-order impact |
+|---|---|---|---|---|---|---|---|
+| **Stand pat: 63951-1** | 21.4/20.0/20.0 | 33.8/32.4 | 22 tabs (strip, C591344) | 22 THT, reel-fed | none new (depth gate + friction retention + gang force, as ratified) | — | unchanged |
+| **928814-1** | ~21.4/19.6/19.6 | **~29.7/28.3 (−4.1)** | 22 tabs, LOOSE only, not LCSC | 22 THT, hand-fed | near-wall corner (~0.7 mm) needs float re-derivation; 0.75–0.85 blade band vs 0.785–0.835 mate band; staggered-leg re-drill | ~+$1–3 (loose/DigiKey) | **ADD 20 pcs to the OQ-86 order** — verifies band, corner, and possible REAL detent engagement in one session |
+| **PCB edge fingers** | ~18.4/17.9/17.9 | **~19 (−13)** | **0 tabs** | 0 tab joints; +finger fab steps | thickness band UNPASSABLE at catalog fab classes (harder than the depth gate); off-label contact metallurgy (hard gold, wear, fretting); 0.8 sliver flex | −$2–3.5 parts, +hard-gold/bevel/stackup fab adder | new bench PROGRAM (thickness-sorted samples, insertion/wear/contact-R cycling) |
+
+### H.5 Recommendation
+
+**Stand pat on the 63951-1 for the beta line** — no new gates, reel-fed,
+LCSC-native, all risks already ratified. **Add 928814-1 (≈20 pcs,
+DigiKey) to the existing OQ-86 sample order**: for pocket change it tests
+a −4.1 mm stack, a possibly-real detent engagement, and its two caveats
+(near-wall corner, wide blade band) in the same bench session — a cheap
+drop-in upgrade IF it passes, requiring only a footprint/band re-derive.
+**Record the edge-finger option as the compaction endgame** (−13 mm of
+stack and −22 parts) that is NOT actionable under quality-first until a
+funded bench program clears its thickness-band and contact-metallurgy
+gates — and until the owner consciously rules on reversing "the tab does
+the reaching, not the board." No board regenerates from this addendum.
+
+## Addendum 10, 2026-07-06 (iteration 10): PCB-edge-finger DEEP-DIVE + the 4 oz question — every addendum-9 kill-condition attacked
+
+**Dated addendum; addendum 9 above is left unedited. STUDY ONLY — no
+board/library change.** Owner (verbatim): *"Can we explore that PCB edge
+finger idea further as well? And how much 4oz copper on both sides would
+actually cost?"* Treated as a serious candidate. Web facts below were
+verified 2026-07-06; anything not verifiable first-party is marked EST or
+UNVERIFIED. One NEW geometric finding (I.4) that addendum 9 missed is
+reported first-class: it re-prices the whole option.
+
+### I.1 Thickness — attacked from all three sides
+
+**(a) Fab side (verified 2026-07-06).** JLCPCB published capability:
+board-thickness tolerance **±0.1 mm for <1.0 mm** (a 0.8 board is
+guaranteed only 0.70–0.90) [jlcpcb.com/capabilities/pcb-capabilities].
+Their impedance-control service controls **impedance ±10%**, not physical
+thickness — no tighter thickness class is published at all. PCBWay:
+same **±0.1 for t<1.0** on both standard and Advanced tables (only t≥3.2
+gets a better ratio, ±8%) [pcbway.com/capabilities.html]. **No catalog fab
+class comes within 4× of the receptacle's ±0.025 band.** Delivered-typical
+(vs guarantee) is unpublished — measurable only by coupon (I.7).
+**(b) Receptacle side — the full Style-A/B/C thickness-SKU table (from the
+vendored 82004 p.46 + rev-E CD + 108-1706):**
+
+| SKU(s) | Tab thk | Acceptance band | Nearest PCB class | Verdict |
+|---|---|---|---|---|
+| 63969-1 / 1217080-1 (std), 63968-1 (LIF) | .032 / 0.81 | 0.785–0.835 (rev-E ±0.025) | 0.8 ±0.1 → 0.70–0.90 | FAILS both tails; even a hypothetical ±0.05 class fails both tails |
+| 63994-1 (LIF), 1217137-1, 1217180-1 (OBSOLETE at te.com) | .025 / 0.64 | 0.615–0.665 (family analogy, UNVERIFIED) | no 0.64 class exists; 0.6 ±0.1 | FAILS |
+| Style B 1217107-1 | .020 / 0.51 | n/a | (0.5 class exists) | DEAD anyway: catalog footnote = HORIZONTAL mount |
+| Style C 62751-1/62806-1 | .016 / 0.41 spade | ~0.385–0.435 (analogy) | 0.4 ±0.1 | FAILS; and 0.4 mm sliver = 1/64 the bending stiffness of 1.6 — absurd for a power board |
+
+**No SKU in the line swallows any standard PCB class.** The spring is
+thickness-TUNED by SKU; the acceptance half-band (±0.025) is strictly
+tighter than the best published fab class (±0.1). Structural insight: real
+card-edge ecosystems put the tolerance in the CONNECTOR (JEDEC DIMM
+sockets accept ~±0.1 boards); the FASTON PCB receptacle was tuned for
+stamped metal, so fingers-into-63969 fights the tolerance on the wrong
+side — and the connector class that IS board-tolerant (true card-edge) was
+already eliminated by the D-5a §8.5 footprint gate (~2.4–2.5 A/mm vs the
+3.7–7.2 needed; the 63969 row runs 22.9 A/4.2 mm ≈ 5.5 A/mm).
+**(c) Design side.** (i) Plating compensation: copper/plating choice
+shifts the MEAN finger thickness but the spread is the laminate's — a
+±0.1-class stack stays ±0.1-class; not a fix. (ii) Depth-controlled
+routing of the finger zone: removes the very copper the finger needs;
+specialty-fab-only for dielectric-side skimming — feasibility class
+"custom process development", not catalog. (iii) **Sort-to-band — the one
+catalog-fab unlock**: order standard 0.8, 100% incoming-QC micrometer the
+finger zone, use only 0.785–0.835 boards. Yield unknown a priori (uniform
+over the ±0.1 guarantee → 25%; if delivered-typical is ±0.05 → ~50%) and
+within-panel variation is unmeasured — the coupon (I.7) answers both. At
+$2-class boards, a 25–50% sort yield is economically survivable; it is
+still a process the beta line would have to own forever.
+
+### I.2 Ampacity — the repo's own solver replaces the hunch (PASS)
+
+`dt_ipc` (scripts/cec_synth_pipeline.py, IPC-2221 external k=0.048) at the
+**18.32 A policy-max joint** (22.9 A ÷ 125%), 6.35 mm finger:
+
+| Copper | Cross (mm²) | dT at 18.32 A | vs blade |
+|---|---|---|---|
+| 2 oz both faces | 0.881 | **5.0 °C** | blade Cu-equiv 1.441 mm² → 2.2 °C |
+| 4 oz both faces | 1.763 | **1.6 °C** | beats the brass blade |
+| operating points | — | eps 17.3 A: 4.4/1.4 °C; pcie 13 A: 2.3/0.7; atx24 12 V 12 A: 1.9/0.6 | — |
+
+Even 2 oz passes the 30 °C-rise policy with 6× margin (5.21 mm-wide
+fingers: 0.72 mm², 6.9 °C — still fine); dt_ipc models a long free-air
+trace, so a short neck between pour and contact does better. **Conduction
+is definitively not the gate.** The gate is the INTERFACE: at the spec
+≤1 mΩ termination the joint dissipates 0.34 W; a worn interface at 10 mΩ
+dissipates 3.4 W concentrated on FR4 (k≈0.3 W/mK) — i.e. the wear/fretting
+failure mode is a thermal one. Which is metallurgy:
+
+### I.3 Metallurgy + the gold-finger services (verified 2026-07-06)
+
+- **JLCPCB gold fingers**: 30° bevel default, bevel supported for
+  **0.4–1.6 mm boards → 0.8 qualifies**; board/panel edge with fingers
+  must be **≥50 mm** (atx24 61 ✓; eps/pcie boards are under — panelize
+  2-up along the finger edge); **plating = ENIG flash only** ("only when
+  ENIG is chosen, the fingers... will be with gold") — no orderable
+  hard-gold thickness menu (their blog's "3–50u\"" is marketing, not an
+  order option — UNVERIFIED as a service); fee UNVERIFIED first-party
+  (third-party claims ~$10–20/proto order)
+  [jlcpcb.com/help/article/jlcpcb-gold-fingers].
+- **PCBWay**: gold fingers + beveling "without extra cost"; gold
+  **1–30 µin standard / 30–50 µin advanced** — real hard gold; BUT bevel
+  requires board **≥1.2 mm → 0.8 CANNOT be beveled at PCBWay**
+  [pcbway.com helpcenter, capabilities].
+- **Wear (citable)**: AMP TR *Golden Rules*: hard gold over 50 µin Ni —
+  **15 µin → 200 cycles, 30 µin → 1000, 50 µin → 2000**; ENIG flash
+  (2–5 µin) — **<10 insertions** (industry corroboration, weaker grade).
+- Mitigating fact: the 63951-1 tab we mate today is itself a SQUARE-SHEARED
+  0.81 stamping — the receptacle does not require a bevel the way a
+  card-edge socket does (the rolls + triangular cutouts provide lead-in),
+  so PCBWay's no-bevel-at-0.8 is a soft loss, and JLC's bevel is a
+  nice-to-have on an ENIG finger that wears out in <10 cycles anyway.
+  Net: **the only real hard-gold path at 0.8 mm is PCBWay, un-beveled.**
+  Design-side extra: a Ø1.8 NPTH hole in each finger at the roll-dimple
+  height would give REAL detent retention (the metal tabs today get none at
+  nominal float) — stress concentration vs retention = coupon item.
+
+### I.4 NEW FINDING — the forced 90° rotation re-prices the option
+
+Addendum 9 killed the Zierick SMT tab because a blade IN the board plane
+puts the blade width ALONG the row — and then did not apply the same
+geometry to the fingers. It applies: a finger's 5.21–6.35 mm width lies in
+the daughterboard plane = along the row; its through-board 0.8 mm is the
+"thickness" the rolls grip. So the main-board receptacle must rotate 90°
+from the iteration-7 ratified orientation (hole pair ∥ row), and the
+along-row footprint per position becomes the receptacle's **7.42–7.49 mm
+WIDTH** (+0.5 web) → **row pitch floor ≈ 8.0 mm vs 4.2 today** (receptacles
+all sit on the one board plane — no stagger escape). Rows at the ratified
+counts: atx24 9×8 = 72 (board ~91 mm long, was 61), eps 5×8 = 40 (~46, was
+28.5), pcie 5×8 = 40 (~46, was 31). **The fingers buy ~−11.5 mm of stack
+and pay ~+50% of board length.** (Stack re-derived at fz≈8.5 mm finger
+zone, board edge 1.0 above main board: atx24 22.4 vs 33.8; eps/pcie 20.9
+vs 32.4. H is ~unchanged — the finger zone is as tall as the tab band it
+replaces; the win is the float dying, exactly as addendum 9 said.)
+
+### I.5 The 4 oz question answered (as far as published data goes)
+
+- **JLCPCB has no 4 oz tier.** Published outer-copper menu: 2-layer =
+  1/2/2.5/**3.5/4.5 oz**; **4-layer is capped at 2 oz**
+  [jlcpcb.com/capabilities/pcb-capabilities]. "4 oz both sides" at JLC
+  means ordering the 2-layer 4.5 oz class (eps/pcie daughterboards are
+  2-layer-able; atx24's In2 bus corridor is NOT trivially 2-layer — the
+  iteration-5 two-layer lane split measurably failed on via anti-pads).
+- **PCBWay heavy-copper service**: outer finished copper 1–8 oz on
+  2-layer — 4 oz both sides IS orderable; small-board pricing is
+  quote-calculator-only (UNVERIFIED; this sandbox cannot reach the JS
+  quote tools — connection-reset at the proxy).
+- **$/board deltas (EST, marked)**: baseline today (4-layer 1.6, 2 oz
+  outer, our sizes, 100 q) ≈ $1.5–4/board. Finger build at JLC (2-layer
+  0.8, 4.5 oz, ENIG + gold-finger fee) ≈ **$5–15/board EST** — the 2-layer
+  saving partially funds the heavy-copper adder; at 2 oz instead (I.2
+  shows 2 oz passes thermally) ≈ **$2–6/board EST**. PCBWay 4 oz + hard
+  gold: heavy-copper lot minimums dominate at 100 q (EST $3–10/board).
+  1000 q compresses all of these 2–4×. **OWNER QUOTE RECIPE (2 minutes,
+  real numbers)**: JLC quote tool → 2 layers, 61×21.4 (and 2-up panels for
+  eps/pcie to clear the 50 mm finger-edge floor), 0.8 mm, outer copper
+  4.5 oz then 2 oz, ENIG, "Gold Fingers" + 30° bevel on, qty 100/1000;
+  PCBWay Advanced → same at 4 oz, gold 30 µin, no bevel.
+- **Net cost truth (task-5 arithmetic, 100 q, EST)**: deleting the tabs
+  saves $0.10–0.16 × 10/12/12–18 per board = $1.0–2.9 + THT assembly
+  $0.2–0.9 ⇒ **−$1.3–3.8/board saved parts+assembly** vs **+$1–11/board
+  EST fab adder** (copper class + finger service + panel rails + possible
+  sort-yield multiplier from I.1c). Verdict: roughly cost-neutral at best
+  under optimistic assumptions, net-positive cost under realistic ones —
+  the parts saving does NOT clearly pay for the exotic fab.
+
+### I.6 Seating/mechanical (worked)
+
+Engagement: board edge descends to ~1.0 above the main board; plated
+finger height ≥ 8.38−1.0 = 7.4 → spec 8.0 + 0.5 mask pullback; via
+stitching parallels the two faces ABOVE the finger zone (no vias inside a
+gold-finger area per fab rules). Gang insertion (atx24 worst, 10 × 44 N
+spec-max = 440 N): edge compression 9.0 MPa vs plate-buckling critical
+~479 MPa (E=22 GPa, 10 mm unsupported to the THT field band) — **53×
+margin, a non-issue**. Rigidity (transformed section, Cu 115 GPa): EI/w =
+16.9 kN·mm (today 1.6/2 oz) → 3.1 (0.8/2 oz, 18%) → 4.4 (0.8/4 oz,
+**26%**) — the sliver is ~4× floppier even with 4 oz; service flex is
+bounded by the chassis strain relief in the architecture, whose pull/flex
+numbers are STILL OWED (OQ-87) — fingers make those numbers load-bearing.
+Fretting mitigation = hard gold (PCBWay-only at 0.8) + the NPTH detent
+idea (I.3), both coupon items.
+
+### I.7 Verdict + the coupon that answers everything cheaply
+
+| Option | Stack | Board lengths | Thickness gate | Contact | $/board net (EST) | Status |
+|---|---|---|---|---|---|---|
+| Stand pat (63951-1 tabs) | 33.8/32.4 | 61/28.5/31 | none (metal tab at design centre) | designed pairing | — | **ratified, no new gates** |
+| Fingers on 0.8 catalog fab | **22.4/20.9** | **~91/46/46 (+50%)** | UNPASSABLE as-shipped (±0.1 vs ±0.025); sort-to-band yield 25–50% EST | JLC: ENIG <10 cycles (bevel OK); PCBWay: hard gold 30–50 µin (no bevel) | ~+$0–9 | blocked by I.1 + I.4; coupon-cheap to keep alive |
+| Fingers at an alternate thickness SKU | — | — | NO SKU swallows any PCB class (I.1b table) | — | — | **dead as a class** |
+| Fingers w/ custom-tolerance fab | 22.4/20.9 | ~91/46/46 | needs a fab quoting ±0.03 or better on 0.8 — none PUBLISHES one; custom process inquiry | PCBWay gold | unknown + NRE | inquiry-gated |
+
+**COUPON SPEC (the cheap definitive test, ~$30–60 total):** one 55×25 mm
+2-layer 0.8 mm ENIG coupon at JLC with the gold-finger option (edge ≥50 mm
+✓): an 8 mm finger band carrying fingers at 6.35 and 5.21 widths ×
+{copper both faces / one face / bare laminate} × {with / without Ø1.8 NPTH
+detent hole}, plus ENIG-only finger-shaped pads on the opposite
+(un-beveled) edge; a second identical coupon from PCBWay heavy-copper
+(4 oz, hard gold 30 µin, no bevel). Bench: micrometer every finger (the
+DELIVERED-thickness distribution = the I.1c sort-yield datum, the number
+no fab publishes), then insertion/extraction force, seating depth,
+contact-R, and 20-cycle wear against the 63969-1 samples already in the
+OQ-86 order. The coupon invoices are also the REAL price quotes of I.5.
+
+**RECOMMENDATION: do not adopt for the beta line.** The stack win is real
+(−11.5 mm) but iteration 10's new row-length finding (+50%, I.4) spends
+most of the compaction elsewhere, the thickness band remains unpassable at
+every published fab class with sort-to-band as the only catalog unlock,
+and the only hard-gold path at 0.8 mm cannot bevel. Order the two coupons
+with the OQ-86 sample batch IF the owner wants the endgame kept alive —
+they cost pocket change, return the real thickness distribution + real
+fab invoices, and de-risk any future card-edge thinking. The posture
+reversal ("the board does the reaching") therefore needs NO ruling today;
+it goes to the owner queue as a conditional item that only activates if
+the coupons clear I.1c and the contact bench.

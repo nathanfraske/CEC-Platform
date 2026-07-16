@@ -1,0 +1,228 @@
+# Standard-tier BETA refinement plan — synthesis of the 6-report review pass
+
+_2026-07-03. Owner context: real purchase demand for Standard NOW; the existing boards are
+the validated **ALPHA** line — owner clarification (same day): every module's prototype is a
+**one-to-one replica of the board**, so each design is validated in principle as-is; beta =
+"do the exact same thing," refined. **The beta line is CONFIRMED/green-lit by the owner** —
+proposals below execute under the beta flag on their individual approvals; alpha artifacts
+never overwritten. Shunt locks (OQ-11) re-confirmed verbally same day._ Inputs: the six reports in this
+directory (hub-standard, atx-24pin, eps-8pin, pcie-8pin, 12vhpwr-standard, product-crosscut),
+each verified against live kicad-cli/pcbnew state, not documentation claims._
+
+## 1. Fleet reality (measured, not from the books)
+
+| Board | Measured state | Distance to sellable beta |
+|---|---|---|
+| Hub Standard | Placed + routed; CLAUDE.md items 0/3 are STALE (U7/J_5V/J_KVM/TH1/shield tabs already in); ERC/DRC clean EXCEPT 4× USB-C footprint hole_clearance (fails the CI error gate today) | **Nearest.** Fix the USB-C footprint (lib-wide), C1 part-identity pick, final pour pass |
+| 12VHPWR Standard | Routed, fab snapshot proto-v1, thermal PASS; 15 silk cosmetics | **Near.** One shipped defect to fix (U4↔U3 REF thermal coupling — the 2026-06-07 P1 that never landed), stale OQ-11 notes, pigtail spec missing |
+| 24-pin ATX (MANDATORY module) | rev2 ordered w/ live erratum (RJ-45 VCC parallel path) + R1 DETECT literally `"R_ID (OQ-6)"` placeholder in the reference schematic/BOM; rev3 schematic fixes verified real but its PCB is byte-identical to rev2's (layout not started); directory naming misleads (`atx-24pin`=shipped, `-rev2`=rotated shrink study) | **Critical path.** The kit cannot ship without it; rev3a scope decision gates everything |
+| EPS 8-pin | C6+§6.13+FTP **already on the PCB** (docs stale in our favor); 45/45 placed; **0 tracks/vias/zones**; board is 96×37 not the documented 96×35 | Full routing pass (the automated pipeline's job) |
+| PCIe 2/3-port | Same: C6+§6.13+FTP already on both; placement-complete, **zero copper** (183–224 unconnected); no netclasses/.dru | Full routing pass ×2 (or ×1 if SKUs collapse) |
+
+**Repo-wide defect (new, found on 3 boards):** the shared USB-C footprint carries 4×
+hole_clearance errors (0.165–0.20mm vs the 0.25mm rule) — one fix in `lib/`, every board
+inherits it. It currently fails Hub Standard's CI error gate.
+
+## 2. Cross-board beta work list (no decision needed — engineering/hygiene, do under the beta flag)
+
+W1. **USB-C footprint hole-clearance fix in lib/** (or a documented DRU exception — see D-11).
+W2. **OQ-11 MPN sweep**: write CSS2H-2512R-L500F into EPS + both PCIe BOMs; write
+    CSS2H-2512R-1L00F reality into 12VHPWR (RS1–RS6 still carry "OQ-11 candidate…NOT locked"
+    schematic properties + README/BOM text); 24-pin rev3 carries the K-series + WSK2512 locks.
+W3. **Stale-doc reconciliation** (the CLAUDE.md "keep it honest" discipline, violated in both
+    directions): hub items 0/3 stale-done; EPS/PCIe "C6 pending" stale-done; EPS README 96×35→96×37;
+    24-pin `board-manifest.json` byte-stale; 24-pin directory-naming README warning; 12VHPWR OQ-11 text.
+W4. **R1 DETECT backport on the reference 24-pin** (2.2kΩ + MPN — the shipped board's
+    source-of-truth schematic must not carry a placeholder that breaks DETECT on re-order).
+W5. **Netclass/.kicad_dru + USB `_P`/`_N` rename pass onto both PCIe boards** (EPS-style) before
+    any routing starts.
+W6. **EPS + PCIe routing passes** through the two-plane router (cec_router + manager judge per
+    the CLAUDE.md tiered-pipeline rule) once W5 lands — this is the bulk of the beta engineering.
+    (D-2 ruling: PCIe stays two separate boards → the pass is EPS + PCIe-2port + PCIe-3port, ×3.)
+W7. **12VHPWR U4↔U3 reposition** (the unfixed constraint-swarm P1; placement nudge + re-verify) —
+    flagged to the owner because the board is GUI-owned/routed: either an owner GUI move or an
+    agent pass on a beta copy, owner's call on venue (D-7).
+W8. **Beta denotation mechanics**: Rev field "BETA-1" on every changed board, README revision
+    tables, `fab/<board>-beta-*` snapshot naming, BOM output regeneration. Alpha artifacts frozen.
+W11. **Module standalone-mode protection suite (owner ruling, lock-register H3)**: USBLC6 on
+    every module's USB pair + VBUS clamp + no-hub ESD review; firmware USB-CDC mode. Rides each
+    module's beta pass (generator + hand-maintained boards).
+W12. **Hub 5V-drop comparator (owner ruling, lock-register H1)**: TLV7011 from the 5V sense
+    divider to a GPIO interrupt for persist-on-fault; plus firmware pre-erase + load-shed (H2
+    rung 1). OQ-56 bench then decides whether the buck-boost / boosted-reservoir rungs populate.
+W9. **Hub beta layout: drop the WROOM antenna keepout** (owner ruling 2026-07-03, D-6a) — trim the
+    U1 keepout courtyard, let GND pour/parts reclaim the ~450mm² on-board strip, re-DRC. Rides the
+    same hub beta layout pass as the W1 outcome + final pours.
+
+## 3. OWNER DECISION LIST (deduped from all six reports; framed, never resolved)
+
+_RE-WEIGHTING NOTE (owner guiding principle, 2026-07-03): "openness, extensibility, make it
+better even if it costs a bit more — do it right the first time." The reviews were briefed
+cost-down-first; read the framings below through the quality-first lens instead. Concretely
+this TILTS (owner still decides): D-5's INA228×4 full-energy option over the mixed-sensor
+cost-down; D-4 toward funding the OQ-57 bench + app path so §6.13 ships as a FEATURE, not
+dormant silicon; D-2 toward the one-board-3-port PCIe (extensibility by population) while
+making EPS-1 a population option rather than a capability cut; D-7 toward requiring the
+mirror-lane + via-upsize production bar; keeps USB-C service ports populated. Cost-down
+findings remain recorded for when a trade is genuinely quality-neutral._
+
+**Product / kit shape:**
+- **D-1. Kit definition + honest install cost.** _PARTIALLY ANSWERED (owner, 2026-07-03):
+  connectors for the cable SKUs = standard off-the-shelf panel connectors, ~$0.20 each across the
+  board; and the owner is fashioning a CUSTOM female pigtail assembly that "effectively creates a
+  board-mount female header" — this attacks §2.8's core premise (no stock board-mount female
+  exists) and plausibly retires the F-F bridging-cable SKU question and/or the 12VHPWR captive
+  pigtail form. REMAINING for the record: which module(s) the custom female header applies to
+  (24-pin output? 12VHPWR output? both), its drawing/spec so it can enter the BOM + spec text,
+  and the cable length catalog (OQ-4)._ Original framing: Minimum kit = Hub($36) + 24-pin($35→see D-5) +
+  chosen module(s) ⇒ $103–155 component-BOM before cables. Two REQUIRED cable SKUs do not exist
+  anywhere (no part, no price): the F-F 24-pin bridging cable (§2.8 promises it; the module is
+  uninstallable without it) and the JST 5VSB Hub-feed cable. Decide: bundle-in-box vs accessory
+  SKUs, and the patch-cable length catalog (OQ-4). The 12VHPWR captive pigtail also has NO
+  length/gauge/strain spec (D-7 ties in).
+- **D-2. SKU collapse via population variants — RESOLVED: BOTH DECLINED (owner ruling,
+  2026-07-03).** (a) PCIe 2-port and 3-port stay SEPARATE BOARDS — the driver is SPACE, not BOM:
+  PC interiors are packed, and a 2-cable customer must not carry a 3-port-sized board for an
+  unstuffed option ("if all you ever need is two, use two; if you expect three, buy the three").
+  An unstuffed 3-port still occupies the 3-port footprint — the population idea fails the space
+  test. (b) EPS-1 DECLINED — the reviewer's "most consumer builds use one EPS cable" premise is
+  WRONG per the owner's market read: single-EPS-connector boards are exceptionally rare now; even
+  B650-class boards ship 8+4 ("one and a half"), only the cheapest ship one. EPS stays 2-cable
+  default. CONSEQUENCE for W6: the PCIe routing pass is definitively ×2 boards.
+- **D-3. Mezzanine consumer scope + sequence.** Adopted in principle (8th ruling) but stacked SKU
+  is ENT-AIR-only pending your review. Facts from the reports: it does NOT shrink the 24-pin (adds
+  parts, trades cables for 8mm Z); it IS the biggest Hub space/BOM lever (mount rectangle
+  86×61.75→≤76×60, deletes the RJ-45+power cable pair); and the J6 pin map in the actual netlist
+  CONTRADICTS the published design-doc table — must be resolved before any socket design. Decide:
+  Standard mezzanine SKU now / after ENT-AIR / never; and authorize the OQ-77 spec-text
+  formalization either way.
+- **D-4. §6.13 ROI stance.** The detection front-end is locked silicon on 3 module families
+  (~$0.85/cable) with ZERO consumer-visible payoff until OQ-57 (threshold/latch bench validation)
+  + app surfacing land. Not proposing hardware change — the decision is: prioritize the OQ-57
+  bench + firmware/app path into the beta cycle (makes it a FEATURE), or accept it as dormant
+  silicon at launch (24-pin rev3 rail-count sub-choice rides this: 12V+5V ~+$1–1.5 vs zero rails).
+
+**Per-board:**
+- **D-5a. 24-pin FORM exploration (owner thinking-out-loud, 2026-07-03 — assessment recorded,
+  no decision yet).** The owner's 90° form (PSU in → 90° turn → out; routes up the back channel,
+  fits most cases) is bounded by a header×header rectangle ONLY under two breakable assumptions:
+  (1) rectangular outline — an L-SHAPED board (two arms, each just header+shunt-row wide) keeps
+  the 90° routing and returns the inner corner to the case; (2) both headers board-mounted — the
+  owner's custom female pigtail header enables the 12VHPWR-precedented §2.8 form on the 24-pin:
+  male J3 in + CAPTIVE FEMALE PIGTAIL out (deletes J4 → board bounded by ONE header; retires the
+  F-F bridging-cable SKU — the pigtail IS the bridge; shortens the shunt path). Touches LOCKED
+  §2.8 → requires a spec-revision proposal, but precedented. Fallbacks if still too big: power-
+  interposer + stacked logic daughter (XY→Z, mezzanine-coherent); vertical headers (ranked last —
+  cable bend radius). Recommended combo: 90° L + captive-female-out ≈ 2,800–3,500mm² vs 8,342
+  shipped / 6,576 rev2 study. INTERACTS WITH D-5: a form change this size argues for being THE
+  full respin, not an after-rev.
+  **HARDWARE-VALIDATED (owner photo, 2026-07-03):** the alpha PROTOTYPE already uses this
+  construction — wire-row solder entries (no header footprints bounding the outline), 90° male
+  header IN (board-mount part now in hand) + captive female pigtail OUT — and is visibly a
+  fraction of the committed CAD's size. GENDER-LOGIC FINDING (recorded): standard aftermarket
+  24-pin extensions (male-header ↔ female) mate with a FEMALE-out module exactly like a PSU
+  cable, so the whole extension ecosystem works inline — while a MALE-out module can mate with
+  NOTHING standard (male-male), which is why §2.8 needed the custom F-F bridge. Female-out is
+  therefore both the zero-extra-parts direct install AND the only extension-compatible form.
+  RECOMMENDATION (assessment, owner deciding): soldered short NEUTRAL-BLACK captive stub (one
+  fewer mated pair, no color SKUs — aesthetics/switching live in the detachable extension
+  layer; CEC-branded extensions become an ACCESSORY revenue line, nothing required in-box).
+  OWNER BENCH ITEM: stub LENGTH (decides whether the module sits at the header or behind the
+  tray through the grommet).
+  **PANEL VERDICT (2026-07-03, 5-champion judge panel + 3 adversarial lenses — full record in
+  atx24-output-interface-panel-2026-07-03.md): Form B corrected = 12 cm (10–15) soldered female
+  stub, HCS terminals, qualified strain-relief bar — score 100/120 vs runner-up C (the locked
+  §2.8 incumbent) 83/120. The cram objection is answered by hiding the stub↔extension junction
+  BEHIND THE TRAY (only the pretty run enters the chamber). Compact-proprietary (D) is DEAD on
+  current ratings. OWNER REVIEWED — LEFT OPEN (2026-07-03): not satisfied with any option
+  as-is; lean = VERY SHORT stub + extension as an OPTIONAL ORDER-SYSTEM bundle (order-time
+  add-on neutralizes the retail-shelf objection; the reach/side-load bench finding is what the
+  case-fit survey must resolve before "very short" locks). 12VHPWR: captive soldered pigtail
+  CONFIRMED from contact-degradation first principles + NEW white/black pigtail SKU variants
+  (→ D-7 spec: length/gauge/strain relief + color/sleeving).
+  **OWNER RULING (2026-07-04) — CONNECTOR DAUGHTERBOARD, scope 24-pin + PCIe + EPS output
+  side:** instead of the board-mount male 90° output header, the main board carries an
+  INTER-BOARD connector to a stood-up PASSIVE daughterboard (no components; minimal size,
+  thick copper; all output pin-mapping/routing happens inside it), strain relief provided by
+  the chassis ("we'll design that in"). The daughterboard is populated EITHER with a sourced
+  PCB-mount VERTICAL header (owner sources from MODDIY — reputable) OR as a simple soldered
+  pigtail at the through-holes. Owner's stated wins: (1) rails land on whatever pins/routes
+  suit the MAIN board — pours no longer forced around the standardized connector pin field
+  (big area win on 24-pin + PCIe); (2) daughterboard is passive and cheap, one main board
+  serves multiple output forms. **OWNER ADDENDUM (same day): the daughterboard assembly can
+  itself be SOLD with an extension cable soldered at the through-hole points with strain
+  relief — a productized daughterboard+extension assembly. This closes out essentially all
+  remaining female-out-header issues: it IS the 2026-07-03 "extension as an order-system
+  bundle" lean in hardware form (the stub↔extension junction disappears into the assembly;
+  retail-shelf objection neutralized; accessory/aesthetics revenue line intact).** This SUPERSEDES the Form-B lean and elevates the entry's own
+  "power-interposer + stacked daughter (XY→Z, mezzanine-coherent)" fallback to the decision —
+  inverted into a passive CONNECTOR mezzanine (logic stays on the main board; J6/OQ-77
+  mezzanine precedent). Touches LOCKED §2.8 → spec-revision draft owed to the owner (agent),
+  gated on the KILL-CHECK: per-circuit current through the inter-board pair per family
+  (the panel killed Form D exactly here — ~3–3.5A/ckt derated < the 6A ATX bar).
+  **OWNER DESIGN-BASIS NUMBERS (2026-07-04, same-day follow-up):** EPS 8-pin = 4×12V +
+  4×GND, max ~13A CONTINUOUS per pin (brief transients a bit higher) → sustained
+  theoretical worst case ~52A/cable; official Intel EPS12V spec 336W (~28A)/connector —
+  motherboards carry TWO EPS connectors because next-gen CPUs approach ~600W and the load
+  must split. PCIe 8-pin = same per-pin theoretical but only 3×12V → ~39A/cable worst
+  case (official 150W). All AWG-dependent — CEC extensions use 16AWG. DESIGN RULE (owner):
+  design around worst case WITH margin, but keep transients as transients and sustained
+  as sustained — never fold transient peaks into the continuous rating. These supersede
+  the generic "40–55A class" framing above. OPEN SHAPE CHOICE (study quantifying both):
+  one daughterboard/inter-board connector PER CABLE vs one wide daughterboard per board
+  (EPS ×2 cables ≈ 104A aggregate; PCIe-3 ×3 ≈ 117A). Engineering flags recorded at ruling time:
+  inter-board pair adds a mated contact set DOWNSTREAM of the shunts (drop invisible to
+  telemetry — optional zero-component sense-return pin on the inter-board connector worth
+  assessing); keying/captivation so a daughterboard can't mis-seat; enclosed-product stack
+  height + chassis strain-relief interface (couples to J1/J2 enclosure design). 12VHPWR
+  UNCHANGED (captive pigtail, melt-prone rationale). Study doc:
+  docs/standard-tier-review/output-daughterboard-study-2026-07-04.md (launched same day).
+- **D-5. 24-pin beta scope (the critical path).** Narrow "rev3a" = parity fixes 1–5 + locked
+  shunts, ~$39–41, fastest to a sellable mandatory module; vs full respin (C6 + §6.13 + mux +
+  mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,
+  +$4–5) vs INA228×2+INA238×2 (+$2–2.5, loses standby-Wh precision on 3V3/5VSB). And: does the
+  $35 target itself move (the spec footnote already concedes it)?
+- **D-6. Hub beta items.** (a) ~~Antenna keepout~~ **RESOLVED (owner ruling, 2026-07-03): the
+  keepout is NOT respected — DROP it in the beta layout (~450mm²/6% reclaim).** Rationale on the
+  record: no intention of using Wi-Fi, ever, at this tier — an intentional radiator puts the
+  product under FCC intentional-emitter certification (~$100k class cost) for a capability it
+  doesn't need; instead the product positions as a SUBASSEMBLY (unintentional-radiator posture).
+  Same logic as the modules' earlier keepout drops and the ENT ATR passive-only ruling. Beta
+  work item → W9. (b) NanoKVM
+  aux header: populate every unit (~$0.14 + THT step) vs DNP-by-default at Standard. (c) C1
+  identity: schematic/BOM ship Samxon C487318, CLAUDE.md/README document Panasonic C401967 — pick
+  one, fix the other record. (d) OQ-2 finally: LED/5VSB budget (7×SK6812 ≈0.4A vs the ~2.5A rail)
+  — needed for the firmware cap number the rev2 erratum mitigation also leans on.
+- **D-7. 12VHPWR beta bar.** Require lane-mirroring + 0.9/0.5 via upsizing for the production rev
+  (recommended before any "safe under sustained per-pin fault" marketing claim) vs accept as margin
+  for a first run? Venue for the U4↔U3 fix (owner GUI vs agent-on-beta-copy)? Own the pigtail spec
+  (D-1) + SFF case-fit guidance — the melt-anxiety buyer is disproportionately SFF. True landed
+  cost: $21 parts EXCLUDES consigned J3/J4 + pigtail assembly + 4-layer/2oz fab — re-price the $49.
+- **D-8. Consumer-hazard disclosure for shipped rev2 24-pins.** The live erratum (short patch can
+  put ~1.7A on a 1.5A contact) has no consumer-facing warning artifact. Decide: box insert/label +
+  firmware cap as the shipped mitigation story, restrict rev2 units to non-customer use, or hold
+  the mandatory module for rev3a (interacts with D-5 timing).
+- **D-9. PCIe pegless-keyed connector search** (would drop 44→~35mm height, same win EPS banked)
+  — authorize the Molex part search? (Engineering task, cheap; keying is safety-load-bearing so
+  it's a search, not a swap-by-analogy.)
+- **D-10. Market validation pull**: 2026 GPU market 8-pin vs 12VHPWR share to right-size the PCIe
+  SKU bet (the review's read is trend-reasoning, not sourced data).
+- **D-11. USB-C footprint fix approach**: footprint correction in lib/ (touches every board,
+  needs re-verify each) vs a documented DRU exception (faster, leaves the oddity). Gate: Hub CI is
+  red on it today.
+
+**Standing items the pass re-surfaced (already yours, now with fresh context):** OQ-2 (D-6d),
+OQ-4 (D-1), OQ-53–56 (hub §2.9 verification against hardware that now exists), OQ-57 (D-4),
+Concierge status-surface priority (the "consolidated awareness" pitch currently has no shipped
+software surface below the proposed Concierge layer — the cross-cut report's biggest consumer gap).
+
+## 4. Recommended sequencing (my recommendation, yours to override)
+
+1. **Now, no decision needed:** W1–W5 + W8 (hygiene wave — cheap, de-risks everything).
+2. **First decisions that unblock the most:** D-5 (24-pin scope — THE critical path), D-11 (CI
+   red), D-1 (cables — the kit literally can't ship without two of them), D-8 (rev2 disclosure).
+3. **Then:** W6 routing passes (EPS + PCIe per the D-2 SKU outcome), W7, D-6, D-7.
+4. **In parallel, product-side:** D-2/D-3/D-4 shape the catalog; D-10 informs D-2's PCIe half.
+
+_Everything above stays proposal-only until owner sign-off; on approval each item executes under
+the BETA revision flag with alpha artifacts untouched._

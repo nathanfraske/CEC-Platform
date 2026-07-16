@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense net pours are fragmented by foreign signal crossings (SENSEC1_HI: 3 islands, 13 foreign cross; SENSEC2_LO: 3 islands, 15 foreign cross), causing DRC violations and thermal hot spots. Router needs to avoid crossing these sense corridors.",
+ "reasoning": "The pour-integrity report shows clipped sense nets with multiple islands and high foreign cross counts, indicating that the router is routing foreign signals through the sense pours. This leads to DRC errors (12 violations) and FEM flags for conductor over-temp on sense nets and GND. The placement appears acceptable (kelvin_ok=true), so the issue is routing quality. Increasing router effort with waypoint intents to route offending signals around sense corridors should reduce fragmentation and improve thermal performance.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "intent",
+  "description": "Add waypoint intents to route foreign signals (e.g., +3V3, I2C_SCL, I2C_SDA, GND) around the sense net corridors. Consider bake_hints keepouts for SENSEC1_HI and SENSEC2_LO pours to prevent crossings."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -2,6 +2,31 @@
 
 Operating guidance for Claude Code working in the CEC platform repository.
 
+## WSL-ephemeral state policy (owner directive, 2026-06-12)
+
+**WSL volumes are ephemeral by definition.** Anything load-bearing lives in exactly
+one of: (1) the git remote, (2) the Windows filesystem (`E:`/`C:`), or (3) is
+rebuildable from the repo. **No exceptions.** This rule exists because a 2026-06-12
+attempt to move the distro to `E:` destroyed it; the entire Linux home — repos,
+toolchains, the `cec-llm-broker`, and the agent's persistent memory — was lost. The
+only casualty that was *not* recoverable was the prior session's handoff, because it
+existed only on the WSL volume. Everything else came back from the remote or from
+`ops/provision.sh`.
+
+Concretely:
+- **Disaster recovery is one script.** Install WSL + the Windows NVIDIA driver,
+  `git clone`, then `bash ops/provision.sh` (installs deps, builds the pinned
+  containers, brings up the broker, runs the four smoke tests).
+- **The handoff goes to git, every session.** The `Stop` hook
+  (`.claude/hooks/session-end.sh`) writes `docs/agent/handoff.md`, snapshots durable
+  memory, and pushes both to the `ops/agent-handoff` branch — no owner approval (it
+  touches no CODEOWNERS path). The handoff can never again exist only locally.
+- **Durable agent memory lives in the committed tree** (`CLAUDE.md` + the `.claude/`
+  tree, incl. `.claude/memory/`). User-level `~/.claude` is **disposable**; anything
+  worth surviving is promoted into committed files by the session-end hook.
+- **Secrets are never WSL-only.** The bot PAT lives in a Windows-side / `E:` secrets
+  file mounted read-only (`ops/secrets/`), never solely in the WSL `gh` login.
+
 ## Ground truth and precedence
 
 `CEC-Platform-Ground-Truth-Spec.md` is the canonical specification and holds
@@ -10,9 +35,222 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.1.0 (2026-06-09), controlled baseline** (semantic
-versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed log is
-retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
+Spec revision reflected here: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
+SENSING-IC REVERSION: the 24-pin ATX module's four rail-sensing ICs revert from the INA228
+back to the **INA238** (LCSC C2868250, JLC-assembly-native and stocked; the INA228 is
+LCSC-unavailable, reference-only) on an explicit owner ruling (2026-07-05, supply-chain and
+assembly-flow grounds, not accuracy), pin- and footprint-compatible (VSSOP-10) with no other
+LOCKED decision altered — see spec §6.1, §6.4, §6.5, §9, §11, and OQ-13's implementation-basis
+update (energy reporting moves to firmware integration, as EPS/PCIe already do); applies to the
+beta line (`atx-24pin-rev3` and forward) only, per the alpha/beta convention below — alpha and
+the ordered rev2 remain frozen on the INA228 as shipped. Full basis:
+`docs/pricing-study-2026-07-05.md` and its addenda.
+
+Prior baseline, retained for provenance: **v1.4.0 (2026-07-04), controlled baseline** — OUTPUT-SIDE
+CONNECTOR-DAUGHTERBOARD ARCHITECTURE (owner ruling `SYNTHESIS-beta-plan.md` §D-5a,
+2026-07-04; study `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`;
+sign-off record `docs/owner-queue.md` D-5a row). Supersedes the LOCKED v1.6 §2.8 output form
+(24-pin's second board-mount male header J4 + the CEC-supplied female-to-female bridging
+cable) for the **24-pin, EPS, and PCIe** modules: output rails now cross an inter-board
+connector to a **passive daughterboard** (no components, thick copper, all output pin-mapping
+inside it) stood off the main board, chassis-strain-relieved, populated with a PCB-mount
+vertical female header or a soldered pigtail, optionally sold as a productized
+daughterboard-plus-extension-cable assembly. Also **closes a pre-existing documentation gap**:
+§2.8 never locked an EPS/PCIe output form (only 24-pin + 12VHPWR) even though the as-built
+boards generalized the 24-pin's paired-header pattern per cable — EPS/PCIe now carry the
+identical rule, per cable. **12VHPWR is unchanged** (captive soldered pigtail,
+contact-degradation rationale re-confirmed 2026-07-03); every module's input side is
+unchanged. **RATIFIED at the architecture + connector-class level** (owner sign-off,
+2026-07-04): the **all-Keystone/TE tool-less blade config** is the platform default —
+Keystone universal 30A blade clips main-board side (SMT 3586 / LCSC C238113, or THT 3557-2 /
+LCSC C352820) mate TE FASTON .250″ PCB tabs daughterboard side (63849-1 / LCSC C86469,
+$0.04 — the sellable assembly carries this cheap side); **per-cable** daughterboard shape
+(not one wide daughterboard per board — mutual-heating derating + fault isolation +
+independent sellable-assembly swap); the margin policy (connector continuous rating ≥125% of
+sustained worst case at ≤30°C rise) and its ratified joint counts (**24-pin 9 / EPS 12 /
+PCIe-2 8 / PCIe-3 12**); and the sellable daughterboard+extension assembly. Owner
+design-basis currents: EPS ~13A/pin continuous → ~52A/cable sustained worst case; PCIe same
+~13A/pin theoretical, 3×12V pins → ~39A/cable; 24-pin anchors on the 6A/circuit ATX bar;
+transients-as-transients / sustained-as-sustained design rule. **Ratification condition**:
+ONE physical gate before first fab — a sample fit check ("as long as the tabs and whatnot
+fit together," owner). **Mating-force concern DISMISSED by owner ruling**: high insertion
+force is a FEATURE (the joint is not meant for constant swapping; mis-seat/pull-out is
+absolutely unwanted), not a bench gate. New **OQ-86** (connector fit-check + procurement +
+bench follow-ups, downgraded from gate to recommended), **OQ-87** (daughterboard mechanical/
+chassis interface, incl. the still-owed strain-relief pull-force/flex-cycle numbers),
+**OQ-88** (bench-qualification protocol: MODDIY vertical-header sellable-BOM qualification,
+connector confirm-soak/thermal-cycle trend, sense-return contact — still undecided), **OQ-89**
+(sellable daughterboard+extension SKU definition, incl. retirement of the LOCKED-today F-F
+24-pin bridging-cable SKU). OQ-82 resolved at the architecture level (its own text left
+unedited per the no-silent-rewrite rule; the spec's §11 v1.4.0 entry is the record). Range now
+OQ-1..OQ-89. No other LOCKED electrical decision altered, no section renumbered.
+**BOARD STATE (updated 2026-07-05): main-board half + daughterboard projects both DONE.**
+The 24-pin's J4 removal, the EPS/PCIe per-cable output-header removal, and the Keystone clip
+placement (`TB1..TBn`) on each main board landed (commit `b76a62a`, "Task 9: blade interface
+on main boards"). The three passive daughterboard projects (the mating TE-63849-1-tab side)
+now exist at `modules/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
+DRC/ERC-clean 4-layer PCBs (`scripts/gen-output-daughterboard.py`), per-family asymmetric
+keying documented in each board's README, BETA-1 title blocks, DRAFT markers (fit-check gate
+still open, OQ-86). New library assets: `cec-Connector_Generic:{ATX24,EPS8,PCIe8}_Daughterboard_
+Field_P4.20mm` (bare THT solder fields, `scripts/gen-daughterboard-libassets.py`) +
+`cec:CEC_CONN_2x5` / `cec-Connector_PinHeader_2.54mm` (24-pin signal stub). See
+`scripts/check_output_daughterboards.py` (netlist-verified tab-to-net mapping + keying-
+signature-differs assertions) and the action item below for the still-open follow-ups (fit
+gate, sense-return decision, fab).
+**FLOORPLAN REWORK (2026-07-05, owner directive "as absolutely small as possible" +
+posture correction "mounted at a 90, is vertical space"):** the daughterboards above are
+NOT a parallel mezzanine — they stand PERPENDICULAR to the main board (a card on edge); the
+TE 63849-1 tabs sit in a single row on the near/bottom edge, blades pointing horizontally out
+of the board face into the Keystone 3586 clips via SIDE ENTRY, output field above the tab
+row. Board Y = height, RULED CAP <=15mm "or so"; board X = length, free/no ceiling. Result:
+atx24-out-db **81.2x16.6mm** (was 238x77), eps-out-db **53.0x14.6mm** (was 110x67),
+pcie-out-db **34.6x14.6mm** (was 110x63) — `pcbnew.GetBoardEdgesBoundingBox`. NO mounting
+holes (owner: "they don't need a ton of mounting holes either" -- retention is the Keystone
+clip's own high insertion force, a feature per the 2026-07-04 mating-force ruling, plus
+chassis strain relief on the cable/assembly side, OQ-87). Dual-face tabs (front+back,
+blades opposite directions) were evaluated and REJECTED with the math recorded in each
+README: the TE 63849-1's copper pads already span 7.58mm inside its 7.92mm courtyard, so
+cross-face interleaving only relieves pad clearance (~11% pitch saving), not the ~50% a
+naive halving assumes. Keying method CHANGED: the old (count, pitch, gap) 1-D signature
+check is gone (it could not express a 2-D grid and a first re-pass at tighter, too-similar
+per-family pitches MEASURABLY FAILED the real property -- pcie's 4 tabs seated within
+tolerance as a subset of eps's 6-tab grid); `scripts/check_output_daughterboards.py` now
+proves, per ordered family pair, that NO rigid transform (translation x 0/90/180/270
+rotation) seats one family's whole tab set as a subset of another's, within 0.5mm (exact
+bipartite match on `pcb_placement()`'s own coordinates -- the authoritative main-board
+mating drawing per family). atx24's routing is now a short lane corridor for the 4 real
+multi-point bus rails (+12V/+5V/+3V3/+5VSB, single layer In2.Cu, 0.3/0.5mm vias) plus 3
+direct point-to-point tracks on B.Cu for the signal-only nets (-12V/PWR_OK/PS_ON#, which
+have exactly one field pin + one header pin each, no tab -- verified against the netlist, no
+lane needed). A same-Y two-layer lane split was tried first and reverted: a through-via's
+anti-pad on a foreign-layer lane THAT THIN severs it (measured as a real `unconnected_items`
+DRC hit), because the via's keepout diameter exceeds the lane's own height and a lane has no
+"around" the way a wide plane does -- recorded in `route_atx24()`'s comments as a fix future
+edits should not re-break. `gen-daughterboard-libassets.py`'s field-footprint Y-margin was
+tightened (pad half-height instead of half the row pitch) 13.0->10.2mm, the single biggest
+height lever. ERC 0 errors / DRC 0 errors+0 unconnected on all three (cosmetic silk-only
+warnings remain, documented per-board). Done on branch claude/schematic-work-continue-59pw41,
+not yet merged/committed as of this note.
+**TAB-FORM SUPERSEDED SAME-DAY (2026-07-05, owner sketch — the side-entry TE 63849-1
+build above and an interim flat-blade 63951-1 mis-model are both RETIRED, full chain in
+`docs/standard-tier-review/blade-fit-check-2026-07-04.md` addenda 2-4):** tabs are now
+**TE 63951-1** (RIGHT-ANGLE FASTON .250, LCSC C591344, in-plane L stamping per TE dwg
+C=63951) mounted legs-horizontal / 5.08mm-pitch-VERTICAL, blade pointing STRAIGHT DOWN
+past the board's bottom edge at a 2.54-8.89mm face standoff — the assembly drops
+vertically into the main-board Keystone 3586 clips' TOP-entry jaws (clip rotated: slot
+axis perpendicular to the wall line, 5.72mm off the front face) and the board FLOATS
+clear (tab reaches down, not the board). **ITERATION 4 (same day, owner: "stack the
+blades right next to each other and put them below the pinout" — the <=15mm height cap
+EXPLICITLY RELAXED for this form):** compact TWO-BAND stack (field band over a packed
+tab row). **ITERATION 5 (same day, owner + catalog page):** main-board clip swapped
+Keystone 3586 (SMD) -> **3557 bare top-entry clip** (THT, UL 30A@500VAC; "3557-2" = the
+2-in-1 HOUSED holder, naming corrected; 3586 stays vendored as fallback; LCSC
+3557-10/C3205403 UNVERIFIED variant, DigiKey/Mouser consigned fallback), rotated
+slot-perpendicular-to-wall — its LEG PAIR runs ALONG the row (verified from the
+mounting details, contradicting the legs-parallel-to-jaw guess), so the floor is
+leg-pattern-driven: 3.4+2.4+0.5 = **6.3mm**; pitches **6.3/6.7/7.2** (margins
+1.00/0.75/1.35, teeth re-verified; atx24 AT the floor = 3x2.1 lattice-aligned, row
+anchor stepped at the full 6.3 after a caught shorting regression). atx24 signal stub:
+2x5 RETIRED -> **1x4 RA blind-mate long-tail header** (pins down past the edge, drop-in
+with the blades; NEW map 1=-12V,2=PS_ON#,3=PWR_OK,4=GND) + 6 DNP sense-return pads
+SR1-6 (OQ-88 provision form only). Boards: **atx24 69.5x21.4, eps 38.5x20.0, pcie
+26.6x20.0**; uniform leg row 4.34mm above edge -> 12.41mm float at 1mm tip clearance,
+the taller 10.2mm clip's top cleared by 2.21mm, tops 33.8/32.4mm. #1 fit item: 0.81mm
+tab vs the clip's 0.64mm fuse-blade design centre (27% over, inside the .020-.032
+acceptance — sample-gated). Gates green (ERC 0, DRC 0/0 severity-error x3, checker 104
+OKs incl. THT clip-fit assertions; tab maps/joint counts 9/6/4 unchanged; header map
+deliberately changed). MAIN BOARDS: all 41 TB instances swapped to 3557 by property
+across the 4 schematics (ERC unchanged, 1 pre-existing pin_not_driven each); J_SIG's
+own 2x5 -> 1x4-socket rework DEFERRED (wire surgery on a hand file under parallel
+edit), fully spec'd in `docs/standard-tier-review/blade-fit-check-2026-07-04.md`
+addendum 5 (D.6), which with `pcb_placement()` remains the authoritative mating drawing
+(no main-board PCB clip placement exists on this branch).
+**MAIN-BOARD MATE SUPERSEDED (2026-07-06, iteration 7, OWNER-RATIFIED — the iteration-5
+Keystone 3557 build above is RETIRED; chain in blade-fit-check-2026-07-04.md addenda 6-7):**
+the mate is now the **TE 63969-1 FASTON .250 PCB RECEPTACLE** (vertical/top entry, brass/tin,
+22.9A @30C-rise per TE 108-1706, 600VAC, THT 2x Ø1.40 holes at 5.08; 63968-1 = same-land LIF
+fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth ~$0.30; new fp
+`cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT`; rev-E CD + app spec
+114-2156 + prod spec 108-1706 vendored in lib/datasheets). It is the DESIGNED mate for the
+63951-1 blade — dwg note 3 puts our 0.81mm thickness at its DESIGN CENTRE, retiring the
+27%-over-centre #1 fit item. ORIENTATION (owner requirement, PROVEN from the rev-E views +
+checker-asserted): the hole pair runs ALONG THE BLADE PLANE = wall normal, PERPENDICULAR to
+the row, plan-congruent with the blade's own Ø1.40/5.08 leg holes — the blade's bottom edge
+enters the slot edge-wise. Along-row footprint = only the receptacle's ~3.7mm across-thickness
+depth (UN-DIMENSIONED on rev E; **depth ≤4.0mm = the #1 OQ-86 sample item — above it atx24
+falls back to 6.3**) → floor 4.2; **pitches 4.2/4.7/5.2**. JOINT COUNTS re-ratified at
+22.9A/125% (18.32A/joint): **atx24 10** (3V3 x2; GND x4 at 18.0A = 127% hairline, surfaced),
+**eps 6/cable unchanged** (132%), **pcie 6/cable = 3/polarity** (2/polarity was 117% FAIL).
+Boards: **atx24 61.0x21.4, eps 28.5x20.0, pcie 31.0x20.0** (pcie GROWS honestly — +2 ratified
+joints outweigh its pitch win). atx24 internals reworked for the 4.2 pitch: signal descents
+jog onto COMPUTED mid-gap columns (x0+2.1 mod 4.2 — the old fixed phase-3.15 trick dies at
+4.2; nesting asserted in code), SR pads repacked 2x3 with their extent now OWNED by W (the
+shrink had put SR6 on the Edge.Cuts — caught by DRC). Seating: float 12.41 unchanged,
+receptacle top (8.38) cleared by 4.03 (better than the 3557's 2.21); detent-hole engagement
+NOT established at nominal float (retention possibly friction-only — sample item, with gang
+insertion force ≤26/44N-spec per joint). MAIN BOARDS: all TB instances swapped to TE 63969-1
+by property AND the ratified adds landed, netlist-verified onto their post-shunt nodes —
+24pin TB10 (/SENSE3V3_LO), pcie-2 TB15/16/25/26, pcie-3 TB15/16/25/26/35/36
+(/SENSEC*_LO + GND; TB<cable><idx> scheme, next-free indices); main-board BOM TB lines
+updated incl. retiring their STALE "Keystone 3586" rows iteration 5 had missed; ERC
+unchanged (1 pre-existing pin_not_driven each); J_SIG 1x4 rework still DEFERRED per D.6.
+Gates: ERC 0 x3, DRC 0/0 severity-error x3 (cosmetic silk only at full severity), checker
+**113 OKs** incl. the new orientation/plan-congruence/depth-parameterized row-fit assertions,
+keying re-proved w/ teeth (sabotaged pcie=4.8 correctly fails; eps and pcie now BOTH 6 tabs —
+pitch deltas alone carry that pair).
+
+Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
+CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
+(`docs/standard-tier-review/beta-lock-register-2026-07-03.md` §A–L). No LOCKED electrical
+decision is altered and no spec section is renumbered — every change is an in-place note,
+a new subsection (**§6.14**), or a new OQ. What v1.3.0 adds over v1.2.0: (a) **alpha/beta
+revision-line convention + quality-first guiding principle** into Document control (alpha =
+the validated existing consumer boards, beta = owner-approved refinements as a lineage
+beside alpha). (b) **§6.14 module standalone mode + common protection suite** (H3/H3a):
+USB-CDC when no CAN master; USBLC6-2SC6 + VBUS clamp on every module; ferrite posture
+(VBUS bead MPZ2012S601AT000/C21519 populated, 5VSB bead 0Ω-provisioned, CAN CMC
+DNP-provisioned, no series ferrites on USB D±); the **H3a-PATTERN** (series-DNP on a
+required path ⇒ two populated 0Ω bypasses, because KiCad netlists a DNP series part as
+connected); FCC-15B unintentional-radiator rationale. (c) **enclosed product** (J1/J2):
+§6.6 makes the ENCLOSED boundary the electrothermal-gate standard + F1/F3 dress-anchor /
+self-describing-silk requirements; §6.1 adds the 12VHPWR printed-housing thermal conflict
++ TIM-baseplate/DNP-fan-J2-off-pre-shunt-lane-6/TH1-alarm menu; §4 records the enclosed
+Hub (RGB shine-through). (d) **Hub beta §2.9 persist-on-fault realization** (H1/H2/G3, §L):
+TLV7011 5V-drop comparator → IO14 RTC-wake trigger; DNP hold-up ladder (TPS61040 ~11.5V
+boosted reservoir + TPS563201 buck, LP5907-EN re-strap caveat); §L budget + persist
+firmware contract; persist-on-fault shipped as a feature. (e) **Hub power-in
+consolidation** (A4): single 3-pin JST S3B-XH-A / C157928 (MAIN_5V / GND-center / 5VSB)
+supersedes the two 2-pin feeds (§2.7/§2.9/§4). (f) **antenna keepout DROPPED at Standard**
+(D-6a): no Wi-Fi ever, subassembly/unintentional-radiator, ~$100k cert avoided, ~450mm²
+reclaimed (§4 MCU/regulator rows). (g) **C1 doc-truth fix** (A1): Hub hold-up cap =
+Samxon/Ymin VKMI2101C472MV / C487318 (the shipping part; Panasonic EEVFK1C472M was
+documentation-only, out of stock). (h) **board-sharing doctrine** (§6 preamble) + **D-2
+SKU shape** (§6.2: PCIe permanently two boards, EPS-1 declined). (i) **mezzanine
+formalized** (K1/D-3): OQ-77 = approved alternative Standard SKU beside the LOCKED cabled
+default, with the reconciled as-built J6 pin map. (j) kit/host facts (D-1 §2.8 PROPOSED
+custom-female-pigtail without unlocking §2.8; G1 §4 host-USB-to-motherboard-internal-header;
+G2 §2.6 braided patch cables). (k) QoL (F2 LED semantics forcing OQ-2, F7 single-point CAN
+firmware update §3.1). (l) **new OQ-82** (24-pin output form / D-5a), **OQ-83** (platform
+CMC part+footprint), **OQ-84** (consumer FCC-15B + inline-power product-safety docs),
+**OQ-85** (firmware contracts / SB-07); range now OQ-1..OQ-85.
+
+Prior baseline, retained for provenance: **v1.2.0 (2026-07-02), controlled baseline** —
+THE ENTERPRISE LINE (owner sign-off, nine rulings 2026-07-01/02): §1 tier table to three
+tiers (Standard / Pro / **ENT**, one line, SKU-differentiated posture NET/AIR × availability
+base/MC/MC-Max × silicon base/HS; OQ-7 RESOLVED); new **Section 13** (PolarFire SoC hub,
+production baseline **MPFS095TC Core** on the part-agnostic SerDes-free FCVG484 land, S-grade
+Athena = HS option; §13.2a 100BASE-T1 module link on pair 2 for every ENT module, uniform
+ESP32-P4, DETECT 10 kΩ; §13.8 availability ladder); the one LOCKED-table edit = **§2.3 pin-7**
+(consumer keeps reserved-spare/NC, ENT = SYNC/FREEZE ≤100 ns + heartbeat challenger); §2.4
+ENT uplink protection + mis-plug fail-safe; §2.9/§3.1 ENT graduation/honesty; OQ closures 7,
+OQ-14 ENT half, 53–56 (ENT), **OQ-11 FULLY RESOLVED** (EPS/PCIe 0.5 mΩ CSS2H-2512R-L500F +
+12VHPWR 1 mΩ CSS2H-2512R-1L00F); OQ-75..81 opened. Requirements of record:
+`docs/enterprise-requirements/` (114 REQs, 6 registers, lint-enforced + verification-matrix
+with statement-hash rot detection). No LOCKED electrical decision altered.
+
+Prior baseline, retained for provenance: **v1.1.0 (2026-06-09), controlled baseline**
+(semantic versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed
+log is retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
 v3.x file vs the controlled release) is now RESOLVED: the v1.1.0 controlled baseline is
 canonical (owner direction, 2026-06-09), installed as `CEC-Platform-Ground-Truth-Spec.md`.
 The pre-release (vX.Y) tags below remain valid as references into spec §11.1.
@@ -207,9 +445,11 @@ requirements land (OQ-7); the Enterprise tier additionally carries an RJ-11 trus
 channel and a secure element, and Mission Critical adds redundant power, CAN, and
 trust.
 
-*The 24-pin $35 target predates the v1.4 move to four INA228 parts (spec §8);
-expect a modest increase over the INA238 baseline. Revisit once shunt parts
-(OQ-11) and the INA228 line cost are quoted.
+*The 24-pin $35 target once again reflects the INA238 baseline it always targeted: the
+v1.4 move to four INA228 parts (spec §8) flagged a possible modest increase, but the
+v1.5.0 owner ruling (2026-07-05) reverted the 24-pin's four sensing ICs from INA228 back
+to INA238 on LCSC-supply grounds (see spec §6.1/§9/§11 and
+`docs/pricing-study-2026-07-05.md`). Revisit once shunt parts (OQ-11) are quoted.
 
 ## Locked decisions (do not change without explicit instruction)
 
@@ -282,19 +522,52 @@ Connector and physical interface:
   5VSB source). Fixed on 24-pin rev3; the ordered rev2 carries the parallel path
   (prototype mitigation + Hub-side workarounds in the board docs).
 
-Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6 — distinct from the
+Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6, folded v3.2; output side
+superseded for 24-pin/EPS/PCIe and EPS/PCIe locked, v1.4.0, 2026-07-04 — distinct from the
 RJ-45 module-to-Hub interface above):
-- 24-pin ATX module is a power-path interposer with TWO Molex Mini-Fit Jr (5569)
-  24-circuit MALE headers: input J3 (PSU side) and output J4 (motherboard side).
-  No board-mount FEMALE 24-pin ATX receptacle exists as a standard part, so both
-  module connectors are male, the same gender as the motherboard header. The
-  PSU's own (female) cable plugs onto J3 directly; the run from J4 to the
-  motherboard needs a dedicated FEMALE-TO-FEMALE 24-pin ATX bridging cable (a
-  female receptacle on each end, since J4 and the motherboard are both male
-  headers), supplied by CEC as a platform SKU. Convention: board headers are
-  male, the inserting cable end is female. Both J3 and J4 are the Molex 5569
-  right-angle male footprint — do not "fix" one to female.
-- 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
+- **24-pin ATX, EPS 8-pin, and PCIe 8-pin (2-port, 3-port) — output side is now the
+  connector-daughterboard architecture (LOCKED v1.4.0; owner ruling
+  `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04; supersedes the old two-male-header /
+  F-F-bridging-cable form on the 24-pin, and is the first LOCK on an EPS/PCIe output
+  form at all — §2.8 previously locked only 24-pin + 12VHPWR).** Input side is
+  UNCHANGED on every module: a board-mount MALE Mini-Fit Jr header per rail/cable
+  (24-pin J3; one per cable on EPS/PCIe); the PSU's female cable plugs on directly, no
+  new cable needed. Output side: the second board-mount male header (24-pin's J4; the
+  EPS/PCIe per-cable output headers) and the CEC-supplied F-F 24-pin bridging cable are
+  RETIRED. Output rails instead cross an INTER-BOARD CONNECTOR to a PASSIVE
+  DAUGHTERBOARD (no components, thick fan-out copper, sized to the §6.4 current class)
+  stood off the main board, chassis-strain-relieved (numbers owed, OQ-87), populated
+  EITHER with a PCB-mount vertical female header OR a soldered pigtail, optionally sold
+  as a productized daughterboard-plus-extension-cable assembly (SKU definition OQ-89).
+  **Connector class RATIFIED (owner sign-off 2026-07-04): all-Keystone/TE tool-less
+  blade config** — Keystone universal 30A blade clips main-board side (SMT 3586 / LCSC
+  C238113, or THT 3557-2 / LCSC C352820) mate TE FASTON .250″ PCB tabs daughterboard
+  side (63849-1 / LCSC C86469, $0.04 — the sellable assembly carries this side), applied
+  PER CABLE (not one wide daughterboard per board — mutual-heating derating + fault
+  isolation + independent sellable-assembly swap). Ratified joint counts at the ratified
+  margin policy (continuous rating ≥125% sustained worst case @ ≤30°C rise): **24-pin 9**
+  (12V×1/5V×2/3.3V×1/5VSB×1/GND×4), **EPS 12** (3/polarity/cable ×2), **PCIe-2 8**
+  (2/polarity/cable ×2), **PCIe-3 12** (2/polarity/cable ×3). Owner design-basis currents:
+  EPS ~13A/pin cont. → ~52A/cable sustained worst case; PCIe same ~13A/pin, 3×12V →
+  ~39A/cable; 24-pin anchors on the 6A/circuit ATX bar; transients-as-transients /
+  sustained-as-sustained rule. Ratification's ONE condition: a physical sample fit
+  check before first fab ("as long as the tabs and whatnot fit together," owner).
+  MATING-FORCE concern DISMISSED by owner ruling — high insertion force is a FEATURE
+  (not meant for constant swapping; mis-seat/pull-out is the failure this rejects), not
+  a bench gate. Recommended-but-not-gating follow-ups (OQ-86/88): connector confirm-soak
+  + thermal-cycle contact-R trend, clip stock-depth/JLC-library procurement (LCSC
+  C238113 = 533 pcs vs a 900–1,200-clip production run), MODDIY vertical-header
+  sellable-BOM qualification, sense-return contact (still undecided). Committed
+  fallbacks: stacked Keystone 8197 screw config (LCSC OOS today) and Würth REDCUBE 85A
+  as a zero-qualification proto rung (not LCSC-carried); 24-pin HPCE vertical/mezzanine
+  premium remains an optional alternative. **BOARD STATE: QUEUED, not started** — no
+  schematic or PCB yet carries the J4/output-header removal, the Keystone clip
+  placement, or a daughterboard project on any of the 24-pin, EPS, PCIe-2port, or
+  PCIe-3port boards. Full text: spec §2.8; study
+  `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`; sign-off
+  `docs/owner-queue.md` D-5a row.
+- 12VHPWR modules (Standard and Pro) — UNCHANGED by the v1.4.0 ruling (explicitly out of
+  scope). They solder their 12VHPWR (12V-2x6) connector(s)
   directly to the board (board-mounted); no detachable pass-through header and no
   bridging cable. On the melt-prone high-current connector this removes a
   mated-contact pair from the power path. REALIZED FORM (2026-06-04, connector
@@ -382,8 +655,12 @@ Communication:
   Pro+ Hubs only. Standard does not populate it.
 
 Per-tier hardware:
-- Hub Standard: ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM, PCB-antenna
-  keepout honored for future Wi-Fi; the MINI-1 has no 16 MB SKU, so the
+- Hub Standard: ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; PCB-antenna
+  keepout honored on the ALPHA layout for future Wi-Fi — OVERTURNED for BETA by owner
+  ruling 2026-07-03: NO Wi-Fi at this tier ever (intentional-radiator FCC certification
+  ~$100k avoided; product positions as a subassembly / unintentional radiator), so the
+  beta layout DROPS the keepout and reclaims ~450mm² — see
+  docs/standard-tier-review/SYNTHESIS-beta-plan.md W9; the MINI-1 has no 16 MB SKU, so the
   aggregation Hub uses WROOM while modules stay on MINI-1), 4 ports, classical
   CAN, USB Full Speed. v1.1 decisions
   carry forward (LP5907 LDO, 4700 uF aluminum electrolytic hold-up — Panasonic
@@ -422,10 +699,17 @@ Per-tier hardware:
 - Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard):
   ESP32-S3-MINI-1; no CAN termination (Hub-only). Per-module sensing differs by
   connector (spec §6.1, §6.2):
-  - 24-pin ATX: 4x INA228 (20-bit, 195 uV bus LSB, internal energy/charge
-    accumulators), one per rail — 12V, 5V, 3V3, 5VSB. The INA228 is a pin- and
-    footprint-compatible (VSSOP-10) drop-in for the INA238. IMPLEMENTED in the
-    24-pin schematic.
+  - 24-pin ATX: 4x INA238 (16-bit, 3.125 mV bus LSB, no hardware energy/charge
+    accumulators — energy reporting is firmware-integrated, per OQ-13), one per
+    rail — 12V, 5V, 3V3, 5VSB. REVERSED v1.5.0 (2026-07-05 owner ruling, spec
+    §6.1): the 24-pin had moved to the INA228 (20-bit, 195 uV bus LSB, hardware
+    energy/charge accumulators) under the pre-release v1.4 line, then reverted
+    back to the INA238 on LCSC-supply/assembly-flow grounds (INA228 is
+    LCSC-unavailable; INA238AIDGSR/C2868250 is stocked and JLC-native — see
+    `docs/pricing-study-2026-07-05.md`). The two parts are pin- and
+    footprint-compatible (VSSOP-10), so this is a BOM-line change, not a respin.
+    IMPLEMENTED on the beta line (atx-24pin-rev3); alpha and the ordered rev2
+    remain frozen on the INA228 as shipped, per the alpha/beta convention.
   - EPS 8-pin: INA238 per cable (per-cable granularity), 2 cables populated.
     IMPLEMENTED.
   - PCIe 8-pin: INA238 per cable, 3 cables populated (spec upper bound).
@@ -548,6 +832,24 @@ ten-minute desk tasks / the deferred-pending-instrument set / research dumps / G
 work). Agents update it in the SAME change that creates or retires an owner item — the same
 discipline as this section. The corpus-side intake contract is
 docs/corpus-experiential-intake-2026-06-10.md.
+
+**CONSUMER REVISION LINE — ALPHA/BETA convention (owner directive, 2026-07-03).** There is
+REAL purchase demand for the Standard tier NOW. The existing consumer boards (Hub Standard +
+all Standard modules) are the **ALPHA** line: working prototypes exist for every one, the
+concept is 100% validated — do not re-litigate the idea, refine it. Any owner-approved
+refinement revision (the standard-tier-review pass output and beyond) is the **BETA** line
+and must be CLEANLY denoted as such everywhere a revision surfaces: title-block Rev field,
+board README, fab/ snapshot naming (e.g. `fab/<board>-beta-*`), BOM outputs. Never overwrite
+or rename alpha artifacts — beta is a new revision lineage beside them. Priority framing:
+Standard = consumers ("know what the PC is doing, consolidated"); Pro = enthusiasts
+(nitty-gritty); both consumer lines outrank ENT polish in scheduling, but **ENT is NOT
+dropped** — the owner presents it to a prospective customer ~2026-08 (one month out), so ENT
+capture/prototype work continues on its own clock (see docs/owner-queue.md).
+**REVISION GUIDING PRINCIPLE (owner, 2026-07-03, applies to EVERY revision):** openness,
+extensibility, and make it BETTER even if it costs a bit more — do it right the first time,
+better than everyone else does. When a trade pits cost-down against quality/capability/
+extensibility, default to the quality side and surface the cost delta; cheapest-possible is
+the rule for COMPUTE SPEND (agent models), never for the boards.
 
 Open items (surface before acting):
 
@@ -718,10 +1020,20 @@ Open items (surface before acting):
      hand-maintained 12VHPWR-Standard; a guard refuses analog-pin boards). New vendored
      parts: cec-vendor ESP32-C6-MINI-1-N4 (C5736265), INA181A2IDBVR (C2058784),
      TLV7011DBVR (C702117); footprint cec-RF_Module:ESP32-C6-MINI-1 (+3D); D1 PESD UL->BA.
-   - REMAINING (these three): PCBs need Update-PCB-from-Schematic to pull the C6 land +
-     the §6.13 parts (U20-22 INA181, U30-32 TLV7011, R10/C40, per-cable bypass), then
-     re-place/route/pour. Still unsourced on each: the per-cable 0.5mOhm shunts (OQ-11)
-     and the Mini-Fit Jr THT power headers.
+   - REMAINING (these three) — CORRECTED 2026-07-03 (standard-tier review pass,
+     docs/standard-tier-review/eps-8pin.md + pcie-8pin.md, measured against live
+     kicad-cli/pcbnew state): the "PCBs need Update-PCB-from-Schematic to pull the C6
+     land" framing above is STALE — all three PCBs (EPS, PCIe-2port, PCIe-3port)
+     ALREADY CARRY the C6 land + the full §6.13 front-end (INA181A2/TLV7011) AND the
+     platform FTP RJ-45 jack; all schematic parts are placed. The REAL remaining state
+     is: **placement-complete, ZERO copper routed** (0 tracks/0 vias/0 filled zones on
+     all three boards; EPS also has no netclasses/.kicad_dru yet, PCIe likewise) — this
+     needs a full routing pass through the two-plane router (CLAUDE.md's tiered
+     sub-agent pipeline), tracked as beta wave item W6 in
+     docs/standard-tier-review/SYNTHESIS-beta-plan.md. OQ-11 shunt MPN (CSS2H-2512R-
+     L500F) is now spec-locked (2026-07-02) but still needs writing into the EPS/PCIe
+     BOM files (W2); the Mini-Fit Jr THT power headers remain consigned/unsourced by
+     design (no LCSC line, hand-solder).
    - 24-pin ATX still on ESP32-S3-MINI-1 with no §6.13 front-end — carry the same C6 +
      §6.13 pass onto it next. 12VHPWR Standard (S3) + Hub (S3-WROOM) are unchanged by design.
 
@@ -752,23 +1064,29 @@ Open items (surface before acting):
    pin. Same pass cleared the STALE §2.9 IO9/IO10 no_connects (they were wired to
    MAIN_5V_SENSE/5VSB_SENSE but still flagged no_connect -> no_connect_connected ERC,
    DRAFT-hidden). (The earlier IO13-as-presence idea was dropped for the IO1/IO2 ADC1
-   ratiometric pair.) STILL OPEN: PCB (GUI) Update-from-Schematic to pull J7/D7/
-   R19-R24, place + route, re-pour; and refresh the bom/ CSVs to add the 8 new lines.
-   PRE-EXISTING (not from this work, left as-is): two off-grid endpoint_off_grid ERC
-   on #FLG200/#FLG201 — the off-grid PWR_FLAG STAMPS that drive 5VSB_RAW / USB_VBUS
-   (functional, just placed off-grid; gridsnap the flag+its coincident label together
-   to clear), and the RJ-45 SHIELD-TAB no_connects (incl. the J5.SH2
-   no_connect_connected) which are the pending GUI shield-grounding pass (action item
-   2). (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
-   the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
-   (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
-   separate now so the existing 5VSB cable + Hub bench-test still work — "fix
-   later"). (d) PCB (GUI): place U7/J8 near the front end, route the cut net
-   U5.OUT->U7.IN2 and U7.OUT->the +5VSB/D1 node, route the IO9/IO10 taps, re-DRC.
-   (e) OQ-56: bench-verify the 4700uF hold-up rides a flash write. The chosen part
-   (cascade TPS2121, not the $7.77 LTC4417 triple-prioritizer) is the cost-right
-   call for the $36 Hub; LTC4417 is the textbook part for a non-cost-constrained
-   (Enterprise/MC) board.
+   ratiometric pair.) VERIFIED DONE 2026-07-03 (standard-tier review,
+   docs/standard-tier-review/hub-standard.md, measured against the live PCB): the PCB
+   (GUI) pass is COMPLETE, superseding the "STILL OPEN" framing below — J7 (now
+   silkscreened `J_KVM`) + D7 + R19-R24 are PLACED AND ROUTED, and U7/J8 (now `J_5V`)
+   + the MAIN_5V/5VSB sense dividers (R15-R18) are likewise PLACED AND ROUTED; the
+   bom/ CSVs carry the added lines. RJ-45 shield-tab grounding (SH1/SH2 -> GND on
+   J2-J5) is also confirmed done. PRE-EXISTING (not from this work, left as-is): two
+   off-grid endpoint_off_grid ERC on #FLG200/#FLG201 — the off-grid PWR_FLAG STAMPS
+   that drive 5VSB_RAW / USB_VBUS (functional, just placed off-grid; gridsnap the flag
+   + its coincident label together to clear). (b) 24-pin module MAIN_5V tap (after its
+   5V INA228 shunt, so the draw counts in system 5V per OQ-13) -> feed the Hub's J_5V
+   ("24-pin next") — still open, unchanged. (c) PRODUCTION: consolidate J1 (5VSB) +
+   J_5V (MAIN_5V) into one 3-pin feed (kept separate now so the existing 5VSB cable +
+   Hub bench-test still work — "fix later") — still open, unchanged. (e) OQ-56:
+   bench-verify the 4700uF hold-up rides a flash write — still open, unchanged. The
+   chosen part (cascade TPS2121, not the $7.77 LTC4417 triple-prioritizer) is the
+   cost-right call for the $36 Hub; LTC4417 is the textbook part for a non-cost-
+   constrained (Enterprise/MC) board. THE ONE REAL OPEN HUB ITEM (per the same review,
+   D-11 in docs/standard-tier-review/SYNTHESIS-beta-plan.md): 4x `hole_clearance`
+   errors on `J_USB` (the USB-C receptacle's own pad-vs-mounting-NPTH spacing,
+   0.165-0.20mm vs the 0.25mm rule) fail the CI `--severity-error` gate today — a
+   repo-wide shared-footprint defect (also seen on EPS/PCIe/12VHPWR, same USB-C land),
+   owner decision pending on footprint fix vs. documented DRU exception.
 
 1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement.
    Hub Standard DONE (2026-06-04): D2-D5 = PESD5V0S1UL (SOD-323), one per port,
@@ -801,32 +1119,47 @@ Open items (surface before acting):
    courtyard glance. EPS + 12VHPWR Standard now ALSO carry the FTP jack (SH1/SH2->GND);
    gen-modules.py emits it, so the 24-pin + the two PCIe SKUs pick it up on their next
    regen (still on the unshielded 54602 until then — compatible, single-end shield at the Hub).
-3. Hub Standard PCB pre-fab layout pass (2026-06-04 review): the board is PLACED
-   and FULLY ROUTED (DRC 0 unconnected), but a GUI pour/route pass remains before
-   dropping DRAFT. (a) GROUND: only In1 is poured and it reads as fragmented
-   (42 islands — almost certainly STALE FILL, since kicad-cli can't refill);
-   first action is "Fill All Zones" (B) in the GUI and confirm In1 is ONE island.
-   CAN_H/L and USB_D+/- are 100% on F.Cu over In1 with 0 vias (good); the slow
-   lines (DETECT/LED/GPIO/EN) ride In2 directly under In1 (fine). (b) POWER:
-   +5VSB/+3V3/USB_VBUS are routed as long thin traces on B.Cu — move to a F.Cu
-   pour per LAYOUT-GUIDE; the 5VSB trunk (/5VSB_RAW 0.4mm) needs pour or >=1.5mm.
-   DRC now reports 38 track_width errors on the power nets (surfaced only after
-   the netclass-pattern fix below) — that IS the punch-list. (c) Pull CAN_RX/CAN_L
-   in from the board edge (~0.03-0.13mm now → slot-antenna). (d) Tent the C1
-   (4700uF) via-in-pad; add a 2nd GND via at D6 (USBLC6); silk cleanup on the
-   RJ-45 shield pads + board-edge silk. NOT-a-bug (triaged): CAN 5V/3.3V "domain
-   crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
-   U1 courtyard overlaps (antenna keepout, neighbors clear).
+3. Hub Standard PCB pre-fab layout pass (2026-06-04 review; **VERIFIED COMPLETE
+   2026-07-03**, standard-tier review docs/standard-tier-review/hub-standard.md —
+   supersedes the 2026-06-04 punch-list below, which described an intermediate/stale
+   fill state). The board is PLACED and FULLY ROUTED: GND is confirmed as a single
+   filled zone (the "42 fragmented islands" note below was stale fill, since resolved
+   by a real "Fill All Zones" pass — measured 0 unconnected / 0 copper clearance-or-
+   short / 0 courtyard overlap / 0 `track_width` errors); the +5VSB/MAIN_5V/hold-up
+   power trunks (`+5VSB`, `/5VSB_RAW`, `/MAIN_5V_RAW`, `/+5V_HOLD`) all measure at or
+   above the netclass floor (1.0/0.5mm). RJ-45 shield tabs SH1/SH2 -> GND confirmed on
+   J2-J5. Remaining non-blocking cosmetic silk (29 hits: TH1, C8/SW_RESET, J_KVM x2,
+   C1/TP_VBUS — label-over-pad/edge, no copper impact) is already documented as such in
+   the board's own fab README. Fab outputs (CPL/BOM/gerbers) are already generated and
+   committed at `fab/hub-standard-proto-v1/`. THE ONE REAL REMAINING ITEM is the 4x
+   `J_USB` `hole_clearance` CI-error-gate failure — see action item 0's closing note
+   and D-11 in `docs/standard-tier-review/SYNTHESIS-beta-plan.md` (owner decision:
+   footprint fix in `lib/` vs. documented DRU exception). Historical detail retained:
+   the original 2026-06-04 pass found GND fragmented (stale fill), power nets on thin
+   B.Cu traces flagged by `track_width` DRC (surfaced only after a netclass-pattern
+   fix), CAN_RX/CAN_L close to the board edge, and C1/D6 via/silk cleanup items — all
+   of these are now measured resolved on the committed board. NOT-a-bug (triaged, still
+   true): CAN 5V/3.3V "domain crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R"
+   (split 60+60+4n7 present); U1 courtyard overlaps (antenna keepout, neighbors clear).
 
-4. 12VHPWR Standard PCB finish (status 2026-06-05): high-current lanes routed
-   (J3->shunt F.Cu, shunt->J4 B.Cu, all 6); lane 3 sense done (reference). 47
-   ratlines remain — 6x INA OUT->ESP ADC (ISENSEP1-6) + Kelvin taps/RC-filter->INA
-   on lanes 1,2,4,5,6. Before re-DRC: Fill All Zones (the 252 "actual 0.000mm"
-   clearance/hole hits are STALE GND-pour, NOT real shorts), delete 18 dangling
-   vias + 3 track stubs, Update-PCB-from-Schematic (syncs U2 value TJA1462A->
-   TJA1051T/3, same SOIC-8 footprint; ALSO pulls the v3.7 NTC temp dividers
-   TH1/TH2 + R20/R21 + C20/C21 — TH1 at the J3 +12V pins, TH2 ambient, into spare
-   ADC2 IO13/IO14 — to place + route). Spec bumped to v3.7: OQ-8 RESOLVED (no local
+4. 12VHPWR Standard PCB finish — **DONE / ROUTED (verified 2026-06-24; supersedes the
+   2026-06-05 snapshot).** The board is FULLY ROUTED and fab-direction: kicad-cli DRC = 0
+   unconnected / 0 schematic-parity / 15 cosmetic-silk-only violations (no copper / clearance /
+   courtyard hits), the board is NOT DRAFT, and a fab snapshot exists at fab/12vhpwr-standard-proto-v1.
+   The 2026-06-05 "remaining work" is STALE: the 47 ratlines ARE routed, zones ARE filled, the
+   dangling vias/stubs are gone, U2 IS TJA1051T/3, and the NTC dividers TH1/TH2 + R20/R21 + C20/C21
+   ARE placed + routed (NCP15XH103F03RC / C77131, /TEMP1->IO13, /TEMP2->IO14). THERMAL re-validated
+   2026-06-24 with the 2.5D min-cut solver + production case-cooling (metal case: TIM on the RS1-6
+   shunts + the M3 mounts) = maxT 72.95C / dT 22.95C = PASS at balanced 600W/50A (the dashboard now
+   shows this with the cooling model labeled; the still-air no-case bound is maxT 151 / dT 101, the
+   conservative number). RESIDUAL (production rev, owner sign-off — NOT proto blockers): (a) the
+   high-current lanes are single-layer-per-segment (HI F.Cu / LO B.Cu), NOT the paralleled F.Cu+B.Cu
+   MIRROR the FEM note below recommends — thermal passes as-built, so the mirror is a margin
+   improvement, not a fix; (b) the 12V F->B transition vias are 0.6/0.3mm, below the Power12V netclass
+   0.9/0.5mm spec — fine for the proto, enlarge for a production rev; (c) OQ-11 shunt part still open;
+   (d) J3/J4 12V-2x6 consigned; (e) silk cleanup (15 cosmetic hits) is a GUI finishing pass.
+   Historical 2026-06-05 build detail + the FEM probe + model-debt provenance are retained below.
+   Spec bumped to v3.7: OQ-8 RESOLVED (no local
    REF3033 on Standard — transient-capture tier, not precision); 12V input TVS and
    status LED considered and DECLINED (§6.1). The NTC dividers were hand-spliced
    into the routed schematic (ERC clean, netlist-verified TEMP1->IO13/TEMP2->IO14,
@@ -850,13 +1183,28 @@ Open items (surface before acting):
    Detection thesis CONFIRMED by the probe: the 12A hog is a 58% instant electrical
    outlier on INA240 ch3 vs a lagging ~2.2C shunt thermal asymmetry — and at a
    sustained hog the electrical alarm also protects the module's own copper.
-   MODEL DEBT (deliberate follow-up, NOT silently fixed — changes the SB-08 golden
-   thermal band): electrothermal cross_mm2 SUMS all net segments (incl. zero-current
-   Kelvin stubs) instead of the serial min-cut => lane dT ~5x optimistic; via split
-   should be per transition cluster; IPC k is keyed to pour membership instead of the
-   feature's actual layer. One fix LANDED (2026-06-09): the shunt I^2R current now
-   reads the straddled net's current (honours net_currents overrides) instead of the
-   40A per-cable default — essential on per-pin boards.
+   MODEL DEBT — RESOLVED 2026-06-13 (branch claude/am04-electrothermal-mincut, AM-04
+   PR-two). electrothermal cross_mm2 used to SUM all net segments (incl. zero-current
+   Kelvin stubs) instead of the serial min-cut (lane dT ~5x optimistic); the via split
+   used nvias[net]; IPC k was keyed to pour membership. ALL THREE FIXED in
+   electrothermal_solve: (1) `_min_cut` — the thermally-governing cross is the BOTTLENECK
+   cut along the flow axis (parallel-sum within a cut, min over cuts), and for a poured
+   net the cut is restricted to the pour's flow span so a zero-current sense/Kelvin stub
+   sharing the net cannot masquerade as a series neck (the naive min-cut's mirror-image
+   over-correction); (2) via split is per-transition for non-poured nets (`_via_cluster_sizes`,
+   spatial single-linkage) and distributed (I/total) for poured stitching fields (GND
+   plane / mirror-poured lane); (3) IPC k taken from the bottleneck cut's actual layer by
+   rename-proof layer ID, not pour membership. The AM-04 micro-board anchor moved to the
+   DERIVATION.md CORRECTED column (cross 1.044→0.348, dT 4.8→6.12; via/shunt unchanged) and
+   `test_am04_anchors.T8cCompositionAnchor` now asserts it; the chart-point/Picard anchors
+   did NOT move (the formula was never the debt). The earlier shunt-I^2R fix (2026-06-09,
+   straddled-net current via net_currents) stands. SB-08 GOLDEN RE-FREEZE IS OWNER-GATED
+   (the coupled item-3a CEC_GOLDEN_SYNTH decision + the owner-chosen --thermal-headroom;
+   make_bands refuses a default): measured post-fix — synth-OFF correctly exposes a fusing
+   condition (40A on bare 0.2mm FR traces, which the old segment-sum hid as max_T 157.9);
+   synth-ON gives a sane max_T 120.5°C / dT 70.5 limited by the +5VSB 0.2mm rail (no clamp,
+   cable nets 9.8–38°C, GND 37°C, vias ≤16°C). The committed golden was already red-pending
+   on item-3a, so this changes WHAT it produces, not green→red.
 
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch
@@ -1451,7 +1799,9 @@ Done (kept for context):
   ties the 2 tabs into the GND pour on Update-Footprints-from-Library. SW1/2 -> TS-1088-
   AR02016 (C720477, XKB, Basic) like the Hub -- land CHANGES (EVQ 4-pad -> TS-1088 2-pad),
   NOT a drop-in, so the committer re-places + re-routes the 2 buttons. Both done in the
-  schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library pending in GUI.
+  schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library DONE (verified
+  2026-06-24: the routed PCB carries J1 = cec:RJ45_FTP_Shielded_Horizontal with SH1/SH2 on GND
+  and the TS-1088 buttons placed + routed).
   THEN (2026-06-06, diff-pair prep) renamed the 6 INA-input pairs /INPP{n}->/IN{n}_P and
   /INNP{n}->/IN{n}_N so KiCad's differential-pair router auto-recognizes them (suffix _P/_N);
   pure label rename (UUIDs/positions preserved, ERC clean, netlist node-set identical, only
@@ -1562,11 +1912,10 @@ Done (kept for context):
   R25 10k (C25744) to GND, C16 100nF (C1525) node filter -> TEMP_HUB -> ADC1 IO3
   (the last free ADC1 channel); same topology as the 12VHPWR TH1/TH2. ERC clean
   (benign mismatch + the 2 pre-existing off-grid only), netlist + audit verified, all
-  sourced; PCB place/route pending GUI. FOLLOW-UP: the 12VHPWR TH1/TH2 are still the
-  R_Small placeholder on a generic R_0402 land with NO LCSC/MPN — repoint them to
-  cec-vendor:Thermistor_NTC + cec-Resistor_SMD:NTC_0402_1005Metric + C77131 on that
-  board's next pass (identical pins, not yet placed on the PCB = clean swap; left to
-  that board's session to avoid a concurrent-edit conflict).
+  sourced; PCB place/route pending GUI. FOLLOW-UP RESOLVED (verified 2026-06-24): the 12VHPWR
+  TH1/TH2 now carry MPN NCP15XH103F03RC / LCSC C77131 on the cec-Resistor_SMD:NTC_0402_1005Metric
+  land and ARE placed + routed on the PCB (nets /TEMP1->U1.IO13, /TEMP2->U1.IO14). No longer a
+  placeholder; nothing pending on that board for the NTCs.
 - Vendored symbol pinout audit (2026-06-05): every IC/connector symbol's
   pin#->name verified against the manufacturer datasheet (WebSearch + KiCad stock
   library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 D/SOIC-8
@@ -1628,7 +1977,9 @@ Done (kept for context):
   table). EXCEPTION: the 24-pin ATX module's PSU-side power path (J3/J4) is
   Mini-Fit Jr by design (ATX standard, §2.8) — that is correct, not a leftover.
 - 24-pin INA238 -> INA228 swap IMPLEMENTED; KiCad-10 library modernization and
-  the cec-power nickname are in.
+  the cec-power nickname are in. (REVERSED v1.5.0, 2026-07-05 owner ruling —
+  see §6.1. Applies to the beta line, atx-24pin-rev3; alpha/rev2 are frozen on
+  the INA228 as shipped.)
 - EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
   per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
   Regenerated + completed 2026-06-04: decoupling brought up to the 24-pin gold
@@ -1696,9 +2047,18 @@ Done (kept for context):
   sense off the INNER shunt edges, RC filter at the INA. NOTE the plan calls for
   BOTH inner pours = GND on this board (the shared stackup's In2 net hint is 12V, a
   cable-board leftover; the pour net is per-zone in the GUI). The copper itself is
-  routed in the GUI (CLAUDE routing boundary). All:
-  4-layer, 2oz outer / 1oz inner (hpwr: 12V on both outers, GND both inners; cable
-  boards In1=GND, In2=12V).
+  routed in the GUI (CLAUDE routing boundary). All: 4-layer, 2oz outer / 1oz inner.
+  STACKUP BY BOARD CLASS (owner, 2026-06-14 — corrects the stale "In2=12V" cable-board
+  hint): the CABLE boards (eps / PCIe / 12VHPWR) carry 12V on BOTH outers and GND on
+  BOTH inners (the shared-generator In2=12V net hint is a stale leftover — see the
+  per-board NOTE above; the actual eps/PCIe/12VHPWR boards pour both inners = GND). The
+  24-pin and the Hub are the EXCEPTIONS: each has ONE solid inner GND plane plus a SECOND
+  inner layer used for routing — the Hub's second inner is a SIGNAL layer; the 24-pin's
+  is a POWER-routing layer (it carries several rails — 12V / 5V / 3V3 / 5VSB — that must
+  route around each other). So the corridor layer-assignment lever (route a band-crossing
+  foreign signal off the pour) is a CABLE-BOARD concept: on those boards the 12V is the
+  two outer pours only, so the lever staggers each crossing across F.Cu vs B.Cu so the
+  un-cut mirror always carries; the Hub/24-pin have a real inner routing layer instead.
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of
@@ -1980,7 +2340,9 @@ Use this as a recurring review pass:
 - DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
   (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
   10 kΩ / 3.3 V divider.
-- Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
+- Module sensing matches §6.1: 24-pin = 4x INA238 (REVERSED from INA228 v1.5.0,
+  2026-07-05 owner ruling — beta line/atx-24pin-rev3 only; alpha/rev2 remain on
+  INA228 as shipped); EPS = per-cable INA238 (1-2);
   PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
   divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std schematics
   reconciled + regenerated 2026-06-04; PCB layout still pending.)

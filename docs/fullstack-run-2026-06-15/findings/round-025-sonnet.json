@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense IC placement fragments the sense copper pour for SENSEC1_HI, SENSEC2_HI, and SENSEC2_LO, creating multiple islands and high foreign cross counts (7-13). This causes DRC violations (24) from clearance/continuity errors and conductor over-temp FEM flags on those nets. The router cannot resolve this because the placement physically blocks continuous copper; more routing passes or corridor-avoid levers will not heal fragmented pours.",
+ "reasoning": "Pour-integrity data shows three of four sense nets have 2 islands each, with foreign cross counts between 7 and 13. The FEM flags confirm thermal stress on these nets. Kelvin sense is routed (kelvin_ok=true), but the copper pour is broken, leading to structural DRCs and unconnected stubs. This is a placement-class failure: the sense ICs (INA/INA181/REF/ESP) are positioned such that they bisect the sense copper, preventing a clean pour. The deterministic corridor-avoid lever will fire from clipped_nets but cannot fix fragmented pours caused by component placement.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "PLACEMENT EVICTION",
+  "target": "Sense ICs (INA/INA181/REF/ESP) and their owned passive clusters (decoupling caps)",
+  "action": "Reposition these bodies away from the high-current sense corridors to allow a single continuous copper island for each sense net. Avoid placing them over the shunt or connector footprints. This will reduce islands to 1, lower foreign cross, and eliminate DRCs caused by pour fragmentation."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

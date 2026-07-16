@@ -1,12 +1,14 @@
 (footprint "SOIC-8_3.9x4.9mm_P1.27mm"
-	(version 20241229)
-	(generator "kicad-footprint-generator")
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
 	(layer "F.Cu")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "REF**"
 		(at 0 -3.4 0)
 		(layer "F.SilkS")
+		(uuid "dd3651e7-0c94-4782-b65e-67f5428b9f1e")
 		(effects
 			(font
 				(size 1 1)
@@ -17,6 +19,7 @@
 	(property "Value" "SOIC-8_3.9x4.9mm_P1.27mm"
 		(at 0 3.4 0)
 		(layer "F.Fab")
+		(uuid "ba4fc708-bc7e-4b6f-a593-a987849940ce")
 		(effects
 			(font
 				(size 1 1)
@@ -24,7 +27,30 @@
 			)
 		)
 	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a2ebcd03-be23-4f78-8269-f497cefb6574")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8274a6d4-a0af-4ecf-af6b-2de04e1258f0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
 	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
 	(fp_line
 		(start -2.06 -2.56)
 		(end 2.06 -2.56)
@@ -33,6 +59,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "ea626bd7-1011-4430-b332-0aefbcdb1744")
 	)
 	(fp_line
 		(start -2.06 -2.465)
@@ -42,6 +69,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "6dff8f00-cab4-4e73-98f8-6058a1798555")
 	)
 	(fp_line
 		(start -2.06 2.56)
@@ -51,6 +79,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "058af174-4f08-4870-b2a2-02ffce490f01")
 	)
 	(fp_line
 		(start 2.06 -2.56)
@@ -60,6 +89,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "f67b7267-2243-40d8-9d8a-7f87328903d7")
 	)
 	(fp_line
 		(start 2.06 2.465)
@@ -69,6 +99,7 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "cff32004-90ef-416e-8bcb-f8d6db699acc")
 	)
 	(fp_line
 		(start 2.06 2.56)
@@ -78,12 +109,11 @@
 			(type solid)
 		)
 		(layer "F.SilkS")
+		(uuid "fb37b08d-1ee0-4eff-a79e-b84b35f0731a")
 	)
 	(fp_poly
 		(pts
-			(xy -2.6 -2.47)
-			(xy -2.84 -2.8)
-			(xy -2.36 -2.8)
+			(xy -2.6 -2.47) (xy -2.84 -2.8) (xy -2.36 -2.8)
 		)
 		(stroke
 			(width 0.12)
@@ -91,6 +121,7 @@
 		)
 		(fill yes)
 		(layer "F.SilkS")
+		(uuid "67f024b4-58a2-451d-a2ca-7c3b2d832586")
 	)
 	(fp_line
 		(start -3.7 -2.46)
@@ -100,6 +131,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "9a4ea4a9-d8a9-44c8-a19f-d7ad1e232e6b")
 	)
 	(fp_line
 		(start -3.7 2.46)
@@ -109,6 +141,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "4efa0ca1-3877-46e6-9f4c-81c90a341b48")
 	)
 	(fp_line
 		(start -2.2 -2.7)
@@ -118,6 +151,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "a22c8ff8-fe03-484f-987f-a20067af16b8")
 	)
 	(fp_line
 		(start -2.2 -2.46)
@@ -127,6 +161,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "cc8f847f-c923-4313-ac7c-ec7d9ebaf9c6")
 	)
 	(fp_line
 		(start -2.2 2.46)
@@ -136,6 +171,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "b9b09ef2-dd88-4e9e-996f-a04683798447")
 	)
 	(fp_line
 		(start -2.2 2.7)
@@ -145,6 +181,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "a002efba-fc63-4b7b-a517-ecc1d44a60f0")
 	)
 	(fp_line
 		(start 2.2 -2.7)
@@ -154,6 +191,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "71d5274c-d244-45aa-a08e-d74f60943133")
 	)
 	(fp_line
 		(start 2.2 -2.46)
@@ -163,6 +201,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "97ed2a32-7631-4cd4-bd2a-fc8368c64057")
 	)
 	(fp_line
 		(start 2.2 2.46)
@@ -172,6 +211,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "01576498-1560-48ab-823b-248b1d79798b")
 	)
 	(fp_line
 		(start 2.2 2.7)
@@ -181,6 +221,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "fbc4e2f1-1189-44ad-8b0d-8f9e783c7767")
 	)
 	(fp_line
 		(start 3.7 -2.46)
@@ -190,6 +231,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "449d50ec-9e96-40f4-b518-1b087b681c63")
 	)
 	(fp_line
 		(start 3.7 2.46)
@@ -199,14 +241,11 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
+		(uuid "e3eb6ab8-1a46-4563-a63b-a73926a22779")
 	)
 	(fp_poly
 		(pts
-			(xy -0.975 -2.45)
-			(xy 1.95 -2.45)
-			(xy 1.95 2.45)
-			(xy -1.95 2.45)
-			(xy -1.95 -1.475)
+			(xy -0.975 -2.45) (xy 1.95 -2.45) (xy 1.95 2.45) (xy -1.95 2.45) (xy -1.95 -1.475)
 		)
 		(stroke
 			(width 0.1)
@@ -214,10 +253,12 @@
 		)
 		(fill no)
 		(layer "F.Fab")
+		(uuid "25e160c3-a262-4409-8a6e-4ee9fe593587")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 0 90)
 		(layer "F.Fab")
+		(uuid "11e5ee4f-3c75-4ac7-94b3-741912cd6caf")
 		(effects
 			(font
 				(size 1 1)
@@ -230,48 +271,56 @@
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "27e0372a-1fd4-4b71-995c-e8eb651118a1")
 	)
 	(pad "2" smd roundrect
 		(at -2.475 -0.635)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "556ee744-6dd8-4221-9b7f-640f827ac899")
 	)
 	(pad "3" smd roundrect
 		(at -2.475 0.635)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "c00b0f76-2caf-47d2-8979-54cb8d5017b7")
 	)
 	(pad "4" smd roundrect
 		(at -2.475 1.905)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "725100e3-7efe-49d8-be3a-01773572c19b")
 	)
 	(pad "5" smd roundrect
 		(at 2.475 1.905)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "afb92033-7fd9-4f53-9f34-fab6da068be4")
 	)
 	(pad "6" smd roundrect
 		(at 2.475 0.635)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "5134b883-ca95-435d-a917-4736cb4f0708")
 	)
 	(pad "7" smd roundrect
 		(at 2.475 -0.635)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "fc074166-b09a-483e-bbee-96fb47535535")
 	)
 	(pad "8" smd roundrect
 		(at 2.475 -1.905)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
+		(uuid "5635eba1-4396-446e-8311-b509fc674ce5")
 	)
 	(embedded_fonts no)
 	(model "${KIPRJMOD}/../../lib/3dmodels/Package_SO.3dshapes/SOIC-8_3.9x4.9mm_P1.27mm.step"

@@ -1,0 +1,6 @@
+{
+ "local_minimum_risk": "high",
+ "assessment": "The batch metrics show only DRC variation (15\u219226\u219213\u219210) with no new failure class, and the board remains gate-failing. The panel changed from 'escalate' to 'repair' in round 44, but no injections or rule changes are present. There is no distinct, batch-sourced pattern that an owned lever could act on; the DRC fluctuations appear to be noise rather than a systematic issue. Restraint is warranted to avoid contributing epicycles.",
+ "findings": [],
+ "declined": true
+}

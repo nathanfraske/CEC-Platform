@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of sense components (likely INA or REF) in a congested area causes foreign signal crossings through sense copper pours, fragmenting them into multiple islands (see pour integrity: /SENSEC2_HI and /SENSEC2_LO each have 2 islands with high foreign_cross counts). This leads to DRC violations (21) and thermal FEM flags due to constricted current paths. No stranded sense nets (kelvin_ok=true), so T0 placement actuator does not fire; corridor-avoid lever and panel effort are needed to reroute foreign signals or shift components.",
+ "reasoning": "The pour integrity shows clipped sense nets with multiple islands and high foreign crossings, indicating that the placement of components forces foreign signals to cut through sense copper. This is a placement-class failure because the router cannot fix fragmented pours caused by component positions. The FEM over-temp flags on these nets confirm thermal stress from constricted paths. Since kelvin_ok is true, the T0 actuator is not triggered, but the diagnosis should steer the corridor-avoid lever and panel effort.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "detail": "Shift the sense IC (e.g., INA181) and its owned passive cluster out of the high-current band that fragments its sense copper, or use layer-stagger to route foreign signals on inner layers away from sense pours."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -1,0 +1,141 @@
+(footprint "TE_63969_FASTON_Receptacle_250_Vertical_THT"
+	(version 20260206)
+	(generator "cec-hand")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
+	(property "Reference" "REF**"
+		(at 0 -5.0 0)
+		(layer "F.SilkS")
+		(uuid "1a2b3c4d-0001-4e00-9001-63969e000001")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "TE 63969-1"
+		(at 0 5.2 0)
+		(layer "F.Fab")
+		(uuid "1a2b3c4d-0002-4e00-9002-63969e000002")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.te.com/en/product-63969-1.html"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1a2b3c4d-0003-4e00-9003-63969e000003")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1a2b3c4d-0004-4e00-9004-63969e000004")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_rect
+		(start -1.85 -3.71)
+		(end 1.85 3.71)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "1a2b3c4d-0005-4e00-9005-63969e000005")
+	)
+	(fp_line
+		(start 0 -3.71)
+		(end 0 3.71)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "1a2b3c4d-0006-4e00-9006-63969e000006")
+	)
+	(fp_line
+		(start -1.95 -3.81)
+		(end -1.95 3.81)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "1a2b3c4d-0007-4e00-9007-63969e000007")
+	)
+	(fp_line
+		(start 1.95 -3.81)
+		(end 1.95 3.81)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "1a2b3c4d-0008-4e00-9008-63969e000008")
+	)
+	(fp_poly
+		(pts
+			(xy -2.1 -3.96)
+			(xy 2.1 -3.96)
+			(xy 2.1 3.96)
+			(xy -2.1 3.96)
+		)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "1a2b3c4d-0009-4e00-9009-63969e000009")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 90)
+		(layer "F.Fab")
+		(uuid "1a2b3c4d-000a-4e00-900a-63969e00000a")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(pad "1" thru_hole circle
+		(at 0 -2.54)
+		(size 2.4 2.4)
+		(drill 1.4)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "1a2b3c4d-000b-4e00-900b-63969e00000b")
+	)
+	(pad "1" thru_hole circle
+		(at 0 2.54)
+		(size 2.4 2.4)
+		(drill 1.4)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "1a2b3c4d-000c-4e00-900c-63969e00000c")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
+)

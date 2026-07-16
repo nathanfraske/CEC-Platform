@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Fallback intents produced crude waypoints, causing 26 DRC violations, 2 unconnected nets, and pour fragmentation on /SENSEC2_LO (clipped net with 2 islands). High foreign_cross values (9 on SENSEC2_LO and SENSEC1_LO) indicate many signal crossings fragmenting sense copper, but the primary degradation is from the fallback routing plan.",
+ "reasoning": "The board has gates_pass=false due to structural DRC=26. Generation source is fallback intents (degraded). Pour integrity shows /SENSEC2_LO is clipped (2 islands), and FEM flags indicate over-temp on sense nets and GND, likely from constricted current paths. The high foreign_cross values suggest placement congestion, but the immediate cause of poor routing is the fallback plan. Routing improvements (better waypoints, increased effort) can address DRC and pour integrity.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_intents",
+  "detail": "Increase router passes/opt_time and use FR-02 waypoint intents to route offending foreign signals around sense corridors. Apply bake_hints keepouts to protect /SENSEC2_LO pour integrity."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

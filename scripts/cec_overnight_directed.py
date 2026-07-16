@@ -70,6 +70,10 @@ CONTAINER_ROOT = "/workspace"
 # Board floorplan paths (the committed, hand-finalized boards are the stable input).
 BOARD_PCB = {
     "eps-8pin": os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb"),
+    # Path-B generalization (actuation-lever validation): the Hub is the board where the PLACEMENT
+    # lever actually bites (eps's stall is foreign-signal-in-corridor, inert for placement). The Hub
+    # lives under hubs/, not modules/ -- find_board() resolves both.
+    "hub-standard": os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb"),
 }
 
 # DIRECTED INTENTS per board: the manager's relational waypoints. RELATIONAL only
@@ -91,7 +95,17 @@ INTENTS = {
          "waypoints": [{"ref": "U1", "offset_mm": [0, 12]},
                        {"ref": "U1", "offset_mm": [8, 12]}]},
     ],
+    # The Hub starts with NO directed waypoints (route freely); relational intents can be added once
+    # a congestion grid identifies its contested nets. An empty list is a valid no-op for compile_intents.
+    "hub-standard": [],
 }
+
+# Path-B generalization: boards whose committed .kicad_pcb is already FULLY ROUTED (a finalized board,
+# not a bare floorplan). The directed router must route them FRESH FROM PLACEMENT -- otherwise the DSN
+# export carries the existing wiring and Freerouting has nothing to do (the placement lever never
+# engages). For these we strip tracks+vias on a per-round COPY before routing; the committed board and
+# its zones/footprints/placement are untouched. eps is a bare floorplan, so it is NOT in this set.
+FRESH_ROUTE_BOARDS = {"hub-standard"}
 
 # Pareto axes -- all lower-is-better. gates are a hard prefilter (not an axis).
 PARETO_AXES = ("drc", "unconnected", "plane_signal_mm", "length", "vias", "max_T")
@@ -114,6 +128,63 @@ def _round_params(rnd):
     return passes, opt_time, perturb
 
 
+def _avoid_to_bake(rect_keepouts):
+    """Convert cec_fr02.intent_keepouts() output [{rect_mm:[x1,y1,x2,y2], layers}] into bake_hints keepout
+    dicts. allow_vias=True mirrors the Kelvin-corridor keepout (cec_fr.bake_hints) so a boxed-in sensor pad
+    can still via to an inner plane -- never strand a sense tap. THIS is the wire that makes the avoid-region
+    lever (deterministic item4 AND an auditor 'route around corridor') actually fire: without it the avoid
+    intents are carried but never become FR keepouts (intent_keepouts had 0 callers; compile_intents reads
+    only waypoints)."""
+    out = []
+    for i, k in enumerate(rect_keepouts or []):
+        r = k.get("rect_mm")
+        if not r or len(r) < 4:
+            continue
+        x0, y0, x1, y1 = float(r[0]), float(r[1]), float(r[2]), float(r[3])
+        out.append({"name": f"avoid_{i}", "x0": min(x0, x1), "y0": min(y0, y1),
+                    "x1": max(x0, x1), "y1": max(y0, y1),
+                    "layers": tuple(k.get("layers", ("F.Cu", "B.Cu"))), "allow_vias": True})
+    return out
+
+
+def _safe_perturb(board_pcb, perturb, *, margin=0.3):
+    """Keep the route-diversity micro-keepout (divjit) OFF footprint pads. The walking perturb lands on a
+    different footprint each round; round 1 boxed U11's pads -> 4 phantom items_not_allowed DRC (and the
+    walk makes it a MOVING self-inflicted defect the auditor could misattribute). Load the pads once; if
+    the perturb intersects any, scan it down-board to a free band; if none free, drop it (diversity loses
+    one jitter, harmless). pcbnew-only; no pcbnew (host) -> unchanged."""
+    if not perturb:
+        return perturb
+    try:
+        import pcbnew
+        b = pcbnew.LoadBoard(board_pcb)
+    except Exception:                                          # noqa: BLE001
+        return perturb
+    M = 1e6
+    pads = []
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            bb = p.GetBoundingBox()
+            pads.append((bb.GetLeft() / M, bb.GetTop() / M, bb.GetRight() / M, bb.GetBottom() / M))
+
+    def hits(qx0, qy0, qx1, qy1):
+        return any(not (qx1 < x0 - margin or qx0 > x1 + margin
+                        or qy1 < y0 - margin or qy0 > y1 + margin)
+                   for (x0, y0, x1, y1) in pads)
+
+    if not hits(perturb["x0"], perturb["y0"], perturb["x1"], perturb["y1"]):
+        return perturb
+    h = perturb["y1"] - perturb["y0"]
+    eb = b.GetBoardEdgesBoundingBox()
+    ylo, yhi = eb.GetTop() / M + 1.0, eb.GetBottom() / M - 1.0
+    y = ylo
+    while y + h <= yhi:
+        if not hits(perturb["x0"], y, perturb["x1"], y + h):
+            return {**perturb, "y0": round(y, 2), "y1": round(y + h, 2)}
+        y += 1.0
+    return None                                                # no free band -> drop this round's jitter
+
+
 def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=None, perturb_on=True):
     """Compile intents -> baked perturbation -> DSN(layer policy) -> protect -> FR ->
     import(strip) -> stub hygiene. Returns (routed_path, stub_summary, params).
@@ -128,7 +199,34 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
     directed = os.path.join(workdir, "directed.kicad_pcb")
     res = cec_fr02.compile_intents(board_pcb, intents, directed)
     baked = os.path.join(workdir, "baked.kicad_pcb")
-    cec_fr.bake_hints(directed, baked, keepouts=[perturb])
+    perturb = _safe_perturb(board_pcb, perturb)              # keep route-diversity jitter OFF pads (U11 bug)
+    # ROUTE-TIME CORRIDOR KEEPOUT (2026-06-16, close-the-loop keystone -- the ROUTE half).
+    # Reserve each cable's connector->shunt high-current corridor (notched at the shunt so the Kelvin tap
+    # survives; block_fills=False so the same-net pour still fills SOLID) so FR routes foreign signals
+    # AROUND the pours instead of clipping them into islands.
+    #
+    # COUPLED WITH PLACEMENT (measured 2026-06-16): this only converges on a CORRIDOR-CLEAN placement --
+    # one where no foreign airwire is FORCED through the corridor. The committed eps placement is NOT
+    # corridor-clean (corridor_cross >= 3: /DETC,/THRESH,/I2C route through), so baking the keepout there
+    # strands those nets AND the sense taps (kelvin_ok True->False, unconnected 2->16). The keepout is the
+    # route-half of a coupled keystone+placer mechanism: it is enabled together with the corridor-packing
+    # placer (cec_synth_pipeline seed_anchors corridor-clean columns) that PRODUCES a clean placement.
+    # Hence DEFAULT OFF -- it must not regress the committed-board agentic loop. CEC_OVD_CORRIDOR_KEEPOUT=1
+    # turns it on (use ONLY on a corridor-clean placement). The geometry + the block_fills pour-unblock fix
+    # are correct and shared with cec_router.route() (cec_fr.corridor_keepouts).
+    corridor_kos = []
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        try:
+            corridor_kos = cec_fr.corridor_keepouts(board_pcb)
+        except Exception as e:                              # noqa: BLE001 -- never crash a route on the keepout
+            log(f"  corridor keepout derivation failed ({type(e).__name__}: {e}); routing without it")
+    # WIRE avoid-region intents into FR keepouts -- the SECOND half of the item4 lever (item4 + any auditor
+    # 'route around corridor'). intent_keepouts() had zero callers, so avoid intents used to silently no-op.
+    kos = ([perturb] if perturb else []) + corridor_kos + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    if corridor_kos:
+        log(f"  corridor keepout: reserved {len(corridor_kos)} force corridor(s) "
+            f"{[k['name'] for k in corridor_kos]}")
+    cec_fr.bake_hints(directed, baked, keepouts=kos)
     dsn = os.path.join(workdir, "r.dsn")
     ses = os.path.join(workdir, "r.ses")
     cec_fr.export_dsn(baked, dsn)                                 # layer policy auto-applies
@@ -147,8 +245,36 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
         pours = cec_fr.derive_power_pours(baked)
     cec_fr.import_ses(baked, ses, routed, power_pours=pours)     # strips plane-layer tracks
     hygiene = cec_fr02.clean_orphan_stubs(routed, res)
+    # MIRROR POUR (item 1, audit w23i0d8nq): the loop poured the high-current force nets F.Cu-ONLY, so the
+    # layer-stagger lever could not "let the un-cut OUTER pour mirror carry past a single-layer cut" -- there
+    # was no mirror. Lay the B.Cu mirror of each F.Cu force pour + the via-field stitching (which ties the
+    # two outer layers and bridges the SMD-shunt neck). This provides the PARALLEL layer; the layer-stagger
+    # lever (cec_fullstack, augmented lane) then distributes the UNAVOIDABLE foreign corridor crossings
+    # across F/B so the un-cut layer carries at each cut's x. The two TOGETHER restore the premise -- the
+    # mirror ALONE does not, because a foreign signal crossing the B.Cu corridor still locally clips the
+    # mirror there (the cc>=6-floor reality the stagger exists to handle). PURELY ADDITIVE
+    # (synthesize_power_copper strip_redundant=False adds only the missing layer + vias, never removes copper
+    # -> cannot strand the Kelvin tap). DETERMINISTIC copper, so it rides BOTH lanes like the F.Cu pours (not
+    # run-learned steer -> does not confound the EI-02 A/B). Safe-reverted on a _route_quality regression (a
+    # stitch via could land on a foreign crossing). NOT silent: every outcome is logged + recorded as
+    # mirror_status (applied/rejected/error/no-pours), so a dead lever is distinguishable from a real no-op
+    # (the observability gap the rework targets). CEC_OVD_MIRROR_POUR=0 restores F.Cu-only.
+    n_mirror, mirror_status = 0, "no-pours"
+    if pours and os.environ.get("CEC_OVD_MIRROR_POUR", "1") != "0":
+        mirrored = os.path.join(workdir, "routed-mirror.kicad_pcb")
+        try:
+            mrep = cec_fr.synthesize_power_copper(routed, mirrored, strip_redundant=False)
+            if os.path.isfile(mirrored) and cec_fr._route_quality(mirrored) <= cec_fr._route_quality(routed):
+                routed, n_mirror, mirror_status = mirrored, mrep.get("mirror_pours", 0), "applied"
+            else:
+                mirror_status = "rejected"                       # would regress route quality -> kept F.Cu-only
+                log("  mirror pour REJECTED (would regress route quality); kept F.Cu-only")
+        except Exception as e:                                   # noqa: BLE001 -- best-effort, but NOT silent
+            mirror_status = "error"
+            log(f"  mirror pour ERROR ({type(e).__name__}: {e}); kept F.Cu-only")
     stub_summary = {"n_stubs": len(res["stubs"]), "compile_failures": res["failures"],
-                    "nets": nets, "n_power_pours": len(pours), **hygiene}
+                    "nets": nets, "n_power_pours": len(pours), "n_mirror_pours": n_mirror,
+                    "mirror_status": mirror_status, **hygiene}
     return routed, stub_summary, {"passes": passes, "opt_time": opt_time}
 
 
@@ -187,6 +313,7 @@ def score_and_log(routed, board, stub_summary, params, rnd):
            "drc": m.drc, "unconnected": m.unconnected, "length": round(m.length, 2),
            "vias": m.vias, "tracks": m.tracks,
            "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3),
+           "drc_loci": list(getattr(m, "drc_loci", []) or [])[:12],   # P6f: finishing-lens grounding (cosmetic vs structural)
            "reasons": reasons[:6], "stub_summary": stub_summary}
     return rec, log_path
 
@@ -212,6 +339,57 @@ def fem_advisory(routed, board):
         return {"fem_error": f"{type(e).__name__}: {e}"}
 
 
+def measure_board(routed, board):
+    """Full in-container measurement of an already-routed+poured board, WITHOUT writing a corpus/
+    DecisionLog entry: cec_score Metrics (gates/drc/unconnected + the Pareto axes length/vias/tracks/
+    plane_signal_mm) + the FEM advisory (max_T/max_dT/n_fem_flags) + the deterministic pour facts (F.Cu
+    sense-pour islands/area/foreign_cross/components, the same computation as cec_fullstack.pour_facts).
+    Used to RE-MEASURE the staggered board so its record describes the board it SHIPS, not the pre-stagger
+    one (re-audit 2026-06-14: the layer-stagger rescore was pour-blind and only 5 fields, so gates_pass
+    could be laundered and the Pareto axes/objective were stale). Returns a flat dict of the score+fem
+    fields plus a nested 'facts' (the pour_facts shape). Runs in-container (pcbnew/kicad-cli/FEM)."""
+    import cec_score
+    import pcbnew
+    m = cec_score.score(routed)
+    out = {"gates_pass": bool(m.gates_pass), "kelvin_ok": bool(m.kelvin_ok),
+           "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "unconnected": m.unconnected,
+           "length": round(m.length, 2), "vias": m.vias, "tracks": m.tracks,
+           "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3),
+           # the PLAIN worker objective of the staggered board -> the adopting rec's objective_base, so the
+           # gate-gated objective_v2 (and the EI-02 objective_base A/B credit) reflect the SHIPPED board, not
+           # the pre-stagger one (re-audit MEDIUM: objective_base was left stale).
+           "objective": round(cec_score.objective(m), 2)}
+    out.update(fem_advisory(routed, board))                       # max_T/max_dT/n_fem_flags (advisory)
+    b = pcbnew.LoadBoard(routed)
+    Z = {}
+    for z in b.Zones():
+        nn = z.GetNetname()
+        if not (nn.endswith("_HI") or nn.endswith("_LO")) or not z.IsOnLayer(pcbnew.F_Cu):
+            continue
+        try:
+            spl = z.GetFilledPolysList(pcbnew.F_Cu); isl = spl.OutlineCount(); ar = spl.Area() / 1e12
+        except Exception:                                        # noqa: BLE001
+            isl, ar = -1, -1.0
+        bb = z.GetBoundingBox()
+        Z[nn] = {"islands": isl, "area_mm2": round(ar, 2), "foreign_cross": 0,
+                 "_bb": [bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()]}
+    for t in b.GetTracks():
+        if t.GetClass() != "PCB_TRACK" or t.GetLayer() != pcbnew.F_Cu:
+            continue
+        tn, s, e = t.GetNetname(), t.GetStart(), t.GetEnd()
+        for nn, z in Z.items():
+            if tn == nn or tn.endswith("GND"):
+                continue
+            l, tp, r, bm = z["_bb"]
+            if min(s.x, e.x) <= r and max(s.x, e.x) >= l and min(s.y, e.y) <= bm and max(s.y, e.y) >= tp:
+                z["foreign_cross"] += 1
+    comp = cec_score.sense_pour_components(routed)
+    for nn in Z:
+        Z[nn]["components"] = comp.get(nn)
+    out["facts"] = {nn: {k: v for k, v in z.items() if k != "_bb"} for nn, z in Z.items()}
+    return out
+
+
 def _routed_sha(routed):
     """sha256 of the routed copper (tracks+vias) for R-01 candidate dedupe."""
     import pcbnew
@@ -224,7 +402,36 @@ def _routed_sha(routed):
 
 
 # ---- in-container WORKER (route+score one round, emit RECORD_JSON) ----------------------------------
-def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
+_STRIP_SCRIPT = (
+    "import sys, pcbnew\n"
+    "b = pcbnew.LoadBoard(sys.argv[1])\n"
+    "doomed = list(b.GetTracks())\n"          # PCB_TRACK + PCB_VIA
+    "for t in doomed:\n"
+    "    b.Remove(t)\n"
+    "pcbnew.SaveBoard(sys.argv[2], b)\n"
+    "sys.stdout.write(str(len(doomed)))\n")
+
+
+def _placement_only_copy(src_pcb, dst_pcb):
+    """A COPY of *src_pcb* with all tracks AND vias removed -- placement, zones and footprints kept --
+    so the router routes FRESH from placement. The committed board is never mutated.
+
+    Runs in a SHORT-LIVED SUBPROCESS, NOT in-process: the pcbnew track-Remove churn leaves dangling
+    SWIG proxies ('no destructor' warnings) that segfault the NEXT garbage-collection in the SAME
+    interpreter -- observed on the Hub, where a GC during route_directed's `import cec_fr` crashed
+    (rc=139). A subprocess that exits right after SaveBoard confines the churn (teardown only emits
+    the benign leak warnings); the parent then loads the clean saved file fresh."""
+    import subprocess
+    r = subprocess.run([sys.executable, "-c", _STRIP_SCRIPT, src_pcb, dst_pcb],
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0 or not os.path.isfile(dst_pcb):
+        raise RuntimeError(f"_placement_only_copy failed (rc={r.returncode}): {(r.stderr or '')[-300:]}")
+    print(f"[ovd] fresh-route: stripped {(r.stdout or '?').strip()} track/via(s) -> placement-only copy",
+          flush=True)
+    return dst_pcb
+
+
+def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None, board_pcb_override=None):
     """Runs IN the routing container. Directed-route + score one round, persist the routed
     board + the DecisionLog to the shared volume, and print a single RECORD_JSON= line the
     host orchestrator parses. Never touches the broker (the container can't reach it).
@@ -233,12 +440,24 @@ def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
     carrying the model-written FR-02 intents for THIS round -- replaces the static
     INTENTS dict when present (the assisted-router mechanism)."""
     board_pcb = BOARD_PCB[board]
+    # PL-05: the AUGMENTED lane may route from a per-round PLACEMENT override (a moved floorplan COPY);
+    # control / no-placement rounds pass None -> the committed floorplan, exactly as before. Guard: fall
+    # back to committed (never crash the round) if the override path is missing/invalid.
+    if board_pcb_override:
+        if os.path.isfile(board_pcb_override) and board_pcb_override.endswith(".kicad_pcb"):
+            board_pcb = board_pcb_override
+        else:
+            print(f"WARN: board_pcb_override {board_pcb_override!r} missing/invalid -> committed", flush=True)
     intents = INTENTS[board]
     if intents_file:
         with open(intents_file) as fh:
             intents = json.load(fh)
     work = tempfile.mkdtemp(prefix=f"ovd_{board}_{rnd}_")
     try:
+        # Path-B: a finalized (fully-routed) board routes FRESH from placement (committed/override
+        # both carry copper -> strip it on a per-round copy so Freerouting actually routes).
+        if board in FRESH_ROUTE_BOARDS:
+            board_pcb = _placement_only_copy(board_pcb, os.path.join(work, "placement-only.kicad_pcb"))
         routed, stub_summary, params = route_directed(board_pcb, intents, rnd, work,
                                                        passes=passes, opt_time=opt_time)
         sha = _routed_sha(routed)
@@ -262,16 +481,28 @@ def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intents_file=None):
+def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intents_file=None,
+                    board_pcb_override=None):
     """HOST side: docker compose exec the worker for one round; parse its RECORD_JSON.
     intents_file is a HOST repo-relative path; it is translated to the container mount."""
     import subprocess
-    cmd = COMPOSE + ["exec", "-T", "routing", "python3",
+    # Pass the per-seat stream dir THROUGH to the container so any in-container LLM seat records to the
+    # SAME shared-volume dir the host dashboard reads (only when it's under the repo = the /workspace mount).
+    env_args = []
+    sdir = os.environ.get("CEC_STREAM_DIR")
+    if sdir:
+        relsd = os.path.relpath(os.path.abspath(sdir), ROOT)
+        if not relsd.startswith(".."):
+            env_args = ["-e", f"CEC_STREAM_DIR={CONTAINER_ROOT}/{relsd}"]
+    cmd = COMPOSE + ["exec", "-T"] + env_args + ["routing", "python3",
                      f"{CONTAINER_ROOT}/scripts/cec_overnight_directed.py",
                      "--route-one", "--board", board, "--round", str(rnd)]
     if intents_file is not None:
         rel = os.path.relpath(os.path.abspath(intents_file), ROOT)
         cmd += ["--intents-file", f"{CONTAINER_ROOT}/{rel}"]
+    if board_pcb_override is not None:
+        relb = os.path.relpath(os.path.abspath(board_pcb_override), ROOT)
+        cmd += ["--board-pcb-override", f"{CONTAINER_ROOT}/{relb}"]   # PL-05: route the moved floorplan
     if passes is not None:
         cmd += ["--passes", str(passes)]
     if opt_time is not None:
@@ -335,10 +566,11 @@ def review_finalist(rec):
 
 
 # ---- ledger -----------------------------------------------------------------------------------------
-def ledger_round(board, rec, n_front):
+def ledger_round(board, rec, n_front, live_rules=None):
     try:
         import cec_ledger
         cec_ledger.append(board=f"overnight-directed:{board}", mode="route",
+                          live_rules=live_rules,          # EI-01: pin round-time knowledge state
                           verdict=("gates_pass" if rec["gates_pass"] else "gate_fail")
                                   + f" obj={rec['objective']} plane={rec['plane_signal_mm']}mm",
                           extra={"round": rec["round"], "params": rec["params"],
@@ -471,9 +703,12 @@ def main(argv=None):
     ap.add_argument("--opt-time", type=int, default=None, help="FR opt_time override (--route-one)")
     ap.add_argument("--intents-file", default=None,
                     help="tier-1 intent manager: JSON intents for this round (--route-one)")
+    ap.add_argument("--board-pcb-override", default=None,
+                    help="PL-05: route from this floorplan instead of the committed one (--route-one)")
     a = ap.parse_args(argv)
     if a.route_one:                                                # in-container worker leg
-        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time, a.intents_file))
+        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time, a.intents_file,
+                                  a.board_pcb_override))
     if a.shakeout:
         a.hours = min(a.hours, 0.5)
     run(a.board, a.hours, a.review_every, a.max_rounds, a.shakeout)

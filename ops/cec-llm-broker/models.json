@@ -1,0 +1,70 @@
+{
+  "_comment": "cec-llm-broker registry. Each entry maps an alias (the name clients put in the OpenAI 'model' field) to a docker-compose backend service. The broker starts/stops these ON DEMAND -- never compose up/down an LLM service by hand. vram_gb is the GPU-resident footprint used for arbitration against gpu_budget_gb on the single RTX 5090 (32 GB); when a request would overflow the budget the broker evicts the least-recently-used GPU backend first. Tune vram_gb/gpu_budget_gb if two backends should (or must not) coexist. Backends + filenames mirror docker/compose.yaml in the CEC-Platform repo.",
+  "gpu_budget_gb": 30,
+  "idle_stop_s": 1800,
+  "cold_load_timeout_s": 1200,
+  "drain_timeout_s": 180,
+  "compose_file": "/home/nathan/CEC-Platform/docker/compose.yaml",
+  "models": {
+    "cec-judge": {
+      "profile": "inference", "service": "inference",
+      "port": 8000, "served": "cec-judge", "health": "/v1/models",
+      "vram_gb": 27, "backend": "vllm",
+      "note": "vLLM Qwen3-Coder-30B-A3B-AWQ; the original routing-loop judge (--gpu-memory-utilization 0.85)."
+    },
+    "cec-worker": {
+      "profile": "worker-volume", "service": "worker-volume",
+      "port": 8002, "served": "cec-worker", "health": "/health",
+      "vram_gb": 24, "backend": "llama",
+      "note": "Qwen3.6-35B-A3B UD-Q4_K_M; high-throughput volume worker, 4 slots."
+    },
+    "cec-worker-quality": {
+      "profile": "worker-quality", "service": "worker-quality",
+      "port": 8004, "served": "cec-worker-quality", "health": "/health",
+      "vram_gb": 19, "backend": "llama",
+      "note": "Qwen3.6-27B dense Q4_K_M; max per-call quality swap-in."
+    },
+    "cec-vision-judge": {
+      "profile": "vision-judge", "service": "vision-judge",
+      "port": 8006, "served": "cec-vision-judge", "health": "/health",
+      "vram_gb": 21, "backend": "llama",
+      "note": "Qwen3-VL-32B-Instruct + mmproj; grounding-proven vision judge."
+    },
+    "cec-worker-vision": {
+      "profile": "worker-volume-vision", "service": "worker-volume-vision",
+      "port": 8012, "served": "cec-worker-vision", "health": "/health",
+      "vram_gb": 10, "backend": "llama",
+      "note": "Qwen3.6-35B-A3B + mmproj; the DEFAULT unified text+vision seat (cec_judge_local default model). vram_gb lowered 25->10 (2026-06-13): when V4-Flash is co-resident the compose command runs --n-cpu-moe 99 (experts in host RAM) so the GPU footprint is ~8-10GB instead of 24GB; set CEC_VISION_NCPUMOE=0 + raise this back to 25 when V4 is unloaded."
+    },
+    "cec-worker-quality-vision": {
+      "profile": "worker-quality-vision", "service": "worker-quality-vision",
+      "port": 8014, "served": "cec-worker-quality-vision", "health": "/health",
+      "vram_gb": 20, "backend": "llama",
+      "note": "Qwen3.6-27B + mmproj; quality unified text+vision seat."
+    },
+    "cec-manager": {
+      "profile": "manager-m27", "service": "manager-m27",
+      "port": 8003, "served": "cec-manager", "health": "/health",
+      "vram_gb": 22, "backend": "llama",
+      "note": "MiniMax-M2.7 229B-A10B UD-Q3_K_XL; retired from CEC paths (owner 2026-06-11) but kept registered for the other project. ~10 min cold load."
+    },
+    "cec-manager-fast": {
+      "profile": "manager-fast", "service": "manager-fast",
+      "port": 8005, "served": "cec-manager-fast", "health": "/health",
+      "vram_gb": 8, "backend": "llama",
+      "note": "gpt-oss-120b MXFP4; experts-in-RAM, ~6 GB GPU. Default REVIEWER tier."
+    },
+    "cec-worker-vision-win": {
+      "managed": false, "host": "windows-host",
+      "port": 8090, "served": "cec-worker-vision-win", "health": "/health",
+      "vram_gb": 25, "backend": "llama-win",
+      "note": "EXTERNAL: Windows-native llama-server (b9611, CUDA 13.3) serving Qwen3.6-35B-A3B + mmproj from E: at native NTFS speed (no drvfs cold-load tax). Launched Windows-side via the CEC-WorkerVision scheduled task (E:/llama-cpp-win/run-worker-vision.bat); the broker proxies but never starts/stops it. Phase-B migration target -- flip cec_judge_local CEC_VLLM_MODEL_NAME here to use it; WSL cec-worker-vision stays the fallback."
+    },
+    "deepseek-v4-flash": {
+      "managed": false, "host": "windows-host",
+      "port": 8007, "served": "deepseek-v4-flash", "health": "/health",
+      "vram_gb": 13, "backend": "llama-win",
+      "note": "EXTERNAL: Windows-native llama-server (V4-fork build E:/toolchain/llama.cpp-v4) serving DeepSeek-V4-Flash-284B Q4_K_M-XL from E:/models/DeepSeek-V4-Flash-GGUF; routed experts in host RAM (~135-140GB), attention/KV on the 5090 (~10-13GB GPU, MEASURED). Launched Windows-side via E:/toolchain/run-v4-flash.bat (preflight >=145GB free RAM; firewall rule CEC-v4flash-8007-WSL allows TCP 8007 from the WSL NAT). The T5 DEEP AUDITOR seat (cec_fullstack DEEP_AUDITOR / CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash / cec_inloop_audit V4 checkpoint). Broker proxies but NEVER starts/stops/reaps it; counts vram_gb in arbitration but never evicts it -- so a managed seat >~17GB cannot co-reside with V4 on the 32GB card (route worker uses no GPU seat; gpt-oss reviewer 8GB coexists fine)."
+    }
+  }
+}

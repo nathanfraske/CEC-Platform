@@ -1,0 +1,7 @@
+(version 1)
+
+# 24-pin ATX daughterboard -- 10 blade-tab joints (12V x1 / 5V x2 / 3.3V x2 / 5VSB x1 / GND x4; iteration-7 count at the TE 63969-1 receptacle's 22.9A rating under the ratified 125% policy) + a 1x4 blind-mate signal stub (-12V/PS_ON#/PWR_OK/GND), standing perpendicular to the main board, tabs blade-down per the owner's 2026-07-05 sketch, dropping into TE 63969-1 FASTON PCB receptacles (hole pair perpendicular to the row, memo addendum 7). COPPER (iteration-11 F1 fix, 2026-07-06 -- blade-interconnect-thermal memo F1): the old 0.3mm In2 lane corridor is RETIRED; each big rail floods one whole layer (F.Cu=+5V, In1=GND, In2=+12V, B.Cu=+3V3 -- all terminals are THT, zero vias) and +5VSB (6A) runs a 1.0-2.0mm B.Cu track chain east around the field into J15 through the tab mid-band; the 3 signals stay 0.2mm F.Cu point-to-point tracks. The Power netclass documents the hand-touch-up floor, not the floods (drawn directly by route_atx24()).
+
+(rule "Power min width"
+	(constraint track_width (min 0.4mm))
+	(condition "A.NetClass == 'Power'"))

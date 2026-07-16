@@ -1,0 +1,118 @@
+[
+ {
+  "net": "/I2C_SDA",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     0,
+     10
+    ]
+   },
+   {
+    "ref": "C10",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "ref": "U10",
+    "offset_mm": [
+     0,
+     10
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SCL",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     0,
+     12
+    ]
+   },
+   {
+    "ref": "C11",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "ref": "U11",
+    "offset_mm": [
+     0,
+     10
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/THRESH",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U30",
+    "offset_mm": [
+     0,
+     -10
+    ]
+   },
+   {
+    "ref": "C30",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "ref": "U31",
+    "offset_mm": [
+     0,
+     -10
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/DETC1",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     -10,
+     0
+    ]
+   },
+   {
+    "ref": "C10",
+    "offset_mm": [
+     -10,
+     0
+    ]
+   },
+   {
+    "ref": "U30",
+    "offset_mm": [
+     -10,
+     0
+    ]
+   }
+  ]
+ }
+]

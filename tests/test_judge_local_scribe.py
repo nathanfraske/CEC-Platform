@@ -12,14 +12,21 @@
 import importlib
 import json
 import os
+import shutil
 import sys
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
+# Isolation: the blocking-path tests must run with the per-seat recorder OFF. Pop CEC_STREAM_DIR so a
+# leaked env can't route them through the streaming transport (TestStreaming sets it locally instead).
+os.environ.pop("CEC_STREAM_DIR", None)
+
 import cec_judge_local as J  # noqa: E402
+import cec_seat_stream as S  # noqa: E402
 
 SCHEMA = {"type": "object", "properties": {"action": {"type": "string"}, "reason": {"type": "string"}},
           "required": ["action", "reason"], "additionalProperties": False}
@@ -169,6 +176,97 @@ class TestReviewerResolution(unittest.TestCase):
                                        CEC_VLLM_MANAGER_MODEL="cec-manager"),
                          "cec-worker-quality")                      # explicit reviewer wins
         importlib.reload(J)                                         # restore ambient module state
+
+
+class _SSEStub:
+    """OpenAI-compatible stub that STREAMS Server-Sent Events when the request asks for stream=true
+    (else returns plain JSON -- the fallback path). `frames` are delta dicts emitted as data: lines."""
+
+    def __init__(self, frames, stream_ok=True):
+        self.requests = []
+        outer = self
+
+        class H(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.0"                     # close after response -> client sees EOF
+
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                outer.requests.append(body)
+                if body.get("stream") and stream_ok:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+                    for fr in frames:
+                        self.wfile.write(("data: " + json.dumps({"choices": [{"delta": fr}]}) + "\n\n").encode())
+                    self.wfile.write(b"data: [DONE]\n\n")
+                else:                                         # non-SSE JSON body (blocking / ignored-stream)
+                    out = json.dumps({"choices": [{"message": {"content": json.dumps(
+                        {"action": "accept", "reason": "blocking"})}, "finish_reason": "stop"}]}).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(out)))
+                    self.end_headers()
+                    self.wfile.write(out)
+
+            def log_message(self, *a):
+                pass
+
+        self.srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+        self.url = f"http://127.0.0.1:{self.srv.server_address[1]}/v1"
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+
+
+class TestStreaming(unittest.TestCase):
+    """The CEC_STREAM_DIR streaming transport: SSE deltas are teed per-seat AND a non-SSE response
+    degrades to the blocking _post. The recorder caches handles, so reset them per test."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.environ["CEC_STREAM_DIR"] = self.tmp
+        S._HANDLES.clear()
+
+    def tearDown(self):
+        for h in S._HANDLES.values():
+            try:
+                h.close()
+            except Exception:
+                pass
+        S._HANDLES.clear()
+        os.environ.pop("CEC_STREAM_DIR", None)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_streaming_parses_and_records_per_seat(self):
+        frames = [{"reasoning_content": "weighing the gates"},
+                  {"content": '{"action":'}, {"content": '"accept","reason":"ok"}'}]
+        s = _SSEStub(frames)
+        try:
+            out = J._chat_json("sys", "user", SCHEMA, model="cec-worker-vision", url=s.url, seat="manager")
+        finally:
+            s.close()
+        self.assertEqual(out["action"], "accept")             # assembled stream parses to the verdict
+        self.assertTrue(s.requests[0].get("stream"))          # it actually streamed
+        events = [json.loads(L) for L in open(os.path.join(self.tmp, "manager.jsonl"))]
+        self.assertEqual(events[0]["kind"], "start")
+        self.assertEqual(events[-1]["kind"], "end")
+        deltas = [e for e in events if e["kind"] == "delta"]
+        self.assertTrue(any(e["ch"] == "reasoning" for e in deltas))
+        self.assertEqual("".join(e["d"] for e in deltas if e["ch"] == "content"),
+                         '{"action":"accept","reason":"ok"}')
+
+    def test_non_sse_response_falls_back_to_blocking(self):
+        s = _SSEStub([], stream_ok=False)                     # ignores stream -> plain JSON
+        try:
+            out = J._chat_json("sys", "user", SCHEMA, model="cec-worker-vision", url=s.url, seat="worker:0")
+        finally:
+            s.close()
+        self.assertEqual(out["action"], "accept")             # fallback returned the blocking result
+        self.assertEqual(len(s.requests), 2)                  # streaming attempt + blocking fallback
+        self.assertTrue(s.requests[0].get("stream"))
+        self.assertNotIn("stream", s.requests[1])
 
 
 if __name__ == "__main__":

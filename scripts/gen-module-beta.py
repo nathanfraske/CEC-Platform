@@ -1,0 +1,1047 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# ============================================================================
+#  gen-module-beta -- round-4 Wave 2 parametric hierarchical converter for the
+#  cable-i2c module family (eps-8pin / pcie-8pin-2port / pcie-8pin-3port).
+# ============================================================================
+# Plan of record: docs/standard-tier-review/round4-hier-conversion-2026-07-04.md
+# (ZERO-RENAME policy, gates G1-G11). Converts the CURRENT COMMITTED flat beta
+# schematic (BETA-1, the standard-tier-review pass) into a genuine hierarchy
+# (thin-parent root, same filename, in place) + one leaf per functional block,
+# via scripts/cec_sch_compose.py (build_leaf/build_thin_parent, incl. this
+# session's A1 `lane_labels` / A2 `name_pin_nets` extensions).
+#
+# EXTRACTION is FROM THE LIVE SCHEMATIC, never a stale snapshot: component
+# inventory via cec_sch_gates.inventory (catches DNP parts a netlist alone
+# would hide -- FL1 is DNP here) and connectivity via kicad-cli netlist
+# (cec_pcb_reconcile.netlist_groups). The classify_ref() partition is a
+# GENERIC anchor + ref-pattern rule (mirrors gen-module-rev2.py's role model:
+# anchors U1=MCU, U2=CAN, U3=LDO, J1=hub-link, J5=usb-flash; the per-cable
+# families U1x/U2x/U3x+RS*+C1x/C2x/C3x scale to any cable count), so the SAME
+# script is expected to carry over to the two PCIe SKUs in Wave 3 (not
+# validated on them yet -- eps-8pin is this session's proof board).
+#
+# PARTITION (7 literal leaf sheets; every net is either a genuine 2-leaf PAIR,
+# routed as a real drawn lane with lane_labels=True so it keeps its exact flat
+# name, or a single-leaf INTERNAL net force-exported via name_pin_nets so IT
+# ALSO keeps its exact flat name -- the round-4 zero-rename policy applies to
+# EVERY named net, not just the ones that happen to cross sheets):
+#   01-hub-link    J1, D1, R1, R7, FB2, C6           (RJ-45 + DETECT + 5VSB bead)
+#   02-can         U2, C4, C8, FL1, R11, R12         (TJA1051T/3 + CMC/bypass)
+#   03-ldo         U3, C1, C2                        (LP5907 3V3, no cross-sheet nets)
+#   04-mcu         U1, C3, C5, C7, R2, SW1, SW2       (ESP32-C6 + BOOT/RESET)
+#   05-sensing     U1x/U2x/U3x (INA238/INA181/TLV7011) + C1x/C2x/C3x + R10/C40/R3/R4
+#   06-cable-power J_IN*/J_OUT* + RS*                (cable interposer + shunts)
+#   07-usb-flash   J5, D2, D3, FB1, C9, R8, R9        (USB-C flash/debug front end)
+#
+#   python3 scripts/gen-module-beta.py [board]   (default: eps-8pin)
+import argparse
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+import cec_sch                # noqa: E402
+import cec_sch_compose as C   # noqa: E402
+import cec_sch_layout as L    # noqa: E402
+import cec_sch_gates as G     # noqa: E402
+import cec_pcb_reconcile as R  # noqa: E402
+
+LIBS = {
+    "cec":        open(f"{ROOT}/lib/cec.kicad_sym").read(),
+    "cec-vendor": open(f"{ROOT}/lib/vendor/cec-vendor.kicad_sym").read(),
+    "power":      open(f"{ROOT}/lib/vendor/cec-power.kicad_sym").read(),
+}
+# "cec-power" alias (round-4 Wave 3a): the PCIe boards carry a handful of
+# power symbols (PWR201/202/203) as literal, non-"#"-prefixed PARTS (see the
+# FIXED_LEAF note below) rather than the usual auto-excluded "#PWR*" flags,
+# so Compose.__init__ -> cec_sch.load_symbols() must resolve their lib_id's
+# nickname "cec-power" (parsed straight off "cec-power:GND" etc.) the same
+# way the driver already resolves "power" -- same file, same bare-name
+# symbol defs (GND/+5VSB/+3V3), just registered under both keys.
+LIBS["cec-power"] = LIBS["power"]
+POWER_PORTS = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
+POWER_NETS = set(POWER_PORTS)
+
+# ---------------------------------------------------------------------------
+# Board-agnostic PARTITION: fixed anchors + a generic per-cable ref pattern.
+# ---------------------------------------------------------------------------
+FIXED_LEAF = {
+    "J1": "01-hub-link", "D1": "01-hub-link", "R1": "01-hub-link",
+    "R7": "01-hub-link", "FB2": "01-hub-link", "C6": "01-hub-link",
+    "U2": "02-can", "C4": "02-can", "C8": "02-can",
+    "FL1": "02-can", "R11": "02-can", "R12": "02-can",
+    "U3": "03-ldo", "C1": "03-ldo", "C2": "03-ldo",
+    "U1": "04-mcu", "C3": "04-mcu", "C5": "04-mcu", "C7": "04-mcu",
+    "R2": "04-mcu", "SW1": "04-mcu", "SW2": "04-mcu",
+    "R10": "05-sensing", "C40": "05-sensing", "R3": "05-sensing", "R4": "05-sensing",
+    "J5": "07-usb-flash", "D2": "07-usb-flash", "D3": "07-usb-flash",
+    "FB1": "07-usb-flash", "C9": "07-usb-flash", "R8": "07-usb-flash", "R9": "07-usb-flash",
+    # PCIe-only (round-4 Wave 3a): the beta-splice H3 standalone-mode suite
+    # (commit 99c2b41) added a VBUS clamp diode + explicit power-flag symbols
+    # that EPS's own splice (7acb42f) did not carry. Verified via
+    # cec_pcb_reconcile.netlist_groups on the live flat boards (both PCIe
+    # SKUs, identical): D4 (cec-vendor:D_Schottky, Value PESD5V0S1BA) sits on
+    # the /VBUS net alongside C9/D2/D3/FB1 (all 07-usb-flash already) -- a
+    # single-leaf net, so D4 joins that leaf. PWR201 (cec-power:GND) is D3's
+    # own ground stamp (D3 pin2 -- both on the GND global net, same leaf).
+    # PWR202 (cec-power:GND) is D4's own ground stamp, same leaf. PWR203
+    # (cec-power:+5VSB) sits after FB2 (already 01-hub-link, the +5VSB entry
+    # bead) on /VCC_J1 -> FB2 -> +5VSB -- so PWR203 follows FB2's leaf. None
+    # of these carry the "#" reference prefix KiCad normally auto-assigns to
+    # power symbols (a pre-existing authoring quirk in the committed splice,
+    # left as-is per the zero-rename/non-invasive policy -- not this pass's
+    # place to silently "fix" an unrelated annotation convention), so
+    # cec_sch_gates.inventory() does NOT skip them and classify_ref() must.
+    "D4": "07-usb-flash", "PWR201": "07-usb-flash", "PWR202": "07-usb-flash",
+    "PWR203": "01-hub-link",
+}
+# per-cable families: U1x=INA238, U2x=INA181, U3x=TLV7011, C1x/C2x/C3x their
+# decoupling; RS*=shunt; J_IN*/J_OUT*=interposer connectors; TB<cable><n>=the
+# spec Sec 2.8 v1.4.0 output-daughterboard blade clips that REPLACE J_OUT* on
+# the 06-cable-power leaf (see _replace_j_out_with_clips below). Scales to any
+# cable count (eps=2, pcie-2port=2, pcie-3port=3) with no per-board table.
+_CABLE_SENSE_RE = re.compile(r"^(U1\d+|U2\d+|U3\d+|C1\d+|C2\d+|C3\d+)$")
+_CABLE_SHUNT_RE = re.compile(r"^RS\d+$")
+_CABLE_CONN_RE = re.compile(r"^J_(IN|OUT)\d+$")
+_CABLE_CLIP_RE = re.compile(r"^TB\d+$")
+
+
+def classify_ref(ref):
+    if ref in FIXED_LEAF:
+        return FIXED_LEAF[ref]
+    if _CABLE_SENSE_RE.match(ref):
+        return "05-sensing"
+    if _CABLE_SHUNT_RE.match(ref) or _CABLE_CONN_RE.match(ref) or _CABLE_CLIP_RE.match(ref):
+        return "06-cable-power"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Sec 2.8 v1.4.0 output-daughterboard blade-clip migration (2026-07-04, owner
+# ratification): J_OUT* (the board-mount male Mini-Fit Jr output header, one
+# per cable) is RETIRED per the ratified all-Keystone/TE connector class
+# (docs/standard-tier-review/output-daughterboard-study-2026-07-04.md
+# Sec 8.9-8.10, blade-fit-check-2026-07-04.md). Each cable's output rail and
+# GND return instead land on their OWN single-pin Keystone 3586 SMT
+# universal-entry blade clip -- the main-board half of the interface; the
+# mating TE 63849-1 tabs live on a passive daughterboard, a separate,
+# not-yet-created deliverable (out of scope here). Ratified per-cable counts
+# (spec Sec 2.8 v1.4.0, "3 contacts per polarity per cable" for EPS / "2 per
+# polarity per cable" for both PCIe SKUs): (rail_clips, gnd_clips).
+CLIP_COUNTS = {
+    "eps-8pin": (3, 3),
+    "pcie-8pin-2port": (2, 2),
+    "pcie-8pin-3port": (2, 2),
+}
+BLADE_CLIP_FOOTPRINT = "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+BLADE_CLIP_PROPS = {
+    "Manufacturer": "Keystone Electronics Corp.",
+    "MPN": "3586",
+    "LCSC": "C238113",
+}
+_JOUT_RE = re.compile(r"^J_OUT(\w+)$")
+
+# NOTE (owner decision box (e), output-daughterboard-study-2026-07-04.md Sec 5,
+# still OPEN 2026-07-04): sense-return contacts are NOT added by this
+# migration. Do not add one here without an explicit owner ruling -- this is
+# a one-line provision comment, not an implementation.
+
+
+def _replace_j_out_with_clips(extracted, board):
+    """Mutates `extracted` in place: removes every J_OUT<cable> ref (the
+    retired Mini-Fit Jr output header) and adds CLIP_COUNTS[board] Keystone
+    3586 blade clips per cable in its place, each single clip pin landing on
+    the EXACT SAME post-shunt rail net (SENSEC<cable>_LO) or GND net the
+    corresponding J_OUT pin group used to carry. Idempotent: a re-run over an
+    already-migrated board (no J_OUT* refs left) is a no-op, so this driver
+    stays safely re-runnable for a future non-electrical regen pass."""
+    jout_refs = sorted(
+        (r for r in extracted["parts"] if _JOUT_RE.match(r)),
+        key=lambda r: _JOUT_RE.match(r).group(1))
+    if not jout_refs:
+        already = [r for r in extracted["parts"] if _CABLE_CLIP_RE.match(r)]
+        if not already:
+            raise SystemExit(
+                "gen-module-beta: no J_OUT* refs found and no TB* clips "
+                "either -- unexpected board state, refusing to guess")
+        return []  # already migrated; nothing to do
+    if board not in CLIP_COUNTS:
+        raise SystemExit(f"gen-module-beta: no CLIP_COUNTS entry for board "
+                          f"{board!r} -- extend the table before migrating it")
+    rail_n, gnd_n = CLIP_COUNTS[board]
+    for ref in jout_refs:
+        cable = _JOUT_RE.match(ref).group(1)
+        lid = extracted["leaf_of"].pop(ref)
+        extracted["parts"].pop(ref)
+        extracted["footprints"].pop(ref)
+        extracted["props"].pop(ref, None)
+
+        rail_net = f"SENSEC{cable}_LO"
+        if rail_net not in extracted["pairs"] or lid not in extracted["pairs"][rail_net]:
+            raise SystemExit(
+                f"gen-module-beta: expected net {rail_net!r} on leaf {lid!r} "
+                f"for {ref} -- rail-net naming assumption broken, do not guess")
+        extracted["pairs"][rail_net][lid] = [
+            (r, p) for (r, p) in extracted["pairs"][rail_net][lid] if r != ref]
+        extracted["power_members"]["GND"] = [
+            (r, p) for (r, p) in extracted["power_members"]["GND"] if r != ref]
+
+        for k in range(1, rail_n + 1):
+            tb = f"TB{cable}{k}"
+            extracted["parts"][tb] = ("cec-vendor", "Keystone_3586_Blade_Clip", "Keystone 3586")
+            extracted["footprints"][tb] = BLADE_CLIP_FOOTPRINT
+            extracted["props"][tb] = dict(BLADE_CLIP_PROPS, Note=(
+                f"Output daughterboard blade clip, cable {cable} rail "
+                f"(+12V, post-shunt SENSEC{cable}_LO) -- ratified spec Sec "
+                f"2.8 v1.4.0; mates with the TE 63849-1 tab on the "
+                f"daughterboard (not yet a repo deliverable)."))
+            extracted["leaf_of"][tb] = lid
+            extracted["pairs"][rail_net][lid].append((tb, "1"))
+        for k in range(1, gnd_n + 1):
+            tb = f"TB{cable}{rail_n + k}"
+            extracted["parts"][tb] = ("cec-vendor", "Keystone_3586_Blade_Clip", "Keystone 3586")
+            extracted["footprints"][tb] = BLADE_CLIP_FOOTPRINT
+            extracted["props"][tb] = dict(BLADE_CLIP_PROPS, Note=(
+                f"Output daughterboard blade clip, cable {cable} return "
+                f"(GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE "
+                f"63849-1 tab on the daughterboard (not yet a repo "
+                f"deliverable)."))
+            extracted["leaf_of"][tb] = lid
+            extracted["power_members"]["GND"].append((tb, "1"))
+    return jout_refs
+
+
+LEAF_META = {
+    "01-hub-link":    ("01-hub-link.kicad_sch", "01-hub-link",
+                       "RJ-45 hub link, DETECT chain, +5VSB entry bead (FB2)"),
+    "02-can":         ("02-can.kicad_sch", "02-can",
+                       "TJA1051T/3 CAN transceiver + CMC position (FL1, DNP) "
+                       "with H3a-PATTERN 0R bypasses R11/R12"),
+    "03-ldo":         ("03-ldo.kicad_sch", "03-ldo", "LP5907 3V3 LDO"),
+    "04-mcu":         ("04-mcu.kicad_sch", "04-mcu",
+                       "ESP32-C6-MINI-1 + BOOT/RESET"),
+    "05-sensing":     ("05-sensing.kicad_sch", "05-sensing",
+                       "Per-cable INA238 + section 6.13 transient-detection "
+                       "front-end (INA181 + TLV7011)"),
+    "06-cable-power": ("06-cable-power.kicad_sch", "06-cable-power",
+                       "Cable interposer connectors + per-cable shunts"),
+    "07-usb-flash":   ("07-usb-flash.kicad_sch", "07-usb-flash",
+                       "USB-C 2.0 flash/debug front end (USBLC6-2SC6 + VBUS "
+                       "bead FB1)"),
+}
+LEAF_ORDER = ["01-hub-link", "02-can", "03-ldo", "04-mcu", "05-sensing",
+              "06-cable-power", "07-usb-flash"]
+
+# fixed sheet-identity uuids (stable across regenerations; component/wire/
+# label uuids stay cec_sch.u()-random each run, matching every other
+# generator in this repo -- see round4 plan doc's byte-identity note).
+LEAF_SYM_UUIDS = {
+    "01-hub-link":    "67f50ca3-8cb0-4aa6-9a3f-011faa4ff8d7",
+    "02-can":         "9b7ee0db-a842-437d-bf22-9658a349fa84",
+    "03-ldo":         "99f6d174-d4e7-4999-a233-27fadf4a4e91",
+    "04-mcu":         "83ceb2d1-e50f-4838-831a-71136b7d1260",
+    "05-sensing":     "ca9223a8-32f6-4bda-a693-56772d321af3",
+    "06-cable-power": "6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476",
+    "07-usb-flash":   "8adba108-789d-4153-ad59-e74c8138b4d8",
+}
+LEAF_OWN_UUIDS = {
+    "01-hub-link":    "63130f89-e306-4331-8e66-e0167f812cd5",
+    "02-can":         "dda99919-509e-418b-b8ae-16a2d69a459b",
+    "03-ldo":         "a375475f-4e21-4ce5-b5a5-4b5e4564e2e1",
+    "04-mcu":         "eec3be0a-fc70-40f0-b993-3e846a6af74d",
+    "05-sensing":     "586db8b0-62b6-4eae-a808-7bc337e3c7cb",
+    "06-cable-power": "69bf50ba-4b99-434f-a587-d33bc5b8de5c",
+    "07-usb-flash":   "7bf63c17-7516-43ff-a8d2-a5b691ee5c36",
+}
+
+# box layout (grid units, x y w h) -- left-to-right flow row 1, row 2 hangs
+# parts with no (or few) cross-sheet pins clear of every lane corridor.
+BOX = {
+    "01-hub-link":    (4, 8, 55, 40),
+    # y=30 (not 8, row-aligned with the rest): DETECT_SENSE's hub-link->mcu
+    # lane SKIPS OVER this box (can sits between them in x) and its tap
+    # routes at hub-link's own pin height (~28mm, the round-4 lane_labels
+    # tap mechanics) -- measured live, an y=8 can box of the same height
+    # sat exactly in that lane's path. y=30 clears it while can's own two
+    # pin pairs (still only 2 rows tall) fit easily.
+    "02-can":         (75, 30, 55, 30),
+    "04-mcu":         (150, 8, 60, 60),
+    "05-sensing":     (240, 8, 55, 44),
+    "06-cable-power": (315, 8, 50, 40),
+    "03-ldo":         (4, 80, 45, 24),
+    # x MUST differ from every other destination leaf's x (build_thin_parent's
+    # per-destination lane/tap math is a pure function of the destination
+    # box's edge x + a per-net index -- it does not consider y at all) --
+    # measured live: an earlier x=240 (matching 05-sensing) put usb-flash's
+    # USB_D_P/USB_D_N lanes/taps at the EXACT SAME x as several of sensing's
+    # own lanes despite the two boxes sitting in different rows, silently
+    # shorting THRESH/THRESH_PWM/I2C_SDA/I2C_SCL/DETC1/DETC2/USB_D_P/USB_D_N
+    # into one net (caught by the G1/G3 netlist-group-identity gate, not by
+    # any placement/box-crossing assertion). x=210 sits directly below mcu's
+    # OWN right edge (150+60) -- the tap's problematic first leg (drawn at
+    # SOURCE height, i.e. mcu's own row) then stays inside mcu's own x-span
+    # instead of skipping over 05-sensing/06-cable-power's boxes at that same
+    # y (measured live: x=400 sent it straight through 05-sensing's box).
+    "07-usb-flash":   (230, 90, 55, 26),
+}
+LEAF_PAPER = {
+    "01-hub-link": "A4", "02-can": "A4", "03-ldo": "A4", "04-mcu": "A3",
+    "05-sensing": "A3", "06-cable-power": "A4", "07-usb-flash": "A4",
+}
+
+
+def find_flat_sch(board_dir):
+    """Locate the board's MAIN .kicad_sch -- the flat pre-conversion file on
+    a fresh board (exactly one candidate, the common case), or the ROOT of
+    an already-converted hierarchical board (many candidates: the thin
+    parent plus its `NN-<block>.kicad_sch` leaves, all siblings in this same
+    directory). Once hierarchical, the sole-file rule can no longer find
+    anything (measured live: re-running the driver over its own prior output
+    crashed here with a confusing "found 8 files" error BEFORE ever reaching
+    the is_hierarchical()+force gate below -- that gate was unreachable).
+    Falls back to KiCad's own project convention -- the root schematic
+    shares its basename with the project's `.kicad_pro` (same rule
+    cec_pcb_reconcile._find_root_sch uses, verified against every real
+    hierarchical project in this repo)."""
+    cands = [f for f in os.listdir(board_dir) if f.endswith(".kicad_sch")]
+    if len(cands) == 1:
+        return os.path.join(board_dir, cands[0])
+    pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+    if len(pros) == 1:
+        cand = pros[0][:-len(".kicad_pro")] + ".kicad_sch"
+        if cand in cands:
+            return os.path.join(board_dir, cand)
+    raise SystemExit(f"expected exactly one .kicad_sch (or a .kicad_pro-matching "
+                      f"root) in {board_dir}, found {cands}")
+
+
+def is_hierarchical(sch_path):
+    """A root is already hierarchical if it contains a (sheet ...) block."""
+    text = open(sch_path).read()
+    work = L._strip_lib_symbols(text)
+    return bool(re.search(r'\(sheet\n', work))
+
+
+# ============================================================================
+# EXTRACTION -- direct from the live committed schematic (never a stale
+# snapshot / never the *-rev2 extract.json experiment dirs).
+# ============================================================================
+def _bare_name(name):
+    """kicad-cli's netlist export reports a flat (root-sheet) signal net as
+    "/BARE_NAME" -- a NETLIST-reporting convention (the root-sheet path
+    prefix), not something the schematic's own `(label ...)` text carries.
+    Leaf.net()/hier_exports use the bare form throughout this repo (see
+    gen-modules.py/gen_p4_t1_block.py), so it is stripped here, once, at
+    extraction. Power nets (GND/+3V3/+5VSB) already have no prefix."""
+    if name.count("/") > 1:
+        raise SystemExit(f"gen-module-beta: net {name!r} has more than one "
+                          f"path segment -- the flat-board assumption "
+                          f"(root-sheet only) does not hold")
+    return name[1:] if name.startswith("/") else name
+
+
+def extract(flat_sch):
+    inv = G.inventory(flat_sch)
+    groups = R.netlist_groups(flat_sch)
+    by_name = {}
+    for members, name in groups.items():
+        if name.startswith("unconnected-"):
+            continue
+        by_name[_bare_name(name)] = sorted(members)
+
+    parts, footprints, props, dnp_refs = {}, {}, {}, set()
+    for ref, d in inv.items():
+        lib, name = d["lib_id"].split(":", 1)
+        parts[ref] = (lib, name, d["value"])
+        footprints[ref] = d["footprint"]
+        props[ref] = d["props"]
+        if d["dnp"]:
+            dnp_refs.add(ref)
+
+    leaf_of = {}
+    for ref in parts:
+        lid = classify_ref(ref)
+        if lid is None:
+            raise SystemExit(f"gen-module-beta: unclassified ref {ref!r} -- "
+                              f"extend classify_ref()")
+        leaf_of[ref] = lid
+
+    pairs, internals = {}, {}
+    for name, members in by_name.items():
+        if name in POWER_NETS:
+            continue
+        by_leaf = {}
+        for ref, pin in members:
+            by_leaf.setdefault(leaf_of[ref], []).append((ref, pin))
+        if len(by_leaf) == 1:
+            (lid, conns), = by_leaf.items()
+            internals[name] = (lid, conns)
+        elif len(by_leaf) == 2:
+            pairs[name] = by_leaf
+        else:
+            raise SystemExit(f"gen-module-beta: net {name!r} spans "
+                              f"{len(by_leaf)} leaves {sorted(by_leaf)} -- "
+                              f"only 1 or 2 supported; repartition or add a "
+                              f"global_nets bus")
+
+    power_members = {}
+    for name in POWER_PORTS:   # dict, insertion-ordered -- see leaf_nets note
+        power_members[name] = by_name.get(name, [])
+
+    return {
+        "parts": parts, "footprints": footprints, "props": props,
+        "dnp_refs": dnp_refs, "leaf_of": leaf_of,
+        "pairs": pairs, "internals": internals, "power_members": power_members,
+    }
+
+
+def leaf_nets(extracted, lid):
+    """{net_name: [(ref,pin),...]} for everything touching leaf `lid`
+    (power nets excluded -- those go through power_ports uniformly)."""
+    nets = {}
+    for name, (owner_lid, conns) in extracted["internals"].items():
+        if owner_lid == lid:
+            nets[name] = list(conns)
+    for name, by_leaf in extracted["pairs"].items():
+        if lid in by_leaf:
+            nets[name] = list(by_leaf[lid])
+    for name in POWER_PORTS:   # dict, insertion-ordered -- NOT the POWER_NETS
+        # set: measured live (round-4 idempotency check), iterating a `set`
+        # of net-name strings has HASH-RANDOMIZED order across separate
+        # Python processes (PYTHONHASHSEED), so two back-to-back fresh runs
+        # from the identical flat baseline non-deterministically swapped
+        # WHICH physical stub position got the GND vs +5VSB power symbol --
+        # a real reproducibility bug, not just cosmetic (same net-name-to-
+        # connectivity result, but a different-looking schematic every run).
+        # POWER_PORTS is a plain dict (insertion order, stable every run).
+        conns = [(ref, pin) for ref, pin in extracted["power_members"][name]
+                 if extracted["leaf_of"][ref] == lid]
+        if conns:
+            nets[name] = conns
+    return nets
+
+
+def leaf_parts(extracted, lid):
+    return {ref: pn for ref, pn in extracted["parts"].items()
+            if extracted["leaf_of"][ref] == lid}
+
+
+def _patch_dnp(path, dnp_refs):
+    """Post-write patch: flip (dnp no) -> (dnp yes) for the given refs. Kept
+    OUT of cec_sch_compose.py deliberately -- Part A's engine surface is
+    scoped to lane_labels/name_pin_nets only; DNP is a board-driver concern
+    (only FL1 on this board) applied as a targeted text splice, mirroring
+    the same carve()-based technique cec_sch_gates.py already uses."""
+    if not dnp_refs:
+        return 0
+    text = open(path).read()
+    n = 0
+    out, pos = [], 0
+    for m in re.finditer(r'\t\(symbol\n', text):
+        if m.start() < pos:
+            continue
+        blk = cec_sch.carve(text, m.start())
+        rm = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', blk)
+        if rm and rm.group(1) in dnp_refs and "(dnp no)" in blk:
+            out.append(text[pos:m.start()])
+            out.append(blk.replace("(dnp no)", "(dnp yes)", 1))
+            pos = m.start() + len(blk)
+            n += 1
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
+_STRIPPABLE_PROPS = ("Footprint", "Datasheet")
+
+
+def _strip_absent_props(path, extracted, refs_here):
+    """Post-write patch: `cec_sch_compose._emit_symbol2` unconditionally
+    writes an EMPTY `Footprint` and `Datasheet` property on every part it
+    emits -- correct for every ordinary component in this repo (all of them
+    already carry both, even if Datasheet is itself blank, e.g. D4 above).
+    The PCIe H3 suite's raw power-flag REFS (PWR201/202/203; see the
+    FIXED_LEAF note) are the one exception: their ORIGINAL flat-baseline
+    symbol carries ONLY Reference+Value (KiCad does not give a plain GND/
+    +5VSB power symbol a Footprint/Datasheet field at all), so emitting
+    those two empty properties is a spurious G2 inventory diff (ADDED, not
+    CHANGED -- the key didn't exist before). Strips exactly the empty
+    property line for a ref+prop pair whose ORIGINAL extracted `props`
+    lacked that key entirely; leaves every other property (including a
+    genuinely-empty-but-PRESENT one like D4's Datasheet) untouched. Kept as
+    a targeted board-driver patch, mirroring `_patch_dnp` above, rather than
+    touching the shared engine (which is correct for every other part)."""
+    n = 0
+    text = open(path).read()
+    out, pos = [], 0
+    for m in re.finditer(r'\t\(symbol\n', text):
+        if m.start() < pos:
+            continue
+        blk = cec_sch.carve(text, m.start())
+        rm = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', blk)
+        ref = rm.group(1) if rm else None
+        if ref in refs_here:
+            orig_props = extracted["props"].get(ref, {})
+            new_blk = blk
+            for prop in _STRIPPABLE_PROPS:
+                if prop not in orig_props:
+                    new_blk, k = re.subn(
+                        rf'\t\t\(property "{prop}" "" \(at [^\n]*\n', '',
+                        new_blk, count=1)
+                    n += k
+            out.append(text[pos:m.start()])
+            out.append(new_blk)
+            pos = m.start() + len(blk)
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
+_LABEL_LINE_RE = re.compile(
+    r'\t\(label "([^"]+)" \(at ([\d.\-]+) ([\d.\-]+) (\d+)\) '
+    r'\(effects[^\n]*\n')
+
+
+def _dedupe_labels(path):
+    """Post-write patch: when a >2-member leaf-internal net (e.g. a shared
+    VBUS/bus node with several same-net pins landing at the identical
+    physical point via a junction) gets build_leaf's default one-label-
+    per-connected-pin treatment, two or more IDENTICAL (name, x, y) label
+    lines can land stacked exactly on top of each other -- measured live on
+    07-usb-flash's VBUS_RAW (D3/FB1/J5's four VBUS pins all wired through
+    one junction at (186.69, 88.9): FOUR literal duplicate `label
+    "VBUS_RAW"` lines at that exact point, which G5's detect_overlaps
+    correctly flags as C(4,2)=6 self-collisions). A label only NAMES the
+    net its wire is attached to -- removing redundant same-name labels at
+    an IDENTICAL point changes nothing electrically (the net keeps its
+    name from the one label that remains, and the physical wire/junction
+    topology is untouched), so this is a safe cosmetic dedupe, not a
+    connectivity edit (re-verified by the driver's own G1/G3 gate after
+    every patch). Keeps the FIRST occurrence of each (name, x, y) triple,
+    drops the rest."""
+    text = open(path).read()
+    seen = set()
+    out = []
+    n = 0
+    pos = 0
+    for m in _LABEL_LINE_RE.finditer(text):
+        key = (m.group(1), m.group(2), m.group(3))
+        out.append(text[pos:m.start()])
+        if key in seen:
+            n += 1
+            pos = m.end()
+            continue
+        seen.add(key)
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
+# ---------------------------------------------------------------------------
+# _pair_sides: for every 2-leaf net (extracted["pairs"], computed generically
+# per-board in extract()), which side ("right"=source/leftward box,
+# "left"=dest/rightward box) each leaf declares, DERIVED from the BOX
+# x-ordering (hub-link < can < mcu < sensing < cable-power; usb-flash sits
+# right of mcu) rather than hardcoded by net NAME.
+#
+# Round-4 Wave 3a (PCIe validation): a hardcoded {net_name: sides} table (the
+# original EPS-only form) is fragile across boards for two independently
+# measured reasons -- (1) the hub-link<->can crossing is named CAN_H_RJ/
+# CAN_L_RJ on EPS but CAN_H_J1/CAN_L_J1 on both PCIe SKUs (their beta-splice
+# commits, 7acb42f vs 99c2b41, used different label conventions for the same
+# electrical crossing); (2) a fixed table sized for EPS's 2 cables silently
+# DROPS a 3rd cable's SENSEC3_HI/_LO on pcie-8pin-3port -- since those nets
+# would then have NO hier_exports entry on EITHER leaf, each side would draw
+# an isolated same-name LOCAL label with no cross-sheet connection at all
+# (KiCad does not merge same-named plain labels across sheet boundaries),
+# silently stranding the net -- caught by G1/G3 groups compare, not any
+# assertion in this driver, so it must never be reached in the first place.
+# This function is name-AGNOSTIC and cable-count-agnostic: it reads whatever
+# 2-leaf pairs this board's OWN netlist actually contains. Verified to
+# reproduce the original hand-authored EPS table exactly (same BOX x-order).
+# ---------------------------------------------------------------------------
+def _pair_sides(extracted):
+    out = {}
+    for net, by_leaf in extracted["pairs"].items():
+        l1, l2 = sorted(by_leaf, key=lambda lid: BOX[lid][0])
+        out[net] = {l1: "right", l2: "left"}
+    return out
+
+# G8 prose preservation: the flat BETA-1 sheet's section captions, carried
+# verbatim onto the corresponding new leaf(s) (a string need only appear
+# SOMEWHERE across the new sheet set, not on a specific one).
+FLAT_CAPTIONS = {
+    "01-hub-link": ["HUB LINK  RJ-45 + DETECT"],
+    "02-can": ["CAN  TJA1051",
+               "H3 STANDALONE-MODE SUITE (USB ESD/EMC + CAN CMC)"],
+    "03-ldo": ["3V3 LDO"],
+    "04-mcu": ["MCU  ESP32-C6-MINI-1"],
+    # per-cable "6.13 TRANSIENT DETECTION  cable N" captions are NOT listed
+    # here -- round-4 Wave 3a found this fixed-at-2 list silently dropped
+    # pcie-8pin-3port's 3rd caption (a real G8 prose-preservation FAIL, not
+    # cosmetic: cable 3's own transient-detection section lost its title).
+    # compose_sensing() derives one per actual `cable_labels` entry instead
+    # (verified verbatim against the flat baseline for 2 AND 3 cables: exactly
+    # "6.13 TRANSIENT DETECTION  cable {label}", two spaces before "cable").
+    "05-sensing": ["PER-CABLE SENSING  INA238"],
+    "06-cable-power": [],
+    "07-usb-flash": ["FLASH / USB-C"],
+}
+
+
+def _auto_io(c, hier_exports):
+    """Standard S1: gather every hier-exported net to the leaf's own left/
+    right edge column by the anchor pin's NATURAL stub direction (mirrors
+    ent-common compose_04/compose_05's pattern). This is a LEAF-internal
+    layout choice, independent of the ROOT box side from _pair_sides()."""
+    for net, (_shape, (ref, pin)) in hier_exports.items():
+        _pt, (dx, _dy) = c.pin_out(ref, pin)
+        c.io(net, "left" if dx < 0 else "right")
+
+
+def _grid_place(c, refs, x0, y0, cols, dx=16, dy=16):
+    for i, ref in enumerate(refs):
+        c.place(ref, x0 + (i % cols) * dx, y0 + (i // cols) * dy)
+
+
+def _ladder_column(c, pins, offset_dx):
+    """Jog each (ref,pin) in `pins` (already ordered along ONE physical
+    column) out to a shared offset column `offset_dx` grid units from its
+    own connection point, then chain the jog points with real wire segments
+    -- the round-4 owner item 2 GND-bus-to-one-link treatment, generalizing
+    ent-common's 3-pin g17/g18/g37 precedent to a full N-pin ladder. Marks
+    every pin `consumed` (the generic per-pin stub+port pass skips them).
+    Returns the ordered jog points [(x,y), ...] (first/last are the chain's
+    free ends, for the caller to extend/stamp)."""
+    pts = []
+    for ref, pin in pins:
+        (px, py), _dv = c.pin_out(ref, pin)
+        gx = px + offset_dx
+        c.wire((px, py), (gx, py))
+        c.use((ref, pin))
+        pts.append((gx, py))
+    for a, b in zip(pts, pts[1:]):
+        c.wire(a, b)
+    return pts
+
+
+# ============================================================================
+# LEAF COMPOSERS
+# ============================================================================
+def compose_hub_link(c, lf):
+    c.place("J1", 40, 45)
+    c.place("D1", 75, 20)
+    c.place("R1", 90, 20)
+    c.place("R7", 105, 20)
+    c.place("FB2", 75, 55)
+    c.place("C6", 95, 55)
+    if "PWR203" in lf.parts:
+        # PCIe-only (see FIXED_LEAF note): +5VSB stamp downstream of FB2's
+        # 5VSB-entry bead. No explicit wiring needed -- it is a plain member
+        # of the leaf's global "+5VSB" net, so build_leaf's generic per-pin
+        # power-port pass stubs it automatically once placed. Clear of every
+        # other placement on this leaf (nothing else at x=95, y=70).
+        c.place("PWR203", 95, 70)
+    # J1 pins 4/5/7 (STREAM_P/N, RSVD) are unused at Standard tier -- left
+    # untouched (no net membership) so build_leaf's generic pass emits their
+    # no_connect flags automatically, matching the flat baseline exactly.
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["01-hub-link"][0], 20, 8)
+    c.done()
+
+
+def compose_can(c, lf):
+    c.place("U2", 45, 30)
+    c.place("C4", 80, 15)
+    c.place("C8", 80, 45)
+    c.place("FL1", 45, 65)
+    c.place("R11", 65, 65)
+    c.place("R12", 85, 65)
+    _auto_io(c, lf.hier_exports)
+    for txt in FLAT_CAPTIONS["02-can"]:
+        c.caption(txt, 10, 8 + FLAT_CAPTIONS["02-can"].index(txt) * 5)
+    c.done()
+
+
+def compose_ldo(c, lf):
+    c.place("U3", 40, 30)
+    c.place("C1", 65, 18)
+    c.place("C2", 65, 42)
+    c.caption(FLAT_CAPTIONS["03-ldo"][0], 10, 8)
+    c.done()
+
+
+def compose_mcu(c, lf):
+    U1X, U1Y = 80, 45
+    c.place("U1", U1X, U1Y)
+    used_entry = c.used[("cec-vendor", "ESP32-C6-MINI-1-N4")]
+    body = L.body_box_abs(used_entry["block"], U1X * cec_sch.GRID, U1Y * cec_sch.GRID, 0)
+    body_bottom = round(body[3] / cec_sch.GRID)
+
+    left_pins = [("U1", "1"), ("U1", "2"), ("U1", "11"), ("U1", "14")]
+    right_pins = [("U1", str(p)) for p in range(36, 54)]
+    left_pts = _ladder_column(c, left_pins, -2)
+    right_pts = _ladder_column(c, right_pins, 2)
+    wrap_y = body_bottom + 3
+    lx, ly = left_pts[-1]
+    rx, ry = right_pts[0]
+    c.wire((lx, ly), (lx, wrap_y))
+    c.wire((lx, wrap_y), (rx, wrap_y))
+    c.wire((rx, wrap_y), (rx, ry))
+    ex, ey = right_pts[-1]
+    c.wire((ex, ey), (ex, ey + 3))
+    c.stamp("GND", ex, ey + 3, 0)
+
+    _grid_place(c, ["C3", "C5", "C7", "R2", "SW1", "SW2"], 30, wrap_y + 12, 6, dx=16)
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["04-mcu"][0], 20, 8)
+    c.note("EN/GPIO0 are BOOT/RESET straps (SW1/SW2) -- leaf-internal, "
+           "name-pinned to keep their bare net names", 30, wrap_y + 30)
+    c.done()
+
+
+def compose_sensing(c, lf, cable_labels):
+    # LEFT column exits toward the MCU leaf (THRESH_PWM/I2C/DETC*); RIGHT
+    # column exits toward the cable-power leaf (SENSEC*_HI/_LO). Placement
+    # follows that flow directly (cmp_/R10/C40/R3/R4 left, ina right) so the
+    # io-column router's wire stays short. INA226 (ina) is placed rot=180:
+    # its Vin+/Vin- pins (8/9/10, the SENSEC anchors) are symbol-authored on
+    # the LEFT (angle 0) -- measured live, a naive rot=0 placement sent the
+    # SENSEC wire straight through the SAME part's own body trying to reach
+    # the right-side column. rot=180 flips them to the right (its I2C/addr/
+    # alert pins move left in exchange, harmless: their own hier anchors are
+    # R3/R4, not U1x, so U1x's copies just carry a plain same-name label).
+    # cols=1 (a single vertical column, not a 4-wide row): R10/C40/R3/R4 are
+    # each the anchor of a DIFFERENT "left"-side io-exported net (THRESH_PWM/
+    # THRESH/I2C_SDA/I2C_SCL). Placed in one row they'd share the SAME
+    # natural attach Y, and _route_io_columns's row-bump only separates the
+    # FINAL column row -- it does not stop the FIRST-LEG jog segments (drawn
+    # at the ORIGINAL, un-bumped Y) from overlapping each other. Measured
+    # live: a 4-wide row put THRESH_PWM/I2C_SDA/I2C_SCL's jogs on three
+    # overlapping collinear segments, shorting all three (and, transitively,
+    # everything else on their nets) into one net -- caught by the G1/G3
+    # connectivity-group gate, not any overlap/crossing assertion.
+    _grid_place(c, ["R10", "C40", "R3", "R4"], 15, 8, 1, dx=16, dy=16)
+    # y=80 (NOT 40): the R10/C40/R3/R4 column above occupies grid rows
+    # 8/24/40/56 (dx=16 apart) at this SAME x=15 -- starting the per-cable
+    # column at y=40 put cable-0's cmp_ EXACTLY on top of R3 (both grid
+    # (15,40)), a real double-occupancy (measured live: G5 detect_overlaps
+    # flagged R3's Value text crossing U30's pin glyphs -- they were the
+    # same point, not just close). y=80 clears the stack's last row (56)
+    # with a full dy of headroom.
+    y = 80
+    for i, label in enumerate(cable_labels):
+        ina, amp, cmp_ = f"U1{i}", f"U2{i}", f"U3{i}"
+        dec, ca, cb = f"C1{i}", f"C2{i}", f"C3{i}"
+        c.place(cmp_, 15, y)
+        c.place(cb, 15, y + 20)
+        c.place(amp, 55, y)
+        c.place(ca, 55, y + 20)
+        c.place(ina, 100, y, 180)
+        c.place(dec, 100, y + 20)
+        # per-cable caption near ITS OWN row (not bunched at the top with
+        # the main title -- measured live: all 3 captions crammed at
+        # (10..14, 6..8) overlapped each other's long text). Derived from
+        # `label` (the net's own cable id), not the loop index -- verbatim
+        # match to the flat baseline's "6.13 TRANSIENT DETECTION  cable N"
+        # caption for however many cables THIS board actually has (2 or 3;
+        # a fixed-length list here previously dropped the 3rd cable's
+        # caption on pcie-8pin-3port -- a real G8 prose-preservation FAIL).
+        c.caption(f"6.13 TRANSIENT DETECTION  cable {label}", 40, y - 8)
+        y += 45
+    for net in lf.hier_exports:
+        c.io(net, "right" if re.match(r"^SENSEC", net) else "left")
+    c.caption(FLAT_CAPTIONS["05-sensing"][0], 10, 2)
+    c.done()
+
+
+def compose_cable_power(c, lf, cable_labels, clip_counts):
+    # J_IN's SENSE pins are symbol-authored on the LEFT (angle 0); the shunt
+    # sits clear to the RIGHT, out of the left-bound io path (placing it
+    # directly between the connectors and the left edge, as an earlier
+    # attempt did, sent the io-column wire straight through its body --
+    # measured live).
+    #
+    # J_OUT (spec Sec 2.8 v1.4.0, 2026-07-04 owner ratification) is RETIRED:
+    # the daughterboard blade-clip migration (_replace_j_out_with_clips)
+    # already swapped it for `rail_n` rail clips (TB<cable>1..) + `gnd_n` GND
+    # clips (TB<cable><rail_n+1>..), same leaf, same nets.
+    rail_n, gnd_n = clip_counts
+    y = 20
+    for i in range(len(cable_labels)):
+        c.place(f"J_IN{i + 1}", 15, y)
+        c.place(f"RS{i + 1}", 45, y + 10)
+        y += 45
+    # The blade clips are placed in a SEPARATE block below every J_IN/RS row,
+    # not interleaved with them: measured live, a per-cable grid placed
+    # alongside J_IN/RS put a clip's body directly in another cable's
+    # io-column routing path (_route_io_columns draws each exported net's
+    # wire at ITS OWN row Y, a function of every hier_exports net's attach
+    # point on this leaf -- with J_OUT gone, that attach point is now RS's
+    # own pin, and the round-robin row spacing can land a segment at a Y a
+    # same-leaf clip occupies elsewhere on the sheet). A clean block well
+    # below the last J_IN/RS row has no such Y overlap.
+    clip_y0 = y + 20
+    for i, label in enumerate(cable_labels):
+        row_y = clip_y0 + i * 24
+        for k in range(1, rail_n + 1):
+            c.place(f"TB{label}{k}", 15 + (k - 1) * 10, row_y)
+        for k in range(1, gnd_n + 1):
+            c.place(f"TB{label}{rail_n + k}", 15 + (k - 1) * 10, row_y + 10)
+    # NOT _auto_io here (round-4's generic anchor-direction heuristic --
+    # "left" if dx<0 else "right" -- only works when the hier_exports ANCHOR
+    # pin happens to be horizontal/left-facing, true of J_OUT's own pins but
+    # NOT of RS's or a blade clip's, both vertical (angle 90, dx=0) pins per
+    # their symbols. After the Sec 2.8 v1.4.0 migration the SENSEC*_LO anchor
+    # is whichever member sorts first once J_OUT is gone (typically RS*),
+    # so the heuristic silently defaults every such net to "right" --
+    # measured live: it then routes the io column through the RIGHT side of
+    # the leaf where nothing was ever laid out for it, crossing a foreign
+    # symbol body. 06-cable-power ALWAYS talks to 05-sensing, and ALWAYS on
+    # its own LEFT edge (see BOX in the driver: 06-cable-power sits to
+    # 05-sensing's right, so its only hier_exports lane runs left) --
+    # hardcode it instead of trusting pin geometry that no longer holds.
+    for net in lf.hier_exports:
+        c.io(net, "left")
+    c.done()
+
+
+def compose_usb_flash(c, lf):
+    # D3 (USBLC6-2SC6) carries the USB_D_P/USB_D_N hier anchors on ITS OWN
+    # LEFT pins (1/3) -- placed leftmost so the io-column wire has nothing
+    # else to cross (measured live: with J2/D2 to its left, the wire clipped
+    # a foreign pin along the way).
+    c.place("D3", 15, 45)
+    c.place("J5", 70, 45)
+    c.place("D2", 100, 20)
+    c.place("FB1", 100, 45)
+    c.place("C9", 100, 70)
+    c.place("R8", 120, 20)
+    c.place("R9", 120, 70)
+    if "D4" in lf.parts:
+        # PCIe-only H3 VBUS clamp (see FIXED_LEAF note) -- a plain member of
+        # the leaf-internal /VBUS net alongside C9/D2/D3/FB1 (name-pinned,
+        # single-leaf), and its own GND stamp PWR201/PWR202. No explicit
+        # wire/label calls needed: build_leaf's generic per-pin pass stubs
+        # every net member automatically once placed. Clear of the existing
+        # row (D3/J5 at y=45, D2/FB1/C9/R8/R9 at y=20/45/70).
+        c.place("D4", 40, 70)
+        c.place("PWR201", 15, 70)
+        c.place("PWR202", 40, 85)
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["07-usb-flash"][0], 20, 8)
+    c.done()
+
+
+# ============================================================================
+# DRIVER
+# ============================================================================
+def _cable_labels(extracted):
+    """Cable node labels (e.g. ["C1","C2"]) from the SENSEC*_HI net names
+    touching the sensing leaf -- board-agnostic (works for 2 or 3 cables)."""
+    labels = set()
+    for name in extracted["pairs"]:
+        m = re.match(r"^SENSEC(\w+)_HI$", name)
+        if m:
+            labels.add(m.group(1))
+    return sorted(labels, key=lambda s: (len(s), s))
+
+
+def build(board, force=False):
+    board_dir = os.path.join(ROOT, "modules", board)
+    # KiCad instance blocks carry the PROJECT name = the .kicad_pro basename
+    # ("eps8pin-module"), NOT the directory name ("eps-8pin") -- a mismatch
+    # makes the GUI rewrite every instance on save (audit-sch flags it).
+    _pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+    project_name = _pros[0][:-len(".kicad_pro")] if len(_pros) == 1 else board
+    flat_sch = find_flat_sch(board_dir)
+    if is_hierarchical(flat_sch) and not force:
+        raise SystemExit(f"{flat_sch} is already hierarchical -- refusing to "
+                          f"run (pass --force to regenerate anyway)")
+
+    root_uuid = re.search(r'\(uuid\s+"([0-9a-fA-F-]+)"\)', open(flat_sch).read()).group(1)
+    title_m = re.search(r'\(title\s+"([^"]*)"\)', open(flat_sch).read())
+    rev_m = re.search(r'\(rev\s+"([^"]*)"\)', open(flat_sch).read())
+    title = title_m.group(1) if title_m else board
+    rev = rev_m.group(1) if rev_m else "DRAFT"
+
+    extracted = extract(flat_sch)
+    migrated_jout = _replace_j_out_with_clips(extracted, board)
+    if migrated_jout:
+        print(f"Sec 2.8 v1.4.0 blade-clip migration: replaced "
+              f"{', '.join(migrated_jout)} with TB<cable><n> clips "
+              f"(CLIP_COUNTS[{board!r}]={CLIP_COUNTS.get(board)})")
+    cable_labels = _cable_labels(extracted)
+    pair_sides = _pair_sides(extracted)
+    clip_counts = CLIP_COUNTS.get(board)
+
+    LEAVES = {}
+    for lid in LEAF_ORDER:
+        fname, sheetname, desc = LEAF_META[lid]
+        lf = C.Leaf(lid, fname, sheetname, desc)
+        lf.parts = leaf_parts(extracted, lid)
+        lf.nets = leaf_nets(extracted, lid)
+        lf.footprints = {r: extracted["footprints"][r] for r in lf.parts}
+        lf.props = {r: extracted["props"][r] for r in lf.parts if extracted["props"][r]}
+        lf.placement = {}
+        hx = {}
+        for net, sides in pair_sides.items():
+            if lid in sides and net in lf.nets:
+                hx[net] = ("output", lf.nets[net][0])
+        lf.hier_exports = hx
+        lf.powerflag_nets = ["+5VSB", "GND"] if lid == "01-hub-link" else []
+        LEAVES[lid] = lf
+
+    name_pin_nets = {}
+    for name, (owner_lid, _conns) in extracted["internals"].items():
+        name_pin_nets.setdefault(owner_lid, []).append(name)
+
+    stats = {}
+    for lid in LEAF_ORDER:
+        lf = LEAVES[lid]
+        c = C.Compose(lf, LIBS)
+        if lid == "01-hub-link":
+            compose_hub_link(c, lf)
+        elif lid == "02-can":
+            compose_can(c, lf)
+        elif lid == "03-ldo":
+            compose_ldo(c, lf)
+        elif lid == "04-mcu":
+            compose_mcu(c, lf)
+        elif lid == "05-sensing":
+            compose_sensing(c, lf, cable_labels)
+        elif lid == "06-cable-power":
+            compose_cable_power(c, lf, cable_labels, clip_counts)
+        elif lid == "07-usb-flash":
+            compose_usb_flash(c, lf)
+
+        out_path = os.path.join(board_dir, lf.filename)
+        st = C.build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, project_name, path_prefix=f"{root_uuid}/{LEAF_SYM_UUIDS[lid]}",
+            sheet_instances_path=LEAF_SYM_UUIDS[lid],
+            own_uuid=LEAF_OWN_UUIDS[lid], page=str(LEAF_ORDER.index(lid) + 2),
+            out_path=out_path, paper=LEAF_PAPER[lid],
+            title=f"{title}: {lf.sheetname}", comment1=lf.desc,
+            pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
+            name_pin_nets=name_pin_nets.get(lid), rev=rev)
+        n_moved, still = L.nudge_texts(out_path)
+        st["nudged"], st["text_overlaps_left"] = n_moved, still
+        dnp_here = extracted["dnp_refs"] & set(lf.parts)
+        st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
+        st["props_stripped"] = _strip_absent_props(out_path, extracted, set(lf.parts))
+        st["labels_deduped"] = _dedupe_labels(out_path)
+        # round-3 mutator battery (identity-gated by the driver's own G1 run
+        # afterwards; each mutator is the connectivity-guarded round-3 tool):
+        # spread/dedupe power-flag stacks, flip colliding labels, then one
+        # more nudge pass over whatever the mutators moved.
+        try:
+            st["flags_spread"] = len(L.spread_power_flags(out_path) or ())
+        except Exception:
+            st["flags_spread"] = "n/a"
+        try:
+            st["flags_deduped"] = len(L.dedupe_power_flags(out_path) or ())
+        except Exception:
+            st["flags_deduped"] = "n/a"
+        try:
+            st["labels_flipped"] = len(L.flip_label_collisions(out_path) or ())
+        except Exception:
+            st["labels_flipped"] = "n/a"
+        L.nudge_texts(out_path)
+        stats[lid] = st
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
+
+    u = cec_sch.GRID
+    leaves_for_parent = []
+    for lid in LEAF_ORDER:
+        lf = LEAVES[lid]
+        bx, by, bw, bh = BOX[lid]
+        pins = []
+        for net, sides in pair_sides.items():
+            if lid in sides:
+                pins.append((net, lf.hier_exports[net][0], sides[lid]))
+        leaves_for_parent.append({
+            "id": lid, "sym_uuid": LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": str(LEAF_ORDER.index(lid) + 2),
+            "x": bx * u, "y": by * u, "w": bw * u, "h": bh * u, "pins": pins,
+        })
+
+    root_path = flat_sch
+    title_comments = [
+        f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
+        "sheet-symbol fan-out/fan-in only, no components",
+        "Leaf sheets: " + ", ".join(lf.sheetname for lf in LEAVES.values()),
+        "GND/+3V3/+5VSB are global power nets (per-leaf symbols); every "
+        "other crossing is a real drawn sheet-pin lane carrying its "
+        "exact flat-schematic net name (lane_labels)",
+    ]
+    if migrated_jout:
+        title_comments.append(
+            f"Rev {rev} (spec Sec 2.8 v1.4.0 output-architecture revision, "
+            f"owner-ratified 2026-07-04): {', '.join(migrated_jout)} DELETED "
+            f"from 06-cable-power -- replaced by Keystone 3586 blade clips "
+            f"(TB<cable><n>, LCSC C238113), CLIP_COUNTS[{board!r}]="
+            f"{CLIP_COUNTS.get(board)} per cable, each landing on the SAME "
+            f"post-shunt rail/GND net its share of J_OUT used to carry. "
+            f"Sense-return contacts NOT added (owner decision box (e) still "
+            f"open). See docs/standard-tier-review/output-daughterboard-"
+            f"study-2026-07-04.md and blade-fit-check-2026-07-04.md.")
+    parent_stats = C.build_thin_parent(
+        leaves_for_parent, set(), project_name, root_uuid, None, root_uuid,
+        out_path=root_path, title=title, paper="A2", libs=LIBS,
+        pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets, rev=rev,
+        title_comments=tuple(title_comments))
+    print(f"{os.path.basename(root_path)} (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
+
+    # ---- ERC posture for the name-pin stubs (measured, KiCad 10.0.4): a
+    # LOCAL label on a root stub whose subgraph is only {wire, sheet pin}
+    # false-fires label_dangling; a root HIERARCHICAL label is rejected
+    # outright ("cannot be connected to non-existent parent sheet"); and
+    # kicad-cli erc_exclusions match CLASS-LOOSE (one wrong-uuid AND
+    # wrong-position entry suppressed all 13 -- measured), so per-instance
+    # exclusion is an illusion. Remedy: downgrade the class to warning in
+    # THIS board's .kicad_pro only. Real dangling labels stay policed
+    # deterministically by scripts/audit-sch.py (teeth verified: a floating
+    # label FAILs it), whose coincidence model correctly accepts the stubs.
+    if name_pin_nets:
+        import json as _json
+        pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+        if len(pros) == 1:
+            pro_path = os.path.join(board_dir, pros[0])
+            with open(pro_path) as fh:
+                pro = _json.load(fh)
+            sev = pro.setdefault("erc", {}).setdefault("rule_severities", {})
+            if sev.get("label_dangling") != "warning":
+                sev["label_dangling"] = "warning"
+                with open(pro_path, "w") as fh:
+                    _json.dump(pro, fh, indent=2)
+                    fh.write("\n")
+                print(f"{pros[0]}: erc.rule_severities.label_dangling -> "
+                      f"warning (name-pin stub class; see comment above)")
+    return stats, parent_stats
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("board", nargs="?", default="eps-8pin")
+    ap.add_argument("--force", action="store_true",
+                     help="regenerate even if the root is already hierarchical")
+    args = ap.parse_args(argv)
+    build(args.board, force=args.force)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

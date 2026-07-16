@@ -42,10 +42,29 @@ fi
 # tests/ is pruned from both sweeps: it holds FIXTURES (e.g. the frozen, deliberately
 # UNROUTED golden floorplan for scripts/cec_golden.py), not design sources.
 
+# Hierarchical projects (round-4 conversions, ent-common, hub-enterprise): a LEAF
+# sheet file is not an ERC unit — kicad-cli treats a bare leaf as its own root, so
+# its hierarchical labels read dangling and the verdict is meaningless. ERC the
+# project ROOT only; the root's ERC covers every leaf through the hierarchy.
+# A file is a leaf iff a SIBLING .kicad_sch references it as a (property "Sheetfile").
+is_subsheet() {  # $1 = schematic file -> 0 if some sibling sheet-references it
+  local dir base sib
+  dir="$(dirname "$1")"; base="$(basename "$1")"
+  for sib in "$dir"/*.kicad_sch; do
+    [ "$sib" = "$1" ] && continue
+    grep -qF "(property \"Sheetfile\" \"$base\"" "$sib" 2>/dev/null && return 0
+  done
+  return 1
+}
+
 # Electrical rule check over schematics that contain symbols.
 while IFS= read -r -d '' f; do
   found=1
   rel="${f#"$CEC_REPO_ROOT"/}"
+  if is_subsheet "$f"; then
+    printf 'skip ERC (sub-sheet of a hierarchical project): %s\n' "$rel"
+    continue
+  fi
   if [ -e "$(dirname "$f")/DRAFT" ]; then
     if fabbed "$f"; then
       printf 'ERC despite DRAFT (fab snapshot exists): %s\n' "$rel"

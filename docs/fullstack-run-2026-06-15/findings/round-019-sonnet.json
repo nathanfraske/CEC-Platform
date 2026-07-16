@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of sense components (likely INA/REF) fragments the SENSEC2_LO copper pour into two islands with high foreign cross (12 crossings), causing conductor over-temp flags and structural DRC violations. The pour is clipped, and the mirror status is rejected, indicating that layer-stagger or keepout strategies are insufficient to restore pour integrity. The 30 DRC errors and 2 unconnected nets stem from this placement-induced congestion and clearance violations.",
+ "reasoning": "The pour-integrity report shows SENSEC2_LO has 2 islands and foreign_cross=12, which is a clear sign of placement fragmentation. Kelvin sense nets are routed (kelvin_ok=true), so the T0 placement actuator will not fire automatically. However, the underlying issue is placement: the sense net cannot maintain a continuous low-impedance path because components block the pour. More routing effort cannot fix this; the components must be repositioned to allow a single, unobstructed pour island.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict and reposition sense components (INA/REF) away from the SENSEC2_LO pour corridor, carrying their passive clusters to avoid stranding decoupling caps. Alternatively, use a layer-stagger to route the pour on an inner layer with a continuous mirror, but the rejected mirror status suggests this is not viable without first clearing the placement blockage.",
+  "target": "/SENSEC2_LO pour integrity"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

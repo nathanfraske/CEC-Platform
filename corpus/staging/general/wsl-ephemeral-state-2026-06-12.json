@@ -1,0 +1,18 @@
+[
+ {
+  "id": "wsl-ephemeral-load-bearing-state",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {"regions": ["ops-state-durability"], "families": ["hub", "module"]},
+  "applies_to": ["informational"],
+  "title": "Load-bearing agent state must reach the git remote or survives-WSL storage, never live only on the WSL volume",
+  "rule": "Any load-bearing state -- the cross-session handoff, durable agent memory, secrets, the toolchain -- must live in exactly one of: the git remote, the Windows filesystem (E:/C:), or be rebuildable from the repo by a committed script. WSL volumes are ephemeral by definition; a value that exists only on the WSL volume is one reinstall from gone. Enforce mechanically, not by intent: a session-end hook pushes the handoff + memory to a dedicated branch every session (no owner approval -- it touches no owned path), provisioning is a single committed script (ops/provision.sh) whose first test is the recovery itself, and secrets are mounted read-only from outside WSL.",
+  "rationale": "2026-06-12 incident: an attempt to relocate the WSL distro to E: destroyed it and forced a full reinstall. The entire Linux home was lost -- repos, KiCad/Docker/Python toolchains, the /home/nathan/cec-llm-broker (the model orchestrator), and the agent's persistent memory. EVERYTHING recovered cleanly: the repo re-cloned from the remote, the toolchain reinstalled, the broker rebuilt from its CLAUDE.md spec, the GGUF models survived on /mnt/e (Windows). The SOLE non-recoverable casualty was the prior session's current-work-handoff, because it existed only on the WSL volume -- the exact failure mode this rule eliminates. The fixture is the incident: handoff = the one casualty against a fully-recovered everything-else.",
+  "source": {"type": "decision",
+             "ref": "owner directive 2026-06-12 (WSL-ephemeral state policy); CLAUDE.md '## WSL-ephemeral state policy'; ops/provision.sh; .claude/hooks/session-end.sh",
+             "date": "2026-06-12"},
+  "status": "proposed",
+  "supersedes": null,
+  "notes": "Process/ops rule. Advisory-only (class H, never compiles to a gate). Class-H AM-02 fixture exemption applies (no firing mechanism); the operational check is ops/provision.sh's four smoke tests + the session-end push hook. FINAL HOME pending Decision 16 (process-corpus custody); staged here for owner sign."
+ }
+]

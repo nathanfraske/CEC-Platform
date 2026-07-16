@@ -1,0 +1,33 @@
+{
+ "facts": {
+  "/SENSEC2_HI": {
+   "islands": 1,
+   "area_mm2": 80.78,
+   "foreign_cross": 10,
+   "components": 1
+  },
+  "/SENSEC2_LO": {
+   "islands": 1,
+   "area_mm2": 111.84,
+   "foreign_cross": 12,
+   "components": 1
+  },
+  "/SENSEC1_HI": {
+   "islands": 3,
+   "area_mm2": 73.46,
+   "foreign_cross": 5,
+   "components": 2
+  },
+  "/SENSEC1_LO": {
+   "islands": 1,
+   "area_mm2": 115.19,
+   "foreign_cross": 10,
+   "components": 1
+  }
+ },
+ "det_clipped_nets": [
+  "/SENSEC1_HI"
+ ],
+ "role": "narration+anomaly",
+ "vlm_gated": "non-finalist"
+}

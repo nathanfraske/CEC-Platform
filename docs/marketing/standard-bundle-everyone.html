@@ -1,0 +1,143 @@
+<title>CEC: A little guardian for your computer</title>
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --surface: #fffdf9;
+    --ink: #2a2620;
+    --ink-2: #5c5449;
+    --ink-3: #8a8175;
+    --line: #e8e1d5;
+    --green: #1c8f54;
+    --green-bright: #23a863;
+    --green-soft: #e2f0e7;
+    --amber: #bd7f28;
+    --amber-soft: #f6ebd6;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14120e; --surface: #1d1a15; --ink: #f1ece4; --ink-2: #bab2a5; --ink-3: #857c6f;
+      --line: #2b2720; --green: #52ca8b; --green-bright: #63d698; --green-soft: #14271c;
+      --amber: #e0a955; --amber-soft: #291f10;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f2ec; --surface: #fffdf9; --ink: #2a2620; --ink-2: #5c5449; --ink-3: #8a8175;
+    --line: #e8e1d5; --green: #1c8f54; --green-bright: #23a863; --green-soft: #e2f0e7;
+    --amber: #bd7f28; --amber-soft: #f6ebd6;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14120e; --surface: #1d1a15; --ink: #f1ece4; --ink-2: #bab2a5; --ink-3: #857c6f;
+    --line: #2b2720; --green: #52ca8b; --green-bright: #63d698; --green-soft: #14271c;
+    --amber: #e0a955; --amber-soft: #291f10;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: clamp(32px, 6vw, 76px) clamp(20px, 5vw, 40px) 96px; }
+
+  .hero { text-align: center; }
+  .lamp {
+    width: 132px; height: 132px; margin: 0 auto; border-radius: 50%;
+    background: radial-gradient(circle at 42% 38%, var(--green-bright), var(--green) 62%, color-mix(in srgb, var(--green) 70%, black) 100%);
+    box-shadow: 0 0 0 10px var(--green-soft), 0 0 46px 6px color-mix(in srgb, var(--green-bright) 55%, transparent);
+    animation: breathe 4.5s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100% { box-shadow: 0 0 0 10px var(--green-soft), 0 0 40px 4px color-mix(in srgb, var(--green-bright) 45%, transparent); }
+    50% { box-shadow: 0 0 0 14px var(--green-soft), 0 0 58px 10px color-mix(in srgb, var(--green-bright) 62%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) { .lamp { animation: none; } }
+  .lampword { margin-top: 22px; font-size: 15px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); }
+
+  h1 { font-size: clamp(30px, 5.6vw, 50px); line-height: 1.06; letter-spacing: -0.025em; font-weight: 800; margin: 18px 0 0; text-wrap: balance; }
+  .sub { margin: 20px auto 0; font-size: clamp(17px, 2.4vw, 21px); line-height: 1.5; color: var(--ink-2); max-width: 40ch; }
+
+  .beat { margin-top: clamp(52px, 9vw, 92px); }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--ink-3); text-align: center; }
+  .statement { font-size: clamp(24px, 4.2vw, 34px); line-height: 1.22; letter-spacing: -0.015em; font-weight: 750; margin: 16px auto 0; text-wrap: balance; text-align: center; max-width: 22ch; }
+  .statement .grn { color: var(--green); }
+
+  .lights { margin: 26px auto 0; max-width: 420px; display: grid; gap: 12px; }
+  .row { display: flex; gap: 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .row .d { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+  .row .d.g { background: var(--green-bright); box-shadow: 0 0 12px 1px color-mix(in srgb, var(--green-bright) 55%, transparent); }
+  .row .d.a { background: var(--amber); box-shadow: 0 0 12px 1px color-mix(in srgb, var(--amber) 55%, transparent); }
+  .row b { font-size: 16px; }
+  .row span { color: var(--ink-2); font-size: 15px; }
+  .row .t { display: flex; flex-direction: column; gap: 2px; }
+
+  .cards { margin-top: 22px; display: grid; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px clamp(20px, 3.5vw, 28px); }
+  .card h3 { margin: 0; font-size: 19px; font-weight: 750; letter-spacing: -0.01em; }
+  .card p { margin: 9px 0 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.55; }
+  .card .tag { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
+  .card.safety .tag { color: var(--amber); }
+
+  .install { margin-top: clamp(48px, 8vw, 80px); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: clamp(26px, 5vw, 40px); text-align: center; }
+  .install h2 { font-size: clamp(21px, 3.4vw, 28px); letter-spacing: -0.015em; margin: 0; font-weight: 780; text-wrap: balance; }
+  .install p { margin: 14px auto 0; color: var(--ink-2); font-size: 16px; line-height: 1.55; max-width: 42ch; }
+
+  .close { margin-top: clamp(44px, 8vw, 72px); font-size: clamp(20px, 3.2vw, 27px); line-height: 1.35; font-weight: 750; letter-spacing: -0.01em; text-align: center; text-wrap: balance; }
+  .close b { color: var(--green); }
+
+  .foot { margin-top: 52px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13.5px; line-height: 1.6; text-align: center; }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="lamp" role="img" aria-label="A glowing green status light"></div>
+    <div class="lampword">Your PC is healthy</div>
+    <h1>A little guardian for your computer.</h1>
+    <p class="sub">You don't have to understand any of it. CEC watches the parts inside your PC
+      that can fail, and tells you in plain words if it's okay.</p>
+  </header>
+
+  <div class="beat">
+    <span class="kicker">How it talks to you</span>
+    <p class="statement">One <span class="grn">light</span> tells you what you need to know.</p>
+    <div class="lights">
+      <div class="row"><span class="d g"></span><div class="t"><b>Green</b><span>Your computer is healthy. Nothing to do.</span></div></div>
+      <div class="row"><span class="d a"></span><div class="t"><b>Anything else</b><span>It tells you plainly what's wrong and what to do next.</span></div></div>
+    </div>
+  </div>
+
+  <div class="beat">
+    <span class="kicker">Why it's worth having</span>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">Peace of mind</span>
+        <h3>Know it's okay, at a glance</h3>
+        <p>Your computer cost a lot. One look at the light and you know it's fine, without
+          opening it, without an app, without learning anything.</p>
+      </div>
+      <div class="card safety">
+        <span class="tag">Safety</span>
+        <h3>A warning before danger</h3>
+        <p>Some computers have a power cable that can overheat. You'd have no way to know. CEC
+          warns you early, in plain words, while it's still safe to unplug it and get it checked.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Fair repairs</span>
+        <h3>Never get brushed off</h3>
+        <p>If it does go wrong, CEC gives the repair shop the exact reason. Your warranty gets
+          honored, and you're not overcharged to guess at the problem.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="install">
+    <h2>Installed once. Then it just watches.</h2>
+    <p>CEC comes inside your computer, or a shop puts it in one time. After that you do nothing.
+      It watches on its own, and the only thing you ever see is the light.</p>
+  </div>
+
+  <p class="close">You'll never open your computer, read a chart, or learn a thing.
+    <b>CEC does the watching.</b> You keep using your PC.</p>
+
+  <p class="foot">CEC quietly keeps an eye on the power inside your computer, the whole time it's
+    running, and warns you if a part is heading for trouble. Nothing to install yourself,
+    nothing to check, nothing to learn.</p>
+
+</div>

@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense pours (SENSEC1_LO, SENSEC2_LO) have high foreign cross counts (18 and 11 respectively), causing conductor over-temp FEM flags and likely contributing to DRC errors. Additionally, there are 2 unconnected nets and 12 DRC violations. The router is crossing the sense pours with other signals, leading to thermal issues and clearance violations.",
+ "reasoning": "The board has gates_pass=false due to structural DRC=12 and unconnected nets=2. FEM flags indicate over-temp on sense nets, correlated with high foreign_cross counts in pour-integrity. The corridor-avoid lever does not fire because clipped_nets is empty, but the foreign crossings can be addressed by routing offending signals around the sense corridors. Placement appears acceptable (kelvin_ok=true, diffpair_ok=true), so routing adjustments are the appropriate lever.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "FR-02 waypoint intents",
+  "detail": "Route foreign signals crossing SENSEC1_LO and SENSEC2_LO around the sense corridors using waypoint intents. Increase router effort to resolve remaining DRC errors and unconnected nets."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

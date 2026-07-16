@@ -17,4 +17,5 @@
   (lib (name "cec-Diode_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Diode_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Inductor_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Inductor_SMD.pretty")(options "")(descr "Vendored, pinned"))
 )

@@ -27,6 +27,23 @@ derived="$HOME/.claude/projects/$(echo "$root" | tr '/.' '--')/memory"
 canonical="$HOME/.claude/projects/-home-nathan-CEC-Platform/memory"
 memdir="$derived"; [ -d "$memdir" ] || memdir="$canonical"
 
+# --- self-heal from the DURABLE in-tree mirror (WSL-ephemeral state policy) ----------
+# The live memory under ~/.claude is DISPOSABLE; the committed, git-tracked copy at
+# .claude/memory/ is the durable source of truth (refreshed by the Stop hook). After a
+# WSL wipe + `git clone`, the live dir is empty, so seed it from the committed mirror so
+# the handoff is ALWAYS surfaced at session start. Only fill in files the live dir lacks
+# (never clobber a newer live edit). This is the explicit start-hook half of the handoff
+# durability contract; the Stop hook is the other half.
+committed="$root/.claude/memory"
+mkdir -p "$memdir" 2>/dev/null || true
+if [ -d "$committed" ]; then
+  for f in "$committed"/*.md; do
+    [ -e "$f" ] || continue
+    base="$(basename "$f")"
+    [ -e "$memdir/$base" ] || cp "$f" "$memdir/$base" 2>/dev/null || true
+  done
+fi
+
 python3 - "$memdir" <<'PY' 2>/dev/null || true
 import json, os, sys
 md = sys.argv[1]

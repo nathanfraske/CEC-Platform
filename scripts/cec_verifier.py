@@ -55,8 +55,8 @@ DEFAULT_BUDGET = 200                       # mirrors bandit_bounds.verifier_call
 PRECISION_FLOOR = 0.70                     # Decision 9
 CAL_WINDOW = 30                            # rolling settlements per charter
 CAL_MIN_SETTLED = 10                       # below this, suspension can never fire
-SEAT_MAX_TOKENS = 600                      # micro-schema ceiling
-SEAT_TIMEOUT = int(os.environ.get("CEC_VERIFIER_TIMEOUT", "300"))   # ride a swap (caller warms first)
+SEAT_MAX_TOKENS = int(os.environ.get("CEC_VERIFIER_SEAT_MAX_TOKENS", "2500"))   # 2500 (was 600): even a micro-schema verdict must not truncate a reasoning seat mid-thought
+SEAT_TIMEOUT = int(os.environ.get("CEC_VERIFIER_TIMEOUT", "600"))   # ride a swap (caller warms first) + room to finish
 V4_MODEL = os.environ.get("CEC_V4_MODEL", "deepseek-v4-flash")
 V4_MAX_TOKENS = int(os.environ.get("CEC_V4_MAX_TOKENS", "14000"))   # measured convergence budget
 
@@ -77,9 +77,12 @@ VERDICT_SCHEMA = {
 
 # --- the three charters: (system prompt, input slicer, temperature) ----------------------
 def _slice_spec(finding, ctx):
+    # cap raised 4000 -> 12000 (prompt-audit P4 fix 2026-06-13): the rules_excerpt now carries the
+    # locked-decision spine + fence + the promoted corpus (CORPUS_BRIEF's own cap is 13000); 4000 cut
+    # the corpus body to a stub. The excerpt is built spine-first so the spine survives regardless.
     return ("FINDING UNDER ADVERSARIAL REVIEW:\n%s\n\nRATIFIED RULES / LOCKED DECISIONS "
             "(the governing corpus extract):\n%s" % (
-                json.dumps(finding, indent=1)[:3000], ctx.get("rules_excerpt", "(none provided)")[:4000]))
+                json.dumps(finding, indent=1)[:3000], ctx.get("rules_excerpt", "(none provided)")[:12000]))
 
 
 def _slice_evidence(finding, ctx):
@@ -119,7 +122,11 @@ CHARTERS = {
         "system": ("You are an adversarial VERIFIER (actuation-space charter). The one question: "
                    "can any lever the loop owns move the metric this finding targets? If not, the "
                    "finding launders an unactionable failure into pricing/rules -- refute and name "
-                   "the real failure_class. Reply ONLY the JSON object."),
+                   "the real failure_class. Note (P10, prompt-audit 2026-06-13): the levers with a "
+                   "real EFFECTOR are failure_class (placement->GR-02 repair), scorer_penalty "
+                   "(ranking, only if a gate-passing candidate exists), and manager_rule; "
+                   "proposed_lever is RECORDED-ONLY (no direct effector) -- judge actuation against "
+                   "the real effector set, not the proposed_lever text. Reply ONLY the JSON object."),
         "slice": _slice_actuation, "temperature": 0.2,
     },
 }
@@ -254,7 +261,7 @@ class VerifierSession:
             return {"verdict": "uncertain", "reason": f"seat error: {type(e).__name__}: {e}",
                     "failure_class": "unknown", "status": "error"}
 
-    def _arbiter(self, finding, verdicts, timeout=240):
+    def _arbiter(self, finding, verdicts, timeout=600):
         """Sonnet contention arbiter (host, no GPU -- the zero-swap seat). Fail-safe
         to uncertain; the contention is still recorded for the V4 batch."""
         if self.spent >= self.budget:
@@ -323,7 +330,7 @@ class VerifierSession:
                               verdict_type, live_seats, dark_seats)
 
     # -- V4 deep batch auditor (owner: every N rounds, not just morning) --
-    def v4_batch_audit(self, batch, ctx=None, timeout=1800):
+    def v4_batch_audit(self, batch, ctx=None, timeout=3000):   # 3000 (was 1800): 14000 tok at ~5 tok/s needs the room, never timeout-cut
         """One deep V4 call over a BATCH of rounds/findings (serialized with routing by
         the caller -- V4 pins ~160GB host RAM; the broker handles start/swap). The deep
         seat's measured value is RESTRAINT: it is explicitly invited to decline."""
@@ -353,7 +360,13 @@ class VerifierSession:
                   "results). Your measured value is RESTRAINT: if the loop is minimizing penalties "
                   "rather than achieving routability, say so (local_minimum_risk) and DECLINE to "
                   "add findings (declined=true) rather than contribute epicycles. Only emit "
-                  "findings that are distinct, sourced in the batch evidence, and ratifiable.")
+                  "findings that are distinct, sourced in the batch evidence, and ratifiable. "
+                  # P12 (prompt-audit 2026-06-13): explicit decline-vs-audit criteria so the seat
+                  # neither over-declines (skipping useful audits) nor over-audits (epicycles).
+                  "DECLINE (declined=true) when the batch metrics are flat across rounds with no NEW "
+                  "failure class, or the board is already gate-passing with only finishing-class "
+                  "residual. AUDIT (emit findings) only when a distinct, batch-sourced pattern an "
+                  "OWNED lever could act on is present; if in doubt, decline -- restraint is the win.")
         user = ("BATCH (last %d rounds):\n%s\n\nSTANDING CONTEXT:\n%s" % (
             len(batch), json.dumps(batch, indent=1)[:24000],
             json.dumps(ctx, indent=1)[:6000]))

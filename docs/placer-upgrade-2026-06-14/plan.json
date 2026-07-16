@@ -1,0 +1,162 @@
+{
+  "summary": "Merged plan to sharpen the synth placer before the Hub full-stack run, deduped across four lenses (generic quality, Hub-domain terms, reference-oracle leverage, run infra). KEY GROUND-TRUTH CORRECTION I verified live, which reshapes priorities: the committed hubs/hub-standard/hub-standard.kicad_pcb is ALREADY ROUTED (cec_score.score reads length=2359.1, tracks=769, vias=136, kelvin_ok+diffpair_ok PASS) \u2014 the ORA lens's central \"reality check\" that it's placement-only with 0 segments is FALSE. So routed-length ground truth is free; no routing campaign is a prerequisite for calibration. I also quantified the gap live: a synth candidate at the reference's own 98x74 size scores HPWL 3677 / rudy_peak 15.5, vs the reference's HPWL 2002 / rudy_peak 3.0 \u2014 the placer is ~1.8x wirelength and ~5x congestion worse than the hand board, and the proxy already discriminates them (so calibrating it to RANK the reference high is well-posed). Two hard blockers are confirmed real: (1) materialize() FileNotFoundError because the Hub dir has no .net and cfg.net='' is passed straight to build_board (reproduced live); (2) seed_anchors mis-groups connectors \u2014 it routes RJ-45 'host' AND USB onto the SAME 'right' edge, and _role mis-keys J_5VSB (no 'IN' substring) as 'host' too, so the role heuristic alone produces a structurally wrong Hub frame. The highest-leverage thrust is the reference oracle: derive Stage-1 (edges/outline/mounts/antenna) FROM the reference to fix the frame, add a similarity metric to turn 'is this good?' into a number anchored to the fab board, and calibrate the proxy weights (rudy/thermal are computed but thrown away \u2014 sort key is only (residual, corridor_cross, hpwl)) against the now-available routed ground truth. The single biggest unblock-everything change is feeding a netlist to materialize (INFRA-1); without it no Hub board is ever written and nothing downstream runs.",
+  "minimal_viable": [
+    {
+      "order": 1,
+      "id": "MV1-NETLIST",
+      "title": "Feed a netlist to materialize() so a Hub candidate writes to .kicad_pcb (the one hard blocker)",
+      "files": [
+        "scripts/cec_synth_pipeline.py:materialize (2448-2466)",
+        "scripts/cec_synth_pipeline.py:View._export_netlist (348-361)"
+      ],
+      "change": "The Hub dir has NO *.net (verified), so Config.load sets cfg.net='' and materialize() passes it straight to cec_pcb.build_board -> parse_netlist(open('')) -> FileNotFoundError (reproduced live: 'MATERIALIZE FAILED: FileNotFoundError'). Lift the 3 export lines from View._export_netlist into a module-level helper returning a temp .net path; in materialize use netf = cfg.net if (cfg.net and os.path.isfile(cfg.net)) else _export_helper(cfg). Candidate GENERATION already works (View.nl falls back to sch-export, 77 comps/83 nets); only the WRITE step is broken. This is INFRA-1, the merge of the two infra-lens hits; nothing else is needed to get a materialized Hub board.",
+      "effort": "S",
+      "impact": "high",
+      "validation": "After the fix, materialize(cand, cfg, /tmp/hub.kicad_pcb) returns a file; read_placement() on it returns the same 77 netlist footprints (+ the 14 board-level FID/LOGO/M/TP extras build_board emits for mounts) and an outline at the swept size. Oracle parity: comp set matches the reference's netlist refs exactly (verified: in-netlist-not-in-PCB is empty)."
+    },
+    {
+      "order": 2,
+      "id": "MV2-ORACLE-STAGE1",
+      "title": "Derive Stage-1 answers FROM the reference (edges/outline/mounts/antenna) \u2014 fixes the structurally wrong frame",
+      "files": [
+        "scripts/cec_synth_pipeline.py:read_placement (1113)",
+        "scripts/cec_synth_pipeline.py:seed_anchors/place_edge (1489-1545)",
+        "scripts/cec_synth_pipeline.py:_role (1294-1311)",
+        "scripts/cec_synth_pipeline.py:elicit_requirements/place_with_consent (2369-2435, 2321)"
+      ],
+      "change": "Merge of ORA-1/INFRA-5/HUB-7. seed_anchors currently routes RJ-45 'host' AND USB onto the SAME 'right' edge (verified line 1540), and _role mis-keys J_5VSB as 'host' because it has no 'IN' substring (verified) \u2014 so role-default builds a wrong Hub frame (all 4 RJ-45 + USB + a power-in crammed on one edge). Add oracle_stage1_answers(cfg, ref_pcb): read_placement(ref) once, then DERIVE (1) size_target from outline W,H (98x74); (2) a per-connector {ref: edge} override by binning each anchor to its nearest board edge (J2-J5 -> their real edge at y=101.6; J_USB -> its edge; J_5V/J_5VSB -> theirs) and feed it as a seed_anchors override so the proven edge map REPLACES the broken role heuristic; (3) mount corner coords (M1-M4) into place_mechanical; (4) antenna edge/keepout from the ESP32 ref. Wire it before place_candidates when cfg.params['oracle_reference_path'] is set; human answers still override. ~50 lines on existing extraction.",
+      "effort": "M",
+      "impact": "high",
+      "validation": "Self-consistency/round-trip: oracle_stage1_answers on the reference, fed back through seed_anchors+place_mechanical, must reproduce the reference anchor edges/positions within tolerance (mounts within ~2mm, every connector on the same edge, RJ-45 pitch ~18.5mm). If the derivation can't reproduce the reference's own anchors it is wrong \u2014 a built-in unit check against ground truth."
+    },
+    {
+      "order": 3,
+      "id": "MV3-SIMILARITY",
+      "title": "Reproduce-the-reference similarity metric (the validation number) + Candidate.similarity, printed in the sweep",
+      "files": [
+        "scripts/cec_synth_pipeline.py:Candidate (2160-2171)",
+        "scripts/cec_synth_pipeline.py:synth_one (2174, ret 2292)",
+        "scripts/cec_synth_pipeline.py:place_candidates/run_sweep (2295-2318, 3108-3143)",
+        "scripts/cec_pcb.py:pad_global/courtyard_bbox (82, 107)"
+      ],
+      "change": "Merge of ORA-2/INFRA-3. Add oracle_similarity(cand_P, ref_placement) -> (score in [0,1], details) from FOUR host-side structural terms (no pcbnew, no route): (a) per-role connector EDGE match; (b) per-anchor Euclidean distance to the reference, bucketed (<5/<15/>15mm); (c) per-IC-cluster bbox-diagonal vs the reference (cluster tightness); (d) 1 - clamp(|cand.hpwl - ref.hpwl|/ref.hpwl). Store cand.similarity, compute it in synth_one ONLY when oracle_reference_path is set (guarded, zero cost otherwise), and PRINT the top-3 (residual, corridor_cross, hpwl, similarity) in place_with_consent/run_sweep. This is the brief's explicit VALIDATION ask and the only oracle leverage that needs no calibration \u2014 it turns 'is this placement good?' into 'this candidate is 0.7 similar; HPWL 1.8x the reference'. Keep it a DIAGNOSTIC, not yet a rank key.",
+      "effort": "M",
+      "impact": "high",
+      "validation": "Identity teeth: oracle_similarity(ref, ref)=1.0; a scrambled placement (swap two ICs, move a port off-edge) scores materially lower. Trust test: the reference must outscore every synth candidate on its own netlist (the reference IS the human-optimized answer). Live anchor already measured: synth HPWL 3677 vs ref 2002 -> the HPWL-match term reads ~0.18, a real signal."
+    },
+    {
+      "order": 4,
+      "id": "MV4-WIRE-PROXY",
+      "title": "Wire the computed RUDY+thermal proxy into candidate selection as a calibratable composite",
+      "files": [
+        "scripts/cec_synth_pipeline.py:place_candidates sort (2317)",
+        "scripts/cec_synth_pipeline.py:placement_proxy (1243-1255)",
+        "scripts/cec_synth_pipeline.py:Config.DEFAULT_PARAMS (~284)"
+      ],
+      "change": "Merge of G1/ORA-4 (Tier-A only). The sort key is verified to be (c.residual, c.corridor_cross, c.proxy['hpwl']) \u2014 rudy_peak/rudy_mean/thermal_peak_w are COMPUTED by placement_proxy and THROWN AWAY. Add proxy_score(proxy, weights) = w_hpwl*norm(hpwl) + w_rudy*norm(rudy_peak) + w_thermal*norm(thermal_peak_w), normalizing each by the reference's value so the reference scores ~1.0 and terms are commensurate. Make the three weights cfg.params knobs (HPWL-dominant defaults so it CANNOT regress today's behavior). Change the sort key to (residual, corridor_cross, round(proxy_score,3)). corridor_cross is verified inert (==0) on the Hub, so proxy_score becomes the real discriminator. This is ~15 lines and immediately makes best-of-N prefer the less-congested candidate (today a candidate that piles rudy 15 into a corner ties one at rudy 3 if HPWL matches).",
+      "effort": "S",
+      "impact": "high",
+      "validation": "Reference oracle: read the reference proxy (measured live: hpwl 2002, rudy_peak 3.0, thermal 0.5) as the normalizer; across a 6-12 candidate sweep at 98x74 the reference must land at/near the lowest proxy_score. If a worse-spread synth candidate (rudy 15.5) outranks it, the weights are wrong \u2014 that asymmetry is the calibration target. Default weights validated by the best-of-N composite never getting worse as the term is added."
+    },
+    {
+      "order": 5,
+      "id": "MV5-DOMAIN-TERMS",
+      "title": "The four high-value Hub-domain terms as proxy soft-costs (RJ-45 even-spacing, antenna-on-edge, power-cluster cohesion, USB-ESP proximity)",
+      "files": [
+        "scripts/cec_synth_pipeline.py:synth_one (beside corridor block, 2288-2291)",
+        "scripts/cec_synth_pipeline.py:hub_score (new)",
+        "scripts/cec_synth_pipeline.py:seed_anchors/place_edge (1504-1537)",
+        "scripts/cec_synth_pipeline.py:anneal_macros veto (1738)"
+      ],
+      "change": "Merge of HUB-0..HUB-4 + INFRA-7, scoped to the four terms that actually matter for a routable Hub. Add build_hub_model(nl,P,...) + hub_score(model,...) (pure geometry, mirroring build_corridor_model/corridor_cross_count) called ONCE in synth_one beside the inert corridor block; gate it to fire only when ports+ESP present so cable modules are untouched. Terms, all derived from nets (no hardcoded refs): (1) port_even = stdev of consecutive RJ-45 pad-gaps + off-edge penalty (reference target 18.5mm, verified); ALSO make place_edge stamp a uniform pitch (the 4 ports share a footprint so this is a tiny seed fix). (2) antenna_edge = ESP lobe-rect overlap with board interior + extend the existing anneal veto hook with antenna_keepout_veto so no movable body enters the lobe. (3) power_cluster = bbox-area/board-area of the +5VSB_RAW/+5V_HOLD/VBUS net members (TPS2121 x2 + LP5907 + C1 + power-in JSTs) \u2014 ROOT CAUSE the hold-up cap/mux smear is that big power nets are hairball-skipped by _adjacency so there's no pull; add one barycentric cohesion sweep for this group only. (4) usb_prox = dist(J_USB, ESP) over the USB_DP/DM nets. Fold these into proxy_score (MV4) via small weights; antenna is the one hard veto. NOTE: the brief's USB 'hard against' target is ~15mm, TIGHTER than the reference's own ~38mm, so calibrate USB from the diff-pair budget not the reference.",
+      "effort": "L",
+      "impact": "high",
+      "validation": "Each term checked against the reference invariants: reference port_even~=0 (gaps exactly 18.5mm, verified J2-J5 at 95.8/114.3/132.8/150.8); antenna lobe off-board, no part under it (the existing antenna_keepout DRC confirms post-materialize); power_cluster bbox small; a scrambled variant scores high on each. The MV3 similarity score on the winning candidate should rise toward the reference as terms turn on \u2014 measure the gap before/after."
+    }
+  ],
+  "later": [
+    {
+      "id": "L1-FINDBOARD-ROUTE",
+      "title": "find_board() hubs/ search + route the materialized Hub candidate (place->route->check leg)",
+      "effort": "S",
+      "impact": "medium"
+    },
+    {
+      "id": "L2-TIERB-CALIBRATION",
+      "title": "Tier-B proxy calibration: regress proxy_score onto REAL routed length using the already-routed reference as the anchor datum + N routed candidates",
+      "effort": "M",
+      "impact": "high"
+    },
+    {
+      "id": "L3-COMPACTION",
+      "title": "Compaction pass after legalize_pack (wire the unused legalize() relaxation + low-T re-anneal, then re-snap) to recover the ~1.8x area/HPWL gap",
+      "effort": "M",
+      "impact": "medium"
+    },
+    {
+      "id": "L4-ANNEAL-LEGALIZE-COUPLE",
+      "title": "Interleave anneal<->legalize (short legalize inside SA acceptance) so the greedy snap stops teleporting good annealed HPWL",
+      "effort": "M",
+      "impact": "medium"
+    },
+    {
+      "id": "L5-SOFTCOST-HOOK",
+      "title": "Generic soft_cost callable + exposed alpha/t0/cool/iters knobs in anneal_macros (only needed once a Hub term must be a HARD anneal cost, not just a rank term)",
+      "effort": "S",
+      "impact": "low"
+    },
+    {
+      "id": "L6-ORACLE-SEED",
+      "title": "Optional 7th 'oracle_reference' strategy: lock anchors to the reference + warm-start ICs from ref positions (one extra competing candidate, pure upside, overfitting-bounded)",
+      "effort": "M",
+      "impact": "medium"
+    },
+    {
+      "id": "L7-VALIDATION-GATE",
+      "title": "Oracle validation gate: escalate to human when best candidate similarity < floor OR proxy out-of-band vs the reference (lever-1 reseed first, then ask)",
+      "effort": "S",
+      "impact": "medium"
+    },
+    {
+      "id": "L8-DIVERSITY",
+      "title": "More seeds (0,1,2,3) + rotation sampling in the anneal move generator for rotation-free ICs",
+      "effort": "S",
+      "impact": "medium"
+    },
+    {
+      "id": "L9-FEASIBILITY-PROBE",
+      "title": "Feasibility probe: light Freerouting pass to fill Candidate.feasible and gate candidates pre-score (the real point of the size oracle)",
+      "effort": "L",
+      "impact": "medium"
+    },
+    {
+      "id": "L10-THERMAL-MODEL",
+      "title": "Finer/table-driven thermal proxy (gaussian spread, per-part-class dissipation table) \u2014 only worth it for future high-power Hubs; Hub Standard thermal margin is large",
+      "effort": "M",
+      "impact": "low"
+    },
+    {
+      "id": "L11-CAN-SYMMETRY",
+      "title": "CAN-centration + port-collinearity + symmetry tiebreaker score terms (smallest weights; ship after MV terms prove the model plumbing)",
+      "effort": "S",
+      "impact": "low"
+    },
+    {
+      "id": "L12-LED-CHAIN",
+      "title": "SK6812 7-LED daisy-chain ordering term (cosmetic; no routability or EMC stake on the Hub)",
+      "effort": "M",
+      "impact": "low"
+    }
+  ],
+  "over_engineering_warnings": [
+    "The ORA-5 'route the reference once to mint ground truth' framing and INFRA-2/INFRA-8's 'no routed-HPWL extractor exists' are based on a FALSE premise \u2014 I verified the committed Hub is already routed and cec_score.score() reads length=2359.1/tracks=769/vias=136/gates-pass directly. The Tier-B calibration anchor point is free; do NOT build a routing campaign as a calibration prerequisite. The remaining Tier-B cost is only routing N synth CANDIDATES to get the slope, which is genuinely deferrable.",
+    "Proxy weight calibration as a least-squares regression / gradient descent (full Tier-B, INFRA-8) before the first run is the clearest over-engineering risk in the set. The first run's value (a scored candidate + similarity-to-reference) does not need it; MV4's Tier-A 'rank the reference high' with HPWL-dominant defaults is enough and cannot regress. Defer the regression until candidate routes exist.",
+    "HUB-6 thermal-separation on Hub Standard: the board's thermal margin is large and it has no high-current cable paths; making the existing thermal_separated strategy fire by lowering the 0.3W threshold is borderline busywork for THIS board. Keep it as future platform machinery (Pro/8-port), not minimal-viable.",
+    "HUB-5 CAN-centration / port-collinearity / symmetry and the SK6812 LED-chain term (lens-2 item 5, lens-1 mention) are 'considerations', not safety- or routability-critical. Over-weighting symmetry can actively fight compaction. Ship them last with the smallest weights, only after the structural terms (MV5) prove the hub_model plumbing.",
+    "G5/G6 (finer thermal field, anneal<->legalize coupling) and G4 (compaction) are real generic wins but are quality polish, NOT first-run gates \u2014 the placer already produces a legal Hub placement (residual=7 at the as-built size, measured). Do them after the oracle tells you HOW far from the reference the result is; tuning them blind before measuring the gap is premature.",
+    "ORA-6 / L6 oracle-SEEDING risks overfitting the placer to one board (the goal is a generalizing placer). It is acceptable ONLY as one extra COMPETING candidate, never as the default path \u2014 the brief itself ranks it lowest. Do not let it become the only candidate that passes.",
+    "L5 generic soft_cost hook in anneal_macros: the SOFT ranking layer already has a clean seam (corridor_cross is injected into the sort tuple in synth_one), so the four MV5 Hub terms can ride as proxy/rank terms WITHOUT touching the hot anneal loop. Only build the anneal soft_cost callable if a term genuinely must be a hard SA cost (e.g. antenna veto, which already has its own hook). Don't refactor anneal pre-emptively."
+  ],
+  "recommended_sequence": "Land MV1 FIRST in isolation \u2014 it is the single blocker; without a netlist fed to materialize, no Hub board is ever written and every downstream step (render/DRC/similarity/route) is dead. Verify by materializing one candidate and read_placement-parity against the reference's netlist refs. Then MV2 (oracle Stage-1 derivation) because the role heuristic builds a structurally WRONG Hub frame (RJ-45 + USB + J_5VSB all collapse onto the 'right' edge \u2014 verified), so every candidate is junk until the edges come from the reference; MV2 also makes MV3 meaningful (you need the right frame before similarity is informative). Then MV3 (similarity metric) to get the validation NUMBER and quantify the gap \u2014 this is the instrument; you measured the raw gap is large (HPWL 3677 vs 2002, rudy 15.5 vs 3.0) and similarity makes that legible per-candidate. Then MV4 (wire rudy/thermal into selection) \u2014 cheap, can't regress, and immediately makes best-of-N prefer the less-congested candidate. Finally MV5 (the four Hub-domain terms) LAST in the MV set, because you want MV3's similarity already in place to measure each term's effect \u2014 add the term, watch similarity rise toward the reference, keep what helps. Sequence rationale: MV1 unblocks, MV2 fixes correctness, MV3 instruments, MV4 is free leverage, MV5 is the targeted quality work measured by MV3. After the MV set runs and you can see the residual gap, pull from LATER in this order: L1 (route leg) -> L7 (validation gate) -> L3/L4 (compaction + coupling to close the area/HPWL gap the similarity score exposes) -> L2 (Tier-B real-routed calibration, now that candidate routes are cheap to produce) -> the rest.",
+  "mvp_effort_estimate": "~2.5-3.5 engineering days for the 5 minimal-viable items. Breakdown: MV1 (S, netlist-to-materialize) ~0.5 day incl. the in-container verify; MV2 (M, oracle Stage-1 edge/outline/mount derivation + seed_anchors override) ~0.75 day; MV3 (M, similarity metric + Candidate field + sweep printing, 4 terms, identity/scramble tests) ~0.75 day; MV4 (S, proxy_score composite + sort-key swap + cfg knobs) ~0.25 day; MV5 (L, build_hub_model + hub_score with the 4 structural terms + antenna veto + power-cluster cohesion sweep) ~1 day. The S/M items (MV1+MV2+MV3+MV4 ~2.25 days) alone are enough to LAUNCH a first scored, similarity-validated Hub run on a structurally correct frame; MV5 is the quality lift you can fold in once MV3 is measuring it. All five are host-runnable (pcbnew + kicad-cli present, verified) except the final materialized-board DRC which wants the kicad10 container. Ground-truth checks already done in this analysis (materialize failure reproduced, reference proxy + routed length measured, sort key + role mis-grouping confirmed) remove most of the discovery risk from the estimate.\""
+}

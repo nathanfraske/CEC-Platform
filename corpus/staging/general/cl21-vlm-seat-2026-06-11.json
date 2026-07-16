@@ -1,0 +1,176 @@
+[
+  {
+    "id": "cl21-0-vlm-seat-core-principle",
+    "class": "H",
+    "kind": "heuristic",
+    "scope": {
+      "regions": [
+        "vision-seat-role"
+      ],
+      "families": [
+        "hub",
+        "module"
+      ]
+    },
+    "applies_to": [
+      "judge",
+      "informational"
+    ],
+    "title": "VLM seats: selection/comparison/structure-reading yes, absolute geometric measurement no",
+    "rule": "VLM seats are reliable for selection, pairwise comparison, and reading structure/text, and UNRELIABLE for absolute geometric measurement or counting. Deterministic checkers MUST own measurement; a VLM seat is only worth running if its job is selection/comparison/narration, never 'measure this geometry'.",
+    "rationale": "CL-21, head-one grounded by the 2026-06-11 dive. CEC's four-board vision failure (vision-unify-evidence.json) maps exactly onto the published geometric-blindness mode: BlindTest (Rahmanzadehgervi et al., ACCV 2024) puts 4 SOTA VLMs at avg 58.57% / best 74.94% vs human 100% / random 24%, counting+intersection worst, with linear probing showing the ENCODER sees but the LM fails to decode; MMVP (Tong et al., CVPR 2024) GPT-4V 38.7% vs human 95.7%. Measurement therefore stays with the deterministic pre-pass (cec_render_diff + cec_dfm_check), which passes the 12/12 enumerable-class gate.",
+    "source": {
+      "type": "measurement",
+      "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json (CEC vision-seat failure) + docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md (head-one dive)",
+      "date": "2026-06-11"
+    },
+    "status": "proposed",
+    "supersedes": null,
+    "fixture": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+    "references": [
+      "Rahmanzadehgervi, Bolton, Taesiri, Nguyen, 'Vision language models are blind,' ACCV 2024, arXiv:2407.06581 [T1]",
+      "Tong, Liu, Zhai, Ma, LeCun, Xie, 'Eyes Wide Shut?', CVPR 2024, arXiv:2401.06209 [T1]"
+    ],
+    "notes": "Advisory principle (Class H, never compiles to a gate). Authority: owner ruling docs/decisions/owner-ruling-vlm-detection-pipeline-2026-06-11.md (deterministic pre-pass owns detection; VLM narration+anomaly only). Staged for owner sign; the eval_gate in cec-policy.json is owner-gated."
+  },
+  {
+    "id": "cl21-1-text-prior-dominance",
+    "class": "H",
+    "kind": "heuristic",
+    "scope": {
+      "regions": [
+        "vision-seat-prompt-facts"
+      ],
+      "families": [
+        "hub",
+        "module"
+      ]
+    },
+    "applies_to": [
+      "judge",
+      "informational"
+    ],
+    "title": "Text-prior dominance: a VLM repeats fed text over reading the image; do not feed facts it can parrot",
+    "rule": "When prompt text asserts something the image contradicts, VLMs tend to REPEAT THE TEXT rather than read the image. Feeding deterministic facts alongside the image does not reliably fix this and can worsen it. Do NOT hand a VLM the numeric ground truth it could parrot back as if it read it.",
+    "rationale": "CEC mechanism (2): the seat asserted 'data confirms islands > 1' while the fed facts said islands == 1 (vision-unify-evidence.json) -- a verbatim text-prior hallucination. Grounded by Deng et al. 'Words or Vision' (CVPR 2025) -- corrupted text drops accuracy ~50% (Qwen2-VL to 59/63/52% of baseline); POPE (Li et al., EMNLP 2023) -- 'Yes'-bias near 99-100%, co-occurrence hallucination; the ICLR 2025 sycophancy study (agreement with the user over the image, worsening with size); VQA-CP (Agrawal et al., CVPR 2018) language-prior ancestry. Fix: the re-roled narration prompt (cec_vision_narrate) is fed diff-region LOCATIONS, never the counts.",
+    "source": {
+      "type": "measurement",
+      "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json (islands>1 hallucination vs fed islands==1) + docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md",
+      "date": "2026-06-11"
+    },
+    "status": "proposed",
+    "supersedes": null,
+    "fixture": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+    "references": [
+      "Deng et al., 'Words or Vision: Do VLMs Have Blind Faith in Text?', CVPR 2025, arXiv:2503.02199 [T1]",
+      "Li et al., 'Evaluating Object Hallucination in LVLMs' (POPE), EMNLP 2023, arXiv:2305.10355 [T1]",
+      "VLM sycophancy study, ICLR 2025 [T1]",
+      "Agrawal et al., VQA-CP, CVPR 2018 [T1]"
+    ],
+    "notes": "Advisory (Class H). Drives the cec_vision_narrate contract: NO facts in the prompt (unit-tested, tests/test_vision_narrate.py)."
+  },
+  {
+    "id": "cl21-2-prompt-rule-trap",
+    "class": "H",
+    "kind": "heuristic",
+    "scope": {
+      "regions": [
+        "vision-seat-prompt-rules"
+      ],
+      "families": [
+        "hub",
+        "module"
+      ]
+    },
+    "applies_to": [
+      "judge",
+      "informational"
+    ],
+    "title": "Prompt-rule trap: a fed heuristic that hard-codes the answer is parroted regardless of the image",
+    "rule": "A fed heuristic that encodes the verdict (e.g. 'foreign crossings > 0 => clipped') will be parroted regardless of what the image shows -- the prompt itself predetermines the answer. Never put a decision rule in a VLM prompt; the prompt must not be able to answer the question without the image.",
+    "rationale": "CEC mechanism (1): the pour-check prompt fed the rule 'islands>1 or foreign_cross>0 means clipped' alongside the facts, so the seat marked ALL four rounds clipped -- flagging intact round-1 as worse than fragmented round-4 (vision-unify-evidence.json). A prompt-design failure compounding text-prior dominance. Grounded by the blind-faith/POPE citations and the BlindTest finding that many answers are inferable from the text/choices alone. Fix: the predetermining heuristic is DELETED from cec_vision_narrate; detection is deterministic.",
+    "source": {
+      "type": "measurement",
+      "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json (all-rounds-clipped from the fed rule) + docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md",
+      "date": "2026-06-11"
+    },
+    "status": "proposed",
+    "supersedes": null,
+    "fixture": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+    "references": [
+      "Deng et al., 'Words or Vision', CVPR 2025, arXiv:2503.02199 [T1]",
+      "Li et al., POPE, EMNLP 2023, arXiv:2305.10355 [T1]",
+      "Rahmanzadehgervi et al., 'Vision language models are blind', ACCV 2024, arXiv:2407.06581, sec.1 (text/choice inferability) [T1]"
+    ],
+    "notes": "Advisory (Class H). The heuristic deletion is enforced by tests/test_vision_narrate.py (asserts no 'islands>1 means clipped' / 'intact vs clipped' leaks into the prompt)."
+  },
+  {
+    "id": "cl21-3-pairwise-beats-absolute",
+    "class": "H",
+    "kind": "heuristic",
+    "scope": {
+      "regions": [
+        "vision-seat-comparison"
+      ],
+      "families": [
+        "hub",
+        "module"
+      ]
+    },
+    "applies_to": [
+      "judge",
+      "informational"
+    ],
+    "title": "Where a VLM is used at all, frame it pairwise against a frozen reference, never absolute scoring",
+    "rule": "If a VLM is retained for any comparative read, frame it as PAIRWISE comparison against a frozen known-good reference, not absolute 'is this intact' scoring. Reference-anchored / pairwise judgments are more stable and more human-aligned than absolute ones, and the output is a flag, never a verdict.",
+    "rationale": "CL-21.3. The LLM-as-judge literature replicates that pairwise > absolute: Zheng et al. (MT-Bench/Chatbot Arena, NeurIPS 2023) -- GPT-4 judges reach >80% human agreement (the level humans agree with each other), pairwise/Arena most reliable; Liusie et al. (EACL 2024) -- comparative assessment more stable than absolute scoring. In CEC the retained comparison is strictly pairwise against the frozen reference render (cec_render_diff supplies the regions; the VLM only narrates them).",
+    "source": {
+      "type": "measurement",
+      "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json (absolute pour-verdict failure) + docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md",
+      "date": "2026-06-11"
+    },
+    "status": "proposed",
+    "supersedes": null,
+    "fixture": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+    "references": [
+      "Zheng et al., 'Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena', NeurIPS 2023, arXiv:2306.05685 [T1]",
+      "Liusie et al., 'Comparative Assessment of Text Generation', EACL 2024 [T1]"
+    ],
+    "notes": "Advisory (Class H). Realized by the re-roled seat: narration is fed render-diff regions (pairwise vs the frozen reference), output is a flag."
+  },
+  {
+    "id": "cl21-4-tool-delegation",
+    "class": "H",
+    "kind": "heuristic",
+    "scope": {
+      "regions": [
+        "vision-seat-architecture",
+        "loop-scorer"
+      ],
+      "families": [
+        "hub",
+        "module"
+      ]
+    },
+    "applies_to": [
+      "judge",
+      "informational"
+    ],
+    "title": "Tool-delegation: deterministic tools measure/count; the model only orchestrates and narrates",
+    "rule": "The correct architecture delegates measurement and counting to deterministic tools and uses the model only to orchestrate and NARRATE. The model's value is semantic/triage (narration, classification, novelty/anomaly), not detection or measurement.",
+    "rationale": "CL-21.4 -- exactly CEC's design once corrected: the deterministic pre-pass (cec_render_diff + cec_dfm_check) owns detection and passes the 12/12 gate; the VLM is narration + open-ended anomaly only, and its seat rides exclusively on its measured incremental catch over the pre-pass (2/3 on planted unknown-unknowns, with a non-zero false-positive rate -- docs/det-inspection/incremental-catch.md). Grounded by the tool-augmented VLM literature.",
+    "source": {
+      "type": "measurement",
+      "ref": "docs/det-inspection/incremental-catch.md (VLM incremental catch over the deterministic pre-pass) + docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md",
+      "date": "2026-06-11"
+    },
+    "status": "proposed",
+    "supersedes": null,
+    "fixture": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+    "references": [
+      "Suris, Menon, Vondrick, 'ViperGPT: Visual Inference via Python Execution for Reasoning', ICCV 2023, arXiv:2303.08128 [T1]",
+      "Gupta & Kembhavi, 'Visual Programming: Compositional Visual Reasoning Without Training', CVPR 2023 [T1]"
+    ],
+    "notes": "Advisory (Class H). Authority: owner ruling docs/decisions/owner-ruling-vlm-detection-pipeline-2026-06-11.md. The incremental-catch number is the seat's keep/retire criterion (owner-gated eval_gate)."
+  }
+]

@@ -1,0 +1,43 @@
+[
+ {
+  "id": "D-r1-0",
+  "round": 1,
+  "source": "auditor",
+  "kind": "replace",
+  "intent": {
+   "kind": "placement",
+   "ref": "U10",
+   "net": null,
+   "op": "evict",
+   "band_present": false,
+   "cluster": true
+  },
+  "note": "placement eviction requested for 'U10' (live; band resolved on-board) [PLACED U10 +9.0mm] [no control baseline -- rolled back unsettled]",
+  "status": "rolled_back"
+ },
+ {
+  "id": "D-r2-0",
+  "round": 2,
+  "source": "auditor",
+  "kind": "refused",
+  "intent": null,
+  "note": "FENCED target '/SENSEC2_LO' (locked Kelvin template / pinned) -- refused",
+  "status": "refused"
+ },
+ {
+  "id": "D-r3-0",
+  "round": 3,
+  "source": "auditor",
+  "kind": "replace",
+  "intent": {
+   "kind": "placement",
+   "ref": "U10",
+   "net": null,
+   "op": "evict",
+   "band_present": false,
+   "cluster": true
+  },
+  "note": "placement eviction requested for 'U10' (live; band resolved on-board) [PLACED U10 +9.0mm]",
+  "status": "applied"
+ }
+]

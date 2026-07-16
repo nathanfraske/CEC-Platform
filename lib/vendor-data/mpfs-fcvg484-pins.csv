@@ -1,0 +1,549 @@
+# MPFS FCVG484 ball map — cached pin/ball assignment table for the PolarFire SoC
+# 484-ball FCVG484 package (19x19mm, 0.8mm pitch, 22x22 grid), used by
+# scripts/gen_mpfs_fcvg484_lib.py to generate lib/cec-ent-compute.kicad_sym +
+# lib/cec-ent-compute.pretty/BGA-484_19x19mm_P0.8mm_MPFS_FCVG484.kicad_mod.
+#
+# PROVENANCE (2026-07-02):
+# Primary per-ball table: extracted from the antmicro/polarfire-som open-hardware
+# project (Apache-2.0), file fpga-mssio.kicad_sch, lib_symbols entry
+# "MPFS250T-FCVG484E" (a real, taped-out board design; fetched via
+# https://raw.githubusercontent.com/antmicro/polarfire-som/main/fpga-mssio.kicad_sch,
+# 2026-07-02). That symbol carries the full 484-ball assignment for the FCVG484
+# package as 9 KiCad symbol units (8 signal/JTAG banks + 1 power unit); parsed
+# programmatically (paren-balanced s-expression walk, not regex-only) to
+# designator/name/unit triples. Result: exactly 484 unique ball designators, a
+# full 22 (cols 1-22) x 22 (rows A..AB, skipping I/O/Q/S/Z per JEDEC) grid, zero
+# duplicates or gaps — internally self-consistent.
+#
+# Cross-check (bank floorplan / functional grouping and package geometry):
+# Microchip "PolarFire SoC FPGA Packaging and Pin Descriptions User Guide"
+# (DS60001692E, fetched 2026-07-02 via
+# https://ww1.microchip.com/downloads/aemDocuments/documents/FPGA/ProductDocuments/UserGuides/microchip_polarfire_soc_fpga_packaging_and_pin_descriptions_user_guide_vb.pdf):
+#   - Section 1.1 Figure 1-5 "PolarFire SoC FPGA MPFS250T-MPFS160T-MPFS095T-
+#     MPFS025T-FCVG484 I/O Bank Locations" gives the SAME bank floorplan as the
+#     antmicro symbol's units (Bank-0 HSIO, Bank-1 GPIO x2 corners, Bank-2/4
+#     MSSIO, Bank-3 JTAG/DEDIO, Bank-5 MSS-SGMII, Bank-6 MSS-DDR, XCVR0) for
+#     this EXACT part list (025T/095T/160T/250T all share this package+ball
+#     map — "devices in the same package type are pin compatible" per
+#     Microchip's PolarFire SoC Product Overview DS60001656A Table 2-1), which
+#     is why an MPFS250T-sourced ball map is valid for our target MPFS095TC/TS.
+#   - Table 1-10 gives FCVG484 = 19mm x 19mm body, 0.8mm pitch (matches the
+#     antmicro footprint name "BGA-484_19x19mm_Layout22x22_P0.8mm_FCVG484").
+#   - Section 7 "Recommended PCB Design Rules for BGA Packages" Table 7-1:
+#     FCVG package ball pad diameter 0.4mm, solder mask opening 0.5mm (NSMD).
+#   - Figure 1-17 "...FCVG484 Package Bottom-View" (rasterized + inspected
+#     visually, since it is a vector drawing with no extractable text layer):
+#     confirms columns numbered 1..22 increasing RIGHT-TO-LEFT and rows A..AB
+#     top-to-bottom, AS SEEN FROM THE BOTTOM (solder side), ball pitch 0.80mm,
+#     edge margin 1.10mm both axes (consistent with (19 - 21*0.8)/2 = 1.10mm),
+#     "A1 BALLPAD CORNER" at the top-right in bottom view. Mirrored left-right
+#     for the TOP VIEW (footprint/silkscreen convention, part placed dot-up):
+#     A1 lands at TOP-LEFT, columns 1..22 increasing LEFT-TO-RIGHT, rows A..AB
+#     top-to-bottom — the standard JEDEC top-view BGA convention.
+#
+# NOT resolved from any source (flagged, not guessed — see the generator
+# script's own header and the intake return note): whether any of the 484
+# balls are physically NC/no-ball on the smaller-die 095T vs the 250T this
+# table was sourced from (Microchip states pin/package COMPATIBILITY across
+# the family in this package, not that every signal-bank ball is bonded out on
+# every density — e.g. XCVR lane counts and DDR interface widths can differ by
+# die size). The SerDes/XCVR unit is annotated NC per the platform's part-
+# agnostic SerDes-free land decision regardless, which sidesteps the 095T-vs-
+# 250T XCVR question for this build; MSS-DDR/GPIO/MSSIO bank differences (if
+# any) between 095T and 250T were NOT independently verified against a 095T-
+# specific ball table (none could be downloaded — Microchip's own per-device
+# Package Pin Assignment Table (PPAT) .xlsx files are Akamai-blocked to
+# scripted fetches in this environment; every attempt returned "Access
+# Denied").
+#
+# columns: designator (ball ID, e.g. "A1".."AB22"), name (signal/net name as
+# captured, "/" separates alternate/muxed functions), category (the unit this
+# ball is grouped into in the generated symbol), category_label (human-
+# readable bank description), stacked_dup (True if this ball shares its net
+# name with an already-emitted ball in the same category and so is emitted as
+# a hidden stacked pin in the symbol — used only for POWER/GND balls).
+designator,name,category,category_label,stacked_dup
+A10,GPIO177PB1/CCC_SW_PLL0_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+A11,GPIO177NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+A12,GPIO1NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+A13,GPIO1PB1/CLKIN_S_5,GPIO_BANK1,Fabric GPIO bank 1,False
+A15,GPIO5PB1/CLKIN_S_7,GPIO_BANK1,Fabric GPIO bank 1,False
+A16,GPIO13PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+A17,GPIO13NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+A18,GPIO17PB1/CCC_SE_CLKIN_S_11,GPIO_BANK1,Fabric GPIO bank 1,False
+A20,GPIO20PB9/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+A21,GPIO20NB9/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+A5,GPIO172NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+A6,GPIO172PB1/CCC_SW_PLL1_OUT1,GPIO_BANK1,Fabric GPIO bank 1,False
+A7,GPIO173PB1/CLKIN_S_3/CCC_SW_CLKIN_S_3,GPIO_BANK1,Fabric GPIO bank 1,False
+A8,GPIO175PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B10,GPIO179PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B12,GPIO0PB1/CLKIN_S_4,GPIO_BANK1,Fabric GPIO bank 1,False
+B13,GPIO3PB1/CLKIN_S_6,GPIO_BANK1,Fabric GPIO bank 1,False
+B14,GPIO3NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B15,GPIO5NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B17,GPIO15PB1/CCC_SE_CLKIN_S_10/CCC_SE_PLL1_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+B18,GPIO17NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B19,GPIO19NB9,GPIO_BANK1,Fabric GPIO bank 1,False
+B20,GPIO19PB9,GPIO_BANK1,Fabric GPIO bank 1,False
+B21,GPIO22PB9,GPIO_BANK1,Fabric GPIO bank 1,False
+B22,GPIO22NB9,GPIO_BANK1,Fabric GPIO bank 1,False
+B4,GPIO169NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B5,GPIO170NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+B7,GPIO173NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B8,GPIO175NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+B9,GPIO179NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+C10,GPIO176PB1/DQS/CCC_SW_PLL0_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+C11,GPIO178PB1/CCC_SW_PLL0_OUT1,GPIO_BANK1,Fabric GPIO bank 1,False
+C12,GPIO0NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+C14,GPIO4PB1/LPRB_A,GPIO_BANK1,Fabric GPIO bank 1,False
+C15,GPIO4NB1/LPRB_B,GPIO_BANK1,Fabric GPIO bank 1,False
+C16,GPIO12PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+C17,GPIO15NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+C19,GPIO18PB9,GPIO_BANK1,Fabric GPIO bank 1,False
+C20,GPIO18NB9,GPIO_BANK1,Fabric GPIO bank 1,False
+C22,GPIO23PB9,GPIO_BANK1,Fabric GPIO bank 1,False
+C4,GPIO169PB1/CCC_SW_CLKIN_S_1,GPIO_BANK1,Fabric GPIO bank 1,False
+C5,GPIO170PB1/DQS/CCC_SW_PLL1_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+C6,GPIO171PB1/CLKIN_S_2/CCC_SW_CLKIN_S_2/CCC_SW_PLL1_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+C7,GPIO171NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+C9,GPIO176NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+D11,GPIO178NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D12,GPIO183PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D13,GPIO2PB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+D14,GPIO2NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+D16,GPIO10NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D17,GPIO12NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D18,GPIO16PB1/CCC_SE_PLL1_OUT1,GPIO_BANK1,Fabric GPIO bank 1,False
+D19,GPIO14NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+D20,GPIO21NB9,GPIO_BANK1,Fabric GPIO bank 1,False
+D21,GPIO21PB9,GPIO_BANK1,Fabric GPIO bank 1,False
+D22,GPIO23NB9,GPIO_BANK1,Fabric GPIO bank 1,False
+D6,GPIO168NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D7,GPIO168PB1/CCC_SW_CLKIN_S_0,GPIO_BANK1,Fabric GPIO bank 1,False
+D8,GPIO174NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+D9,GPIO174PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E10,GPIO180PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E11,GPIO183NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E13,GPIO184PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E14,GPIO9NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E15,GPIO9PB1/CLKIN_S_8/CCC_SE_CLKIN_S_8/CCC_SE_PLL0_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+E16,GPIO10PB1/CCC_SE_PLL0_OUT1,GPIO_BANK1,Fabric GPIO bank 1,False
+E18,GPIO16NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+E19,GPIO14PB1/DQS/CCC_SE_PLL1_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+F10,GPIO180NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F11,GPIO181NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F12,GPIO181PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F13,GPIO184NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F15,GPIO6PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F16,GPIO11NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+F17,GPIO11PB1/CLKIN_S_9/CCC_SE_CLKIN_S_9,GPIO_BANK1,Fabric GPIO bank 1,False
+G12,GPIO182NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+G13,GPIO185PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+G14,GPIO6NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+G15,GPIO7PB1,GPIO_BANK1,Fabric GPIO bank 1,False
+G17,GPIO8PB1/DQS/CCC_SE_PLL0_OUT0,GPIO_BANK1,Fabric GPIO bank 1,False
+H12,GPIO182PB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+H13,GPIO185NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+H15,GPIO7NB1,GPIO_BANK1,Fabric GPIO bank 1,False
+H17,GPIO8NB1/DQS,GPIO_BANK1,Fabric GPIO bank 1,False
+AA12,HSIO88PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA13,HSIO86PB0/CLKIN_N_4/CCC_NW_PLL0_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA15,HSIO85NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA16,HSIO82PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA17,HSIO81NB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+AA18,HSIO78NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA20,HSIO71NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA21,HSIO69PB0/DQS/CCC_NE_PLL0_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+AA22,HSIO69NB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+AB12,HSIO88NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AB13,HSIO86NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AB14,HSIO84PB0/CLKIN_N_5,HSIO_BANK0,Fabric HSIO bank 0,False
+AB15,HSIO84NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AB17,HSIO81PB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+AB18,HSIO78PB0/CLKIN_N_7,HSIO_BANK0,Fabric HSIO bank 0,False
+AB19,HSIO70PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AB20,HSIO70NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+AB21,HSIO71PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+R12,HSIO95PB0/CCC_NW_CLKIN_N_0,HSIO_BANK0,Fabric HSIO bank 0,False
+R14,HSIO77NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+R15,HSIO77PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+R16,HSIO75NB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+T12,HSIO94NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+T13,HSIO95NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+T15,HSIO91NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+T16,HSIO75PB0/DQS/CCC_NE_PLL1_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+T17,HSIO73PB0/CCC_NE_PLL1_OUT1,HSIO_BANK0,Fabric HSIO bank 0,False
+U12,HSIO94PB0/CCC_NW_CLKIN_N_1,HSIO_BANK0,Fabric HSIO bank 0,False
+U13,HSIO93NB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+U14,HSIO93PB0/DQS/CCC_NW_PLL1_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+U15,HSIO91PB0/CCC_NW_PLL1_OUT1,HSIO_BANK0,Fabric HSIO bank 0,False
+U17,HSIO73NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+U18,HSIO74NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+U19,HSIO74PB0/CLKIN_N_8/CCC_NE_CLKIN_N_8/CCC_NE_PLL1_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+V12,HSIO92NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V14,HSIO90PB0/CLKIN_N_3/CCC_NW_CLKIN_N_3,HSIO_BANK0,Fabric HSIO bank 0,False
+V15,HSIO90NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V16,HSIO76NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V17,HSIO76PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V19,HSIO72NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V20,HSIO72PB0/CLKIN_N_9/CCC_NE_CLKIN_N_9,HSIO_BANK0,Fabric HSIO bank 0,False
+V21,HSIO68NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+V22,HSIO66NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W12,HSIO92PB0/CLKIN_N_2/CCC_NW_CLKIN_N_2/CCC_NW_PLL1_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+W13,HSIO89PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W14,HSIO87NB0/DQS,HSIO_BANK0,Fabric HSIO bank 0,False
+W16,HSIO83PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W17,HSIO83NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W18,HSIO79NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W19,HSIO79PB0,HSIO_BANK0,Fabric HSIO bank 0,False
+W21,HSIO68PB0/CCC_NE_CLKIN_N_10/CCC_NE_PLL0_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+W22,HSIO66PB0/CCC_NE_CLKIN_N_11,HSIO_BANK0,Fabric HSIO bank 0,False
+Y13,HSIO89NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+Y14,HSIO87PB0/DQS/CCC_NW_PLL0_OUT0,HSIO_BANK0,Fabric HSIO bank 0,False
+Y15,HSIO85PB0/CCC_NW_PLL0_OUT1,HSIO_BANK0,Fabric HSIO bank 0,False
+Y16,HSIO82NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+Y18,HSIO80NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+Y19,HSIO80PB0/CLKIN_N_6,HSIO_BANK0,Fabric HSIO bank 0,False
+Y20,HSIO67PB0/CCC_NE_PLL0_OUT1,HSIO_BANK0,Fabric HSIO bank 0,False
+Y21,HSIO67NB0,HSIO_BANK0,Fabric HSIO bank 0,False
+E6,SCK,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+E8,TDO,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+E9,TCK,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+F7,SDO,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+F8,TMS,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+G10,FF_EXIT_N,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+G7,SS,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+G8,TRSTB,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+G9,TDI,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+H10,SDI,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+H11,SPI_EN,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+H7,DEVRST_N,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+H9,IO_CFG_INTF,JTAG_SYSCTRL,JTAG / System Controller (bank 3),False
+A2,MSSIO33B2,MSSIO,MSS I/O (bank 2),False
+A3,MSSIO35B2,MSSIO,MSS I/O (bank 2),False
+B1,MSSIO27B2,MSSIO,MSS I/O (bank 2),False
+B2,MSSIO32B2,MSSIO,MSS I/O (bank 2),False
+B3,MSSIO34B2,MSSIO,MSS I/O (bank 2),False
+C1,MSSIO26B2,MSSIO,MSS I/O (bank 2),False
+C2,MSSIO29B2,MSSIO,MSS I/O (bank 2),False
+D1,MSSIO22B2,MSSIO,MSS I/O (bank 2),False
+D2,MSSIO23B2,MSSIO,MSS I/O (bank 2),False
+D3,MSSIO28B2,MSSIO,MSS I/O (bank 2),False
+D4,MSSIO37B2,MSSIO,MSS I/O (bank 2),False
+E1,MSSIO19B2,MSSIO,MSS I/O (bank 2),False
+E3,MSSIO36B2,MSSIO,MSS I/O (bank 2),False
+E4,MSSIO31B2,MSSIO,MSS I/O (bank 2),False
+E5,MSSIO30B2,MSSIO,MSS I/O (bank 2),False
+F1,MSSIO15B2,MSSIO,MSS I/O (bank 2),False
+F2,MSSIO18B2,MSSIO,MSS I/O (bank 2),False
+F3,MSSIO25B2,MSSIO,MSS I/O (bank 2),False
+F5,MSSIO21B2,MSSIO,MSS I/O (bank 2),False
+F6,MSSIO24B2,MSSIO,MSS I/O (bank 2),False
+G2,MSSIO14B2,MSSIO,MSS I/O (bank 2),False
+G3,MSSIO20B2,MSSIO,MSS I/O (bank 2),False
+G4,MSSIO17B2,MSSIO,MSS I/O (bank 2),False
+G5,MSSIO16B2,MSSIO,MSS I/O (bank 2),False
+H1,MSSIO2B4,MSSIO,MSS I/O (bank 4),False
+H2,MSSIO11B4,MSSIO,MSS I/O (bank 4),False
+H4,MSSIO7B4,MSSIO,MSS I/O (bank 4),False
+H5,MSSIO12B4,MSSIO,MSS I/O (bank 4),False
+H6,MSSIO9B4,MSSIO,MSS I/O (bank 4),False
+J1,MSSIO0B4,MSSIO,MSS I/O (bank 4),False
+J2,MSSIO13B4,MSSIO,MSS I/O (bank 4),False
+J3,MSSIO10B4,MSSIO,MSS I/O (bank 4),False
+J4,MSSIO3B4,MSSIO,MSS I/O (bank 4),False
+J6,MSSIO8B4,MSSIO,MSS I/O (bank 4),False
+J7,MSSIO5B4,MSSIO,MSS I/O (bank 4),False
+K3,MSSIO6B4,MSSIO,MSS I/O (bank 4),False
+K4,MSSIO4B4,MSSIO,MSS I/O (bank 4),False
+K5,MSSIO1B4,MSSIO,MSS I/O (bank 4),False
+AA1,MSS_DDR_DQ3,MSS_DDR,MSS DDR (bank 6),False
+AA10,MSS_DDR_DQS_N2,MSS_DDR,MSS DDR (bank 6),False
+AA11,MSS_DDR_DQS_P2,MSS_DDR,MSS DDR (bank 6),False
+AA2,MSS_DDR_DQS_P0,MSS_DDR,MSS DDR (bank 6),False
+AA3,MSS_DDR_DQS_N0,MSS_DDR,MSS DDR (bank 6),False
+AA5,MSS_DDR_DQ5,MSS_DDR,MSS DDR (bank 6),False
+AA6,MSS_DDR_DQ11,MSS_DDR,MSS DDR (bank 6),False
+AA7,MSS_DDR_DM1,MSS_DDR,MSS DDR (bank 6),False
+AA8,MSS_DDR_DQ15,MSS_DDR,MSS DDR (bank 6),False
+AB10,MSS_DDR_DQ19,MSS_DDR,MSS DDR (bank 6),False
+AB2,MSS_DDR_DQ6,MSS_DDR,MSS DDR (bank 6),False
+AB3,MSS_DDR_DQ7,MSS_DDR,MSS DDR (bank 6),False
+AB4,MSS_DDR_DM0,MSS_DDR,MSS DDR (bank 6),False
+AB5,MSS_DDR_DQ10,MSS_DDR,MSS DDR (bank 6),False
+AB7,MSS_DDR_DQ12,MSS_DDR,MSS DDR (bank 6),False
+AB8,MSS_DDR_DQ13,MSS_DDR,MSS DDR (bank 6),False
+AB9,MSS_DDR_DQ18,MSS_DDR,MSS DDR (bank 6),False
+K1,MSS_DDR_CKE0,MSS_DDR,MSS DDR (bank 6),False
+L1,MSS_DDR_ODT0,MSS_DDR,MSS DDR (bank 6),False
+L2,MSS_DDR_RAM_RST_N/DDR_PLL0_OUT1,MSS_DDR,MSS DDR (bank 6),False
+L3,MSS_DDR_CS0,MSS_DDR,MSS DDR (bank 6),False
+M2,MSS_DDR_BG1,MSS_DDR,MSS DDR (bank 6),False
+M3,MSS_DDR_CS1,MSS_DDR,MSS DDR (bank 6),False
+M4,MSS_DDR_ODT1,MSS_DDR,MSS DDR (bank 6),False
+M5,MSS_DDR_PARITY,MSS_DDR,MSS DDR (bank 6),False
+N1,MSS_DDR_BG0,MSS_DDR,MSS DDR (bank 6),False
+N2,MSS_DDR_CKE1,MSS_DDR,MSS DDR (bank 6),False
+N4,MSS_DDR_ALERT_N,MSS_DDR,MSS DDR (bank 6),False
+N5,MSS_DDR_ACT_N,MSS_DDR,MSS DDR (bank 6),False
+P1,MSS_DDR_A12,MSS_DDR,MSS DDR (bank 6),False
+P2,MSS_DDR_A13,MSS_DDR,MSS DDR (bank 6),False
+P3,MSS_DDR_A14,MSS_DDR,MSS DDR (bank 6),False
+P4,MSS_DDR_BA0,MSS_DDR,MSS DDR (bank 6),False
+P6,MSS_DDR_A6,MSS_DDR,MSS DDR (bank 6),False
+P7,MSS_DDR_A8,MSS_DDR,MSS DDR (bank 6),False
+P8,MSS_DDR_DQ31,MSS_DDR,MSS DDR (bank 6),False
+R1,MSS_DDR_A11,MSS_DDR,MSS DDR (bank 6),False
+R10,MSS_DDR_DQ29,MSS_DDR,MSS DDR (bank 6),False
+R11,MSS_DDR_DQ28,MSS_DDR,MSS DDR (bank 6),False
+R3,MSS_DDR_A15,MSS_DDR,MSS DDR (bank 6),False
+R4,MSS_DDR_A16,MSS_DDR,MSS DDR (bank 6),False
+R5,MSS_DDR_A5,MSS_DDR,MSS DDR (bank 6),False
+R6,MSS_DDR_A4,MSS_DDR,MSS DDR (bank 6),False
+R8,MSS_DDR_DQ30,MSS_DDR,MSS DDR (bank 6),False
+T1,MSS_DDR_CK1/DDR_PLL0_OUT0,MSS_DDR,MSS DDR (bank 6),False
+T10,MSS_DDR_DM3,MSS_DDR,MSS DDR (bank 6),False
+T11,MSS_DDR_DQ26,MSS_DDR,MSS DDR (bank 6),False
+T2,MSS_DDR_CK_N1,MSS_DDR,MSS DDR (bank 6),False
+T3,MSS_DDR_BA1,MSS_DDR,MSS DDR (bank 6),False
+T5,MSS_DDR_A0,MSS_DDR,MSS DDR (bank 6),False
+T6,MSS_DDR_A1,MSS_DDR,MSS DDR (bank 6),False
+T7,MSS_DDR_A7,MSS_DDR,MSS DDR (bank 6),False
+T8,MSS_DDR_DQ25,MSS_DDR,MSS DDR (bank 6),False
+U10,MSS_DDR_DQ27,MSS_DDR,MSS DDR (bank 6),False
+U2,MSS_DDR_A10,MSS_DDR,MSS DDR (bank 6),False
+U3,MSS_DDR3_WE_N,MSS_DDR,MSS DDR (bank 6),False
+U4,MSS_DDR_CK_N0,MSS_DDR,MSS DDR (bank 6),False
+U5,MSS_DDR_CK0/DDR_PLL0_OUT0,MSS_DDR,MSS DDR (bank 6),False
+U7,MSS_DDR_A9,MSS_DDR,MSS DDR (bank 6),False
+U8,MSS_DDR_DQ24,MSS_DDR,MSS DDR (bank 6),False
+U9,MSS_DDR_DQS_P3,MSS_DDR,MSS DDR (bank 6),False
+V1,MSS_DDR_DQS_N4,MSS_DDR,MSS DDR (bank 6),False
+V10,MSS_DDR_DQ21,MSS_DDR,MSS DDR (bank 6),False
+V11,MSS_DDR_DQ20,MSS_DDR,MSS DDR (bank 6),False
+V2,MSS_DDR_DQS_P4,MSS_DDR,MSS DDR (bank 6),False
+V4,MSS_DDR_VREF_IN,MSS_DDR,MSS DDR (bank 6),False
+V5,MSS_DDR_DM4,MSS_DDR,MSS DDR (bank 6),False
+V6,MSS_DDR_A3,MSS_DDR,MSS DDR (bank 6),False
+V7,MSS_DDR_A2,MSS_DDR,MSS DDR (bank 6),False
+V9,MSS_DDR_DQS_N3,MSS_DDR,MSS DDR (bank 6),False
+W1,MSS_DDR_DQ35,MSS_DDR,MSS DDR (bank 6),False
+W11,MSS_DDR_DQ23,MSS_DDR,MSS DDR (bank 6),False
+W2,MSS_DDR_DQ34,MSS_DDR,MSS DDR (bank 6),False
+W3,MSS_DDR_DQ33,MSS_DDR,MSS DDR (bank 6),False
+W4,MSS_DDR_DQ32,MSS_DDR,MSS DDR (bank 6),False
+W6,MSS_DDR_DQS_N1,MSS_DDR,MSS DDR (bank 6),False
+W7,MSS_DDR_DQ9,MSS_DDR,MSS DDR (bank 6),False
+W8,MSS_DDR_DQ8,MSS_DDR,MSS DDR (bank 6),False
+W9,MSS_DDR_DQ17,MSS_DDR,MSS DDR (bank 6),False
+Y1,MSS_DDR_DQ2,MSS_DDR,MSS DDR (bank 6),False
+Y10,MSS_DDR_DM2,MSS_DDR,MSS DDR (bank 6),False
+Y11,MSS_DDR_DQ22,MSS_DDR,MSS DDR (bank 6),False
+Y3,MSS_DDR_DQ0,MSS_DDR,MSS DDR (bank 6),False
+Y4,MSS_DDR_DQ1,MSS_DDR,MSS DDR (bank 6),False
+Y5,MSS_DDR_DQ4,MSS_DDR,MSS DDR (bank 6),False
+Y6,MSS_DDR_DQS_P1,MSS_DDR,MSS DDR (bank 6),False
+Y8,MSS_DDR_DQ14,MSS_DDR,MSS DDR (bank 6),False
+Y9,MSS_DDR_DQ16,MSS_DDR,MSS DDR (bank 6),False
+A1,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+A14,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+A19,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+A22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+A4,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+A9,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AA14,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AA19,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+AA4,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AA9,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+AB1,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AB11,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AB16,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AB22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+AB6,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+B11,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+B16,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+B6,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+C13,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+C18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+C21,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+C3,VDDI2,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+C8,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+D10,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+D15,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+D5,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E12,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E17,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E2,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E21,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+E7,VDDI3,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+F14,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+F18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+F19,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+F20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+F4,VDDI2,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+F9,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G1,VDDI2,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G11,VDDI1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G16,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G21,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+G22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+G6,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+H14,VDDAUX1,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+H16,VDDAUX1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+H18,XCVR_VREF,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+H19,XCVR_VREF,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+H20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+H3,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+H8,VDD25,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+J10,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J11,VDDI3,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J12,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J13,VDDAUX1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J14,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J15,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+J16,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J17,VDD25,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J18,VDDA25,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+J21,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J5,VDDI4,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+J8,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+J9,VDDAUX1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K10,VDDAUX1,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K11,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K12,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K13,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K14,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K15,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K16,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K17,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K18,VDD_XCVR_CLK,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+K19,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K2,VDDI4,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K8,VDDAUX2,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+K9,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L10,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L11,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L12,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L13,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L14,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L15,VDD25,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L16,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L17,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L21,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L4,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+L9,VDDAUX2,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M1,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M10,VDDAUX4,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+M11,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M12,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M13,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M14,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M15,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M16,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M17,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M18,VDDA25,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M19,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M6,VDDI5,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+M8,VDDI5,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+M9,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N10,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N11,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N12,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N13,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N14,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N15,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N16,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N17,VDD,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N21,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N3,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+N9,VDDAUX4,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P10,VDD18,POWER,Power/ground (VDD/VDDI/VSS stacked),False
+P11,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P12,VDD18,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P13,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P14,VDD18,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P15,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P16,VDD18,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P17,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P18,VDD_XCVR_CLK,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P19,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P5,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+P9,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R13,VDD18,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R17,VDD25,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R2,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R21,VDDA,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R7,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+R9,VDD25,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T14,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T18,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T19,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T4,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+T9,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U1,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U11,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U16,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U21,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U22,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+U6,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+V13,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+V18,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+V3,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+V8,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+W10,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+W15,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+W20,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+W5,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+Y12,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+Y17,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+Y2,VDDI6,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+Y22,VDDI0,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+Y7,VSS,POWER,Power/ground (VDD/VDDI/VSS stacked),True
+K6,MSS_SGMII_RXP1,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+K7,MSS_SGMII_RXN1,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+L5,MSS_SGMII_RXP0,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+L6,MSS_SGMII_RXN0,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+L7,MSS_REFCLK_IN_P,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+L8,MSS_REFCLK_IN_N,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+M7,MSS_SGMII_TXP1,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+N6,MSS_SGMII_TXP0,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+N7,MSS_SGMII_TXN0,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+N8,MSS_SGMII_TXN1,SGMII,MSS SGMII / MSS-Ethernet (bank 5),False
+F21,XCVR_0_TX0_N,XCVR,SerDes / XCVR0,False
+F22,XCVR_0_TX0_P,XCVR,SerDes / XCVR0,False
+G19,XCVR_0_RX0_N,XCVR,SerDes / XCVR0,False
+G20,XCVR_0_RX0_P,XCVR,SerDes / XCVR0,False
+H21,XCVR_0_TX1_N,XCVR,SerDes / XCVR0,False
+H22,XCVR_0_TX1_P,XCVR,SerDes / XCVR0,False
+J19,XCVR_0C_REFCLK_P,XCVR,SerDes / XCVR0,False
+J20,XCVR_0C_REFCLK_N,XCVR,SerDes / XCVR0,False
+K21,XCVR_0_RX1_N,XCVR,SerDes / XCVR0,False
+K22,XCVR_0_RX1_P,XCVR,SerDes / XCVR0,False
+L19,XCVR_0A_REFCLK_P,XCVR,SerDes / XCVR0,False
+L20,XCVR_0A_REFCLK_N,XCVR,SerDes / XCVR0,False
+M21,XCVR_0_RX2_N,XCVR,SerDes / XCVR0,False
+M22,XCVR_0_RX2_P,XCVR,SerDes / XCVR0,False
+N19,XCVR_0B_REFCLK_P,XCVR,SerDes / XCVR0,False
+N20,XCVR_0B_REFCLK_N,XCVR,SerDes / XCVR0,False
+P21,XCVR_0_TX2_N,XCVR,SerDes / XCVR0,False
+P22,XCVR_0_TX2_P,XCVR,SerDes / XCVR0,False
+R19,XCVR_0_RX3_N,XCVR,SerDes / XCVR0,False
+R20,XCVR_0_RX3_P,XCVR,SerDes / XCVR0,False
+T21,XCVR_0_TX3_N,XCVR,SerDes / XCVR0,False
+T22,XCVR_0_TX3_P,XCVR,SerDes / XCVR0,False

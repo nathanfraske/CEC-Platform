@@ -41,9 +41,11 @@ count=1 fix lands (owner ruling #12 caveat).
 
 ## 2. Conflict resolutions (framework doc vs measured tree — reality won)
 
-1. **Lifecycle vocabulary (CL-01):** SB-13 `status` lifecycle KEPT (`proposed → sim_validated
-   → bringup_validated | human_approved → deprecated`); framework `promoted` ≡
-   `human_approved` + `signoff` + residence in `promoted/`. See `corpus/SCHEMA.md`.
+1. **Lifecycle vocabulary (CL-01):** SB-13 `status` lifecycle KEPT, with `promoted` now a real
+   machine-readable state (`proposed → sim_validated → bringup_validated | human_approved →
+   promoted → deprecated`); framework `promoted` ≡ `status: promoted` + `signoff` + residence in
+   `promoted/` (selection of blocking artifacts is by ZONE, not the status string). See
+   `corpus/SCHEMA.md`.
 2. **Class letters (CL-06):** as-built taxonomy kept — **A = external standard, B =
    spec-derived** (doc had them inverted). The spec-line-resolution / spec-first rule binds to
    **Class B** and is lint-enforced at promotion.

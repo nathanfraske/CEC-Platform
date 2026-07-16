@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of U1 and sense-net components causes routing congestion and pour fragmentation. U1's I2C signals cannot find a clear routing channel within 2mm (stub compile failure). Sense net /SENSEC2_LO is fragmented into two islands (foreign cross=11) due to component/via placement breaking the copper pour, leading to structural DRC=9 and unconnected nets. The high foreign cross on sense nets also contributes to conductor over-temp flags.",
+ "reasoning": "The I2C stub failures at U1 indicate a placement congestion issue that routing alone cannot resolve. The pour integrity shows /SENSEC2_LO clipped with islands, suggesting a placement blockage. Since kelvin_ok=true, the T0 actuator will not fire for stranded sense nets, but the diagnosis is recorded and the corridor-avoid lever + panel effort will carry it. Placement eviction of U1 and adjustment of sense-net component positions can free routing channels and reduce foreign cross.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "U1 and any component blocking the /SENSEC2_LO copper pour",
+  "action": "Re-place U1 to provide clear routing channels for I2C signals; adjust placement of sense-net components to reduce foreign cross on /SENSEC2_LO and consolidate its pour into a single island."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

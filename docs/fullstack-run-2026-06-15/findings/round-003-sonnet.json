@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "14 structural DRC errors and 2 unconnected nets persist; FEM flags show conductor over-temp on sense nets (/SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI, /SENSEC2_LO) with foreign cross values of 6-8, indicating sense routing crosses high-current bands causing thermal stress. No pour-clipped nets detected, so corridor-avoid lever will not fire; router effort must be increased to resolve DRCs and reduce temperature.",
+ "reasoning": "Kelvin and diffpair are OK, so placement is not the primary issue. The DRC errors and thermal flags are routing-related. Increasing router passes/opt_time and adding waypoint intents to steer sense nets away from high-current corridors can address both DRC and over-temp.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort",
+  "action": "Increase router passes and opt_time; optionally add keepouts around sense net corridors to reduce foreign cross."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

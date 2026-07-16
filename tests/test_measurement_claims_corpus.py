@@ -13,11 +13,19 @@ import os
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MEAS = os.path.join(ROOT, "corpus", "staging", "general", "measurement-claims.json")
+# Promotion MOVES entries staging->promoted (id unchanged; an id lives in exactly one
+# zone, lint-enforced), so this anchor fixture reads its family file from BOTH zones.
+GEN_DIRS = (os.path.join(ROOT, "corpus", "staging", "general"),
+            os.path.join(ROOT, "corpus", "promoted", "general"))
 
 
-def _load():
-    return {e["id"]: e for e in json.load(open(MEAS))}
+def _load(fname="measurement-claims.json"):
+    out = {}
+    for d in GEN_DIRS:
+        p = os.path.join(d, fname)
+        if os.path.exists(p):
+            out.update({e["id"]: e for e in json.load(open(p))})
+    return out
 
 
 class T1TargetTable(unittest.TestCase):
@@ -201,9 +209,10 @@ class T6TypingDiscipline(unittest.TestCase):
                 self.assertNotIn("compile", e, e["id"])
 
     def test_unique_ids(self):
-        rows = json.load(open(MEAS))
-        ids = [e["id"] for e in rows]
-        self.assertEqual(len(ids), len(set(ids)))
+        ids = [e["id"] for d in GEN_DIRS
+               for e in (json.load(open(os.path.join(d, "measurement-claims.json")))
+                         if os.path.exists(os.path.join(d, "measurement-claims.json")) else [])]
+        self.assertEqual(len(ids), len(set(ids)))  # unique within AND across zones
 
 
 if __name__ == "__main__":

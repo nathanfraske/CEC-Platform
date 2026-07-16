@@ -1313,7 +1313,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
+			(property "Datasheet" "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1603,7 +1603,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/lp5907.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/lp5907.pdf"
 				(at 0 12.7 0)
 				(effects
 					(font
@@ -1779,7 +1779,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/sbvs193d/sbvs193d.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps3839.pdf"
 				(at 0 0 0)
 				(effects
 					(font
@@ -3295,7 +3295,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/ina226.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina228.pdf"
 				(at 8.89 -2.54 0)
 				(effects
 					(font
@@ -3513,7 +3513,7 @@
 					(name "~{Alert}"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 0.7 0.7)
 							)
 						)
 					)
@@ -4052,6 +4052,147 @@
 					(effects
 						(font
 							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "FerriteBead_Small"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "FB"
+			(at 0 1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "FerriteBead_Small"
+			(at 0 -1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Ferrite bead / 0-ohm bridge, small symbol (H3a: VBUS entry populated, port-VCC entry provisioned 0R-default). Footprint borrows the generic 0805 2-pad SMD land (cec-Capacitor_SMD:C_0805_2012Metric) -- same envelope as the Murata MPZ2012 ('2012' = 0805 metric) family; not a purpose-drawn bead footprint."
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "ferrite bead emi filter"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "C_0805* L_0805*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_0_1"
+			(rectangle
+				(start -1.905 1.27)
+				(end 1.905 -1.27)
+				(stroke
+					(width 0.2032)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_1_1"
+			(pin passive line
+				(at -3.81 0 0)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 3.81 0 180)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.016 1.016)
 						)
 					)
 				)
@@ -6173,7 +6314,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/gpn/tps2121"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf"
 			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7243,7 +7384,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C5736265.pdf"
+		(property "Datasheet" "https://www.espressif.com/sites/default/files/documentation/esp32-c6-mini-1_mini-1u_datasheet_en.pdf"
 			(at 0 -43.18 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8326,7 +8467,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C2058784.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 0 -12.7 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8563,7 +8704,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C702117.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 0 -12.7 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8745,4 +8886,1197 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "CEC_CMC_4T"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.508) (hide no))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "FL"
+			(at 0 3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "CMC"
+			(at 0 -3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Common-mode choke, 2 coupled pairs (H3a §c EMC insurance position): pins 1/2 = differential-pair IN (H/L), pins 3/4 = differential-pair OUT (H/L) -- one part couples both lines through a shared core; NEVER substitute two independent series beads on the individual lines (defeats the common-mode rejection). Provisioned DNP by default; populate only on EMC evidence. MPN/footprint TBD (H3a is judicious-not-blanket; not yet part-searched)."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "*CommonMode* *CMC*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "CEC_CMC_4T_0_1"
+			(rectangle
+				(start -3.81 2.54)
+				(end 3.81 -2.54)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "CEC_CMC_4T_1_1"
+			(pin passive line
+				(at -6.35 1.27 0)
+				(length 2.54)
+				(name "H_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at -6.35 -1.27 0)
+				(length 2.54)
+				(name "L_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 1.27 180)
+				(length 2.54)
+				(name "H_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "3"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 -1.27 180)
+				(length 2.54)
+				(name "L_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "4"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "L_Small"
+		(pin_numbers (hide yes))
+		(pin_names (offset 0.254) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "L" (at 0 0 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.016 1.016))))
+		(property "Value" "L_Small" (at 1.778 0 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "~" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "Inductor, small symbol (generic 2-pin, mirrors the platform R_Small/C_Small convention)" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "inductor coil choke" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "L_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "L_Small_0_1"
+			(rectangle (start -0.762 1.778) (end 0.762 -1.778) (stroke (width 0.2032) (type default)) (fill (type none)))
+		)
+		(symbol "L_Small_1_1"
+			(pin passive line (at 0 2.54 270) (length 0.762) (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 0 -2.54 90) (length 0.762) (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+		)
+		(embedded_fonts no)
+	)
+
+
+	(symbol "TPS563201DDCR"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "U" (at 0 7.62 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS563201DDCR" (at 0 -7.62 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 0 -10.16 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps563201.pdf" (at 0 -12.7 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Texas Instruments" (at 0 -15.24 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "MPN" "TPS563201DDCR" (at 0 -17.78 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C116592" (at 0 -20.32 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "TPS563201DDCR_0_1"
+			(rectangle
+				(start -6.35 5.08)
+				(end 6.35 -5.08)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(pin unspecified line
+				(at -8.89 2.54 0)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -8.89 0 0)
+				(length 2.54)
+				(name "SW" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -8.89 -2.54 0)
+				(length 2.54)
+				(name "VIN" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 8.89 -2.54 180)
+				(length 2.54)
+				(name "VFB" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 8.89 0 180)
+				(length 2.54)
+				(name "EN" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 8.89 2.54 180)
+				(length 2.54)
+				(name "VBST" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+		)
+		(embedded_fonts no)
+	)
+
+	(symbol "TPS61040DBVR"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "U" (at 0 7.62 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS61040DBVR" (at 0 -7.62 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 0 -10.16 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps61040.pdf" (at 0 -12.7 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Texas Instruments" (at 0 -15.24 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "MPN" "TPS61040DBVR" (at 0 -17.78 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C7722" (at 0 -20.32 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "TPS61040DBVR_0_1"
+			(rectangle
+				(start -6.35 5.08)
+				(end 6.35 -5.08)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(pin unspecified line
+				(at -8.89 2.54 0)
+				(length 2.54)
+				(name "SW" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -8.89 0 0)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -8.89 -2.54 0)
+				(length 2.54)
+				(name "FB" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 8.89 -2.54 180)
+				(length 2.54)
+				(name "EN" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 8.89 2.54 180)
+				(length 2.54)
+				(name "VIN" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+		)
+		(embedded_fonts no)
+	)
+
+	(symbol "Keystone_3586_Blade_Clip"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "Keystone 3586"
+			(at 0 -4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3d2b9e11b57a96b0629b2595d48bec21.pdf?productCode=C238113"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Keystone 3586 SMT universal-entry female quick-fit blade clip (top & side entry), auto-blade-fuse-clip lineage. Accepts .110-.250in (2.8-6.4mm) wide male tabs, .020-.032in (0.51-0.81mm) thick (family spec, Keystone PC Quick-Fit Terminals catalog p.53, CAT NO. 3557 table; keyelco product page confirms the same .110-.250in width range for 3586 itself). 0.016in (0.40mm) thick brass, tin-nickel plate. 3 SMD solder pads (2 main legs + 1 support/anchor foot) — all one electrical node (single receptacle contact). Footprint pad geometry verified against Keystone dwg no. 3586 rev D (pad width .105in/2.66mm exact match; pad-row envelope .260in/6.60mm minus pad height = 4.90mm center spacing, matching the vendored land)."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Keystone Electronics Corp."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "3586"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C238113"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "30 A @ 500 V (Keystone/DigiKey field rating; no stated temperature-rise condition — confirm-soak before BOM lock per docs/standard-tier-review/output-daughterboard-study-2026-07-04.md §8.9(a))"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "blade clip fuse clip quick-fit universal terminal 30A FASTON Keystone SMT"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Keystone_3586*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "Keystone_3586_Blade_Clip_0_1"
+			(rectangle
+				(start -2.54 1.27)
+				(end 2.54 -1.27)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy -1.27 1.27) (xy 0 2.54) (xy 1.27 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "Keystone_3586_Blade_Clip_1_1"
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "Keystone_3557-2_Blade_Clip_2Pos"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "Keystone 3557-2"
+			(at 0 -4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:Keystone_3557-2_THT_Universal_Blade_Clip_2Pos"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/b4c520b41b68724db8bb5ee22faeacae.pdf?productCode=C352820"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Keystone 3557-2 THT '2 IN 1' auto-blade-fuse-clip holder — TWO INDEPENDENT clip receptacles in one housing (pins 1/2 are separate electrical nodes, NOT a 2-terminal series part). Each position accepts the same universal blade range as the 3557/3577/3586 family (.110-.250in/2.8-6.4mm wide x .020-.032in/0.51-0.81mm thick tabs). 30A/500VAC UL rating, 0.016in (0.41mm) brass tin-nickel contacts, glass-filled Nylon 94V-0 insulator, -50C to +145C. 4 THT solder pins (2 per clip position), 1.6mm drill, 3.4mm row pitch, 13.5mm position-to-position pitch — all verified against Keystone catalog M55 p.41 ('2 IN 1 FUSE HOLDER' table); drill corrected from the EasyEDA/LCSC auto-derived 1.8mm to the datasheet's 1.6mm (.063in dia). CAUTION: physically distinct from the plain single-clip 3557 (top entry, THT)/3577 (bottom entry, THT) universal clip — do not treat as a drop-in for a single-node blade site; see docs/standard-tier-review/blade-fit-check-2026-07-04.md."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Keystone Electronics Corp."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "3557-2"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C352820"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "30 A @ 500 VAC per position (Keystone catalog field rating; no stated temperature-rise condition — confirm-soak before BOM lock per docs/standard-tier-review/output-daughterboard-study-2026-07-04.md §8.9(a))"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "blade clip fuse clip quick-fit universal terminal 30A FASTON Keystone 2in1 THT dual"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Keystone_3557-2*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "Keystone_3557-2_Blade_Clip_2Pos_0_1"
+			(rectangle
+				(start -5.08 1.27)
+				(end 5.08 -1.27)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy 0 1.27) (xy 0 -1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy -3.81 1.27) (xy -2.54 2.54) (xy -1.27 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy 1.27 1.27) (xy 2.54 2.54) (xy 3.81 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "Keystone_3557-2_Blade_Clip_2Pos_1_1"
+			(pin passive line
+				(at -2.54 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 2.54 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "TE_63849-1_FASTON_Tab"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.699 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1"
+			(at 0 -3.302 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d78aaa5668ef44d19432bad6ab97dbf2.pdf?productCode=C86469"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "TE Connectivity 63849-1 FASTON PC board tab (male blade), .250in (6.35mm +/-0.08) wide x .033-.030in (0.84-0.76mm) thick, brass with tin over copper or tin over nickel plate. Supplied in loose piece; 2 THT legs (both pin 1 — same electrical node) on a 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia PCB hole each (drill corrected from the EasyEDA/LCSC auto-derived 1.6mm to the TE dwg C=63849's 1.40mm — the barbed shank is an interference fit into this hole ahead of soldering, so hole size matters for retention). Mates with a wire-side FASTON .250 receptacle, or (this platform's use) with a Keystone universal blade clip (3586/3557-2/3557/3577) whose accepted tab range (.110-.250in x .020-.032in) spans this tab's nominal geometry — see docs/standard-tier-review/blade-fit-check-2026-07-04.md."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "63849-1"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C86469"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself; TE FASTON .250 tabs are commonly used to 20-30A class per receptacle rating (see the Keystone universal-clip Current Rating property paired with this part). No standalone UL current rating on TE's own dwg."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "FASTON tab blade quick-connect .250 PCB terminal TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "TE_63849-1*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "TE_63849-1_FASTON_Tab_0_1"
+			(rectangle
+				(start -1.27 3.175)
+				(end 1.27 0)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "TE_63849-1_FASTON_Tab_1_1"
+			(pin passive line
+				(at 0 -2.54 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "TE_63951-1_FASTON_Tab"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.699 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63951-1"
+			(at 0 -3.302 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C591344.pdf"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "TE Connectivity 63951-1 FASTON PC board tab (male blade), RIGHT-ANGLE style -- .250in (6.35mm +/-0.08) wide x .033-.030in (0.83-0.77mm) thick, brass with tin over nickel plate, App Spec 114-2115 (same governing spec as the straight TE_63849-1 and the owner-referenced .187-series 1217061-1). Geometry per TE's own customer drawing C=63951 rev L2 (lib/datasheets/TE_63951-1.pdf): a FLAT IN-PLANE L stamping -- 2 barbed THT legs (both pin 1, one node; 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia holes, same leg/hole pattern as 63849-1) hang off one end of the strip, and the blade runs ALONG the strip/leg-pitch axis past the blade-side leg, its 6.35mm width spanning 2.54-8.89mm OFF the seating face (8.89 = TE profile height; the blade stands away from the mounting face, it does not lie on it). Reeled (vs 63849-1's loose piece). PLATFORM MOUNTING (owner sketch 2026-07-05, docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum 3): legs horizontal through the vertical daughterboard face, leg pitch vertical, blade pointing STRAIGHT DOWN past the board's bottom edge at the 2.54-8.89mm standoff -- the assembly drops vertically, broadside, into the main-board Keystone 3586 clip's top-entry jaws (the clip's native auto-blade-fuse mode); the daughterboard's own edge floats clear, the tab does the reaching."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "63951-1"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C591344"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself (same convention as 63849-1); same .250/6.35mm blade class, so the same Keystone universal-clip Current Rating property (30A) applies. No standalone UL current rating on TE's own dwg C=63951."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "FASTON tab blade quick-connect .250 right angle flat PCB terminal TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "TE_63951-1*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "TE_63951-1_FASTON_Tab_0_1"
+			(rectangle
+				(start -1.27 3.175)
+				(end 1.27 0)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "TE_63951-1_FASTON_Tab_1_1"
+			(pin passive line
+				(at 0 -2.54 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "2920L700_12MR"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"F"
+			(id 0)
+			(at 0 5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"2920L700/12MR"
+			(id 1)
+			(at 0 -5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Fuse_SMD:F2920"
+			(id 2)
+			(at 0 -7.62 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_2920l_datasheet.pdf.pdf"
+			(id 3)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "2920L700_12MR_0_1"
+			(rectangle
+				(start -2.54 1.02)
+				(end 2.54 -1.02)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.00) (xy 2.54 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 5.08 -0.00 180)
+				(length 2.54)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -5.08 -0.00 0)
+				(length 2.54)
+				(name "1" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "AO4407A"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"Q"
+			(id 0)
+			(at 0 12.70 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"AO4407A"
+			(id 1)
+			(at 0 -12.70 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_SO:SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL"
+			(id 2)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://www.aosmd.com/pdfs/datasheet/AO4407A.pdf"
+			(id 3)
+			(at 0 -17.78 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(property
+			"ki_description"
+			"AO4407A"
+			(id 9)
+			(at 0 -30.48 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(symbol "AO4407A_0_1"
+			(rectangle
+				(start -5.08 5.08)
+				(end 7.62 -5.08)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -5.08 -0.00) (xy -3.05 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 2.54) (xy 2.54 5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 5.08 5.08) (xy -2.54 5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -5.08) (xy -2.54 -5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -5.08) (xy 2.54 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -2.54) (xy 2.54 -2.54) (xy 2.54 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 1.78) (xy 0.00 2.54) (xy 2.54 2.54) (xy 2.54 0.76)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 1.78) (xy -2.54 1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.00) (xy 0.00 -0.00) (xy 0.00 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -1.78) (xy -2.54 -1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -3.05 2.29) (xy -3.05 -2.29)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 1.27) (xy -2.54 2.29)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.51) (xy -2.54 0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -2.29) (xy -2.54 -1.27)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 3.30 -0.51) (xy 3.05 -0.51) (xy 2.03 -0.51) (xy 1.78 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -0.00) (xy -1.52 0.51) (xy -1.52 -0.51) (xy 0.00 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -0.51) (xy 3.30 0.76) (xy 1.78 0.76) (xy 2.54 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(pin unspecified line
+				(at 0.00 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 5.08 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -7.62 -0.00 0)
+				(length 2.54)
+				(name "G" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "MF72-5D-20"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"R"
+			(id 0)
+			(at 0 5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"5Ω ±20%_MF72"
+			(id 1)
+			(at 0 -5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Thermistor_THT:RES-TH_L22.0-W7.0-P10.00-D1.0-S2.00"
+			(id 2)
+			(at 0 -7.62 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://www.ntcshiheng.com/storage/uploads/pdf/202601/04/1767515830_ivV67PAqme.pdf"
+			(id 3)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "MF72-5D-20_0_1"
+			(rectangle
+				(start -2.54 1.02)
+				(end 2.54 -1.02)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 1.27 1.78) (xy 1.27 1.78) (xy -1.27 -1.78) (xy -2.54 -1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 5.08 -0.00 180)
+				(length 2.54)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -5.08 -0.00 0)
+				(length 2.54)
+				(name "1" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "74AHCT244"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"U"
+			(id 0)
+			(at 0 16.51 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"74AHCT244PW,118"
+			(id 1)
+			(at 0 -16.51 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_SO:TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL"
+			(id 2)
+			(at 0 -19.05 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://www.ti.com/lit/ds/symlink/sn74ahct244.pdf"
+			(id 3)
+			(at 0 -21.59 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "74AHCT244_0_1"
+			(rectangle
+				(start -7.62 14.48)
+				(end 7.62 -14.48)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(circle
+				(center -6.35 13.21)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(circle
+				(center -6.35 13.21)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at -10.16 11.43 0)
+				(length 2.54)
+				(name "~{1OE}" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 8.89 0)
+				(length 2.54)
+				(name "1A0" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 6.35 0)
+				(length 2.54)
+				(name "2Y0" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 3.81 0)
+				(length 2.54)
+				(name "1A1" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 1.27 0)
+				(length 2.54)
+				(name "2Y1" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -1.27 0)
+				(length 2.54)
+				(name "1A2" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -3.81 0)
+				(length 2.54)
+				(name "2Y2" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -6.35 0)
+				(length 2.54)
+				(name "1A3" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -8.89 0)
+				(length 2.54)
+				(name "2Y3" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -11.43 0)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -11.43 180)
+				(length 2.54)
+				(name "2A3" (effects (font (size 1.27 1.27))))
+				(number "11" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -8.89 180)
+				(length 2.54)
+				(name "1Y3" (effects (font (size 1.27 1.27))))
+				(number "12" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -6.35 180)
+				(length 2.54)
+				(name "2A2" (effects (font (size 1.27 1.27))))
+				(number "13" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -3.81 180)
+				(length 2.54)
+				(name "1Y2" (effects (font (size 1.27 1.27))))
+				(number "14" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -1.27 180)
+				(length 2.54)
+				(name "2A1" (effects (font (size 1.27 1.27))))
+				(number "15" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 1.27 180)
+				(length 2.54)
+				(name "1Y1" (effects (font (size 1.27 1.27))))
+				(number "16" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 3.81 180)
+				(length 2.54)
+				(name "2A0" (effects (font (size 1.27 1.27))))
+				(number "17" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 6.35 180)
+				(length 2.54)
+				(name "1Y0" (effects (font (size 1.27 1.27))))
+				(number "18" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 8.89 180)
+				(length 2.54)
+				(name "~{2OE}" (effects (font (size 1.27 1.27))))
+				(number "19" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 11.43 180)
+				(length 2.54)
+				(name "VCC" (effects (font (size 1.27 1.27))))
+				(number "20" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "BAT54S"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"D"
+			(id 0)
+			(at 0 10.16 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"BAT54S_C545549"
+			(id 1)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL"
+			(id 2)
+			(at 0 -12.70 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://www.vishay.com/docs/86410/bat54_bat54a_bat54c_bat54s.pdf"
+			(id 3)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "BAT54S_0_1"
+			(polyline
+				(pts
+					(xy -1.27 -2.54) (xy -2.54 -0.25) (xy -3.81 -2.54) (xy -1.27 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 3.81 0.51) (xy 2.54 -1.78) (xy 1.27 0.51) (xy 3.81 0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -1.02 0.51) (xy -0.76 0.51) (xy -0.76 -0.00) (xy -4.57 -0.00) (xy -4.57 -0.51) (xy -4.32 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 4.06 -2.54) (xy 4.32 -2.54) (xy 4.32 -2.03) (xy 0.51 -2.03) (xy 0.51 -1.52) (xy 0.76 -1.52)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -1.02) (xy -2.54 1.27) (xy 2.54 1.27) (xy 2.54 -1.02)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 2.54 -5.08 90)
+				(length 3.81)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 -5.08 90)
+				(length 3.81)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 5.08 270)
+				(length 3.81)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "INA180A2IDBVR"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"U"
+			(id 0)
+			(at 0 15.24 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"INA180A2IDBVR"
+			(id 1)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL"
+			(id 2)
+			(at 0 -17.78 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://www.ti.com/lit/ds/symlink/ina180.pdf"
+			(id 3)
+			(at 0 -20.32 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "INA180A2IDBVR_0_1"
+			(rectangle
+				(start -5.08 7.62)
+				(end 5.08 -7.62)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(circle
+				(center -3.81 -6.35)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at -2.54 -10.16 90)
+				(length 2.54)
+				(name "OUT" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 -10.16 90)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 -10.16 90)
+				(length 2.54)
+				(name "IN+" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 10.16 270)
+				(length 2.54)
+				(name "IN-" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 10.16 270)
+				(length 2.54)
+				(name "VS" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+
 )

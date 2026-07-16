@@ -75,11 +75,12 @@ REGISTRY = [
            "Threshold calibrated to the as-built boards (ratified 5mm).",
       source="spec §6.8 + as-built calibration", status="ratified", params={"max_mm": 5.0}),
     C(id="shunt-inline-in-corridor", title="Shunt sits inline in the J_IN->J_OUT current path",
-      category="high-current", severity="strong", checkable="partial", directive="region",
+      category="high-current", severity="strong", checkable="yes", directive="region",
       rule="Each cable/pin shunt lies between its input and output connector pads, so current flows "
-           "through it with no bypass.", source="spec §6.7; user-named", status="ratified"),
+           "through it with no bypass.", source="spec §6.7; user-named", status="ratified",
+      params={"tol_mm": 2.0}),
     C(id="high-current-corridor-keepout", title="High-current corridor clear of foreign signals",
-      category="high-current", severity="strong", checkable="partial", directive="keepout",
+      category="high-current", severity="strong", checkable="yes", directive="keepout",
       rule="The J_IN->shunt->J_OUT corridor carries no foreign-net via/track (reserved for the pour).",
       source="CLAUDE.md considerations", status="ratified"),
     C(id="high-current-pour-present", title="High-current nets carried by a filled pour",
@@ -600,6 +601,151 @@ def _chk_pour_integrity(board, path, ctx):
         return (False, "12V pour cut by a same-layer foreign trace: " + "; ".join("%s<-%s" % (a, b) for a, b in sorted(cut)[:6]),
                 [{"type": "keepout", "reserve": "pour-region-foreign-signal", "nets": sorted({a for a, _ in cut})}])
     return True, "no foreign same-layer trace cuts a high-current pour"
+
+
+def _shared_bus_conns(kelvin, by_net):
+    """Connector refs that serve MORE THAN ONE Kelvin pair -- a shared-bus / multi-rail connector
+    (the 24-pin ATX J3/J4, the 12VHPWR J3/J4). The per-cable J_IN->shunt->J_OUT corridor model does
+    NOT apply to those (they use a Phase-5 per-pin variant); the checkers N/A any pair on one."""
+    serves = collections.defaultdict(set)
+    for hi, lo in kelvin:
+        for ref, _p, _fp in by_net.get(hi, []) + by_net.get(lo, []):
+            if ref.upper().startswith("J"):
+                serves[ref].add(hi[:-3])
+    return {ref for ref, pairs in serves.items() if len(pairs) > 1}
+
+
+def _corridor_bands(board):
+    """(bands, corridor_nets): per per-cable Kelvin pair the band = bbox over the cable CONNECTOR
+    (J*) + 2-pad shunt pads on its HI/LO nets -- the J_IN->shunt->J_OUT current path. The INA's SMD
+    sense pads are EXCLUDED (matching cec_fr.derive_power_pours: THT connector + 2-pad shunt), so the
+    band is not inflated to swallow the sense fan-out. A pair on a SHARED-BUS connector (24-pin /
+    12VHPWR) or whose band is DEGENERATE (wider than ~half the board -> shunt not inline / connectors
+    not aligned) is dropped -- the per-cable corridor does not apply there."""
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    by_net = _pads_by_net(board)
+    l, _t, r, _b = _edge_bbox(board)
+    board_w = max(1.0, r - l)
+    shared = _shared_bus_conns(kelvin, by_net)
+    padn = {fp.GetReference(): len(list(fp.Pads())) for fp in board.GetFootprints()}
+    bands, corridor = {}, set()
+    for hi, lo in kelvin:
+        hi_nodes, lo_nodes = by_net.get(hi, []), by_net.get(lo, [])
+        corridor |= {hi, lo}
+        refs_hi = {ref for ref, _, _ in hi_nodes}
+        refs_lo = {ref for ref, _, _ in lo_nodes}
+        jrefs = {ref for ref in (refs_hi | refs_lo) if ref.upper().startswith("J")}
+        if jrefs & shared:
+            continue                                   # shared-bus connector -> Phase-5 variant
+        straddle = refs_hi & refs_lo
+        shunt = next((x for x in sorted(straddle) if x.upper().startswith("RS") and padn.get(x) == 2),
+                     next((x for x in sorted(straddle) if x.startswith("R") and padn.get(x) == 2), None))
+        band_refs = set(jrefs) | ({shunt} if shunt else set())
+        pts = [p.GetPosition() for ref, p, _ in (hi_nodes + lo_nodes) if ref in band_refs]
+        if not pts:
+            continue
+        xs = [_mm(p.x) for p in pts]
+        ys = [_mm(p.y) for p in pts]
+        if (max(xs) - min(xs)) > 0.55 * board_w:       # degenerate: not a tight per-cable column
+            continue
+        bands[hi[:-3]] = (min(xs) - 1.5, max(xs) + 1.5, min(ys), max(ys))
+    return bands, corridor
+
+
+def _is_corridor_signal(net, corridor, sense=()):
+    """A foreign net that can intrude the corridor: not a corridor force net, not GND/a power rail
+    (those legitimately stitch/pour), not an INA SENSE net (*sense* = the INA input nets incl. the
+    12VHPWR _P/_N), not a KiCad auto-named floating net -- i.e. a real routed control/signal net."""
+    if net in corridor or net in sense or not net:
+        return False
+    if "unconnected-" in net.lower():
+        return False
+    base = net.rsplit("/", 1)[-1].upper()
+    if base in ("GND",) or re.search(r"(^|/)\+?(3V3|5VSB|5V|12V|VBUS|VCC)$", net, re.I):
+        return False
+    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")):
+        return False
+    return True
+
+
+@checker("shunt-inline-in-corridor")
+def _chk_shunt_inline(board, path, ctx):
+    """PLACEMENT check (no route needed): each cable shunt RS{n} lies between its J_IN (force-in,
+    on _HI) and J_OUT (force-out, on _LO) connector pads, so current flows THROUGH it with no
+    bypass (spec §6.7). The shunt centroid must fall inside the bbox spanned by the in/out
+    connector force-pad centroids (+tol). N/A on shared-bus connectors (24-pin / 12VHPWR fan-out),
+    whose per-pin path the connector-centroid test cannot model -- a Phase-5 per-pin variant."""
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    if not kelvin:
+        return None, "no Kelvin pair (board carries no high-current cable)"
+    by_net = _pads_by_net(board)
+    shared = _shared_bus_conns(kelvin, by_net)
+    tol = _param("shunt-inline-in-corridor", "tol_mm", 2.0)
+    fails, oks, checked = [], [], 0
+    for hi, lo in kelvin:
+        hi_nodes, lo_nodes = by_net.get(hi, []), by_net.get(lo, [])
+        hi_refs = {r for r, _, _ in hi_nodes}
+        lo_refs = {r for r, _, _ in lo_nodes}
+        jrefs = {r for r in (hi_refs | lo_refs) if r.upper().startswith("J")}
+        if jrefs & shared:
+            continue                                   # shared-bus fan-out -> centroid test N/A
+        straddle = sorted(hi_refs & lo_refs)
+        shunt = next((r for r in straddle if r.upper().startswith("RS")),
+                     next((r for r in straddle if r.startswith("R")), None))
+        jin = [p.GetPosition() for r, p, _ in hi_nodes if r.upper().startswith("J")]
+        jout = [p.GetPosition() for r, p, _ in lo_nodes if r.upper().startswith("J")]
+        if not shunt or not jin or not jout:
+            continue
+        sh_fp = next(fp for r, _p, fp in (hi_nodes + lo_nodes) if r == shunt)
+        sx, sy = _mm(sh_fp.GetPosition().x), _mm(sh_fp.GetPosition().y)
+        ix = sum(_mm(p.x) for p in jin) / len(jin)
+        iy = sum(_mm(p.y) for p in jin) / len(jin)
+        ox = sum(_mm(p.x) for p in jout) / len(jout)
+        oy = sum(_mm(p.y) for p in jout) / len(jout)
+        checked += 1
+        inline = (min(ix, ox) - tol <= sx <= max(ix, ox) + tol and
+                  min(iy, oy) - tol <= sy <= max(iy, oy) + tol)
+        (oks if inline else fails).append("%s @(%.1f,%.1f) in[%s] out[%s]"
+                                          % (shunt, sx, sy, hi[1:], lo[1:]))
+    if checked == 0:
+        return None, "no per-cable shunt with both in/out connector pads (shared-bus or absent)"
+    if fails:
+        return (False, "shunt not inline in the J_IN->J_OUT current path: " + "; ".join(fails[:6]),
+                [{"type": "region", "reserve": "shunt-on-current-axis"}])
+    return True, "all %d shunts inline between their in/out connectors" % len(oks)
+
+
+@checker("high-current-corridor-keepout")
+def _chk_corridor_keepout(board, path, ctx):
+    """ROUTE-time check: no foreign signal track/via inside a per-cable J_IN->shunt->J_OUT band (it
+    is reserved for the pour; a foreign trace there cuts the fill -- the eps-8pin failure mode).
+    The post-route teeth for the placer's corridor_cross_count. N/A on shared-bus / degenerate
+    boards (no per-cable band resolved)."""
+    if _track_count(board) == 0:
+        return None, "floorplan (corridor keepout is a route-time check)"
+    bands, corridor = _corridor_bands(board)
+    if not bands:
+        return None, "no per-cable high-current corridor (shared-bus / degenerate)"
+    sense = _sense_nets(board)                          # INA input nets (incl. 12VHPWR _P/_N) -- not foreign
+    intruders = set()
+    for t in board.GetTracks():
+        n = t.GetNetname()
+        if not _is_corridor_signal(n, corridor, sense):
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            pts = [t.GetPosition()]
+        else:
+            s, e = t.GetStart(), t.GetEnd()
+            pts = [s, e, pcbnew.VECTOR2I((s.x + e.x) // 2, (s.y + e.y) // 2)]
+        for base, (X0, X1, Y0, Y1) in bands.items():
+            if any(X0 <= _mm(p.x) <= X1 and Y0 <= _mm(p.y) <= Y1 for p in pts):
+                intruders.add((base, n))
+    if intruders:
+        return (False, "foreign signal inside a high-current corridor: "
+                + "; ".join("%s<-%s" % (b, n) for b, n in sorted(intruders)[:6]),
+                [{"type": "keepout", "reserve": "corridor-foreign-signal",
+                  "bands": sorted(bands)}])
+    return True, "no foreign signal track/via inside a high-current corridor (%d band(s))" % len(bands)
 
 
 @checker("min-pour-cross-section")

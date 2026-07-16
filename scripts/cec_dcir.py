@@ -72,17 +72,34 @@ def _layer_thickness_m(is_outer, oz_outer, oz_inner):
     return (oz_outer if is_outer else oz_inner) * CU_OZ_M
 
 
-def _terminals(b, net):
+def _terminals(b, net, src_refs=None, sink_refs=None):
     """Classify the net's force-path terminal pads: connectors (ref J*) vs shunts (ref RS*). INA/IC
     sense pads (Kelvin taps) carry ~0 current and are intentionally NOT terminals (they sit on the
-    copper as dead-end branches). Returns (conn_pads, shunt_pads) or None if not a 2-terminal path."""
+    copper as dead-end branches). Returns (conn_pads, shunt_pads) or None if not a 2-terminal path.
+
+    ADDITIVE (iteration-11 blade-interconnect audit): src_refs/sink_refs -- optional predicates
+    (callable ref->bool, or a tuple of exact ref prefixes tested longest-match) override the J*/RS*
+    rule for boards with a different terminal topology (e.g. the passive output daughterboards:
+    src = the TE tab footprints J10.., sink = the output-field J1). Defaults preserve the old rule."""
+    def _pred(spec):
+        if spec is None:
+            return None
+        if callable(spec):
+            return spec
+        return lambda r, t=tuple(spec): any(r == p or r.startswith(p) for p in t)
+    p_src, p_sink = _pred(src_refs), _pred(sink_refs)
     conn, shunt = [], []
     for fp in b.GetFootprints():
         ref = fp.GetReference()
         for p in fp.Pads():
             if p.GetNetname() != net:
                 continue
-            if ref.startswith("RS"):
+            if p_src or p_sink:
+                if p_src and p_src(ref):
+                    conn.append(p)
+                elif p_sink and p_sink(ref):
+                    shunt.append(p)
+            elif ref.startswith("RS"):
                 shunt.append(p)
             elif ref.startswith("J"):
                 conn.append(p)
@@ -227,10 +244,12 @@ def _pcg(matvec, b, diag, fixed, tol=1e-9, maxit=6000):
     return x, math.sqrt(max(rel, 0.0))
 
 
-def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4e-3):
+def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4e-3,
+              src_refs=None, sink_refs=None):
     """DC field solve for one high-current force net. Returns a dict (ir_drop_V, j_max_A_mm2,
-    j_p995_A_mm2, eff_cross_mm2, n_nodes, n_lat_edges, n_vias, layers) or None if unresolvable."""
-    terms = _terminals(b, net)
+    j_p995_A_mm2, eff_cross_mm2, n_nodes, n_lat_edges, n_vias, layers) or None if unresolvable.
+    src_refs/sink_refs: optional terminal override (see _terminals), default = old J*/RS* rule."""
+    terms = _terminals(b, net, src_refs=src_refs, sink_refs=sink_refs)
     if terms is None:
         return None
     conn_pads, shunt_pads = terms

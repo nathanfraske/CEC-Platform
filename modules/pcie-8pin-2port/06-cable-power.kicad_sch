@@ -1,0 +1,1753 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "69bf50ba-4b99-434f-a587-d33bc5b8de5c")
+	(paper "A4")
+	(title_block
+		(title "CEC PCIe 8-pin 2-Port Module: 06-cable-power")
+		(date "2026-07-02")
+		(rev "BETA-2")
+		(company "CEC")
+		(comment 1 "Cable interposer connectors + per-cable shunts")
+	)
+	(lib_symbols
+		(symbol "cec-vendor:R_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "R_Small"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_Small_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec:CEC_CONN_2x4"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 1.27 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_CONN_2x4"
+				(at 1.27 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Generic connector, double row, 02x04, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_2x??_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_CONN_2x4_1_1"
+				(rectangle
+					(start -1.27 3.81)
+					(end 3.81 -6.35)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(rectangle
+					(start -1.27 2.667)
+					(end 0 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -4.953)
+					(end 0 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 2.667)
+					(end 2.54 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 0.127)
+					(end 2.54 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -2.413)
+					(end 2.54 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -4.953)
+					(end 2.54 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 2.54 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 2.54 180)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 0 180)
+					(length 3.81)
+					(name "Pin_4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -2.54 180)
+					(length 3.81)
+					(name "Pin_6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -5.08 0)
+					(length 3.81)
+					(name "Pin_7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -5.08 180)
+					(length 3.81)
+					(name "Pin_8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:Keystone_3586_Blade_Clip"
+			(pin_numbers (hide no))
+			(pin_names (offset 0.762) (hide yes))
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at 0 4.445 0)
+				(effects (font (size 1.27 1.27))))
+			(property "Value" "Keystone 3586"
+				(at 0 -4.445 0)
+				(effects (font (size 1.27 1.27))))
+			(property "Footprint" "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+				(at 0 0 0)
+				(show_name no)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3d2b9e11b57a96b0629b2595d48bec21.pdf?productCode=C238113"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Description" "Keystone 3586 SMT universal-entry female quick-fit blade clip (top & side entry), auto-blade-fuse-clip lineage. Accepts .110-.250in (2.8-6.4mm) wide male tabs, .020-.032in (0.51-0.81mm) thick (family spec, Keystone PC Quick-Fit Terminals catalog p.53, CAT NO. 3557 table; keyelco product page confirms the same .110-.250in width range for 3586 itself). 0.016in (0.40mm) thick brass, tin-nickel plate. 3 SMD solder pads (2 main legs + 1 support/anchor foot) — all one electrical node (single receptacle contact). Footprint pad geometry verified against Keystone dwg no. 3586 rev D (pad width .105in/2.66mm exact match; pad-row envelope .260in/6.60mm minus pad height = 4.90mm center spacing, matching the vendored land)."
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Manufacturer" "Keystone Electronics Corp."
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "MPN" "3586"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "LCSC" "C238113"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Current Rating" "30 A @ 500 V (Keystone/DigiKey field rating; no stated temperature-rise condition — confirm-soak before BOM lock per docs/standard-tier-review/output-daughterboard-study-2026-07-04.md §8.9(a))"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "ki_keywords" "blade clip fuse clip quick-fit universal terminal 30A FASTON Keystone SMT"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "ki_fp_filters" "Keystone_3586*"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(symbol "Keystone_3586_Blade_Clip_0_1"
+				(rectangle
+					(start -2.54 1.27)
+					(end 2.54 -1.27)
+					(stroke (width 0.2032) (type default))
+					(fill (type none)))
+				(polyline
+					(pts (xy -1.27 1.27) (xy 0 2.54) (xy 1.27 1.27))
+					(stroke (width 0.2032) (type default))
+					(fill (type none)))
+			)
+			(symbol "Keystone_3586_Blade_Clip_1_1"
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.54)
+					(name "~"
+						(effects (font (size 1.016 1.016))))
+					(number "1"
+						(effects (font (size 1.016 1.016)))))
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 187.96 39.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "20fae762-fa86-46b6-aabc-1c054f83a520")
+		(property "Reference" "RS1" (at 189.992 38.1 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0.5mΩ" (at 189.992 40.64 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 187.96 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 187.96 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 187.96 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CSS2H-2512R-L500F" (at 187.96 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 187.96 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "47159dea-6483-4848-a600-7d2a25d4ca81"))
+		(pin "2" (uuid "be5e998a-db83-4921-b981-512c2cae61c2"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "RS1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 187.96 96.52 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "51afc064-7800-485a-9e6c-4d44af97cdec")
+		(property "Reference" "RS2" (at 189.992 95.25 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0.5mΩ" (at 189.992 97.79 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 187.96 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 187.96 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 187.96 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CSS2H-2512R-L500F" (at 187.96 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 187.96 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "ff2522ed-601d-498c-a170-95b58e356e34"))
+		(pin "2" (uuid "f2702ce4-20ae-49db-8078-8ee3b4f8248e"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "RS2") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec:CEC_CONN_2x4")
+		(at 149.86 26.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "321de02d-63bd-42c7-b458-3528b82b13ec")
+		(property "Reference" "J_IN1" (at 149.86 17.78 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "C1 PSU" (at 149.86 20.32 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal" (at 149.86 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 149.86 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Molex" (at 149.86 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "45586-0005" (at 149.86 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "38e88b3c-da25-49c5-a034-6b066198a8fd"))
+		(pin "2" (uuid "790b846c-14f1-4228-9b3d-a79ffcccb811"))
+		(pin "3" (uuid "6629aeea-de67-45ce-9861-e8d30b1f685a"))
+		(pin "4" (uuid "7b9a9dbc-f0ae-4638-8ed9-c0b4b1e43d68"))
+		(pin "5" (uuid "37a1eedf-39e0-47ed-b768-a433eab9a422"))
+		(pin "6" (uuid "687f6049-d383-4b12-98df-2e3efca62029"))
+		(pin "7" (uuid "0d6e7568-f378-4f34-a587-a1067d4ad71c"))
+		(pin "8" (uuid "c68002c7-9b2a-49e9-ac84-47f00d22ed20"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "J_IN1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec:CEC_CONN_2x4")
+		(at 149.86 83.82 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6a0d993d-f855-47b9-970a-3228c5833c3d")
+		(property "Reference" "J_IN2" (at 149.86 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "C2 PSU" (at 149.86 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal" (at 149.86 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 149.86 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Molex" (at 149.86 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "45586-0005" (at 149.86 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "a48ba4f4-fd3e-4fd7-8d5e-6e60c2f9d8a2"))
+		(pin "2" (uuid "769a8119-28bc-4d49-9708-98de530e9614"))
+		(pin "3" (uuid "713aca9e-c419-48e0-9f25-26926872a75b"))
+		(pin "4" (uuid "509cb169-fe57-4af7-aa7a-ddbdf887b2e2"))
+		(pin "5" (uuid "b0395ed4-baaa-4223-99dc-ffa31feca636"))
+		(pin "6" (uuid "d8113176-4685-484a-881e-081cae8db5cf"))
+		(pin "7" (uuid "1483063f-a01b-4fea-8849-aaa36a1b2ead"))
+		(pin "8" (uuid "03493c19-4a37-4e67-9605-b341e5b4082d"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "J_IN2") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 149.86 166.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a4527a83-7273-4bbc-8a75-40f9ba6159ab")
+		(property "Reference" "TB11" (at 153.67 165.1 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 148.59 167.64 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 149.86 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 149.86 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 149.86 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 149.86 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 rail (+12V, post-shunt SENSEC1_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 149.86 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "c2aaddd1-958f-4a36-8552-8f2a326f6272"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB11") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 162.56 166.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "de9e36bc-f9e9-4c39-86e4-3c936be5516c")
+		(property "Reference" "TB12" (at 166.37 165.1 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 167.64 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 162.56 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 162.56 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 162.56 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 162.56 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 rail (+12V, post-shunt SENSEC1_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 162.56 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "d7056cd6-3c04-4751-9c19-bff6045e24ac"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB12") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 149.86 179.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b7e15da5-67e7-4a2e-938c-a2b9db20eae2")
+		(property "Reference" "TB13" (at 153.67 177.8 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 148.59 180.34 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 149.86 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 149.86 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 149.86 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 149.86 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 149.86 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "656c7ace-24e2-4e9a-bafd-900575fb416e"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB13") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 162.56 179.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "42060e48-f612-45a7-826a-f024fac503a4")
+		(property "Reference" "TB14" (at 166.37 177.8 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 180.34 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 162.56 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 162.56 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 162.56 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 162.56 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 162.56 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "1e323961-f30e-46a7-9e5c-42408e7d1090"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB14") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 149.86 196.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "462ecc0c-341f-4e72-bf87-6ba2f1891afb")
+		(property "Reference" "TB21" (at 153.67 195.58 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 148.59 198.12 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 149.86 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 149.86 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 149.86 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 149.86 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 rail (+12V, post-shunt SENSEC2_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 149.86 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "215fb49c-9957-4755-9ad3-32112ab46ae9"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB21") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 162.56 196.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "be7184d8-bcac-4960-b0d5-66ecc8bebe75")
+		(property "Reference" "TB22" (at 166.37 195.58 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 198.12 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 162.56 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 162.56 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 162.56 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 162.56 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 rail (+12V, post-shunt SENSEC2_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 162.56 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "b107ab68-c140-4046-a10f-c1bd30ba3865"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB22") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 149.86 209.55 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b0df9f5b-37f1-4b27-8614-3202a277059a")
+		(property "Reference" "TB23" (at 153.67 208.28 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 148.59 210.82 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 149.86 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 149.86 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 149.86 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 149.86 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 149.86 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "0643ea12-960c-4d69-ad95-26daa78a7495"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB23") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 162.56 209.55 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b7ba599f-c777-47d7-a472-bbc46eb1d82b")
+		(property "Reference" "TB24" (at 166.37 208.28 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 210.82 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 162.56 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 162.56 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 162.56 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 162.56 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 162.56 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "24212a34-7fc8-449f-966f-4a0b57254039"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB24") (unit 1))
+			)
+		)
+	)
+(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 175.26 166.37 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "04654da9-e044-4642-a29c-a4a07584c66a")
+		(property "Reference" "TB15" (at 166.37 165.1 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 167.64 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 175.26 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 175.26 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 175.26 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 175.26 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 rail (+12V, post-shunt SENSEC1_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 175.26 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "49576612-a11a-45d9-8b3f-5e0d66fe5710"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB15") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 175.26 170.18) (xy 175.26 173.99))
+		(stroke (width 0) (type default)) (uuid "ac2b1141-3200-46f8-9173-ef473214bdae"))
+	(label "SENSEC1_LO" (at 175.26 173.99 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7e0bbeaa-68dd-4ec4-9a7a-b89fbed586fc"))
+(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 175.26 179.07 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "75fc8ac7-35b7-415d-b67f-25a88df9cd96")
+		(property "Reference" "TB16" (at 166.37 177.8 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 180.34 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 175.26 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 175.26 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 175.26 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 175.26 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 1 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 175.26 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f5bdfd63-8727-4b75-8753-145ea3a16832"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB16") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 175.26 182.88) (xy 175.26 186.69))
+		(stroke (width 0) (type default)) (uuid "8a7db4c4-1bfb-410a-a1ce-5d8973558909"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 175.26 186.69 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "29f12f42-07c1-4c36-a41b-dd2dfcd883a6")
+		(property "Reference" "#PWR615" (at 175.26 184.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 175.26 191.77 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6688307d-84f5-46d7-8284-06e056df61db"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR615") (unit 1))
+			)
+		)
+	)
+(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 175.26 196.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "bc4623e9-e179-4719-be36-8b7f77233afc")
+		(property "Reference" "TB25" (at 166.37 195.58 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 198.12 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 175.26 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 175.26 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 175.26 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 175.26 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 rail (+12V, post-shunt SENSEC2_LO) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 175.26 196.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "6bb11b05-c8b0-413a-ad72-b1cf69c7c7fc"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB25") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 175.26 200.66) (xy 175.26 204.47))
+		(stroke (width 0) (type default)) (uuid "2cd12559-0dcd-4bad-8e98-f9e7a3421c65"))
+	(label "SENSEC2_LO" (at 175.26 204.47 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3e38ed96-31c4-4022-802f-a8e0592598e4"))
+(symbol
+		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(at 175.26 209.55 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "353a1d1f-28e0-4c53-b5cc-3e48fb1e27d0")
+		(property "Reference" "TB26" (at 166.37 208.28 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TE 63969-1" (at 167.64 210.82 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 175.26 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TE Connectivity" (at 175.26 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "63969-1" (at 175.26 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2961150" (at 175.26 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Output daughterboard blade clip, cable 2 return (GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE 63849-1 tab on the daughterboard (not yet a repo deliverable). [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 175.26 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "df6a3077-f948-4667-a988-cc4499621e7d"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "TB26") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 175.26 213.36) (xy 175.26 217.17))
+		(stroke (width 0) (type default)) (uuid "0795ecb3-78f0-4940-9a01-01c817b644f7"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 175.26 217.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "97b2fcfa-0650-4684-8491-51bdb2dcd945")
+		(property "Reference" "#PWR616" (at 175.26 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 175.26 222.25 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8ea6c330-bc94-4f0b-a000-308ba15a32f4"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR616") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 144.78 24.13) (xy 140.97 24.13))
+		(stroke (width 0) (type default)) (uuid "f2844f04-74a4-45f9-ba00-d239bcd59860"))
+	(wire (pts (xy 157.48 24.13) (xy 161.29 24.13))
+		(stroke (width 0) (type default)) (uuid "2aad9ff8-6aaa-4d40-b73d-78dfd08ab98a"))
+	(wire (pts (xy 144.78 26.67) (xy 140.97 26.67))
+		(stroke (width 0) (type default)) (uuid "e277e77f-6e83-4ce4-84e5-d7550c8fc264"))
+	(wire (pts (xy 187.96 36.83) (xy 187.96 33.02))
+		(stroke (width 0) (type default)) (uuid "04c2578d-8024-4ebe-b954-107092973708"))
+	(wire (pts (xy 187.96 41.91) (xy 187.96 45.72))
+		(stroke (width 0) (type default)) (uuid "685393b5-6074-4cdb-b787-1aea0c0fd943"))
+	(wire (pts (xy 149.86 170.18) (xy 149.86 173.99))
+		(stroke (width 0) (type default)) (uuid "dd263507-4408-4fce-b022-a092deba524a"))
+	(wire (pts (xy 162.56 170.18) (xy 162.56 173.99))
+		(stroke (width 0) (type default)) (uuid "87fdf4e5-a44e-4421-99c1-8ea19bbb5683"))
+	(wire (pts (xy 144.78 81.28) (xy 140.97 81.28))
+		(stroke (width 0) (type default)) (uuid "c45174c2-50f5-4575-a443-817a11d852ab"))
+	(wire (pts (xy 157.48 81.28) (xy 161.29 81.28))
+		(stroke (width 0) (type default)) (uuid "62163853-38a5-4ae5-9bbf-883e9e501d02"))
+	(wire (pts (xy 144.78 83.82) (xy 140.97 83.82))
+		(stroke (width 0) (type default)) (uuid "169df655-2996-4bdc-95c8-8e330765e155"))
+	(wire (pts (xy 187.96 93.98) (xy 187.96 90.17))
+		(stroke (width 0) (type default)) (uuid "e3ec2acb-cb25-471e-b7c8-dcf5af48460a"))
+	(wire (pts (xy 187.96 99.06) (xy 187.96 102.87))
+		(stroke (width 0) (type default)) (uuid "90c8a582-d431-4af1-82bd-821136c363fd"))
+	(wire (pts (xy 149.86 200.66) (xy 149.86 204.47))
+		(stroke (width 0) (type default)) (uuid "525c356f-6d4c-4e7e-9954-5a010d91a425"))
+	(wire (pts (xy 162.56 200.66) (xy 162.56 204.47))
+		(stroke (width 0) (type default)) (uuid "872ee670-0342-4208-bc92-330e947f8b95"))
+	(wire (pts (xy 157.48 26.67) (xy 161.29 26.67))
+		(stroke (width 0) (type default)) (uuid "9bfdd319-c947-4058-9bf8-42ace7160b1c"))
+	(wire (pts (xy 144.78 29.21) (xy 140.97 29.21))
+		(stroke (width 0) (type default)) (uuid "58b7c33d-8f23-45b2-a9bd-ee450db709b9"))
+	(wire (pts (xy 157.48 29.21) (xy 162.56 29.21))
+		(stroke (width 0) (type default)) (uuid "1c1ecebf-8757-4283-ad06-dd4262f25969"))
+	(wire (pts (xy 144.78 31.75) (xy 139.7 31.75))
+		(stroke (width 0) (type default)) (uuid "e93a5ecc-0b2b-41db-bbb3-1f935f7b920b"))
+	(wire (pts (xy 157.48 31.75) (xy 163.83 31.75))
+		(stroke (width 0) (type default)) (uuid "37819393-935d-433f-b9d8-a834d3367de3"))
+	(wire (pts (xy 157.48 83.82) (xy 161.29 83.82))
+		(stroke (width 0) (type default)) (uuid "ab8ae971-c2c0-4972-9da1-a5818f349461"))
+	(wire (pts (xy 144.78 86.36) (xy 140.97 86.36))
+		(stroke (width 0) (type default)) (uuid "ccd77762-dc6d-4db0-a15a-0a12f3f12590"))
+	(wire (pts (xy 157.48 86.36) (xy 162.56 86.36))
+		(stroke (width 0) (type default)) (uuid "b579c06d-e258-4411-938e-fb1b0bed0298"))
+	(wire (pts (xy 144.78 88.9) (xy 139.7 88.9))
+		(stroke (width 0) (type default)) (uuid "91b3994b-ad1b-4b96-b6ed-9a11e1be96cc"))
+	(wire (pts (xy 157.48 88.9) (xy 163.83 88.9))
+		(stroke (width 0) (type default)) (uuid "c9111156-4559-4d3d-82f5-9c2561807162"))
+	(wire (pts (xy 149.86 182.88) (xy 149.86 186.69))
+		(stroke (width 0) (type default)) (uuid "3933e544-a5e4-4d73-a4c0-c2d0cb8c0863"))
+	(wire (pts (xy 162.56 182.88) (xy 162.56 186.69))
+		(stroke (width 0) (type default)) (uuid "0eeeb08d-5563-4be2-802e-a9bf70453834"))
+	(wire (pts (xy 149.86 213.36) (xy 149.86 217.17))
+		(stroke (width 0) (type default)) (uuid "7dedb6fc-95dc-4d5f-9d12-ab565e930274"))
+	(wire (pts (xy 162.56 213.36) (xy 162.56 217.17))
+		(stroke (width 0) (type default)) (uuid "a91f6970-9499-4eb3-a9a9-bcf6fa0c8f7c"))
+	(wire (pts (xy 140.97 24.13) (xy 121.92 24.13))
+		(stroke (width 0) (type default)) (uuid "8dec9ef5-433c-4049-89a6-92d40e6fc47b"))
+	(wire (pts (xy 187.96 45.72) (xy 121.92 45.72))
+		(stroke (width 0) (type default)) (uuid "5c065cf2-dbde-49fe-90fe-271d81983e52"))
+	(wire (pts (xy 140.97 81.28) (xy 121.92 81.28))
+		(stroke (width 0) (type default)) (uuid "e9c6a45e-6c43-4d47-9666-69fd36354419"))
+	(wire (pts (xy 187.96 102.87) (xy 121.92 102.87))
+		(stroke (width 0) (type default)) (uuid "48b90328-f1b3-4fef-914f-516f94688723"))
+	(label "SENSEC1_HI" (at 161.29 24.13 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c47b359a-465f-4d10-ad15-21cf1adef42c"))
+	(label "SENSEC1_HI" (at 140.97 26.67 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "a0f3dc1b-e482-4dc9-9775-f1b8082ac462"))
+	(label "SENSEC1_HI" (at 187.96 33.02 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c3c922a2-1a4d-4e7e-a50f-73c19324acf4"))
+	(label "SENSEC1_LO" (at 149.86 173.99 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "27596813-b963-488a-83ef-637159a8fcb1"))
+	(label "SENSEC1_LO" (at 162.56 173.99 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "04776151-6c8b-4bcb-8a6d-3320995437bf"))
+	(label "SENSEC2_HI" (at 161.29 81.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3873d0b4-fc83-44f2-8351-545ca3794205"))
+	(label "SENSEC2_HI" (at 140.97 83.82 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8ef90e07-68ab-48aa-9c05-0704df59c9a9"))
+	(label "SENSEC2_HI" (at 187.96 90.17 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d8995cad-4ede-4aa4-957f-c8ad45aaae3f"))
+	(label "SENSEC2_LO" (at 149.86 204.47 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d5815f9d-321c-42ff-8788-34060b9ded59"))
+	(label "SENSEC2_LO" (at 162.56 204.47 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fd79e3bc-384b-4c92-afaa-f96b3c14aba3"))
+	(hierarchical_label "SENSEC1_HI"
+		(shape output)
+		(at 121.92 24.13 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "2f3f9801-3719-4da8-b036-a7204ef69727")
+	)
+	(hierarchical_label "SENSEC1_LO"
+		(shape output)
+		(at 121.92 45.72 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "89ddd600-cfc3-437e-9793-8b66e14c1558")
+	)
+	(hierarchical_label "SENSEC2_HI"
+		(shape output)
+		(at 121.92 81.28 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "9fb04d91-6b42-41e6-bb33-d13c7aa9e3be")
+	)
+	(hierarchical_label "SENSEC2_LO"
+		(shape output)
+		(at 121.92 102.87 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "e5f96234-99b8-4b55-8903-77375cac104e")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 161.29 26.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5119b66e-c398-4c7f-872a-b684eb156898")
+		(property "Reference" "#PWR601" (at 161.29 24.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 161.29 39.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "12166493-72ce-4d6a-a2e3-a9c842fb05a7"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR601") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 140.97 29.21 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "41524b20-5310-47a2-91cb-033aa3c31101")
+		(property "Reference" "#PWR602" (at 140.97 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 140.97 34.29 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "af39e410-b4e7-43cb-a20c-2b5f7d3e7f84"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR602") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 162.56 29.21 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c23fae40-43ba-4dbc-8a83-339c0dc9327a")
+		(property "Reference" "#PWR603" (at 162.56 26.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 162.56 34.29 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6ba0da2b-e4b6-4602-9c63-72e9d9c101cd"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR603") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 139.7 31.75 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "64e00d4e-0e7c-4f45-8f75-320746a0fb0d")
+		(property "Reference" "#PWR604" (at 139.7 29.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 139.7 36.83 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4baffb1b-48ce-4820-8d9a-a5375be5062f"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR604") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 163.83 31.75 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "18908b60-b4d5-43c2-9230-37924cc48eda")
+		(property "Reference" "#PWR605" (at 163.83 29.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 163.83 36.83 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4f2973ca-4a3d-47f1-be53-1821ca387593"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR605") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 161.29 83.82 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7cb6bf9d-7882-4c89-a17d-ba5853d85b0b")
+		(property "Reference" "#PWR606" (at 161.29 81.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 161.29 96.52 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8145ba89-45dc-4c54-8c23-39b65dcf0759"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR606") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 140.97 86.36 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2ed99a91-e0f7-4991-9094-b1d51b2cb464")
+		(property "Reference" "#PWR607" (at 140.97 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 140.97 91.44 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "36a2e238-0c85-4e3d-89d2-1a0f912d081c"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR607") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 162.56 86.36 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4571683f-0267-4bfc-9f75-c1d91dec6045")
+		(property "Reference" "#PWR608" (at 162.56 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 162.56 91.44 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "532470b4-76df-42f3-93b2-04990f79ce9d"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR608") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 139.7 88.9 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1d4c1062-fcae-4eea-b63d-d15a6c630385")
+		(property "Reference" "#PWR609" (at 139.7 86.36 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 139.7 93.98 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "edc236d8-80e6-4e2f-a034-e189a00877dc"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR609") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 163.83 88.9 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d0bd1da5-fba3-4c0a-b79f-c49d3dde505b")
+		(property "Reference" "#PWR610" (at 163.83 86.36 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 163.83 93.98 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "cfaa072d-0e02-453b-b49b-09237dde5393"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR610") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 149.86 186.69 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b1539d6f-fb7d-4c37-8456-b89fea0d8bc9")
+		(property "Reference" "#PWR611" (at 149.86 184.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 149.86 191.77 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "06a6c1c6-b46a-4c62-9e45-3eb5fbeb7b5f"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR611") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 162.56 186.69 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9bed9f8f-391e-451d-85d0-a5cbdec1c3fd")
+		(property "Reference" "#PWR612" (at 162.56 184.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 162.56 191.77 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b139d384-e255-40f6-b0f9-368922022b79"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR612") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 149.86 217.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0738d45b-b5ef-42cd-b976-1ba14ae33c6a")
+		(property "Reference" "#PWR613" (at 149.86 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 149.86 222.25 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ba33c3fb-71b7-44ff-be7d-e79ec9485fe7"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR613") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 162.56 217.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d4afec5b-eb9c-478a-a194-fdc0450357d8")
+		(property "Reference" "#PWR614" (at 162.56 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 162.56 222.25 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "123b1910-4efd-4db5-94ea-e3af3d15ce81"))
+		(instances
+			(project "pcie8pin-2port-module"
+				(path "/a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476" (reference "#PWR614") (unit 1))
+			)
+		)
+	)
+	(sheet_instances
+		(path "/6f0a23cd-c50e-4d8f-b72e-2dfbfd05f476"
+			(page "7")
+		)
+	)
+	(embedded_fonts no)
+)

@@ -10101,7 +10101,7 @@
 				)
 			)
 		)
-		(property "Value" "R_ID (OQ-6)"
+		(property "Value" "2.2kΩ"
 			(at 233.172 89.916 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10143,7 +10143,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "DETECT module-ID precision resistor; value pending OQ-6"
+		(property "BOM Comments" "DETECT module-ID precision resistor; OQ-6 LOCKED v1.7 (spec §2.3) -- 24-pin is CAN-only, code = 2.2kΩ"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10166,6 +10166,39 @@
 			)
 		)
 		(property "Tolerance" "1%"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "0402WGF2201TCE"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C25879"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10651,6 +10684,28 @@
 			)
 		)
 		(property "LCSC" "C494568"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "WSK2512R0250FEA"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Vishay WSK2512R0250FEA, 25mOhm, 4-terminal Kelvin -- the only true-Kelvin 25mOhm 2512 part found (Bourns CSS2H tops out at 5mOhm). Not on LCSC as of the ratification sheet fetch; DigiKey/Mouser/Newark/TTI stock it (DigiKey: 5,708 pcs)."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)

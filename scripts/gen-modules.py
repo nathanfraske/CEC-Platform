@@ -119,6 +119,15 @@ BASE_PARTS = {
     "R9": ("cec-vendor", "R_Small", "5k1"),
     "SW1": ("cec-vendor", "SW_Push", "BOOT"),
     "SW2": ("cec-vendor", "SW_Push", "RESET"),
+    # GPIO0 (BOOT strapping-pin) decoupler -- mirrors the Hub (C8+R11) and the
+    # Espressif MINI hardware-design guideline: a 0.1uF cap to GND debounces the
+    # BOOT button and, with the pull-up, hardens the strapping pin against
+    # spurious download-mode entry from noise. Named refs avoid per-topology
+    # numeric collision. (Added 2026-07-07; the alpha modules had the EN RC + the
+    # buttons but were missing this cap -- the one systematic decoupler gap the
+    # audit found.)
+    "C_BOOT": ("cec-vendor", "C_Small", "100n"),  # GPIO0 -> GND
+    "R_BOOT": ("cec-vendor", "R_Small", "10k"),   # GPIO0 -> +3V3 pull-up
 }
 
 def footprint_for(ref, lib, name, val):
@@ -167,10 +176,10 @@ def build(dirn):
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
         "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3"),("D2","1")],
-        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1")],
+        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R_BOOT","1")],
         "GND":   [("J1","2"),("J1","SH1"),("J1","SH2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
-                  ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),
+                  ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),("C_BOOT","2"),
                   ("SW1","1"),("SW2","1"),("J5","A1"),("J5","A12"),("J5","B1"),
                   ("J5","B12"),("J5","S1")] + [("U1",p) for p in ESP_GND],
         # Reset: ESP32-S3 internal BOD + EN RC only (R2 pull-up to 3V3, C5 to
@@ -185,7 +194,7 @@ def build(dirn):
         "CAN_L":  [("U2","6"),("J1","6")],
         "DETECT": [("J1","8"),("R1","1"),("D1","1"),("R7","1")],
         "DETECT_SENSE": [("R7","2"),("U1","12")],  # poke-and-ack tap -> IO10 (OQ-28)
-        "GPIO0":  [("U1","23"),("SW1","2")],
+        "GPIO0":  [("U1","23"),("SW1","2"),("C_BOOT","1"),("R_BOOT","2")],
         # USB-C flash/debug: ESP native USB on pins 24 (D+) / 23 (D-); VBUS ORs
         # into +5VSB via D2 (bench USB self-powers the board for flashing);
         # CC1/CC2 = 5.1k UFP pulldowns. J5 SBU1/SBU2 (A8/B8) left NC.
@@ -444,7 +453,7 @@ def layout(dirn, parts):
             P[f"R{10+k}"] = (140 + k * 20, 270)
     return {r: P[r] for r in parts if r in P}
 
-for dirn, base in MODS:
+for dirn, base in (MODS if __name__ == "__main__" else []):   # importable w/o side effects (rev3 reuses build/layout)
     assert SENSE[dirn][0] != "analog-pin", \
         f"{dirn}: analog-pin (12VHPWR) is hand-maintained on the S3 and must NOT be regenerated (v3.10)"
     parts, nets = build(dirn)

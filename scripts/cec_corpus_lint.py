@@ -14,7 +14,7 @@
 #     status+migrated stamped) under {staging,promoted}/extracted/
 # Validates per shape (source whitelist, no model sources, Class C run refs,
 # spec-section resolution, duplicate ids ACROSS zones), plus the zone rules:
-#   * promoted/ requires status=human_approved + a complete signoff block
+#   * promoted/ requires status=promoted + a complete signoff block
 #     {by,date,evidence}; promoted EXTRACTED rows must also carry the full
 #     SB-13 upgrade (class/kind/applies_to/typed source) -- promotion forces
 #     the schema upgrade.
@@ -42,21 +42,31 @@ import glob
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
 ZONES = {"staging": os.path.join(ROOT, "corpus", "staging"),
          "promoted": os.path.join(ROOT, "corpus", "promoted")}
 LEGACY_GENERAL = os.path.join(ROOT, "corpus", "general")
 LEGACY_PROJECT = os.path.join(ROOT, "scripts", "constraints", "corpus-extracted.json")
 SPEC = os.path.join(ROOT, "CEC-Platform-Ground-Truth-Spec.md")
+# EI-05: the corroboration-budget ledger (append-only per-entry record). Absent
+# == no entry has spent any budget yet (the common case early in a run).
+CORROBORATION_PATH = os.path.join(ROOT, "corpus", "corroboration-budget.json")
+# EI-05 budget thresholds: N control-lane appearances OR M nights, whichever crosses.
+BUDGET_N_APPEARANCES = int(os.environ.get("CEC_EI05_N", "12"))
+BUDGET_M_NIGHTS = int(os.environ.get("CEC_EI05_M", "14"))
 
 CLASSES = {"A", "B", "C", "H"}
 KINDS = {"param", "rule", "heuristic", "profile"}
-STATUSES = {"proposed", "sim_validated", "bringup_validated", "human_approved", "deprecated"}
+STATUSES = {"proposed", "sim_validated", "bringup_validated", "human_approved", "promoted", "deprecated"}
 SOURCE_TYPES = {"standard", "datasheet", "fab", "spec", "decision", "measurement"}
 APPLIES_TO = {"physics", "compiler", "preflight", "judge", "informational"}
 SEVERITIES = {"hard", "strong", "soft", "advisory"}
 STALE_DAYS = {"A": 180, "C": 365}            # re-verification cadence by class
 
 errors, warnings = [], []
+dormant_candidates = []          # EI-05: the deprecation-candidate list
+_REVOCATIONS = {}                # EI-06: loaded once in main()
+_CORROBORATION = {}              # EI-05: loaded once in main()
 
 
 def err(msg):
@@ -91,11 +101,63 @@ def _signoff_ok(e):
     return isinstance(s, dict) and all(s.get(k) for k in ("by", "date", "evidence"))
 
 
+def _revocation_refusal(e, where, revocations):
+    """EI-06: an entry citing a REVOKED external root is REFUSED with a NAMED
+    reason (mirrors the AM-02 fixture latch). Returns True if refused."""
+    if not revocations:
+        return False
+    try:
+        import cec_source_registry as SR
+        reason = SR.refusal_reason(e, revocations=revocations)
+    except Exception as ex:                                    # noqa: BLE001
+        warn(f"{where}: source-revocation check skipped ({ex})")
+        return False
+    if reason:
+        err(f"{where}: REFUSED -- {reason} (EI-06: re-cite a current authoritative "
+            f"root, or the owner un-revokes it in corpus/promoted/source-revocations.json)")
+        return True
+    return False
+
+
+def _dormancy_check(e, zone, where, corroboration):
+    """EI-05: a STAGING entry that crossed its corroboration budget (>= N control-
+    lane appearances OR >= M nights) with ZERO untainted corroboration AND zero
+    judge true-positives is stamped DORMANT -- a WARN + a deprecation-candidate
+    list line. A merely-passing fixture does NOT corroborate (anti-self-
+    justification: proving a check fires is not proving it matters). promoted
+    entries are out of scope (they cleared the owner gate already)."""
+    if zone != "staging" or not corroboration:
+        return
+    rec = corroboration.get(e.get("id"))
+    if not isinstance(rec, dict):
+        return                                                 # no budget spent yet
+    appearances = int(rec.get("control_appearances", 0) or 0)
+    nights = int(rec.get("nights", 0) or 0)
+    corrob = int(rec.get("untainted_corroborations", 0) or 0)
+    tps = int(rec.get("judge_true_positives", 0) or 0)
+    budget_crossed = (appearances >= BUDGET_N_APPEARANCES) or (nights >= BUDGET_M_NIGHTS)
+    # Note (anti-self-justification): fixture_passes is deliberately NOT consulted
+    # here -- a passing fixture must not reset or earn back budget.
+    if budget_crossed and corrob == 0 and tps == 0:
+        dormant_candidates.append({
+            "id": e.get("id"), "zone": zone, "where": where,
+            "control_appearances": appearances, "nights": nights,
+            "first_seen": rec.get("first_seen"),
+            "reason": f"{appearances} control-lane appearance(s) / {nights} night(s) "
+                      f"with 0 untainted corroborations and 0 judge true-positives"})
+        warn(f"{where}: DORMANT -- {appearances} control-lane appearance(s)/{nights} "
+             f"night(s), 0 untainted corroborations, 0 judge true-positives (EI-05: "
+             f"crossed the corroboration budget; deprecation candidate -- corroborate, "
+             f"re-scope, or owner-deprecate. A passing fixture does NOT reset this)")
+
+
 def _zone_rules(e, zone, where, spec_text, migrated):
-    """CL-01/02/06 + AM-02 zone discipline, shared by both entry shapes."""
+    """CL-01/02/06 + AM-02 zone discipline + EI-05/06, shared by both entry shapes."""
+    _revocation_refusal(e, where, _REVOCATIONS)                # EI-06
+    _dormancy_check(e, zone, where, _CORROBORATION)            # EI-05
     if zone == "promoted":
-        if e.get("status") != "human_approved":
-            err(f"{where}: promoted/ requires status=human_approved (got {e.get('status')!r})")
+        if e.get("status") != "promoted":
+            err(f"{where}: promoted/ requires status=promoted (got {e.get('status')!r})")
         if not _signoff_ok(e):
             err(f"{where}: promoted/ requires a complete signoff block {{by,date,evidence}} "
                 f"-- a model can write the field; the CODEOWNERS gate makes it real")
@@ -109,10 +171,17 @@ def _zone_rules(e, zone, where, spec_text, migrated):
             else:
                 _secs_resolve(src.get("ref", ""), spec_text, where)
     else:  # staging
-        if e.get("status") == "human_approved":
+        if e.get("status") == "promoted":
+            # status=promoted is the promoted/ ZONE marker; it must never sit in staging.
+            # Closes the demotion silent-misbehavior path: a promoted->staging move must
+            # revert status to human_approved, else the entry would read as promoted while
+            # living outside the gated zone.
+            err(f"{where}: status=promoted in staging/ -- the promoted lifecycle value is "
+                f"valid ONLY in corpus/promoted/ (a demotion must revert status to human_approved)")
+        elif e.get("status") == "human_approved":
             if _signoff_ok(e):
                 warn(f"{where}: human_approved + signoff in staging/ -- ready for the "
-                     f"promotion PR (move to corpus/promoted/, id unchanged)")
+                     f"promotion PR (move to corpus/promoted/, flip status to promoted, id unchanged)")
             else:
                 warn(f"{where}: human_approved without signoff -- owner re-sign required "
                      f"before promotion (Decision 2 migration state)")
@@ -357,6 +426,24 @@ def lint_cl03():
         err(f"compile latch: {msg}")
     for msg in CC.validate_artifacts():
         err(f"artifact: {msg}")
+    # EI-06 compile-path latch: a PROMOTED entry with a compile block (a BLOCKING
+    # artifact) that cites a REVOKED root is refused at compile too -- the same
+    # AM-02-shaped latch, applied to the source-revocation poison. Surfaced here
+    # so the compile path (not just the per-entry zone-rule leg) refuses with the
+    # named reason. (cec_corpus_compile is owner-of-record for the artifact tree;
+    # this lint leg is the enforcement point that runs in CI via checklist.sh.)
+    if _REVOCATIONS:
+        try:
+            import cec_source_registry as SR
+            for e in CC.load_zone(CC.CORPUS_ROOT, "promoted"):
+                if not e.get("compile"):
+                    continue
+                reason = SR.refusal_reason(e, revocations=_REVOCATIONS)
+                if reason:
+                    err(f"compile latch (EI-06): {e['id']} blocking artifact REFUSED "
+                        f"-- {reason}")
+        except Exception as ex:                                # noqa: BLE001
+            warn(f"EI-06 compile-path revocation leg skipped ({ex})")
     # 3: committed generated-section drift
     for msg in CC.scan_generated_sections():
         err(f"generated-section: {msg}")
@@ -389,6 +476,33 @@ def lint_cl03():
                  f"promotion PR)")
 
 
+def _load_ei_state():
+    """EI-05/06: load the revocation list + corroboration ledger once (into the
+    module globals the per-entry checks read). Both are optional, fail-safe."""
+    global _REVOCATIONS, _CORROBORATION
+    try:
+        import cec_source_registry as SR
+        _REVOCATIONS = SR.load_revocations()
+        for msg in SR.lint_revocations():                      # EI-06 list shape
+            err(f"source-revocations: {msg}")
+    except Exception as ex:                                     # noqa: BLE001
+        warn(f"source-registry unavailable ({ex}) -- EI-06 revocation refusal skipped")
+        _REVOCATIONS = {}
+    if os.path.isfile(CORROBORATION_PATH):
+        try:
+            with open(CORROBORATION_PATH) as fh:
+                _CORROBORATION = json.load(fh)
+            if not isinstance(_CORROBORATION, dict):
+                err(f"{os.path.relpath(CORROBORATION_PATH, ROOT)}: must be a JSON "
+                    f"object keyed by entry id (EI-05 corroboration ledger)")
+                _CORROBORATION = {}
+        except json.JSONDecodeError as ex:
+            err(f"{os.path.relpath(CORROBORATION_PATH, ROOT)}: not valid JSON ({ex})")
+            _CORROBORATION = {}
+    else:
+        _CORROBORATION = {}
+
+
 def main():
     # legacy locations are an error once the zones exist (run the one-shot migrator)
     for legacy, kind in ((LEGACY_GENERAL, "dir"), (LEGACY_PROJECT, "file")):
@@ -396,6 +510,7 @@ def main():
         if present:
             err(f"legacy corpus location {os.path.relpath(legacy, ROOT)} still present -- "
                 f"run scripts/cec_corpus_migrate.py (two-zone split, corpus/SCHEMA.md)")
+    _load_ei_state()
     spec_text = _spec_text()
     seen_ids, seen_scope = {}, {}
     zone_ids = {"staging": set(), "promoted": set()}
@@ -407,9 +522,16 @@ def main():
         print(f"  warn: {w}")
     for e in errors:
         print(f"  FAIL: {e}", file=sys.stderr)
+    if dormant_candidates:
+        print(f"  EI-05 deprecation candidates ({len(dormant_candidates)}):")
+        for d in sorted(dormant_candidates, key=lambda d: str(d.get("id"))):
+            print(f"    DORMANT {d['id']} [{d['zone']}] -- {d['reason']}")
+    if _REVOCATIONS:
+        print(f"  EI-06 active source revocations: {len(_REVOCATIONS)} root(s)")
     print(f"corpus lint: {n_gen} general + {n_ext} extracted entries "
           f"(staging {len(zone_ids['staging'])} / promoted {len(zone_ids['promoted'])} ids) -- "
-          f"{len(errors)} error(s), {len(warnings)} warning(s)")
+          f"{len(errors)} error(s), {len(warnings)} warning(s), "
+          f"{len(dormant_candidates)} dormant candidate(s)")
     return 1 if errors else 0
 
 

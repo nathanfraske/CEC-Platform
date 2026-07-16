@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "11 structural DRC violations (require 0) and 2 unconnected nets; pour integrity shows clipped sense nets (/SENSEC1_HI, /SENSEC2_LO) with fragmented islands and high foreign cross, indicating routing cuts through sense pours. FEM flags show conductor over-temp on +5VSB, /SENSEC1_HI, /SENSEC1_LO, GND, likely from inadequate copper width or high current density. The objective is very high (973547). Placement appears acceptable (kelvin_ok=true), so routing effort and pour protection are the primary levers.",
+ "reasoning": "The gate failure is structural DRC >0. With kelvin_ok true, placement actuator T0 would not fire. The pour-clipped nets trigger the deterministic corridor-avoid lever. Increasing router passes/opt_time and applying bake_hints keepouts around sense pours should reduce DRC and improve pour integrity. No scorer reweight is needed as no gate-passing candidate exists.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_keepout",
+  "detail": "Increase router passes/opt_time; apply corridor-avoid lever for clipped sense nets; add bake_hints keepouts to protect /SENSEC1_HI and /SENSEC2_LO pours from foreign signal crossings."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

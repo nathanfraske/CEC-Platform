@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "17 structural DRC errors and 4 FEM over-temp flags indicate routing rule violations and thermal stress. Pour-integrity shows clipped sense nets (/SENSEC1_HI, /SENSEC2_LO) with islands and foreign crossings, fragmenting copper pours. This suggests the router is failing to maintain clearance and pour continuity, likely due to congested corridors or inadequate routing effort.",
+ "reasoning": "The board fails gates (require_drc_zero=True) with 17 DRC errors. FEM flags on sense nets and GND/+5VSB point to thermal hotspots from poor copper connectivity. Pour-integrity confirms fragmented pours for critical sense nets. Kelvins are routed, so placement is not blocking sense traces; the issue is routing quality and pour integrity.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "action": "increase router passes and opt_time",
+  "target": "all nets, especially sense pours",
+  "note": "Corridor-avoid lever fires deterministically from pour_clipped_nets; consider bake_hints keepouts for foreign signals crossing /SENSEC1_HI and /SENSEC2_LO pours."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

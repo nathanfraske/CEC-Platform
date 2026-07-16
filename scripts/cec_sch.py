@@ -209,9 +209,15 @@ def fmt_value(name, val):
         return fmt_res(val)
     return val
 
-def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp=""):
+def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp="", props=None):
     val = fmt_value(name, val)
+    props = props or {}
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
+    ds = props.get("Datasheet", "")
+    # extra BOM properties (LCSC / MPN / Manufacturer / Description ...) preserved through regeneration
+    extra = "".join(
+        f'\t\t(property "{k}" "{v}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        for k, v in props.items() if k not in ("Datasheet", "Reference", "Value", "Footprint") and v)
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "{lib}:{name}")\n'
@@ -222,7 +228,8 @@ def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp=""):
         f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Footprint" "{fp}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-        f'\t\t(property "Datasheet" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f'\t\t(property "Datasheet" "{ds}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f"{extra}"
         f"{pinblk}\n"
         f'\t\t(instances\n\t\t\t(project "{project}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
         "\t)")
@@ -238,6 +245,29 @@ def emit_label(net, x, y, ang):
 
 def emit_noconnect(x, y):
     return f'\t(no_connect (at {f(x)} {f(y)}) (uuid "{u()}"))'
+
+def emit_global_label(net, x, y, ang, shape="passive"):
+    """A KiCad `global_label` -- unlike `label` (same-sheet only), this binds
+    PROJECT-WIDE by name with NO hierarchical-label/sheet-pin plumbing at all
+    (the same connectivity model power symbols use). For a genuinely shared
+    BUS net touching many leaf sheets that are not in a direct parent-child
+    relationship (e.g. a CAN bus tapped by N sibling port leaves plus a shared
+    transceiver leaf), this is the correct primitive: build_thin_parent's
+    sheet-pin fan-out only composes 1:1 (or 2-endpoint) nets by design (see
+    its own docstring), so a genuine N-way bus is a global label, not a chain
+    of hierarchical pins."""
+    just = "left" if ang in (0, 270) else "right"
+    return (f'\t(global_label "{net}"\n'
+            f'\t\t(shape {shape})\n'
+            f'\t\t(at {f(x)} {f(y)} {ang})\n'
+            f'\t\t(fields_autoplaced yes)\n'
+            f'\t\t(effects (font (size 1.27 1.27)) (justify {just} bottom))\n'
+            f'\t\t(uuid "{u()}")\n'
+            f'\t\t(property "Intersheetrefs" "${{INTERSHEET_REFS}}"\n'
+            f'\t\t\t(at {f(x)} {f(y)} 0)\n'
+            f'\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n'
+            f'\t\t)\n'
+            f'\t)')
 
 def emit_global_power(symname, x, y, project, root, ref, rot=0):
     # instance of a power symbol (PWR_FLAG, GND, +3V3, +5VSB ...). Its single pin
@@ -260,9 +290,20 @@ def emit_global_power(symname, x, y, project, root, ref, rot=0):
 def gridsnap(x, y):
     return (round(x / GRID) * GRID, round(y / GRID) * GRID)
 
+def emit_section(label, x0, y0, x1, y1):
+    """A labelled functional-group box: a dashed rectangle + a bold title at its top-left.
+    Pure annotation (graphic layer) -- no electrical effect, invisible to ERC/the netlist.
+    Group component clusters inside these so the sheet reads by function."""
+    return (
+        f'\t(rectangle\n\t\t(start {f(x0)} {f(y0)})\n\t\t(end {f(x1)} {f(y1)})\n'
+        f'\t\t(stroke (width 0.254) (type dash))\n\t\t(fill (type none))\n\t\t(uuid "{u()}")\n\t)\n'
+        f'\t(text "{label}"\n\t\t(exclude_from_sim no)\n\t\t(at {f(x0 + 1.5)} {f(y0 + 1.5)} 0)\n'
+        f'\t\t(effects (font (size 2 2) (thickness 0.35) (bold yes)) (justify left top))\n\t\t(uuid "{u()}")\n\t)'
+    )
+
 def build_schematic(out_path, project, parts, nets, used, libs,
                     paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
-                    power_ports=None, wire_nets=None, footprints=None):
+                    power_ports=None, wire_nets=None, footprints=None, sections=None, props=None):
     """Write a .kicad_sch.
 
     power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
@@ -303,9 +344,10 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     for sym in sorted(need_syms):
         extra.append(_power_block(libs, sym))
 
+    props = props or {}
     body = [emit_symbol(r, *parts[r][:2], parts[r][2], *placement[r],
                         used[(parts[r][0], parts[r][1])]["pins"], project, root,
-                        footprints.get(r, ""))
+                        footprints.get(r, ""), props.get(r))
             for r in parts]
 
     # keep-out body boxes (absolute) and the set of all pin connection points,
@@ -381,8 +423,11 @@ def build_schematic(out_path, project, parts, nets, used, libs,
             if port == "GND":          # flag up top, GND port (points down) at bottom
                 flags.append(emit_global_power("PWR_FLAG", sx, ty, project, root, pwr_ref("#FLG"), 180))
                 flags.append(emit_global_power(port, sx, by_, project, root, pwr_ref("#PWR"), 0))
-            else:                      # positive-rail port up top, flag at bottom
+            elif net in power_ports:   # a defined power-rail SYMBOL: port up top, flag at bottom
                 flags.append(emit_global_power(port, sx, ty, project, root, pwr_ref("#PWR"), 180))
+                flags.append(emit_global_power("PWR_FLAG", sx, by_, project, root, pwr_ref("#FLG"), 0))
+            else:                      # arbitrary labeled rail (no power symbol): text label + PWR_FLAG
+                labels.append(emit_label(net, sx, ty, 90))
                 flags.append(emit_global_power("PWR_FLAG", sx, by_, project, root, pwr_ref("#FLG"), 0))
 
     # no-connect flags on every pin not in a net and not skipped
@@ -398,6 +443,7 @@ def build_schematic(out_path, project, parts, nets, used, libs,
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
         f"\t(uuid \"{root}\")\n\t(paper \"{paper}\")\n"
         f"{lib_symbols_section(used, extra)}\n"
+        + ("\n".join(emit_section(lbl, *box) for lbl, box in (sections or {}).items()) + "\n" if sections else "")
         + "\n".join(body) + "\n"
         + "\n".join(wires) + "\n"
         + "\n".join(labels) + "\n"

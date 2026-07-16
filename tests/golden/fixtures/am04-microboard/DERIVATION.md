@@ -17,19 +17,25 @@ J1 pad → **17 mm of 5 mm-wide F.Cu** → RS1 (2-pad shunt) → **9 mm of 5 mm 
 - Shunt RS1: solver default 0.5 mΩ (no Value prop on the synthetic part) →
   P = I²R = **0.05 W** → dT = 0.05 × 25 °C/W = **1.25 °C**.
 
-## Pinned CURRENT-model values (the known debt, measured 2026-06-10)
+## Composition values — PR one (pinned debt) → PR two (corrected)
 
-| term | current model | correct (hand) | debt |
+| term | PR-one model (debt) | PR-two corrected (now solved) | basis |
 |---|---|---|---|
-| HC cross_mm2 | **1.044** (= 3 × 0.348, segment-SUM) | 0.348 (serial min-cut) | ~3× optimistic area |
-| HC dT | **4.8 °C** | ≈ 6.12 °C (Picard on min-cut) | optimistic |
-| via I split | 5.0 A ✓ | 5.0 A | — |
-| via dT | 175.3 °C | ~same (constant delta only) | — |
-| shunt P | 0.05 W | 0.05 W ✓ | — |
+| HC cross_mm2 | 1.044 (= 3 × 0.348, segment-SUM) | **0.348** (serial min-cut) | series ≠ parallel |
+| HC dT | 4.8 °C | **6.12 °C** | Picard on min-cut, k external |
+| via I split | 5.0 A ✓ | **5.0 A** (per-cluster, one transition) | unchanged here |
+| via dT | 175.3 °C | **175.3 °C** | via barrel anchor unchanged |
+| shunt P | 0.05 W ✓ | **0.05 W** | I²R unchanged |
 
-PR one (this PR) pins the **current model** column as the composition anchor.
-PR two (the debt fix: serial min-cut, per-cluster via split, k-by-feature-layer)
-moves the anchor to the **correct** column — with this file as the witness that
-the movement direction was derived BEFORE the fix, and the SB-08 band re-freeze
-riding the same owner-reviewed diff. Chart-point anchors (dt_ipc formula) must
-NOT move in PR two: the formula is not the debt, the composition is.
+PR one pinned the **debt** column; **PR two (this diff) lands the fix** — serial
+min-cut (`_min_cut`), per-transition-cluster via split (`_via_cluster_sizes`), and
+the IPC k taken from the bottleneck cut's actual layer (rename-proof layer-ID test)
+rather than pour membership. `test_am04_anchors.T8cCompositionAnchor` now asserts the
+**corrected** column, and the SB-08 thermal band is re-frozen on the same
+owner-reviewed diff. This file is the witness that the movement direction was derived
+BEFORE the fix. The chart-point/Picard anchors (the `dt_ipc` formula itself) did NOT
+move: the formula was never the debt — the composition was.
+
+Note the corrected micro-board dT (6.12 °C) reproduces the independent Picard anchor
+`_picard_dt(10, 0.348, 25, True)` exactly: the min-cut feeds the formula the single
+0.348 mm² section, on an outer layer, which is the whole point of the fixture.

@@ -1,0 +1,188 @@
+# CEC full-stack pipeline — per-tier PROMPT CATALOG (audit ground truth)
+
+Purpose: audit the **prompts we feed each tier seat** for failure modes — the
+class exemplified by the just-observed T1 bug (the intent manager was told to
+anchor waypoints to footprint refs but was **never given the board's ref
+inventory**, so it hallucinated a non-existent `U5`).
+
+All prompts below are **verbatim excerpts** from the source (cited file:line).
+The pipeline is `scripts/cec_fullstack.py`; shared seat plumbing is
+`scripts/cec_judge_local.py`; the verifier is `scripts/cec_verifier.py`.
+
+Models (broker aliases): `cec-worker-vision` = Qwen3.6-35B-A3B (the local worker,
+thinking) serves T1/T4/T6/CL24-seats; `cec-manager-fast` = gpt-oss-120b serves T7;
+`deepseek-v4-flash` = DeepSeek-V4 deep reasoner serves T5(overnight)/T8; T5(daily)
+is cloud `claude -p --model sonnet`.
+
+---
+
+## SHARED PREFIX — `CORPUS_BRIEF` (prepended to T1, T4 local, T5-deepseek, T8)
+Built once per run by `promoted_corpus_brief(board)` (cec_fullstack.py ~line 401).
+It serializes **the WHOLE `corpus/promoted/general` ruleset** (owner-signed
+entries) into the prompt. Each entry line: `- [id] (kind)[scope: fam1,fam2] = value units: note`.
+Entries scoped to OTHER boards are STILL included, tagged `[scope: ...]`. Body is
+truncated at `max_chars` with `- ...(brief truncated)`.
+
+KEY TRAITS: it is large, board-AGNOSTIC by default (only `[scope:]`-tags the
+off-family ones rather than dropping them), and it is the FIRST thing every local
+seat reads.
+
+---
+
+## T1 — INTENT MANAGER  (`intent_manager`, cec_fullstack.py:691)
+- model `cec-worker-vision`, temperature **0.2**, max_tokens 3000, schema `INTENTS_SCHEMA`.
+- system prompt: `"You write routing intents as strict JSON."`
+- user prompt = `CORPUS_BRIEF` + the following (lines 698-709), `%`-formatted with
+  `(board, json.dumps(grid)[:4000], json.dumps(failures), json.dumps(prev_intents)[:1500])`:
+
+```
+You are the ROUTING INTENT MANAGER for the CEC %s board. Each round you may direct
+up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through
+each waypoint and routes the rest around it. Use this to route contested/failing nets
+AROUND the sense regions (shunt Kelvin windows) instead of through them.
+
+GR-01 CONGESTION GRID (hotspots + contested nets, route-first order):
+%s
+
+LAST ROUND failures: %s
+LAST ROUND intents: %s
+
+Waypoint forms: {"ref": "U2", "offset_mm": [dx, dy]} (relative to a footprint) or
+{"between": ["U2", "U1"]} (midpoint). Only F.Cu/B.Cu (plane layers are denied to the
+router). Prefer keeping I2C/CAN OUT of the mid-board shunt corridor. Reply the JSON object.
+```
+
+- `INTENTS_SCHEMA`: `{reasoning, intents[≤4]{net, layers[F.Cu|B.Cu], waypoints[≤4]{ref?, offset_mm?[2], between?[2]}}}`. `ref`/`between` are free strings (no enum, no existence check).
+- INJECTED: board name; GR-01 grid (NET-keyed: hotspots + contested net names); last-round failure reasons; last-round intents; two example refs (`U2`,`U1`).
+- OMITTED (known bug): the board's actual placed footprint **ref inventory** and any **coordinates/geometry**. The grid is net-keyed, so the only refs the seat ever sees are the two in the example sentence. On a fallback, returns prev intents.
+
+---
+
+## T4 — WORKER PANEL (3 lenses)  (`worker_panel`, cec_fullstack.py:730)
+- model `cec-worker-vision`; lenses run in order with temperature **0.0, 0.0, 0.3**; max_tokens 1500; schema `PANEL_SCHEMA`.
+- `_LENSES` = `("safety (hard gates: kelvin, diffpair, plane integrity)", "finishing (DRC count, dangling copper, cosmetics vs structure)", "progress (is effort spend still buying improvement?)")`
+- system prompt per lens (lines 738-741):
+
+```
+You judge a routed PCB candidate through ONE lens: {lens}. accept only if hard gates
+pass AND your lens is satisfied; repair if more router effort could fix it; escalate
+if stuck/structural.
+```
+
+- user prompt = `CORPUS_BRIEF` + `f"Round {rnd} candidate metrics: {json.dumps(m)}\nfailing reasons: {json.dumps(rec.get('reasons',[])[:6])}"` where `m` = `{gates_pass, kelvin_ok, diffpair_ok, drc, unconnected, plane_signal_mm, max_T, objective}`.
+- `PANEL_SCHEMA` requires `{action: enum[accept,repair,escalate], reason}`.
+- Post-rule: a panel "accept" is forced to "repair" if `gates_pass` is false. Votes tallied by majority.
+- OBSERVED: the safety seat's reasoning trace shows it debating field name — `"What if the schema expects action instead of decision? I'll use decision"` — i.e. the seat nearly emitted `{decision,reason}` against a `{action,reason}` schema, recovered via the scribe path. The "plane integrity" the safety lens is told to judge is only present as the scalar `plane_signal_mm`. No board/geometry context.
+
+---
+
+## T5 — IN-LOOP AUDITOR  (`_audit_prompt`, cec_fullstack.py:763; `sonnet_audit`:841 / `deepseek_audit`:871)
+Daily = cloud `claude -p --model sonnet` (Write tool → file). Overnight = `deepseek-v4-flash` via broker (`_chat_json`, schema `AUDIT_SCHEMA`).
+- deepseek system (lines 880-882): `"You are the IN-LOOP AUDITOR for the CEC routing pipeline. Read the round context and emit ONLY the JSON object the schema defines -- root_cause ALWAYS filled; scorer_penalty null unless a gate-passing candidate already exists."`
+- shared user CORE (lines 790-828); deepseek path also prepends `CORPUS_BRIEF`:
+
+```
+You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Constraints
+you operate under, learned from the last run converging to a local minimum:
+- ALLOWED LEVERS (the ONLY things the loop can pull): {OWNED_LEVERS}.
+- A SCORER-METRIC REWEIGHT IS NOT A LEVER. It only reorders the candidates that already
+exist; it cannot create a better board. If the real fix needs generation (a different
+route / placement / keepout / waypoint), name THAT lever in `proposed_lever` and leave
+`scorer_penalty` null. Only price a metric when a gate-passing candidate ALREADY exists
+and pricing is needed to rank it first.
+- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics} have
+already been refuted this run and will be auto-rejected by a deterministic tripwire.
+Switch lever class instead.
+- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {n}. At the cap propose
+only a CONSOLIDATION or nothing.
+- ACTUATION: a placement/structural-density blockage must be attributed
+failure_class=placement, NOT priced.
+- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.
+
+ROUND {rnd} candidate:
+{metrics json}
+GENERATION SOURCE: intents_src={...}  [+ fallback warning if fallback]
+failing reasons: {...}
+FEM flags: {...}
+POUR-INTEGRITY (deterministic, OWNS detection): clipped_nets=..., facts=...
+[VISION ANOMALY FLAGS (advisory, re-check; not a verdict): ...]
+stub summary: {...}
+
+Current injected penalties: {...}
+Standing rules ({n}): {last 6}
+Prior refutes this run (do not repeat the class): {...}
+Penalisable keys: [...]
+
+SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it...). `proposed_lever`
+is VERIFIER-CONTEXT-ONLY today: it is recorded and the verifier judges its
+actuation-space, but it has NO direct effector -- the corridor-avoidance lever fires
+DETERMINISTICALLY from pour_clipped_nets, not from this field. `scorer_penalty` is for
+ranking only and must be null unless a gate-passing candidate already exists.
+```
+
+- `OWNED_LEVERS` (line 85) = `"router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair battery (shift/swap/via), power pours"`.
+- cloud path appends: `"Use the Write tool to write ONLY this JSON to {out_path} :\n" + _AUDIT_JSON_TEMPLATE + "\nThen reply DONE."`. The deepseek path uses grammar (`AUDIT_SCHEMA`) instead.
+- `_AUDIT_JSON_TEMPLATE` verdict = accept|repair|escalate; failure_class = routing|placement|scoring|constraint|none; proposed_lever|null; scorer_penalty|null; manager_rule|null.
+- NOTE the prompt itself tells the auditor `proposed_lever` has "NO direct effector" — its lever is recorded but only `pour_clipped_nets` actuates. (Matches the run: every auditor `proposed_lever` became actuator `noop`/`refused`.)
+
+---
+
+## T6 — VISION SEAT  (`vision_pour_check` / `narrate`, cec_fullstack.py:535)
+- model `cec-worker-vision`, nothink (vision uses `cec_vlm_bakeoff._NOTHINK`). Re-roled (owner 2026-06-11): the vision seat **no longer judges pour integrity** (deterministic facts own it); it narrates structure/text on a NEW Pareto-finalist render under the **v2 facts-alongside protocol** (the deterministic facts are supplied next to the image so the VLM doesn't false-fire). Gated off per-round by default (`CEC_FS_VISION_EVERY_ROUND=0`); runs on finalists. Output is **advisory anomaly flags only**, never a gate. Render is model-free copper-zone export (render hygiene, review item 3). Prompt body lives in `cec_vision_narrate.narrate` / `cec_vlm_bakeoff` — auditors with file access should Read it; key risk surface is the facts-alongside framing + nothink.
+
+---
+
+## T7 — CORPUS-FIT REVIEWER  (`corpus_fit_review`, cec_judge_local.py:892 / 1230)
+- model `cec-manager-fast` (gpt-oss-120b). Runs once per fully-routed board, advisory/non-blocking. system = `CORPUS_FIT_SYSTEM` (verbatim 892-960), abridged:
+
+```
+You are the CORPUS-FIT REVIEWER ... You run ONCE per fully-routed board, on a slow
+deep-reasoning local model, AFTER the fast per-region routing loop and the independent
+DRC have already decided correctness. You are an AUDITOR, not a gatekeeper. ...
+YOUR JOB: given (a) a per-FAMILY statistics DIGEST, (b) a SUMMARY + decision-trajectory
+of one freshly-routed board, (c) a PRE-COMPUTED EVIDENCE block (robust-z, envelope flags,
+direction labels, gate-flip flags, regression-vs-best deltas), (d) a few citable
+same-family exemplar trajectories -- judge whether this board FITS its SAME-FAMILY
+precedents ...
+CRITICAL BOUNDARIES: 1. ADVISORY and NON-BLOCKING ... NEVER endorse overriding a failed
+gate ... 2. Judge ONLY within the board's own FAMILY ... 3. The EVIDENCE block is
+AUTHORITATIVE -- computed deterministically. Do NOT recompute statistics by hand. ...
+HOW TO JUDGE FIT: 1. GATE CONSISTENCY (dominates) ... 2. METRIC BAND (robust outliers,
+|z| bands, DIRECTION MATTERS, lower-is-better) ... 3. TRAJECTORY COHERENCE ...
+4. RESIDUAL TREATMENT ... 5. RATIFIED-RULE CONFORMANCE (cite rule id; gnd-plane-continuity:
+signal copper on a plane layer breaks return path) ...
+DISCIPLINE: compare LIKE WITH LIKE ... insufficient_precedent if < min_peers ... CITE
+SPECIFICS: precedent ids, iteration numbers, metric values ...
+```
+
+---
+
+## T8 — V4 DEEP BATCH AUDITOR  (`deepseek_audit` batch path; T8 in `run()`)
+- model `deepseek-v4-flash`. A recurring batch auditor every `V4_EVERY` rounds (default 4), invited to DECLINE (its measured value is restraint), serialized with routing. Deep reasoner signature = empty content / answer in `reasoning_content` (recovered to tail). Auditors with file access should Read the T8 block in `run()` for its exact batch prompt.
+
+---
+
+## CL24 — ADVERSARIAL VERIFIER PANEL  (`cec_verifier.py:103`)
+3 charters (one seat each, `cec-worker-vision`), decorrelated by system + input slice + temperature; Sonnet arbiter on contention. Each charter is asked to **REFUTE** a finding. Verbatim systems:
+
+- **spec-conformance** (temp 0.0): `"You are an adversarial VERIFIER (spec-conformance charter) for a PCB design pipeline. Try to REFUTE the finding against the ratified rules and locked decisions supplied. support = consistent with the corpus; refute = contradicts a ratified rule/locked decision (cite which in reason); uncertain = the corpus is silent. Reply ONLY the JSON object."`
+- **evidence-provenance** (temp 0.0): `"You are an adversarial VERIFIER (evidence-provenance charter). Zero-tolerance sourcing: a claim is supported ONLY if the supplied evidence states it. Correct-but-unsupported is refuted. Reply ONLY the JSON object."`
+- **actuation-space** (temp 0.2): `"You are an adversarial VERIFIER (actuation-space charter). The one question: can any lever the loop owns move the metric this finding targets? If not, the finding launders an unactionable failure into pricing/rules -- refute and name the real failure_class. Reply ONLY the JSON object."`
+
+---
+
+## The audit question
+For EACH tier above: does the prompt give the seat **everything it needs to
+succeed**, and nothing that **misleads** it? Specifically hunt:
+- GROUNDING/OMISSION (the U5 class): the prompt demands an output that depends on
+  data it never supplies → the seat must invent it.
+- SCHEMA/FORMAT: schema field names / enums that the prose contradicts or doesn't
+  mention; scribe-recovery dependence; free-string fields that should be validated.
+- AMBIGUITY / ROLE: conflicting or under-specified instructions; a lens told to
+  judge something it has no data for; authority confusion (advisory vs gating).
+- CONTAMINATION / CONTEXT: CORPUS_BRIEF off-family leakage; truncation cutting
+  load-bearing context; stale "last round" data; oversized context drowning signal.
+- CONSTRAINT COMPLETENESS: locked decisions / fences / OQ unknowns the seat must
+  respect but isn't told; missing guardrails.
+- CALIBRATION: temperature choices; accept/repair/escalate thresholds; control-lane
+  (EI-02) leakage; over/under-escalation pressure.

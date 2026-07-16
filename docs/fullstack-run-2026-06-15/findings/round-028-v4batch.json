@@ -1,0 +1,6 @@
+{
+ "local_minimum_risk": "high",
+ "assessment": "The batch metrics show no consistent improvement or new failure class: DRC fluctuates (24\u219237\u219211\u219213) and max_T spikes once (264.1) but returns to baseline. The panel repeatedly escalates with zero injections, indicating the loop is stalled\u2014likely minimizing penalties (fixed at 50/50/5) rather than achieving routability. No distinct, actionable pattern exists for an OWNED lever.",
+ "findings": [],
+ "declined": true
+}

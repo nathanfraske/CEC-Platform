@@ -1,0 +1,94 @@
+[
+ {
+  "id": "golden-band-derivation",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "regions": [
+    "golden",
+    "loop-scorer"
+   ],
+   "families": [
+    "module",
+    "hub"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "title": "Golden expectation ceilings derive from measured outputs at CI params plus EXPLICIT headroom, never a baseline multiplier",
+  "rule": "A golden regression ceiling (e.g. thermal_max_T_max) MUST be derived from the measured baseline at the FIXED CI parameters plus an EXPLICIT, recorded headroom chosen by a human; it must NEVER be a baked constant multiple of the baseline. A baseline*const ceiling self-ratifies: re-freezing a hotter/worse baseline silently raises the ceiling with it, so the gate can never catch the regression it exists to catch. The chosen headroom and rationale are written into the frozen file's provenance (frozen_from: params, headroom, rationale).",
+  "rationale": "SB-08 PR #37 (2026-06-12): make_bands set thermal_max_T_max = baseline*1.15, so a board that ran 30C hotter (128.2->157.9, after the ratified FR-04 plane policy removed a plane-routing thermal crutch) silently floated the ceiling 147.4->181.6 and PASSED -- burying the regression. Fixed: make_bands now REQUIRES an explicit thermal_headroom and writes frozen_from provenance; the 181.6 re-band is the negative fixture.",
+  "source": {
+   "type": "measurement",
+   "ref": "docs/det-inspection/sb08-fr-variance.md + sb08-input-delta.md + the PR #37 -> #42 re-band incident",
+   "date": "2026-06-12"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "scripts/cec_golden.py make_bands (explicit thermal_headroom + provenance)",
+  "notes": "Process/discipline rule from the SB-08 thermal re-band incident (owner item 12). Advisory-only (kind heuristic; never compiles to a gate). FINAL HOME pending Decision 16 (process-corpus custody); staged for owner sign."
+ },
+ {
+  "id": "fr-seed-inert-opt-time-is-the-lever",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "regions": [
+    "router",
+    "loop"
+   ],
+   "families": [
+    "module",
+    "hub"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "title": "Freerouting 1.7.0 has no seed; opt_time/passes are the only diversity levers, and fixed-param drift is an input change, not variance",
+  "rule": "Freerouting 1.7.0 exposes NO seed (the `seed` arg in cec_fr is LOGGED but inert). At fixed params the route is byte-deterministic. Therefore: (a) candidate diversity comes ONLY from varying opt_time/passes, never a seed; (b) run-to-run difference at fixed params is NOT 'FR variance' -- a deterministic system whose output changed had an INPUT change (code / board / toolchain), which must be NAMED via bisect, never waved off as variance.",
+  "rationale": "SB-08 item 2a/2c (2026-06-12): the eps golden was byte-identical across opt_time 10-60s and repeat runs (stdev 0); the 'drc-10/153.2 variance event' was the pre-keepout board scored by changed code (the ratified FR-04 layer policy d26651d), pinned by a runtime worktree bisect -- not variance. docs/det-inspection/sb08-fr-variance.md + sb08-input-delta.md.",
+  "source": {
+   "type": "measurement",
+   "ref": "scripts/cec_fr.py (seed logged-not-applied) + docs/det-inspection/sb08-fr-variance.md (stdev 0) + sb08-input-delta.md (bisect to d26651d)",
+   "date": "2026-06-12"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "scripts/cec_golden_variance.py (determinism + opt_time/passes sweep)",
+  "notes": "Supersedes the R-01 seed-diversity HEURISTIC IN CODE (cec_fr derives an opt_time spread BECAUSE the seed is inert); no prior corpus entry exists to tombstone (supersedes null). Owner item 13. Advisory-only. FINAL HOME pending Decision 16."
+ },
+ {
+  "id": "golden-change-pr-convention",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "regions": [
+    "golden",
+    "process"
+   ],
+   "families": [
+    "module",
+    "hub"
+   ]
+  },
+  "applies_to": [
+   "informational"
+  ],
+  "title": "A golden/band-change PR carries a machine-generated band-delta table, and format churn ships separately from substance",
+  "rule": "Any PR that changes a golden expectation band MUST carry a machine-generated band-delta table (band, old, new, basis) in its description, and the ceiling may move only WITH a derivation (measured baseline + explicit headroom). Any PR that REDEFINES a blocking gate MUST rerun the packet fixture, and round 4 must still FAIL under the new definition -- a redefinition that lets the known-bad R4 board pass has weakened the gate, not improved it. Format churn (a writer reflow that rewrites the file) MUST ship as its OWN format-only PR, never bundled into a substantive change -- a reflow buries the substance past review. Golden boards must round-trip byte-stable through the pinned writer; a reflow is caught by the byte-stability guard before it can hide.",
+  "rationale": "SB-08 PR #37 (2026-06-12): a pcbnew re-save reflowed ~20,700 lines on an ~11k-line board, burying the LOGO1 keepout + a 24-line band change (147.4->181.6) past the owner's review. Fixed: scripts/cec_golden_stability.py guards byte-stability in CI; make_bands writes a derivation; the stopgap PR #42 carries the band-delta table as the model.",
+  "source": {
+   "type": "measurement",
+   "ref": "the PR #37 20.7k-line reflow + docs/det-inspection/sb08-item3-decision-sheet.md + scripts/cec_golden_stability.py",
+   "date": "2026-06-12"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "scripts/cec_golden_stability.py + .github/workflows/kicad-checks.yml (byte-stability guard)",
+  "notes": "Process/discipline rule from the SB-08 re-band incident (owner item 14). Advisory-only. FINAL HOME pending Decision 16 (process-corpus custody); staged for owner sign."
+ }
+]

@@ -87,8 +87,20 @@ MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
 REVIEWER_URL = (os.environ.get("CEC_VLLM_REVIEWER_URL") or MANAGER_URL).rstrip("/")
 REVIEWER_MODEL = (os.environ.get("CEC_VLLM_REVIEWER_MODEL")
                   or os.environ.get("CEC_VLLM_MANAGER_MODEL") or "cec-manager-fast")
-TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
-MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a big RAM-offload thinking manager is slow
+TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "300"))   # absorbs the cold first guided-JSON grammar compile
+# Timeouts are a CEILING (a fast response returns immediately) -- set them generous so a long deep-tier
+# generation is never timeout-cut mid-thought (owner 2026-06-13: a mid-process cut poisons every later pass).
+
+# CLOUD-SEAT SHIM (owner ask 2026-06-13: an off-box "--seats cloud" fast-iteration mode + the seat
+# bake-off). A model name in CLOUD_MODELS (or any "claude*") is NOT a broker model -- route it through
+# the `claude -p` CLI instead of the broker, returning the same schema-shaped dict _chat_json yields.
+# The CLI has no json_schema grammar, so we instruct JSON-only + parse + best-effort-validate; the
+# caller (deterministic fallback) and the bake-off scorer treat a non-conforming reply as a failure.
+CLOUD_MODELS = {m.strip() for m in os.environ.get("CEC_CLOUD_MODELS", "sonnet,opus,haiku").split(",")
+                if m.strip()}
+CLOUD_EFFORT = os.environ.get("CEC_CLOUD_EFFORT") or None       # high|max for the deep reasoning seats
+CLOUD_CLI = os.environ.get("CEC_CLOUD_CLI", "claude")
+MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "2400"))   # a big RAM-offload thinking manager is slow
 # THINKING models reason before the JSON; an undersized token budget truncates mid-reason -> empty
 # content -> JSON parse failure -> silent deterministic fallback (first measured on the retired
 # Qwen3-235B-Thinking, re-measured on MiniMax-M2.7). The manager tier keeps its OWN generous-but-
@@ -97,13 +109,16 @@ MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a
 # AND 14k caps -- a "think shorter" directive made it think LONGER), a second SCRIBE call
 # transcribes the trace's conclusion under the json_schema grammar instead of falling back. That is
 # the measured miner->scribe protocol (complete 9.5/10 answer in ~3.6k tok / ~5 min).
-MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
+# 12000 (was 4096): max_tokens is a CEILING (short answers stop early, no cost), so size it for the DEEP
+# tier -- a V4/Opus per-round audit reasons before the JSON and 4096 truncated it mid-reason. V4 ctx is
+# 32768 so 12000 fits with margin; the verifier's V4 batch uses 14000. Env-overridable.
+MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "12000"))
 # WORKER budget (2026-06-09): was a hardcoded 400, sized for the NON-thinking 30B AWQ. The new
 # worker tier (cec-worker 35B-A3B / cec-worker-quality 27B, Qwen3.6) THINKS before answering --
 # a 400 cap truncates mid-reason -> empty content -> JSON parse fail -> silent deterministic
 # fallback (the exact failure mode the manager budget fix documented). 1200 covers measured
 # reasoning (trivial ask ~160 tokens; real verdicts a few hundred) with margin.
-WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "1200"))
+WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "3000"))   # 3000 (was 1200): headroom so a thinking worker never truncates a long JSON
 # DEEP-TIER SAMPLING FLOORS: large reasoning models can verbatim decode-loop at temp <=0.1-0.2
 # without a presence penalty (first seen on MiniMax-M2.7: watched it lock, 6x the same sentence).
 # Applied to whatever is in CEC_VLLM_FLOOR_MODELS. Default now covers the DeepSeek-V4-Flash deep
@@ -118,7 +133,7 @@ _FLOOR_PRESENCE = float(os.environ.get("CEC_VLLM_FLOOR_PRESENCE", "0.8"))
 # (36000 chars ~= 9k tokens; conclusions form at the trace END, so the TAIL is kept).
 _AUTO_SCRIBE = os.environ.get("CEC_VLLM_AUTO_SCRIBE", "1") != "0"
 _SCRIBE_TRACE_CHARS = int(os.environ.get("CEC_VLLM_SCRIBE_TRACE_CHARS", "36000"))
-_SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "4096"))
+_SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "6000"))   # 6000 (was 4096): bounded by the 16384 manager ctx (9k trace tail + ~6k answer + system)
 TIER = "local:cec-worker-vision"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
@@ -157,12 +172,69 @@ SYSTEM = (
 # (vs the other LLM project sharing the GPU); harmless when talking straight to an upstream.
 _CLIENT_HEADERS = {"Content-Type": "application/json", "X-CEC-Client": "CEC-Platform"}
 
+# Ambient seat label for the per-seat stream recorder (cec_seat_stream). Resolution order in
+# _chat_json: explicit seat= kwarg > this contextvar > the model name. Set it inside panel worker
+# threads (contextvars do not auto-propagate across a ThreadPoolExecutor).
+import contextvars as _ctxvars                                # noqa: E402
+_SEAT = _ctxvars.ContextVar("cec_seat", default=None)
+
+
+def set_seat(label):
+    """Set the ambient seat for calls on THIS thread/context (returns the token to reset)."""
+    return _SEAT.set(label)
+
 
 def _post(path, payload, timeout=None, url=None):
     req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(payload).encode(),
                                  headers=dict(_CLIENT_HEADERS), method="POST")
     with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
         return json.load(r)
+
+
+def _post_stream(path, payload, timeout=None, url=None, call=None):
+    """SSE streaming POST: tees content + reasoning_content deltas to `call` (a cec_seat_stream.Call)
+    as they arrive, then returns a SYNTHESIZED non-streaming response dict so _chat_json's downstream
+    logic is unchanged. Raises on any transport error (caller falls back to the blocking _post, so the
+    overnight is never at the mercy of streaming). Used only when CEC_STREAM_DIR is set."""
+    p = dict(payload)
+    p["stream"] = True
+    req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(p).encode(),
+                                 headers=dict(_CLIENT_HEADERS), method="POST")
+    content, reasoning, finish = [], [], None
+    saw_frame = False
+    with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
+        for raw in r:                                        # the response iterates by line
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            saw_frame = True
+            data = line[5:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                ch = (json.loads(data).get("choices") or [{}])[0]
+            except Exception:                                # noqa: BLE001 -- skip a malformed frame
+                continue
+            delta = ch.get("delta") or {}
+            cd, rd = delta.get("content"), delta.get("reasoning_content")
+            if cd:
+                content.append(cd)
+                if call:
+                    call.delta(cd, "content")
+            if rd:
+                reasoning.append(rd)
+                if call:
+                    call.delta(rd, "reasoning")
+            if ch.get("finish_reason"):
+                finish = ch["finish_reason"]
+    if not saw_frame:
+        # the server answered stream=true with a NON-SSE body (degraded broker, error JSON, or an
+        # upstream that ignored stream): raise so _chat_json falls back to the blocking _post instead
+        # of returning a synthesized EMPTY message that would mis-trigger the empty-content path.
+        raise ValueError("non-SSE response to stream=true (no data: frames)")
+    return {"choices": [{"message": {"content": "".join(content),
+                                     "reasoning_content": "".join(reasoning)},
+                         "finish_reason": finish}]}
 
 
 def available(timeout=3, url=None):
@@ -178,8 +250,108 @@ def available(timeout=3, url=None):
         return False
 
 
+def _is_cloud(model):
+    """A model that lives off-box behind the `claude -p` CLI, not the broker."""
+    m = (model or "").strip().lower()
+    return m in CLOUD_MODELS or m.startswith("claude")
+
+
+def _extract_json_obj(text):
+    """Pull the first PARSEABLE balanced JSON object out of arbitrary model text (CLI replies may wrap it
+    in prose / a markdown fence despite the instruction). Brace-matching so a nested object survives.
+    CSS-2 (audit): a balanced-but-non-JSON brace span in prose BEFORE the real object (e.g. "{not json}")
+    must not abort the scan -- on a json.loads failure of one span, keep scanning for the next top-level
+    {...} instead of giving up."""
+    import re
+    start = 0
+    while True:
+        s = text.find("{", start)
+        if s < 0:
+            break
+        depth, instr, esc = 0, False, False
+        for i in range(s, len(text)):
+            c = text[i]
+            if instr:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    instr = False
+                continue
+            if c == '"':
+                instr = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[s:i + 1])
+                    except Exception:                            # noqa: BLE001 -- not JSON, scan onward
+                        break
+        start = s + 1                                            # advance past this '{' and keep looking
+    # no balanced object parsed -> last-resort greedy regex (best-effort on a trailing-truncated reply)
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise ValueError("cloud seat: no JSON object in reply")
+    return json.loads(m.group(0))
+
+
+def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=None, timeout=None,
+                     seat=None, temperature=0.0, attempts=2):
+    """Cloud-seat shim: run a cloud Claude model via `claude -p --model <m> [--effort <lvl>]
+    --output-format json` and return schema-shaped JSON, so --seats cloud / the seat bake-off can use
+    sonnet/opus without the local broker. The CLI occasionally returns a `result` with no parseable JSON
+    object (an empty/prose reply) -- RETRY once, and on final failure raise WITH a raw snippet so the
+    failure is diagnosable (a bare 'no JSON object' was undebuggable in the bake-off). Raises on
+    transport/parse like _chat_json (callers fall back to the deterministic policy).
+    NOTE (CSS-4): `temperature` is accepted for signature parity with _chat_json but is a NO-OP on the
+    CLI path (the `claude -p` interface exposes no sampling temperature); off-box swarm diversity, if ever
+    needed, must come from varying the prompt, not this arg."""
+    eff = effort if effort is not None else CLOUD_EFFORT
+    prompt = (system + "\n\n" + user + "\n\nRespond with ONLY a single JSON object that conforms to this "
+              "JSON Schema (no prose, no markdown fence, no preamble):\n" + json.dumps(schema))
+    cmd = [CLOUD_CLI, "-p", "--model", str(model)]
+    if eff:
+        cmd += ["--effort", str(eff)]
+    # DISABLE the agentic tool loop -> a single fast COMPLETION (a seat call is a one-shot json verdict,
+    # never an agent). Without this `claude -p` runs the full Claude Code harness and, on a substantial
+    # prompt, spends minutes in a tool-using loop (or times out) -- measured: a placement prompt timed out
+    # at 600s WITH tools, vs ~5s WITHOUT. Strict improvement for every cloud seat (judge/auditor/planner).
+    cmd += ["--disallowedTools",
+            "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,Task,TodoWrite,NotebookEdit"]
+    cmd += ["--output-format", "json"]
+    last = "no attempt"
+    for _ in range(max(1, attempts)):
+        try:
+            r = subprocess.run(cmd, input=prompt, text=True, capture_output=True,
+                               timeout=timeout or TIMEOUT)
+        except subprocess.TimeoutExpired as e:
+            raise ValueError("cloud seat timeout: %s" % e)
+        except OSError as e:        # CSS-1 (audit): a spawn failure (missing/!x CLI) must not escape the
+            last = "spawn: %s" % e  # retry loop -- record it and fall through to the unified raise below
+            continue
+        if r.returncode != 0:
+            last = "exit %s: %s" % (r.returncode, (r.stderr or "")[:160])
+            continue
+        # `--output-format json` wraps the reply in a result envelope; fall back to raw stdout if not.
+        text = r.stdout
+        try:
+            env = json.loads(r.stdout)
+            if isinstance(env, dict) and "result" in env:
+                text = env["result"]
+        except Exception:                                        # noqa: BLE001
+            pass
+        try:
+            return _extract_json_obj(text)
+        except Exception as e:                                   # noqa: BLE001 -- retry, then surface raw
+            last = "%s | raw=%r" % (e, (text or "")[:160])
+    raise ValueError("cloud seat: no schema JSON after %d attempts (%s)" % (max(1, attempts), last))
+
+
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
-               model=None, url=None, nothink=False):
+               model=None, url=None, nothink=False, seat=None, effort=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
     diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker).
@@ -187,6 +359,9 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     M2.7 decode-loop hazard), and an EMPTY `content` with the answer stranded in `reasoning_content`
     (a thinking overrun) is recovered by a SCRIBE transcription call instead of raising."""
     mdl = model or MODEL
+    if _is_cloud(mdl):       # cloud seat -> claude CLI (no broker, no json_schema grammar)
+        return _chat_json_cloud(system, user, schema, name=name, model=mdl, timeout=timeout,
+                                seat=seat, temperature=temperature, effort=effort)
     payload = {
         "model": mdl,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -203,13 +378,29 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     if mdl in _FLOOR_MODELS:
         payload["temperature"] = max(temperature, _FLOOR_TEMP)
         payload["presence_penalty"] = _FLOOR_PRESENCE
-    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
+    # Transport: when CEC_STREAM_DIR is set (a dashboard run), STREAM via SSE and tee per-seat deltas
+    # to the recorder; on any streaming error fall back to the blocking POST so a model call never
+    # depends on streaming working. When unset, this is byte-identical to the old blocking path.
+    import cec_seat_stream as _stream
+    resp = None
+    if _stream.enabled():
+        seat_name = seat or _SEAT.get() or mdl
+        call = _stream.start(seat_name, model=mdl, role=name,
+                             prompt_chars=len(system) + len(user), temperature=payload["temperature"])
+        try:
+            resp = _post_stream("/chat/completions", payload, timeout=timeout, url=url, call=call)
+            call.end(ok=True)
+        except Exception as e:                               # noqa: BLE001 -- degrade to blocking
+            call.error(e)
+            resp = None
+    if resp is None:
+        resp = _post("/chat/completions", payload, timeout=timeout, url=url)
     msg = resp["choices"][0]["message"]
     content = (msg.get("content") or "").strip()
     if not content:
         trace = (msg.get("reasoning_content") or "").strip()
         if trace and _AUTO_SCRIBE:
-            return _scribe_json(trace, schema, name=name, model=mdl, url=url, timeout=timeout)
+            return _scribe_json(trace, schema, name=name, model=mdl, url=url, timeout=timeout, seat=seat)
         raise ValueError("empty content (thinking overrun, no recoverable trace)")
     return json.loads(content)
 
@@ -222,7 +413,7 @@ SCRIBE_SYSTEM = (
 )
 
 
-def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=None):
+def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=None, seat=None):
     """SCRIBE half of the bench-verified miner->scribe protocol (2026-06-09, 6-run bench): feed the
     harvested reasoning trace back to the SAME model as an EDITOR task at temp ~0.35 + presence
     penalty (the verified anti-loop knobs) under the json_schema grammar -> the JSON the miner call
@@ -237,17 +428,30 @@ def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=Non
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
-    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
+    import cec_seat_stream as _stream
+    resp = None
+    if _stream.enabled():
+        call = _stream.start(seat or _SEAT.get() or (model or MODEL), model=model or MODEL,
+                             role="scribe", prompt_chars=len(trace), temperature=payload["temperature"])
+        try:
+            resp = _post_stream("/chat/completions", payload, timeout=timeout, url=url, call=call)
+            call.end(ok=True)
+        except Exception as e:                               # noqa: BLE001 -- degrade to blocking
+            call.error(e)
+            resp = None
+    if resp is None:
+        resp = _post("/chat/completions", payload, timeout=timeout, url=url)
     content = (resp["choices"][0]["message"].get("content") or "").strip()
     if not content:
         raise ValueError("scribe call also returned empty content")
     return json.loads(content)
 
 
-def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None):
+def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None,
+                 seat=None):
     """One guided-JSON manager-verdict call -> {action, reason}. `max_tokens` defaults to the worker
     budget; manager-tier callers pass MANAGER_MAX_TOKENS so a thinking model's reasoning fits."""
-    return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
+    return _chat_json(system, user, VERDICT_SCHEMA, name="verdict", seat=seat,
                       temperature=temperature, timeout=timeout, url=url, model=model, max_tokens=max_tokens)
 
 
@@ -281,7 +485,7 @@ def make_manager(spec, *, verbose=False):
         try:
             user = _context(region, scored, history, spec)
             v = chat_verdict(SYSTEM, user, url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="manager")
             action = v.get("action", "repair")
             best = scored[0][1] if scored else None
             if action == "accept" and not (best is not None and best.gates_pass):
@@ -389,17 +593,21 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
 
 
 def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
-           timeout=None, max_tokens=None):
+           timeout=None, max_tokens=None, seat=None, effort=None):
     """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
-    (same for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
+    (same for all) or a fn(lens_name)->user. `seat` is the panel's recorder section base; each member
+    records under `<seat>:<lens>` so every panel member's thoughts get their own dashboard section.
+    Returns [(lens_name, dict|None), ...]."""
     temps = temps or {}
 
     def one(idx_lens):
         idx, (lname, lsys) = idx_lens
         user = user_or_fn(lname) if callable(user_or_fn) else user_or_fn
+        member_seat = ("%s:%s" % (seat, lname)) if seat else lname
         try:
             return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0),
-                                      url=url, model=model, timeout=timeout, max_tokens=max_tokens))
+                                      url=url, model=model, timeout=timeout, max_tokens=max_tokens,
+                                      seat=member_seat, effort=effort))
         except Exception as e:
             return (lname, {"error": type(e).__name__})
 
@@ -407,21 +615,24 @@ def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, ur
         return list(ex.map(one, list(enumerate(lenses))))
 
 
-def make_manager_swarm(spec, *, panel=3, verbose=False):
+def make_manager_swarm(spec, *, panel=3, verbose=False, model=None, url=None, effort=None):
     """A TRUE manager SWARM for cec_router.route's manager= slot: `panel` concurrent local agents,
     each a distinct lens (safety / finishing / progress, cycled with temperature for replicas), voting
-    on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board."""
+    on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board.
+    `model`/`url` override the broker default: pass a CLOUD model name (e.g. 'opus') and _chat_json
+    auto-routes the panel through the `claude -p` shim (cec_seats picks it per the residency policy)."""
     import cec_router
     lenses = [MANAGER_LENSES[i % len(MANAGER_LENSES)] for i in range(max(1, panel))]
     temps = {i: (0.0 if i < len(MANAGER_LENSES) else 0.4) for i in range(len(lenses))}
+    mgr_model, mgr_url = (model or MANAGER_MODEL), (url or MANAGER_URL)
 
     def manager(region, scored, history):
         try:
             user = _context(region, scored, history, spec)
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
-                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             url=mgr_url, model=mgr_model, timeout=MANAGER_TIMEOUT,
+                             max_tokens=MANAGER_MAX_TOKENS, seat="manager", effort=effort)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
                 + ([best.drc] if best is not None else [])
@@ -469,11 +680,13 @@ WORKER_SCHEMA = {
 }
 
 
-def make_worker_swarm(spec, *, fanout=3, verbose=False):
+def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None, effort=None):
     """A TRUE worker SWARM for cec_router.route's worker= slot: `fanout` concurrent agents each propose
     a repair effort (passes/opt_time), aggregated to a CONSENSUS (mean, bounded, > current). Fail-safe
-    -> default_worker."""
+    -> default_worker. `model`/`url` override the broker default: a CLOUD model name (e.g. 'sonnet')
+    auto-routes the workers through the `claude -p` shim (cec_seats picks it per the residency policy)."""
     import cec_router
+    wrk_model, wrk_url = (model or WORKER_MODEL), (url or WORKER_URL)
 
     def worker(region, verdict, state, history):
         # WORKER-tier finer-grained repair: try a TARGETED RIP-UP at the worst real DRC locus on the
@@ -497,8 +710,9 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
 
             def one(i):
                 try:
-                    r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort",
-                                   temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL, url=WORKER_URL)
+                    r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort", seat="worker:%d" % i,
+                                   temperature=(0.0 if i == 0 else 0.5), model=wrk_model, url=wrk_url,
+                                   effort=effort)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
                     return None
@@ -563,7 +777,7 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
                                "history_drc_trail": hist, "gate_note": ctx.gate_note}, default=str)
             results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps,
                              url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="dispatch")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h.get("best_drc") for h in (ctx.history or [])] + [(best or {}).get("drc")]
             esc_ok = _escalate_corroborated(trail, (best or {}).get("drc_loci"))
@@ -630,7 +844,7 @@ def make_placement_swarm(*, panel=3, verbose=False):
             user = json.dumps(metrics, default=str)
             results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps,
                              url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="placement")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             action, tally, picks = _vote(votes, ("accept", "refine", "escalate"),
                                          accept_ok=(not hard), repair_word="refine",
@@ -1150,8 +1364,8 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
     # warm, ~6.5 min cold via the broker) finishes single-call well inside 1800s; cec-manager (M2.7,
     # 12.9 tok/s warm, ~10.5 min cold) may add the scribe second call -- still inside 1800s warm.
     # (Historical: the retired 235B measured a thorough review at 1157s @ ~4.3 tok/s.)
-    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "1800"))
-    cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "6144"))
+    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "2700"))        # 2700 (was 1800): room for a deep V4 review at the ceiling
+    cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "12000"))   # 12000 (was 6144): a deep precedent review must not truncate
     try:
         new = _cf_load(new_log)
         fam = cf_family_of(new)
@@ -1204,7 +1418,7 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
                 if verbose:
                     print("[corpus-fit] briefing skipped:", type(_be).__name__, _be)
         user = json.dumps(payload, indent=1, sort_keys=True)
-        out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit",
+        out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit", seat="reviewer",
                          url=REVIEWER_URL, model=REVIEWER_MODEL, timeout=cf_timeout,
                          max_tokens=cf_max_tokens)
         return _cf_clamp(out, new, digest)

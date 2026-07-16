@@ -1,0 +1,540 @@
+[
+ {
+  "id": "meas.policy.power_error_rss",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "power_promise": "never independent",
+   "error_model": "power error = RSS of the V and I errors of its two source channels",
+   "presentation": "computed, not promised"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 1 (owner, 2026-06-10): 'Power: never an independent promise; declare the policy that power error is the RSS of the V and I errors of its two channels, computed, not promised'",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "Power compounds two channels' errors; its band derives mechanically from the V and I rows of meas.targets.v1 -- never a free constant. Concierge and judge tiers compute, never promise.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.policy.energy_unpromised",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "promise": "none until a drift characterization exists",
+   "mechanism": "the accumulator integrates gain error linearly and offset error over hours, and nothing has measured either",
+   "concierge": "shows energy with an explicit characterized-pending band until then"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 1 (owner, 2026-06-10) -- energy row ruling, verbatim mechanism",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "Applies to the 24-pin INA228 hardware energy/charge accumulators (the only hardware energy source today; energy scope itself is OQ-13 and the 24-pin figure is partial, never total). The drift characterization that lifts this is a bench campaign -- a CL-13 label upgrades the row from none toward a promise via the budget-doc reconciliation rule.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.policy.promise_promotion",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rule": "no promise promotes until the budget doc shows the promise clears the worst-case floor with recorded headroom",
+   "spec_divergence": "every promise that differs from current spec text spawns a spec-revision candidate",
+   "pattern": "cluster-1 (the thermal-gates reconciliation pattern)"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 1 (owner, 2026-06-10) -- the reconciliation rule",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The gate between drafting and promising: the agent-derived error-budget doc (companion piece, queued) is the floor evidence; a promise row in meas.targets.v1 promotes only with the floor-clearance + headroom recorded. Mirrors the thermal pattern where the bench uncertainty floors what 'calibrated' may claim (Ruling 7).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.cal.strategy_per_tier",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "trilemma": "for each tier pick ONE leg: per-unit cal | tighter shunts | wider promise",
+   "force": "RECOMMENDED DEFAULT, adopted 2026-06-10 (the owner's qualifier heads BOTH tier legs; contrast meas.cal.storage, which is 'ratify that as decided') -- confirmed finally at promotion",
+   "standard": "ships CHARACTERIZED with no per-unit cal and eats the shunt tolerance in its current promise",
+   "pro": "ships per-unit FACTORY CALIBRATED with SHUNT_CAL trimmed at provisioning -- EXECUTION DEFERRED-PENDING-INSTRUMENT (owner 2026-06-10: no trusted instrument exists to calibrate against; the leg choice stands, its execution waits on the cluster-2 instrument row)",
+   "no_cal_grade_per_quantity": "the +/-0.5% no-cal grade survives for VOLTAGE (never crosses the shunt); any sub-1% CURRENT claim dies on an uncalibrated +/-1% shunt -- the spec's no-cal grade must be restated per quantity (part of the section 6.4 spec revision)"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 2 (owner, 2026-06-10) -- resolves the section 6.4 hedge ('trimmed out in SHUNT_CAL at calibration' vs 'a +/-0.5% grade exists for a board that ships without per-unit calibration') by surfacing the trilemma it was hiding",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The hedge resolution: the spec assumed per-unit cal in one clause and made it optional in the next; the ruling picks legs explicitly. Standard's current promise therefore CONTAINS the as-built shunt tolerance (meas.anchor.standard_current); Pro's per-unit SHUNT_CAL trim lifts it out, anchored instead on the cal instrument (meas.anchor.pro_cal_instrument). SPEC-REVISION CANDIDATE: section 6.4 no-cal grade restated per quantity. DEFERRAL 2026-06-10: the Pro per-unit-cal leg's EXECUTION is deferred-pending-instrument (the empty-bench ruling); the trilemma choice itself stands. Standard is unaffected (its anchors are datasheet facts needing no bench).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.cal.temperature_policy",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "calibrate_at_C": 25,
+   "state_accuracy_at_C": [
+    25,
+    50
+   ],
+   "operating_point": "the 50C operating point carries TCR terms from the budget doc; both points stated"
+  },
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 2 (owner, 2026-06-10) -- cal temperature policy",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "Calibrate and state accuracy at the 25C bench; the 50C point (the cluster-1 design ambient, thermal.gates.design_ambient) carries the shunt-TCR x self-heating and reference-tempco terms from the budget doc. A 25C-only claim silently drops the terms the board actually operates across -- both points are mandatory in any stated accuracy (meas.statement_form).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.cal.storage",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "system_of_record": "factory MAC plus database",
+   "provisioning": "SHUNT_CAL programmed from the database at provisioning",
+   "per_unit_record": [
+    "cal date",
+    "instrument ID"
+   ]
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 2 (owner, 2026-06-10): 'ratify that as decided' -- storage and provisioning",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "RATIFIED AS DECIDED (owner's words). Extends the platform's existing identity scheme (factory MAC + database, Hub v1.1 -- no eFuse, no secure element on Standard) to carry calibration: SHUNT_CAL constants live in the database and program at provisioning; every unit records its cal date + instrument ID, which is what makes the Pro 'factory-calibrated against a named instrument' claim (meas.truth_chain.claim_level) auditable per unit.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.anchor.ref3030_initial_accuracy",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "REF3030",
+    "voltage-reference"
+   ],
+   "families": [
+    "12vhpwr-standard"
+   ]
+  },
+  "value": 0.2,
+  "units": "percent",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "TI REF30 family: initial accuracy 0.2% max (TI.com REF30 product parametric, retrieved 2026-06-10; datasheet vendored lib/datasheets/REF30E-REF30.pdf). Tempco: 75 ppm/C max on the family parametric vs 50 ppm/C in the part headline -- GRADE-DEPENDENT, verify the REF3030AIDBZR grade row in the datasheet table at promotion",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "THE ABSOLUTE ANCHOR of the 12VHPWR Standard voltage channel (cluster-5 item 2, owner: 'Standard voltage anchors on the REF3030 initial +/-0.2%'). The datasheet-pinned fact the cl19 gallery proved was missing: M2.7 laundered its +/-2%-vs-+/-0.2% REF3030 confusion out of its conclusions because no corpus fact pinned this. The ratiometric scheme cancels ADC gain/reference DRIFT (relative correction); this initial tolerance is what bounds ABSOLUTE accuracy on a no-per-unit-cal Standard board -- it enters the +/-0.5% voltage promise directly. PROMOTION GATE (named 2026-06-10, REFINED same day by the cluster-6 dive): the 50-vs-75 ppm/C tempco discrepancy is TEMPERATURE-RANGE-dependent, not grade-dependent -- 50 ppm/C max over 0-70C, 75 ppm/C max over -40..+125C (stab.ref3030_drift); verify both rows in the vendored datasheet at promotion. The tempco term is LOAD-BEARING for the 50C accuracy budget (the 50C rows of meas.targets.v1 populate from it; initial accuracy 0.2% is range/grade-independent and stands). The 0.1% divider (R5/R6) and ESP INL stack on top (budget doc).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.anchor.standard_current",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "shunt"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": {
+   "anchor": "shunt tolerance as built",
+   "as_built": "24-pin CSS2H-2512K-2L00F +/-1% (LOCKED, spec section 6.4); EPS/PCIe 0.5mOhm + 12VHPWR 1mOhm parts pending OQ-11 -- +/-1% is the WORKING ASSUMPTION for the open candidates (matching the locked 24-pin grade), final tolerance enters this anchor when OQ-11 locks the parts"
+  },
+  "units": "percent",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 2 (owner, 2026-06-10): 'Standard current anchors on shunt tolerance as built'; as-built parts per spec section 6.4",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "On a no-per-unit-cal Standard board (meas.cal.strategy_per_tier) the shunt's initial tolerance is a fixed, untrimmed gain error -- the floor under any Standard current promise (why sub-1% current claims die without cal). OQ-11 closure sets the final per-module values; a tighter-tolerance shunt grade is the 'tighter shunts' trilemma leg if Standard ever needs a sub-1% current promise without cal. STANDING DOC INCONSISTENCY (2026-06-10 panel, verified): the spec (sections 6.4/6.11) names the 1mOhm candidate CSS2H-2512K-1L00F while CLAUDE.md's 12VHPWR BOM-sourcing pass names CSS2H-2512R-1L00F (LCSC C4175647) as sourced -- the R-vs-K series suffix differs between spec and as-sourced BOM; resolve at OQ-11 closure (verify which series C4175647 actually is and align the docs).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.anchor.pro_cal_instrument",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "12vhpwr-pro",
+    "hub-pro"
+   ]
+  },
+  "value": {
+   "anchor": "the cal instrument's uncertainty",
+   "value": "DEFERRED-PENDING-INSTRUMENT (owner ruling 2026-06-10): the cluster-2 electrical rows are recorded EMPTY -- no trusted voltage reference, no believed ammeter on the bench today. The anchor CANNOT BE STATED; deferred, never placeholder-numbered"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 2 (owner, 2026-06-10): 'Pro anchors on the cal instrument's uncertainty, which is whatever your cluster-2 electrical rows say you trust'",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "Per-unit factory cal transfers the instrument's uncertainty onto every Pro unit -- the Pro promise can never be tighter than the named instrument (the Ruling-7 floor logic, electrical edition). DEFERRED-PENDING-INSTRUMENT (owner, 2026-06-10): the bench rows are honestly EMPTY, so this anchor is marked deferred rather than placeholder-numbered (a placeholder number would invent a floor). Unblocks when an instrument row lands in the cluster-2 metrology table with a current cal certificate. Also conditions the Pro claim level (meas.truth_chain.claim_level) and the per-unit cal leg (meas.cal.strategy_per_tier) -- both carry the same deferral. See meas.bench.empty_instrument_state for the full consequence set.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.truth_chain.dispute",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "chain": [
+    "the product reading stands under its stated conditions",
+    "disagreements adjudicate against the named bench instrument",
+    "support documentation preempts the common case: consumer clamp meters typically carry worse error than the product's claim"
+   ]
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 3 (owner, 2026-06-10) -- dispute chain",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The adjudication path when CEC and a customer's instrument disagree. 'Stated conditions' = the meas.statement_form temperature points + cal state; 'named bench instrument' = the cluster-2 electrical rows (recorded EMPTY 2026-06-10 -- the dispute chain's adjudication leg unblocks when an instrument row lands; see meas.bench.empty_instrument_state). The clamp-meter support note is a documentation deliverable, not a corpus gate.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.statement_form",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "promises": "worst-case over the stated temperature range and cal state",
+   "typical": "typ figures may appear in marketing ONLY when labeled typ, and never in the target table",
+   "temperature_points": [
+    25,
+    50
+   ],
+   "concierge": "renders per-reading error bands derived from the budget machinery and that unit's cal state"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 5 (owner, 2026-06-10) -- statement form",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "Worst-case is the promise grammar; typ is marketing-only and labeled. Accuracy states at BOTH temperature points (25C cal, 50C design ambient -- meas.cal.temperature_policy). Concierge's per-reading band is per-unit: budget machinery x that unit's cal state (meas.cal.storage record). The judge-tier consequence is its own entry: judge.reading_assertion_band.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "judge.reading_assertion_band",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rule": "judge tiers may assert a reading plus-or-minus its band and never a bare number",
+   "violation": "asserting tighter than the band is DEFINED as the false-claim class for panel and forensics purposes"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Cluster-5 ratification, item 5 (owner, 2026-06-10) -- the judge-tier consequence: 'That sentence is what prevents the next laundering'",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "THE REAL PAYLOAD of cluster 5 (owner's words). The M2.7 incident class (laundering +/-2%-vs-+/-0.2% REF3030 uncertainty out of conclusions) becomes a DEFINED false-claim class: any panel/analyst/judge assertion of a measured quantity tighter than its band -- or bare, with no band -- is a finding for forensics, same standing as the CL-19 zero-tolerance classes. Wiring into panel charters + the forensics taxonomy is the follow-up; the definition is effective for any charter that cites this entry from today.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "meas.bench.empty_instrument_state",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "state": "the cluster-2 metrology table's electrical rows are EMPTY, recorded honestly (owner, 2026-06-10): no trusted voltage reference, no believed ammeter on the bench today",
+   "consequences": [
+    "the Pro accuracy anchor cannot be stated -- DEFERRED-PENDING-INSTRUMENT, never placeholder-numbered (meas.anchor.pro_cal_instrument)",
+    "per-unit factory cal execution deferred the same way (meas.cal.strategy_per_tier)",
+    "the Pro promise rows in meas.targets.v1 carry the deferral explicitly",
+    "RULING-7: no calibration band for ABSOLUTE electrical quantities can be claimed until an instrument row exists",
+    "the CL-13 label vocabulary for absolute electrical quantities stays LIMITED to what the board self-references"
+   ],
+   "carve_out": "RELATIVE, board-self-referenced quantities remain labelable -- lane-impedance-DRIFT is the exemplar (the board's own INA228 trends its own shunt; no absolute instrument needed), which is why the shunt-drift benchmark (bench.shunt_drift_protocol) proceeds on the empty bench",
+   "unaffected": "Standard claims anchor on datasheet facts (REF3030 initial tolerance, shunt tolerance as built) that need no bench to state"
+  },
+  "units": "state",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (cluster-2 electrical rows recorded empty, honestly) -- an absent row is information, not a gap to fill with plausible instruments (the intake contract's standing rule)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The honest empty-bench fact with its full consequence set. Clears when an instrument row lands in the cluster-2 metrology table (instrument + method + uncertainty + cal certificate state) -- at which point the Pro anchor states, per-unit cal executes, the Pro deferral lifts, and absolute-quantity calibration bands become claimable under Ruling 7. Until then 'calibrated' is not a word the platform can use about absolute electrical quantities -- and the self-reference carve-out is what keeps the drift benchmark and Standard's datasheet-anchored claims fully alive.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ }
+]

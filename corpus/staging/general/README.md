@@ -45,9 +45,10 @@ One JSON array per domain file (`thermal.json`, `can.json`, ...), one object per
   **`"model"` is rejected by the linter** — model knowledge is not a source (the owner's
   standing rule: present real data; verify against datasheets).
 - `status` lifecycle: `proposed → sim_validated → bringup_validated | human_approved →
-  deprecated`. The constraint compiler and the physics model consume only `*_validated` or
-  `human_approved` entries; `proposed` entries are judge-visible context, never compiled
-  into hard gates.
+  promoted → deprecated`. The constraint compiler emits BLOCKING artifacts from entries in
+  the `promoted/` ZONE and ADVISORY (`ADV-`) artifacts from `staging/` — selection is by
+  ZONE, never by the `status` string (`status: promoted` is the lifecycle marker, not the
+  selector). `proposed` entries are judge-visible context, never compiled into hard gates.
 - `applies_to` ∈ `physics | compiler | preflight | judge | informational`.
 - Class C entries must cite a ledger `run_id` (`source.ref` containing `run:R-...`).
 

@@ -1,5 +1,22 @@
 # PCIe 8-pin module — 3-port SKU
 
+> **STATUS (2026-07-04, spec §2.8 v1.4.0 output-architecture revision, owner-ratified,
+> BETA-2):** the per-cable board-mount **J_OUT1/J_OUT2/J_OUT3** output headers are **RETIRED**.
+> Each cable's output now crosses the ratified all-Keystone/TE connector-daughterboard
+> interface (`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
+> `blade-fit-check-2026-07-04.md`): **2 rail clips + 2 GND clips per cable** (Keystone 3586 SMT
+> universal-entry blade clips, LCSC C238113, refs `TB{cable}1`–`TB{cable}4` — e.g. cable 1 =
+> `TB11`–`TB14`, cable 3 = `TB31`–`TB34`), each single-pin clip landing on the exact post-shunt
+> net (`/SENSEC{n}_LO`) or `GND` its share of J_OUT used to carry. Applied via
+> `scripts/gen-module-beta.py`'s `06-cable-power` leaf (generator edit + `--force` regen); J_IN
+> (input) unchanged. Netlist-verified: only `/SENSEC1_LO`, `/SENSEC2_LO`, `/SENSEC3_LO`, and
+> `GND` changed, every other net byte-for-byte identical; ERC/audit-sch introduce zero new
+> findings once `fp-lib-table` carries `cec-Connector_Blade` (added). `bom/
+> pcie8pin-3port-module-BOM-jlcpcb.csv` updated. Sense-return contacts are explicitly NOT added
+> — study §5 decision box (e) is still open with the owner. **PCB follow-up (not done here):**
+> needs Update-PCB-from-Schematic + a footprint swap + re-route before fab. The mating
+> daughterboard (TE 63849-1 tabs) is a separate deliverable, tracked outside this board.
+
 Standard-tier **per-cable** sensing module for the PCIe 8-pin (PCIe/GPU) power
 connector. **3-port SKU: 3 cables → 6 connectors** (the spec upper bound). The
 2-port variant is a separate board in [`../pcie-8pin-2port`](../pcie-8pin-2port).

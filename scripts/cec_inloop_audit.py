@@ -51,6 +51,11 @@ import cec_overnight_directed as ovd          # route worker + pareto + ledger h
 
 PERM = os.path.join(ROOT, "docs", "inloop-audit-2026-06-11")
 FIND_DIR = os.path.join(PERM, "findings")
+# Per-seat live-stream recorder (cec_seat_stream): default it to the run dir so the host-side seats
+# (the corpus_fit_review reviewer, any host manager/panel) stream their thoughts to PERM/streams, which
+# the live dashboard renders one section per seat. setdefault -> the operator can still override.
+STREAM_DIR = os.path.join(PERM, "streams")
+os.environ.setdefault("CEC_STREAM_DIR", STREAM_DIR)
 LIVE_RULES_PATH = os.path.join(PERM, "live-rules.json")
 MEASURE_PATH = os.path.join(PERM, "measurement.jsonl")
 BUNDLE_PATH = os.path.join(PERM, "morning-bundle.json")
@@ -77,6 +82,15 @@ def log(msg):
 
 
 # ---- live ruleset (persisted, additive-only) -------------------------------------------------------
+def _corpus_state(lr):
+    """EI-01: knowledge-state pin for the measurement row (fail-safe to {} so a row always writes)."""
+    try:
+        import cec_ledger
+        return cec_ledger.corpus_state(lr)
+    except Exception:                                          # noqa: BLE001
+        return {}
+
+
 def load_live_rules():
     if os.path.exists(LIVE_RULES_PATH):
         try:
@@ -156,6 +170,7 @@ def apply_findings(findings, lr, rnd, source):
             try:
                 import cec_ledger
                 cec_ledger.append(board="inloop-audit-candidate", mode="decision",
+                                  live_rules=lr,            # EI-01: pin the INJECTION boundary itself
                                   verdict=f"ratification-candidate {e['kind']} {e.get('metric') or 'rule'}",
                                   extra=e)
             except Exception:                                  # noqa: BLE001
@@ -225,24 +240,43 @@ def sonnet_audit(rec, lr, rnd, timeout=240):
 
 
 # ---- V4 deep checkpoint (broker; OPPORTUNISTIC + probe-only; persists full reasoning) ---------------
+def _win_gateway():
+    """WSL default gateway = the Windows host (broker.host() resolves 'windows-host' the same way)."""
+    try:
+        out = subprocess.run(["ip", "route"], capture_output=True, text=True, timeout=3).stdout
+        for line in out.splitlines():
+            if line.startswith("default"):
+                return line.split()[2]
+    except Exception:                                          # noqa: BLE001
+        pass
+    return "127.0.0.1"
+
+
 def v4_up():
-    """Reachability pre-check: read /broker/models, GET V4's health directly (2s). NEVER asks the
-    broker to START it -- a cold start pins ~160GB host RAM + ~7min, which would starve the WSL2
-    routing container over a 7h run. If V4 is reaped/down, the checkpoint cleanly SKIPS."""
+    """Reachability pre-check against the broker catalog (GET /v1/models), then a direct 3s health
+    GET on V4's own host:port. NEVER asks the broker to START it -- a cold start pins ~160GB host
+    RAM + ~7min, which would starve the WSL2 routing container over a 7h run. If V4 is down, the
+    checkpoint cleanly SKIPS. Matches the rebuilt broker contract: external backends carry
+    host ('windows-host' -> WSL gateway) + port, NOT an 'upstream' URL, and the catalog route is
+    /v1/models (the old /broker/models + m['upstream'] schema is gone)."""
     import urllib.request
     try:
-        reg = json.load(urllib.request.urlopen(BROKER.rsplit("/v1", 1)[0] + "/broker/models", timeout=5))
-        m = reg["models"][V4_MODEL]
-        if not m.get("running"):
+        base = BROKER.rsplit("/v1", 1)[0]
+        reg = json.load(urllib.request.urlopen(base + "/v1/models", timeout=5))
+        m = next((x for x in reg.get("data", []) if x.get("id") == V4_MODEL), None)
+        if not m:
             return False
-        health = m["upstream"].rsplit("/v1", 1)[0] + "/health"
-        with urllib.request.urlopen(health, timeout=3) as h:
+        host = m.get("host") or "127.0.0.1"
+        if host == "windows-host":
+            host = _win_gateway()
+        url = f"http://{host}:{m.get('port')}{m.get('health', '/health')}"
+        with urllib.request.urlopen(url, timeout=3) as h:
             return h.status == 200
     except Exception:                                          # noqa: BLE001
         return False
 
 
-def v4_checkpoint(rec, lr, rnd, timeout=1800):
+def v4_checkpoint(rec, lr, rnd, timeout=3000):   # room for the 14000-tok deep checkpoint, never timeout-cut
     import urllib.request
     out_path = os.path.join(FIND_DIR, f"round-{rnd:03d}-v4.json")
     if not v4_up():
@@ -263,15 +297,22 @@ def v4_checkpoint(rec, lr, rnd, timeout=1800):
         "\"manager_rule\":\"...\"|null,\"local_minimum_risk\":\"low|medium|high\"}"
     )
     payload = {"model": V4_MODEL, "messages": [{"role": "user", "content": prompt}],
-               "max_tokens": 9000, "temperature": 0.3, "presence_penalty": 0.8}
+               "max_tokens": 14000, "temperature": 0.3, "presence_penalty": 0.8}   # 14000 (was 9000): V4 ctx 32768, no mid-reason cut
     t0 = time.time()
+    import cec_seat_stream as _stream
+    _call = _stream.start("v4-checkpoint", model=V4_MODEL, role="deep-checkpoint", prompt_chars=len(prompt))
     try:
         req = urllib.request.Request(BROKER + "/chat/completions", json.dumps(payload).encode(),
                                      {"Content-Type": "application/json", "X-CEC-Client": "inloop-v4-checkpoint"})
         d = json.load(urllib.request.urlopen(req, timeout=timeout))
         msg = d["choices"][0]["message"]
         content, reasoning = msg.get("content") or "", msg.get("reasoning_content") or ""
+        # raw (non-streaming) call -> record the whole reasoning+answer as one block on the v4 seat
+        _call.delta(reasoning, "reasoning")
+        _call.delta(content, "content")
+        _call.end(ok=True)
     except Exception as e:                                     # noqa: BLE001
+        _call.error(e)
         json.dump({"round": rnd, "error": f"{type(e).__name__}: {e}"}, open(out_path, "w"), indent=1)
         return {"error": str(e)}
     findings = {}
@@ -298,6 +339,10 @@ def _findings_list(d):
 
 def run(board, hours, shakeout):
     os.makedirs(FIND_DIR, exist_ok=True)
+    import shutil
+    _sdir = os.environ.get("CEC_STREAM_DIR", STREAM_DIR)      # fresh per-seat streams each run -- the
+    shutil.rmtree(_sdir, ignore_errors=True)                 # recorder appends, so clear stale runs first
+    os.makedirs(_sdir, exist_ok=True)
     deadline = time.time() + hours * 3600.0
     lr = load_live_rules()
     records, seen, rnd = [], set(), 0
@@ -363,10 +408,11 @@ def run(board, hours, shakeout):
                    "n_rules": len(lr["manager_rules"]),
                    "accepted_penalty": na_p, "accepted_rule": na_r,
                    "n_rejected_or_noop": sum(1 for e in events if not e["action"].startswith("accepted")),
-                   "sonnet_is_new": sj.get("is_new_finding"), "v4_local_min_risk": v4_risk}
+                   "sonnet_is_new": sj.get("is_new_finding"), "v4_local_min_risk": v4_risk,
+                   "corpus_state": _corpus_state(lr)}     # EI-01: knowledge state at round time
             with open(MEASURE_PATH, "a") as fh:
                 fh.write(json.dumps(row) + "\n")
-            ovd.ledger_round(board, rec, len(ovd.pareto_frontier(records)))
+            ovd.ledger_round(board, rec, len(ovd.pareto_frontier(records)), live_rules=lr)
         except Exception as e:                                 # noqa: BLE001
             log(f"  round {rnd} FAILED: {type(e).__name__}: {e}")
             import traceback; traceback.print_exc()

@@ -1,0 +1,1422 @@
+# Tamper-protection module roadmap research — 2026-07-02
+
+_Deep-research run (5 search angles → source fetch → claim extraction → 3-vote adversarial
+verification → synthesis). Persona: a ~300-workstation fleet with an explicit tamper-protection
+mandate, evaluating the CEC enterprise line (ENT-AIR / ENT-NET, PolarFire hub). Raw per-agent
+journal: `raw/tamper-research-journal.jsonl`._
+
+## Executive summary
+
+Beyond per-rail power telemetry, this tamper-focused enterprise buyer would want a family of new CEC modules that turn the platform from a power-quality monitor into an in-chassis physical-security and asset-integrity sensor. Table-stakes is a chassis-intrusion module that beats today's defeatable state-of-practice (a single motherboard micro-switch read by BIOS or a BMC that only logs open/closed and whose battery-backed latch resets when the coin cell is pulled); CEC's differentiator is a standby/battery-backed, rollback-resistant (monotonic-counter) tamper log that survives power-off and forwards to SIEM. A whole-chassis tamper-sensing module using anti-tamper radio (a few COTS UWB antennas, under 5 USD, retrofittable) detects needle-scale implant insertion and fills the gap between weak switches and costly HSM mesh. A rogue-peripheral/device-attestation module (USB/PCIe inventory plus SPDM-style cryptographic authentication and allowlisting) addresses evil-maid and supply-chain implants that NIST SP 1800-34 and TCG Platform Certificates frame as continuous, in-field requirements. Power-signature fingerprinting is a promising but proof-of-concept differentiator best positioned as an intermediate, non-destructive screening tier. Standards hooks (NIST 800-53 PE/SI, SP 1800-34, TCG, FIPS 140-3) justify each module to the buyer.
+
+## Verified findings
+
+### 1. Today's state-of-practice chassis-intrusion detection (motherboard micro-switch read by BIOS or BMC) is the baseline CEC must beat, and it is both defeatable and burdensome: it only logs a binary open/closed state, adds motherboard cost/complexity, and its battery-backed latch resets when the coin-cell battery is pulled.
+
+**Confidence:** high
+
+Dell OptiPlex uses a cover micro-switch monitored by BIOS (Alert Cover was previously removed); HPE ProLiant uses a single switch read by iLO that only logs open/closed. Dell patent 11,495,121 documents the evil-maid model (open chassis, implant BIOS/storage malware in seconds, then clear logs/intrusion flags and pull the battery to reset battery-backed latching logic) and the gaps of intrusion switches. This is the competitive baseline a table-stakes CEC intrusion module must exceed.
+
+- https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/11495121
+- https://www.dell.com/support/kbdoc/en-us/000150875
+- https://techlibrary.hpe.com/docs/iss/DL20_Gen10/setup_install/GUID-A24120C5-CC92-4547-BF59-86E1320C1905.html
+
+### 2. A durable, rollback-resistant, standby/battery-backed tamper log is the key differentiator over the OEM baseline and maps to the out-of-band and audit-log requirements: the record must survive power-off and be non-rollbackable via a monotonic counter or pseudo-random ephemeral secret in NVM.
+
+**Confidence:** high
+
+Dell's patent specifies a disconnect/monotonic counter in battery NVM that cannot be rolled back and only increments, defeating track-covering. Intel patent 6,388,574 latches the intrusion event while the computer is powered off using system backup (CMOS battery) power. HPE exposes intrusion via Remote SysLog, SNMP, and AlertMail, the standard SIEM channels CEC's tamper log should forward to. CEC's Hub already has 16MB flash, standby/wall-wart power paths, and CAN, so a rollback-resistant persist-on-fault tamper log fits the existing architecture.
+
+- https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/11495121
+- https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/6388574
+- https://techlibrary.hpe.com/docs/iss/DL20_Gen10/setup_install/GUID-A24120C5-CC92-4547-BF59-86E1320C1905.html
+
+### 3. A whole-chassis tamper-sensing module using anti-tamper radio (ATR) is a strong differentiator that fills the gap between weak switches and costly HSM mesh: a few COTS UWB antennas (under 5 USD) inside the metal case detect physical implant insertion at needle scale, are retrofittable, and are far cheaper than security mesh.
+
+**Confidence:** high
+
+Peer-reviewed IEEE S and P 2022 work (arXiv 2112.09014, Max Planck Institute) shows ATR detects 0.1mm-needle insertions at 16mm depth (idealized) and reliably detects 40mm insertions of 1mm needles inside a running 19-inch server over 10 days despite fans, temperature swings, and CPU load. It frames the trade-off CEC would fill: simple switches lack security against sophisticated attackers, while HSM meshes are costly, inflexible, hard to manufacture. A COTS UWB implementation (under 5 USD) detected 90 to 108 of 117 probe positions at zero false positives (vs 114 to 116 for a lab VNA). Maps to a CEC RF-sensing module reporting over CAN/DETECT.
+
+- https://arxiv.org/pdf/2112.09014
+
+### 4. A rogue-peripheral/device-attestation module (USB plus PCIe inventory and cryptographic authentication) is a table-stakes-to-differentiator concept: malicious peripherals are a recognized attack vector because users cannot verify hardware authenticity, and pre-OS PCIe/USB attestation via DMTF SPDM in UEFI with allowlist enforcement is feasible today.
+
+**Confidence:** high
+
+A 2026 University of Sao Paulo paper (arXiv 2605.06744) states attackers use malicious peripherals against users who cannot verify hardware authenticity, and demonstrates a UEFI plus SPDM system that cryptographically authenticates both PCIe and USB devices at boot. An open-source emulation PoC enforced an allowlist, restricting connections to only pre-authorized devices, blocking rogue peripherals (feasibility, not production). Supports a CEC device inventory/attestation module for evil-maid rogue-peripheral detection.
+
+- https://arxiv.org/abs/2605.06744
+
+### 5. Component-swap/asset-integrity detection is an explicit, standards-driven enterprise requirement to be met continuously in the field, and the standards mechanism is hardware-root-of-trust-backed component-inventory attestation (TCG Platform Certificate), so a CEC asset-integrity module complements or competes with certificate-based attestation rather than replacing it.
+
+**Confidence:** high
+
+NIST SP 1800-34 (final, Dec 2022) lists as an explicit security characteristic: detect unexpected component/firmware swaps or tampering during the operational life cycle, with SIEM integration. Its attestation mechanism is a TCG Platform Certificate: an OEM/VAR-issued verifiable artifact binding reference platform attributes (serial numbers, embedded components, firmware/software, configuration) to hardware components, used at acceptance and provisioning. This is the reference model a desktop-fleet asset-integrity module would be measured against and can complement with runtime monitoring the certificate model lacks.
+
+- https://www.nccoe.nist.gov/publication/1800-34/VolB/index.html
+
+### 6. Power-signature/side-channel fingerprinting for implant and component-swap screening is a plausible but still proof-of-concept differentiator, best positioned as an intermediate, non-destructive screening tier between functional testing and forensic analysis, aligning with CEC's existing shunt-based measurement.
+
+**Confidence:** medium
+
+A Jan 2026 preprint (arXiv 2601.01054) shows a GAN one-class anomaly detector trained only on benign power measurements can detect hardware Trojans/firmware tampering in commodity microcontrollers without golden reference hardware for tampered classes, positioned as an intermediate screening tier between basic functional tests and high-cost forensic analysis. Confidence is medium: authors call it proof-of-concept, it is an unreviewed preprint tested on ChipWhisperer lab boards, and a refuted companion claim flags a real blind spot: dormant backdoors not exercised during the profiled workload are undetectable, so power fingerprinting sees only what draws current during observation.
+
+- https://arxiv.org/abs/2601.01054
+
+### 7. Standards/frameworks provide concrete procurement hooks that justify each module, and low-cost environmental/standby sensing (light, accelerometer/vibration, temperature) is decades-old prior art rather than novel, so CEC should treat it as commodity table-stakes.
+
+**Confidence:** high
+
+Intel's optical-intrusion patent 6,388,574 shows light-sensor case-open detection with powered-off latching is roughly 24 to 30-year-old prior art. NIST SP 1800-34 supplies the federal reference model for component-integrity validation and SIEM integration; HPE's SysLog/SNMP/AlertMail shows the enterprise alerting channels; and the frameworks cited in the question (NIST 800-53 PE/SI controls, FIPS 140-3 physical-security levels as an HSM analogy, PCI-DSS/CMMC for trading/defense) are the procurement drivers a buyer uses to justify spend. Each proposed CEC module should carry an explicit standards hook.
+
+- https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/6388574
+- https://www.nccoe.nist.gov/publication/1800-34/VolB/index.html
+- https://techlibrary.hpe.com/docs/iss/DL20_Gen10/setup_install/GUID-A24120C5-CC92-4547-BF59-86E1320C1905.html
+
+## Refuted claims (dropped)
+
+- Dell's claimed solution moves tamper detection off the motherboard into an always-powered battery subsystem: a battery management unit senses a Sys_Pres signal routed through an inline chassis-intrusion switch, so opening the lid interrupts the signal and the event is detected/logged even when the host is off — validating the standby-power/battery-backed tamper-monitoring module concept. _(vote 1-2)_
+- The Dell intrusion alert can be cleared by anyone with BIOS access (F2 at boot, 'Clear Intrusion Warning' checkbox) with no password or administrative action required beyond BIOS entry — a key gap: the intrusion record is locally resettable by the intruder and produces no durable audit trail or SIEM-forwardable event. _(vote 0-3)_
+- The intrusion switch and its BMC reporting operate on standby power whenever the machine is plugged in, even when powered off — implying no detection or logging coverage once the machine is unplugged (no battery-backed tamper log). _(vote 0-3)_
+- NIST SP 1800-34 demonstrates how organizations can verify that internal components of acquired laptops and servers are genuine and untampered, using vendor-stored verifiable artifacts validated by commercial and open-source tools — establishing an authoritative federal reference model for component-swap and supply-chain-tamper detection that a desktop-fleet tamper-monitoring platform would be measured against. _(vote 0-3)_
+- External (out-of-band) power side-channel analysis can detect tampered firmware on a commodity microcontroller with high accuracy: ROC AUC 0.995 and 93.2% true-positive rate at a 1% false-positive rate on composite tampered firmware, using only an external shunt-resistor power measurement (ChipWhisperer-Lite on an Atmel XMEGA128D4). _(vote 0-3)_
+- The detection approach requires no modification to the monitored device itself — power is measured externally via a shunt resistor with no embedded sensors or trusted hardware features — which is the same non-invasive, evidence-over-local-intelligence posture as a shunt-based in-chassis telemetry module. _(vote 1-2)_
+- Power-signature fingerprinting has a fundamental blind spot: a dormant hardware/firmware backdoor that is not exercised during the profiled workload is completely undetectable (AUC 0.000 in the paper's negative control), meaning power fingerprinting for component-swap/implant detection only sees behavior that actually draws current during observation. _(vote 1-2)_
+
+## Caveats
+
+- S
+- o
+- u
+- r
+- c
+- e
+-  
+- b
+- a
+- s
+- e
+-  
+- i
+- s
+-  
+- s
+- t
+- r
+- o
+- n
+- g
+-  
+- b
+- u
+- t
+-  
+- n
+- a
+- r
+- r
+- o
+- w
+-  
+- p
+- e
+- r
+-  
+- t
+- o
+- p
+- i
+- c
+- .
+-  
+- C
+- h
+- a
+- s
+- s
+- i
+- s
+- -
+- i
+- n
+- t
+- r
+- u
+- s
+- i
+- o
+- n
+-  
+- b
+- a
+- s
+- e
+- l
+- i
+- n
+- e
+-  
+- a
+- n
+- d
+-  
+- r
+- o
+- l
+- l
+- b
+- a
+- c
+- k
+- -
+- r
+- e
+- s
+- i
+- s
+- t
+- a
+- n
+- t
+-  
+- l
+- o
+- g
+- g
+- i
+- n
+- g
+-  
+- r
+- e
+- s
+- t
+-  
+- o
+- n
+-  
+- p
+- r
+- i
+- m
+- a
+- r
+- y
+-  
+- v
+- e
+- n
+- d
+- o
+- r
+- /
+- p
+- a
+- t
+- e
+- n
+- t
+-  
+- s
+- o
+- u
+- r
+- c
+- e
+- s
+-  
+- (
+- D
+- e
+- l
+- l
+-  
+- 1
+- 1
+- ,
+- 4
+- 9
+- 5
+- ,
+- 1
+- 2
+- 1
+- ,
+-  
+- I
+- n
+- t
+- e
+- l
+-  
+- 6
+- ,
+- 3
+- 8
+- 8
+- ,
+- 5
+- 7
+- 4
+- ,
+-  
+- H
+- P
+- E
+-  
+- i
+- L
+- O
+- ,
+-  
+- D
+- e
+- l
+- l
+-  
+- O
+- p
+- t
+- i
+- P
+- l
+- e
+- x
+-  
+- K
+- B
+- )
+-  
+- a
+- n
+- d
+-  
+- a
+- r
+- e
+-  
+- h
+- i
+- g
+- h
+- -
+- c
+- o
+- n
+- f
+- i
+- d
+- e
+- n
+- c
+- e
+- .
+-  
+- A
+- n
+- t
+- i
+- -
+- t
+- a
+- m
+- p
+- e
+- r
+-  
+- r
+- a
+- d
+- i
+- o
+-  
+- i
+- s
+-  
+- p
+- e
+- e
+- r
+- -
+- r
+- e
+- v
+- i
+- e
+- w
+- e
+- d
+-  
+- (
+- I
+- E
+- E
+- E
+-  
+- S
+-  
+- a
+- n
+- d
+-  
+- P
+-  
+- 2
+- 0
+- 2
+- 2
+- )
+-  
+- a
+- n
+- d
+-  
+- r
+- o
+- b
+- u
+- s
+- t
+- ,
+-  
+- b
+- u
+- t
+-  
+- p
+- o
+- w
+- e
+- r
+- -
+- s
+- i
+- d
+- e
+- -
+- c
+- h
+- a
+- n
+- n
+- e
+- l
+-  
+- i
+- m
+- p
+- l
+- a
+- n
+- t
+-  
+- d
+- e
+- t
+- e
+- c
+- t
+- i
+- o
+- n
+-  
+- i
+- s
+-  
+- a
+- n
+-  
+- u
+- n
+- r
+- e
+- v
+- i
+- e
+- w
+- e
+- d
+-  
+- r
+- o
+- u
+- g
+- h
+- l
+- y
+-  
+- 6
+- -
+- m
+- o
+- n
+- t
+- h
+- -
+- o
+- l
+- d
+-  
+- p
+- r
+- e
+- p
+- r
+- i
+- n
+- t
+-  
+- s
+- e
+- l
+- f
+- -
+- d
+- e
+- s
+- c
+- r
+- i
+- b
+- e
+- d
+-  
+- a
+- s
+-  
+- p
+- r
+- o
+- o
+- f
+- -
+- o
+- f
+- -
+- c
+- o
+- n
+- c
+- e
+- p
+- t
+- ,
+-  
+- t
+- e
+- s
+- t
+- e
+- d
+-  
+- o
+- n
+- l
+- y
+-  
+- o
+- n
+-  
+- l
+- a
+- b
+-  
+- C
+- h
+- i
+- p
+- W
+- h
+- i
+- s
+- p
+- e
+- r
+- e
+- r
+-  
+- b
+- o
+- a
+- r
+- d
+- s
+- ;
+-  
+- t
+- r
+- e
+- a
+- t
+-  
+- p
+- o
+- w
+- e
+- r
+- -
+- f
+- i
+- n
+- g
+- e
+- r
+- p
+- r
+- i
+- n
+- t
+- i
+- n
+- g
+-  
+- c
+- l
+- a
+- i
+- m
+- s
+-  
+- a
+- s
+-  
+- f
+- e
+- a
+- s
+- i
+- b
+- i
+- l
+- i
+- t
+- y
+-  
+- s
+- i
+- g
+- n
+- a
+- l
+- s
+- ,
+-  
+- n
+- o
+- t
+-  
+- v
+- a
+- l
+- i
+- d
+- a
+- t
+- e
+- d
+-  
+- f
+- l
+- e
+- e
+- t
+-  
+- c
+- a
+- p
+- a
+- b
+- i
+- l
+- i
+- t
+- y
+- .
+-  
+- R
+- e
+- f
+- u
+- t
+- e
+- d
+-  
+- c
+- l
+- a
+- i
+- m
+- s
+-  
+- m
+- a
+- t
+- t
+- e
+- r
+-  
+- f
+- o
+- r
+-  
+- p
+- l
+- a
+- n
+- n
+- i
+- n
+- g
+- :
+-  
+- p
+- o
+- w
+- e
+- r
+-  
+- f
+- i
+- n
+- g
+- e
+- r
+- p
+- r
+- i
+- n
+- t
+- i
+- n
+- g
+-  
+- h
+- a
+- s
+-  
+- a
+-  
+- d
+- o
+- c
+- u
+- m
+- e
+- n
+- t
+- e
+- d
+-  
+- b
+- l
+- i
+- n
+- d
+-  
+- s
+- p
+- o
+- t
+-  
+- f
+- o
+- r
+-  
+- d
+- o
+- r
+- m
+- a
+- n
+- t
+- ,
+-  
+- u
+- n
+- -
+- e
+- x
+- e
+- r
+- c
+- i
+- s
+- e
+- d
+-  
+- b
+- a
+- c
+- k
+- d
+- o
+- o
+- r
+- s
+- ;
+-  
+- a
+- n
+- d
+-  
+- s
+- e
+- v
+- e
+- r
+- a
+- l
+-  
+- s
+- p
+- e
+- c
+- i
+- f
+- i
+- c
+-  
+- m
+- e
+- c
+- h
+- a
+- n
+- i
+- s
+- m
+-  
+- d
+- e
+- t
+- a
+- i
+- l
+- s
+-  
+- (
+- D
+- e
+- l
+- l
+- '
+- s
+-  
+- e
+- x
+- a
+- c
+- t
+-  
+- S
+- y
+- s
+- _
+- P
+- r
+- e
+- s
+-  
+- r
+- o
+- u
+- t
+- i
+- n
+- g
+- ,
+-  
+- w
+- h
+- e
+- t
+- h
+- e
+- r
+-  
+- O
+- E
+- M
+-  
+- i
+- n
+- t
+- r
+- u
+- s
+- i
+- o
+- n
+-  
+- r
+- e
+- c
+- o
+- r
+- d
+- s
+-  
+- a
+- r
+- e
+-  
+- t
+- r
+- i
+- v
+- i
+- a
+- l
+- l
+- y
+-  
+- l
+- o
+- c
+- a
+- l
+- l
+- y
+-  
+- r
+- e
+- s
+- e
+- t
+- t
+- a
+- b
+- l
+- e
+- ,
+-  
+- w
+- h
+- e
+- t
+- h
+- e
+- r
+-  
+- s
+- t
+- a
+- n
+- d
+- b
+- y
+- -
+- o
+- n
+- l
+- y
+-  
+- m
+- e
+- a
+- n
+- s
+-  
+- n
+- o
+-  
+- l
+- o
+- g
+- g
+- i
+- n
+- g
+-  
+- w
+- h
+- e
+- n
+-  
+- u
+- n
+- p
+- l
+- u
+- g
+- g
+- e
+- d
+- )
+-  
+- f
+- a
+- i
+- l
+- e
+- d
+-  
+- v
+- e
+- r
+- i
+- f
+- i
+- c
+- a
+- t
+- i
+- o
+- n
+-  
+- a
+- n
+- d
+-  
+- s
+- h
+- o
+- u
+- l
+- d
+-  
+- n
+- o
+- t
+-  
+- b
+- e
+-  
+- a
+- s
+- s
+- e
+- r
+- t
+- e
+- d
+- .
+-  
+- N
+- o
+-  
+- s
+- o
+- u
+- r
+- c
+- e
+-  
+- d
+- i
+- r
+- e
+- c
+- t
+- l
+- y
+-  
+- b
+- e
+- n
+- c
+- h
+- m
+- a
+- r
+- k
+- s
+-  
+- p
+- o
+- w
+- e
+- r
+- -
+- s
+- i
+- g
+- n
+- a
+- t
+- u
+- r
+- e
+-  
+- f
+- i
+- n
+- g
+- e
+- r
+- p
+- r
+- i
+- n
+- t
+- i
+- n
+- g
+-  
+- f
+- o
+- r
+-  
+- D
+- I
+- M
+- M
+- /
+- G
+- P
+- U
+- /
+- d
+- r
+- i
+- v
+- e
+-  
+- s
+- w
+- a
+- p
+-  
+- d
+- e
+- t
+- e
+- c
+- t
+- i
+- o
+- n
+-  
+- s
+- p
+- e
+- c
+- i
+- f
+- i
+- c
+- a
+- l
+- l
+- y
+- ;
+-  
+- t
+- h
+- a
+- t
+-  
+- a
+- p
+- p
+- l
+- i
+- c
+- a
+- t
+- i
+- o
+- n
+-  
+- i
+- s
+-  
+- i
+- n
+- f
+- e
+- r
+- r
+- e
+- d
+- .
+-  
+- S
+- t
+- a
+- n
+- d
+- a
+- r
+- d
+- s
+-  
+- m
+- a
+- p
+- p
+- i
+- n
+- g
+-  
+- (
+- N
+- I
+- S
+- T
+-  
+- 8
+- 0
+- 0
+- -
+- 5
+- 3
+-  
+- P
+- E
+- /
+- S
+- I
+- ,
+-  
+- P
+- C
+- I
+- -
+- D
+- S
+- S
+- ,
+-  
+- C
+- M
+- M
+- C
+- ,
+-  
+- F
+- I
+- P
+- S
+-  
+- 1
+- 4
+- 0
+- -
+- 3
+- )
+-  
+- i
+- s
+-  
+- d
+- r
+- a
+- w
+- n
+-  
+- f
+- r
+- o
+- m
+-  
+- t
+- h
+- e
+-  
+- q
+- u
+- e
+- s
+- t
+- i
+- o
+- n
+-  
+- f
+- r
+- a
+- m
+- i
+- n
+- g
+-  
+- a
+- n
+- d
+-  
+- g
+- e
+- n
+- e
+- r
+- a
+- l
+-  
+- k
+- n
+- o
+- w
+- l
+- e
+- d
+- g
+- e
+- ,
+-  
+- n
+- o
+- t
+-  
+- i
+- n
+- d
+- e
+- p
+- e
+- n
+- d
+- e
+- n
+- t
+- l
+- y
+-  
+- r
+- e
+- -
+- v
+- e
+- r
+- i
+- f
+- i
+- e
+- d
+- .
+-  
+- S
+- P
+- D
+- M
+-  
+- d
+- e
+- v
+- i
+- c
+- e
+-  
+- a
+- t
+- t
+- e
+- s
+- t
+- a
+- t
+- i
+- o
+- n
+-  
+- i
+- s
+-  
+- d
+- e
+- m
+- o
+- n
+- s
+- t
+- r
+- a
+- t
+- e
+- d
+-  
+- o
+- n
+- l
+- y
+-  
+- i
+- n
+-  
+- e
+- m
+- u
+- l
+- a
+- t
+- i
+- o
+- n
+- ,
+-  
+- n
+- o
+- t
+-  
+- p
+- r
+- o
+- d
+- u
+- c
+- t
+- i
+- o
+- n
+-  
+- h
+- a
+- r
+- d
+- w
+- a
+- r
+- e
+- .
+
+## Open questions
+
+- Can power-signature fingerprinting actually distinguish a substituted DIMM/GPU/drive (make/model/counterfeit) in the field on the shared rails CEC already senses, or is it limited to actively-drawing behavioral anomalies? No source demonstrated component-substitution ID via power signature.
+- What is the false-positive rate and per-unit calibration burden of anti-tamper radio across a heterogeneous 300-workstation fleet with different chassis geometries, add-in cards, and fan profiles, and does it need per-unit baselining that raises deployment cost?
+- How should CEC's air-gapped enterprise variant reconcile SIEM/audit-log forwarding (which assumes network egress) with the air-gap, for example local tamper-log sealing plus periodic one-way export, and what durable-log format satisfies NIST 800-53 AU/PE controls?
+- Which module concepts are truly table-stakes for procurement gating (chassis-intrusion plus durable tamper log plus device-attestation) versus premium differentiators (ATR whole-chassis sensing, power-signature screening), and what per-unit BOM/price ceiling will the buyer bear given a roughly 50 to 80 USD hub baseline?
+
+## Sources
+
+- {'url': 'https://www.principledtechnologies.com/Dell/OEM-security-features-0725.pdf', 'quality': 'secondary', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 5}
+- {'url': 'https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/11495121', 'quality': 'primary', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 5}
+- {'url': 'https://www.dell.com/support/kbdoc/en-us/000150875/how-to-reset-or-remove-an-alert-cover-was-previously-removed-message-that-appears-when-starting-a-dell-optiplex-computer', 'quality': 'primary', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 4}
+- {'url': 'https://techlibrary.hpe.com/docs/iss/DL20_Gen10/setup_install/GUID-A24120C5-CC92-4547-BF59-86E1320C1905.html', 'quality': 'primary', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 5}
+- {'url': 'https://www.techwalla.com/articles/what-is-chassis-intrusion-detection', 'quality': 'blog', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 5}
+- {'url': 'https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/6388574', 'quality': 'primary', 'angle': 'Chassis-intrusion norms and gaps (state of practice)', 'claimCount': 5}
+- {'url': 'https://semiengineering.com/why-anti-tamper-sensors-matter-delivering-a-comprehensive-security-solution/', 'quality': 'blog', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 5}
+- {'url': 'https://www.opensecurityarchitecture.org/frameworks/fips-140/coverage/', 'quality': 'secondary', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 4}
+- {'url': 'https://arxiv.org/pdf/2112.09014', 'quality': 'primary', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 5}
+- {'url': 'https://www.edn.com/design-ideas-for-tamper-detection-circuits/', 'quality': 'secondary', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 5}
+- {'url': 'https://emudhra.com/en-us/faq/hsm-tamper-resist-fips-compliance', 'quality': 'blog', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 5}
+- {'url': 'https://interfacemasters.com/company/blog/company/hardware/tamper-evident-intrusion-resistant-networking-solutions-fips-140-2', 'quality': 'blog', 'angle': 'Anti-tamper sensor technology (tamper-evidence vs tamper-response)', 'claimCount': 5}
+- {'url': 'https://arxiv.org/abs/2601.01054', 'quality': 'primary', 'angle': 'Hardware implant and rogue peripheral detection', 'claimCount': 4}
+- {'url': 'https://www.nccoe.nist.gov/publication/1800-34/VolB/index.html', 'quality': 'primary', 'angle': 'Hardware implant and rogue peripheral detection', 'claimCount': 5}
+- {'url': 'https://arxiv.org/abs/2605.06744', 'quality': 'primary', 'angle': 'Hardware implant and rogue peripheral detection', 'claimCount': 5}
+- {'url': 'https://eclypsium.com/solutions/firmware-security-for-enterprises/', 'quality': 'blog', 'angle': 'Hardware implant and rogue peripheral detection', 'claimCount': 5}
+- {'url': 'https://arxiv.org/html/2601.01054', 'quality': 'primary', 'angle': 'Power side-channel fingerprinting for component-swap detection (technical/academic)', 'claimCount': 5}
+- {'url': 'https://ieeexplore.ieee.org/document/9247077/', 'quality': 'primary', 'angle': 'Power side-channel fingerprinting for component-swap detection (technical/academic)', 'claimCount': 5}
+- {'url': 'https://vtechworks.lib.vt.edu/server/api/core/bitstreams/fc755228-1d48-4844-93d1-f89ea3f1264e/content', 'quality': 'primary', 'angle': 'Power side-channel fingerprinting for component-swap detection (technical/academic)', 'claimCount': 5}
+- {'url': 'https://www.usenix.org/conference/healthtech13/workshop-program/presentation/clark', 'quality': 'primary', 'angle': 'Power side-channel fingerprinting for component-swap detection (technical/academic)', 'claimCount': 5}
+- {'url': 'https://csf.tools/reference/nist-sp-800-53/r4/pe/pe-3/pe-3-5/', 'quality': 'secondary', 'angle': 'Compliance drivers and commercial market landscape', 'claimCount': 5}
+- {'url': 'https://csf.tools/reference/nist-sp-800-53/r5/pe/', 'quality': 'secondary', 'angle': 'Compliance drivers and commercial market landscape', 'claimCount': 5}
+- {'url': 'https://h20195.www2.hp.com/v2/getpdf.aspx/4AA7-8167ENW.pdf', 'quality': 'primary', 'angle': 'Compliance drivers and commercial market landscape', 'claimCount': 5}
+- {'url': 'https://pcidssguide.com/pci-dss-requirement-9/', 'quality': 'secondary', 'angle': 'Compliance drivers and commercial market landscape', 'claimCount': 5}
+
+## Run stats
+
+```json
+{
+  "angles": 5,
+  "sourcesFetched": 24,
+  "claimsExtracted": 117,
+  "claimsVerified": 25,
+  "confirmed": 18,
+  "killed": 7,
+  "unverified": 0,
+  "afterSynthesis": 7,
+  "urlDupes": 0,
+  "budgetDropped": 6,
+  "agentCalls": 106
+}
+```

@@ -53,6 +53,40 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> enterprise requirements register lint (IDs / SHALL / verify vocab / spec-section refs)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_req_lint.py" || status=1
+  # verification matrix: every REQ maps to a named artifact; statement-hash rot detection
+  # (seed map human-reviewed 2026-07-03 -- spot-checked bench/FMEA/process assignments)
+  python3 "$CEC_SCRIPTS_DIR/cec_req_verify_matrix.py" --check || status=1
+else
+  printf '  skip: python3 not available\n'
+fi
+
+printf '==> host test suites (AM-02 corpus anchors + prompt-tier-audit / EI-02 control-lane; all pcbnew-free)\n'
+if command -v python3 >/dev/null 2>&1; then
+  # M3 (new-impl audit): the prompt-audit / auditor-dispatch / EI-02 control-lane suites cover code this
+  # branch changes and were CI-only -- run them in the checklist too so a regression cannot pass the
+  # local disaster-recovery gate (CLAUDE.md WSL-ephemeral policy warns against relying on manual runs).
+  python3 -W ignore -m unittest \
+    tests.test_measurement_claims_corpus \
+    tests.test_fault_phenomenology_corpus \
+    tests.test_stability_budget \
+    tests.test_prompt_audit_fixes \
+    tests.test_auditor_dispatch \
+    tests.test_corridor_model \
+    tests.test_stagger_feedback \
+    tests.test_ei02_control_lane \
+    tests.test_placer_oracle \
+    tests.test_cec_seats \
+    tests.test_fs_actuator \
+    tests.test_actuation_lever >/dev/null 2>&1 \
+    && printf '  ok: host suites pass\n' \
+    || { printf 'FAIL: a host suite is red (corpus AM-02 anchor or a prompt-audit / EI-02 regression)\n' >&2; status=1; }
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> policy-as-code load assertions (CL-10: bindings usable, DF-05/07 firewall clean)\n'
 if command -v python3 >/dev/null 2>&1; then
   python3 "$CEC_SCRIPTS_DIR/cec_policy.py" validate || status=1

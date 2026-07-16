@@ -19,7 +19,8 @@
 #        the record + Pareto axes; AM-04 debt -> advisory, never gates).
 #   T4   WORKER PANEL (cec-worker, 3 lenses) votes accept/repair/escalate and
 #        drives FR effort -- the manager actuator.
-#   T5   SONNET AUDITOR proposes at most one penalty + one rule, under:
+#   T5   AUDITOR (default DeepSeek-V4-Flash via broker; Sonnet one env var away)
+#        proposes at most one penalty + one rule, under:
 #          - the RULE CAP (10 standing rules; beyond -> consolidate or reject),
 #          - the NOVELTY GATE (normalized dedup vs the standing ruleset --
 #            stronger than the seat's own is_new self-report),
@@ -72,10 +73,8 @@ KELVIN_STALL_K = 3                              # consecutive fails -> T0 escala
 # cold start / GPU swap never makes the seat lose its own race, and give seats a budget
 # wide enough to ride a swap. The last run's misses (intent manager 0/8, V4 0 live) were
 # ALL swap-starvation, not logic. Slower, but every tier actually fires.
-SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "600"))   # was 120-180 (lost the swap race)
+SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "900"))   # was 120-180 (lost the swap race); a ceiling -- generous so no seat is timeout-cut mid-thought
 WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min cold start
-PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
-               "gate_fail", "kelvin_unrouted", "diffpair_unrouted", "max_T")
 # OWNED LEVERS -- the corrected actuation-space owned-list (retrospective §2/§4, lesson 2).
 # Single source of truth: fed to the auditor prompt AND the verifier actuation-space ctx so
 # the generator and the gate share one definition of "a lever the loop can pull". A scorer-
@@ -83,7 +82,41 @@ PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
 # (lesson 4: selection cannot create candidates).
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
-                "battery (shift/swap/via), power pours")
+                "battery (shift/swap/via), power pours, LAYER-STAGGER (route a band-crossing foreign "
+                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying), "
+                # PL-02: model-proposable placement lever. Worded WITHOUT 'corridor'/'pour'/'around'
+                # so _lever_kind classifies a model echo to 'replace', not 'avoid' (the keyword trap).
+                "PLACEMENT EVICTION (re-place / move / reposition a SENSITIVE body -- an INA / INA181 "
+                "/ REF / ESP -- OUT of a foreign high-current band that fragments its sense copper, "
+                "carrying the body's owned passive cluster so decoupling caps are not stranded; NEVER "
+                "a shunt RS* / connector J*, NEVER a pinned or Kelvin / sense part)")
+# P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
+# knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
+# is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
+# in CORPUS_BRIEF, and the per-run fence is appended at the call site.
+LOCKED_DECISIONS_BRIEF = (
+    "LOCKED DECISIONS (CLAUDE.md / spec; ratified, do not contradict): module<->Hub connector is "
+    "RJ-45 8P8C platform-wide (Mini-Fit Jr retired for that link); pin allocation pin1=VCC/+5VSB, "
+    "pin2=GND, pin3=CAN1_H, pin4/5=RS-485 STREAM (Pro+ only), pin6=CAN1_L, pin7=reserved spare (NOT "
+    "AUX_REF), pin8=DETECT analog ID; DETECT code §2.3 (CAN-only 2.2k); §6.4 shunts (24-pin 2mΩ / "
+    "5VSB 25mΩ, EPS+PCIe 0.5mΩ, 12VHPWR 1mΩ), Kelvin-sensed; classical CAN 500k platform-wide "
+    "(CAN-FD deferred); RS-485 + receivers Pro+ only; CAN termination = fixed 120Ω split at the Hub; "
+    "the §6.8 Kelvin sense geometry + the shunt/sense-IC refs are FENCED (never re-routed or steered)."
+)
+
+
+def _spec_rules_excerpt(corpus_brief, locked, fence, manager_rules):
+    """P4 (prompt-audit fix 2026-06-13): build the CL24 spec-conformance charter's rules_excerpt with the
+    LOAD-BEARING content FIRST -- the locked-decision spine + the fence + the 'unratified' relabel -- then
+    the promoted corpus. The downstream cec_verifier._slice_spec truncates this excerpt, so leading with
+    the spine guarantees it survives even if the (much larger) corpus tail is cut. The reviewer caught the
+    original CORPUS_BRIEF-first ordering being sliced off before the spine reached the seat."""
+    fence = fence or {}
+    return (locked
+            + f"\nFENCE (never steer): nets={sorted(fence.get('nets', []))[:12]}, "
+            f"refs={sorted(fence.get('refs', []))}."
+            + "\nIN-RUN STANDING RULES (unratified, this run only): " + json.dumps(manager_rules)
+            + "\n\n" + (corpus_brief or ""))
 # UNIFIED SEAT MODEL (2026-06-11): cec-worker-vision is the cec-worker GGUF (Qwen3.6-35B-A3B) + an
 # mmproj, so ONE resident 27 GB backend serves BOTH the text seats (T1/T4/verifier, thinking) AND
 # the vision seat (T6, nothink via cec_vlm_bakeoff._NOTHINK). Pointing every local seat at it deletes
@@ -92,6 +125,65 @@ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing a
 # binding is owner-gated (cec-policy.json); these env knobs let it be split/reverted without a code edit.
 WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
 VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
+# VISION GATING (owner 2026-06-13): the per-round VLM narrate produced only advisory anomaly flags
+# (owner-ruled non-authoritative; geometry is owned by the deterministic checkers, CL-21) at real RAM/
+# GPU/latency cost. So the VLM now fires ONLY on FINALISTS (the existing finalist path runs vision_judge);
+# every round still gets the DETERMINISTIC pour-integrity facts (which feed the blocking gate + the item4
+# corridor-avoid lever). Set CEC_FS_VISION_EVERY_ROUND=1 to restore per-round narration.
+VISION_EVERY_ROUND = os.environ.get("CEC_FS_VISION_EVERY_ROUND", "0") == "1"
+# Frozen known-good model-free copper render per board, for the deterministic render-diff the VLM
+# NARRATES (owner ruling 2026-06-11). Render-diff is a REGRESSION tool -- it only has meaning for a
+# board that IS known-good and is being REPROCESSED (toolchain/library/re-pour); diffing an
+# in-development board (e.g. eps-8pin mid-routing-loop) against an arbitrary baseline measures drift,
+# not defects. So this map holds ONLY genuinely-known-good boards (graduated-out-of-DRAFT / fab
+# snapshots); a board absent here (the iterative loop case) runs the narration ANOMALY-ONLY, and its
+# deterministic detection is the absolute DFM layer (cec_dfm_check) + the pour-integrity gate, which
+# need no reference. No entry yet: the graduated boards (hub-standard / 12vhpwr-standard) get a frozen
+# reference render when their regression check is wired; eps-8pin is mid-development -> intentionally absent.
+VISION_REFERENCE = {}
+
+# T5 AUDITOR SEAT (owner 2026-06-12): the deep local DeepSeek-V4-Flash (via the broker) is the DEFAULT
+# auditor chair -- its deep rumination is the better auditor (it surfaced a planted spec inconsistency
+# Sonnet/oss-120b omitted). Cloud Sonnet is ONE ENV VAR AWAY (CEC_FS_AUDITOR_MODEL=sonnet) for a
+# latency-sensitive DAILY run. Resolution: explicit --auditor > CEC_FS_AUDITOR_MODEL env > V4-Flash default.
+SONNET_AUDITOR = "sonnet"
+# Cloud (claude-CLI) auditor seats vs the deep broker auditor: a model in CLOUD_AUDITORS routes to the
+# claude CLI with --model <name> (+ --effort), anything else -> the broker (deepseek-v4-flash etc.).
+# CEC_FS_AUDIT_EFFORT sets the CLI effort level (low|medium|high|xhigh|max) for the cloud auditor.
+CLOUD_AUDITORS = {"sonnet", "opus"}
+CLOUD_AUDIT_EFFORT = os.environ.get("CEC_FS_AUDIT_EFFORT")
+DEEP_AUDITOR = os.environ.get("CEC_FS_DEEP_AUDITOR", "deepseek-v4-flash")
+# DEEP-AUDITOR ENDPOINT (owner 2026-06-12): V4-Flash (~160 GB) cannot run under the WSL broker -- it pages
+# at the 125 GB WSL2 ceiling (a live replay 502'd after 330 s). It runs via the WINDOWS-HOSTED workaround
+# (full 192 GB physical, no WSL cap). Point ONLY the deep auditor there with CEC_FS_AUDITOR_URL=<win
+# endpoint>/v1; the worker seats stay on the WSL broker. None -> _chat_json's default (the broker).
+DEEP_AUDITOR_URL = os.environ.get("CEC_FS_AUDITOR_URL") or None
+
+
+def resolve_auditor(cli_auditor, hours=None):
+    # hours kept for signature/back-compat; the seat no longer keys on run length -- V4-Flash is the
+    # default chair, Sonnet the explicit opt-in (the latency escape hatch).
+    return cli_auditor or os.environ.get("CEC_FS_AUDITOR_MODEL") or DEEP_AUDITOR
+
+
+# The auditor output contract (mirrors the inline Sonnet JSON template). The broker path enforces it as a
+# json_schema grammar; the Sonnet path asks for the same shape via the Write tool.
+AUDIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": ["accept", "repair", "escalate"]},
+        "root_cause": {"type": "string"},
+        "reasoning": {"type": "string"},
+        "failure_class": {"type": "string",
+                          "enum": ["routing", "placement", "scoring", "constraint", "none"]},
+        "proposed_lever": {"type": ["object", "null"]},
+        "scorer_penalty": {"type": ["object", "null"]},
+        "manager_rule": {"type": ["string", "null"]},
+    },
+    "required": ["verdict", "root_cause", "reasoning", "failure_class",
+                 "proposed_lever", "scorer_penalty", "manager_rule"],
+    "additionalProperties": False,
+}
 
 INTENTS_SCHEMA = {
     "type": "object",
@@ -137,6 +229,703 @@ def _d(*parts):
     p = os.path.join(PERM, *parts)
     os.makedirs(os.path.dirname(p) if "." in os.path.basename(p) else p, exist_ok=True)
     return p
+
+
+def _corpus_state(lr):
+    """EI-01: knowledge-state pin for the measurement row (fail-safe to {} so a row always writes)."""
+    try:
+        import cec_ledger
+        return cec_ledger.corpus_state(lr)
+    except Exception:                                          # noqa: BLE001
+        return {}
+
+
+def _vision_required_unmet(pourcheck, geom_delta, threshold=3):
+    """True only when the VLM was ATTEMPTED (not finalist-gated) yet produced no anomalies despite a
+    pour-geometry shift >= threshold -- i.e. the vision seat was genuinely needed but DOWN. A gated round
+    (run_vlm=False -> vlm_gated) is an intentional skip, never flagged as a seat outage."""
+    vlm_attempted = not pourcheck.get("vlm_gated")
+    vision_ran = "anomalies" in pourcheck
+    return bool(vlm_attempted and geom_delta >= threshold and not vision_ran)
+
+
+# ============================================================================
+#  EI-02 CONTROL LANE + EI-07 real_anchor_ratio + the A/B aggregation.
+#  These three are PURE host-testable helpers (no broker / no container) so the
+#  lane assignment, the determinism-grounding ratio, and the standing A/B table
+#  can be unit-tested without a route. The run() loop calls exactly these.
+# ============================================================================
+# Every Nth round runs SIGNED-ONLY (the CONTROL): base scorer weights (no injected
+# scorer_penalties), the seats briefed WITHOUT the live manager_rules, and NO
+# finding-deltas / staging guidance. ADV + verifier checks still EVALUATE in a control
+# round but DO NOT steer it. The control rounds are the standing baseline the augmented
+# tier is measured against (the A/B), and the rollback signal for control-gated promotion.
+CONTROL_EVERY = int(os.environ.get("CEC_FS_CONTROL_EVERY", "4"))
+
+
+def lane_for(rnd, *, control_every=None):
+    """EI-02: lane of round `rnd` (1-indexed). control on every Nth round, augmented otherwise.
+    control_every <= 0 => the lane is always 'augmented' (the control lane is disabled). Pure."""
+    ce = CONTROL_EVERY if control_every is None else control_every
+    if ce and ce > 0 and rnd % ce == 0:
+        return "control"
+    return "augmented"
+
+
+def _lane_carry(lane, prev_aug, seed):
+    """EI-02 P3 (A/B integrity): the value (prev_intents or prev_dropped) the T1 seat sees this round.
+    The AUGMENTED lane carries the model's last value forward; a CONTROL round gets the signed `seed`
+    (intents) or () (dropped) -- so augmented-learned state never leaks into the signed-only baseline.
+    Pure -- unit-tested (M4) so a regression in the carry can't silently corrupt the control lane."""
+    return prev_aug if lane == "augmented" else seed
+
+
+def _t0_should_fire(lane, placement_attr, kelvin_stall, kelvin_ok):
+    """M2 (new-impl audit): the T0 placement-actuator gate, factored out so it is unit-testable.
+    T0 (the deterministic GR-02 repair) fires ONLY on the AUGMENTED lane -- a control round is
+    signed-only, so firing GR-02 / resetting kelvin_stall / stamping t0_fired there would perturb
+    the A/B. Within the augmented lane it fires when a placement diagnosis OR a kelvin stall coincides
+    with an unrouted Kelvin sense net (the consumer then derives the blocked /SENSEC net)."""
+    return (lane == "augmented"
+            and (placement_attr or kelvin_stall >= KELVIN_STALL_K)
+            and not kelvin_ok)
+
+
+# Evidence anchors, partitioned by EI-07 GROUNDING. DETERMINISTIC = a gate / DRC / pour-fact / FEM
+# signal (a number a checker produced, reproducible without a model); MODEL = an auditor / panel /
+# vision judgement (a seat's opinion). real_anchor_ratio = deterministic / (deterministic + model):
+# the fraction of the round's evidence that rests on determinism rather than model judgment.
+def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
+                      vision_ran=False, verifier_ran=False, placement_moved=False):
+    """EI-07: fraction of THIS round's evidence grounded in deterministic checks vs model judgment.
+
+    DETERMINISTIC anchors (a checker produced the number, reproducible without a model):
+      gates_pass, kelvin_ok, diffpair_ok (hard gates); drc, unconnected, plane_signal_mm (DRC);
+      each pour-integrity fact net (islands/components/foreign_cross); pour_integrity_ok (gate);
+      max_T + each FEM flag (electrothermal solve).
+    MODEL anchors (a seat's opinion, not reproducible without the model):
+      each worker-panel vote; the auditor verdict; each verifier seat; the V4 batch verdict;
+      the vision narration/anomaly pass.
+    Returns a dict: {real_anchor_ratio, n_deterministic, n_model}. Pure, fail-safe.
+    """
+    det = 0
+    # hard gates (3 deterministic verdicts)
+    for k in ("gates_pass", "kelvin_ok", "diffpair_ok"):
+        if rec.get(k) is not None:
+            det += 1
+    # DRC-family scalars
+    for k in ("drc", "unconnected", "plane_signal_mm"):
+        if rec.get(k) is not None:
+            det += 1
+    # pour-integrity facts: one anchor per net + the blocking gate verdict
+    facts = (pourcheck or {}).get("facts", {}) or {}
+    det += sum(1 for v in facts.values() if isinstance(v, dict))
+    if rec.get("pour_integrity_ok") is not None:
+        det += 1
+    # FEM: max_T + each flag (electrothermal solve)
+    if rec.get("max_T") is not None:
+        det += 1
+    det += len(rec.get("fem_flags") or [])
+    if placement_moved:
+        det += 1            # PL-09: an APPLIED placement eviction -- band+body from corridor_violations
+                            # (a deterministic §2.2 checker) + reproducible eviction math -> DETERMINISTIC.
+                            # The auditor PROPOSAL that triggered it is the model anchor (already counted
+                            # via audit/verifier); never add to model here (no double-count).
+
+    model = 0
+    # worker panel: one model anchor per real lens vote (the 'fallback' deterministic vote is NOT a model anchor)
+    for v in (panel_votes or []):
+        if v and v[0] != "fallback":
+            model += 1
+    if audit and isinstance(audit, dict) and audit.get("verdict") and not audit.get("error"):
+        model += 1                                  # the auditor's judgement
+    if verifier_ran:
+        model += 3                                  # the 3-charter adversarial panel
+    if v4 and isinstance(v4, dict) and not v4.get("declined") and not v4.get("error"):
+        model += 1                                  # the V4 batch verdict (a decline is restraint, not a model anchor)
+    if vision_ran:
+        model += 1                                  # the VLM narration/anomaly pass
+    total = det + model
+    return {"real_anchor_ratio": round(det / total, 4) if total else None,
+            "n_deterministic": det, "n_model": model}
+
+
+def _placement_row_fields(summary, lane, settled=None):
+    """PL-08: the placement fields for the per-round measurement row (EI-02 rides the SAME lane-tagged
+    row -- no separate placement.jsonl). Pure (host-testable). A CONTROL round with a pending move shows
+    verdict 'suppressed' and placement_moved False (it never moved -- the A/B-honest invariant)."""
+    s = summary or {}
+    return {"placement_moved": bool(s.get("moved")),
+            "placement_verdict": s.get("verdict", "no_move"),
+            "placement_ref": s.get("ref"),
+            "placement_refs": s.get("refs", []),
+            "placement_moved_mm": s.get("moved_mm", 0),
+            "placement_settled": settled}                # vindicated|refuted|overturned of a prior move
+
+
+# The A/B axes: what the augmented tier is being measured to BUY. plane_signal_mm/drc are
+# lower-is-better; gates_pass/kelvin_ok are pass-fraction; convergence is gate-passing-round fraction.
+_AB_BOOL_AXES = ("gates_pass", "kelvin_ok")
+_AB_NUM_AXES = ("plane_signal_mm", "drc")
+
+
+def _ab_lane_stats(rows):
+    """Aggregate one lane's measurement rows into the A/B axes. Pure, fail-safe to None on an empty axis."""
+    rows = [r for r in (rows or []) if isinstance(r, dict)]
+    n = len(rows)
+    out = {"n": n}
+    for ax in _AB_BOOL_AXES:
+        vals = [bool(r.get(ax)) for r in rows if r.get(ax) is not None]
+        out[ax + "_rate"] = round(sum(vals) / len(vals), 4) if vals else None
+    for ax in _AB_NUM_AXES:
+        vals = [r.get(ax) for r in rows if isinstance(r.get(ax), (int, float))]
+        out[ax + "_mean"] = round(sum(vals) / len(vals), 3) if vals else None
+        out[ax + "_min"] = round(min(vals), 3) if vals else None
+    # convergence = fraction of rounds that PASS gates (the loop reaching a routable board)
+    gp = [bool(r.get("gates_pass")) for r in rows if r.get("gates_pass") is not None]
+    out["convergence"] = round(sum(gp) / len(gp), 4) if gp else None
+    # mean real-anchor-ratio of the lane (EI-07 rollup)
+    rar = [r.get("real_anchor_ratio") for r in rows if isinstance(r.get("real_anchor_ratio"), (int, float))]
+    out["real_anchor_ratio_mean"] = round(sum(rar) / len(rar), 4) if rar else None
+    # PL-08: placement actuation rate per lane (the A/B-honest invariant: control NEVER moves) + the
+    # control-gated placement-outcome tally.
+    pm = [bool(r.get("placement_moved")) for r in rows if r.get("placement_moved") is not None]
+    out["placement_moved_rate"] = round(sum(pm) / len(pm), 4) if pm else None
+    settled = [r.get("placement_settled") for r in rows if r.get("placement_settled")]
+    out["placement_vindicated"] = sum(1 for s in settled if s == "vindicated")
+    out["placement_refuted"] = sum(1 for s in settled if s in ("refuted", "overturned"))
+    return out
+
+
+def ab_aggregate(rows):
+    """EI-02 A/B: split measurement rows by their `lane` tag and aggregate each over the A/B axes.
+    Returns {control, augmented, delta} where delta = augmented - control on each comparable axis
+    (so a positive gates_pass_rate delta means the augmented tier converges more often, and a
+    NEGATIVE plane_signal_mm_mean delta means it carves less plane). Pure, host-testable."""
+    rows = [r for r in (rows or []) if isinstance(r, dict)]
+    control = _ab_lane_stats([r for r in rows if r.get("lane") == "control"])
+    augmented = _ab_lane_stats([r for r in rows if r.get("lane") == "augmented"])
+    delta = {}
+    for ax in (ax + "_rate" for ax in _AB_BOOL_AXES):
+        if control.get(ax) is not None and augmented.get(ax) is not None:
+            delta[ax] = round(augmented[ax] - control[ax], 4)
+    for ax in ("convergence", "real_anchor_ratio_mean", "placement_moved_rate"):
+        if control.get(ax) is not None and augmented.get(ax) is not None:
+            delta[ax] = round(augmented[ax] - control[ax], 4)
+    for ax in (ax + "_mean" for ax in _AB_NUM_AXES):
+        if control.get(ax) is not None and augmented.get(ax) is not None:
+            delta[ax] = round(augmented[ax] - control[ax], 3)
+    return {"control": control, "augmented": augmented, "delta": delta,
+            "interpretation": "delta = augmented - control; +gates/kelvin/convergence and "
+                              "-plane_signal_mm/drc means the augmented tier helps"}
+
+
+# ---- Full actuation lever, Step 1: per-rule TRANSITIVE influence lineage --------------------
+# A ratified rule may STEER the search but never gate it; before ratification it must clear a
+# CLEAN-evidence gate -- it may be scored only on outcomes it did NOT influence. influenced_by
+# on a measurement row is the COMPLETE set of run-learned steer that shaped the board THAT ROW
+# MEASURED. The key discipline is a ROUTE-TIME SNAPSHOT: a steer counts for a row iff it was
+# already baked into the board when this round routed (NOT a move/rule injected later this round,
+# which only shapes the NEXT round). The placement cone is TRANSITIVE -- a kept move compounds
+# into placement_base and so shapes every later augmented round. A control round routes the
+# committed board at base effort with a masked lr_view (override + corridor-avoid + model intents
+# SUPPRESSED), so its cone is empty -- the clean baseline. See docs/actuation-lever-design.md.
+# (Audit wf_f24bddf7-9fd: the cone must include model-intent plans, corridor-avoid, and panel
+# effort, and the two timing bugs are both closed by the route-time snapshot.) Helpers are PURE.
+import hashlib as _hashlib
+
+# Single source of truth for the default scorer weights (run() inits lr['scorer_penalties'] from
+# this same dict, so active_steer_ids never emits a phantom penalty id from a retune drift).
+_DEFAULT_PENALTIES = {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0}
+_BASE_PASSES, _BASE_OPT = 24, 40       # the panel's reset (accept) effort -- "escalated" means above this
+
+
+def rule_id(kind, payload):
+    """Stable short id for one steer. kind in {rule, penalty, placement, intents, avoid, effort,
+    layer}. Pure."""
+    h = _hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:8]
+    return f"{kind}:{h}"
+
+
+def active_steer_ids(lr):
+    """Rule-ids of the persistent run-learned steer carried in `lr`: accepted manager rules +
+    scorer penalties reweighted away from the default. Pure; empty for a fresh/masked lr."""
+    ids = []
+    for r in (lr or {}).get("manager_rules", []):
+        ids.append(rule_id("rule", r))
+    for metric, w in sorted(((lr or {}).get("scorer_penalties", {}) or {}).items()):
+        if _DEFAULT_PENALTIES.get(metric) != w:          # a non-default weight is a steer
+            ids.append(rule_id("penalty", {"metric": metric, "w": w}))
+    return ids
+
+
+def placement_cone_id(finding, delta):
+    """Stable id for a placement move, keyed by its hypothesis (same key the anti-ratchet uses) so
+    the in-flight tag, the kept-cone entry, and any future per-rule tally all agree. Pure."""
+    import cec_fs_actuator as _act
+    return rule_id("placement", {"hyp": _act.hypothesis_key(finding, delta)})
+
+
+def intents_steer_id(intents, src):
+    """Id for the run-learned T1 intent PLAN that shaped a route, or None when the plan is not a
+    steer (control's signed-only seed / a non-model source). Keyed by the net set + source so the
+    same evolved plan tallies across rounds. Pure."""
+    if src != "model" or not intents:
+        return None
+    nets = sorted(i.get("net") for i in intents if i.get("net"))   # guard a net-less intent (no TypeError)
+    if not nets:
+        return None
+    return rule_id("intents", {"nets": nets, "src": src})
+
+
+def avoid_steer_ids(avoid_intents):
+    """Ids for the corridor-avoid lever -- one per offending net forced around the corridor. Pure."""
+    return sorted({rule_id("avoid", {"net": i.get("net")}) for i in (avoid_intents or [])})
+
+
+def effort_steer_id(passes, opt_time):
+    """Id for the panel's router-effort escalation, or None at base effort. Pure."""
+    if (passes or 0) > _BASE_PASSES or (opt_time or 0) > _BASE_OPT:
+        return rule_id("effort", {"escalated": True})
+    return None
+
+
+def route_placement_cone(kept_cone, pending_move_id):
+    """The placement-move ids baked into the board THIS round routed from: the committed kept cone
+    PLUS the one in-flight (applied last round, not yet settled) move. Pure -- the route-time
+    snapshot that fixes both timing bugs (the apply round is NOT tagged with its own just-applied
+    move; a later-refuted move's OWN routed round IS tagged)."""
+    cone = list(kept_cone or [])
+    if pending_move_id:
+        cone.append(pending_move_id)
+    return cone
+
+
+def compute_influenced_by(lane, *, steer_ids=(), placement_cone=(), intent_id=None,
+                          avoid_ids=(), effort_id=None, layer_id=None):
+    """The COMPLETE route-time influence cone stamped on a measurement row. Control = [] (signed-
+    only). All inputs are SNAPSHOTS taken at route time. Pure -- the ONE function both the loop and
+    the tests call (tested == shipped)."""
+    if lane == "control":
+        return []
+    ids = set(steer_ids) | set(placement_cone) | set(avoid_ids)
+    for x in (intent_id, effort_id, layer_id):
+        if x:
+            ids.add(x)
+    return sorted(ids)
+
+
+def clean_pairs(rows, rid):
+    """CLEAN-evidence partition for rule `rid`: treatment = rows the rule influenced; baseline =
+    rows the rule did NOT influence -- the FIREWALL (a row with rid in its cone can never be a
+    baseline for rid). A row with NO `influenced_by` key has an UNKNOWN cone and is excluded from
+    BOTH arms (never a universal clean baseline -- e.g. a legacy or cross-run ledger row). Pure."""
+    rows = [r for r in (rows or []) if isinstance(r, dict) and "influenced_by" in r]
+    treatment = [r for r in rows if rid in (r["influenced_by"] or [])]
+    baseline = [r for r in rows if rid not in (r["influenced_by"] or [])]
+    return {"baseline": baseline, "treatment": treatment}
+
+
+def clean_evidence_delta(rows, rid, metric):
+    """mean(metric) treatment - baseline on CLEAN evidence for `rid`, with each arm's n. Returns
+    delta=None where either arm lacks a numeric sample (insufficient clean evidence). Pure."""
+    part = clean_pairs(rows, rid)
+
+    def _mean(rs):
+        vals = [r.get(metric) for r in rs if isinstance(r.get(metric), (int, float, bool))]
+        return (sum(float(v) for v in vals) / len(vals), len(vals)) if vals else (None, 0)
+
+    bmean, bn = _mean(part["baseline"])
+    tmean, tn = _mean(part["treatment"])
+    if bmean is None or tmean is None:
+        return {"rule_id": rid, "metric": metric, "delta": None,
+                "n_baseline": bn, "n_treatment": tn}
+    return {"rule_id": rid, "metric": metric, "delta": round(tmean - bmean, 4),
+            "treatment_mean": round(tmean, 4), "baseline_mean": round(bmean, 4),
+            "n_baseline": bn, "n_treatment": tn}
+
+
+# ---- Step 2: cross-run TALLY (clean evidence pooled over INDEPENDENT runs) -------------------
+# A rule must accumulate evidence across runs, scored ONLY on clean (uninfluenced) outcomes. This
+# is firewall-safe across runs because an UNRATIFIED candidate rule does not propagate between
+# independent runs (placement_base / lr reset each run, so each run's influenced_by is self-
+# contained); and once a rule is RATIFIED it shapes every future generation, so every future row
+# is influenced and it stops accruing clean evidence -- the gate closes by construction.
+def rule_ids_in_rows(rows):
+    """Every rule id that appears in any row's influence cone (the candidate rules to tally). Pure."""
+    s = set()
+    for r in (rows or []):
+        if isinstance(r, dict):
+            s.update(r.get("influenced_by") or [])
+    return sorted(s)
+
+
+def rule_tally(rid, metric, runs):
+    """Pool CLEAN evidence for `rid` across INDEPENDENT runs. `runs` = list of (run_id, rows). Keep
+    only runs that yield a valid clean pair for `rid` (a baseline AND a treatment sample with a
+    numeric delta). Returns per-run deltas + a pooled summary. Pure."""
+    per_run = []
+    for run_id, rows in (runs or []):
+        d = clean_evidence_delta(rows, rid, metric)
+        if d["delta"] is not None and d["n_baseline"] > 0 and d["n_treatment"] > 0:
+            per_run.append({"run": run_id, "delta": d["delta"],
+                            "n_baseline": d["n_baseline"], "n_treatment": d["n_treatment"]})
+    n_runs = len(per_run)
+    n_pairs = sum(min(p["n_baseline"], p["n_treatment"]) for p in per_run)
+    deltas = sorted(p["delta"] for p in per_run)
+    pooled = round(sum(deltas) / n_runs, 4) if n_runs else None
+    # median is the effect estimator the bar gates on -- robust to a single outlier run carrying
+    # graduation (a should-fix from audit wf_24ad4f0c-092); mean is kept for the report.
+    median = None
+    if n_runs:
+        mid = n_runs // 2
+        median = round(deltas[mid] if n_runs % 2 else (deltas[mid - 1] + deltas[mid]) / 2, 4)
+    return {"rule_id": rid, "metric": metric, "n_runs": n_runs, "n_pairs": n_pairs,
+            "per_run": per_run, "pooled_delta": pooled, "median_delta": median}
+
+
+# ---- Step 3: the GRADUATION BAR (statistical; thresholds holdout-validated, never live-tuned) --
+# Defaults validated on tests/holdout/actuation (a known-graduate + known-reject fixture); the bar
+# code NEVER reads tests/holdout at runtime (checklist enforces it). Owner may override per metric
+# via a cec-policy.json actuation_bar block. A metric's direction (lower-is-better) decides which
+# sign of delta counts as improvement.
+# min_pairs is reconciled to min_runs (>= min_runs * 2, i.e. >= 2 clean comparisons per run) so the
+# pair floor never dominates the run floor (a SHORT run yields min(n_control, n_aug) pairs/run).
+GRADUATION_BAR = {"min_runs": 3, "min_pairs": 6, "min_improving_frac": 0.75}
+_METRIC_BETTER_IS_LOWER = {"drc": True, "unconnected": True, "plane_signal_mm": True, "length": True,
+                           "vias": True, "max_T": True, "gates_pass": False, "kelvin_ok": False,
+                           "convergence": False}
+_MIN_ABS_EFFECT = {"drc": 2.0, "unconnected": 1.0, "plane_signal_mm": 5.0, "length": 20.0,
+                   "vias": 4.0, "max_T": 2.0, "gates_pass": 0.15, "kelvin_ok": 0.15,
+                   "convergence": 0.15}
+# Only these kinds are CANDIDATE RULES to graduate (a "case + claimed metric", invariant #1). The
+# other cone kinds (effort:/intents:/avoid:/layer:) are live plumbing already steering via the panel/
+# intent-manager/stagger -- they belong in influenced_by for firewall completeness but must NEVER be
+# proposed as a steer rule (audit wf_24ad4f0c-092).
+RATIFIABLE_KINDS = ("rule", "penalty", "placement")
+# Safety metrics: a rule may not GRADUATE on any metric while showing a clean REGRESSION on one of
+# these (the cross-metric veto -- no trading a gate for a drc win).
+_SAFETY_METRICS = ("gates_pass", "kelvin_ok")
+
+
+def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_frac=None,
+                       min_abs_effect=None, better_is_lower=None):
+    """Pure. Graduate a candidate rule to STEER iff its CLEAN cross-run evidence clears the bar:
+    >= min_runs independent clean runs, >= min_pairs clean pairs, the per-run deltas CONSISTENTLY
+    improve (sign test: improving_frac >= min_improving_frac), AND |pooled effect| >= min_abs_effect
+    in the improving direction. Graduation authorizes STEERING ONLY (step 4) -- it never gates."""
+    metric = tally.get("metric")
+    min_runs = GRADUATION_BAR["min_runs"] if min_runs is None else min_runs
+    min_pairs = GRADUATION_BAR["min_pairs"] if min_pairs is None else min_pairs
+    min_improving_frac = (GRADUATION_BAR["min_improving_frac"] if min_improving_frac is None
+                          else min_improving_frac)
+    # unknown-metric => FAIL-CLOSED (no effect floor known -> cannot graduate), unless explicitly given.
+    unknown_metric = min_abs_effect is None and metric not in _MIN_ABS_EFFECT
+    min_abs_effect = (_MIN_ABS_EFFECT.get(metric, 0.0) if min_abs_effect is None else min_abs_effect)
+    better_is_lower = (_METRIC_BETTER_IS_LOWER.get(metric, True) if better_is_lower is None
+                       else better_is_lower)
+    per = tally.get("per_run", [])
+    n_runs, n_pairs = tally.get("n_runs", 0), tally.get("n_pairs", 0)
+    pooled, median = tally.get("pooled_delta"), tally.get("median_delta", tally.get("pooled_delta"))
+
+    def improves(d):
+        return (d < 0) if better_is_lower else (d > 0)
+
+    improving = sum(1 for p in per if improves(p["delta"]))
+    frac = round(improving / n_runs, 4) if n_runs else 0.0
+    # the effect test gates on the MEDIAN per-run delta -- robust to one outlier run.
+    effect_ok = median is not None and improves(median) and abs(median) >= min_abs_effect
+    reasons = []
+    if unknown_metric:
+        reasons.append(f"unknown metric {metric!r} -- no effect floor (fail-closed)")
+    if n_runs < min_runs:
+        reasons.append(f"n_runs {n_runs} < {min_runs}")
+    if n_pairs < min_pairs:
+        reasons.append(f"n_pairs {n_pairs} < {min_pairs}")
+    if frac < min_improving_frac:
+        reasons.append(f"improving_frac {frac} < {min_improving_frac}")
+    if not effect_ok:
+        reasons.append(f"|median {median}| < {min_abs_effect} or wrong direction")
+    return {"rule_id": tally.get("rule_id"), "metric": metric, "graduate": not reasons,
+            "n_runs": n_runs, "n_pairs": n_pairs, "improving_frac": frac, "pooled_delta": pooled,
+            "median_delta": median, "min_abs_effect": min_abs_effect, "reasons": reasons}
+
+
+# ---- Step 4: the STEER-ONLY chokepoint -- a ratified rule may STEER, never GATE --------------
+# Generalizes _placement_keep's launder guard: every ratified-rule actuation passes through
+# assert_steer_only, which permits only search-steering writes and forbids ANY gate field. The hard
+# gates (kelvin / diffpair / DRC / conformance) and shipping stay deterministic + human.
+STEER_FIELDS = {"rank_key", "select_weight", "seed", "placement_bias", "intent_bias",
+                "passes", "opt_time", "fr_params", "corridor_avoid"}
+GATE_FIELDS = {"gates_pass", "kelvin_ok", "diffpair_ok", "drc", "unconnected", "pour_integrity_ok",
+               "ship", "promote"}
+
+
+class SteerViolation(Exception):
+    """A ratified rule attempted to GATE (write a gate field / ship) rather than STEER."""
+
+
+def assert_steer_only(action):
+    """`action` = dict of fields a ratified rule would write. Raises SteerViolation on any gate-field
+    write or any field outside STEER_FIELDS. Pure -- the structural guarantee that a graduated rule
+    can only bias the search, never pass/block a board."""
+    touched = set(action or {})
+    bad = touched & GATE_FIELDS
+    if bad:
+        raise SteerViolation(f"steer rule may not write gate field(s): {sorted(bad)}")
+    unknown = touched - STEER_FIELDS
+    if unknown:
+        raise SteerViolation(f"steer rule writes forbidden field(s): {sorted(unknown)} "
+                             f"(allowed STEER_FIELDS: {sorted(STEER_FIELDS)})")
+    return True
+
+
+# ---- Steps 2-3 driver: the per-rule report (clean tally + graduation advisory) ---------------
+_LEVER_METRICS = list(_AB_BOOL_AXES) + list(_AB_NUM_AXES)   # per-ROW metrics (convergence is a lane aggregate)
+
+
+def load_runs_from_dirs(paths, board=None):
+    """Read [(run_id, rows), ...] from each measurement.jsonl in `paths` (file paths, run dirs, or
+    globs). Filters to `board` via each run dir's bundle.json (a run with no bundle yet -- e.g. the
+    live one -- is included). I/O; fail-safe (skips unreadable lines/files)."""
+    import glob as _glob
+    files = []
+    for p in paths or []:
+        if os.path.isdir(p):
+            files.append(os.path.join(p, "measurement.jsonl"))
+        elif os.path.isfile(p) and str(p).endswith(".jsonl"):
+            files.append(p)                        # a concrete file
+        else:
+            files.extend(_glob.glob(p))            # a glob (incl. one ending in *.jsonl) or missing path
+    runs = []
+    for f in sorted(set(files)):
+        if not os.path.isfile(f):
+            continue
+        rdir = os.path.dirname(f)
+        rows = []
+        for ln in open(f):
+            ln = ln.strip()
+            if ln:
+                try:
+                    rows.append(json.loads(ln))
+                except Exception:                  # noqa: BLE001
+                    pass
+        if board is not None:
+            # FAIL-CLOSED board identification: a run is pooled only if its board can be CONFIRMED to
+            # match -- via bundle.json OR a board-stamped row. A run with neither (e.g. a crashed run
+            # with no bundle and pre-stamp rows) is SKIPPED, never pooled across boards.
+            run_board = None
+            try:
+                run_board = json.load(open(os.path.join(rdir, "bundle.json"))).get("board")
+            except Exception:                      # noqa: BLE001
+                pass
+            if run_board is None:
+                stamped = {r.get("board") for r in rows if isinstance(r, dict) and r.get("board")}
+                run_board = next(iter(stamped)) if len(stamped) == 1 else None
+            if run_board != board:
+                continue                           # unconfirmed or different board -> never pool
+        runs.append((os.path.basename(rdir) or "run", rows))
+    return runs
+
+
+def _safety_regression(rule_tallies):
+    """Return the SAFETY metric on which a rule shows a CLEAN regression (>= min_runs runs + median
+    worsens past the floor), else None -- the cross-metric veto input. Pure."""
+    for s in _SAFETY_METRICS:
+        t = rule_tallies.get(s)
+        if not t or t["n_runs"] < GRADUATION_BAR["min_runs"]:
+            continue
+        med = t.get("median_delta")
+        if med is None:
+            continue
+        better_is_lower = _METRIC_BETTER_IS_LOWER.get(s, True)
+        worsens = (med > 0) if better_is_lower else (med < 0)        # opposite of "improves"
+        if worsens and abs(med) >= _MIN_ABS_EFFECT.get(s, 0.0):
+            return s
+    return None
+
+
+def actuation_lever_report(runs):
+    """The per-rule CLEAN-evidence tally + graduation advisory across `runs` = [(run_id, rows)].
+    Pure given the rows. Only RATIFIABLE kinds are candidates (effort/intents/avoid/layer plumbing
+    stays in the cone for the firewall but is never proposed as a steer rule). A rule that shows a
+    clean regression on a SAFETY metric is vetoed from graduating on ANY metric (no trading a gate
+    for a drc win). Graduation is ADVISORY -- promotion to a live STEER rule stays owner-gated."""
+    all_rids = rule_ids_in_rows([r for _, rows in runs for r in rows])
+    rids = [r for r in all_rids if r.split(":", 1)[0] in RATIFIABLE_KINDS]
+    by_rule, tallies = {}, []
+    for rid in rids:
+        by_rule[rid] = {}
+        for m in _LEVER_METRICS:
+            t = rule_tally(rid, m, runs)
+            if t["n_runs"] == 0:
+                continue
+            tallies.append(t)
+            by_rule[rid][m] = t
+    grads = []
+    for rid in rids:
+        veto = _safety_regression(by_rule.get(rid, {}))             # cross-metric safety veto
+        for m, t in by_rule[rid].items():
+            g = graduation_verdict(t)
+            if veto and m != veto and g["graduate"]:
+                g = {**g, "graduate": False,
+                     "reasons": g["reasons"] + [f"safety veto: clean regression on {veto}"]}
+            g["safety_veto"] = veto
+            grads.append(g)
+    return {"n_runs": len(runs), "n_candidate_rules": len(rids), "candidate_rules": rids,
+            "skipped_non_ratifiable": [r for r in all_rids if r not in rids],
+            "tallies": tallies, "graduation": grads,
+            "graduated": [g for g in grads if g["graduate"]],
+            "note": "graduation is ADVISORY -- a graduated rule may STEER only (assert_steer_only); "
+                    "promotion to a live steer stays owner-gated (promoted/**)"}
+
+
+def _emit_lever_ledger(board, lever):
+    """Durable per-run observation of the clean-evidence tally (DF-01/06: a settleable claim with a
+    check_id hook). Fail-safe -- a missing cec-runs repo just warns."""
+    try:
+        import cec_ledger
+        cec_ledger.decision(
+            decision_class="rank", artifact=f"actuation-lever:{board}",
+            decider={"kind": "model", "id": "cec_fullstack:actuation-lever"},
+            verdict="tally",
+            claim=f"{len(lever.get('graduated', []))} candidate rule(s) cleared the clean-evidence bar "
+                  f"over {lever.get('n_runs')} run(s)",
+            hook={"kind": "check_id", "ref": "clean-evidence-gate"},
+            settlement={"state": "provisional", "grade": 2},
+            extra={"kind": "rule_tally", "lever": lever})
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  actuation-lever ledger skipped: {type(e).__name__}: {e}")
+
+
+# Which record metric each penalisable scorer key reads (the additive penalty cost the AUGMENTED lane
+# applies on top of the base soft cost; the CONTROL lane passes scorer_penalties={} -> no extra cost).
+_PENALTY_METRIC = {"drc": "drc", "unconnected": "unconnected", "plane_signal_mm": "plane_signal_mm",
+                   "length": "length", "vias": "vias", "max_T": "max_T"}
+
+
+def _penalty_weighted_base(rec, scorer_penalties):
+    """EI-02: the soft BASE cost for objective_v2, with the injected scorer_penalties applied as an
+    additive per-metric reweight. AUGMENTED lane -> the learned penalties bias ranking; CONTROL lane ->
+    scorer_penalties={} so this returns the unmodified base (`objective_base`). Pure, fail-safe."""
+    base = rec.get("objective_base", rec.get("objective", 0.0)) or 0.0
+    extra = 0.0
+    for metric, w in (scorer_penalties or {}).items():
+        rk = _PENALTY_METRIC.get(metric)
+        if rk is None:
+            continue
+        v = rec.get(rk)
+        if isinstance(v, (int, float)):
+            try:
+                extra += float(w) * float(v)
+            except (TypeError, ValueError):
+                continue
+    return base + extra
+
+
+def render_ab_table(ab):
+    """Render the A/B aggregation as a fixed-width text table for the morning bundle. Pure."""
+    c, a, d = ab.get("control", {}), ab.get("augmented", {}), ab.get("delta", {})
+    rows = [
+        ("gates_pass_rate", c.get("gates_pass_rate"), a.get("gates_pass_rate"), d.get("gates_pass_rate")),
+        ("kelvin_ok_rate", c.get("kelvin_ok_rate"), a.get("kelvin_ok_rate"), d.get("kelvin_ok_rate")),
+        ("convergence", c.get("convergence"), a.get("convergence"), d.get("convergence")),
+        ("plane_signal_mm_mean", c.get("plane_signal_mm_mean"), a.get("plane_signal_mm_mean"),
+         d.get("plane_signal_mm_mean")),
+        ("plane_signal_mm_min", c.get("plane_signal_mm_min"), a.get("plane_signal_mm_min"), None),
+        ("drc_mean", c.get("drc_mean"), a.get("drc_mean"), d.get("drc_mean")),
+        ("real_anchor_ratio_mean", c.get("real_anchor_ratio_mean"), a.get("real_anchor_ratio_mean"),
+         d.get("real_anchor_ratio_mean")),
+        ("placement_moved_rate", c.get("placement_moved_rate"), a.get("placement_moved_rate"),
+         d.get("placement_moved_rate")),
+    ]
+
+    def _f(x):
+        return "  --  " if x is None else f"{x:>6}"
+    lines = [f"A/B  control(n={c.get('n', 0)})  vs  augmented(n={a.get('n', 0)})",
+             f"{'metric':24} {'control':>8} {'augmnt':>8} {'delta':>8}"]
+    for name, cv, av, dv in rows:
+        lines.append(f"{name:24} {_f(cv):>8} {_f(av):>8} {_f(dv):>8}")
+    return "\n".join(lines)
+
+
+# ---- promoted-corpus brief: ratified knowledge for the manager panel + auditor (owner 2026-06-13) ----
+# Owner directive: wire the T1 intent-manager + T4 worker-panel AND the T5 auditor to the PROMOTED
+# corpus, so every model seat reasons against the same owner-signed knowledge the compiler/reviewer
+# already use. PROMOTED ZONE ONLY (corpus/promoted/general) -- staging is excluded by construction, so
+# an unratified draft can never steer a seat. Family-scoped + platform-wide entries; fail-safe to "".
+CORPUS_BRIEF = ""                          # full brief (auditor T5/T8); set once per run()
+CORPUS_BRIEF_GEN = ""                       # P7a: in-family-only brief for the generation seats (T1/T4)
+_CORPUS_BRIEF_CACHE = {}
+
+
+def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
+    """The promoted corpus as ratified knowledge for the seats. P7 (prompt-audit 2026-06-13, owner
+    D2=in-family-only for generation seats): in-family entries are ordered FIRST and off-family LAST so
+    truncation drops the least-relevant tail (never an in-family layout rule), and in_family_only=True
+    drops off-family entries entirely (a routing decision does not need another board's connector
+    ratings). Staging is excluded by construction. Fail-safe to ''."""
+    key = (board, in_family_only, max_chars)        # M5: max_chars in the key (it changes the output)
+    if key in _CORPUS_BRIEF_CACHE:
+        return _CORPUS_BRIEF_CACHE[key]
+    import glob as _g
+    in_lines, off_lines, n_total, n_in = [], [], 0, 0
+    try:
+        for fp in sorted(_g.glob(os.path.join(ROOT, "corpus", "promoted", "general", "*.json"))):
+            try:
+                entries = json.load(open(fp))
+            except Exception:                                       # noqa: BLE001
+                continue
+            for e in (entries if isinstance(entries, list) else [entries]):
+                if not isinstance(e, dict):
+                    continue
+                n_total += 1
+                fams = ((e.get("scope") or {}).get("families")) or []
+                in_family = (not fams) or (board in fams)
+                scope_tag = "" if in_family else f" [scope: {','.join(fams)}]"
+                val, unit = e.get("value"), e.get("units") or ""
+                if val is None:
+                    vs = ""
+                elif isinstance(val, (dict, list)):                 # param value-dicts: compact summary
+                    vj = json.dumps(val, separators=(",", ":"))
+                    vs = " = " + (vj[:150] + "…" if len(vj) > 150 else vj)
+                else:
+                    vs = f" = {val}{(' ' + unit) if unit else ''}"
+                note = (e.get("notes") or "").split(". ")[0][:150]
+                line = (f"- [{e.get('id', '?')}] ({e.get('kind', 'rule')}){scope_tag}{vs}: {note}")[:240]
+                if in_family:
+                    n_in += 1
+                    in_lines.append(line)
+                elif not in_family_only:                             # P7a: drop off-family for gen seats
+                    off_lines.append(line)
+    except Exception:                                               # noqa: BLE001
+        pass
+    brief = ""
+    lines = in_lines + off_lines            # P7b: in-family FIRST -> truncation drops the off-family tail
+    if lines:
+        body = "\n".join(lines)
+        if len(body) > max_chars:
+            body = body[:max_chars] + "\n- ...(brief truncated; off-family tail dropped first)"
+        # L3 (new-impl audit): headline the count the seat can ACTUALLY see. in_family_only shows ONLY
+        # the in-scope subset, so headlining n_total (e.g. 35) would imply the off-family rules are
+        # present -- a generation seat could "know" a dropped rule it was never shown. Count the entry
+        # lines SURVIVING in `body` (already truncated above) -- not n_in -- so the header still matches
+        # what is shown when truncation drops the in-family tail too (the latent char-slice case).
+        if in_family_only:
+            n_shown = sum(1 for ln in body.split("\n") if ln.startswith("- ["))
+            brief = (f"RATIFIED CORPUS ({n_shown} owner-signed entries in scope for this {board} family -- "
+                     "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+        else:
+            # PG-5 (audit): count entries SHOWN (post-truncation), not the pre-truncation n_total/n_in, so
+            # the header never claims rules the seat can't see (latent: the default brief never truncates).
+            shown = [ln for ln in body.split("\n") if ln.startswith("- [")]
+            n_in_shown = sum(1 for ln in shown if "[scope:" not in ln)
+            scope_note = (f"{n_in_shown} in scope for this {board} family, the rest tagged with their "
+                          "family scope")
+            brief = (f"RATIFIED CORPUS ({len(shown)} owner-signed entries; {scope_note} -- treat as "
+                     "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+    _CORPUS_BRIEF_CACHE[key] = brief
+    return brief
 
 
 # ---- broker choreography: warm a model BEFORE its timed call (completeness > speed) ----------------
@@ -203,6 +992,11 @@ def pour_facts(routed_host_path):
         "        l,tp,r,bm=z['_bb']\n"
         "        if min(s.x,e.x)<=r and max(s.x,e.x)>=l and min(s.y,e.y)<=bm and max(s.y,e.y)>=tp:\n"
         "            z['foreign_cross']+=1\n"
+        # F+B-mirror-AWARE component count (SB-08 item 2): F.Cu islands stitched through the via field +
+        # THT pads count as ONE; the blocking gate prefers this over the raw F.Cu island count.
+        "import cec_score\n"
+        f"comp=cec_score.sense_pour_components('/workspace/{rel}')\n"
+        "for nn in Z: Z[nn]['components']=comp.get(nn)\n"
         "out={nn:{k:v for k,v in z.items() if k!='_bb'} for nn,z in Z.items()}\n"
         "print('POUR_JSON='+json.dumps(out))\n")
     try:
@@ -215,58 +1009,86 @@ def pour_facts(routed_host_path):
     return {}
 
 
-def vision_pour_check(rec, rnd):
-    """T6 (owner ask 2026-06-11): a VISION model verifies the 12V power pours EVERY round and
-    STATES clipping loudly. The pours are getting clipped by routed traces; this surfaces it
-    repeatedly (deterministic island count + the VLM's read), into the log + a per-round
-    artifact + the measurement row + the auditor context. Warmed before the call."""
-    facts = pour_facts(rec["routed"])
+def corridor_body_facts(routed_host_path):
+    """DETERMINISTIC body-in-corridor fault, surfaced to the auditor (in-container, like pour_facts).
+    cec_synth_pipeline.corridor_violations() reports each SENSITIVE part body that sits inside a FOREIGN
+    high-current corridor band -- the PLACEMENT-time root cause of a fragmented sense pour. Without this,
+    the finder sees only the downstream symptom (pour foreign_cross) and mis-diagnoses a body-in-corridor
+    fault as 'routing', proposing a keepout on the FENCED sense net (which the actuator refuses) instead
+    of evicting the body. Handing it the {ref, base, band} lets it name the body to move. Returns []
+    (never crashes the round) when there is no violation OR the check errors. Shared-bus boards yield []."""
+    rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    code = ("import sys, json; sys.path.insert(0,'/workspace/scripts')\n"
+            "import cec_synth_pipeline as sp\n"
+            f"v=sp.corridor_violations('/workspace/{rel}')\n"
+            "print('CORR_JSON='+json.dumps([{'ref':x['ref'],'base':x.get('base'),"
+            "'band':[round(z,1) for z in x['band']]} for x in v]))\n")
+    try:
+        rc, o = _exec_py(code, timeout=120)
+        for ln in o.splitlines():
+            if ln.startswith("CORR_JSON="):
+                return json.loads(ln[len("CORR_JSON="):])
+    except Exception:                                            # noqa: BLE001
+        return []
+    return []
+
+
+def vision_pour_check(rec, rnd, run_vlm=True):
+    """T6 RE-ROLED (owner ruling 2026-06-11): the VISION seat NO LONGER judges pour integrity --
+    detection is deterministic (pour_facts islands + the BLOCKING pour_integrity gate + the
+    render-diff). The seat now only NARRATES the deterministic render-diff regions and runs an
+    open-ended ANOMALY pass. It is NEVER fed the numeric facts (it parrots them, CL-21) and emits a
+    FLAG, never a verdict. The lever + gate read the deterministic facts/det_clipped ONLY;
+    narration/anomalies are advisory (auditor context + log), re-checked by determinism.
+
+    VISION GATING (owner 2026-06-13): with run_vlm=False the DETERMINISTIC facts (which own integrity and
+    feed the gate + item4 lever) still compute every round, but the advisory VLM narrate is SKIPPED --
+    the per-round VLM only produced non-authoritative anomaly flags at real RAM/GPU cost. The VLM now
+    fires on finalists (the vision_judge path) / when CEC_FS_VISION_EVERY_ROUND=1."""
+    facts = pour_facts(rec["routed"])                              # DETERMINISTIC -- owns integrity
     det_clipped = sorted(n for n, v in facts.items()
                          if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
-    log(f"  T6 POUR (deterministic): {json.dumps(facts)}")          # re-stated #1: the numbers
+    log(f"  T6 POUR (deterministic): {json.dumps(facts)}")
+    base = {"facts": facts, "det_clipped_nets": det_clipped, "role": "narration+anomaly"}
+    if not run_vlm:                                                # VISION-GATED: deterministic-only round
+        base["vlm_gated"] = "non-finalist"
+        return base
     png = _d("vision", f"pour-r{rnd}.png")
-    # RENDER-HYGIENE PRECONDITION (review item 3): the VLM is fed ONLY a model-free copper/zone
-    # render -- never the 3D-body render (kicad-cli rotated-footprint artifact -> false findings).
-    # If the model-free render cannot be produced, SKIP the VLM with render_hygiene_pending; the
-    # deterministic facts (det_clipped) still drive pour integrity. The code cannot run the seat on
-    # an artifact-laden render by construction.
+    # RENDER-HYGIENE PRECONDITION: the VLM is fed ONLY a model-free copper render -- never the 3D-body
+    # render (kicad-cli rotated-footprint artifact -> false findings). No clean render -> SKIP.
     if not render_copper_zone(rec["routed"], png):
-        log("  T6 POUR-CHECK: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
-        return {"skipped": "render_hygiene_pending", "det_clipped_nets": det_clipped, "facts": facts}
-    if not warm(VISION_SEAT):       # unified seat (cec-worker-vision); model-free render fed above
-        return {"skipped": "vision seat down", "det_clipped_nets": det_clipped, "facts": facts}
-    schema = {"type": "object", "properties": {
-        "pours_intact": {"type": "boolean"},
-        "clipped_nets": {"type": "array", "items": {"type": "string"}},
-        "detail": {"type": "string"}},
-        "required": ["pours_intact", "clipped_nets", "detail"], "additionalProperties": False}
-    text = (
-        "You are verifying the F.Cu copper of a routed CEC eps-8pin power interposer. The large "
-        "rectangular copper fills flanking the shunt resistors are the 12V POWER POURS (nets "
-        "SENSEC1_HI / SENSEC1_LO / SENSEC2_HI / SENSEC2_LO). Your ONE job: are those pours INTACT, "
-        "or are they CLIPPED/interrupted by signal traces routed across them?\n\n"
-        "DETERMINISTIC FACTS extracted from the board file (trust these over any visual estimate; "
-        "you are reading STRUCTURE, not measuring): " + json.dumps(facts) + "\n"
-        "A HEALTHY pour is ONE solid island (islands=1) with no foreign trace crossing it. "
-        "islands>1 or foreign_cross>0 means a 'run' (signal trace) was routed THROUGH the pour and "
-        "fragmented it. For each pour net, confirm intact vs clipped and describe the crossing "
-        "trace(s) you see. Reply ONLY the JSON object.")
+        log("  T6 NARRATE: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
+        base["skipped"] = "render_hygiene_pending"
+        return base
+    if not warm(VISION_SEAT):
+        base["skipped"] = "vision seat down"
+        return base
+    # DETERMINISTIC detection layer the VLM narrates: render-diff vs a frozen known-good reference
+    # (if one exists + image deps present). Absent -> anomaly-only narration.
+    diff_regions = None
+    ref = VISION_REFERENCE.get(rec.get("board", "eps-8pin"))
     try:
-        import cec_vlm_bakeoff as vb
-        out = vb._chat(VISION_SEAT, text, png, schema=schema, max_tokens=700,
-                       timeout=SEAT_TIMEOUT, ctx={"round": rnd, "check": "pour-integrity"})
-        if isinstance(out, str):
-            out = json.loads(out)
-        out["det_clipped_nets"] = det_clipped
-        out["facts"] = facts
-        # re-stated #2: the vision verdict, loud
-        verb = "INTACT" if out.get("pours_intact") and not out.get("clipped_nets") else "CLIPPED"
-        log(f"  T6 POUR-CHECK (vision): {verb}  clipped={out.get('clipped_nets')} "
-            f"-- {str(out.get('detail',''))[:120]}")
-        return out
-    except Exception as e:                                       # noqa: BLE001
-        log(f"  T6 POUR-CHECK vision error: {type(e).__name__}: {e}")
-        return {"error": f"{type(e).__name__}: {e}", "det_clipped_nets": det_clipped, "facts": facts}
+        import cec_render_diff as rdf
+        if ref and os.path.exists(ref) and rdf._DEPS:
+            d = rdf.render_diff(png, ref)
+            diff_regions = d["regions"]
+            base["diff_regions"] = diff_regions
+            log(f"  T6 render-diff vs reference: {d['n_regions']} region(s)")
+    except Exception as e:                                         # noqa: BLE001
+        log(f"  T6 render-diff skipped: {type(e).__name__}: {e}")
+    try:
+        import cec_vision_narrate as vn
+        out = vn.narrate(png, diff_regions, model=VISION_SEAT, max_tokens=1500, timeout=SEAT_TIMEOUT,
+                         ctx={"round": rnd, "check": "pour-narration"})
+        base.update({"region_narration": out.get("region_narration", []),
+                     "anomalies": out.get("anomalies", []), "note": out.get("note", "")})
+        log(f"  T6 NARRATE: {len(base['region_narration'])} region note(s), "
+            f"{len(base['anomalies'])} anomaly flag(s)"
+            + (f" -- ANOMALIES: {base['anomalies']}" if base["anomalies"] else ""))
+    except Exception as e:                                         # noqa: BLE001
+        log(f"  T6 NARRATE vision error: {type(e).__name__}: {e}")
+        base["error"] = f"{type(e).__name__}: {e}"
+    return base
 
 
 def congestion_grid(board):
@@ -289,6 +1111,39 @@ def congestion_grid(board):
                 return json.loads(ln[len("GRID_JSON="):])
     except Exception as e:                                       # noqa: BLE001
         log(f"  grid error: {e}")
+    return {}
+
+
+def board_manifest(board):
+    """P1 (prompt-audit 2026-06-13): the board's PLACED-FOOTPRINT inventory, so the T1 intent
+    manager can anchor FR-02 waypoints to refs that EXIST (the U5-hallucination fix). Built once
+    per run in-container from the committed floorplan (refs/positions are placement-derived, so
+    the committed board is authoritative and available round 1). Returns:
+      {outline_mm:[w,h], refs:{ref:{xy:[x,y],v:value}}, net_refs:{net:[ref,...]}}
+    Fail-safe to {} (T1 then degrades to its prior, ungrounded behavior -- never blocks a round)."""
+    pcb = os.path.relpath(ovd.BOARD_PCB[board], ROOT)
+    code = (
+        "import sys, json, pcbnew\n"
+        f"b=pcbnew.LoadBoard('/workspace/{pcb}')\n"
+        "refs={}; net_refs={}\n"
+        "for fp in b.GetFootprints():\n"
+        "    r=fp.GetReference(); p=fp.GetPosition()\n"
+        "    refs[r]={'xy':[round(pcbnew.ToMM(p.x),1),round(pcbnew.ToMM(p.y),1)],'v':(fp.GetValue() or '')[:24]}\n"
+        "    for pad in fp.Pads():\n"
+        "        nn=pad.GetNetname()\n"
+        "        if nn: net_refs.setdefault(nn,set()).add(r)\n"
+        "net_refs={k:sorted(v) for k,v in net_refs.items()}\n"
+        "bb=b.GetBoardEdgesBoundingBox()\n"
+        "out={'outline_mm':[round(pcbnew.ToMM(bb.GetWidth()),1),round(pcbnew.ToMM(bb.GetHeight()),1)],\n"
+        "     'refs':refs,'net_refs':net_refs}\n"
+        "print('MANIFEST_JSON='+json.dumps(out))\n")
+    try:
+        rc, out = _exec_py(code, timeout=120)
+        for ln in out.splitlines():
+            if ln.startswith("MANIFEST_JSON="):
+                return json.loads(ln[len("MANIFEST_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  manifest error: {type(e).__name__}: {e}")
     return {}
 
 
@@ -366,63 +1221,396 @@ def gr02_repair(routed_host_path, blocked_net, rnd):
     return {"error": "no GR02_JSON"}
 
 
+def layer_stagger(routed_host_path, rnd, board):
+    """LAYER-TIER lever (route-time corridor fix): in-container, stagger the foreign signals that cross
+    each formed high-current corridor across F.Cu/B.Cu (cec_fr.stagger_corridor_crossings, DRC
+    safe-revert) so the un-cut outer pour mirror carries, then FULLY re-measure the staggered board
+    (ovd.measure_board: score + the Pareto axes + FEM + pour facts) so the adopting record can describe
+    the board it ships -- not just the 5 pour-blind fields the old rescore returned (re-audit 2026-06-14).
+    Sibling of the corridor-avoid; fired AUGMENTED-lane only. Returns {report, rescored, facts, board}
+    or {error}."""
+    rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    out_rel = f"build/fullstack/stagger-r{rnd}.kicad_pcb"
+    code = (
+        "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
+        "import cec_fr, cec_overnight_directed as ovd, os\n"
+        "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
+        f"rep = cec_fr.stagger_corridor_crossings('/workspace/{rel}', '/workspace/{out_rel}')\n"
+        f"meas = ovd.measure_board('/workspace/{out_rel}', {board!r})\n"
+        "facts = meas.pop('facts', {})\n"
+        "out = {'report': {k: rep.get(k) for k in ('flipped','vias_added','reverted','bands','note')},\n"
+        "       'rescored': meas, 'facts': facts}\n"
+        "print('STAGGER_JSON=' + json.dumps(out, default=str))\n")
+    try:
+        rc, out = _exec_py(code, timeout=600)
+        for ln in out.splitlines():
+            if ln.startswith("STAGGER_JSON="):
+                d = json.loads(ln[len("STAGGER_JSON="):])
+                d["board"] = out_rel
+                return d
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+    return {"error": "no STAGGER_JSON"}
+
+
+def apply_placement_move(committed_pcb, routed_pcb, intent, fence, rnd, out_rel=None):
+    """PL-04 (the PLACEMENT EVICTION consumer): turn a LIVE 'replace' Delta into a real part move.
+    In-container (mirror layer_stagger): resolves the offending body + its foreign band from
+    corridor_violations (intent ref=None -> viols[0]; ref set -> the matching viol), RE-CHECKS the fence
+    (the 2nd wall -- a NET target can resolve to a locked sense IC the host never named), then evicts the
+    body + its OWNED passive cluster OUT of the band on a per-round COPY of the COMMITTED floorplan
+    (placement edits the SOURCE, never routed copper) -> build/fullstack/placed-r{rnd}.kicad_pcb, which the
+    NEXT route compiles from. Returns {verdict in placed|no_corridor|fenced|no_move, ref, band, moved_mm,
+    moved_refs, restore, board} or {error}."""
+    out_rel = out_rel or f"build/fullstack/placed-r{rnd}.kicad_pcb"
+    rel_committed = os.path.relpath(os.path.abspath(committed_pcb), ROOT)
+    rel_routed = os.path.relpath(os.path.abspath(routed_pcb), ROOT) if routed_pcb else ""
+    payload = {"ref": intent.get("ref"), "net": intent.get("net"),
+               "fence_refs": sorted((fence or {}).get("refs", set())),
+               "fence_nets": sorted((fence or {}).get("nets", set())),
+               "committed": f"{ovd.CONTAINER_ROOT}/{rel_committed}",
+               "routed": (f"{ovd.CONTAINER_ROOT}/{rel_routed}" if rel_routed else ""),
+               "out": f"{ovd.CONTAINER_ROOT}/{out_rel}"}
+    code = (
+        "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
+        "import cec_synth_pipeline as sp, cec_place, cec_fs_actuator as act, pcbnew, os\n"
+        "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
+        f"P = json.loads({json.dumps(json.dumps(payload))})\n"
+        "fence = {'refs': set(P['fence_refs']), 'nets': set(P['fence_nets'])}\n"
+        "src = P['routed'] or P['committed']\n"
+        "viols = sp.corridor_violations(src)\n"
+        "ref = P['ref']; band = None\n"
+        "if ref is None:\n"
+        "    if not viols:\n"
+        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor'})); sys.exit(0)\n"
+        "    ref, band = viols[0]['ref'], viols[0]['band']\n"
+        "else:\n"
+        "    m = [v for v in viols if v['ref'] == ref]\n"
+        "    if not m:\n"
+        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor', 'ref': ref})); sys.exit(0)\n"
+        "    band = m[0]['band']\n"
+        "if act.is_fenced(ref, fence):\n"                          # 2nd fence wall (resolved body)
+        "    print('PLACE_JSON=' + json.dumps({'verdict': 'fenced', 'ref': ref})); sys.exit(0)\n"
+        "b = pcbnew.LoadBoard(P['committed'])\n"                   # edit the COMMITTED source, never routed
+        "mv = cec_place.apply_corridor_evict(b, ref, tuple(band), fence=fence)\n"
+        "if not (mv and mv.get('out')):\n"
+        "    print('PLACE_JSON=' + json.dumps({'verdict': 'no_move', 'ref': ref})); sys.exit(0)\n"
+        "pcbnew.SaveBoard(P['out'], b)\n"
+        "del b\n"                                                  # SWIG: never reuse after Save
+        "out = {'verdict': 'placed', 'ref': ref, 'band': [round(z, 2) for z in band],\n"
+        "       'moved_mm': mv['moved_mm'], 'moved_refs': mv['moved_refs'],\n"
+        "       'restore': mv['restore'], 'board': P['out'].replace('/workspace/', '')}\n"
+        "print('PLACE_JSON=' + json.dumps(out, default=str))\n")
+    try:
+        rc, out = _exec_py(code, timeout=300)
+        for ln in out.splitlines():
+            if ln.startswith("PLACE_JSON="):
+                return json.loads(ln[len("PLACE_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+    return {"error": "no PLACE_JSON"}
+
+
+def _placement_source_for(lane, placement_base, committed):
+    """PL-05: which floorplan THIS round compiles from. AUGMENTED + a promoted placement_base -> the moved
+    board; CONTROL or no base -> the committed floorplan (the signed-only A/B invariant: a control round
+    NEVER sees a placement override). Pure -- mirrors _lane_carry."""
+    if lane == "augmented" and placement_base:
+        return placement_base
+    return committed
+
+
+def _placement_keep(verdict, pour_integrity_ok):
+    """BLOCKER-01 (kind-aware launder guard): keep/compound a placement move ONLY if it settled
+    'vindicated' AND held pour integrity. settle_outcome credits a both-gates-fail objective_base win and
+    objective_base is pour-BLIND, so a pour-FRAGMENTING move can read 'vindicated' -- this rejects exactly
+    that launder (a move that fragmented a sense pour is never promoted). Pure. (Guards placement only, so
+    legitimate routing-delta progress-crediting while gates fail is unchanged.)"""
+    return verdict == "vindicated" and pour_integrity_ok is not False
+
+
+_STAGGER_BOOL_FIELDS = ("kelvin_ok", "diffpair_ok", "gates_pass")
+# the FULL set of board-derived fields the record carries -- refresh ALL of them from the staggered
+# board's re-measurement, or the Pareto frontier / objective / dashboard rank a board on stale metrics
+# (re-audit: vias is deterministically wrong-LOW because the stagger ADDS transition vias; max_T is the
+# very axis the lever moves; plane_signal_mm feeds the EI-02 A/B). The pour-derived fields
+# (islands_excess / sense_copper / pour_integrity_ok / objective) are recomputed separately by
+# _remeasure_pour_gate from the returned facts.
+_STAGGER_NUM_FIELDS = ("drc", "unconnected", "length", "vias", "tracks", "plane_signal_mm",
+                       "max_T", "max_dT", "n_fem_flags")
+
+
+def _adopt_staggered_board(rec, stagger_result, root):
+    """Item 3 (audit w23i0d8nq) + re-audit 2026-06-14: decide whether the staggered board replaces
+    rec["routed"] for the rest of this round, and if so re-point it + refresh ALL board-derived metrics
+    from the FULL re-measurement (not just 5 pour-blind fields). Adopt ONLY when: the stagger KEPT its
+    flips (cec_fr already DRC-safe-reverts internally, so a non-reverted result is >= the original on
+    _route_quality AND opened no new ratline); the board file exists; the full re-measurement (incl. pour
+    'facts') is present (an unverifiable stagger is never shipped); and it does not turn a gate-PASSING
+    board gate-failing on the kelvin/diff-pair gate. The caller MUST follow this with _remeasure_pour_gate
+    (which owns gates_pass after folding in pour integrity -- the rescore's gates_pass here is pour-BLIND
+    and provisional). Mutates rec in place; returns a one-line reason string ('' = not adopted). Pure
+    given (rec, stagger_result, root) -- the unit-testable core of the feedback path."""
+    if not stagger_result or stagger_result.get("error"):
+        return ""
+    sr = stagger_result.get("report", {}) or {}
+    rs = stagger_result.get("rescored", {}) or {}
+    if not sr.get("flipped") or sr.get("reverted"):
+        return ""                                            # nothing kept -> nothing to adopt
+    if not stagger_result.get("facts"):
+        return ""                                            # no full re-measurement -> do not ship unverified
+    board_rel = stagger_result.get("board")
+    host = os.path.join(root, board_rel) if board_rel else None
+    if not host or not os.path.isfile(host):
+        return ""
+    if bool(rec.get("gates_pass")) and not bool(rs.get("gates_pass", True)):
+        return ""                                            # never downgrade a gate-passing board (kelvin/diff)
+    rec["routed"] = host
+    for k in _STAGGER_BOOL_FIELDS:
+        if k in rs:
+            rec[k] = bool(rs[k])
+    for k in _STAGGER_NUM_FIELDS:
+        if rs.get(k) is not None:
+            rec[k] = rs[k]
+    # objective_base = the SHIPPED board's plain worker objective, so _penalty_weighted_base /
+    # objective_v2 and the EI-02 objective_base A/B credit reflect the staggered board (re-audit MEDIUM).
+    if rs.get("objective") is not None:
+        rec["objective_base"] = rs["objective"]
+    # FEM-stale guard (re-audit LOW): if the FEM errored on the staggered board (no max_T in the
+    # re-measurement), DROP the pre-stagger thermal axes rather than rank the frontier on a stale max_T --
+    # a record missing a Pareto axis is excluded from the frontier, which is the safe outcome.
+    if "max_T" not in rs:
+        for k in ("max_T", "max_dT", "n_fem_flags"):
+            rec.pop(k, None)
+    rec["staggered"] = True
+    return f"gates(provisional)={'PASS' if rec.get('gates_pass') else 'FAIL'} drc={rec.get('drc')} vias={rec.get('vias')}"
+
+
+def _remeasure_pour_gate(rec, facts, scorer_penalties):
+    """After adopting a staggered board, recompute the deterministic pour-integrity gate + the gate-gated
+    objective from the SHIPPED board's pour FACTS, folding pour integrity into gates_pass. This closes the
+    gate-launder the re-audit found: the stagger rescore's gates_pass is BLIND to pour fragmentation (it is
+    kelvin AND diffpair AND drc_gate only), and the stagger's re-fill can itself re-fragment a pour -- so a
+    board correctly blocked for a fragmented sense pour must NOT be re-promoted without re-verifying the
+    staggered board's pours. Sets islands_excess / sense_copper / pour_integrity_ok / objective and forces
+    gates_pass False on a fragmented pour. Returns the staggered det_clipped_nets (so the caller can refresh
+    pour_clipped_nets for the downstream corridor-avoid)."""
+    import cec_score
+    pf = facts or {}
+    det_clipped = sorted(n for n, v in pf.items()
+                         if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
+    islands_excess = sum(max(0, (v.get("islands", 1) or 1) - 1)
+                         for v in pf.values() if isinstance(v, dict))
+    sense_copper = sum((v.get("area_mm2", 0) or 0) for v in pf.values() if isinstance(v, dict))
+    rec["islands_excess"] = islands_excess
+    rec["sense_copper"] = round(sense_copper, 2)
+    pour_ok, pour_reasons = cec_score.pour_integrity_ok(pf)
+    rec["pour_integrity_ok"] = pour_ok
+    if not pour_ok:
+        rec["gates_pass"] = False                            # a fragmented sense pour blocks the board
+        rec.setdefault("reasons", []).append("pour_integrity(staggered): " + "; ".join(pour_reasons))
+    rec["objective"] = round(cec_score.objective_v2(
+        gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
+        sense_copper=sense_copper, base=_penalty_weighted_base(rec, scorer_penalties or {})), 2)
+    return det_clipped
+
+
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
-def intent_manager(board, grid, prev_intents, last_rec, rnd):
-    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01
-    grid + the last round's failures. Valid waypoint keys only; falls back to the
-    previous intents on any error (the route never waits on a model)."""
-    failures = []
-    if last_rec:
-        failures = last_rec.get("reasons", [])[:6]
+def _wp_refs(w):
+    """Refs a waypoint anchors to ({ref:...} and/or {between:[a,b]})."""
+    rs = []
+    if isinstance(w, dict):
+        if w.get("ref"):
+            rs.append(w["ref"])
+        if isinstance(w.get("between"), (list, tuple)):
+            rs += list(w["between"])
+    return rs
+
+
+def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fence=None, prev_dropped=()):
+    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01 grid + the last
+    round's failures, GROUNDED in the board's placed-footprint manifest (P1, prompt-audit 2026-06-13:
+    refs+coords + net->refs + the sense corridor, so waypoints anchor to refs that EXIST -- the U5 fix)
+    and told the actuator FENCE (P2). Fenced-net / fenced-ref AND unknown (not-on-board) net/ref intents
+    are DROPPED and LOGGED; the dropped tokens are RETURNED so the next round's prompt can tell the seat
+    not to reuse them (P1c, owner D1 = drop + re-prompt). Falls back to the previous intents on any
+    error (the route never waits on a model). Returns (intents, reasoning, src, dropped)."""
+    failures = last_rec.get("reasons", [])[:6] if last_rec else []
+    manifest = manifest or {}
+    refs = manifest.get("refs") or {}
+    fence = fence or {}
+    dropped = []
+    # P1b: real ref inventory + net->refs. P1d: the sense corridor derived from the fenced refs.
+    refs_block = corridor_block = ""
+    if refs:
+        ref_lines = ", ".join(f"{r}@({d['xy'][0]},{d['xy'][1]})[{d.get('v', '')}]"
+                              for r, d in sorted(refs.items()))
+        nr = json.dumps(manifest.get("net_refs", {}))[:1500]
+        refs_block = (f"BOARD FOOTPRINTS (board {manifest.get('outline_mm')} mm; anchor waypoints ONLY "
+                      f"to these refs):\n{ref_lines}\nNET->REFS (footprints each net touches):\n{nr}\n\n")
+        # M1 (merge-audit): the corridor is the SENSE cluster (shunts + INA), NOT the whole fence --
+        # exclude the CAN transceiver (U2 is fenced as a pinned part but is not a sense part; including
+        # it inflated the corridor and told the model to route CAN around its own source pin). Keep only
+        # fence refs that actually touch a sense net.
+        import cec_fr02 as _fr
+        on_sense = {r for n, rl in manifest.get("net_refs", {}).items()
+                    if _fr.is_sense_net(n) for r in rl}
+        sense_refs = [r for r in fence.get("refs", ()) if r in refs and r in on_sense]
+        if not sense_refs:
+            # M1 fallback (new-impl audit): the narrow /SENSEC*_(HI|LO) filter matched no ref -- a board
+            # with non-standard sense naming (e.g. 12VHPWR /SENSEP*) or a fence with no pinned refs. Fall
+            # back to the fenced refs PRESENT on this board; if there are none, the corridor cannot be
+            # sited. LOG in EITHER case -- the panel's "never let the SENSE CORRIDOR vanish silently"
+            # minimum -- so a renamed-net or missing-BOARD_PINNED_REFS regression stays visible. (eps-8pin
+            # matches /SENSEC* so on_sense is non-empty and this whole block is skipped -- U2 stays out.)
+            fb = [r for r in fence.get("refs", ()) if r in refs]
+            if fb:
+                sense_refs = fb
+                log(f"  T1 corridor: no /SENSEC sense-net match; fell back to all fenced refs {fb}")
+            else:
+                log("  T1 corridor: no /SENSEC sense-net match AND no fenced ref on the board manifest -- "
+                    "NO sense-corridor hint this round (check is_sense_net naming / BOARD_PINNED_REFS)")
+        if sense_refs:
+            xs = [refs[r]['xy'][0] for r in sense_refs]
+            ys = [refs[r]['xy'][1] for r in sense_refs]
+            corridor_block = (f"SENSE CORRIDOR (route signal nets AROUND it): refs {sense_refs} span "
+                              f"x[{min(xs)},{max(xs)}] y[{min(ys)},{max(ys)}] mm.\n")
+    # P2: state the actuator fence to the seat.
+    fence_block = ""
+    if fence:
+        fence_block = ("FENCED -- never list these as a target net and never anchor to these refs: "
+                       f"nets={sorted(fence.get('nets', []))[:12]}, refs={sorted(fence.get('refs', []))}.\n")
+    # P1c: re-prompt feedback -- name the invalid refs/nets the seat emitted last round.
+    dropped_block = ""
+    if prev_dropped:
+        dropped_block = ("PREVIOUS ROUND named these INVALID refs/nets that are NOT on this board -- "
+                         f"do NOT use them again: {sorted(set(prev_dropped))}\n")
+    # P1b: ground the waypoint-form examples in real refs (was the bare U2/U1). PG-2 (audit): exclude
+    # fenced refs so the example never anchors to a ref the FENCE line in this same prompt forbids.
+    ex = sorted(set(refs) - set((fence or {}).get("refs", []))) or sorted(refs)
+    ex1, ex2 = (ex[0], ex[1]) if len(ex) >= 2 else ("U1", "U3")
     user = (
-        "You are the ROUTING INTENT MANAGER for the CEC %s board. Each round you may direct "
-        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through "
-        "each waypoint and routes the rest around it. Use this to route contested/failing nets "
-        "AROUND the sense regions (shunt Kelvin windows) instead of through them.\n\n"
-        "GR-01 CONGESTION GRID (hotspots + contested nets, route-first order):\n%s\n\n"
-        "LAST ROUND failures: %s\n"
-        "LAST ROUND intents: %s\n\n"
-        "Waypoint forms: {\"ref\": \"U2\", \"offset_mm\": [dx, dy]} (relative to a footprint) or "
-        "{\"between\": [\"U2\", \"U1\"]} (midpoint). Only F.Cu/B.Cu (plane layers are denied to the "
-        "router). Prefer keeping I2C/CAN OUT of the mid-board shunt corridor. Reply the JSON object."
-        % (board, json.dumps(grid)[:4000], json.dumps(failures), json.dumps(prev_intents)[:1500]))
+        f"You are the ROUTING INTENT MANAGER for the CEC {board} board. Each round you may direct "
+        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through each "
+        "waypoint and routes the rest around it. Use this to route contested/failing nets AROUND "
+        "the sense regions (shunt Kelvin windows) instead of through them.\n\n"
+        f"{refs_block}{corridor_block}{fence_block}{dropped_block}\n"
+        "GR-01 CONGESTION GRID (the `contested`/`order` NET list is the actionable signal; hotspots "
+        f"are advisory):\n{json.dumps(grid)[:3000]}\n\n"
+        f"LAST ROUND failures: {json.dumps(failures)}\n"
+        f"LAST ROUND intents: {json.dumps(prev_intents)[:1200]}\n\n"
+        f"Waypoint forms: {{\"ref\": \"{ex1}\", \"offset_mm\": [dx, dy]}} (relative to a placed footprint) "
+        f"or {{\"between\": [\"{ex1}\", \"{ex2}\"]}} (midpoint). Anchor ONLY to refs in the BOARD "
+        "FOOTPRINTS list above. Only F.Cu/B.Cu (plane layers are denied to the router). Prefer keeping "
+        "I2C/CAN OUT of the sense corridor. Reply the JSON object.")
     try:
         import cec_judge_local as jl
-        out = jl._chat_json("You write routing intents as strict JSON.", user, INTENTS_SCHEMA,
-                            name="intents", temperature=0.2, max_tokens=900,
-                            model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF_GEN + user,
+                            INTENTS_SCHEMA, name="intents", temperature=0.0, nothink=True, max_tokens=3000,
+                            seat="manager:intent", model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
+        # P2 + P1c: validate each model intent against the fence AND the manifest. Drop fenced or
+        # unknown-net intents; strip fenced/unknown-ref waypoints (drop the intent if none remain). A net
+        # merely loses its DIRECTED stub (it still routes freely) -- safe, logged not silent, dropped
+        # tokens fed back next round. known_*=None means the manifest was unavailable -> skip that check.
+        import cec_fs_actuator as _act
+        fref = set(fence.get("refs", []))
+        # net membership is slash-TOLERANT (mirrors is_fenced / cec_fr02): pcbnew GetNetname() yields
+        # mixed forms -- local nets slash-prefixed (/CAN_H), global/power bare (GND, +3V3) -- and the
+        # free-text model may add/drop a slash. Compare on the lstripped form both sides so a valid
+        # intent is never dropped as "unknown" over a leading slash. (refs never carry a slash.)
+        known_nets = ({n.lstrip("/") for n in manifest["net_refs"]} if manifest.get("net_refs") else None)
+        known_refs = set(refs) or None
+        kept = []
+        for i in ok:
+            net = i.get("net")
+            if _act.is_fenced(net, fence or {}):     # PG-1 (audit): is_fenced protects /SENSEC* nets
+                log(f"  T1 DROP fenced-net intent: {net}")   # unconditionally via regex -- never short-
+                continue                                     # circuit that on a falsy fence ({}/None)
+            if known_nets is not None and str(net).lstrip("/") not in known_nets:
+                log(f"  T1 DROP unknown-net intent: {net}")
+                dropped.append(net)
+                continue
+            wps = []
+            for w in (i.get("waypoints") or []):
+                wr = _wp_refs(w)
+                bad_fenced = set(wr) & fref
+                bad_unknown = {r for r in wr if known_refs is not None and r not in known_refs}
+                if bad_fenced:
+                    log(f"  T1 drop waypoint on fenced ref(s) {sorted(bad_fenced)} ({net})")
+                if bad_unknown:
+                    log(f"  T1 drop waypoint on unknown ref(s) {sorted(bad_unknown)} ({net})")
+                    dropped.extend(sorted(bad_unknown))
+                if not (bad_fenced or bad_unknown):
+                    wps.append(w)
+            if not wps:
+                log(f"  T1 DROP intent {net} (no valid waypoints left)")
+                continue
+            i["waypoints"] = wps
+            kept.append(i)
+        ok = kept
         if ok:
-            return ok, out.get("reasoning", "")[:400], "model"
+            return ok, out.get("reasoning", "")[:400], "model", dropped
     except Exception as e:                                       # noqa: BLE001
         log(f"  intent-manager fallback: {type(e).__name__}: {e}")
-    return prev_intents, "fallback to previous intents", "fallback"
+    return prev_intents, "fallback to previous intents", "fallback", dropped
 
 
 # ---- T4: worker panel (3 lenses) ---------------------------------------------------------------------
-_LENSES = ("safety (hard gates: kelvin, diffpair, plane integrity)",
-           "finishing (DRC count, dangling copper, cosmetics vs structure)",
-           "progress (is effort spend still buying improvement?)")
+# P6 (prompt-audit merge-audit): each lens judges its OWN axis -- the old shared "accept iff hard gates
+# pass AND your lens" rule collapsed the decorrelated panel toward one gate-driven vote, and gave the
+# finishing/progress lenses no data for their job. Now: SAFETY reads the deterministic gate state (does
+# not re-judge it); FINISHING reads the DRC loci (cosmetic vs structural residual); PROGRESS reads the
+# cross-round trajectory (is effort still buying improvement). The schema field is named explicitly.
+_PANEL_FIELD = ' Reply ONLY the JSON object: field "action" = one of accept|repair|escalate, and "reason".'
 
 
-def worker_panel(rec, rnd):
+def _panel_prompts(rec, rnd, history):
+    """Per-lens (system, user, temperature) for the T4 panel. `history` is the prior records (the
+    trajectory the progress lens judges). Pure -- testable without a broker."""
+    gates = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok",
+                                     "pour_integrity_ok", "plane_signal_mm")}
+    reasons = rec.get("reasons", [])[:6]
+    traj = [{"round": r.get("round"), "objective": r.get("objective"), "drc": r.get("drc"),
+             "passes": (r.get("params") or {}).get("passes"),
+             "opt_time": (r.get("params") or {}).get("opt_time")} for r in list(history)[-3:]]
+    return [
+        ("safety",
+         "You are the SAFETY lens of a routing panel. The hard gates (kelvin_ok, diffpair_ok, pour/plane "
+         "integrity) are ALREADY computed deterministically -- do NOT re-judge or recompute them. Given the "
+         "gate state: accept ONLY if gates_pass is true; else repair if more router EFFORT could close the "
+         "gate; escalate if the failure is structural (needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"GATE STATE (deterministic): {json.dumps(gates)}\nfailing reasons: {json.dumps(reasons)}", 0.0),
+        ("finishing",
+         "You are the FINISHING lens. Gate state is the safety lens's job, NOT yours. Judge whether the "
+         "RESIDUAL DRC is finishing/cosmetic-class (a decorative logo keepout, an RJ-45 shield-tab tie) or "
+         "structural. accept if the residual is finishing-only; repair if more effort clears it; escalate "
+         "if it is structural." + _PANEL_FIELD,
+         f"drc={rec.get('drc')} unconnected={rec.get('unconnected')}\n"
+         f"DRC loci (type/where): {json.dumps(rec.get('drc_loci', [])[:12])}\n"
+         f"failing reasons: {json.dumps(reasons)}", 0.0),
+        ("progress",
+         "You are the PROGRESS lens. Do NOT judge the gates. Judge the TRAJECTORY across rounds: is effort "
+         "still buying improvement? accept if converged (metrics flat at a good state); repair if metrics "
+         "are still improving as effort rises; escalate if effort/passes ramped across rounds with NO "
+         "metric movement (a stall that needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"this round: objective={rec.get('objective')} drc={rec.get('drc')} "
+         f"params={json.dumps(rec.get('params', {}))}\n"
+         f"recent trajectory (oldest first): {json.dumps(traj)}", 0.3),
+    ]
+
+
+def worker_panel(rec, rnd, history=()):
     votes = []
-    m = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok", "drc",
-                                 "unconnected", "plane_signal_mm", "max_T", "objective")}
     try:
         import cec_judge_local as jl
-        for i, lens in enumerate(_LENSES):
+        for key, system, user, temp in _panel_prompts(rec, rnd, history):
             try:
-                d = jl._chat_json(
-                    f"You judge a routed PCB candidate through ONE lens: {lens}. "
-                    "accept only if hard gates pass AND your lens is satisfied; repair if more "
-                    "router effort could fix it; escalate if stuck/structural.",
-                    f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
-                    f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
-                    PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    max_tokens=300, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
-                votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
+                d = jl._chat_json(system, CORPUS_BRIEF_GEN + user, PANEL_SCHEMA, name="panel",
+                                  temperature=temp, nothink=True, seat="panel:" + key,
+                                  max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+                votes.append((key, d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
     except Exception:                                            # noqa: BLE001
@@ -433,13 +1621,18 @@ def worker_panel(rec, rnd):
     for _, a, _r in votes:
         tally[a] = tally.get(a, 0) + 1
     action = max(tally, key=tally.get)
-    if action == "accept" and not rec.get("gates_pass"):
+    # PG-3 (audit): a gate-FAIL round must end on repair/escalate. Guard on "not a bump action" (not just
+    # the literal 'accept'), so a malformed/None modal vote can't fall through to the caller's else and
+    # RESET router effort to baseline on a failing round (the opposite of repair).
+    if action not in ("repair", "escalate") and not rec.get("gates_pass"):
         action = "repair"                                        # a panel cannot accept a gate-fail
     return action, votes
 
 
-# ---- T5: the Sonnet auditor (rule cap + novelty + actuation handled by caller) ------------------------
-def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model"):
+# ---- T5: the in-loop auditor (Sonnet daily / DeepSeek overnight) -------------------------------------
+def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
+    """Build the shared auditor prompt CORE (role + constraints + round data + schema explanation),
+    minus the per-backend output instruction. Returns (core_prompt, out_path)."""
     out_path = _d("findings", f"round-{rnd:03d}-sonnet.json")
     m = dict(rec)
     m["gate_fail"] = 0 if rec.get("gates_pass") else 1
@@ -451,9 +1644,25 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model")
     # keepout / re-pour fix instead of letting the clip pass silently.
     pour_line = ""
     if pourcheck:
-        pour_line = (f"POUR-INTEGRITY (vision + deterministic): clipped_nets="
-                     f"{pourcheck.get('clipped_nets') or pourcheck.get('det_clipped_nets')}, "
+        pour_line = (f"POUR-INTEGRITY (deterministic, OWNS detection): clipped_nets="
+                     f"{pourcheck.get('det_clipped_nets')}, "
                      f"facts={json.dumps(pourcheck.get('facts', {}))[:400]}\n")
+        anoms = pourcheck.get("anomalies")
+        if anoms:       # advisory VLM flags -- re-check before acting, never authoritative
+            pour_line += f"VISION ANOMALY FLAGS (advisory, re-check; not a verdict): {anoms}\n"
+    # BODY-IN-CORRIDOR (deterministic) -- the PLACEMENT root cause of a fragmented sense pour. Stated
+    # explicitly so the finder evicts the BODY (a placement move) rather than mis-reading the symptom
+    # (pour foreign_cross) as routing and proposing a keepout on the FENCED sense net (which is refused).
+    cbodies = (pourcheck or {}).get("corridor_bodies") or []
+    if cbodies:
+        items = "; ".join(f"{b['ref']} inside {b['base']} band {b['band']}" for b in cbodies[:6])
+        pour_line += (
+            f"BODY-IN-CORRIDOR (deterministic, OWNS placement detection): {items}.\n"
+            f"This is a PLACEMENT fault, NOT routing -- a sensitive body sits inside a FOREIGN high-current "
+            f"corridor and fragments that cable's pour; more router effort or a keepout cannot fix it. Set "
+            f"failure_class=placement and put the BODY'S REFDES ({cbodies[0]['ref']}) in "
+            f"proposed_lever.target so the loop EVICTS it. Do NOT target the sense net -- it is a locked "
+            f"Kelvin template (a net target is fenced and refused).\n")
     # PRIOR REFUTES this run, threaded back in (lesson 6) so the auditor does not re-derive a
     # class the verifier already killed. Compact: kind+metric/rule-head+reason-class.
     prior_refutes = [{"kind": e.get("kind"), "metric": e.get("metric"),
@@ -462,21 +1671,36 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model")
                      if "refuted" in e.get("action", "") or "tripwire" in e.get("action", "")]
     refuted_metrics = sorted(set(lr.get("refuted_metrics", [])))
     prompt = (
-        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Constraints "
-        "you operate under, learned from the last run converging to a local minimum:\n"
+        # P5a (prompt-audit): LEAD with what actuates -- failure_class is the steering field, not the
+        # discarded proposed_lever. The placement arm is called out FIRST (owner: the placement tier is
+        # itself a gate on convergence -- more router effort cannot fix a bad placement).
+        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Your `failure_class` "
+        "is what STEERS the loop -- choose it deliberately:\n"
+        "- failure_class=placement -> the steering field for a PLACEMENT-class failure: the route cannot "
+        "close because of WHERE parts sit (a sense IC boxed against its shunt with no escape, a congested "
+        "corridor, parts with no routing room). Placement is an UPSTREAM gate on convergence -- more router "
+        "passes cannot fix a bad placement, so prefer this over effort once effort has stalled. ACTUATION "
+        "BOUNDARY: this FIRES the deterministic T0 PLACEMENT ACTUATOR (the GR-02 repair battery: shift a "
+        "part out of the way, layer-swap, insert a via) ONLY when a Kelvin SENSE net is left unrouted "
+        "(kelvin_ok=false). For a congested-corridor / no-routing-room placement failure where the gate is "
+        "NOT a stranded sense net, T0 does not act -- the diagnosis is still recorded and the corridor-avoid "
+        "lever + panel effort carry it; say so in root_cause so the stall stays visible. When you diagnose a "
+        "specific body as the problem, put its REFDES (e.g. C1, U30, RS1) in `proposed_lever.target` -- "
+        "naming it only in prose means the placement lever cannot resolve which body to move.\n"
+        "- failure_class=routing -> records the diagnosis; the deterministic corridor-avoid lever fires "
+        "from pour_clipped_nets and the panel bumps router effort. Choose this when the placement is fine "
+        "and more/better routing can close it.\n"
+        "- failure_class=scoring -> you MAY price a metric, but ONLY if a gate-passing candidate ALREADY "
+        "exists and pricing is needed to rank it first. A scorer reweight cannot create a better board; it "
+        "only reorders the candidates that already exist.\n"
+        "- failure_class=constraint/none when apt.\n\n"
+        "Constraints (learned from a prior run converging to a local minimum):\n"
         f"- ALLOWED LEVERS (the ONLY things the loop can pull): {OWNED_LEVERS}.\n"
-        "- A SCORER-METRIC REWEIGHT IS NOT A LEVER. It only reorders the candidates that already "
-        "exist; it cannot create a better board. If the real fix needs generation (a different "
-        "route / placement / keepout / waypoint), name THAT lever in `proposed_lever` and leave "
-        "`scorer_penalty` null. Only price a metric when a gate-passing candidate ALREADY exists "
-        "and pricing is needed to rank it first.\n"
-        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} have "
-        "already been refuted this run and will be auto-rejected by a deterministic tripwire. "
-        "Switch lever class instead.\n"
-        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. "
-        "At the cap propose only a CONSOLIDATION or nothing.\n"
-        "- ACTUATION: a placement/structural-density blockage must be attributed "
-        "failure_class=placement, NOT priced.\n"
+        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} are already "
+        "refuted this run (a deterministic tripwire auto-rejects them). Switch lever class instead.\n"
+        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. At "
+        "the cap propose only a CONSOLIDATION (merge two existing rules into one tighter rule, naming the "
+        "two it replaces) or nothing.\n"
         "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
         f"ROUND {rnd} candidate:\n{json.dumps(metrics, indent=1)}\n"
         # GENERATION SOURCE (review item 5): a fallback round ran on crude fixed-offset waypoints,
@@ -494,36 +1718,114 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model")
         f"Current injected penalties: {json.dumps(lr['scorer_penalties'])}\n"
         f"Standing rules ({len(lr['manager_rules'])}): {json.dumps(lr['manager_rules'][-6:])}\n"
         f"Prior refutes this run (do not repeat the class): {json.dumps(prior_refutes)}\n"
-        f"Penalisable keys: {list(PENALISABLE)}\n\n"
-        "SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it; it is kept even if the "
-        "lever is refused). `proposed_lever` is VERIFIER-CONTEXT-ONLY today: it is recorded and the "
-        "verifier judges its actuation-space, but it has NO direct effector -- the corridor-avoidance "
-        "lever fires DETERMINISTICALLY from pour_clipped_nets, not from this field. `scorer_penalty` "
-        "is for ranking only and must be null unless a gate-passing candidate already exists.\n"
-        f"Use the Write tool to write ONLY this JSON to {out_path} :\n"
-        '{"verdict":"accept|repair|escalate","root_cause":"<diagnosis, always filled>",'
-        '"reasoning":"...","failure_class":"routing|placement|scoring|constraint|none",'
-        '"proposed_lever":{"lever":"<one of the ALLOWED LEVERS>","target":"<net/ref/region>",'
-        '"detail":"..."}|null,'
-        '"scorer_penalty":{"metric":"...","weight":<number>,"rationale":"..."}|null,'
-        '"manager_rule":"..."|null}\nThen reply DONE.')
+        # P5d: advertise the ACTUALLY-priceable metrics (a penalty on anything else is rejected by inject()).
+        f"Priceable metrics (a penalty on any other metric is rejected): {sorted(_PENALTY_METRIC)}\n\n"
+        # P5c: role-define `verdict`; P5a: `proposed_lever` is advisory-only, fill briefly.
+        "SCHEMA -- `root_cause`: your bankable diagnosis (ALWAYS fill it; kept even if a lever is refused). "
+        "`failure_class`: the steering field above (this is what acts). `verdict` (accept|repair|escalate): "
+        "your read of whether THIS round's board is acceptable AS DIAGNOSED -- it does NOT itself drive "
+        "routing (the panel drives effort). `proposed_lever`: ADVISORY CONTEXT ONLY -- it has NO direct "
+        "effector (the corridor-avoid lever fires deterministically from pour_clipped_nets); fill it "
+        "briefly, do not over-invest. `scorer_penalty`: null unless a gate-passing candidate already exists.\n")
+    return prompt, out_path
+
+
+_AUDIT_JSON_TEMPLATE = (
+    '{"verdict":"accept|repair|escalate","root_cause":"<diagnosis, always filled>",'
+    '"reasoning":"...","failure_class":"routing|placement|scoring|constraint|none",'
+    '"proposed_lever":{"lever":"<one of the ALLOWED LEVERS>","target":"<net/ref/region>",'
+    '"detail":"..."}|null,'
+    '"scorer_penalty":{"metric":"...","weight":<number>,"rationale":"..."}|null,'
+    '"manager_rule":"..."|null}')
+
+_AUDIT_VERDICTS = ("accept", "repair", "escalate")
+_AUDIT_FCLASS = ("routing", "placement", "scoring", "constraint", "none")
+
+
+def _coerce_audit(d):
+    """P5b (prompt-audit): the cloud (claude CLI) auditor path is ungrammared, unlike the deepseek
+    json_schema path -- coerce its loaded JSON to the schema so a malformed/out-of-enum verdict or
+    failure_class can't silently disable a load-bearing consumer (failure_class drives the T0
+    placement actuator; verdict is the anchor-presence flag). Fail-safe to a repair verdict."""
+    if not isinstance(d, dict):
+        return {"verdict": "repair", "failure_class": "routing", "error": "non-dict audit"}
+    if d.get("verdict") not in _AUDIT_VERDICTS:
+        d["verdict"] = "repair"
+    if d.get("failure_class") not in _AUDIT_FCLASS:
+        d["failure_class"] = "routing"
+    return d
+
+
+def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
+                 model="sonnet", effort=None):
+    """Cloud claude-CLI auditor (DAILY / latency). Spawns `claude -p --model <model> [--effort <lvl>]`,
+    Write-tool -> out_path. model defaults to sonnet; pass model='opus' + effort='max' for a deep cloud
+    auditor test. (Kept the historical name; routes any CLOUD_AUDITORS member.)"""
+    core, out_path = _audit_prompt(rec, lr, rnd, pourcheck, intents_src)
+    prompt = (core + f"Use the Write tool to write ONLY this JSON to {out_path} :\n"
+              + _AUDIT_JSON_TEMPLATE + "\nThen reply DONE.")
+    cmd = ["claude", "-p", "--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+    cmd += ["--allowedTools", "Write", "--output-format", "stream-json", "--verbose",
+            "--include-partial-messages"]
+    log(f"  T5 cloud auditor: {model}" + (f" effort={effort}" if effort else ""))
     try:
         with open(_d("findings", f"round-{rnd:03d}-sonnet.stream.jsonl"), "w") as sfh:
-            subprocess.run(["claude", "-p", "--model", "sonnet", "--allowedTools", "Write",
-                            "--output-format", "stream-json", "--verbose",
-                            "--include-partial-messages"],
-                           input=prompt, text=True, stdout=sfh, stderr=subprocess.DEVNULL,
+            subprocess.run(cmd, input=prompt, text=True, stdout=sfh, stderr=subprocess.DEVNULL,
                            timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"verdict": "repair", "error": "timeout"}
     for _ in range(3):
         if os.path.exists(out_path):
             try:
-                return json.load(open(out_path))
+                return _coerce_audit(json.load(open(out_path)))   # P5b: validate the ungrammared cloud output
             except Exception:                                    # noqa: BLE001
                 time.sleep(1)
         time.sleep(1)
     return {"verdict": "repair", "error": "no_file"}
+
+
+def deepseek_audit(rec, lr, rnd, model=None, timeout=2700, pourcheck=None, intents_src="model"):
+    # 2700 (was 900): the deep auditor now has a 12000-token ceiling (jl.MANAGER_MAX_TOKENS); at ~5 tok/s a
+    # full deep audit can run ~2400s -- never timeout-cut it mid-reason (a partial audit poisons the next round).
+    """Deep LOCAL auditor (OVERNIGHT / throughput) via the broker -- DeepSeek-V4-Flash by default. Uses
+    cec_judge_local._chat_json (json_schema grammar + miner->scribe recovery for the deep reasoner), so
+    no `claude` CLI / no Write tool. Writes the SAME out_path the Sonnet path does, for artifact parity."""
+    import cec_judge_local as jl
+    model = model or DEEP_AUDITOR
+    core, out_path = _audit_prompt(rec, lr, rnd, pourcheck, intents_src)
+    system = ("You are the IN-LOOP AUDITOR for the CEC routing pipeline. Read the round context and emit "
+              "ONLY the JSON object the schema defines -- root_cause ALWAYS filled; scorer_penalty null "
+              "unless a gate-passing candidate already exists.")
+    try:
+        out = jl._chat_json(system, CORPUS_BRIEF + core, AUDIT_SCHEMA, name="audit", temperature=0.0,
+                            max_tokens=jl.MANAGER_MAX_TOKENS, timeout=timeout, model=model,
+                            url=DEEP_AUDITOR_URL)            # Windows-hosted V4 endpoint if set, else broker
+    except Exception as e:                                       # noqa: BLE001
+        return {"verdict": "repair", "error": f"deepseek_audit: {type(e).__name__}: {e}"}
+    if not isinstance(out, dict) or "verdict" not in out:
+        return {"verdict": "repair", "error": "deepseek_audit: no verdict"}
+    out = _coerce_audit(out)        # L1 (new-impl audit): enum-validate for parity with the cloud path
+    try:
+        with open(out_path, "w") as fh:
+            json.dump(out, fh, indent=1)
+    except Exception:                                            # noqa: BLE001
+        pass
+    return out
+
+
+def audit(rec, lr, rnd, model, *, timeout=None, pourcheck=None, intents_src="model"):
+    """Dispatch the T5 auditor by seat model (resolve_auditor() picks it once per run):
+    a CLOUD_AUDITORS member ('sonnet'/'opus') -> cloud claude CLI; anything else -> the deep broker
+    auditor (overnight). Opus gets a longer default timeout (deep effort runs slower)."""
+    if model in CLOUD_AUDITORS:
+        # Opus at max effort runs long; give it room. Sonnet a generous ceiling too (never mid-thought cut).
+        return sonnet_audit(rec, lr, rnd, timeout=timeout or (2400 if model == "opus" else 600),
+                            pourcheck=pourcheck, intents_src=intents_src,
+                            model=model, effort=CLOUD_AUDIT_EFFORT)
+    return deepseek_audit(rec, lr, rnd, model=model, timeout=timeout or 2700,
+                          pourcheck=pourcheck, intents_src=intents_src)
 
 
 # ---- guardrail + novelty + injection -----------------------------------------------------------------
@@ -576,35 +1878,43 @@ def inject(finding, lr, rnd, source, verifier_final):
         if _norm_text(rc) not in seen:
             lr["diagnoses"].append({"round": rnd, "source": source, "root_cause": rc[:400]})
     sp = finding.get("scorer_penalty")
-    if isinstance(sp, dict) and sp.get("metric") in PENALISABLE:
-        metric, ok = sp["metric"], True
-        try:
-            w = float(sp.get("weight"))
-        except (TypeError, ValueError):
-            w, ok = None, False
-        if metric in lr.setdefault("refuted_metrics", []):
-            # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
-            # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:knob_tripwire"})
-        elif verifier_final == "refute":
-            lr["refuted_metrics"].append(metric)
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:verifier_refuted"})
-        elif not ok or w < 0:
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:invalid_or_negative"})
+    if isinstance(sp, dict) and sp.get("metric"):
+        metric = sp["metric"]
+        if metric not in _PENALTY_METRIC:
+            # P5d (prompt-audit): reject a penalty on a metric the scorer CANNOT apply. PENALISABLE used
+            # to advertise gate-derived metrics (gate_fail/kelvin_unrouted/diffpair_unrouted) that
+            # _penalty_weighted_base silently drops -- so they were logged accepted:raised but never
+            # reweighted (a phantom lever). Now the gate is _PENALTY_METRIC and the rest reject explicitly.
+            events.append({"kind": "penalty", "metric": metric, "action": "rejected:not_priceable"})
         else:
-            cur = lr["scorer_penalties"].get(metric, 0.0)
-            w = min(w, PENALTY_MAX)
-            if w <= cur:
+            ok = True
+            try:
+                w = float(sp.get("weight"))
+            except (TypeError, ValueError):
+                w, ok = None, False
+            if metric in lr.setdefault("refuted_metrics", []):
+                # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
+                # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
                 events.append({"kind": "penalty", "metric": metric,
-                               "action": "noop:not_a_tightening"})
+                               "action": "rejected:knob_tripwire"})
+            elif verifier_final == "refute":
+                lr["refuted_metrics"].append(metric)
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:verifier_refuted"})
+            elif not ok or w < 0:
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:invalid_or_negative"})
             else:
-                lr["scorer_penalties"][metric] = w
-                events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
-                               "action": "accepted:raised",
-                               "rationale": str(sp.get("rationale", ""))[:300]})
+                cur = lr["scorer_penalties"].get(metric, 0.0)
+                w = min(w, PENALTY_MAX)
+                if w <= cur:
+                    events.append({"kind": "penalty", "metric": metric,
+                                   "action": "noop:not_a_tightening"})
+                else:
+                    lr["scorer_penalties"][metric] = w
+                    events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
+                                   "action": "accepted:raised",
+                                   "rationale": str(sp.get("rationale", ""))[:300]})
     rule = finding.get("manager_rule")
     if isinstance(rule, str) and len(rule.strip()) >= 12:
         if verifier_final == "refute":
@@ -625,6 +1935,7 @@ def inject(finding, lr, rnd, source, verifier_final):
             try:
                 import cec_ledger
                 cec_ledger.append(board="fullstack-candidate", mode="decision",
+                                  live_rules=lr,            # EI-01: pin the INJECTION boundary itself
                                   verdict=f"ratification-candidate {e['kind']}", extra=e)
             except Exception:                                    # noqa: BLE001
                 pass
@@ -651,7 +1962,7 @@ def vision_judge(routed, rec, rnd):
             "with the facts. 3 bullets max." % json.dumps(facts))
     try:
         import cec_vlm_bakeoff as vb
-        out = vb._chat(VISION_SEAT, text, png, max_tokens=500, timeout=600)
+        out = vb._chat(VISION_SEAT, text, png, max_tokens=1500, timeout=900)
         return {"png": os.path.relpath(png, PERM), "review": out if isinstance(out, str) else str(out)}
     except Exception as e:                                       # noqa: BLE001
         return {"skipped": f"{type(e).__name__}: {e}"}
@@ -665,57 +1976,248 @@ def briefed_review(rec):
         return {"skipped": f"{type(e).__name__}: {e}"}
 
 
+def board_kelvin_pairs(board):
+    """The board's locked Kelvin templates [(hi,lo),...] from cec_score.Rules (in-container; pcbnew).
+    Fail-safe to [] on the host so the fence still resolves (the sense-net regex in cec_fr02.is_sense_net
+    is the backstop the actuator's is_fenced() always applies)."""
+    pcb = ovd.BOARD_PCB.get(board)
+    if not pcb:
+        return []
+    rel = os.path.relpath(os.path.abspath(pcb), ROOT)
+    code = (
+        "import sys, json; sys.path.insert(0,'/workspace/scripts')\n"
+        "import cec_score\n"
+        f"r=cec_score.Rules.from_board('/workspace/{rel}')\n"
+        "print('KP_JSON='+json.dumps([list(p) for p in r.kelvin_pairs]))\n")
+    try:
+        rc, o = _exec_py(code, timeout=180)
+        for ln in o.splitlines():
+            if ln.startswith("KP_JSON="):
+                return json.loads(ln[len("KP_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  kelvin-pair resolve skipped: {type(e).__name__}: {e}")
+    return []
+
+
+# Footprint refs the loop may never move/target (the shunt + sense-IC + any user-pinned parts). The
+# Kelvin geometry is owner-ratified (§6.8) and BOARD_PINNED_REFS is the per-board pin list.
+BOARD_PINNED_REFS = {
+    "eps-8pin": ("RS1", "RS2", "U20", "U21", "U2"),   # shunts (RS*), INA sense ICs (U20/U21), CAN xcvr (U2)
+}
+
+
+def _resolve_board_fence(board):
+    """Build the actuator fence once per run: every Kelvin-pair net + the pinned shunt/sense-IC refs.
+    cec_fs_actuator.is_fenced() additionally fences EVERY /SENSEC*_HI|LO via the regex, so this is
+    belt-and-suspenders -- a finding can never steer a locked Kelvin template or a pinned part.
+    Returns (fence_dict, kelvin_pairs) -- the pairs feed the actuator's sense_nets arg."""
+    import cec_fs_actuator as act
+    pairs = board_kelvin_pairs(board)
+    return act.resolve_fence(kelvin_pairs=pairs,
+                             pinned_refs=BOARD_PINNED_REFS.get(board, ())), pairs
+
+
+def act_outcome_dict(oc):
+    """Serialize a cec_fs_actuator.Outcome to a plain dict for the artifact + ledger extra. Pure."""
+    from dataclasses import asdict
+    return asdict(oc)
+
+
+def _ledger_round_laned(board, rec, n_front, lr, lane, anchors):
+    """EI-02: ledger one round, TAGGING the extra with the A/B lane and the EI-07 anchor ratio, and
+    pinning corpus_state via live_rules (carried on BOTH lanes). Fail-safe (a missing ledger never
+    breaks a round)."""
+    try:
+        import cec_ledger
+        cec_ledger.append(
+            board=f"fullstack:{board}", mode="route", live_rules=lr,   # EI-01 corpus_state pin
+            verdict=("gates_pass" if rec["gates_pass"] else "gate_fail")
+                    + f" lane={lane} obj={rec['objective']} plane={rec['plane_signal_mm']}mm",
+            extra={"round": rec["round"], "lane": lane,                  # EI-02 A/B tag on the ledger
+                   "drc": rec["drc"], "unconnected": rec["unconnected"],
+                   "kelvin_ok": rec["kelvin_ok"], "gates_pass": rec["gates_pass"],
+                   "staggered": bool(rec.get("staggered")),              # re-audit: shipped the staggered board
+                   "pareto_front_size": n_front,
+                   "real_anchor_ratio": anchors.get("real_anchor_ratio"),  # EI-07
+                   "n_deterministic": anchors.get("n_deterministic"),
+                   "n_model": anchors.get("n_model")})
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  ledger(laned) skipped: {type(e).__name__}: {e}")
+
+
 # ---- the driver ---------------------------------------------------------------------------------------
-def run(board, rounds, hours):
+def run(board, rounds, hours, auditor=None):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
-    lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
+    auditor_model = resolve_auditor(auditor, hours)            # default DeepSeek-V4-Flash; Sonnet via env
+    global CORPUS_BRIEF, CORPUS_BRIEF_GEN                        # owner 2026-06-13: brief the seats with the promoted corpus
+    CORPUS_BRIEF = promoted_corpus_brief(board)                  # full (auditor T5 / batch T8)
+    CORPUS_BRIEF_GEN = promoted_corpus_brief(board, in_family_only=True)  # P7a (owner D2): generation seats T1/T4
+    n_brief = CORPUS_BRIEF.count("\n- ") if CORPUS_BRIEF else 0
+    n_gen = CORPUS_BRIEF_GEN.count("\n- ") if CORPUS_BRIEF_GEN else 0
+    log(f"promoted-corpus brief: {n_brief} entrie(s) full (T5/T8 auditor) / {n_gen} in-family (T1/T4 generation)")
+    lr = {"scorer_penalties": dict(_DEFAULT_PENALTIES),   # single source -> no phantom penalty id
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
     vs = cec_verifier.VerifierSession(model=WORKER_SEAT)
+    # EI-02 control lane + actuator wiring. The DeltaLog is the symmetric in-run corpus (the `lr`
+    # half is the rules/penalties; this is the finding->actuator half). The fence is resolved once
+    # per run from the board's Kelvin templates (+ pinned refs); a finding may never steer a fenced net.
+    import cec_fs_actuator as act
+    dlog = act.DeltaLog()
+    fence, fence_pairs = _resolve_board_fence(board)
+    last_control_metrics = None           # the most-recent CONTROL round's metrics (the rollback baseline)
+    pending_deltas = []                   # finding-deltas APPLIED last round, awaiting a control-gated verdict
+    placement_base = None                 # PL-05/06: the promoted moved floorplan augmented rounds route from
+    pending_placement = None              # PL-06: {prev_base, override, delta_id} of the move awaiting settle
+    refuted_placement_keys = set()        # PL-06 anti-ratchet: a refuted placement hypothesis is not re-applied
+    placement_cone = []                   # actuation-lever step 1: ids of KEPT placement moves -- the transitive
+                                          # influence cone augmented rows inherit (control routes committed -> [])
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
-        f"v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
+        f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP} "
+        f"control_every={CONTROL_EVERY} fence_nets={len(fence['nets'])} fence_refs={len(fence['refs'])}")
     subprocess.run(ovd.COMPOSE + ["up", "-d", "routing"], capture_output=True, timeout=180)
+    # WARM-AT-START (owner 2026-06-12): a deep BROKER auditor (V4-Flash ~7 min cold load) is warmed up
+    # front so the FIRST round's auditor call never loses its own race. Sonnet (claude CLI) needs no
+    # warming; a Windows-hosted auditor (CEC_FS_AUDITOR_URL set) keeps its own residency, so the broker-
+    # warm is skipped there. Fail-safe: a warm miss just means the first call eats the cold load.
+    if auditor_model not in CLOUD_AUDITORS and not DEEP_AUDITOR_URL:
+        log(f"warming auditor seat {auditor_model} at start (deep cold load)...")
+        try:
+            warm(auditor_model, timeout=WARM_TIMEOUT)
+        except Exception as e:                                  # noqa: BLE001
+            log(f"  auditor warm miss ({type(e).__name__}); first call will cold-load")
+    elif DEEP_AUDITOR_URL:
+        log(f"auditor seat {auditor_model} on Windows endpoint {DEEP_AUDITOR_URL} (broker-warm skipped)")
 
     grid = congestion_grid(board)
     log(f"GR-01 grid: {len(grid.get('hotspots', []))} hotspots, "
         f"contested={[c if isinstance(c, str) else c.get('net') for c in grid.get('contested', [])][:6]}")
     json.dump(grid, open(_d("gr01-grid.json"), "w"), indent=1)
+    # P1 (prompt-audit 2026-06-13): the placed-footprint manifest grounds the T1 waypoint refs (the
+    # U5 fix) + supplies the sense corridor; built once per run (placement is static across rounds).
+    manifest = board_manifest(board)
+    known_refs = set(manifest.get("refs") or {})     # static across rounds -> the prose-ref resolver's whitelist
+    log(f"board manifest: {len(manifest.get('refs', {}))} placed refs, "
+        f"{len(manifest.get('net_refs', {}))} nets"
+        + ("" if manifest.get("refs") else " (UNAVAILABLE -- T1 falls back to ungrounded prompt)"))
+    json.dump(manifest, open(_d("board-manifest.json"), "w"), indent=1)
 
-    records, intents, rnd = [], ovd.INTENTS[board], 0
+    # EI-02 H4 (prompt-audit P3): the AUGMENTED lane carries the model's prior intents forward; a
+    # CONTROL round seeds from the SIGNED seed only, so augmented-learned waypoints never leak into
+    # the signed-only baseline (the A/B-integrity fix). intents_aug updates on augmented rounds only.
+    seed_intents = ovd.INTENTS[board]
+    records, intents_aug, rnd = [], seed_intents, 0
+    prev_dropped_aug = []                 # P1c: invalid refs/nets T1 emitted last AUGMENTED round (re-prompt feedback)
     passes, opt_time, kelvin_stall, finalists_seen = 24, 40, 0, set()
     batch_for_v4 = []
     prev_pour_sig = None              # (sum islands, sum foreign_cross) -- pour-geometry delta guard
     pending_corridor_avoid = []       # item 4: offending-net avoid-intents carried to the next round
+    prev_v4_risk = "low"              # last V4 batch local_minimum_risk -> the v4 structural-escape trigger
     while True:
         rnd += 1
         if rounds and rnd > rounds:
             break
         if deadline and time.time() > deadline:
             break
-        log(f"--- round {rnd}/{rounds or '∞'} passes={passes} opt={opt_time} ---")
+        # EI-02: assign the lane FIRST -- a CONTROL round runs SIGNED-ONLY (base scorer weights, the
+        # seats briefed WITHOUT the live manager_rules, NO finding-deltas / staging guidance). ADV +
+        # verifier still EVALUATE in a control round but DO NOT steer (no inject, no carry-forward).
+        # The promoted-corpus brief (CORPUS_BRIEF) is RATIFIED knowledge, not run-learned steering, so
+        # it stays on BOTH lanes (it is the owner-signed corpus the compiler/reviewer also use). What
+        # the control lane drops is the RUN-LEARNED steer: manager_rules, injected scorer_penalties, and
+        # finding-deltas. So the manager/auditor see manager_rules=[] this round (a frozen empty view),
+        # and the objective is base-weighted.
+        lane = lane_for(rnd)
+        lr_view = lr if lane == "augmented" else {**lr, "manager_rules": [],
+                                                  "scorer_penalties": {}, "refuted_metrics": []}
+        # PL-08: per-round placement record (set in the actuator BUILD block / control-suppress branch)
+        placement_summary = {"moved": False, "verdict": "no_move", "refs": [], "ref": None, "moved_mm": 0}
+        placement_settled = None          # PL-08: the prior placement delta's verdict if it settles this round
+        log(f"--- round {rnd}/{rounds or '∞'} [{lane}] passes={passes} opt={opt_time} ---")
         try:
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
             # losing their timeout to a cold start / swap (the last run's 0/8 intent failures).
             warm(WORKER_SEAT)
-            # T1 intent manager
-            last = records[-1] if records else None
-            intents, why, src = intent_manager(board, grid, intents, last, rnd)
+            # CONTROL-CLEANLINESS (audit wf_f24bddf7-9fd): a control round must be SIGNED-ONLY, so its
+            # router effort is reset to base here -- otherwise it inherits the passes/opt_time the prior
+            # augmented panel escalated to (a run-learned steer leaking into the clean baseline).
+            if lane == "control":
+                passes, opt_time = _BASE_PASSES, _BASE_OPT
+            # T1 intent manager (P3: lane-gated carry-forward; P1/P2: manifest + fence grounded;
+            # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine).
+            # `last` is LANE-GATED: a control round is NOT briefed with the prior AUGMENTED round's
+            # failures (else the control intents are shaped by run-learned state -> not signed-only).
+            last = records[-1] if (records and lane == "augmented") else None
+            prev_intents = _lane_carry(lane, intents_aug, seed_intents)
+            prev_dropped = _lane_carry(lane, prev_dropped_aug, ())
+            intents, why, src, dropped = intent_manager(board, grid, prev_intents, last, rnd,
+                                                        manifest=manifest, fence=fence,
+                                                        prev_dropped=prev_dropped)
+            if lane == "augmented":
+                intents_aug = list(intents)         # carry the model's plan forward (augmented lane only)
+                prev_dropped_aug = dropped          # P1c: feed invalid refs into the next augmented round
+            # The MODEL plan id is keyed on this BEFORE the corridor-avoid merge below -- else the same
+            # plan gets a different intents id per round as avoid nets come and go (audit fix); avoid is
+            # tracked separately via avoid_steer_ids.
+            model_intents = list(intents)
             # Item 4 lever: carry last round's OFFENDING-net corridor-avoidance intents in, so the
             # foreign signal nets that clipped the pours route AROUND the corridor THIS round (the
-            # untried lever -- r3 only waypointed the victim Kelvin nets).
-            if pending_corridor_avoid:
+            # untried lever -- r3 only waypointed the victim Kelvin nets). CONTROL rounds DO NOT carry
+            # finding-deltas / staging guidance -- they route signed-only so the A/B is honest.
+            if pending_corridor_avoid and lane == "augmented":
                 have = {i["net"] for i in intents}
                 intents = intents + [i for i in pending_corridor_avoid if i["net"] not in have]
                 log(f"  T1 + corridor-avoid (offending): "
+                    f"{[i['net'] for i in pending_corridor_avoid]}")
+            elif pending_corridor_avoid and lane == "control":
+                log(f"  [control] corridor-avoid SUPPRESSED (signed-only): "
                     f"{[i['net'] for i in pending_corridor_avoid]}")
             ipath = _d("intents", f"round-{rnd:03d}.json")
             json.dump(intents, open(ipath, "w"), indent=1)
             log(f"  T1 intents[{src}]: {[i['net'] for i in intents]} -- {why[:80]}")
 
             # T2/T3/T3.5 route + score + FEM (in-container)
+            # MED-02: defend against a missing/corrupt override -- a silent fall-back to the committed
+            # board would settle a placement hypothesis against a round that NEVER routed the moved board
+            # (a false A/B credit). On an augmented round whose override file is gone, REVERT the base +
+            # DROP the unsettled placement delta so it is never credited, then route committed honestly.
+            if lane == "augmented" and placement_base and not os.path.isfile(placement_base):
+                log(f"  ! placement override missing ({os.path.basename(placement_base)}) -> "
+                    f"revert base + drop the unsettled move")
+                placement_base = (pending_placement or {}).get("prev_base")
+                for pd in [p for p in pending_deltas if p["delta"].kind == "replace"]:
+                    pd["delta"].status = "rolled_back"
+                    pd["delta"].note += " [override file missing -- dropped unsettled]"
+                pending_deltas = [p for p in pending_deltas if p["delta"].kind != "replace"]
+                pending_placement = None
+            # PL-05/CTRL-01: AUGMENTED routes from the promoted placement override (a moved floorplan
+            # COPY); CONTROL routes the committed board (signed-only A/B invariant). _placement_source_for
+            # is given the CONCRETE committed path (honors its contract; no reliance on a falsy fallback).
+            psrc = _placement_source_for(lane, placement_base, ovd.BOARD_PCB[board])
+            if placement_base and lane == "control":
+                log(f"  [control] placement override SUPPRESSED (signed-only): "
+                    f"{os.path.basename(placement_base)}")
+            # pass the override only when it differs from committed (keeps the route cmd clean for the
+            # common no-placement / control case; route_one_worker treats None as committed)
+            override = psrc if psrc != ovd.BOARD_PCB[board] else None
+            # ROUTE-TIME SNAPSHOT of the influence cone (actuation-lever step 1): capture every steer
+            # baked into the board we are ABOUT to route -- active rules/penalties, the placement cone
+            # (kept moves + the one in-flight move applied last round), the model-intent plan, the
+            # corridor-avoid nets, and the router effort. Taken HERE so a steer injected LATER this
+            # round (which only shapes the NEXT round) is not mis-credited to this row, and a move
+            # later reverted this round still tags the round it actually shaped. layer-stagger is the
+            # one steer added post-route (it transforms the routed board) -> folded in at row build.
+            route_cone = {
+                "steer_ids": active_steer_ids(lr),
+                "placement": route_placement_cone(
+                    placement_cone, (pending_placement or {}).get("move_id")),
+                "intent_id": intents_steer_id(model_intents, src),   # model plan only (pre-avoid-merge)
+                "avoid_ids": avoid_steer_ids(pending_corridor_avoid if lane == "augmented" else []),
+                "effort_id": effort_steer_id(passes, opt_time),
+            }
             rec = ovd._exec_route_one(board, rnd, passes=passes, opt_time=opt_time,
-                                      intents_file=ipath)
+                                      intents_file=ipath, board_pcb_override=override)
             if rec.get("error"):
                 log(f"  route error: {rec['error']}")
                 continue
@@ -724,25 +2226,37 @@ def run(board, rounds, hours):
                 f"kelvin={rec['kelvin_ok']} drc={rec['drc']} plane={rec['plane_signal_mm']} "
                 f"pours={rec.get('stub_summary', {}).get('n_power_pours')} "
                 f"max_T={rec.get('max_T')} fem_flags={rec.get('n_fem_flags')}")
-            kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1
+            if lane == "augmented":     # M2 (new-impl audit): advance the stall counter on the STEERED
+                kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1   # lane only; a control round
+                                                                            # must not perturb T0/the A/B
 
             # T4 worker panel -> effort actuation
-            action, votes = worker_panel(rec, rnd)
+            action, votes = worker_panel(rec, rnd, history=records[:-1])   # P6b/L4: PRIOR rounds only (rec already appended)
             log(f"  T4 panel: {action} ({[(v[0], v[1]) for v in votes]})")
             if action == "repair":
                 passes, opt_time = min(passes + 8, 60), min(opt_time + 12, 100)
             elif action == "escalate":
                 passes, opt_time = min(passes + 14, 60), min(opt_time + 20, 120)
             else:
-                passes, opt_time = 24, 40
+                passes, opt_time = _BASE_PASSES, _BASE_OPT
 
-            # T6 POUR-INTEGRITY vision check -- EVERY round (owner: pours are getting clipped by
-            # runs; state and RE-STATE it). Swaps to the vision seat; warmed inside.
-            pourcheck = vision_pour_check(rec, rnd)
+            # T6 POUR-INTEGRITY check -- deterministic facts EVERY round (owner: pours are getting clipped;
+            # state and RE-STATE it). The advisory VLM narrate is GATED to finalists (owner 2026-06-13);
+            # CEC_FS_VISION_EVERY_ROUND=1 restores per-round narration. Deterministic facts feed the gate
+            # + the item4 corridor-avoid lever regardless.
+            pourcheck = vision_pour_check(rec, rnd, run_vlm=VISION_EVERY_ROUND)
+            # DETERMINISTIC body-in-corridor fault -> hand it to the finder so it can name the body to
+            # EVICT (a placement move), instead of mis-reading the symptom as routing and proposing a
+            # keepout on the fenced sense net. Same deterministic facts on both A/B lanes (no leak).
+            pourcheck["corridor_bodies"] = corridor_body_facts(rec["routed"])
+            if pourcheck["corridor_bodies"]:
+                log(f"  body-in-corridor (deterministic): "
+                    f"{[(b['ref'], b['base']) for b in pourcheck['corridor_bodies']]}")
             json.dump(pourcheck, open(_d("vision", f"pour-r{rnd:03d}.json"), "w"),
                       indent=1, default=str)
-            pour_clipped_nets = sorted(set((pourcheck.get("clipped_nets") or []) +
-                                           (pourcheck.get("det_clipped_nets") or [])))
+            # DETERMINISTIC-ONLY (owner ruling 2026-06-11): the corridor-avoid lever + pour gate fire
+            # from det_clipped_nets (pour_facts), NEVER the VLM -- the VLM only narrates/anomaly-flags.
+            pour_clipped_nets = pourcheck.get("det_clipped_nets") or []
 
             # SCORER HOTFIX (retrospective lesson 7): re-rank with the pour-aware, gate-gated
             # objective. While gates fail, DRC earns NO credit and pour integrity (island excess +
@@ -766,38 +2280,85 @@ def run(board, rounds, hours):
                 log(f"  POUR-INTEGRITY GATE FAIL -> gates_pass forced False: {pour_reasons}")
                 rec["gates_pass"] = False
                 rec.setdefault("reasons", []).append("pour_integrity: " + "; ".join(pour_reasons))
+            # EI-02: the AUGMENTED lane applies the injected scorer_penalties as a base-cost reweight
+            # (the run-learned ranking pressure); the CONTROL lane uses BASE scorer weights ONLY
+            # (lr_view carries scorer_penalties={}), so a control round is genuinely signed-only. The
+            # gate-gated v2 wrapper (island/copper) is identical on both lanes (it is the deterministic
+            # pour-integrity term, not a learned penalty). _apply_penalties recomputes the soft cost from
+            # the routed Metrics with the penalty-adjusted weights; absent penalties -> the base cost.
             rec["objective_base"] = rec.get("objective", 0.0)
+            base_cost = _penalty_weighted_base(rec, lr_view.get("scorer_penalties", {}))
             rec["objective"] = round(cec_score.objective_v2(
                 gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
-                sense_copper=sense_copper, base=rec.get("objective", 0.0)), 2)
+                sense_copper=sense_copper, base=base_cost), 2)
+            rec["lane"] = lane
 
             # Item 4: if a sense corridor clipped, prepare OFFENDING-net avoidance intents for the
             # NEXT round -- route the contested SIGNAL nets (not sense, not power) around the clipped
             # corridor. Geometry from cec_fr02.clipped_corridor_rects (in-container; safe no-op host).
             pending_corridor_avoid = []
-            if pour_clipped_nets:
+            stagger_result = None
+            # LAYER-TIER lever (augmented only): on a pour-clip, stagger the foreign crossings across
+            # F.Cu/B.Cu on THIS round's routed board so the un-cut outer pour mirror carries -- the
+            # route-time corridor fix, complement to the next-round corridor-AVOID. DRC safe-revert, so
+            # a bad stagger no-ops. Lane-gated like the corridor-avoid: the control lane never staggers.
+            if pour_clipped_nets and lane == "augmented" and rec.get("routed"):
+                stagger_result = layer_stagger(rec["routed"], rnd, board)
+                _sr = (stagger_result or {}).get("report", {}) if not (stagger_result or {}).get("error") else {}
+                _rs = (stagger_result or {}).get("rescored", {}) or {}
+                if _sr:
+                    log(f"  layer-stagger: flipped {_sr.get('flipped')} crossing(s) across F/B "
+                        f"(reverted={_sr.get('reverted')}, rescored {_rs})")
+                    # Item 3 (audit w23i0d8nq): ADOPT the staggered board so it actually SHIPS this round
+                    # (previously measured-and-discarded -> the lever could never change which board the
+                    # round records / pours / audits).
+                    adopted = _adopt_staggered_board(rec, stagger_result, ROOT)
+                    if adopted:
+                        # RE-MEASURE the SHIPPED board's pour gate + objective from the staggered facts
+                        # (re-audit BLOCKER+HIGH): the rescore's gates_pass is pour-BLIND, so a board blocked
+                        # for a fragmented sense pour must NOT be re-promoted without re-verifying its pours;
+                        # and the objective/pour terms must describe the staggered board. This OWNS gates_pass
+                        # after folding in pour integrity.
+                        pour_clipped_nets = _remeasure_pour_gate(
+                            rec, stagger_result.get("facts", {}), lr_view.get("scorer_penalties", {}))
+                        log(f"  layer-stagger: ADOPTED + re-measured ({adopted} -> gates="
+                            f"{'PASS' if rec.get('gates_pass') else 'FAIL'} pour_ok={rec.get('pour_integrity_ok')} "
+                            f"islands_excess={rec.get('islands_excess')} objective={rec.get('objective')})")
+            # EI-02: a CONTROL round seeds NO next-round steering (it is the signed-only baseline) -- the
+            # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
+            if pour_clipped_nets and lane == "augmented":
                 import cec_fr02
+                import cec_fs_actuator as _act
                 corridors = cec_fr02.clipped_corridor_rects(rec["routed"], pour_clipped_nets)
                 contested = [c if isinstance(c, str) else c.get("net")
                              for c in grid.get("contested", [])]
+                # PG-4 (audit): exclude FENCED nets too (not just /SENSEC + power) -- a corridor-avoid
+                # intent is added to `intents` directly (line ~1504), bypassing intent_manager's fence
+                # drop, so a fenced net must never become one. is_fenced covers /SENSEP* + pinned refs.
                 offending = [n for n in contested if n and not cec_fr02.is_sense_net(n)
-                             and not str(n).startswith(("GND", "+"))]
+                             and not str(n).startswith(("GND", "+"))
+                             and not _act.is_fenced(n, fence or {})]
                 pending_corridor_avoid = cec_fr02.offending_net_intents(corridors, offending)
                 if pending_corridor_avoid:
                     log(f"  item4: next-round corridor-avoid for "
                         f"{[i['net'] for i in pending_corridor_avoid]} around {list(corridors)}")
 
-            # T5 auditor (host Sonnet; SEES the pour-clip) -> CL-24 verifier -> guarded injection
-            sj = sonnet_audit(rec, lr, rnd, pourcheck=pourcheck, intents_src=src)
-            vres, events, miss, vt = None, [], [], None
+            # T5 auditor (Sonnet daily / DeepSeek overnight; SEES the pour-clip) -> CL-24 verifier -> guarded injection.
+            # EI-02: the auditor reads lr_view -- on a CONTROL round that view carries manager_rules=[] and
+            # scorer_penalties={} (the signed-only context). The verifier + ADV still EVALUATE on a control
+            # round, but the injection into the LIVE lr is SUPPRESSED (steer_lr is None) so nothing the
+            # control round produces can change the run-learned state. The augmented lane injects normally.
+            steer_lr = lr if lane == "augmented" else None
+            sj = audit(rec, lr_view, rnd, auditor_model, pourcheck=pourcheck, intents_src=src)
+            vres, events, miss, vt, vfinal = None, [], [], None, None
             sp = sj.get("scorer_penalty") if isinstance(sj.get("scorer_penalty"), dict) else {}
             has_rule = bool(sj.get("manager_rule"))
-            tripwired = sp.get("metric") in lr.get("refuted_metrics", [])
+            tripwired = sp.get("metric") in lr_view.get("refuted_metrics", [])
             if sp or has_rule:
                 if tripwired and not has_rule:
                     # KNOB TRIPWIRE pre-check (lesson 5 + lesson 1): a refuted-metric reweight with
                     # nothing else to judge is auto-rejected with NO verifier spend.
-                    events = inject(sj, lr, rnd, "sonnet", "tripwire")
+                    events = inject(sj, steer_lr, rnd, "sonnet", "tripwire") if steer_lr else []
                     vt = "tripwire"
                     # Review item 6: a tripwired round must NOT masquerade as a null verifier row --
                     # write a minimal stub so the verifier/ artifact + the measurement row say "tripwire".
@@ -821,7 +2382,12 @@ def run(board, rounds, hours):
                     miss = bundle_gaps(sj, evidence)
                     if miss:
                         log(f"  ! bundle-completeness gap (auditor cited, bundle lacked): {miss}")
-                    ctx = {"rules_excerpt": json.dumps(lr["manager_rules"]),
+                    # P4 (fix 2026-06-13): lead with the locked-decision spine + fence + unratified
+                    # relabel so the downstream _slice_spec truncation drops the corpus tail, not P4's
+                    # deliverable (the reviewer caught CORPUS_BRIEF-first being cut off by _slice_spec[:N]).
+                    rules_excerpt = _spec_rules_excerpt(CORPUS_BRIEF, LOCKED_DECISIONS_BRIEF, fence,
+                                                        lr_view["manager_rules"])
+                    ctx = {"rules_excerpt": rules_excerpt,
                            "evidence": json.dumps(evidence),
                            "levers": OWNED_LEVERS,
                            "metrics": json.dumps([{k: r.get(k) for k in ("round", "drc", "kelvin_ok")}
@@ -845,10 +2411,11 @@ def run(board, rounds, hours):
                                "arbiter": vres.arbiter if vres else None,
                                "bundle_gaps": miss},
                               open(_d("verifier", f"round-{rnd:03d}.json"), "w"), indent=1, default=str)
-                    events = inject(sj, lr, rnd, "sonnet", vfinal)
-                    log(f"  T5+CL24: auditor={sj.get('verdict')} fc={sj.get('failure_class')} "
+                    events = inject(sj, steer_lr, rnd, "sonnet", vfinal) if steer_lr else []
+                    log(f"  T5+CL24[{lane}]: auditor={sj.get('verdict')} fc={sj.get('failure_class')} "
                         f"verifier={vfinal}/{getattr(vres, 'verdict_type', '?')}"
                         f"{' CONTENTION' if vres and vres.contention else ''} "
+                        f"{'(control: NOT injected)' if not steer_lr else ''}"
                         f"-> {[e['action'] for e in events]}")
             else:
                 log(f"  T5: auditor={sj.get('verdict')} (no proposals)")
@@ -858,7 +2425,7 @@ def run(board, rounds, hours):
             placement_attr = (sj.get("failure_class") == "placement") or (
                 vres and any(v.get("failure_class") == "placement"
                              for v in vres.verdicts.values()))
-            if (placement_attr or kelvin_stall >= KELVIN_STALL_K) and not rec["kelvin_ok"]:
+            if _t0_should_fire(lane, placement_attr, kelvin_stall, rec["kelvin_ok"]):
                 blocked = next((r.split()[0] for r in rec.get("reasons", [])
                                 if "/SENSEC" in r), None)
                 if blocked:
@@ -867,6 +2434,191 @@ def run(board, rounds, hours):
                     t0 = gr02_repair(rec["routed"], blocked, rnd)
                     log(f"  T0 result: {json.dumps(t0.get('rescored', t0))[:140]}")
                     kelvin_stall = 0
+
+            # ---- ACTUATOR WIRING (findings -> next round) -----------------------------------------
+            # CONTROL-GATED PROMOTION (rollback): SETTLE the deltas APPLIED on the LAST augmented round
+            # against this round's evidence. The control round is the rollback baseline (signed-only); a
+            # delta is credited ONLY if its steered round beats the most-recent control. Symmetric:
+            # vindicated/refuted/overturned all enter the in-run corpus with equal detail, and a
+            # non-vindicated delta is ROLLED BACK (its carry is dropped), never ratcheted in.
+            applied_deltas = []
+            cur_metrics = {k: rec.get(k) for k in ("objective", "objective_base", "drc", "unconnected",
+                                                   "gates_pass", "kelvin_ok", "diffpair_ok",
+                                                   "plane_signal_mm", "max_T")}
+            cur_metrics["pour_clipped"] = bool(pour_clipped_nets)
+            cur_metrics["pour_integrity_ok"] = rec.get("pour_integrity_ok")   # BLOCKER-01: the launder guard
+            # Settle the prior round's applied deltas ONLY on an AUGMENTED round -- the delta's carry
+            # (pending_corridor_avoid) is suppressed on a control round (signed-only), so a control round
+            # never actually steers the delta and must not be used as its TREATMENT. cur_metrics is then
+            # the steered round's metrics; last_control_metrics is the signed-only baseline.
+            if pending_deltas and last_control_metrics is not None and lane == "augmented":
+                cstate = _corpus_state(lr)
+                for pd in pending_deltas:
+                    # gate on objective_BASE so the comparison is lane-neutral: the augmented (treatment)
+                    # objective carries the injected-penalty term, the control's does not -- objective_base
+                    # is the same soft cost on both lanes, so a delta is credited for routing improvement,
+                    # not for the penalty reweight. (gate-pass still dominates inside settle_outcome.)
+                    oc = dlog.record_outcome(pd["delta"], pd["finding"], cur_metrics,
+                                             last_control_metrics, corpus_state=cstate,
+                                             gate_metric="objective_base")
+                    json.dump(act_outcome_dict(oc),
+                              open(_d("outcomes", f"round-{rnd:03d}-{pd['delta'].id}.json"), "w"),
+                              indent=1, default=str)
+                    try:
+                        import cec_ledger
+                        d = cec_ledger.decision(
+                            decision_class="finding", artifact=f"fullstack:{board}:{pd['delta'].id}",
+                            decider={"kind": "model", "id": "cec_fullstack:control-gate"},
+                            verdict=oc.verdict,
+                            claim=f"finding-delta {pd['delta'].kind} on "
+                                  f"{pd['finding'].get('proposed_lever', {}).get('target')} improves the route",
+                            hook={"kind": "check_id", "ref": "control-gated-objective"},
+                            settlement={"state": "settled", "grade": 2},
+                            extra={"outcome": act_outcome_dict(oc)})
+                        cec_ledger.settle(d.get("decision_id"), state="settled", grade=2,
+                                          evidence=f"{oc.verdict} margin={oc.margin}")
+                    except Exception as e:                                       # noqa: BLE001
+                        log(f"  delta-settle ledger skipped: {type(e).__name__}: {e}")
+                    log(f"  CONTROL-GATE: {pd['delta'].id} {oc.verdict} (margin={oc.margin}) "
+                        f"-> {'kept' if oc.verdict == 'vindicated' else 'ROLLED BACK'}")
+                    # PL-06: two-phase placement promotion. The override was applied + routed THIS round
+                    # (placement_base). KEEP it (good moves COMPOUND) only if it settled vindicated AND
+                    # held pour integrity; otherwise revert to the pre-move base + anti-ratchet.
+                    # BLOCKER-01 (kind-aware launder guard): settle_outcome credits a both-gates-fail
+                    # objective_base win, and objective_base is pour-BLIND, so a pour-FRAGMENTING move can
+                    # read 'vindicated'. A placement move that fragmented a sense pour must NEVER be
+                    # promoted -- that is exactly the launder. (We guard placement here, NOT settle_outcome,
+                    # so legitimate routing-delta progress-crediting while gates fail is unchanged.)
+                    if pd["delta"].kind == "replace":
+                        keep = _placement_keep(oc.verdict, cur_metrics.get("pour_integrity_ok"))
+                        launder = oc.verdict == "vindicated" and not keep
+                        placement_settled = "refuted" if launder else oc.verdict
+                        if launder:
+                            pd["delta"].status = "rolled_back"
+                            pd["delta"].note += (" [launder-blocked: vindicated on pour-blind objective_base "
+                                                 "but fragmented a pour -> NOT promoted]")
+                        if not keep:
+                            placement_base = (pending_placement or {}).get("prev_base")
+                            refuted_placement_keys.add(act.hypothesis_key(pd["finding"], pd["delta"]))
+                            log(f"  PLACEMENT {'LAUNDER-BLOCKED' if launder else oc.verdict}: revert base -> "
+                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
+                        else:
+                            # actuation-lever step 1: a KEPT move now COMPOUNDS into placement_base, so
+                            # its id enters the transitive cone every later augmented row inherits.
+                            placement_cone.append(placement_cone_id(pd["finding"], pd["delta"]))
+                            log(f"  PLACEMENT vindicated: keep base "
+                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
+                pending_deltas = []
+                pending_placement = None
+            elif pending_deltas and last_control_metrics is None and lane == "augmented":
+                # AUDIT-PL4-001 liveness: no control baseline exists yet (e.g. CONTROL_EVERY<=0 -> a control
+                # round never runs, or before the first one). The deltas cannot be settled; drop them
+                # unsettled + revert any placement move so the one-in-flight guard releases (no deadlock).
+                for pd in pending_deltas:
+                    pd["delta"].status = "rolled_back"
+                    pd["delta"].note += " [no control baseline -- rolled back unsettled]"
+                    if pd["delta"].kind == "replace":
+                        placement_base = (pending_placement or {}).get("prev_base")
+                log(f"  [no-baseline] {len(pending_deltas)} pending delta(s) dropped (no control yet)")
+                pending_deltas = []
+                pending_placement = None
+            elif pending_deltas and lane == "control":
+                # the carry was suppressed this round -> the prior deltas never got a steered round; drop
+                # them unsettled (they roll back, never ratchet) rather than mis-credit a later round.
+                for pd in pending_deltas:
+                    pd["delta"].status = "rolled_back"
+                    pd["delta"].note += " [carry suppressed by control round -- rolled back unsettled]"
+                    if pd["delta"].kind == "replace":           # PL-06: revert an unsettled placement move
+                        placement_base = (pending_placement or {}).get("prev_base")
+                log(f"  [control] {len(pending_deltas)} pending delta(s) dropped (carry suppressed)")
+                pending_deltas = []
+                pending_placement = None
+
+            # BUILD next-round finding-deltas from a SUPPORTED auditor finding that carries a proposed_lever.
+            # AUGMENTED lane only (a control round produces no deltas -- it is the signed-only baseline). The
+            # delta is fenced (no Kelvin template / pinned part), bounded (<= MAX_DELTAS_PER_ROUND), and
+            # appended to pending_corridor_avoid (the live carry). v4_structural_escape forces a STRUCTURAL
+            # hypothesis (NEVER a penalty) when local_min risk is high + physics is flat.
+            if lane == "augmented":
+                # SUPPORTED == the verifier passed it (final 'support'), OR no verifier ran on it (a
+                # proposed_lever with no scorer_penalty/manager_rule never enters the verifier -- the
+                # existing design) and the auditor did not ESCALATE (escalate => structural, not a lever).
+                vsupport = (vfinal == "support") or (vfinal is None and sj.get("verdict") != "escalate")
+                pl = sj.get("proposed_lever")
+                cand_deltas = []
+                if vsupport and isinstance(pl, dict):
+                    d = act.finding_to_delta(sj, rec, grid, rnd, fence,
+                                             sense_nets=[n for pr in fence_pairs for n in pr], idx=0,
+                                             known_refs=known_refs)
+                    dlog.add(d)
+                    cand_deltas.append({"delta": d, "finding": sj})
+                    log(f"  ACTUATOR: finding-delta {d.id} kind={d.kind} status={d.status} -- {d.note[:90]}")
+                # v4 structural escape: high local-min risk + flat physics -> structural avoid/replace
+                tail_rows = [json.loads(l) for l in open(_d("measurement.jsonl"))
+                             if l.strip()] if os.path.exists(_d("measurement.jsonl")) else []
+                esc = act.v4_structural_escape(prev_v4_risk, tail_rows, rec, grid, rnd, fence,
+                                               sense_nets=[n for pr in fence_pairs for n in pr])
+                if esc is not None:
+                    dlog.add(esc)
+                    cand_deltas.append({"delta": esc, "finding": {
+                        "root_cause": esc.note, "failure_class": "routing" if esc.kind == "avoid"
+                        else "placement", "proposed_lever": {"lever": esc.kind, "target":
+                        (esc.intent or {}).get("net")}}})
+                    log(f"  ACTUATOR v4-escape: {esc.id} kind={esc.kind} -- {esc.note[:90]}")
+                # BOUND -- keep at most MAX_DELTAS_PER_ROUND actionable; the rest logged as 'capped'.
+                kept, _rej = act.select_deltas([c["delta"] for c in cand_deltas])
+                kept_ids = {d.id for d in kept}
+                for c in cand_deltas:
+                    if c["delta"].id in kept_ids and c["delta"].kind == "avoid" and c["delta"].intent:
+                        # the applied avoid-delta's intent is added to the live corridor-avoid carry
+                        if c["delta"].intent["net"] not in {i["net"] for i in pending_corridor_avoid}:
+                            pending_corridor_avoid.append(c["delta"].intent)
+                        applied_deltas.append(c)
+                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
+                          and isinstance(c["delta"].intent, dict)
+                          and not pending_placement     # one placement move in flight at a time
+                          and act.hypothesis_key(c["finding"], c["delta"]) not in refuted_placement_keys):
+                        # PL-04/05/06: ACTUATE the placement move -- evict the body on a per-round COPY of
+                        # the CURRENT base (compounds on a promoted base), promote placement_base to it so
+                        # the NEXT augmented round routes the moved board, and append the delta so it settles
+                        # against that round's control. The committed floorplan on disk is never mutated.
+                        cur_base = placement_base or ovd.BOARD_PCB[board]
+                        mv = apply_placement_move(cur_base, rec.get("routed"), c["delta"].intent, fence, rnd)
+                        if mv.get("verdict") == "placed":
+                            new_base = os.path.join(ROOT, mv["board"])
+                            # move_id = the SAME hypothesis-keyed id the kept-cone + future tally use,
+                            # so next round's route-time snapshot tags the board this move now shapes.
+                            pending_placement = {"prev_base": placement_base, "override": new_base,
+                                                 "delta_id": c["delta"].id,
+                                                 "move_id": placement_cone_id(c["finding"], c["delta"])}
+                            placement_base = new_base
+                            c["delta"].intent["_override_board"] = mv["board"]
+                            c["delta"].note += f" [PLACED {mv['ref']} +{mv['moved_mm']}mm]"
+                            applied_deltas.append(c)
+                            placement_summary = {"moved": True, "verdict": "placed", "ref": mv["ref"],
+                                                 "refs": mv.get("moved_refs", []), "moved_mm": mv["moved_mm"]}
+                            log(f"  ACTUATOR placement: {c['delta'].id} evicted {mv['ref']} "
+                                f"(+{mv['moved_mm']}mm, cluster {mv.get('moved_refs')}) -> base "
+                                f"{os.path.basename(new_base)}")
+                        else:
+                            c["delta"].status = "noop"
+                            vr = mv.get("verdict") or mv.get("error")
+                            c["delta"].note += f" [placement {vr}]"
+                            placement_summary["verdict"] = vr
+                            log(f"  ACTUATOR placement: {c['delta'].id} -> {vr} (no move)")
+                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
+                          and isinstance(c["delta"].intent, dict)):
+                        # AUDIT-PL4-003: a kept placement delta NOT actuated -- one move already in flight, or
+                        # the hypothesis was refuted. Mark + log so the suppression is observable (behavior
+                        # unchanged: one-in-flight + anti-ratchet are by design).
+                        reason = "one-in-flight" if pending_placement else "refuted-hypothesis"
+                        c["delta"].status = "skipped"
+                        c["delta"].note += f" [placement skipped: {reason}]"
+                        log(f"  ACTUATOR placement: {c['delta'].id} SKIPPED ({reason})")
+                pending_deltas = applied_deltas
+                json.dump(dlog.to_records(), open(_d("deltas.json"), "w"), indent=1, default=str)
+            elif lane == "control" and (placement_base or pending_placement):
+                placement_summary["verdict"] = "suppressed"     # PL-08: control round, override held off
 
             # frontier + finalist events (T6 vision + T7 reviewer)
             front = ovd.pareto_frontier(records)
@@ -895,7 +2647,7 @@ def run(board, rounds, hours):
                                         "rules": lr["manager_rules"]})
                 json.dump(v4, open(_d("findings", f"round-{rnd:03d}-v4batch.json"), "w"),
                           indent=1, default=str)
-                if v4.get("findings"):
+                if v4.get("findings") and steer_lr:           # EI-02: a control round never injects
                     for f in v4["findings"]:
                         if f.get("ratifiable"):
                             inject({"manager_rule": f.get("issue")}, lr, rnd, "v4", "support")
@@ -909,16 +2661,26 @@ def run(board, rounds, hours):
             _pf = pourcheck.get("facts", {}) or {}
             pour_sig = (sum((v.get("islands", 1) or 1) for v in _pf.values() if isinstance(v, dict)),
                         sum((v.get("foreign_cross", 0) or 0) for v in _pf.values() if isinstance(v, dict)))
-            vision_ran = "pours_intact" in pourcheck
             geom_delta = (abs(pour_sig[0] - prev_pour_sig[0]) + abs(pour_sig[1] - prev_pour_sig[1])
                           if prev_pour_sig else 0)
-            vision_required_unmet = bool(geom_delta >= 3 and not vision_ran)
+            vision_required_unmet = _vision_required_unmet(pourcheck, geom_delta)   # gated != seat-down
             if vision_required_unmet:
                 log(f"  ! VISION-REQUIRED unmet: pour-geometry delta={geom_delta} but vision seat down")
             prev_pour_sig = pour_sig
 
+            # EI-07: the fraction of THIS round's evidence grounded in deterministic checks vs model
+            # judgment (gates/DRC/pour-facts/FEM = deterministic; panel/auditor/verifier/V4/vision = model).
+            vision_ran = ("anomalies" in pourcheck)
+            anchors = real_anchor_ratio(rec, pourcheck, panel_votes=votes, audit=sj, v4=v4,
+                                        vision_ran=vision_ran, verifier_ran=bool(vres),
+                                        placement_moved=placement_summary["moved"])   # PL-09
+            log(f"  EI-07 real_anchor_ratio={anchors['real_anchor_ratio']} "
+                f"(det={anchors['n_deterministic']} model={anchors['n_model']})")
+
             # T9 measurement + ledger
             row = {"round": rnd, "ts": time.strftime("%H:%M:%S"), "sha": rec.get("sha"),
+                   "board": board,                               # self-identifying for cross-run board isolation
+                   "lane": lane,                                 # EI-02: control | augmented
                    "intents_src": src, "passes": passes, "opt_time": opt_time,
                    "panel": action, "gates_pass": rec["gates_pass"],
                    "kelvin_ok": rec["kelvin_ok"], "drc": rec["drc"],
@@ -930,15 +2692,42 @@ def run(board, rounds, hours):
                    "t0_fired": bool(t0), "n_finalists": len(front),
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
                    "pour_integrity_ok": rec.get("pour_integrity_ok"),    # blocking gate (item 2)
-                   "pour_vision": (pourcheck.get("pours_intact") if "pours_intact" in pourcheck
+                   "staggered": bool(rec.get("staggered")),              # re-audit: did the round SHIP the staggered board
+                   "mirror_status": rec.get("stub_summary", {}).get("mirror_status"),  # item 1 mirror: applied/rejected/error/no-pours
+                   "layer_stagger": ((stagger_result or {}).get("report")     # LAYER-TIER lever (augmented)
+                                     if stagger_result and not stagger_result.get("error")
+                                     else ({"error": stagger_result.get("error")} if stagger_result else None)),
+                   # re-roled seat: narration/anomaly flags (advisory), not a verdict
+                   "pour_vision": (pourcheck.get("anomalies") if "anomalies" in pourcheck
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
                    "vision_required_unmet": vision_required_unmet,
                    "verdict_type": vt,                       # "tripwire" on a tripwired round (item 6)
-                   "v4_risk": (v4 or {}).get("local_minimum_risk")}
+                   "v4_risk": (v4 or {}).get("local_minimum_risk"),
+                   "real_anchor_ratio": anchors["real_anchor_ratio"],    # EI-07
+                   "n_deterministic": anchors["n_deterministic"], "n_model": anchors["n_model"],
+                   "n_deltas_applied": len(applied_deltas),
+                   # actuation-lever step 1: the COMPLETE route-time influence cone (control=[]).
+                   # Built from the snapshot taken when this round ROUTED, plus the layer-stagger id
+                   # (the one steer applied post-route -> it shaped the board that SHIPPED). The ONE
+                   # function the tests also call (tested == shipped).
+                   "influenced_by": compute_influenced_by(
+                       lane, steer_ids=route_cone["steer_ids"], placement_cone=route_cone["placement"],
+                       intent_id=route_cone["intent_id"], avoid_ids=route_cone["avoid_ids"],
+                       effort_id=route_cone["effort_id"],
+                       layer_id=(rule_id("layer", {"shipped": True}) if rec.get("staggered") else None)),
+                   **_placement_row_fields(placement_summary, lane, placement_settled),   # PL-08
+                   "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
             with open(_d("measurement.jsonl"), "a") as fh:
                 fh.write(json.dumps(row) + "\n")
             json.dump(lr, open(_d("live-rules.json"), "w"), indent=1)
-            ovd.ledger_round(board, rec, len(front))
+            # EI-02: ledger the round with the lane on the extra (carry corpus_state on BOTH lanes --
+            # ledger_round already pins live_rules -> corpus_state; the lane lets a partitioner split A/B).
+            _ledger_round_laned(board, rec, len(front), lr, lane, anchors)
+            # round-end state: the most-recent CONTROL metrics are the rollback baseline for the NEXT
+            # augmented round's deltas; prev_v4_risk feeds the next round's v4 structural escape.
+            if lane == "control":
+                last_control_metrics = cur_metrics
+            prev_v4_risk = (v4 or {}).get("local_minimum_risk", prev_v4_risk)
         except Exception as e:                                   # noqa: BLE001
             log(f"  round {rnd} FAILED: {type(e).__name__}: {e}")
             import traceback
@@ -956,9 +2745,38 @@ def run(board, rounds, hours):
         end_review = briefed_review(best)
         json.dump(end_review if isinstance(end_review, dict) else {"review": str(end_review)},
                   open(_d("reviews", "end-of-run-best.json"), "w"), indent=1, default=str)
-    pour_clip_rounds = [json.loads(l)["round"] for l in open(_d("measurement.jsonl"))
-                        if l.strip() and json.loads(l).get("pour_clipped")] \
-        if os.path.exists(_d("measurement.jsonl")) else []
+    # EI-02 A/B + EI-07 rollup: read back the per-round measurement rows (each tagged with `lane`)
+    # and aggregate the standing control-vs-augmented table -- the answer to "what does the augmented
+    # tier BUY over signed-only routing". Render a text table alongside the JSON for the morning read.
+    all_rows = []
+    if os.path.exists(_d("measurement.jsonl")):
+        for l in open(_d("measurement.jsonl")):
+            if l.strip():
+                try:
+                    all_rows.append(json.loads(l))
+                except Exception:                                # noqa: BLE001
+                    pass
+    pour_clip_rounds = [r["round"] for r in all_rows if r.get("pour_clipped")]
+    ab = ab_aggregate(all_rows)
+    ab_text = render_ab_table(ab)
+    with open(_d("ab-table.txt"), "w") as fh:
+        fh.write(ab_text + "\n")
+    log("A/B (control vs augmented):\n" + ab_text)
+    # Actuation lever (steps 2-3): the CLEAN-evidence tally + graduation advisory, pooled across all
+    # SAME-board committed run dirs plus this run. Promotion stays owner-gated; this only proposes.
+    lever_runs = load_runs_from_dirs(
+        [os.path.join(os.path.dirname(PERM), "fullstack-run-*", "measurement.jsonl"),  # narrow glob == --tally
+         _d("measurement.jsonl")], board=board)
+    lever = actuation_lever_report(lever_runs)
+    _emit_lever_ledger(board, lever)
+    json.dump(lever, open(_d("actuation-lever.json"), "w"), indent=1, default=str)
+    if lever["graduated"]:
+        log(f"ACTUATION LEVER: {len(lever['graduated'])} candidate rule(s) cleared the clean-evidence "
+            f"bar (ADVISORY -- promotion is owner-gated): "
+            f"{[(g['rule_id'], g['metric']) for g in lever['graduated']]}")
+    else:
+        log(f"ACTUATION LEVER: {lever['n_candidate_rules']} candidate rule(s) tallied over "
+            f"{lever['n_runs']} run(s); none cleared the bar yet")
     bundle = {"board": board, "rounds": rnd if not rounds else min(rnd, rounds),
               "records": len(records),
               "gate_passing": sum(1 for r in records if r["gates_pass"]),
@@ -969,6 +2787,13 @@ def run(board, rounds, hours):
                                     f"re-pour-after-route" if pour_clip_rounds else
                                     "no pour clipping detected"),
               "end_of_run_review": bool(end_review),
+              # EI-02 A/B: the standing control-vs-augmented table + the rendered text view.
+              "ab": ab, "ab_table": ab_text,
+              # control-gated promotion (rollback) tallies -- the finding-delta lifecycle.
+              "deltas": {"records": dlog.to_records(), "outcomes": dlog.outcome_records(),
+                         "tally": dlog.tally()},
+              # actuation lever (steps 2-3): per-rule clean-evidence tally + graduation advisory.
+              "actuation_lever": lever,
               "final_penalties": lr["scorer_penalties"],
               "n_rules": len(lr["manager_rules"]), "rules": lr["manager_rules"],
               "injections": lr["injections"], "rejections": len(lr["rejections"]),
@@ -977,11 +2802,13 @@ def run(board, rounds, hours):
               "front": [{k: r.get(k) for k in ("round", "objective", "drc", "unconnected",
                                                "plane_signal_mm", "max_T", "kelvin_ok")}
                         for r in front],
+              "corpus_state": _corpus_state(lr),        # EI-01: make the run deliverable self-describing
               "updated": time.strftime("%Y-%m-%dT%H:%M:%S")}
-    json.dump(bundle, open(_d("bundle.json"), "w"), indent=1)
+    json.dump(bundle, open(_d("bundle.json"), "w"), indent=1, default=str)
     log(f"DONE: {len(records)} candidates, {bundle['gate_passing']} gate-passing, "
         f"{len(front)} finalists, {len(lr['manager_rules'])} rules "
-        f"(cap {RULE_CAP}), verifier {vs.spent}/{vs.budget} -> {PERM}")
+        f"(cap {RULE_CAP}), verifier {vs.spent}/{vs.budget}, "
+        f"deltas {dlog.tally()} -> {PERM}")
     return bundle
 
 
@@ -990,10 +2817,25 @@ def main(argv=None):
     ap.add_argument("--board", default="eps-8pin", choices=sorted(ovd.BOARD_PCB))
     ap.add_argument("--rounds", type=int, default=None, help="bounded run-through")
     ap.add_argument("--hours", type=float, default=None, help="deadline-bounded night")
+    ap.add_argument("--auditor", default=None,
+                    help="T5 auditor seat model. Default: DeepSeek-V4-Flash (the deep chair). Sonnet is "
+                         "one env var away (CEC_FS_AUDITOR_MODEL=sonnet) for a latency-sensitive run; "
+                         "--auditor overrides both.")
+    ap.add_argument("--tally", action="store_true",
+                    help="don't run: print the actuation-lever clean-evidence tally + graduation "
+                         "advisory pooled across all committed same-board run dirs, then exit")
+    ap.add_argument("--runs-glob", default=None,
+                    help="with --tally: override the run-dir glob (default docs/fullstack-run-*)")
     a = ap.parse_args(argv)
+    if a.tally:
+        pattern = a.runs_glob or os.path.join(ROOT, "docs", "fullstack-run-*", "measurement.jsonl")
+        runs = load_runs_from_dirs([pattern], board=a.board)
+        rep = actuation_lever_report(runs)
+        print(json.dumps(rep, indent=1, default=str))
+        return rep
     if not a.rounds and not a.hours:
         a.rounds = 8
-    run(a.board, a.rounds, a.hours)
+    run(a.board, a.rounds, a.hours, auditor=a.auditor)
 
 
 if __name__ == "__main__":

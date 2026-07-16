@@ -5,13 +5,15 @@
 | Field | Value |
 |---|---|
 | Document | CEC Platform Ground-Truth Specification |
-| Version | 1.1.0 |
+| Version | 1.5.0 |
 | Status | Controlled baseline |
-| Date | 2026-06-09 |
+| Date | 2026-07-05 |
 | Companion files | cec-subsystem-power-management.svg (Section 2.9); cec_closed_loop_support_pipeline.svg (Appendix D) |
 | Source of record | GitHub spec repository (canonical); record the source commit hash on every exported copy (process rule, 1.0.1) |
 
-This document is the single source of truth for the CEC platform and takes precedence over every earlier document. Where an earlier document conflicts, this document governs. Every decision carries a status marker (LOCKED, PROPOSED, RESOLVED, or working basis), and every open item is tracked as a numbered open question (OQ-1 through OQ-74) in Section 10.
+This document is the single source of truth for the CEC platform and takes precedence over every earlier document. Where an earlier document conflicts, this document governs. Every decision carries a status marker (LOCKED, PROPOSED, RESOLVED, or working basis), and every open item is tracked as a numbered open question (OQ-1 through OQ-89) in Section 10.
+
+**v1.5.0 summary (2026-07-05, owner ruling):** the 24-pin ATX module's four rail-sensing ICs revert from the INA228 back to the **INA238** — a straight reversal of the v1.4 (pre-release) upgrade, on supply-chain and assembly-flow grounds: the INA228 is LCSC-unavailable (reference-only, out of stock) while the INA238AIDGSR (LCSC C2868250) is JLC-assembly-native and stocked in volume (680 on hand; verified ladder $2.0991@1 down to $1.2591@1000). The INA238 is pin- and footprint-compatible (VSSOP-10, identical DGS land), so no board respin is needed beyond the sensing-IC BOM line. What is given up is the 20-bit ADC (16-bit remains, and resolution stays well below the gain-error floor at the Section 6.4 shunt values) and the hardware energy/charge accumulators (energy reporting moves to firmware integration of the Section 6.10 1 kHz stream, exactly as EPS and PCIe already do) — see Section 6.1, Section 6.4, Section 6.5, and OQ-13. No connector, pinout, protocol, or cross-tier-compatibility change; see Section 11 for the full entry and `docs/pricing-study-2026-07-05.md` for the cost basis.
 
 ### Versioning
 
@@ -22,6 +24,15 @@ This document uses semantic versioning, MAJOR.MINOR.PATCH:
 - PATCH: corrections, clarifications, and editorial changes with no design impact.
 
 Version 1.0.0 is the first release under this scheme. It consolidates the pre-release working line v1.0 through v3.11, whose detailed log is retained for provenance in Section 11.1. Inline (vX.Y) tags in the body reference that pre-release log.
+
+### Revision lines: alpha and beta (consumer hardware, owner directive 2026-07-03)
+
+The document version above (semantic MAJOR.MINOR.PATCH) tracks the SPECIFICATION. Consumer *hardware* carries a parallel, orthogonal revision-line label:
+
+- **ALPHA** — the existing validated consumer boards (Hub Standard and every Standard module). A working one-to-one prototype exists for each, so the concept is validated: alpha is refined, not re-litigated.
+- **BETA** — any owner-approved refinement revision (the 2026-07-03 standard-tier review output and beyond). Beta is a new revision lineage *beside* alpha, never overwriting it — title-block Rev field, board README, `fab/<board>-beta-*` snapshot naming, BOM outputs — with alpha preserved in git history and its fab snapshots.
+
+**Guiding principle for every revision (owner, 2026-07-03):** openness, extensibility, and make it better even if it costs a bit more — do it right the first time, better than everyone else does. When a trade pits cost-down against quality, capability, or extensibility, default to the quality side and surface the cost delta. Cheapest-possible is the rule for compute spend, never for the boards. Version 1.3.0 folds the owner-ruled consumer-beta decisions into this document; per-decision provenance is in the Section 11 revision log and `docs/standard-tier-review/beta-lock-register-2026-07-03.md`.
 
 ### Supersedes
 
@@ -41,6 +52,7 @@ The specification leads the as-built boards on the items below. Each is to be ca
 3. 24-pin RJ-45 VCC no-connect (Section 2.7): rev2 carries the parallel path; the no-connect fix lands on rev3.
 4. Digital-module MCU and detection front-end (Sections 6.1 and 6.13): the ESP32-C6/C3 change and the EPS/PCIe detection front-end are spec-adopted but not yet on the as-built schematics; the 24-pin, EPS, and PCIe are on the ESP32-S3-MINI-1 with no detection front-end, and the EPS was sourced on the S3-MINI-1-N4R2.
 5. CAN transceiver on the fabbed 24-pin rev2 (Section 3.1): order-side records list the TJA1462A while the v3.5 lock and same-day schematic update name the TJA1051T/3; confirm which part the boards physically carry and, if the TJA1462A, migrate on the next pass. Pin-compatible SO8, both run classical 500 kbps, so no functional impact in the interim (added 1.0.1).
+6. Output-side connector-daughterboard architecture (Section 2.8, v1.4.0): spec-locked for the 24-pin, EPS, and PCIe modules, but not yet on any as-built schematic or PCB. The 24-pin's second board-mount output header (J4) and the EPS/PCIe per-cable output headers still need removing, the inter-board connector (Keystone blade clips) placed on each main board, and the passive daughterboard projects (footprint, fan-out copper, and the mating TE FASTON tab side) created from scratch. 12VHPWR is unaffected (added 1.4.0).
 
 ## Table of contents
 
@@ -75,6 +87,7 @@ The specification leads the as-built boards on the items below. Each is to be ca
   - 6.11 12VHPWR Max module
   - 6.12 SATA / peripheral power module
   - 6.13 EPS/PCIe transient-visibility ladder
+  - 6.14 Module standalone mode and common protection suite
 - 7 ARGB Controller
   - 7.1 Tiers
   - 7.2 Power
@@ -112,6 +125,17 @@ The specification leads the as-built boards on the items below. Each is to be ca
   - D.8 Economics model
   - D.9 Worked example
   - D.10 Definitions
+- 13 The enterprise line (ENT-NET / ENT-AIR)
+  - 13.1 Compute and identity
+  - 13.2 Host links and northbound surface
+  - 13.2a Module link
+  - 13.3 The RJ-11 security-I/O port
+  - 13.4 Power
+  - 13.5 Redundancy — fail-detected, stated honestly
+  - 13.6 Enterprise module build variants
+  - 13.7 The NanoKVM boundary and the CEC-KVM direction
+  - 13.8 Availability ladder (MC / MC-Max SKUs)
+  - 13.9 Compliance posture
 - 11 Revision history
   - 11.1 Pre-release working log
 - 12 Index
@@ -120,16 +144,24 @@ The specification leads the as-built boards on the items below. Each is to be ca
 
 ## 1. Platform overview
 
-The CEC platform is a modular PC power-telemetry system. Per-rail sensing modules connect to a central Hub over a single commodity cable. The Hub aggregates telemetry and forwards it to the host PC over USB. Four tiers are built from one fundamental design with progressively populated features:
+The CEC platform is a modular PC power-telemetry system. Per-rail sensing modules connect to a central Hub over a single commodity cable. The Hub aggregates telemetry and forwards it to the host PC over USB. Three tiers, the third SKU-differentiated, are built from one fundamental design with progressively populated features:
 
 | Tier | Role | Hub MCU | Host link | Distinguishing hardware |
 |---|---|---|---|---|
 | Standard | Mainstream builders | ESP32-S3 | USB Full Speed | CAN only, 4 ports |
 | Pro | Overclockers, bench users | ESP32-P4 | USB High Speed | plus RS-485 streaming, 8 ports |
-| Enterprise | Regulated / financial | ESP32-P4 | USB HS (plus optional 1000BASE-T1) | plus RJ-11 trust channel, secure element |
-| Mission Critical | Defense, broadcast, render | ESP32-P4 plus crypto | Redundant uplinks | Redundant power, CAN, trust |
+| Enterprise (ENT) — one line, SKU-differentiated | Regulated / financial / defense-adjacent / tamper-mandated fleets | PolarFire SoC (baseline MPFS095TC Core; HS option = S-grade Athena, 7th ruling) | Per posture SKU: ENT-NET = standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning); ENT-AIR = local operator paths only, **zero network egress by design** | Hardened no-Linux RTOS control plane, PUF-rooted identity + secure boot, RJ-11 security-I/O port, rollback-resistant tamper log. **Two orthogonal SKU axes** — posture: ENT-NET (northbound Redfish-subset/OpenMetrics/syslog-TLS) / ENT-AIR (no network PHY populated, inspection-verifiable; radio-free module builds); availability ladder: **base** (fail-detected) → **MC** (+ independent compute watchdog + redundancy pack) → **MC-Max** (+ optional FAIL-FUNCTIONAL voting-pair compute) |
 
-Modules are tier-agnostic: any module works in any Hub and degrades gracefully (see Section 8).
+_D-ENT-6 RESOLVED (owner, 2026-07-02 second ruling): the legacy tier-3/tier-4 rows fold
+into ONE enterprise line; "Mission Critical" survives as the MC / MC-Max availability
+SKUs, orderable in either posture. See Section 13 for the full architecture._
+
+Module **interfaces** are tier-agnostic and this is unchanged and LOCKED: any module works
+in any Hub over the universal RJ-45/CAN/DETECT interface and degrades gracefully (Section
+8). v1.2.0 adds enterprise **build variants** of the module families (Section 13.6):
+same family, same interface, same graceful degrade — different build posture (radio-free
+MCU, per-unit identity, provenance-grade BOM). A build variant never changes what the
+Hub-facing interface promises.
 
 Standard-tier module MCUs (REVISED v3.9): the three digital-sensor Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin) run the **ESP32-C6-MINI-1**, on a board footprint that is also **ESP32-C3-MINI-1** compatible so the lighter 24-pin and EPS boards can be cost-reduced to the C3 once their NTC count is fixed (Section 6.1). The **12VHPWR Standard** module keeps the **ESP32-S3-MINI-1**, earned by its nine analog inputs and the option of N4R2 PSRAM for fast logging (Section 6.1), and the **Hub Standard** keeps the **ESP32-S3-WROOM-1-N16R8** (Section 4), deliberately retained for its native-USB host link and the benefit of one standard Hub part. This supersedes the v1.5 lock that ran all Standard modules on the S3-MINI-1; the rationale and per-module fit are in Section 6.1. The 12VHPWR Pro module runs the ESP32-P4 (Section 6.9), as does the proposed 12VHPWR Max (Section 6.11, P4 with PSRAM).
 
@@ -155,7 +187,7 @@ Standard-tier module MCUs (REVISED v3.9): the three digital-sensor Standard modu
 | 4 | Pair 2 | Blue | STREAM_P (RS-485 data, module to Hub) | Pro+ |
 | 5 | Pair 2 | White-blue | STREAM_N (RS-485 data, module to Hub) | Pro+ |
 | 6 | Pair 3 | Green | CAN1_L | All |
-| 7 | Pair 4 | White-brown | Reserved spare (no distributed reference; see Section 3.3) | All |
+| 7 | Pair 4 | White-brown | Standard/Pro: reserved spare, no-connect (no distributed reference; see Section 3.3). **Enterprise (v1.2.0, OQ-81, RESOLVED-BY-DIRECTION):** shared wired-OR hardware **SYNC/FREEZE** line — platform-wide simultaneous FREEZE trigger plus a PPS-class latch edge (≤100 ns module-to-module), and a per-module **heartbeat challenger** (hardware-timed challenge-response against the module device key). Legacy (non-ENT) modules remain NC-compatible; ENT modules enable sync only after the CAN handshake confirms an ENT Hub. See Section 13.2a and Section 13.8. | All |
 | 8 | Pair 4 | Brown | DETECT (presence + comm-class, analog single-wire sense) | All |
 
 Notes:
@@ -195,6 +227,8 @@ Pro and up can bind without the poke: a Pro module's per-port RS-485 streaming p
 
 Pin 7 candidate uses (exploration, v2.2; none adopted): the spare pin's realistic uses are narrow, because the architecture already covers the obvious ones elsewhere. The one concrete improvement is a dedicated Kelvin return for the DETECT divider: routing pin 7 as the divider's current-free low-side reference removes the IR-drop error from the module's 5VSB draw on the shared ground (on the order of 100 to 150 mV at a few meters and a few hundred milliamps), which scales with cable length (OQ-4). That conflicts with keeping pin 7 as a driven signal, so allowing both the Kelvin return on sensor ports and the deferred Max trigger (Section 6.11) on a Max port would require a per-port pin 7 at the Hub rather than one shared bus. Uses considered and set aside as redundant: 1-Wire identity and EEPROM (per-port identity is already the module MCU MAC over CAN, and per-unit calibration lives in module flash); a hardware power-state line from the 24-pin module (modules run on 5VSB and are on CAN before the main rails come up, so the co-capture FREEZE already covers the power-on transient, Section 6.10); out-of-band firmware recovery (modules have local USB, and a single line cannot sequence the ESP32 boot-mode entry); a second comm channel or a redundant power pin (CAN covers the first, and moving bulk power to the JST-XH feed removed any RJ-45 current pressure for the second). Pin 7 stays reserved pending a decision.
 
+Resolved for the enterprise tier (v1.2.0, OQ-81, RESOLVED-BY-DIRECTION): pin 7 is allocated as the ENT hardware SYNC/FREEZE line plus per-module heartbeat challenger (see the pin-7 row in Section 2.2 and Sections 13.2a and 13.8); this decides against pin 7's other suitors, the 1-Wire identity return (OQ-76 — a device-key challenge-response is adopted instead) and the DETECT Kelvin return (OQ-60 note). Consumer and Pro tiers are unaffected: pin 7 there remains reserved, no-connect, pending a decision.
+
 ### 2.4 Cross-connect and PoE protection (RESOLVED for consumer, v1.9; Enterprise/MC deferred to OQ-7)
 
 Decision (v1.9): consumer tiers (Standard and Pro) do not carry per-pin PoE-grade over-voltage protection on the RJ-45 module interface. This ratifies the board state and closes the consumer half of OQ-14.
@@ -204,6 +238,31 @@ Rationale: the RJ-45 here is an internal module-to-Hub interconnect inside the P
 One carve-out is decided on its own, separate from the PoE clamp: the DETECT pin (pin 8) feeds the ESP32 ADC directly and has no inherent protection, and the platform hot-plugs modules, so insertion ESD lands on a bare analog input. A single low-capacitance ESD diode on pin 8 is locked into every Hub and module (decision, v2.0). It is cheap, does not touch the 5VSB headroom question, and stands even though the PoE-grade network is dropped. The CAN pins lean on the transceiver; the analog DETECT pin is the one exposed node with nothing behind it.
 
 Enterprise and Mission Critical (deferred to OQ-7): the module-to-Hub RJ-45s on those tiers are equally internal and inherit the consumer answer. What can face building infrastructure where PoE sources live is an external uplink, currently specced as the optional 1000BASE-T1 host link, which is a different connector with its own magnetics and protection story. So the over-voltage question for those tiers attaches to the uplink port, not the module interface, and is decided when Enterprise and Mission Critical are specified in full (OQ-7).
+
+**Enterprise uplink protection (v1.2.0, closes the OQ-14 enterprise half).** The
+protection lands on the ENT-NET 1000BASE-T uplink, not the module RJ-45s (which inherit
+the consumer answer unchanged): magnetics galvanic isolation ≥2× the IEEE 802.3 1500 Vrms
+floor as the primary defense (survives compliant PSEs by absent-PD-signature and passive
+PoE injection by construction; Bob-Smith blocking caps rated ≥200 V), a low-capacitance
+TVS array on the PHY side of the magnetics (IEC 61000-4-2 ±8 kV contact class), and a
+3-electrode GDT on the shield-to-chassis path sized to IEC 61000-4-5 Level 2 —
+office/rack grade by declared target fleet, NOT building-entrance grade (outdoor-plant
+deployments use an external in-line SPD accessory, documented, never a board respin).
+The uplink jack is visually distinct from module ports (bezel color plus silkscreen plus
+board-edge grouping); module ports stay locking-boot per Section 2.1.
+
+**Module-port mis-plug fail-safe (ENT re-scope of this section, 4th ruling
+2026-07-02).** The consumer ratification (no PoE-grade protection on module ports —
+internal interface, deliberate misuse) STANDS for Standard/Pro. On the ENT line the
+presence of a real 802.3 jack on the same faceplate reclassifies the mis-plug as
+FORESEEABLE misuse: every ENT hub module port and every ENT module jack SHALL survive a
+live network cable and worst-case 57 V PoE (both modes, both polarities, passive
+injectors included) with no hardware damage, self-recovering, detected plus alarmed plus
+logged (REQ-HUB-COMMON-110 / REQ-MOD-COMMON-053; protection network per survey 11). The
+consumer boards are unchanged; this is an ENT build delta, not a platform
+re-ratification.
+
+**Standalone-mode ESD/protection posture (consumer, v1.3.0, ruling H3).** The beta Standard modules gain a standalone mode (usable independently of a Hub over their own USB-C, Section 6.14). Because a module may then be handled and connected outside the Hub-mediated enclosure, the protection review widens from "the DETECT pin is the one exposed analog node" to "ESD on every externally touchable line under the no-hub assumption," and the module's USB data pair gains the same USBLC6-2SC6 plus VBUS clamp the Hub already carries. This is a consumer BETA build delta on the modules; it does not change the RJ-45 module-interface ratification above. See Section 6.14.
 
 ### 2.5 Connector current rating and power budget (corrected; bulk power resolved v1.3)
 
@@ -225,6 +284,7 @@ The Hub-side bulk-power connector, its keying, and where it lands on the Hub fro
 - Standard tier: quality Cat5e patch cable, FTP recommended near noisy GPUs.
 - Pro and above with streaming active: Cat6 STP recommended for the RS-485 pair.
 - CEC ships colored boots (bright orange) and labeled cables to differentiate from network cables.
+- Patch-cable class (G2, owner sourcing 2026-07-03): the shipped in-case runs are a slim, highly flexible, braided RJ-45 patch-cable class; the specific part is owner-sourced, and the length catalog rides OQ-4.
 - Cable length SKUs and the any-length versus fixed-length policy are pending (see OQ-4), because they interact with the precision-reference decision (OQ-3).
 
 ### 2.7 Hub bulk power input (LOCKED; resolves OQ-1)
@@ -240,17 +300,31 @@ Hub Standard front-end architecture (PCB-repo design, folded in v3.2): the 5VSB-
 
 24-pin module dual-feed (LOCKED, v3.3): the 24-pin ATX module is unique in being both the bulk 5VSB **source** (over the dedicated JST feed above) and a normal module on a Hub RJ-45 port. Its **RJ-45 VCC pin (J1 pin 1) is left no-connect, not tied to the module's +5VSB**, so all bulk current flows over the JST as OQ-1 intends. The module is self-powered from its own 5VSB tap and never needs the Hub's distributed VCC; RJ-45 GND/CAN/DETECT stay connected (the parallel GND return is beneficial). This is required, not cosmetic: the JST lands at the Hub power-mux **input** and the RJ-45 VCC at its **output**, so the mux series resistance (~56 mΩ, TPS2121) sits in the JST leg only. Commoned on the module, the two VCC pins parallel each other, and a short RJ-45 patch makes the RJ-45 the **lower-resistance** path, it would then carry the majority of the bulk current on the 1.5 A-rated RJ-45 contact (over its rating near full load) and bypass the mux's PSU/USB OR-ing (back-feeding the +5VSB rail, e.g. leaking USB-only bench power into an unpowered 24-pin). Other modules are unaffected, their RJ-45 VCC is their only 5VSB source and stays connected. The ordered rev2 24-pin carries the parallel path; the board docs hold the prototype-run mitigation and the Hub-side workaround options, and the no-connect fix lands on rev3.
 
-### 2.8 Module power-path connectors (PSU side): interposer cabling (LOCKED, repo v1.6; folded in v3.2)
+**Beta power-in consolidation (v1.3.0, Hub Standard J_PWR).** The beta Hub consolidates the two separate 2-pin feeds — the dedicated 5VSB input of this section and the Section 2.9 MAIN_5V source tap — into ONE 3-pin JST **S3B-XH-A** (3 A/pin; LCSC C157928), pin order 1 = MAIN_5V, 2 = GND (center), 3 = 5VSB. Center-GND ordering makes any misinsertion benign and the XH shroud blocks reversal; net names are unchanged (MAIN_5V_RAW / GND / 5VSB_RAW). This is exactly the production single-feed consolidation this section and Section 2.9 flagged as a follow-up. The consumer alpha boards keep the two 2-pin feeds (kept separate on alpha so the existing 5VSB cable and Hub bench-test still work); production/kit builds move to J_PWR.
+
+### 2.8 Module power-path connectors (PSU side): interposer cabling (LOCKED, repo v1.6; folded in v3.2; output side superseded and EPS/PCIe locked, v1.4.0)
 
 Separate from the universal RJ-45 module-to-Hub interface (Sections 2.1 to 2.7), each sensing module is a power-path interposer: PSU rail current enters the module, passes through its shunts, and continues to the load. The PSU-side connectors are module-specific (not universal) and are locked per module as follows.
 
-**24-pin ATX module, two male headers; female-to-female output cable required.** Gender convention for this spec: the board-mounted headers are **male** (pin-side), and a cable end that plugs onto a header is **female** (socket/receptacle), so the PSU's own 24-pin cable is the female inserting connector. The module carries two Molex Mini-Fit Jr (5569 family) 24-circuit **male headers**: one on the PSU side (input, J3) and one on the motherboard side (output, J4). No board-mount **female** 24-pin ATX receptacle exists as a standard part, so the module cannot present a female socket on either side; both connectors are therefore male, the same gender as the motherboard's own 24-pin header.
-- Input: the PSU's existing 24-pin cable (a female receptacle housing) plugs directly onto the module input header. No new cable is needed here.
-- Output: the motherboard's 24-pin connector is also a male header, so the module output (male) and the motherboard (male) cannot be joined by an ordinary PSU-style cable, which is female on only one end. The run from the module output to the motherboard requires a dedicated **female-to-female 24-pin ATX bridging cable**, a female receptacle on each end, since each end plugs onto a male header (the module output and the motherboard). No standard off-the-shelf product carries a female on both ends, so CEC must supply this cable as a platform SKU.
+**24-pin ATX module — input unchanged; output is the connector-daughterboard architecture (LOCKED, v1.4.0; supersedes the v1.6 two-male-header output form and its female-to-female bridging cable, owner ruling `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04).** Gender convention for the input side is unchanged: the board-mounted header is **male** (pin-side), and a cable end that plugs onto it is **female** (socket/receptacle).
+- Input (J3, PSU side): unchanged. A Molex Mini-Fit Jr (5569 family) 24-circuit **male header**; the PSU's existing cable (a female receptacle housing) plugs directly onto it. No new cable is needed here.
+- Output (motherboard side): the module no longer carries a second board-mount male header (J4), and the CEC-supplied female-to-female 24-pin ATX bridging cable this section previously mandated is retired (see the kit-cable paragraph below). Output rails instead cross an **inter-board connector** to a **passive daughterboard** — no active or passive components beyond the connector body and its fan-out copper, sized to the Section 6.4 current class, thick copper by design — stood off the main board and mechanically secured, with strain relief provided by the chassis (stand-off geometry, keying against mis-seat, and the strain-relief pull-force/flex-cycle numbers are OQ-87). The daughterboard is populated EITHER with a PCB-mount vertical female header at the through-hole field OR a soldered pigtail, and may itself be sold as a daughterboard-plus-extension-cable assembly, soldered at the through-holes with its own strain relief (a productized accessory; SKU definition is OQ-89).
 
-**12VHPWR modules (Standard and Pro), connectors soldered to the board.** The 12VHPWR module does not use detachable pass-through headers and does not need a bridging cable. Its 12VHPWR (12V-2x6) connector(s) are soldered directly to the module PCB (board-mounted). On the platform's highest-current, melt-prone connector this removes a mated-contact pair from the power path and keeps the connection deterministic. Sideband pass-through (added v3.8): the inline 12VHPWR module passes the four 12V-2x6 sideband pins, SENSE0, SENSE1, CARD_CBL_PRES#, and CARD_PWR_STABLE, from the PSU side to the GPU side unmodified, so the GPU reads its correct power budget through the interposer. This is implemented on the PCB models and is recorded here so it survives a respin or a hand-off. Soldered-joint strain relief (design note, v3.8): the soldered PSU-side high-current joints carry roughly 8 to 10 A per conductor balanced and will fatigue the pad under cable flex over thermal cycles, so clamp or pot the cable entry. The joint is permanent, with no field swap, and is an assembly step for any standalone SKU.
+**Inter-board connector class (LOCKED, v1.4.0): the all-Keystone/TE tool-less blade configuration is the platform default,** applied **per cable** (per-cable daughterboard shape, not one wide daughterboard spanning every cable — a shared connector housing derates further under mutual heating as more contacts populate it, breaks fault isolation across cables, and would prevent an independent per-cable sellable-assembly swap). The main board carries Keystone universal-entry 30 A blade clips (SMT 3586, LCSC C238113, or THT 3557-2, LCSC C352820); the daughterboard carries the mating TE FASTON .250″ PCB tabs (63849-1, LCSC C86469) — the sellable daughterboard-plus-extension assembly therefore carries the four-cent tab side. Ratified joint counts, sized to the margin policy (continuous rating ≥125% of sustained worst case at ≤30°C rise, matching this document's own electrothermal-gate convention): **24-pin 9** (12V ×1, 5V ×2, 3.3V ×1, 5VSB ×1, GND ×4), **EPS 12** (3 contacts per polarity per cable, ×2 cables), **PCIe-2 8** (2 per polarity per cable, ×2 cables), **PCIe-3 12** (2 per polarity per cable, ×3 cables). Design-basis currents (owner, 2026-07-04): EPS 8-pin ~13 A/pin continuous sustained (brief transients run higher) → ~52 A/cable sustained worst case; PCIe 8-pin the same ~13 A/pin theoretical, only 3×12V pins → ~39 A/cable; 24-pin anchors on the 6 A/circuit ATX bar (cross-checked, not superseding, the OQ-11 shunt figures). Design rule (owner): design to worst case with margin, but keep transients as transients and sustained as sustained — never fold a transient peak into the continuous rating; all figures are AWG-dependent, and CEC's own extensions use 16 AWG.
 
-Hot-plug scope (added v3.8): hot-plug applies to the RJ-45 telemetry interface (CAN and 5VSB, with the DETECT pin ESD-protected per Section 2.4), which the platform hot-plugs and re-enumerates (Section 2.3). The monitored inline power path of this section is not hot-pluggable under load: a module is inserted into the rail with the PSU off, like any inline power component.
+Mating force on this joint is deliberately high (owner ruling, 2026-07-04): high insertion force is a **feature**, not a defect — the joint is not meant for constant swapping, and a mis-seat or pull-out is absolutely unwanted. The mating-force concern raised against the blade configuration is accordingly **dismissed as a qualification gate**, not scheduled for bench measurement.
+
+Ratification carries exactly one physical gate before first fab: a sample fit check across the mating clip and tab parts ("as long as the tabs and whatnot fit together," owner, 2026-07-04) — a first-article bench item, not an open spec question. Recommended (not gating) engineering follow-up, procurement notes, and the committed fallback connectors (stacked Keystone 8197 screw configuration; Würth REDCUBE 85 A as a zero-qualification proto rung; the 24-pin HPCE vertical/mezzanine premium alternative) are OQ-86.
+
+**EPS 8-pin and PCIe 8-pin modules — output side now explicitly LOCKED (v1.4.0; closes a pre-existing documentation gap).** This section previously locked an output-side connector form only for the 24-pin and 12VHPWR; it did not lock one for EPS or PCIe, even though the as-built boards generalize the 24-pin's paired-male-header pattern per cable. EPS and PCIe now carry the identical rule, applied **per cable**:
+- Input: unchanged. A board-mount male Mini-Fit Jr header per cable; the PSU's cable plugs directly onto it.
+- Output: superseded identically to the 24-pin — one inter-board connector and one passive daughterboard **per cable**, each on the all-Keystone/TE connector class and ratified joint counts above, sized to that cable's own current class (Section 6.4).
+
+**12VHPWR modules (Standard and Pro), connectors soldered to the board — UNCHANGED, explicitly out of scope for the 2026-07-04 ruling.** The 12VHPWR module does not use detachable pass-through headers, a bridging cable, or a daughterboard. Its 12VHPWR (12V-2x6) connector(s) remain soldered directly to the module PCB (board-mounted); on the platform's highest-current, melt-prone connector this removes a mated-contact pair from the power path and keeps the connection deterministic, a rationale the owner re-confirmed 2026-07-03 ("direct soldered pigtail CONFIRMED... no detachable junction in that power path, period"). Sideband pass-through (added v3.8): the inline 12VHPWR module passes the four 12V-2x6 sideband pins, SENSE0, SENSE1, CARD_CBL_PRES#, and CARD_PWR_STABLE, from the PSU side to the GPU side unmodified, so the GPU reads its correct power budget through the interposer. This is implemented on the PCB models and is recorded here so it survives a respin or a hand-off. Soldered-joint strain relief (design note, v3.8): the soldered PSU-side high-current joints carry roughly 8 to 10 A per conductor balanced and will fatigue the pad under cable flex over thermal cycles, so clamp or pot the cable entry. The joint is permanent, with no field swap, and is an assembly step for any standalone SKU.
+
+Hot-plug scope (added v3.8): hot-plug applies to the RJ-45 telemetry interface (CAN and 5VSB, with the DETECT pin ESD-protected per Section 2.4), which the platform hot-plugs and re-enumerates (Section 2.3). The monitored inline power path of this section, daughterboard included, is not hot-pluggable under load: a module is inserted into the rail with the PSU off, like any inline power component.
+
+**Kit-cable direction — SUPERSEDED (v1.4.0).** The D-1 custom-female-pigtail direction recorded in v1.3.0 (a female pigtail that would "effectively create a board-mount female header" — the missing part the old section's whole premise turned on) is realized here as the daughterboard's soldered-pigtail option, rather than as a retrofit onto the retired male-J4 output form it was originally weighed against. The gender-logic finding on the record stands as the reason a female-out interface was worth pursuing at all: a female-out module mates with the entire standard male-header/female-cable extension ecosystem exactly like a PSU cable, while a male-out module mates with nothing standard. The LOCKED-today female-to-female 24-pin bridging-cable SKU is retired as a direct consequence of the output form above; its sellable-assembly replacement is defined in OQ-89. The kit-cable panel connectors (about $0.20 each, unaffected by this revision) and the original v1.3.0 note are preserved for provenance in Section 11.
 
 ### 2.9 Subsystem power management (PROPOSED; architecture adopted, parts and module-rail scope open)
 
@@ -334,6 +408,18 @@ on power_loss_detected():                    # main 5V AND 5VSB both sagging
 
 Open items: the source-OR part and back-feed isolation verification are OQ-55, the module-rail scope is OQ-53, the external power-in is OQ-54, and the persist-on-fault behavior and hold-up sizing are OQ-56.
 
+**Beta realization (v1.3.0, Hub Standard; consumer rulings H1/H2/G3, budget of record §L).** The as-built beta Hub makes the persist-on-fault architecture concrete and turns it into a shipped consumer feature (the last ~2 s pre-roll survives PC death — the highest-leverage consumer story on the QoL list, F4).
+- **Sources on one connector.** The three subsystem 5V sources arrive on the single 3-pin J_PWR of Section 2.7 (MAIN_5V / GND-center / 5VSB).
+- **Hardware 5V-drop detection (H1/G3).** A **TLV7011** comparator (already a platform part, ~$0.10) watches the existing 47k/10k MAIN_5V sense divider against a new +3V3 reference divider, tripping at ~4.3 V rail (COMP_THRESH = 3.3 × 10/(34+10) = 0.75 V against MAIN_5V_SENSE = V_rail × 0.1754), with 1 MΩ hysteresis, output to an RTC-wake-capable ESP32 GPIO (IO14) as the persist interrupt. This replaces the earlier ADC-poll as the primary trigger: the comparator watches MAIN_5V (the first rail to die) while the 4700 µF hold-up sits on the isolated +5V_HOLD node fed from 5VSB (the last rail to die), and the ~1 ms PWR_OK lead adds margin. The as-built sense divider puts 5V-in at ~0.88 V — ADC territory, not a GPIO logic threshold — which is exactly why the comparator, not a bare GPIO interrupt, is required.
+- **Hold-up ladder, DNP-provisioned for no-respin escalation (H2).** Rung 1 (populated): the existing 4700 µF LDO-fed path (D1 Schottky-isolated so every mJ goes to the MCU) plus a pre-erased persist region and a comparator-edge load-shed. Rung 2 (bench-gated option, not yet provisioned on the beta hub — recorded so the ladder is complete): a TPS63020-class buck-boost replacing the hold-up path's LDO, draining the same can to ~2.5 V at ~90% efficiency for ≈2× usable time at ~$1; the beta splice provisioned rung 3 directly, so a rung-2 population would be a small follow-on splice if the OQ-56 bench lands between the rungs. Rung 3 (DNP position-only): a **TPS61040** 28 V boost trickle-charges the existing 16 V 4700 µF can to ~11.5 V (FB divider set to ~72% of the can rating) for ≈5× usable energy by the V² law, feeding a wide-Vin **TPS563201** buck — the SSD power-loss-protection architecture with zero added bulk. **Rung-3 caveat:** a populated rung 3 MUST re-strap the LP5907 EN pin off the raw (then ~11.5 V) +5V_HOLD node, whose 6.5 V EN abs-max it would otherwise exceed. The supercap alternative was rejected by the owner (derating/inrush/aging).
+- **Budget of record and firmware contract (§L, numbers for OQ-56).** Rung-1 private-cap window ≈ 25 ms full-tilt (150 mA) / 36 ms nominal / 65–75 ms after the load-shed ISR (70–85 mA); the PSU's own 5VSB tail typically adds tens to hundreds of ms on top. The **firmware contract this implies (binding for the persist design):** (1) shed load on ISR entry; (2) keep the persist region pre-erased ahead of the ring so the gasp is program-only; (3) the gasp writes ONLY the RAM tail plus index (a few KB — a bulk flush never fits rung 1), so the ring lives mostly on flash via continuous background commits. OQ-56 bench measures ISR-to-first-write latency, real WROOM flash program throughput, and a representative PSU's 5VSB decay curve, and decides whether the DNP rungs populate. Consumer alpha and Pro hubs are unchanged.
+
+**Enterprise graduation (v1.2.0).** On the enterprise line this section is binding, not
+PROPOSED: MAIN_5V is the primary source (PolarFire-class load exceeds the 5VSB budget —
+the FULL/STANDBY posture split of Section 13.4), each raw source carries an eFuse-class
+monitor/protect front-end (per-source PG/FLT, commanded self-test, reverse blocking), and
+the rear-bracket external feed is mandatory. Consumer/Pro hubs are unchanged.
+
 ---
 
 ## 3. Communication architecture
@@ -350,7 +436,13 @@ Open items: the source-OR part and back-feed isolation verification are OQ-55, t
 - Optional bus-wide 1 Mbps (added v3.4; 500 kbps stays the default and the locked floor, and CAN-FD stays deferred). The whole bus MAY run classical CAN at 1 Mbps, never per-module, and never a per-tier mix. CAN is one shared medium: a single TJA1051T/3 sits on one CAN_H/CAN_L net across all ports with one split termination, so every node runs one bitrate, and a node clocked at the wrong rate samples every bit in the wrong place and floods error frames, corrupting the bus exactly as a classical/FD mix would. The gain is bandwidth where CAN is the only pipe: 1 Mbps roughly halves the Section 6.10 frozen-window readout time and doubles the Section 7 ARGB-over-Hub headroom, so Standard, the only CAN-only tier, with no RS-485 fallback, benefits most, though the speed-up is shared across the bus, not Standard-private. It is firmware-only: both MCUs' TWAI and the TJA1051T/3 already support 1 Mbps, and the Hub CAN front-end needs no hardware change (the 120 ohm split termination is unchanged and nothing filters the lines). CAVEAT from the v3.5 transceiver lock: the TJA1051T/3 is a plain, non-SIC transceiver, so the active ringing suppression a SIC part (the former TJA1462A, run classical) would have given in the star/stub topology is gone. The optional 1 Mbps therefore rests ENTIRELY on the Section 3.1 bench SI test passing on the passive topology with no transceiver-side help; the locked 500 kbps floor is unaffected. If 1 Mbps is ever needed and proves marginal, revisit a SIC transceiver run classical for that option specifically.
 - 1 Mbps negotiation is firmware, with no hardware and no namespace: Hub-led auto-baud with error-counter fallback. The Hub brings the bus up at the configured rate, modules come up listen-only and lock to it, and if the TWAI error counters climb on a marginal install the Hub drops the whole bus back to 500 kbps. A DETECT-code advertisement of per-module bitrate capability was considered and DECLINED: it would cost a module-side resistor change and grow the locked Section 2.3 DETECT table, and it buys nothing, since every CEC module is already 1 Mbps-capable and the real variable is per-install cable and stub signal integrity, which DETECT cannot sense.
 - Bench item: the star topology with up to 8 stubs must be signal-integrity verified, the risk is star termination plus stub length. Run it at 500 kbps and at 1 Mbps side by side, eye and ringing measured at the furthest module on the longest cable SKU and worst stub count, now with the plain TJA1051T/3 (no SIC ringing suppression), so this passive-topology result is the sole gate on the optional 1 Mbps rate above.
+- Firmware-update architecture (F7, v1.3.0): the Hub's host USB is the whole system's single management point of contact, and the Hub updates every module's firmware over CAN; each module's own USB-C is a service/recovery fallback only (and the standalone-mode data port, Section 6.14). Committing this single-point-update architecture before module firmware ossifies keeps one update path for the fleet.
 - Design-review note (v3.8): the single-point 120 ohm termination was challenged as undersized and re-evaluated at realistic intra-case lengths (0.3 to 1 m). With roughly 300 to 350 pF of bus capacitance the recessive recovery is about 40 ns against the 2 us bit at 500k (about 1 us at 1 Mbps), and the bus is electrically short (a few meters against a roughly 400 m bit length at 500k), so it behaves as a lumped circuit where single-point termination is adequate and a 1 m stub's reflections settle in about 10 ns. The conclusion holds at 500k and at 1 Mbps; the bench item above stays the gate on the optional 1 Mbps rate. No change to the termination.
+
+**Enterprise redundancy honesty (v1.2.0).** See Section 13.5: "redundant CAN" at any tier
+means Hub-side fail-detected monitoring of the one shared bus, never a second CAN medium
+— the locked single-pair module link forecloses dual-bus, and this document does not
+imply otherwise.
 
 ### 3.2 RS-485: data streaming only (LOCKED; topology pending)
 
@@ -370,7 +462,7 @@ The platform goal is roughly +/- 0.15% rail-voltage accuracy via a 3.000V REF303
 
 Each Pro module carries its own REF3033 (about $1 to $2) feeding ratiometric correction at the LTC2358-18. Distribution over the cable was rejected for three reasons: calibrating the DC cable drop ties Pro modules to characterized lengths and fights the RJ-45 any-length appeal; RJ-45 contact resistance drifts with insertion cycles and vibration; and the reference would run single-ended on pair 4 next to the RS-485 streaming pair, so streaming edges couple onto it as an AC error that cannot be calibrated out, only filtered.
 
-The sensor line settles this further. The 24-pin senses with the INA228 and the EPS and PCIe with the INA238 (see Section 6), each of which carries its own internal reference and has no external-reference input, so it can neither use nor needs a distributed reference, and it is already tight (around +/- 0.1% typ). The only Standard module on a raw ADC is the 12VHPWR Standard (INA240 into the ESP32-S3 ADC); if it needs tighter accuracy, a local reference on that one board beats distribution (see OQ-8).
+The sensor line settles this further. The 24-pin, EPS, and PCIe all sense with the INA238 (see Section 6; the 24-pin reverted from the INA228 under v1.5.0), which carries its own internal reference and has no external-reference input, so it can neither use nor needs a distributed reference, and it is already tight (around +/- 0.1% typ). The only Standard module on a raw ADC is the 12VHPWR Standard (INA240 into the ESP32-S3 ADC); if it needs tighter accuracy, a local reference on that one board beats distribution (see OQ-8).
 
 ---
 
@@ -387,10 +479,10 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Termination | Fixed 120 ohm split at Hub |
 | Connector | 4x RJ-45 8P8C, locking boot (was Mini-Fit Jr 12-circuit) |
 | Cable | Cat5e/6 (was custom Mini-Fit Jr); lengths per OQ-4 |
-| MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; PCB-antenna keepout honored for future Wi-Fi). The MINI-1 form factor has no 16 MB SKU, so the aggregation Hub uses the WROOM. Retained on the S3 deliberately (REVISED v3.9): the Hub is the host-facing USB aggregator (native USB device, Section 1) and keeping one standard Hub part is the larger win, so it stays on the S3 even though the three digital-sensor modules moved to the ESP32-C6-MINI-1 (Section 6.1). The 12VHPWR Standard module also stays on the S3-MINI-1. |
+| MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM). The MINI-1 form factor has no 16 MB SKU, so the aggregation Hub uses the WROOM. **Antenna keepout DROPPED on the beta layout (D-6a, owner ruling 2026-07-03):** no Wi-Fi at this tier, ever — the product ships as a subassembly / unintentional radiator, avoiding the ~$100k intentional-radiator FCC certification for a capability it does not need, and the alpha layout's ~450 mm² keepout is reclaimed for GND pour and parts. This overturns the earlier "PCB-antenna keepout honored for future Wi-Fi" posture (same logic as the modules' earlier keepout drops and the ENT-AIR radio-free ruling). Retained on the S3 deliberately (REVISED v3.9): the Hub is the host-facing USB aggregator (native USB device, Section 1) and keeping one standard Hub part is the larger win, so it stays on the S3 even though the three digital-sensor modules moved to the ESP32-C6-MINI-1 (Section 6.1). The 12VHPWR Standard module also stays on the S3-MINI-1. |
 | CAN transceiver | TJA1051T/3 |
-| Regulator | LP5907 LDO (250 mA maximum per the TI datasheet). Future-Wi-Fi caveat (1.0.1): ESP32-S3 radio TX bursts peak near 350 mA (confirm against the WROOM-1 datasheet), beyond this part, so enabling Wi-Fi requires a regulator change; the antenna keepout preserves the RF option only. |
-| Hold-up | 4700 uF / 16 V aluminum electrolytic on the isolated +5V_HOLD node (Panasonic EEVFK1C472M); corrected from "aluminum polymer" (unobtainable at 4700 uF). See the Hub front-end architecture in Section 2.7. |
+| Regulator | LP5907 LDO (250 mA maximum per the TI datasheet). No-radio consequence (D-6a, v1.3.0): with Wi-Fi dropped at this tier (see the MCU row), the 250 mA part has ample margin for the non-radio load and needs no change; the earlier future-Wi-Fi caveat (radio TX bursts near 350 mA, which would have forced a regulator change) is retired along with the antenna option. |
+| Hold-up | 4700 uF / 16 V aluminum electrolytic on the isolated +5V_HOLD node (**Samxon/Ymin VKMI2101C472MV, LCSC C487318** — the part shipping in the schematic/BOM/PCB; register A1 corrects the documentation-only "Panasonic EEVFK1C472M," which was out of stock, to match the boards — a doc-truth fix, not a design change). Corrected earlier from "aluminum polymer" (unobtainable at 4700 uF). See the Hub front-end architecture in Section 2.7; the beta hold-up ladder adds DNP boost/buck rungs (Section 2.9). |
 | Inrush limiting | TPS2121 mux soft-start (C_SS ≈ 2.2 uF), supersedes the v1.1 discrete 1 ohm 1 W series resistor (not populated). See Section 2.7. |
 | Reverse polarity / isolation | TPS2121 source-side reverse blocking + D1 reverse-isolation Schottky to +5V_HOLD. D1 built as SB120 (1 A/20 V); SS14 (40 V) is a drop-in higher-margin alternative. |
 | Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
@@ -402,10 +494,15 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Mounting | 4x M3 corner holes, chassis-grounded (PC-standard fastener; MountingHole_3.2mm_M3_Pad_Via) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | Chassis | Plastic prototype; aluminum 6063 anodized production |
-| Bulk power input | Dedicated 2-pin JST-XH 5VSB feed from the 24-pin module (OQ-1 resolved); 5VSB distributed to downstream modules over their RJ-45 VCC pins |
+| Bulk power input | Alpha: dedicated 2-pin JST-XH 5VSB feed from the 24-pin module (OQ-1 resolved), 5VSB distributed to downstream modules over their RJ-45 VCC pins. **Beta: consolidated to a single 3-pin JST S3B-XH-A (LCSC C157928) — MAIN_5V / GND-center / 5VSB — folding in the Section 2.9 MAIN_5V tap (Section 2.7).** |
 | NanoKVM aux link | Reserved keyed **5-pin right-angle JST-PH** header (S5B-PH-K-S, C157923; form LOCKED v3.7, right-angle v3.10, OQ-51) carrying the full-duplex 3.3V UART (TX/RX), the shared 5V power feed, ground, and the NanoKVM's 3.3V reference/presence line, the full pin set the NanoKVM exposes (UART1, GND, 3V3, 5V/GND). The 3V3 line is sensed as **untrusted**, presence plus ratiometric health against the Hub's own +3V3, never used as a reference. **No trigger GPIO** (the NanoKVM has no drivable interrupt input; triggers ride the UART in-band). Local visual-and-electrical fusion, out-of-band egress, and the subsystem power path of Section 2.9; trust per OQ-52, Appendix C.7 |
-| Regulatory | Subassembly approach, no FCC cert for v1 |
+| Regulatory | Subassembly approach, no FCC cert for v1 (unintentional-radiator posture; consumer FCC 15B verification and inline-power-device product-safety documentation are OQ-84) |
 | Production BOM | ~$36 (100-qty) |
+
+Host-link and enclosure notes (v1.3.0):
+- **Host USB to the motherboard internal header (G1, owner 2026-07-03):** the Hub's host USB — the whole system's single management point of contact — connects to the motherboard's INTERNAL USB 2.0 header, not a rear port. The kit carries an internal-header-to-USB-C cable (a commodity part, front-panel-adapter class), so no cable exits the case.
+- **Enclosed product (J1 housing directive, 2026-07-03):** the Standard tier ships ENCLOSED — 3D-printed housings for initial runs, with built-in strain relief and RGB transparency; the Hub's SK6812 ring surrounds the CEC logo and shines through directly. Service cutouts expose USB-C and BOOT/RESET (the Section 6.14 standalone/service ports); M3 mounts become housing bosses; light pipes/windows carry the shine-through. See Section 6.6.
+- **Persist-on-fault ships as a feature (F4):** the beta comparator + hold-up ladder (Section 2.9) makes the last ~2 s pre-roll survive PC death and is surfaced to the user.
 
 ---
 
@@ -430,11 +527,13 @@ Everything else (regulator, hold-up, supervisor, LEDs, PCB approach, identity) f
 
 This section covers the module-internal sensing domain: how each module measures the motherboard power flowing through its shunts on the way to the board, and how that high current is handled on the PCB. These currents, tens of amps of monitored rail current, are a separate domain from the RJ-45 trunk current in Section 2.5. Section 2.5 is the 5VSB that powers the module's own electronics; the currents here are the monitored load, which flows through external shunts rather than through the sense silicon (which stays cool).
 
+**Board-sharing doctrine (Section-I ruling, ratified owner 2026-07-03).** Module boards are SEPARATE boards wherever the acquisition core diverges: a different MCU or ADC/streaming front end cannot be DNP'd across incompatible lands, so a "shared" board would carry a dead second control-core region on every unit built the other way — a permanent per-unit area cost (the classic layout-reuse saving is weak here, because layout is pipeline-automated, while the dead area is forever). Population-sharing (one board, stuff/no-stuff variants) is legitimate ONLY for same-core deltas — an RS-485 transceiver and pair-2, a DETECT-code resistor swap, the Section 6.13 fast-path front end, the Section 6.14 standalone suite — all already DNP-friendly; the door stays open for EPS Pro / PCIe Pro if they firm up as "Standard plus a fast path on the same MCU." The **Max is always its own board**: its FPGA acquisition and high-MHz di/dt front end are a different physics package, with nothing shareable below the connector. This doctrine also drives the D-2 PCIe SKU split (Section 6.2).
+
 ### 6.1 Production current-sensing summary
 
 | Module | Tier | Current sensing | Voltage sensing | Streaming | Reference |
 |---|---|---|---|---|---|
-| 24-pin ATX | Standard | 4x INA228 (one per rail) | INA228 bus register (20-bit, 195 µV LSB) | none | INA228 internal |
+| 24-pin ATX | Standard | 4x INA238 (one per rail) | INA238 bus register (16-bit, 3.125 mV LSB) | none | INA238 internal |
 | EPS 8-pin | Standard | INA238, one per cable (1 to 2) | INA238 bus register | none | INA238 internal |
 | PCIe 8-pin | Standard | INA238, one per position (up to 3) | INA238 bus register | none | INA238 internal |
 | 12VHPWR Standard | Standard | INA240 per pin into ESP32-S3 ADC; + 2x NTC (connector temp) | 47k/10k divider into ESP32-S3 ADC | none | none (~+/- 1%, OQ-8 resolved) |
@@ -444,19 +543,21 @@ This section covers the module-internal sensing domain: how each module measures
 | EPS Max (PROPOSED, §6.13) | Max | INA238 + INA240 per cable, plus per-cable HF/spectral (FPGA, OQ-59) | INA238 bus register, per cable | 100BASE-T1 / RS-485 (OQ-20) | local REF3033 |
 | PCIe Max (PROPOSED, §6.13) | Max | INA238 + INA240 per cable, plus per-cable HF/spectral (FPGA, OQ-59) | INA238 bus register, per cable | 100BASE-T1 / RS-485 (OQ-20) | local REF3033 |
 
-The 24-pin uses the INA228 on all four rails (12V, 5V, 3.3V, 5VSB): 20-bit, 195 µV bus-voltage LSB, with hardware energy and charge accumulators. EPS and PCIe use the INA238: 16-bit, 3.125 mV bus-voltage LSB, no accumulators. Both share the same shunt scheme and the same 50 us minimum conversion (~20 kHz per-sensor ceiling), which clears the 10 kHz burst target.
+The 24-pin, EPS, and PCIe all use the INA238 on their rails/cables: 16-bit, 3.125 mV bus-voltage LSB, no hardware energy or charge accumulators. All three share the same shunt scheme and the same 50 us minimum conversion (~20 kHz per-sensor ceiling), which clears the 10 kHz burst target.
 
-The split is by limiting error source. The 24-pin's deliverable is fine voltage, which is ADC-limited, so it gets the INA228. EPS and PCIe deliver per-cable current totals, which are shunt-limited, so the INA238 is right-sized and its lower resolution and gain accuracy sit below the shunt floor anyway (Section 6.5). INA228 is used on all four 24-pin rails rather than only the 12V droop rail for two reasons: voltage resolution matters more on the 24-pin than anywhere else in the system, and droop on the 5V, 3.3V, and 5VSB rails is not yet characterized, so keeping 195 µV resolution on every 24-pin rail lets us detect and read that droop if it exists rather than designing it out. The accumulators come along on every 24-pin rail as a result, including complete 5VSB standby energy (energy scope is OQ-13).
+**Reversion provenance (v1.5.0, owner ruling 2026-07-05).** The v1.4 pre-release line moved the 24-pin from the INA238 to the INA228 (20-bit, 195 µV bus-voltage LSB, hardware energy/charge accumulators on every rail) for a fine bus-voltage-resolution axis: the 24-pin's deliverable is precise voltage, which is ADC-limited, whereas EPS and PCIe deliver per-cable current totals, which are shunt-limited, so the INA238's lower resolution and gain accuracy already sit below the shunt floor for them (Section 6.5). The INA228 ran on all four 24-pin rails, not only the 12V droop rail, because droop on 5V, 3.3V, and 5VSB was not yet characterized, and 195 µV resolution on every rail let it be detected and read if present rather than designed out; the energy and charge accumulators came along for free on every rail as a result, including complete 5VSB standby energy. The v1.5.0 owner ruling reverts the 24-pin to the INA238 on supply-chain and assembly-flow grounds: the INA228 is LCSC-unavailable (reference-only, out of stock), while the INA238AIDGSR (LCSC C2868250) is JLC-assembly-native and stocked in volume (verified 2026-07-05: 680 on hand, $2.0991@1 down to $1.2591@1000) — ordering, consigning, or hand-soldering the INA228 costs more in practice than the per-part premium implied. The accuracy trade is accepted as gain-bound and equivalent at the Section 6.4 shunt values, not as a correction of the v1.4 reasoning: the 24-pin genuinely gives up the finer bus-voltage LSB (see Section 6.5) and the hardware energy/charge accumulators, so 24-pin energy reporting now needs the same firmware integration of the INA238 power register as EPS and PCIe (OQ-13). See `docs/pricing-study-2026-07-05.md` for the full cost recompute. This reversion applies to the beta line (`atx-24pin-rev3` and forward); the already-built alpha and rev2 boards are frozen artifacts per the alpha/beta convention and remain populated with the INA228 as shipped/ordered.
 
 The digital-sensor modules are self-referenced; only the 12VHPWR modules use a separate reference path, resolved locally on Pro (Section 3.3).
 
 Standard EPS/PCIe detection adjunct (added v3.8): the Standard EPS and PCIe modules add a cheap analog transient-detection front-end, an INA181-class CSA plus a hysteresis comparator on the shared 0.5 mΩ shunt, that produces a binary threshold-crossing event flag only. It is distinct from the INA238 telemetry path, adds no ADC, and is detailed in Section 6.13 (it resolves OQ-9). The four EPS/PCIe Pro and Max rows above are proposed SKUs specified in Section 6.13.
 
-**Connector temperature sensing, 12VHPWR Standard (added v3.7).** The INA240 is a plain current-sense amplifier with no internal die-temperature sensor (unlike the INA228 on the 24-pin, whose die temperature supplies that module's temperature reading), so the 12VHPWR Standard module adds two NTC thermistors read through spare ESP32-S3 ADC2 channels, this module never uses Wi-Fi, so ADC2 is free and reliable. One NTC sits at the J3 input connector's +12V pins (the on-board mated pair, and the actual melt site); one is an ambient reference at a cool board edge. Firmware reports absolute temperature and, more usefully, the rise above ambient (ΔT), rise, not absolute, is the alarm. This is the direct measurement of the 12VHPWR failure mode (contact-resistance heating) and complements the per-pin current-imbalance read: imbalance is the leading indicator, temperature the confirming one. It also supplies the "temperature" datum the Appendix C.2 telemetry table lists for all tiers, which this module otherwise could not produce. (J4 is a soldered pigtail, so its GPU-side mate is off-board and is sensed only indirectly, through conducted heat in the +12V copper and the per-pin current read.) No status LED is populated: this is an internal sensing board, not a visible product.
+**Connector temperature sensing, 12VHPWR Standard (added v3.7).** The INA240 is a plain current-sense amplifier with no internal die-temperature sensor (unlike the INA238 on the 24-pin, whose die temperature supplies that module's temperature reading — true of both the INA228 and the INA238, which share the same integrated ±1°C die-temperature sensor per the TI datasheets), so the 12VHPWR Standard module adds two NTC thermistors read through spare ESP32-S3 ADC2 channels, this module never uses Wi-Fi, so ADC2 is free and reliable. One NTC sits at the J3 input connector's +12V pins (the on-board mated pair, and the actual melt site); one is an ambient reference at a cool board edge. Firmware reports absolute temperature and, more usefully, the rise above ambient (ΔT), rise, not absolute, is the alarm. This is the direct measurement of the 12VHPWR failure mode (contact-resistance heating) and complements the per-pin current-imbalance read: imbalance is the leading indicator, temperature the confirming one. It also supplies the "temperature" datum the Appendix C.2 telemetry table lists for all tiers, which this module otherwise could not produce. (J4 is a soldered pigtail, so its GPU-side mate is off-board and is sensed only indirectly, through conducted heat in the +12V copper and the per-pin current read.) No status LED is populated: this is an internal sensing board, not a visible product.
 
 **12V input TVS, considered and declined (v3.7).** A transient-voltage suppressor across the 12V input was evaluated and rejected for this module. The INA240 carries a -4 V to +80 V common-mode rating, so rail transients do not threaten the sense front-end; the per-pin shunts are stressed by current (already sized for the 1.5 to 2x millisecond transient column, Section 6.3), not by rail voltage; and a power TVS on a ~50 A rail introduces a short-circuit failure mode worse than the transient it would guard against. If the one genuinely sensitive node, the 47k/10k divider tap into the ADC, is ever to be protected, that belongs as a small signal-level clamp on the tap, not a power TVS on the rail. Recorded so it is not re-litigated.
 
-**Standard-module MCU selection (REVISED v3.9).** The three digital-sensor Standard modules (24-pin, EPS, PCIe) move from the ESP32-S3-MINI-1 to the **ESP32-C6-MINI-1**. The S3 is overspecced for these boards: they push all measurement into the INA228/INA238 over I2C, so the MCU is an I2C master, a ring buffer, and a CAN reporter, plus on EPS/PCIe a per-cable detection comparator GPIO and a PWM threshold (Section 6.13), with no use for the S3's second 240 MHz core, DSP/SIMD instructions, or radio. The binding constraint, once NTCs are on every board, is the per-board pin and ADC budget. The DETECT poke-and-ack sense is a GPIO digital read (the module only needs to see its line was perturbed; the Hub measures the analog value), so it costs no ADC channel, and only the NTCs do. The PCIe at full per-cable detection (three comparators) plus per-cable NTC lands near fifteen signals, which overruns the C3-MINI's roughly thirteen usable I/O, so the C6 (about twenty usable I/O, seven ADC channels against the C3's five) is the standard part across all three. The board is laid out on the C3/C6-compatible footprint, so the lighter 24-pin and EPS can drop to the **ESP32-C3-MINI-1** on the same layout once their NTC count is fixed, recovering about $1.2 a board on those two. Against the S3 the C6 saves about $0.9 a board and lowers each module's 5VSB draw (single core), relieving the OQ-2 budget across the module fleet, and all three stay in ESP-IDF as a RISC-V target alongside the P4 tiers.
+**12VHPWR Standard enclosed-housing thermal interaction and fan provision (v1.3.0, rulings J2 / register §J).** The 12VHPWR Standard's validated thermal PASS (72.95 °C / ΔT 22.95 at balanced 600 W / 50 A) assumes a METAL case: conduction via TIM on the RS1–RS6 shunt row and the M3 mounts into metal. Still-air with no case is ~151 °C, and a 3D-printed shell (the J1 enclosed directive, Section 6.6) is WORSE than open air — an insulator that also blocks convection — so the enclosed 12VHPWR needs a cooling provision. Menu, quality-first order: **(1)** a hybrid housing = printed shell plus a TIM-coupled aluminum baseplate under the shunt row, which preserves the validated conduction model, silent, no wear item (recommended); **(2)** a DNP fan provision regardless — **J2, a 2-pin JST-XH header, DNP / position-only**, its +12V tapped from the **pre-shunt lane-6 node** (RS6's SENSEP6_HI side, the rail-divider precedent — a common input bus does not exist on the per-pin board) so fan current splits off BEFORE the shunt and can never pollute any per-pin GPU-side current reading, and NEVER drawn from 5VSB or the OQ-2 budget; **(3)** a fan-primary 25–30 mm option, which works but adds a wear item. In every case the existing TH1 shunt-row NTC (above) plus a firmware overtemp alarm lets the module alarm on its own cooling failure. Recommended combo: (1) + (2) + alarm. The 12VHPWR housing task inherits this thermal spec as a REQUIREMENT; the other module housings (EPS/PCIe cable boards) run cool and are verified at their electrothermal gates under the enclosed boundary condition (Section 6.6), not open-air.
+
+**Standard-module MCU selection (REVISED v3.9).** The three digital-sensor Standard modules (24-pin, EPS, PCIe) move from the ESP32-S3-MINI-1 to the **ESP32-C6-MINI-1**. The S3 is overspecced for these boards: they push all measurement into the INA238 over I2C, so the MCU is an I2C master, a ring buffer, and a CAN reporter, plus on EPS/PCIe a per-cable detection comparator GPIO and a PWM threshold (Section 6.13), with no use for the S3's second 240 MHz core, DSP/SIMD instructions, or radio. The binding constraint, once NTCs are on every board, is the per-board pin and ADC budget. The DETECT poke-and-ack sense is a GPIO digital read (the module only needs to see its line was perturbed; the Hub measures the analog value), so it costs no ADC channel, and only the NTCs do. The PCIe at full per-cable detection (three comparators) plus per-cable NTC lands near fifteen signals, which overruns the C3-MINI's roughly thirteen usable I/O, so the C6 (about twenty usable I/O, seven ADC channels against the C3's five) is the standard part across all three. The board is laid out on the C3/C6-compatible footprint, so the lighter 24-pin and EPS can drop to the **ESP32-C3-MINI-1** on the same layout once their NTC count is fixed, recovering about $1.2 a board on those two. Against the S3 the C6 saves about $0.9 a board and lowers each module's 5VSB draw (single core), relieving the OQ-2 budget across the module fleet, and all three stay in ESP-IDF as a RISC-V target alongside the P4 tiers.
 
 **Rail/current accuracy, REF3030 ratiometric reference (added v3.10).** Voltage and current both read through the ESP32-S3 SAR, whose ~+/- 1% comes from its internal reference, not the analog front end (INA240 gain error ~0.2%, divider trimmable). A **REF3030** (3.000 V, SOT-23-3) is measured on ADC1 so firmware ratios it out of every reading, cancelling the ADC's gain/reference drift and lifting the rail divider AND all six current channels to ~+/- 0.3 to 0.5% (INL-limited) for ~$0.50, no new ADC and no new digital bus, the middle ground below the Pro's LTC2358-18. The reference's *stability* (not just accuracy) is what lets the module trend the delivery-path source impedance (dV/dI) and absolute droop as a connector-degradation early-warning, instead of mistaking ADC drift for it. The Standard's part is **REF3030 (3.0 V)**, it must sit inside the 3.3 V ADC range it is measured against, distinct from the Pro's **REF3033 (3.3 V)**, which feeds the LTC2358 reference input. Wiring: REF3030 OUT to ADC1 IO8 (freed by moving the SENSE0 sideband tap to IO15), 0.1% divider (R5/R6).
 
@@ -471,6 +572,8 @@ Granularity is set per connector type, drawn at the level that matters for that 
 - **12VHPWR:** per pin, six INA240A3 on six per-pin shunts. This is the connector where per-pin current imbalance is the actual failure mode (the melting issue), so per-pin hotspot visibility is kept where it matters.
 
 Stated limitation: per-cable sensing catches cable-level imbalance (a hogging or near-dead cable) but not per-pin imbalance within a single cable. That residual is accepted on EPS and PCIe because their pins carry real margin, while 12VHPWR keeps full per-pin coverage. The EPS 2x INA238 and PCIe 3x INA238 counts in Section 6.1 and the BOM are correct as one monitor per cable.
+
+**SKU-shape ruling (D-2, owner 2026-07-03).** PCIe stays TWO separate boards (a 2-port and a 3-port), not one board with a populated/unpopulated third channel: the driver is SPACE, not BOM — PC interiors are packed, and a 2-cable customer must not carry a 3-port-sized board for an unstuffed option (an unstuffed 3-port still occupies the 3-port footprint), consistent with the board-sharing doctrine (Section 6 preamble): "if all you ever need is two, use two; if you expect three, buy the three." EPS stays 2-cable by default; the proposed EPS-1 (single-cable) SKU is DECLINED per the owner's market read — single-EPS-connector motherboards are now rare (even mid-range boards ship 8+4), so a one-cable EPS would serve a shrinking edge case. Consequence for the beta routing program: the PCIe pass is definitively two boards.
 
 ### 6.3 Module current targets (LOCKED, v1.2)
 
@@ -494,31 +597,31 @@ Sized so max current plus transient stays inside the ADC range and dissipation s
 
 | Module / rail | Shunt | Drop / power at max | ADC range | LSB | Full scale |
 |---|---|---|---|---|---|
-| 24-pin 12V, 5V, 3.3V | 2 mΩ, Bourns CSS2H-2512K-2L00F | up to 40 mV / 0.8 W at 20A | +/-163.84 mV | 156 µA (INA228) | 81.9A |
-| 24-pin 5VSB | 25 mΩ, Vishay WSK2512 R025 | 75 mV / 0.23 W at 3A | +/-163.84 mV | 12.5 µA (INA228) | 6.55A |
+| 24-pin 12V, 5V, 3.3V | 2 mΩ, Bourns CSS2H-2512K-2L00F | up to 40 mV / 0.8 W at 20A | +/-163.84 mV | 2.5 mA (INA238) | 81.9A |
+| 24-pin 5VSB | 25 mΩ, Vishay WSK2512 R025 | 75 mV / 0.23 W at 3A | +/-163.84 mV | 200 µA (INA238) | 6.55A |
 | EPS, per cable | 0.5 mΩ | 27 mV / 1.5 W at 55A | +/-40.96 mV | 2.5 mA (INA238) | 81.9A |
 | PCIe, per cable | 0.5 mΩ | 20 mV / 0.8 W at 40A | +/-40.96 mV | 2.5 mA (INA238) | 81.9A |
 | 12VHPWR, per pin | 1 mΩ | 12 mV / 0.14 W per pin | INA240A3 analog | ADC-set | per-pin |
 
-The EPS and PCIe rows are one shunt per cable, identical and replicated across the module's cables. 24-pin 12V is 2-pin-limited to ~15A and may instead use the +/-40.96 mV range for finer resolution (about 39 µA per count on the INA228) if confirmed never to approach 20A. LSB shown is for the resident part (INA228 on the 24-pin, INA238 on EPS/PCIe); full scale is set by shunt and range and is identical across parts.
+The EPS and PCIe rows are one shunt per cable, identical and replicated across the module's cables. 24-pin 12V is 2-pin-limited to ~15A and may instead use the +/-40.96 mV range for finer resolution (about 625 µA per count on the INA238) if confirmed never to approach 20A. LSB shown is for the resident part (INA238 across the 24-pin, EPS, and PCIe as of v1.5.0); full scale is set by shunt and range and is identical across parts.
 
 Shunt type: low-TCR metal-element / metal-strip precision shunt, tight tolerance, four-terminal Kelvin, power rating well above the dissipation above. Self-heating times TCR is the dominant thermal-accuracy error, and at 0.5 mΩ a few µΩ of tolerance or drift is a large fraction of the value, so the precision shunt is what protects accuracy at the low end. The temperature-induced current error is the product of TCR and self-heating rise, so a part wins by lowering either term; the locked 24-pin choice below lowers both. This supersedes the earlier v4 24-pin 5V and 3.3V values (which saturate the ADC above ~8A and ~3.3A and dissipate too much at 20A).
 
-24-pin parts (LOCKED, v1.6, resolving the 24-pin portion of OQ-11). The three main rails (12V, 5V, 3.3V) use the **Bourns CSS2H-2512K-2L00F**: 2 mΩ, ±1%, four-terminal Kelvin, AEC-Q200, ±75 ppm/°C including copper terminals (the resistive alloy alone is ≤50 ppm/°C over 20 to 60 °C), inductance under 2 nH, 5 W on the recommended pad and 3 W on a conservative mounting. The value is unchanged, so the INA228 ADCRANGE and SHUNT_CAL scaling do not move. The ±1% initial tolerance is a fixed gain error trimmed out in the INA228 SHUNT_CAL register at calibration and so costs nothing in final accuracy; a ±0.5% grade exists for a board that ships without per-unit calibration. The win is on both temperature-error terms at once: TCR is about 3.3x lower than a commodity ±250 ppm 2512 part, and at 0.8 W the part runs near 16% of its 5 W rating (27% even on the 3 W figure), so self-heating rise is far lower for the same dissipation. The product cuts net temperature-induced current error by roughly an order of magnitude, with real derating margin.
+24-pin parts (LOCKED, v1.6, resolving the 24-pin portion of OQ-11). The three main rails (12V, 5V, 3.3V) use the **Bourns CSS2H-2512K-2L00F**: 2 mΩ, ±1%, four-terminal Kelvin, AEC-Q200, ±75 ppm/°C including copper terminals (the resistive alloy alone is ≤50 ppm/°C over 20 to 60 °C), inductance under 2 nH, 5 W on the recommended pad and 3 W on a conservative mounting. The value is unchanged, so the INA238 ADCRANGE and SHUNT_CAL scaling do not move (this held equally for the INA228 while the 24-pin carried it, v1.4 through v1.4.0; the shunt part and value were never in question, only the sensing IC reading them, see Section 6.1). The ±1% initial tolerance is a fixed gain error trimmed out in the INA238 SHUNT_CAL register at calibration and so costs nothing in final accuracy; a ±0.5% grade exists for a board that ships without per-unit calibration. The win is on both temperature-error terms at once: TCR is about 3.3x lower than a commodity ±250 ppm 2512 part, and at 0.8 W the part runs near 16% of its 5 W rating (27% even on the 3 W figure), so self-heating rise is far lower for the same dissipation. The product cuts net temperature-induced current error by roughly an order of magnitude, with real derating margin.
 
-The 5VSB rail keeps the **Vishay WSK2512 R025**: 25 mΩ, four-terminal Kelvin, in its low-TCR band (about ±35 ppm/°C), dissipating 0.225 W at 3 A (about 22% of its 1 W rating), with the 25 mΩ giving the fine LSB the standby-energy figure wants. The CSS2H series does not reach 25 mΩ, so 5VSB is the one rail where the WSK2512 is the right match. Mixing the two families across rails is fine.
+The 5VSB rail keeps the **Vishay WSK2512 R025**: 25 mΩ, four-terminal Kelvin, in its low-TCR band (about ±35 ppm/°C), dissipating 0.225 W at 3 A (about 22% of its 1 W rating), with the 25 mΩ giving the fine LSB the standby-energy figure wants. The CSS2H series does not reach 25 mΩ, so 5VSB is the one rail where the WSK2512 is the right match. Mixing the two families across rails is fine. (Beta board note, v1.3.0, register B4: the 24-pin rev3 lands this WSK2512 on a true 4-terminal Kelvin footprint, splitting the current path from the Kelvin sense onto the shunt's own dedicated pads — the point of a genuine four-terminal part, whereas the platform's 2-pad Bourns CSS2H convention draws its Kelvin taps in copper at the pads, Section 6.8.)
 
-EPS, PCIe, and 12VHPWR per-pin part selection stays open under OQ-11. The CSS2H series reaches 0.5 mΩ (±100 ppm/°C) and 1 mΩ (±75 ppm/°C, inductance under 2 nH) as natural candidates for the EPS/PCIe per-cable and 12VHPWR per-pin sites; the 1 mΩ part's sub-2 nH inductance is also the spec that bears on the Max module's HF and di/dt question (OQ-18). Not locked here.
+EPS, PCIe, and 12VHPWR per-pin parts are LOCKED (v1.2.0, owner-delegated selection 2026-07-02, closing the remaining OQ-11 scope; verification in `docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md`): EPS/PCIe per-cable 0.5 mΩ = **Bourns CSS2H-2512R-L500F** (±100 ppm/°C incl. terminals); 12VHPWR per-pin 1 mΩ = **Bourns CSS2H-2512R-1L00F** (±75 ppm/°C, inductance under 2 nH — the part the 12VHPWR BOM already sources, LCSC C4175647). The Bourns letter series do not overlap in range (R: 0.3/0.5/1.0 mΩ only; K: 1.8–5.0 mΩ only), so the R parts are the only orderable options at these values, exactly as the K part is at the 24-pin's 2 mΩ. The 1 mΩ part's sub-2 nH inductance is also the spec that bears on the Max module's HF and di/dt question (OQ-18).
 
 ### 6.5 Resolution and ADC range (characterized, v1.2)
 
 The range bit (ADCRANGE) recovers the resolution a low shunt would otherwise cost. A 0.5 mΩ shunt on the +/-40.96 mV range gives 2.5 mA per count and 81.9A full scale, identical to a 2 mΩ shunt on the +/-163.84 mV range. Every high-current channel lands on the same 2.5 mA resolution and ~82A full scale regardless of shunt value.
 
-The low shunt's only cost is an accuracy floor at the bottom of the range, not a resolution limit. Input offset and noise are fixed voltages, so at 0.5 mΩ a ~5 µV offset maps to about 10 mA of error versus ~2.5 mA at 2 mΩ. That floor is 0.02% at 50A and reaches ~1% only near 1A, below where these rails operate and below the rail's own ripple. Gain error is a percentage of reading and does not move with shunt value. Record the per-channel ADCRANGE setting; 16-bit (INA238) or 20-bit (INA228) plus range selection covers all rails with headroom.
+The low shunt's only cost is an accuracy floor at the bottom of the range, not a resolution limit. Input offset and noise are fixed voltages, so at 0.5 mΩ a ~5 µV offset maps to about 10 mA of error versus ~2.5 mA at 2 mΩ. That floor is 0.02% at 50A and reaches ~1% only near 1A, below where these rails operate and below the rail's own ripple. Gain error is a percentage of reading and does not move with shunt value. Record the per-channel ADCRANGE setting; 16-bit (INA238) plus range selection covers all rails with headroom.
 
 Design-review note (v3.8), EPS transient clip margin: at the top of the range, 0.5 mΩ x 75 A is 37.5 mV against the +/-40.96 mV INA238 range, so the 75 A design transient leaves about 9 percent before the roughly 82 A clip. Acceptable but thin; revisit the shunt value or range if the EPS transient ceiling rises (the per-cable target table is Section 6.3).
 
-The 24-pin adds a resolution axis the high-current rails do not need: bus-voltage resolution for droop. The INA228 there resolves bus voltage at 195 µV per count against the INA238's 3.125 mV, which is the difference between resolving roughly 12 W and roughly 200 W of load change through the 12V cross-regulation coefficient (about 16 µV/W). The 24-pin carries the 20-bit part for that voltage axis rather than for current resolution; finer current (about 156 µA per count at 2 mΩ) comes along as a side effect.
+**Bus-voltage resolution, 24-pin (revised v1.5.0).** From v1.4 through v1.4.0 the 24-pin carried a resolution axis the high-current rails do not need: bus-voltage resolution for droop. The INA228 resolved bus voltage at 195 µV per count against the INA238's 3.125 mV, which is the difference between resolving roughly 12 W and roughly 200 W of load change through the 12V cross-regulation coefficient (about 16 µV/W); the 24-pin carried the 20-bit part for that voltage axis rather than for current resolution, with finer current (about 156 µA per count at 2 mΩ) coming along as a side effect. The v1.5.0 owner ruling reverts the 24-pin to the INA238 (Section 6.1) on supply-chain grounds, which gives up that finer axis: 24-pin bus voltage now resolves at the same 3.125 mV per count as EPS and PCIe, so any 5V, 3.3V, or 5VSB droop finer than that (still uncharacterized, per the v1.4 note) is no longer separately resolvable from the bus-voltage register alone. Current resolution on the 24-pin's own rails drops from about 156 µA to about 2.5 mA per count at 2 mΩ (Section 6.4), which stays well inside the ~163.84 mV / 81.9A full-scale range and below the shunt's own gain-error floor, so current-reading accuracy is not the casualty; fine bus-voltage droop detection is.
 
 ### 6.6 Thermal design (LOCKED, v1.2)
 
@@ -530,6 +633,10 @@ No discrete or finned heatsinks.
 - Per-cable sensing spreads heat across the module's two or three cable shunts rather than concentrating it. Each per-cable shunt and its coin or via field is a hotspot, so the copper-pour, thermal-via, and chassis-coupling treatment applies at each one.
 
 Design-review decision (v3.8), chassis thermal coupling: the anodized 6063 is an insulating contact, the corner M3 screws are point contact, and no thermal interface is otherwise specified, so the path into the chassis raises shunt self-heating and erodes the low-TCR accuracy (the error term is TCR x deltaT, and only TCR was minimized). Spec a TIM pad and a bare, un-anodized contact land under the high-current EPS/PCIe shunts, where the 0.8 to 1.5 W of dissipation makes the self-heating term dominant. The 24-pin shunts (up to 0.8 W) may take the same treatment but matter less. Confirm the pad and land at validation, or record accepting the accuracy hit.
+
+**Enclosed boundary condition (housing directive J1, v1.3.0) — now the thermal-gate standard.** The Standard tier ships enclosed (3D-printed housings for initial runs; the anodized 6063 aluminum chassis remains the production spreader). Two consequences bind the thermal work: (1) every module's electrothermal sign-off gate runs against the ENCLOSED boundary condition (a shell that blocks convection), NOT open-air — the cool cable boards (EPS/PCIe) verify easily, while the 12VHPWR needs the Section 6.1 cooling provision (its validated PASS assumed a metal case); (2) strain relief moves INTO the shell, superseding the board-edge cable-anchor idea except where the shell does not cover. The housing exposes service cutouts for the Section 6.14 USB-C and BOOT/RESET, turns the M3 mounts into bosses, and provides light pipes/windows for the RGB-and-logo shine-through (Section 4).
+
+**Module build requirements (QoL F1/F3, v1.3.0).** Every module carries: cable-dress anchors (zip-tie slots on the board outline) wherever the shell does not already relieve strain, so a cable is dressed rather than dangling in the channel; and self-describing silkscreen — port numbers, which-cable arrows, and an install-page QR plus a per-unit serial QR — so a module is legible on the bench and in the case.
 
 ### 6.7 High-current layout, stackup, and vias (guidance; PENDING per-module per OQ-12)
 
@@ -577,17 +684,17 @@ Construction (v3.11), analog-digital board split: the Pro is built as two stacke
 
 ### 6.10 Acquisition model: continuous sampling, ring buffer, and ALERT (LOCKED, v1.4; co-capture added v2.1)
 
-The digital-sensor modules (24-pin, EPS, PCIe) run their INA228 or INA238 in continuous-conversion mode, and the MCU holds a per-sensor ring buffer of roughly 2 seconds of 1 kHz samples (about 2000 records per channel). The buffer is pre-roll: when a burst or event fires, the captured window already contains the lead-up held in the ring, which a read-on-event scheme cannot reconstruct. So both the part and the read loop run continuously; there is no idle-then-wake path for these modules.
+The digital-sensor modules (24-pin, EPS, PCIe) run their INA238 in continuous-conversion mode, and the MCU holds a per-sensor ring buffer of roughly 2 seconds of 1 kHz samples (about 2000 records per channel). The buffer is pre-roll: when a burst or event fires, the captured window already contains the lead-up held in the ring, which a read-on-event scheme cannot reconstruct. So both the part and the read loop run continuously; there is no idle-then-wake path for these modules.
 
 Sampling and averaging: set each sensor's conversion time and averaging (AVG) so the part emits a clean averaged sample at the 1 kHz output rate rather than instantaneous snapshots decimated in firmware. This folds the part's faster internal conversions into each 1 kHz record, lowering noise and anti-aliasing the buffer. The ALERT limit comparison runs on that same averaged value, so threshold response is at the millisecond scale, which matches the 1 kHz record. Sub-millisecond transient capture is not reachable over I2C (OQ-9).
 
 ALERT: the ALERT pin is the event trigger and the threshold detector, not an I2C load. Configure the limit registers (shunt over-voltage for current, power limit, bus over and under-voltage, temperature) so the hardware flags a crossing and raises ALERT, which the MCU uses to freeze and dump the ring buffer (pre-roll plus continued post-roll). Conversion-ready on ALERT also lets the MCU read once per finished conversion instead of polling for fresh data. Servicing an alert is a single DIAG_ALRT flag read per event.
 
-I2C budget: 1 kHz continuous across the 24-pin's four channels sits near the full-round ceiling at 1 MHz (fast-mode plus), with headroom; at 400 kHz, trim the stored fields per sample to current and voltage. The energy and charge accumulators are read at the reporting interval, not the sample rate, so they add negligible traffic. Per-module ring-buffer memory (tens of KB) is trivial in the ESP32-S3 SRAM.
+I2C budget: 1 kHz continuous across the 24-pin's four channels sits near the full-round ceiling at 1 MHz (fast-mode plus), with headroom; at 400 kHz, trim the stored fields per sample to current and voltage. The INA238 carries no hardware energy or charge accumulators (v1.5.0; see Section 6.1), so where energy is wanted it is integrated in firmware from the power register at the reporting interval rather than the sample rate (OQ-13), adding negligible traffic either way. Per-module ring-buffer memory (tens of KB) is trivial in the ESP32-S3 SRAM.
 
 **Cross-module co-capture (v2.1):** A single module's trigger freezes every module's ring buffer, so any one rail's event captures the whole system on a common timeline. This is what makes a 24-pin droop legible against the PCIe or 12VHPWR surge that drove it, and for the CAN-only modules (24-pin, EPS, PCIe), which never stream, it is their only route to a multi-rail transient. Mechanism, all tiers, over CAN, with no spare-pin hardware: on a local trip a module freezes and marks its buffer, then sends one high-priority broadcast FREEZE frame; every other module freezes in its CAN receive ISR and marks the same frame instant; the triggering module reports cause and timestamp over CAN; the host reads the frozen windows out and overlays them on the FREEZE instant; a broadcast re-arm frame follows readout. Alignment rides the fact that CAN is a simultaneous broadcast medium, so every node detects end-of-frame within about one bit time (a microsecond or two at 500k), far inside one 1 ms sample. Frame latency, a few hundred microseconds and worst case about half a millisecond under bus load, is absorbed by the 2 s pre-roll and does not affect alignment. The binding limit is readout rather than capture: a frozen multi-rail window returns over 500k classical CAN slowly (a 400 ms four-rail 24-pin window is roughly 6 kB and about 0.2 s; a full 2 s window approaches 1 s, and modules serialize on the one bus), so the default window is kept short, a few hundred milliseconds, and Standard is a clean single-event recorder rather than a back-to-back transient logger. A dedicated hardware trigger line is not used here. It is justified only for pinning an external event into the Max's MHz fast-capture buffer (Section 6.11), which is a Max-era decision weighed against pin 7's reserved 1-Wire identity path (Section 2.3). See OQ-27. A bidirectional hardware FREEZE sideband for the high-tier modules, proposed on a per-port companion connector rather than on pin 7, is captured under OQ-60; it would add nanosecond alignment to the Max-class fast buffers while this CAN FREEZE still covers the slow modules through their pre-roll.
 
-Trigger sources (added v3.8): the FREEZE is raised by any module's local trip, which on the digital-sensor modules is the INA228/INA238 ALERT. On the Standard EPS/PCIe modules the transient-detection comparator GPIO (Section 6.13) is an additional FREEZE trigger source, OR'd with the INA238 ALERT, so a sub-millisecond spike the averaged ALERT would miss still freezes every rail's ring around the event.
+Trigger sources (added v3.8): the FREEZE is raised by any module's local trip, which on the digital-sensor modules is the INA238 ALERT. On the Standard EPS/PCIe modules the transient-detection comparator GPIO (Section 6.13) is an additional FREEZE trigger source, OR'd with the INA238 ALERT, so a sub-millisecond spike the averaged ALERT would miss still freezes every rail's ring around the event.
 
 ### 6.11 12VHPWR Max module (PROPOSED, exploratory, v1.6)
 
@@ -671,7 +778,7 @@ Reconciliation notes:
 
 Status: proposed, captured for the decisions record. Resolves OQ-9. The shared sense element is the existing 0.5 mΩ per-cable shunt; the tiers differ in the digitizer and processing behind it.
 
-The gap. The 24-pin, EPS, and PCIe modules run the INA228/INA238 averaged to 1 kHz, which erases sub-millisecond transients. The 12VHPWR modules already carry an analog fast path (INA240 across the shunt), so they have transient visibility, partial on Standard (muxed S3 ADC, about 12 ksps) and full on Pro (simultaneous LTC2358). The blind spot is EPS and PCIe specifically, covering CPU-EPS transients and 8-pin-PCIe GPU transients. The motivating case is OCP-shutdown diagnosis: the 24-pin already gives the 5VSB-up/12V-down shutdown signature and the co-capture freeze (Section 6.10) ties all rails to that instant, but the magnitude of the spike on the rail that tripped the PSU is unrecoverable at 1 kHz averaged. The ladder runs by measurement depth, the same shape as the 12VHPWR stack: detection (Standard), characterization (Pro), spectral (Max).
+The gap. The 24-pin, EPS, and PCIe modules run the INA238 averaged to 1 kHz, which erases sub-millisecond transients. The 12VHPWR modules already carry an analog fast path (INA240 across the shunt), so they have transient visibility, partial on Standard (muxed S3 ADC, about 12 ksps) and full on Pro (simultaneous LTC2358). The blind spot is EPS and PCIe specifically, covering CPU-EPS transients and 8-pin-PCIe GPU transients. The motivating case is OCP-shutdown diagnosis: the 24-pin already gives the 5VSB-up/12V-down shutdown signature and the co-capture freeze (Section 6.10) ties all rails to that instant, but the magnitude of the spike on the rail that tripped the PSU is unrecoverable at 1 kHz averaged. The ladder runs by measurement depth, the same shape as the 12VHPWR stack: detection (Standard), characterization (Pro), spectral (Max).
 
 **Standard EPS/PCIe: transient DETECTION (not capture).** A cheap analog detection front-end alongside the INA238 on the shared shunt. It adds no ADC, draws negligibly from logic power, and produces a binary event only: a transient on cable N crossed X amps at time T. Magnitude and waveform stay unavailable, which holds it below the Pro. Per cable:
 - An INA181A2 (gain 50) tapping the same shunt as the INA238 with its own Kelvin pair. The 12V common-mode is inside the INA181 range. The INA181 rather than the precision INA240 keeps the board detection-grade and signals the tier at the BOM level.
@@ -691,6 +798,26 @@ Reconciliation:
 - Section 9 carries the Standard detection delta and the four new tier rows (indicative).
 - Gating: OQ-57 (detection front-end), OQ-58 (EPS Pro / PCIe Pro), OQ-59 (EPS Max / PCIe Max).
 - Construction (v3.11): the EPS Pro / PCIe Pro and EPS Max / PCIe Max boards follow the 12VHPWR Pro and Max analog-digital board split (Sections 6.9 and 6.11) for the same signal-integrity reason, digitizing at the shunt and crossing the board-to-board connector digital-only. The per-cable Max here carries no per-pin arc front end, so its analog board is simpler than the 12VHPWR Max's, but isolating it from the FPGA data plane is the same requirement.
+
+### 6.14 Module standalone mode and common protection suite (H3/H3a, v1.3.0)
+
+Owner ruling H3 (2026-07-03): every Standard module is usable independently of a Hub over its own USB-C. This is a consumer BETA build delta, applied to `gen-modules` BASE_PARTS and to the hand-maintained EPS and 12VHPWR schematics at their beta passes, at roughly $0.15/module, and it aligns with the quality-first principle (openness/extensibility). It is a population-shared delta on the same acquisition core, so it does not fork the board (Section 6 board-sharing doctrine).
+
+**Standalone firmware mode.** With no CAN master present the module presents USB-CDC telemetry over its USB-C, so the board is a self-contained meter on a bench without a Hub. Under a Hub, the USB-C reverts to a service/recovery and single-point-firmware-update fallback (Section 3.1); telemetry rides CAN as normal.
+
+**Protection suite (H3).** Standalone use means a module is handled and connected outside the Hub-mediated enclosure, so the protection review widens to "ESD on every externally touchable line, not only the DETECT pin":
+- **USBLC6-2SC6** on the USB data pair (D+/D-), the same part and topology the Hub already carries — the modules previously lacked it.
+- A **VBUS-side clamp** at the connector (the platform's low-capacitance 5V0 part, PESD5V0S1BA, reused rather than adding a bulkier power-rail TVS on a signal-adjacent consumer USB-C pin), with the ESD steering placed closest to the connector, ahead of the entry bead. As-built divergence (beta splices, recorded): the EPS board carries NO separate VBUS clamp part — its splice judged the USBLC6-2SC6's own VBUS rail clamp sufficient — while the 24-pin, 12VHPWR, and PCIe boards added the discrete PESD5V0S1BA; reconcile to one posture at the beta BOM-freeze (rides the OQ-83 CMC reconciliation pass).
+
+**Ferrite posture (H3a, judicious not blanket).** Because standalone-USB operation makes each module its own FCC 15B unintentional-radiator story, provisioned filter positions are cheap insurance and empty positions cost only pad area:
+- **(a) VBUS entry bead, POPULATED** — a 600 Ω @ 100 MHz / 2 A power-entry bead (TDK **MPZ2012S601AT000, LCSC C21519**, 0805; the register's `...ATD01` suffix was a nonexistent MPN, corrected at the splice), the standard USB power-entry filter.
+- **(b) Port-VCC (5VSB) entry bead, PROVISIONED at 0 Ω** — position populated with a 0 Ω jumper by default, a real bead swapping in only on EMC evidence.
+- **(c) CAN pair common-mode-choke position, PROVISIONED DNP** as EMC insurance — a CMC position only, never series beads on the individual CAN lines.
+- **(d) USB D+/D- get NO series ferrites** (a signal-integrity killer); a CMC there is added only if a pre-scan ever demands it.
+
+**H3a-PATTERN (engineering rule, broadcast to every module splice).** A series-DNP part on a REQUIRED path is a trap: an unpopulated series common-mode choke physically OPENS the pair, yet KiCad netlists the symbol as connected, so ERC/netlist are blind to it. The provision pattern is therefore mandatory: the series-DNP position (the CAN CMC above, and ANY series-DNP provision on a required path) carries **two 0 Ω bypass resistors populated by default across its pads**, so the path is continuous out of the box; the EMC variant removes the 0 Ωs and fits the choke. This rule is general, not CAN-specific.
+
+Part-convergence note: the CAN CMC candidate MPN is not yet settled — beta boards disagree (12VHPWR carried TDK ACT1210L-101-2P-TL00 / LCSC C307643; EPS and 24-pin carried TDK ACT45B-510-2P-TL003 / LCSC C76584), and no CMC footprint is vendored yet. The platform CMC part pick plus footprint is OQ-83; nothing is fab-blocking while the position stays DNP-with-bypass.
 
 ---
 
@@ -766,6 +893,11 @@ The EPS/PCIe Pro and Max SKUs (Section 6.13) follow the generic Pro and Max rows
 
 The support pipeline's service-tier matrix (Appendix D.4) mirrors this principle on the software side: every machine is serviceable, and richer instrumentation activates richer service without changing the pipeline (added 1.1.0).
 
+Enterprise and Mission Critical above now resolve to the Section 13 enterprise line
+(v1.2.0): "Enterprise Hub" is the base ENT SKU in either posture (ENT-NET/ENT-AIR), and
+"Mission Critical Hub" is the MC or MC-Max availability SKU (Section 13.8) within that
+same line; the graceful-degrade principle above is unchanged.
+
 ---
 
 ## 9. BOM summary (production, 100-qty)
@@ -789,7 +921,7 @@ The support pipeline's service-tier matrix (Appendix D.4) mirrors this principle
 | ARGB Controller Pro (16-channel) | ~$35 to $50 (electronics, preliminary) | Pro |
 | ARGB Controller Max (32-channel) | ~$70 to $100 (electronics, preliminary) | Max |
 
-Note: the 24-pin ATX figure predates the v1.4 move to four INA228 parts; expect a modest increase over the INA238 baseline (the per-part premium times four). EPS, PCIe, and 12VHPWR lines are unchanged.
+Note (resolved v1.5.0): the 24-pin ATX figure previously predated the v1.4 move to four INA228 parts, flagged to expect a modest increase over the INA238 baseline. That baseline question is now moot — the v1.5.0 owner ruling reverts the 24-pin to four INA238 parts (Section 6.1), so the $35 figure is once again the INA238 baseline it always targeted. See `docs/pricing-study-2026-07-05.md` (and its 2026-07-05 addenda) for the current landed-cost recompute: INA238AIDGSR at $1.3891/unit (100-qty break) puts the four-part sensing line at $5.56, against $11.84 on the DigiKey-sourced INA228 the pre-release line had priced. EPS, PCIe, and 12VHPWR lines are unchanged.
 
 Note: the ARGB Controller figures are preliminary electronics estimates pending part selection (OQ-29, OQ-30, OQ-35). The anodized chassis, the automatic retention mechanism, and the magnetic base are a separate mechanical adder not included here (OQ-36).
 
@@ -801,7 +933,7 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-1: Hub bulk power input (RESOLVED, v1.3).** The 24-pin module feeds the Hub over a dedicated 2-pin JST-XH 5VSB cable; the Hub then distributes 5VSB to downstream modules over their RJ-45 VCC pins. This removes aggregate current from any RJ-45 pin. The aggregate now sits on the JST-XH feed and the shared PSU 5VSB rail, governed by the total-current cap in OQ-2. See Section 2.5.
 
-**OQ-2: Total 5VSB current cap.** Confirm a firmware cap on total CEC 5VSB draw (the SK6812 LED budget is the main lever) and the maximum LED state to budget for, sized so a fully populated system stays within the JST-XH rating and the shared 5VSB rail with margin. See Section 2.5.
+**OQ-2: Total 5VSB current cap.** Confirm a firmware cap on total CEC 5VSB draw (the SK6812 LED budget is the main lever) and the maximum LED state to budget for, sized so a fully populated system stays within the JST-XH rating and the shared 5VSB rail with margin. See Section 2.5. Beta note (v1.3.0): the QUEUED Hub port-LED semantics QoL feature (F2 — proposed in the QoL shortlist; unlike F4/F7 it carries no explicit owner confirmation yet — breathing = healthy, amber = event, red = fault, on the existing 7× SK6812) is firmware-only but FORCES this number, since the LED states must fit under the cap. OQ-2 stays OPEN pending the owner's cap value.
 
 **OQ-3: Precision reference path (RESOLVED, v1.1).** Local REF3033 on each Pro module; no distributed reference; pin 7 reserved as a spare. See Section 3.3.
 
@@ -811,7 +943,7 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-6: DETECT encoding (RESOLVED, v1.7).** The pin-8 resistor encodes comm-class only (presence plus which link the Hub brings up on the port), pulled up through 10k to the Hub's 3.3V rail. Module category, type, tier, and unique serial move to CAN enumeration. Code table in Section 2.3: CAN-only (2.2k), CAN+RS-485 (4.7k), CAN+100BASE-T1 (10k), two reserved link codes, plus open (no module) and short (fault). The table is fixed-size and does not grow with module count.
 
-**OQ-7: Document scope.** Should this document fully specify Enterprise and Mission Critical now, or keep them at platform-summary level until their first customer requirements land? The compute and OS direction for these tiers (the control-plane and data-plane split, an RTOS or FPGA-SoC, and the case for no Linux) is explored in Appendix B. Current leaning: an MCU or RTOS control plane plus an FPGA or TSN-switch data plane with no Linux, PolarFire SoC as the consolidated candidate (Appendix B.5).
+**OQ-7: Document scope (RESOLVED, v1.2.0).** Resolved by owner direction 2026-07-01/02: the enterprise line is specified now as the ENT-NET/ENT-AIR variants on PolarFire (Section 13); requirements of record in `docs/enterprise-requirements/`.
 
 **OQ-8: 12VHPWR Standard rail accuracy (RESOLVED, v3.10, revises the canonical line's v3.7 no-reference call).** The Standard adds a **REF3030** (3.000 V series reference) measured by the ESP32-S3 ADC1 for **ratiometric correction**: firmware ratios every reading against it, cancelling the ESP ADC's gain/reference drift and lifting the rail divider AND all six INA240 current channels from ~+/- 1% to ~+/- 0.3 to 0.5% (INL-limited), with 0.1% divider resistors. This is the deliberate **middle ground** between the bare-divider Standard and the Pro's precision instrument (LTC2358-18 + REF3033): it is the reference, not a separate ADC or a sensing bus, so the Standard stays the fast ESP firehose, just accurate and stable (the stability is what makes a long-term connector-degradation / dV-dI source-impedance trend real rather than ADC drift). The part differs from the Pro's by design: Standard uses **REF3030 (3.0 V)** because the ESP ADC *measures* it (it must sit inside the 3.3 V ADC range), whereas the Pro's **REF3033 (3.3 V)** feeds the LTC2358's reference input. Implemented on the 12vhpwr-standard schematic (U4 + bypass to ADC1 IO8, a sideband tap moved IO8->IO15 to free the channel, R5/R6 0.1%, ERC clean). Precision-grade simultaneous capture stays the Pro's domain.
 
@@ -819,13 +951,13 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-10: Bundled-shunt vertical transition.** Lock copper coin versus filled-via field versus plated slot for the ~40 to 55A EPS/PCIe per-cable shunt sites, against cost and fab capability (see Section 6.7).
 
-**OQ-11: Per-module shunt part selection (24-pin RESOLVED v1.6; EPS/PCIe/12VHPWR open).** 24-pin locked (Section 6.4): Bourns CSS2H-2512K-2L00F (2 mΩ, ±1%, ±75 ppm/°C including terminals, four-terminal Kelvin, AEC-Q200) on 12V, 5V, 3.3V; Vishay WSK2512 R025 (25 mΩ, ~±35 ppm/°C) on 5VSB. Still open: the EPS and PCIe per-cable (0.5 mΩ) and 12VHPWR per-pin (1 mΩ) parts, with final TCR, tolerance, package, and power rating. The CSS2H series reaches 0.5 mΩ (±100 ppm/°C) and 1 mΩ (±75 ppm/°C, inductance under 2 nH) as candidates; the 1 mΩ choice also bears on OQ-18. Design note (1.0.1): carry a fault-survival requirement into the 12VHPWR per-pin selection: a 50 A single-pin fault dissipates 2.5 W in a 1 mΩ element against the CSS2H 2512's 5 W recommended-pad and 3 W conservative figures, before local-ambient derating beside the connector; specify survive-for-X-seconds at Y °C and verify against the Bourns derating curve.
+**OQ-11: Per-module shunt part selection — RESOLVED (24-pin v1.6; EPS/PCIe/12VHPWR v1.2.0, owner-delegated selection 2026-07-02).** 24-pin locked (Section 6.4): Bourns CSS2H-2512K-2L00F (2 mΩ, ±1%, ±75 ppm/°C including terminals, four-terminal Kelvin, AEC-Q200) on 12V, 5V, 3.3V; Vishay WSK2512 R025 (25 mΩ, ~±35 ppm/°C) on 5VSB. EPS/PCIe per-cable locked: Bourns CSS2H-2512R-L500F (0.5 mΩ, ±100 ppm/°C incl. terminals). 12VHPWR per-pin locked: Bourns CSS2H-2512R-1L00F (1 mΩ, ±75 ppm/°C, <2 nH — already sourced, LCSC C4175647). The Bourns R/K letter series do not overlap in resistance range, so each value has exactly one orderable letter; selection verification (power margins at family worst case, stock, second-source analysis) in `docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md`. Residual items (moved to the validation program, not this OQ): a second true-Kelvin 25 mΩ source; the 12VHPWR 50 A-fault survive-time bench check. The 1 mΩ choice also bears on OQ-18. Design note (1.0.1): carry a fault-survival requirement into the 12VHPWR per-pin selection: a 50 A single-pin fault dissipates 2.5 W in a 1 mΩ element against the CSS2H 2512's 5 W recommended-pad and 3 W conservative figures, before local-ambient derating beside the connector; specify survive-for-X-seconds at Y °C and verify against the Bourns derating curve.
 
 **OQ-12: Per-module high-current stackup.** Lock the L3-rails-with-via-detour stackup versus the top-layer-rails alternative for each high-current module (see Section 6.7).
 
-**OQ-13: Energy reporting scope.** The 24-pin INA228 provides hardware energy and charge on all four rails, including complete 5VSB standby energy, at no added cost. Decide whether energy reporting is scoped to that 24-pin standby and platform figure, or extended to total system energy, which needs energy on the load rails via firmware integration of the INA238 power reading on EPS and PCIe (and the LTC2358 path on 12VHPWR), summed at the host. The 24-pin energy is a partial figure and must not be presented as total. See the energy discussion behind Section 6.1.
+**OQ-13: Energy reporting scope.** Prior to v1.5.0, while the 24-pin carried the INA228, it provided hardware energy and charge accumulation on all four rails, including complete 5VSB standby energy, at no added firmware cost. The v1.5.0 owner ruling reverts the 24-pin to the INA238 (Section 6.1), which has no such accumulators, so the 24-pin now needs the same firmware integration of the power register as EPS and PCIe to produce an energy figure at all — the scope question itself is unchanged, only its implementation basis: decide whether energy reporting stays scoped to a firmware-integrated 24-pin standby and platform figure, or is extended to total system energy, which needs energy on the load rails via firmware integration of the INA238 power reading on the 24-pin, EPS, and PCIe alike (and the LTC2358 path on 12VHPWR), summed at the host. Any 24-pin-only energy figure remains partial and must not be presented as total. See the energy discussion behind Section 6.1.
 
-**OQ-14: PoE / over-voltage protection scope (consumer RESOLVED v1.9; Enterprise/MC deferred to OQ-7).** Consumer (Standard and Pro): resolved. No per-pin PoE-grade over-voltage protection on the RJ-45 module interface, ratifying the board state, since that interface is internal and the 57V case is deliberate misuse rather than an accident (Section 2.4). A low-capacitance ESD diode on the DETECT pin (pin 8 into the ESP32 ADC) is locked separately for hot-plug (v2.0), distinct from the dropped PoE clamp. Enterprise and Mission Critical: the module RJ-45s inherit the consumer answer; the over-voltage question moves to whatever external uplink those tiers expose (today the optional 1000BASE-T1 host link, a separate connector) and is decided with the Enterprise/MC spec under OQ-7. This closes the divergence against the PCB repo (which had dropped the protection on Standard and Pro) and subsumes the repo's separate OQ-8 numbering.
+**OQ-14: PoE / over-voltage protection scope (consumer RESOLVED v1.9; enterprise RESOLVED v1.2.0).** Consumer (Standard and Pro): resolved. No per-pin PoE-grade over-voltage protection on the RJ-45 module interface, ratifying the board state, since that interface is internal and the 57V case is deliberate misuse rather than an accident (Section 2.4). A low-capacitance ESD diode on the DETECT pin (pin 8 into the ESP32 ADC) is locked separately for hot-plug (v2.0), distinct from the dropped PoE clamp. Enterprise and Mission Critical: resolved per Section 2.4's v1.2.0 protection topology on the ENT-NET 1000BASE-T uplink (magnetics isolation, PHY-side TVS, shield GDT) plus the module-port mis-plug fail-safe re-scope (Section 13); the module RJ-45s otherwise inherit the consumer answer. This closes the divergence against the PCB repo (which had dropped the protection on Standard and Pro) and subsumes the repo's separate OQ-8 numbering.
 
 **OQ-15: Max positioning.** Is the Max a new platform tier or a 12VHPWR module variant, and does it define its own Hub-tier requirements? Confirm the indicative BOM and the $499 to $599 retail target. See Section 6.11. The FPGA-versus-MCU question and the capture-FPGA shortlist are explored in Appendix B. Current leaning: MCU plus FPGA if the Max commits to full-fidelity per-pin capture, MCU-only ESP32-P4 otherwise, gated on OQ-20 (Appendix B.5). Design-review note (v3.8): an SRAM FPGA (ECP5) draws hundreds of mW to about 1 W continuously with the DSP running, which fights the capped 5VSB budget and the always-on principle, so power-gate the FPGA on 12V-present (no arc or transient to detect with the GPU off) or prefer the flash-based PolarFire (instant-on, low static power). See Section 6.11 and Appendix B.
 
@@ -903,13 +1035,13 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-52: NanoKVM link trust boundary and egress arbitration.** Lock the untrusted-input handling (hardened bounded parser, an inbound allow-list of telemetry and rate-limited benign freeze requests, no privileged Hub control reachable from the link), and define how the via-Hub egress path dedups against the NanoKVM's own network path at the service so events are not double-counted. Consistent with the NanoKVM hardening in OQ-50. See Appendix C.7.
 
-**OQ-53: Module-rail scope for the subsystem power feed.** Decide whether the module fleet rides the Section 2.9 shared 5V rail (whole-platform dual-feed, which frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads (the ARGB strips, the NanoKVM, and capped on-board LEDs) offloaded individually. The lighter per-load path keeps the always-on monitoring core single-source and out of any source transition. The number that decides it is the S0 draw on a maxed build with the LEDs where you want them, against the main-5V headroom and the OQ-2 cap. See Section 2.9.
+**OQ-53: Module-rail scope for the subsystem power feed (RESOLVED for the enterprise tier, v1.2.0, Section 13.4; consumer/Pro unchanged/deferred).** Decide whether the module fleet rides the Section 2.9 shared 5V rail (whole-platform dual-feed, which frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads (the ARGB strips, the NanoKVM, and capped on-board LEDs) offloaded individually. The lighter per-load path keeps the always-on monitoring core single-source and out of any source transition. The number that decides it is the S0 draw on a maxed build with the LEDs where you want them, against the main-5V headroom and the OQ-2 cap. See Section 2.9.
 
-**OQ-54: External forensic power-in.** Confirm whether the NanoKVM's USB-C is externally accessible on the PCIe card in a closed case and accepts 5V in, since the card carries more than one USB-C and some are internal. If it is, the wall-wart path costs no CEC hardware; if not, or to cover builds with no NanoKVM, specify a CEC power-in port on a rear bracket that feeds the shared rail through the same OR and revives a Hub-only build for extraction. See Section 2.9.
+**OQ-54: External forensic power-in (RESOLVED for the enterprise tier, v1.2.0: mandatory rear-bracket feed, Section 13.4; consumer/Pro unchanged/deferred).** Confirm whether the NanoKVM's USB-C is externally accessible on the PCIe card in a closed case and accepts 5V in, since the card carries more than one USB-C and some are internal. If it is, the wall-wart path costs no CEC hardware; if not, or to cover builds with no NanoKVM, specify a CEC power-in port on a rear bracket that feeds the shared rail through the same OR and revives a Hub-only build for extraction. See Section 2.9.
 
-**OQ-55: Source-OR part and back-feed isolation.** Lock the priority ideal-diode OR or priority mux (for example a TPS2116 or an LTC4412-class PowerPath, sized for the full subsystem current and low enough in drop) and verify the back-feed isolation on every source: that the Hub's 5VSB front-end Schottky is a series element in line (Section 2.7), that the NanoKVM's slot input is isolated, and that the wall-wart can never energize a dead PSU or motherboard. See Section 2.9.
+**OQ-55: Source-OR part and back-feed isolation (RESOLVED for the enterprise tier, v1.2.0: eFuse-fronted priority cascade, Section 13.4; consumer/Pro unchanged/deferred).** Lock the priority ideal-diode OR or priority mux (for example a TPS2116 or an LTC4412-class PowerPath, sized for the full subsystem current and low enough in drop) and verify the back-feed isolation on every source: that the Hub's 5VSB front-end Schottky is a series element in line (Section 2.7), that the NanoKVM's slot input is isolated, and that the wall-wart can never energize a dead PSU or motherboard. See Section 2.9.
 
-**OQ-56: Persist-on-fault and hold-up sizing.** Define the Hub's persist-on-fault behavior (which critical events and frozen windows are written to the 16 MB flash as they occur, and the final flush on total power loss) and size the hold-up cap to cover both the source changeover and at least one flash write, so forensic recovery returns the data that mattered. See Section 2.9.
+**OQ-56: Persist-on-fault and hold-up sizing (RESOLVED for the enterprise tier, v1.2.0, Section 13.4: page-program-only persist-on-fault firmware commitment plus a modest hold-up upsize, with supercap escalation gated on this bench item; consumer/Pro unchanged/deferred).** Define the Hub's persist-on-fault behavior (which critical events and frozen windows are written to the 16 MB flash as they occur, and the final flush on total power loss) and size the hold-up cap to cover both the source changeover and at least one flash write, so forensic recovery returns the data that mattered. See Section 2.9.
 
 **OQ-57: EPS/PCIe transient-detection front-end.** Lock the threshold default and the settable-reference mechanism (shared PWM plus RC versus a small DAC), the comparator part and hysteresis, and the latch approach (firmware GPIO latch versus a hardware one-shot). Bench-validate detection against real GPU and CPU transients and confirm clean separation from noise with a minimum-width qualification so a lone noise spike does not register. Confirm the comparator-as-FREEZE-trigger path. See Section 6.13.
 
@@ -918,6 +1050,10 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 **OQ-59: EPS Max / PCIe Max.** Lock the scope (per-cable spectral and HF, no per-pin arc), the BOM, and whether they share the 12VHPWR Max FPGA data plane. See Section 6.13.
 
 **OQ-60: Max power-entry and Hub coupling (PROPOSED direction; open calls).** The Max needs a local power feed and ideally a fast trigger sideband that the shared 5VSB over the RJ-45 VCC pin does not give (Section 6.11). The proposed direction repurposes the per-port companion connector planned for the Enterprise out-of-band trust channel, an RJ-11 6P6C alongside each RJ-45 that cannot mismate an RJ-45 jack, as a per-port carrier for the Max's power and a bidirectional open-drain FREEZE trigger. Settled in the proposal: the connector is per-port; the Hub energizes it only when that port's RJ-45 DETECT reports a Max, so there is no powered empty jack; the trust and attestation role moves off it onto the second CAN-FD on the RJ-45 and the on-board secure element, dropping only its external-dongle and physical-override role; and the bidirectional trigger lets a Max assert FREEZE and the other companion-connected modules freeze in nanoseconds, supplementing the CAN FREEZE (Section 6.10) that still catches the slow modules through their pre-roll. Adopting the trigger here frees pin 7 for the DETECT Kelvin return platform-wide, resolving the pin-7 contention of Section 2.3 and OQ-4. Open calls: (a) market coupling, since the Max also targets enthusiasts and overclockers on Pro Hubs, so binding the companion connector to Enterprise strands them, which forces a choice between putting the connector on Pro Hubs too and having the Max self-tap a SATA lead so it stays Hub-independent with the connector carrying only the trigger; (b) what "power" means, where a 5V feed off the shared rail (on the PSU main 5V during S0 when the Max captures, Section 2.9) into the Max's local LDOs is the low-noise, no-extra-switcher recommendation, against a higher-voltage feed that adds a buck or a true USB-PD path that is off-spec over this connector and adds controllers; and (c) keying and labeling a powered telco-shaped jack against the foot-gun. See Sections 6.11, 6.10, and 2.3.
+
+(v1.2.0) The RJ-11 name and the one-per-Hub security-I/O function are resolved to Section
+13.3; the Max per-port sideband connector, if adopted, is a DISTINCT connector and
+renames — the open calls (a)–(c) above stand.
 
 **OQ-61: Plan language and allowed-operation vocabulary.** Lock the finite, versioned operation set the agent implements (registry edit, service configuration, driver rollback via the driver store, DISM and SFC invocations, package uninstall via the uninstall hives, power-plan changes, and so on), the per-op rollback class, which ops are consent-heavy, and which are advisory-only and never agent-executed (firmware, BIOS settings). The vocabulary is what makes plans signable, sandbox-testable, and auditable. See D.2 and D.3.
 
@@ -946,6 +1082,42 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 **OQ-73: Economics instrumentation.** Lock the escalation-rate metric, per-ticket cost attribution, the precedent-coverage metric, and the review cadence at which graduation (OQ-69) and pricing are revisited. See D.8.
 
 **OQ-74: Remote-execution legal posture.** Flag, as a launch gate external to this spec: consent-record sufficiency, liability framing for consented automated changes to customer machines, and terms-of-service coverage, for review with counsel alongside the existing CEC agreement suite. This document records the dependency and decides nothing legal. See D.6.
+
+**OQ-75: CEC-KVM (hardened out-of-band console module).** Adopt/decline a CEC-built KVM module per Section 13.7 (COTS encoder SoC plus CEC carrier plus CEC-signed minimal image; ENT-AIR no-network variant). Open: SoC/SoM selection (RK3588-class secure-boot capable vs SG2002-class cost floor), carrier form (PCIe bracket vs bracketless), the standing Linux-image PSIRT cost, and whether Step-1 (CEC carrier plus hardened image on COTS core) ships before the full SKU.
+
+**OQ-76: Enterprise module per-unit identity mechanism (RESOLVED-BY-DIRECTION, owner, 2026-07-02 5th ruling).** MCU-resident device key plus Hub challenge-response over CAN and/or T1, with the DETECT poke-and-ack tap as the physical liveness/anti-spoof surface; the Section 2.3 1-Wire ID/EEPROM path is NOT adopted (no new identity hardware). Module validation is treated as inherently untrusted: the Hub cross-validates across independent surfaces (DETECT class, poke-and-ack, CAN challenge, T1 checks, power-signature consistency) and alarms on inconsistency (REQ-HUB-COMMON-113).
+
+**OQ-77: Mezzanine integrated-stack option (FORMALIZED as an alternative Standard SKU, v1.3.0; owner rulings K1 / D-3, 2026-07-03; enterprise fit and full socket design still open).** The Hub-on-24-pin mezzanine (docs/mezzanine-stack-design-2026-06-24.md) is APPROVED as an ALTERNATIVE Standard SKU — "if a person needs it" — orderable ALONGSIDE the cabled versions, never replacing them. **The CABLED RJ-45 form stays the LOCKED default PHY; the stack is additive.** It does not shrink the 24-pin (it adds parts and trades cables for ~8 mm of Z), but it is the biggest Hub space/BOM lever (it deletes the RJ-45-plus-power cable pair between the boards). The mezzanine J6 pin map of record is the reconciled as-built netlist map below (the earlier 2026-06-24 design-doc table was stale and is corrected; rev3 J6 and the hub-rev2 J_MEZZ socket already agree, built self-consistently as a mated pair):
+
+| J6 pin | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Function | +5V_SYS | +5V_SYS | +5V_SYS | GND | CAN_H | CAN_L | GND | STREAM_P | STREAM_N | GND | DETECT | GND | RSVD | GND | GND | GND |
+
+Still open: the socket/connector design itself, mechanical retention and Z-height finalization, the enterprise fit (the stacked ENT variant per D-3), and whether the SKU launches now or after ENT-AIR. Consumer authorization for the SKU and this spec-text formalization is given (K1).
+
+**OQ-78: Tamper/physical-security module family (ATR direction RULED, owner, 2026-07-02 9th).** Passive receive-only RF monitoring is the adopted candidate (NET-only — a receiver is an unintentional radiator, no Part-15C cert; catches implants at the moment they transmit; receive-only silicon is still RF silicon, so even passive is NET-only); the active emitter (dormant-implant detection via in-chassis sounding) is DEFERRED to customer-funded NRE — the intentional-radiator cert bar is not speculatively cleared. Remaining adopt/decline for the rest of the family: the plan's §3a candidates (chassis-intrusion plus rollback-resistant tamper-log module; ATR emission tension now resolved by the passive/deferred split; device inventory/attestation; power-fingerprint screening tier; environmental sensing folded into the intrusion module). The RJ-11 loop input (Section 13.3) is the Hub-side attachment point for the intrusion module's external half.
+
+**OQ-79: MC availability-ladder architecture.** Detail the Section 13.8 ladder: the independent-watchdog part class (external supervisor vs lockstep safety MCU — the Appendix B.3 Hercules-class leaning is the starting candidate), the MC-Max voting topology (2oo2 pair plus watchdog arbiter vs true 2oo3), state synchronization between the pair, voted-output boundary (which outputs are voted: northbound? actuation? logs?), bumpless-takeover semantics, and the self-test procedure. Survey 9 (in flight) grounds the options.
+
+**OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part class (hub ×8 plus module side), fabric MAC/switch plus PTP timestamping architecture, the dual-mode (T1 plus RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick (P4 vs STM32H5), RESOLVED to ESP32-P4 uniform (6th ruling; the earlier P4-vs-STM32H5 split framing is superseded, Sections 13.6 and 13.2a), and powered-pair coexistence checks on pins 4/5. Survey 10 grounds.
+
+**OQ-81: Pin-7 SYNC/FREEZE line, ENT (RESOLVED-BY-DIRECTION, owner, 2026-07-02 5th ruling; this revision formalizes the locked-table change).** Allocate the reserved spare (pin 7) as a shared wired-OR hardware sync/trigger line: platform-wide simultaneous FREEZE plus a PPS-class latch edge at ≤100 ns module-to-module alignment (complementing, and bench-verifying, the REQ-106 gPTP timebase; sub-ns is explicitly not claimed or needed). Decide against pin 7's other suitors (1-Wire identity return, OQ-76 — GND return suffices; DETECT Kelvin return, per the OQ-60 note); re-scope the mis-plug protection for a driven line; preserve legacy-module NC compatibility. Adopting this subsumes the OQ-60 companion-connector FREEZE-trigger role for the general fleet. ENT-hub REALIZATION refinement (2026-07-02, same session): per-port point-to-point pin 7 into the FPGA fabric, with wired-OR semantics preserved by deterministic fabric relay (any-port FREEZE re-broadcast within tens of ns); the module-side electrical contract is unchanged (open-drain plus hub pull-up) — this buys per-port challenge discrimination, mis-plug fault containment, and sub-ns inter-port broadcast skew. ADOPTED same-session extension (owner ruling 2026-07-02 6th; REQ-HUB-COMMON-114 / REQ-MOD-COMMON-013): pin 7 also serves as a per-module HEARTBEAT CHALLENGER, a port-bound, hardware-timed challenge-response against the module device key (nonce over CAN/T1, timed answer on pin 7; single-digit-microsecond window, distance-bounding-lite); missed or invalid responses auto-transition the module to UNTRUSTED (quarantine-tagged telemetry, alarm, re-admission only via full re-attestation). The same 6th ruling also extends the T1 module link to the 24-pin family (every ENT module runs T1 plus a uniform ESP32-P4, DETECT 10 kΩ; bandwidth is not the criterion, validation surfaces, gPTP, and fleet logistics are), folded into Section 13.2a and the Section 2.3 DETECT-class mapping for ENT builds. See Section 2.3's pin-7 row.
+
+**OQ-82: 24-pin output-interface form (D-5a; owner lean recorded, not decided).** Lock the 24-pin module's PSU-to-motherboard output form. The owner lean is a VERY SHORT captive soldered female stub (neutral black, one fewer mated pair) with an order-time optional extension bundle, over the LOCKED Section 2.8 female-to-female bridging-cable incumbent; a 5-champion panel scored a 12 cm soldered female stub with a strain-relief bar highest, but the owner left it OPEN pending a case-fit / reach survey that decides whether "very short" locks. A female-out module is both the zero-extra-parts direct install and the only form compatible with the standard male-header extension ecosystem (a male-out module mates with nothing standard). The captive-female form touches LOCKED Section 2.8 and so requires its own spec-revision proposal; the custom female pigtail assembly (Section 2.8 note) is the enabling part, pending a drawing/spec. Interacts with D-5 (whether the form change is the full 24-pin respin) and the OQ-83 assembly parts.
+
+**OQ-83: Platform common-mode-choke (CMC) part and footprint.** Pick the single platform CAN-pair common-mode choke and vendor its 4-pad footprint. The beta module splices provisioned the CMC position DNP (with the H3a-PATTERN 0 Ω bypass) but disagree on the candidate MPN across boards (TDK ACT1210L-101-2P-TL00 / LCSC C307643 on 12VHPWR vs TDK ACT45B-510-2P-TL003 / LCSC C76584 on EPS and 24-pin), and no CMC footprint is vendored yet. Converge on one part and land the footprint at BOM-freeze; nothing is fab-blocking while the position stays DNP-with-bypass. See Section 6.14.
+
+**OQ-84: Consumer FCC 15B verification and inline-power-device product-safety documentation.** Define the consumer compliance path under the subassembly / unintentional-radiator posture (Section 4, and the module standalone-USB unintentional-radiator story in Section 6.14): the FCC Part 15 Subclass B verification/DoC path for the Hub and each module, and the product-safety documentation set for shipping inline PC-power devices (the inline 24-pin/EPS/PCIe/12VHPWR interposers carry motherboard rail current). This is a launch-gate program item; it decides nothing electrical here but records the dependency.
+
+**OQ-85: Firmware contracts (SB-07 class) as a spec-level open item.** Lock, at spec level, the firmware contracts the hardware now commits to: the persist-on-fault contract (shed on ISR entry, pre-erased program-only gasp, RAM-tail-plus-index write, ring-mostly-on-flash — Section 2.9 §L); the single-point-update architecture (Hub-over-CAN, module USB-C fallback — Section 3.1); the standalone USB-CDC telemetry mode and its Hub-present reversion (Section 6.14); the OQ-2 LED port-semantics states; and where these firmware contracts are authored and versioned relative to this document. This is the spec-level surface of the SB-07 firmware-contract class.
+
+**OQ-86: Inter-board connector fit-check, procurement, and bench follow-ups (D-5a; RESOLVED-BY-RATIFICATION at the architecture and part-class level, v1.4.0).** Section 2.8 locks the all-Keystone/TE tool-less blade configuration and its per-family joint counts as the platform default for the 24-pin, EPS, and PCIe output daughterboards; what remains open is qualification and supply, not the pick itself. Before first fab: a physical sample fit check across the mating Keystone clip and TE tab parts (the owner's stated ratification condition). Recommended, no-longer-gating engineering follow-up: a cluster confirm-soak plus thermal-cycle contact-resistance trend on the blade joint (the distributor 30 A rating states no temperature-rise or cluster-loading condition). Procurement: secure clip stock depth or JLC-assembly-library admission before a production run (LCSC carries the SMT clip at 533 pieces against a 900 to 1,200-piece single production run). Committed fallbacks if the headline configuration fails its fit check: the stacked Keystone 8197 screw configuration (rated, screwed, currently out of stock at LCSC) and the Würth REDCUBE 85 A terminal as a zero-qualification prototype rung (not LCSC-carried). The 24-pin HPCE vertical/mezzanine premium alternative remains available pending its own two unverified items (beams-per-position mapping and right-size SKU supply). See `output-daughterboard-study-2026-07-04.md` §8.6 through §8.10.
+
+**OQ-87: Daughterboard mechanical and chassis interface.** Define the stand-off and mounting geometry, the keying and captivation against mis-seat, and the stack height under the enclosed-product boundary (couples to J1/J2, Section 6.6). The owner has assigned strain relief to the chassis ("we'll design that in") rather than to the daughterboard itself; the chassis-side pull-force (N) and flex-cycle numbers this joint needs are still owed. Pending those, default to the qualified target for this joint class established during the output-interface study: ≥90 N pull, ≥500-cycle flex, understanding that moving relief to the chassis may lower the daughterboard's own joint load once the chassis spec exists. Interacts with OQ-86 (connector stack height).
+
+**OQ-88: Bench-qualification protocol for the daughterboard build (downgraded from a sign-off gate to recommended engineering practice, v1.4.0).** Two batteries remain undefined: (1) the inter-board connector's own confirm-soak and thermal-cycle contact-resistance trend, carried over from OQ-86 as recommended rather than gating; and (2) the MODDIY-class PCB-mount vertical female header (a confirmed, orderable part across 24-pin/EPS/PCIe with no manufacturer name, MPN, datasheet, or published current rating) — prototype-approved for bring-up samples, but its battery (pull force, mating-cycle life, current-rise, plating trend) has not been run, and sellable-BOM use needs it qualified first. A zero-component sense-return contact (one extra low-current signal tap per sensed rail, from the daughterboard's output copper to a resistor divider and spare ADC on the main board, mirroring the Hub Standard MAIN_5V_SENSE/5VSB_SENSE pattern) is a candidate designed-in monitor for the friction joint's fretting-corrosion wear-out mode; ship now, later, or not at all, and at what granularity, is not decided.
+
+**OQ-89: Sellable daughterboard-plus-extension assembly SKU definition.** Define the SKU(s): per-family count (24-pin ×1, EPS ×2, PCIe ×2 or ×3, per the per-cable daughterboard shape), length, gauge, and strain-relief spec (parallel to the 12VHPWR pigtail SKU work), color and sleeving options, and whether it replaces or supplements the D-1 kit's cable-SKU count. This SKU is the direct replacement for the LOCKED-today female-to-female 24-pin bridging-cable SKU, which Section 2.8 retires as a consequence of the connector-daughterboard architecture.
 
 ---
 
@@ -1042,7 +1214,7 @@ This is the "what we can get" side. All of it originates at the modules and arri
 | Data class | Source | Rate / size | Notes |
 |---|---|---|---|
 | Slow telemetry | all tiers | per-second, small | per-rail V, per-rail and per-pin I, power, temperature, per-pin imbalance ratio |
-| Energy / charge | 24-pin (INA228) | per-second, small | standby and platform energy; partial figure (OQ-13) |
+| Energy / charge | 24-pin (INA238, firmware-integrated as of v1.5.0) | per-second, small | standby and platform energy; partial figure (OQ-13) |
 | Transient captures | Pro, Max | event, bursty | frozen co-capture windows (Section 6.10): power spike, voltage droop |
 | Spectral features | Max | periodic + on-change | ripple spectrum lines, switching frequency, effective phase count, harmonics |
 | HF / arc events | Max | event | per-pin HF energy trend, arc event (time, pin, energy, class), optional captured waveform |
@@ -1282,8 +1454,195 @@ For every other support vendor, this ticket is a dead end ("something killed the
 
 ---
 
+## 13. The enterprise line (ENT-NET / ENT-AIR) — v1.2.0
+
+Requirements of record: `docs/enterprise-requirements/` (register set, 103 requirements,
+DRAFT→RATIFIED lifecycle). This section states the architecture and the locked direction;
+the registers carry the testable detail. Owner rulings 2026-07-01/02 are the authority.
+
+### 13.1 Compute and identity
+
+One PolarFire SoC base design serves both variants, on a **part-agnostic, SerDes-free
+FCVG484 land** (owner ruling 2026-07-02, 7th): production baseline **MPFS095TC (Core
+line)** — conditional on FAE confirmation that Core retains PUF secure boot, user TRNG,
+and tamper detectors — with the **S-grade (MPFS095TS, Athena DPA-resistant crypto) as the
+HS population option** on the same land; the full 025/095/160/250 × T/TS/TC ladder
+interchanges as cost/headroom/security options (supersedes the earlier S-suffix-required
+baseline; survey 1 + the 2026-07-02 sourcing survey). The security architecture does not
+depend on Athena presence — runtime crypto is the embedded wolfCrypt validated module;
+secure boot + PUF identity + the signed evidence chain are the load-bearing anchors. No
+Linux: Zephyr-class RTOS control plane on the hard RISC-V complex, fabric reserved for the
+data plane (Appendix B.3/B.5 leaning, now adopted). Two-tier boot: the PolarFire System
+Controller + HSS chain for high-ceremony image changes, an A/B verified-update layer
+(MCUboot/wolfBoot-class) for routine firmware with anti-rollback. Per-device
+cryptographic identity (802.1AR-class IDevID) rooted in the PUF key store; the factory
+MAC + database scheme (Section 4) is insufficient at this tier. FIPS posture is
+embeds-a-validated-module (wolfCrypt-class), never an owned CMVP submission, and product
+claims never say "FIPS validated" (survey 6/7).
+
+### 13.2 Host links and northbound surface
+
+ENT-NET's primary management plane is a standard IEEE 802.3 1000BASE-T uplink (SGMII PHY
+off the hardened MAC; DP83869HM working baseline — the VSC8662 reference pick is NRND per
+Microchip's own schematic; integrated shielded magnetics ≥2× the 802.3 isolation floor;
+protection per the enterprise-uplink paragraph of Section 2.4). 1000BASE-T1 (automotive SPE) is demoted to a
+factory option — it is not terminable on enterprise switching (audit finding 2). USB
+remains on both variants: sensing/provisioning on ENT-NET, a primary local path on
+ENT-AIR. Northbound (ENT-NET): Redfish-aligned REST subset + OpenMetrics + syslog-TLS;
+SNMPv3 deferred past GA or commercial-stack licensed (survey 6). ENT-AIR: zero network
+egress by design — no network PHY populated, build state inspection-verifiable without
+powering the unit; the same operational surface is served locally. Host-down operation is
+a verified test case in the STANDBY power posture (13.4).
+
+### 13.2a Module link (3rd ruling, 2026-07-02; extended by the 6th)
+
+ENT modules replace the Pro-tier RS-485 with **100BASE-T1 single-pair Ethernet on the
+locked pair 2** — bidirectional, DETECT = the reserved 10 kΩ CAN+100BASE-T1 class — with
+fleet-wide **sub-microsecond TIME SYNC** (PTP/gPTP-class, hardware timestamps; sub-µs is
+SYNC, not frame latency — the ns FREEZE path is the pin-7 line, OQ-81). 6th ruling: this
+covers **EVERY ENT family, the 24-pin included** (its T1 carries sync/attestation/fleet
+logistics, not a fast-ADC stream; ESP32-P4 uniform MCU; DETECT 10 kΩ across the line).
+Port service (survey-10 update to this draft's original dual-mode text): the hub serves
+the pair **T1-only via 2× LAN9370 switches** bridged to the fabric; RS-485 backward
+compat is DROPPED per the survey-10 recommendation — a consumer Pro module's streaming
+pair goes dark on an ENT port exactly as on a Standard Hub (Section 8 pattern;
+owner-review tag still open on the drop). RS-485 remains the consumer Pro tier unchanged.
+**This resolves OQ-20 for the ENT line** (the Max program inherits the precedent).
+
+### 13.3 The RJ-11 security-I/O port (renames the "trust channel")
+
+A supervised physical-security I/O port: EOL-resistor-supervised tamper-loop input plus
+galvanically isolated dry-contact alarm output to facility security, riding the always-on
+power domain and the rollback-resistant tamper log. Deliberately protocol-free — no
+parser, no path to CAN/DETECT. Populated by default on ENT-AIR, on request on ENT-NET.
+Identity/attestation lives on the PolarFire root, not this jack. The OQ-60 per-port Max
+sideband proposal no longer owns or shares this port's name (owner 2026-07-02); if adopted
+it renames.
+
+### 13.4 Power
+
+The enterprise hub CANNOT run full compute on the shared 5VSB budget (survey 1). Two
+defined postures: **FULL** (MAIN_5V primary — complete compute plus data plane) and
+**STANDBY** (5VSB and/or independent feed — telemetry acquisition, event logging, tamper
+capture, persist-on-fault guaranteed; northbound best-effort). The Section 2.9
+three-source priority-OR graduates from PROPOSED to binding at this tier, with a
+per-source eFuse-class monitor/protect front-end (TPS25940-class working baseline; PG/FLT
+hardware status per raw source, commanded-disable self-test, reverse blocking) feeding
+the priority cascade; a rear-bracket external power-in is mandatory (forensic/independent
+feed — closes OQ-54 for this tier).
+
+### 13.5 Redundancy — fail-detected, stated honestly
+
+The module sensing chain is single-path by LOCKED platform design and is documented as
+such; no text may imply sensing-path fault tolerance. "Redundant CAN" means Hub-side
+fail-DETECTED monitoring: continuous bus-state plus error-counter exposure, debounced
+alarms on error-passive/bus-off, explicit logged recovery, and loopback self-test scoped
+to the Hub's own half (real dual-bus CAN is foreclosed by the single-pair module link; the
+125 kbps fault-tolerant transceiver class is below the LOCKED 500k floor — survey 5).
+"Redundant uplinks" means two independently-PHY'd Ethernet ports on the two hardened MACs,
+link-state active-standby default, LACP opt-in; USB is a heterogeneous local channel and
+never counts toward the loss-of-redundancy alarm. On ENT-AIR, redundancy means redundant
+LOCAL operator paths. The redundancy pack is a discrete option assignable per the Section
+1 tier-table mapping.
+
+### 13.6 Enterprise module build variants
+
+Per module family (24-pin, EPS, PCIe, 12VHPWR), an enterprise build: fail-passive-in-the-
+power-path FMEA plus fault-injection evidence (the first MC-buyer question), per-unit
+verifiable identity (mechanism = OQ-76), Section 6.10 pre-roll retained as a forensic
+feature, sensing at the Pro tier per Section 6.13, and on ENT-AIR a **radio-free MCU** —
+ESP32-P4 (radio-free) uniformly across all ENT module families per the T1 rulings (3rd
+plus 6th; STM32G4/H5-class = documented radio-free fallback — the earlier G431/G474 split
+baseline is superseded). The fused-off-ESP32 posture is rejected on evidence: no Wi-Fi-
+disable eFuse exists on S3/C6, no radio-absent SKU exists, and it fails
+inspection-without-powering (survey 8). Radio-free builds are externally verifiable
+unpowered (part marking plus BOM plus no antenna keepout).
+
+### 13.7 The NanoKVM boundary and the CEC-KVM direction
+
+The NanoKVM is an optional accessory, excluded from ENT-AIR base builds; a customer
+attaching a network-capable KVM steps outside the zero-egress guarantee by their own
+choice (owner 2026-07-02). The Hub treats any KVM, including a future CEC one, as an
+untrusted peripheral (the v3.7 ratiometric stance, kept as defense in depth). A CEC-built,
+network-hardened KVM module following the NanoKVM trajectory (COTS encoder SoC on a CEC
+carrier, CEC-signed minimal image, TLS-only, no third-party cloud, own SBOM/PSIRT; an
+ENT-AIR variant with no network populated restoring the visual vantage without egress) is
+PROPOSED as OQ-75.
+
+### 13.8 Availability ladder (MC / MC-Max SKUs)
+
+Base ENT hubs are fail-detected (13.5). The **MC SKU** adds (a) the redundancy pack (dual
+uplink, eFuse-fronted sources — 13.4/13.5) and (b) an **independent compute watchdog**:
+separate silicon with its own clock and supervised power, monitoring main-SoC
+liveness/health, able to force the safe STANDBY posture, logging to the tamper log and
+raising the loss-of-compute alarm; never in the sensing or northbound data path (this
+concretizes the Appendix B.3 safety-coprocessor leaning). The **MC-Max SKU** adds optional
+**FAIL-FUNCTIONAL compute**: a voting pair of main SoCs executing redundantly with voted
+outputs, arbitration involving the watchdog (a tri-element arrangement: pair plus
+arbiter), bumpless takeover on a single-compute fault, self-testable failover.
+Fail-functional scope is the Hub compute plane ONLY — the module sensing chain remains
+single-path (13.5). Watchdog part selection and voting topology = OQ-79. SKUs are
+externally identifiable (labeling plus population).
+
+### 13.9 Compliance posture
+
+EU market entry is deferred but kept open (owner 2026-07-02): CRA obligations bind at
+first EU placement (reporting machinery per Art. 14 — retroactive to placed units; full
+requirements per Art. 71; the Annex III "network management systems" classification is
+resolved via delegated act or counsel BEFORE first placement, never by assumption).
+Regardless of market: SBOM per release from the first enterprise release, PSIRT/CVD plus
+declared security-support period before enterprise GA, EMC/safety evidence per hardware
+revision, IEC 62443-4-2 SL-2 (EDR) as an internal design target with "designed-to" claim
+wording, US federal-channel representations prepared on demand with the NDAA §5949 BOM
+exclusion adopted as a standing rule. Modules are separately-marketed components carrying
+their own SBOM/PSIRT coverage.
+
+---
+
 ## 11. Revision history
 
+- **1.5.0 (2026-07-05, controlled).** 24-PIN SENSING-IC REVERSION: INA228 BACK TO INA238. Owner ruling (2026-07-05) reverses the v1.4 pre-release decision that moved the 24-pin ATX module's four rail-sensing ICs (12V, 5V, 3.3V, 5VSB) from the INA238 to the INA228; the 24-pin now returns to the **INA238AIDGSR** (LCSC C2868250), the same part EPS and PCIe already carry. Grounds are supply chain and assembly flow, not accuracy: the owner's own words were that it is "more work to order on Digikey ... and then consign it or solder it on myself," whereas the INA238AIDGSR is stocked and JLC-assembly-native — live LCSC ladder verified 2026-07-05 at $2.0991@1 / $1.7855@10 / $1.5889@30 / $1.3891@100 / $1.2981@500 / $1.2591@1000 (680 on hand), against the INA228's LCSC-unavailable (reference-only, out of stock) status documented in `docs/pricing-study-2026-07-05.md` and its same-day addenda. The INA238 is pin- and footprint-compatible (VSSOP-10, identical DGS land), so this is a BOM-line and documentation change, not a respin: no connector, pinout, protocol, or cross-tier-compatibility change, and no other LOCKED electrical decision is altered. What is given up, named plainly rather than glossed over: the 20-bit ADC (16-bit remains; resolution stays far below the gain-error floor at the Section 6.4 shunt values, so current-reading accuracy is not the casualty) and the fine 195 µV bus-voltage LSB the 20-bit part gave every 24-pin rail for uncharacterized 5V/3.3V/5VSB droop detection (now 3.125 mV, same as EPS/PCIe, Section 6.5); and the hardware energy/charge accumulators, so 24-pin energy reporting moves to firmware integration of the INA238 power register, exactly as EPS and PCIe already do (OQ-13's scope question is unchanged by this — only its implementation basis is). Updated in place: Section 3.3 (reference-path reasoning now uniform across the three digital modules), Section 6.1 (summary table and the sensing-IC narrative), Section 6.4 (shunt-table LSB figures recalculated for 16-bit: 2.5 mA and 200 µA per count, plus the 40.96 mV alternate-range figure), Section 6.5 (the bus-voltage-resolution paragraph rewritten to state what is foregone), Section 6.10 (continuous-conversion and trigger-source text, and the I2C-budget accumulator note), Section 6.13 (the transient-ladder intro line), Section 9 (the BOM footnote resolved — the $35 24-pin figure is once again the INA238 baseline; landed sensing-line cost recomputed at four INA238 for $5.56 against $11.84 DigiKey-sourced INA228), Appendix C.2 (the energy/charge telemetry row), and the Section 12 index. No section renumbered, no OQ closed or renumbered (OQ-13 is edited, not closed). Provenance note: the already-built **alpha** (`modules/atx-24pin`) and **rev2** (`modules/atx-24pin-rev2`, ordered) boards are frozen artifacts per the alpha/beta convention (Document control) and remain populated with the INA228 as shipped — this reversion applies to the **beta** line (`atx-24pin-rev3` and forward), whose schematic and BOM were updated in the same change (rev3 Value/MPN/LCSC/Manufacturer properties on U10–U13, `lib_id` unchanged at the shared `cec-vendor:INA226` base symbol the platform already uses for both parts). Full basis: `docs/pricing-study-2026-07-05.md` and its 2026-07-05 addenda.
+- **1.4.0 (2026-07-04, controlled).** OUTPUT-SIDE CONNECTOR-DAUGHTERBOARD ARCHITECTURE. Supersedes the v1.6 Section 2.8 output form (two board-mount male headers plus a CEC-supplied female-to-female bridging cable) for the 24-pin ATX, EPS 8-pin, and PCIe 8-pin (2-port, 3-port) modules: output rails now cross an inter-board connector to a passive daughterboard (no components, thick copper), chassis-strain-relieved, populated with a vertical female header or a soldered pigtail, optionally sold as a daughterboard-plus-extension-cable assembly (owner ruling `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04; engineering study `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`; sign-off record `docs/owner-queue.md` D-5a row). Also closes a pre-existing documentation gap: EPS/PCIe output connectors, previously unlocked by Section 2.8, are now specified under the same rule, per cable. 12VHPWR unchanged (captive soldered pigtail, contact-degradation rationale re-confirmed 2026-07-03); every module's input-side connector is unchanged. **RATIFIED** at the architecture and connector-class level (not merely proposed): the all-Keystone/TE tool-less blade configuration (Keystone universal 30 A blade clips, main-board side — SMT 3586/LCSC C238113 or THT 3557-2/LCSC C352820 — mating TE FASTON .250″ PCB tabs, daughterboard side — 63849-1/LCSC C86469) is the platform default; the per-cable daughterboard shape (over one wide daughterboard per board); the margin policy (connector continuous rating ≥125% of sustained worst case at ≤30°C rise) and its ratified joint counts (24-pin 9, EPS 12, PCIe-2 8, PCIe-3 12); and the sellable daughterboard-plus-extension assembly. Owner design-basis currents recorded (EPS ~13 A/pin continuous → ~52 A/cable sustained worst case; PCIe same ~13 A/pin theoretical, only 3×12V pins → ~39 A/cable; 24-pin anchored on the 6 A/circuit ATX bar; the transients-as-transients/sustained-as-sustained design rule). Ratification is conditional on exactly one gate before first fab: a physical sample fit check across the mating clip and tab parts ("as long as the tabs and whatnot fit together," owner). The gang mating-force concern raised during the connector study is **dismissed** by owner ruling: high insertion force is a designed-in feature, not a defect — the joint is not meant for constant swapping, and mis-seat or pull-out is the failure this rejects — so it is not scheduled as a bench gate. New **OQ-86** (connector fit-check, procurement, and bench follow-ups, now recommended rather than gating), **OQ-87** (daughterboard mechanical and chassis interface, including the owed strain-relief pull-force and flex-cycle numbers), **OQ-88** (bench-qualification protocol: MODDIY vertical-header sellable-BOM qualification, connector confirm-soak/thermal-cycle contact-resistance trend, and the still-undecided sense-return contact), **OQ-89** (sellable daughterboard-plus-extension SKU definition, including retirement of the LOCKED-today female-to-female 24-pin bridging-cable SKU). OQ-82 is resolved at the architecture level by this ruling, superseding the 2026-07-03 output-interface panel's Form A through E menu; its remaining sub-questions continue as OQ-86 through OQ-89 (OQ-82's own text is left unedited per the no-silent-rewrite rule; this entry is the record of its resolution). Range extended to OQ-1 through OQ-89. No other LOCKED electrical decision is altered and no existing section is renumbered. Board-side action opened (Outstanding board actions, item 6): the 24-pin, EPS, and PCIe schematic and PCB edits (J4/output-header removal, inter-board connector placement, and new daughterboard projects) are spec-locked but not yet started on any as-built board.
+- **1.3.0 (2026-07-03, controlled).** CONSUMER BETA LINE. Folds in the owner-ruled consumer-beta decisions from the 2026-07-03 standard-tier review (ruling record: `docs/standard-tier-review/beta-lock-register-2026-07-03.md` §A–L; plan: `SYNTHESIS-beta-plan.md`; as-built evidence: `beta-splices/`). No LOCKED electrical decision is altered and no existing section is renumbered; every change is an in-place note or a new subsection/OQ. Changes, with ruling provenance:
+  - **Alpha/beta revision-line convention and the quality-first guiding principle** (owner directive 2026-07-03): added to Document control as a new "Revision lines: alpha and beta" subsection — alpha = the validated existing consumer boards, beta = owner-approved refinements as a lineage beside alpha; quality-first over cost-down for the boards.
+  - **Module standalone mode and common protection suite (rulings H3/H3a):** new **Section 6.14** — USB-CDC standalone telemetry when no CAN master; USBLC6-2SC6 on the USB pair plus a VBUS clamp; the ferrite posture (VBUS entry bead MPZ2012S601AT000/C21519 populated, 5VSB port bead 0 Ω-provisioned, CAN CMC DNP-provisioned, no series ferrites on USB D+/D-); the **H3a-PATTERN** general rule (a series-DNP part on a required path carries two populated 0 Ω bypasses, since KiCad netlists a DNP series part as connected); and the FCC 15B unintentional-radiator rationale. A consumer standalone protection-posture note added to Section 2.4.
+  - **Enclosed product and the 12VHPWR printed-housing thermal conflict (rulings J1/J2):** Section 6.6 gains an "enclosed boundary condition" note making the enclosed (not open-air) case the electrothermal-gate standard, plus the F1/F3 module build requirements (dress anchors, self-describing silk) and the strain-relief-into-shell move; Section 6.1 gains the 12VHPWR enclosed-housing thermal interaction and the fan-provision menu (TIM-coupled aluminum baseplate; DNP J2 2-pin header off the pre-shunt lane-6 node so fan draw never pollutes per-pin measurement; TH1 overtemp self-alarm). A Section 4 note records the enclosed Hub housing (RGB/logo shine-through, service cutouts).
+  - **Hub beta persist-on-fault realization (rulings H1/H2/G3, §L budget):** Section 2.9 gains a "beta realization" block — the TLV7011 5V-drop comparator to an RTC-wake GPIO (IO14) as the primary persist trigger, the DNP hold-up ladder (rung-2 buck-boost option recorded bench-gated; TPS61040 ~11.5 V boosted reservoir + TPS563201 buck as the provisioned rung 3, with the LP5907 EN re-strap caveat), and the §L budget of record plus the binding persist firmware contract (shed / pre-erase / tail-only gasp). Persist-on-fault recorded as a shipped consumer feature (F4).
+  - **Hub power-in consolidation (ruling A4):** Sections 2.7, 2.9, and the Section 4 table record the beta single 3-pin JST S3B-XH-A (LCSC C157928, MAIN_5V / GND-center / 5VSB) replacing the two 2-pin feeds — the production consolidation this document's own follow-up foresaw.
+  - **Standard Hub antenna keepout DROPPED (ruling D-6a):** the Section 4 MCU and regulator rows are revised — no Wi-Fi at Standard ever, subassembly/unintentional-radiator posture, ~$100k intentional-radiator cert avoided, ~450 mm² reclaimed; the future-Wi-Fi regulator caveat retired.
+  - **C1 hold-up cap identity correction (register A1):** the Section 4 hold-up row is fixed like-for-like to the shipping Samxon/Ymin VKMI2101C472MV (LCSC C487318); the documentation-only, out-of-stock Panasonic EEVFK1C472M is retired. A doc-truth fix, not a design change.
+  - **Board-sharing doctrine (Section-I ruling):** added to the Section 6 preamble — separate boards where the acquisition core diverges, population-sharing only for same-core deltas, Max always its own board.
+  - **SKU-shape rulings (D-2):** Section 6.2 records PCIe as permanently two separate boards (space doctrine) and EPS-1 declined (8+4 is the norm).
+  - **Mezzanine formalized (rulings K1/D-3):** OQ-77 formalized — the Hub-on-24-pin stack is an APPROVED alternative Standard SKU alongside the LOCKED cabled default, with the reconciled as-built J6 pin map of record tabled.
+  - **Kit/cable and host-link facts (D-1 / G1 / G2):** Section 2.8 records (PROPOSED, without unlocking §2.8) the ~$0.20 panel-connector kit cables and the owner's custom female-pigtail direction; Section 4 records the host USB to the motherboard internal header (kit header-to-USB-C cable, no cable exits the case); Section 2.6 records the slim braided patch-cable class (lengths still OQ-4).
+  - **QoL adoptions (F2/F4/F7/F1/F3):** persist-on-fault as a feature (§2.9), single-point firmware updates over CAN with module USB-C fallback (§3.1), dress anchors and self-describing silk as module requirements (§6.6), and the LED port-semantics note that forces (but does not close) OQ-2.
+  - **New open questions:** OQ-82 (24-pin output form, D-5a), OQ-83 (platform CMC part + footprint), OQ-84 (consumer FCC 15B verification + inline-power-device product-safety documentation), OQ-85 (firmware contracts, SB-07 class). Range extended to OQ-1 through OQ-85. Board-side hygiene noted where it touches locked text (the 24-pin rev3 true-4-terminal WSK2512 Kelvin land, register B4, Section 6.4).
+- **1.2.0 (2026-07-02, controlled).** THE ENTERPRISE LINE. Resolves OQ-7 (owner direction
+  2026-07-01/02): the enterprise tiers are specified now, as two deployment-posture variants
+  — **ENT-NET (networked-but-hardened)** and **ENT-AIR (air-gapped)** — on a PolarFire SoC
+  hub (FCVG484, part-agnostic SerDes-free land; production baseline MPFS095TC Core per the
+  7th ruling, S-grade/Athena = the HS population option). New Section 13. Section 1's tier
+  table is rewritten to one ENT line, SKU-differentiated on posture (NET/AIR) and
+  availability (base/MC/MC-Max); enterprise uplink revised to standard IEEE 802.3
+  1000BASE-T (1000BASE-T1 demoted to factory option); RJ-11 redefined from "trust channel"
+  to a supervised physical-security I/O port; "redundant CAN" honesty-rewritten to
+  fail-detected monitoring; enterprise module BUILD variants introduced (radio-free MCUs on
+  ENT-AIR) without altering interface tier-agnosticism; the Section 2.3 pin-7 allocation
+  changes from "reserved spare" to the ENT SYNC/FREEZE hardware line plus heartbeat
+  challenger, with legacy-module NC compatibility preserved and the consumer tiers'
+  reserved-spare, no-connect meaning unchanged; enterprise half of OQ-14 closed (uplink
+  protection topology); OQ-53 through OQ-56 closed for the enterprise tier; OQ-60 updated
+  (the RJ-11 name and one-per-Hub function resolve to Section 13.3); OQ-75 through OQ-81
+  opened. D-ENT-6 resolved by owner second ruling: ONE enterprise line with orthogonal SKU
+  axes (posture NET/AIR by availability base/MC/MC-Max — independent compute watchdog on
+  MC, optional fail-functional voting pair on MC-Max, Section 13.8). Same-day addendum
+  (owner-delegated selection): OQ-11 fully RESOLVED — the remaining EPS/PCIe 0.5 mΩ and
+  12VHPWR 1 mΩ shunt parts lock to Bourns CSS2H-2512R-L500F / CSS2H-2512R-1L00F (Section
+  6.4; the R/K letter series do not overlap in range, so each value has exactly one
+  orderable letter). No LOCKED electrical
+  decision is altered: the module link, pin table, CAN 500 kbps floor, DETECT, shunt
+  values, and connector locks all stand (shunt VALUES unchanged; OQ-11 locked the PARTS). Requirements of record:
+  `docs/enterprise-requirements/` registers.
 - **1.1.0 (2026-06-09):** folded in the Support Pipeline Review and Reconciliation Draft 0.1.0 per that document's own reconciliation instructions, following the v3.6 and v3.8 fold-in pattern. Added **Appendix D (support pipeline, PROPOSED)**: the eight-stage pipeline (request, collect, swarm generation with sandbox validation on config replicas holding no user data, judge routing and scoring, signed-plan execution behind verified restore points and rendered consent, verification with a monitored horizon, human-or-verifier sign-off emitting an outcome label, de-identified corpus write); the zone model as the Section 1 placement principle drawn for software; the agent-neutrality and evidence-over-local-intelligence design rules; bundle profiles L/E/V and the service-tier matrix mirroring Section 8; the reversibility stack and the System Restore practitioner note; the sign-off label enumeration; the corpus-golden unification; the economics model; the Kernel-Power 41 worked example (carried whole, with a Max-capability note added) and the definitions (carried whole). Opened **OQ-61 through OQ-74**, internal references re-keyed to Appendix D numbering, with reconciliation sentences added to OQ-63 (consented OS-up screenshots; full dumps are content-bearing and need their own consent class, bounded retention, and a never-enters-corpus rule) and OQ-66 ("local models" fixed as the swarm-internal ladder; on-customer-machine inference excluded by agent neutrality). Applied all six proposed amendments: OQ-40 (sign-off as the first automatic label-ingestion channel), OQ-47 (the pipeline as a timebase consumer), OQ-20 (a live support ticket as a concrete raw-upload driver instance), C.5 (the support corpus realizes the fault-signature library), OQ-46 (the L profile locked to the collector), and the Section 8 cross-reference (the reconciler's-choice item, exercised as one sentence). Reconciliation against the pre-spec support-agent concept recorded in D.3: free-form terminal access superseded by the OQ-61 vocabulary; consented screenshots moved to an OQ-63 decision. The companion pipeline SVG was rebuilt to render all eight stages with a drawn feedback edge (the received rendering carried seven boxes with the sandbox folded into stage 3). The review document is retired to archive at its 1.0.0. Instruction-1 check: no OQ at or below 60 was renumbered, so every reference in the review remained valid. No hardware change; no LOCKED decision altered.
 - **1.0.1 (2026-06-09):** corrections and clarifications, no design change. Outstanding board action 5 opened: confirm whether the fabbed 24-pin rev2 carries the TJA1462A (order-side records) or the TJA1051T/3 (the v3.5 lock and same-day schematic update); pin-compatible SO8, both classical 500 kbps, no functional impact in the interim. Hub Standard regulator row gains the future-Wi-Fi caveat: the LP5907 is a 250 mA part while ESP32-S3 radio TX bursts peak near 350 mA, so the antenna keepout preserves the RF option and the regulator does not. Section 6.11 and Appendix B.2 now cross-reference the companion FPGA-Max backing document, corrected the same day: INA240 bandwidth restated to the datasheet figure of 400 kHz at -3 dB for all gains (the prior 80 kHz gain-scaled claim was wrong; that scaling behavior belongs to the INA180/181 class), an anti-alias RC noted ahead of the ADS131M08, the capture-RAM example moved from the quad-SPI APS6404 to an octal APS6408-class or HyperRAM part against the roughly 480 Mbit/s sustained capture rate, the external sync strobe re-keyed from pin 7 to the OQ-60 companion-connector FREEZE, and a per-pin shunt fault-survival note added. Notes appended to OQ-11 (fault-survival requirement for the per-pin shunt), OQ-17 (sequence after OQ-16's bench arc data), OQ-40 (minimum manual label path as a proposed floor), OQ-45 (resolve before any CEC-hosted field collection), and OQ-50 (OCR-and-discard proposed default for NanoKVM screen captures). Document control gains the source-of-record row and the companion-diagram reference. The standalone Concierge addendum was regenerated as a numbering-consolidated extraction of Appendix C, retiring the pre-v3.6 copy whose OQ numbers sat offset by minus one.
 - **1.0.0 (2026-06-05):** initial controlled release under semantic versioning. Consolidates the pre-release working line v1.0 through v3.11, retained below in Section 11.1. Baseline content: the universal RJ-45 interface and pin map (Section 2); subsystem power management (Section 2.9); CAN control with RS-485 streaming (Section 3); Hub Standard and Hub Pro (Sections 4 and 5); the module sensing and current-handling domain with the 24-pin, EPS, PCIe, and 12VHPWR Standard, Pro, and Max tiers, the EPS/PCIe transient-visibility ladder, and the Pro and Max analog-digital board split (Section 6); the ARGB Controller (Section 7); cross-tier compatibility (Section 8); the production BOM (Section 9); sixty open questions (Section 10); and the architecture explorations in Appendices A through C. No design change from v3.11. This release adds document control, a table of contents, and an index, resets the version scheme to semantic versioning, and removes the prior em-dash usage.
@@ -1331,7 +1690,8 @@ For every other support vendor, this ticket is a dead end ("something killed the
 
 Section references. Open questions are listed in Section 10; the pre-release log is Section 11.1.
 
-- **1000BASE-T1**: 1, 2.4, 10, 11.1, 12
+- **1000BASE-T (IEEE 802.3, ENT uplink)**: 1, 2.4, 13, 13.2, 10, 11, 12
+- **1000BASE-T1**: 1, 2.4, 13.2, 10, 11.1, 12
 - **100BASE-T1**: 2.3, 3.2, 6.1, 6.11, 10, Appendix A, 11.1, and others
 - **12VHPWR connector**: 1, 2.8, 3.2, 3.3, 4, 6.1, 6.2, and others
 - **5VSB rail**: 2.2, 2.3, 2.4, 2.5, 2.7, 2.8, 2.9, and others
@@ -1339,66 +1699,83 @@ Section references. Open questions are listed in Section 10; the pre-release log
 - **ADS131M08**: 6.11, 6.13, 10, 12
 - **agent neutrality (support rule)**: 10, Appendix D, D.3, D.10, 12
 - **ALERT (threshold trigger)**: 6.10, 11.1, 12
+- **alpha/beta revision lines (consumer hardware)**: Document control, 4, 11, 12
 - **analog-digital board split**: 6.9, 6.11, 6.13, B.1, 11, 11.1, 12
 - **ARGB Controller**: 3.1, 7, 7.2, 7.5, 7.6, 9, 10, and others
 - **BAT54W**: 7.3, 12
+- **board-sharing doctrine (module boards)**: 6, 6.2, 6.14, 10, 11, 12
 - **CAN bus**: 1, 2.2, 2.3, 2.4, 2.7, 2.8, 3.1, and others
+- **common-mode choke (CAN pair, DNP-provisioned)**: 6.14, 10, 12
 - **CEC Access (NanoKVM product)**: C.7, 12
+- **CEC-KVM (proposed hardened KVM)**: 13.7, 10, 11, 12
 - **co-capture FREEZE**: 2.3, 3.1, 6.10, 6.13, 10, Appendix A, Appendix C, and others
 - **Concierge**: 10, Appendix C, C.1, C.2, C.3, C.5, 11.1, and others
 - **config class (support)**: 10, Appendix D, D.2, D.7, D.10, 12
 - **corpus (support, fault-signature library)**: 10, C.5, Appendix D, D.7, D.9, 12
-- **CSS2H-2512K (shunt)**: 6.4, 6.11, 10, 11.1, 12
+- **CSS2H-2512K / CSS2H-2512R (shunts)**: 6.4, 6.11, 10, 11.1, 12
 - **DETECT (presence and comm-class)**: 2.2, 2.3, 2.4, 2.7, 2.8, 3.1, 6.1, and others
 - **diagnostic bundle (profiles L, E, V)**: 10, Appendix D, D.2, D.4, 12
 - **ECP5 (FPGA)**: 6.11, 10, B.2, B.4, 11.1, 12
-- **Enterprise Hub**: 1, 2.3, 2.4, 3.1, 8, 9, 10, and others
+- **Enterprise Hub**: 1, 2.3, 2.4, 3.1, 8, 9, 10, 13, and others
+- **enclosed housing (Standard tier, J1 directive)**: 4, 6.1, 6.6, 10, 11, 12
+- **ENT-NET / ENT-AIR (enterprise posture SKUs)**: 1, 13, 13.1, 13.2, 13.3, 13.4, 10, 11, 12
 - **ESP32-C3-MINI-1**: 1, 6.1, 9, 11.1, 12
 - **ESP32-C6-MINI-1**: 1, 4, 6.1, 9, 11.1, 12
-- **ESP32-P4**: 1, 3.1, 5, 6.9, 6.11, 6.13, 10, and others
+- **ESP32-P4**: 1, 3.1, 5, 6.9, 6.11, 6.13, 13.2a, 13.6, 10, and others
 - **ESP32-S3-MINI-1**: 1, 6.1, 6.12, 11.1, 12
 - **ESP32-S3-WROOM-1-N16R8**: 1, 4, 11.1, 12
+- **fail-detected redundancy (ENT)**: 13.5, 10, 11, 12
+- **FCC 15B (unintentional-radiator posture)**: 4, 6.14, 10, 11, 12
+- **ferrite bead (module EMC posture, H3a)**: 6.14, 10, 12
 - **golden sample / EOL fingerprint**: 10, Appendix C, C.1, C.3, C.4, C.5, C.6, and others
 - **Hub Pro**: 5, 9, 11, 11.1, 12
 - **Hub Standard**: 1, 2.7, 4, 5, 6.1, 9, 10, and others
 - **INA180A2**: 7.4, 10, 12
 - **INA181A2**: 6.1, 6.13, 10, 11.1, 12
-- **INA228**: 3.3, 6.1, 6.4, 6.5, 6.10, 6.13, 9, and others
-- **INA238**: 3.3, 6.1, 6.2, 6.4, 6.5, 6.6, 6.10, and others
+- **INA228**: Document control, 3.3, 6.1, 6.4, 6.5, 9, 10, 11, 11.1, and others
+- **INA238**: Document control, 3.3, 6.1, 6.2, 6.4, 6.5, 6.6, 6.10, 9, 10, and others
 - **INA240A3**: 3.3, 6.1, 6.2, 6.4, 6.9, 6.11, 6.13, and others
 - **JST-PH aux header**: 2.9, 4, 10, C.7, 11.1, 12
 - **JST-XH bulk feed**: 2.3, 2.5, 2.7, 2.9, 4, 5, 10, and others
+- **J_PWR (3-pin power-in consolidation, beta)**: 2.7, 2.9, 4, 11, 12
 - **judge panel (support)**: 10, Appendix D, D.2, D.5, D.9, 12
 - **Kelvin sensing**: 2.3, 6.4, 6.8, 6.9, 6.13, 10, Appendix A, and others
 - **licensing (Apache 2.0, CERN-OHL-S)**: 7.7, 11.1, 12
 - **LP5907 (LDO)**: 2.7, 4, 12
 - **LTC2358-18 (ADC)**: 3.3, 6.1, 6.9, 6.11, 6.13, 10, 11.1, and others
-- **Mission Critical**: 1, 2.4, 3.1, 7.1, 8, 9, 10, and others
+- **Mission Critical**: 1, 2.4, 3.1, 7.1, 8, 9, 10, 13.8, and others
+- **module standalone mode (USB-CDC, H3)**: 2.4, 3.1, 6.14, 10, 11, 12
 - **Molex Mini-Fit Jr**: 2.1, 2.7, 2.8, 4, 11.1, 12
 - **NanoKVM**: 2.9, 4, 10, Appendix C, C.3, C.7, 11.1, and others
 - **open questions (OQ)**: 10, 11, 12
+- **OQ-75 through OQ-81 (enterprise line)**: 10, 13, 12
 - **outcome label (support)**: 10, C.3, Appendix D, D.7, 12
 - **PCIe 8-pin**: 1, 6.1, 6.3, 6.12, 7.1, 7.2, 9, and others
 - **persist-on-fault**: 2.9, 10, 11.1, 12
 - **PESD5V0S1UL (TVS)**: 7.3, 12
 - **poke-and-ack binding**: 2.3, 6.1, 10, 11.1, 12
-- **PolarFire SoC**: 6.11, 10, B.1, B.3, B.5, 11.1, 12
+- **PolarFire SoC**: 1, 6.11, 10, 13, 13.1, B.1, B.3, B.5, 11, 11.1, 12
 - **priority ideal-diode OR**: 2.9, 10, 11.1, 12
 - **processing-placement principle**: 1, Appendix B, Appendix C, C.2, 11.1, 12
+- **radio-free MCU (ENT-AIR module build)**: 1, 13.6, 10, 11, 12
 - **ratiometric reference**: 3.3, 4, 6.1, 6.9, 10, 11.1, 12
 - **REF3030 (reference)**: 6.1, 10, 11.1, 12
 - **REF3033 (reference)**: 3.3, 5, 6.1, 6.9, 6.11, 10, 11.1, and others
 - **restore point (System Restore)**: 10, Appendix D, D.2, D.6, 12
 - **ring buffer / acquisition**: 2.9, 6.1, 6.10, 11.1, 12
-- **RJ-11 (6P6C)**: 1, 10, 11.1, 12
+- **RJ-11 (6P6C)**: 1, 10, 13, 13.3, 11.1, 12
+- **RJ-11 security-I/O port (renamed from "trust channel", v1.2.0)**: 1, 13.3, 10, 11, 12
 - **RJ-45 (8P8C)**: 2.1, 2.3, 2.4, 2.5, 2.7, 2.8, 3.3, and others
 - **RS-485 streaming**: 1, 2.2, 2.3, 2.6, 3.1, 3.2, 3.3, and others
 - **SATA power**: 6.1, 6.12, 7.1, 7.2, 7.6, 10, 11.1, and others
+- **STM32G4 (radio-free ENT fallback)**: 13.6, 12
 - **support pipeline**: 8, 10, Appendix D, 11, 12
 - **TJA1051T/3 (CAN transceiver)**: 2.4, 3.1, 4, 7.5, 11.1, 12
-- **TLV7011 (comparator)**: 6.13, 12
+- **TLV7011 (comparator)**: 2.9, 6.13, 12
 - **TPS2121 (power mux)**: 2.7, 2.9, 4, 11.1, 12
+- **TPS61040 / TPS563201 (beta hold-up ladder, DNP)**: 2.9, 11, 12
 - **TPS7A (LDO class)**: 6.11, 12
 - **transient-visibility ladder**: 6.13, 10, 11, 11.1, 12
 - **USB-C**: 2.7, 2.9, 7.5, 10, 11.1, 12
+- **USBLC6-2SC6 (module USB ESD, H3)**: 2.4, 6.14, 11, 12
 - **verification horizon (support)**: 10, Appendix D, D.6, D.10, 12

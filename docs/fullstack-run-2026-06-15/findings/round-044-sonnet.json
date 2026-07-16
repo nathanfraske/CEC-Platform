@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "/SENSEC1_LO net is clipped into two islands with 17 foreign crossings, indicating severe fragmentation of the sense copper due to component placement (likely the sense IC or its passives sitting in the high-current band). This causes DRC violations and conductor over-temp flags. kelvin_ok=true so T0 placement actuator does not fire; corridor-avoid lever and panel effort must carry the diagnosis.",
+ "reasoning": "The pour-integrity report shows /SENSEC1_LO has 2 islands, 17 foreign crossings, and only 1 component \u2013 a clear sign that the sense net is broken into separate copper regions by foreign objects. This placement-level fragmentation cannot be fixed by routing alone; it requires repositioning the sense IC and its owned passive cluster out of the interfering high-current band. The 10 DRCs and FEM over-temp flags are downstream consequences.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict the sense IC (INA/REF/ESP) and its owned passives from the fragmented /SENSEC1_LO region, placing them in a clean copper zone away from high-current foreign bands. Do not move shunt RS* or connector J*.",
+  "target": "/SENSEC1_LO sense cluster"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}
