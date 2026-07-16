@@ -674,3 +674,10 @@ OWNER handoff (PR50 A5): archive cec-24pin-idf + cec-eps-idf, tag archived-pre-m
 NOTE: main sessions now run firmware/tools/setup-esp-idf.sh in SessionStart (timeout 1800).
 Branches claude/happy-albattani-sirlzt + claude/pr50-firmware-review-wkvf7v both = 7cc0ef1,
 fully contained in main — safe to delete.
+
+## Housekeeping — orphaned fullstack-run stub removed (2026-07-16, owner-approved)
+Deleted untracked docs/fullstack-run-2026-07-16/findings/round-001-sonnet.json (73 bytes,
+content: {"verdict":"repair","failure_class":"routing","root_cause":"x"}) — aborted
+cec_fullstack/v4-idle scaffold; docs/v4-queue/pending empty so nothing regenerates it; owner
+confirmed a copy exists on their local machine. First rm attempt was classifier-denied
+(pre-approval); re-run after explicit owner approval.
