@@ -152,6 +152,49 @@ fences per sketch §13 (per-head always covered; whole-PSU to ~1.1 kW label
 on one fast channel, ~2 kW on Max-W's ganged pair; 10 ms+ steps recruit
 banks to the full 3 kW delta).
 
+## 3d. Price-check addendum (2026-07-16 night) — wall-cartridge hardware + ladder v1.1
+
+Owner audit question: "price-checked the resistors and FETs, as well as the
+bolt-on tabs?" Answer state + tonight's live checks:
+
+- **Resistors — priced, family re-verified live tonight.** The v1.2 line
+  stands (RX24/50W aluminum-shell class, LCSC, $1.71–3.24; C2923747 = the 5R
+  line); live check confirms the family healthy at LCSC ($1.64-class VO-brand
+  siblings on the shelf) and 6R is a stock family value industry-wide. The
+  ONE standing confirm stays: the exact 6R LCSC SKU at BOM lock (5R fallback
+  ruled acceptable in ladder v1.1).
+- **FETs — all priced (v1.2 rows unchanged).** Bank switches AOD4184A $0.28
+  (C99124, healthy); verniers IXTH75N10L2 $13.17 [DK 1,276 — no LCSC TO-247
+  L2 exists, known consign line]; crowbars IRLB3034 UMW-brand (block sets $5,
+  healthy); fast channel IXTK90N25L2 $28.05@25 [DK 953, OSEN fake-MPN trap
+  flagged]. NEW jellybean from ladder v1.1: the 5VSB mini-CC DPAK FET
+  (linear-derated logic-level class) ≈ $0.20–0.40 — noise; MPN at schematic.
+- **Bolt-on tabs — were NOT priced (part born with the wall-cartridge form
+  tonight); NOW CHECKED.** Class = screw/stud-mount .250″ male tab, brass,
+  0.81 mm blade thickness = exactly the TE 63969-1 receptacle's design-centre
+  (same blade class as the 63951-1 program tabs — one receptacle spec across
+  everything). Verified western part: Keystone screw/rivet/stud family (e.g.
+  1006: **$0.78@100 / $0.4449@1k, DK 1,783 + 19.3k factory**). Volume path:
+  commodity China stamping $0.03–0.10 [wb at volume RFQ]. Qty = leg count
+  (54 / 66 / ~75 / ~125) ⇒ $24–55/unit at Keystone prices, $4–13 at the
+  volume path. Exact SKU at BOM lock (tab is bolt-on hardware, not a netlist
+  item — the deck receptacle is the netlist part).
+- **THE MULTIPLIER FIND — deck receptacles now scale with LEG COUNT.** The
+  wall-cartridge form puts one 63969-1-class receptacle on the deck PER LEG
+  (+54/66/~75/~125 per unit) ON TOP of the ~40-blade slot field. At the DK
+  $0.30 line: +$16 (ST-1000) to +$38 (W-tier). Program-wide 63969-class
+  demand is now modules + slot fields + BANK DECKS — the §5 item-2
+  escalation (LCSC OOS, DK-depth-carried) and the 63968-1 LIF fallback
+  (thin) both gain weight; LIF is ALSO the gang-force lever for wall
+  seating (halves per-joint insertion force). Standing §6 item: the manual
+  LCSC "Other Suppliers" RFQ on 63969-1 now carries tester volumes too.
+- **Ladder v1.1 deltas** (minors overkill respec): +11 legs ≈ +$29
+  resistors, +3 group switch/fuse sets ≈ +$4, mini-loop parts ≈ +$1.
+- **Net §3a nudge**: ST-1000 BOM ≈ $545 → **≈ $620–640** (v1.1 legs + tabs
+  + per-leg receptacles); ST-1300 similarly +~$80–100. At $1,299/$1,499
+  list the margin reads ~2.0–2.1× — below the 3× convention like the rest
+  of the ST value line, same standing owner call (§3a note).
+
 ## 4. Sourcing-pass results (rounds 1 + 2)
 
 - Round 1: ~15 parts vendored with symbol+footprint+3D+datasheet into
