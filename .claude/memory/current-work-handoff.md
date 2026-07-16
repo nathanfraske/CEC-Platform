@@ -613,3 +613,64 @@ Joint element landed (cec_synth_pipeline: JointSpec/joint_solve, TE 63951/63969 
 - Both crashed agents (aa4d9c83 F1, aa6907e2 KVM) died on Fable-5 limit; I finished their work on Opus.
 - Thermal maps rendered → docs/standard-tier-review/thermal-maps/ (matplotlib pip-installed this session; not in base python).
 - NEXT after merge: standard-bundle "sell it" chart (owner ask); Task 13 Max spec rev (owner part-stamp gated).
+
+## PR #50 (firmware consolidation) merge diagnosis — 2026-07-15, review session
+Quick sweep verdict: GOOD. CI green 8/8 on head 2e9972f (rtl-sim + 7-app matrix). Cannot
+merge because of exactly TWO trivial conflicts vs main (both append/edit collisions):
+(1) versions.env — main's windows-serving LLM pin block vs the branch's ESP-IDF v6.0.1 +
+iverilog-12 block at EOF → resolution is UNION (keep both blocks); (2) .claude/settings.json
+— main's restructured SessionStart/Stop hook arrays vs the branch adding "timeout": 1800 to
+the session-start.sh entry → resolution is main's structure + the timeout field. All 227
+other files auto-merge; the one overlap (24pin-module.kicad_sch: branch's RS6 4T→2T +
+shunt BOM props vs main's TB clip swap) was ERC-verified on the merged tree: 0 errors, and
+the merge actually clears main's multiple_net_names warning (+1 benign lib_symbol_mismatch).
+Post-runbook branch work (not in the PR body): production 24-pin fw (INA228, cal CLI, CAN
+telemetry, OTA-over-CAN, DETECT poke-ack), Hub aggregator, module scaffolds, §6.10 FREEZE
+co-capture. Shared-components no-board-constants rule re-verified clean on head. CAN 125k
+across all proto sdkconfigs = consistent bench posture (500k note in Kconfig help), fine.
+Nothing pushed; resolution left to owner (or a follow-up session merging main into the PR
+branch with the two-file resolution above).
+
+## PR #50 firmware spec-alignment review + persist contract STARTED — 2026-07-15
+Review verdict: firmware aligns with the specs; all pin maps NETLIST-VERIFIED (Hub CAN
+IO17/18 + DETECT1-4=IO4-7; 24-pin I2C IO8/9, ALERTs IO10-13, CAN IO17/18, LED IO21,
+PS_ON/PWR_OK IO38/39 read-only; INA228 straps U10-13=0x40/41/44/45=12V/5V/3V3/5VSB, shunts
+2m/25m per §6.4). DETECT bins = correct §2.3 midpoints; FREEZE co-capture rides CAN 0x010
+broadcast (NOT pin 7) per §6.10 v2.1; CAN-OTA = F7 single-point update w/ rollback; energy
+accumulators exposed-not-reported (OQ-13 discipline). Gaps -> firmware/FOLLOWUPS.md new
+"Beta-line production gaps" section (INA238 driver absent, OQ-13 energy integration, §6.10
+ALERT posture, §6.13 latch fw, C6 targets, CEC_MAX_MODULES=4 hoist, OQ-2 LED cap).
+PERSIST CONTRACT STARTED (owner direction, bench numbers 2026-07-15): 26ms@80mA / 23ms@120mA
+/ 16ms@240mA worst -> budget <=15ms writes at typical load, no bulk dump. Contract of record
+= firmware/contracts/persist-on-fault.md + CONFIG_CEC_PERSIST_WRITE_BUDGET_MS=15 (cec_nvs
+Kconfig). NOTE: measured windows SUPERSEDE beta-lock §L estimates (~25/36/65-75ms) — spec §L
+fold-in is an OWNER-PEN item; OQ-56 remainder = ISR-to-first-write + flash throughput bench.
+All on branch claude/pr50-firmware-review-wkvf7v (bba959a, based on PR50 head 2e9972f),
+pushed; firmware-ci validates the push. PR50 merge conflicts (2 files) still unresolved.
+Root TODO.md/FOLLOWUPS.md absent on this June-based branch (predates them) — tracking done
+in firmware/FOLLOWUPS.md instead, per the PR's own F-6 guardrail precedent.
+
+## PR #50 review addendum — provenance + INA238 ruling (2026-07-15, ec20940)
+CORRECTION (owner): the 26/23/16ms hold-up ride-through numbers are SPICE-SIMULATED, not
+bench — contract doc / cec_nvs Kconfig / FOLLOWUPS re-provenanced; OQ-56 bench verification
+is FULLY open again (first item: validate the SPICE decay table on hardware). Budget term
+unchanged (<=15ms writes at typical load). OWNER RULING recorded in docs: INA238 is the
+production sensing part going forward (24-pin rev3+, EPS/PCIe always were); INA228 kept
+ONLY for the current bench units (24-pin alpha/rev2) — legacy, not extended. Recorded at:
+cec_sensors Kconfig INA228 help, ina228.h header, atx cec_config.h sensing block, FOLLOWUPS
+beta-line section. Branch claude/pr50-firmware-review-wkvf7v @ ec20940 pushed.
+
+## FIRMWARE STACK MERGED TO MAIN — 2026-07-16 (PR #50, merge commit 9972298)
+Full stack on main: subtree histories + 10 shared components + 7 proto apps + RTL + firmware-ci
++ the review branch work (persist contract w/ SPICE provenance, CEC_PERSIST_WRITE_BUDGET_MS=15,
+INA238-forward docs). Conflicts resolved on the PR branch (7cc0ef1: versions.env UNION,
+settings.json = main hooks + timeout 1800); firmware CI green (rtl-sim + 7 apps, push+PR).
+KNOWN RED, PRE-EXISTING (not firmware): main's kicad-checks host-suite leg has been FAILING
+since 2026-07-07 (4+ runs incl. tip 9192c62 pre-merge) — 14F+5E in tests.test_corridor_model /
+test_placer_oracle / test_stagger_feedback (EPS/Hub geometry assertions; likely broken by the
+July board-outline work, PR #67/#68 era). Verified identical on clean main worktree. OWNER/next
+session: fix or re-baseline those 19 tests — checklist.sh swallows their output (>/dev/null).
+OWNER handoff (PR50 A5): archive cec-24pin-idf + cec-eps-idf, tag archived-pre-monorepo.
+NOTE: main sessions now run firmware/tools/setup-esp-idf.sh in SessionStart (timeout 1800).
+Branches claude/happy-albattani-sirlzt + claude/pr50-firmware-review-wkvf7v both = 7cc0ef1,
+fully contained in main — safe to delete.
