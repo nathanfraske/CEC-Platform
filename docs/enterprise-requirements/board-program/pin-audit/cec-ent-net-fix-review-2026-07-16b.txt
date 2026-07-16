@@ -1,0 +1,70 @@
+T2 pin-type review -- cec-ent-net.kicad_sym intake additions (2026-07-16b)
+Parts: TLV75801PDBVR (easyeda2kicad pull, LCSC C2877852), ABM3-25.000MHZ-B2-T
+(hand-drawn, no LCSC listing found). Agent: ENT library-intake,
+kicad-intake-manifest-2026-07-02.md rows 16 (TLV75801PDBVR) and 17 (ABM3
+crystal), both uplink-PHY-rail parts (sheet 07a).
+
+VERIFICATION BASIS (TLV75801PDBVR): pin map cross-checked against the real TI
+datasheet SBVS351D (TLV758P family, fetched direct from ti.com and read via
+the PDF-vision path -- the same WebFetch-text-extraction failure mode noted
+for TPS7A20 in cec-ent-power-fix-review-2026-07-16b.txt applied here too, so
+the PDF was downloaded and read directly rather than trusted from a text
+summary). SBVS351D Figure 4-2 "DBV Package, 5-Pin Adjustable SOT-23 (Top
+View)": 1=IN, 2=GND, 3=EN, 4=FB, 5=OUT -- exact match to the easyeda2kicad
+pull. This is the ADJUSTABLE sibling of the TPS7A20 fixed-output family (same
+DBV/SOT-23-5 package, 2.9x2.8mm per the datasheet's own Package Information
+table) -- the BOM's own use ("LDO, adjustable, set to 1.1V via FB divider")
+confirms the FB-pin variant is the correct part, not a TPS7A20 fixed code.
+  pin 1 IN   unspecified -> power_in
+  pin 2 GND  unspecified -> power_in
+  pin 3 EN   unspecified -> input
+  pin 4 FB   unspecified -> input   (feedback sense into the error amplifier
+        -- an input to the regulator, per SBVS351D S6.3's own "Adjustable
+        Operation" description of FB as the loop's sense node)
+  pin 5 OUT  unspecified -> power_out  (see the power_out-vs-output rationale
+        in the sibling cec-ent-power log; same call, same reasoning)
+  Symbol graphic/pin layout intentionally rebuilt IDENTICAL to
+  TPS7A2018PDBVR/TPS7A2050PDBVR (cec-ent-power.kicad_sym) for a consistent
+  LDO-family schematic appearance across the three DBV parts this intake
+  landed -- see that log's "TOOLCHAIN FOOTGUN FOUND" section for why (the raw
+  easyeda2kicad pull for this part was off the 2.54mm grid).
+
+VERIFICATION BASIS (ABM3-25.000MHZ-B2-T): NO live LCSC listing was found for
+this exact ordering code (checked lcsc.com search, a direct site: search, and
+cross-distributor searches) -- LCSC carries adjacent same-family codes
+(e.g. ABM3-24.000MHZ-D2Y-T / C1985382) but not this frequency+suffix
+combination, and easyeda2kicad has nothing to pull. Per the manifest's own
+fallback instruction (row 17), hand-drawn instead. Confirmed this is a REAL,
+valid Abracon ordering code (not a typo) by fetching and reading Abracon's own
+ABM3.pdf (vendored nowhere in-repo; fetched fresh from abracon.com) via the
+PDF-vision path: the "Options and Part Identification" ordering-code diagram
+on page 2 shows exactly this shape (ABM3-[freq]MHz-[loadcap]-[optemp][stab]-
+[tolerance]-[packaging], with unlisted fields left blank for standard
+defaults), and a live DigiKey listing (product 675303) independently confirms
+the part is real and orderable. Page 3 "Mechanical Dimensions" confirms the
+package: 5.0x3.2x1.3mm ceramic body, a genuine 2-TERMINAL part (the
+"CONNECTION" detail view shows only Pin1/Pin2, no third case/ground pad) --
+both pins are just the crystal's own two terminals.
+  pin 1  unspecified -> passive  (hand-drawn; named "1", matching the generic
+        2-terminal-passive convention KiCad's own Device:Crystal symbol uses)
+  pin 2  unspecified -> passive  (named "2")
+  Symbol hand-drawn as a simple 2-plate crystal glyph (two vertical bars +
+  connecting stubs + an outer case rectangle), all pins on the 2.54mm grid by
+  construction (Â±5.08mm, length 2.54mm each).
+
+FOOTPRINT: TLV75801PDBVR REUSES cec-Package_TO_SOT_SMD:SOT-23-5 (same
+reasoning as the TPS7A20 pair -- see the sibling cec-ent-power log; all three
+DBV-family LDOs land on the identical generic SOT-23-5 body). ABM3-25.000MHZ-
+B2-T gets a NEW hand-drawn footprint, cec-ent-net:Crystal_SMD_5032-2Pin_ABM3
+-- 2 roundrect SMD pads (1.9x2.4mm, 2.05mm off-center each way, giving a
+2.2mm inner gap and 6.0mm overall span), taken directly from Abracon's own
+"Recommended Land Pattern" drawing on page 3 of the fetched ABM3.pdf. No 3D
+model (none available to pull; a hand-drawn STEP was judged out of scope for
+an S-effort passive).
+
+Post-fix gate: cec-ent-net.kicad_sym high=0 (the file's substantial
+pre-existing medium/low backlog -- DP83869HMRGZR/DP83TC814S-Q1/LAN9370-I_KCX
+TX-direction and connector-pin findings -- is untouched by this pass and does
+not gate; neither new symbol appears in any medium/low finding either). Test
+suite (tests/test_sym_audit.py) 11/11, pin-count fixture updated
+187 -> 194 (+5 +2).

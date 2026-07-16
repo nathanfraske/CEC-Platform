@@ -118,12 +118,21 @@ class TestParser(unittest.TestCase):
         # every pin, not an undercount from a fragile regex. These counts
         # were independently verified against the real files.
         expected = {
-            "cec-ent-power.kicad_sym": 106,
-            # 106 + LAN9370-I_KCX 65 (64 + EP, verified 64/64 against product
-            # brief DS00002819B Table 3-1) + JXD0-0001NL 16 (14 + SH1/SH2,
-            # verified against the footprint pad set) -- 2026-07-16 intake
-            "cec-ent-net.kicad_sym": 187,
-            "cec-ent-compute.kicad_sym": 484,
+            # 106 + TPS7A2018PDBVR 5 + TPS7A2050PDBVR 5 + TLP172A 4 +
+            # LM393DR2G 8 = 128 -- 2026-07-16b library-intake fan-out
+            # (kicad-intake-manifest-2026-07-02.md rows 12/22/23; TLV75801PDBVR
+            # and ABM3-25.000MHZ-B2-T, same batch, landed in cec-ent-net below
+            # per their sheet-07a uplink-PHY grouping, not here)
+            "cec-ent-power.kicad_sym": 128,
+            # 187 (106 + LAN9370-I_KCX 65 [64 + EP, verified 64/64 against
+            # product brief DS00002819B Table 3-1] + JXD0-0001NL 16 [14 +
+            # SH1/SH2, verified against the footprint pad set] -- 2026-07-16
+            # intake) + TLV75801PDBVR 5 + ABM3-25.000MHZ-B2-T 2 = 194 --
+            # 2026-07-16b library-intake fan-out (manifest rows 16/17)
+            "cec-ent-net.kicad_sym": 194,
+            # 484 + FTSH-105-01-L-DV-K 10 = 494 -- 2026-07-16b library-intake
+            # fan-out (manifest row 14)
+            "cec-ent-compute.kicad_sym": 494,
             "cec-ent-mcu.kicad_sym": 290,
         }
         libdir = os.path.join(ROOT, "lib")

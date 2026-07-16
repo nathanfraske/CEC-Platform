@@ -1,0 +1,62 @@
+T2 pin-type review -- cec-ent-compute.kicad_sym intake additions (2026-07-16b)
+Part: FTSH-105-01-L-DV-K (easyeda2kicad pull, LCSC C5155080). Agent: ENT
+library-intake, kicad-intake-manifest-2026-07-02.md row 14, hub JTAG/FlashPro
+programming header, sheet 02c.
+
+VERIFICATION BASIS: this is a GENERIC 2x5, 1.27mm-pitch SMT terminal strip --
+Samtec does not assign per-pin functions to the connector part itself; the
+JTAG/FlashPro signal-to-pin mapping is a board-level wiring decision (per
+bom-a-compute.md, Microchip's own DS60001681H Figure 1-6 reference design
+assigns the signals at that level, not in the connector). Confirmed the
+MECHANICAL/mount style independently, since bom-a-compute.md's existing
+"2x5 vertical THT" description does not match what the easyeda2kicad pull
+actually carries (SMD gull-wing-style rect pads, no drill holes) -- a web
+search of Samtec's own FTSH family description confirms "FTSH SMT Terminal
+Strip" / "connector header surface mount", so the pulled SMD land is the
+physically-correct one and the existing repo doc's "THT" label appears to be
+a pre-existing inaccuracy (out of this task's scope to fix, flagged here for
+the record; not touched).
+  pins 1-10  unspecified -> passive  (all ten, named by position "1".."10" --
+        no fixed function per the connector part itself). This matches the
+        platform's existing convention for a generic multi-pin connector with
+        no per-pin function (see KH-PCB-6P6C in cec-ent-power.kicad_sym,
+        which the auditor accepts at 'unspecified'/low-severity for the same
+        reason; 'passive' was chosen here instead of leaving 'unspecified'
+        since it is a strictly cleaner, zero-finding result for a part that
+        genuinely has no better-known type, and matches the diode-terminal
+        'passive' convention already used elsewhere in this same library
+        group for similarly function-less pins).
+  Also added a ki_keywords property -- the raw easyeda2kicad pull for this
+  part omitted it entirely (present on every other pulled part in this
+  session's batch); added "JTAG programming header 2x5 1.27mm" to match
+  house convention (every other symbol in this file/group carries one).
+
+TOOLCHAIN FOOTGUN (grid alignment): the raw pull placed all ten pins on a
+1.27mm half-grid offset (X coordinates ending in .35, not a 2.54 multiple) --
+see cec-ent-power-fix-review-2026-07-16b.txt's "TOOLCHAIN FOOTGUN FOUND"
+section for the general finding across this session's whole pull batch.
+Fixed here by a uniform -1.27mm X shift of the entire symbol block (pins +
+graphics together); verified 0 off-grid pins post-fix.
+
+FOOTPRINT: NEW footprint vendored, cec-ent-compute:HDR_2x5_P1.27mm_FTSH-105-
+01-L-DV-K.kicad_mod (the real easyeda2kicad LCSC-mirrored land -- ten 0.76 x
+2.4mm SMD rect pads at 1.27mm pitch/2.54mm row spacing, matching the Samtec
+FTSH-105 family's real dimensions), kicad-cli fp-upgraded to KiCad-10 format,
+3D STEP copied to lib/3dmodels/cec-ent-compute.3dshapes/ (a fresh directory --
+none existed for this library before; the pre-existing MPFS095T_FCVG484 BGA
+footprint in this same .pretty references a 3dshapes path that does not
+actually exist on disk, a pre-existing gap, not touched by this pass). NOTE:
+running `kicad-cli fp upgrade` on the WHOLE cec-ent-compute.pretty directory
+(rather than targeting only the new file) silently rewrote the pre-existing
+BGA-484_19x19mm_P0.8mm_MPFS_FCVG484.kicad_mod footprint too (stroke-width and
+UUID changes, `(attr smd)` reordered) -- caught via `git status`/`git diff`
+before committing and reverted with `git checkout --`; only the new FTSH-105
+file was kept. Lesson for future intake passes into a shared .pretty
+directory: run kicad-cli fp upgrade against the SPECIFIC new file, not the
+whole directory, or diff-review before staging.
+
+Post-fix gate: cec-ent-compute.kicad_sym high=0 (the pre-existing
+MPFS095T_FCVG484 medium findings -- JTAG/TX-direction/refclk bidirectional
+calls -- are untouched and do not gate; FTSH-105-01-L-DV-K appears in zero
+findings at any confidence). Test suite (tests/test_sym_audit.py) 11/11,
+pin-count fixture updated 484 -> 494 (+10).

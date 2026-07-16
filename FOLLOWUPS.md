@@ -519,3 +519,31 @@ Conventions:
   intake (FTSH-105/TPS7A20/TLV75801/ABM3/TLP172A/LM393/REF3033) + eMMC selection research +
   KVM footprint cluster stretch; (B) hub sheet capture 04→03→02 (+06 stretch) via the compose
   engine + cec-schematic MCP gates — integrate their reports on completion.
+- [2026-07-16b] ENT LIBRARY-INTAKE "easy hub-part pulls" LANDED (agent A of the pair above,
+  kicad-intake-manifest-2026-07-02.md rows 5/12/14/16/17/22/23): FTSH-105-01-L-DV-K (JTAG
+  header, cec-ent-compute, new footprint), TPS7A2018PDBVR + TPS7A2050PDBVR (fixed LDOs,
+  cec-ent-power, REUSE cec-Package_TO_SOT_SMD:SOT-23-5), TLV75801PDBVR (adjustable LDO,
+  cec-ent-net, same SOT-23-5 reuse) + ABM3-25.000MHZ-B2-T (crystal, cec-ent-net, hand-drawn —
+  no live LCSC listing for this exact suffix, confirmed real via the vendored ordering-code
+  table + a live DigiKey listing), TLP172A (PhotoMOS, cec-ent-power, new SOP-4 footprint in
+  cec-Package_SO — the FIRST datasheet pull landed on the wrong part, TLP183, caught before
+  use) + LM393DR2G (comparator, cec-ent-power, REUSE cec-Package_SO SOIC-8), REF3033
+  (cec-vendor, hand value-dup of REF3030, LCSC C36658 confirmed 28.7k units in stock). All
+  pin maps datasheet-verified (review logs: pin-audit/cec-ent-{power,net,compute}-fix-review-
+  2026-07-16b.txt); auditor high=0 on all three cec-ent-* libs; pin-count fixture updated.
+  TOOLCHAIN FOOTGUN for the next agent who touches a `.kicad_sym`: `kicad-cli sym upgrade`
+  (WITH OR WITHOUT `--force`) silently REWRITES AND RE-ORDERS EVERY SYMBOL in the file — not
+  just the one you touched — whenever the file's own `(version ...)`/`(generator ...)` header
+  is not already the current `20251024`/`"kicad_symbol_editor"` pair (cec-vendor.kicad_sym and
+  cec-ent-compute.kicad_sym both still carry an older/custom generator tag, e.g.
+  `"gen_mpfs_fcvg484_lib"`). First attempt this session did exactly that by habit ("re-validate
+  with kicad-cli after splicing") and produced a 16k-line diff across 48 unrelated symbols in
+  cec-vendor.kicad_sym before it was caught via `git diff --stat` and reverted. Safe pattern:
+  splice with a balanced-paren text insertion (never touch the real multi-symbol file with
+  kicad-cli), validate the NEW block alone by wrapping it in a throwaway single-symbol temp
+  file and running kicad-cli there, and cross-check the real file afterward with
+  `scripts/cec_sym_audit.py` (its own parser) plus a plain balanced-paren count — never
+  `kicad-cli sym upgrade`/`--force` the shared file itself unless a full-file reformat is the
+  actual intent. eMMC research + the ent-kvm-carrier footprint-cluster stretch are separate,
+  tracked in their own place (owner-queue.md / this session's final report) — this bullet is
+  scoped to the six-part pull only.

@@ -1,0 +1,138 @@
+T2 pin-type review -- cec-ent-power.kicad_sym intake additions (2026-07-16b)
+Parts: TPS7A2018PDBVR, TPS7A2050PDBVR (easyeda2kicad pulls, LCSC C963430 /
+C2864504), TLP172A (easyeda2kicad pull, LCSC C99477), LM393DR2G (easyeda2kicad
+pull, LCSC C7955). Agent: ENT library-intake, kicad-intake-manifest-2026-07-02.md
+rows 12 (TPS7A20 pair), 22 (TLP172A), 23 (LM393DR2G).
+
+TOOLING NOTE (pin types set correctly at intake, not run through --fix): all
+four parts were typed by hand against the verified datasheet pin map before
+merging, not pulled-then-audited-then-fixed -- so this log documents the
+verification basis and the deliberate type choices, per the same discipline
+the --fix workflow enforces, rather than a mechanical before/after diff.
+
+VERIFICATION BASIS (TPS7A2018PDBVR / TPS7A2050PDBVR): pin map cross-checked
+against the real TI datasheet SBVS338H (fetched direct from ti.com, read via
+the PDF-vision path since WebFetch's text extraction could not read the pinout
+table/diagram reliably -- a WebFetch-only attempt on this same PDF returned an
+outright WRONG pinout, caught before it was used). SBVS338H Figure 4-4 "DBV
+Package, 5-Pin SOT-23 (Top View)": 1=IN, 2=GND, 3=EN, 4=N/C, 5=OUT -- this is
+an EXACT match to what the easyeda2kicad pull already produced independently
+from the LCSC listing, cross-verifying both sources. Package size 2.9x2.8mm
+(incl. pins) per the same datasheet's Package Information table.
+  pin 1 IN   unspecified -> power_in
+  pin 2 GND  unspecified -> power_in
+  pin 3 EN   unspecified -> input
+  pin 4 NC   unspecified -> no_connect  (renamed from the pull's "N/C"/"NC")
+  pin 5 OUT  unspecified -> power_out  (LDO regulator output, not a bare
+        signal -- power_out is in the auditor's accepted-compatible set for
+        an 'output'-class OUT pin; chosen over REF3030's plain 'output' since
+        this part supplies a real load rail, unlike a low-current reference)
+
+VERIFICATION BASIS (TLV75801PDBVR, landed in cec-ent-net.kicad_sym not this
+file -- manifest row 16, uplink-PHY grouping, sheet 07a): same DBV/SOT-23-5
+family, but the ADJUSTABLE variant -- TI SBVS351D Figure 4-2 "DBV Package,
+5-Pin Adjustable SOT-23": 1=IN, 2=GND, 3=EN, 4=FB, 5=OUT. Noted here because
+its symbol graphic/pin layout was built identical to TPS7A2018/2050 (same
+family, same box) for a consistent LDO appearance across all three -- see the
+cec-ent-net-fix-review-2026-07-16b.txt log for its own pin-type table.
+
+VERIFICATION BASIS (TLP172A): the FIRST datasheet pull (via a guessed Toshiba
+docget URL) landed on the WRONG PART -- TLP183 (a phototransistor coupler,
+SO6, completely different pin count/function) -- caught by cross-checking the
+description text against the BOM's own "SOP-4 PhotoMOS" characterization
+before using anything from it. Re-pulled the REAL TLP172A datasheet two ways
+(LCSC's redirected PDF + Toshiba's own docget with the correct did=16993) and
+confirmed both agree. Official Toshiba datasheet (Rev.2.0, 2025-08-22) Figure
+4.1 "Pin Assignment": 1=Anode, 2=Cathode, 3=Drain, 4=Drain -- the device is a
+back-to-back dual-MOSFET AC switch (Note 1: "pins 3/4 are shorted" for the
+2-terminal isolation test), so BOTH output pins are genuinely named "Drain" in
+the datasheet, not a typo or an easyeda auto-naming artifact -- the
+easyeda2kicad pull (LCSC C99477) independently produced the same A/C/D/D map,
+cross-verifying it a second way.
+  pin 1 A (Anode)    unspecified -> passive
+  pin 2 K (Cathode)  unspecified -> passive  (renamed from the pull's "C" to
+        match the platform's A/K diode-terminal convention, e.g. SS110/SMAJ58A
+        in this same file)
+  pin 3 D (Drain)    unspecified -> passive
+  pin 4 D (Drain)    unspecified -> passive
+  All four typed passive (LED input terminals + a relay-contact-style output
+  pair have no ERC-meaningful direction, matching how SS110/SMAJ58A's diode
+  terminals are typed in this same file).
+
+VERIFICATION BASIS (LM393DR2G): onsemi datasheet (LM393/D, Rev.34, Sept 2025,
+fetched direct from onsemi.com) "PIN CONNECTIONS (Top View)" diagram read via
+the PDF-vision path, cross-checked against the well-established industry-
+standard LM393/LM339-family pinout (identical layout convention across every
+manufacturer's LM393 datasheet): 1=Output A, 2=Inputs A, 3=Inputs A, 4=GND,
+5=Inputs B, 6=Inputs B, 7=Output B, 8=VCC, with the inverting/non-inverting
+order within each "Inputs" pair following the standard convention (pin closer
+to the output = inverting).
+  pin 1 OUT1  unspecified -> open_collector  (renamed from "OUT/A"; LM393's
+        output stage is genuinely open-collector per the datasheet's own
+        "Output Short Circuit-to-Ground" rating and no internal pull-up --
+        open_collector is in the auditor's accepted-compatible set for an
+        'output'-class pin, and is the electrically PRECISE choice here,
+        preferred over the generic 'output' REF3030-style call)
+  pin 2 IN1-  unspecified -> input  (renamed from "IN/A/2")
+  pin 3 IN1+  unspecified -> input  (renamed from "IN/A")
+  pin 4 GND   unspecified -> power_in
+  pin 5 IN2+  unspecified -> input  (renamed from "IN/B")
+  pin 6 IN2-  unspecified -> input  (renamed from "IN/B/2")
+  pin 7 OUT2  unspecified -> open_collector  (renamed from "OUT/B")
+  pin 8 VCC   unspecified -> power_in
+  Also dropped one of two EXACT-DUPLICATE pin-1 marker circles the easyeda
+  pull carried in the graphic (cosmetic, harmless either way, cleaned up).
+
+TOOLCHAIN FOOTGUN FOUND + RECORDED (grid alignment): easyeda2kicad's own
+auto-layout does NOT reliably land pins on the platform's required 2.54mm
+grid -- of the six parts pulled in this session's batch (four in this file,
+two in cec-ent-net), only TPS7A2018PDBVR happened to land on-grid; the other
+five were off by exactly 1.27mm (a half-grid offset) on one or both axes.
+Fixed per-file: TPS7A2050PDBVR and TLV75801PDBVR were REBUILT with the exact
+same graphic/pin layout as TPS7A2018PDBVR (same DBV/SOT-23-5 family, so this
+also gives all three LDOs a consistent schematic appearance); TLP172A and
+LM393DR2G (this file) plus FTSH-105-01-L-DV-K (cec-ent-compute) were fixed by
+a uniform rigid-body coordinate shift of the WHOLE symbol block (pins +
+graphics together, so nothing moves relative to anything else) by the exact
+amount needed to bring every pin onto a 2.54mm multiple -- verified
+programmatically post-fix (0 off-grid pins across all six parts). Also found
+and fixed a SEPARATE bug in my own construction script: an early description
+string for TLP172A contained a literal embedded double-quote character, which
+silently truncated the KiCad string literal mid-property and corrupted the
+S-expression (kicad-cli failed with "Unable to load library", no line number)
+-- the file was regenerated fresh from the LCSC pull and every property/pin-
+name string is now asserted quote-free before being spliced in.
+
+FOOTPRINT REUSE DECISIONS (verify pin-map/land-match before reuse, per task):
+  TPS7A2018PDBVR / TPS7A2050PDBVR -> REUSED cec-Package_TO_SOT_SMD:SOT-23-5
+  (the platform's existing generic JEDEC MO-178 Var AA land). The easyeda
+  pulls named their own lands "TSOT-23-5"/"SOT-23-5" with different pad
+  styles (roundrect vs rect) and slightly different pad sizes, but all three
+  independent sources (our vendored generic land, and both easyeda pulls)
+  agree on the same physical envelope -- 0.95mm pin pitch, ~2.2-2.3mm row
+  span -- and TI's own datasheet package table confirms "2.9mm x 2.8mm (incl.
+  pins)" for the DBV package, consistent with the vendored land's body
+  silkscreen (~2.9 x ~1.6mm). No new footprint vendored; Footprint property
+  set to cec-Package_TO_SOT_SMD:SOT-23-5 directly.
+  TLP172A -> NEW footprint vendored: cec-Package_SO:SOP-4_TLP172A_L3.9-W4.4-
+  P2.54.kicad_mod (the real easyeda2kicad LCSC-mirrored land, kicad-cli
+  fp-upgraded to KiCad-10 format, 3D STEP copied to
+  lib/3dmodels/Package_SO.3dshapes/). No generic SOP-4 land existed in
+  cec-Package_SO before this -- added following the same-directory precedent
+  set by this session's other net-new SOIC-16/TSSOP-16 additions (dimensioned
+  variant, not a fresh per-part library).
+  LM393DR2G -> REUSED cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm (the platform's
+  existing standard narrow-body SOIC-8 land, already production-proven on
+  INA240/TJA1051T-3 elsewhere in this platform). The easyeda pull's own land
+  measured a ~9.5% wider row span (5.42mm vs 4.95mm) -- a real but modest
+  difference consistent with IPC-7351 density-level variance across two
+  different footprint generators for the same JEDEC MS-012AA body, not a
+  different physical package. Judged the platform's own proven land the
+  lower-risk reuse rather than vendoring a second, less-vetted SOIC-8
+  variant purely for this one part.
+
+Post-fix gate: cec-ent-power.kicad_sym high=0 (medium/low pre-existing
+classes on OTHER symbols in this file are untouched, not gating -- none of
+the four new symbols above appear in any medium/low finding either). Test
+suite (tests/test_sym_audit.py) 11/11, pin-count fixture updated
+106 -> 128 (+5 +5 +4 +8).
