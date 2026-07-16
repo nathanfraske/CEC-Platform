@@ -252,3 +252,4 @@ Times are UTC.
 - [x] [added 2026-07-16 15:10] Standard + Pro/Max DESIGN-SHEETs (owner ask: same rules-with-best-practices treatment as testers/ENT) + pipeline-consolidation branch survey · done 2026-07-16 15:40 (4-sheet family complete: testers/ENT/STANDARD/PRO-MAX; pipeline confirmed on claude/pipeline-consolidation, 312 ahead, unmerged)
 - [x] [added 2026-07-16 20:45] ST ruling (slot bundle adopted) + KVM-aux-header tester-link analysis + §12a proposal recorded · done 2026-07-16 20:55
 - [x] [added 2026-07-16 21:05] §12b mezzanine-dock analysis + capture-agent completion integration (02a landed; (unit 1) blocker surfaced) · done 2026-07-16 21:15
+- [ ] [added 2026-07-16 21:25] Sheet-02 completion agent: cec_sch.py multi-unit fix (root-cause, netlist-identity-gated) + U1 placement + 02b/c/d capture + 02a readability pass (owner: "very messy, not human readable" — suffice-for-now, improve at capture)
