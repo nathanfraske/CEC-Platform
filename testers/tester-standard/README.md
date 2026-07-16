@@ -33,3 +33,41 @@ copper today); the $1,299 bundle ships real modules.
 PHASE 3 — proto: JLC + consigned THT, chassis FA, POST bring-up, blade
 confirm-soak, T1/T3/T6 vs known-good PSU, SCP on sacrificial unit,
 report end-to-end.
+
+## Phase-0 rulings (owner, 2026-07-16 night)
+
+1. **§12b mezzanine dock RATIFIED** ("cleanest approach; all hubs will have
+   it anyway" → Hub-side socket = standard hub fitment, feeds D-3/OQ-77).
+   Fallbacks: USB direct / RJ-45 to a hub port. **Tester RJ-45 must be
+   PoE-SAFE** → adopt the ENT mis-plug chain (REQ-MOD-COMMON-053: SS110 +
+   SMAJ58A + TPS26621 + DETECT series R + pin-7 conditioning, ≈+$2.7).
+2. Sense-wire §7: explained to owner (approve/decline the rev3 read-taps +
+   PS_ON# drive + −12 V sense adds) — pending their word.
+3. R-bank ladder proposal v1 (below) — pending nod.
+4. **OQ-1/OQ-10 WAIVED for ST** ("just want it to exist; we know plenty of
+   shops"). Pro/Max keep the canonical gate queue.
+5. Blade samples: owner orders at some point; **press-fit tool + lever-assist
+   de-fit mechanism drafting QUEUED** (deck mechanical work, OQ-86 extension).
+
+## R-bank ladder proposal v1 (2026-07-16 — pending owner nod; [wb] until then)
+
+Basis: HoRX 50 W family legs, forced air + plates, ~48 % derate target;
+binary-ish switched GROUPS of parallel legs (AOD4184A low-side + ATOF fuse
+per group); vernier (2× IXTH75N10L2, assigned 12 V) interpolates between
+steps and runs the OCP fine-ramps; minor-rail OCP = bank steps (fence says
+coarse staircase is in-scope).
+
+| Rail | Leg value | Per-leg @rail | Groups (legs) | ST-1000 total | ST-1300 total |
+|---|---|---|---|---|---|
+| 12 V | 6.0 Ω | 2.0 A / 24 W (48 %) | 1+1+2+4+8+16 (+12 ST-1300) | 32 legs = 64 A / 768 W | 44 legs = 88 A / 1056 W |
+| 5 V | 1.0 Ω | 5.0 A / 25 W (50 %) | 1+1+2 | 4 legs = 20 A / 100 W | same |
+| 3.3 V | 0.68 Ω | 4.85 A / 16 W (32 %) | 1+1+2 | 4 legs = 19.4 A / 64 W | same |
+| 5VSB | 3.3 Ω | 1.5 A / 7.6 W | 1+1 | 2 legs = 3.0 A (+ dedicated 3.5 A/500 ms peak leg, small-FET) | same |
+| −12 V | 47 Ω 10 W | 0.26 A | 1 | 1 leg (presence) | same |
+
+Totals: ST-1000 = 43 legs ≈ the committed "~40"; ST-1300 = 55 ≈ "~52".
+Step resolution: 2.0 A on 12 V (vernier fills 0–2 A continuously), 5 A /
+4.85 A on the minors (cross-load corners = one group each). Why 6.0 Ω over
+the priced 5R: honest 48 % derate + round 2 A steps; same family/price
+class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
+2.4 A/28.8 W legs, 58 % — still acceptable with plates).

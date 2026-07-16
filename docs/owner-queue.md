@@ -246,3 +246,11 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   sense-wire §7 decision (PS_ON#/PWR_OK/−12V on rev3 — gates the ST fence's timing tests);
   (3) R-bank ladder nod when the proposal lands; (4) OQ-1/OQ-10 posture for ST (ahead/behind
   the canonical gates). PHASE-1 desk task: order the OQ-86 TE blade sample set (DigiKey).
+
+- [2026-07-16] ST PHASE-0 RESULTS: §12b RATIFIED (+ NEW FACT: mezzanine socket = standard hub
+  fitment → D-3/OQ-77 owner-pen fold needed) + tester RJ-45 PoE-safe req (ENT mis-plug chain
+  adopted); OQ-1/OQ-10 WAIVED for ST. STILL OPEN: (a) sense-wire §7 — the actual decision:
+  approve read-taps + PS_ON# DRIVE + −12 V sense on atx-24pin-rev3 beta (buys PSU-level
+  power-on for bench/self-test, NOT OS boot) — the ST tester's T1/T3/T6 + DUT sequencing ride
+  it; (b) R-bank ladder v1 nod (tester-standard README table, 6R0 legs / binary groups);
+  (c) blade sample order (owner, at some point) + press-tool/lever de-fit drafts queued.

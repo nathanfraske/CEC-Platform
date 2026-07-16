@@ -254,3 +254,4 @@ Times are UTC.
 - [x] [added 2026-07-16 21:05] §12b mezzanine-dock analysis + capture-agent completion integration (02a landed; (unit 1) blocker surfaced) · done 2026-07-16 21:15
 - [ ] [added 2026-07-16 21:25] Sheet-02 completion agent: cec_sch.py multi-unit fix (root-cause, netlist-identity-gated) + U1 placement + 02b/c/d capture + 02a readability pass (owner: "very messy, not human readable" — suffice-for-now, improve at capture)
 - [x] [added 2026-07-16 22:20] SE watercooled edition: roadmap promotion + §14a loop architecture v0 (owner Q&A round) · done 2026-07-16 22:30
+- [ ] [added 2026-07-16 23:05] ST tester: schematic capture agent (main board, six-gate, born-readable) + CAD punch list; ladder v1 + sense-wire §7 pending owner

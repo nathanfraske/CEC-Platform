@@ -641,7 +641,24 @@ calibration protocol + a bench item measuring real relay jitter; presence
 semantics on the ref pin (tester presents 3.3 V, R21/R22 divider reads it);
 deck Hub-bay routing for the PH cable.
 
-## 12b. Hub MEZZANINE as the tester dock — PROPOSED, RECOMMENDED (owner idea, 2026-07-16 late: "the elegant answer across tiers"; SUPERSEDES §12a's UART workaround)
+## 12b. Hub MEZZANINE as the tester dock — **RATIFIED (owner, 2026-07-16 night: "yes use the mezzanine, that's the cleanest approach")**; supersedes §12a (retired)
+
+**Ratification notes (owner, verbatim intent):** (1) "All hubs will have it
+anyway" — NEW OWNER FACT: the Hub-side mezzanine socket becomes STANDARD
+FITMENT on hubs (feeds D-3/OQ-77 — the socket is no longer a maybe-SKU
+question, at least Standard + Pro). (2) Acknowledged fallbacks when no
+mezzanine: tester's own USB direct, or RJ-45 into a hub port. (3) NEW
+REQUIREMENT — the tester's exposed RJ-45 must be **PoE-SAFE** (a bench
+box with an external RJ-45 invites a network/PoE mis-plug; the consumer
+§2.4 no-clamp ruling was for INTERNAL interfaces). ANSWER (better way =
+don't invent): adopt the ENT mis-plug fail-safe chain VERBATIM
+(REQ-MOD-COMMON-053 / survey 11: SS110 series + SMAJ58A + TPS26621 60 V
+auto-retry eFuse + DETECT series R + pin-7 conditioning, ≈ +$2.7) —
+designed exactly for 57 V PoE-class injection; CAN pins are covered by
+the TJA1051's own bus-pin tolerance (the §2.4 rationale); pins 4/5 are
+terminated at ST. Platform pinout stays identical — protection, not
+divergence.
+
 
 **The idea:** the tester deck's Hub bay presents the OQ-77 mezzanine
 interface (the Hub-side mate of the 24-pin rev3 J6 stack header) — the Hub

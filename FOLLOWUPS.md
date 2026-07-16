@@ -913,3 +913,10 @@ Conventions:
   Ubiquiti-layer 5-7" touch face + ARGB scenes). Next when picked up: radiator wall exact
   dims vs chassis, governor curve spec, QDC part class, res/pump vendor shortlist, SE trim
   BOM delta.
+- [2026-07-16] ST stand-up phase-0 round: §12b RATIFIED (all-hubs-mezzanine = new owner fact →
+  spec/D-3 fold owner-pen); PoE-safe tester jack = ENT REQ-MOD-COMMON-053 chain reuse; OQ-1/10
+  waived for ST; ladder v1 proposed (README); press-fit tool + lever-assist de-fit mechanism
+  DRAFTING QUEUED (deck mech, OQ-86 ext); ST schematic capture agent LAUNCHED (CAD punch list:
+  promote staged CH224K/OPA2277/IRLB3034/SMCJ15A/Keystone-3557-10; pull AOD4184A, TPS54331,
+  IXTH75N10L2 TO-247, ATOF fuse, HoRX radial fp; deck socket = separate board, J6-mate work
+  deferred to deck pass).
