@@ -392,3 +392,10 @@ Conventions:
   TPS55289 OVP source; random-fire SSR for the AC accessory). Its §3 sourcing list (L2 SKU
   ladder + pulse-SOA check, DAC80508 LCSC check, 50A 4-terminal shunt, fast op-amp, SSR MPN,
   FT60x) is owed at the tester BOM-lock pass.
+- [2026-07-16] PSU tester architecture sketch → docs/psu-tester-architecture-sketch-2026-07-16.md
+  (system/channel/fast-channel blocks, speed budget table, cooling-first layout [front→back
+  cold→hot, 141 CFM @1600W, bimetal backstop], bench-console form w/ replaceable OQ-89 front
+  plate + module deck, CAN-native data plane [profiles=data, events-not-waveforms], CEC_MARK
+  cross-timing [±2-10µs clock fusion on the FREEZE mechanism]). Its §9 sketch questions (bank
+  ladders, vernier topology, Max switch matrix, front-plate mech std ↔ OQ-89 coordination,
+  MARK firmware home ↔ OQ-85, 5VSB peak stage) are owed at the tester schematic pass.
