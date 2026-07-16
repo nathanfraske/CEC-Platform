@@ -687,6 +687,38 @@
       {
         "netclass": "USB",
         "pattern": "/USB_DM"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/MAIN_5V_RAW"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "MAIN_5V_RAW"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/PSU_5V"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "PSU_5V"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/VCC_P1"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/VCC_P2"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/VCC_P3"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/VCC_P4"
       }
     ]
   },

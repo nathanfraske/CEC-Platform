@@ -621,6 +621,20 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
     """
     if plane_to_power is None:
         plane_to_power = os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0"
+    # PROJECT BIND (owner width defect 2026-07-15, measured): pcbnew's settings
+    # manager binds the FIRST project loaded in a process; a later LoadBoard of a
+    # different board (route_once's hinted copy) silently loses ITS sidecar's
+    # netclasses, so the DSN exports class-less and FR routes everything at the
+    # 0.2 default. Explicitly activating the board's own .kicad_pro before load
+    # restores the class rules (verified: DSN carries (class Power (rule (width
+    # 1000))) same-process only with this call). Fail-safe: no sidecar = no-op.
+    _pro = board_path[:-len(".kicad_pcb")] + ".kicad_pro"
+    if os.path.isfile(_pro):
+        try:
+            pcbnew.GetSettingsManager().LoadProject(_pro)
+        except Exception as _e:                                # noqa: BLE001
+            print(f"[cec_fr] project bind failed ({_e}) -- DSN may lose netclasses",
+                  flush=True)
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ExportSpecctraDSN(board, dsn_path)
     if not ok:
@@ -2833,6 +2847,19 @@ def bake_hints(
     # Copy the board file itself
     shutil.copy2(board_path, out_path)
 
+    # Sidecars BEFORE the first LoadBoard (owner width defect 2026-07-15, measured):
+    # pcbnew's settings manager binds a project to the board path at FIRST load; if
+    # the .kicad_pro is not there yet it binds an EMPTY dummy, and a later
+    # LoadProject on that path returns the cached dummy (rc True, classes lost) --
+    # the DSN then exports class-less and FR routes every net at the 0.2 default.
+    if copy_pro:
+        base = os.path.splitext(board_path)[0]
+        out_base = os.path.splitext(out_path)[0]
+        for ext in (".kicad_pro", ".kicad_dru"):
+            src = base + ext
+            if os.path.isfile(src):
+                shutil.copy2(src, out_base + ext)
+
     if keepouts or copy_pro:
         board = pcbnew.LoadBoard(out_path)
 
@@ -2885,14 +2912,6 @@ def bake_hints(
             board.Add(z)
 
         pcbnew.SaveBoard(out_path, board)
-
-    if copy_pro:
-        base = os.path.splitext(board_path)[0]
-        out_base = os.path.splitext(out_path)[0]
-        for ext in (".kicad_pro", ".kicad_dru"):
-            src = base + ext
-            if os.path.isfile(src):
-                shutil.copy2(src, out_base + ext)
 
     return out_path
 

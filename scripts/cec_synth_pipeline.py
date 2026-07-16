@@ -8336,14 +8336,31 @@ def materialize(cand, cfg, out, *, logo=None):
             os.path.join(ROOT, "hubs", cfg.board)) else os.path.join(ROOT, "modules", cfg.board)
         _pros = sorted(_glob.glob(os.path.join(_bdir, "*.kicad_pro")), key=len)
         _outpro = out[:-len(".kicad_pcb")] + ".kicad_pro"
-        if _pros and os.path.isfile(_outpro):
+        if _pros:
             _donor = _json.load(open(_pros[0]))
-            _mine = _json.load(open(_outpro))
-            _dc = (_donor.get("net_settings") or {}).get("classes") or []
+            # CREATE the sidecar when absent (owner 2026-07-15 width fix, part 2:
+            # materialize alone never wrote a .kicad_pro, so the guard below
+            # silently no-opped and the DSN export saw no classes at all).
+            if os.path.isfile(_outpro):
+                _mine = _json.load(open(_outpro))
+            else:
+                _mine = {"meta": {"filename": os.path.basename(_outpro), "version": 3}}
+            _dns = _donor.get("net_settings") or {}
+            _dc = _dns.get("classes") or []
             _keep = [c for c in _dc if c.get("name") == "Default"
                      or float(c.get("track_width", 0) or 0) >= 0.3]
             if len(_keep) > 1:
-                _mine.setdefault("net_settings", {})["classes"] = _keep
+                # PATTERNS TOO (owner 2026-07-15 "trace width seems completely
+                # unchanged" -- the original carriage copied classes WITHOUT their
+                # netclass_patterns, so every net stayed Default and the DSN carried
+                # no width rules; with patterns bound, FR routes the class width
+                # natively, the mechanism the 12vhpwr locked-net reconcile measured).
+                _kn = {c.get("name") for c in _keep}
+                _kp = [q for q in (_dns.get("netclass_patterns") or [])
+                       if q.get("netclass") in _kn]
+                _ns = _mine.setdefault("net_settings", {})
+                _ns["classes"] = _keep
+                _ns["netclass_patterns"] = _kp
                 open(_outpro, "w").write(_json.dumps(_mine, indent=2))
         for _dru in _glob.glob(os.path.join(_bdir, "*.kicad_dru")):
             _shutil.copy(_dru, out[:-len(".kicad_pcb")] + ".kicad_dru")
