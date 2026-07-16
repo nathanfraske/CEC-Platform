@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 860" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b3541e"/></marker>
+    <marker id="arrD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2b6cb0"/></marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1280" height="860" fill="#f7f5f0"/>
+  <text x="24" y="38" font-size="22" font-weight="bold" fill="#1a202c">CEC Standard PSU Tester (ST-1000 / ST-1300) — black-box overview</text>
+  <text x="24" y="58" font-size="12" fill="#4a5568">Slot-bundle architecture (owner-ruled 2026-07-16) · sources: sketch §11/§12/§12b, BOM v1.2 §3a · tester = ACTUATOR; docked modules = the instruments (±1%)</text>
+
+  <!-- DUT -->
+  <rect x="24" y="90" width="150" height="120" rx="8" fill="#ffffff" stroke="#1a202c" stroke-width="1.5"/>
+  <text x="99" y="115" font-size="14" font-weight="bold" text-anchor="middle" fill="#1a202c">PSU under test</text>
+  <text x="99" y="135" font-size="11" text-anchor="middle" fill="#4a5568">≤1000 W (ST-1000)</text>
+  <text x="99" y="151" font-size="11" text-anchor="middle" fill="#4a5568">≤1300 W (ST-1300)</text>
+  <text x="99" y="175" font-size="10" text-anchor="middle" fill="#718096">its cables plug the</text>
+  <text x="99" y="189" font-size="10" text-anchor="middle" fill="#718096">module inputs directly</text>
+
+  <!-- MODULE DECK -->
+  <rect x="230" y="80" width="330" height="290" rx="8" fill="#eef4fb" stroke="#2b6cb0" stroke-width="1.5"/>
+  <text x="395" y="103" font-size="14" font-weight="bold" text-anchor="middle" fill="#1a3e5c">MODULE DECK — the instruments</text>
+  <text x="395" y="119" font-size="10" text-anchor="middle" fill="#4a5568">blade slot dock (TE 63951-1 fields, iteration-7 pair) · bay LCD at each slot</text>
+  <rect x="248" y="132" width="140" height="48" rx="5" fill="#ffffff" stroke="#2b6cb0"/>
+  <text x="318" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#1a3e5c">atx-24pin module</text>
+  <text x="318" y="166" font-size="9" text-anchor="middle" fill="#4a5568">rails · 5VSB · −12 V · T1/T3/T6 µs</text>
+  <rect x="402" y="132" width="140" height="48" rx="5" fill="#ffffff" stroke="#2b6cb0"/>
+  <text x="472" y="151" font-size="11" font-weight="bold" text-anchor="middle" fill="#1a3e5c">eps-8pin module</text>
+  <text x="472" y="166" font-size="9" text-anchor="middle" fill="#4a5568">both CPU cables, one port</text>
+  <rect x="248" y="192" width="140" height="48" rx="5" fill="#ffffff" stroke="#2b6cb0" stroke-dasharray="5,3"/>
+  <text x="318" y="211" font-size="11" font-weight="bold" text-anchor="middle" fill="#1a3e5c">pcie-8pin module</text>
+  <text x="318" y="226" font-size="9" text-anchor="middle" fill="#4a5568">per-DUT alternate ↕ swap</text>
+  <rect x="402" y="192" width="140" height="48" rx="5" fill="#ffffff" stroke="#2b6cb0" stroke-dasharray="5,3"/>
+  <text x="472" y="211" font-size="11" font-weight="bold" text-anchor="middle" fill="#1a3e5c">12vhpwr module</text>
+  <text x="472" y="226" font-size="9" text-anchor="middle" fill="#4a5568">per-pin melt-watch soak</text>
+  <text x="395" y="256" font-size="9.5" text-anchor="middle" fill="#b3541e">dashed pair = alternates: 4 Hub ports = tester-era exactly-enough (owner ruling)</text>
+  <rect x="248" y="268" width="294" height="88" rx="5" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5"/>
+  <text x="395" y="288" font-size="12" font-weight="bold" text-anchor="middle" fill="#1a3e5c">HUB STANDARD (docked)</text>
+  <text x="395" y="304" font-size="9.5" text-anchor="middle" fill="#4a5568">4× RJ-45 ports → modules · USB → host PC</text>
+  <text x="395" y="320" font-size="9.5" text-anchor="middle" fill="#8a5a00">§12b PROPOSED: stacks on the MEZZANINE socket (J6 map)</text>
+  <text x="395" y="334" font-size="9.5" text-anchor="middle" fill="#8a5a00">→ tester joins CAN natively · bulk 5VSB via deck copper</text>
+  <text x="395" y="348" font-size="9.5" text-anchor="middle" fill="#4a5568">CEC_MARK timeline: ±2–10 µs stamps, every node</text>
+
+  <!-- LOAD PLANE -->
+  <rect x="620" y="80" width="380" height="420" rx="8" fill="#fdf3ec" stroke="#b3541e" stroke-width="1.5"/>
+  <text x="810" y="103" font-size="14" font-weight="bold" text-anchor="middle" fill="#7b3410">LOAD PLANE (the actuator)</text>
+  <rect x="638" y="116" width="344" height="86" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="810" y="135" font-size="12" font-weight="bold" text-anchor="middle" fill="#7b3410">Switched R-banks</text>
+  <text x="810" y="151" font-size="10" text-anchor="middle" fill="#4a5568">paralleled 50 W legs · ~2.0 kW installed (ST-1000, ~40 legs)</text>
+  <text x="810" y="165" font-size="10" text-anchor="middle" fill="#4a5568">~2.6 kW installed (ST-1300, ~52 legs) · 50 % derate doctrine</text>
+  <text x="810" y="181" font-size="10" text-anchor="middle" fill="#4a5568">AOD4184A leg switches + ATOF fuses · ms-class steps</text>
+  <text x="810" y="195" font-size="9.5" text-anchor="middle" fill="#718096">static loads · cross-load corners · OCP staircase (coarse)</text>
+  <rect x="638" y="212" width="164" height="70" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="720" y="231" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#7b3410">Vernier CC loop</text>
+  <text x="720" y="246" font-size="9.5" text-anchor="middle" fill="#4a5568">2× IXTH75N10L2 (L2)</text>
+  <text x="720" y="259" font-size="9.5" text-anchor="middle" fill="#4a5568">PWM+RC setpoints (no DAC)</text>
+  <text x="720" y="272" font-size="9.5" text-anchor="middle" fill="#4a5568">smooth ramps · OCP fine steps</text>
+  <rect x="818" y="212" width="164" height="70" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="900" y="231" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#7b3410">SCP crowbars ×3</text>
+  <text x="900" y="246" font-size="9.5" text-anchor="middle" fill="#4a5568">12 V / 5 V / 3.3 V blocks</text>
+  <text x="900" y="259" font-size="9.5" text-anchor="middle" fill="#4a5568">IRLB3034 + TVS + time-fuse</text>
+  <text x="900" y="272" font-size="9.5" text-anchor="middle" fill="#4a5568">two-step arm interlock</text>
+  <rect x="638" y="294" width="164" height="70" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="720" y="313" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#7b3410">Trip watch ×4</text>
+  <text x="720" y="328" font-size="9.5" text-anchor="middle" fill="#4a5568">loop shunts + INA181+TLV7011</text>
+  <text x="720" y="341" font-size="9.5" text-anchor="middle" fill="#4a5568">µs OCP/SCP trip stamps</text>
+  <text x="720" y="354" font-size="9.5" text-anchor="middle" fill="#4a5568">(§6.13 platform cells)</text>
+  <rect x="818" y="294" width="164" height="70" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="900" y="313" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#7b3410">5VSB peak leg + −12 V</text>
+  <text x="900" y="328" font-size="9.5" text-anchor="middle" fill="#4a5568">3.5 A / 500 ms 5VSB test</text>
+  <text x="900" y="341" font-size="9.5" text-anchor="middle" fill="#4a5568">−12 V presence (switched R)</text>
+  <text x="900" y="354" font-size="9.5" text-anchor="middle" fill="#4a5568">ripple: ONE BNC tap (scope)</text>
+  <rect x="638" y="376" width="344" height="52" rx="5" fill="#ffffff" stroke="#b3541e"/>
+  <text x="810" y="395" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#7b3410">NOT in ST (the honest fence)</text>
+  <text x="810" y="411" font-size="9.5" text-anchor="middle" fill="#718096">no transient/excursion engine · no OVP source · no streams/digitizer</text>
+  <text x="810" y="423" font-size="9.5" text-anchor="middle" fill="#718096">"it tells you it turns on; this tells you it works"</text>
+  <text x="810" y="452" font-size="10" text-anchor="middle" fill="#7b3410" font-weight="bold">STAR GROUND at the load return bus — sense returns never share load copper</text>
+  <text x="810" y="470" font-size="9.5" text-anchor="middle" fill="#4a5568">fixture heads = OQ-89 blade-mated consumables · gang-insertion = feature (owner ruling)</text>
+
+  <!-- CONTROL -->
+  <rect x="620" y="520" width="380" height="130" rx="8" fill="#eefbf2" stroke="#276749" stroke-width="1.5"/>
+  <text x="810" y="543" font-size="13" font-weight="bold" text-anchor="middle" fill="#276749">CONTROL — ESP32-C6 (CAN-only · DETECT 2.2 kΩ)</text>
+  <text x="810" y="561" font-size="10" text-anchor="middle" fill="#4a5568">interlock: IDLE→POST→ARMED→RUN→SAFE · PS_ON# sequencer · profile step-lists over CAN</text>
+  <text x="810" y="577" font-size="10" text-anchor="middle" fill="#4a5568">POST self-verify + auto-zero · cross-cal: docked modules calibrate the tester loops</text>
+  <text x="810" y="593" font-size="10" text-anchor="middle" fill="#4a5568">fan PWM + tach · per-FET NTCs · 120 °C bimetal NC = hardware de-gate backstop</text>
+  <text x="810" y="609" font-size="10" text-anchor="middle" fill="#4a5568">USB-C: PD self-power (~45–60 W) + standalone CDC (§6.14) — DUT never powers the tester</text>
+  <text x="810" y="625" font-size="10" text-anchor="middle" fill="#4a5568">CEC_MARK origin: every step edge broadcast + stamped fleet-wide</text>
+  <text x="810" y="641" font-size="9.5" text-anchor="middle" fill="#8a5a00">link: RJ-45 port (base) — §12b mezzanine link PROPOSED (frees the 4th port)</text>
+
+  <!-- UI -->
+  <rect x="1030" y="80" width="226" height="180" rx="8" fill="#f4effb" stroke="#553c9a" stroke-width="1.5"/>
+  <text x="1143" y="103" font-size="13" font-weight="bold" text-anchor="middle" fill="#44337a">OPERATOR FACE</text>
+  <text x="1143" y="124" font-size="10.5" text-anchor="middle" fill="#4a5568">main 2.8″ LCD: total W · state · fault</text>
+  <text x="1143" y="142" font-size="10.5" text-anchor="middle" fill="#4a5568">6× bay LCDs: per-slot V/A/W live</text>
+  <text x="1143" y="158" font-size="10" text-anchor="middle" fill="#718096">(empty bay = dark / CEC logo)</text>
+  <text x="1143" y="178" font-size="10.5" text-anchor="middle" fill="#4a5568">one-button test → PDF report</text>
+  <text x="1143" y="196" font-size="10.5" text-anchor="middle" fill="#4a5568">BNC ripple tap (user scope)</text>
+  <text x="1143" y="216" font-size="10.5" text-anchor="middle" fill="#4a5568">report: verdict + provenance footer</text>
+  <text x="1143" y="234" font-size="10" text-anchor="middle" fill="#718096">host: AllMyStuff / bench tool (USB)</text>
+
+  <!-- THERMAL -->
+  <rect x="1030" y="290" width="226" height="150" rx="8" fill="#fbf0ef" stroke="#9b2c2c" stroke-width="1.5"/>
+  <text x="1143" y="313" font-size="13" font-weight="bold" text-anchor="middle" fill="#822727">THERMAL (heat is the product)</text>
+  <text x="1143" y="334" font-size="10.5" text-anchor="middle" fill="#4a5568">front→back duct, cold→hot zones</text>
+  <text x="1143" y="352" font-size="10.5" text-anchor="middle" fill="#4a5568">2× Arctic S12038-4K (ST-1000)</text>
+  <text x="1143" y="368" font-size="10.5" text-anchor="middle" fill="#4a5568">3× (ST-1300) · 88 / 115 CFM need</text>
+  <text x="1143" y="386" font-size="10.5" text-anchor="middle" fill="#4a5568">vernier FETs on ducted extrusion</text>
+  <text x="1143" y="404" font-size="10.5" text-anchor="middle" fill="#4a5568">fan-fail → derate, never die</text>
+  <text x="1143" y="422" font-size="10.5" text-anchor="middle" fill="#4a5568">40 °C ambient design · 50 % derate</text>
+
+  <!-- FLOWS -->
+  <path d="M174,120 L230,120" stroke="#b3541e" stroke-width="4" fill="none" marker-end="url(#arrP)"/>
+  <path d="M174,160 L230,160" stroke="#b3541e" stroke-width="4" fill="none" marker-end="url(#arrP)"/>
+  <path d="M174,200 L212,200 L212,220 L230,220" stroke="#b3541e" stroke-width="4" fill="none" marker-end="url(#arrP)"/>
+  <text x="196" y="105" font-size="9.5" fill="#7b3410">DUT cables</text>
+  <path d="M560,150 L620,150" stroke="#b3541e" stroke-width="6" fill="none" marker-end="url(#arrP)"/>
+  <text x="588" y="138" font-size="9.5" fill="#7b3410" text-anchor="middle">blades</text>
+  <path d="M560,220 L620,220" stroke="#b3541e" stroke-width="6" fill="none" marker-end="url(#arrP)"/>
+  <text x="590" y="243" font-size="9.5" fill="#7b3410" text-anchor="middle">power</text>
+  <path d="M810,500 L810,520" stroke="#276749" stroke-width="2.5" fill="none" marker-end="url(#arrG)"/>
+  <text x="880" y="514" font-size="9.5" fill="#276749" text-anchor="middle">gates · setpoints · trips</text>
+  <path d="M542,312 L620,560 " stroke="#2b6cb0" stroke-width="2" stroke-dasharray="6,4" fill="none" marker-end="url(#arrD)"/>
+  <text x="548" y="450" font-size="9.5" fill="#2b6cb0">CAN (control + telem + MARK)</text>
+  <path d="M1000,585 L1075,585 L1075,440" stroke="#553c9a" stroke-width="2" fill="none" marker-end="url(#arrG)"/>
+  <path d="M1000,560 L1143,560 L1143,260" stroke="#553c9a" stroke-width="2" fill="none" marker-end="url(#arrG)"/>
+  <text x="1085" y="576" font-size="9.5" fill="#553c9a">SPI (LCD chain) · fan PWM</text>
+  <path d="M395,370 L395,690 L620,690 " stroke="#2b6cb0" stroke-width="2.5" fill="none"/>
+  <text x="430" y="682" font-size="9.5" fill="#2b6cb0">Hub USB → host PC (reports, AllMyStuff)</text>
+
+  <!-- footer -->
+  <rect x="24" y="720" width="1232" height="112" rx="8" fill="#ffffff" stroke="#a0aec0"/>
+  <text x="40" y="744" font-size="11" font-weight="bold" fill="#1a202c">SKU deltas + status</text>
+  <text x="40" y="763" font-size="10" fill="#4a5568">ST-1300 over ST-1000: +~12 R-bank legs · +1 fan · longer duct/chassis — no slot, module, or feature change. Retail $1,299 / $1,499 (BOM v1.2 ≈$545/$589 integrated-basis; slot-bundle ≈$465/$509 tester + real modules ≈$645–675 landed bundle).</text>
+  <text x="40" y="782" font-size="10" fill="#4a5568">Feature fence (committed): static loads + regulation · PS_ON#/PWR_OK µs timing (via 24-pin module) · power-up cross-load · OCP staircase · SCP · 5VSB 3.5 A peak · −12 V presence · 12VHPWR per-pin melt-watch soak · one-button report.</text>
+  <text x="40" y="801" font-size="10" fill="#8a5a00">PROPOSED, awaiting owner: §12b mezzanine Hub dock (tester → native CAN, all 4 ports to modules; supersedes §12a) · 4-module bundle = configurator upsell ($1,399-class).</text>
+  <text x="40" y="820" font-size="9.5" fill="#718096">DERIVED VIEW 2026-07-16 — canonical: docs/psu-tester-architecture-sketch-2026-07-16.md §11/§12/§12b · docs/psu-tester-bom-draft-2026-07-16.md §3a · testers/DESIGN-SHEET.md</text>
+</svg>

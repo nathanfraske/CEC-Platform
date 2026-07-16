@@ -517,6 +517,10 @@ streams/digitizer, ripple = one BNC tap. The $15-tester kill-line:
   screens ≈ $28 — the value line's "ready to go" face; a $1,299 box that
   shows live per-connector numbers on glass is the whole demo.
 
+**Block diagram:** `docs/assets/st-tester-block-2026-07-16.svg` (black-box
+overview: deck/instruments vs load-plane/actuator split, control, UI,
+thermal, SKU deltas, PROPOSED items marked).
+
 **BOM sketch (integrated config):** ST-1000 ≈ **$537** (sensing blocks ~$35,
 vernier pack $37, R-banks+switching $135, SCP $26, chassis/fans/sink $152,
 plate $85, PCBs $45, control $10, misc $27); ST-1300 ≈ **$585** (+R, +fan,
