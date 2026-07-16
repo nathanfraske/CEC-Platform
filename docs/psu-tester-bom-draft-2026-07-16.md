@@ -98,7 +98,11 @@ buys one platform-wide spare SKU + pressure headroom) and displays added
 (main + ~6 bay screens ≈ $28 — the "ready to go" face): **ST-1000 ≈ $545 /
 ST-1300 ≈ $589** → landed ~$649/$700 → **$1,299 (2.0×) / $1,499 (2.1×)** —
 single-SKU lists hold; margin-honesty note stands (2×-class, the standing
-owner call).
+owner call). CONFIG RULED (owner, 2026-07-16 evening): **slot-bundle is the
+ST architecture** — integrated-sensing carve-out RETIRED ("soldered is worse
+in both repairability and cost"). PROPOSED on top (sketch §12a): ST tester
+on the Hub KVM aux header → all 4 ports carry modules (full Standard
+family); bundle landed ≈$675, list $1,299 @~1.9× or $1,399 — owner call.
 
 ## 3b. Slot-in bundle scenario — unchanged posture (sketch §12)
 

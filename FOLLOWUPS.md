@@ -729,3 +729,153 @@ Conventions:
   and a redundant workaround would just be more surface area to keep in sync. Revisit only if
   scripts/cec_sch_compose.py's checkpoint-committed content_bbox fix is ever reverted or
   reworked upstream without this note being seen.
+- [2026-07-16] STOP-HOOK HARDENING (owner-side, ~/.claude/stop-hook-git-check.sh): its
+  `git diff --quiet` SIGBUSes when it races a concurrently-committing background agent
+  (mmap'd .git/index rewritten underneath — diagnosed live 20:12, index.lock held by the
+  capture agent, repo/memory verified healthy). Harden: retry once after ~2 s on nonzero/
+  signal exit, and/or skip when .git/index.lock exists. Cosmetic (false "uncommitted"
+  alarms), not corruption. Owner file, outside the repo — needs the owner's editor.
+- [2026-07-16] ENT HUB SHEET 02 (compute-core) CAPTURED, PARTIAL BY A REAL TOOLCHAIN
+  BLOCKER — 02a-mpfs-core.kicad_sch landed (86-cap full-rail decoupling network for the
+  MPFS095T FCVG484, U1) with six gates green; 02b/02c/02d NOT composed this pass. Full
+  picture, in one place so a resuming pass does not need to re-derive any of it:
+  - **U1 (the SoC itself) is not placed on ANY sheet-02 leaf.** scripts/cec_sch.py hardcodes
+    `(unit 1)` in every symbol-instance emission (two sites, ~lines 224/234 and ~281/287 --
+    verified by reading the file directly, not assumed) -- there is no `unit=` parameter
+    anywhere in `Leaf.add_part`/`Compose.place`, and `Leaf.parts[ref]` is a bare
+    `(lib, name, value)` 3-tuple with no room for one. MPFS095T_FCVG484 (vendored,
+    lib/cec-ent-compute.kicad_sym) is a REAL 8-unit multi-unit symbol (unit1/2 = general
+    HSIO/GPIO fabric banks, unit3 = MSSIO, unit4 = boot/JTAG special pins, unit5 =
+    MSS_SGMII+MSS_REFCLK_IN, unit6 = MSS_DDR [optional], unit7 = XCVR SerDes, unit8 = POWER,
+    169 pins) but the shared toolchain can only ever place unit 1 (general HSIO fabric, not
+    useful for any of 02a/02b/02c/02d's actual purpose) and has NO mechanism to tie several
+    different-unit placements of the SAME reference together across sheets the way real
+    KiCad multi-unit-across-sheets designs require. A workaround using each unit's own
+    NESTED block name (e.g. add_part(..., name="MPFS095T_FCVG484_8_1", ...) so
+    cec_sch.symbol_block's text search finds just that inner block) was considered and
+    REJECTED: it would give 02a/02c/02d's placements three DIFFERENT lib_id strings all
+    sharing the reference "U1" -- a duplicate-reference condition, not a correct multi-unit
+    spread, and wrong for a human reading the schematic in the GUI. FIX (out of this agent's
+    scope: hubs/hub-enterprise/** + scripts/check_hub_ent_sch.py only): add real unit-number
+    support to cec_sch.py's add_part/load_symbols/emission path. Once fixed, placing U1 is a
+    SMALL follow-up (wire its stub pins onto the already-named/counted/valued rail labels
+    below), not a re-derivation.
+  - **02a's 86-cap decoupling network is real and complete**, sourced from Microchip
+    DS60001681H ("PolarFire SoC FPGA Board Design Guidelines") Table 1-4 -- fetched and read
+    directly this pass (WebFetch's own PDF-text extraction failed on this document's
+    compressed streams; the Read tool's native PDF-page support worked cleanly) -- the table
+    specific to OUR EXACT part+package (MPFS250TS/MPFS160TS/MPFS095TS/MPFS025TS - FCVG484,
+    0.8mm), not BOM-A's own rolled-up C-1n..C-330u rows (each spans multiple rails per row
+    with no per-rail breakdown). 17 named rails, real Murata/AVX MPNs per BOM-A's own already-
+    completed research, `decoupler_bank`-style row placement (see the naming/archetype notes
+    below), wired via `lf.net()` same as any other leaf.
+  - **NAMING: every rail carries an "MPFS_" prefix** (e.g. "MPFS_VDD18" not bare "VDD18") --
+    found and fixed this pass, not a stylistic choice. Bare "VDD18" collides with sheet 04's
+    OWN root-exported "VDD18" (04b's eMMC VCCQ rail): verified in the real exported netlist
+    that `/02-compute-core/02a-mpfs-core/VDD18` and `/04-storage/04b-emmc/VDD18` are properly
+    SEPARATE, correctly-scoped nets electrically (kicad-cli does not cross-connect same-named
+    plain labels across unrelated sheets), but the bare-name collision broke
+    check_hub_ent_sch.py's own pre-existing sheet-04 assertions (which use `net_named()`'s
+    suffix-match, ambiguous once two nets share a suffix) -- a real, measured regression,
+    not a hypothetical. Renamed all 17 rather than patch just the one collision, because
+    BOM-A's own naming ("U4=VDD18(1.8V)/U5=VDD25(2.5V)") means sheet 03b, once its MPM3833C
+    blocker clears, will almost certainly ALSO want bare "VDD18"/"VDD25" -- a whole CLASS of
+    future collision between "the MPFS's own named supply ball" and "a regulator sheet's own
+    output rail name for that same real net," worth avoiding by convention now. The eventual
+    root-level cross-wire pass (already tracked below/in the module docstring for
+    +3V3_IO/VDD18 awaiting 03b) will need to reconcile these MPFS_-prefixed names with the
+    platform's bare rail names once U1 is placed and 03b/04 are ready to tie in.
+  - **`decoupler_bank` (cec_sch_archetypes.py) cannot be called directly with a non-standard
+    rail name** -- found empirically (rail="VDD" raised `SystemExit("symbol not found: VDD")`
+    from cec_sch.symbol_block via cec_sch_compose.build_leaf's `need_syms`/`_power_block`
+    pass): its own `c.stamp(rail, *head, 0)` call requires `rail` to be an ALREADY-VENDORED
+    KiCad power symbol (GND/+3V3/+5VSB/+5V_MAIN/+5V_SYS are; the MPFS's 17 named rails are
+    not, and cannot be without an out-of-scope lib/ edit). Substituting an already-vendored
+    name as a stand-in (e.g. rail="GND" purely to dodge the crash) was considered and
+    REJECTED as actively dangerous: a power-symbol stamp's own pin carries ITS OWN net
+    identity, so the bus wire -- and every cap's pin 1 on it -- would become electrically
+    PART OF THAT STAND-IN NET (rail="GND" would short the "VDD" bank onto GND). Built
+    `_mpfs_decoupler_bank()` in gen_hub_enterprise.py: identical placement/bus-wiring
+    geometry (mirrors decoupler_bank's own source), but a plain LABEL (`c.label`) in place of
+    the stamp -- same caller-facing shape, only the incompatible line changed. This is a
+    generalizable finding: ANY future leaf needing decoupler_bank on a non-platform-standard
+    rail name will hit the same wall; consider adding an optional `stamp=True` toggle to the
+    real archetype (out of this agent's scope this session).
+  - **Layout parameters measured, not guessed**: PAPER["A2"] = (594, 420)mm is LANDSCAPE --
+    height is the SHORT 420mm side (165 grid units); the column layout alone (9 rows @ 18u
+    pitch + a 12u start = 174u) already exceeded that (check_sheet_bounds caught one off-sheet
+    text element at A2) before the closing note was even added. Bumped to A1 (841x594mm, 234u
+    height). Cap pitch: 3u was too tight (110 text overlaps, same-value caps' "100nF"-style
+    text colliding on adjacent parts in a run); pitch=6 cleared it at 0 overlaps. Column-height
+    tracking bug (first fix attempt): using a single shared "current y" variable after a
+    2-column split put the closing note below whichever column happened to be processed LAST,
+    not the TALLER one -- fixed by tracking `col_y[2]` per column and using `max(col_y)`.
+  - **02b (boot-straps)/02c (jtag)/02d (clock) research is DONE, not composed.** Exact JTAG
+    header pin map (Samtec FTSH-105-01-L-DV-K -- vendored, lib/cec-ent-compute.kicad_sym --
+    Fig 1-6 + Table 1-13 of DS60001681H): 1=TCK/2=GND/3=TDO/4=PROG_MODE(DNC)/5=TMS/
+    6=VJTAG(->VDDI3)/7=VPUMP(DNC)/8=TRST/9=TDI/10=GND; straps TCK 10k-to-VSS, TRSTB
+    1k-to-VDDI3 (matches BOM-A's own C-JTAG row exactly); TDI/TMS/TDO/SDI/SDO/SCK/SS need no
+    strap when populated (Table 1-13's "Unused Condition" column doesn't apply once a real
+    header/flash is on the other end). SPI-master-mode strap VALUES AND DIRECTIONS resolved
+    from Fig 1-7 (SPI_EN 4.7k-to-VDDI3, IO_CFG_INTF 1k-to-VDDI3 -- both pulled toward the "1"
+    state the figure's own title commits to: "SPI Master Mode Programming" cannot mean
+    SPI_EN=0/IO_CFG_INTF=0), CLOSING BOM-A's own flagged open item #5 (pull polarity "not
+    independently re-derived"). DSC1123BL5-125.0000 (vendored, lib/cec-ent-power.kicad_sym --
+    Microchip's OWN 125MHz low-jitter LVDS MEMS oscillator, pins 1=EN/2=NC/3=GND/4=OUT/
+    5=OUT-/6=VDD/7=EP-to-GND) already targets BOM-A's Y2 role (its own Description property
+    says "Hub MSS/SGMII reference clock... drives MSS_REFCLK_IN_P/N") under a different,
+    better-stocked MPN than BOM-A's original AX3DAF1-125.0000T3 (which BOM-A itself flagged
+    out of stock) -- a deliberate, already-vendored substitute, not yet wired. Y1 (50MHz
+    single-ended MSS_REF_CLK) has NO vendored part and NO identified target pin (likely a
+    general fabric CLKIN alt-function on unit1/2's HSIO/GPIO pins per DS60001681H's own
+    clocking section, "you must go through the pin planning before finalizing it on the
+    board" -- out of scope until those fabric banks get a real consumer plan). Cross-sheet
+    ties to close when 02b/02c/02d are composed: unit4's SCK/SS/SDI/SDO -> sheet 04a's
+    already-exported MSS_QSPI_CLK/CS/IO0/IO1 (verified exact net names in
+    gen_hub_enterprise.py); unit4's DEVRST_N -> sheet 03d's already-driven MPFS_SEQ_EN net
+    (BOM-A's own sequencing note 5: the SAME TPS3839K33 RESET output "drives DEVRST_N" AND
+    gates the other regulators' EN pins -- same net, dual role, needs a clarifying schematic
+    note when wired, not a new net name). unit4 (13 pins, boot+JTAG mixed in ONE placeable
+    unit) most naturally lives on 02c (JTAG header + most of its own pins), with 02b's own
+    strap resistors reaching it via a `global_nets` tie (same mechanism as sheet 03's
+    MPFS_SEQ_EN) -- a placement DECISION, not yet acted on.
+  - **Bank-number-to-VDDIx-suffix mapping is a REASONED, FLAGGED assumption, not a certainty.**
+    Table 1-4's "Bank 2"/"Bank 4"/"Bank 5"/"Bank 6 MSS DDR" rows were mapped onto the vendored
+    symbol's VDDI2/VDDI4/VDDI5/VDDI6 nets by NUMBER MATCH, confirmed for Bank 6 by an explicit
+    NAME match (Table 1-1's own VDDI6 description is literally "Power to MSS DDR banks") but
+    only INFERRED (not source-confirmed) for 2/4/5. Similarly, the table's singular "HSIO"/
+    "GPIO"/"VDDAUX (GPIO)" rows were applied to VDDI0/VDDI1 and to EACH of VDDAUX1/2/4
+    respectively (one full cap set per distinct symbol net, not divided across them) by
+    ball-count proportion (HSIO: 7 balls/2 banks; GPIO: 10 balls/3 banks -- similar per-bank
+    density) since the guide's own prose doesn't give an exact bank<->VDDIx crosswalk beyond
+    the Bank-6 case. Revisit if Microchip's "PolarFire SoC Packaging and Pin Descriptions User
+    Guide" (referenced but not fetched this pass) gives an exact table.
+  - **Footprint stand-ins, not vendored (out of this agent's scope -- lib/ edits)**: real
+    packages 0201 (1nF/10nF/0.1uF), 1206 (47uF), and tantalum-2917 (330uF) have no matching
+    footprint in lib/vendor/Capacitor_SMD.pretty (only 0402/0603/0805/1210 exist) --
+    substituted the closest already-vendored land (0402 / 1210 / 1210 respectively) with the
+    real package noted in each part's own Description property. The 330uF/tantalum-2917 case
+    is the biggest mismatch (a ceramic 1210 land standing in for a real tantalum CAN
+    footprint) -- flag for whoever next does a library-vendoring pass; mechanical swap once
+    the real footprints exist, not a redesign.
+  - **Measured, not further chased**: adding sheet 02 (removing it from the placeholder set)
+    shifted ERC's pin_not_connected from 65 to 43 and pin_to_pin from 24 to 25, while
+    isolated_pin_label held at 71 -- the pin_to_pin +1 is fully explained (one more GND-
+    connected PWR_FLAG from 02a's own powerflag_nets, joining the ALREADY-known "many
+    independently-labeled pins sharing one net" class). The pin_not_connected drop to 43
+    now exactly matches what check_hub_ent_sch.py's OWN pre-existing KNOWN_BENIGN prose had
+    long claimed ("43 = sheet-01's 15 + sheet-05's 28") -- i.e. that text was already
+    describing the POST-sheet-02 state in advance; the transient 65 seen while "02" was
+    still a placeholder was not re-investigated further (not a gate-blocking count, and the
+    violation TYPE set is unchanged either way). cec_sch_lint.py flags 17 WARN-class SL-04
+    findings ("label angle disagrees with its vertical wire") on 02a's own rail labels --
+    cosmetic, non-blocking (gate 6 only requires 0 ERROR-class), root cause not chased past
+    confirming it isn't the label angle parameter itself (0 vs 180 gave the identical count).
+  Full state, all six gates green on 02a: `python3 scripts/check_hub_ent_sch.py`,
+  `cec_sch_layout.py --check-overlaps`, `cec_sch_gates.py --sheet-bounds`,
+  `cec_sch_lint.py --exit-on-error` all clean (WARN-only). Resume with 02b/02c/02d using the
+  research above, then the U1-placement follow-up once cec_sch.py gains unit support.
+- [2026-07-16] ST SLOT RULING RECORDED (carve-out retired) + §12a KVM-aux-header tester-link
+  PROPOSAL written (sketch §12a, BOM §3a note, owner-queue decision row). If ratified: OQ-85
+  gains the UART framing + Hub MARK-relay chapter; bench item = measured relay jitter vs the
+  ±100-150 µs budget; configurator gains the KVM-vs-tester header-occupancy rule.

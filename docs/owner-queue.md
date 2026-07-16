@@ -224,3 +224,10 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   question) before the 8GB tier can be called industrial-grade with confidence. PICK NEEDED:
   ratify FORESEE as primary (with the two follow-ups tracked, not gating), or redirect to a
   different family — the research is done either way, only the sign-off is pending.
+
+- [2026-07-16] TESTER SLOT ADOPTION: **RULED for ST** (evening: "slot bundle — soldered is
+  worse in both repairability and cost savings"); integrated carve-out RETIRED (sketch §11/§12,
+  BOM §3a). NEW DECISION QUEUED — **§12a KVM-aux-header tester link (ST only, PROPOSED)**:
+  frees all 4 Hub ports for the full module family; needs ratification + the OQ-85 UART/
+  MARK-relay contract chapter + one relay-jitter bench item; pricing sub-call: $1,299 @~1.9×
+  vs $1,399 with the 4th module in.

@@ -498,8 +498,10 @@ streams/digitizer, ripple = one BNC tap. The $15-tester kill-line:
 - Load plane: switched R-banks (~2:1 installed:tested at 50 % derate) + ONE
   small 2-device L2 vernier for corner smoothness and OCP ramps; no fast
   channel; SCP crowbars kept (cheap, high shop value).
-- **PROPOSED carve-out — INTEGRATED instrumentation** (needs owner sign-off:
-  it bends the §0 actuator-not-instrument principle at this tier): the
+- **~~PROPOSED carve-out — INTEGRATED instrumentation~~ RETIRED (owner ruling
+  2026-07-16 evening: "soldered is worse in both repairability and cost
+  savings makes no sense" — the §12 slot-bundle IS the ST architecture;
+  text retained for provenance):** the
   module sensing BLOCKS (INA238 per rail-group, INA240 ×6 per-pin on the
   12VHPWR input, the 24-pin's 74LVC1G17 PS_ON/PWR_OK buffers) live ON the
   tester board at the fixture inputs, factory-calibrated, ±1 %-class. One
@@ -575,8 +577,9 @@ factory-slotted, Hub docked, cables routed.
   a module TRAY + a male 12V-2x6 fixture head (with sideband straps) the
   pigtail plugs into. Same for 12VHPWR Pro.
 
-**Effect on the ST integrated-sensing carve-out (§11): SUPERSEDED if this
-is adopted — and the math says adopt.** ST tester BOM drops ~$80 (plate out,
+**Effect on the ST integrated-sensing carve-out (§11): ADOPTED — owner
+ruling 2026-07-16 evening ("slot bundle; soldered is worse in repairability
+and cost"); the carve-out is RETIRED.** ST tester BOM drops ~$80 (plate out,
 blade field in, integrated sensing deleted) ≈ $457; add the real Standard
 module set + Hub Standard (~$95–105 landed, pricing-study figures) → bundle
 landed ≈ $645 — within dollars of the integrated version — so **ST-1000
@@ -593,6 +596,40 @@ design, DIMM-latch spirit). Extend the OQ-86 fit-check sample gate to
 cover: measured gang insertion on real boards, blade-field position
 tolerance across 10 joints, and module support rails vs the horizontal
 mating shear of PSU-cable insertion.
+
+## 12a. ST tester on the Hub's KVM aux header — PROPOSED (owner idea, 2026-07-16 evening; needs bounce/ratification)
+
+**The idea (owner):** commandeer the Hub Standard's NanoKVM aux header
+(J_KVM: 3.3 V UART + 5VSB + GND + ref/presence, §2.9 form, ESD'd + series-
+protected, ALREADY placed/routed on every Hub Standard) as the ST tester's
+link — freeing all FOUR RJ-45 ports for modules.
+
+**Why it works at ST specifically:** the ST fence needs no µs-grade stamps
+from the TESTER — T1/T3/T6 are measured by the 24-pin module (stays on CAN,
+±2–10 µs), OCP staircases/cross-load are ms-class, melt-watch is thermal.
+Architecture: tester→UART→**Hub relays CEC_MARK onto CAN** (Hub TX stamp =
+timeline reference); tester clock maps via UART ping-pong calibration.
+Honest budget at 921600 baud: ~±100–150 µs tester-stamp alignment — ~50×
+worse than CAN membership, ~10× better than anything the ST fence measures.
+Identity rides the UART protocol (no DETECT resistor on this path); tester
+stays PD-self-powered.
+
+**What it buys:** Hub Standard 4 ports = **4 modules — the complete
+Standard family (24-pin + EPS + PCIe + 12VHPWR), every bay populated** —
+the §13 ST ledger compromise (tester + 3 modules, pick EPS-or-PCIe) dies.
+Bundle landed +~$25–35 for the 4th module (≈$645 → ~$675): thins 2.0× to
+~1.9× at $1,299 or supports $1,399 — owner pricing call.
+
+**Fences:** ST-ONLY (Pro/Max testers keep real ports: streams + µs
+excursion bracketing). Header is single-occupancy — a bench that also wants
+a NanoKVM on that Hub gives the tester back an RJ-45 port (configurator
+note). Zero Hub hardware change; one new JST-PH patch-cable SKU.
+
+**Open before ratification:** UART framing + MARK-relay firmware contract
+(new OQ-85 chapter — Hub aux-node driver, relay jitter spec); ping-pong
+calibration protocol + a bench item measuring real relay jitter; presence
+semantics on the ref pin (tester presents 3.3 V, R21/R22 divider reads it);
+deck Hub-bay routing for the PH cable.
 
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 
