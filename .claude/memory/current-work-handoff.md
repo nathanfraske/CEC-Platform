@@ -826,3 +826,14 @@ slot-deck headers). Totals v1.2: Pro $1,064 / Max $1,357 / ST $545/$589. Ladder:
 Files: sketch (§3a/§4/§5/§6/§8/§8a/§11/§13/§9.10-11), BOM v1.2 (header/§1/§2/§3/§3a/§3c/§5/
 §6), concept §1.2 annotation, testers/{tester-pro,tester-max,slot-deck}/README + DESIGN-SHEET
 (§A/§C.22-23/§H/§I), FOLLOWUPS, TODO.
+
+## 2026-07-16 ~12:05 — W bundles = configurator (owner) + port-budget ledger (branch claude/pr50-firmware-review-wkvf7v)
+Owner ruled 4× HPWR = configurator option only, and flagged "consumes the entire 8-port hub".
+Ledger verified (family aggregation is the relief): tester+24pin+EPS(2cbl/1port)+4×HPWR+
+PCIe-3(3cbl/1port) = EXACTLY 8 = Hub Pro full, zero spare; ST = Hub Std 4 ports = tester+3.
+Landed in sketch §13 + BOM §3/§3c/§6.10 + DESIGN-SHEET §H + slot-deck README: 3 relief valves
+(§6.14 standalone-USB overflow zero-HW ms-class; RECOMMENDED 2-3 CAN-only deck expansion
+jacks DNP ~$5 full µs MARK timing = Bench-Unit-LITE scoped, owner pick queued in owner-queue;
+12-port bench Hub on field demand only) + REQUIRED bench 5VSB ride-through (deck 5V from
+tester PD → Hub §2.9 MAIN_5V priority input; else fleet browns out with DUT during
+hold-up/AC-cut — a headline test). Owner-queue got the pick + standing nods cluster.
