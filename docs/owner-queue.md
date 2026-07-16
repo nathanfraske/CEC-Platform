@@ -187,3 +187,40 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   unresponsive); intake proceeded on the public product brief DS00002819B + UL export (pin map
   verified 64/64) — retry the portal before sheet-06 capture, else use LAN9371/72 public family
   docs for strap/clock/rail detail.
+
+- [2026-07-16b] **eMMC PRIMARY PICK — PROPOSED, needs owner nod** (manifest row #35 was BLOCKED
+  pending the RFQ; owner ruling this session: research and propose now instead of waiting,
+  LCSC-native preferred, consigned/DigiKey acceptable since the MPFS SoC is consigned too). Full
+  detail + citations: `bom-a-compute.md` U-EMMC row, `kicad-intake-manifest-2026-07-02.md` row
+  35 annotation. **PROPOSED PRIMARY: FORESEE (Longsys) FEMDNN family** — 8GB `FEMDNN008G-A3A55`
+  (LCSC C5374780), 32GB `FEMDNN032G-A3A55` (C5117593, confirmed live -40°C~+85°C), 64GB
+  `FEMDNN064G-A3A56` (C5117595, confirmed live -40°C~+85°C) — all three are the exact FBGA-153
+  11.5×13mm 0.5mm-pitch package the already-vendored `cec-ent-mcu:eMMC_5.1_FBGA153_Generic`
+  land was built to, so picking one of these is a BOM-property pass only (no new symbol/
+  footprint work), same shape as the OQ-11 shunt close. **SECOND SOURCE: Micron industrial eMMC**
+  (consigned, DigiKey) — `MTFC64GBCAQTC-IT` (DK 21572466, confirmed Active/-40°C~+85°C/153-LFBGA
+  11.5×13mm, $82.56@25q) covers 64GB+; the matching 8GB code in this SAME generation was not
+  found this session (the older `MTFC8GAKAJCN-1M-WT` is confirmed OBSOLETE and only -25°C~+85°C
+  — a quick Micron/DigiKey rep check for the current 8GB "-IT" equivalent is a real follow-up,
+  not done here). **REFERENCE ONLY, do not use for new sourcing:** Zetta `ZDEMMC08GA`/
+  `ZDEMMC16GA` (C3029818/C7501401, zero live LCSC stock, -25°C~+85°C only) and Kingston
+  `EMMC08G-ML36-01B00` (DK 15776056, the exact part our own generic land's Description property
+  already cites as one of its three ball-verification sources — CONFIRMED OBSOLETE at DigiKey,
+  a dead end for new orders even though its land-fit provenance stands).
+  TWO ITEMS BEFORE THIS CAN LOCK, both real research findings from this session, not
+  hand-waving: **(1) STOCK** — every single eMMC candidate checked across three brands and two
+  distributors (LCSC + DigiKey) showed zero or near-zero live stock at intake time (2026-07-16);
+  this reproduced too consistently across too many independent parts to be a stale-cache fluke
+  (the search-engine-summary layer WAS caught giving a stale "in stock" read once during this
+  pass — cross-checked and corrected via a direct product-page fetch before it landed anywhere)
+  — it looks like a genuine current-market thin-stock condition for eMMC BGA memory generally,
+  not a bad pick. Recommend an actual RFQ/rep stock-confirm on the FORESEE trio before order
+  commit, same treatment as the MagJack/RJ-11-jack thin-stock flags elsewhere in this BOM.
+  **(2) 8GB TEMP GRADE** — `FEMDNN008G-A3A55` read as -40°C~+85°C by extrapolation from its
+  32/64GB `-A3A55`/`-A3A56` siblings (both independently confirmed -40°C~+85°C via direct LCSC
+  fetch) but a separate search-snippet read for the 8GB code itself said -25°C~+85°C; a direct
+  fetch of that exact product page 404'd twice this session, so the discrepancy is UNRESOLVED,
+  not silently picked either way — needs a direct datasheet pull (or an LCSC/Longsys rep
+  question) before the 8GB tier can be called industrial-grade with confidence. PICK NEEDED:
+  ratify FORESEE as primary (with the two follow-ups tracked, not gating), or redirect to a
+  different family — the research is done either way, only the sign-off is pending.
