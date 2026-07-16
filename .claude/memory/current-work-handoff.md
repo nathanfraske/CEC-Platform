@@ -750,3 +750,15 @@ digitizer-only unchanged. REV A tester-absorbs-Hub = deferred "Bench Unit" varia
 this turn: OCP both (comparator-stamped staircase), OPP both (sink-bounded, + excursion-vs-
 OPP discrimination), OVP Max-only (TPS55289 source; sink physically can't), SCP both, UVP
 via T6, OTP fenced. All pushed on claude/pr50-firmware-review-wkvf7v.
+
+## Tester: OVP-A RULED + quality pass + BOM v0 — 2026-07-16
+OVP Option A RULED (owner): TPS55289 on Pro, check-grade firmware scope; canonical §6 tier-
+table amendment folds in at Task-13. AC pod PARKED (owner: cross when we get there). §10
+quality refinements landed (POST/auto-zero, modules-calibrate-the-tester cross-cal, DAC80508
+ref verified 2ppm/C + TUE 0.1%, 40°C derating doctrine, fan wear policy, plate odometer,
+worst-cable loop gate + oscillation detector, interlock FSM, port ESD, verdict provenance).
+BOM draft v0: docs/psu-tester-bom-draft-2026-07-16.md — Pro ≈$1,201 mid (band 1,050-1,500),
+Max ≈$1,507 (+306 delta: AD9253 41.67 + GW5A 46.88 + AFE 26 + T1 6 + 2nd fast ch 170 + PCB
+15); PRO STATION street ≈$4,199 suggested; Max $6,995 top w/ MAX HUB PRICING = open lever
+(Task-13). Consumable: front plate $79-99 retail. Biggest swings: L2 ladder ±$150, chassis
+±$100. All pushed, branch claude/pr50-firmware-review-wkvf7v.
