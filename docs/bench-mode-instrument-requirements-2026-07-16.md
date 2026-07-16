@@ -2,8 +2,10 @@
 
 Consolidation of the ruled bench-mode / Max-instrument material into one
 requirements + positioning view (2026-07-16 session). NAMING NOTE: the owner's
-"Pro and Max tester" means the PSU TESTER (ATX-native DC load station) — that
-is a SEPARATE product, drafted in docs/psu-tester-concept-2026-07-16.md. This
+"Pro and Max tester" means the PSU TESTER (ATX-native DC load station) — a SEPARATE product whose
+canonical spec is docs/psu-tester-exploration-2026-07-14.md (branch
+claude/pipeline-consolidation; owner tier ruling §6) with the reconciliation
+record in docs/psu-tester-concept-2026-07-16.md. This
 document covers the bench-mode INSTRUMENT posture of the Pro/Max modules,
 which the PSU tester reuses as its sensing DNA.
 STATUS: working analysis + decision list for owner ratification. Nothing here

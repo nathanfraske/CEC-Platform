@@ -1,125 +1,90 @@
-# CEC PSU Tester (Pro / Max) — concept, realistic requirements, positioning
+# PSU tester — reconciliation with the canonical 2026-07-14 exploration
 
-DRAFT (2026-07-16). The owner's earlier tester spec thread was NOT FOUND in
-this repo family (all 16 remote refs, commit messages, session-handoff branch,
-and agent memory swept — no "tester"/"dummy load"/"Chroma"/PSU-load vocabulary
-anywhere), so this is a fresh spec-out from the owner's one-line brief plus
-platform DNA. **Reconcile against the original thread when located** (likely a
-local-machine session or chat); where this draft and that thread disagree, the
-thread wins.
+**CANONICAL SPEC: `docs/psu-tester-exploration-2026-07-14.md`** (on branch
+`claude/pipeline-consolidation`, tip 71bd0271 as of this writing — not yet on
+main), including its **§6 owner TIER RULING (2026-07-14): Pro and Max tiers
+only**. This file was first written 2026-07-16 as a fresh draft when that
+thread couldn't be located; the thread has since been pushed and located, and
+per the standing rule (thread wins on conflict) this file is now the
+RECONCILIATION record — what converged, what the canonical doc corrects, and
+the few additive items this pass contributes. Read the 07-14 doc first; this
+is commentary.
 
-**Owner brief (2026-07-16, verbatim):** "the PSU tester specifically —
-basically a DC load but fully done to ATX testing without bodging wires like
-you would have to on Chroma gear."
+## 1. Corrections this reconciliation accepts (canonical doc wins)
 
-## 1. The concept
+1. **Architecture: the tester is a powered load chassis the MODULES plug
+   into** — PSU cable → module (stock, inline as designed) → OQ-89
+   daughterboard/extension assembly → tester load input. The modules ARE the
+   instrumentation; the tester adds only the controllable load + coarse
+   self-protection sensing + sequencing. (The superseded fresh draft had
+   module-DNA sensing rebuilt on the tester board — wrong: composability is
+   the moat, and the shop's modules un-dock into customer builds for in-situ
+   diagnosis, which no competitor ATE can do.)
+2. **Tiers (owner-RULED)**: Pro and Max only; the 850 W "Shop Kit" is SHELVED
+   as a possible future Standard. **Both tiers are 1600 W continuous**; Pro
+   already carries the full spec-derived suite including the ONE fast ATX 3.1
+   excursion channel (200/180/160/120 % @ 100 µs–100 ms, ≤5 A/µs,
+   bench-gated). Max adds: per-rail AC-coupled 20 MHz front ends into a muxed
+   50–65 MSPS digitizer (spec-grade Table 4-6 ripple — retiring Pro's
+   indicator-only fence), a second fast channel / switch matrix, an OVP
+   sourcing stage (Table 4-13 windows), the phase-controlled AC-interrupter
+   accessory (absolute hold-up + true T5), Pro/Max-class module set, optional
+   2000 W ballast.
+3. **Pricing (canonical, supersedes the draft's $1.5–4k guesses):** Pro
+   **$3,495 tester-only / $3,995 with modules**; Max **$5,995–6,995** with
+   modules + AC accessory. BOM $1,050–1,600 / $1,490–2,370; margin honesty
+   note stands (2.0–2.9× at these BOMs — capital-equipment multiples or BOM
+   discipline, owner call at pricing lock).
+4. **Target market**: repair/PC shops first (the verbatim owner ask), with
+   the refurb/aging-line B2B segment flagged as possibly larger; reviewers
+   are not the design center (the fresh draft had that emphasis inverted).
+5. **Fixture heads are consumables** = the OQ-89 daughterboard+extension
+   assemblies (30-cycle connectors vs hundreds of shop cycles/year) —
+   recurring revenue + honest engineering; the tester never solders a
+   PSU-facing connector to its own board.
+6. **Enabling dependency**: the 24-pin rev3 PS_ON# drive / PWR_OK µs
+   timestamping / −12 V adds (`docs/standard-tier-review/atx24-sense-wire-
+   interaction-study-2026-07-14.md`, owner decision box §7 there, pending).
+7. **Honesty fences (canonical §3e/§4)**: no OVP claim at Pro (sink can't),
+   no OTP, no efficiency/PFC, ripple indicator-only at Pro, "spec-derived
+   test profiles / indicative" language — never "certifies ATX 3.1."
 
-An **ATX-native programmable DC load station**: the PSU under test plugs its
-own harness straight in — 24-pin, EPS, PCIe 6+2, 12V-2x6 — into the same male
-board headers a motherboard/GPU presents (all already vendored in `lib/`:
-Mini-Fit 5566/5569 family, 87427, 45586, Molex 219116). No banana-jack bodges,
-no crimped adapter looms, no floating grounds. Behind every connector: a
-programmable sink, per-pin/per-rail CEC instrumentation, and an ATX-aware
-sequencer that runs the whole test book a Chroma rig needs an operator and a
-fixture-build to attempt.
+## 2. Independent convergences (fresh draft agreed blind — confidence signal)
 
-Two variants, mapping 1:1 onto the platform's ruled sensing tiers:
-- **Tester Pro** — characterization-class sensing (INA240/fast-SAR DNA, the
-  Pro module front ends), full ATX conformance sequencing.
-- **Tester Max** — adds the ruled **Max instrument channel** (20 MHz-class
-  shared wideband path, AD9253-class fast ADC + FPGA): 20 MHz is exactly the
-  industry ripple/noise measurement bandwidth, so the Max variant does
-  spec-bandwidth ripple, transient microscopy, and the microarc/contact-ΔV
-  research channel at the tester's own connectors.
+Hybrid load stage (resistive bulk + linear-FET vernier + one purpose-built
+fast channel) as the engineering-optimal split; thermal/enclosure engineering
+dominating the product (kW-class space heater, bench-room acoustics);
+ATX-native fixturing as the wedge vs Chroma bodges; the 12VHPWR per-pin
+melt-watch soak as an instrumentation-density moat; zero-cross/phase-aware
+AC interruption as a separately-enclosed accessory rather than mains in the
+main box; SunMoon as the dead prior product in exactly this niche; per-tier
+tier-honest claim discipline.
 
-## 2. What it must do (the test book)
+## 3. Additive items this pass contributes (proposed, not yet in the canonical doc)
 
-- **Static loads**: per-rail CC/CR/CP, cross-load matrix (the classic
-  min-12V/max-minor and inverse corners), 12V main + EPS×2 + PCIe×N +
-  12VHPWR + 5V/3.3V (~20–25 A class) + 5VSB (3 A) + −12 V (0.3 A sink).
-- **Dynamic/transient**: programmable load steps with GPU-class edges
-  (~1–10 A/µs at the connector), PCIe CEM5.1 power-excursion profiles (2–3×
-  bursts, ms class) — "replay a GPU" as a canned recipe.
-- **ATX sequencing/timing**: PS_ON# drive, PWR_OK delay, T1/T2/T3 rail-rise
-  timing/order/monotonicity, 5VSB behavior, µs-timestamped.
-- **12VHPWR sideband**: present SENSE0/SENSE1 straps (command 150–600 W
-  capability), read CARD_PWR_STABLE / CARD_CBL_PRES# — the module boards
-  already tap exactly these.
-- **Protections**: OCP staircase per rail (ramp to trip, record the point +
-  recovery behavior), OPP, SCP (crowbar-FET short, standard but respected),
-  UVP observation under overload. (No OVP *injection* — we don't force the
-  PSU's outputs.)
-- **Ripple/noise**: Max variant only, at the honest 20 MHz bandwidth with the
-  spec's 0.1 µF/10 µF termination at the connector.
-- **Hold-up + efficiency — honest scope**: proper hold-up needs AC-side
-  interruption and efficiency needs AC metering. In-scope: a cheap
-  **zero-cross-timed mains interrupter accessory** (relay/SSR box) for
-  hold-up/dropout, and a **metering-inlet accessory** for indicative
-  wall-referenced efficiency. Out of scope: a programmable AC source —
-  certifiable 80PLUS/Cybenetics efficiency stays lab territory; say so
-  plainly in marketing.
+1. **The tester as a fingerprint ground-truth generator.** It can replay
+   *labeled* load/fault profiles (imbalance, sag, excursion, dropout) into
+   CEC modules on the same CAN/FREEZE bus and verify the detection pipeline
+   catches them — making it simultaneously (a) the module EOL/validation rig,
+   (b) the §L/OQ-56 hold-up bench instrument, and (c) a labeled-corpus
+   factory for the fingerprint library (see
+   `firmware/docs/host-data-path-fingerprinting-2026-07-16.md` §6.3 — the
+   measured-false-positive-rate requirement needs exactly this labeled data).
+   Internal value exists even before the first external sale.
+2. **Host software = the same shared core.** The tester's sequencer/report UI
+   should be a profile of the portable bench tool (one analysis core, one
+   more shell) — not a third codebase. The customer-facing PDF report is a
+   renderer over the same event/evidence records.
+3. **Naming reservation (owner, 2026-07-16 session):** "tester" is reserved
+   for this product line; the Pro/Max modules' bench posture is "bench
+   mode" / "bench instruments" (`docs/bench-mode-instrument-requirements-
+   2026-07-16.md`).
 
-## 3. Realistic architecture
+## 4. Standing gates (unchanged from canonical §5/§6)
 
-- **Load stage (the hard, expensive half): hybrid.** Switched resistive banks
-  carry the coarse kW-class dissipation cheaply; a linear MOSFET vernier per
-  channel provides fine CC regulation and the fast transient edges. Pure
-  linear at 1.5 kW is Chroma-priced thermals; pure resistive can't do
-  dynamics. Hybrid gets both at hobby-shop cost. Big heatsinks + fans +
-  thermal supervision (NTC ladder, the platform's own parts).
-- **Power class (owner decision)**: Pro ~850 W–1 kW total; Max ~1.6 kW
-  (ATX 3.1 + 600 W 12VHPWR headroom). Same chassis/architecture, more banks.
-- **Sensing = the module designs, reused.** Per-pin 12VHPWR array (the
-  12vhpwr-standard/-pro front end verbatim), per-cable EPS/PCIe sensing,
-  24-pin four-rail block. The tester is the first internal customer for the
-  Pro module front ends.
-- **Brains**: ESP32-P4 (+ FPGA on Max, the GW5A/ECP5 lane), USB to the SAME
-  portable bench tool (shared fingerprint core), scripted test recipes with
-  auto-generated pass/fail reports against ATX 3.1 limits. A CAN port so the
-  tester joins the §6.10 FREEZE bus — it can co-capture with in-system CEC
-  modules on one timeline.
-- **The strategic sleeper — a ground-truth generator.** The tester can replay
-  *labeled* fault profiles (imbalance, sag, excursion, dropout) into CEC
-  modules and verify the fingerprint pipeline catches them. That
-  hardware-in-the-loop replay is (a) our own module EOL/validation rig,
-  (b) the §L/OQ-56 hold-up bench, and (c) a labeled-corpus factory for the
-  fingerprint library — the labeling problem partially solved in hardware.
-
-## 4. Positioning
-
-There is a genuine hole in the market: below Chroma/SunMoon ATE (five to six
-figures, generic terminals, fixture-building required) and above the $15 LED
-"PSU testers" (presence/timing only, no load), there is essentially nothing.
-Reviewers run six-figure stations; repair shops and boutique SIs run nothing.
-
-- **Tester Pro — "the PSU test bench that speaks ATX."** Repair shops, system
-  integrators, boutique builders, serious enthusiasts, budget reviewers.
-  Plug the PSU's own cables in, press Run ATX 3.1 Suite, get a report with
-  per-pin evidence. Target retail **~$1,500–2,000** (BOM driver = load stage
-  + thermals; sensing is our own cheap DNA).
-- **Tester Max — "the review-lab station."** Adds spec-bandwidth ripple, the
-  instrument channel, excursion microscopy, microarc/contact research at the
-  tester's connectors. PSU reviewers, OEM QA labs (as a Chroma *supplement*),
-  and CEC's own lab. Target retail **~$2,500–4,000**.
-- **Tier-honest claims** (platform rule): conformance *checks*, not safety
-  certification; efficiency indicative-only without lab AC gear; ripple
-  claims Max-only. The credibility of the consumer line rides on the tester
-  line never overclaiming.
-- **Synergy story**: the tester carries the same sensing, speaks to the same
-  bench tool, and feeds the same fingerprint corpus — buying the tester makes
-  every CEC module in the field smarter.
-
-## 5. Owner decisions to open with
-
-1. Power class per variant (850 W/1 kW Pro, 1.6 kW Max?) — drives the load
-   stage + chassis + price.
-2. Load-stage architecture confirm: hybrid resistive+linear (recommended) vs
-   all-linear (cost) vs regenerative (complexity — recommend against v1).
-3. Connector complement per variant (how many PCIe channels; SATA/Molex
-   legacy loads at all?).
-4. The two AC-side accessories (mains interrupter, metering inlet): in v1 or
-   later?
-5. Naming: "tester" is now reserved for this product line (bench-mode
-   modules are "bench instruments" — docs/bench-mode-instrument-
-   requirements-2026-07-16.md).
-6. Where the original spec thread lives, so this draft can be reconciled.
+Everything remains gated on **OQ-1 (5–10 shop interviews)** and **OQ-10
+(competitive buy: SM-268ATE + two Alibaba aging-rack quotes)**; the transient
+channel is bench-gated on a single-channel prototype (~90 A / 100 µs / ≤5 A/µs
+into a live PSU); the liability posture (deliberately driving failing PSUs to
+protection limits) needs review before launch. The canonical §5 list (13
+items) is the decision queue of record.
