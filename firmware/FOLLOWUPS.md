@@ -518,6 +518,21 @@ capture->organize->analyze path is the Concierge (Appendix C) precursor.
   ACS712/divider/INA226 code retired 7286ec5), with the per-rail runtime
   cal CLI landing in 09cde15. Kept for provenance only.
 
+## Host data path & fingerprinting — design basis captured (2026-07-16)
+
+`firmware/docs/host-data-path-fingerprinting-2026-07-16.md` records the
+owner-reviewed exploration: events-not-streams (tier-agnostic event record,
+tiers differ in evidence richness), HID+CDC composite Hub USB (HID = consumer
+channel, CDC = bench/bulk, evidence pulled not pushed), the two-apps-one-core
+rule (AllMyStuff + portable bench tool over one shared fingerprint library),
+library placement (host owns judgment AND the trigger configs it pushes down;
+firmware = never-miss detectors + evidence), the capture-without-known-
+fingerprints resolution (primitive trigger basis + always-recording ring +
+tuning loop), and the statistical-integrity requirements (measurement-first,
+poisoning-resistant baselines, measured FP rates, artifact awareness,
+explainability bias). Feeds the OQ-85 decision list (USB identity freeze,
+event-record v1, shared journal, evidence-pull policy, host core split).
+
 ## Persist-on-fault contract — STARTED (2026-07-15, owner direction)
 
 `firmware/contracts/persist-on-fault.md` is the contract of record; the
