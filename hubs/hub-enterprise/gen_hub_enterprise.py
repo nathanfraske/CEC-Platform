@@ -96,6 +96,7 @@ LIBS = {
     "cec-vendor":      open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
     "power":           open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read(),
     "cec-ent-power":   open(f"{ROOTDIR}/lib/cec-ent-power.kicad_sym").read(),
+    "cec-ent-mcu":     open(f"{ROOTDIR}/lib/cec-ent-mcu.kicad_sym").read(),
     "cec-ent-hub-local": open(f"{HERE}/lib-local.kicad_sym").read(),
 }
 
@@ -1419,6 +1420,333 @@ def compose_detect_adc():
 compose_detect_adc()
 
 
+# ===========================================================================
+# 04 -- storage: thin parent -> 04a-qspi-nor + 04b-emmc + 04c-straps, per
+# SCHEMATIC-PLAN.md sheet 04 (BOM src: BOM-A; REQ-107..109). Captured 2026-07-16.
+#
+# CROSS-SHEET FORWARD REFERENCES (04 -> 02, 04 -> 03): the MSS QSPI/eMMC bus
+# lands on the MPFS itself (sheet 02a, not yet captured this pass) and the
+# +3V3_IO/VDD18 rails that power this sheet's two parts come from the shared
+# 3.3V/1.8V bank regulators (sheet 03b -- BLOCKED, MPM3833C has no vendored
+# symbol yet; see the dated FOLLOWUPS.md note and 03's own section below).
+# Both classes of net use the SAME "reach root, awaiting a not-yet-captured
+# producer/consumer" pattern already established for sheet 01's PG_MAIN/
+# FLT_MAIN and sheet 05's P{n}_T1_A/CAN_TX/DETECT_SDA exports: an ordinary
+# hier_exports entry, listed in this thin parent's root_exports set, with NO
+# wire drawn to a sibling sheet's box (that cross-SHEET join is a documented,
+# deferred "root cross-wire pass" -- see FOLLOWUPS.md). This sheet does NOT
+# use build_leaf's global_nets primitive (reserved, per its own docstring,
+# for a genuine >2-occurrence bus within ONE thin parent -- CAN_H/CAN_L on
+# sheet 05): every net on this sheet has <=2 occurrences within the
+# 04-storage thin parent itself (a leaf's own pin, optionally paired with
+# 04c's strap resistor), so the ordinary hier_exports + build_thin_parent
+# pairs/root_exports/powerflag_nets machinery (sheet 01/05's own machinery,
+# unchanged) covers it without any new engine primitive.
+#
+# Ref-numbering: this sheet continues the platform's per-sheet NNN-in-100s
+# block convention (sheet 01 = U101.., sheet 05 broke from it for its
+# repeated-leaf refs) -- U4xx/R4xx/C4xx.
+# ===========================================================================
+SHEET04_LEAVES = {}
+
+
+def leaf04(id_, filename, sheetname, desc):
+    lf = Leaf(id_, filename, sheetname, desc)
+    SHEET04_LEAVES[id_] = lf
+    return lf
+
+
+SHEET04_LEAF_IDS = ["04a", "04b", "04c"]
+SHEET04_LEAF_SYM_UUIDS = {lid: _stable_uuid(f"04-leaf-sym-{lid}") for lid in SHEET04_LEAF_IDS}
+SHEET04_LEAF_OWN_UUIDS = {lid: _stable_uuid(f"04-leaf-own-{lid}") for lid in SHEET04_LEAF_IDS}
+SHEET04_OWN_UUID = _stable_uuid("04-storage-thin-parent")
+
+
+def compose_qspi_nor():
+    """04a-qspi-nor: W25Q256JVFIQ 256Mbit QSPI NOR (A/B firmware images + tamper
+    log region, REQ-107..109) -- boot-flash tier upgraded from BOM-A's original
+    W25Q128JV (128Mbit) draft per REQ-HUB-COMMON-107 / hub-ent-bom-detailed.md
+    Sec1 (the storage ruling); FIQ = SOIC-16 300mil w/ a DEDICATED hardware
+    /RESET pin (pin 3, separate from the shared /HOLD-or-IO3 pin 1). Pin map
+    verified against the vendored symbol directly (cec_sch.load_symbols), not
+    assumed: 1=IO3, 2=VCC, 3=/RESET, 4-6=NC, 7=/CS, 8=IO1, 9=IO2, 10=GND,
+    11-14=NC, 15=IO0, 16=CLK."""
+    lf = leaf04("04a", "04a-qspi-nor.kicad_sch", "04a-qspi-nor",
+               "W25Q256JVFIQ 256Mbit QSPI NOR: A/B FW + tamper log (REQ-107..109)")
+    lf.add_part("U401", "cec-ent-power", "W25Q256JVFIQ", "W25Q256JVFIQ", 0, 0,
+               "cec-Package_SO:SOIC-16_W25Q256JVFIQ_L10.3-W7.5-P1.27",
+               {"Manufacturer": "Winbond", "MPN": "W25Q256JVFIQ", "LCSC": "C3128412",
+                "Datasheet": "https://www.winbond.com/resource-files/W25Q256JV%20SPI%20RevG%2003272020%20Plus.pdf",
+                "Description": "256Mbit Serial NOR Flash, Standard/Dual/Quad SPI, SOIC-16 300mil, "
+                                "dedicated hw /RESET (pin 3). Boot flash upgraded from W25Q128JV per "
+                                "REQ-HUB-COMMON-107 (32Mbyte-class NOR tier)."})
+    lf.add_part("C401", "cec-vendor", "C_Small", "100n", 0, 0,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                "Description": "VCC bypass, U401"})
+    lf.add_part("C402", "cec-vendor", "C_Small", "1u", 0, 0,
+               "cec-Capacitor_SMD:C_0603_1608Metric",
+               {"Manufacturer": SAM, "MPN": "CL10A105KB8NNNC", "LCSC": "C15849",
+                "Description": "VCC bulk, U401"})
+    lf.add_part("R401", "cec-vendor", "R_Small", "10k", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF1002TCE", "LCSC": "C25744",
+                "Description": "U401 /RESET pull-up (idle-inactive default; no active MSS-driven "
+                                "reset of the flash is planned in this pass -- flag if firmware "
+                                "wants one later, a spare MSSIO ball would be needed)"})
+
+    lf.net("+3V3_IO", ("U401", "2"), ("C401", "1"), ("C402", "1"), ("R401", "1"))
+    lf.net("GND", ("U401", "10"), ("C401", "2"), ("C402", "2"))
+    lf.net("QSPI_RESET_N", ("U401", "3"), ("R401", "2"))
+    lf.net("MSS_QSPI_CS", ("U401", "7"))
+    lf.net("MSS_QSPI_IO1", ("U401", "8"))
+    lf.net("MSS_QSPI_IO2", ("U401", "9"))
+    lf.net("MSS_QSPI_IO0", ("U401", "15"))
+    lf.net("MSS_QSPI_CLK", ("U401", "16"))
+    lf.net("MSS_QSPI_IO3", ("U401", "1"))
+    # pins 4,5,6,11,12,13,14 = NC (per the vendored symbol) -- left out of every
+    # net so the generic pass auto-emits their no-connect flags.
+
+    lf.hier_exports = {
+        "MSS_QSPI_CS":  ("output", ("U401", "7")),
+        "MSS_QSPI_CLK": ("output", ("U401", "16")),
+        "MSS_QSPI_IO0": ("output", ("U401", "15")),
+        "MSS_QSPI_IO1": ("output", ("U401", "8")),
+        "MSS_QSPI_IO2": ("output", ("U401", "9")),
+        "MSS_QSPI_IO3": ("output", ("U401", "1")),
+        "+3V3_IO":      ("output", ("U401", "2")),
+    }
+    lf.powerflag_nets = ["+3V3_IO"]
+
+    c = _Compose(lf)
+    c.place("U401", 60, 60)
+    c.place("C401", 30, 46)
+    c.place("C402", 22, 46)
+    c.place("R401", 34, 80, 0)
+    # QSPI exports on their NATURAL exit side (pins 1/7/8 exit left, 9/15/16
+    # exit right) -- avoids routing a wire across the chip body to the far
+    # column, which the io-column router refuses by construction.
+    c.io("MSS_QSPI_IO3", "left")     # pin 1
+    c.io("MSS_QSPI_CS", "left")      # pin 7
+    c.io("MSS_QSPI_IO1", "left")     # pin 8
+    c.io("MSS_QSPI_IO2", "right")    # pin 9
+    c.io("MSS_QSPI_IO0", "right")    # pin 15
+    c.io("MSS_QSPI_CLK", "right")    # pin 16
+    # VCC (pin 2) + GND (pin 10): left to the generic per-pin pass (a plain
+    # stub + label/stamp per pin); C401/C402 share the same net NAMES via
+    # local-label matching rather than a hand-drawn rail -- a deliberate
+    # simplification for this small, low-pin-count part's simple bypass pair
+    # (contrast 04b's much larger BGA-style part, same convention).
+    # /RESET (pin 3): a real, hand-wired local pull-up to +3V3_IO (R401 left
+    # unconsumed on its rail pin, so the generic pass tags it "+3V3_IO",
+    # merging by local-label match with C401/C402's own generic stubs).
+    # ROUTING GOTCHA (found + fixed this pass, see FOLLOWUPS.md): R401 is a
+    # vertical 2-pin part, so pin1 (+3V3_IO) and pin2 (this net) share ONE x
+    # column (113.03mm post-shift). The naive 2-segment L-bend at (r2.x,
+    # p3.y) drops straight down THAT column to reach pin2 -- and since pin1
+    # sits between the bend and pin2 on that exact column, the wire's own
+    # path runs directly THROUGH pin1, silently shorting +3V3_IO to this net
+    # (measured: kicad-cli netlist merged U401.3/R401.2 into +3V3_IO). Fixed
+    # by routing the vertical leg through the MIDPOINT x between the two
+    # parts' pin columns instead -- clear of both R401's pin1 and every
+    # other U401 left-column pin (1/2/7/8), verified against the flattened
+    # netlist post-fix.
+    p3 = c.pin("U401", "3")
+    r2 = c.pin("R401", "2")
+    midx = (p3[0] + r2[0]) // 2
+    c.wire(p3, (midx, p3[1]), (midx, r2[1]), r2)
+    c.use(("U401", "3"), ("R401", "2"))
+    # named explicitly (not left as a bare wire) so the net carries its real
+    # intent in the schematic itself, not just this generator's lf.net() call
+    c.label("QSPI_RESET_N", midx, (p3[1] + r2[1]) // 2, 180)
+    c.caption(lf.desc, 10, 20)
+    c.note("VCC/GND + C401/402 label-matched (not hand-drawn).\n"
+           "QSPI_RESET_N local only, no MSS drive planned.\n"
+           "MSS_QSPI_*/+3V3_IO reach root, await sheets 02a/03b.", 10, 100)
+    c.done()
+
+
+compose_qspi_nor()
+
+
+def compose_emmc():
+    """04b-emmc: generic eMMC 5.1 FBGA-153 (JESD84-B51), 8-bit HS400-capable MSS
+    SDMMC wiring (REQ-107..109). Per-SKU density is a BOM property (the exact
+    MPN is an open RFQ item, hub-ent-bom-detailed.md Sec6 item 6), NOT a
+    schematic variant -- the generic land is what's captured. Pin map verified
+    against the vendored symbol directly: CLK=M6, CMD=M5, DAT0-2=A3-A5,
+    DAT3-7=B2-B6, RST_n=K5, DS=H5 (HS400 data-strobe), VCC=E6/F5/J10/K9 (x4),
+    VCCQ=C6/M4/N4/P3/P5 (x5), VDDi=C2, VSS=A6/E7/G5/H10/J5/K8 (x6),
+    VSSQ=C4/N2/N5/P4/P6 (x5); the remaining ~120 balls are RFU/VSF/NC per the
+    symbol's own vendored provenance note and are left unwired (auto no-connect).
+    VDDi tied LOCALLY to VCCQ (same net, common eMMC 5.1 practice where VDDi
+    tracks the IO-voltage domain) -- FLAGGED: verify against the exact eMMC MPN
+    once sourced (some parts tie VDDi to VCC instead; RFQ open item)."""
+    lf = leaf04("04b", "04b-emmc.kicad_sch", "04b-emmc",
+               "Generic eMMC 5.1 FBGA-153: 8-bit HS400 MSS SDMMC (REQ-107..109, "
+               "density/MPN=RFQ)")
+    lf.add_part("U402", "cec-ent-mcu", "eMMC_5.1_FBGA153_Generic", "eMMC_5.1_FBGA153_Generic",
+               0, 0, "cec-ent-mcu:FBGA-153_eMMC5.1_Generic_L13.0-W11.5-P0.50",
+               {"Manufacturer": "Generic (JEDEC JESD84-B51)", "MPN": "[RFQ -- density/MPN TBD]",
+                "Datasheet": "https://www.jedec.org/standards-documents/docs/jesd84-b51",
+                "Description": "Generic eMMC 5.1 land, part-agnostic across the density ladder "
+                                "(8/32/64GB per SKU per hub-ent-bom-detailed.md Sec2); exact MPN "
+                                "is an RFQ open item (Sec6 item 6)"})
+    for ref, val in (("C403", "100n"), ("C404", "100n")):
+        lf.add_part(ref, "cec-vendor", "C_Small", val, 0, 0,
+                   "cec-Capacitor_SMD:C_0402_1005Metric",
+                   {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                    "Description": f"VCC bypass, U402 (representative -- VCC has 4 physical "
+                                    "balls spread across the package; the exact per-ball layout "
+                                    "population is a layout-time decision, not a schematic one)"})
+    lf.add_part("C405", "cec-vendor", "C_Small", "1u", 0, 0,
+               "cec-Capacitor_SMD:C_0603_1608Metric",
+               {"Manufacturer": SAM, "MPN": "CL10A105KB8NNNC", "LCSC": "C15849",
+                "Description": "VCC bulk, U402"})
+    for ref, val in (("C406", "100n"), ("C407", "100n")):
+        lf.add_part(ref, "cec-vendor", "C_Small", val, 0, 0,
+                   "cec-Capacitor_SMD:C_0402_1005Metric",
+                   {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                    "Description": f"VCCQ bypass, U402 (representative, 5 physical balls)"})
+    lf.add_part("C408", "cec-vendor", "C_Small", "1u", 0, 0,
+               "cec-Capacitor_SMD:C_0603_1608Metric",
+               {"Manufacturer": SAM, "MPN": "CL10A105KB8NNNC", "LCSC": "C15849",
+                "Description": "VCCQ bulk, U402"})
+
+    lf.net("+3V3_IO", ("U402", "E6"), ("U402", "F5"), ("U402", "J10"), ("U402", "K9"),
+           ("C403", "1"), ("C404", "1"), ("C405", "1"))
+    lf.net("VDD18", ("U402", "C6"), ("U402", "M4"), ("U402", "N4"), ("U402", "P3"),
+           ("U402", "P5"), ("U402", "C2"),   # VDDi (C2) tied here -- see docstring
+           ("C406", "1"), ("C407", "1"), ("C408", "1"))
+    lf.net("GND", ("U402", "A6"), ("U402", "E7"), ("U402", "G5"), ("U402", "H10"),
+           ("U402", "J5"), ("U402", "K8"), ("U402", "C4"), ("U402", "N2"),
+           ("U402", "N5"), ("U402", "P4"), ("U402", "P6"),
+           ("C403", "2"), ("C404", "2"), ("C405", "2"),
+           ("C406", "2"), ("C407", "2"), ("C408", "2"))
+    lf.net("MSS_EMMC_CLK", ("U402", "M6"))
+    lf.net("MSS_EMMC_CMD", ("U402", "M5"))
+    lf.net("MSS_EMMC_DAT0", ("U402", "A3"))
+    lf.net("MSS_EMMC_DAT1", ("U402", "A4"))
+    lf.net("MSS_EMMC_DAT2", ("U402", "A5"))
+    lf.net("MSS_EMMC_DAT3", ("U402", "B2"))
+    lf.net("MSS_EMMC_DAT4", ("U402", "B3"))
+    lf.net("MSS_EMMC_DAT5", ("U402", "B4"))
+    lf.net("MSS_EMMC_DAT6", ("U402", "B5"))
+    lf.net("MSS_EMMC_DAT7", ("U402", "B6"))
+    lf.net("MSS_EMMC_RST_N", ("U402", "K5"))
+    lf.net("MSS_EMMC_DS", ("U402", "H5"))
+    # RFU (A7/E5/E8/G3/G10/K6/K7/K10/P7/P10), VSF (E9/E10/F10), and the ~107
+    # plain NC balls are left out of every net -> auto no-connect.
+
+    lf.hier_exports = {
+        "MSS_EMMC_CLK":  ("output", ("U402", "M6")),
+        "MSS_EMMC_CMD":  ("output", ("U402", "M5")),
+        "MSS_EMMC_DAT0": ("output", ("U402", "A3")),
+        "MSS_EMMC_DAT1": ("output", ("U402", "A4")),
+        "MSS_EMMC_DAT2": ("output", ("U402", "A5")),
+        "MSS_EMMC_DAT3": ("output", ("U402", "B2")),
+        "MSS_EMMC_DAT4": ("output", ("U402", "B3")),
+        "MSS_EMMC_DAT5": ("output", ("U402", "B4")),
+        "MSS_EMMC_DAT6": ("output", ("U402", "B5")),
+        "MSS_EMMC_DAT7": ("output", ("U402", "B6")),
+        "MSS_EMMC_RST_N": ("output", ("U402", "K5")),
+        "MSS_EMMC_DS":   ("output", ("U402", "H5")),
+        "+3V3_IO":       ("output", ("U402", "E6")),
+        "VDD18":         ("output", ("U402", "C6")),
+    }
+    lf.powerflag_nets = ["+3V3_IO", "VDD18"]
+
+    c = _Compose(lf)
+    # The generic eMMC land is ~193mm tall pin-to-pin (A1 at y=+96.52 to G14 at
+    # y=-96.52) -- far past an A4 page's usable height; this leaf alone uses A3.
+    c.place("U402", 130, 110)
+    # 16u (20.32mm) vertical pitch: each C_Small stub reaches 2.54(pin)+3.81
+    # (STUB) = 6.35mm beyond its own center each way, so two stacked caps
+    # need >=12.7mm of separation or their stub wires overlap and short
+    # together (measured: an 8u/10.16mm pitch put GND and +3V3_IO's stub
+    # wires collinear-and-overlapping -> ERC multiple_net_names).
+    c.place("C403", 40, 30); c.place("C404", 40, 46)
+    c.place("C405", 40, 62)
+    c.place("C406", 220, 30); c.place("C407", 220, 46)
+    c.place("C408", 220, 62)
+    # NO c.io() here (unlike 04a/04c): the io-column router gathers all
+    # same-side exports into ONE edge column sized to the OVERALL content
+    # bbox, and this symbol's ~193mm pin span makes that column's routing
+    # corridor cross other pins along the way (measured: build_thin_parent's
+    # own "wire passes through pin" guard fired during development). Every
+    # exported net here instead gets the DEFAULT per-pin hierarchical label
+    # at its own natural stub position (no manual wiring needed -- the same
+    # fallback path build_leaf already uses for every hier_export that has no
+    # c.io() declaration, exercised throughout sheet 01's own leaves).
+    c.caption(lf.desc, 10, 10)
+    c.note("Power/GND: generic stubs, label-matched; caps REPRESENTATIVE\n"
+           "(no single 'near the IC' spot on a 153-ball BGA). VDDi(C2)->\n"
+           "VCCQ/VDD18, FLAG vs MPN. +3V3_IO/VDD18 await 03b (blocked);\n"
+           "MSS_EMMC_* await 02a, CMD/_RST_N also wire to 04c's pull-ups.",
+           10, 15)
+    c.done()
+
+
+compose_emmc()
+
+
+def compose_storage_straps():
+    """04c-straps: the shared glue leaf for both storage parts' small strap/
+    pull-up resistors (JEDEC-recommended eMMC bus pull-ups) -- kept off 04a/
+    04b so those leaves stay purely "one IC + its own bypass". W25Q's own
+    /RESET pull-up stays on 04a itself (a purely local 2-terminal net with no
+    other consumer, no benefit to separating it out here)."""
+    lf = leaf04("04c", "04c-straps.kicad_sch", "04c-straps",
+               "Shared storage straps: eMMC CMD/RST_n JEDEC pull-ups")
+    lf.add_part("R402", "cec-vendor", "R_Small", "47k", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF4702TCE", "LCSC": "C25792",
+                "Description": "eMMC CMD line pull-up (JEDEC JESD84-B51 recommends "
+                                "10k-90k on CMD); rail = VDD18 (the eMMC's own VCCQ/IO domain)"})
+    lf.add_part("R403", "cec-vendor", "R_Small", "10k", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF1002TCE", "LCSC": "C25744",
+                "Description": "eMMC RST_n default-inactive-high pull-up; rail = VDD18"})
+
+    lf.net("MSS_EMMC_CMD", ("R402", "2"))
+    lf.net("VDD18", ("R402", "1"), ("R403", "1"))
+    lf.net("MSS_EMMC_RST_N", ("R403", "2"))
+
+    lf.hier_exports = {
+        "MSS_EMMC_CMD":   ("output", ("R402", "2")),
+        "MSS_EMMC_RST_N": ("output", ("R403", "2")),
+        "VDD18":          ("output", ("R402", "1")),
+    }
+    # VDD18 IS exported here too (even though this leaf never reaches root on
+    # it independently -- 04b already owns that root export/powerflag pairing)
+    # because a LOCAL label does NOT cross a leaf-FILE boundary: without a real
+    # hier_export/sheet-pin, R402/R403's rail pins would be an orphan 2-node
+    # net isolated to this file, never actually joined to 04b's real VDD18.
+    # No powerflag_nets needed here regardless -- R402/R403 pin 1 are PASSIVE
+    # pins, not power_in, and that check is power_in-pin-specific.
+
+    c = _Compose(lf)
+    c.place("R402", 30, 40, 0)
+    c.place("R403", 30, 70, 0)
+    c.text_side["R402"] = c.text_side["R403"] = "left"
+    # no from_pt: the hier_exports anchor pin (R40x pin 2) already sits where
+    # we want the io-column attach -- the default (anchor-pin-stub) path is
+    # correct here; from_pt is only for a chain end reached via hand-drawn
+    # wires (05c's precedent), which would need the anchor pin pre-consumed
+    # to avoid double-processing it (generic pass + io-column router both
+    # firing on the same pin).
+    c.io("MSS_EMMC_CMD", "left")
+    c.io("MSS_EMMC_RST_N", "left")
+    c.caption(lf.desc, 10, 20)
+    c.note("R402/R403 pin1 (VDD18): generic pass, no flag (passive, not\n"
+           "power_in). CMD/_RST_N pair 04b<->04c, ALSO root exports.",
+           10, 30)
+    c.done()
+
+
+compose_storage_straps()
+
+
 # ---------------------------------------------------------------------------
 # the 15 exports at the ROOT boundary -- UNCHANGED from the pre-restructure
 # generator (same names, same shapes; build_root() and the root sheet's own
@@ -1467,6 +1795,41 @@ HIER_EXPORTS_05["CAN_RX"] = ("output", ("U_CAN1", "4"))
 HIER_EXPORTS_05["DETECT_SDA"] = ("output", ("U_ADC1", "15"))
 HIER_EXPORTS_05["DETECT_SCL"] = ("output", ("U_ADC1", "14"))
 ROOT_EXPORT_NETS_05 = set(HIER_EXPORTS_05)
+
+# ---------------------------------------------------------------------------
+# 04's own root-level exports: the QSPI/eMMC bus (awaiting sheet 02a, not yet
+# captured) and the two shared rails +3V3_IO/VDD18 (awaiting sheet 03b, BLOCKED
+# -- MPM3833C has no vendored symbol). Mirrors sheet 01/05's own pattern of
+# exporting to a box that has nothing wired to its pins yet. The (ref, pin)
+# tuple here only matters for HIER_EXPORTS_04's OWN use inside 04's thin
+# parent (root_exports membership) -- the ROOT sheet's box (built from this
+# same dict via root_extra_sheets) only reads the shape ("output"), never the
+# ref/pin, so a net with two in-sheet leaf occurrences (+3V3_IO, VDD18,
+# MSS_EMMC_CMD, MSS_EMMC_RST_N) just needs ONE representative anchor here.
+# ---------------------------------------------------------------------------
+HIER_EXPORTS_04 = {
+    "MSS_QSPI_CS":  ("output", ("U401", "7")),
+    "MSS_QSPI_CLK": ("output", ("U401", "16")),
+    "MSS_QSPI_IO0": ("output", ("U401", "15")),
+    "MSS_QSPI_IO1": ("output", ("U401", "8")),
+    "MSS_QSPI_IO2": ("output", ("U401", "9")),
+    "MSS_QSPI_IO3": ("output", ("U401", "1")),
+    "+3V3_IO":      ("output", ("U401", "2")),
+    "VDD18":        ("output", ("U402", "C6")),
+    "MSS_EMMC_CLK":  ("output", ("U402", "M6")),
+    "MSS_EMMC_CMD":  ("output", ("U402", "M5")),
+    "MSS_EMMC_DAT0": ("output", ("U402", "A3")),
+    "MSS_EMMC_DAT1": ("output", ("U402", "A4")),
+    "MSS_EMMC_DAT2": ("output", ("U402", "A5")),
+    "MSS_EMMC_DAT3": ("output", ("U402", "B2")),
+    "MSS_EMMC_DAT4": ("output", ("U402", "B3")),
+    "MSS_EMMC_DAT5": ("output", ("U402", "B4")),
+    "MSS_EMMC_DAT6": ("output", ("U402", "B5")),
+    "MSS_EMMC_DAT7": ("output", ("U402", "B6")),
+    "MSS_EMMC_RST_N": ("output", ("U402", "K5")),
+    "MSS_EMMC_DS":   ("output", ("U402", "H5")),
+}
+ROOT_EXPORT_NETS_04 = set(HIER_EXPORTS_04)
 
 
 if __name__ == "__main__":
@@ -1608,24 +1971,132 @@ if __name__ == "__main__":
           "  ".join(f"{k}={v}" for k, v in parent_stats_05.items()) +
           f"  total_leaf_parts={total_parts_05}")
 
-    # ---- root: 01-power-input (page 2) + 05-module-ports (page 3, NEW) +
-    # 7 remaining placeholders (page 4+; "05" is no longer a placeholder)
-    root_extra_sheets = [{
-        "hier_exports": HIER_EXPORTS_05, "sym_uuid": SHEET_UUIDS["05"],
-        "sheetname": "05-module-ports", "sheetfile": "05-module-ports.kicad_sch",
-        "geom": (20, 120, 70, 180), "page": "3",
-    }]
-    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n != "05"}
+    # ---- sheet 04: storage (04a-qspi-nor + 04b-emmc + 04c-straps)
+    LEAF_ORDER_04 = SHEET04_LEAF_IDS
+    leaf_page_04 = {lid: f"4.{i+1}" for i, lid in enumerate(LEAF_ORDER_04)}
+    LEAF_PAPER_04 = {"04a": "A4", "04b": "A2", "04c": "A4"}  # 04b: the eMMC
+    # land is ~193mm tall pin-to-pin, past an A4 (or even A3) page's usable
+    # height once the caption/note text extents are folded in (measured:
+    # A3 clipped 11 elements off-page per check_sheet_bounds).
+    total_parts_04 = 0
+    for li, lid in enumerate(LEAF_ORDER_04):
+        lf = SHEET04_LEAVES[lid]
+        path_prefix = f"{ROOT_UUID}/{SHEET_UUIDS['04']}/{SHEET04_LEAF_SYM_UUIDS[lid]}"
+        sheet_instances_path = f"{SHEET_UUIDS['04']}/{SHEET04_LEAF_SYM_UUIDS[lid]}"
+        stats = build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, PROJECT, path_prefix, sheet_instances_path, SHEET04_LEAF_OWN_UUIDS[lid],
+            page=leaf_page_04[lid], out_path=f"{HERE}/{lf.filename}", paper=LEAF_PAPER_04[lid],
+            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
+            # 3000-block, disjoint from sheets 01 (100-800) and 05 (1000-2000):
+            # #PWR/#FLG refs must stay unique across the flattened design.
+            pwr_base=3000 + 100 * li, layout=lf.layout)
+        total_parts_04 += stats["parts"]
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
+
+    PARENT_PINS_04 = {
+        "04a": [("+3V3_IO", "right"),
+                ("MSS_QSPI_CS", "right"), ("MSS_QSPI_CLK", "right"),
+                ("MSS_QSPI_IO0", "right"), ("MSS_QSPI_IO1", "right"),
+                ("MSS_QSPI_IO2", "right"), ("MSS_QSPI_IO3", "right")],
+        "04b": [("+3V3_IO", "left"), ("VDD18", "right"),
+                ("MSS_EMMC_CLK", "right"), ("MSS_EMMC_CMD", "right"),
+                ("MSS_EMMC_DAT0", "right"), ("MSS_EMMC_DAT1", "right"),
+                ("MSS_EMMC_DAT2", "right"), ("MSS_EMMC_DAT3", "right"),
+                ("MSS_EMMC_DAT4", "right"), ("MSS_EMMC_DAT5", "right"),
+                ("MSS_EMMC_DAT6", "right"), ("MSS_EMMC_DAT7", "right"),
+                ("MSS_EMMC_RST_N", "right"), ("MSS_EMMC_DS", "right")],
+        "04c": [("VDD18", "left"), ("MSS_EMMC_CMD", "left"), ("MSS_EMMC_RST_N", "left")],
+    }
+    for lid in LEAF_ORDER_04:
+        assert {n for n, _s in PARENT_PINS_04[lid]} == set(SHEET04_LEAVES[lid].hier_exports), lid
+
+    # left-to-right flow: 04a feeds +3V3_IO into 04b (source=right/dest=left,
+    # the pairs mechanism's own directional rule); 04b feeds VDD18 +
+    # MSS_EMMC_CMD/RST_N into 04c the same way.
+    BOX_04 = {"04a": (16, 16, 40), "04b": (110, 16, 60), "04c": (204, 16, 24)}
+    leaves_for_parent_04 = []
+    for lid in LEAF_ORDER_04:
+        lf = SHEET04_LEAVES[lid]
+        bx, by, bh = BOX_04[lid]
+        leaves_for_parent_04.append({
+            "id": lid, "sym_uuid": SHEET04_LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": leaf_page_04[lid],
+            "x": bx * u, "y": by * u, "w": 70 * u, "h": bh * u,
+            "pins": [(name, lf.hier_exports[name][0], side)
+                      for name, side in PARENT_PINS_04[lid]],
+        })
+
+    parent_stats_04 = build_thin_parent(
+        leaves_for_parent_04, ROOT_EXPORT_NETS_04, PROJECT, ROOT_UUID, SHEET_UUIDS["04"],
+        SHEET04_OWN_UUID, out_path=f"{HERE}/04-storage.kicad_sch",
+        title="CEC Hub -- Enterprise (ENT): 04-storage (thin parent)", paper="A2",
+        libs=LIBS, pwr_base=3300, page="4",
+        # REQUIRED here (not the byte-identical default): 04b's box carries
+        # 14 stacked pins with FOUR of them root-exported/tapped, including
+        # two ADJACENT rows (MSS_EMMC_RST_N then MSS_EMMC_DS) -- exactly the
+        # build_thin_parent docstring's own documented "BUG #4" trigger
+        # (tap_drop=sy+5.08 lands exactly on the next row's own sy -> a
+        # short, measured here as MSS_EMMC_DAT5/6/7+DS+RST_N all merging
+        # into one net). lane_labels=True switches to the half-row tap_drop
+        # that can't coincide; every one of this sheet's paired nets is
+        # ALSO a root export, so lane_labels' other effect (adding a local
+        # label to a NON-root-export pair) never fires here -- zero side
+        # effects beyond the fix.
+        lane_labels=True)
+    print("04-storage.kicad_sch (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats_04.items()) +
+          f"  total_leaf_parts={total_parts_04}")
+
+    # ---- root: 01-power-input (page 2) + 05-module-ports (page 3) +
+    # 04-storage (page 4, NEW) + 6 remaining placeholders (page 5+; "04" is
+    # no longer a placeholder)
+    root_extra_sheets = [
+        {
+            "hier_exports": HIER_EXPORTS_05, "sym_uuid": SHEET_UUIDS["05"],
+            "sheetname": "05-module-ports", "sheetfile": "05-module-ports.kicad_sch",
+            "geom": (20, 120, 70, 180), "page": "3",
+        },
+        {
+            # NOT (110,120,70,90): that box overlapped the "08-secio-aux"
+            # placeholder box (140,110)-(210,145) on the root page -- CONFIRMED
+            # (not just suspected) as a real bug, root-caused by bisection:
+            # with the overlap, kicad-cli's flattened netlist merged 5 of this
+            # sheet's UNRELATED nets (MSS_EMMC_DAT5/DAT6/DAT7/DS/RST_N, plus
+            # 04c's R403 pin 2) into ONE net -- even though the placeholder
+            # box carries ZERO declared pins. Isolated by exporting the netlist
+            # from 04-storage.kicad_sch standalone (clean) vs through the real
+            # root hub-enterprise.kicad_sch (merged) -- the ONLY difference
+            # being this box's placement -- then confirmed by fixing JUST the
+            # overlap (no other change) and re-checking (clean). Root
+            # mechanism not fully diagnosed (every direct wire/label/pin
+            # coordinate check came back clean; it is a root-sheet-page
+            # graphics-overlap effect on kicad-cli's connectivity resolution,
+            # not a wire coincidence like the lane_labels bug below) --
+            # recorded as a standing gotcha in FOLLOWUPS.md for sheets 03/02.
+            # Moved clear of both the placeholder grid (x 140-290, y 20-145)
+            # and 01/05's own column (x 20-90). 120-tall to fit this sheet's
+            # 20 root-export pins at the default 5.588 pitch (8 + 19*5.588
+            # ~= 114mm span).
+            "hier_exports": HIER_EXPORTS_04, "sym_uuid": SHEET_UUIDS["04"],
+            "sheetname": "04-storage", "sheetfile": "04-storage.kicad_sch",
+            "geom": (95, 155, 70, 120), "page": "4",
+        },
+    ]
+    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n not in ("05", "04")}
     build_root(HIER_EXPORTS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
                placeholder_uuids, SHEET_TITLES,
                out_path=f"{HERE}/hub-enterprise.kicad_sch", paper="A2",
-               extra_sheets=root_extra_sheets, first_placeholder_page=4)
-    print("hub-enterprise.kicad_sch  sheets=2(power-input+module-ports parents)+7(placeholder)")
+               extra_sheets=root_extra_sheets, first_placeholder_page=5)
+    print("hub-enterprise.kicad_sch  sheets=3(power-input+module-ports+storage parents)+6(placeholder)")
 
-    remaining = sorted(k for k in SHEET_TITLES if k != "05")
+    remaining = sorted(k for k in SHEET_TITLES if k not in ("05", "04"))
     for i, num in enumerate(remaining):
         name, desc = SHEET_TITLES[num]
-        page = 4 + i
+        page = 5 + i
         build_placeholder(num, SHEET_UUIDS[num], name, desc, PROJECT, page,
                            out_path=f"{HERE}/{name}.kicad_sch", paper="A4")
-    print("Generated 7 placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))
+    print("Generated 6 placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))

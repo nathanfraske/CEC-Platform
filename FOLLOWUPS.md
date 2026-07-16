@@ -588,3 +588,49 @@ Conventions:
   exactly for every part, ERC held at the pre-change baseline (177 violations,
   scoped git-stash comparison) after resolving the expected lib_symbol_mismatch
   noise by syncing each sheet's cached copy, not leaving it as unexplained noise.
+- [2026-07-16] ROOT-PAGE SHEET-BOX OVERLAP CORRUPTS THE FLATTENED NETLIST (found during
+  hub-enterprise sheet-04 capture) — a NEW, non-obvious kicad-cli behavior for future sheet
+  captures (03/02 next in this agent's queue) to watch for: two sheet-symbol boxes overlapping
+  on the ROOT page (hub-enterprise.kicad_sch), even when the overlapping box has ZERO declared
+  pins (an empty placeholder box), can cause kicad-cli's flattened netlist export to silently
+  MERGE unrelated nets belonging to the properly-pinned sheet. Confirmed via bisection: sheet
+  04-storage's first geom box `(110, 120, 70, 90)` overlapped the "08-secio-aux" placeholder
+  box and merged three unrelated eMMC signals (DAT5/DAT6/DAT7/DS/RST_N/R402/R403's rail pin)
+  into one flattened net; moving 04-storage's box to the non-overlapping `(95, 155, 70, 120)`
+  fixed it completely (re-verified by re-exporting the netlist and diffing node sets). Root
+  mechanism not fully understood (why a pinless box's mere geometric overlap corrupts
+  connectivity resolution wasn't found documented anywhere) — treat as an empirical rule: before
+  finalizing ANY new sheet's `root_extra_sheets` geom, check it doesn't overlap any OTHER sheet
+  box on the root page (placeholders included, not just already-captured sheets), not merely
+  that it fits within the page bounds. Sheets 03/02 must check their geom against 04's now-placed
+  box and each other's placeholder boxes before finalizing.
+- [2026-07-16] HAND-WIRED L-BEND CAN ROUTE THROUGH A SIBLING PIN ON A VERTICAL 2-PIN PART
+  (found + fixed during sheet-04 capture, 04a-qspi-nor's /RESET pull-up, R401) — a reusable
+  composition-geometry lesson for sheets 03/02 (much denser pin columns ahead, esp. the MPFS
+  multi-unit symbol): a `c.wire(pinA, (bendx, bendy), pinB)` 2-segment L-bend that drops
+  straight down a 2-pin part's OWN pin column (both pins share one x for a vertical
+  R_Small/C_Small) will pass directly through the part's OTHER pin if that pin sits between the
+  bend and the target on that column — kicad-cli treats a wire passing exactly through a pin's
+  coordinate as a real connection (no junction dot needed), silently shorting the two pins.
+  Symptom: the flattened netlist merges two supposedly-separate nets that share one part (here:
+  R401's +3V3_IO rail leg got shorted to its own RESET signal leg). Fix used: route the bend
+  through the MIDPOINT x between the two parts' pin columns instead of directly under/over
+  either one (`midx = (p3[0] + r2[0]) // 2`), then re-verify against the flattened netlist (not
+  just a render) that no OTHER pin on either column sits on the new path. Budget for this check
+  on every hand-drawn `c.wire()` bend in sheets 03/02, not just their `io()`-routed nets.
+- [2026-07-16] SHEET-04 MSSIO BALL ALLOCATION IS A REASONED, PROVISIONAL SCHEMATIC-CAPTURE-TIME
+  CHOICE, NOT A FIXED MPFS FUNCTION MAP — PolarFire SoC's QSPI/eMMC/other MSS peripherals are
+  pin-muxed onto the generic MSSIO bank by the Libero pin planner; no fixed function-to-ball map
+  exists in the vendored FCVG484 ball map (lib/vendor-data/mpfs-fcvg484-pins.csv) for these
+  signals. Sheet 04's hier_exports (MSS_QSPI_CS/CLK/IO0-3, MSS_EMMC_CLK/CMD/DAT0-7/RST_N/DS) are
+  a reasoned but PROVISIONAL net-name allocation, made without an actual Libero pin-planner run.
+  When sheet 02a (MPFS core) is captured, its MSSIO ball assignments must either match these net
+  names exactly (if the same provisional allocation is kept) or sheet 04's hier_exports must be
+  revisited to match whatever 02a actually commits to. Flag to the owner if a real Libero
+  planner pass becomes available before 02a lands — it would be authoritative over this guess.
+- [2026-07-16] 04a's W25Q256JVFIQ /RESET (U401 pin 3, net QSPI_RESET_N) is wired to a passive
+  10k pull-up (R401) only — no active MSS-driven reset path is provisioned this pass (no spare
+  MSSIO ball consumed for it). Idle-inactive default is safe for boot, but if firmware later
+  wants a software-controlled flash reset (e.g. a recovery/re-flash sequence), a spare MSSIO
+  ball will need to be allocated and this net re-wired as MSS-driven, not just a pull-up.
+  Revisit at firmware integration or once sheet 02a's MSSIO ball budget is known.
