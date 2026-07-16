@@ -385,3 +385,10 @@ Conventions:
   cleanest for the OEM/integrator channel. Owner raised 2026-07-16 ("we're a
   sub-assembly, should be documented"); write the posture into the spec/compliance doc
   when the regulatory section is drafted.
+- [2026-07-16] PSU tester (Pro/Max) — owner's original spec thread NOT FOUND in the repo
+  (all remote refs + commit messages + agent memory + ops/agent-handoff swept for
+  tester/DC-load/Chroma vocabulary; zero hits). Fresh draft written from the owner's brief
+  at docs/psu-tester-concept-2026-07-16.md (+ the bench-instrument consolidation split out
+  to docs/bench-mode-instrument-requirements-2026-07-16.md). RECONCILE the draft against
+  the original thread when the owner locates it (likely a local-machine session or chat) —
+  thread wins on conflict. Owner decision list in the draft §5.
