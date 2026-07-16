@@ -783,3 +783,15 @@ input-saver pigtails = new consumable. SUPERSEDES ST integrated-sensing at same 
 (ST-1000 bundle $1,299 real modules+Hub, landed ~$645). Bundle margins +0.2-0.4x line-wide.
 #1 mech flag: gang insertion 260-440N (24-pin) — factory press vs cam assist, extends OQ-86
 gate. 12VHPWR = tray + male 12V-2x6 head (captive pigtail unchanged). All pushed.
+
+## Tester sourcing pass COMPLETE + BOM v1 + testers/ tree — 2026-07-16
+Four Sonnet agents done; BOM v1 SOURCED: Pro ≈$1,039 / Max ≈$1,332 (UNDER v0; lists now
+2.8-4.4× landed). testers/ board family created (6 projects, DRAFT) + DESIGN-SHEET.md (22
+placement rules, netclasses, stackups, gates, new-checker list) — packages filled from
+sourcing. Staged assets committed (4 domains, ~15 parts w/ sym/fp/3D/datasheets).
+SUPPLY-RISK REGISTER (BOM §5, owner-ranked): P4 OOS no-module no-fallback (PLATFORM risk —
+testers + 12VHPWR Pro + Hub Pro; "ESP32-P4X" successor spotted unverified); 63969-1 FULLY
+OOS (module program, pre-OQ-86 escalation); TPS55289 OOS → design on TPS55288 (owner nod);
+AD9253 -105 grade flip (Max module program too); fans/bimetal/L2-DigiKey-only items.
+R-bank pivot: paralleled 50W units. Traps recorded in BOM §4. Next: owner nods on §5 items
+1-4; schematic pass can start on tester-standard or fast-channel-slice (bench-gate vehicle).
