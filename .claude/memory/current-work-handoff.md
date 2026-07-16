@@ -710,3 +710,15 @@ dependency. My branch's docs/psu-tester-concept-2026-07-16.md rewritten as RECON
 "tester" naming reservation). NOTE: pipeline-consolidation also gained supercap-ups-study
 -2026-07-15.md + cec_spice_sanity.py — likely the SPICE source of the persist-contract
 hold-up numbers; cross-reference when that branch merges.
+
+## PSU tester component research — 2026-07-16 (docs/psu-tester-component-research-2026-07-16.md)
+VERDICTS: Pro tester MCU = ESP32-C6 (platform CAN-module pattern; answers canonical §5 OQ-8),
+NO FPGA — all load regulation is per-channel analog CC loops (op-amp + linear-rated FET +
+shunt), sequencing ms-class, excursion pulses timer-gated w/ ANALOG slew shaping. Max tester
+= ESP32-P4 + GW5A-25, FPGA ONLY for the 50-65MS/s digitizer (AD9253 lane reused verbatim from
+max-part-selection). Linear-rated L2 FETs mandatory (Spirito doctrine); IXTK90N25L2 LCSC
+C2831650 ~$40 verified; DAC80508 8ch 16b setpoint DAC (C6 has no true DAC — SDM only);
+TPS55289 = Max OVP source (0.8-22V/10mV I2C, 6.35A limit); random-fire SSR class for the AC
+interrupter. Prior-art anchors: Jim Williams AN104 + AN133 (100A closed-loop active load =
+the fast channel's ancestor), IXAN0068, KP184 IRFP250M cautionary teardown, Array 3711A
+OP07+ballasted-IRF3205 teardown. Sourcing list in doc §3 → FOLLOWUPS (BOM-lock pass).
