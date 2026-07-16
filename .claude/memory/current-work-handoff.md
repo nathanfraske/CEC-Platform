@@ -772,3 +772,14 @@ convention). KEY PROPOSAL pending owner sign-off: INTEGRATED module-DNA sensing 
 (one-box ready-to-go; bends actuator-not-instrument; RJ-45/DETECT kept so it composes into
 suites later as load node). Sketch §11, BOM doc §3a, FOLLOWUPS entry. Amends canonical §6
 shelving — fold at Task-13-class pass.
+
+## Slot-in tester bundles (owner idea) — 2026-07-16, sketch §12 + BOM §3b
+Tester deck = upward 63951-1 blade fields per family; tester plays the DAUGHTERBOARD side of
+the ratified iteration-7 pair (22.9A joints, 125% margin, keying checker-proven — extend
+check_output_daughterboards.py to the tester field). J_SIG blind-mate = PS_ON#/PWR_OK/-12V
+through the slot. Bundles: modules factory-slotted, Hub dock bay + routed RJ-45 channels
+(Bench-Unit sweet spot: integrated UX, modular arch). OQ-89 = un-dock field kit SKU ($39-49);
+input-saver pigtails = new consumable. SUPERSEDES ST integrated-sensing at same prices
+(ST-1000 bundle $1,299 real modules+Hub, landed ~$645). Bundle margins +0.2-0.4x line-wide.
+#1 mech flag: gang insertion 260-440N (24-pin) — factory press vs cam assist, extends OQ-86
+gate. 12VHPWR = tray + male 12V-2x6 head (captive pigtail unchanged). All pushed.
