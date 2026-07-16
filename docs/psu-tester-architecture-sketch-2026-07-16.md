@@ -824,6 +824,51 @@ count — coordinate with §12 before the blade-field drawing freezes; (e)
 owner pick on relief valve 2 (design the DNP jacks in, or ship
 USB-overflow-only).
 
+## 14. "SPECIAL EDITION" — glass shell + full-loop water cooling (owner idea, 2026-07-16 night; PROPOSED, halo/flair tier)
+
+**Owner (verbatim intent):** "more for flair and because we are a bespoke PC
+shop known for extreme water cooling — Special Edition Pro and Max variants
+(with the 3000W addon maybe): glass or otherwise clear shell, full loop
+watercooling, blocks on the extreme heat points and maybe even sandwiched
+around the board too. Not necessarily practical, but it would be *awesome*."
+
+**Three real engineering arguments inside the flair:**
+1. **Water ENABLES the glass shell** — the air tester needs 140–263 CFM
+   through grilles and can never be sealed/glazed; remove airflow and a
+   fully-sealed clear enclosure becomes legitimate (no vents, no dust, no
+   fan noise, full board view).
+2. **SELV-only internals = the safest water-cooling target that exists**
+   (≤12.6 V inside; DUT + mains OUTSIDE the box). A leak is property
+   cleanup, not a shock path — an easier story than any water-cooled PC.
+3. **At 3 kW (SE-W) water beats air outright**: 263 CFM ducted is loud;
+   3 kW @ ΔT10 °C ≈ 4.3 L/min — a D5 loafing. **SE-W = the silent 3 kW
+   tester** (a real spec, not decoration). Water-cooled resistive load
+   banks are an established industrial pattern.
+
+**Config sketch:** bank cold plate(s) replace the finned tunnel (50 W array
+or chassis-mount resistor swap — trade study); L2 vernier/fast FETs on cold
+plates (FBSOA margin improves with case temp); board sandwich plates =
+aesthetic-legit but KEEP CLEAR of the fast-channel slice (µH budget vs a
+coupled metal slab); QUICK-DISCONNECTS as the native interface ("plugs into
+your bench loop" — the on-brand move) + optional radiator kit; coolant-loop
+interlocks join the existing safety fabric (flow sensor + coolant NTCs on
+the de-gate rail, pump tach in POST, derate-on-low-flow, bimetal backstop
+unchanged); RGB/coolant show per the shop's craft (SK6812 chain exists).
+
+**Damage (sketch-grade):** +$400–700 BOM (D5 pump/res, custom bank cold
+plate = the big custom part, QDCs, fittings, glass/acrylic + frame) →
+SE up-tier $1,000–1,500 over the base SKU; built-to-order halo-unit
+economics; the unit doubles as a trade-counter demo of the shop's cooling
+work.
+
+**Open (before this leaves PROPOSED):** bank cold-plate trade study
+(array-on-plate vs chassis-mount resistors); leak-vs-electronics zoning in
+the shell; condensation non-issue confirm (loop runs above dew point — it
+is a heater); glass vs polycarbonate (thermal + shatter + cost); loop spec
+per tier (Pro/Max 1.6 kW vs SE-W 3 kW radiator area); whether SE replaces
+or accompanies the fan bank (redundancy vs purity); certification posture
+unchanged-check (still SELV, still unintentional radiator).
+
 ## 9. Open sketch questions (for the schematic pass)
 
 1. R-bank step ladder per channel (binary vs 1-2-5) + exact leg counts.

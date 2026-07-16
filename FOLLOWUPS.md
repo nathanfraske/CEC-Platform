@@ -895,3 +895,9 @@ Conventions:
   emission + cross-sheet unit tying = the gating platform-script fix before 02 completes
   (agent's banked research for 02b/c/d + the blocker writeup are in FOLLOWUPS below/agent
   sections). Sheets 06/07/08 remain uncaptured.
+- [2026-07-16] TESTER §14 "SPECIAL EDITION" (glass + full-loop water, Pro/Max/SE-W) recorded as
+  PROPOSED halo tier w/ the three real engineering args (water enables the sealed glass shell;
+  SELV-only internals; silent-3kW at SE-W) + open trade studies (bank cold plate, shell zoning,
+  loop spec per tier). Bounce further / trade-study on owner word. ALSO: sheet-02 completion
+  agent was STOPPED BY OWNER via UI before it made any change — brief preserved, relaunch on
+  request (multi-unit cec_sch.py fix + U1 placement + 02b/c/d + 02a readability).
