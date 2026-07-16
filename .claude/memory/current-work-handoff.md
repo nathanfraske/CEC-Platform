@@ -882,3 +882,21 @@ FBGA-153, 8/32/64GB ladder, industrial; → bom-a row PROPOSED + manifest #35 + 
 + KVM fp cluster stretch; B=hub sheet capture 04→03→02 (+06 stretch) via compose engine +
 cec-schematic MCP + protocol §2 gates, commit-per-sheet, explicit-path git discipline (both
 agents forbidden from git add -A; pull --rebase before push). Integrate reports on completion.
+
+## 2026-07-16 ~15:40 — STANDARD + PRO/MAX design sheets + pipeline-branch survey (branch claude/pr50-firmware-review-wkvf7v)
+Owner asked: is latest pipeline on a branch (YES: claude/pipeline-consolidation, 312 ahead of
+this branch — netclass carriage into FR DSN 405ba7c9, freerouting cec-seed+cec2 patches, TPC
+pass-form plan-of-record, pipeline-solver-roadmap.md [2.5D thermal GATING w/ mirage guard +
+NONDETERMINISM defect open; impedance/kelvin-loop/crosstalk audits ADVISORY — MEASURED: USB
+91.3Ω ok, CAN 91-105Ω vs 120 target platform-wide; GND-fanout synth; SPICE pilot cec_spice],
+hub-rev2 route waves 4-5, supercap-ups-study-2026-07-15.md w/ owner rulings [Pro=PHV 2.5F /
+Max=PHB 5F → re-size 5-10s LCSC 2S → FINAL: DNP 2S radial provision hand-solder this run],
+atx24 sense-wire study). Sheets LANDED (commit next): docs/standard-tier-review/
+STANDARD-DESIGN-SHEET.md + docs/PRO-MAX-DESIGN-SHEET.md — 4-sheet family complete
+(testers/ENT/STD/PRO-MAX), all w/ cited best-practices sections; PRO-MAX encodes the supercap
+provision (Z-SCAP zone, charge-R rules, persist-class tie to firmware/contracts/
+persist-on-fault.md Tier outlook) + Max owner facts (sensor-BW ceilings, voltage-tracking
+placement OPEN w/ reserved AFE position). MERGE-RECONCILE followup: sheets here vs pipeline
+there. AGENT STATUS: intake agent's easy-parts batch VISIBLY LANDED on branch (test fixtures
+now 128/194/494 = FTSH-105+TPS7A20x2+TLV75801+ABM3+TLP172A+LM393 in); both agents still
+running (eMMC research + KVM stretch; capture 04→03→02).

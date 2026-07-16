@@ -547,3 +547,16 @@ Conventions:
   actual intent. eMMC research + the ent-kvm-carrier footprint-cluster stretch are separate,
   tracked in their own place (owner-queue.md / this session's final report) — this bullet is
   scoped to the six-part pull only.
+- [2026-07-16] STANDARD + PRO/MAX DESIGN SHEETS LANDED (owner ask, completes the 4-sheet family):
+  docs/standard-tier-review/STANDARD-DESIGN-SHEET.md (alpha-proven doctrine + measured lessons:
+  HI-upper shunts, pour-after-route, GND-barrel funnel, thermal-relief ban w/ thermal-wave
+  numbers, lane-via anti-pad, CAN 91-105Ω-vs-120 audit finding; cited IPC-2152/2221B/2141A/
+  7351B/4761, SLLA270, USB-IF, IEC 61000-4-2, TI INA layout, Ott/Bogatin, pass-form plan) +
+  docs/PRO-MAX-DESIGN-SHEET.md (LTC2358 SAR island per ADI MT-031/MT-101, RS-485 per SLLA272 w/
+  the 120Ω-vs-measured-stackup flag, AD9253/GW5A LVDS shared rule w/ ENT+tester, P4 QFN-104
+  escape, Rogowski/fast-AFE, SUPERCAP DNP 2S radial provision per the pipeline-branch FINAL
+  ruling + persist-contract Tier-outlook cross-ref, sensor-BW-ceilings owner fact). BOTH note:
+  pipeline of record = claude/pipeline-consolidation (312 ahead — netclass→DSN carriage, FR
+  patches, TPC pass-form, solver roadmap, supercap study, hub-rev2 waves, atx24 sense-wire
+  study) — NOT merged; reconcile sheets ↔ pipeline at merge. New-checker asks: qfn-escape-
+  completeness, RS485-class impedance audit pre-route, LVDS plane-integrity build-once-x3.
