@@ -75,8 +75,14 @@ pre-schematic — freeze at schematic.
 | Tester BOM v1.2 (mid) | ~$1,064 | ~$1,635 | ~$1,357 | ~$1,955 |
 | Tester landed (+19 %) | ~$1,266 | ~$1,945 | ~$1,615 | ~$2,325 |
 | Tester list | $3,495 = **2.8×** | **$4,995 = 2.6×** (first-cut) | $5,995–6,995 = **3.7–4.3×** | **$7,995 = 3.4×** (first-cut) |
-| Bundle all-in (landed, § 3b posture) | ~$1,420 | +$800–1,500 (module manifest OPEN) | ~$1,930 + Max-Hub TBD | +$800–1,500 (manifest OPEN) |
-| **Bundle list** | **$3,995 (2.8×)** | TBD at manifest | **$6,995 (≈3.4–3.6×)** | TBD at manifest |
+| Bundle all-in (landed, § 3b posture) | ~$1,420 | configurator-built | ~$1,930 + Max-Hub TBD | configurator-built |
+| **Bundle list** | **$3,995 (2.8×)** | configurator (see note) | **$6,995 (≈3.4–3.6×)** | configurator (see note) |
+
+**W bundles RULED (owner, 2026-07-16): configurator-built, not fixed
+manifests** — the 4× 12VHPWR stack is an option line, priced per config
+against the PORT LEDGER (sketch §13: tester + 24-pin + EPS + 4× HPWR +
+PCIe-3 = 8 nodes = Hub Pro exactly full; overflow → standalone-USB or the
+proposed deck CAN expansion jacks).
 
 **Ladder:** ST-1000 $1,299 / ST-1300 $1,499 / Pro $3,495 (bundle $3,995) /
 **Pro-W $4,995** / Max $5,995–6,995 / **Max-W $7,995**. Pro-W's 2.6× sits
@@ -125,6 +131,11 @@ shared W chassis platform); Max-W = Pro-W + the §2 Max delta + ~$25
 | **Pro-W delta** | **≈ +$570** | |
 | **Tester Pro-W BOM v1.2** | **≈ $1,635** | band $1,500–1,900 |
 | **Tester Max-W BOM v1.2** (+$293 Max delta +$25) | **≈ $1,955** | band $1,800–2,250 |
+
+Optional W deck provision (owner pick pending, sketch §13 relief valve 2):
+2–3 CAN-only expansion jacks (RJ-45 + DETECT ESD cell + switched 5VSB) ≈
+**+$5 populated / $0 DNP** — preserves µs MARK timing for melt-watch
+monitors past the 8-port Hub ledger.
 
 Lists (first-cut, §3 ladder): **Pro-W $4,995 (2.6× landed) / Max-W $7,995
 (3.4× landed)**. The 2 kW Max ballast option is RETIRED (owner: "over a US
@@ -216,5 +227,7 @@ banks to the full 3 kW delta).
    basis, 11.45 mmH₂O headroom; W duct needs the two-lane variant measured).
 9. Display panel MPNs (main 2.8″ + bay 1.54″ IPS SPI module class) + bezel
    mechanicals at the chassis quote; S12038-4K volume/3-pack quote at order.
-10. W bundle module manifest (4× 12VHPWR modules vs 2× + move-them) — sets
-    the Pro-W/Max-W bundle lists.
+10. ~~W bundle module manifest~~ RULED 2026-07-16: configurator option
+    against the port ledger (sketch §13). Remaining: owner pick on the deck
+    CAN-expansion-jack DNP provision (relief valve 2) + configurator ledger
+    rules incl. the ST 4-port case (Hub Standard = tester + 3 modules).

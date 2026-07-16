@@ -166,3 +166,13 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 - [2026-07-03] OWNER SOURCING (self-assigned): slim/flexible braided RJ-45 patch cables (lock-register G2) — feeds OQ-4 lengths + D-1 kit lines. Also: internal-USB-header→USB-C kit cable is a commodity line to pick at the same pass (G1).
 
 - [2026-07-06] **D-5a thermal update — F1 RESOLVED + eps/pcie solid joints + OQ-86 acceptance criteria** (record: docs/standard-tier-review/thermal-wave1-daughterboard-landing-2026-07-06.md; maps in thermal-maps/). **(F1)** atx24-out-db In2-lane fusing is FIXED (per-rail full-board floods, all ZONE_CONNECTION_FULL): DC-IR +5V 30A drop 384→62.6 mV, J 2874→259, cold joule 592W-runaway→3.82W; DRC 0/0, checker 113 OK. **(eps/pcie solid joints, owner observation "you have thermal reliefs as well")** route_simple() now solid on both floods (was KiCad-default thermal relief necking the 52A/39A joints): eps dT 235→141°C, pcie dT 117→70°C (−40%), tab pads now cool/solid. All 3 daughterboards now solid. **(F2 remains, owner-gated)** the still-air no-sink worst-case coupled solve still reds (atx24 ~397°C, eps 141°C, pcie 70°C) — NOT fusing-class, the board-can't-shed-worst-case-power-in-vacuum bound; the unmodelled conduction sinks (brass blades into main board + pigtail copper + chassis) + typical-vs-worst current (dT~I²) are the softeners. Owner picks: modelled+verified sink / heavier inner copper / envelope statement — decided on the OQ-86 soak. **OQ-86 bench acceptance criteria now quantified (T1b):** contact-R spread thresholds atx24 GND σ/µ≈0.21, eps≈0.28 (E3 unequal-sharing gate); single-joint soak 17.3A→~17°C / 18.3A→~19°C / 22.9A→~30°C (±20%); N-1 — only pcie survives single-joint loss (atx24 +12V/+5VSB have zero redundancy). Fold these into the sample-order/soak checklist.
+
+- [2026-07-16] **TESTER W-SUITE PORT-RELIEF PICK** (sketch §13; context: owner ruled 4× 12VHPWR
+  = configurator option, and flagged the 8-port ledger): flagship W config = tester + 24-pin +
+  EPS(2-cables/1-port) + 4× HPWR + PCIe-3(3-cables/1-port) = exactly 8 nodes on Hub Pro, zero
+  spare (ST suite: Hub Standard 4 ports = tester + 3 modules). PICK NEEDED: (a) populate the
+  proposed 2–3 CAN-only deck expansion jacks (~$5, keeps µs MARK timing for melt-watch
+  monitors — RECOMMENDED as DNP provision either way) vs (b) USB-overflow only (zero hardware,
+  ms-class alignment) vs (c) someday 12-port bench Hub (field-demand tripwire). Also standing
+  tester nods still open: AD9253-105 grade + buy-ahead qty, TPS55288 final, slot-architecture
+  adoption, Pro-W list ($4,995 @2.6× vs $5,295–5,495 @≈3×).

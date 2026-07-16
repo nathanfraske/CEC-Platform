@@ -234,7 +234,12 @@ LVDS lane plane-integrity rule (new, Max only).
   ~500 mm class, 6 fan headers (Pro populates 4), 11 bay-LCD CS lines. The
   W chassis (two-lane duct, ~430×450×170) and the W slot-deck length variant
   are the only new mechanical items. Max-W gangs the two fast-channel slice
-  positions (whole-PSU 200 % fence per sketch §13).
+  positions (whole-PSU 200 % fence per sketch §13). PORT LEDGER (owner flag):
+  flagship W suite = 8 CAN nodes = Hub Pro exactly full — carry 2–3 CAN-only
+  expansion-jack positions as DNP provision (RJ-45 + DETECT ESD + switched
+  5VSB from the PD domain; pair 2 unconnected; owner pick pending, sketch
+  §13 relief valve 2), and route the deck 5 V feed to the Hub's MAIN_5V
+  input (bench 5VSB ride-through — required, sketch §13).
 
 ## I. Open items on this sheet
 

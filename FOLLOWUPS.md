@@ -470,3 +470,14 @@ Conventions:
   Pro-W ≈$1,635 / Max-W ≈$1,955 / ST ≈$545/$589. Resume: display MPNs + W quotes at the
   chassis pass; owner nods still open: AD9253-105 grade + buy-ahead, TPS55288 final, slot
   adoption, W bundle manifest, Pro-W list ($4,995 vs 3×-adjacent $5,295–5,495).
+- [2026-07-16] TESTER W BUNDLES RULED: **configurator-built, not fixed manifests** (owner) —
+  4× 12VHPWR = option line against a PORT LEDGER (sketch §13, BOM §3/§3c/§6.10): flagship W
+  suite = exactly 8 CAN nodes = Hub Pro full (EPS module covers both CPU cables on ONE port;
+  PCIe-3port covers 3 cables — that aggregation is why it fits at all); ST suite = Hub
+  Standard 4 ports = tester + 3 modules. Relief valves documented: (1) §6.14 standalone-USB
+  overflow (zero HW, ms-class alignment, melt-watch-grade), (2) RECOMMENDED 2–3 CAN-only deck
+  expansion jacks as DNP provision (~$5, full µs MARK timing, Bench-Unit-LITE scoped — owner
+  pick queued in docs/owner-queue.md), (3) 12-port bench Hub only on field demand. PLUS new
+  required bench detail: deck 5 V feed (tester PD) → Hub §2.9 MAIN_5V input so the monitoring
+  fleet rides through hold-up/AC-cut instead of browning out with the DUT. Resume: configurator
+  ledger rules when the configurator work starts; expansion-jack count at deck drawing.

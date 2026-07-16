@@ -665,13 +665,63 @@ sits below the platform 3× convention but above capital-equipment norms —
 same standing owner call as the other tiers; $5,295–5,495 is the 3×-adjacent
 alternative if the convention must hold.
 
-**W-tier open questions:** (a) bundle module manifest — do W bundles ship 4×
-12VHPWR modules (real landed money, especially 4× 12VHPWR-Pro on Max-W) or
-2× plus a move-them workflow? (b) the whole-PSU-200 % fast-vs-bank split
-wants the schematic-pass step-table treatment; (c) W chassis/two-lane-duct
-quote; (d) is a third fast-channel population worth offering to close the
-3 kW-label 200 % gap? (e) deck length for 4 HPWR slots — coordinate with §12
-before the blade-field drawing freezes.
+**Manifest RULED (owner, 2026-07-16):** the 4× 12VHPWR stack is a
+**CONFIGURATOR option, not a fixed bundle manifest** — bundles are built in
+the configurator against a PORT LEDGER (below).
+
+**Port-budget reality (owner flag, same message: "4x 12VHPWR + 1x24 pin +
+2xEPS … consumes the entire budget of an 8 port hub"):** counted with the
+family's built-in cable aggregation — the EPS module senses **2 cables on
+one port** (both CPU cables = ONE module) and PCIe-3port senses 3 cables on
+one port — the flagship ledger is: tester(1) + 24-pin(1) + EPS(1) + 4×
+12VHPWR(4) + PCIe-3port(1) = **8 nodes = Hub Pro exactly full**. It FITS
+today, with ZERO headroom (a 4-EPS-cable monster or any 9th node breaks it
+— and the ST suite hits the same wall harder: Hub Standard is 4 ports =
+tester + 3 modules). The configurator therefore carries the port ledger and
+refuses/reshapes past Hub capacity. Three relief valves, cheapest first:
+
+1. **Standalone-USB overflow (zero hardware — exists today):** every module
+   already has USB-C + the §6.14 standalone USB-CDC posture, and the OQ-85
+   host path is dual-ingest by design. A deck USB hub feeds overflow
+   modules straight to the host: right for steady melt-watch/soak monitors
+   (1 kHz rings, thermal-scale events, ms-class host alignment); NOT for a
+   rail under µs excursion bracketing (no CAN → no MARK stamps). Ledger
+   rule: Hub ports go to the rails under active test; passive monitors
+   overflow to USB.
+2. **CAN-only expansion jacks on the tester deck (RECOMMENDED as a DNP
+   provision — "Bench-Unit-LITE," tightly scoped):** CAN is a shared bus —
+   2–3 extra RJ-45 jacks on the tester wire onto the same pair through its
+   node; the tester reads each jack's DETECT locally (platform ESD cell per
+   jack) and reports presence over CAN (module type/tier rides CAN after
+   link-up anyway, per OQ-6); per-jack 5VSB is switched + budgeted from the
+   tester's PD domain (OQ-2 discipline; the tester's own uplink VCC is
+   never back-fed — ORing per the module pattern). Pair 2 stays dark at
+   these jacks (melt-watch Standard modules don't stream) — but **MARK µs
+   timing is fully preserved** (they are real CAN nodes), which is the
+   measurement story the suite sells. ~$3–5 of platform cells; SI rides the
+   §3.1 star/stub bench gate (125 k bench rate is forgiving). Streams +
+   aggregation stay with the Hub — the deferred Bench-Unit question STAYS
+   deferred; this is its cheap probe.
+3. **A 12-port bench Hub SKU (real program):** only if the field shows
+   workstation suites routinely wanting 9+ full-timing streaming nodes —
+   the deferred-variant tripwire is now concrete instead of vibes.
+
+**Bench 5VSB ride-through (required regardless of port count):** in-PC the
+fleet's 5VSB comes from the DUT — so on the bench the monitoring fleet
+would BROWN OUT WITH THE DUT during hold-up/AC-cut, a headline test. The
+fix is already designed platform-side: feed the Hub's §2.9 MAIN_5V input
+(the priority source of its 3-way mux) from the tester's PD-derived 5 V
+over one deck cable — Hub + all ported modules ride through the cut;
+expansion-jack and USB-overflow modules are tester/deck-powered already.
+The deck harness drawing carries this 5 V feed.
+
+**W-tier open questions:** (a) the whole-PSU-200 % fast-vs-bank split wants
+the schematic-pass step-table treatment; (b) W chassis/two-lane-duct quote;
+(c) is a third fast-channel population worth offering to close the
+3 kW-label 200 % gap? (d) deck length for 4 HPWR slots + expansion-jack DNP
+count — coordinate with §12 before the blade-field drawing freezes; (e)
+owner pick on relief valve 2 (design the DNP jacks in, or ship
+USB-overflow-only).
 
 ## 9. Open sketch questions (for the schematic pass)
 
