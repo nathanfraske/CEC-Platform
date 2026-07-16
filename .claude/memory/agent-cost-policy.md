@@ -49,3 +49,12 @@ testing"; bench harness scripts/cec_wave_intents.py, numbers in the 2026-07-08 s
 **Vision seats (same message):** even the best VLMs are "notably bad at PCB
 design/defects" — a vision agent must be TOOL/facts-FED (v2 facts-alongside protocol) and
 used **excessively sparingly**: published-winner-only sanity check, always advisory.
+
+**Schematic-change delegation (owner directive 2026-07-15):** straightforward
+schematic changes (part insertions, net splices with a specified expected delta)
+go to a SONNET 5 agent at STANDARD effort — the tooling it needs is stood up as
+MCPs (cec-schematic = cec_sch_mcp with the netlist-identity rail; cec-compute =
+cec_compute_mcp) plus the splice-script pattern (scripts/splice_*.py precedents,
+ERC + netlist-diff verification with the EXPECTED delta stated up front). The
+orchestrator audits the verification artifacts and commits.
+

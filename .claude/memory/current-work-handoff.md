@@ -1,5 +1,36 @@
 # Current work handoff
 
+## CRASHED-SESSION WRAP — 2026-07-16 (post-crash pickup)
+The 2026-07-15-night agent crashed mid hub-wave-7. Wrap actions (this session): all his
+uncommitted work committed on claude/pipeline-consolidation in 3 scoped commits (netclass-
+carriage width fix [cec_fr project-bind + sidecar-before-first-LoadBoard, synth pattern
+carriage, rev2 .kicad_pro Power patterns — UNVALIDATED, wave 7 died before the report];
+docker/compose.yaml Qwythos/Q36 test backends [manager-wired 2026-07-13, committed for
+WSL-ephemeral durability]; memory+TODO bookkeeping) and the branch PUSHED (was 42 commits
+ahead of origin — incl. the PSU-tester study 351e25da + tier ruling 4e98193b, which were
+local-only). Wave 7 is DEAD: partial variants in build/fresh-wave-hub7/hub-standard-rev2/
+(gitignored), no report; resume = relaunch when owner frees compute, then validate the
+width fix on the winner. PSU-tester state: study + Pro/Max tier ruling + owner-queue row
+exist (docs/psu-tester-exploration-2026-07-14.md); NO tester schematic sheets exist yet —
+that work was never started (gated on shop interviews / competitive check / transient
+bench per the ruling).
+
+## HUB-REV2 DAY CLOSED — wave-4 winner strong; owner batch NEXT — 2026-07-15 (night)
+Winner periph-left-compact-s0: unconn 11, safety_fails 0 (USB pair routed), crit 1 (GND
+fanout), copper collisions 3; DRC-62 residue = placement classes w/ scoped rungs (parks 21,
+mounts 9, edge 15, drill 12). Centerpiece WORKS (logo@ring center + keepout, jacks top,
+mezz interior, DL6 free). Black finish: template-baked (gen-module-pcb stackup colors) +
+patch for pre-bake boards; rounded corners 2.5mm from next materialize; hex panel =
+cec_render.hex_panel wired into wave snapshots. Rev2 schematic FINAL tonight: J6 col-paired
+mezz (DNP THT; 24-pin conjugate rewire queued), D8/D9 SMAJ5.0A TVS, C18-21 DETECT filters,
+F1-F4 port polyfuses (Sonnet-spliced, audited), D-11 DRU exception. Supercap chain CLOSED:
+Standard unchanged / Pro+Max DNP 2S radial provision hand-soldered (0.8-1.6F / 2-4F per
+cell) / ENT d-vs-e pending load bench. SPICE sanity harness live (teeth = rev2 erratum).
+PENDING: owner's batch of hub fixes (they were waiting on this wave); WROOM antenna
+overhang + logo-as-pads + hugged courtyard queued in FOLLOWUPS; hub wave pool bug
+(SwigPyObject under 6-worker spawn; serial workaround) forensic owed; 12vhpwr thread
+parked earlier (wave-14 resume in FOLLOWUPS).
+
 ## PARKED BY OWNER (CPU needed elsewhere) — 2026-07-15 ~21:35
 Wave 13 KILLED at 15/16 after an 80-min stall. STALL CAUSE (forensic'd + FIXED, committed):
 the plateau-kill Popen path had (a) an undrained stderr PIPE (JVM deadlocks at 64KB) and
