@@ -8,21 +8,25 @@ the platform part studies (`docs/max-part-selection-2026-07-05.md`). Owner ask:
 *"what class of components would we honestly need… What MCU? Does the Max
 and/or the Pro need an FPGA?"*
 
-**REV A (owner corrections, 2026-07-16 same day — see the architecture-sketch
-doc's REV A banner):** the tester is bench-standalone with NO Hub in the
-station; it terminates the module links itself (CAN + Pro RS-485 / Max
-100BASE-T1) and uplinks + self-powers over its own USB-C (PD). Consequence:
-**the Pro tester MCU verdict moves ESP32-C6 → ESP32-P4** — multi-port RS-485
-stream ingest and USB-HS egress are beyond the C6 (FS-only USB, 2 UARTs).
-FPGA verdicts UNCHANGED: still none on Pro (RS-485 ingest is UART-class work),
-still GW5A-25 on Max for the digitizer lane only; the Max tester adds a
-LAN9370-class T1 switch for the module links.
+**REV B (owner, 2026-07-16 — supersedes REV A's hub-role reading; see the
+architecture-sketch REV B banner):** the tester is **a module** — it plugs
+into the Hub as part of a bench suite (never inside a PC), speaks DETECT
+4.7 kΩ (Pro) / 10 kΩ (Max) per the locked §2.3 codes, and carries its OWN
+tier uplink: RS-485 streaming (Pro) / bidirectional 100BASE-T1 (Max) for its
+pulse-actual waveforms. It also runs standalone over its own USB-C
+(monitoring + PD self-power, §6.14 posture). **MCU verdicts stand — ESP32-P4
+both tiers** — now for the tier-module reason (a Pro-class streaming module
+is P4 by platform precedent: the 12VHPWR Pro). Max carries ONE T1 PHY (the
+§13.2a module pattern), NOT a LAN9370 switch (that was hub-role hardware).
+FPGA verdicts unchanged (none on Pro; GW5A-25 on Max, digitizer only). The
+REV A tester-absorbs-Hub consolidation ("Bench Unit") is preserved as a
+deferred field-test variant — sketch §9 item 7.
 
 ## 0. Verdicts up front
 
 | | **Tester Pro** | **Tester Max** |
 |---|---|---|
-| MCU | ~~ESP32-C6~~ → **ESP32-P4** (REV A: the tester is the bench hub — N× RS-485 stream ingest + USB-HS egress; still "full CAN module, not dumb chassis" per OQ-8) | **ESP32-P4 + GW5A-25 FPGA** + LAN9370-class T1 switch — the Max-module compute stack reused verbatim |
+| MCU | ~~ESP32-C6~~ → **ESP32-P4** (REV B: Pro-tier streaming-module pattern — sources its RS-485 stream, USB-HS standalone port; still a full CAN module per OQ-8) | **ESP32-P4 + GW5A-25 FPGA** + one 100BASE-T1 PHY (module link) — the Max-module compute stack reused verbatim |
 | FPGA | **NO.** Nothing in a Pro tester needs one: load regulation is per-channel *analog* CC loops; sequencing/profiles are ms-class MCU timer work; the 100 µs excursion pulses are timer-gated with *analog* slew shaping | **YES — but only for the HF digitizer** (50–65 MS/s LVDS capture is FPGA territory, same as the Max module; nothing else in the box justifies it) |
 | Setpoints | 8-ch 16-bit SPI DAC (DAC80508 class) — mandatory anyway: the C6 has no true DAC peripheral (only the sigma-delta SDM PDM output, <https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/sdm.html>) | same + digitizer lane |
 | Load FETs | Linear-rated (extended-FBSOA) **"Linear L2"-class** devices for every linear-mode stage; commodity FETs allowed ONLY as on/off bank switches | same |
@@ -137,13 +141,13 @@ verbatim: INA181 + TLV7011 comparator per monitored rail into MCU capture
 inputs — answers canonical §5 OQ-11 (yes, the comparators are the trip-time
 reference; the 1 kHz-averaged INA path is the wrong clock for trip edges).
 
-**2g. Control plane (Pro).** REV A: **ESP32-P4 + TJA1051T/3 + N× RS-485
-transceivers (one per module port) + Hub-role port hardware (VCC supply,
-10 kΩ DETECT pull-ups)** — the tester IS the bench hub; no separate Hub in
-the station. Sequencing, DAC writes, fan/thermal supervision, watchdog
-de-gate (gate pull-downs = no-load on crash, canonical §3e) are ms-class;
-stream ingest is UART-class; USB-HS carries it all to the PC. **Still no
-FPGA on Pro.**
+**2g. Control plane (Pro).** REV B: **ESP32-P4 + TJA1051T/3 + ONE RS-485
+transceiver (its own module-side stream TX) + 4.7 kΩ DETECT** — the tester
+is a Pro-tier module in the bench suite; the Hub keeps its job. Sequencing,
+DAC writes, fan/thermal supervision, watchdog de-gate (gate pull-downs =
+no-load on crash, canonical §3e) are ms-class; the RS-485 stream carries the
+fast channel's pulse-actual waveform; USB-HS = the standalone/monitoring
+port with PD self-power. **Still no FPGA on Pro.**
 
 **2h. Max additions.**
 - **HF digitizer lane = the Max module's, verbatim**: AD9253-80 quad 14-bit

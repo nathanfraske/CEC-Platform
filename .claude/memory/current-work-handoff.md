@@ -722,3 +722,19 @@ TPS55289 = Max OVP source (0.8-22V/10mV I2C, 6.35A limit); random-fire SSR class
 interrupter. Prior-art anchors: Jim Williams AN104 + AN133 (100A closed-loop active load =
 the fast channel's ancestor), IXAN0068, KP184 IRFP250M cautionary teardown, Array 3711A
 OP07+ballasted-IRF3205 teardown. Sourcing list in doc §3 → FOLLOWUPS (BOM-lock pass).
+
+## PSU tester architecture sketch — 2026-07-16 (docs/psu-tester-architecture-sketch-2026-07-16.md)
+Sketch pass complete on top of canonical+component docs. Keystones: (1) ACTUATOR-NOT-INSTRUMENT
+— modules keep measurement truth, tester self-sense is 1-2% loop/safety grade (kills the cal
+burden); (2) power domains — tester brains on OWN 12V brick, never DUT-powered; star ground at
+load return bus; (3) cooling-first: front→back cold→hot (electronics→FET extrusion ~0.1K/W→
+R-bank duct), 1600W = ~141 CFM = 3-4×120mm ducted, bimetal 120°C plate switches on the de-gate
+rail as firmware-independent backstop; (4) form: 19"-width bench console, replaceable front
+PLATE carrying all OQ-89 fixture heads (consumable as one part), lid MODULE DECK rail; (5)
+data: CAN = events+setpoints only, profiles compiled host-side to step lists, Max waveforms
+over tester USB-HS; (6) cross-timing: CEC_MARK (~0x012) broadcast on the FREEZE ISR-stamp
+mechanism + host per-node clock fusion (a+b·t fit, 1Hz heartbeat vs ±10-20ppm XO drift) =
+±2-10µs alignment; excursion chain = tester gate stamp ↔ §6.13 comparator stamp ↔ Max
+digitizer capture. §9 open sketch questions feed the schematic pass (front-plate mech ↔ OQ-89,
+MARK home ↔ OQ-85). Branch claude/pr50-firmware-review-wkvf7v; docs commits stack: research +
+sketch + reconciliation all pushed.
