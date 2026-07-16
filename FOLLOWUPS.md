@@ -407,9 +407,13 @@ Conventions:
   hold-up/T5 to BOTH tester tiers and removes the AC-path cert burden entirely (sketch §3c).
   Bench items on ratification: edge latency vs cut phase, pickup geometry, CT class, resold
   listed trigger box vs shop-supplied.
-- [2026-07-16] Pro-tester minimal OVP option (owner ask, sketch §3d): recommend Option A —
-  same TPS55289 stage as Max (~$15-25), firmware-scoped to go/no-go + module-measured trip
-  voltage; Max keeps characterization (ramps/dV/dt/statistics). OWNER CALL to ratify (it
-  amends the canonical §6 tier split "OVP retiring fence at Max"). BOM roll-up landed in
-  sketch §8a: Pro ~$1,065-1,815 / Max ~$1,365-2,260 (+2kW option); Max DROPS vs canonical
-  because the mains interrupter died for the $15-30 sense pod.
+- [2026-07-16] Pro-tester minimal OVP — **RULED Option A (owner, same day)**: TPS55289 stage
+  ships on Pro, firmware-scoped to go/no-go + module-measured trip voltage; Max keeps
+  characterization. REMAINING: fold the amended tier split into the canonical §6 table at
+  the Task-13-class spec pass. AC sense pod stays PARKED ("we'll cross it when we get
+  there") — keep it PROPOSED in sketch §3c, do not build ahead of the nod.
+- [2026-07-16] Tester BOM draft v0 + retail roll-up → docs/psu-tester-bom-draft-2026-07-16.md
+  (Pro ≈ $1,200 mid / Max ≈ $1,505 mid itemized; PRO STATION street ≈ $4,199 suggested SKU;
+  Max station $6,995 top-config with Max-Hub pricing as the open lever). Sourcing-pass items
+  in its §4: L2 ladder quotes (biggest swing ±$150), chassis quote, DAC80508 LCSC check,
+  Max Hub pricing (Task-13), replacement-plate SKU at OQ-89 lock, fan MPN.

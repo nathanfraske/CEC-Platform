@@ -118,7 +118,7 @@ its own Kelvin shunt + fast comparator → µs "pulse-actual" stamp
 |---|---|---|---|
 | **OCP** (per rail) | **YES** | YES | Vernier/bank staircase ramp until trip; trip edge stamped µs-grade by the §6.13 comparators (the 1 kHz INA path is the wrong clock — canonical OQ-11); records trip point + latch-vs-retry recovery via the PS_ON#/PWR_OK sequencer. Pass framing = Cybenetics convention (≤130 % single / ≤135 % multi; Intel publishes no numeric). |
 | **OPP** (whole-PSU) | **YES, bounded by installed sink** | YES (+2 kW option) | Coordinated multi-channel ramp. 1600 W installed hunts OPP on PSUs up to ~1.2 kW rated (OPP typically 120–150 % of label); the Max 2 kW ballast option extends to ~1.5 kW-class flagships. Plus the ATX 3.1 discrimination test the excursion channel makes possible: a compliant unit must RIDE 200 %/100 µs pulses without tripping yet still trip on sustained overload — both sides on one timeline. |
-| **OVP** | **NO as ruled** — but a ~$15 minimal OVP-CHECK option exists (§3d, owner call) | **YES** (characterization) | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
+| **OVP** | **YES — check-grade (RULED §3d)**: go/no-go + module-measured trip voltage | **YES** (characterization: ramps, dV/dt, statistics) | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
 | **SCP** | YES | YES | Crowbar FET short (<0.1 Ω), spec-sanctioned-scary (canonical §3e): fire-posture workflow, PSU must survive by spec; 5VSB indefinite-short leg included. |
 | **UVP** | (via T6) | (via T6) | Intel defines no output-UVP number; the spec mechanism is PWR_OK deassert — covered by the T6 early-warning test (>1 ms before rails leave regulation), measured by the 24-pin module. |
 | OTP | NO | NO | Requires heat-soaking the DUT — out of scope both tiers (standing fence). |
@@ -197,12 +197,15 @@ being in the AC path**:
   phase-controlled AC-interrupter (a genuine mains product with its own
   listing burden) exits the roadmap entirely if this is ratified.
 
-## 3d. Minimal OVP on Pro (owner ask 2026-07-16 — OPTION, not yet ruled)
+## 3d. Minimal OVP on Pro — **RULED: Option A (owner, 2026-07-16)**
 
 The Max-only OVP fence was tier differentiation, not a cost wall — the
-sourcing stage is cheap. Two ways to give Pro a "minimal form":
+sourcing stage is cheap. **Owner ruling: Option A ships on Pro.** (Option B
+retained below for provenance only. The canonical §6 tier-table amendment —
+"OVP retiring fence at Max" becomes "check-grade on Pro / characterization
+on Max" — folds into the spec at the Task-13-class pass.)
 
-- **Option A (recommended): same part, firmware-scoped.** Put the identical
+- **Option A (RULED): same part, firmware-scoped.** Put the identical
   TPS55289 stage (+relay, ~$15–25) on Pro, but firmware-limit it to a
   **go/no-go OVP CHECK**: lift the rail toward the Table 4-13 window-max
   (time-boxed, current-limited, ceiling capped just past window-max so an
@@ -377,7 +380,7 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
 | SCP crowbar blocks (3–4 rails, §3b) | $40–70 | — |
 | Control (ESP32-P4, TJA1051, RS-485 TX, PD sink, misc) | $30–45 | T1 PHY +$5–8; PSRAM/support +$5–10 |
 | Digitizer lane (AD9253-80 + GW5A-25 + 4× 20 MHz AFE + mux) | — | +$115–130 |
-| OVP source (TPS55289 + relay + protection) | (Option A +$15–25, §3d) | +$15–25 |
+| OVP source (TPS55289 + relay + protection) | $15–25 (RULED on Pro, §3d) | included (characterization firmware) |
 | AC sense pod (bundled, §3c) | $15–30 | — (pod analog → AFE is free) |
 | Fixture heads + front plate + internal bus | $80–120 | — |
 | PCBs (4-layer 2 oz, large) | $40–80 | +$10–20 |
@@ -394,6 +397,52 @@ replaced by the $15–30 sense pod. The canonical margin-honesty note stands:
 the low-mid BOM holds the ~3× convention; the high end runs
 capital-equipment multiples (1.8–2.5× is test-gear-normal) — owner call at
 pricing lock.
+
+## 10. Quality & reliability refinements (owner directive 2026-07-16: "extremely solid and reliable")
+
+1. **POST before every sequence**: bank legs switch-verified (loop-shunt
+   deltas), vernier loops nulled, comparators sanity-pulsed, fans spun-up on
+   tach, NTC plausibility — a tester that self-verifies before it asserts
+   verdicts. Plus per-sequence **auto-zero** (all-off shunt read → offset
+   null) killing the op-amp/shunt offset drift term.
+2. **The modules calibrate the tester (cross-cal)**: at sequence start the
+   tester holds known DC plateaus while the inline modules (the accuracy
+   story, ±0.5–1 %) read truth; firmware fits gain/offset for every tester
+   loop chain INCLUDING the fast channel's shunt — so the Pro pulse-actual
+   stream inherits module-grade DC accuracy, with pulse flatness carried by
+   design (AN133 discipline). The traveling standard is built into every
+   station; no cal lab, no annual sticker — every test is freshly cross-cal'd.
+3. **Setpoint chain honesty (verified)**: DAC80508 internal ref 2.5 V at
+   2 ppm/°C typ, TUE ±0.1 % FSR max, INL ±1 LSB — setpoints are honest to
+   ~0.1–0.2 % class before cross-cal even runs
+   <https://www.ti.com/product/DAC80508>.
+4. **Derating doctrine at 40 °C design ambient** (shop-in-summer, not lab
+   25 °C): linear FETs ≤50 % of derated SOA/power, resistors ≤50 % rating,
+   105 °C-rated capacitors only, NO electrolytics on the load plane,
+   AEC-Q-grade jellybeans where the cost delta is ~zero (quality-first
+   ruling applies).
+5. **Fans are the wear item — treat them like it**: dual-ball-bearing 120 mm
+   PWM with tach, field-replaceable on standard pinouts without unsoldering,
+   fan-fail → derate-not-die, filter-free duct (shop dust) with a cleanable
+   rear grille.
+6. **Front-plate odometer**: the fixture heads are ~30-mating-cycle parts;
+   each plate carries an ID strap and the tester counts matings in NVS per
+   plate ID → "replace plate" prompt on the report. Consumable managed, not
+   discovered.
+7. **Loop robustness vs the real world**: compensation validated against a
+   worst-case DUT-cable matrix (long/braided/high-inductance) as a bench
+   gate; a firmware oscillation detector (comparator-chatter heuristic) →
+   auto de-gate + flagged report line, never a cooked FET.
+8. **Interlock state machine**: IDLE→POST→ARMED→RUN→SAFE; SCP and OVP
+   require two-step arm; profiles carry CRC; PD renegotiation or brownout
+   mid-test → SAFE + derate + annotated report. Watchdog de-gate + bimetal
+   backstop per §3b/§4.
+9. **Every external port protected**: USBLC6 on USB, PESD on CAN/DETECT
+   (platform patterns), TVS on the trigger/pod jacks, reverse-polarity-
+   tolerant aux barrel.
+10. **Provenance on every verdict**: per-unit cal record + firmware version +
+    profile CRC + cross-cal residuals printed on the report footer — the
+    platform's verdict-provenance doctrine applied to a shop deliverable.
 
 ## 9. Open sketch questions (for the schematic pass)
 
