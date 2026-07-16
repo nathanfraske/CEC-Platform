@@ -614,11 +614,17 @@ worse than CAN membership, ~10× better than anything the ST fence measures.
 Identity rides the UART protocol (no DETECT resistor on this path); tester
 stays PD-self-powered.
 
-**What it buys:** Hub Standard 4 ports = **4 modules — the complete
-Standard family (24-pin + EPS + PCIe + 12VHPWR), every bay populated** —
-the §13 ST ledger compromise (tester + 3 modules, pick EPS-or-PCIe) dies.
-Bundle landed +~$25–35 for the 4th module (≈$645 → ~$675): thins 2.0× to
-~1.9× at $1,299 or supports $1,399 — owner pricing call.
+**What it buys — DOWNGRADED to optional headroom (owner correction,
+2026-07-16 late): "you don't need *both* PCIe and 12VHPWR at the same time
+typically — we have enough slots on the Standard, just no extra."** The
+base ST ledger is therefore NOT a compromise: tester + 24-pin + EPS +
+one-of-{PCIe, 12VHPWR} = 4/4 ports, with the GPU-power module swapped per
+DUT era — a natural shop workflow (the §12 field-kit/blade swap is the
+mechanism). §12a's remaining value: BOTH GPU modules docked at once (no
+swap step), i.e. convenience + a de-facto spare position, not a fix.
+Ratification urgency drops accordingly; the 4-module bundle (+~$25–35
+landed, $1,399-class) becomes a configurator upsell rather than the
+default story.
 
 **Fences:** ST-ONLY (Pro/Max testers keep real ports: streams + µs
 excursion bracketing). Header is single-occupancy — a bench that also wants
@@ -713,8 +719,9 @@ one port** (both CPU cables = ONE module) and PCIe-3port senses 3 cables on
 one port — the flagship ledger is: tester(1) + 24-pin(1) + EPS(1) + 4×
 12VHPWR(4) + PCIe-3port(1) = **8 nodes = Hub Pro exactly full**. It FITS
 today, with ZERO headroom (a 4-EPS-cable monster or any 9th node breaks it
-— and the ST suite hits the same wall harder: Hub Standard is 4 ports =
-tester + 3 modules). The configurator therefore carries the port ledger and
+— the ST suite runs 4 ports = tester + 3 modules, which the owner ruled
+sufficient: PCIe and 12VHPWR are per-DUT alternates, not simultaneous —
+"enough slots, just no extra"). The configurator therefore carries the port ledger and
 refuses/reshapes past Hub capacity. Three relief valves, cheapest first:
 
 1. **Standalone-USB overflow (zero hardware — exists today):** every module

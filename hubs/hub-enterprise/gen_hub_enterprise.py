@@ -2341,6 +2341,327 @@ HIER_EXPORTS_03 = {
 ROOT_EXPORT_NETS_03 = set(HIER_EXPORTS_03)
 
 
+# ===========================================================================
+# Sheet 02 -- compute-core: the MPFS095T FCVG484 SoC itself (BOM-A's U1) +
+# its boot/JTAG/clock periphery. BOM-A doc: docs/enterprise-requirements/
+# spec-sheets/bom-detailed/bom-a-compute.md. SCHEMATIC-PLAN.md sec 1 splits
+# this into 02a-mpfs-core (MSS/fabric banks/SerDes-NC/power) / 02b-boot-
+# straps / 02c-jtag / 02d-clock.
+#
+# LIBRARY STATUS (checked this pass): U1 = MPFS095T_FCVG484, a REAL vendored
+# multi-unit KiCad symbol (lib/cec-ent-compute.kicad_sym), 8 units splitting
+# the 484-ball BGA (pin-counted directly from the .kicad_sym text this pass):
+# unit1 = general HSIO fabric bank (60 pins), unit2 = general GPIO fabric
+# bank (84 pins) -- both "fabric banks" in the plan's own words, no consumer
+# sheet exists for either; unit3 = MSSIO bank pins (38 pins, likewise no
+# consumer); unit4 = the boot/JTAG special-pin group (13 pins: SCK/TDO/TCK/
+# SDO/TMS/FF_EXIT_N/SS/TRSTB/TDI/SDI/SPI_EN/DEVRST_N/IO_CFG_INTF -- feeds
+# 02b/02c); unit5 = MSS_SGMII_Rx/Tx (8 pins, "SerDes-NC" territory -- no PHY
+# subsystem exists on this schematic, per BOM-A's own scope note "AC-coupling
+# on the SGMII pair... belongs to subsystem B") + MSS_REFCLK_IN_P/N (2 pins,
+# feeds 02d); unit6 = MSS_DDR (88 pins, OPTIONAL per BOM-A's own DDR-fitted-
+# vs-LIM-only open firmware question); unit7 = XCVR_0 general SerDes lanes
+# (22 pins, likewise no PHY consumer); unit8 = POWER (169 pins: VSS + 17
+# named supply rails -- THIS pass's actual deliverable, see below).
+#
+# **BLOCKER FOUND THIS PASS** (confirmed by reading the shared T4 engine
+# directly, not assumed): scripts/cec_sch.py hardcodes `(unit 1)` in EVERY
+# placed symbol instance (verified at its two emission sites, ~lines 224/234
+# and ~281/287 -- both write the literal string "(unit 1)" with no variable
+# or parameter anywhere in the call chain). Neither `Leaf.add_part` nor
+# `Compose.place` accepts a unit number; `Leaf.parts[ref]` is a bare
+# `(lib, name, value)` 3-tuple with no room for one either. There is
+# therefore NO way, via the current shared toolchain, to place a non-unit-1
+# instance of a multi-unit symbol, NOR any way to tie several different-unit
+# placements of the SAME reference (U1) together across sheets the way real
+# KiCad multi-unit-across-sheets designs require (one lib_id + one
+# reference, `(unit N)` varying per placement). A workaround using each
+# unit's own NESTED block name (e.g. passing name="MPFS095T_FCVG484_8_1" to
+# add_part, so cec_sch.symbol_block's text search finds just that inner
+# block) was considered and REJECTED: `_namespace()` would rename that
+# nested block's own opening tag to "lib:MPFS095T_FCVG484_8_1", producing a
+# lib_id string DIFFERENT from what unit 4's or unit 5's placement would use
+# -- three unrelated pseudo-symbols on 02a/02c/02d all sharing the
+# reference "U1" with three DIFFERENT lib_ids is a duplicate-reference
+# condition, not a correct multi-unit spread, and would read as three
+# different parts to a human in the GUI. Fixing this properly means adding
+# unit-parameter support to cec_sch.py's add_part/load_symbols/emission path
+# -- a SHARED file outside this agent's authorized scope this session
+# (hubs/hub-enterprise/** + scripts/check_hub_ent_sch.py only), the same
+# class of gap as the _unescape/content_bbox fixes found earlier this
+# session in cec_sch_layout.py/cec_sch_compose.py. See FOLLOWUPS.md for the
+# full writeup (exact function names/line numbers, and why the workaround
+# was rejected rather than attempted).
+#
+# SCOPE THIS PASS, given the blocker: U1 ITSELF is not placed on any
+# sheet-02 leaf. What IS real and complete: 02a's full per-rail decoupling
+# network -- 86 capacitors across the 17 named supply rails, sourced from
+# Microchip DS60001681H ("PolarFire SoC FPGA Board Design Guidelines")
+# Table 1-4, fetched and read directly this pass (pages 6-8 of the primary
+# source) -- **the table specific to OUR EXACT part+package**
+# (MPFS250TS/MPFS160TS/MPFS095TS/MPFS025TS - FCVG484, 0.8mm), not BOM-A's
+# own rolled-up C-1n..C-330u rows (each of which spans MULTIPLE rails per
+# row -- e.g. BOM-A's own C-100n row lists 11 different rail/bank names
+# sharing one qty of 25 -- with no per-rail breakdown; Table 1-4 is the
+# disambiguated primary source BOM-A itself cites for exactly this reason).
+# Applying the decoupler_bank archetype with these real per-rail counts,
+# arrays joined by net (not a representative-only ladder), is the owner's
+# own 2026-07-16 directive for this leaf. Every rail's decoupler_bank
+# reaches a plain net STAMP (a `c.stamp()` global power-flag-style label,
+# same mechanism every other leaf in this file already uses for +3V3/GND/
+# +5VSB) matching its exact rail name -- ready for U1's own unit-8 stub pin
+# to join once the toolchain gap above is closed: a human or a future pass
+# then needs only to place U1 and let its same-named stub pins pick up
+# these SAME stamps, not re-derive this table.
+#
+# 02b (boot-straps)/02c (jtag)/02d (clock) are NOT composed this pass, but
+# their research IS done and banked in FOLLOWUPS.md so a resuming pass does
+# not need to re-read the datasheet: the exact JTAG header pin map (Samtec
+# FTSH-105-01-L-DV-K, Fig 1-6 + Table 1-13: 1=TCK/2=GND/3=TDO/4=PROG_MODE
+# DNC/5=TMS/6=VJTAG-to-VDDI3/7=VPUMP DNC/8=TRST/9=TDI/10=GND; straps TCK
+# 10k-to-VSS, TRSTB 1k-to-VDDI3, TDI/TMS/TDO/SDI/SDO/SCK/SS need none when
+# populated), the SPI-master-mode strap VALUES AND DIRECTIONS resolved from
+# Fig 1-7 (SPI_EN 4.7k-to-VDDI3, IO_CFG_INTF 1k-to-VDDI3 -- both pulled
+# toward the "1" state the figure's own title commits to, closing BOM-A's
+# own flagged open item #5), the DSC1123BL5-125.0000 oscillator's role
+# (already vendored, lib/cec-ent-power.kicad_sym -- Microchip's OWN 125MHz
+# low-jitter LVDS MEMS part, described in its own Description property as
+# "Hub MSS/SGMII reference clock" -- i.e. it already targets BOM-A's Y2 role
+# and its stock issue, just under a different real MPN; Y1's 50MHz single-
+# ended MSS_REF_CLK has no vendored part AND no identified target pin --
+# likely a general fabric CLKIN alt-function on unit1/2, out of scope until
+# those fabric banks get a real consumer plan), and the cross-sheet ties
+# this leaf-family will need to close (unit4's SCK/SS/SDI/SDO to sheet 04a's
+# already-exported MSS_QSPI_CLK/CS/IO0/IO1; unit4's DEVRST_N to sheet 03d's
+# already-driven MPFS_SEQ_EN net, per BOM-A's own sequencing note 5: "drives
+# DEVRST_N" is the SAME TPS3839K33 RESET output that gates the other
+# regulators' EN pins).
+# ===========================================================================
+SHEET02_LEAVES = {}
+
+
+def leaf02(id_, filename, sheetname, desc):
+    lf = Leaf(id_, filename, sheetname, desc)
+    SHEET02_LEAVES[id_] = lf
+    return lf
+
+
+SHEET02_LEAF_IDS = ["02a"]   # 02b/02c/02d deferred this pass, see the module
+                              # docstring above + FOLLOWUPS.md
+SHEET02_LEAF_SYM_UUIDS = {lid: _stable_uuid(f"02-leaf-sym-{lid}") for lid in SHEET02_LEAF_IDS}
+SHEET02_LEAF_OWN_UUIDS = {lid: _stable_uuid(f"02-leaf-own-{lid}") for lid in SHEET02_LEAF_IDS}
+SHEET02_OWN_UUID = _stable_uuid("02-compute-core-thin-parent")
+
+
+# Microchip DS60001681H Table 1-4 -- Power-Supply Decoupling Capacitors,
+# MPFS250TS/MPFS160TS/MPFS095TS/MPFS025TS - FCVG484 (0.8mm). Real MPNs per
+# BOM-A's own already-completed research (rows C-1n through C-330u, all
+# already LCSC/Murata/AVX-verified there); footprint stand-ins noted where
+# the real package (0201/1206/tantalum-2917) is not yet vendored in lib/
+# (this agent's scope this session is hubs/hub-enterprise/** only -- adding
+# a footprint to lib/ is out of bounds; flagged in FOLLOWUPS.md for whoever
+# next does a library-vendoring pass, a mechanical swap once done).
+_CAP_MPN = {
+    # value: (Manufacturer, MPN, footprint, note)
+    "1n":   ("Murata", "GRM033R71C102KA01", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "real pkg 0201 -- 0402 stand-in, no 0201 fp vendored yet"),
+    "4.7n": ("Murata", "GRM155R11H472KA01", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "0402, exact"),
+    "22n":  ("Murata", "GRM155R71C223KA01D", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "0402, exact"),
+    "10n":  ("Murata", "GRM033R71A103KA01", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "real pkg 0201 -- 0402 stand-in, no 0201 fp vendored yet"),
+    "47n":  ("Murata", "GRM155R71C473KA01J", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "real pkg 0201/0402 -- 0402 fp, exact-or-close stand-in"),
+    "100n": ("Murata", "GRM033C71C104KE14", "cec-Capacitor_SMD:C_0402_1005Metric",
+             "real pkg 0201 -- 0402 stand-in, no 0201 fp vendored yet"),
+    "1u":   ("Murata", "[platform-generic 1uF -- no BOM-A MPN row exists for this "
+                        "value; Table 1-4's own '1 uF' column is used ONLY by the "
+                        "optional Bank-6/DDR row]",
+             "cec-Capacitor_SMD:C_0402_1005Metric",
+             "generic, matching the platform's existing 1uF-bulk-cap convention "
+             "(e.g. modules/ent-common's own LDO in/out bulk caps)"),
+    "10u":  ("Murata", "GRM21BR71A106KE51", "cec-Capacitor_SMD:C_0805_2012Metric",
+             "0805, exact"),
+    "47u":  ("Murata", "GRM31CR61A476KE15", "cec-Capacitor_SMD:C_1210_3225Metric",
+             "real pkg 1206 -- 1210 stand-in (closest vendored), no 1206 fp yet"),
+    "330u": ("AVX/Kemet", "T495D337K010ATE150", "cec-Capacitor_SMD:C_1210_3225Metric",
+             "real pkg 2917 TANTALUM CAN -- 1210 ceramic-land stand-in; no "
+             "tantalum footprint vendored at all; the biggest footprint "
+             "mismatch on this leaf, flag for the layout pass"),
+}
+
+# Per-rail cap lists, Table 1-4's rows mapped onto the vendored
+# MPFS095T_FCVG484 symbol's own (distinctly-named) unit-8 power nets.
+# Bank-number rows (Bank 2/4/5/6) map onto VDDI2/VDDI4/VDDI5/VDDI6 by NUMBER
+# MATCH -- confirmed for Bank 6 by an explicit NAME match (Table 1-1's own
+# VDDI6 description is "Power to MSS DDR banks", i.e. literally "Bank 6 MSS
+# DDR") and inferred with reasonable (not certain) confidence for 2/4/5 by
+# the same numbering convention -- flagged, not silently assumed as gospel;
+# see FOLLOWUPS.md. The generic "GPIO"/"HSIO"/"VDDAUX (GPIO)" table rows --
+# singular there, but the symbol splits the underlying domain across
+# MULTIPLE distinct nets (VDDI0+VDDI1 for HSIO/GPIO; VDDAUX1/2/4 for the aux
+# domain) -- are each applied ONCE PER DISTINCT SYMBOL NET, not divided
+# across them: each is a physically separate BGA supply net needing its own
+# local decoupling, the same "decouple at each physical cluster, not once
+# for the whole conceptual domain" principle as every other BGA rail here.
+# VDDI0->"HSIO" and VDDI1->"GPIO" by ball-count proportion (7 balls across
+# HSIO's 2 banks vs 10 balls across GPIO's 3 banks -- similar per-bank
+# density, ~3.5 either way). This is a REAL, DOCUMENTED assumption (not a
+# guess passed off as fact) -- flagged fully in FOLLOWUPS.md, since the
+# guide's own bank-number prose doesn't give an exact bank<->VDDIx-suffix
+# crosswalk beyond the Bank-6 name match.
+# NAMING (found this pass, real fix not just a workaround): every one of
+# these 17 keys carries an "MPFS_" prefix -- e.g. "MPFS_VDD18", not bare
+# "VDD18" -- because bare "VDD18" ALREADY collides with sheet 04's own
+# root-exported "VDD18" net (04b's eMMC VCCQ rail; verified in the real
+# exported netlist: /02-compute-core/02a-mpfs-core/VDD18 vs /04-storage/
+# 04b-emmc/VDD18 are properly SEPARATE, correctly-scoped nets electrically
+# -- kicad-cli does NOT cross-connect same-named plain labels across
+# unrelated sheets -- but check_hub_ent_sch.py's own net_named() helper
+# (and any human skimming a flat BOM/netlist) assumes bare net-name
+# suffixes are unique project-wide, an assumption this project's OWN
+# checker code already relies on elsewhere). Worse, BOM-A's own U4/U5
+# naming ("U4=VDD18(1.8V)/U5=VDD25(2.5V)") means sheet 03b, once its
+# MPM3833C blocker clears, will almost certainly ALSO want bare "VDD18"/
+# "VDD25" -- so this is not a one-off collision to patch, it is a whole
+# CLASS of future collision between "the MPFS's own named supply ball" and
+# "a regulator sheet's own output rail name for that same real net,"
+# worth avoiding by convention now rather than re-discovering per rail.
+# The eventual root-level cross-wire pass (already tracked in FOLLOWUPS.md
+# for +3V3_IO/VDD18, awaiting 03b) will need to reconcile these MPFS_-
+# prefixed names with the platform's bare rail names once U1 is placed and
+# 03b/04 are ready to tie in -- a small, well-flagged future step, not a
+# new one this rename creates.
+_RAIL_CAPS = {
+    "MPFS_VDD":          ["22n"] * 2 + ["10n"] * 5 + ["47n"] * 2 + ["100n"] * 1 + ["330u"] * 2,
+    "MPFS_VDD18":        ["10n"] * 1 + ["100n"] * 1 + ["10u"] * 1 + ["47u"] * 1,
+    "MPFS_VDDA":         ["4.7n"] * 2 + ["10n"] * 1 + ["100n"] * 6 + ["10u"] * 1 + ["47u"] * 1,
+    "MPFS_VDDA25":       ["47n"] * 2 + ["100n"] * 2 + ["10u"] * 1 + ["47u"] * 1,
+    "MPFS_VDD25":        ["1n"] * 4 + ["10n"] * 1 + ["100n"] * 3 + ["47u"] * 1,
+    "MPFS_VDDAUX1":      ["10n"] * 2 + ["47n"] * 1 + ["100n"] * 2 + ["47u"] * 1,  # "VDDAUX (GPIO)"
+    "MPFS_VDDAUX2":      ["10n"] * 2 + ["47n"] * 1 + ["100n"] * 2 + ["47u"] * 1,  # same row, per-net
+    "MPFS_VDDAUX4":      ["10n"] * 2 + ["47n"] * 1 + ["100n"] * 2 + ["47u"] * 1,  # same row, per-net
+    "MPFS_VDDI0":        ["100n"] * 2 + ["10u"] * 1,     # "HSIO" row
+    "MPFS_VDDI1":        ["47u"] * 2,                    # "GPIO" row
+    "MPFS_VDD_XCVR_CLK": ["100n"] * 2 + ["10u"] * 1,
+    "MPFS_XCVR_VREF":    ["100n"] * 2,                   # "SERDES_VREF" row
+    "MPFS_VDDI3":        ["100n"] * 2 + ["10u"] * 1,
+    "MPFS_VDDI2":        ["100n"] * 2 + ["10u"] * 1,     # "Bank 2" row
+    "MPFS_VDDI4":        ["100n"] * 2 + ["10u"] * 1,     # "Bank 4" row
+    "MPFS_VDDI5":        ["100n"] * 2 + ["10u"] * 1,     # "Bank 5" row
+    "MPFS_VDDI6":        ["10n"] * 1 + ["100n"] * 1 + ["1u"] * 1 + ["47u"] * 1,  # "Bank 6 MSS DDR";
+                                                     # BOM-A's own C-DDR row scopes this
+                                                     # OPTIONAL/DDR-fitted-linked -- populated
+                                                     # here anyway since the SoC's OWN supply-pin
+                                                     # decoupling isn't contingent on whether a
+                                                     # separate DDR CHIP BOM line is populated;
+                                                     # flagged in FOLLOWUPS.md.
+}
+
+
+def _mpfs_decoupler_bank(c, caps, x, y, rail, pitch=3):
+    """LOCAL VARIANT of cec_sch_archetypes.decoupler_bank -- identical
+    placement/bus-wiring geometry (mirrors that function's own source
+    exactly: caps at (x+i*pitch, y), a per-tap rail bus at y-2, a 2u head
+    stub), except the rail identity is a plain LABEL (c.label), never a
+    POWER-SYMBOL STAMP (c.stamp). REASON, found empirically this pass, not
+    theorized: decoupler_bank's own `c.stamp(rail, *head, 0)` call requires
+    `rail` to be an ALREADY-VENDORED KiCad power symbol -- confirmed by
+    running it with rail="VDD" and getting `SystemExit("symbol not found:
+    VDD")` from cec_sch.symbol_block via cec_sch_compose.build_leaf's
+    `need_syms`/`_power_block` pass. The platform's own POWER_PORTS rails
+    (GND/+3V3/+5VSB/+5V_MAIN/+5V_SYS) ARE vendored power symbols; the
+    MPFS's 17 named supply rails (VDD, VDDI1, VDDAUX2, ...) are not, and
+    cannot be made so without an out-of-scope lib/ edit (this agent's scope
+    this session is hubs/hub-enterprise/** + scripts/check_hub_ent_sch.py
+    only). Substituting an already-vendored name as a stand-in (e.g.
+    rail="GND" purely to dodge the crash) was considered and REJECTED as
+    actively dangerous, not just cosmetically wrong: a power-symbol stamp's
+    own pin carries ITS OWN net identity, so the bus wire -- and every
+    cap's pin 1 sitting on it -- would become electrically PART OF THAT
+    STAND-IN NET. rail="GND" would short the "VDD" bank's decoupling
+    straight onto GND. A plain label has no pin/net of its own to
+    contribute; it only NAMES whatever net the wire underneath it already
+    is (per the caller's own lf.net() call), so this is the safe fix, not
+    a shortcut around the archetype -- same geometry, same caller-facing
+    shape, only the incompatible one line changed."""
+    ry = y - 2
+    head = (x - 2, ry)
+    c.wire(head, (x, ry))
+    for i, cap in enumerate(caps):
+        cx = x + i * pitch
+        c.place(cap, cx, y)
+        if i + 1 < len(caps):
+            c.wire((cx, ry), (cx + pitch, ry))
+        c.use((cap, "1"))
+    c.label(rail, *head, 0)
+
+
+def compose_mpfs_decoupling():
+    """02a-mpfs-core: MPFS095T FCVG484 (U1) full-rail decoupling per
+    Microchip DS60001681H Table 1-4. U1 ITSELF (unit 8, POWER) is NOT
+    placed this pass -- see the sheet-02 module docstring above for the
+    cec_sch.py unit-support blocker this pass found and could not fix
+    in-scope. Every rail reaches a plain net stamp matching its exact name
+    (VDD, VDD18, ...); U1's own unit-8 stub pins join these same stamps
+    once U1 is placed on this same sheet -- a future, much smaller task
+    than re-deriving this table."""
+    lf = leaf02("02a", "02a-mpfs-core.kicad_sch", "02a-mpfs-core",
+               "MPFS095T FCVG484 (U1) full-rail BGA decoupling per DS60001681H "
+               "Table 1-4 -- U1 itself pending a toolchain fix, see FOLLOWUPS.md")
+    c = _Compose(lf)
+
+    cap_n = 0
+    col_x = [14, 110]
+    col_y = [12, 12]
+    col_i = 0
+    split_after = (len(_RAIL_CAPS) + 1) // 2
+    for i, (rail, caps) in enumerate(_RAIL_CAPS.items()):
+        if i == split_after:
+            col_i = 1
+        refs = []
+        for val in caps:
+            cap_n += 1
+            ref = f"C{200 + cap_n}"
+            mfr, mpn, fp, note = _CAP_MPN[val]
+            lf.add_part(ref, "cec-vendor", "C_Small", val, 0, 0, fp,
+                       {"Manufacturer": mfr, "MPN": mpn,
+                        "Description": f"{rail} BGA decoupling, DS60001681H "
+                                       f"Table 1-4 ({note})"})
+            refs.append(ref)
+        x, y = col_x[col_i], col_y[col_i]
+        _mpfs_decoupler_bank(c, refs, x, y, rail, pitch=6)
+        lf.net(rail, *[(r, "1") for r in refs])
+        lf.net("GND", *[(r, "2") for r in refs])
+        col_y[col_i] += 18
+    y = max(col_y)
+
+    lf.powerflag_nets = list(_RAIL_CAPS) + ["GND"]
+    c.caption(f"MPFS095T FCVG484 (U1) -- power-rail decoupling, {cap_n} caps "
+              f"across {len(_RAIL_CAPS)} named rails, DS60001681H Table 1-4 "
+              f"(the table specific to MPFS095TS-FCVG484)", 10, -6)
+    multiline_note(c,
+        "U1 (unit 8, POWER -- 169 balls across these 17 rails + VSS) is NOT "
+        "placed this pass: scripts/cec_sch.py hardcodes (unit 1) in every "
+        "symbol instance emission, with no way to place -- or tie across "
+        "sheets -- a non-unit-1 instance of a multi-unit symbol (see this "
+        "sheet's module docstring above for the full finding). Placing U1 "
+        "here once that lands is a small follow-up: wire its unit-8 stub "
+        "pins onto these SAME rail stamps (already named, counted, and "
+        "valued correctly per DS60001681H Table 1-4), not a re-derivation. "
+        "See FOLLOWUPS.md for the full blocker writeup.",
+        10, y + 6)
+    c.done()
+
+
+compose_mpfs_decoupling()
+
+
+HIER_EXPORTS_02 = {}
+ROOT_EXPORT_NETS_02 = set(HIER_EXPORTS_02)
+
+
 if __name__ == "__main__":
     from build_lib import build_root, build_leaf, build_placeholder, build_thin_parent
 
@@ -2687,11 +3008,80 @@ if __name__ == "__main__":
           "  ".join(f"{k}={v}" for k, v in parent_stats_03.items()) +
           f"  total_leaf_parts={total_parts_03}")
 
+    # ---- sheet 02: compute-core (02a-mpfs-core ONLY this pass -- see the
+    # module docstring above compose_mpfs_decoupling() for the full library-
+    # status + U1-unit-placement-blocker picture; 02b/02c/02d deferred).
+    LEAF_ORDER_02 = SHEET02_LEAF_IDS
+    # top-level pages taken so far: 01="2", 05="3", 04="4", 03="5" -- this
+    # sheet is captured NEXT, so it takes "6" (placeholders, previously
+    # starting at 6, must shift to start at 7 -- see the build_root call
+    # below).
+    leaf_page_02 = {lid: f"6.{i+1}" for i, lid in enumerate(LEAF_ORDER_02)}
+    # A1: 86 caps across a 2-column grid of 17 decoupler_bank rows needs
+    # real vertical room, the same class of size call as 04b's own eMMC
+    # leaf and sheet 03's uniform A3 bump. MEASURED this pass (not
+    # guessed): PAPER["A2"] = (594, 420)mm is LANDSCAPE -- height is the
+    # SHORT 420mm side (165 grid units), and the column layout alone (9
+    # rows @ 18u pitch + a 12u start = 174u) already exceeds that before
+    # the closing note is even added (check_sheet_bounds caught it: one
+    # off-sheet text element at A2). PAPER["A1"] = (841, 594)mm gives 594mm
+    # (234u) of height -- comfortably clears 174u + the caption/note
+    # margins.
+    LEAF_PAPER_02 = {"02a": "A1"}
+    total_parts_02 = 0
+    for li, lid in enumerate(LEAF_ORDER_02):
+        lf = SHEET02_LEAVES[lid]
+        path_prefix = f"{ROOT_UUID}/{SHEET_UUIDS['02']}/{SHEET02_LEAF_SYM_UUIDS[lid]}"
+        sheet_instances_path = f"{SHEET_UUIDS['02']}/{SHEET02_LEAF_SYM_UUIDS[lid]}"
+        stats = build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, PROJECT, path_prefix, sheet_instances_path, SHEET02_LEAF_OWN_UUIDS[lid],
+            page=leaf_page_02[lid], out_path=f"{HERE}/{lf.filename}", paper=LEAF_PAPER_02[lid],
+            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
+            # 4200-block, disjoint from sheets 01 (100-800) / 05 (1000-2000) /
+            # 04 (3000-3300) / 03 (3600-3900 incl. its own thin parent):
+            # #PWR/#FLG refs must stay unique across the flattened hierarchy.
+            pwr_base=4200 + 100 * li, layout=lf.layout)
+        total_parts_02 += stats["parts"]
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
+
+    PARENT_PINS_02 = {"02a": []}   # 02a has no hier_exports this pass (U1
+    # itself, the only thing that would reach outside this leaf, is not
+    # placed yet -- see the blocker above); mirrors sheet 01's own "01e": []
+    # precedent for a pin-less leaf box.
+    for lid in LEAF_ORDER_02:
+        assert {n for n, _s in PARENT_PINS_02[lid]} == set(SHEET02_LEAVES[lid].hier_exports), lid
+
+    BOX_02 = {"02a": (16, 16, 24)}
+    leaves_for_parent_02 = []
+    for lid in LEAF_ORDER_02:
+        lf = SHEET02_LEAVES[lid]
+        bx, by, bh = BOX_02[lid]
+        leaves_for_parent_02.append({
+            "id": lid, "sym_uuid": SHEET02_LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": leaf_page_02[lid],
+            "x": bx * u, "y": by * u, "w": 70 * u, "h": bh * u,
+            "pins": [(name, SHEET02_LEAVES[lid].hier_exports[name][0], side)
+                      for name, side in PARENT_PINS_02[lid]],
+        })
+
+    parent_stats_02 = build_thin_parent(
+        leaves_for_parent_02, ROOT_EXPORT_NETS_02, PROJECT, ROOT_UUID, SHEET_UUIDS["02"],
+        SHEET02_OWN_UUID, out_path=f"{HERE}/02-compute-core.kicad_sch",
+        title="CEC Hub -- Enterprise (ENT): 02-compute-core (thin parent)", paper="A4",
+        libs=LIBS, pwr_base=4300, page="6")
+    print("02-compute-core.kicad_sch (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats_02.items()) +
+          f"  total_leaf_parts={total_parts_02}")
+
     # ---- root: 01-power-input (page 2) + 05-module-ports (page 3, WAIT --
     # page numbers below are the per-sheet `page` STRING passed to each
     # extra_sheets entry, independent of this comment's prose numbering) +
-    # 04-storage + 03-compute-rails (NEW) + 5 remaining placeholders ("03" and
-    # "04" are no longer placeholders)
+    # 04-storage + 03-compute-rails + 02-compute-core (NEW) + 4 remaining
+    # placeholders ("02"/"03"/"04" are no longer placeholders)
     root_extra_sheets = [
         {
             "hier_exports": HIER_EXPORTS_05, "sym_uuid": SHEET_UUIDS["05"],
@@ -2739,18 +3129,40 @@ if __name__ == "__main__":
             "sheetname": "03-compute-rails", "sheetfile": "03-compute-rails.kicad_sch",
             "geom": (20, 310, 70, 40), "page": "5",
         },
+        {
+            # Verified disjoint from every other box on the root page: 01
+            # occupies x[20,90] y[20,112]; 05 occupies x[20,90] y[120,300];
+            # 04 occupies x[95,165] y[155,275]; 03 occupies x[20,90]
+            # y[310,350]; the placeholder grid (now only 4 remaining after
+            # 02/03/04 are all captured) occupies x[140,290] y[20,145]. This
+            # box's x[300,370] range sits entirely to the RIGHT of every one
+            # of those (max x elsewhere on the page is 290), so neither axis
+            # needs to intersect anything -- the simplest kind of disjoint,
+            # not a tight-fit gap like 03's own placement above. 02a has NO
+            # hier_exports this pass (HIER_EXPORTS_02 = {}, see the module
+            # docstring above compose_mpfs_decoupling()), so this box's own
+            # sheet-pin list is empty -- present in root_extra_sheets purely
+            # so the sheet SYMBOL itself (and its page link) exists; nothing
+            # to root-cross-wire yet, unlike 04's/03's own forward-declared
+            # exports.
+            "hier_exports": HIER_EXPORTS_02, "sym_uuid": SHEET_UUIDS["02"],
+            "sheetname": "02-compute-core", "sheetfile": "02-compute-core.kicad_sch",
+            "geom": (300, 20, 70, 40), "page": "6",
+        },
     ]
-    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n not in ("05", "04", "03")}
+    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES
+                          if n not in ("05", "04", "03", "02")}
     build_root(HIER_EXPORTS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
                placeholder_uuids, SHEET_TITLES,
                out_path=f"{HERE}/hub-enterprise.kicad_sch", paper="A2",
-               extra_sheets=root_extra_sheets, first_placeholder_page=6)
-    print("hub-enterprise.kicad_sch  sheets=4(power-input+module-ports+storage+compute-rails parents)+5(placeholder)")
+               extra_sheets=root_extra_sheets, first_placeholder_page=7)
+    print("hub-enterprise.kicad_sch  sheets=5(power-input+module-ports+storage+"
+          "compute-rails+compute-core parents)+4(placeholder)")
 
-    remaining = sorted(k for k in SHEET_TITLES if k not in ("05", "04", "03"))
+    remaining = sorted(k for k in SHEET_TITLES if k not in ("05", "04", "03", "02"))
     for i, num in enumerate(remaining):
         name, desc = SHEET_TITLES[num]
-        page = 6 + i
+        page = 7 + i
         build_placeholder(num, SHEET_UUIDS[num], name, desc, PROJECT, page,
                            out_path=f"{HERE}/{name}.kicad_sch", paper="A4")
     print(f"Generated {len(remaining)} placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))

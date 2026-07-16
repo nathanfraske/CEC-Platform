@@ -2,22 +2,46 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid "0a1b2c3d-4e5f-4062-8a2b-3c4d5e6f7082")
+	(uuid "60e681d6-2de4-5897-9f2c-fa5cad364ed6")
 	(paper "A4")
 	(title_block
-		(title "02-compute-core")
+		(title "CEC Hub -- Enterprise (ENT): 02-compute-core (thin parent)")
 		(date "2026-07-02")
 		(rev "DRAFT")
 		(company "CEC")
-		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+		(comment 1 "Thin parent sheet -- sheet-symbol fan-out/fan-in ONLY, no components, per the owner's 2026-07-02 format correction")
+		(comment 2 "Leaf sheets: 02a-mpfs-core")
 	)
 	(lib_symbols
 	)
-	(text "02-compute-core -- CAPTURE PENDING\n\nMPFS095Tx FCVG484 compute core (boot straps, JTAG, clock, decoupling)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
-		(at 20 20 0)
-		(effects (font (size 2 2)))
-		(uuid "3c118314-33f5-4b65-b430-1db8f81b8097")
+	(sheet
+		(at 104.14 83.82)
+		(size 88.9 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "218e85ef-d5c6-5ea9-82dc-34db45451a1e")
+		(property "Sheetname" "02a-mpfs-core"
+			(at 104.14 82.32 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "02a-mpfs-core.kicad_sch"
+			(at 104.14 115.8 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "6.1")
+				)
+			)
+		)
 	)
+
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4062-8a2b-3c4d5e6f7082"
 			(page "6")

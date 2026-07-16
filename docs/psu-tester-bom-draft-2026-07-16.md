@@ -100,9 +100,11 @@ ST-1300 ≈ $589** → landed ~$649/$700 → **$1,299 (2.0×) / $1,499 (2.1×)**
 single-SKU lists hold; margin-honesty note stands (2×-class, the standing
 owner call). CONFIG RULED (owner, 2026-07-16 evening): **slot-bundle is the
 ST architecture** — integrated-sensing carve-out RETIRED ("soldered is worse
-in both repairability and cost"). PROPOSED on top (sketch §12a): ST tester
-on the Hub KVM aux header → all 4 ports carry modules (full Standard
-family); bundle landed ≈$675, list $1,299 @~1.9× or $1,399 — owner call.
+in both repairability and cost"). PROPOSED on top (sketch §12a,
+DOWNGRADED to optional headroom — owner: PCIe/12VHPWR are per-DUT
+alternates, base 4-port ledger is sufficient): KVM-aux tester link docks
+both GPU modules at once; 4-module bundle = configurator upsell
+(≈$675 landed, $1,399-class), not the default.
 
 ## 3b. Slot-in bundle scenario — unchanged posture (sketch §12)
 

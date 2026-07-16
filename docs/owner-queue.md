@@ -227,7 +227,8 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 - [2026-07-16] TESTER SLOT ADOPTION: **RULED for ST** (evening: "slot bundle — soldered is
   worse in both repairability and cost savings"); integrated carve-out RETIRED (sketch §11/§12,
-  BOM §3a). NEW DECISION QUEUED — **§12a KVM-aux-header tester link (ST only, PROPOSED)**:
-  frees all 4 Hub ports for the full module family; needs ratification + the OQ-85 UART/
-  MARK-relay contract chapter + one relay-jitter bench item; pricing sub-call: $1,299 @~1.9×
-  vs $1,399 with the 4th module in.
+  BOM §3a). NEW DECISION QUEUED — **§12a KVM-aux-header tester link (ST only, PROPOSED — urgency
+  DOWNGRADED same evening: owner ruled the base 4-port ledger sufficient, PCIe/12VHPWR are
+  per-DUT alternates)**: now an optional-headroom/upsell question (both GPU modules docked,
+  no swap step; 4-module bundle $1,399-class); OQ-85 UART/MARK-relay chapter + relay-jitter
+  bench item only IF pursued.
