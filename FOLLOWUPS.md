@@ -437,3 +437,12 @@ Conventions:
   press vs deck cam assist) — extends the OQ-86 fit-check sample gate; 12VHPWR stays
   tray+fixture-head (captive pigtail, by design). Checker work: extend
   check_output_daughterboards.py keying proof to the tester field drawing.
+- [2026-07-16] TESTER SOURCING PASS COMPLETE → BOM v1 in docs/psu-tester-bom-draft-2026-07-16.md
+  (Pro ≈$1,039 / Max ≈$1,332 — UNDER v0 by ~$160-175; bundle margins now ≥2.9×). SUPPLY-RISK
+  REGISTER (§5, owner-ranked): (1) ESP32-P4NRW32 OOS/no-module/no-fallback — hits testers +
+  12VHPWR Pro + Hub Pro ("ESP32-P4X" successor line spotted, unverified); (2) TE 63969-1
+  receptacle FULLY OOS — module-program-wide, escalate before OQ-86 fab gate; (3) TPS55289
+  OOS → recommend designing OVP on in-stock TPS55288RPMR (owner nod, ruled-part context);
+  (4) AD9253 grade flip (-105 now cheaper than doubled -80 — affects Max module program);
+  (5) fan class re-select at order; (6) KSD9700 NC-contact verification; (7) L2 FETs =
+  DigiKey-only class permanently. Design-sheet package rows filled; staging assets committed.

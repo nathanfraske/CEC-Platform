@@ -197,8 +197,7 @@ LVDS lane plane-integrity rule (new, Max only).
 ## G. Mechanical/assembly interface rules
 
 - Extrusion mounting pattern + FET tab hardware per the chassis drawing
-  (board README owns the hole table); insulated washers spec'd with the FET
-  package **(fill at BOM v1)**.
+  (board README owns the hole table); insulated washers: TO-247 (IXTH75N10L2 verniers) + TO-264 (IXTK90N25L2 fast channel) kits — both DigiKey-consigned THT lines.
 - R-plate lug fields: M4 lug pads, wire gauge table per bank current.
 - Deck standoffs sized against gang-insertion shear; module support rails
   per sketch §12 flag.
@@ -210,13 +209,16 @@ LVDS lane plane-integrity rule (new, Max only).
   no OVP/no slice position/no stream silicon; otherwise identical rules.
 - **Pro**: full §C as written.
 - **Max adds**: digitizer lane rules (LVDS class, AFE mux stubs ≤10 mm,
-  AGND island policy per AD9253 DS **(fill at BOM v1)**), T1 PHY cell,
+  AGND island policy per the AD9253 DS (grade: -105 recommended post-sourcing, C514281); AFE = ADA4930-1 LFCSP-16 drivers + ADG1408 TSSOP-16 mux (mux BW = confirm-before-lock flag)), T1 PHY cell,
   second slice position, OVP characterization = firmware only.
 
 ## I. Open items on this sheet
 
-1. **(fill at BOM v1)** rows: exact packages/lands for DAC, op-amps, T1
-   PHY, PD sink, relays, diff drivers, mux — pending the sourcing agents.
+1. ~~(fill at BOM v1) rows~~ FILLED (sourcing pass 2026-07-16): DAC80508Z
+   WQFN-16 3×3; OPA2277UA SOIC-8; TPH2502 SOP-8; CH224K ESSOP-10; THVD1450
+   SOIC-8; TPS55288 VQFN-26-HR (the in-stock OVP pick); HFD4/5-SR SMD relay;
+   ADA4930-1 LFCSP-16; ADG1408 TSSOP-16; 88Q2110 QFN-40. Supply-risk
+   register: BOM doc §5 (P4 OOS = risk #1).
 2. Bank step ladder + leg fusing table (sketch §9.1) → freezes §C.12
    quantities.
 3. Slice bus geometry study (the µH budget worked example) before the
