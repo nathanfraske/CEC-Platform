@@ -437,7 +437,15 @@ Conventions:
   press vs deck cam assist) — extends the OQ-86 fit-check sample gate; 12VHPWR stays
   tray+fixture-head (captive pigtail, by design). Checker work: extend
   check_output_daughterboards.py keying proof to the tester field drawing.
-- [2026-07-16] TESTER SOURCING PASS COMPLETE → BOM v1 in docs/psu-tester-bom-draft-2026-07-16.md
+- [2026-07-16] TESTER SOURCING ROUNDS 1+2 COMPLETE → BOM v1.1 in docs/psu-tester-bom-draft-2026-07-16.md
+  (Pro ≈$1,089 / Max ≈$1,382 / ST ≈$513-555 — all UNDER v0; lists ≥2.7× landed). Register v2:
+  P4 ESCALATED (v1.x→v3.x silicon transition, X-suffix MPNs, firmware not portable, zero
+  stock/listings anywhere — OWNER: rule target revision, recommend v3.x NRW32X, buy-deep on
+  restock); 63969-1 DOWNGRADED (DK 30.8k/Arrow 16.8k/TE 79k — LCSC-direct only was empty;
+  63968-1 LIF fallback is the genuinely-dry part); AD9253-105 grade flip FORCED (LCSC sole
+  channel, 186 units — owner nod + buy-ahead, hits Max module program); TPS55288 dual-sourced
+  RESOLVED; fans tiered (iPPC-3000 Pro/Max, Arctic ST, San Ace margin option); bimetal =
+  Cantherm CS712025Y NC [DK] RESOLVED. Superseded original entry below retained in git history.
   (Pro ≈$1,039 / Max ≈$1,332 — UNDER v0 by ~$160-175; bundle margins now ≥2.9×). SUPPLY-RISK
   REGISTER (§5, owner-ranked): (1) ESP32-P4NRW32 OOS/no-module/no-fallback — hits testers +
   12VHPWR Pro + Hub Pro ("ESP32-P4X" successor line spotted, unverified); (2) TE 63969-1

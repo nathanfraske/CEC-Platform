@@ -33,7 +33,7 @@ pre-schematic — freeze at schematic.
 | OVP-A stage | **TPS55288RPMR** (in stock, 16 A superset) — RECOMMEND designing on it from the start; ruled TPS55289 is OOS at LCSC (DK bridge $6.42) and no layout exists yet, so the "footprint change" is free | [LCSC] C2864583 | set | 10.00 | 10.00 | −10.00 | 6.2 k; + VLS6045EX-2R2N L ($0.09, Isat 7.5 A vs 6.35 A limit = fine) + HFD4/5-SR relays ×3 |
 | Thermal | NTC [P] + bimetal 120 °C NC — **LCSC KSD9700 is listed NO not NC**: verify contact form or budget Cantherm CS7115/13025Y [DK] $5.38 ×2 | mixed | — | — | 11.00 | +7.00 | verification item before lock |
 | Aux rails | TPS54331DR ×3 + L/C | [LCSC] C9865 | 3 | 0.35 | 3.00 | −2.00 | 47 k |
-| Fans | **real price is $16–26, not $10**: Sunon MFC0251V2 $16.33@50 (2.9 k stock, 59 CFM quiet-class) — the 120 CFM Delta AFB1212HJ is OOS/40-wk; re-select for static pressure at order, budget 4× | [DK] | 4 | 16.33 | 70.00 | +30.00 | airflow margin re-check w/ quiet-class fans (§4 sketch: 141 CFM delivered target) |
+| Fans | **Noctua NF-F12 industrialPPC-3000 PWM** (7.63 mmH₂O — the duct-honest pick; round-2 verdict). Options: Arctic P12 Max $12.99 value (4.35 mmH₂O — pressure-margin risk on the 1600 W duct; FINE for ST's smaller duct), San Ace 9GA1212P4G001 max-margin (37.3 mmH₂O, 936 DK stock, $52@30, 57 dBA loud). Both named Deltas are dead (obsolete / non-PWM+OOS) | [DK/direct] | 4 | 29.95 | 120.00 | +80.00 | static pressure is THE spec in a resistor duct |
 | FET extrusion | 300 mm forced-air 6063 class | (q) | 1 | 45.00 | 45.00 | — | validated $35–60 via live Alibaba-class quotes |
 | Chassis | sheet-metal console | (q) | 1 | 200.00 | 200.00 | — | fab-quote item |
 | Slot deck field | 63951-1 blades ~40× $0.136 + J_SIG + rails (§12 posture) | [LCSC] C591344 | set | — | 40.00 | — | blades healthy; **module-side 63969-1 receptacle is now FULLY OOS — program-wide escalation, see §5** |
@@ -41,7 +41,7 @@ pre-schematic — freeze at schematic.
 | PCBs | main 4L 2 oz + slice + head | (q) | — | — | 75.00 | — | |
 | AC sense pod | PARKED (owner) — removed from base BOM; +$20 option when un-parked | — | — | — | 0.00 | −20.00 | |
 | Misc | passives/harness/hardware ~5 % | (~) | — | — | 45.00 | −10.00 | |
-| **Tester Pro BOM v1** | | | | | **≈ $1,039** | **−$162 vs v0** | band **$950–1,250** (chassis quote, fan re-pick, P4 risk) |
+| **Tester Pro BOM v1.1** | | | | | **≈ $1,089** | **−$112 vs v0** | band **$1,000–1,300** (chassis quote, P4 risk; fans now the honest iPPC pick) |
 
 ## 2. Tester Max — delta over Pro (v1 sourced)
 
@@ -54,73 +54,100 @@ pre-schematic — freeze at schematic.
 | 2nd fast channel | IXTK ×4 [DK] @28.05 + loop | [DK] | 122.00 | −48.00 | |
 | PCB delta | digitizer lane | (q) | 15.00 | — | |
 | **Max delta v1** | | | **≈ $293** | −$13 | |
-| **Tester Max BOM v1** | | | **≈ $1,332** | −$175 | band $1,250–1,600 (+$100–150 2 kW option) |
+| **Tester Max BOM v1.1** | | | **≈ $1,382** | −$125 | band $1,300–1,650 (+$100–150 2 kW option) |
 
-## 3. Full retail roll-up (v1)
+## 3. Full retail roll-up (v1.1)
 
 | | **Pro station** | **Max station** |
 |---|---|---|
-| Tester BOM v1 (mid) | ~$1,039 | ~$1,332 |
-| Tester landed (+19 %) | ~$1,236 | ~$1,585 |
-| Ruled tester list | $3,495 = **2.8×** landed | $5,995–6,995 = **3.8–4.4×** landed |
-| Bundle all-in (per §3b posture: + module set + Hub + spares, landed) | ~$1,390 | ~$1,900 + Max-Hub TBD |
-| **Bundle list** | **$3,995 (2.9×)** | **$6,995 (≈3.4–3.7×)** |
+| Tester BOM v1.1 (mid) | ~$1,089 | ~$1,382 |
+| Tester landed (+19 %) | ~$1,296 | ~$1,645 |
+| Ruled tester list | $3,495 = **2.7×** landed | $5,995–6,995 = **3.6–4.3×** landed |
+| Bundle all-in (§3b posture: + module set + Hub + spares, landed) | ~$1,450 | ~$1,960 + Max-Hub TBD |
+| **Bundle list** | **$3,995 (2.8×)** | **$6,995 (≈3.3–3.6×)** |
 
-**v1 margin picture: the sourced BOM came in UNDER the v0 estimate** (−$162
-Pro / −$175 Max — the DigiKey fast-FET price and cheaper control silicon beat
-the fan/resistor/AFE increases), so the ruled list prices now sit at or above
-the platform 3× convention at the bundle level. The margin-honesty caveat
-from v0 softens accordingly; the remaining swings are the chassis quote and
-the P4 availability answer.
+**The sourced BOM still lands UNDER the v0 estimate** (−$112 Pro / −$125 Max
+after taking the honest fan pick), and the ruled lists hold at ≥2.7× landed
+— at or above the platform convention at bundle level. Remaining swings:
+chassis quote, P4 availability, AD9253 buy-ahead depth.
 
-## 3a. Standard tester value line (v1-scaled)
+## 3a. Standard tester value line (v1.1)
 
-ST shares every Pro savings it has lines for (silicon −$25-ish) and every
-increase (fans +$13 at 2×, resistor pivot ≈ neutral, bimetal +$7): **ST-1000
-≈ $520 / ST-1300 ≈ $565** — within noise of v0; the $1,299/$1,499 single-SKU
-lists hold at ~2.05–2.15×, and the §3b slot-bundle math is unchanged.
+ST's smaller duct (~88–115 CFM) tolerates the Arctic P12 Max value fans
+($12.99, in stock): **ST-1000 ≈ $513 / ST-1300 ≈ $555** → landed ~$610/$660
+→ **$1,299 (2.1×) / $1,499 (2.3×)** — the single-SKU lists hold with margin
+slightly improved vs v1.
 
-## 3b. Slot-in bundle scenario — unchanged from v0 (sketch §12)
+## 3b. Slot-in bundle scenario — unchanged posture (sketch §12)
 
-Bundle deltas ride the same v1 numbers; table retained from v0 with totals
-now ~$80–160 more favorable across the line. Field kit $39–49 and saver
-pigtails $29–39 unchanged.
+Bundle deltas ride the v1.1 numbers; field kit $39–49 and saver pigtails
+$29–39 unchanged.
 
-## 4. Sourcing-pass results summary (what the agents verified)
+## 4. Sourcing-pass results (rounds 1 + 2)
 
-- 10+ recommended parts vendored with symbol+footprint+3D+datasheet into
+- Round 1: ~15 parts vendored with symbol+footprint+3D+datasheet into
   `lib/vendor/psu-tester-staging/` (exceptions: 88Q2110 + KSD9700 have no
-  EasyEDA CAD — hand-vendor at schematic; TPS55289 has no 3D).
-- Traps recorded: OPA2277 plain-"U" 6–10× pricing trap; OSEN fake-MPN
-  "IXTK90N25L2" (different part, TO-3PL, 360 W); MINI-vs-ATOF fuse-holder
-  size trap; jlcsearch stale-stock cache (TPS55289 "380" ghost stock).
+  EasyEDA CAD; TPS55289 no 3D). Traps: OPA2277 plain-"U" 6–10× pricing trap;
+  OSEN fake-MPN "IXTK90N25L2" (different part); MINI-vs-ATOF fuse-holder
+  size trap; jlcsearch stale-stock cache.
+- Round 2 (owner-directed dig): LCSC "marketplace" for the TE parts is the
+  RFQ-gated "Other Suppliers" program (no browsable stock/price; szlcsc
+  blocked automated checks) — the depth is in WESTERN DISTRIBUTION instead
+  (see §5.2). DigiKey got WORSE for AD9253 (-80 $191.73; -105 zero-stock,
+  backorders blocked) — LCSC is the only live channel. Both candidate Delta
+  fans are dead ends (obsolete / non-PWM+OOS). LCSC confirmed to have NO
+  verified-NC 120 °C bimetal (three listings' attribute tables checked);
+  one unbrowsable Cantherm pool on LCSC left for a manual look at BOM lock.
+  Findings note: `lib/vendor/psu-tester-staging/round2/`.
 
-## 5. SUPPLY-RISK REGISTER (owner attention, ranked)
+## 5. SUPPLY-RISK REGISTER v2 (post round-2; owner attention, ranked)
 
-1. **ESP32-P4NRW32 — OOS, no module SKU exists anywhere, no confirmed
-   distributor fallback.** Hits both testers AND the 12VHPWR Pro / Hub Pro
-   programs. Watch item + owner ping; possible "ESP32-P4X" successor line
-   spotted on DigiKey (unverified relationship — follow up).
-2. **TE 63969-1 receptacle — fully OOS at LCSC** (was ~5-unit restock-watch;
-   now zero, "Notify Me"). This is the MODULE-side half of the blade
-   architecture — affects daughterboards + main boards platform-wide, not
-   the tester. Escalate before the OQ-86 fit-check/fab gate; 63968-1 LIF
-   fallback not confirmed on LCSC either.
-3. **TPS55289 (RULED OVP part) — OOS at LCSC.** Recommendation: design the
-   OVP stage on the in-stock TPS55288RPMR from the start (pre-schematic =
-   the footprint change is free); DK bridge $6.42 if the 55289 is preferred.
-   Needs owner nod since the part was named in a ruling context.
-4. **AD9253-80 price doubled** ($41.67 → $80.18); -105 grade now cheaper at
-   $61.84/$58.33@30 — grade-flip decision for the owner (affects the Max
-   MODULE program too, not just the tester).
-5. **Fans**: high-CFM Delta class OOS/40-week; quiet-class Sunon in stock at
-   ~2× the v0 price. Re-select for duct static pressure at order time.
-6. **Bimetal NC verification**: LCSC's cheap KSD9700 listings read NO
-   (normally-open); the safety chain needs NC. Verify with vendor or pay
-   the $5.38 Cantherm line.
-7. **L2 linear FETs are a DigiKey-only class now** (LCSC carries zero
-   genuine TO-247 L2; the one TO-264 flipped OOS) — consigned/hand-solder
-   line permanently; order-ahead posture.
+1. **ESP32-P4 — ESCALATED (platform-wide, owner decision needed).** Not a
+   restock lag: a mid-stream silicon transition. v3.x ships under NEW
+   "X"-suffix MPNs (ESP32-P4NRW32X / NRW16X, per Espressif's v3.x user
+   guide); **firmware images are NOT portable v1.x↔v3.x** (pin-54 change,
+   50+ register/hardware deltas); Espressif briefly shipped new silicon
+   under the OLD SKU (documented channel confusion); TODAY there is ZERO
+   bare-chip stock and zero distributor listings for EITHER generation
+   (Mouser/DK/Arrow don't even list it), while other Espressif lines are
+   healthy. No module SKU exists. POSTURE: (a) OWNER: rule the target
+   revision now — recommend v3.x (NRW32X, LCSC C54540373) for all new
+   designs (testers, 12VHPWR Pro, Hub Pro); (b) watch C22387510 + C54540373;
+   (c) written revision confirmation on any order; (d) buy several
+   build-cycles deep at first restock — no backstop channel exists.
+2. **TE 63969-1 — DOWNGRADED to routine.** LCSC-direct is empty, but the
+   depth is in mainstream Western distribution: DigiKey 30,855 ready-to-ship
+   ($0.152@vol), Arrow 16,800 ($0.147), Farnell/Newark 8,400 each, TE direct
+   79,215. The owner's LCSC-marketplace recollection maps to the RFQ-gated
+   "Other Suppliers" program (not browsable; worth ONE manual RFQ to price
+   the China-side path). Buy DigiKey/Arrow for fit-check + first runs.
+   63951-1 healthy everywhere (DK 185k, TE 327k). NEW thin item: **63968-1
+   LIF fallback is genuinely dry** (DK 0, 16-wk) — the fallback has no
+   fallback; fine while 63969-1 depth holds.
+3. **TPS55288RPMR — RESOLVED, dual-sourced.** LCSC primary ($2.08@30,
+   6,175) + DigiKey $6.08 ships-today + Mouser listing exists. Recommend
+   final: design the OVP stage on TPS55288 (owner nod recorded when given;
+   TPS55289 remains the DK-bridge alternative).
+4. **AD9253 — grade flip now effectively FORCED + buy-ahead.** -105 (LCSC
+   C514281, $58.33@30, stock 186↑) is the only in-class, in-stock quad path
+   anywhere: DK has -80 at $191.73 (2.4× LCSC) and -105 at ZERO with
+   backorders blocked; every alternative fails (AD9633 broker-only/pricier/
+   ~5 units, AD9257 wrong channel count + no LCSC, ADS4245 unfindable,
+   HMCAD1511 8-bit out-of-class). OWNER: nod the -105 grade (affects the
+   Max MODULE program too) and set a buy-ahead quantity against the
+   186-unit single-channel pool.
+5. **Fans — RESOLVED with a tiered answer.** Duct-honest pick = Noctua
+   NF-F12 industrialPPC-3000 PWM ($29.95, 7.63 mmH₂O) for Pro/Max; Arctic
+   P12 Max ($12.99, 4.35 mmH₂O) fine for ST's smaller duct; San Ace
+   9GA1212P4G001 (37.3 mmH₂O, 936 DK stock, 57 dBA) is the max-margin/loud
+   option. Verify against the real duct P-Q at the chassis prototype.
+6. **Bimetal NC — RESOLVED.** LCSC has no verified-NC 120 °C part (KSD.301
+   + KSD9700 attribute tables all read NO); the part is **Cantherm
+   CS712025Y** [DK], SPST-NC explicit, 120 °C, $4.39@25, 506 stock. One
+   manual check left: LCSC's unbrowsable Cantherm pool at BOM lock.
+7. **L2 linear FETs — unchanged**: DigiKey-only class permanently
+   (IXTH75N10L2 verniers, IXTK90N25L2 fast channel); consigned/hand-solder
+   line; order-ahead posture.
 
 ## 6. Open items to the sourcing/pricing pass (carried)
 
@@ -130,3 +157,5 @@ pigtails $29–39 unchanged.
 4. ADG1408 bandwidth confirmation (UNVERIFIED-by-table flag).
 5. R-bank parallel-ladder value engineering (exact step table, §C.12).
 6. Pod BOM when un-parked.
+7. One manual LCSC "Other Suppliers" RFQ on 63969-1 (price the China path).
+8. Duct P-Q measurement at chassis prototype → final fan lock.
