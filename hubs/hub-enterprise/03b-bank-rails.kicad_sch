@@ -688,13 +688,73 @@
 		(exclude_from_sim no)
 		(at 130.81 124.46 0)
 		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
-		(uuid "b2b820ef-05e7-4df6-bcb6-194a71e81fbe")
+		(uuid "4be29d75-f29f-4101-ad77-687b83cbdb60")
 	)
-	(text "[2026-07-16] CAPTURE PENDING -- MPM3833CGRH-Z (MPS, LCSC C6306422 per\nBOM-A) has NO vendored KiCad symbol in lib/*.kicad_sym (checked via a\nfresh git pull --rebase + direct grep, this pass). BOM-A wants 3x here:\nU4=VDD18(1.8V)/U5=VDD25(2.5V)/U6=shared-3.3V-domain (hub-ent-bom-\ndetailed.md Sec1). Do NOT hand-draw a divergent symbol -- wait for the\nsibling intake agent, then capture for real: FB divider per-rail (Vout=\n0.6V*(1+R1/R2), MPM3833C app section), one 3.3V output paired with\n03d-sequencing's supervisor sense input (net name +3V3_MPFS, already\ndeclared there), all three EN pins on the MPFS_SEQ_EN global net (also\nalready declared/driven by 03d). See gen_hub_enterprise.py's sheet-03\nmodule docstring for the full picture."
+	(text "[2026-07-16] CAPTURE PENDING -- MPM3833CGRH-Z (MPS, LCSC C6306422 per"
 		(exclude_from_sim no)
 		(at 130.81 143.51 0)
 		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
-		(uuid "19032234-e566-41b2-9fda-1ab955558358")
+		(uuid "feb5d8ef-cc23-4895-b512-4729e3d77af7")
+	)
+	(text "BOM-A) has NO vendored KiCad symbol in lib/*.kicad_sym (checked via a"
+		(exclude_from_sim no)
+		(at 130.81 145.542 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "f67f27f0-0c02-44fc-a5be-28c5bdd688d0")
+	)
+	(text "fresh git pull --rebase + direct grep, this pass). BOM-A wants 3x here:"
+		(exclude_from_sim no)
+		(at 130.81 147.574 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "b8025765-679d-4eb5-9395-7f3de9836cb6")
+	)
+	(text "U4=VDD18(1.8V)/U5=VDD25(2.5V)/U6=shared-3.3V-domain (hub-ent-bom-"
+		(exclude_from_sim no)
+		(at 130.81 149.606 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "d1f541f4-3cf6-407b-98f1-114d19016bcf")
+	)
+	(text "detailed.md Sec1). Do NOT hand-draw a divergent symbol -- wait for the"
+		(exclude_from_sim no)
+		(at 130.81 151.638 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "cd31336f-8e67-4d27-b4ab-921da954c1a6")
+	)
+	(text "sibling intake agent, then capture for real: FB divider per-rail (Vout="
+		(exclude_from_sim no)
+		(at 130.81 153.67 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "9a41f3f9-7794-4f16-8946-12f824b8c9a4")
+	)
+	(text "0.6V*(1+R1/R2), MPM3833C app section), one 3.3V output paired with"
+		(exclude_from_sim no)
+		(at 130.81 155.702 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "bf3c67f2-629b-40cc-be4f-6b1107078ff8")
+	)
+	(text "03d-sequencing's supervisor sense input (net name +3V3_MPFS, already"
+		(exclude_from_sim no)
+		(at 130.81 157.734 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "2daf4629-ae52-47fd-8aa9-c2f8f47d5cb5")
+	)
+	(text "declared there), all three EN pins on the MPFS_SEQ_EN global net (also"
+		(exclude_from_sim no)
+		(at 130.81 159.766 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "eeb87722-0775-43c5-9b63-b41dd1eeed6d")
+	)
+	(text "already declared/driven by 03d). See gen_hub_enterprise.py's sheet-03"
+		(exclude_from_sim no)
+		(at 130.81 161.798 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "4e44d2cb-553a-4eaa-9e0f-f23f9ad15cb1")
+	)
+	(text "module docstring for the full picture."
+		(exclude_from_sim no)
+		(at 130.81 163.83 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "d3e95348-99e4-4b91-b616-af141526d2e2")
 	)
 
 

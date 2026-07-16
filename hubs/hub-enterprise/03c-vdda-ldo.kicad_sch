@@ -688,13 +688,67 @@
 		(exclude_from_sim no)
 		(at 114.3 124.46 0)
 		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
-		(uuid "633c0d5d-035d-43aa-a7c7-69f160f83e74")
+		(uuid "722b774b-7cd6-4924-8a9d-162240856283")
 	)
-	(text "[2026-07-16] CAPTURE PENDING -- a TPS7A20-family pair IS vendored\n(TPS7A2018PDBVR 1.8V / TPS7A2050PDBVR 5.0V, both real SOT-23-5 symbols)\nbut NEITHER matches BOM-A's actual U7=1.0V/U8=2.5V targets (bom-a-\ncompute.md rows U7/U8; TPS7A2010-class/TPS7A2025-class, both flagged\nthere as unverified-exact-MPN). Fixed-output parts, no FB pin -- the\nwrong voltage is a real misconfiguration, not a divider tweak. Do NOT\nhand-draw a divergent symbol AND do NOT substitute the wrong-voltage\nvendored parts. Wait for the sibling intake agent to vendor the exact\n1.0V/2.5V variants (or an adjustable TPS7A20 fallback per BOM-A note 3),\nthen capture for real: both EN pins on the MPFS_SEQ_EN global net."
+	(text "[2026-07-16] CAPTURE PENDING -- a TPS7A20-family pair IS vendored"
 		(exclude_from_sim no)
 		(at 114.3 143.51 0)
 		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
-		(uuid "309a6fcd-b93b-4618-a399-979c8a9e5320")
+		(uuid "ea9a4157-1a2e-448e-b7ef-2d68db3e1f90")
+	)
+	(text "(TPS7A2018PDBVR 1.8V / TPS7A2050PDBVR 5.0V, both real SOT-23-5 symbols)"
+		(exclude_from_sim no)
+		(at 114.3 145.542 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "fe3aa688-ec27-4633-816c-8a8d54e5d633")
+	)
+	(text "but NEITHER matches BOM-A's actual U7=1.0V/U8=2.5V targets (bom-a-"
+		(exclude_from_sim no)
+		(at 114.3 147.574 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "499941a8-86f4-4fa6-b47c-537ffb090768")
+	)
+	(text "compute.md rows U7/U8; TPS7A2010-class/TPS7A2025-class, both flagged"
+		(exclude_from_sim no)
+		(at 114.3 149.606 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "acf1cda4-b317-4b3e-b352-dccf2e7d9b91")
+	)
+	(text "there as unverified-exact-MPN). Fixed-output parts, no FB pin -- the"
+		(exclude_from_sim no)
+		(at 114.3 151.638 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "22c14bc7-989d-4b0a-907d-19ae5c158a8a")
+	)
+	(text "wrong voltage is a real misconfiguration, not a divider tweak. Do NOT"
+		(exclude_from_sim no)
+		(at 114.3 153.67 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "d1f6554e-1da2-411c-95af-1ef03507ce87")
+	)
+	(text "hand-draw a divergent symbol AND do NOT substitute the wrong-voltage"
+		(exclude_from_sim no)
+		(at 114.3 155.702 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "d74fbe85-2d3b-4946-bcf9-44f159b94be0")
+	)
+	(text "vendored parts. Wait for the sibling intake agent to vendor the exact"
+		(exclude_from_sim no)
+		(at 114.3 157.734 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "9b500078-9ce1-4fcf-a652-6bde8c959c0a")
+	)
+	(text "1.0V/2.5V variants (or an adjustable TPS7A20 fallback per BOM-A note 3),"
+		(exclude_from_sim no)
+		(at 114.3 159.766 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "4e2158a1-e060-4723-a390-e44240e47f35")
+	)
+	(text "then capture for real: both EN pins on the MPFS_SEQ_EN global net."
+		(exclude_from_sim no)
+		(at 114.3 161.798 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "9141adb4-5bcf-4213-bee5-4e1a68f10f5d")
 	)
 
 

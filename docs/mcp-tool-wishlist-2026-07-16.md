@@ -230,5 +230,193 @@ against `git status`'s own modified-file list.
 
 ---
 
-Landed with the sheet-03 (compute-rails) commit, per the owner's 2026-07-16 ask. See
-FOLLOWUPS.md for the pointer entry.
+## Construction tools — where the building time actually went
+
+Owner follow-up ask (2026-07-16): the six tools above skew toward *detection/debugging* —
+catching a mistake after it was made. That's real work, but it's the reactive half. This
+section is the affirmative half: while actually BUILDING sheets 04 and 03 (not fixing them),
+where did minutes and tool calls go on plain mechanical construction labor — the kind of
+thing a direct one-call primitive should just do, instead of a generator author re-deriving
+it in Python by hand every time? Same per-tool discipline as above (name, the construction
+action collapsed, counted evidence from this session, a small one-job contract, what it
+wraps, S/M/L effort) — ranked by construction-time saved, most first. Still a wishlist for
+owner triage; nothing here has been implemented.
+
+### C1. `scaffold_leaf` — register a new leaf in one call instead of nine
+
+**Construction action collapsed + evidence.** Adding ONE new leaf to a thin-parent sheet
+touches at minimum **nine** separate dict/list sites in `gen_hub_enterprise.py`, confirmed
+by grep against the sheet-03 subtree actually added this session: the `leaf03(id_, filename,
+sheetname, desc)` registration call itself, `SHEET03_LEAF_IDS`, `leaf_page_03` (a page-
+number entry), `LEAF_PAPER_03` (paper-size entry — this one silently defaulted wrong once,
+A4 then bumped to A3 after a content-didn't-fit discovery on sheet 04's eMMC land), the
+`GLOBAL_NETS_03` entry (only if the leaf carries a project-wide global net), `PARENT_PINS_03`
+(with a hand-written `assert` that has to be kept in sync with the leaf's own
+`hier_exports`), `BOX_03` (the root-page placement rectangle — see C3 below, its own manual
+arithmetic), `leaves_for_parent_03` (the list threaded into `build_thin_parent`), and, if the
+leaf exports to root, a `HIER_EXPORTS_03`/`ROOT_EXPORT_NETS_03` entry. Sheet 03 alone added
+FOUR leaves this session (03a/03b/03c/03d), so this nine-touch dance ran essentially four
+times over, and a single missed or stale site (the `PARENT_PINS_03` assert existing
+specifically because a mismatch there silently breaks the parent-pin wiring) is exactly the
+class of error that cost real debugging time in tools #1/#2 above.
+
+**Contract.** Input: `register_leaf(sheet_id, leaf_id, filename, sheetname, desc,
+hier_exports=None, global_nets=None, size=(w_units, h_units))`. Output: appends/updates every
+one of the nine sites above from that single call — derives the page number from sequence
+position (not a hand-picked string), derives a non-overlapping `BOX` rectangle by packing
+against the other already-registered leaves' boxes for that sheet (see C3), and cross-checks
+`hier_exports` against `PARENT_PINS` at call time instead of via a separate `assert` written
+by hand later. Raises immediately (not at generation time) if `hier_exports` names collide
+with an already-registered net elsewhere in the same sheet without `global_nets` covering it.
+
+**Wraps/extends.** Sits in front of the existing `leaf03`-style per-sheet helper pattern and
+`build_thin_parent`/`build_leaf` in `cec_sch_compose.py` — no new placement or netlist logic,
+just a single call that fills in the nine call-sites the generator currently hand-maintains
+as parallel dicts/lists keyed by the same leaf id.
+
+**Effort.** M — the individual site-writes are trivial, but deriving a correct non-
+overlapping box automatically (today done by hand, see C3) is the one piece of real logic.
+
+---
+
+### C2. `net_by_pin_pattern` — wire a symbol's matching pins to a rail in one call
+
+**Construction action collapsed + evidence.** `compose_core_buck` (03a) hand-wrote **nine**
+separate `lf.net(...)` calls enumerating which of MIC22705YML-TR's 24 pins belong to which
+rail — e.g. `+5V_SYS` needed pins `1, 6, 13, 18, 17` (PVIN×4 + SVIN) picked out by hand from
+the datasheet's pin table and copied into a Python tuple; `GND` needed `16, 7, 12, 19, 24, 25`
+(PGND×4 + SGND + the exposed pad) similarly hand-picked; `SW_CORE` needed all eight switch
+pins `8, 9, 10, 11, 20, 21, 22, 23`. This is exactly the transcription step that later caused
+the SW_CORE bus bug (tool #1 above) when four of those eight hand-listed pins didn't land on
+an actual wire-segment endpoint. The *reading* half of this already has a natural home (tool
+#4, `symbol_pin_table`, dumps the structured pin list) — this is the missing *writing* half:
+given that same structured table and a filter, emit the net call directly instead of a human
+re-typing filtered pin numbers into a tuple by hand.
+
+**Contract.** Exactly the shape the owner's own ask named:
+`net_by_pin_pattern(symbol, pattern, net_name) -> list[(ref, pin_num)]` — pattern matches
+against pin NAME (regex, e.g. `r"^PVIN$|^SVIN$"` or `r"^SW\d*$"`), returns (or directly
+constructs) the full ball list for `lf.net(net_name, *balls)` in one call, with the option to
+pass multiple `(pattern, net_name)` pairs so a single call can dispatch ALL of one symbol's
+pins to their respective rails/buses at once (covering PVIN/GND/SW/FB/COMP/EN in one shot for
+a part like this).
+
+**Wraps/extends.** Directly composes with tool #4's `symbol_pin_table` (that IS the pin
+source this needs) plus `Leaf.net`; no new parsing, just a regex filter + tuple-builder
+sitting between the two.
+
+**Effort.** S — thin glue over an already-planned tool (#4) and the existing `net()` call;
+the only design question is the multi-pattern-dispatch convenience form.
+
+---
+
+### C3. `pack_root_boxes` / waypoint-list helper — remove hand-computed (x,y)/pitch arithmetic
+
+**Construction action collapsed + evidence.** Two distinct flavors of manual coordinate math
+recurred all session: (a) **root-page box placement** — `BOX_03 = {"03a": (16,16,24), "03b":
+(110,16,24), "03c": (204,16,24), "03d": (298,16,24)}` is four rectangles hand-spaced 94 units
+apart, sized to clear both the leaves' own content AND every OTHER already-committed sheet's
+root box (verified disjoint by a hand-written comment enumerating every existing box on that
+page — exactly the class of bug tool #2, `root_sheet_box_overlap`, exists to catch *after the
+fact*; this tool would prevent it *before* generation by packing automatically); (b) **bus/
+wire waypoint lists** — the SW_CORE fix required writing out every intermediate pin's x-
+coordinate by hand as an explicit waypoint (`c.wire((87,101),(89,101),(91,101),(93,101),
+(115,101),(115,90),(128,90))` and its mirror), because a bus wire only actually connects at
+points that coincide with a real pin (the connectivity rule tool #1 exists to detect
+violations of). Both are the same underlying labor: a human computing "where does this
+rectangle/segment need to sit so it doesn't collide with X, Y, Z which are already placed
+here" instead of a packing/routing primitive doing it.
+
+**Contract.** Two small, separable primitives rather than one: `pack_root_boxes(existing:
+list[rect], new_sizes: list[(w,h)]) -> list[rect]` (first-fit or shelf-packing against the
+already-placed rectangles, returning boxes guaranteed disjoint — feeds directly into C1);
+and `bus_waypoints(pins: list[(ref,num)], axis="x"|"y") -> list[(x,y)]` (given a list of pins
+that must all land on one bus wire, emit the full Manhattan waypoint list with every pin's
+own coordinate as a stop, instead of a human hand-copying each pin's position into the
+`c.wire(...)` call and risking a skipped one).
+
+**Wraps/extends.** `pack_root_boxes` sits next to `cec_sch_gates.py`'s existing rectangle-
+overlap primitive (`_rects_overlap`, already used by #2) — same geometry, applied
+generatively instead of only as a post-hoc check. `bus_waypoints` wraps `cec_sch_layout.py`'s
+`pin_abs_rot` (already used for exactly this coordinate math in tool #1's investigation).
+
+**Effort.** M for `pack_root_boxes` (shelf-packing has edge cases once boxes vary a lot in
+size — sheet 03's four boxes were uniform, which made hand-spacing tractable, but that won't
+always hold); S for `bus_waypoints` (pure coordinate lookup + list-building, no packing
+decision).
+
+---
+
+### C4. `leaf_finalize` — collapse the hier_exports/powerflag/io()-column boilerplate
+
+**Construction action collapsed + evidence.** Every non-stub leaf this session ended with
+the same three-part pattern, hand-written each time: a `lf.hier_exports = {...}` dict, a
+`lf.powerflag_nets = [...]` list, and a matching `c.io(net, side)` call for each exported
+net — three separate statements that all have to agree with each other and with the net
+name actually used inside the leaf's own `lf.net(...)` calls (03a needed this once for
+`+1V0_CORE`, 03d once for `+3V3_MPFS`). It's a small amount of typing per leaf, but it's
+pure boilerplate with a real cross-consistency requirement (a typo in any one of the three
+either silently drops the export or produces the mismatched-hier-label ERC class this
+session's `KNOWN_BENIGN` dict has to keep classifying).
+
+**Contract.** `leaf_finalize(lf, c, exports: dict[net, (ref, pin)], side="left"|"right",
+powerflag: list[str] = None)` — writes `hier_exports`, derives `powerflag_nets` (defaulting
+to any net whose name starts with `+`/is in a small known-power-prefix set, override-able),
+and calls `c.io()` for each exported net in one pass, so the three statements can never drift
+from each other because there's only one call site.
+
+**Wraps/extends.** Thin convenience layer directly over `Leaf.hier_exports`/
+`Leaf.powerflag_nets`/`_Compose.io` — no new capability, purely collapsing three
+already-existing, already-correct primitives that are today invoked separately by hand.
+
+**Effort.** S — no new logic, just bundling three existing calls behind one signature.
+
+---
+
+### C5. Archetype discoverability — `divider_chain` existed and wasn't reached for
+
+**Construction action collapsed + evidence.** 03a's FB feedback divider (R301/R302 + the
+mid-tap wire into U301's FB pin) was hand-built from scratch — individual `add_part` calls
+for both resistors plus a manual wire from the tap to the FB pin — even though
+`cec_sch_archetypes.py` already ships `divider_chain(c, rt, rb, x, y_top, tap=None,
+tap_ang=180, ...)` (confirmed by direct read this session: it places exactly two resistors
+at a fixed pitch and wires `rt` pin 2 -> tap -> `rb` pin 1, i.e. precisely this pattern) and
+is already imported into `gen_hub_enterprise.py` as `arch`. This isn't a missing capability —
+it's a **reach-for-it gap**: nothing surfaces "a two-resistor-divider-into-an-IC-pin pattern
+already has a one-call archetype" at the moment of hand-building one, short of already
+knowing the archetypes file well enough to remember it, or re-reading its full source. The
+same gap likely applies to `decoupler_bank` (about to matter directly for sheet 02's MPFS
+decoupling per the owner's standing directive) and `protected_rail`.
+
+**Contract.** Not a new checking/building tool so much as a discovery aid:
+`suggest_archetype(part_kind, pin_roles) -> list[(archetype_name, one_line_usage)]` — given a
+coarse shape ("two passives in series with a mid-tap driving a feedback/reference pin", "N
+decoupling caps fanned off one rail pin") return the matching archetype name(s) plus their
+exact call signature (so no source-diving is needed to use it correctly), or — cheaper —
+just a short indexed docstring/table at the top of `cec_sch_archetypes.py` itself listing
+each archetype's one-line shape + call shape, so a generator author scans one table instead
+of reading six function bodies.
+
+**Wraps/extends.** Either a tiny new lookup table over the existing archetype functions, or
+literally just a documentation reorganization of `cec_sch_archetypes.py` — genuinely the
+cheapest item on this list to ship in some form.
+
+**Effort.** S (documentation-table version) to M (a real `suggest_archetype` matcher).
+
+---
+
+### Noted, lower priority
+
+- **Per-part property-block boilerplate** (`Manufacturer`/`MPN`/`LCSC`/`Description` dicts
+  repeated across all 45 `add_part(...)` call sites this file makes, 14 of them inside
+  `compose_core_buck` alone) is real repeated STRUCTURE, but most of the actual VALUES are
+  irreducibly per-part (looked up fresh from a datasheet or BOM-A row each time), so a tool
+  here mostly helps only for parts already seen elsewhere in the project (a small
+  `props_for_mpn(mpn) -> dict` cache lookup against already-sourced BOM lines) — real, but a
+  smaller and more speculative win than C1-C5 above, so noted rather than written up in full.
+
+---
+
+Landed with the sheet-03 (compute-rails) commit, per the owner's 2026-07-16 ask (both the
+detection/debugging list above and this construction-tools follow-up). See FOLLOWUPS.md for
+the pointer entry.
