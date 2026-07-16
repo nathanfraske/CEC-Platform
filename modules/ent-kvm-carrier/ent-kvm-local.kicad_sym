@@ -1781,7 +1781,7 @@
 			(at 0 -11.43 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "ent-kvm-local:UQFN-10_TS3USB221ARSER_L2.0-W1.5-P0.50"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)
@@ -1919,7 +1919,7 @@
 			(at 0 -17.78 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "ent-kvm-local:TF-SMD_TF-123-ARP9H17_13P"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)
@@ -2087,7 +2087,7 @@
 			(at 0 -21.59 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "ent-kvm-local:HDMI-A-SMD_19P_HDMI-001-19PCBTP"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)
@@ -2304,7 +2304,7 @@
 				(name "SHELL"
 					(effects (font (size 1.27 1.27)))
 				)
-				(number "SH1"
+				(number "20"
 					(effects (font (size 1.27 1.27)))
 				)
 			)
@@ -2314,7 +2314,7 @@
 				(name "SHELL"
 					(effects (font (size 1.27 1.27)))
 				)
-				(number "SH2"
+				(number "21"
 					(effects (font (size 1.27 1.27)))
 				)
 			)
@@ -2324,7 +2324,7 @@
 				(name "SHELL"
 					(effects (font (size 1.27 1.27)))
 				)
-				(number "SH3"
+				(number "22"
 					(effects (font (size 1.27 1.27)))
 				)
 			)
@@ -2334,7 +2334,7 @@
 				(name "SHELL"
 					(effects (font (size 1.27 1.27)))
 				)
-				(number "SH4"
+				(number "23"
 					(effects (font (size 1.27 1.27)))
 				)
 			)
@@ -2355,7 +2355,7 @@
 			(at 0 -7.62 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)
@@ -2426,7 +2426,7 @@
 			(at 0 -7.62 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "ent-kvm-local:F1812_MF-MSMF200-2"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)
@@ -2487,7 +2487,7 @@
 			(at 0 -7.62 0)
 			(effects (font (size 1.27 1.27)))
 		)
-		(property "Footprint" ""
+		(property "Footprint" "ent-kvm-local:SOD-123_SMF5.0CA_L2.8-W1.8-LS3.7"
 			(at 0 0 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
 		)

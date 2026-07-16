@@ -154,7 +154,7 @@
 				(at 0 -7.62 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "ent-kvm-local:F1812_MF-MSMF200-2"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -215,7 +215,7 @@
 				(at 0 -7.62 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "ent-kvm-local:SOD-123_SMF5.0CA_L2.8-W1.8-LS3.7"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -1931,7 +1931,7 @@
 		(uuid "7ea281c3-4097-40e5-94f9-b948717d7767")
 		(property "Reference" "F1" (at 132.08 95.25 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "MF-MSMF200-2" (at 132.08 97.79 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 132.08 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "ent-kvm-local:F1812_MF-MSMF200-2" (at 132.08 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 132.08 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C210837" (at 132.08 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "MF-MSMF200-2" (at 132.08 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -1956,7 +1956,7 @@
 		(uuid "853e5586-b8d8-465a-864d-3aeb316ec0ae")
 		(property "Reference" "D6" (at 151.13 115.57 90) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "SMF5.0CA" (at 143.51 118.11 90) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "" (at 144.78 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "ent-kvm-local:SOD-123_SMF5.0CA_L2.8-W1.8-LS3.7" (at 144.78 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C19077498" (at 144.78 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "SMF5.0CA" (at 144.78 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))

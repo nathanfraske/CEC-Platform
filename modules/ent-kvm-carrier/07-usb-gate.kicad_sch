@@ -27,7 +27,7 @@
 				(at 0 -11.43 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "ent-kvm-local:UQFN-10_TS3USB221ARSER_L2.0-W1.5-P0.50"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -865,7 +865,7 @@
 		(uuid "1d0a6954-9b39-4b5f-8127-eb9574ac538e")
 		(property "Reference" "U9" (at 135.89 73.66 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TS3USB221ARSER" (at 135.89 68.58 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 135.89 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "ent-kvm-local:UQFN-10_TS3USB221ARSER_L2.0-W1.5-P0.50" (at 135.89 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 135.89 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C128396" (at 135.89 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TS3USB221ARSER" (at 135.89 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))

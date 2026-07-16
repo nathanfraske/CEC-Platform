@@ -12,4 +12,5 @@
   (lib (name "cec-Button_Switch_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Button_Switch_SMD.pretty")(options "")(descr ""))
   (lib (name "cec-ent-mcu")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-mcu.pretty")(options "")(descr ""))
   (lib (name "cec-ent-net")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec-ent-net.pretty")(options "")(descr ""))
+  (lib (name "ent-kvm-local")(type "KiCad")(uri "${KIPRJMOD}/ent-kvm-local.pretty")(options "")(descr "ent-kvm-carrier project-local footprints: TS3USB221ARSER (UQFN-10), MF-MSMF200-2 (PTC fuse, F1812), SMF5.0CA (TVS, SOD-123), TF-123-ARP9H17 (microSD socket), HDMI-001 19PCBTP (HDMI-A) -- all real LCSC-native pulls, 2026-07-16"))
 )

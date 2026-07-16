@@ -27,7 +27,7 @@
 				(at 0 -21.59 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "ent-kvm-local:HDMI-A-SMD_19P_HDMI-001-19PCBTP"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -244,7 +244,7 @@
 					(name "SHELL"
 						(effects (font (size 1.27 1.27)))
 					)
-					(number "SH1"
+					(number "20"
 						(effects (font (size 1.27 1.27)))
 					)
 				)
@@ -254,7 +254,7 @@
 					(name "SHELL"
 						(effects (font (size 1.27 1.27)))
 					)
-					(number "SH2"
+					(number "21"
 						(effects (font (size 1.27 1.27)))
 					)
 				)
@@ -264,7 +264,7 @@
 					(name "SHELL"
 						(effects (font (size 1.27 1.27)))
 					)
-					(number "SH3"
+					(number "22"
 						(effects (font (size 1.27 1.27)))
 					)
 				)
@@ -274,7 +274,7 @@
 					(name "SHELL"
 						(effects (font (size 1.27 1.27)))
 					)
-					(number "SH4"
+					(number "23"
 						(effects (font (size 1.27 1.27)))
 					)
 				)
@@ -1778,7 +1778,7 @@
 		(uuid "f01e0006-3dd7-4cb6-b3bc-31d5376d3221")
 		(property "Reference" "J7" (at 142.24 104.14 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "HDMI-A" (at 142.24 106.68 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 142.24 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "ent-kvm-local:HDMI-A-SMD_19P_HDMI-001-19PCBTP" (at 142.24 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 142.24 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C138388" (at 142.24 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "HDMI-001 19PCBTP" (at 142.24 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -1879,7 +1879,7 @@
 		(uuid "ed4f96d0-28bf-4a95-8144-e14c00c75f99")
 		(property "Reference" "D7" (at 182.88 163.32 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "RClamp0524P" (at 182.88 165.86 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 182.88 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Package_DFN_QFN:SLP2510P8_L2.5-W1.0-P0.50-BL" (at 182.88 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 182.88 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C40960" (at 182.88 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "RClamp0524PATCT" (at 182.88 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -1912,7 +1912,7 @@
 		(uuid "3eeb9222-df58-4ef6-8416-271b0ecf3e39")
 		(property "Reference" "D8" (at 200.66 163.32 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "RClamp0524P" (at 200.66 165.86 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 200.66 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Package_DFN_QFN:SLP2510P8_L2.5-W1.0-P0.50-BL" (at 200.66 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 200.66 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C40960" (at 200.66 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "RClamp0524PATCT" (at 200.66 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -1945,7 +1945,7 @@
 		(uuid "69f933e4-3180-48e0-8816-4d785700c053")
 		(property "Reference" "D9" (at 218.44 163.32 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "RClamp0524P" (at 218.44 165.86 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 218.44 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Package_DFN_QFN:SLP2510P8_L2.5-W1.0-P0.50-BL" (at 218.44 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 218.44 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C40960" (at 218.44 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "RClamp0524PATCT" (at 218.44 176.53 0) (effects (font (size 1.27 1.27)) (hide yes)))

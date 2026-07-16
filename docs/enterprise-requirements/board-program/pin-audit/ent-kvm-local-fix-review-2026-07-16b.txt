@@ -1,0 +1,151 @@
+Footprint-assignment pass -- modules/ent-kvm-carrier/ent-kvm-local.kicad_sym
+(2026-07-16b, stretch scope, ENT library-intake agent)
+
+SCOPE: the local (project-embedded, not lib/-shared) symbol library backing
+modules/ent-kvm-carrier carried 9 hand-drawn/placeholder symbols, all 9 with
+an EMPTY Footprint property at the library-definition level, plus a matching
+gap at several already-placed schematic instances. This pass closes the gap
+for 6 of the 9 symbols (real MPN, real LCSC-native footprint, ERC-clean) and
+explicitly, deliberately defers the remaining 3 (M2_MKEY_A_M3C,
+M2_MKEY_B_M3C, LT6911_FUNC) -- see DEFERRED below, also logged in
+FOLLOWUPS.md.
+
+Real instance count found (NOT the "~33" in the work order -- that figure
+over-counted; verified programmatically via a proper (symbol (lib_id ...))
+schematic-instance scan, not a naive property-string grep, across all ten
+sheet files): 13 schematic instances truly had an empty per-instance
+Footprint property (Y1, Y2, U9, F1, D6, J4, J5, J6, J7, U11, D7, D8, D9).
+Y1/Y2 (ent-common-local:Crystal_Small, 40MHz/25MHz) are OUT OF SCOPE for this
+pass -- that symbol lives in modules/ent-common/, which the work order did
+not grant (only modules/ent-kvm-carrier/ was authorized); flagged in
+FOLLOWUPS.md rather than touched.
+
+FIXED (real MPN already recorded on the schematic instance in every case --
+this pass only had to find + verify + attach the matching real footprint,
+not choose a part):
+
+  TS3USB221_FUNC (U9, sheet 07-usb-gate) -- TI TS3USB221ARSER, LCSC C128396.
+    Footprint pulled via easyeda2kicad, kicad-cli fp-upgraded, vendored as
+    ent-kvm-local:UQFN-10_TS3USB221ARSER_L2.0-W1.5-P0.50 (10 pads, matches
+    the symbol's 10 pins exactly). Symbol pin names (D+/D-/S/OE#/D1+/D1-/
+    D2+/D2-/VCC/GND) were ALREADY correct against the TI datasheet order
+    ("D- D+ 1D- 1D+ 2D- 2D+ S OE" per the LCSC-hosted datasheet) -- no pin
+    edits needed, audit already clean (0 findings).
+
+  FUSE_PTC (F1, sheet 08-compute-power) -- Bourns MF-MSMF200-2 (2A/8V PPTC,
+    1812 SMD), LCSC C210837. Footprint pulled + vendored as
+    ent-kvm-local:F1812_MF-MSMF200-2 (2 pads, matches). Symbol already
+    typed both pins passive -- correct for a 2-terminal fuse, no edits.
+
+  D_TVS_BIDIR (D6, sheet 08-compute-power) -- bidirectional TVS SMF5.0CA,
+    SOD-123, LCSC C908214 (FUXINSEMI, 144k+ units in stock -- picked over
+    the MDD/SEMIWARE/ZHIDE/TWGMC alternates also listed for this exact MPN
+    on the strength of that stock depth). Footprint vendored as
+    ent-kvm-local:SOD-123_SMF5.0CA_L2.8-W1.8-LS3.7 (2 pads, matches).
+    Symbol already typed both pins passive -- correct for a symmetric
+    bidirectional TVS, no edits.
+
+  TF_CARD_TF123 (J6, sheet 09-m2-module) -- XUNPU TF-123-ARP9H17 microSD
+    socket, LCSC C2982548. Footprint vendored as ent-kvm-local:TF-SMD_TF-
+    123-ARP9H17_13P (13 pads, matches; the raw easyeda pull's own internal
+    footprint name says "ARP9H15" not "-H17" -- a cosmetic LCSC/EasyEDA
+    metadata naming quirk on THEIR side, not a wrong-part pull: the C-number
+    C2982548 is confirmed the real "-H17" listing and the land dimensions
+    are what matter, not the informal name string). Symbol pin names
+    (DAT2/CD-DAT3/CMD/VDD/CLK/VSS/DAT0/DAT1 + SWITCH + 4x SHELL) already
+    match the real, standard microSD 8-contact pinout plus card-detect and
+    shield -- no edits, 0 findings.
+
+  HDMI_A_19P (J7, sheet 10-hdmi-capture) -- BOOMELE HDMI-001 19PCBTP,
+    LCSC C138388 (54.5k+ units in stock). Footprint vendored as ent-kvm-
+    local:HDMI-A-SMD_19P_HDMI-001-19PCBTP (23 pads: 19 SMD signal + 4 THT
+    shell-ground tabs, matches). Symbol pin NAMES already match the real,
+    standard HDMI-A pinout (TMDS pairs + shields, CEC, DDC, +5V, HPD) --
+    but the symbol's 4 shell pins were NUMBERED "SH1".."SH4" while the real
+    footprint numbers its 4 through-hole shell tabs "20".."23" (verified:
+    those 4 pads are the large oval THT pads, physically the shell tabs --
+    pads 1-19 are the SMD signal pins). RENUMBERED the symbol's shell pins
+    SH1->20, SH2->21, SH3->22, SH4->23 (both the library definition and
+    each schematic's cached lib_symbols copy) so pin-number <-> pad-number
+    correspondence holds for netlist/BOM tools that key off the number, not
+    the name. This is a pure relabeling -- no pin (at x y angle) position
+    moved, so wire connectivity (position-keyed in KiCad, not number-keyed)
+    is unaffected; confirmed via a clean netlist re-export (J7 shows 23
+    correctly-connected nodes, incl. the renumbered shell pins) and ERC
+    (177 violations before and after -- see VERIFICATION below).
+
+  Q_NMOS_GSD (Q1/Q2/Q3, sheet 09-m2-module) -- 2N7002 (Q1/Q2) and BSS138
+    (Q3), both real, common small-signal N-FETs. The SCHEMATIC INSTANCES
+    already carried a real footprint (cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-
+    W1.3-P1.90-LS2.4-BR) -- only the shared LIBRARY DEFINITION was blank
+    (so Q1/Q2/Q3 were never in the "13 empty" scan; the gap was invisible
+    on the sheet but would resurface for the NEXT Q_NMOS_GSD placement).
+    Set the library Footprint to match the already-placed, already-correct
+    instance value rather than introduce a second SOT-23 variant. Symbol
+    pin map (1=G/input, 2=S/passive, 3=D/passive) already matches the real,
+    standard SOT-23 small-signal-FET pinout -- no edits, 0 findings.
+
+  RClamp0524PATCT (D7/D8/D9, sheet 10-hdmi-capture) -- this is a lib/-
+    shared cec-ent-net symbol (manifest item #19, already landed with a
+    real footprint at the library level: cec-Package_DFN_QFN:
+    SLP2510P8_L2.5-W1.0-P0.50-BL). Only the three SCHEMATIC INSTANCES were
+    blank (same "instance never synced from an already-correct library"
+    shape as Q_NMOS_GSD) -- set all three to match the library default.
+    No library or pin-type change needed (not this pass's symbol to begin
+    with).
+
+DEFERRED (documented, not silently skipped -- see FOLLOWUPS.md for the
+dated bullet):
+
+  M2_MKEY_A_M3C / M2_MKEY_B_M3C (J4/J5, sheet 09-m2-module) -- 67-pin
+    symbols each, MPN on the schematic is HYCW23M-05NGFF-670B (HOAUC,
+    "M2-MKEY-75P-A"/"-B" per the Value field). NO live LCSC listing found
+    for this exact MPN this session (only a same-family sibling,
+    HYCW33B-05NGFF-670B, turned up on JLCPCB) -- M.2 connectors have
+    multiple real keying/notch variants (A/B/E/M-key, differing pin
+    subsets), so pulling a similarly-named but NOT-verified-identical
+    footprint risks a real mis-keyed/wrong-pinout part, worse than leaving
+    the gap open. This accounts for the BULK of the 45 high + 63 medium
+    findings on this library (mostly TX-direction and GPIO-multi-function
+    passive-vs-output/bidirectional calls across the two 67-pin symbols) --
+    deliberately left alongside the footprint gap rather than fixed in
+    isolation, since a correct pin-type pass and a correct footprint pass
+    for a connector this large are naturally one piece of work once a
+    verified real M.2 socket MPN is in hand.
+
+  LT6911_FUNC (U11, sheet 10-hdmi-capture) -- the schematic's own MPN field
+    reads "LT6911C/UXC-class (TBD)" -- the exact Lontium variant/package is
+    an OPEN DESIGN DECISION, not yet made by whoever captured this sheet.
+    Assigning a firm footprint (or auditing pin types against one specific
+    variant's real pinout) ahead of that decision would be presumptuous and
+    could actively mislead a later reader into thinking the part choice is
+    settled. Left untouched; the remaining handful of this library's high/
+    medium findings not on the M2 connectors belong to this symbol.
+
+VERIFICATION:
+  - kicad-cli sym upgrade (no --force; the file was already in current
+    20251024/kicad_symbol_editor format, so this is a safe validate-only
+    no-op -- confirmed "Symbol library was not updated" both before and
+    after) -- exit 0.
+  - kicad-cli fp upgrade on the new ent-kvm-local.pretty/ directory (a
+    fresh directory with only these 5 new files, so no risk of the
+    whole-directory-reformat footgun recorded in FOLLOWUPS.md 2026-07-16b)
+    -- exit 0, "not updated" (already current format post-pull).
+  - ERC (kicad-cli sch erc on the full ent-kvm-carrier.kicad_sch hierarchy):
+    177 violations BOTH before (git-stash baseline, scoped to only this
+    board's own files) and after this pass's schematic edits -- the 8
+    "lib_symbol_mismatch" findings the Footprint/pin-number edits initially
+    introduced (library definition changed, each sheet's own cached
+    lib_symbols copy not yet synced) were resolved by syncing those cached
+    copies too, not left as "known benign" noise.
+  - Netlist export (kicad-cli sch export netlist): clean, J7 (HDMI_A_19P)
+    shows 23 correctly-connected nodes post-renumbering.
+  - python3 scripts/cec_sym_audit.py --audit: high=45 medium=63 both before
+    and after (unchanged -- confirms none of this pass's edits were pin-
+    type changes, and that the entire finding set belongs to the 3
+    deliberately-deferred symbols, not the 6 fixed ones, which independently
+    show 0 findings each).
+
+NOT run this pass: tests/test_sym_audit.py's hardcoded pin-count fixture
+does NOT cover this file (it only tracks lib/cec-ent-{power,net,compute,mcu}
+.kicad_sym) -- no fixture update needed or made.

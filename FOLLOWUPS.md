@@ -560,3 +560,31 @@ Conventions:
   patches, TPC pass-form, solver roadmap, supercap study, hub-rev2 waves, atx24 sense-wire
   study) — NOT merged; reconcile sheets ↔ pipeline at merge. New-checker asks: qfn-escape-
   completeness, RS485-class impedance audit pre-route, LVDS plane-integrity build-once-x3.
+- [2026-07-16b] ENT-KVM-CARRIER FOOTPRINT CLUSTER — PARTIAL (stretch scope, ENT
+  library-intake agent; full detail: pin-audit/ent-kvm-local-fix-review-2026-07-16b.txt).
+  FIXED (real footprint attached, ERC-clean): TS3USB221_FUNC (U9), FUSE_PTC (F1),
+  D_TVS_BIDIR (D6), TF_CARD_TF123 (J6), HDMI_A_19P (J7, incl. renumbering its 4 shell
+  pins SH1-4→20-23 to match the real footprint's THT tab numbering), Q_NMOS_GSD
+  (Q1/Q2/Q3), plus the 3 already-library-correct RClamp0524PATCT instances (D7/D8/D9)
+  whose SCHEMATIC placements had just never been synced. New local footprint dir
+  `modules/ent-kvm-carrier/ent-kvm-local.pretty/` (+ `.3dshapes/`), registered in that
+  board's own `fp-lib-table`. DEFERRED, do not silently pick a part next time either:
+  (1) **M2_MKEY_A_M3C / M2_MKEY_B_M3C** (J4/J5, 67-pin M.2 sockets, MPN
+  HYCW23M-05NGFF-670B) — no live LCSC listing found for this exact MPN (only a
+  same-family sibling HYCW33B-... turned up); M.2 has multiple real keying variants
+  so a look-alike substitute risks a wrong/mis-keyed part — needs a real LCSC/
+  distributor search pass (or an owner-confirmed alternate MPN) before footprint work,
+  and the bulk of this library's 45 high + 63 medium pin-type findings live on these
+  two symbols, deliberately left alongside the footprint gap as one unit of future
+  work. (2) **LT6911_FUNC** (U11) — MPN is explicitly "LT6911C/UXC-class (TBD)" on
+  the schematic itself; the exact Lontium variant is an open design decision, not an
+  intake gap — do not assign a footprint or audit its pins until that's chosen.
+  (3) **Y1/Y2 crystals** (`ent-common-local:Crystal_Small`, 40MHz/25MHz, also
+  empty-footprint) are OUT OF SCOPE for an ent-kvm-carrier-only grant — that symbol
+  lives in `modules/ent-common/`, a library shared beyond this one board; needs its
+  own explicitly-scoped pass (check whether other ENT boards reference it before
+  editing). Verification basis for everything landed: real MPN cross-checked against
+  live LCSC listings (stock + C-number), pad-count-vs-symbol-pin-count matched
+  exactly for every part, ERC held at the pre-change baseline (177 violations,
+  scoped git-stash comparison) after resolving the expected lib_symbol_mismatch
+  noise by syncing each sheet's cached copy, not leaving it as unexplained noise.

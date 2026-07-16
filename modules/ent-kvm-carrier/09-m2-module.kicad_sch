@@ -1443,7 +1443,7 @@
 				(at 0 -17.78 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "ent-kvm-local:TF-SMD_TF-123-ARP9H17_13P"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -1782,7 +1782,7 @@
 				(at 0 -7.62 0)
 				(effects (font (size 1.27 1.27)))
 			)
-			(property "Footprint" ""
+			(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR"
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) (hide yes))
 			)
@@ -2751,7 +2751,7 @@
 		(uuid "6fbef415-b6e8-41ec-9db1-2e7be37ca80b")
 		(property "Reference" "J6" (at 400.05 127 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TF-123-ARP9H17" (at 400.05 129.54 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 400.05 147.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "ent-kvm-local:TF-SMD_TF-123-ARP9H17_13P" (at 400.05 147.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 400.05 147.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C2982548" (at 400.05 147.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TF-123-ARP9H17" (at 400.05 147.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
