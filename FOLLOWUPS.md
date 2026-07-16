@@ -399,3 +399,11 @@ Conventions:
   cross-timing [±2-10µs clock fusion on the FREEZE mechanism]). Its §9 sketch questions (bank
   ladders, vernier topology, Max switch matrix, front-plate mech std ↔ OQ-89 coordination,
   MARK firmware home ↔ OQ-85, 5VSB peak stage) are owed at the tester schematic pass.
+- [2026-07-16] AC SENSE POD (PROPOSED, owner nod needed): supersedes the canonical PSU-tester
+  §6 Max item-4 phase-controlled AC-interrupter accessory — the only mains-path product on
+  the roadmap — with a non-contact cord-clip sensor (capacitive pickup + clamp CT + TLV7011
+  edge detector → CAN MARK timeline; Max: pod analog into an AFE channel = sample-exact AC
+  collapse) + any commodity LISTED cut switch on a SELV trigger jack. Upgrades absolute
+  hold-up/T5 to BOTH tester tiers and removes the AC-path cert burden entirely (sketch §3c).
+  Bench items on ratification: edge latency vs cut phase, pickup geometry, CT class, resold
+  listed trigger box vs shop-supplied.

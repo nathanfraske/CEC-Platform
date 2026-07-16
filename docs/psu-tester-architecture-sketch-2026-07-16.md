@@ -123,6 +123,80 @@ its own Kelvin shunt + fast comparator → µs "pulse-actual" stamp
 | **UVP** | (via T6) | (via T6) | Intel defines no output-UVP number; the spec mechanism is PWR_OK deassert — covered by the T6 early-warning test (>1 ms before rails leave regulation), measured by the 24-pin module. |
 | OTP | NO | NO | Requires heat-soaking the DUT — out of scope both tiers (standing fence). |
 
+## 3b. SCP mechanics — how the scary test is made safe
+
+The short is applied by a **dedicated crowbar block per testable rail** —
+never through the load channels — at the fixture head, through the DUT's own
+cable (the realistic short location the spec intends):
+
+```
+rail @ fixture ─▶ crowbar: [fuse] ─ [commodity switch-FETs ∥, mΩ, fully enhanced] ─ [~30–50 mΩ
+                 surge shunt (doubles as the sensor)] ─▶ RETURN;  TVS across the FET stack
+```
+
+- **Energy reality:** the initial cap dump is trivial (½CV² of a beefy 12 V
+  rail ≈ 0.3 J). The sustained phase is the DUT's own OCP-limited current
+  (~100–150 A on a big single-rail unit) for the few ms until ITS protection
+  trips — the crowbar FETs are fully-enhanced switches (2–3 mΩ commodity
+  parts, ∥), so they dissipate tens of watts for milliseconds: pulse-SOA
+  trivial. This is switching duty — the linear-L2 rules don't apply here.
+- **The <0.1 Ω spec budget** is met by FETs + shunt + harness; the deliberate
+  30–50 mΩ shunt both bounds peak current and records the surge waveform
+  (Max: routable into an AFE channel).
+- **Backstop ladder for a DUT that refuses to trip** (the fire case):
+  (i) firmware timeout releases the crowbar after ~50–100 ms of no-collapse —
+  release at controlled di/dt (gate resistor) with the TVS absorbing the
+  harness ½LI² kick (~2 µH at 150 A ≈ 23 mJ — TVS territory);
+  (ii) a series fuse in the crowbar path sized on TIME (carries the ms-scale
+  test surge, blows on seconds-scale cook) — works with firmware dead;
+  (iii) the existing de-gate rail + bimetal plate switches.
+- **Protocol posture:** SCP runs LAST in a sequence (data already banked if
+  the DUT dies), two-step software arm, stand-clear workflow + fire-resistant
+  bay assumption (canonical §3e). Hiccup-mode DUTs: the crowbar holds through
+  N retry cycles to characterize them, then releases; latch-mode: release →
+  re-sequence PS_ON# → verify recovery. The 5VSB indefinite-short leg gets
+  its own small continuously-rated crowbar (5VSB OCP is ~4–5 A — trivial).
+
+## 3c. Hold-up + AC-cut timing WITHOUT a mains product — the AC SENSE POD
+
+**PROPOSED (2026-07-16, answers the owner's cert question; supersedes the
+canonical §6 Max item 4 "AC-interrupter accessory" if ratified — owner nod
+needed since that item was part of the tier ruling).** The insight: the
+hold-up test needs (a) something to CUT the AC and (b) precise knowledge of
+WHEN it cut. Only (b) needs precision — and (b) can be sensed **without ever
+being in the AC path**:
+
+- **The cut**: any commodity LISTED switching device the shop already has or
+  buys — wall switch, or an off-the-shelf enclosed relay/SSR box with a SELV
+  trigger input (IoT-relay class) that the tester drives from an isolated
+  3.5 mm TRIGGER OUT jack. Bonus physics: a zero-cross SSR box *releases at
+  the next current zero* — the cut phase is inherently quantized and
+  repeatable, no phase-controlled CEC hardware required.
+- **The truth**: the **CEC AC sense pod** — a cord-clip accessory that is
+  never galvanically in the circuit: a capacitive E-field pickup (non-contact
+  voltage-tester physics) + a split-core clamp CT (isolated by construction),
+  a comparator edge detector, and a cable to the tester. It watches the live
+  waveform (phase + zero-cross train) and stamps the cut edge; the tester
+  puts that edge on the CAN MARK timeline like every other event.
+- **Resolution**: edge detection is sub-ms conservative (~100 µs typical
+  mid-phase; near-zero cuts are disambiguated by the CT current envelope +
+  repeat runs) against a 12,000 µs pass limit — and on the **Max tester the
+  pod's analog output feeds one AFE mux input**, so the AC collapse is
+  captured SAMPLE-EXACT in the same digitizer window as the rail waveforms.
+  That is "AC-cutoff data at Max resolution" with zero mains-path product.
+- **What this upgrades**: absolute hold-up (Table 4-8: 12 ms @100 % /
+  17 ms @80 %) and true T5 become **both-tier tests** (Pro gets µs-stamped
+  edges; Max gets waveforms) — the "T6-only on Pro" fence falls. Protocol:
+  pod watches phase → tester (or operator) triggers the cut → pod stamps t0
+  → 24-pin module stamps PWR_OK deassert (T5) → module rings stamp
+  rails-out-of-regulation (hold-up) → repeat across phases for statistics.
+- **Cert honesty**: the pod is a SELV sensor accessory with the platform's
+  ordinary unintentional-radiator/product-safety posture — the same bucket
+  as every module. It is not a mains-rated instrument and never claims to
+  be; the switching device is someone else's listed product. The
+  phase-controlled AC-interrupter (a genuine mains product with its own
+  listing burden) exits the roadmap entirely if this is ratified.
+
 ## 4. Cooling architecture (the big one — designed first)
 
 **Heat split at 1600 W continuous:** R-banks ~1,200–1,300 W; linear FET bank
@@ -182,8 +256,9 @@ racks get it for free; benches get a flat-top console).
   strain-relieved; short RJ-45 patches run module→Hub along the deck. The
   tester's own module jack sits at the deck's edge beside them.
 - **REAR = all heat + power**: exhaust grille, the **USB-C (PD self-power;
-  + data when standalone)**, optional 12 V aux barrel, AC-interrupter
-  accessory jack (Max). NOTHING hot or cabled faces the operator.
+  + data when standalone)**, optional 12 V aux barrel, the AC-sense-pod jack
+  + isolated SELV TRIGGER-OUT jack (§3c, both tiers). NOTHING hot or cabled
+  faces the operator.
 - **DUT parking**: beside the tester (PSUs vary too much to swallow one);
   optional side tray accessory later. Front-bay cable reach sized for a PSU
   sitting flush left or right (~0.5 m harness envelope).
@@ -262,7 +337,7 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
 | Load plane | R-banks + 8 verniers + ONE fast channel (12V-2x6 path) | + switch matrix (fast channel → EPS too), optional 2000 W banks |
 | Analog add-ons | ripple *indicator* + scope BNC taps | 20 MHz AFE ×4 → mux → AD9253 (spec-grade ripple, waveforms) |
 | OVP | not claimed | TPS55289 sourcing stage behind relay |
-| Hold-up | T6-only (DC-side) | + phase-controlled AC interrupter accessory (absolute 12/17 ms) |
+| Hold-up | **absolute (12/17 ms) via the AC sense pod + any commodity listed cut switch** — §3c | same, + pod analog into the AFE = sample-exact cut waveform |
 | Data out | in-suite via Hub (CAN + RS-485 stream); standalone via own USB-HS | in-suite via Max Hub (CAN + T1 bidir); standalone via own USB-HS |
 | Chassis/cooling | identical 1600 W console | identical (+1 fan w/ 2 kW option) |
 
@@ -279,7 +354,15 @@ such frames (cec_freeze). The tester is just another node on the suite's CAN
    cec_mark component) — OQ-85 contract chapter.
 6. The 5VSB 3.5 A/500 ms peak test wants one small dedicated linear stage —
    fold into the 24-pin group vernier or standalone? (~$3 either way.)
-7. **Station topology (OWNER: "needs in-field testing" — deliberately
+7. **AC sense pod ratification** (§3c): owner nod to supersede the canonical
+   §6 Max item-4 AC-interrupter accessory; then bench items — pod edge-detect
+   latency vs cut phase (esp. near-zero cuts), pickup geometry on typical IEC
+   cords, CT clamp part class, and whether a resold IoT-relay-class listed
+   box joins the kit list or stays shop-supplied.
+8. **SCP crowbar sizing pass** (§3b): FET ∥-count + fuse time-current pick vs
+   the biggest single-rail DUT class (150 A OCP assumption to verify), TVS
+   energy rating, release-di/dt value.
+9. **Station topology (OWNER: "needs in-field testing" — deliberately
    unresolved):** DEFAULT = this REV B suite (Hub + modules + tester-as-
    module). DEFERRED VARIANT = the REV A "Bench Unit" consolidation (tester
    absorbs the Hub role: port VCC/DETECT/CAN termination + RS-485/T1

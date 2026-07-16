@@ -161,10 +161,17 @@ port with PD self-power. **Still no FPGA on Pro.**
   OVP/SCP <https://www.ti.com/product/TPS55289> — covers every Table 4-13
   trip window (12 V: 13.4–15.6 V; 5 V: 5.74–7.0; 3.3 V: 3.76–4.3) behind a
   series relay/diode so it only ever *sources into* the rail under test.
-- **AC interrupter accessory**: random-fire (non-zero-cross) SSR + zero-cross
-  detector so the cut instant is phase-referenced and timestamped (a naive
-  relay carries ±8.3 ms half-cycle uncertainty vs a 12 ms pass limit —
-  canonical §3e); separately enclosed, own cert scope.
+- **AC-cut timing — REVISED to the SENSE POD (see sketch §3c):** CEC builds
+  NO mains-path product. The cut = any commodity listed relay/SSR box
+  (zero-cross release = deterministic cut phase) driven from an isolated
+  SELV trigger jack; the timing truth = the CEC AC sense pod: capacitive
+  E-field pickup + split-core clamp CT (both non-contact/isolated by
+  construction) + comparator (TLV7011-class, the platform part) → tester
+  timestamp on the CAN MARK timeline; Max routes the pod analog into an AFE
+  channel for sample-exact capture. The earlier random-fire-SSR product item
+  is RETIRED — phase repeatability comes free from the commodity box's
+  zero-cross release, and the measurement never depended on controlling the
+  cut anyway.
 
 **2i. Thermal/protection (both tiers).** Per-heatsink NTCs (C77131), PWM fan
 drive + tach, per-channel fusing, and the firmware watchdog whose failure
@@ -179,6 +186,8 @@ directly to the load board's own copper (canonical §4).
 2. DAC80508 LCSC/JLC availability (TI parts are hit-or-miss there).
 3. 4-terminal 50 A-class load shunt selection (Kelvin, TCR).
 4. Fast-loop op-amp pick (OPA810 vs alternatives) + gate-drive stage.
-5. Random-fire SSR MPN + the zero-cross detector for the AC accessory.
+5. AC sense pod parts: split-core clamp CT class (SCT-013-family or
+   smaller), pickup electrode geometry vs IEC cord types, edge-comparator
+   thresholds; candidate resellable listed trigger box (IoT-relay class).
 6. FT600Q/FT601Q LCSC sourcing (inherited unknown from the Max egress ruling
    — only relevant if the Max tester exports raw waveforms at volume).
