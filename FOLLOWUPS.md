@@ -879,3 +879,11 @@ Conventions:
   PROPOSAL written (sketch §12a, BOM §3a note, owner-queue decision row). If ratified: OQ-85
   gains the UART framing + Hub MARK-relay chapter; bench item = measured relay jitter vs the
   ±100-150 µs budget; configurator gains the KVM-vs-tester header-occupancy rule.
+- [2026-07-16] COMMIT 0df4e365 PROVENANCE NOTE: intended as a 3-doc tester-ledger correction,
+  it ALSO swept the capture agent's STAGED-not-committed sheet-02 files (02a-mpfs-core +
+  regenerated parents + gen script, ~6k lines, UNVERIFIED at that point) — `git commit`
+  takes the whole index, and the agent had staged during its earlier lock window. Treat the
+  sheet-02 content in 0df4e365 exactly like the d436d03c checkpoint: NOT verified; the
+  agent's verified sheet-02 commit is the record. PROCEDURE FIX adopted both sides: shared-
+  tree commits use explicit pathspecs (`git commit -m ... -- <paths>`), which commit only
+  the named paths regardless of index state.
