@@ -1,5 +1,6 @@
 # cec_sym_audit --fix review for lib/cec-tester.kicad_sym
-# 7 high-confidence change(s)
+# 9 high-confidence change(s) (7 at the Phase A promotion pass + 2 more when
+# 74HC165D,653 was added during 03-mcu capture, see the addendum below)
 
 CH224K: pin 1 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD family))
 CH224K: pin 4 'DP': unspecified -> bidirectional  (BUS: USB/differential data pin)
@@ -8,6 +9,40 @@ CH224K: pin 11 'GND': unspecified -> power_in  (GND: ground-return pin (GND fami
 TPS54331DR: pin 3 'EN': unspecified -> input  (EN: enable/control pin (EN/ENABLE))
 74HC595D,118: pin 8 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
 74HC595D,118: pin 16 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
+74HC165D,653: pin 8 'GND': unspecified -> power_in  (GND: ground-return pin (GND family))
+74HC165D,653: pin 16 'VCC': unspecified -> power_in  (VDD: supply-rail pin (VCC/VBAT/VPP family))
+
+## ADDENDUM (03-mcu capture): 74HC165D,653 (LCSC C5613, Nexperia) added.
+## REASON -- a real GPIO-budget problem found during 03-mcu capture: the
+## ESP32-C6-MINI-1-N4 exposes exactly 20 usable GPIOs, but the ST board's
+## raw signal count (4 PWM setpoints, ~31 bank/SCP/display control bits,
+## ~16 trip/tach/button inputs, DETECT + 6 NTC analog channels, CAN, USB,
+## BOOT) is roughly 3x that. RESOLUTION: a shared shift-register expansion
+## bus -- 4x 74HC595 (cascaded, 32 output bits: bank-group CTRL, SCP arm/
+## fire, LCD CS x7, backlight enable) + 2x 74HC165 (cascaded, 16 input
+## bits: loop/bank/SCP trip, fan tach, service button) -- on a 3-pin shared
+## half-duplex bus (SCK/DATA/STROBE; DATA reverses direction between the
+## shift-out and shift-in phases, and STROBE double-duty's as both the '595
+## chain's RCLK latch and the '165 chain's SH/LD parallel-load strobe).
+## This is NOT an invented workaround: docs/psu-tester-architecture-sketch-
+## 2026-07-16.md Sec5 (displays) explicitly anticipates it for backlight
+## PWM ("fits the ST tier's C6 pin budget via the same expander"); this
+## capture generalizes the SAME expander to bank/SCP/loop-trip duty, which
+## the source docs did not spell out but the pin budget makes necessary.
+## Full bit allocation + the resulting 03-mcu GPIO map (final: 19 of 20
+## GPIOs used, 1 spare) are documented in 03-mcu.kicad_sch's own caption/
+## note and in FOLLOWUPS.md. Two simplifications this forced, both flagged
+## as deliberate, not silent: (1) pin 7 (SYNC/FREEZE at ENT tier) stays a
+## platform-locked "reserved spare" at consumer/Standard tier (Sec2.3) --
+## its mis-plug PROTECTION chain (series R + SMAJ58A) is still populated
+## on 01-link per the owner's PoE-safe directive, but it is NOT wired to an
+## MCU GPIO, since ST is not ENT; (2) the 5VSB-peak "loop" (04d) has no
+## continuous PWM+RC/op-amp CC cell -- its 3.5A/500ms peak leg is a spec-
+## compliance PULSE test (fixed duration burst), not a swept analog
+## measurement, so it is modeled as a shift-out-driven ON/OFF switch (still
+## carries its own Kelvin shunt + trip-watch cell, matching every other
+## loop's measurement architecture) rather than a 4th analog setpoint
+## channel it does not need.
 
 # ===========================================================================
 # Phase A CAD punch list -- narrative review (STANDARD-TESTER SCHEMATIC
