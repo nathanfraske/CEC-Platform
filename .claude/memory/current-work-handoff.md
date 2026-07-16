@@ -846,3 +846,20 @@ hold-up, tens of seconds**. Actions: deck 5V feed DOWNGRADED required→optional
 firmware/contracts/persist-on-fault.md NEW "Tier outlook" section (Standard ≤15 ms gasp
 unchanged; Pro/Max future contract = full-state persist class, own contract when HW lands,
 board scope confirmed then; spec §2.9/§L fold = owner pen, queued firmware/FOLLOWUPS.md).
+
+## 2026-07-16 ~13:25 — ENT net-lib intake: LAN9370 + MagJack LANDED (branch claude/pr50-firmware-review-wkvf7v)
+Owner uploaded UL LAN9370-I/KCX + SnapEDA JXD0-0001NL + STEPs + LAN9370 product brief (FULL DS
+login-locked, Microchip portal erroring, support dead). Vendored into cec-ent-net: symbols
+(props normalized to repo style, junk SnapEDA fields stripped), footprints
+VQFN-64_L8.0-W8.0-P0.40-EP6.5_LAN9370_KCX (brief §4: 8x8x0.9 KCX, wettable, drawing C04-479;
+UL nominal density) + RJ45_MagJack_Pulse_JXD0-0001NL_Horizontal_THT (pads 1-14+SH1/2+2 NPTH),
+3D STEPs in cec-ent-net.3dshapes, brief at lib/datasheets/LAN9370-Product-Brief-DS00002819B.pdf.
+VERIFIED: pin map 64/64 EXACT vs brief Table 3-1 + EP65=VSS (programmatic diff); all pins
+on-grid; fp pad counts match. T2 audit: 2 VSS power_out→power_in fixed; pin52 CLK125/CASCADE_EN
+= OUTPUT per Table 3-2 (RGMII clock out, strap at reset) w/ auditor CALIBRATION (mux-secondary
+EN accepts deliberate types; primary-EN + unspecified still flag; regression test added,
+11/11); TRX*→bidirectional, EXTRES→passive; net lib high=0; pin-count fixture 106→187.
+Review log: pin-audit/cec-ent-net-fix-review-2026-07-16.txt. Lib tables descr updated.
+Sheets 06/07 LIBRARY-UNBLOCKED. Owner-queue: JXD0(tab-down, vendored) vs JXD1(tab-up, BOM-B)
+decision + full-DS watch item (LAN9371/72 proxy for straps). FOLLOWUPS: kvm-local 45 T2 highs
+noted onto the queued KVM footprint pass.
