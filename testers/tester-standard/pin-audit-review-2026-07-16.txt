@@ -238,3 +238,99 @@ CD4051BM96: pin 16 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD fa
 ## around the engine limit) -- flagged as a documented BOM-optimization
 ## option in FOLLOWUPS.md, not implemented here to preserve per-loop
 ## isolation and match the Pro-tier precedent.
+
+## Addendum 4 (Phase B, 01-link + 02-power verification pass): a genuine
+## HARDWARE-CORRECTNESS bug found and fixed, plus a batch of layout/ERC
+## debugging notes worth keeping for the remaining leaves.
+##
+## SAFETY-RELEVANT FIND: both diode-OR circuits (01-link's D3/SS34, ORing
+## the tester's local +5V_LOGIC into the RJ-45/mezzanine mis-plug chain's
+## +5V_PROT rail; 02-power's D6/SS34, ORing the 12V aux barrel jack into
+## buck1's +12V_FAN output) were wired BACKWARDS on the first capture pass
+## -- anode on the SHARED/downstream rail, cathode on the DEDICATED source,
+## the opposite of correct diode-OR polarity (anode faces its own source,
+## cathode faces the rail it feeds into so the rail can never push current
+## back out through the diode into that source). Root cause: the real
+## `cec-vendor:D_Schottky` symbol is pin1=K(cathode)/pin2=A(anode) --
+## VERIFIED directly against the symbol body (D_Schottky_1_1: pin number
+## "1" name "K", pin number "2" name "A", and the graphical triangle/cathode
+## -bar glyph agrees) -- but the code that first wired both diodes assumed
+## the opposite (variable names `a3`/`k3` had pin1=A), an assumption never
+## checked against the actual symbol text. Caught in stages: (1) 02-power's
+## D6 first showed as ERC `power_pin_not_driven` on U7.VIN (+12V_FAN looked
+## undriven) -- tracing +12V_FAN's real drivers led to the diode and its
+## pin identities; (2) fixing D6's polarity by simply swapping which net
+## table entry got which pin number, without changing placement, exposed a
+## SECOND bug on 01-link's D3 once the same fix was applied there: ERC
+## `multiple_net_names` fired ("+5V_PROT and +5V_LOGIC attached to the same
+## items") because the corrected wire, run to the pin that is now farther
+## from the junction point, passed geometrically THROUGH the other (nearer)
+## pin's own coordinate along the way -- KiCad binds a pin wherever a drawn
+## wire's path touches it, not only at declared endpoints, so an unlucky
+## collinear routing silently shorted the two nets back together. Fixed by
+## rotating each diode 180 degrees from its original placement (270 instead
+## of 90 for D3; 180 instead of 0 for D6) so the pin that must sit NEAR the
+## junction (to avoid pass-through) is also the pin that must be there
+## electrically (cathode-to-rail for D3, anode-to-jack for D6) -- verified
+## by direct `Compose.pin()` coordinate probes before and after, and by the
+## exported netlist (`kicad-cli sch export netlist`) showing +5V_PROT/
+## +5V_LOGIC and +12V_FAN/+12V_AUX_RAW as fully separate nets with the
+## correct pin on each side. LESSON for the remaining leaves (04-loops'
+## trip-watch diodes, 06-scp's crowbar diodes, any other D_Schottky/SS34/
+## SS110/SMAJ58A instance): always query real pin identity from the symbol
+## body (or an empirical `c.pin()` probe cross-checked against the symbol
+## text) before wiring a diode-OR or series-block role, and after wiring,
+## check that neither wire endpoint sits collinear-and-passing-through a
+## third pin on the same net axis -- both bugs here were caught only by
+## ERC + netlist re-verification after the fact, not by inspection.
+##
+## SEPARATE PIN-TYPE FIX: cec-tester:TPS54331DR's pin 8 (PH, the internal
+## high-side MOSFET's switching node) was pulled from easyeda2kicad typed
+## `power_in`. Per the real TI datasheet (lib/datasheets/TPS54331DR_C9865.
+## pdf, pin description table: "PH 8 The source of the internal high-side
+## power MOSFET"), PH is an ACTIVELY DRIVEN node, never an external power
+## input -- retyped to `power_out` in lib/cec-tester.kicad_sym (both U6 and
+## U7 share the one symbol definition). Re-ran `cec_sym_audit.py --audit
+## lib/cec-tester.kicad_sym` after the edit: still high=0 medium=7 low=86,
+## PH does not appear in either list (accepted at every severity).
+##
+## MECHANICAL BUG CLASS (three occurrences, all fixed the same way):
+## `c.use((ref, pin))` marks a pin CONSUMED (skip the generic per-net auto-
+## stub+label pass) but does not itself draw anything -- if nothing else in
+## the leaf's hand-wiring actually reaches that exact pin, it is left a
+## bare, label-less, wire-less connection point. Found on: the buck-stage
+## EN pin (marked used, never wired -- ERC `pin_not_connected`+
+## `pin_not_driven`), the feedback divider's rail-side tap pin (R17/R19
+## pin1, same symptom), and (a variant of the same class) D6's J3/C15 tap
+## point being fully hand-consumed with no explicit label, which is
+## electrically fine but left the net exported-netlist-visible only under
+## KiCad's own auto name ("Net-(D6-A)") instead of "+12V_AUX_RAW". Fix
+## pattern used throughout: either leave the pin genuinely UNCONSUMED so
+## the generic pass auto-labels it (preferred -- matches this leaf's own
+## stated design philosophy of hand-wiring less), or if it must be hand-
+## consumed, always pair the `c.use()` with an explicit `c.wire()`/
+## `c.label()` reaching that literal pin coordinate.
+##
+## LAYOUT/READABILITY (cec_sch_layout --check-overlaps, --check-wires):
+## both leaves reached 0 overlapping text pairs. Two reusable findings for
+## the remaining leaves: (1) a USB-C receptacle symbol (and likely similar
+## multi-redundant-pin connectors) draws its mirrored-orientation duplicate
+## pins (VBUS A4/A9/B4/B9; GND A1/A12/B1/B12) fully COINCIDENT at one point
+## each -- leaving all of them unconsumed makes the generic pass stamp one
+## full label/power-flag glyph per member on top of each other (self-
+## collisions, and on --check-wires, glyph-clip). Consuming all-but-one of
+## a coincident group with NO wire is safe (KiCad joins same-point pins
+## exactly like a drawn wire), and is NOT the "marked used but never wired"
+## bug above, because there IS a real connection there already (the shared
+## point). (2) At tight IC pin pitch (SOIC-8 etc.), placing a small
+## unrelated part's own unconsumed net member near a pin cluster it isn't
+## electrically part of (e.g. a bootstrap cap sitting near the VIN/EN/SS
+## side instead of near the BOOT/PH side it actually bridges) both reads
+## wrong AND collides -- moving the part to sit near the pins it actually
+## connects to fixed both problems at once. `cec_sch_layout.py --nudge`
+## only repositions FIELD text (Reference/Value), never net labels -- it is
+## NOT idempotent across a `gen_tester_st.py` regeneration (regeneration
+## rewrites the file from source, discarding any nudge), so the working
+## order for every future leaf is: generate -> --nudge every leaf touched
+## -> --check-overlaps every leaf touched, repeated until 0, immediately
+## before ERC/netlist/commit.
