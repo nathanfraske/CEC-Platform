@@ -75,6 +75,52 @@ the priced 5R: honest 48 % derate + round 2 A steps; same family/price
 class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
 2.4 A/28.8 W legs, 58 % — still acceptable with plates).
 
+## Field arrangement math v1 (2026-07-16 — companion to ladder v1, rides the same nod)
+
+- **Part — ONE housing everywhere**: HoRX 50 W aluminum-shell family (RX24-class
+  gold shell, ~51×30×17 mm body, end terminal lugs, base mounting ears). Priced
+  line = the 5R C2923747 ($1.71–3.24, healthy stock); ladder v1 wants the 6R
+  sibling ([wb] confirm its LCSC line at BOM lock; 5R fallback = 2.4 A/28.8 W
+  legs at 58 %). Values by rail: 6R0 (12 V) / 1R0 (5 V) / 0R68 (3.3 V) / 3R3
+  (5VSB) — same shell, one mechanical design — plus one 47R 10 W small shell
+  (−12 V). Terminals are screw/solder LUGS, not .250 blades: a bolted .250 male
+  blade lug per terminal makes the deck reach (Arcol HS50 push-on-terminal
+  variant = western-sourcing fallback) — [wb] at blade-sample time.
+- **Fold rules** (the wall-cartridge form, DESIGN-SHEET 22b v2): positions at
+  ~36 mm pitch along the wall (30 mm shell + air gap); back-to-back pairs = 2
+  legs/position; walls at ~50 mm pitch (3 mm plate + 2×17 mm shells + ~13 mm
+  air), fins PARALLEL to airflow; ONE row tall per wall, always (single gang
+  drop into the deck + one feed bar; height never scales). Scaling axes, in
+  order: row length along the flow axis (cheap; preheat absorbed — worst-case
+  air rise ~20 K at W-tier CFM), then wall count across the duct. NEVER a
+  second row vertically on a wall.
+- **Census** (rows budgeted ≤ ~400 mm against the 430–450 mm console class):
+
+| Model | 12 V legs | Minor legs | Total | Positions | Walls × pos/row | Duct |
+|---|---|---|---|---|---|---|
+| ST-1000 | 32 | 11 | 43 | 22 | 2 × 11 (~396 mm) | ~110 mm ≈ one 120 mm fan lane |
+| ST-1300 | 44 | 11 | 55 | 28 | 3 × 10 (~360 mm) | ~160 mm |
+| Pro / Max | ~53 | 11 | ~64 (BOM §3 qty) | 32 | 3 × 11 (~396 mm) | ~160 mm |
+| Pro-W / Max-W | ~96–100 | ~11 | ~120 (§13) | ~60 | 6 × 10 (~360 mm) = two lanes of 3 | 2 × ~160 mm (§13 two-lane) |
+
+- **Continuous-power ledger** (banks × 24 W + verniers): Pro 53×24 ≈ 1.27 kW +
+  8 verniers ≈ 0.4 kW ≈ the 1600 W continuous rating ✓; W ~100×24 ≈ 2.4 kW +
+  13 verniers ≈ 0.6–0.75 kW ≈ 3.0 kW ✓ (installed 120×50 W = 6 kW at the ~48 %
+  derate doctrine — the 2× part-count margin IS the derate, that's where "~120"
+  comes from).
+- **Volume check (the "does it balloon" answer)**: W-tier = 6 walls × ~360 mm
+  rows × ~100 mm resistor zone ≈ 12–13 L total for 3 kW delivered — the field
+  IS the heatsink AND the radiator, so no second thermal volume exists to grow;
+  air rise ≈ 20 K at 263 CFM. Banks are PER RAIL and pooled: the fixture matrix
+  routes any head (12V-2x6/EPS/PCIe/24-pin) into the same 12 V plane; only the
+  12 V bank count scales with tier, minors are constant.
+- Group maps beyond ST (Pro 53-leg / W ~100-leg 12 V ladders) = [wb] at each
+  tier's ladder pass; switching/fusing stays per GROUP (AOD4184A + ATOF sized
+  at group current), the resistor is the per-leg unit, trip watch per group.
+- CORRECTION recorded: 22b's original "ST-1000 = one double-sided plate" was
+  pre-math; at real pitch ST-1000 = TWO plates (2 × 11 positions). Fixed in
+  DESIGN-SHEET 22b.
+
 ## Split architecture — hot load slices vs cool control board (owner question 2026-07-16 night; RECOMMENDED, pending nod)
 
 Owner: "make the hot loop ends with all the hot components on their own

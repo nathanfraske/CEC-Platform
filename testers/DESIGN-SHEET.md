@@ -155,8 +155,12 @@ mess of wires" challenge)**
     Feed/return bars run as a LAMINATED pair (feed over return, insulated)
     along the duct spine — tidy and low-inductance are the same move.
     Volume basis: legs ARE the duct's finned mass (the resistor field
-    REPLACES a radiator, ~0.19 m² at W-tier over double-sided plate walls;
-    ST-1000 = one double-sided plate). Check: harness-count lint (≤3
+    REPLACES a radiator; ST-1000 = TWO plates at real pitch — the original
+    "one double-sided plate" claim was pre-math, corrected 2026-07-16; full
+    per-model census + fold rules in tester-standard/README.md "Field
+    arrangement math v1": 36 mm position pitch, 50 mm wall pitch, one row
+    tall always, ST-1000 2×11 / ST-1300 3×10 / Pro-Max 3×11 / W 6×10 in two
+    lanes ≈ 12–13 L at 3 kW). Check: harness-count lint (≤3
     connections/plate assembly) + the §C.21 de-gate continuity rule.
     Mechanical stack (owner Q&A 2026-07-16, v2 — the WALL-CARTRIDGE form,
     owner's read): the plate IS the heatsink AND the duct wall. Resistors
