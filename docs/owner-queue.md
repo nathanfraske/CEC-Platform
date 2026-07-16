@@ -252,7 +252,10 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   adopted); OQ-1/OQ-10 WAIVED for ST. STILL OPEN: (a) sense-wire §7 — the actual decision:
   approve read-taps + PS_ON# DRIVE + −12 V sense on atx-24pin-rev3 beta (buys PSU-level
   power-on for bench/self-test, NOT OS boot) — the ST tester's T1/T3/T6 + DUT sequencing ride
-  it; (b) R-bank ladder v1 nod (tester-standard README table, 6R0 legs / binary groups);
+  it; (b) R-bank ladder nod — now **v1.1** (README table; owner's same-night overkill
+  directive applied to the minors: 5 V 8 legs/40 A, 3.3 V 8/38.8 A, 5VSB 4 legs/6 A + a
+  linear mini-CC loop [CoC/DoE standby points + the 500 ms peak], −12 V 2 legs; totals
+  54/66, +$30–40 BOM; one nod covers ladder + field-arrangement math);
   (c) blade sample order (owner, at some point) + press-tool/lever de-fit drafts queued.
 
 - [2026-07-16] **ST SPLIT ARCHITECTURE (load slices vs control board) — RECOMMENDED, needs nod**

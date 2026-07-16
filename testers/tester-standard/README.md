@@ -52,7 +52,14 @@ report end-to-end.
 5. Blade samples: owner orders at some point; **press-fit tool + lever-assist
    de-fit mechanism drafting QUEUED** (deck mechanical work, OQ-86 extension).
 
-## R-bank ladder proposal v1 (2026-07-16 — pending owner nod; [wb] until then)
+## R-bank ladder proposal v1.1 (2026-07-16 — pending owner nod; [wb] until then)
+
+_v1.1 supersedes v1 pre-nod on the owner's minor-rail directive (2026-07-16
+night): "I think you're underestimating the capacity of some PSU's 5V and
+3v3 rails... need to be able to load and test the 5VSB rail... crossload
+tests... spec all of them out to be massively overkill — I've seen PSUs
+that can do like 20-30A over 5V alone." v1 minors (5 V 4 legs/20 A, 3.3 V
+4/19.4 A, 5VSB 2+peak, −12 V 1) retained here for provenance only._
 
 Basis: HoRX 50 W family legs, forced air + plates, ~48 % derate target;
 binary-ish switched GROUPS of parallel legs (AOD4184A low-side + ATOF fuse
@@ -63,14 +70,33 @@ coarse staircase is in-scope).
 | Rail | Leg value | Per-leg @rail | Groups (legs) | ST-1000 total | ST-1300 total |
 |---|---|---|---|---|---|
 | 12 V | 6.0 Ω | 2.0 A / 24 W (48 %) | 1+1+2+4+8+16 (+12 ST-1300) | 32 legs = 64 A / 768 W | 44 legs = 88 A / 1056 W |
-| 5 V | 1.0 Ω | 5.0 A / 25 W (50 %) | 1+1+2 | 4 legs = 20 A / 100 W | same |
-| 3.3 V | 0.68 Ω | 4.85 A / 16 W (32 %) | 1+1+2 | 4 legs = 19.4 A / 64 W | same |
-| 5VSB | 3.3 Ω | 1.5 A / 7.6 W | 1+1 | 2 legs = 3.0 A (+ dedicated 3.5 A/500 ms peak leg, small-FET) | same |
-| −12 V | 47 Ω 10 W | 0.26 A | 1 | 1 leg (presence) | same |
+| 5 V | 1.0 Ω | 5.0 A / 25 W (50 %) | 1+1+2+4 | 8 legs = 40 A / 200 W | same |
+| 3.3 V | 0.68 Ω | 4.85 A / 16 W (32 %) | 1+1+2+4 | 8 legs = 38.8 A / 128 W | same |
+| 5VSB | 3.3 Ω | 1.5 A / 7.6 W | 1+1+2 | 4 legs = 6.0 A + mini-CC loop (below) | same |
+| −12 V | 47 Ω 10 W | 0.26 A | 1+1 | 2 legs = 0.52 A | same |
 
-Totals: ST-1000 = 43 legs ≈ the committed "~40"; ST-1300 = 55 ≈ "~52".
+**5VSB mini-CC loop (v1.1)**: the v1 "small-FET peak leg" upgrades to a
+proper small LINEAR channel (DPAK-class FET + op-amp, 0–3.5 A programmable,
+extrusion-mounted) — one cell, three duties: the ATX 3.5 A/500 ms peak-leg
+pulse, FINE standby setpoints for CoC/DoE efficiency points (0.05/0.15/
+0.5/1 A class — coarse 1.5 A steps can't hit these), and 5VSB OCP ramps.
+
+**Overkill margins (v1.1 headline)**: 5 V 40 A vs the worst-seen ~30 A
+(+33 %); 3.3 V 38.8 A vs ~25 A (+55 %); 5VSB 6 A vs ~3.5 A (+71 %); −12 V
+0.52 A vs 0.3–0.5 A spec class. Every rail independently group-switched →
+ALL ATX crossload corners reachable (max-minors/min-12V and inverse) as
+firmware sequences over the same banks; the DUT's own combined-minor limit
+bounds actual concurrent dissipation, so tester capacity is never the cap
+in a crossload or OCP hunt. Lever if "massively" should be bigger: 5 V
++2 legs → 50 A (+1 position, ~$6).
+
+Totals (v1.1): ST-1000 = 32 + 22 = **54 legs**; ST-1300 = **66 legs**
+(v1: 43/55). BOM delta vs v1: +11 minor legs ≈ +6 positions ≈ +$30–40
+(resistors + 3 more AOD4184A/ATOF group sets + plate inches).
 Step resolution: 2.0 A on 12 V (vernier fills 0–2 A continuously), 5 A /
-4.85 A on the minors (cross-load corners = one group each). Why 6.0 Ω over
+4.85 A on the minors (coarse staircase in-scope per fence; option noted in
+FOLLOWUPS — one L2 device relay-switchable to 5 V/3.3 V if shops ever want
+fine minor-rail OCP hunts). Why 6.0 Ω over
 the priced 5R: honest 48 % derate + round 2 A steps; same family/price
 class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
 2.4 A/28.8 W legs, 58 % — still acceptable with plates).
@@ -94,32 +120,38 @@ class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
   order: row length along the flow axis (cheap; preheat absorbed — worst-case
   air rise ~20 K at W-tier CFM), then wall count across the duct. NEVER a
   second row vertically on a wall.
-- **Census** (rows budgeted ≤ ~400 mm against the 430–450 mm console class):
+- **Census** (v1.1 overkill minors = 22 legs ≈ 11 positions on every model;
+  rows budgeted ≤ ~400 mm against the 430–450 mm console class):
 
 | Model | 12 V legs | Minor legs | Total | Positions | Walls × pos/row | Duct |
 |---|---|---|---|---|---|---|
-| ST-1000 | 32 | 11 | 43 | 22 | 2 × 11 (~396 mm) | ~110 mm ≈ one 120 mm fan lane |
-| ST-1300 | 44 | 11 | 55 | 28 | 3 × 10 (~360 mm) | ~160 mm |
-| Pro / Max | ~53 | 11 | ~64 (BOM §3 qty) | 32 | 3 × 11 (~396 mm) | ~160 mm |
-| Pro-W / Max-W | ~96–100 | ~11 | ~120 (§13) | ~60 | 6 × 10 (~360 mm) = two lanes of 3 | 2 × ~160 mm (§13 two-lane) |
+| ST-1000 | 32 | 22 | 54 | 27 | 3 × 9 (~324 mm) | ~160 mm |
+| ST-1300 | 44 | 22 | 66 | 33 | 3 × 11 (~396 mm) | ~160 mm |
+| Pro / Max | ~53 | 22 | ~75 | 38 | 4 × 10 (~360 mm) | ~210 mm |
+| Pro-W / Max-W | ~96–100 | ~22 | ~120–125 (§13) | ~61 | 6 × 11 (~396 mm) = two lanes of 3 | 2 × ~160 mm (§13 two-lane) |
 
-- **Continuous-power ledger** (banks × 24 W + verniers): Pro 53×24 ≈ 1.27 kW +
-  8 verniers ≈ 0.4 kW ≈ the 1600 W continuous rating ✓; W ~100×24 ≈ 2.4 kW +
-  13 verniers ≈ 0.6–0.75 kW ≈ 3.0 kW ✓ (installed 120×50 W = 6 kW at the ~48 %
-  derate doctrine — the 2× part-count margin IS the derate, that's where "~120"
-  comes from).
-- **Volume check (the "does it balloon" answer)**: W-tier = 6 walls × ~360 mm
-  rows × ~100 mm resistor zone ≈ 12–13 L total for 3 kW delivered — the field
+- **Continuous-power ledger** (banks × per-leg W + verniers): Pro 12 V
+  53×24 ≈ 1.27 kW + 8 verniers ≈ 0.4 kW ≈ the 1600 W continuous rating ✓;
+  W ~100×24 ≈ 2.4 kW + 13 verniers ≈ 0.6–0.75 kW ≈ 3.0 kW ✓ (installed
+  ~125×50 W ≈ 6.2 kW at the ~48 % derate doctrine — the 2× part-count margin
+  IS the derate, that's where "~120" comes from). Minor capacity adds ≤~390 W
+  (200+128+30+…) but concurrent actual is DUT-bounded (a real unit's
+  combined-minor limit is ~130 W) — capacity is for coverage + OCP hunts,
+  not simultaneous dissipation; duct sizing unchanged.
+- **Volume check (the "does it balloon" answer)**: W-tier = 6 walls × ~400 mm
+  rows × ~100 mm resistor zone ≈ 13 L total for 3 kW delivered — the field
   IS the heatsink AND the radiator, so no second thermal volume exists to grow;
   air rise ≈ 20 K at 263 CFM. Banks are PER RAIL and pooled: the fixture matrix
   routes any head (12V-2x6/EPS/PCIe/24-pin) into the same 12 V plane; only the
-  12 V bank count scales with tier, minors are constant.
+  12 V bank count scales with tier, minors are constant (22 legs everywhere,
+  ladder v1.1).
 - Group maps beyond ST (Pro 53-leg / W ~100-leg 12 V ladders) = [wb] at each
   tier's ladder pass; switching/fusing stays per GROUP (AOD4184A + ATOF sized
   at group current), the resistor is the per-leg unit, trip watch per group.
-- CORRECTION recorded: 22b's original "ST-1000 = one double-sided plate" was
-  pre-math; at real pitch ST-1000 = TWO plates (2 × 11 positions). Fixed in
-  DESIGN-SHEET 22b.
+- CORRECTION trail: 22b's original "ST-1000 = one double-sided plate" was
+  pre-math (a single row would be ~790 mm); v1-minors math said 2 walls;
+  ladder v1.1's overkill minors settle ST-1000 at THREE walls (3 × 9). Fixed
+  in DESIGN-SHEET 22b.
 
 ## Split architecture — hot load slices vs cool control board (owner question 2026-07-16 night; RECOMMENDED, pending nod)
 

@@ -920,3 +920,13 @@ Conventions:
   promote staged CH224K/OPA2277/IRLB3034/SMCJ15A/Keystone-3557-10; pull AOD4184A, TPS54331,
   IXTH75N10L2 TO-247, ATOF fuse, HoRX radial fp; deck socket = separate board, J6-mate work
   deferred to deck pass).
+- [2026-07-16] SCP-path module verification set (tester DESIGN-SHEET rule 24 / sketch §3b
+  addendum): (i) CSS2H-2512 pulse-derating-curve pull + design-time I²t assertion per docked
+  family vs the SCP envelope (300 A/50 µs; 150–200 A ms; 100 ms backstop); (ii) OQ-88 soak
+  gains an SCP-surge leg (N surges → contact-R + shunt-R drift trend); (iii) INA front-end
+  release-envelope measurement at tester proto (TVS clamps fixture-side — confirm module-side
+  excursion vs INA181 26 V CM abs-max); (iv) per-head backstop-timing tighten = firmware
+  option if bench asks. Resume at tester proto bench / checker build.
+- [2026-07-16] Minors precision-OCP option (ladder v1.1 note): one L2 vernier device
+  relay-switchable onto 5 V/3.3 V for fine minor-rail OCP hunts (fence today: coarse bank
+  steps in-scope). Costs ~1 relay + gate mux. Revisit if shops ask.

@@ -157,6 +157,38 @@ rail @ fixture ─▶ crowbar: [fuse] ─ [commodity switch-FETs ∥, mΩ, fully
   re-sequence PS_ON# → verify recovery. The 5VSB indefinite-short leg gets
   its own small continuously-rated crowbar (5VSB OCP is ~4–5 A — trivial).
 
+### §3b addendum — modules in the SCP path: ratings verdict (owner Q, 2026-07-16 night)
+
+The docked CEC module is INLINE in every SCP event (actuator-not-instrument:
+the module IS the per-connector recorder). Verdict: **no continuous-rating
+or spec change on any module** — the crowbar's deliberate 30–50 mΩ surge
+shunt Ohm's-law-bounds BOTH phases of the event (peak ≈ 300 A/~50 µs cap
+dump; sustained ≈ 150–200 A ms-class regardless of a 3 kW DUT's OCP,
+because 12 V / (40 mΩ crowbar + 20–30 mΩ cable/module loop) caps it), and
+every module path element passes adiabatic I²t with factors of margin.
+Worst-case ledger at the 100 ms firmware-backstop release (the longest the
+event can exist):
+
+| Element (worst family) | Continuous basis | SCP exposure (peak / ms / 100 ms backstop) | Verdict |
+|---|---|---|---|
+| EPS/PCIe 0.5 mΩ CSS2H shunt | 6 W class | 45 W·50 µs / 11–20 W / 1–2 J | pass, factors |
+| 24-pin 12 V 2 mΩ shunt | 6 W class | 180 W·50 µs / 45–80 W / ~4.5 J → tens-of-K element rise | pass — the warmest element; bench-verify |
+| 24-pin 12 V Mini-Fit pins (×2) | 9–13 A/pin | 150 A·50 µs / 75–100 A / ~3–5 J/contact ≈ 10–15 K | pass — second warmest; bench-verify |
+| EPS pins (×4) / blades (3/polarity) | 9–13 A / 22.9 A | 75 A / 38–50 A per pin ms-class | pass |
+| 12V-2x6 pins (×6) + 1 mΩ/pin shunts | 9.2 A/pin | 50 A / 25–33 A per pin ms-class | pass |
+| Module pours (≥1 mm² min-cut class) | ~52 A/cable design | 150–200 A/mm² @100 ms ≈ 2–4 % of Onderdonk fusing energy | pass |
+| INA front-ends (181/238/240) | CM abs-max 26/85/80 V | CM collapses 12→~0 V (in range); diff stays mV; release kick clamped fixture-side (TVS) + PSU caps module-side | pass; measure release envelope at proto |
+
+Notes that ride into contracts/checkers (DESIGN-SHEET rule 24): module
+channels SATURATE during the surge (INA outputs clip at rail) — the crowbar
+surge shunt is the calibrated surge recorder, module data = event mark +
+µs timestamps + the collapse trace; 5VSB SCP = a supply-swap event for the
+instrumentation stack (deck 5V_SYS swaps to the tester-PD source via the
+§2.9 three-source posture — the mux/hold-up ride-through the owner already
+ruled covered); bench adds an SCP-surge leg to the OQ-88 soak (N surges →
+contact-R + shunt-R drift); firmware may tighten the per-head backstop
+timing if bench asks.
+
 ## 3c. Hold-up + AC-cut timing WITHOUT a mains product — the AC SENSE POD
 
 **PROPOSED (2026-07-16, answers the owner's cert question; supersedes the

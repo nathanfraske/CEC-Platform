@@ -155,13 +155,14 @@ mess of wires" challenge)**
     Feed/return bars run as a LAMINATED pair (feed over return, insulated)
     along the duct spine — tidy and low-inductance are the same move.
     Volume basis: legs ARE the duct's finned mass (the resistor field
-    REPLACES a radiator; ST-1000 = TWO plates at real pitch — the original
-    "one double-sided plate" claim was pre-math, corrected 2026-07-16; full
-    per-model census + fold rules in tester-standard/README.md "Field
-    arrangement math v1": 36 mm position pitch, 50 mm wall pitch, one row
-    tall always, ST-1000 2×11 / ST-1300 3×10 / Pro-Max 3×11 / W 6×10 in two
-    lanes ≈ 12–13 L at 3 kW). Check: harness-count lint (≤3
-    connections/plate assembly) + the §C.21 de-gate continuity rule.
+    REPLACES a radiator; the original "ST-1000 = one double-sided plate"
+    claim was pre-math — at real pitch + the ladder-v1.1 overkill minors,
+    ST-1000 = THREE plates; full per-model census + fold rules in
+    tester-standard/README.md "Field arrangement math v1": 36 mm position
+    pitch, 50 mm wall pitch, one row tall always, ST-1000 3×9 / ST-1300
+    3×11 / Pro-Max 4×10 / W 6×11 in two lanes ≈ 13 L at 3 kW). Check:
+    harness-count lint (≤3 connections/plate assembly) + the §C.21 de-gate
+    continuity rule.
     Mechanical stack (owner Q&A 2026-07-16, v2 — the WALL-CARTRIDGE form,
     owner's read): the plate IS the heatsink AND the duct wall. Resistors
     mount in BACK-TO-BACK PAIRS, one on each face, sharing through-bolts
@@ -197,6 +198,33 @@ mess of wires" challenge)**
     reliability posture §10). Why: load readout on the box face; unpopulated
     bay = dark/logo. Check: BOM-lint asserts panel MPN + 595 present when
     any bay-LCD header is placed; SPI class length rule on the chain.
+
+**SCP transient class (owner Q 2026-07-16 — docked modules ride every short)**
+24. **Modules in the crowbar path: NO continuous-rating change; assert the
+    transient class instead** (the platform's transients-as-transients
+    doctrine). Envelope of record, 12 V worst case: peak ≈ V/R_loop ≈
+    300 A for ~50 µs (cap dump — the crowbar's own deliberate 30–50 mΩ
+    surge shunt dominates loop R and caps BOTH phases); sustained ≈
+    150–200 A ms-class (min of DUT OCP and the Ohm's-law loop bound) until
+    the DUT trips; worst backstop = firmware release at 50–100 ms.
+    Verdict math (sketch §3b addendum): every docked family's shunt /
+    pins / blades / pour min-cut passes adiabatic I²t with factors of
+    margin; the two WARMEST elements are the 24-pin 12 V 2 mΩ shunt
+    (~4.5 J @100 ms backstop → tens-of-K element rise) and its 2× Mini-Fit
+    pins (~75 A/pin, ~3–5 J/contact) — pass, bench-verified class.
+    CHECKS: (a) design-time I²t assertion per docked family vs this
+    envelope; (b) bench: CSS2H pulse-curve verify + an SCP-surge leg in
+    the OQ-88 soak (N surges → contact-R + shunt-R drift trend); (c)
+    firmware MAY tighten the backstop per head class if bench asks; (d)
+    contract note (OQ-85 family): module channels SATURATE during the
+    surge (INA outputs clip at rail) — the crowbar surge shunt is the
+    calibrated surge recorder, module data = event mark + timestamps +
+    collapse trace; (e) 5VSB SCP = a supply-swap event for the
+    instrumentation stack, carried by the §2.9 three-source mux + hold-up
+    (owner-ruled covered; tester PD rail = the standing second source on
+    the deck); (f) front-end abs-max vs the release transient (TVS clamps
+    fixture-side, PSU caps clamp module-side) — formalize with a measured
+    release envelope at tester proto.
 
 ## D. Routing standards (netclass table — seeds .kicad_pro + .kicad_dru)
 
