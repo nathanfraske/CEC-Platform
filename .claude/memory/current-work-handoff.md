@@ -681,3 +681,32 @@ content: {"verdict":"repair","failure_class":"routing","root_cause":"x"}) — ab
 cec_fullstack/v4-idle scaffold; docs/v4-queue/pending empty so nothing regenerates it; owner
 confirmed a copy exists on their local machine. First rm attempt was classifier-denied
 (pre-approval); re-run after explicit owner approval.
+
+## PSU tester + bench-instrument docs — 2026-07-16 (branch claude/pr50-firmware-review-wkvf7v)
+Owner clarified "Pro and Max tester" = the ATX-NATIVE PSU TESTER (DC load, no Chroma bodge
+wires) — NOT bench-mode modules. Original spec thread NOT in repo (exhaustive sweep; likely
+owner's local machine or chat — reconciliation pending, FOLLOWUPS entry). Fresh draft:
+docs/psu-tester-concept-2026-07-16.md (native ATX headers from lib/, hybrid load stage,
+ATX 3.1 test book, Max carries the 20MHz instrument channel = industry ripple BW, tester
+doubles as fingerprint ground-truth generator + module EOL rig; Pro ~$1.5-2k / Max ~$2.5-4k
+positioning). Bench-mode consolidation renamed to docs/bench-mode-instrument-requirements-
+2026-07-16.md ("tester" word now reserved). Also this branch: host-data-path doc (32125f23),
+sub-assembly FOLLOWUPS note, main sync (5baece8). BRANCH HAS COMMITS MAIN LACKS — needs a
+merge/PR to main when owner says.
+
+## PSU tester spec FOUND + reconciled — 2026-07-16
+Canonical = docs/psu-tester-exploration-2026-07-14.md on claude/pipeline-consolidation
+(71bd0271; NOT on main yet) + §6 OWNER TIER RULING 2026-07-14: Pro/Max only (no Standard
+tester; 850W Shop Kit SHELVED), both tiers 1600W hybrid sink, Pro = full suite incl. the
+ONE bench-gated ATX3.1 excursion channel; Max adds 20MHz/50-65MSPS HF digitizer (spec-grade
+ripple), 2nd fast channel, OVP sourcing stage, phase-controlled AC-interrupter accessory,
+Pro/Max module set, optional 2kW. List Pro $3,495/$3,995, Max $5,995-6,995. Architecture:
+modules plug in INLINE (PSU->module->OQ-89 extension->tester); tester = load+sequencer only,
+joins CAN as a module. Gates: OQ-1 shop interviews + OQ-10 competitive buy (SM-268ATE +
+Alibaba quotes) gate everything; single-channel transient prototype gates Tier-2 claims;
+24-pin rev3 PS_ON#/PWR_OK/-12V decision box (atx24-sense-wire study §7) is the enabling
+dependency. My branch's docs/psu-tester-concept-2026-07-16.md rewritten as RECONCILIATION
+(thread wins; 3 additive proposals kept: ground-truth-generator role, shared host core,
+"tester" naming reservation). NOTE: pipeline-consolidation also gained supercap-ups-study
+-2026-07-15.md + cec_spice_sanity.py — likely the SPICE source of the persist-contract
+hold-up numbers; cross-reference when that branch merges.
