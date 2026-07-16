@@ -240,3 +240,9 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   ratification). Feeds D-3: the socket design (from the rev3 J6 NETLIST — doc table is wrong)
   gains a second customer beyond the stacked SKU. Sub-calls: Max tester link (port vs J6-rev
   T1 pair); Hub Pro socket provision (cheap, board unbuilt).
+
+- [2026-07-16] **ST TESTER STAND-UP — PHASE-0 DECISION CLUSTER** (sequence recorded in
+  testers/tester-standard/README.md): (1) §12b mezzanine dock ratify/decline; (2) atx24
+  sense-wire §7 decision (PS_ON#/PWR_OK/−12V on rev3 — gates the ST fence's timing tests);
+  (3) R-bank ladder nod when the proposal lands; (4) OQ-1/OQ-10 posture for ST (ahead/behind
+  the canonical gates). PHASE-1 desk task: order the OQ-86 TE blade sample set (DigiKey).
