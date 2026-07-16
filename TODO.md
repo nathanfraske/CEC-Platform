@@ -251,3 +251,4 @@ Times are UTC.
 - [x] [added 2026-07-16 14:05] ENT: exhaustive DESIGN-SHEET (placement/routing/rules for pipeline) — hub + all ENT modules; §I industry best practices w/ citations (owner add); agents A (intake+eMMC) + B (sheets 04/03/02 capture) running in background · done 2026-07-16 14:35 (agents still in flight)
 - [x] [added 2026-07-16 15:10] Standard + Pro/Max DESIGN-SHEETs (owner ask: same rules-with-best-practices treatment as testers/ENT) + pipeline-consolidation branch survey · done 2026-07-16 15:40 (4-sheet family complete: testers/ENT/STANDARD/PRO-MAX; pipeline confirmed on claude/pipeline-consolidation, 312 ahead, unmerged)
 - [x] [added 2026-07-16 20:45] ST ruling (slot bundle adopted) + KVM-aux-header tester-link analysis + §12a proposal recorded · done 2026-07-16 20:55
+- [x] [added 2026-07-16 21:05] §12b mezzanine-dock analysis + capture-agent completion integration (02a landed; (unit 1) blocker surfaced) · done 2026-07-16 21:15

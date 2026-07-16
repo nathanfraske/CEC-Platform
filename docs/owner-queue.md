@@ -232,3 +232,11 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   per-DUT alternates)**: now an optional-headroom/upsell question (both GPU modules docked,
   no swap step; 4-module bundle $1,399-class); OQ-85 UART/MARK-relay chapter + relay-jitter
   bench item only IF pursued.
+
+- [2026-07-16] **TESTER DOCK = HUB MEZZANINE (§12b, PROPOSED+RECOMMENDED — owner idea "elegant
+  across tiers"):** deck presents the OQ-77 Hub-side socket; Hub stacks on; tester rides the J6
+  link as a NATIVE CAN node (µs MARK intact; Pro stream has a path via STREAM_P/N 8/9); all
+  RJ-45 ports return to modules at every tier; SUPERSEDES the §12a UART workaround (retire on
+  ratification). Feeds D-3: the socket design (from the rev3 J6 NETLIST — doc table is wrong)
+  gains a second customer beyond the stacked SKU. Sub-calls: Max tester link (port vs J6-rev
+  T1 pair); Hub Pro socket provision (cheap, board unbuilt).

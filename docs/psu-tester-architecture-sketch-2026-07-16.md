@@ -637,6 +637,54 @@ calibration protocol + a bench item measuring real relay jitter; presence
 semantics on the ref pin (tester presents 3.3 V, R21/R22 divider reads it);
 deck Hub-bay routing for the PH cable.
 
+## 12b. Hub MEZZANINE as the tester dock — PROPOSED, RECOMMENDED (owner idea, 2026-07-16 late: "the elegant answer across tiers"; SUPERSEDES §12a's UART workaround)
+
+**The idea:** the tester deck's Hub bay presents the OQ-77 mezzanine
+interface (the Hub-side mate of the 24-pin rev3 J6 stack header) — the Hub
+STACKS onto the deck exactly as the stacked SKU stacks onto a 24-pin
+module. The deck plays the 24-pin's mezzanine role.
+
+**Why it beats §12a everywhere (J6 as-built facts, atx-24pin review §1):**
+the J6 map carries a FULL module port — CAN + DETECT (pin 11) + **STREAM_P/N
+(pins 8/9, the RS-485 pair)** — PLUS the Hub bulk feed (+5V_SYS pins 1/2/3)
+and grounds. So the TESTER rides the mezzanine link as a native CAN node:
+**µs MARK timing intact, no relay firmware, no calibration protocol** — and
+at Pro tier even the tester's RS-485 STREAM has a path through the stack.
+Power topology stays platform-native: the docked 24-pin module's 5VSB
+blades route through deck copper to the mezzanine power pins (the §2.7
+source relationship, cable-free).
+
+**Across tiers:**
+- **ST**: tester on mezzanine + 4 ports = 4 modules (both GPU modules
+  docked). The §12a headroom, with zero firmware inventions. [§12a RETIRED
+  if this ratifies.]
+- **Pro suite**: tester (incl. its RS-485 stream) on mezzanine + all 8
+  ports for modules — the §13 W-suite ledger gets its spare ports back
+  (flagship W config was tester+7 = exactly full; now 8 module ports free).
+- **Max**: J6 carries NO T1 pair (STREAM = RS-485; pin 13 RSVD) — the Max
+  tester keeps an RJ-45 port OR a J6 rev adds a T1 pair on RSVD+spare
+  [open question].
+
+**The shared-deliverable win:** the Hub-side mezzanine socket does not
+exist yet (D-3/OQ-77 fact) — designing it serves BOTH the stacked SKU
+(8th-ruling adopted-in-principle, ENT-AIR first) AND every tester deck.
+The tester program becomes the reason to build it now.
+
+**Binding gotchas (carry into the socket design):** (1) build the socket
+from the **rev3 J6 NETLIST**, not the published doc table — they contradict
+(DETECT 11-not-13, +5V_SYS 1/2/3, STREAM 8/9; atx-24pin review §1) — and
+the MIRROR GOTCHA applies doubly on the mated pair; (2) Hub Pro carries no
+mezzanine provision yet — add the socket to its (unbuilt) board plan, cheap
+now; ENT hub is out of scope (different program); (3) mechanical: stacked-
+Hub jack orientation vs deck edge + ~8 mm stack height + the ≤76×60 Hub
+mount rectangle (D-3 numbers) at the deck drawing; (4) deck power routing:
+24-pin blades → mezzanine power pins sized to the Hub trunk class, tester-
+PD assist stays the §2.9 third-source option.
+
+**Decision shape for the owner queue:** ratify §12b as the dock
+architecture (retiring §12a); fold the socket design into the D-3/OQ-77
+decision as its second customer; Max-tier link = port vs J6-rev sub-call.
+
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 
 **Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.

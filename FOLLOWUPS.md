@@ -887,3 +887,11 @@ Conventions:
   agent's verified sheet-02 commit is the record. PROCEDURE FIX adopted both sides: shared-
   tree commits use explicit pathspecs (`git commit -m ... -- <paths>`), which commit only
   the named paths regardless of index state.
+- [2026-07-16] §12b MEZZANINE DOCK proposal recorded (supersedes §12a if ratified) — socket
+  design must use the rev3 J6 netlist map (doc-table contradiction, MIRROR GOTCHA); Hub Pro
+  socket provision + Max T1-pair sub-call queued in owner-queue. CAPTURE AGENT COMPLETE
+  (1ef38dff): 02a landed w/ 86-cap DS60001681H Table-1-4 bank; REAL BLOCKER — cec_sch.py
+  hardcodes (unit 1), so U1 (the MPFS itself) is NOT PLACED on any 02 leaf; multi-unit
+  emission + cross-sheet unit tying = the gating platform-script fix before 02 completes
+  (agent's banked research for 02b/c/d + the blocker writeup are in FOLLOWUPS below/agent
+  sections). Sheets 06/07/08 remain uncaptured.
