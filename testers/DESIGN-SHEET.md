@@ -142,6 +142,23 @@ Format: component → board/zone → rule → why → how the pipeline checks it
     S12038-4K, 4-pin PWM, 12 V/0.33 A class off a TPS54331 aux rail (6× on W
     = 2 A — one buck, sized). 38 mm depth owned by the chassis duct drawing.
 
+**Row construction — the zero-jumper doctrine (2026-07-16 night, owner "giant
+mess of wires" challenge)**
+22b. **Bank legs get NO discrete wires.** Each resistor row mounts its plate
+    with two shared conductors running the row — feed + return — as copper
+    flat stock, OR (preferred) the legs carry FASTON .250″ tabs seating into
+    receptacles on the slice PCB along the row (the platform's ratified
+    blade class, loafing at 2 A/leg vs its 22.9 A rating) → zero wires per
+    leg + tool-less leg replacement. Group switching happens on the slice
+    between the row pour and the return bar. Per plate assembly: exactly
+    THREE connections (feed tap, return tap, one keyed control harness).
+    Feed/return bars run as a LAMINATED pair (feed over return, insulated)
+    along the duct spine — tidy and low-inductance are the same move.
+    Volume basis: legs ARE the duct's finned mass (the resistor field
+    REPLACES a radiator, ~0.19 m² at W-tier over double-sided plate walls;
+    ST-1000 = one double-sided plate). Check: harness-count lint (≤3
+    connections/plate assembly) + the §C.21 de-gate continuity rule.
+
 **Displays (owner add 2026-07-16 — sketch §5)**
 23. **Main LCD (2.8″ IPS SPI) + per-bay LCDs (1.54″ IPS SPI)** → main screen
     on the front-panel harness from Z1; bay screens mount at the deck slots
