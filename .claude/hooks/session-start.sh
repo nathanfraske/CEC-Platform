@@ -78,4 +78,11 @@ PY
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   bash "$root/scripts/setup-kicad-cli.sh" 1>&2 || true
 fi
+
+# --- 3) remote-only firmware toolchain (iverilog + ESP-IDF v6.0.1 s3/p4) ------------
+# Provisioned for the firmware/ tree's build gate (RTL sim + the three IDF apps).
+# Same caching story as kicad-cli: cold container pays once, warm snapshot skips.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ -x "$root/firmware/tools/setup-esp-idf.sh" ]; then
+  bash "$root/firmware/tools/setup-esp-idf.sh" 1>&2 || true
+fi
 exit 0

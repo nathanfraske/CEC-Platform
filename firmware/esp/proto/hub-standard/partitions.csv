@@ -1,0 +1,11 @@
+# CEC Hub Standard prototype partition table
+# Target: ESP32-S3-WROOM-1-N16R8 (16 MB flash)
+#
+# Minimal single-app layout (no OTA). factory gets the bulk of the 16 MB
+# flash after nvs + phy_init. The production Hub will carry a larger NVS
+# (port DB / identity) + OTA; this CAN-bringup prototype keeps it simple.
+#
+# Name,    Type, SubType,  Offset,   Size,
+nvs,       data, nvs,      0x9000,   24K,
+phy_init,  data, phy,      0xf000,   4K,
+factory,   app,  factory,  0x10000,  0x400000,

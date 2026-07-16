@@ -36,6 +36,8 @@ spice-*.txt
 # kicad-happy design-review analysis cache (regenerable; not a design artifact)
 # Unanchored so it also catches per-board caches (e.g. hubs/*/analysis/).
 analysis/
+# cec_capture_analyze.py per-capture output dirs (regenerable; <capture>.analysis/)
+*.analysis/
 
 # ---- Scripting / tooling ----
 __pycache__/

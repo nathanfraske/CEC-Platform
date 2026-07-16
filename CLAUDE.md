@@ -411,6 +411,7 @@ cec-platform/
     12vhpwr-standard/
     12vhpwr-pro/
   fab/                       # tagged release snapshots of exactly what was sent to the board house
+  firmware/                  # module firmware: shared ESP-IDF components + per-app trees + RTL (see "Firmware tree" below)
   scripts/                   # kicad-cli wrappers and CI helpers
   CLAUDE.md
   .gitignore
@@ -2356,3 +2357,97 @@ Use this as a recurring review pass:
 - Libraries and 3D models are vendored in-repo and referenced by
   `${KIPRJMOD}`-relative paths only — no machine-global or absolute paths.
 - BOM totals are in line with the spec targets.
+
+## Firmware tree (`firmware/`)
+
+Consolidated 2026-06-12 from `cec-24pin-idf`, `cec-eps-idf` (both
+subtree-imported with history), and the proto12v v0 deliverable. One
+repo, one SHA, one coherent hardware-plus-firmware state.
+
+```
+firmware/
+  esp/
+    components/          # shared ESP-IDF components (every app sees them
+                         #   via EXTRA_COMPONENT_DIRS in its project CMakeLists):
+                         #   cec_common cec_filters cec_nvs cec_cli cec_capture
+                         #   cec_detection cec_sensors cec_telemetry cec_comms
+                         #   cec_fpga_link
+    proto/               # PROTOTYPE apps (dev-board/perfboard rigs; none of
+                         #   these runs on a production module board)
+      atx-24pin/         #   24-pin ATX: 4x INA228; full app (telemetry+OTA+poke-ack)
+      eps-8pin/          #   EPS: ACS758 dev rig; aggregates + OTA + poke-ack
+      12vhpwr/           #   ESP32-P4-NANO: GW5A/AD7606 perfboard (Pro-tier rig)
+      hub-standard/      #   ESP32-S3 N16R8 (Lonely Binary) + SN65HVD230:
+                         #   the HUB -- multi-module aggregator + CAN-OTA bridge
+                         #   + DETECT poke-ack; consolidates over USB to the host
+      12vhpwr-standard/  #   SCAFFOLD: ESP32-S3 + 6x INA240 -> ADC (no FPGA);
+                         #   per-pin summary over CAN. Stubbed sensor read.
+      pcie-8pin-2port/   #   SCAFFOLD: ESP32-S3 + 2x INA238 per cable. Stubbed.
+      pcie-8pin-3port/   #   SCAFFOLD: ESP32-S3 + 3x INA238 per cable. Stubbed.
+                         # the FLAT esp/<name> level is RESERVED for production
+                         #   apps matching modules/<name> 1:1 (none exist yet).
+                         # Module apps share the cec_module runtime (CAN + OTA
+                         #   receiver + poke-ack + telemetry burst in one call);
+                         #   bring-up only fills the per-board sensor read().
+  rtl/
+    common/              # shared Verilog (cec_spi_slave.v), consumed by
+                         #   RELATIVE PATH from any target — no packaging
+    12vhpwr-proto/       # GW5A top + self-checking sim + dock pin map
+  tools/                 # host-side helpers (setup-esp-idf.sh toolchain install)
+  FOLLOWUPS.md           # deferred-work tracker incl. the consolidation
+                         #   stop-and-report log — keep it honest like the
+                         #   action items above
+```
+
+Four conventions (do not regress them):
+
+- **Shared code lives in `firmware/esp/components/`.** An app-local
+  `components/` dir would shadow a same-named shared component — the
+  migration deleted every app-local copy; do not reintroduce one.
+- **Board variation lives ONLY in each app's `main/cec_config.{c,h}`**
+  (plus its `sdkconfig.defaults` Kconfig selections: sensor set,
+  cec_adc backend, telemetry UART, CAN bitrate/pins). No pins,
+  thresholds, dividers, or board constants inside
+  `firmware/esp/components/` — the final-acceptance grep enforces the
+  obvious cases.
+- **Prototype apps live under `firmware/esp/proto/`; the flat
+  `firmware/esp/<name>` level is reserved for production apps** matching
+  `modules/<name>` 1:1. Today's seven apps are all under `proto/`: the 24-pin
+  and EPS are working bring-up apps; `hub-standard` is the Hub (aggregator +
+  CAN-OTA bridge + DETECT poke-ack); `12vhpwr` is the Pro-tier P4/FPGA rig; and
+  `12vhpwr-standard` + `pcie-8pin-2port`/`-3port` are SCAFFOLDS — full runtime
+  (CAN telemetry + CAN-OTA + poke-ack via the shared `cec_module` helper) with
+  the per-board sensor read() STUBBED for bring-up. Standard-module apps that
+  aggregate to the Hub use `cec_module` (one call); only the sensor read is
+  per-board. Production firmware lands as new flat-level apps on the same
+  shared components, it does not grow out of a proto app in place.
+- **Enum numeric values in `cec_common/cec_state.h` are FROZEN** —
+  `cec_nvs` persists blobs containing them (L3 profiles indexed by
+  `cec_state_t`, flag bytes). New enumerators are appended before the
+  `_COUNT` sentinel, never renumbered.
+
+Build gate (run before committing firmware changes; CI runs the same in
+`firmware-ci.yml` — toolchain pins in `versions.env`, ESP-IDF v6.0.1 +
+Icarus Verilog 12; the SessionStart hook installs both in remote
+sessions, `IDF_PATH=/opt/esp-idf-v60`):
+
+```sh
+# RTL sim (self-checking; expect PASS)
+cd firmware/rtl/12vhpwr-proto
+iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
+cd -
+# All seven apps (proto/12vhpwr targets esp32p4, the others esp32s3)
+. "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"
+for app in proto/atx-24pin proto/eps-8pin proto/12vhpwr proto/hub-standard \
+           proto/12vhpwr-standard proto/pcie-8pin-2port proto/pcie-8pin-3port; do
+  ( cd firmware/esp/$app && idf.py set-target $( [ $app = proto/12vhpwr ] && echo esp32p4 || echo esp32s3 ) build ) || exit 1
+done
+```
+
+TelePlot output bytes on USB-CDC are a compatibility contract (existing
+capture tooling consumes them); each app's burst-dump renderers live in
+its main and must stay byte-identical unless that tooling moves with
+them. The capture/detection engines are config-driven — judge a change
+against BOTH apps' postures (the dual lineages are documented in the
+component headers and `firmware/FOLLOWUPS.md`).
+

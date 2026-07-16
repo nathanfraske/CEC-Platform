@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# Firmware CI for the firmware/ tree (consolidation Phase I / FW-12):
+# the RTL simulation gate (iverilog, self-checking testbench) and the
+# ESP-IDF app builds, path-filtered so a hardware/KiCad push never runs
+# these and a firmware push never runs the KiCad gates.
+#
+# The ESP-IDF container pin is v6.0.1 — the single version that builds
+# all the apps (versions.env): the CAN code needs the IDF 6.x esp_twai
+# APIs (the runbook's original v5.3 cannot even resolve esp_driver_twai),
+# and the rest build clean on it. GitHub
+# Actions container jobs bypass the image entrypoint, so each build step
+# sources $IDF_PATH/export.sh itself.
+name: firmware
+
+on:
+  push: { paths: ['firmware/**'] }
+  pull_request: { paths: ['firmware/**'] }
+
+jobs:
+  rtl-sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y iverilog
+      - run: |
+          cd firmware/rtl/12vhpwr-proto
+          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v
+          vvp tb | tee sim.log && grep -q '^PASS' sim.log
+          iverilog -g2012 -o tb_anomaly tb_native_anomaly.v cec_native_anomaly.v
+          vvp tb_anomaly | tee anomaly.log && grep -q '^PASS' anomaly.log
+          iverilog -g2012 -o tb_rail tb_native_rail.v cec_native_rail.v
+          vvp tb_rail | tee rail.log && grep -q '^PASS' rail.log
+  esp-build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.1
+    strategy:
+      matrix:
+        include:
+          - { app: proto/atx-24pin,       target: esp32s3 }
+          - { app: proto/eps-8pin,        target: esp32s3 }
+          - { app: proto/12vhpwr,         target: esp32p4 }
+          - { app: proto/hub-standard,    target: esp32s3 }
+          - { app: proto/12vhpwr-standard, target: esp32s3 }
+          - { app: proto/pcie-8pin-2port, target: esp32s3 }
+          - { app: proto/pcie-8pin-3port, target: esp32s3 }
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          . $IDF_PATH/export.sh
+          cd firmware/esp/${{ matrix.app }}
+          idf.py set-target ${{ matrix.target }} build

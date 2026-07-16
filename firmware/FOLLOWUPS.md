@@ -1,0 +1,581 @@
+# Firmware follow-ups
+
+Tracked deferred work for the `firmware/` tree. Nothing here is a build
+blocker — the build gate (RTL sim + all three IDF apps) is green. This
+file absorbs `cec-24pin-idf/FOLLOWUPS.md` at the consolidation (the
+per-app file is gone); the EPS-parity section of that file is dissolved
+by construction — the trees are one tree now.
+
+## 24-pin PRODUCTION firmware — the real board (2026-06-18)
+
+The atx-24pin rev1 PCB is on the bench and working; `proto/atx-24pin` is now its
+production firmware (the dev-board ACS712/divider rig is retired). The board fault
+that made a connected PC instantly shut down was an OPEN MAIN-RAIL SHUNT — the rails
+pass through RS1/RS2/RS5/RS6 in series, so an open shunt breaks that rail to the
+motherboard. Schematic was clean (signals pass through, U4/U5 only monitor); it was
+an assembly fix.
+
+LANDED:
+- MCU retarget to S3-MINI-1 N4R2 (4 MB flash / 2 MB quad PSRAM; partition resized to fit).
+- `cec_sensors/ina228.{c,h}` — real INA228 driver (distinct register map from the 226:
+  20-bit values in 24-bit reads, ADCRANGE, die temp, 40-bit energy/charge accumulators).
+  Kconfig `CEC_SENSOR_INA228`.
+- 4× INA228 per-rail sensing (addresses/shunts/ALERT traced from the board netlist into
+  cec_config.h: 12V@0x40, 5V@0x41, 3V3@0x44, 5VSB@0x45; SDA=IO8/SCL=IO9; ALERT IO10-13).
+  The live 50 Hz loop + the burst HS fill read V+I per rail; board temp = the 12V INA228
+  die sensor.
+- PS_ON#/PWR_OK read via the U4/U5 74LVC1G17 buffers (IO38/IO39, read-only) → TelePlot +
+  the 1 Hz log + every burst sample (`b_ps_on`/`b_pwr_ok`). Status LED (IO21): solid =
+  PWR_OK, ~1 Hz heartbeat = standby/alive.
+- Auto-burst was already complete (v0.5.9 lineage: SHUTDOWN / STATIC_CRIT / TRANSIENT /
+  ANOMALY / POWER_SWING / CURRENT_SWING all auto-trigger) — it just needed working
+  sensing, which the INA228s now provide.
+- `tools/cec_capture_analyze.py` generalized: parses BOTH burst formats (12VHPWR
+  `===BURST_CSV===` and the 24-pin `>BURST_BEGIN` TelePlot blocks); `Profile24Pin` does
+  per-rail V/I/power/energy + ATX ±5% stability + the PS_ON/PWR_OK + state timeline.
+- Dead dev-board code (ACS712 / divider / INA226) removed; those drivers de-selected.
+
+DEFERRED:
+- ~~CAN (held per owner; the eps app's TWAI is the reference when it lands here).~~
+  **LANDED post-note** (commits 00b8bfd..2e9972f): the 24-pin sends the module-scoped
+  cec_telem burst on IO17/18 (TJA1051, netlist-verified), receives CAN-OTA, runs the
+  poke-ack responder inert (no tap on this spin), and originates/answers §6.10 FREEZE.
+- The INA228 ALERT lines (IO10-13) are wired in HW + mapped in cec_config but NOT used
+  yet — the §6.10 ALERT-triggered fast capture is the next capture upgrade (the 1 kHz HS
+  burst currently oversamples the ~315 Hz INA228 — real but stepped).
+- Per-rail max-current defaults (20 A main / 6 A 5VSB) → tune from real load for best
+  CURRENT_LSB resolution; if a rail pegs, switch that rail to ADCRANGE=0.
+- Cosmetic: leftover ADC_CH/TRIM/SCALE/ACS712 literal `#define`s in main.c (unused,
+  harmless); a true production app would live at the flat `firmware/esp/atx-24pin` level
+  (still under `proto/`; the rename is cosmetic, git history holds the v0.5.9 rig).
+- Energy reporting scope is OQ-13 (the INA228 accumulators are exposed by the driver but
+  the loop doesn't report system energy yet).
+
+## Consolidation findings (2026-06-12 run — stop-and-report log)
+
+Findings the integration runbook required surfacing rather than fixing
+silently, plus the deliberate behavioral deltas the merge introduced.
+
+- **F-1 — ESP-IDF pin moved to v6.0.1.** No single IDF version builds
+  all three apps as imported: v5.3 (the runbook's pin) cannot resolve
+  `esp_driver_twai` (first ships in v5.5) for eps-8pin; v5.5 lacks
+  `tx_queue_remaining` + `twai_node_transmit_wait_all_done`, both used
+  by the eps CAN code (`CEC_CAN_ENABLED=1`, live on the bench at
+  125 kbps); v6.0.1 — the version the eps README itself pins — builds
+  eps and 12vhpwr-proto untouched, and broke only atx-24pin's
+  `cec_cli.c` legacy `esp_vfs_usb_serial_jtag.h` include (removed in
+  6.0), which the C2 superset merge replaced with the eps
+  `driver/usb_serial_jtag_vfs.h` lines anyway. Verified matrix:
+
+  | app | v5.3.2 | v5.5.1 | v6.0.1 |
+  |---|---|---|---|
+  | atx-24pin | OK | OK | OK after the cec_cli VFS swap |
+  | eps-8pin | FAIL (no esp_driver_twai) | FAIL (twai API gaps) | OK |
+  | 12vhpwr-proto | OK | OK | OK |
+
+  CI pins `espressif/idf:v6.0.1`; `versions.env` records it. The pin
+  stays within the runbook's stated "v5.3 or newer" precondition.
+- **F-2 — `cec_state_t` name conflict (C3's named stop trigger).** The
+  24-pin used the name for the PSU-state ENUM (NVS-persisted via the
+  L3 profile blobs); eps used it for its shared-measurement STRUCT. A
+  C header cannot union those. Resolution: the enum keeps the name
+  (persisted side, older lineage); the eps struct is renamed
+  `cec_shared_state_t` — a pure compile-time rename across six eps
+  sites with zero persisted-byte impact. All enumerator numeric values
+  across the merged header are frozen (the `cec_nvs` guardrail).
+- **F-3 — G1 expectation reversed.** Both apps were already
+  dual-stream TelePlot (eps pioneered the CH340K UART transport; the
+  24-pin adopted it), so `CONFIG_CEC_TELEMETRY_UART0` defaults ON in
+  BOTH s3 apps' `sdkconfig.defaults` (the runbook expected
+  "atx-24pin only"; gating eps off would have regressed it).
+- **F-4 — deliberate behavioral deltas** (all conservative, none on the
+  TelePlot USB-CDC byte contract):
+  - eps's incidental rejection of any burst trigger in the first
+    `cooldown_ms` after boot is gone (the engine adopted the 24-pin's
+    `last_complete != 0` cooldown guard); the very first burst is now
+    un-gated on both apps.
+  - the per-burst "zero-artifact replacements: N" log line is gone
+    (the carry-forward mitigation itself is kept, now in the 24-pin's
+    `hs_fill`); engine ESP_LOG diagnostics follow the eps wording.
+  - the 24-pin CLI now sets explicit console line endings (eps
+    behavior): CR/CRLF input accepted (strict superset; `help` works
+    from TelePlot's send box), and TX=LF means CLI responses and the
+    JTAG-console TelePlot FALLBACK path emit bare `\n` (the primary
+    UART TelePlot path was always raw `\n` and is unchanged).
+  - eps emit helpers gained the 24-pin's truncation clamp (previously
+    a truncating format would pass snprintf's would-be length straight
+    to the writer).
+- **F-5 — residual in-component constants** (semantics, not board
+  wiring; the E3 rule targets pins/thresholds of a specific board):
+  `cec_classifier.c` load bands (5/12/22 A, 0.5 A std) and
+  `cec_state.c` PSU bands (1.0/10.5 V, 40/32/150/130 W). Hoist into
+  app config when a second consumer needs different values.
+- **F-6 — runbook-vs-CLAUDE.md conflict, reported not picked silently:**
+  CLAUDE.md's standing rule says owner-queue items land in
+  `docs/owner-queue.md` in the same change; the runbook's guardrail
+  allows only `firmware/**`, one workflow, and the named doc touches.
+  This file + the PR body carry the handoff items; folding them into
+  the owner queue is left to the owner.
+
+## Code-review cleanup (lint) — carried from cec-24pin-idf
+
+The original L-items, re-evaluated against the merged engine where
+Phase D required it (L2/L4/L5). Verdicts are one of closed-by-design /
+still-present / needs-bench-measurement.
+
+| # | Status | Item |
+|---|---|---|
+| L1 | **CLOSED (Phase E2)** | Layer 2 fed raw `0.0` instants on failed reads while its EMA held last-good (spurious ~5 V TRANSIENT on a sustained 5VSB I²C dropout). Fixed at the 24-pin call sites: the held EMA is fed as the instant on a failed read. |
+| L2 | **STILL-PRESENT (as configured) — fix landed, latent; bench to flip** | The HS callback pacing still busy-spins via `taskYIELD` on the 24-pin because its FreeRTOS tick is the 100 Hz default and 1 kHz pacing can't be expressed in ticks. The merged engine automatically switches to `vTaskDelayUntil` when the tick is fine enough — set `CONFIG_FREERTOS_HZ=1000` (as eps already does) to engage it. That flip changes HS sample-edge timing, so it's a bench-verified change, not a silent one. Watchdog margin meanwhile is unchanged from v0.5.9 behavior. |
+| L3 | open (unchanged) | `cec_nvs_save_blob` runs synchronously in the 50 Hz supervisor loop; flash erase/write stalls both cores for multi-hundred ms every 5 min when profiles are dirty. Move to a low-priority one-shot task. |
+| L4 | **STILL-PRESENT** | Check-then-set on `s_busy` in the (now canonical eps) trigger enqueue isn't atomic; the binary semaphore swallows the double-give, so worst case remains a misleading "burst triggered" log. A short critical section or CAS closes it. |
+| L5 | **STILL-PRESENT-BY-DESIGN (24-pin) / closed-in-practice (eps)** | The 24-pin keeps `snapshot_pre_at_trigger=false` and keeps pushing through the burst window (v0.5.9 semantics), so a dump can still contain torn/overwritten rows. eps avoids it structurally: its sample task skips pushes while `cec_capture_is_busy()` and the engine snapshots ring indices at trigger time. The shared engine supports both postures per app config. |
+| L6 | open (unchanged) | `v_12v_rate` is a raw ΔV over the 50-sample history compared against a "V/s" threshold — correct only because 50 × 20 ms = exactly 1 s. Divide by the real window seconds or static-assert the coupling. |
+| L7 | **ADDRESSED-IN-MERGE** | The all-zero-rails carry-forward is kept (now in the 24-pin's `hs_fill` via the engine's prev-row argument) with the comment refreshed for the post-DMA reality; the per-burst replacement-count log is gone. |
+
+## Bench bring-up findings (12vhpwr proto on real P4 silicon, 2026-06-12)
+
+The v0 ESP app was simulation-verified only, never run on hardware; the
+first silicon bring-up (ESP32-P4-Module-DEV-KIT, **ESP32-P4NRW32 SoC, rev
+v1.3 early silicon**) surfaced five real issues, all now fixed (1-4
+ESP-side, 5 FPGA/Gowin-side):
+
+1. **Chip-revision floor (FIXED, commit landed).** IDF v6.0.1 defaults the
+   P4 min revision to v3.1 (production); the bench chip is v1.3 -> illegal-
+   instruction boot loop. Fixed: `CONFIG_ESP32P4_REV_MIN_100=y` in the
+   proto sdkconfig.defaults (v1.0 floor, forward-compatible to v3.x).
+2. **Console transport (FIXED).** Proto inherited the IDF P4 default UART0
+   console; the DEV-KIT's exposed native USB-C is the USB-Serial-JTAG -> the
+   printf banner was invisible. Fixed: `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`.
+3. **v0 SPI pin map collided with the P4 flash/PSRAM bus (FIXED, re-pinned
+   to GPIO 1-5).** The v0 link pins (GPIO 20-24: sclk20/mosi21/miso22/cs23/
+   drdy24) sit on the P4 MSPI bus -- the IO_MUX names GPIO22=DBG_PSRAM_CK,
+   23=DBG_PSRAM_CS, 28/29/30=PSRAM D/Q/WP, and the P4NRW32 has 32 MB
+   in-package PSRAM there. `gpio_config(GPIO 24)` HANGS the CPU (breaks the
+   flash the code runs from; no panic possible). cec_fpga_link_init was made
+   non-fatal + instrumented to localize this. FIX (landed): re-pinned all 5
+   FPGA-link signals to **GPIO 1-5** (sclk1/mosi2/miso3/cs4/drdy5) -- plain-
+   GPIO-only per the P4 IO_MUX (no flash/PSRAM/Ethernet/console-UART/strap
+   function), all exposed on the DEV-KIT header. Updated main/cec_config.h
+   (PROTO_PIN_*) AND the rtl/12vhpwr-proto/README wiring table (the dock
+   jumpers move with the ESP pins); the FPGA .cst (dock<->FPGA balls) and the
+   AD7606 table are unaffected -- only the ESP<->dock link side changed. The
+   non-fatal + instrumented init from the diagnosis is kept (a stuck link now
+   logs and continues instead of boot-looping). Re-jumper at the bench per the
+   new GPIO column, then reflash.
+4. **DRDY idle-poll starved IDLE -> task watchdog (FIXED).** With the link
+   finally up, the v0 wait-loop `vTaskDelay(pdMS_TO_TICKS(1))` in the
+   DRDY-low branch rounds to **0 ticks** at the IDF default 100 Hz tick rate,
+   so `vTaskDelay(0)` never yields; while DRDY stays low (FPGA not pacing yet)
+   `main` spins at 100% on CPU0 and IDLE0 starves -> TWDT reset at ~5 s. Fixed:
+   both loops now `vTaskDelay(PROTO_DRDY_POLL_TICKS)` (>= 1 tick, 10 ms @ 100 Hz
+   << the ~200 ms frame period). printf output bytes unchanged (the teleplot/
+   raw-console byte contract holds). This also makes the "waiting on DRDY" state
+   stable so the FPGA side can be brought up without the board resetting.
+5. **Gowin Place & Route rejected clk50/esp_mosi on dedicated config pins
+   (FPGA side; FIXED via project config).** On the GW5A, ball E2 (`clk50`)
+   is a CPU/SSPI config pin and B2 (`esp_mosi`) is an I2C pin; the fitter
+   refuses a user signal on a dedicated pin until it's released (errors
+   PR2017 "cannot be placed … dedicated pin" + PR2028). Fix: Project →
+   Configuration → Place & Route → Dual-Purpose Pin → check "Use SSPI as
+   regular IO" + "Use CPU as regular IO" + "Use I2C as regular IO" (leave
+   MSPI/JTAG UNCHECKED — those are the boot/program pins). This is a Gowin
+   project setting, not a `.cst` directive, so it lives in the local Gowin
+   project rather than the repo; recorded in the rtl/12vhpwr-proto README
+   build steps. The `.cst` ball map is unchanged and correct — **E2 is the
+   dock's 50 MHz oscillator** (physically wired there; it just doubles as a
+   config pin), so the pin is released, not relocated.
+
+## Continuous decimated stream (12vhpwr proto, pieces 1+2, 2026-06-13)
+
+The two-rate plan ("stream at 20-25 kSPS, burst at 200k for oversampling +
+decimate"). Root cause of the ~13 kHz live ceiling is the per-frame
+console/teleplot path, NOT the SPI link (`fastburst` already sustains the link
+at the native rate) — confirmed by the bench polling experiment. LANDED + sim-
+verified (RTL sim PASS: decimator average, LIVE, BURST, STREAM dropcount):
+
+- **A1 — SCLK ceiling resolved analytically.** The `cec_spi_slave` 3-FF sync +
+  edge detect on `sclk_s[2:1]` needs ≥2 fabric clocks per SCLK half-period:
+  **fabric/4 = 12.5 MHz is the hard edge**, fabric/5 = 10 MHz the margin; 15 MHz
+  (fabric/3.33, 1.67 clk/half) does NOT recover. `PROTO_LINK_CLOCK_HZ` set to
+  12.5 MHz (the valid bench re-run point; back off to 10 if headers corrupt).
+- **Piece 1 — boxcar decimator** (`rtl/12vhpwr-proto/cec_boxcar_decim.v`): 8
+  parallel signed accumulators, M-sample average (`>> log2(M)`, M power-of-two),
+  feeds the FIFO not the slave. DECIM_M is a top.v parameter beside NATIVE_HZ
+  (A2: M tracks native, retune to keep the stream ~25 kSPS — NOT pinned to either
+  FSM speed). Boxcar/sinc caveat documented in the module header (OK only because
+  the ~14 kHz analog ceiling sits far below native Nyquist).
+- **Piece 2 — free-running stream FIFO + per-session dropped-sample counter**
+  (top.v): producer = decimator at native/M, consumer = ESP one frame/transaction.
+  A 0x55 MOSI command selects the stream source (LIVE/BURST paths untouched). The
+  frame's seq byte carries the saturating dropcount (FIFO overrun = ESP behind);
+  header 0x5A = underrun (FIFO empty, stale). So a stall is a NUMBER in the record
+  (C2). ESP side: `cec_fpga_link_read_stream()` + the `stream [N]` CLI (tight
+  block drain off the console path; reports dropcount/underruns/rate). Teleplot
+  output bytes UNCHANGED (D1 contract held).
+
+STILL OPEN (deliberately deferred — not in pieces 1+2):
+- **Overlapped-read FSM (native ~107k -> ~195k).** Would lift oversampling 2x->
+  2.8x (M 4->8). NOT built: it must overlap the AD7606 convert under the previous
+  read, and the single-bank AD7606's register-overwrite hazard is a SILICON-TIMING
+  property an idealized-stub sim can't de-risk — bench-gated. The decimator/FIFO
+  already work at any native rate, so this is an oversampling refinement, not a
+  blocker. ("measured native rate" is itself a bench number, not a sim number.)
+- **Piece 3 — output framing (BLOCKED on owner's tooling decision).** A true
+  continuous telemetry stream to the host can't be per-sample teleplot ASCII.
+  Default rec: keep teleplot as a decimated ~1-2 kHz display tap (byte-identical),
+  log the 25k as a compact binary record. The C4 acquisition/console TASK SPLIT
+  lands with this (its console output IS the framing question). Do not touch the
+  teleplot contract until the owner calls binary-vs-decimated-teleplot.
+- **Multi-frame-per-CS slave** (C3 optimization): the current slave is one frame
+  per CS; the `stream` drain amortizes the EXPENSIVE part (per-frame teleplot) via
+  a tight block loop, but a slave that reloads `frame` per FRAME_BITS within one CS
+  would further cut the per-CS tax (~1-2 us/frame). Minor; bench-measure first.
+- **BRAM budget**: burst ring + stream FIFO ≈ 0.57 Mbit. Confirm against the
+  GW5A-25 BSRAM at Gowin P&R; drop STREAM_DEPTH (1024 = ~40 ms still ample) if tight.
+- **Bench re-run** at 12.5 MHz to confirm the print-path diagnosis (rate stays
+  ~13 kHz on the LIVE path despite +25% link bandwidth) and to measure the real
+  native rate + the `stream` dropcount under load.
+
+## Bench instruments: cal + auto-burst + rate (12vhpwr proto, 2026-06-13)
+
+cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
+(bitstream rebuild). All build + gate green.
+
+- **`rate [ms]`** -- measures the TRUE native sample rate. A free-running 32-bit
+  native-frame counter in top.v (increments every cap_stb, even when frozen) is
+  read via a new 0x33 STATUS mode (header 0x5C, count[31:16] in ch0 / [15:0] in
+  ch1; MSB=0 so it can't trip the 0xFF burst freeze). The ESP reads it twice over
+  a known interval -> the real rate. Fixes the ~2x error from the nominal label:
+  the conv+read FSM self-limits to ~100k at /4, not the 200k PROTO_NATIVE_HZ
+  nominal, so an FFT scaled to 200k is 2x high. fastburst + autoburst now stamp
+  proto_measured_native_hz() into the CSV header (marked measured/nominal); the
+  analyzer must use that, never the nominal. This is the seed for the
+  self-describing-capture header (module id + real rate + channel roles) that
+  the per-module analyzer + Concierge need.
+
+- **`cal [N]`** -- per-channel zero offset. Averages N no-load frames and sets
+  each AMP channel's bias to its measured 0-A output (per-channel INA offset; the
+  single provisional 2.40 V can't null them all). VOLT/RAW (vrail) left alone.
+  Runtime `proto_cal_*` offsets in cec_config.c (auto-seed from PROTO_CH_CAL).
+  DEFERRED: NVS-persist (offsets are lost on reboot); SPAN (V_PER_A) fit against
+  a known current still owner/bench (vrail is confirmed, the amps' gain is not).
+- **`autoburst <thresh_codes> [ntrig]`** -- the §6.10/§6.13 event-capture model in
+  firmware: drain the decimated stream, per-channel software EMA baseline, and on
+  a deviation > threshold freeze the native ring and dump it (detail + pre-roll;
+  ~655 codes/A). Detection BW ~ the stream (a few kHz) = all the perfboard anti-
+  alias passes; the transient lands near the dump TAIL (reactive freeze, pre-roll
+  model). DEFERRED: FPGA-side native-rate detector (catches the 6-13 kHz band the
+  ESP stream can't, closer to the §6.13 comparator) + a runtime-settable threshold
+  over a MOSI write; runtime EMA-K; center the trigger via FPGA post-roll.
+
+## FPGA native-rate ANOMALY detector (RTL, 2026-06-13)
+
+`rtl/12vhpwr-proto/cec_native_anomaly.v` -- the FPGA half of the §6.10/§6.13
+event-capture model the `autoburst` DEFERRED note above calls for, but triggered
+on an ANOMALOUS load (a per-pin SHARE departure), NOT on a transient. Module +
+self-checking sim (`tb_native_anomaly.v`, PASS) AND WIRED INTO `top.v`
+(2026-06-13); the `tb_top` gate exercises the full path and PASSes. The gate file
+list carries `cec_native_anomaly.v` (CLAUDE.md / firmware-ci.yml / both READMEs /
+tb_top header); CI also runs the standalone `tb_native_anomaly` unit test, and the
+Gowin synthesis file lists (both READMEs) were corrected to add it (and
+`cec_boxcar_decim.v`, which they were silently missing) so the bitstream rebuild
+includes every module `top.v` instantiates.
+
+WHY ANOMALY, NOT TRANSIENT (the design pivot, owner direction 2026-06-13): the
+first cut (`cec_native_detect.v`, kept below) fired on |sample - own EMA baseline|.
+The bench data killed that as a trigger -- the GPU load is a ~342 Hz periodic swing
+and ALL pins swing TOGETHER (per-pin ~4 A peak-to-peak), so a "departure from my own
+baseline" detector trips on EVERY load edge: no signal, every GPU cycle. The
+melt-relevant ANOMALY is a pin's SHARE of the load departing from fair-share (a
+contact degrading so one pin hogs / starves while the rest carry the common swing).
+
+METRIC (common-mode rejected, bias-free): keep a SLOW per-pin average (EMA, tau >>
+the load period so the periodic swing AND the few-us edge-skew average out), then
+per masked pin form `e_i = NMASK*avg_i - Σ(masked avg)` ( = `NMASK*(avg_i - mean)` ).
+The per-channel ADC bias is common to all current channels so it CANCELS in e_i, AND
+the common load swing cancels too -- a balanced load gives e_i = 0 regardless of the
+load LEVEL or its swing. e_i is non-zero only for a pin off fair-share. Trip on
+`|e_i| > DET_THRESH` on any masked pin. WARM-UP: the slow EMA needs a few tau to
+converge after arming, so trips are held off until DET_WARMUP frames pass (acc seeds
+to sample<<k on the first armed frame).
+
+AS-BUILT top.v protocol (compile-time config for now -- runtime-over-MOSI is the
+next increment): a STICKY arm latch driven by MOSI command bytes -- `0x44` arms,
+`0x46` disarms+clears (both MSB=0 so they never trip the 0xFF freeze; STATUS/BURST
+polls do NOT disarm it). On a trip the detector freezes the ring DET_POSTROLL=
+DEPTH/2 frames later (CENTERED) via a `det_frozen` flag that survives status polls;
+the mux was reordered so `0x33` STATUS is readable EVEN while frozen (else the
+trip is unreadable), and the ring read-pointer only advances on a real 0xFF read,
+not on a poll. STATUS frame V3 = `{tripped, det_frozen, 6'b0, trip_ch[7:0]}` (V1/V2
+rate counter unchanged, so `rate` still works). ESP flow: send 0x44 (arm) -> poll
+0x33 (V3.bit15 = tripped) -> 0xFF read the centered dump -> 0x46 then 0x44 to
+re-arm. DEFAULTS (top.v): DET_KSHIFT=12 (tau ~41 ms @ 100k native, >> the 2.9 ms
+load period), DET_THRESH=600 codes (~5.6% imbalance @ 4 A/pin -- ABOVE the board's
+normal ~3.5% fingerprint so the normal cycle passes), DET_WARMUP=16384 (~164 ms),
+DET_MASK=8'b0011_1001 / DET_NMASK=4. CHANNEL MAP (verified in the gate): the frame
+packs {shA,shB}=V1..V8 with V1 HIGH, so detector ch i = V(8-i) -- the currents
+V3/V4/V5/V8 land on detector ch 5/4/3/0; tb_top diverges V3's share and checks
+trip_ch bit5.
+
+Cheap in RAM: reuses the existing BSRAM ring + a pointer + 8 per-pin EMA accs (the
+SSRAM headroom from the version-B part). Config (THRESH / K_SHIFT / CH_MASK /
+POSTROLL / WARMUP) are module INPUTS, so the deferred runtime-config (MOSI-written
+threshold / EMA-K / mask) is just how `top.v` drives them -- no module change.
+
+SCOPE / a known limit: DET_THRESH is a FIXED code count, so it is tuned for a load
+LEVEL (the imbalance is a fixed % of the load, so its absolute size scales with
+current). A fully load-INVARIANT trip wants the ratio `e_i / total_current`, which
+needs the bias to recover total current (a divide / a bias config) -- folded into
+the runtime-config increment. For a fixed bench workload the fixed threshold is the
+right tool and is what rejects the normal cycle.
+
+`cec_native_detect.v` (the per-pin TRANSIENT detector) is KEPT in the tree as the
+documented alternative trigger -- its `tb_native_detect.v` still PASSes -- but
+`top.v` no longer instantiates it. Do NOT add it to the Gowin project (it would be
+an unused, conflicting top-level candidate).
+
+REMAINING (bench, not blocking the gate): (1) FPGA bitstream rebuild + reflash
+(add `cec_native_anomaly.v` to the Gowin project per the README). (2) ESP `detect`
+CLI -- DONE 2026-06-13 and METRIC-AGNOSTIC (same arm/status/freeze interface, no
+change needed for the anomaly metric): `detect [timeout_ms]` arms (0x44), polls
+0x33 for V3.bit15, reports which pin via trip_ch (detector ch i -> ESP idx 7-i),
+drains the centered 0xFF ring like `fastburst`, then disarms (0x46); cec_fpga_link
+gained `_detect_arm()`/`_detect_clear()`. Builds clean under the IDF gate.
+(3) BENCH-TUNE the three compile-time constants for the real GPU: DET_THRESH
+(start ~5.6% / 600 codes, lower toward the ~3.5% fingerprint until a deliberately
+unseated pin trips without the balanced load false-firing), DET_KSHIFT (tau >> the
+load period AND the edge skew), DET_WARMUP (a few tau); confirm the V(8-i) map +
+DET_MASK on real captures. (4) NEXT INCREMENT = runtime config over MOSI (multi-byte
+write) so threshold/k/mask -- AND the load-invariant ratio threshold -- are tunable
+WITHOUT a bitstream rebuild; deferred to keep this integration small. (5) BRAM
+unchanged (detector adds only 8 EMA accs + a counter, no new buffer); re-confirm at
+Gowin P&R anyway. Two NOTES recorded while building: `expect` and `cross` are
+reserved -g2012 keywords (renamed `chk`/`hits`); a task that reuses a test's loop
+iterator clobbers it (give tasks their own integer).
+
+## FPGA 12V-rail detector (RTL, 2026-06-13)
+
+`rtl/12vhpwr-proto/cec_native_rail.v` -- a SEPARATE sibling detector on the rail
+voltage (vrail = v6 = detector ch 2), wired into `top.v` alongside the imbalance
+detector: it shares the 0x44/0x46 arm and ORs into the SAME centered ring-freeze +
+the STATUS V3 word. Standalone sim `tb_native_rail.v` PASS; the `tb_top` gate
+exercises the integration (a spike on V6 trips ch 2 + freezes while the balanced
+currents keep the imbalance detector quiet) and PASSes. The gate + Gowin synthesis
+lists carry it (CLAUDE.md / firmware-ci.yml [+ its own standalone leg] / both READMEs
+/ tb_top header).
+
+THE PROBLEM: the rail droops/sags as the GPU loads (~40 mVpp, ~46 ADC codes, ANTI-
+PHASE with the current) and that is IN SPEC -- it must NOT trip; a PSU turn-on/off, a
+brownout, or a degrading feed must. TWO discriminators, stacked (the module header has
+the full derivation):
+  (1) MAGNITUDE -- the in-spec droop (~46 codes pp) sits in a ~30x gap below the ATX
+      +/-5% window (~1380 codes pp) / a PSU on/off edge (~full scale). The BAND test
+      trips on |vrail - slow_baseline| > VDEV with VDEV in that gap. Catches PSU
+      on/off + any gross excursion by itself.
+  (2) LOAD-CORRELATION -- the normal droop is CAUSED by the current. Predict it and
+      trip on the UNEXPLAINED residual r = (vrail-vbase) + KGAIN*(isum-ibase): the
+      droop is predicted and cancels, a sag the load does NOT account for survives.
+      Same common-mode-rejection idea as the imbalance detector, across V<->I -- lets
+      you tighten below the droop envelope (a degrading connector at constant current).
+THREE tests, each disable-able, all gated by warm-up: BAND (above), WINDOW (vrail
+outside an absolute [VMIN,VMAX] = the +/-5% limits -> slow out-of-spec drift), RESIDUAL
+(the load-line, off until KGAIN is fit). trip_ch one-hots the vrail channel so the ESP
+`detect` CLI already reports it as a `vrail` event (metric-agnostic, unchanged); STATUS
+V3 = {tripped[15], det_frozen[14], rail_cause[13:11]={residual,window,band}, 0[10:8],
+trip_ch[7:0]} with tripped/trip_ch = OR of both detectors.
+
+DEFAULTS (top.v): RAIL_VDEV=400 codes (~0.35 V; >> the droop, < the ~690-code spec
+edge), RAIL_KSHIFT=12 / RAIL_WARMUP=16384 (like the imbalance detector), RAIL_KGAIN=0
++ RAIL_VRES=0 (residual OFF until fit), WINDOW default-OFF (RAIL_VMIN/MAX full-scale)
+until the rail nominal code is bench-confirmed. Turn-OFF capture works because the
+instrument is on its own USB power, not the rail under test.
+
+REMAINING (bench): (1) bitstream rebuild (add cec_native_rail.v to the Gowin project).
+(2) BENCH-TUNE: confirm the rail nominal code (~13800 for 12V / 5.7x divider on the
++/-5V AD7606) and ENABLE the WINDOW (RAIL_VMIN/MAX ~13106..14486 = ATX +/-5%); set
+RAIL_VDEV in the droop->spec gap; FIT RAIL_KGAIN from a normal capture (regress the
+vrail deviation against the summed-current deviation) then enable RAIL_VRES to catch
+in-envelope sags. (3) the runtime-config-over-MOSI increment makes VDEV/KGAIN/VRES/
+VMIN/VMAX/K tunable without a rebuild. (4) ESP `detect` nicety: print "RAIL" vs
+"IMBALANCE" + the rail_cause from STATUS V3, deferred.
+
+DETECTOR TAXONOMY (owner direction 2026-06-13) -- three distinct classes:
+ * IMBALANCE (`cec_native_anomaly.v`, BUILT) -- a per-pin SHARE departure from fair
+   share. NOTE the FILE is named "anomaly" but is really the IMBALANCE detector; the
+   owner reserves "anomaly" for the statistical class below. Clean follow-up: rename
+   `cec_native_anomaly.v` -> `cec_native_imbalance.v` so the name is free.
+ * RAIL (`cec_native_rail.v`, BUILT) -- a 12V-rail spike / brownout / load-unexplained
+   event.
+ * ANOMALY (the REAL one, NOT yet built) -- a high-impedance STATISTICAL anomaly: a
+   deviation from a REGISTERED norm (a learned/stored baseline distribution, not just a
+   single EMA). Owner-flagged as the next detector class to build.
+
+## Mixed-sensor current channels -- ACS712 Hall on v1/v2 (2026-06-14)
+
+The final two +12V pins are sensed by ACS712T-20A HALL modules on v1/v2 (AD7606 idx
+0/1, the two previously-unconnected inputs), alongside the four INA240 SHUNT channels
+(v3-v5,v8) -- a deliberate precision A/B (Hall is lower precision: ~1.5% total error +
+offset drift + 80 kHz BW + more noise; that gap is the test).
+
+FIRMWARE (esp/proto/12vhpwr/main/cec_config.{c,h}): idx 0/1 enabled as labeled AMP
+channels "i1"/"i2" with the ACS712 transfer function -- new PROTO_HALL_V_PER_A (0.100
+= 100 mV/A) / PROTO_HALL_BIAS_V (2.5 = Vcc/2), HSCALE/HBIAS. SIGN is provisional
+(+scale -- datasheet rising IP+->IP- = rising output, the OPPOSITE polarity from the
+shunt wiring); BENCH-CONFIRM and flip if a draw reads negative. The 2.5 V zero is
+RATIOMETRIC and the ACS712 offset is notable, so run `cal` at 0 A to null each module.
+Build PASSES (esp32p4). They RIDE ALONG in capture/stream; the FPGA detectors are
+UNCHANGED and stay on the homogeneous shunt set (DET_MASK = the 4 shunt channels) --
+the imbalance CMR + the rail load-line assume a common bias/scale that mixing Hall in
+would break, so the comparison lives in the ANALYZER (calibrated amps), not the
+raw-code FPGA math.
+
+ANALYZER (tools/cec_capture_analyze.py): the `i#` regex auto-picks up i1/i2, so the
+per-pin chart now covers all 6. The measurement floor is now PER-PIN + sensor-aware:
+HALL_CHANNELS={i1,i2} get HALL_TOL_PCT (3% ESTIMATE -- REFINE from the measured
+scatter) vs the shunt ISENSE_TOL_PCT (1%); floor_i = (t_i*(N-2)+sum t_k)/N, which
+reduces EXACTLY to the old uniform 2*t*(N-1)/N on a shunt-only board (verified -- no
+regression). Hall pins get a taller TINTED floor band + a "(H)" tick mark, and the hog
+counts as REAL only above ITS OWN floor (a Hall hog must clear the wider Hall band).
+CLI: --hall-tol / --hall-channels. Verified on a synthetic 6-channel capture (Hall
+floor 3.7% vs shunt 2.3%, a +1.6% Hall hog correctly "within floor") and backward-
+compat on a 4-channel shunt capture (1.5% unchanged). BENCH-NEXT: confirm the ACS712
+sign, run `cal`, then refine HALL_TOL_PCT from the real Hall-vs-shunt scatter.
+
+## Bench host tooling (firmware/tools/, 2026-06-13)
+
+Host-side, replaces PuTTY-log + hand-extraction + manual matplotlib. The
+capture->organize->analyze path is the Concierge (Appendix C) precursor.
+
+- **cec_bench.py** -- owns the serial (no PuTTY line-drops), sends commands /
+  scripts a setup sequence, splits each ===BURST_CSV=== block into
+  runs/<ts>/captures/ + a manifest.md, and (--analyze) runs the analyzer per
+  capture. Needs pyserial (bench machine only). Not unit-tested here (no serial
+  device); syntax-checked, the user validates on the bench.
+- **cec_capture_analyze.py** -- per-MODULE analysis (the user's "different
+  analysis per module"). Core (parse + FFT-at-measured-rate + time-domain) +
+  pluggable Profile; 12vhpwr DONE (per-pin imbalance flagged under load -- 6 current
+  channels incl. the 2 ACS712 Hall, per-pin sensor-aware floor; see the ACS712
+  section above -- rail droop, load fundamental w/ analog-ceiling overlay), atx-24pin/eps/pcie are
+  STUBS. VALIDATED here: idle real capture -> "no_load" (no false flag); a
+  synthetic loaded board with an i4 hog -> "IMBALANCE 23.5% FLAG". Uses the
+  header's MEASURED rate; flags NOMINAL captures ~2x suspect.
+- DEFERRED: the atx-24pin/eps/pcie profiles (energy / per-cable / §6.13 events);
+  the firmware self-describing header (module id + channel roles) so the analyzer
+  auto-selects the profile instead of --module; optional unified live+burst viewer
+  (held -- TelePlot covers live).
+
+- **atx-24pin onto the shared top-layer detection (E4):**
+  `cec_detection.c` / `cec_classifier.c` compile unused there — its
+  main loop runs its own (non-equivalent) orchestration: per-rail
+  severity tracking, per-(state,rail) L3 profiles, swing detectors,
+  shutdown mute. Adoption means mapping those onto the ctx model.
+- ~~**cec_comms on the 24-pin** (carried from the old A4/G item)~~ — DONE
+  (00b8bfd + 3d8af61): CAN wiring IO17/18, the module-scoped cec_telem
+  frame layout, and can_comms_task all landed on the production board.
+- **`CEC_CAN_ENABLED` rides the shared `cec_state.h` (=1):** all three
+  apps compile the esp_twai node code, which requires IDF >= 6.0 (see
+  F-1). Consider Kconfig-ifying it at the next comms pass so a
+  CAN-less app can drop the dependency.
+- **`CEC_NUM_CABLES=2` in the shared header:** a per-board cable count
+  belongs in app config when a >2-cable board (PCIe 3-port firmware)
+  arrives.
+- **12vhpwr-proto:** flip `CONFIG_CEC_PROTO_RAW_CONSOLE` default off
+  once bring-up step 3 passes on hardware; the TelePlot loop + CLI
+  `frame` command are already built and verified to compile.
+- **12vhpwr-proto console routing (pre-bench note):** the app keeps the
+  v0 default esp32p4 console — UART0 primary with USB-Serial-JTAG as
+  the SECONDARY console — so the raw smoke-test loop's printf output IS
+  visible over the board's USB-C (`idf.py monitor`), exactly as v0
+  intended. CLI *input* (`frame`), however, binds to stdin = UART0 as
+  configured; to type commands over the USB-C instead, set
+  `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` in the app's
+  sdkconfig.defaults (deliberately NOT flipped pre-bench: the smoke
+  test should run the exact v0-default console arrangement first).
+
+## Bench items (need hardware attached)
+
+- CLI smoke (`help` + each app's commands over the console) on both s3
+  apps post-merge — deferred from C2.
+- Capture parity runs against the v0.5.9 baseline (same PSU, same
+  workloads) — the Phase D acceptance bar; CI proves builds only.
+- `CONFIG_FREERTOS_HZ=1000` trial on the 24-pin (closes L2).
+- eps: first-boot bursts are now permitted (see F-4) — observe boot-ramp
+  trigger noise with the detectors' existing gates.
+
+## Human handoff (owner)
+
+- Archive `cec-24pin-idf` and `cec-eps-idf` on GitHub after this PR
+  merges, tag each `archived-pre-monorepo`, push a final README pointer
+  (runbook A5).
+- Optionally fold this section + the bench items into
+  `docs/owner-queue.md` (see F-6 for why this run didn't).
+
+## Hardware-driven (carried)
+
+- ~~ACS712 → INA226 swap on all 24-pin rails (planned).~~ OVERTAKEN: the
+  production board went straight to 4× INA228 (349fe8c/a8b1b19, dev-board
+  ACS712/divider/INA226 code retired 7286ec5), with the per-rail runtime
+  cal CLI landing in 09cde15. Kept for provenance only.
+
+## Persist-on-fault contract — STARTED (2026-07-15, owner direction)
+
+`firmware/contracts/persist-on-fault.md` is the contract of record; the
+single-source budget constant is `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS`
+(cec_nvs Kconfig, default 15). Owner SPICE numbers (2026-07-15) for the Hub
+Standard 4700 µF hold-up: ~26 ms @ 80 mA base / ~23 ms @ 120 mA typical /
+~16 ms @ 240 mA worst case — SIMULATED (SPICE, not bench; provenance
+corrected 2026-07-15). They supersede the beta-lock §L back-of-envelope
+estimates (~25/36/65–75 ms) as numbers of record, but OQ-56's BENCH
+verification remains FULLY open — the SPICE decay model itself is on the
+bench list below.
+Open:
+- OWNER PEN: fold the simulated numbers into spec/beta-lock §L (the §L text
+  still carries the pre-SPICE estimates as "numbers of record").
+- BENCH (OQ-56, all of it): validate the SPICE ride-through table on real
+  hardware, ISR-entry-to-first-write latency, real WROOM flash-program
+  throughput, PSU 5VSB decay shape.
+- IMPLEMENTATION (beta Hub, needs the TLV7011→IO14 board): background-commit
+  journal + pre-erased region + gasp path per the contract terms; the proto
+  hub-standard app has no persist path yet. Term 5's background-commit task
+  is also the fix shape for lint item L3 above.
+
+## Beta-line production gaps (v1.5.0 spec vs this tree, 2026-07-15 review)
+
+Firmware today targets the ALPHA/rev2 boards (correct — alpha is frozen on
+INA228 as shipped). **OWNER DIRECTION (2026-07-15, recorded): the INA238 is
+the production sensing part going forward across the digital-sensor line;
+the INA228 stays supported ONLY because the current bench units (24-pin
+alpha/rev2) are populated with it. New sensing firmware targets the INA238
+first; the INA228 driver is bench-unit legacy, kept, not extended.** Still
+absent for the beta line and the other production modules:
+- **INA238 driver** (cec_sensors has 228/226 only): atx-24pin-rev3 reverts
+  to INA238 (v1.5.0, LCSC-supply ruling) and EPS/PCIe production boards are
+  INA238 per cable — both need the driver + Kconfig select.
+- **Firmware-integrated energy** (OQ-13 implementation basis post-v1.5.0):
+  integrate the INA238 power register at the reporting interval; the INA228
+  hardware accumulators (exposed by the driver, unreported by design) stop
+  being available on beta.
+- **§6.10 full posture**: INA228/238 ALERT-triggered freeze + ~2 s @ 1 kHz
+  averaged pre-roll ring (ALERT pins wired IO10-13, still unused; today's
+  posture is the 50 Hz loop + reactive 1 kHz HS burst).
+- **§6.13 comparator latch** (EPS/PCIe C6 boards): per-cable INA181/TLV7011
+  event GPIO -> timestamp + OR into FREEZE + CAN report; PWM threshold via
+  IO14/R10/C40. No firmware exists (proto rigs lack the front-end).
+- **C6 targets**: EPS/PCIe production apps are ESP32-C6 (CAN_TX/RX IO20/21
+  per the C6 pin map) — the proto apps are S3 rigs; new sdkconfig targets +
+  pin maps when the C6 boards reach the bench.
+- **CEC_MAX_MODULES=4** (cec_telem.h) bakes the Standard Hub's port count
+  into a shared header; the ID stride already fits 16 — hoist to app config
+  (or raise) when Hub Pro (8 ports) firmware starts.
+- **OQ-2/F2 LED budget**: no SK6812 code anywhere yet (proto Hub is a bare
+  dev board); the firmware 5VSB/LED current cap + port-LED semantics land
+  with the production Hub app and must fit under the OQ-2 cap when the
+  owner sets it.
+
+## Validation backup
+
+The original Arduino-ESP32 firmware at v0.5.9 remains the frozen
+validation backup in its current home, untouched by the consolidation;
+parity comparisons keep running against it until the bench items above
+retire it.

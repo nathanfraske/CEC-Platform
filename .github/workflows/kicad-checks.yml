@@ -14,7 +14,11 @@ name: KiCad checks
 
 on:
   push:
+    # firmware/** has its own workflow (firmware-ci.yml); a firmware push
+    # never rebuilds the KiCad gates and vice versa.
+    paths-ignore: ['firmware/**']
   pull_request:
+    paths-ignore: ['firmware/**']
   workflow_dispatch:
 
 jobs:

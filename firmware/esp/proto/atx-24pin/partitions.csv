@@ -1,0 +1,18 @@
+# CEC 24-pin Module partition table — OTA layout
+# Target: ESP32-S3-MINI-1 N4R2 (4 MB flash)
+#
+# Two app slots (ota_0 / ota_1) + otadata so the module can be re-flashed
+# over CAN (cec_canota): the running app writes the new image to the inactive
+# slot, flips the boot selector, and reboots. ~1.875 MB/slot dwarfs the
+# ~0.3 MB app. nvs (24K) holds the learned profiles + calibration.
+#
+# NOTE: this replaces the earlier single-`factory` layout, so converting an
+# already-flashed board needs ONE full USB flash (offsets moved). After that,
+# updates can go over CAN.
+#
+# Name,    Type, SubType,  Offset,   Size,
+nvs,       data, nvs,      0x9000,   24K,
+otadata,   data, ota,      0xf000,   8K,
+phy_init,  data, phy,      0x11000,  4K,
+ota_0,     app,  ota_0,    0x20000,  0x1E0000,
+ota_1,     app,  ota_1,    0x200000, 0x1E0000,

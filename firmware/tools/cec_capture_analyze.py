@@ -1,0 +1,819 @@
+#!/usr/bin/env python3
+"""cec_capture_analyze.py -- per-module analysis of CEC bench captures.
+
+Turns a ``===BURST_CSV===`` dump (from ``fastburst`` / ``autoburst`` / ``stream``)
+into the standard plot battery + a metrics summary, *per module* -- because each
+module asks a different question:
+
+  * 12vhpwr : per-PIN current imbalance (the melt metric) + transients + droop
+  * atx-24pin (stub) : per-RAIL power + energy (INA228 accumulators)
+  * eps / pcie (stub) : per-CABLE balance + total power + transient events
+
+Design rules:
+  * The time/frequency axis is derived from the capture's MEASURED sample rate
+    (the ``# ... us = idx x N us`` header stamp), never a nominal label. If the
+    capture says NOMINAL, every frequency is flagged suspect (see ``rate`` cmd).
+  * Profiles are pluggable (a module -> a Profile); this is the seed of the
+    Concierge (spec Appendix C) per-module analysis stage.
+
+Usage:
+  python3 cec_capture_analyze.py CAPTURE.csv|putty.log [--module 12vhpwr]
+        [--rate HZ] [--out DIR] [--index N] [--analog-rc-hz 15900 --analog-adc-hz 14000]
+
+CAPTURE may be a single capture file (one block) or a serial log (many blocks);
+every ``===BURST_CSV===`` block found is analyzed. Outputs PNGs + a metrics.md/.json
+per block into --out (default: <input>.analysis/).
+License: Apache-2.0 (CEC-Platform)
+"""
+from __future__ import annotations
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+
+def tool_version():
+    """TOOL_VERSION + the repo's short git SHA (best-effort), for documentation."""
+    v = "v1.0"
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                             cwd=os.path.dirname(os.path.abspath(__file__)),
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        if sha:
+            v += "+" + sha
+    except Exception:
+        pass
+    return v
+
+
+_VERSION = tool_version()
+
+
+# ----------------------------------------------------------------------------
+# Capture parsing
+# ----------------------------------------------------------------------------
+class Capture:
+    """One ===BURST_CSV=== block: metadata + columnar data."""
+
+    def __init__(self, kind, rate_hz, rate_measured, columns, data, meta_line):
+        self.kind = kind                  # fastburst | autoburst | stream | burst | unknown
+        self.rate_hz = rate_hz            # native sample rate (Hz)
+        self.rate_measured = rate_measured
+        self.columns = columns            # ordered column labels (incl. us, seq/drop)
+        self.data = data                  # {label: np.ndarray}
+        self.meta = meta_line             # the raw "# ..." line
+        self.n = len(next(iter(data.values()))) if data else 0
+
+    @property
+    def uniform(self):
+        # fastburst/autoburst are FPGA-paced uniform; ESP-paced `burst` is not.
+        return self.kind in ("fastburst", "autoburst")
+
+    def signal_columns(self):
+        """Data columns that are signals (exclude the index/seq/drop columns)."""
+        return [c for c in self.columns if c not in ("us", "seq", "drop")]
+
+
+_RATE_USPER = re.compile(r"us\s*=\s*idx\s*x\s*([0-9.]+)")      # "us = idx x 5.000 us"
+_RATE_KSPS = re.compile(r"@\s*~?([0-9.]+)\s*kSPS")            # "@ 100.50 kSPS native"
+_RATE_KHZ = re.compile(r"@\s*~?([0-9.]+)\s*kHz")             # legacy "@ ~200 kHz native"
+
+
+def _parse_rate(meta, kind):
+    """(rate_hz, measured) from a '# ...' metadata line. us-per-sample wins."""
+    measured = ("(measured)" in meta) and ("NOMINAL" not in meta and "nominal" not in meta)
+    m = _RATE_USPER.search(meta)
+    if m:
+        us = float(m.group(1))
+        if us > 0:
+            return 1.0e6 / us, measured
+    for rx in (_RATE_KSPS, _RATE_KHZ):
+        m = rx.search(meta)
+        if m:
+            return float(m.group(1)) * 1000.0, measured
+    return None, measured
+
+
+def _parse_burst_csv(text):
+    """Yield Capture objects for every ===BURST_CSV=== block in `text`."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if "===BURST_CSV_BEGIN===" not in lines[i]:
+            i += 1
+            continue
+        i += 1
+        meta = ""
+        cols = None
+        rows = []
+        while i < len(lines) and "===BURST_CSV_END===" not in lines[i]:
+            ln = lines[i].strip()
+            i += 1
+            if not ln:
+                continue
+            if ln.startswith("#"):
+                meta = ln
+                continue
+            if cols is None and not ln[0].isdigit() and ln[0] not in "+-.":
+                cols = [c.strip() for c in ln.split(",")]
+                continue
+            parts = ln.split(",")
+            if cols and len(parts) == len(cols):
+                try:
+                    rows.append([float(p) for p in parts])   # PuTTY may mangle a row; skip it
+                except ValueError:
+                    continue
+        if cols and rows:
+            arr = np.array(rows, dtype=float)
+            data = {c: arr[:, j] for j, c in enumerate(cols)}
+            kind = meta.split(":", 1)[0].lstrip("# ").split()[0] if meta else "unknown"
+            rate, measured = _parse_rate(meta, kind)
+            yield Capture(kind, rate, measured, cols, data, meta)
+
+
+# 24-pin (v0.5.9-lineage) burst format: TelePlot-style interleaved series wrapped
+# in >BURST_BEGIN ... >BURST_END. Each pre-trigger sample emits all >b_<series>
+# with a shared ms timestamp; the high-speed window emits >hs_<series>.
+_TP_LINE = re.compile(r'^>(b_|hs_)([a-z0-9_]+):(\d+):(-?[0-9.]+)\s*$')
+
+
+def _teleplot_group_to_capture(group, reason, is_hs, annotation):
+    """Turn {series: [(ts_ms, val), ...]} into a Capture (us axis, rate from ts)."""
+    if not group:
+        return None
+    ref = max(group.values(), key=len)
+    n = len(ref)
+    ts = np.array([t for t, _ in ref], dtype=float)
+    data = {}
+    for k, pairs in group.items():
+        arr = np.array([v for _, v in pairs], dtype=float)
+        data[k] = arr if len(arr) == n else np.resize(arr, n)   # tolerate a dropped line
+    data["us"] = (ts - ts[0]) * 1000.0                          # ms -> us, zero-based
+    dts = np.diff(ts)
+    rate = (1000.0 / float(np.median(dts))) if len(dts) and np.median(dts) > 0 else None
+    cols = ["us"] + [k for k in data if k != "us"]
+    # ESP-paced ~50 Hz pre-trigger and the timer-paced HS are both ~uniform.
+    kind = "autoburst" if (is_hs or reason not in ("MANUAL", "0", "")) else "burst"
+    meta = (f"# {kind}: reason={reason}"
+            + (f" ; {annotation}" if annotation else "")
+            + (" ; hs" if is_hs else "") + f" ; {n} rows (measured)")
+    return Capture(kind, rate, True, cols, data, meta)
+
+
+def _parse_burst_teleplot(text):
+    """Yield Capture(s) from each >BURST_BEGIN ... >BURST_END block: one for the
+    pre-trigger (b_*) rows, one for the high-speed (hs_*) rows if present."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if not lines[i].lstrip().startswith(">BURST_BEGIN"):
+            i += 1
+            continue
+        mb = re.match(r'>BURST_BEGIN:([^:]*):', lines[i].strip())
+        reason = mb.group(1) if mb else "burst"
+        i += 1
+        pre, hs, annotation = {}, {}, None
+        while i < len(lines) and ">BURST_END" not in lines[i]:
+            ln = lines[i].strip(); i += 1
+            if ln.startswith(">BURST_ANNOTATION:"):
+                annotation = ln.split(":", 1)[1]; continue
+            m = _TP_LINE.match(ln)
+            if not m:
+                continue
+            pfx, name, ts, val = m.group(1), m.group(2), int(m.group(3)), float(m.group(4))
+            (hs if pfx == "hs_" else pre).setdefault(name, []).append((ts, val))
+        i += 1  # consume the >BURST_END line
+        cpre = _teleplot_group_to_capture(pre, reason, False, annotation)
+        if cpre is not None:
+            yield cpre
+        chs = _teleplot_group_to_capture(hs, reason, True, annotation)
+        if chs is not None:
+            yield chs
+
+
+def parse_captures(text):
+    """Yield Capture objects for both burst formats found in `text`:
+    the 12VHPWR ===BURST_CSV=== columnar blocks and the 24-pin >BURST_BEGIN
+    TelePlot blocks."""
+    yield from _parse_burst_csv(text)
+    yield from _parse_burst_teleplot(text)
+
+
+# ----------------------------------------------------------------------------
+# Spectral helpers (match the bench charts: Blackman-Harris, dBc)
+# ----------------------------------------------------------------------------
+def blackman_harris(n):
+    a = (0.35875, 0.48829, 0.14128, 0.01168)
+    k = np.arange(n)
+    w = (a[0] - a[1] * np.cos(2 * np.pi * k / (n - 1))
+              + a[2] * np.cos(4 * np.pi * k / (n - 1))
+              - a[3] * np.cos(6 * np.pi * k / (n - 1)))
+    return w
+
+
+def fft_dbc(x, rate_hz):
+    """One-sided spectrum in dBc (relative to the largest non-DC bin)."""
+    x = np.asarray(x, float)
+    x = x - x.mean()
+    w = blackman_harris(len(x))
+    X = np.abs(np.fft.rfft(x * w))
+    f = np.fft.rfftfreq(len(x), 1.0 / rate_hz)
+    if len(X) > 2 and X[1:].max() > 0:
+        ref = X[1:].max()
+    else:
+        ref = X.max() if X.max() > 0 else 1.0
+    db = 20.0 * np.log10(np.maximum(X, ref * 1e-9) / ref)
+    return f, db
+
+
+def analog_ceiling_db(f, rc_hz, adc_hz):
+    """Two cascaded 1st-order low-passes (perfboard RC x AD7606), in dB."""
+    h = 1.0 / np.sqrt(1 + (f / rc_hz) ** 2) / np.sqrt(1 + (f / adc_hz) ** 2)
+    return 20.0 * np.log10(np.maximum(h, 1e-9))
+
+
+# ----------------------------------------------------------------------------
+# Per-module profiles
+# ----------------------------------------------------------------------------
+class Profile:
+    name = "base"
+
+    def classify(self, cap):
+        raise NotImplementedError
+
+    def metrics(self, cap):
+        raise NotImplementedError
+
+    def plots(self, cap, stem, out, args):
+        raise NotImplementedError
+
+
+class Profile12VHPWR(Profile):
+    """per-PIN current imbalance (melt risk) + transients + rail droop."""
+    name = "12vhpwr"
+    IMBALANCE_FLAG_PCT = 20.0   # spread/mean above this -> flag (tune to spec)
+    MIN_LOAD_A = 1.0            # below this the pins are idle -> imbalance undefined
+    ISENSE_TOL_PCT = 1.0        # per-channel current-sense (shunt) tolerance, %.
+                                #   1% alloy shunts; INDEPENDENT per pin, so it sets a
+                                #   measurement FLOOR on the imbalance (--isense-tol to change).
+    HALL_CHANNELS = ("i1", "i2")  # the ACS712-20A Hall rails (the non-INA240 A/B pair)
+    HALL_TOL_PCT  = 3.0           # ACS712-20A per-pin tolerance ESTIMATE, %: wider than the
+                                  #   shunt (~1.5% total error + offset/noise). REFINE from the
+                                  #   measured Hall-vs-shunt scatter (--hall-tol / --hall-channels).
+
+    @staticmethod
+    def _imbalance_floor_pct(n_carrying, tol_pct):
+        """Worst-case per-pin deviation-from-fair-share that independent per-channel
+        shunt tolerance alone can produce -- the band inside which a bar may be
+        measurement, not real imbalance. (The headline spread = max-min has a ~2*tol
+        floor; this per-pin band is 2*tol*(N-1)/N, e.g. 1.5% at N=4, tol=1%.)"""
+        if n_carrying < 2:
+            return 0.0
+        return 2.0 * tol_pct * (n_carrying - 1) / n_carrying
+
+    def _pin_tol(self, name):
+        """Per-channel tolerance %: the wider Hall figure for an ACS712 rail, else
+        the INA240 shunt figure."""
+        return self.HALL_TOL_PCT if name in self.HALL_CHANNELS else self.ISENSE_TOL_PCT
+
+    def _pin_floors(self, names):
+        """Per-pin deviation-from-fair-share floor %, generalized for MIXED sensor
+        tolerances: floor_i = (t_i*(N-2) + sum_k t_k) / N. Reduces EXACTLY to the
+        uniform 2*t*(N-1)/N when every tolerance matches (so a shunt-only board is
+        unchanged); a Hall pin (bigger t_i) just gets a taller band, and its extra
+        noise also widens the shared fair-share term for the shunt pins a hair."""
+        n = len(names)
+        if n < 2:
+            return {c: 0.0 for c in names}
+        tols = {c: self._pin_tol(c) for c in names}
+        tsum = sum(tols.values())
+        return {c: (tols[c] * (n - 2) + tsum) / n for c in names}
+
+    def classify(self, cap):
+        sig = cap.signal_columns()
+        currents = [c for c in sig if re.fullmatch(r"i\d+", c)]
+        rails = [c for c in sig if c.startswith("v")]   # vrail
+        return currents, rails
+
+    def metrics(self, cap):
+        currents, rails = self.classify(cap)
+        m = {"module": self.name, "kind": cap.kind, "n": cap.n,
+             "rate_hz": cap.rate_hz, "rate_measured": cap.rate_measured,
+             "sensed_pins": currents}
+        if not currents:
+            m["error"] = "no current channels (i#) found"
+            return m
+
+        I = np.vstack([cap.data[c] for c in currents])     # pins x samples
+        pin_mean = I.mean(axis=1)
+        pin_peak = I.max(axis=1)
+        per_pin = {}
+        for k, c in enumerate(currents):
+            per_pin[c] = {"mean_A": float(pin_mean[k]), "peak_A": float(pin_peak[k]),
+                          "min_A": float(I[k].min()), "rms_A": float(np.sqrt((I[k] ** 2).mean()))}
+        m["per_pin"] = per_pin
+
+        # IMBALANCE -- the melt metric. The pins share a big common (often pulsing)
+        # load, so the headline is the spread among the CARRYING pins; dead/idle
+        # pins are excluded from the % (they'd dominate it and make the live pins
+        # all look like hogs) but reported separately.
+        carry_thr = max(0.3 * float(np.abs(pin_mean).max()), self.MIN_LOAD_A)
+        carrying = np.abs(pin_mean) >= carry_thr
+        dead = [currents[k] for k in range(len(currents)) if not carrying[k]]
+        inst_spread = float((I.max(axis=0) - I.min(axis=0)).max())
+        imb = {"dead_pins": dead, "worst_instantaneous_spread_A": inst_spread}
+        if int(carrying.sum()) >= 2:
+            cm = pin_mean[carrying]
+            c_mean = float(cm.mean())
+            c_spread = float(cm.max() - cm.min())
+            c_imb = (c_spread / abs(c_mean) * 100.0) if abs(c_mean) > 1e-6 else None
+            worst = currents[int(np.where(carrying, pin_mean, -np.inf).argmax())]
+            carrying_names = [currents[k] for k in range(len(currents)) if carrying[k]]
+            pin_floor = self._pin_floors(carrying_names)
+            hall_pins = [c for c in carrying_names if c in self.HALL_CHANNELS]
+            worst_excess = (float((cm.max() - c_mean) / abs(c_mean) * 100.0)
+                            if abs(c_mean) > 1e-6 else None)
+            imb.update({
+                "load_state": "loaded",
+                "carrying_pins": carrying_names,
+                "carrying_mean_A": c_mean, "carrying_spread_A": c_spread,
+                "imbalance_pct": c_imb, "worst_pin": worst,
+                "worst_pin_excess_pct": worst_excess,
+                "isense_tol_pct": self.ISENSE_TOL_PCT,
+                "hall_pins": hall_pins, "hall_tol_pct": self.HALL_TOL_PCT,
+                "shunt_match_floor_pct": self._imbalance_floor_pct(int(carrying.sum()),
+                                                                   self.ISENSE_TOL_PCT),
+                "pin_floor_pct": {c: round(pin_floor[c], 2) for c in carrying_names},
+                "worst_pin_floor_pct": round(pin_floor[worst], 2),
+                # the hog counts as REAL only above ITS OWN sensor's floor (a Hall hog
+                # must clear the wider Hall band, not the tight shunt one).
+                "worst_pin_significant": bool(worst_excess is not None
+                                              and worst_excess > pin_floor[worst]),
+                "spread_floor_pct": 2.0 * max(self._pin_tol(c) for c in carrying_names),
+                "FLAG": bool(c_imb is not None and c_imb > self.IMBALANCE_FLAG_PCT),
+            })
+        else:
+            imb.update({"load_state": "no_load (idle/uncal -- run under GPU load)",
+                        "imbalance_pct": None, "worst_pin": None,
+                        "worst_pin_excess_pct": None, "FLAG": False})
+        m["imbalance"] = imb
+
+        total = I.sum(axis=0)
+        m["total"] = {"mean_A": float(total.mean()), "peak_A": float(total.max()),
+                      "min_A": float(total.min())}
+
+        if rails:
+            rail_name = "vrail" if "vrail" in rails else rails[0]
+            v = cap.data[rail_name]
+            m["rail"] = {"name": rail_name, "mean_V": float(v.mean()),
+                         "min_V": float(v.min()), "max_V": float(v.max()),
+                         "droop_mV": float((v.mean() - v.min()) * 1000.0),
+                         "ripple_pkpk_mV": float((v.max() - v.min()) * 1000.0)}
+            m["voltages"] = {r: round(float(cap.data[r].mean()), 4) for r in rails}
+
+        # spectral: fundamental of the total current (the load cadence)
+        if cap.uniform and cap.rate_hz and cap.n > 16:
+            f, db = fft_dbc(total, cap.rate_hz)
+            band = (f > 50)                      # ignore DC/very-low
+            if band.any():
+                pk = int(np.argmax(db[band]))
+                m["spectral"] = {"load_fundamental_Hz": float(f[band][pk]),
+                                 "noise_floor_dBc": float(np.median(db[f > cap.rate_hz * 0.35])),
+                                 "rate_caveat": None if cap.rate_measured else
+                                 "rate is NOMINAL -- frequencies may be ~2x off; run `rate`"}
+        return m
+
+    def plots(self, cap, stem, out, args):
+        currents, rails = self.classify(cap)
+        rail0 = "vrail" if "vrail" in rails else (rails[0] if rails else None)
+        files = []
+        t_ms = np.arange(cap.n) * (1.0e3 / cap.rate_hz) if cap.rate_hz else np.arange(cap.n)
+        ratetag = "measured" if cap.rate_measured else "NOMINAL(2x?)"
+
+        # --- time-domain: per-pin + sum + rail ---
+        nrow = 2 + (1 if rails else 0)
+        fig, ax = plt.subplots(nrow, 1, figsize=(11, 7), sharex=True)
+        if rails:
+            I = np.vstack([cap.data[c] for c in currents])
+            for c in currents:
+                ax[0].plot(t_ms, cap.data[c], lw=0.8, label=c)
+            ax[0].set_ylabel("per-pin current (A)"); ax[0].legend(ncol=len(currents), fontsize=8)
+            ax[1].plot(t_ms, I.sum(axis=0), lw=0.8, color="tab:blue", label="sum of sensed pins")
+            ax[1].set_ylabel("total (A)"); ax[1].legend(fontsize=8)
+            ax[2].plot(t_ms, cap.data[rail0], lw=0.8, color="tab:red", label=rail0)
+            ax[2].set_ylabel("rail (V)"); ax[2].legend(fontsize=8)
+            ax[-1].set_xlabel("time (ms)")
+        else:
+            for c in currents:
+                ax[0].plot(t_ms, cap.data[c], lw=0.8, label=c)
+            ax[0].set_ylabel("per-pin current (A)"); ax[0].legend(fontsize=8)
+        fig.suptitle(f"12VHPWR per-pin -- {cap.kind}, {cap.n} frames @ "
+                     f"{cap.rate_hz/1000:.1f} kSPS [{ratetag}]")
+        fig.tight_layout()
+        p = os.path.join(out, f"{stem}-time.png"); fig.savefig(p, dpi=110); plt.close(fig)
+        files.append(p)
+
+        # --- IMBALANCE: % of fair share (bar) + smoothed drift (time) ----------
+        # The imbalance is a per-pin LEVEL, so the headline is a sorted bar of
+        # each pin's share of the load (fair = total/N = 100%) -- a time average,
+        # immune to the few-us pulse-EDGE skew that swamps a raw time-series. The
+        # lower panel is the per-pin deviation smoothed ~0.5 ms (edge skew gone)
+        # to show drift / load-cycle dynamics.
+        I = np.vstack([cap.data[c] for c in currents])
+        pin_mean = I.mean(axis=1)
+        carry_thr = max(0.3 * float(np.abs(pin_mean).max()), self.MIN_LOAD_A)
+        carrying = np.abs(pin_mean) >= carry_thr
+        ci = [k for k in range(len(currents)) if carrying[k]]
+        dead = [currents[k] for k in range(len(currents)) if not carrying[k]]
+        if len(ci) >= 2:
+            cnames = [currents[k] for k in ci]
+            Ic = I[ci]
+            ref_t = Ic.mean(axis=0)                        # instantaneous fair share
+            fair = float(ref_t.mean())                     # time-avg fair share (A)
+            pct = Ic.mean(axis=1) / fair * 100.0           # each pin's % of fair share
+            W = max(5, int(round(cap.rate_hz * 0.5e-3)))   # ~0.5 ms smoothing
+            ker = np.ones(W) / W
+            dev_s = np.vstack([np.convolve(Ic[j] - ref_t, ker, mode="same")
+                               for j in range(len(ci))])    # smoothed deviation (A)
+            whisk = np.vstack([np.percentile(dev_s[j], [10, 90])
+                               for j in range(len(ci))]) / fair * 100.0
+            order = np.argsort(pct)
+            hog = cnames[int(np.argmax(pct))]
+
+            fig, (ab, at) = plt.subplots(2, 1, figsize=(11, 8.5),
+                                         gridspec_kw={"height_ratios": [1.1, 1]})
+            x = np.arange(len(ci))
+            vals = pct[order]
+            # measurement floor: PER PIN. With independent +/-tol sensors a pin's
+            # share is only known to +/-floor_i, so a bar inside ITS band may be
+            # sensor mismatch, not real imbalance. The ACS712 HALL rails have a wider
+            # tolerance than the INA240 shunts, so they get a TALLER (tinted) band --
+            # the precision A/B made visible. Drawn behind each bar.
+            from matplotlib.patches import Patch
+            pin_floor = self._pin_floors(cnames)
+            maxfloor = max(pin_floor.values()) if pin_floor else 0.0
+            for xi in range(len(ci)):
+                c = cnames[order[xi]]; fl = pin_floor[c]
+                if fl > 0:
+                    ab.bar(xi, 2 * fl, bottom=100 - fl, width=0.86, zorder=0,
+                           edgecolor="none", alpha=0.16,
+                           color="#8e44ad" if c in self.HALL_CHANNELS else "0.55")
+            colors = ["#c0392b" if v - 100 > self.IMBALANCE_FLAG_PCT
+                      else "#e67e22" if v > 100 else "#2980b9" for v in vals]
+            ab.bar(x, vals - 100.0, bottom=100.0, color=colors, width=0.62, zorder=2)
+            for xi in range(len(ci)):
+                k = order[xi]
+                ab.plot([xi, xi], [100 + whisk[k, 0], 100 + whisk[k, 1]],
+                        color="k", lw=1.3, alpha=0.55, zorder=3)
+                ab.annotate(f"{vals[xi]:.1f}%", (xi, vals[xi]), ha="center",
+                            va="bottom" if vals[xi] >= 100 else "top", fontsize=9, zorder=4)
+            ab.axhline(100, color="k", lw=1.0)
+            lo = min(float(vals.min()), float((100 + whisk).min()), 100 - maxfloor)
+            hi = max(float(vals.max()), float((100 + whisk).max()), 100 + maxfloor)
+            mrg = max(0.6, (hi - lo) * 0.18)
+            ab.set_ylim(lo - mrg, hi + mrg)
+            ab.set_xticks(x)
+            ab.set_xticklabels([cnames[order[xi]] + (" (H)" if cnames[order[xi]] in self.HALL_CHANNELS else "")
+                                for xi in range(len(ci))])
+            ab.set_ylabel("% of fair share")
+            ab.set_title(f"per-pin IMBALANCE — share of the load  (fair = {fair:.2f} A = 100%; "
+                         f"hog {hog} at {pct.max():.1f}%, +{pct.max()-100:.1f}%; "
+                         f"melt-watch +{self.IMBALANCE_FLAG_PCT:.0f}%)", fontsize=10)
+            handles = [Patch(facecolor="0.55", alpha=0.16,
+                             label=f"±shunt floor (±{self.ISENSE_TOL_PCT:g}% INA240)")]
+            if any(c in self.HALL_CHANNELS for c in cnames):
+                handles.append(Patch(facecolor="#8e44ad", alpha=0.16,
+                                     label=f"±Hall floor (±{self.HALL_TOL_PCT:g}% ACS712, '(H)')"))
+            ab.legend(handles=handles, fontsize=8, loc="best")
+            ab.grid(True, axis="y", alpha=0.3)
+
+            for j in range(len(ci)):
+                at.plot(t_ms, dev_s[j], lw=0.9, label=cnames[j])
+            at.axhline(0, color="k", lw=0.8, alpha=0.5)
+            at.set_xlabel("time (ms)"); at.set_ylabel("deviation from fair (A), ~0.5 ms smoothed")
+            at.legend(fontsize=8, ncol=len(ci)); at.grid(True, alpha=0.3)
+            if dead:
+                at.annotate("not carrying: " + ", ".join(dead), (0.01, 0.03),
+                            xycoords="axes fraction", fontsize=8, alpha=0.7)
+            fig.tight_layout()
+            p = os.path.join(out, f"{stem}-imbalance.png"); fig.savefig(p, dpi=110); plt.close(fig)
+            files.append(p)
+
+        # --- FFT with the analog-ceiling overlay ---
+        if cap.uniform and cap.rate_hz and cap.n > 16:
+            total = np.vstack([cap.data[c] for c in currents]).sum(axis=0)
+            f, db = fft_dbc(total, cap.rate_hz)
+            fig, a2 = plt.subplots(figsize=(11, 5))
+            a2.semilogx(f[1:], db[1:], lw=0.7, color="tab:blue", label="sum current")
+            if rails:
+                fr, dbr = fft_dbc(cap.data[rail0], cap.rate_hz)
+                a2.semilogx(fr[1:], dbr[1:], lw=0.6, color="tab:red", alpha=0.7, label=rail0)
+            a2.semilogx(f[1:], analog_ceiling_db(f[1:], args.analog_rc_hz, args.analog_adc_hz),
+                        "g--", lw=1.2, label=f"analog ceiling ({args.analog_rc_hz/1000:.1f}k x "
+                                             f"{args.analog_adc_hz/1000:.0f}k)")
+            a2.set_ylim(-90, 5); a2.set_xlabel("frequency (Hz)"); a2.set_ylabel("magnitude (dBc)")
+            a2.set_title(f"FFT @ {cap.rate_hz/1000:.1f} kSPS [{ratetag}] -- "
+                         + ("axes honest" if cap.rate_measured else "AXES ~2x SUSPECT, run `rate`"))
+            a2.grid(True, which="both", alpha=0.3); a2.legend(fontsize=8)
+            fig.tight_layout()
+            p = os.path.join(out, f"{stem}-fft.png"); fig.savefig(p, dpi=110); plt.close(fig)
+            files.append(p)
+        return files
+
+
+class Profile24Pin(Profile):
+    """ATX 24-pin: per-rail voltage/current/power + energy, rail stability vs the
+    ATX +/-5% window, and the PS_ON#/PWR_OK + state timeline. Re-uses the shared
+    parse + time-domain engine; the rail-centric metrics take the place of the
+    12VHPWR per-pin imbalance."""
+    name = "atx-24pin"
+    RAILS = [("12v", 12.0), ("5v", 5.0), ("3v3", 3.3), ("5vsb", 5.0)]
+    ATX_TOL_PCT = 5.0   # ATX rail tolerance window
+
+    def classify(self, cap):
+        cols = set(cap.columns)
+        return [(r, nom) for r, nom in self.RAILS if f"v_{r}" in cols]
+
+    def metrics(self, cap):
+        rails = self.classify(cap)
+        m = {"module": self.name, "kind": cap.kind, "n": cap.n,
+             "rate_hz": cap.rate_hz, "rate_measured": cap.rate_measured,
+             "rails_present": [r for r, _ in rails]}
+        mr = re.search(r"reason=(\w+)", cap.meta or "")
+        if mr:
+            m["trigger_reason"] = mr.group(1)
+        if not rails:
+            m["error"] = "no rail channels (v_12v ...) found"
+            return m
+        us = cap.data.get("us")
+        dt = (np.diff(us) / 1e6) if (us is not None and len(us) > 1) else None   # seconds
+        per_rail = {}
+        total_p = np.zeros(cap.n)
+        total_e = 0.0
+        for r, nom in rails:
+            v = cap.data[f"v_{r}"]
+            i = cap.data.get(f"i_{r}")
+            p = v * i if i is not None else np.zeros_like(v)
+            total_p = total_p + p
+            e = float(np.sum((p[:-1] + p[1:]) * 0.5 * dt)) if dt is not None else None
+            if e is not None:
+                total_e += e
+            per_rail[r] = {
+                "nominal_V": nom,
+                "mean_V": float(v.mean()), "min_V": float(v.min()), "max_V": float(v.max()),
+                "dev_pct": float((v.mean() - nom) / nom * 100.0),
+                "droop_mV": float((v.mean() - v.min()) * 1000.0),
+                "ripple_mV": float((v.max() - v.min()) * 1000.0),
+                "outside_5pct": bool(np.any(np.abs(v - nom) / nom > self.ATX_TOL_PCT / 100.0)),
+                "mean_A": float(i.mean()) if i is not None else None,
+                "peak_A": float(i.max()) if i is not None else None,
+                "mean_W": float(p.mean()), "peak_W": float(p.max()),
+                "energy_J": e,
+            }
+        m["per_rail"] = per_rail
+        m["total"] = {"mean_W": float(total_p.mean()), "peak_W": float(total_p.max()),
+                      "energy_J": (total_e if dt is not None else None)}
+        worst = max(rails, key=lambda rn: abs(per_rail[rn[0]]["dev_pct"]))[0]
+        m["rail_health"] = {"all_in_5pct": not any(per_rail[r]["outside_5pct"] for r, _ in rails),
+                            "worst_rail": worst}
+        for sig in ("ps_on", "pwr_ok"):
+            if sig in cap.data:
+                d = cap.data[sig]
+                m[sig] = {"start": int(round(d[0])), "end": int(round(d[-1])),
+                          "changed": bool(np.any(np.abs(d - d[0]) > 0.5)),
+                          "low_frac": float(np.mean(d < 0.5))}
+        if "state" in cap.data:
+            st = np.rint(cap.data["state"]).astype(int)
+            seq, cur, cnt = [], int(st[0]), 0
+            for s in st:
+                if int(s) == cur:
+                    cnt += 1
+                else:
+                    seq.append({"state": cur, "samples": cnt}); cur = int(s); cnt = 1
+            seq.append({"state": cur, "samples": cnt})
+            m["state_timeline"] = seq
+        return m
+
+    def plots(self, cap, stem, out, args):
+        rails = self.classify(cap)
+        if not rails:
+            return []
+        us = cap.data.get("us")
+        t_ms = (us / 1000.0) if us is not None else np.arange(cap.n, dtype=float)
+        fig, ax = plt.subplots(len(rails) + 1, 1, figsize=(11, 2.0 * (len(rails) + 1)), sharex=True)
+        for k, (r, nom) in enumerate(rails):
+            v = cap.data[f"v_{r}"]; i = cap.data.get(f"i_{r}")
+            a = ax[k]
+            a.axhspan(nom * 0.95, nom * 1.05, color="0.85", alpha=0.6, zorder=0)
+            a.axhline(nom, color="k", lw=0.6, alpha=0.4)
+            a.plot(t_ms, v, lw=0.8, color="tab:red")
+            a.set_ylabel(f"{r}\n(V)", fontsize=8)
+            a.grid(True, alpha=0.25)
+            ttl = f"v_{r} {v.mean():.3f} V ({(v.mean()-nom)/nom*100:+.2f}%), droop {(v.mean()-v.min())*1000:.0f} mV"
+            if i is not None:
+                a2 = a.twinx(); a2.plot(t_ms, i, lw=0.7, color="tab:blue", alpha=0.6)
+                a2.set_ylabel("A", color="tab:blue", fontsize=8)
+                ttl += f"  |  i {i.mean():.2f} A"
+            a.set_title(ttl, fontsize=8)
+        total_p = sum(cap.data[f"v_{r}"] * cap.data.get(f"i_{r}", np.zeros(cap.n)) for r, _ in rails)
+        ax[-1].plot(t_ms, total_p, lw=0.9, color="tab:green", label="total P (W)")
+        ax[-1].set_ylabel("P (W)"); ax[-1].grid(True, alpha=0.25)
+        ax[-1].legend(fontsize=7, loc="upper left")
+        if any(s in cap.data for s in ("state", "ps_on", "pwr_ok")):
+            a3 = ax[-1].twinx()
+            for sig, col in (("state", "tab:purple"), ("ps_on", "tab:orange"), ("pwr_ok", "tab:gray")):
+                if sig in cap.data:
+                    a3.plot(t_ms, cap.data[sig], lw=0.8, color=col, alpha=0.7, label=sig)
+            a3.legend(fontsize=7, loc="upper right")
+        ax[-1].set_xlabel("time (ms)")
+        reason = (re.search(r"reason=(\w+)", cap.meta or "") or [None, "?"])
+        reason = reason.group(1) if hasattr(reason, "group") else "?"
+        fig.suptitle(f"24-pin rails — trigger {reason}  (±5% band shaded)", fontsize=11)
+        fig.tight_layout()
+        p = os.path.join(out, f"{stem}-rails.png"); fig.savefig(p, dpi=110); plt.close(fig)
+        return [p]
+
+
+class _Stub(Profile):
+    def __init__(self, name, what):
+        self.name = name; self._what = what
+    def classify(self, cap): return [], []
+    def metrics(self, cap):
+        return {"module": self.name, "error": f"profile not implemented yet -- would compute: {self._what}"}
+    def plots(self, cap, stem, out, args): return []
+
+
+PROFILES = {
+    "12vhpwr": Profile12VHPWR(),
+    "atx-24pin": Profile24Pin(),
+    "eps": _Stub("eps", "per-cable balance + total power + §6.13 transient events"),
+    "pcie": _Stub("pcie", "per-cable balance + total power + §6.13 transient events"),
+}
+
+
+# ----------------------------------------------------------------------------
+# Driver
+# ----------------------------------------------------------------------------
+def write_metrics(m, stem, out):
+    m["analyzer_version"] = _VERSION
+    jp = os.path.join(out, f"{stem}-metrics.json")
+    with open(jp, "w") as f:
+        json.dump(m, f, indent=2)
+    mp = os.path.join(out, f"{stem}-metrics.md")
+    with open(mp, "w") as f:
+        f.write(f"# {stem}  ({m.get('module','?')} / {m.get('kind','?')})\n\n")
+        f.write(f"*analyzer {_VERSION}*\n\n")
+        if "error" in m:
+            f.write(f"**{m['error']}**\n"); return [jp, mp]
+        f.write(f"- samples: {m['n']} @ {m['rate_hz']/1000:.2f} kSPS "
+                f"({'measured' if m['rate_measured'] else 'NOMINAL -- run `rate`, axes ~2x suspect'})\n")
+        if "imbalance" in m:
+            im = m["imbalance"]
+            flag = "  **<-- FLAG: over the imbalance limit**" if im.get("FLAG") else ""
+            f.write(f"\n## Imbalance (the melt metric){flag}\n")
+            if im.get("imbalance_pct") is None:
+                f.write(f"- **{im['load_state']}** -- capture under GPU load for a meaningful number\n")
+            else:
+                f.write(f"- carrying pins {im['carrying_pins']}: mean {im['carrying_mean_A']:.3f} A, "
+                        f"spread {im['carrying_spread_A']:.3f} A -> **imbalance {im['imbalance_pct']:.1f}%**\n")
+                f.write(f"- worst (hog): {im['worst_pin']} (+{im['worst_pin_excess_pct']:.1f}% over the "
+                        f"carrying mean); worst instantaneous spread "
+                        f"{im['worst_instantaneous_spread_A']:.3f} A\n")
+                if im.get("pin_floor_pct"):
+                    pf = im["pin_floor_pct"]; hp = im.get("hall_pins", [])
+                    shunt_fl = next((v for c, v in pf.items() if c not in hp), None)
+                    f.write("- measurement floor:")
+                    if shunt_fl is not None:
+                        f.write(f" ±{shunt_fl:.1f}% per shunt pin (±{im.get('isense_tol_pct', 1.0):g}% INA240)")
+                    if hp:
+                        f.write(f"{',' if shunt_fl is not None else ''} ±{pf[hp[0]]:.1f}% on the ACS712 "
+                                f"Hall pins {hp} (±{im.get('hall_tol_pct', 3.0):g}%)")
+                    f.write(f" — a bar inside ITS band may be sensor mismatch, not real imbalance. "
+                            f"Hog {im['worst_pin']} is "
+                            f"**{'above' if im.get('worst_pin_significant') else 'within'}** its own floor"
+                            f" (±{im.get('worst_pin_floor_pct', 0.0):.1f}%).\n")
+            if im.get("dead_pins"):
+                f.write(f"- dead / not-carrying: {im['dead_pins']} — a dead pin pushes its share onto "
+                        f"the rest, raising their absolute current\n")
+        if "trigger_reason" in m:
+            f.write(f"\n- trigger: **{m['trigger_reason']}**\n")
+        if "per_rail" in m:
+            f.write("\n## Per-rail (V / I / power / energy, ATX ±5%)\n")
+            f.write("| rail | mean V | dev % | droop mV | ripple mV | mean A | mean W | energy J | in ±5%? |\n")
+            f.write("|---|---|---|---|---|---|---|---|---|\n")
+            for r, d in m["per_rail"].items():
+                a = "-" if d.get("mean_A") is None else f"{d['mean_A']:.2f}"
+                e = "-" if d.get("energy_J") is None else f"{d['energy_J']:.1f}"
+                f.write(f"| {r} | {d['mean_V']:.3f} | {d['dev_pct']:+.2f} | {d['droop_mV']:.1f} | "
+                        f"{d['ripple_mV']:.1f} | {a} | {d['mean_W']:.2f} | {e} | "
+                        f"{'yes' if not d['outside_5pct'] else '**NO**'} |\n")
+            t = m.get("total", {})
+            line = f"- **total: {t.get('mean_W', 0):.2f} W mean, {t.get('peak_W', 0):.2f} W peak"
+            if t.get("energy_J") is not None:
+                line += f", {t['energy_J']:.1f} J over the window"
+            f.write(line + "**\n")
+            rh = m.get("rail_health", {})
+            f.write(f"- rail health: {'all rails within ±5%' if rh.get('all_in_5pct') else '**a rail is OUT of ±5%**'}"
+                    f" (worst deviation: {rh.get('worst_rail', '?')})\n")
+        for sig, lbl in (("ps_on", "PS_ON#"), ("pwr_ok", "PWR_OK")):
+            if sig in m:
+                d = m[sig]
+                f.write(f"- {lbl}: {'**changed** during the window' if d['changed'] else 'steady'}"
+                        f" (asserted-low {d['low_frac']*100:.0f}% of samples)\n")
+        if "total" in m and "mean_A" in m["total"]:
+            f.write(f"\n## Total\n- mean {m['total']['mean_A']:.2f} A, peak {m['total']['peak_A']:.2f} A\n")
+        if "rail" in m:
+            r = m["rail"]
+            f.write(f"\n## Rail ({r['name']})\n- {r['mean_V']:.3f} V mean, droop {r['droop_mV']:.1f} mV, "
+                    f"ripple {r['ripple_pkpk_mV']:.1f} mVpp\n")
+        if "voltages" in m and len(m["voltages"]) > 1:
+            f.write("\n## Voltages\n")
+            for name, val in m["voltages"].items():
+                f.write(f"- {name}: {val:.3f} V\n")
+        if "spectral" in m:
+            s = m["spectral"]
+            f.write(f"\n## Spectral\n- load fundamental {s['load_fundamental_Hz']:.0f} Hz, "
+                    f"floor {s['noise_floor_dBc']:.0f} dBc\n")
+            if s.get("rate_caveat"):
+                f.write(f"- **{s['rate_caveat']}**\n")
+        if "per_pin" in m:
+            f.write("\n## Per-pin\n| pin | mean A | peak A | rms A |\n|---|---|---|---|\n")
+            for c, d in m["per_pin"].items():
+                f.write(f"| {c} | {d['mean_A']:.3f} | {d['peak_A']:.3f} | {d['rms_A']:.3f} |\n")
+    return [jp, mp]
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Analyze a CEC bench capture (per module).")
+    ap.add_argument("input", help="capture file or serial log (one or more ===BURST_CSV=== blocks)")
+    ap.add_argument("--module", default="12vhpwr", choices=sorted(PROFILES))
+    ap.add_argument("--rate", type=float, default=None, help="override sample rate (Hz)")
+    ap.add_argument("--index", type=int, default=None, help="analyze only the Nth block (0-based)")
+    ap.add_argument("--out", default=None, help="output dir (default <input>.analysis)")
+    ap.add_argument("--analog-rc-hz", type=float, default=15900.0)
+    ap.add_argument("--analog-adc-hz", type=float, default=14000.0)
+    ap.add_argument("--isense-tol", type=float, default=None,
+                    help="per-channel shunt tolerance %% for the imbalance measurement-floor "
+                         "band (default 1.0 = 1%% alloy shunts)")
+    ap.add_argument("--hall-tol", type=float, default=None,
+                    help="per-channel tolerance %% for the ACS712 Hall pins (default 3.0)")
+    ap.add_argument("--hall-channels", default=None,
+                    help="comma-separated Hall channel labels (default i1,i2)")
+    args = ap.parse_args()
+
+    with open(args.input) as f:
+        text = f.read()
+    caps = list(parse_captures(text))
+    if not caps:
+        print("no ===BURST_CSV=== blocks found", file=sys.stderr); sys.exit(2)
+
+    out = args.out or (os.path.splitext(args.input)[0] + ".analysis")
+    os.makedirs(out, exist_ok=True)
+    prof = PROFILES[args.module]
+    if args.isense_tol is not None and hasattr(prof, "ISENSE_TOL_PCT"):
+        prof.ISENSE_TOL_PCT = args.isense_tol
+    if args.hall_tol is not None and hasattr(prof, "HALL_TOL_PCT"):
+        prof.HALL_TOL_PCT = args.hall_tol
+    if args.hall_channels is not None and hasattr(prof, "HALL_CHANNELS"):
+        prof.HALL_CHANNELS = tuple(c.strip() for c in args.hall_channels.split(",") if c.strip())
+    base = os.path.splitext(os.path.basename(args.input))[0]
+
+    flagged = 0
+    for bi, cap in enumerate(caps):
+        if args.index is not None and bi != args.index:
+            continue
+        if args.rate:
+            cap.rate_hz, cap.rate_measured = args.rate, True
+        if not cap.rate_hz:
+            cap.rate_hz, cap.rate_measured = 100000.0, False   # last-ditch; flagged
+        stem = f"{base}-{bi:02d}-{cap.kind}"
+        m = prof.metrics(cap)
+        files = prof.plots(cap, stem, out, args)
+        files += write_metrics(m, stem, out)
+        flag = m.get("imbalance", {}).get("FLAG")
+        flagged += 1 if flag else 0
+        tag = "" if cap.rate_measured else "  [RATE NOMINAL -- run `rate`]"
+        if "imbalance" in m and m["imbalance"].get("imbalance_pct") is not None:
+            imbtag = f"  IMBALANCE {m['imbalance']['imbalance_pct']:.1f}%" + (" FLAG" if flag else "")
+            if m["imbalance"].get("dead_pins"):
+                imbtag += f"  dead:{','.join(m['imbalance']['dead_pins'])}"
+        elif "imbalance" in m:
+            imbtag = "  (no load -- imbalance N/A)"
+        else:
+            imbtag = ""
+        print(f"[{bi}] {cap.kind} {cap.n} frames @ {cap.rate_hz/1000:.1f} kSPS{tag}{imbtag}")
+        for fp in files:
+            print(f"    -> {fp}")
+    if flagged:
+        print(f"\n{flagged} capture(s) FLAGGED over the imbalance limit.")
+
+
+if __name__ == "__main__":
+    main()

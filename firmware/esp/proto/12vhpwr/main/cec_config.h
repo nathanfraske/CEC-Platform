@@ -1,0 +1,167 @@
+/*
+ * 12vhpwr-proto board/application configuration — the official
+ * board-variation point (eps main/cec_config pattern, firmware
+ * consolidation Phase H3). Pins, LSB scaling, and the link clock live
+ * here, never inside firmware/esp/components.
+ *
+ * Pin map per doc section 6.3 / 10 (ESP32-P4-Module-DEV-KIT GPIO header
+ * to the Tang Primer 25K dock 2x20 GPIO field).
+ *
+ * Re-pinned off GPIO 20-24 (bench bring-up): on the ESP32-P4 those pads
+ * are the flash/PSRAM MSPI bus (IO_MUX DBG_PSRAM_*), so gpio_config on
+ * them hangs the CPU. GPIO 1-5 are plain-GPIO-only, exposed on the
+ * DEV-KIT header, with no flash/PSRAM/Ethernet/console/strap function.
+ * Dock field positions and FPGA balls are UNCHANGED — only the ESP GPIO
+ * (and thus which header pin the jumper lands on) moved.
+ */
+
+#pragma once
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "cec_fpga_link.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define PROTO_PIN_SCLK  1    /* -> dock field T13 (FPGA F2)  */
+#define PROTO_PIN_MOSI  2    /* -> dock field T14 (FPGA B2)  */
+#define PROTO_PIN_MISO  3    /* <- dock field B14 (FPGA C2)  */
+#define PROTO_PIN_CS    4    /* -> dock field B13 (FPGA F1)  */
+#define PROTO_PIN_DRDY  5    /* <- dock field B12 (FPGA A1)  */
+
+#define PROTO_LINK_HOST      SPI2_HOST
+#define PROTO_LINK_CLOCK_HZ  (8 * 1000 * 1000)   /* 8 MHz. The ESP<->FPGA LINK
+                                                  * SCLK (NOT the AD7606 readout).
+                                                  * 12.5 MHz (fabric/4) is the
+                                                  * slave's hard edge and bit-
+                                                  * errored on the bench: the
+                                                  * constant 0xA5 header arrived
+                                                  * with single bits flipped
+                                                  * (0xB5/0xA1/0xA7). 8 MHz sits
+                                                  * below the known-good 10 MHz for
+                                                  * MISO settle margin on the
+                                                  * perfboard link; raise toward
+                                                  * 10-12.5 only once the headers
+                                                  * are 100% solid. Floor for the
+                                                  * 25k stream keep-up is ~5 MHz. */
+
+/* AD7606 +/-5 V range: 152.59 uV per LSB. */
+#define PROTO_LSB_VOLTS      (5.0 / 32768.0)
+
+/* FPGA native capture rate -- keep in sync with top.v SAMPLE_HZ. This is the
+ * "burst at 200k for oversampling, decimate to the ~25 kSPS useful band" target
+ * (the host averages each 200k/25k = 8 raw samples -> sqrt(8) ~ 2.8x noise drop).
+ * Used only for the nominal time axis of `fastburst`; the real rate is the
+ * AD7606 conv+read ceiling if SAMPLE_HZ over-paces it -- the sequential FSM
+ * (conv ~4us + 64-SCLK read at 12.5 MHz) self-limits BELOW 200 kSPS, so the
+ * fastburst header reports the ACHIEVED rate from the seq spacing, not this
+ * nominal. Reaching the full 200 kSPS needs the read-SCLK speedup + pipelined
+ * FSM noted in top.v. */
+#define PROTO_NATIVE_HZ      200000
+
+/* RTL capture-ring DEPTH (top.v) -- the max `fastburst` window. */
+#define PROTO_RING_DEPTH     2048
+
+/* Continuous decimated stream (top.v DECIM_M boxcar -> free-running FIFO).
+ * The FPGA averages DECIM_M native samples into one stream sample, so the
+ * stream rate = native / DECIM_M. With native ~200k and DECIM_M 8 -> ~25k;
+ * with the v0 sequential FSM (~107k) and DECIM_M 4 -> ~27k. Keep
+ * PROTO_STREAM_HZ in sync with top.v's NATIVE_HZ/DECIM_M -- it is only the
+ * nominal time axis; the host derives the TRUE rate from the frame cadence,
+ * and the per-frame dropcount byte exposes any FIFO overrun (lost samples). */
+#define PROTO_STREAM_HZ      25000
+/* Stream FIFO depth in FPGA (top.v STREAM_DEPTH) -- the ESP drain-jitter slack
+ * (2048 @ 25k = ~80 ms). Reads >this in one block just wrap the FIFO. */
+#define PROTO_STREAM_DEPTH   2048
+
+/* 12V-rail voltage divider: 47k top / 10k bottom -> rail = adc * (47+10)/10. */
+#define PROTO_RAIL_DIVIDER   (57.0f / 10.0f)
+
+/* Per-pin current sense (PROVISIONAL -- confirm against the perfboard):
+ *   amps = (adc_volts - PROTO_ISENSE_BIAS_V) / PROTO_ISENSE_V_PER_A
+ * BIAS  = sense-amp output at 0 A (the capture's steady channels sit ~2.40 V).
+ * V_PER_A = Rshunt * gain. The spec 12VHPWR-Std front-end is 1 mOhm * INA240A3
+ * (gain 100) = 0.1 V/A; set this to the board's ACTUAL shunt*gain. Only the
+ * magnitude scales with V_PER_A -- the sign and zero are right regardless. */
+#define PROTO_ISENSE_BIAS_V    2.40f
+#define PROTO_ISENSE_V_PER_A   0.10f
+
+/* ACS712T-20A Hall current modules on v1/v2 (idx 0/1) -- the two NON-INA240 rails,
+ * a deliberate precision A/B against the shunt+INA240 set. 5 V ratiometric part:
+ * 100 mV/A sensitivity, zero-current output Vcc/2 = 2.5 V (bidirectional). Same
+ * model as the shunt channels, its own constants:
+ *   amps = (adc_volts - PROTO_HALL_BIAS_V) / PROTO_HALL_V_PER_A
+ * LOWER precision than the shunt path -- ~1.5% total error + offset drift + more
+ * noise (80 kHz BW), and the 2.5 V zero is RATIOMETRIC so it moves with the exact
+ * 5 V rail -- which is exactly what this board is characterizing. Run `cal` at 0 A
+ * to null each module's real quiescent (the ACS712 offset is notable). */
+#define PROTO_HALL_BIAS_V      2.50f    /* Vcc/2 zero-current output (refine with `cal`) */
+#define PROTO_HALL_V_PER_A     0.100f   /* ACS712-20A sensitivity: 100 mV/A */
+
+/*
+ * Per-channel physical calibration. The TelePlot loop turns each raw AD7606
+ * channel (ADC volts, ±5 V full-scale) into a physical quantity:
+ *
+ *     physical = (adc_volts - offset_v) * scale
+ *
+ *   VOLTAGE via a divider:  scale = (Rtop + Rbot) / Rbot,  offset_v = 0
+ *   CURRENT via shunt+amp:  scale = 1 / (Rshunt * Again),  offset_v = Vbias
+ *
+ * `label` is the TelePlot series name; `median` runs the channel through a
+ * small rolling median to reject the per-channel glitch -- use it on steady
+ * VOLTAGE channels, NOT on current channels whose real transients you keep.
+ *
+ * All six current channels are calibrated AMP now: v3-v5,v8 = INA240 shunt
+ * (scale 1/(Rshunt*gain), offset Vbias), v1/v2 = ACS712-20A Hall (scale
+ * 1/sensitivity, offset Vcc/2). The provisional biases are nulled per channel by
+ * the `cal` command at 0 A. v6 (index 5) is the confirmed 12V-rail divider.
+ */
+typedef enum { PROTO_KIND_RAW, PROTO_KIND_VOLT, PROTO_KIND_AMP } proto_kind_t;
+
+typedef struct {
+    const char  *label;     /* TelePlot series name                        */
+    proto_kind_t kind;      /* RAW=adc volts, VOLT=volts, AMP=amps         */
+    float        scale;     /* multiplies (adc_volts - offset_v)           */
+    float        offset_v;  /* bias subtracted before scaling              */
+    bool         median;    /* rolling-median de-glitch (steady channels)  */
+} proto_ch_cal_t;
+
+extern const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS];
+
+/* Apply PROTO_CH_CAL[ch] to a raw ADC code -> physical value (no filtering). */
+float       proto_channel_phys(int ch, int16_t code);
+/* Unit suffix for a calibration kind ("V" / "A" / "Vadc"). */
+const char *proto_kind_unit(proto_kind_t kind);
+
+/*
+ * Runtime per-channel zero/offset calibration. proto_channel_phys() subtracts
+ * a per-channel offset (ADC volts) seeded from PROTO_CH_CAL[].offset_v; the
+ * `cal` command captures the AMP channels' no-load (0 A) bias and overwrites
+ * it, fixing the per-channel INA offset that the single provisional bias can't.
+ * Auto-seeds on first use; proto_cal_init() is optional (call once at startup).
+ */
+void  proto_cal_init(void);
+void  proto_cal_set_offset_v(int ch, float offset_v);
+float proto_cal_get_offset_v(int ch);
+
+/*
+ * Measured native sample rate. The `rate` command reads the FPGA status counter
+ * twice over a known interval and stores the result here; the burst/autoburst
+ * time axes use proto_measured_native_hz() so the FFT frequency scale is the
+ * REAL rate (the conv+read FSM self-limits below the nominal pacer), not the
+ * PROTO_NATIVE_HZ label. Returns the nominal until `rate` has run.
+ */
+void  proto_set_measured_native_hz(float hz);
+bool  proto_native_hz_measured(void);
+float proto_measured_native_hz(void);
+
+/*
+ * Fill a link config from the constants above.
+ */
+void cec_config_fpga_link(cec_fpga_link_config_t *out);
+
+#ifdef __cplusplus
+}
+#endif

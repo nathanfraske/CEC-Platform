@@ -1,0 +1,42 @@
+# CEC EPS Module - default sdkconfig
+# Target: ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM)
+
+# Flash
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+
+# PSRAM - N16R8 uses octal-mode PSRAM; without this PSRAM won't initialize
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# FreeRTOS - 1ms tick for timing precision in sample/detection paths
+CONFIG_FREERTOS_HZ=1000
+
+# Task watchdog
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+
+# Console over USB-Serial-JTAG (native USB on the dev board)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Custom partition table (factory app + NVS)
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# CAN-OTA rollback safety (a freshly CAN-flashed image confirms itself via
+# cec_canota_mark_valid in app_main, else the bootloader rolls back).
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Compiler
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# CEC sensor selection (shared cec_sensors component): oneshot cec_adc
+# backend (with the pause/resume hand-off for burst capture), ACS758
+# per-cable Hall sensors, NTC board-temp divider.
+CONFIG_CEC_ADC_BACKEND_ONESHOT=y
+CONFIG_CEC_SENSOR_ACS758=y
+CONFIG_CEC_SENSOR_NTC=y
+
+# Dedicated TelePlot UART transport (CH340K USB-C, 921600).
+CONFIG_CEC_TELEMETRY_UART0=y

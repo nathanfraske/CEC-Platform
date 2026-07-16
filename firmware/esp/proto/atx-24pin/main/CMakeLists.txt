@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS "main.c" "cec_config.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        # CEC components
+        cec_common
+        cec_filters
+        cec_nvs
+        cec_sensors
+        cec_detection
+        cec_capture
+        cec_telemetry
+        cec_cli
+        cec_comms
+        # ESP-IDF components used directly by main.c
+        esp_timer
+        esp_system
+        esp_psram
+        spi_flash
+        esp_driver_i2c
+        esp_driver_gpio
+)

@@ -1,0 +1,62 @@
+# CEC Hub Standard prototype — sdkconfig defaults for ESP32-S3-WROOM-1-N16R8
+# (Lonely Binary S3 N16R8, the same board the 24-pin bench prototype used).
+#
+# Regenerate sdkconfig from this with: idf.py set-target esp32s3
+# (a plain `idf.py build` does NOT re-apply changes here onto an existing
+# sdkconfig -- delete sdkconfig or run set-target to pick them up.)
+
+# Target
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash size (WROOM-1-N16R8 has 16 MB flash)
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# PSRAM (WROOM-1-N16R8 has 8 MB OCTAL PSRAM -- octal mode, unlike the
+# MINI-1-N4R2 module's 2 MB quad PSRAM on the sensor boards). Not needed for
+# this CAN-only prototype, but enabled to match the real Hub silicon;
+# IGNORE_NOTFOUND keeps boot going if a given board variant lacks it.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_TYPE_AUTO=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_BOOT_INIT=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# CPU frequency
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Custom partition table
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Disable WiFi and BT in the bootloader to save startup time and memory
+# (the CAN-bringup prototype uses neither; production Wi-Fi is a later task)
+CONFIG_ESP_WIFI_ENABLED=n
+CONFIG_BT_ENABLED=n
+
+# USB CDC for the console via native USB Serial/JTAG (the one USB-C cable);
+# TelePlot of the received telemetry rides this stream with the logs.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Log level
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# Compiler optimization
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# TelePlot transport: the prototype has only native USB Serial/JTAG, so
+# leave the dedicated UART transport off -- teleplot_* helpers fall through
+# to stdio (the USB console). main.c does not call cec_telemetry_init_uart.
+CONFIG_CEC_TELEMETRY_UART0=n
+
+# CAN (TWAI). Transceiver = SN65HVD230 breakout. MCU CAN TX on IO17 (-> D),
+# CAN RX on IO18 (<- R) -- the real Hub board's CAN pins, moved off IO5/IO4 so
+# those free up for DETECT1/DETECT2 (the 4-port DETECT map is IO4..IO7, see
+# cec_config.h). Bitrate 125k = the reliable bench rate -- the SN65HVD230
+# breakout is slope-controlled and bus-offs at 500k unless Rs->GND; 500k is the
+# target. MUST match the modules' bitrate (also 125k).
+CONFIG_CEC_CAN_TX_GPIO=17
+CONFIG_CEC_CAN_RX_GPIO=18
+CONFIG_CEC_CAN_BITRATE_BPS=125000

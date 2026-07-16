@@ -1,0 +1,32 @@
+{
+  "folders": [
+    {
+      "name": "proto: atx-24pin (esp32s3)",
+      "path": "esp/proto/atx-24pin"
+    },
+    {
+      "name": "proto: eps-8pin (esp32s3)",
+      "path": "esp/proto/eps-8pin"
+    },
+    {
+      "name": "proto: 12vhpwr (esp32p4)",
+      "path": "esp/proto/12vhpwr"
+    },
+    {
+      "name": "CEC-Platform (repo)",
+      "path": ".."
+    }
+  ],
+  "settings": {
+    "search.exclude": {
+      "**/build": true,
+      "**/managed_components": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "espressif.esp-idf-extension",
+      "llvm-vs-code-extensions.vscode-clangd"
+    ]
+  }
+}
