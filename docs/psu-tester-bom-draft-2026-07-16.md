@@ -191,18 +191,25 @@ bolt-on tabs?" Answer state + tonight's live checks:
 - **Ladder v1.1 deltas** (minors overkill respec): +11 legs ≈ +$29
   resistors, +3 group switch/fuse sets ≈ +$4, mini-loop parts ≈ +$1.
 - **Ceramic insulators + shoulder washers — NEW line (owner follow-up,
-  2026-07-16 night).** One AlN pad + insulating shoulder washer per
-  extrusion-mounted device (ST ×3 / Pro ×13 / Max ×17 / W ×~20). Sizes are
+  2026-07-16 night; counts revised same night by the one-part-pad ruling).**
+  One AlN pad + insulating shoulder washer per BIG-linear device only
+  (verniers + fast FETs: ST ×2 / Pro ×12 / Max ×16 / W ×~19). Sizes are
   commodity: TO-247 22×17×0.635 mm, TO-264 22×28×1 mm, AlN ≥170 W/mK
   (Innovacera-store/China class ~$0.5–3/pc small-qty, ~$0.3–0.8 volume —
   [wb] exact SKU + qty price at BOM lock); nylon/PEEK shoulder washers
   pennies. ≈$2–15/unit hardware. Engineering basis: 0.635 mm AlN ≈0.02 K/W
   over the ~2 cm² tab vs alumina ≈0.12 — alumina alone eats the vernier
-  stack's 0.10–0.15 K/W budget, so AlN is REQUIRED at verniers/fast FETs;
-  alumina acceptable at low-duty crowbar sites. TIM itself = shop-stock
-  paste (Kryonaut/KPX/MX-7 by the gallon, owner ruling) — no TIM BOM line
-  beyond consumables; sponsored graphite sheets allowed at resistor mounts
-  only (rule 25a).
+  stack's 0.10–0.15 K/W budget, so AlN is REQUIRED at verniers/fast FETs.
+  LOW-DUTY SITES (crowbar TO-220s ×8, 5VSB mini-loop TO-220 ×1, bimetals):
+  ONE-PART silicone insulator pads, no paste — Sil-Pad-class commodity,
+  ~$0.1–0.5/pc, pennies line. One-part pads at the BIG-linear sites were
+  evaluated and REJECTED on the numbers (rule 25(b) ladder: best marginal
+  candidate ≈0.13 K/W with creep/cost problems vs AlN stack 0.06–0.12).
+  PACKAGE-LEVEL alternative on file: IXTN…L2 SOT-227 miniBLOC (factory
+  AlN-isolated base, e.g. IXTN200N10L2) = one paste layer, no hardware, at
+  ~2–4× device cost [wb]. TIM itself = shop-stock paste (Kryonaut/KPX/MX-7
+  by the gallon, owner ruling) — no TIM BOM line beyond consumables;
+  sponsored graphite sheets allowed at resistor mounts only (rule 25a).
 - **Net §3a nudge**: ST-1000 BOM ≈ $545 → **≈ $620–640** (v1.1 legs + tabs
   + per-leg receptacles); ST-1300 similarly +~$80–100. At $1,299/$1,499
   list the margin reads ~2.0–2.1× — below the 3× convention like the rest

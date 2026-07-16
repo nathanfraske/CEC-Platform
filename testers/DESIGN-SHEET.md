@@ -256,9 +256,27 @@ product)**
     at the verniers (0.635 mm AlN ≈0.02 K/W over the ~2 cm² tab vs
     alumina ≈0.12 — alumina alone eats the whole budget; alumina OK at
     the low-duty crowbar sites). Commodity sizes: TO-247 22×17×0.635,
-    TO-264 22×28×1. One pad + insulating shoulder washer per extrusion
-    device: ST ×3 / Pro ×13 / Max ×17 / W ×~20 ($0.3–3/pad class, BOM
-    §3d) —
+    TO-264 22×28×1. One pad + insulating shoulder washer per BIG-linear
+    device (verniers + fast FETs only; the mini-loop moved to 25(c)):
+    ST ×2 / Pro ×12 / Max ×16 / W ×~19 ($0.3–3/pad class, BOM §3d).
+    ONE-PART-PAD LADDER (owner Q 2026-07-16 — why no single insulating
+    pad replaces paste+AlN+paste HERE; all case-to-sink, TO-247 area):
+    silicone insulator pads (Sil-Pad 400 class) 0.5–1.5 K/W ✗; premium
+    BN-filled silicone (Sil-Pad 2000 class, ~3.5 W/mK @0.25 mm) ~0.3–0.5
+    ✗; phase-change-on-polyimide (Hi-Flow dielectric class) ~0.3–0.6 ✗;
+    mica/Kapton ~0.3–0.4 AND still need grease both faces ✗; ultra-high-k
+    gap fillers (17 W/mK Fujipoly XR-m class) ≈0.13 + contact = AT-budget
+    marginal but creep under bolt pressure + isolation-rating + $5–15/pc
+    → NOT accepted. Physics: in a one-part pad the polymer IS the
+    insulation, and polymers top out ~6–17 W/mK vs AlN's ~170 — the
+    ceramic is the only insulator thin-and-conductive enough, and a hard
+    ceramic's two faces each need paste. PACKAGE-LEVEL ESCAPE (verified):
+    the same L2 family ships SOT-227 miniBLOC siblings with FACTORY AlN
+    ISOLATION in the package (IXTN200N10L2, 100 V/178 A L2) — isolated
+    base bolts bare to the grounded extrusion, ONE paste layer, no
+    ceramic, no shoulder washers; ~2–4× device cost [wb price at BOM
+    lock]. That and the per-rail-segment alternative below are the two
+    ways to kill the sandwich if assembly labor ever outweighs parts —
     silicone insulator pads (0.5–1.5 K/W for TO-247) are PROHIBITED at
     this site, and **KryoSheet/Carbonaut are BANNED at every isolation
     site (electrically conductive graphene/carbon)**. Alternative under
@@ -267,8 +285,14 @@ product)**
     Packaging corollary: the 5VSB mini-CC loop FET must be TO-220/IPAK
     THT (NOT the DPAK loosely stated in the v1.1 note) to reach the
     extrusion like its siblings.
-    (c) **SCP crowbar TO-220s + bimetal switches → plate**: standard
-    insulator pad + paste, low duty (ms pulses / tens of W).
+    (c) **SCP crowbar TO-220s + the 5VSB mini-loop TO-220 + bimetal
+    switches → plate/extrusion**: ONE-PART silicone insulator pad, NO
+    paste (updated per the owner's pad question, 2026-07-16) — these
+    sites' budgets are loose (crowbar = ms pulses; mini-loop ≤~8 W
+    continuous, where even 1–2 K/W costs ≤16 K), which is exactly the
+    duty one-part Sil-Pad-class parts were made for; dropping paste here
+    is a pure assembly win. Only the 25(b) big-linear devices carry the
+    AlN+paste×2 stack.
     Checks: assembly doc carries torque + TIM part + thickness per joint
     class; §4 ledger uses the spec'd interface R, never a bare-metal
     assumption. Platform echo: the enclosed consumer products already
