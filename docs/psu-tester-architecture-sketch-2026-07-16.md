@@ -444,6 +444,56 @@ pricing lock.
     profile CRC + cross-cal residuals printed on the report footer — the
     platform's verdict-provenance doctrine applied to a shop deliverable.
 
+## 11. Standard tester — UN-SHELVED as the value line (owner, 2026-07-16)
+
+**Owner ruling evolution**: the §6 canonical ruling shelved the Standard
+tester ("Standard is not the shop spec"); owner direction 2026-07-16 un-
+shelves it as a defined VALUE LINE for newer/smaller repair shops — "a
+$1,000–1,500 tester that is already ATX-loaded and ready to go," doing the
+"is this PSU sane under load, and does it work" job handheld testers only
+pretend to. Two power classes: **ST-1000 (~1000 W)** and **ST-1300
+(~1300 W)**.
+
+**Feature fence (the §3a insight — switched-R is ADEQUATE for exactly this
+set):** static per-rail loads + regulation verdict, PS_ON#/PWR_OK timing
+(T1/T3/T6), power-up cross-load corner, OCP-by-steps (coarse staircase),
+SCP, 5VSB incl. the 3.5 A peak leg, −12 V presence, 12VHPWR per-pin
+melt-watch soak, one-button report. NO transient engine, NO OVP, NO
+streams/digitizer, ripple = one BNC tap. The $15-tester kill-line:
+*"it tells you it turns on; this tells you it works."*
+
+**Architecture deltas from Pro (strip list):**
+- **MCU returns to ESP32-C6** — the tier symmetry completes: C6/CAN-only
+  (Standard), P4/RS-485 (Pro), P4+FPGA/T1 (Max). No streams → FS USB is
+  ample; setpoints via PWM+RC (loop-grade), no DAC80508.
+- Load plane: switched R-banks (~2:1 installed:tested at 50 % derate) + ONE
+  small 2-device L2 vernier for corner smoothness and OCP ramps; no fast
+  channel; SCP crowbars kept (cheap, high shop value).
+- **PROPOSED carve-out — INTEGRATED instrumentation** (needs owner sign-off:
+  it bends the §0 actuator-not-instrument principle at this tier): the
+  module sensing BLOCKS (INA238 per rail-group, INA240 ×6 per-pin on the
+  12VHPWR input, the 24-pin's 74LVC1G17 PS_ON/PWR_OK buffers) live ON the
+  tester board at the fixture inputs, factory-calibrated, ±1 %-class. One
+  box, one USB, nothing else to buy — literal "ready to go." The RJ-45 +
+  2.2 kΩ DETECT stays, so the ST tester still joins a Hub suite later as
+  the load node (upgrade path intact); its integrated sensing then defers
+  to inline modules when present.
+- Cooling: same doctrine, smaller — 1000 W ≈ 88 CFM (2 fans), 1300 W ≈
+  115 CFM (3 fans); same console family, shorter duct.
+
+**BOM sketch (integrated config):** ST-1000 ≈ **$537** (sensing blocks ~$35,
+vernier pack $37, R-banks+switching $135, SCP $26, chassis/fans/sink $152,
+plate $85, PCBs $45, control $10, misc $27); ST-1300 ≈ **$585** (+R, +fan,
++chassis). Landed ≈ $639 / $696.
+
+**Retail:** **ST-1000 at $1,299** (2.03× landed) and **ST-1300 at $1,499**
+(2.15×) — single SKUs, instrumentation INCLUDED, inside the owner's window.
+Margin honesty: ~2× is capital-equipment-normal but below the platform 3×
+convention — same owner call as the Pro/Max high end, flagged not decided.
+Position: above the $750–950 Kunkin-stack-plus-crimping floor, at dead
+SunMoon money with 2026 capability, $2,200 clear of Tester Pro (whose
+transient engine + streams + OVP + module composability carry the upsell).
+
 ## 9. Open sketch questions (for the schematic pass)
 
 1. R-bank step ladder per channel (binary vs 1-2-5) + exact leg counts.
@@ -462,7 +512,12 @@ pricing lock.
    latency vs cut phase (esp. near-zero cuts), pickup geometry on typical IEC
    cords, CT clamp part class, and whether a resold IoT-relay-class listed
    box joins the kit list or stays shop-supplied.
-8. **SCP crowbar sizing pass** (§3b): FET ∥-count + fuse time-current pick vs
+8. **Standard tester sign-offs** (§11): the integrated-instrumentation
+   carve-out (bends actuator-not-instrument at ST tier — owner), station
+   pricing posture (2× multiple vs 3× convention), plate variant (fewer
+   PCIe positions?), and folding the un-shelving into the canonical §6
+   ruling record at the Task-13-class pass.
+9. **SCP crowbar sizing pass** (§3b): FET ∥-count + fuse time-current pick vs
    the biggest single-rail DUT class (150 A OCP assumption to verify), TVS
    energy rating, release-di/dt value.
 9. **Station topology (OWNER: "needs in-field testing" — deliberately

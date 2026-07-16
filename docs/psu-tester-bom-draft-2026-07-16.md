@@ -78,6 +78,20 @@ canonical margin-honesty note anticipated); Max ≈ 2.6–3.3× depending on the
 Max-Hub answer. The two swings that matter at pricing lock: the L2 SKU
 ladder (±$150 on Pro BOM) and the chassis quote (±$100).
 
+## 3a. Standard tester value line (un-shelved, owner 2026-07-16 — sketch §11)
+
+| | **ST-1000** | **ST-1300** |
+|---|---|---|
+| BOM (integrated instrumentation incl. 12VHPWR per-pin INA240 bank) | ≈ $537 | ≈ $585 |
+| Landed (+19 %) | ≈ $639 | ≈ $696 |
+| **List (single SKU, nothing else to buy)** | **$1,299** (2.03×) | **$1,499** (2.15×) |
+| Feature fence | static + regulation verdict, T1/T3/T6, cross-load corner, OCP-by-steps, SCP, 5VSB peak, −12 V, per-pin 12VHPWR soak, report | same |
+| Not present (the Pro upsell) | transient engine, OVP check, RS-485 stream, module composability story | same |
+
+Sits above the $750–950 DIY-Kunkin floor and at dead-SunMoon money; ~2×
+multiples are test-gear-normal but below platform convention — owner call at
+pricing lock alongside the Pro/Max margin question.
+
 ## 4. Open items feeding the sourcing/pricing pass
 
 1. L2 ladder quotes (TO-247 IXTH class × 8) + pulse-SOA check on the
@@ -88,3 +102,5 @@ ladder (±$150 on Pro BOM) and the chassis quote (±$100).
 5. Replacement-plate SKU pricing at OQ-89 lock (the consumable annuity).
 6. Fan MPN (dual-ball, tach, PWM, 40 °C-rated life class).
 7. Pod BOM firm-up when the owner un-parks it (§3c).
+8. ST line: integrated-sensing carve-out sign-off, plate variant quote,
+   R-bank volume pricing (the ST BOM is resistor-and-chassis dominated).

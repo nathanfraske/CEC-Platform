@@ -417,3 +417,11 @@ Conventions:
   Max station $6,995 top-config with Max-Hub pricing as the open lever). Sourcing-pass items
   in its §4: L2 ladder quotes (biggest swing ±$150), chassis quote, DAC80508 LCSC check,
   Max Hub pricing (Task-13), replacement-plate SKU at OQ-89 lock, fan MPN.
+- [2026-07-16] STANDARD TESTER UN-SHELVED (owner ruling evolution — amends the canonical §6
+  "no Standard tester" shelving): value line ST-1000/$1,299 + ST-1300/$1,499, "sane under
+  load + does it work" fence (static/regulation/timing/OCP-steps/SCP/5VSB/per-pin 12VHPWR
+  soak; NO transient/OVP/streams), C6 MCU (tier symmetry restored), switched-R + tiny
+  vernier. PROPOSED pending owner sign-off: INTEGRATED module-DNA sensing on the tester
+  board (one box ready-to-go; bends actuator-not-instrument at ST tier; RJ-45/DETECT kept
+  for later suite composition). Sketch §11 + BOM doc §3a. Fold into canonical §6 record at
+  the Task-13-class pass.
