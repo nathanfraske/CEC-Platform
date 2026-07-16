@@ -41,8 +41,11 @@ report end-to-end.
    Fallbacks: USB direct / RJ-45 to a hub port. **Tester RJ-45 must be
    PoE-SAFE** → adopt the ENT mis-plug chain (REQ-MOD-COMMON-053: SS110 +
    SMAJ58A + TPS26621 + DETECT series R + pin-7 conditioning, ≈+$2.7).
-2. Sense-wire §7: explained to owner (approve/decline the rev3 read-taps +
-   PS_ON# drive + −12 V sense adds) — pending their word.
+2. Sense-wire §7: **ALREADY IMPLEMENTED** (owner-approved 2026-07-14,
+   pipeline branch 2d9fa68c: read taps + Schmitt buffers + AO3400A PS_ON#
+   open-drain DRIVE + ESD clamps; drive gated to not-plugged-in / override,
+   system-wide BENCH-TESTER-MODE flag = the liability answer). Dependency
+   CLOSED — the tester also gains DUT power-CYCLING through the module.
 3. R-bank ladder proposal v1 (below) — pending nod.
 4. **OQ-1/OQ-10 WAIVED for ST** ("just want it to exist; we know plenty of
    shops"). Pro/Max keep the canonical gate queue.
@@ -71,3 +74,37 @@ Step resolution: 2.0 A on 12 V (vernier fills 0–2 A continuously), 5 A /
 the priced 5R: honest 48 % derate + round 2 A steps; same family/price
 class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
 2.4 A/28.8 W legs, 58 % — still acceptable with plates).
+
+## Split architecture — hot load slices vs cool control board (owner question 2026-07-16 night; RECOMMENDED, pending nod)
+
+Owner: "make the hot loop ends with all the hot components on their own
+(metal cored?) PCB, run the signalling to them, all signaling separate —
+so we can put them in different compartments or stacked or whatever?"
+
+RECOMMENDATION: YES, with one sharpening — the BIG heat is already
+off-PCB by design (50 W legs on chassis plates, vernier/SCP FETs on the
+extrusion). What actually splits off is the SWITCHING LAYER, as per-rail
+**LOAD SLICES**: bank-switch FETs + ATOF fuses + loop shunts + trip
+comparators + LOCAL gate drivers on small hot-zone boards; the control
+board stays pure SELV logic in the cool zone. Substrate: thick-copper FR4
+baseline; IMS/metal-core = a PER-SLICE OPTION where SMD switch dissipation
+concentrates (the 12 V group rows at W-tier currents) — decide per slice
+at layout with the electrothermal gate, don't blanket-IMS.
+
+Rules that make the split safe:
+- Gate DRIVERS live ON the slice; the harness carries logic-level
+  enable/PWM only (never gate charge over a cable).
+- De-gate pull-downs live ON the slice → **an unplugged harness IS the
+  safe state (no load), physically.**
+- Kelvin pairs stay on-slice (shunt → comparator local); only digital
+  trip/latch lines cross.
+- Keyed connectors, counted in the fail-safe analysis.
+
+What it buys: compartment/stacking freedom (owner's ask); ONE control
+board across ST/Pro/Max/W — W = MORE IDENTICAL SLICES (the DESIGN-SHEET §H
+population strategy physicalized); the slice is the service unit (burned
+group = swap a cheap board); and the SE two-chamber wet-gallery/dry-deck
+becomes the SAME architecture instead of a special case. Precedent: the
+fast-channel-slice is already its own board for µH reasons — this
+generalizes the pattern. Cost: +connectors/assembly, offset by slice reuse
+across four SKUs.

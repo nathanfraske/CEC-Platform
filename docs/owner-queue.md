@@ -254,3 +254,10 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   power-on for bench/self-test, NOT OS boot) — the ST tester's T1/T3/T6 + DUT sequencing ride
   it; (b) R-bank ladder v1 nod (tester-standard README table, 6R0 legs / binary groups);
   (c) blade sample order (owner, at some point) + press-tool/lever de-fit drafts queued.
+
+- [2026-07-16] **ST SPLIT ARCHITECTURE (load slices vs control board) — RECOMMENDED, needs nod**
+  (tester-standard README §Split): per-rail hot LOAD SLICES (switch FETs/fuses/shunts/trip
+  comparators/local gate drivers; thick-Cu FR4 baseline, IMS per-slice option) + pure-SELV
+  control board; unplugged-harness=no-load fail-safe; one control board across ST/Pro/Max/W;
+  compartments/stacking free; SE two-chamber = same architecture. If nodded, the board census
+  (DESIGN-SHEET §A/§H + agent capture partitioning) updates accordingly.
