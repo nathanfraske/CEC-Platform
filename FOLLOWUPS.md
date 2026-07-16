@@ -901,3 +901,8 @@ Conventions:
   loop spec per tier). Bounce further / trade-study on owner word. ALSO: sheet-02 completion
   agent was STOPPED BY OWNER via UI before it made any change — brief preserved, relaunch on
   request (multi-unit cec_sch.py fix + U1 placement + 02b/c/d + 02a readability).
+- [2026-07-16] TTV SEPARATE-SKU exploration recorded (docs/ttv-sku-exploration-2026-07-16.md,
+  owner direction) — GATE: 3-5 demand conversations (block houses + labs) BEFORE any board
+  work; open items: IHS-cap profile library from shop lapping data, ILM/substrate-bend
+  fidelity R&D, trace-replay contract (OQ-85 family), phase-2 GPU form. §14 SE keeps demo
+  firmware at most.

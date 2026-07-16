@@ -877,10 +877,13 @@ the mount... bling it out," 2026-07-16 night):**
   content, review-lab sales (TTV buyers), a wedge nobody in the PSU-tester
   or load-bank world occupies. Needs ONE calibration story: factory-
   characterized pedestal thermal resistance (we control the whole stack).
-  OWNER POSTURE (same night): demand for a SOLD TTV is unproven/small —
-  treat as a zero-hardware-cost SIDE EFFECT (firmware mode + one factory
-  cal), i.e. gimmick/content/credibility value, NOT a business case; do
-  not over-invest beyond the firmware mode.
+  OWNER POSTURE (same night, superseding sequence): demand unproven →
+  side-effect only; THEN owner direction "I would rather make a TTV
+  separate SKU" → TTV graduates to ITS OWN exploration
+  (`docs/ttv-sku-exploration-2026-07-16.md`: flaw→feature map from the
+  owner's critique of existing methods, trace-replay killer feature,
+  demand-validation gate). The SE keeps at most DEMO firmware of TTV
+  behavior; no tester-side investment beyond that.
 - **Partner co-brand numbered runs**: each block house supplies its block +
   co-marketing (custom FET-rail block = the partner canvas; CPU-pattern
   pedestals stay universal so owners re-block at will — which demos TTV).
