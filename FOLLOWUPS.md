@@ -506,3 +506,16 @@ Conventions:
   ALSO NOTED during the audit sweep: modules/ent-kvm-carrier/ent-kvm-local.kicad_sym carries
   45 high pin-type findings (local FUNC symbols, never T2-passed) — fold into the KVM-carrier
   footprint-cluster pass already queued above.
+- [2026-07-16] ENT DESIGN SHEET LANDED → docs/enterprise-requirements/board-program/ENT-DESIGN-SHEET.md
+  (owner ask: tester-style exhaustive placement/routing/rules spec for the pipeline, hub + all
+  ENT modules + kvm-carrier; §I industry best practices WITH citations — IPC-7095/4761/2141A/
+  2221B/2152, JESD84-B51, RGMII v2.0, IEEE 802.3bw/OPEN Alliance TC-8, UG0726 + PolarFire SoC
+  board-design guides [URLs verified live], TI SLLD009/SLLA270/DP83TC81x, Espressif P4 HDG,
+  Ott + Bogatin). Every working-basis number tagged [wb] — FREEZE AT LAYOUT KICKOFF with dated
+  edits, never silently. New-checker list in §F.3 (starred = hub-fab gates: isolation-moat-
+  clearance, bga-escape-completeness/via-in-pad-zone, t1-mdi-chain-order) → implement as
+  cec_constraints rows w/ teeth tests before hub layout. MPFS FCVG484 3D STEP not vendored
+  (cosmetic, §J.9). TWO SONNET AGENTS RUNNING in background this session: (A) easy-parts
+  intake (FTSH-105/TPS7A20/TLV75801/ABM3/TLP172A/LM393/REF3033) + eMMC selection research +
+  KVM footprint cluster stretch; (B) hub sheet capture 04→03→02 (+06 stretch) via the compose
+  engine + cec-schematic MCP gates — integrate their reports on completion.
