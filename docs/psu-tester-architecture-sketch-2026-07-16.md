@@ -1,6 +1,17 @@
 # PSU tester — architecture sketches (componentry, speed, cooling, form, data, timing)
 
-SKETCH (2026-07-16, owner-requested). Builds on: canonical
+SKETCH (2026-07-16, owner-requested). **REV A (owner corrections, same day):**
+(1) the tester is BENCH-STANDALONE — never part of an in-PC system, and there
+is NO Hub in the station: the tester itself terminates the module links and
+embeds the tier-paired-Hub role (CAN for all modules; Pro modules' RS-485
+streaming pairs on the Pro tester; Max modules' bidirectional 100BASE-T1 on
+the Max tester); (2) host link = the tester's OWN USB direct to the bench PC,
+which also SELF-POWERS the control plane (USB-C PD, graceful derating on 5 V
+ports); (3) consequence: the Pro tester MCU moves ESP32-C6 → **ESP32-P4**
+(multi-port RS-485 ingest + USB-HS egress; the C6 verdict was an artifact of
+the retired CAN-only framing — its FS-only USB cannot carry the streams).
+FPGA verdicts unchanged: none on Pro, GW5A-25 on Max for the digitizer only.
+Builds on: canonical
 `docs/psu-tester-exploration-2026-07-14.md` (+§6 tier ruling),
 `docs/psu-tester-component-research-2026-07-16.md` (part classes + prior art).
 Numbers carried from those docs are settled; numbers introduced here are
@@ -20,23 +31,31 @@ SKETCH-ESTIMATES marked (~) and get frozen at schematic time.
 ## 1. System block + power domains
 
 ```
-                        BENCH TOP
+                        BENCH TOP (no Hub — the tester IS the bench hub)
   PSU-under-test ──24-pin──▶ [24-pin module]──ext──▶┐
         │        ──EPS×2──▶ [EPS module]────ext──▶│  TESTER FRONT BAY
         │        ──PCIe×2/3▶ [PCIe module]──ext──▶│  (fixture heads on a
         │        ──12V-2x6─▶ [12VHPWR mod]──ext──▶│   replaceable plate)
-        │                        ▲ modules click into the MODULE DECK (lid rail)
-        │
-  CAN bus (RJ-45 daisy): Hub ◀──▶ modules ◀──▶ TESTER-MCU (one more CAN module)
-  Host PC: Hub USB (fleet telemetry) + tester USB-C (service / Max waveforms)
+        │                        ▲ modules on the MODULE DECK, each patched to a
+        │                          tester RJ-45 PORT (Hub-role: VCC + DETECT +
+        │                          CAN; Pro tester adds RS-485 rx/port; Max
+        │                          tester adds 100BASE-T1/port, bidirectional)
+  Host PC ◀── ONE USB-C (data + PD self-power) ── TESTER
 ```
 
-**Power domains (important, easy to get wrong):**
-- DUT domain: the PSU under test powers the Hub + modules exactly as in a PC
-  (24-pin module 5VSB feed → Hub JST → module VCC) — that IS part of the test.
-- Tester domain: brains, fans, gate rails, DACs run from the tester's **own
-  external 12 V brick** (~2–3 A). The DUT must never power the thing loading
-  it (a dying DUT would brown out its own executioner mid-record).
+**Power domains (REV A):**
+- **Tester control plane self-powers from the host USB-C**: PD sink requests
+  ~20 V/45–60 W → brains + DACs + gate rails + the full fan complement. On a
+  5 V/15 W-only port the tester still runs — firmware derates the permitted
+  test power to match available fan power (cooling budget follows supply
+  budget) and says so on the report. Optional 12 V aux barrel for Hub-less
+  full power off crusty hosts. The load plane itself needs no supply (passive
+  R + gate drive from the control domain).
+- **Modules are powered BY THE TESTER's port VCC** (Hub-role), NOT by the DUT
+  5VSB: instrumentation must survive the DUT dying — which is literally the
+  event under test (hold-up, SCP, shutdown post-mortems). 4–5 modules ≈
+  5–8 W, inside the PD budget. The DUT's 5VSB is only ever a measured rail.
+- **The DUT never powers any part of the tester or instrumentation.**
 - Commons: one **star ground at the load return bus** (heavy copper/bus bar);
   control grounds tie at that single point. Load returns NEVER share a trace
   with sense/control returns (the platform's Kelvin doctrine, scaled up).
@@ -85,6 +104,17 @@ its own Kelvin shunt + fast comparator → µs "pulse-actual" stamp
 | PWR_OK / T-timing | µs edges — measured by the 24-pin MODULE, not the tester | 07-14 sense-wire study |
 | Max digitizer | 50–65 MS/s, 1–10 ms windows; AFE 20 MHz; ripple per Table 4-6 | Max lane reuse |
 | CAN telemetry | 5 Hz cec_telem + event frames — control plane never carries waveforms | platform pattern |
+
+## 3a. Protection-test coverage (OCP / OPP / OVP / SCP / UVP)
+
+| Test | Pro | Max | How |
+|---|---|---|---|
+| **OCP** (per rail) | **YES** | YES | Vernier/bank staircase ramp until trip; trip edge stamped µs-grade by the §6.13 comparators (the 1 kHz INA path is the wrong clock — canonical OQ-11); records trip point + latch-vs-retry recovery via the PS_ON#/PWR_OK sequencer. Pass framing = Cybenetics convention (≤130 % single / ≤135 % multi; Intel publishes no numeric). |
+| **OPP** (whole-PSU) | **YES, bounded by installed sink** | YES (+2 kW option) | Coordinated multi-channel ramp. 1600 W installed hunts OPP on PSUs up to ~1.2 kW rated (OPP typically 120–150 % of label); the Max 2 kW ballast option extends to ~1.5 kW-class flagships. Plus the ATX 3.1 discrimination test the excursion channel makes possible: a compliant unit must RIDE 200 %/100 µs pulses without tripping yet still trip on sustained overload — both sides on one timeline. |
+| **OVP** | **NO — physics, not a gap** | **YES** | A sink can only pull a rail down; OVP needs voltage SOURCED into the rail. Max carries the TPS55289 current-limited I²C sourcing stage behind a relay, walking the rail into the Table 4-13 windows (12 V 13.4/15.0/15.6, 5 V 5.74/6.3/7.0, 3.3 V 3.76/4.2/4.3) until the PSU latches. Pro's report prints "OVP: not tested (requires Max)". |
+| **SCP** | YES | YES | Crowbar FET short (<0.1 Ω), spec-sanctioned-scary (canonical §3e): fire-posture workflow, PSU must survive by spec; 5VSB indefinite-short leg included. |
+| **UVP** | (via T6) | (via T6) | Intel defines no output-UVP number; the spec mechanism is PWR_OK deassert — covered by the T6 early-warning test (>1 ms before rails leave regulation), measured by the 24-pin module. |
+| OTP | NO | NO | Requires heat-soaking the DUT — out of scope both tiers (standing fence). |
 
 ## 4. Cooling architecture (the big one — designed first)
 
@@ -142,20 +172,28 @@ racks get it for free; benches get a flat-top console).
 - **LID = the module deck**: a rail/tray where the inline modules click in
   (their M3 mounts), so the PSU→module→extension→bay harness dresses flat
   and the modules stay visible (LEDs), cool (upstream of exhaust), and
-  strain-relieved. The Hub docks on the same deck; one RJ-45 drop enters the
-  tester's CAN port.
-- **REAR = all heat + power**: exhaust grille, tester's 12 V brick inlet,
-  second CAN RJ-45 (daisy), Max waveform USB-C. NOTHING hot or cabled faces
-  the operator.
+  strain-relieved. A **tester RJ-45 port row runs along the deck's rear
+  edge** — one short patch per docked module into its port (VCC/DETECT/CAN +
+  RS-485 or T1 per tier). No Hub docks anywhere; the tester is the hub.
+- **REAR = all heat + power**: exhaust grille, the **host USB-C (data +
+  PD self-power)**, optional 12 V aux barrel, AC-interrupter accessory jack
+  (Max). NOTHING hot or cabled faces the operator.
 - **DUT parking**: beside the tester (PSUs vary too much to swallow one);
   optional side tray accessory later. Front-bay cable reach sized for a PSU
   sitting flush left or right (~0.5 m harness envelope).
 
 ## 6. Data plane (in and out)
 
-- **Control = CAN, platform-native.** The tester enumerates as one more
-  module (DETECT 2.2 kΩ, cec_telem at 5 Hz: per-channel set-vs-actual amps,
-  plate temps, fan RPM, fault flags; §6.14 USB-CDC standalone posture free).
+- **The tester embeds the tier-paired-Hub port function** (REV A): per
+  module port — VCC supply, 10 kΩ DETECT pull-up + read + poke, CAN with the
+  120 Ω split termination (Hub side), and the tier streaming plane: **Pro
+  tester = one RS-485 receiver per port** (the Pro modules' pins-4/5 stream,
+  Hub-Pro pattern, design point ~900 kB/s/module); **Max tester = 100BASE-T1
+  per port through a LAN9370-class T1 switch into the P4** (bidirectional —
+  the tester also CONFIGURES Max modules over T1: bench-mode arm, window
+  pulls, threshold pushes). Internally the tester's own load-control MCU
+  logic still speaks the module patterns (DETECT semantics, cec_telem
+  framing) so host software sees one coherent family.
 - **Profiles are data, compiled host-side:** the bench tool compiles a recipe
   (e.g. "ATX 3.1 suite, 1000 W class") into a step list
   `{t, channel-mask, setpoint, slew-class, expected-window}`; uploads over
@@ -171,15 +209,21 @@ racks get it for free; benches get a flat-top console).
   customer PDF. Same versioned event-record schema as the platform
   (`firmware/docs/host-data-path-fingerprinting-2026-07-16.md`) — tester
   events land in the same corpus.
-- **Max waveforms bypass CAN:** digitizer captures (1–10 ms windows) buffer
-  in PSRAM/FPGA and pull over the tester's own USB-HS (P4). The bench tool
-  session holds two USB endpoints (Hub + tester) and one merged timeline.
+- **ONE USB to the PC** (REV A): the tester's USB-HS is the whole station's
+  host link — module streams (RS-485/T1 ingest re-framed), tester actuation
+  log, digitizer windows (Max), and the CDC/HID identity per the OQ-85
+  composite pattern. Budget check: 4–5 Pro streams at design point ≈
+  3.6–4.5 MB/s ≪ USB-HS ~40 MB/s practical; Max decimated streams + windows
+  likewise. The FT60x USB3 option stays a Max upgrade path only if
+  raw-everything export ever matters. No Hub anywhere in the station.
 
 ## 7. Cross-timing to the modules (the measurement-truth clock)
 
 The platform already owns the mechanism: a high-priority CAN broadcast is
 received by every node within ~1 bit time, and modules already ISR-timestamp
-such frames (cec_freeze). Extend, don't invent:
+such frames (cec_freeze). The station's CAN is tester-terminated (REV A) but
+the mechanism is identical — the tester broadcasts, modules stamp. Extend,
+don't invent:
 
 - **CEC_MARK (~0x012, FREEZE-class priority, non-freezing):** payload
   `{origin, seq, origin_µs}`. The tester broadcasts MARK at test start, at
@@ -209,12 +253,12 @@ such frames (cec_freeze). Extend, don't invent:
 
 | | Pro | Max |
 |---|---|---|
-| Compute | ESP32-C6 + TJA1051 | ESP32-P4 + GW5A-25 (digitizer only) + TJA1051 |
+| Compute | **ESP32-P4** + TJA1051 + N× RS-485 rx (REV A: stream ingest + USB-HS killed the C6 option) | ESP32-P4 + GW5A-25 (digitizer only) + LAN9370-class T1 switch + TJA1051 |
 | Load plane | R-banks + 8 verniers + ONE fast channel (12V-2x6 path) | + switch matrix (fast channel → EPS too), optional 2000 W banks |
 | Analog add-ons | ripple *indicator* + scope BNC taps | 20 MHz AFE ×4 → mux → AD9253 (spec-grade ripple, waveforms) |
 | OVP | not claimed | TPS55289 sourcing stage behind relay |
 | Hold-up | T6-only (DC-side) | + phase-controlled AC interrupter accessory (absolute 12/17 ms) |
-| Data out | CAN events + report via Hub | + USB-HS waveform pulls |
+| Data out | ONE USB-HS to PC (streams + events + report source) | same + T1 module control + waveform pulls |
 | Chassis/cooling | identical 1600 W console | identical (+1 fan w/ 2 kW option) |
 
 ## 9. Open sketch questions (for the schematic pass)
