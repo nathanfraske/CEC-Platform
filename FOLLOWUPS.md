@@ -425,3 +425,15 @@ Conventions:
   board (one box ready-to-go; bends actuator-not-instrument at ST tier; RJ-45/DETECT kept
   for later suite composition). Sketch §11 + BOM doc §3a. Fold into canonical §6 record at
   the Task-13-class pass.
+- [2026-07-16] SLOT-IN TESTER BUNDLES (owner idea, PROPOSED + recommended, sketch §12 / BOM
+  §3b): tester deck presents upward TE 63951-1 blade fields in the per-family patterns —
+  the tester plays the daughterboard side of the already-ratified mating pair (22.9A
+  joints, ≥125% margin, checker-proven keying, J_SIG blind-mate carries PS_ON#/PWR_OK/-12V
+  through the slot). Bundles ship modules factory-slotted + Hub in a dock bay w/ routed
+  RJ-45 channels; OQ-89 assemblies become the un-dock "field kit" SKU; per-test wear moves
+  to module input headers (saver-pigtail consumable). SUPERSEDES the ST integrated-sensing
+  carve-out at the same price points (ST-1000 bundle $1,299 w/ real modules + Hub). OWNER
+  SIGN-OFFS: adopt slot architecture; gang-insertion answer (260-440N on 24-pin: factory
+  press vs deck cam assist) — extends the OQ-86 fit-check sample gate; 12VHPWR stays
+  tray+fixture-head (captive pigtail, by design). Checker work: extend
+  check_output_daughterboards.py keying proof to the tester field drawing.

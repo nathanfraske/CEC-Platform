@@ -494,6 +494,72 @@ Position: above the $750–950 Kunkin-stack-plus-crimping floor, at dead
 SunMoon money with 2026 capability, $2,200 clear of Tester Pro (whose
 transient engine + streams + OVP + module composability carry the upsell).
 
+## 12. Slot-in module bundles — the blade interface IS the tester interface
+(owner idea, 2026-07-16 — PROPOSED, recommended for adoption)
+
+**The idea:** the modules' output side is already the v1.4.0/iteration-7
+blade architecture — module main board carries TE 63969-1 top-entry
+receptacles; the sellable output daughterboard carries TE 63951-1 downward
+blades and drops in. **Make the tester's module attachment the SAME
+interface**: the tester deck presents per-family fields of upward 63951-1
+blade posts, and a module is lowered onto them exactly as a daughterboard
+mates — roles swapped, geometry identical. Electrically, **the tester is a
+giant active daughterboard.** Then sell TESTER BUNDLES: that tier's modules
+factory-slotted, Hub docked, cables routed.
+
+**Why it's strong — everything hard is already ratified or proven:**
+- **Current interface pre-qualified**: 22.9 A @30 °C-rise per joint (TE
+  108-1706), the §2.8 ≥125 % margin policy, ratified joint counts (24-pin
+  10 / EPS 6/cable / PCIe 6/cable) — zero new connector qualification.
+- **Keying already checker-proven**: `check_output_daughterboards.py`
+  asserts no rigid transform seats one family's tab set as a subset of
+  another's — a PCIe module physically cannot land in an EPS slot. Extend
+  the same checker to the tester's field drawing (including any per-family
+  rotations the deck layout needs).
+- **The 24-pin's J_SIG 1×4 blind-mates alongside the blades** (iteration-5
+  design intent) — so PS_ON#, PWR_OK, and −12 V arrive through the slot
+  itself: the tester's sequencing signals need no extra cable.
+- **The fixture-plate consumable largely dies**: the module IS the fixture
+  head. BOM: front plate $85–100 → blade field ~$5 (40× 63951-1 at
+  $0.10–0.16) + J_SIG socket + support rails ≈ $35–45 all-in. Per-test wear
+  moves to the module INPUT headers (ATX-standard parts, same as in-PC
+  life) — mitigations: cheap commodity input-saver pigtails as the
+  consumable, and modules themselves are field-replaceable units.
+- **OQ-89 gets a second life as the "field kit"**: bundle modules ship
+  without their retail daughterboard; the daughterboard+extension assembly
+  sells as the un-dock kit — pull a module off the tester, daughterboard
+  it, drop it inline in a customer's PC for in-situ diagnosis. The killer
+  demo is a SKU.
+- **Hub: dock bay, not absorption.** A deck bay holds the real Hub
+  (Standard/Pro per tier) with molded channels routing short RJ-45 patches
+  to each slot position — integrated *UX*, modular *architecture*. This is
+  the sweet spot the §9 "Bench Unit" question was circling: the suite looks
+  like one appliance without the tester taking the Hub's job. (Full
+  absorption stays the deferred field-test variant.)
+- **12VHPWR exception (by design, not oversight)**: its output is the
+  captive soldered pigtail (v1.4.0 explicitly unchanged) — that position is
+  a module TRAY + a male 12V-2x6 fixture head (with sideband straps) the
+  pigtail plugs into. Same for 12VHPWR Pro.
+
+**Effect on the ST integrated-sensing carve-out (§11): SUPERSEDED if this
+is adopted — and the math says adopt.** ST tester BOM drops ~$80 (plate out,
+blade field in, integrated sensing deleted) ≈ $457; add the real Standard
+module set + Hub Standard (~$95–105 landed, pricing-study figures) → bundle
+landed ≈ $645 — within dollars of the integrated version — so **ST-1000
+BUNDLE at $1,299 ships REAL modules + a REAL Hub at the same price**, the
+actuator-not-instrument principle survives untouched at every tier, and
+there is ONE tester architecture instead of two.
+
+**The #1 mechanical flag (inherited, multiplied):** gang insertion force.
+Iteration 7 already carries ≤26/44 N-spec per joint as an OQ-86 sample
+item; a 24-pin module is 10 joints ≈ 260–440 N of press force — not a
+thumb job. Options: bundles ship FACTORY-SLOTTED (arbor press; field swaps
+use a simple press tool), or a deck cam/lever assist (real mechanical
+design, DIMM-latch spirit). Extend the OQ-86 fit-check sample gate to
+cover: measured gang insertion on real boards, blade-field position
+tolerance across 10 joints, and module support rails vs the horizontal
+mating shear of PSU-cable insertion.
+
 ## 9. Open sketch questions (for the schematic pass)
 
 1. R-bank step ladder per channel (binary vs 1-2-5) + exact leg counts.

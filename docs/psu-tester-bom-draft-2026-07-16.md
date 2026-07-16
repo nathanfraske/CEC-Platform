@@ -92,6 +92,25 @@ Sits above the $750–950 DIY-Kunkin floor and at dead-SunMoon money; ~2×
 multiples are test-gear-normal but below platform convention — owner call at
 pricing lock alongside the Pro/Max margin question.
 
+## 3b. Slot-in bundle scenario (sketch §12 — PROPOSED, recommended)
+
+If the blade slot field is adopted: fixture plate ($85–100) → blade field +
+rails (~$40); bundles ship modules factory-slotted without retail
+daughterboards; OQ-89 assemblies sell separately as the un-dock "field kit."
+
+| Bundle | Tester BOM Δ | Bundle landed (tester + modules + Hub) | List | × |
+|---|---|---|---|---|
+| **ST-1000 BUNDLE** (Std modules + Hub Std slotted/docked) | $537 → ~$457 | ~$645 | **$1,299** | 2.0 |
+| **ST-1300 BUNDLE** | $585 → ~$505 | ~$700 | **$1,499** | 2.1 |
+| **PRO BUNDLE** (Std set + Hub Pro; 12VHPWR-Pro optional +$329) | $1,201 → ~$1,146 | ~$1,495 | **$3,995** | 2.7 |
+| **MAX BUNDLE** (Pro-class set + Max Hub TBD) | $1,507 → ~$1,452 | ~$1,900 + Max-Hub | **$6,995** | ~2.8–3.2 |
+| Field kit (OQ-89 daughterboard + extension, per module) | — | ~$12–18 | **$39–49** | — |
+| Input-saver pigtail set (the new per-test wear consumable) | — | ~$8–12 | **$29–39** | — |
+
+Margins IMPROVE ~0.2–0.4× across the line vs separate-pieces pricing while
+the customer gets a nicer product — the rare win-win. Supersedes §3a's
+integrated-ST sensing scenario if adopted (same price, real modules).
+
 ## 4. Open items feeding the sourcing/pricing pass
 
 1. L2 ladder quotes (TO-247 IXTH class × 8) + pulse-SOA check on the
@@ -102,5 +121,10 @@ pricing lock alongside the Pro/Max margin question.
 5. Replacement-plate SKU pricing at OQ-89 lock (the consumable annuity).
 6. Fan MPN (dual-ball, tach, PWM, 40 °C-rated life class).
 7. Pod BOM firm-up when the owner un-parks it (§3c).
-8. ST line: integrated-sensing carve-out sign-off, plate variant quote,
-   R-bank volume pricing (the ST BOM is resistor-and-chassis dominated).
+8. ST line: integrated-sensing carve-out — LIKELY SUPERSEDED by the §3b
+   slot-bundle scenario (owner sign-off); R-bank volume pricing (the ST BOM
+   is resistor-and-chassis dominated).
+9. Slot-bundle mechanicals (sketch §12): gang-insertion answer (factory
+   press vs cam assist), blade-field tolerance stack across 10 joints,
+   module support rails — extends the OQ-86 sample gate; field-kit + saver
+   pigtail SKU pricing.
