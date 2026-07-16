@@ -824,7 +824,7 @@ count — coordinate with §12 before the blade-field drawing freezes; (e)
 owner pick on relief valve 2 (design the DNP jacks in, or ship
 USB-overflow-only).
 
-## 14. "SPECIAL EDITION" — glass shell + full-loop water cooling (owner idea, 2026-07-16 night; PROPOSED, halo/flair tier)
+## 14. "SPECIAL EDITION" — glass shell + full-loop water cooling (owner idea, 2026-07-16 night; **ROADMAP — HALO NORTH STAR**, owner-committed same night: "I genuinely do want to have it")
 
 **Owner (verbatim intent):** "more for flair and because we are a bespoke PC
 shop known for extreme water cooling — Special Edition Pro and Max variants
@@ -896,6 +896,39 @@ the mount... bling it out," 2026-07-16 night):**
 - **Keeps**: non-conductive coolant (shop practice), QDC + drain service
   path, glass = built-to-order crating/mass, plates clear of the fast
   channel, TTV factory pedestal calibration.
+
+**§14a SE LOOP ARCHITECTURE v0 (owner Q&A round, same night):**
+- **TWO-CHAMBER: Wet Gallery + Dry Deck.** Sealed zero-airflow glass gallery
+  (pedestals/blocks, hardline, res centerpiece, D5s, bay LCDs) + rear utility
+  deck where a full-height VERTICAL RADIATOR WALL is the hot/cool boundary
+  (owner's "between hot and cool" made structural): rear intake → electronics
+  in coolest air → radiator → exhaust. Ubiquiti posture: pristine face,
+  utility hidden behind the wall.
+- **RADIATOR MATH + POWER-TIERED HYBRID:** ~150 W/120 mm section civilized,
+  ~250 W/section warm-coolant (45–50 °C OK; box is a heater → condensation
+  nonexistent). 1.6 kW ≈ 11+ sections, 3 kW ≈ 20+ → internal-only full power
+  = loud. ARCHITECTURE: internal wall (~2×480 class) = "glass-only mode"
+  ~800 W silent; **QDC panel → external MO-RA kit or the shop bench loop =
+  full-send 1.6–3 kW**; FIRMWARE COOLANT-TEMP GOVERNOR maps available
+  cooling → available test wattage, displayed live ("bring your loop" =
+  the buyer's cooling raises the rating).
+- **PLUMBING:** flat-face non-spill QDCs (external unlock + PER-PEDESTAL
+  service branches off a parallel manifold — swap one block, no drain);
+  lowest-point guarded rear drain valve; res-top fill + high-point bleed;
+  **firmware DRAIN-ASSIST** (pump pulses w/ load de-gated, on-screen guide);
+  res = front-center edge-lit cylinder w/ visible return waterfall, dual
+  D5s in machined top, sight-glass + optical level-low into POST.
+- **INTERLOCKS (join the de-gate rail):** gallery-floor leak rope, coolant
+  ΔT/flow plausibility, level-low, pump tach; POST refuses a sick loop.
+  All-copper/brass/nickel, no aluminum; ship DRY + white-glove first fill.
+- **UBIQUITI LAYER (SE trim):** main screen → 5–7″ IPS touch face with
+  three moods (ATTRACT brand-animation + stats / TEST dense dashboard w/
+  wattage dial, per-rail strip, coolant in-out, flow, live °C/W, progress
+  ring / FAULT plain-language full-red); dry-deck service screen (drain
+  assist); ARGB scenes: flow-synced tube chase, radiator-wall blue→warm
+  gradient tracking real ΔT, load-proportional gallery color, SCP =
+  lightning flash → latched red; anodized frame, hidden fasteners, bus
+  bars under the floor plate (no visible wiring in the gallery).
 
 **Open (before this leaves PROPOSED):** bank cold-plate trade study
 (array-on-plate vs chassis-mount resistors); leak-vs-electronics zoning in

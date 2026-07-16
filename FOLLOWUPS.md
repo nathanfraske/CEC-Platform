@@ -906,3 +906,10 @@ Conventions:
   work; open items: IHS-cap profile library from shop lapping data, ILM/substrate-bend
   fidelity R&D, trace-replay contract (OQ-85 family), phase-2 GPU form. §14 SE keeps demo
   firmware at most.
+- [2026-07-16] SE WATERCOOLED EDITION → ROADMAP as HALO NORTH STAR (owner-committed) + §14a
+  loop architecture v0 recorded (two-chamber wet-gallery/dry-deck, radiator wall as the
+  hot/cool boundary, power-tiered hybrid cooling w/ coolant-temp governor + QDC external
+  unlock, per-pedestal service QDCs, firmware drain-assist, leak-rope/level/flow interlocks,
+  Ubiquiti-layer 5-7" touch face + ARGB scenes). Next when picked up: radiator wall exact
+  dims vs chassis, governor curve spec, QDC part class, res/pump vendor shortlist, SE trim
+  BOM delta.
