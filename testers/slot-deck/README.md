@@ -16,7 +16,8 @@ deck (Pro/Max/ST) vs the W deck (4× 12VHPWR slots — sketch §13(e); decide
 one-long-board vs deck-segments before the blade-field drawing freezes).
 Each slot position carries its bay LCD header (1.54″ SPI + CS line from the
 74HC595 chain, sketch §5) so the screen sits AT the slot it reports. Deck
-harness also carries: the tester-PD 5 V feed to the Hub bay's MAIN_5V input
-(bench 5VSB ride-through during hold-up/AC-cut — required, sketch §13) and,
-if the owner populates relief valve 2, the 2–3 CAN-only expansion jacks'
-wiring (CAN pair + DETECT + switched 5VSB; pair 2 dark).
+harness also carries: an OPTIONAL tester-PD 5 V tap position for the Hub
+bay's §2.9 input (ride-through is already covered platform-side — mux +
+hold-up + host-USB, owner 2026-07-16; provision the position, populate at
+will) and, if the owner populates relief valve 2, the 2–3 CAN-only
+expansion jacks' wiring (CAN pair + DETECT + switched 5VSB; pair 2 dark).

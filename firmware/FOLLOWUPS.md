@@ -594,3 +594,11 @@ The original Arduino-ESP32 firmware at v0.5.9 remains the frozen
 validation backup in its current home, untouched by the consolidation;
 parity comparisons keep running against it until the bench items above
 retire it.
+
+- [2026-07-16] OWNER FACT (PSU-tester thread): **Pro/Max supercap hold-up planned — "tens of
+  seconds"** ("5VSB + 5V_PSU + 5V_USB are all muxed in… ~25ms hold up cap in just the
+  standard… planning supercaps in the Pro and Max modules"). Recorded in
+  firmware/contracts/persist-on-fault.md §Tier outlook: Standard keeps the ≤15 ms gasp
+  contract unchanged; Pro/Max gets its OWN contract (full-state persist class — rings,
+  captures, erases legal in-window) authored when the supercap hardware lands; board scope
+  (modules / Hub Pro / testers) confirmed at that design pass. Spec §2.9/§L fold = owner pen.

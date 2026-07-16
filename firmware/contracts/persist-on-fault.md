@@ -82,6 +82,25 @@ the hold-up decay itself (validate the SPICE table above on real hardware),
 ISR-entry-to-first-write latency, real WROOM flash throughput under our cache
 config, and the PSU-side 5VSB decay shape.
 
+## Tier outlook — owner disclosure 2026-07-16 (supercap plan)
+
+Owner (PSU-tester thread, recording verbatim intent): *"5VSB + 5V_PSU +
+5V_USB are all muxed in and we have a ~25ms hold up cap in just the
+standard, and we're planning supercaps in the Pro and Max modules that
+would give us tens of seconds."*
+
+- **Standard tier**: this contract as written — the ~25 ms-class window
+  (16–26 ms SPICE table) forces the ≤15 ms program-only gasp. Nothing here
+  relaxes.
+- **Pro and Max (PLANNED, not yet on any board):** supercap hold-up with a
+  **tens-of-seconds** window flips the persist class entirely — from
+  gasp (tail + index only) to a *leisurely full-state persist*: full rings,
+  captures, even in-window sector erases become legal. That tier gets ITS
+  OWN contract authored when the supercap hardware lands on real boards;
+  the exact board scope (which Pro/Max boards — modules, Hub Pro, testers)
+  is confirmed at that design pass. Spec fold (§2.9/§L) is an owner-pen
+  item, queued in `firmware/FOLLOWUPS.md`.
+
 ## Scope limits
 
 - Binds the **beta Hub Standard** persist feature (the board with the TLV7011 →
@@ -89,7 +108,9 @@ config, and the PSU-side 5VSB decay shape.
   continuous background commits but makes no guaranteed-gasp claim (ADC-polling
   the MAIN_5V divider is explicitly inadequate as the primary trigger — §L/H1
   rationale).
-- Modules are out of scope: they carry no hold-up contract; their rings dump
-  live over USB/CAN (§6.10).
+- Modules are out of scope **today**: Standard-tier modules carry no hold-up
+  contract; their rings dump live over USB/CAN (§6.10). The owner-planned
+  Pro/Max supercap hold-up (Tier outlook above) will bring those boards their
+  own contract when the hardware lands.
 - OQ-13 energy counters persist as ordinary background-commit clients under
   term 2 — no special gasp claim.

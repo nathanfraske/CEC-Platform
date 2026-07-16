@@ -238,8 +238,10 @@ LVDS lane plane-integrity rule (new, Max only).
   flagship W suite = 8 CAN nodes = Hub Pro exactly full — carry 2–3 CAN-only
   expansion-jack positions as DNP provision (RJ-45 + DETECT ESD + switched
   5VSB from the PD domain; pair 2 unconnected; owner pick pending, sketch
-  §13 relief valve 2), and route the deck 5 V feed to the Hub's MAIN_5V
-  input (bench 5VSB ride-through — required, sketch §13).
+  §13 relief valve 2), and carry an OPTIONAL deck 5 V tap position to the
+  Hub's §2.9 third input (ride-through already covered platform-side: 3-way
+  mux + ~25 ms Standard hold-up + planned Pro/Max supercaps — owner
+  2026-07-16, sketch §13).
 
 ## I. Open items on this sheet
 

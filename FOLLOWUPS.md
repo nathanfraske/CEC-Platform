@@ -477,7 +477,11 @@ Conventions:
   Standard 4 ports = tester + 3 modules. Relief valves documented: (1) §6.14 standalone-USB
   overflow (zero HW, ms-class alignment, melt-watch-grade), (2) RECOMMENDED 2–3 CAN-only deck
   expansion jacks as DNP provision (~$5, full µs MARK timing, Bench-Unit-LITE scoped — owner
-  pick queued in docs/owner-queue.md), (3) 12-port bench Hub only on field demand. PLUS new
-  required bench detail: deck 5 V feed (tester PD) → Hub §2.9 MAIN_5V input so the monitoring
-  fleet rides through hold-up/AC-cut instead of browning out with the DUT. Resume: configurator
-  ledger rules when the configurator work starts; expansion-jack count at deck drawing.
+  pick queued in docs/owner-queue.md), (3) 12-port bench Hub only on field demand. Bench 5VSB
+  ride-through: initially flagged "required", DOWNGRADED same day (owner: covered — 3-source
+  §2.9 mux on the latest Hub PCB + ~25 ms Standard hold-up + host-USB on bench; deck 5 V tap =
+  optional harness provision). NEW OWNER FACT same message: **Pro/Max supercap hold-up planned,
+  tens of seconds** → recorded in firmware/contracts/persist-on-fault.md (Tier outlook — flips
+  that tier's persist class gasp→full-state); spec §2.9/§L fold = owner-pen at next spec pass.
+  Resume: configurator ledger rules when the configurator work starts; expansion-jack count at
+  deck drawing.

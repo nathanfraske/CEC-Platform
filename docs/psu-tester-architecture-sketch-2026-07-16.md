@@ -706,14 +706,19 @@ refuses/reshapes past Hub capacity. Three relief valves, cheapest first:
    workstation suites routinely wanting 9+ full-timing streaming nodes —
    the deferred-variant tripwire is now concrete instead of vibes.
 
-**Bench 5VSB ride-through (required regardless of port count):** in-PC the
-fleet's 5VSB comes from the DUT — so on the bench the monitoring fleet
-would BROWN OUT WITH THE DUT during hold-up/AC-cut, a headline test. The
-fix is already designed platform-side: feed the Hub's §2.9 MAIN_5V input
-(the priority source of its 3-way mux) from the tester's PD-derived 5 V
-over one deck cable — Hub + all ported modules ride through the cut;
-expansion-jack and USB-overflow modules are tester/deck-powered already.
-The deck harness drawing carries this 5 V feed.
+**Bench 5VSB ride-through — COVERED by platform safeguards (owner,
+2026-07-16: "not worried … tons of safeguards"):** the latest Hub PCB
+already muxes all three 5 V sources (§2.9: MAIN_5V + PSU 5VSB + USB), a
+bench Hub sits on host USB anyway, the Standard Hub rides a ~25 ms-class
+hold-up cap (persist-contract SPICE table 16–26 ms — comfortably past the
+12/17 ms hold-up test windows), and the fault posture is persist-then-die
+by design (≤15 ms gasp contract). NEW OWNER FACT recorded same message:
+**Pro and Max are planned to carry SUPERCAP hold-up — tens of seconds** —
+folded into `firmware/contracts/persist-on-fault.md` (Tier outlook: flips
+that tier's persist class from gasp to full-state). The deck 5 V feed is
+therefore DOWNGRADED from "required" to an **optional opportunistic tap**
+into the Hub mux's third input (harness provision only — extra margin, and
+it powers nothing that isn't already tester/deck-powered).
 
 **W-tier open questions:** (a) the whole-PSU-200 % fast-vs-bank split wants
 the schematic-pass step-table treatment; (b) W chassis/two-lane-duct quote;

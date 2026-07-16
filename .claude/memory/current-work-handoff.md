@@ -837,3 +837,12 @@ jacks DNP ~$5 full µs MARK timing = Bench-Unit-LITE scoped, owner pick queued i
 12-port bench Hub on field demand only) + REQUIRED bench 5VSB ride-through (deck 5V from
 tester PD → Hub §2.9 MAIN_5V priority input; else fleet browns out with DUT during
 hold-up/AC-cut — a headline test). Owner-queue got the pick + standing nods cluster.
+
+## 2026-07-16 ~12:20 — ride-through downgraded + SUPERCAP owner fact (branch claude/pr50-firmware-review-wkvf7v)
+Owner: not worried re bench 5VSB ride-through — latest Hub PCB has the 3-source §2.9 mux
+(5VSB+5V_PSU+5V_USB), ~25 ms hold-up on Standard, and NEW FACT: **Pro/Max planned SUPERCAP
+hold-up, tens of seconds**. Actions: deck 5V feed DOWNGRADED required→optional tap (sketch
+§13, DESIGN-SHEET §H, slot-deck README, FOLLOWUPS); supercap plan recorded in
+firmware/contracts/persist-on-fault.md NEW "Tier outlook" section (Standard ≤15 ms gasp
+unchanged; Pro/Max future contract = full-state persist class, own contract when HW lands,
+board scope confirmed then; spec §2.9/§L fold = owner pen, queued firmware/FOLLOWUPS.md).
