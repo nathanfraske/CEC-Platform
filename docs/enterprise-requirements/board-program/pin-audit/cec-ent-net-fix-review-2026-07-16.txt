@@ -1,0 +1,48 @@
+T2 pin-type review — cec-ent-net.kicad_sym intake additions (2026-07-16)
+Parts: LAN9370-I_KCX (UltraLibrarian export, owner-supplied — Microchip full
+datasheet is login-locked, site erroring, support unresponsive) and
+JXD0-0001NL (SnapEDA export, owner-supplied).
+
+VERIFICATION BASIS (LAN9370): pin map programmatically diffed against the
+public product brief DS00002819B Table 3-1 (vendored at
+lib/datasheets/LAN9370-Product-Brief-DS00002819B.pdf): 64/64 exact name
+match + pin 65 = EP = VSS ("Exposed Pad Must be Connected to VSS").
+Package cross-checked vs brief §4: VQFN-64 KCX 8x8x0.9mm, 0.4mm pitch,
+6.5x6.5 EP, stepped wettable flanks (drawing C04-479 Rev A) — matches the
+measured footprint (65 pads, EP 6.5024, min pitch 0.4). All pins on the
+2.54 grid, 0 off-grid.
+
+FIXES APPLIED (LAN9370-I_KCX):
+  pin 46 VSS            power_out  -> power_in   (auditor high, agreed)
+  pin 65 VSS (EP)       power_out  -> power_in   (auditor high, agreed)
+  pin 52 CLK125/CASCADE_EN  output (HAND RULING vs auditor 'input'):
+        brief Table 3-2 types CLK125 as an RGMII-class 125 MHz reference
+        clock OUTPUT to the SoC MAC, "also provides configuration strap
+        functions during a hardware reset"; sibling pin 51
+        CLKO_25M/CASCADE_ID is typed VO8 (output). Primary function decides
+        direction; the strap is reset-time only. AUDITOR CALIBRATED (same
+        philosophy as the 2026-07-03 CS/RST calibration): mux-SECONDARY
+        EN/ENABLE (EN not the first-listed function) now accepts a
+        deliberate input/output/bidirectional; unspecified stays suspect;
+        primary-EN pins keep the full rule. Regression test added
+        (tests/test_sym_audit.py::test_mux_secondary_en_deliberate_type_accepted).
+  pins 2/3/9/10/12/13/55/56 TRXP/N[4:1]  unspecified -> bidirectional
+        (Table 3-2 buffer type 'A', 100BASE-T1 transmit/receive pairs)
+  pins 6/16 T1_EXTRES/EXTRES  unspecified -> passive
+        (Table 3-2: 6.49k 0.1% reference resistor connections to VSS)
+  pin 59 XO / pin 60 XI — already output/input from UL, left as-is.
+
+JXD0-0001NL: zero auditor findings (all 16 pins passive — correct for a
+connector + passive magnetics). Pin set 1-14 + SH1/SH2 verified against the
+footprint pad set (plus 2 NPTH posts).
+
+OPEN FLAGS carried in the symbol Description fields:
+  - BOM-B of record names JXD1-0001NL (TAB-UP); the vendored asset is
+    JXD0-0001NL (TAB-DOWN) — owner tab-orientation/BOM decision before
+    sheet-07 layout (owner-queue 2026-07-16).
+  - LAN9370 strap/clock/rail DETAIL (beyond the brief) owed from the full
+    datasheet or the LAN9371/72 public family docs at sheet-06 capture.
+  - Both 3D STEPs vendored; footprint<->3D alignment eyeball = GUI glance
+    item (noted in each footprint descr).
+Post-fix gate: cec-ent-net high=0 (medium/low pre-existing classes tracked,
+not gating). Test suite 11/11.

@@ -495,3 +495,12 @@ Conventions:
   LCSC-native pulls). Run as one easyeda2kicad batch when ENT capture resumes. ALSO:
   hubs/hub-enterprise/README.md is STALE ("No KiCad project yet — placeholder pending OQ-7")
   while the dir carries the captured 01+05 sheet trees — rewrite to current board state.
+- [2026-07-16] ENT NET-LIB INTAKE LANDED (owner-supplied assets): LAN9370-I/KCX + JXD0-0001NL
+  vendored into cec-ent-net (symbols w/ verified pin maps, footprints w/ 3D, STEPs, brief PDF,
+  review log pin-audit/cec-ent-net-fix-review-2026-07-16.txt, auditor mux-secondary-EN
+  calibration + regression test). Hub sheets 06/07 now LIBRARY-UNBLOCKED (strap detail owed
+  from full DS / LAN9371-72 proxy at capture; JXD0-vs-JXD1 tab decision in owner-queue).
+  Residual glance item: footprint↔STEP 3D alignment eyeball in the GUI (noted in each fp descr).
+  ALSO NOTED during the audit sweep: modules/ent-kvm-carrier/ent-kvm-local.kicad_sym carries
+  45 high pin-type findings (local FUNC symbols, never T2-passed) — fold into the KVM-carrier
+  footprint-cluster pass already queued above.

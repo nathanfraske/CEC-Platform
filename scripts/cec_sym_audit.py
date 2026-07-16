@@ -514,6 +514,20 @@ def audit_symbol(sym: SymbolDef) -> List[Finding]:
                 # hand overrides, 2026-07-03). Only unspecified/bidirectional
                 # stay suspect for these rules.
                 continue
+            if (rule_id == "EN" and "/" in pin.name
+                    and not re.search(r"(?:^|_)(EN|ENABLE)$",
+                                      pin.name.split("/")[0].strip())
+                    and current in ("input", "output", "bidirectional")):
+                # mux-secondary EN: when EN/ENABLE is only an alternate (strap)
+                # function of a multi-function pin -- not the FIRST-listed
+                # primary role -- the primary function decides direction and a
+                # deliberate type stands (e.g. LAN9370 CLK125/CASCADE_EN =
+                # RGMII 125 MHz clock OUTPUT per DS00002819B Table 3-2, with
+                # CASCADE_EN latched only at reset; sibling CLKO_25M/CASCADE_ID
+                # is typed VO8). Only 'unspecified' stays suspect. A pin whose
+                # PRIMARY function is EN keeps the full rule. (2026-07-16
+                # calibration, LAN9370 intake -- same philosophy as CS/RST.)
+                continue
             findings.append(Finding(sym.name, pin.number, pin.name, current,
                                      proposed_type, confidence, rule_id,
                                      f"{note} (currently '{current}')"))

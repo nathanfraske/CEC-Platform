@@ -119,7 +119,10 @@ class TestParser(unittest.TestCase):
         # were independently verified against the real files.
         expected = {
             "cec-ent-power.kicad_sym": 106,
-            "cec-ent-net.kicad_sym": 106,
+            # 106 + LAN9370-I_KCX 65 (64 + EP, verified 64/64 against product
+            # brief DS00002819B Table 3-1) + JXD0-0001NL 16 (14 + SH1/SH2,
+            # verified against the footprint pad set) -- 2026-07-16 intake
+            "cec-ent-net.kicad_sym": 187,
             "cec-ent-compute.kicad_sym": 484,
             "cec-ent-mcu.kicad_sym": 290,
         }
@@ -214,6 +217,40 @@ class TestFixtureTeeth(unittest.TestCase):
         cs3 = [f for f in findings if f.pin_number == "4"]
         self.assertEqual(len(cs3), 1, findings)
         self.assertEqual(cs3[0].proposed_type, "input")
+
+    def test_mux_secondary_en_deliberate_type_accepted(self):
+        # EN as a mux-SECONDARY (strap) function of a multi-function pin: the
+        # primary function decides direction, a deliberate type stands (the
+        # LAN9370 CLK125/CASCADE_EN calibration, 2026-07-16 -- clock OUTPUT
+        # per DS00002819B Table 3-2, CASCADE_EN latched only at reset). A pin
+        # whose PRIMARY function is EN keeps the full rule, and an unspecified
+        # mux-secondary EN still flags.
+        sym = _wrap(f'''
+(symbol "TEST_MUX_EN"
+  (property "Reference" "U" (at 0 0 0))
+  (symbol "TEST_MUX_EN_0_1"
+    (rectangle (start -5 5) (end 5 -5) (stroke (width 0.254) (type default)) (fill (type background)))
+  )
+  (symbol "TEST_MUX_EN_1_1"
+    {_pin("output", "CLK125/CASCADE_EN", "1")}
+    {_pin("output", "EN/D3", "2")}
+    {_pin("unspecified", "CLK125/CASCADE_EN", "3")}
+    {_pin("output", "SDO/SWITCH_EN", "4")}
+  )
+)
+''')
+        findings = self._findings_for(sym)
+        # pin 1 (deliberate output, EN is the strap alt): accepted, no finding
+        # pin 4 (same shape, different name): accepted, no finding
+        for f in findings:
+            self.assertNotIn(f.pin_number, ("1", "4"), findings)
+        # pin 2 (EN is the PRIMARY function): still flagged toward input
+        en_primary = [f for f in findings if f.pin_number == "2"]
+        self.assertEqual(len(en_primary), 1, findings)
+        self.assertEqual(en_primary[0].proposed_type, "input")
+        # pin 3 (unspecified mux-secondary EN): still flagged
+        unspec = [f for f in findings if f.pin_number == "3"]
+        self.assertEqual(len(unspec), 1, findings)
 
 
 class TestCLI(unittest.TestCase):

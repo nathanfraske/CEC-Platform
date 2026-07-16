@@ -176,3 +176,14 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   ms-class alignment) vs (c) someday 12-port bench Hub (field-demand tripwire). Also standing
   tester nods still open: AD9253-105 grade + buy-ahead qty, TPS55288 final, slot-architecture
   adoption, Pro-W list ($4,995 @2.6× vs $5,295–5,495 @≈3×).
+
+- [2026-07-16] **ENT UPLINK JACK VARIANT — JXD0 vs JXD1 (decision before sheet-07 layout):** the
+  owner-supplied CAD assets are **JXD0-0001NL (TAB-DOWN)**; BOM-B of record names **JXD1-0001NL
+  (TAB-UP, DK 553-3266-ND, $5.95)**. Same family/electricals otherwise. PICK: (a) flip BOM-B to
+  JXD0 (assets already vendored, done), or (b) keep JXD1 and re-pull its CAD (SnapEDA has the
+  family), or (c) confirm land-pattern identity across the pair and treat as population choice.
+  Rear-panel latch orientation is the real deciding factor. ALSO — WATCH ITEM: the **full LAN9370
+  datasheet stays login-locked** (Microchip site erroring on the owner's account, support
+  unresponsive); intake proceeded on the public product brief DS00002819B + UL export (pin map
+  verified 64/64) — retry the portal before sheet-06 capture, else use LAN9371/72 public family
+  docs for strap/clock/rail detail.
