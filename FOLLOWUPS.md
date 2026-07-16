@@ -930,3 +930,7 @@ Conventions:
 - [2026-07-16] Minors precision-OCP option (ladder v1.1 note): one L2 vernier device
   relay-switchable onto 5 V/3.3 V for fine minor-rail OCP hunts (fence today: coarse bank
   steps in-scope). Costs ~1 relay + gate mux. Revisit if shops ask.
+- [2026-07-16] Tester assembly doc (when chassis drafting starts): per-joint-class torque +
+  TIM part + bond-line thickness lines per DESIGN-SHEET rule 25; §4 extrusion/plate ledger
+  must use the spec'd interface R (never bare-metal); vernier isolation stack pick (AlN +
+  paste both faces vs per-rail isolated extrusion segments) lands at deck-mech drafting.

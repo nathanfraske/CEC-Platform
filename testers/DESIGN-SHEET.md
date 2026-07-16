@@ -226,6 +226,45 @@ mess of wires" challenge)**
     fixture-side, PSU caps clamp module-side) — formalize with a measured
     release envelope at tester proto.
 
+**TIM schedule (owner add 2026-07-16 night; Thermal Grizzly sponsorship
+available — TG supplies on hand, co-brand coherent for a thermal-audience
+product)**
+25. Three bolted-joint classes carry SPEC'D TIM + torque (assembly-doc
+    lines; interface R enters the §4 extrusion/plate ledger):
+    (a) **Bank legs → plate** (~15 cm² shell base, 24 W, up to ~125
+    joints at W): thin paste, ~0.2–0.3 g/joint — the spec exists to guard
+    the SHELL-FLATNESS LOTTERY (one warped budget shell dry = a point
+    contact = the invisible hotspot among 125), not the nominal ~1 K
+    dry-vs-pasted delta. Class: long-term-stable high-viscosity bolted-
+    joint paste (TG Duronaut/Hydronaut class; industrial bulk $0.03/g is
+    the unsponsored fallback). ~15 g/unit ST, ~35 g/unit W — sponsorship
+    = real BOM relief ($30–90/unit retail-equivalent vs $1–2 industrial).
+    (b) **Linear FETs → extrusion — THE load-bearing interface.** Sketch
+    §4 budget: Tj ≤125 °C, Tsink ≤80 °C, 100–150 W/device, IXTH75N10L2
+    RθJC ≈0.33 K/W ⇒ case-to-sink allowance ≈ 0.1–0.15 K/W TOTAL.
+    Electrical isolation is REQUIRED (mixed drain potentials share the
+    extrusion) ⇒ the stack is ceramic insulator (AlN preferred, alumina
+    acceptable) + QUALITY paste on BOTH faces (~0.10–0.20 K/W — TG
+    Kryonaut-class genuinely earns here; grams are trivial, ~1 g/unit) —
+    silicone insulator pads (0.5–1.5 K/W for TO-247) are PROHIBITED at
+    this site, and **KryoSheet/Carbonaut are BANNED at every isolation
+    site (electrically conductive graphene/carbon)**. Alternative under
+    the same rule: per-rail isolated extrusion segments (device bolts
+    bare + paste only, no insulator) — deck-mech drafting may pick it.
+    Packaging corollary: the 5VSB mini-CC loop FET must be TO-220/IPAK
+    THT (NOT the DPAK loosely stated in the v1.1 note) to reach the
+    extrusion like its siblings.
+    (c) **SCP crowbar TO-220s + bimetal switches → plate**: standard
+    insulator pad + paste, low duty (ms pulses / tens of W).
+    Checks: assembly doc carries torque + TIM part + thickness per joint
+    class; §4 ledger uses the spec'd interface R, never a bare-metal
+    assumption. Platform echo: the enclosed consumer products already
+    model TIM (12VHPWR case-cooling = TIM on shunts + mounts; §6.6
+    TIM-baseplate menu) — same sponsorship surface. Deeper TG fits
+    (owner-queue): SE halo (blocks/TIM home turf) + TTV SKU (reference-
+    TIM characterization; their delid/direct-die line is adjacent to the
+    IHS-cap concavity library).
+
 ## D. Routing standards (netclass table — seeds .kicad_pro + .kicad_dru)
 
 | Class | Nets | Width / rules |

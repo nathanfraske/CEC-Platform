@@ -264,3 +264,17 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   control board; unplugged-harness=no-load fail-safe; one control board across ST/Pro/Max/W;
   compartments/stacking free; SE two-chamber = same architecture. If nodded, the board census
   (DESIGN-SHEET §A/§H + agent capture partitioning) updates accordingly.
+
+- [2026-07-16] **THERMAL GRIZZLY SPONSORSHIP THREAD (owner: "they would love to sponsor this
+  kind of thing"; TG supplies on hand).** TIM schedule is now spec'd as tester DESIGN-SHEET
+  rule 25 (3 joint classes; paste consumption ~15 g/unit ST → ~35 g/unit W; Kryonaut-class
+  load-bearing at the vernier isolation stack; KryoSheet/Carbonaut banned at isolation sites
+  — electrically conductive). OWNER MOVES: (1) TG conversation — tester-line paste supply +
+  co-brand line ("interfaces by TG" class); sponsorship = $30–90/unit retail-equivalent BOM
+  relief vs $1–2 industrial fallback (spec is sponsor-agnostic either way); (2) deeper fits
+  to raise in the same conversation: SE halo (blocks/TIM home turf, the "commandeer CPU
+  blocks" thread) and the TTV SKU (reference-TIM characterization partner + their
+  delid/direct-die line is directly adjacent to the IHS-cap concavity library — a TG
+  partnership there feeds the demand-first gate conversations); (3) enclosed consumer SKUs
+  (12VHPWR TIM-on-shunts case model, §6.6 TIM-baseplate menu) = the platform-side surface
+  if the relationship lands.
