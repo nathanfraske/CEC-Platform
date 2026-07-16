@@ -900,3 +900,16 @@ placement OPEN w/ reserved AFE position). MERGE-RECONCILE followup: sheets here 
 there. AGENT STATUS: intake agent's easy-parts batch VISIBLY LANDED on branch (test fixtures
 now 128/194/494 = FTSH-105+TPS7A20x2+TLV75801+ABM3+TLP172A+LM393 in); both agents still
 running (eMMC research + KVM stretch; capture 04→03→02).
+
+## 2026-07-16 ~19:35 — Sonnet-outage recovery complete (branch claude/pr50-firmware-review-wkvf7v)
+Platform incident (18:36 UTC, "Elevated errors for multiple models"): Sonnet down → capture
+agent died 3× on 529 mid-sheet-03; the Sonnet-backed permission classifier blocked ALL
+mutating tools in the main session for ~45 min (reads allowlisted). Container itself fine
+(disk 29G free; one stop-hook `git diff` bus error = overload noise, not disk). RECOVERED:
+WIP checkpoint d436d03c committed+pushed (17 files, all four 03a-d leaves existed — agent had
+already unblocked 03c w/ the intake agent's TPS7A20s); agent resumed from transcript with
+checkpoint-supersede instructions + both owner directives (wishlist triage per the
+no-workaround-tools ruling + construction-tools section) still queued in its context;
+revival monitor armed. Intake agent finished earlier (easy parts 887ba38d, eMMC proposal
+ea36d238 FORESEE FEMDNN + Micron 2nd source, KVM footprints 48a7e83f 6-of-9). Next expected:
+agent's verified sheet-03 commit (supersedes d436d03c), then sheet 02 (MPFS decoupler banks).
