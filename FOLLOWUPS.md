@@ -485,3 +485,13 @@ Conventions:
   that tier's persist class gasp→full-state); spec §2.9/§L fold = owner-pen at next spec pass.
   Resume: configurator ledger rules when the configurator work starts; expansion-jack count at
   deck drawing.
+- [2026-07-16] ENT LIBRARY-INTAKE LEFTOVERS (from the owner's "what's remaining to grab" audit —
+  agent-pullable, no owner login needed, all missed by the 07-02 four-group fan-out): FTSH-105
+  JTAG header (C5155080, hub sheet 02c), TPS7A2018/2050 quiet LDOs (C963430/C2864504, sheet
+  03c), TLV75801PDBVR + ABM3-25MHz crystal (sheet 07a), TLP172A (C99477) + LM393DR2G (C7955)
+  (sheet 08a RJ-11 loop), REF3033 = REF3030 value-dup (12VHPWR ENT, S-effort), + the
+  ent-kvm-carrier FOOTPRINT cluster (33 components w/ empty Footprint fields: LT6911, TS3USB221,
+  M.2 M-key+B-key conns+standoffs, HDMI-A 19P, TF-card TF-123, PTC, TVS, NMOS — mostly
+  LCSC-native pulls). Run as one easyeda2kicad batch when ENT capture resumes. ALSO:
+  hubs/hub-enterprise/README.md is STALE ("No KiCad project yet — placeholder pending OQ-7")
+  while the dir carries the captured 01+05 sheet trees — rewrite to current board state.
