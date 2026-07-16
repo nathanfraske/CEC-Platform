@@ -681,3 +681,15 @@ content: {"verdict":"repair","failure_class":"routing","root_cause":"x"}) — ab
 cec_fullstack/v4-idle scaffold; docs/v4-queue/pending empty so nothing regenerates it; owner
 confirmed a copy exists on their local machine. First rm attempt was classifier-denied
 (pre-approval); re-run after explicit owner approval.
+
+## PSU tester + bench-instrument docs — 2026-07-16 (branch claude/pr50-firmware-review-wkvf7v)
+Owner clarified "Pro and Max tester" = the ATX-NATIVE PSU TESTER (DC load, no Chroma bodge
+wires) — NOT bench-mode modules. Original spec thread NOT in repo (exhaustive sweep; likely
+owner's local machine or chat — reconciliation pending, FOLLOWUPS entry). Fresh draft:
+docs/psu-tester-concept-2026-07-16.md (native ATX headers from lib/, hybrid load stage,
+ATX 3.1 test book, Max carries the 20MHz instrument channel = industry ripple BW, tester
+doubles as fingerprint ground-truth generator + module EOL rig; Pro ~$1.5-2k / Max ~$2.5-4k
+positioning). Bench-mode consolidation renamed to docs/bench-mode-instrument-requirements-
+2026-07-16.md ("tester" word now reserved). Also this branch: host-data-path doc (32125f23),
+sub-assembly FOLLOWUPS note, main sync (5baece8). BRANCH HAS COMMITS MAIN LACKS — needs a
+merge/PR to main when owner says.
