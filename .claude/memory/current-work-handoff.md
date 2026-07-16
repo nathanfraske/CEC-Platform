@@ -863,3 +863,22 @@ Review log: pin-audit/cec-ent-net-fix-review-2026-07-16.txt. Lib tables descr up
 Sheets 06/07 LIBRARY-UNBLOCKED. Owner-queue: JXD0(tab-down, vendored) vs JXD1(tab-up, BOM-B)
 decision + full-DS watch item (LAN9371/72 proxy for straps). FOLLOWUPS: kvm-local 45 T2 highs
 noted onto the queued KVM footprint pass.
+
+## 2026-07-16 ~14:35 — ENT DESIGN-SHEET + two agents in flight (branch claude/pr50-firmware-review-wkvf7v)
+LANDED: docs/enterprise-requirements/board-program/ENT-DESIGN-SHEET.md (owner ask, tester-style):
+A census (hub 6-SKU DNP + 4 module families + kvm-carrier), B zones (modules inherit condensed
+doctrine + Z-T1/Z-MISPLUG/Z-P4; hub H-PORTS→H-FABRIC→H-BGA→H-UPLINK-moat→H-PWR per variants-plan
+edge map), C 26 per-component rules w/ pipeline checks, D netclasses (BGA_Fanout 0.10-0.13,
+RGMII ±2.5mm[wb], T1_MDI, EMMC, ISO moat ≥2.0mm[wb]...), E stackups (hub 6L per breakout study
+w/ 8L triggers), F gates (new checkers: ★isolation-moat-clearance ★bga-escape-completeness
+★t1-mdi-chain-order + misplug/rgmii/emmc/pin7), G mech (edge map binding, AIR bare-land silk),
+H per-board deltas, I BEST PRACTICES w/ CITATIONS (owner add: IPC-7095/4761/2141A/2221B/2152,
+JESD84-B51, RGMII v2.0, 802.3bw/TC-8, UG0726+PolarFire-SoC guides URL-verified, SLLD009/SLLA270,
+Espressif P4 HDG, Ott/Bogatin), J open items ([wb] freeze discipline, LAN9370 full-DS gaps, FAE
+Q7, moat numbers @ compliance review, eMMC in-flight, S32K owner gate, MPFS 3D STEP absent).
+AGENTS (background, sonnet): A=intake (FTSH-105 C5155080→cec-ent-compute, TPS7A2018/2050→power,
+TLV75801+ABM3→net, TLP172A+LM393→power, REF3033 dup→cec-vendor) + eMMC pick (LCSC-native pref,
+FBGA-153, 8/32/64GB ladder, industrial; → bom-a row PROPOSED + manifest #35 + owner-queue nod)
++ KVM fp cluster stretch; B=hub sheet capture 04→03→02 (+06 stretch) via compose engine +
+cec-schematic MCP + protocol §2 gates, commit-per-sheet, explicit-path git discipline (both
+agents forbidden from git add -A; pull --rebase before push). Integrate reports on completion.
