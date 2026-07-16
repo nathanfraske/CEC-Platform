@@ -840,7 +840,21 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         cxs += [e[0], e[1]]; cys += [e[2], e[3]]
     for w in lay_wires:
         cxs += [w[0], w[2]]; cys += [w[1], w[3]]
-    content_bbox = (min(cxs), max(cxs), min(cys), max(cys))  # ELECTRICAL bbox (io router)
+    # ELECTRICAL bbox (io router). BUG FOUND + FIXED 2026-07-16 (hub-enterprise
+    # sheet-03 capture): a leaf with truly ZERO parts and ZERO composed wires
+    # (a legitimate "capture pending, library-blocked" stub -- e.g. 03b-bank-
+    # rails/03c-vdda-ldo, which carry only a caption+note, no real components
+    # yet) crashed here (min()/max() on an empty sequence) -- this value is
+    # PROVABLY UNUSED for such a leaf (it feeds only the io-column router
+    # below, `if io_sides: ...`, and a leaf with no hier_exports never calls
+    # c.io()), so an empty-input fallback is safe by construction, not a
+    # guess. An earlier attempt worked around the crash with a fake non-
+    # functional "marker" wire in the LEAF's own composition instead -- that
+    # avoided the crash but then tripped a REAL lint check (cec_sch_lint.py's
+    # SL-03 "dangling wire end touches nothing", correctly: a wire touching
+    # nothing IS suspicious in a genuine schematic). Fixing the root cause
+    # here removes the need for any such marker in the first place.
+    content_bbox = (min(cxs), max(cxs), min(cys), max(cys)) if cxs else (0.0, 0.0, 0.0, 0.0)
     for _k, ttxt, tx, ty, tsz in lay_texts:      # captions/notes are content too
         longest = max((len(ln) for ln in ttxt.split("\n")), default=1)
         cxs += [tx, tx + longest * tsz * 1.02]

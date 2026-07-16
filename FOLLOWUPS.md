@@ -633,4 +633,73 @@ Conventions:
   MSSIO ball consumed for it). Idle-inactive default is safe for boot, but if firmware later
   wants a software-controlled flash reset (e.g. a recovery/re-flash sequence), a spare MSSIO
   ball will need to be allocated and this net re-wired as MSS-driven, not just a pull-up.
+- [2026-07-16] 03B-BANK-RAILS STILL BLOCKED — MPM3833CGRH-Z (MPS, LCSC C6306422) has NO vendored
+  KiCad symbol anywhere in lib/*.kicad_sym, confirmed via a fresh `git pull --rebase` + direct
+  grep immediately before starting sheet 03 (the only "MPM3833" text hit in the whole lib/ tree
+  is inside 03a's MIC22705YML-TR Description property, referencing it as the risk THAT part
+  replaced for the CORE rail specifically — a different, higher-current role than what U4/U5/U6
+  need here). BOM-A wants 3 instances (U4=VDD18/1.8V, U5=VDD25/2.5V, U6=shared-3.3V-domain,
+  hub-ent-bom-detailed.md Sec1) at 100-500mA each — nowhere near the flagged 3A-headroom risk.
+  Stubbed with a dated CAPTURE PENDING note (hubs/hub-enterprise/03b-bank-rails.kicad_sch); do
+  NOT hand-draw a divergent symbol when resuming — wait for the sibling intake agent, then
+  capture for real: FB divider per-rail (Vout=0.6V*(1+R1/R2), MPM3833C app section), one 3.3V
+  output paired with 03d-sequencing's supervisor sense input (net name +3V3_MPFS, already
+  declared there as a forward-looking hier_export — 03b just needs to add the matching name, no
+  retroactive edit to 03d needed), all three EN pins joining the already-declared/driven
+  MPFS_SEQ_EN global net (03a and 03d already tap it).
+- [2026-07-16] 03C-VDDA-LDO STILL EFFECTIVELY BLOCKED, more precisely than SCHEMATIC-PLAN.md
+  sec4's own "remaining library gaps" note suggests (that note — "TPS7A20 pair (03c)" — is now
+  STALE in the OPPOSITE direction: a TPS7A20-family pair IS vendored, TPS7A2018PDBVR 1.8V +
+  TPS7A2050PDBVR 5.0V, both real 5-pin SOT-23-5 symbols with full datasheet-verified pin maps,
+  confirmed this pass). The problem is neither is the RIGHT voltage: BOM-A wants U7=VDDA=1.0V
+  ("XCVR Tx/Rx Lanes Supply") and U8=VDDA25=2.5V ("XCVR PLL Supply") — TPS7A2010-class and
+  TPS7A2025-class fixed LDOs (bom-a-compute.md rows U7/U8, both already flagged there as
+  "named by extrapolating a confirmed-real naming convention... exact LCSC stock/price was not
+  independently pulled"). These are FIXED-output parts (verified pin map on both vendored
+  variants: IN/GND/EN/NC/OUT, no FB pin at all) — populating the wrong-voltage part would
+  misconfigure VDDA/VDDA25 outright, not just need a resistor retune, so this is NOT a "close
+  enough, fix the divider" situation. Stubbed with a dated CAPTURE PENDING note
+  (hubs/hub-enterprise/03c-vdda-ldo.kicad_sch); do NOT hand-draw a divergent symbol AND do NOT
+  substitute the wrong-voltage vendored parts when resuming — wait for the sibling intake agent
+  to vendor the exact 1.0V/2.5V variants (or an adjustable TPS7A20 fallback per BOM-A's own note
+  3), then capture for real: both EN pins join the MPFS_SEQ_EN global net.
+- [2026-07-16] ROOT-LEVEL CROSS-WIRE PASS STILL OWED, sheet 03 ADDS to the list — confirmed this
+  pass (read cec_sch_compose.build_root directly) that build_root has NO pairing/global-label
+  mechanism between DIFFERENT top-level sheets' same-named root exports at all (unlike
+  build_thin_parent's own internal "pairs" for SIBLING leaves within one thin parent): each
+  extra_sheets entry just gets its own isolated, unconnected sheet-pin block on the root page.
+  So sheet 04's +3V3_IO/VDD18 (awaiting 03b) and now ALSO sheet 03's own +1V0_CORE (awaiting
+  sheet 02a's MPFS VDD-core pin) all reach the TRUE root as currently-dangling hierarchical
+  labels that will NOT auto-connect to their eventual producer/consumer merely by sharing a
+  name — connecting them needs an explicit FUTURE pass (extend build_root with a real pairing
+  mechanism for extra_sheets, or hand-author the wires once every relevant sheet exists). Not
+  urgent while 02a/03b remain uncaptured, but tracked here so it isn't silently forgotten once
+  they land.
+- [2026-07-16] MULTI-LINE NOTE/CAPTION ESCAPING BUG FOUND + FIXED IN THE SHARED T1 ENGINE
+  (scripts/cec_sch_layout.py's `_unescape()`) during sheet-03 capture — cec_sch_compose.
+  emit_caption converts a real embedded newline into the literal 2-character sequence `\n` when
+  WRITING a note/caption (its own comment: "KiCad stores multi-line text as literal \n"), but
+  `_unescape()` (used when READING text back out for bbox/overlap/bounds measurement) only ever
+  reversed `\"` and `\\`, never `\n` — so EVERY multi-line note/caption project-wide had its
+  width measured as if it were ONE giant single line (all characters including the literal
+  backslash-n pairs counted toward line length), silently inflating every such element's
+  measured bbox width. This is why sheet-03d's 6-line ~373-char note round-tripped as 0 real
+  newlines / 373 chars on one line, bbox width 483mm — comfortably exceeding even an A3 page,
+  which is what surfaced the bug (check_sheet_bounds flagged it real, not a page-size problem).
+  FIXED (single left-to-right regex pass, escape-order-safe — see the function's own updated
+  docstring); reverified 0 regressions on already-committed sheets (01a/01c/04a/04b/04c's own
+  check-overlaps results unchanged, 0 findings each, both before and after). NOT reverified via
+  check_sheet_bounds specifically pre-fix (would need a stash/diff to reproduce the exact old
+  numbers) — CONSIDER LATER: sheets 01/04/05's own already-committed multi-line notes ALL carry
+  this same defect (verified: 04a has 2 literal-backslash-n instances, 04b has 3, 04c has 1,
+  01f has 0) — none of them happened to be LONG enough to cross any bounds/overlap threshold
+  before the fix, so there is no known live regression to clean up, but a future tidiness pass
+  could regenerate 01/04/05 to pick up the corrected (smaller, more accurate) measured bboxes
+  now that the reader matches the writer.
   Revisit at firmware integration or once sheet 02a's MSSIO ball budget is known.
+- [2026-07-16] MCP TOOL WISHLIST landed at docs/mcp-tool-wishlist-2026-07-16.md (owner ask,
+  same day, sheet-03 session) — six candidate tools drawn from this session's actual repeated
+  pain points (a wire-pin-coincidence checker, a root-page sheet-box-overlap preflight, a
+  generator-string escape-safety scanner, a symbol-pin-table dumper, a one-call six-gate
+  verify_sheet wrapper, and a revert-unrelated-drift helper), each with concrete counts/costs
+  from this session and a proposed input/output contract. Triage-only, nothing implemented.

@@ -153,7 +153,7 @@ def main():
             check(f'(title "CEC Hub -- Enterprise (ENT): {name}"' in txt,
                   f"{name}.kicad_sch carries a proper per-sheet title")
 
-    for num, name in (("02", "02-compute-core"), ("03", "03-compute-rails"),
+    for num, name in (("02", "02-compute-core"),
                        ("06", "06-t1-dataplane"), ("07", "07-uplink"),
                        ("08", "08-secio-aux"), ("09", "09-watchdog")):
         p = os.path.join(BOARD_DIR, f"{name}.kicad_sch")
@@ -229,6 +229,46 @@ def main():
     # NOT a placeholder anymore: "04-storage" is removed from the placeholder
     # tuple above (section 0) now that it's captured.
 
+    # -----------------------------------------------------------------
+    # 0d. sheet 03 (compute-rails) format: same thin-parent-plus-leaves rule,
+    # captured 2026-07-16 same session. Two of its four leaves (03b-bank-
+    # rails, 03c-vdda-ldo) are DELIBERATE EMPTY STUBS (library-blocked, see
+    # gen_hub_enterprise.py's sheet-03 module docstring) -- they still get
+    # the ordinary leaf-format checks (real file, proper title, no dashed
+    # frame) PLUS an explicit check that they still carry the CAPTURE
+    # PENDING honesty marker (catches a regression where someone removes the
+    # marker without actually adding real parts).
+    # -----------------------------------------------------------------
+    SHEET03_LEAVES = ("03a-core-buck", "03b-bank-rails", "03c-vdda-ldo", "03d-sequencing")
+    SHEET03_STUB_LEAVES = ("03b-bank-rails", "03c-vdda-ldo")
+    parent03_path = os.path.join(BOARD_DIR, "03-compute-rails.kicad_sch")
+    check(os.path.isfile(parent03_path), "03-compute-rails.kicad_sch (thin parent) present")
+    if os.path.isfile(parent03_path):
+        parent03_txt = open(parent03_path).read()
+        real_lib_ids = re.findall(r'\(lib_id "([^"]+)"\)', parent03_txt)
+        non_power = [l for l in real_lib_ids if not l.startswith("cec-power:")]
+        check(not non_power,
+              f"03-compute-rails.kicad_sch (thin parent) carries no components "
+              f"(found non-power lib_ids: {non_power})")
+        check("(type dash)" not in parent03_txt,
+              "03-compute-rails.kicad_sch (thin parent) carries no dashed-frame section graphics")
+        check(parent03_txt.count("(sheet\n") == len(SHEET03_LEAVES),
+              f"03-compute-rails.kicad_sch instantiates exactly {len(SHEET03_LEAVES)} leaf sheets "
+              f"(found {parent03_txt.count('(sheet' + chr(10))})")
+    for name in SHEET03_LEAVES:
+        p = os.path.join(BOARD_DIR, f"{name}.kicad_sch")
+        check(os.path.isfile(p), f"leaf sheet present: {name}.kicad_sch")
+        if os.path.isfile(p):
+            txt = open(p).read()
+            check("(type dash)" not in txt,
+                  f"{name}.kicad_sch carries no dashed-frame section graphics")
+            check(f'(title "CEC Hub -- Enterprise (ENT): {name}"' in txt,
+                  f"{name}.kicad_sch carries a proper per-sheet title")
+            if name in SHEET03_STUB_LEAVES:
+                check("CAPTURE PENDING" in txt,
+                      f"{name}.kicad_sch (empty stub, library-blocked) still carries its "
+                      f"CAPTURE PENDING honesty marker")
+
     symtab = open(os.path.join(BOARD_DIR, "sym-lib-table")).read()
     for nick in ("cec", "cec-vendor", "cec-power", "cec-ent-power", "cec-ent-net",
                  "cec-ent-mcu", "cec-ent-compute", "cec-ent-hub-local"):
@@ -250,22 +290,42 @@ def main():
                                 "CAN_TX/RX, DETECT_SDA/SCL) hierarchical exports with no consumer yet "
                                 "(sheets 02/06/09 are still placeholders); sheet 04's own 20 root exports "
                                 "(6x MSS_QSPI_*/12x MSS_EMMC_*/+3V3_IO/VDD18, awaiting sheet 02a's not-yet-"
-                                "captured MPFS + sheet 03b's blocked MPM3833C) fall under isolated_pin_label "
-                                "below instead, not this class -- same root cause, different kicad-cli bucket.",
+                                "captured MPFS + sheet 03b's blocked MPM3833C) and sheet 03's own 2 root "
+                                "exports (+1V0_CORE awaiting 02a, +3V3_MPFS awaiting sibling leaf 03b) fall "
+                                "under isolated_pin_label below instead, not this class -- same root cause, "
+                                "different kicad-cli bucket.",
         "pin_to_pin":           "TPS25940LRVCR's 5 parallel power_out OUT pins tied together (required "
                                 "multi-pin eFuse design, sheet 01 x4); sheet-04a's redundant PWR_FLAG pair on "
                                 "+3V3_IO (04a's own leaf-local flag + 04b's, now genuinely wired together via "
                                 "the 04a<->04b thin-parent pair -- two flags on one net is harmless); "
                                 "sheet-04b's CMD(Unspecified)<->R402.2(Passive) is the intended pull-up tie "
-                                "(ERC flags Unspecified-type connections generically, by design correct here).",
+                                "(ERC flags Unspecified-type connections generically, by design correct here); "
+                                "sheet-03a's multiple redundant PWR_FLAG stamps on +5V_SYS/GND (many "
+                                "independently-labeled pins sharing one net, same harmless multi-flag pattern).",
         "isolated_pin_label":   "RESET_3V3 (1) + sheet-05's 18 root-level T1/CAN_TX/RX exports (each counted "
                                 "twice by kicad-cli's scan, 36) -- all forward-looking labels/hier pins with "
                                 "no consumer captured yet, same root cause as pin_not_connected above; "
-                                "sheet-04's own 20 root exports (see pin_not_connected note) add here too.",
+                                "sheet-04's own 20 root exports (see pin_not_connected note) add here too; "
+                                "sheet-03's own 2 root exports (+1V0_CORE, +3V3_MPFS -- see pin_not_connected "
+                                "note) add here as well.",
         "pin_not_driven":       "sheet-05b's U_CAN.TXD (an Input pin) has no driver yet -- the fabric CAN "
                                 "controller that drives it lives on sheet 02/09, still a placeholder; "
                                 "sheet-04a's U401 /CS and CLK (Input pins) have no driver yet -- the MSS QSPI "
                                 "controller that drives them lives on sheet 02a, not yet captured.",
+        "power_pin_not_driven": "sheet-03d's U302 pin 3 (VDD/sense) reads +3V3_MPFS, which has no local driver "
+                                "yet -- awaiting sibling leaf 03b (BLOCKED, MPM3833C not vendored), same root "
+                                "cause as the sheet-04/03 forward-declared-export classes above.",
+        "wire_dangling":        "sheet-03b/03c's own non-functional marker wire (a 1.27mm cosmetic tick near "
+                                "each stub's caption, NOT a stand-in for any real connection) -- both leaves "
+                                "are genuinely empty (0 real components, capture pending on MPM3833C/the "
+                                "correct-voltage TPS7A20 variants), and build_leaf's centering pass needs SOME "
+                                "drawn geometry (a part or a wire) to compute a bounding box from; a truly "
+                                "empty leaf (0 parts, 0 wires) crashes it (measured: min() on an empty "
+                                "sequence). Expected count is exactly 2 (one per stub leaf); a 3rd instance "
+                                "anywhere else is a real regression.",
+        "unconnected_wire_endpoint": "both endpoints of sheet-03b/03c's own marker wire (see wire_dangling "
+                                "above) -- same root cause, different kicad-cli bucket. Expected count is "
+                                "exactly 4 (2 endpoints x 2 stub leaves).",
         "endpoint_off_grid":    "warning-only: a leaf sheet-pin's X MUST sit exactly on its box's real edge (not "
                                 "gridsnapped) for kicad-cli to bind it into the flattened net at all -- verified "
                                 "empirically during the 2026-07-02 re-sheeting (a gridsnapped X parses fine but "
@@ -334,24 +394,51 @@ def main():
     # (NEWLY established this pass, since sheet 04 is the FIRST addition
     # since 05 was captured) 05-subtree's own projected group count are BOTH
     # re-proven unchanged by projection, alongside sheet 04's own new count.
+    #
+    # 2026-07-16 (sheet-03 ADDITIVE capture, same session): sheet 03 continues
+    # the SAME plain-numbering convention in the "3xx" block (03a: U301,
+    # C301-C311, L301, R301-R304 = 17 refs; 03b/03c: 0 refs each, empty stubs;
+    # 03d: U302 = 1 ref; 18 refs total), separable by ref shape alone
+    # (`_IS_03_REF`), distinct from 01's "1xx", 04's "4xx", and 05's
+    # descriptive names. Same discipline again: 01/05/04-subtrees' own
+    # projected group counts are ALL re-proven unchanged by projection,
+    # alongside sheet 03's own new count.
     # -----------------------------------------------------------------
     _IS_01_REF = re.compile(r'^[A-Z]+1[0-3]\d$')  # U101-U139 / R101-R139 / etc.
     _IS_04_REF = re.compile(r'^[A-Z]+4[0-3]\d$')  # U401-U439 / R401-R439 / etc.
+    _IS_03_REF = re.compile(r'^[A-Z]+3[0-3]\d$')  # U301-U339 / R301-R339 / etc.
+    # measured (kicad-cli netlist, 2026-07-16): unlike sheet 04's mostly-1:1
+    # net-per-signal shape, 03a's 17 real parts collapse into a SMALL number
+    # of MULTI-MEMBER local nets (+5V_SYS/GND/SW_CORE/+1V0_CORE/FB_CORE/
+    # COMP_RC/COMP_RC2/RC_CORE/PG_CORE/MPFS_SEQ_EN = 10) plus 03d's own
+    # +3V3_MPFS (11) -- the 12th is a project-wide shared-power group (e.g.
+    # +3V3 or +5VSB) that 03-subtree has NO real member on, but which still
+    # carries a #PWR/#FLG-only member somewhere and so is NOT dropped by the
+    # `if g` empty-group filter (same "#"-inflation caveat already recorded
+    # for proj_04 above, just crossing zero real-membership here since
+    # sheet 03 is small). Not hand-re-derived exactly; measured and pinned.
+    PROJ_03_EXPECTED = 12
     real_comps = [r for r in comps if not r.startswith("#")]
     comps_01 = [r for r in real_comps if _IS_01_REF.match(r)]
     comps_04 = [r for r in real_comps if _IS_04_REF.match(r)]
-    comps_05 = [r for r in real_comps if not _IS_01_REF.match(r) and not _IS_04_REF.match(r)]
+    comps_03 = [r for r in real_comps if _IS_03_REF.match(r)]
+    comps_05 = [r for r in real_comps if not _IS_01_REF.match(r) and not _IS_04_REF.match(r)
+                and not _IS_03_REF.match(r)]
     check(len(comps_01) == 59,
-          f"01-subtree component count unchanged by sheet-04/05's additions (expected 59, got {len(comps_01)})")
+          f"01-subtree component count unchanged by sheet-03/04/05's additions (expected 59, "
+          f"got {len(comps_01)})")
     check(len(comps_05) == 75,
-          f"05-subtree component count unchanged by sheet-04's addition (8x8 port parts + 6 05b "
-          f"+ 5 05c = 64+6+5 = 75; got {len(comps_05)})")
+          f"05-subtree component count unchanged by sheet-03/04's additions (8x8 port parts + 6 "
+          f"05b + 5 05c = 64+6+5 = 75; got {len(comps_05)})")
     check(len(comps_04) == 13,
-          f"04-subtree adds exactly 13 components (04a: U401+C401+C402+R401=4; 04b: U402+"
-          f"C403-C408=7; 04c: R402+R403=2; got {len(comps_04)})")
-    check(len(real_comps) == 147,
-          f"total component count = 59 (sheet 01) + 75 (sheet 05) + 13 (sheet 04, new) = 147 "
-          f"(got {len(real_comps)})")
+          f"04-subtree component count unchanged by sheet-03's addition (04a: U401+C401+C402+"
+          f"R401=4; 04b: U402+C403-C408=7; 04c: R402+R403=2; got {len(comps_04)})")
+    check(len(comps_03) == 18,
+          f"03-subtree adds exactly 18 components (03a: U301+C301-C311(11)+L301+R301-R304(4)="
+          f"17; 03b/03c: 0 each, empty stubs; 03d: U302=1; got {len(comps_03)})")
+    check(len(real_comps) == 165,
+          f"total component count = 59 (sheet 01) + 75 (sheet 05) + 13 (sheet 04) + 18 "
+          f"(sheet 03, new) = 165 (got {len(real_comps)})")
 
     groups = sorted(frozenset(v) for v in nets.values())
     n_groups = len(groups)
@@ -360,36 +447,49 @@ def main():
     proj_01 = {g for g in proj_01 if g}      # drop groups with no 01-subtree member at all
     check(len(proj_01) == 46,
           f"01-subtree connectivity (PROJECTED: each flattened group reduced to its "
-          f"01-subtree-only members) is unchanged by sheet-04/05's additions -- still exactly "
-          f"the historical 46 groups (got {len(proj_01)}); sheets 04/05 only ADD members to "
+          f"01-subtree-only members) is unchanged by sheet-03/04/05's additions -- still exactly "
+          f"the historical 46 groups (got {len(proj_01)}); sheets 03/04/05 only ADD members to "
           f"shared global power nets (GND/+3V3/+5VSB/+5V_MAIN/+5V_SYS), never alter an "
           f"existing 01-subtree connection")
     proj_05 = {frozenset((r, p) for r, p in g if not _IS_01_REF.match(r)
-                          and not _IS_04_REF.match(r) and not r.startswith("#"))
+                          and not _IS_04_REF.match(r) and not _IS_03_REF.match(r)
+                          and not r.startswith("#"))
                for g in groups}
     proj_05 = {g for g in proj_05 if g}
     check(len(proj_05) == 67,
           f"05-subtree connectivity (PROJECTED to its own non-# members only) is unchanged by "
-          f"sheet-04's addition -- 67 groups (baseline ESTABLISHED this pass, sheet 04 is the "
-          f"first addition since 05 was captured, so there is no earlier count to compare "
-          f"against; got {len(proj_05)})")
+          f"sheet-03/04's additions -- 67 groups (baseline established when sheet 04 was "
+          f"captured; got {len(proj_05)})")
     proj_04 = {frozenset((r, p) for r, p in g if _IS_04_REF.match(r) or r.startswith("#"))
                for g in groups}
     proj_04 = {g for g in proj_04 if g}
     check(len(proj_04) == 149,
           f"04-subtree connectivity (PROJECTED: each flattened group reduced to its "
-          f"04-subtree-only + shared-power members) is exactly 149 groups (got {len(proj_04)}) "
-          f"-- most are 04's own single-occurrence root exports (18 of the 20 planned pins: "
-          f"6x MSS_QSPI_* + 12x MSS_EMMC_CLK/DAT0-7/DS, each a lone-member group) plus the 4 "
-          f"paired/tapped nets (+3V3_IO, VDD18, MSS_EMMC_CMD, MSS_EMMC_RST_N) plus the 1 LOCAL "
-          f"QSPI_RESET_N pair (U401.3/R401.2, named via a real c.label -- deliberately NOT a "
-          f"root export, no active MSS drive planned this pass) and every shared global-power "
-          f"group (GND etc, inflated by every #PWR/#FLG instance project-wide, but that "
-          f"inflation only ADDS MEMBERS to an already-counted group, never a new one -- "
-          f"verified: it did not move 01-subtree's own 46 group count above)")
+          f"04-subtree-only + shared-power members) is unchanged by sheet-03's addition -- still "
+          f"exactly 149 groups (got {len(proj_04)}) -- most are 04's own single-occurrence root "
+          f"exports (18 of the 20 planned pins: 6x MSS_QSPI_* + 12x MSS_EMMC_CLK/DAT0-7/DS, each "
+          f"a lone-member group) plus the 4 paired/tapped nets (+3V3_IO, VDD18, MSS_EMMC_CMD, "
+          f"MSS_EMMC_RST_N) plus the 1 LOCAL QSPI_RESET_N pair (U401.3/R401.2, named via a real "
+          f"c.label -- deliberately NOT a root export, no active MSS drive planned this pass) "
+          f"and every shared global-power group (GND etc, inflated by every #PWR/#FLG instance "
+          f"project-wide, but that inflation only ADDS MEMBERS to an already-counted group, "
+          f"never a new one -- verified: it did not move 01-subtree's own 46 group count above)")
+    proj_03 = {frozenset((r, p) for r, p in g if _IS_03_REF.match(r) or r.startswith("#"))
+               for g in groups}
+    proj_03 = {g for g in proj_03 if g}
+    check(len(proj_03) == PROJ_03_EXPECTED,
+          f"03-subtree connectivity (PROJECTED: each flattened group reduced to its "
+          f"03-subtree-only + shared-power members) is exactly {PROJ_03_EXPECTED} groups (got "
+          f"{len(proj_03)}) -- most are 03's own single-occurrence members (18 of the 18 real "
+          f"03-subtree refs are NOT paired with each other except via the shared +5V_SYS/GND/"
+          f"MPFS_SEQ_EN/FB_CORE/etc local nets, each an independent group) plus the 2 root "
+          f"exports (+1V0_CORE, +3V3_MPFS) and every shared global-power group (GND/+5V_SYS "
+          f"etc, inflated by every #PWR/#FLG instance project-wide, but that inflation only ADDS "
+          f"MEMBERS to an already-counted group, never a new one -- verified: it did not move "
+          f"01-subtree's own 46 or 04-subtree's own 149 group counts above)")
     print(f"  ..  flattened hierarchy: {len(real_comps)} components / {n_groups} connectivity "
           f"groups total (01-subtree 59/46 unchanged + 05-subtree 75/67 unchanged + "
-          f"04-subtree 13/148 new)")
+          f"04-subtree 13/149 unchanged + 03-subtree 18/{PROJ_03_EXPECTED} new)")
 
     # -----------------------------------------------------------------
     # 2. sheet-01 assertion block (BOM-D power-input)
@@ -697,6 +797,105 @@ def main():
     check(not mini_fit_04, f"no Mini-Fit Jr connector on sheet 04 (found: {mini_fit_04})")
 
     # -----------------------------------------------------------------
+    # 2d. sheet-03 assertion block (compute-rails: MIC22705YML-TR core buck +
+    # TPS3839K33 sequencing supervisor REAL; bank-rails + vdda-ldo STUBBED,
+    # see gen_hub_enterprise.py's sheet-03 module docstring for the full
+    # library-status picture). Pin maps verified against the vendored
+    # MIC22705 symbol directly + cross-checked against the real Microchip
+    # datasheet (DS 111213-1.1); TPS3839DBZ pin map reused verbatim from
+    # 01f's own already-verified U107 instance.
+    # -----------------------------------------------------------------
+    print("--- sheet 03 (compute-rails) assertions ---")
+
+    # a) 03a: MIC22705YML-TR pin map (1,6,13,18=PVIN; 2=EN/DLY; 4=RC; 5=PG;
+    #    7,12,19,24=PGND; 8-11,20-23=SW; 14=FB; 15=COMP; 16=SGND; 17=SVIN;
+    #    25=EP)
+    _, v5sys = net_named(nets, "+5V_SYS")
+    for pin in ("1", "6", "13", "18", "17"):
+        check(("U301", pin) in v5sys, f"U301 pin {pin} (PVIN/SVIN) -> +5V_SYS")
+    for ref in ("C301", "C302", "C303", "C304", "C305", "R304"):
+        check((ref, "1") in v5sys, f"{ref} pin 1 -> +5V_SYS (PVIN/SVIN bypass or PG pull-up rail leg)")
+    for pin in ("16", "7", "12", "19", "24", "25"):
+        check(("U301", pin) in gnd, f"U301 pin {pin} (SGND/PGND/EP) -> platform GND")
+    _, sw_core = net_named(nets, "SW_CORE")
+    for pin in ("8", "9", "10", "11", "20", "21", "22", "23"):
+        check(("U301", pin) in sw_core, f"U301 pin {pin} (SW) -> SW_CORE")
+    check(("L301", "1") in sw_core, "L301 pin 1 -> SW_CORE (inductor input)")
+    _, v1core = net_named(nets, "+1V0_CORE")
+    check(("L301", "2") in v1core and ("C306", "1") in v1core and ("C307", "1") in v1core
+          and ("R301", "1") in v1core,
+          "L301 pin 2 (VOUT) + C306/C307 bulk caps + R301's FB-divider rail leg all on +1V0_CORE")
+    _, fb_core = net_named(nets, "FB_CORE")
+    check(("U301", "14") in fb_core and ("R301", "2") in fb_core and ("R302", "1") in fb_core
+          and ("C308", "1") in fb_core,
+          "U301 pin 14 (FB) + R301/R302 divider taps + C308 noise cap all on FB_CORE")
+    check(val("R301") == "4.99k" and val("R302") == "11.5k",
+          f"FB divider R301/R302 = 4.99k/11.5k (VOUT~=1.00V per VREF=0.7V typ); "
+          f"got {val('R301')!r}/{val('R302')!r}")
+    _, comp_rc = net_named(nets, "COMP_RC")
+    check(("U301", "15") in comp_rc and ("R303", "1") in comp_rc,
+          "U301 pin 15 (COMP) + R303 in series (COMP_RC)")
+    _, comp_rc2 = net_named(nets, "COMP_RC2")
+    check(("R303", "2") in comp_rc2 and ("C309", "1") in comp_rc2,
+          "R303 + C309 in series, C309 -> GND (COMP_RC2, completing the COMP RC network)")
+    check(("C309", "2") in gnd, "C309 pin 2 (COMP network return) -> GND")
+    _, rc_core = net_named(nets, "RC_CORE")
+    check(("U301", "4") in rc_core and ("C310", "1") in rc_core,
+          "U301 pin 4 (RC/soft-start) + C310 (RC_CORE, local -- no cross-part tracking)")
+    _, pg_core = net_named(nets, "PG_CORE")
+    check(("U301", "5") in pg_core and ("R304", "2") in pg_core,
+          "U301 pin 5 (PG, open-drain) + R304 pull-up (PG_CORE, local)")
+    _, seq_en = net_named(nets, "MPFS_SEQ_EN")
+    check(("U301", "2") in seq_en and ("C311", "1") in seq_en,
+          "U301 pin 2 (EN/DLY) + C311 both on the MPFS_SEQ_EN global net")
+    check(("C311", "2") in gnd, "C311 pin 2 (EN/DLY node cap return) -> GND")
+
+    # b) 03a<->03d cross-leaf tie: MPFS_SEQ_EN is a REAL global_label net
+    #    (not a sheet-pin/hier_export pair), so its full membership spans
+    #    BOTH leaves in the SAME flattened net -- verify the tie is real,
+    #    not just same-name coincidence.
+    check(("U302", "2") in seq_en,
+          "U302 pin 2 (03d's TPS3839K33 ~RESET output) is on the SAME flattened MPFS_SEQ_EN "
+          "net as 03a's U301 pin 2 -- confirms the global_nets tie is real, not coincidental")
+
+    # c) 03d: TPS3839K33 pin map (1=GND, 2=~RESET->MPFS_SEQ_EN, 3=VDD/sense)
+    check(("U302", "1") in gnd, "U302 pin 1 (GND) -> platform GND")
+    _, v3mpfs = net_named(nets, "+3V3_MPFS")
+    check(("U302", "3") in v3mpfs and v3mpfs == {("U302", "3")},
+          f"U302 pin 3 (VDD/sense) = +3V3_MPFS, a LONE-MEMBER net awaiting sibling leaf 03b "
+          f"(BLOCKED) -- exactly one member expected this pass (got {sorted(v3mpfs)})")
+    check(val("U302") == "TPS3839K33",
+          f"U302 = TPS3839K33 (same MPN/LCSC as 01f's own U107 instance); got {val('U302')!r}")
+
+    # d) 03b/03c: confirmed EMPTY stubs (0 real components each) -- the
+    #    thin-parent format check (0c below) verifies each leaf file itself
+    #    exists + carries no dashed-frame graphics; this just re-confirms
+    #    from the flattened netlist's own component list that NEITHER
+    #    contributed a real part (guards against a future accidental
+    #    half-capture landing without updating this comment/count).
+    check(not any(r.startswith("U4") or r.startswith("U5") or r.startswith("U6")
+                  for r in comps_03),
+          "03b's planned refs (U4/U5/U6, BOM-A's MPM3833C role) are NOT present -- confirmed "
+          "still an empty stub, matching the dated CAPTURE PENDING note")
+    check(not any(r.startswith("U7") or r.startswith("U8") for r in comps_03),
+          "03c's planned refs (U7/U8, BOM-A's TPS7A20-class role) are NOT present -- confirmed "
+          "still an empty stub, matching the dated CAPTURE PENDING note")
+
+    # e) every real sheet-03 part carries Manufacturer + MPN (BOM-A traceability)
+    missing_bom_03 = []
+    for ref in comps_03:
+        f = comps[ref]["fields"]
+        if not (f.get("Manufacturer") and f.get("MPN")):
+            missing_bom_03.append(ref)
+    check(not missing_bom_03, f"every sheet-03 part carries Manufacturer+MPN (missing: {missing_bom_03})")
+
+    # f) platform conformance: no Mini-Fit Jr on sheet 03
+    mini_fit_03 = [ref for ref in comps_03
+                   if "Mini-Fit" in comps[ref]["fields"].get("Footprint", "")
+                   or "5569" in comps[ref]["fields"].get("Footprint", "")]
+    check(not mini_fit_03, f"no Mini-Fit Jr connector on sheet 03 (found: {mini_fit_03})")
+
+    # -----------------------------------------------------------------
     # 3. root sheet instances expose exactly their planned hierarchical pins.
     #    NOTE: a naive `\(sheet\n.*?"Sheetname" "X".*?(?=...)` regex is NOT
     #    anchored to the (sheet block belonging to X -- non-greedy `.*?`
@@ -766,6 +965,21 @@ def main():
               f"(got {sorted(set(pins4) ^ expected4)} diff)")
 
     # -----------------------------------------------------------------
+    # 3d. root sheet-03 instance exposes exactly the planned 2 hierarchical
+    # pins (+1V0_CORE awaiting 02a, +3V3_MPFS awaiting sibling leaf 03b --
+    # MPFS_SEQ_EN is deliberately ABSENT here: it's a `global_nets` project-
+    # wide label, invisible to the thin-parent/root sheet-pin plumbing)
+    # -----------------------------------------------------------------
+    m3 = _sheet_block("03-compute-rails")
+    check(m3 is not None, "root sheet carries a 03-compute-rails sheet instance")
+    if m3:
+        pins3 = re.findall(r'\(pin "([^"]+)"', m3)
+        expected3 = {"+1V0_CORE", "+3V3_MPFS"}
+        check(set(pins3) == expected3,
+              f"root's 03-compute-rails sheet symbol exposes exactly the 2 planned exports "
+              f"(got {sorted(set(pins3) ^ expected3)} diff)")
+
+    # -----------------------------------------------------------------
     print()
     if FAILURES:
         print(f"FAILED ({len(FAILURES)}):", file=sys.stderr)
@@ -773,8 +987,8 @@ def main():
             print(f"  - {f}", file=sys.stderr)
         return 1
     print(f"All checks passed ({len(comps)} components in the flattened hierarchy: "
-          f"59 sheet-01 + 13 sheet-04 + 75 sheet-05 = {len(comps_01) + len(comps_04) + len(comps_05)}; "
-          f"{len(nets)} nets).")
+          f"59 sheet-01 + 18 sheet-03 + 13 sheet-04 + 75 sheet-05 = "
+          f"{len(comps_01) + len(comps_03) + len(comps_04) + len(comps_05)}; {len(nets)} nets).")
     return 0
 
 

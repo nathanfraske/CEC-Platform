@@ -25,7 +25,7 @@
 #
 # Run: python3 hubs/hub-enterprise/gen_hub_enterprise.py
 # Validate: kicad-cli sch erc ... (see scripts/check_hub_ent_sch.py)
-import os, sys, uuid
+import os, re, sys, uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOTDIR = os.path.dirname(os.path.dirname(HERE))
@@ -617,6 +617,39 @@ class _Compose(cec_sch_compose.Compose):
 
     def __init__(self, lf):
         super().__init__(lf, LIBS)
+
+
+def multiline_note(c, text, xu, yu, size=1.27):
+    """A multi-line design note WITHOUT relying on cec_sch_compose.emit_note's
+    single-string-with-embedded-\\n form -- issues one c.note() call PER
+    LINE, each independently anchored, stacked at the same per-line spacing
+    emit_caption itself uses (size*1.6mm, converted to grid units).
+
+    WHY (bug found + fixed 2026-07-16, sheet-03 capture, see FOLLOWUPS.md):
+    cec_sch_compose.emit_caption stores an embedded real newline as the
+    literal 2-character escape "\\n" in the file (its own comment: "KiCad
+    stores multi-line text as literal \\n"), but scripts/cec_sch_layout.py's
+    `_unescape()` (used by check_overlaps/check_sheet_bounds/nudge_texts to
+    read text back out for bbox measurement) never reversed that specific
+    escape -- so a multi-line note's width was measured as ONE giant single
+    line (the literal backslash-n counted as ordinary characters), which
+    surfaced as a real check_sheet_bounds failure on this sheet's own longer
+    notes (03d's 6-line note round-tripped as 373 chars on one line, bbox
+    width 483mm -- past even an A3 page). A proper fix belongs in the shared
+    engine (scripts/cec_sch_layout.py's `_unescape`, and this generator
+    briefly carried one), but that file is outside this agent's authorized
+    staging scope (a concurrent sibling agent's territory boundary; the
+    fix is real and stays in the working tree, uncommitted, flagged in
+    FOLLOWUPS.md and this session's final report for the owner/coordinator
+    to route). This helper sidesteps the bug entirely instead of depending
+    on a shared-file fix landing: every line this generator ever emits is
+    then GENUINELY single-line at the file level, so the buggy read path
+    never gets exercised no matter which version of cec_sch_layout.py a
+    future regeneration or re-verification runs against."""
+    U = cec_sch.GRID
+    line_h = size * 1.6 / U
+    for i, line in enumerate(text.split("\n")):
+        c.note(line, xu, yu + i * line_h, size=size)
 
 
 def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
@@ -1832,6 +1865,482 @@ HIER_EXPORTS_04 = {
 ROOT_EXPORT_NETS_04 = set(HIER_EXPORTS_04)
 
 
+# ===========================================================================
+# sheet 03: compute-rails (03a-core-buck REAL / 03b-bank-rails STUB / 03c-
+# vdda-ldo STUB / 03d-sequencing REAL). Library status re-checked 2026-07-16
+# (fresh git pull --rebase, then direct grep of every lib/*.kicad_sym for a
+# real symbol -- not trusting SCHEMATIC-PLAN.md sec4's own prose, which is
+# already stale in one direction: it lists "TPS7A20 pair (03c)" as a
+# remaining gap, but TPS7A2018PDBVR/TPS7A2050PDBVR are BOTH now real,
+# fully-pinned, LCSC-sourced symbols in lib/cec-ent-power.kicad_sym (5 pins
+# each: IN/GND/EN/NC/OUT, SOT-23-5, verified against TI SBVS338H Fig 4-4).
+#   - 03a (MIC22705YML-TR): REAL, unblocked, already vendored (25-pin QFN-24
+#     symbol confirmed, matches SCHEMATIC-PLAN.md's own sheet-map entry).
+#     CAPTURED. This is the part BOM-A/hub-ent-bom-detailed.md's storage-
+#     ruling-adjacent note calls "MIC22705 swap" -- it REPLACES BOM-A's
+#     original U3=MPM3833CGRH-Z pick for the VDD-core (1.0V) rail specifically
+#     ("kills the MPM3833C 3A headroom risk", per the vendored symbol's own
+#     Description property) -- a HIGHER-CURRENT part for the ONE rail BOM-A
+#     itself flagged as underspecced (note 2, bom-a-compute.md: "a single
+#     MPM3833C (3A) is sized to the low end of the estimated core-current
+#     range with no Power Estimator run to confirm").
+#   - 03b (bank-rails, U4/U5/U6 = VDD18/VDD25/shared-3.3V per BOM-A): STILL
+#     BLOCKED. MPM3833CGRH-Z (the part BOM-A wants for THESE three rails --
+#     a DIFFERENT role than the one 03a's MIC22705 replaced; U4/U5/U6's
+#     currents per BOM-A's own budget table are 100-500mA each, nowhere near
+#     the flagged 3A-headroom risk that was specific to the CORE rail) has NO
+#     vendored symbol anywhere in lib/*.kicad_sym -- confirmed by direct grep
+#     (the only "MPM3833" hit in the whole lib/ tree is inside MIC22705's own
+#     Description text, referencing it as the risk IT replaced, not a real
+#     MPM3833C symbol). STUBBED this pass (compose_bank_rails_stub, no real
+#     components) per the task brief's explicit instruction: leave a dated
+#     stub, do NOT hand-draw a divergent symbol. Re-check on a future pass.
+#   - 03c (vdda-ldo, U7/U8 = VDDA=1.0V / VDDA25=2.5V per BOM-A): STILL
+#     EFFECTIVELY BLOCKED, more precisely than a flat "gap" -- the vendored
+#     "TPS7A20 pair" is the WRONG voltage variants. BOM-A wants TPS7A2010-
+#     class (1.0V) and TPS7A2025-class (2.5V) fixed LDOs (both explicitly
+#     flagged in BOM-A's own note 3 as "named by extrapolating a confirmed-
+#     real naming convention... exact LCSC stock/price was not independently
+#     pulled"), but the two symbols actually vendored are TPS7A2018 (1.8V)
+#     and TPS7A2050 (5.0V) -- neither matches. These are FIXED-output parts
+#     (no FB pin at all: pin map is IN/GND/EN/NC/OUT), so populating the
+#     wrong-voltage part would misconfigure VDDA/VDDA25, not just need a
+#     resistor tweak. STUBBED this pass (compose_vdda_ldo_stub) with a note
+#     explaining the voltage mismatch precisely, same do-not-hand-draw rule.
+#   - 03d (sequencing, U9 = TPS3839K33 PG chain gating EN on U3/U4/U5/U7/U8
+#     per BOM-A note 4): REAL, unblocked -- reuses the EXACT already-verified
+#     platform part (TPS3839DBZ / "TPS3839K33" / TPS3839K33DBZR / C96333)
+#     from 01f-buck-3v3's own U107, same pin map (1=GND, 2=~RESET output
+#     [push-pull per the symbol's "output" pin type, not open_collector --
+#     matches 01f's own precedent of no pull-up on this pin], 3=VDD/sense).
+#     CAPTURED, with two real cross-leaf/cross-sheet complications handled
+#     explicitly (see the compose function's own docstring): (a) its
+#     RESET-output net fans out to MULTIPLE consumers within THIS thin parent
+#     (03a's EN/DLY now, 03b/03c's own EN pins once THOSE unblock) -- that is
+#     >2 occurrences, which build_thin_parent's ordinary hier_exports "pairs"
+#     mechanism explicitly rejects (SystemExit on any net with >2 leaf-pin
+#     occurrences), so this uses `global_nets` instead (the CAN_H/CAN_L
+#     precedent from sheet 05), name "MPFS_SEQ_EN"; (b) its VDD/sense input
+#     needs to monitor 03b's future 3.3V bank-rail output, a SIBLING LEAF
+#     within this SAME 03-compute-rails thin parent -- exported as hier_export
+#     "+3V3_MPFS", root_exports=True (so it's ready to become an ordinary
+#     build_thin_parent "pair" the moment 03b is captured for real and
+#     declares the same net name, with ZERO retroactive edit to 03d needed --
+#     the sheet-04 precedent for a forward-declared cross-leaf net).
+#
+# IMPORTANT DISTINCTION from sheet 04's +3V3_IO/VDD18 (which ALSO reach the
+# TRUE project root, awaiting sheet 03b): those are cross-TOP-LEVEL-SHEET
+# nets (04-storage <-> 03-compute-rails, two DIFFERENT direct children of
+# hub-enterprise.kicad_sch) -- verified this pass (read cec_sch_compose.
+# build_root directly) that build_root has NO pairing/global-label mechanism
+# between different top-level sheets' same-named exports at all (unlike
+# build_thin_parent's internal "pairs"); each extra_sheets entry just gets
+# its own isolated _root_captured_sheet_block call. So +3V3_IO/VDD18 reaching
+# root do NOT auto-connect to 03b's future output merely by sharing a name --
+# that needs an explicit FUTURE root-level cross-wire pass (extend build_root
+# or hand-author the two wires once 03b lands), tracked in FOLLOWUPS.md.
+# "+3V3_MPFS" above is DIFFERENT and does NOT have this problem: it is
+# internal to ONE thin parent (03-compute-rails), so build_thin_parent's
+# ordinary "pairs" mechanism handles it automatically once 03b exists.
+# ===========================================================================
+SHEET03_LEAVES = {}
+
+
+def leaf03(id_, filename, sheetname, desc):
+    lf = Leaf(id_, filename, sheetname, desc)
+    SHEET03_LEAVES[id_] = lf
+    return lf
+
+
+SHEET03_LEAF_IDS = ["03a", "03b", "03c", "03d"]
+SHEET03_LEAF_SYM_UUIDS = {lid: _stable_uuid(f"03-leaf-sym-{lid}") for lid in SHEET03_LEAF_IDS}
+SHEET03_LEAF_OWN_UUIDS = {lid: _stable_uuid(f"03-leaf-own-{lid}") for lid in SHEET03_LEAF_IDS}
+SHEET03_OWN_UUID = _stable_uuid("03-compute-rails-thin-parent")
+
+
+def compose_core_buck():
+    """03a-core-buck: MIC22705YML-TR 1MHz 7A synchronous buck, VDD core =
+    1.0V (BOM-A's U3 role, current-headroom-risk swap -- see the module
+    docstring above). Pin map verified against the vendored symbol AND
+    cross-checked directly against Microchip DS(111213-1.1) MIC22705: 1,6,13,
+    18=PVIN; 2=EN/DLY; 3=NC; 4=RC; 5=PG(open-drain); 7,12,19,24=PGND; 8,9,10,
+    11,20,21,22,23=SW; 14=FB(0.7V ref); 15=COMP; 16=SGND; 17=SVIN; 25=EP(GND).
+    Component selection is the datasheet's OWN typical-application circuit
+    (Figure "MIC22705 7A 1MHz Synchronous Output Converter", 1.8V/7A example)
+    reused directly where the L/C/COMP/RC/PG population matches our design
+    (same 1uH inductor, same 2x-output-cap topology) -- NOT re-derived from
+    the general COMP-selection table, which the 1.8V example's own 39pF/20k
+    doesn't cleanly reconcile against (a table-transcription risk from the
+    PDF extraction this pass didn't want to compound with a guess). Only the
+    FB divider is recomputed for OUR 1.0V target (the datasheet's own formula,
+    R2 = R1/(VOUT/VREF-1), VREF=0.7V typ): R1=4.99k/R2=11.5k (E96 1%, chosen
+    small per the datasheet's own "10k or lower... large R1 = MORE noise
+    susceptibility" caution, closer to the reference example's 1.10k/698 scale
+    than the 10k ceiling) -> VOUT = 0.7*(1+4990/11500) = 1.0038V (+0.38%,
+    negligible against the reference's own +-2% VREF tolerance band)."""
+    lf = leaf03("03a", "03a-core-buck.kicad_sch", "03a-core-buck",
+               "MIC22705YML-TR 7A sync buck: VDD core 1.0V (BOM-A U3 role, "
+               "current-headroom swap)")
+    lf.add_part("U301", "cec-ent-power", "MIC22705YML-TR", "MIC22705YML-TR",
+               0, 0, "cec-Package_DFN_QFN:QFN-24-1EP_L4.0-W4.0-P0.50-EP2.6x2.6",
+               {"Manufacturer": "Microchip (Micrel)", "MPN": "MIC22705YML-TR",
+                "Datasheet": "https://ww1.microchip.com/downloads/en/DeviceDoc/mic22705.pdf",
+                "Description": "1MHz 7A synchronous buck, VDD-core=1.0V. Swaps BOM-A's "
+                                "original MPM3833C U3 pick (core-current-headroom risk)."})
+    for ref, xo in (("C301", 0), ("C302", 20), ("C303", 40), ("C304", 60)):
+        lf.add_part(ref, "cec-vendor", "C_Small", "22u", xo, 0,
+                   "cec-Capacitor_SMD:C_0805_2012Metric",
+                   {"Manufacturer": SAM, "MPN": "[TBD -- 22uF X5R 0805, confirm at "
+                                                 "BOM finalization]",
+                    "Description": "PVIN bypass, one per PVIN pin (datasheet Pin "
+                                    "Description table 1/6/13/18, recommended for "
+                                    "bypassing at each PVIN pin)"})
+    lf.add_part("C305", "cec-vendor", "C_Small", "2.2u", 80, 0,
+               "cec-Capacitor_SMD:C_0603_1608Metric",
+               {"Manufacturer": SAM, "MPN": "[TBD -- 2.2uF X7R 0603, confirm at "
+                                             "BOM finalization]",
+                "Description": "SVIN bypass to SGND, placed next to U301 per datasheet "
+                                "Pin Description (pin 17)"})
+    # cec-ent-hub-local:L_Small (not cec-vendor) -- this project's OWN local
+    # generic 2-pin inductor symbol, already registered in fp-lib-table, with
+    # a deliberately EMPTY default footprint (its own Description: "mirrors
+    # the platform R_Small/C_Small convention", i.e. value/footprint-agnostic
+    # at schematic-capture time). Footprint left "" here too, matching that
+    # convention -- the project's only OTHER already-vendored inductor
+    # footprint (L_VLS252010HBX-2R2M-1, a tiny 2520-case part) is sized for a
+    # low-current signal inductor elsewhere, not a 7A/1.0uH power inductor,
+    # so reusing it would be electrically dishonest; a real 7A-class shielded
+    # power inductor footprint is a genuine BOM-finalization/layout-time pick.
+    lf.add_part("L301", "cec-ent-hub-local", "L_Small", "1.0uH", 40, 40, "",
+               {"Manufacturer": "Bourns", "MPN": "[TBD -- 1.0uH shielded power inductor, "
+                                                  ">=7A sat / low DCR, confirm at BOM "
+                                                  "finalization]",
+                "Description": "SW-to-VOUT inductor, datasheet's own typical-application "
+                                "value (0.47-4.7uH range per Inductor Selection section)"})
+    lf.add_part("C306", "cec-vendor", "C_Small", "47u", 60, 40,
+               "cec-Capacitor_SMD:C_1210_3225Metric",
+               {"Manufacturer": SAM, "MPN": "[TBD -- 47uF X5R 1210, confirm at BOM "
+                                             "finalization]",
+                "Description": "VOUT bulk cap 1/2 (datasheet typical-app '47uF x2')"})
+    lf.add_part("C307", "cec-vendor", "C_Small", "47u", 80, 40,
+               "cec-Capacitor_SMD:C_1210_3225Metric",
+               {"Manufacturer": SAM, "MPN": "[TBD -- 47uF X5R 1210, confirm at BOM "
+                                             "finalization]",
+                "Description": "VOUT bulk cap 2/2 (datasheet typical-app '47uF x2')"})
+    lf.add_part("R301", "cec-vendor", "R_Small", "4.99k", 100, 20,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF4991TCE",
+                "Description": "FB divider top (VOUT to FB) -- sets VOUT~=1.00V "
+                                "(datasheet R2=R1/(VOUT/VREF-1) formula, VREF=0.7V typ)"})
+    lf.add_part("R302", "cec-vendor", "R_Small", "11.5k", 100, 40,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF1152TCE",
+                "Description": "FB divider bottom (FB to GND)"})
+    lf.add_part("C308", "cec-vendor", "C_Small", "100p", 120, 40,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": "Murata", "MPN": "[TBD -- 100pF C0G 0402, confirm at "
+                                                   "BOM finalization]",
+                "Description": "noise-immunity cap across R302 (datasheet Feedback "
+                                "section: 50-100pF reduces noise pick-up)"})
+    lf.add_part("R303", "cec-vendor", "R_Small", "20k", 0, 60,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF2002TCE",
+                "Description": "COMP compensation resistor (datasheet typical-app value, "
+                                "reused directly -- see compose function docstring)"})
+    lf.add_part("C309", "cec-vendor", "C_Small", "39p", 0, 80,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": "Murata", "MPN": "[TBD -- 39pF C0G 0402, confirm at "
+                                                   "BOM finalization]",
+                "Description": "COMP compensation cap, in series with R303 (datasheet "
+                                "typical-app value)"})
+    lf.add_part("C310", "cec-vendor", "C_Small", "470p", 20, 60,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": "Murata", "MPN": "[TBD -- 470pF C0G 0402, confirm at "
+                                                   "BOM finalization]",
+                "Description": "RC (soft-start ramp) cap, datasheet typical-app value "
+                                "(tRAMP = 0.7*C_RC/1e-6 ~= 329us); no cross-part "
+                                "tracking needed (lone regulator on this rail)"})
+    lf.add_part("C311", "cec-vendor", "C_Small", "1.0n", 20, 80,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": "Murata", "MPN": "[TBD -- 1.0nF C0G 0402, confirm at "
+                                                   "BOM finalization]",
+                "Description": "EN/DLY node cap (datasheet typical-app value); EN/DLY "
+                                "itself is externally driven by MPFS_SEQ_EN (03d), not "
+                                "RC-timed -- this cap just matches the reference "
+                                "population for noise immunity on the enable line"})
+    lf.add_part("R304", "cec-vendor", "R_Small", "47.5k", 40, 60,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF4752TCE",
+                "Description": "PG (open-drain) pull-up to +5V_SYS, datasheet "
+                                "typical-app value"})
+
+    lf.net("+5V_SYS", ("U301", "1"), ("U301", "6"), ("U301", "13"), ("U301", "18"),
+           ("U301", "17"), ("C301", "1"), ("C302", "1"), ("C303", "1"), ("C304", "1"),
+           ("C305", "1"), ("R304", "1"))
+    lf.net("GND", ("U301", "16"), ("U301", "7"), ("U301", "12"), ("U301", "19"),
+           ("U301", "24"), ("U301", "25"),
+           ("C301", "2"), ("C302", "2"), ("C303", "2"), ("C304", "2"), ("C305", "2"),
+           ("C306", "2"), ("C307", "2"), ("R302", "2"), ("C308", "2"), ("C309", "2"),
+           ("C310", "2"), ("C311", "2"))
+    lf.net("SW_CORE", ("U301", "8"), ("U301", "9"), ("U301", "10"), ("U301", "11"),
+           ("U301", "20"), ("U301", "21"), ("U301", "22"), ("U301", "23"), ("L301", "1"))
+    lf.net("+1V0_CORE", ("L301", "2"), ("C306", "1"), ("C307", "1"), ("R301", "1"))
+    lf.net("FB_CORE", ("U301", "14"), ("R301", "2"), ("R302", "1"), ("C308", "1"))
+    lf.net("COMP_RC", ("U301", "15"), ("R303", "1"))
+    lf.net("COMP_RC2", ("R303", "2"), ("C309", "1"))
+    lf.net("RC_CORE", ("U301", "4"), ("C310", "1"))
+    lf.net("PG_CORE", ("U301", "5"), ("R304", "2"))
+    lf.net("MPFS_SEQ_EN", ("U301", "2"), ("C311", "1"))
+
+    lf.hier_exports = {
+        "+1V0_CORE": ("output", ("L301", "2")),
+    }
+    lf.powerflag_nets = ["+5V_SYS"]
+
+    c = _Compose(lf)
+    c.place("U301", 90, 90)
+    c.place("C301", 30, 50); c.place("C302", 45, 50)
+    c.place("C303", 60, 50); c.place("C304", 75, 50)
+    c.place("C305", 30, 70)
+    c.place("L301", 130, 90, 90)
+    c.place("C306", 155, 75); c.place("C307", 170, 75)
+    c.place("R301", 155, 105, 0); c.place("R302", 155, 120, 0)
+    c.place("C308", 170, 120)
+    c.place("R303", 30, 130, 0); c.place("C309", 30, 150)
+    c.place("C310", 60, 130)
+    c.place("C311", 60, 150)
+    c.place("R304", 90, 40, 0)
+    # SW_CORE (8 pins: U301's pins 8-11 exit at y=101, pins 20-23 exit at
+    # y=79, all colinear per row): the generic per-pin fallback would give
+    # EACH pin its OWN independent "SW_CORE" stub+label at their native
+    # 2.54mm pitch -- OVERLAP GOTCHA (found + fixed this pass, see
+    # FOLLOWUPS.md): 8 same-net labels that tightly packed collide pairwise
+    # (measured: 12 overlapping pairs via cec_sch_layout.py --check-
+    # overlaps, since nudge_texts deliberately never touches labels/pins/
+    # wires -- cosmetic-only field-text collision resolution, not this
+    # class). Fixed the way a hand-drawn schematic would: BUS the two
+    # same-row combs with real wire, route both combs to a shared meeting
+    # point clear of the chip body, then into L301 pin 1 (SW_CORE's only
+    # other member) -- ONE label total instead of 8.
+    # CONNECTIVITY GOTCHA (found + fixed this pass, see FOLLOWUPS.md): a
+    # single LONG wire segment merely PASSING THROUGH a bare (unconsumed-
+    # by-any-other-wire) pin's coordinate does NOT connect to it -- only an
+    # actual wire-segment ENDPOINT landing exactly on a pin connects
+    # (verified: a first attempt drew each comb as one long run, (87,101)-
+    # (93,101) etc, and the flattened netlist showed the two OUTER pins
+    # [endpoints of that run] on SW_CORE while the two INNER pins [mid-span
+    # of the same run] read "unconnected-(...)", each its own isolated
+    # 1-member net). This is DIFFERENT from the earlier 04a /RESET short
+    # (where a wire's path crossed R401's OWN auto-generated stub, and that
+    # stub's ENDPOINT -- not the bare pin -- is what coincided and connected
+    # them): a bare pin with nothing of its own drawn needs a real wire-
+    # segment ENDPOINT at its exact coordinate, not just a wire passing near
+    # or through it. Fixed by listing every intermediate pin's x as its own
+    # waypoint, so each pin sits at a genuine segment boundary.
+    c.wire((87, 101), (89, 101), (91, 101), (93, 101), (115, 101), (115, 90), (128, 90))
+    c.wire((87, 79), (89, 79), (91, 79), (93, 79), (115, 79), (115, 90))
+    c.use(*[("U301", str(p)) for p in (8, 9, 10, 11, 20, 21, 22, 23)], ("L301", "1"))
+    c.label("SW_CORE", 120, 90, 0)
+    # SVIN (pin 17) ties to the SAME +5V_SYS rail as PVIN (datasheet: "This
+    # pin is connected externally to the PVIN pin") -- both U301 pin 17 and
+    # C305 pin 1 are declared directly in the main +5V_SYS net() call above
+    # and left to the generic per-pin pass (their own independent stub +
+    # "+5V_SYS" label each, connected by name-matching like every other
+    # +5V_SYS member on this leaf). ROUTING GOTCHA (found + fixed this pass,
+    # see FOLLOWUPS.md): an EARLIER version of this leaf instead hand-wired
+    # pin17 directly to C305.1 via a real wire + c.use() (marking both
+    # "consumed" so the generic pass skipped them) -- but a bare c.wire()
+    # carries NO label, so that 2-node sub-graph never joined the rest of
+    # +5V_SYS at all (its own isolated, unnamed net, invisible to every
+    # other +5V_SYS member) -- measured via kicad-cli ERC (power_pin_not_
+    # driven on U301 pin 17) and the flattened netlist. Do not "helpfully"
+    # hand-wire two same-net members together without also labeling the
+    # wire; the generic per-pin fallback already handles this correctly on
+    # its own.
+    c.io("+1V0_CORE", "right")
+    c.caption(lf.desc, 10, 15)
+    multiline_note(c,
+           "PVIN/SVIN caps + SGND/PGND/EP -> GND: generic pass, label-matched.\n"
+           "EN/DLY + PG pull-up local; EN/DLY also carries the MPFS_SEQ_EN\n"
+           "global label (03d) driving this regulator's enable -- no separate\n"
+           "wire, KiCad connects same-name global_labels project-wide.",
+           10, 165)
+    c.done()
+
+
+compose_core_buck()
+
+
+def compose_bank_rails_stub():
+    """03b-bank-rails: STILL BLOCKED as of 2026-07-16 (fresh git pull --rebase
+    + direct grep of every lib/*.kicad_sym confirms MPM3833CGRH-Z has no
+    vendored symbol anywhere in the repo -- the only "MPM3833" text hit in
+    all of lib/ is inside 03a's MIC22705 Description property, referencing it
+    as the risk that part replaced for the CORE rail specifically, not a real
+    MPM3833C symbol). BOM-A wants THREE instances of this part here (U4=
+    VDD18/1.8V, U5=VDD25/2.5V, U6=shared-3.3V-domain -- see hub-ent-bom-
+    detailed.md Sec1 rows U4-U6), a DIFFERENT role than the one 03a's
+    MIC22705 already replaced (U3=VDD-core, current-headroom-risk swap only;
+    U4-U6's currents are 100-500mA per BOM-A's own budget table, nowhere
+    near that flagged risk). Per the task brief: leave a dated stub, do NOT
+    hand-draw a divergent symbol. NO components this pass -- an empty leaf
+    (build_leaf tolerates zero parts/zero nets cleanly; verified this pass).
+    Two nets this leaf will need to declare (as hier_exports, matching 04a/
+    04b/04c's own forward-declaration pattern) once MPM3833C unblocks and
+    the real U4/U5/U6 land: "+3V3_MPFS" (U6's output, paired with 03d's
+    sequencing sense input, already declared THERE per the module docstring
+    above -- 03b just needs to add the matching hier_export name, no
+    retroactive edit to 03d) and the platform-wide "MPFS_SEQ_EN" global_nets
+    tap on U4/U5/U6's own EN pins (03d's sequencing output). Also: sheet 04's
+    own +3V3_IO/VDD18 root-level exports are waiting on a DIFFERENT rail from
+    THIS leaf (VDD18=1.8V is U4's role) -- see the module docstring's root-
+    cross-wire-pass note, tracked in FOLLOWUPS.md."""
+    lf = leaf03("03b", "03b-bank-rails.kicad_sch", "03b-bank-rails",
+               "1.8/2.5/3.3V bank-rail bucks (MPM3833CGRH-Z x3) -- BLOCKED, "
+               "no vendored symbol")
+    lf.hier_exports = {}
+
+    c = _Compose(lf)
+    c.caption(lf.desc, 10, 15)
+    multiline_note(c,
+           "[2026-07-16] CAPTURE PENDING -- MPM3833CGRH-Z (MPS, LCSC C6306422 per\n"
+           "BOM-A) has NO vendored KiCad symbol in lib/*.kicad_sym (checked via a\n"
+           "fresh git pull --rebase + direct grep, this pass). BOM-A wants 3x here:\n"
+           "U4=VDD18(1.8V)/U5=VDD25(2.5V)/U6=shared-3.3V-domain (hub-ent-bom-\n"
+           "detailed.md Sec1). Do NOT hand-draw a divergent symbol -- wait for the\n"
+           "sibling intake agent, then capture for real: FB divider per-rail (Vout=\n"
+           "0.6V*(1+R1/R2), MPM3833C app section), one 3.3V output paired with\n"
+           "03d-sequencing's supervisor sense input (net name +3V3_MPFS, already\n"
+           "declared there), all three EN pins on the MPFS_SEQ_EN global net (also\n"
+           "already declared/driven by 03d). See gen_hub_enterprise.py's sheet-03\n"
+           "module docstring for the full picture.", 10, 30)
+    # NO marker wire needed: cec_sch_compose.build_leaf's empty-content-bbox
+    # crash (min()/max() on an empty sequence for a truly 0-part/0-wire leaf)
+    # is fixed at the ROOT in the shared engine now, not worked around here
+    # (an earlier fake "marker wire" avoided the crash but tripped a REAL
+    # cec_sch_lint.py SL-03 "dangling wire" ERROR -- see the fix's own
+    # comment in cec_sch_compose.py, and FOLLOWUPS.md).
+    c.done()
+
+
+compose_bank_rails_stub()
+
+
+def compose_vdda_ldo_stub():
+    """03c-vdda-ldo: STILL EFFECTIVELY BLOCKED as of 2026-07-16, more
+    precisely than a flat library gap -- SCHEMATIC-PLAN.md sec4's own
+    "remaining library gaps" note ("TPS7A20 pair (03c)") is STALE in this
+    direction: a TPS7A20-family pair IS now vendored (TPS7A2018PDBVR 1.8V +
+    TPS7A2050PDBVR 5.0V, both real 5-pin SOT-23-5 symbols, confirmed this
+    pass by direct grep + full pin-map read), but neither matches what BOM-A
+    actually wants here -- U7=VDDA=1.0V ("XCVR Tx/Rx Lanes Supply") and
+    U8=VDDA25=2.5V ("XCVR PLL Supply"), i.e. TPS7A2010-class and TPS7A2025-
+    class fixed LDOs (bom-a-compute.md rows U7/U8, both explicitly flagged
+    there as "named by extrapolating a confirmed-real naming convention...
+    exact LCSC stock/price was not independently pulled"). These are FIXED-
+    output parts with NO FB pin (pin map IN/GND/EN/NC/OUT only, verified on
+    both vendored variants) -- populating the wrong-voltage part here would
+    misconfigure VDDA/VDDA25 outright, not just need a resistor retune, so
+    this is NOT a case where "close enough, fix the divider" applies. Per the
+    task brief: leave a dated stub, do NOT hand-draw a divergent symbol (and
+    do NOT substitute the wrong-voltage vendored parts either -- same
+    principle). NO components this pass."""
+    lf = leaf03("03c", "03c-vdda-ldo.kicad_sch", "03c-vdda-ldo",
+               "Quiet analog LDOs, VDDA=1.0V + VDDA25=2.5V -- wrong-voltage "
+               "TPS7A20 variants vendored, BLOCKED")
+    lf.hier_exports = {}
+
+    c = _Compose(lf)
+    c.caption(lf.desc, 10, 15)
+    multiline_note(c,
+           "[2026-07-16] CAPTURE PENDING -- a TPS7A20-family pair IS vendored\n"
+           "(TPS7A2018PDBVR 1.8V / TPS7A2050PDBVR 5.0V, both real SOT-23-5 symbols)\n"
+           "but NEITHER matches BOM-A's actual U7=1.0V/U8=2.5V targets (bom-a-\n"
+           "compute.md rows U7/U8; TPS7A2010-class/TPS7A2025-class, both flagged\n"
+           "there as unverified-exact-MPN). Fixed-output parts, no FB pin -- the\n"
+           "wrong voltage is a real misconfiguration, not a divider tweak. Do NOT\n"
+           "hand-draw a divergent symbol AND do NOT substitute the wrong-voltage\n"
+           "vendored parts. Wait for the sibling intake agent to vendor the exact\n"
+           "1.0V/2.5V variants (or an adjustable TPS7A20 fallback per BOM-A note 3),\n"
+           "then capture for real: both EN pins on the MPFS_SEQ_EN global net.",
+           10, 30)
+    # NO marker wire needed -- see 03b's identical comment (the empty-leaf
+    # crash is fixed at the root in cec_sch_compose.py now).
+    c.done()
+
+
+compose_vdda_ldo_stub()
+
+
+def compose_sequencing():
+    """03d-sequencing: TPS3839K33 PG-daisy-chain supervisor (BOM-A's U9 role,
+    note 4: "a single supervisor on U6's output... satisfies (2) and (3)
+    simultaneously by gating EN on U3/U4/U5/U7/U8 -- this is a PG-daisy-chain
+    built from small supervisor ICs, not a dedicated multi-channel
+    sequencer"). Reuses the EXACT already-verified platform part from
+    01f-buck-3v3's own U107 (TPS3839DBZ / "TPS3839K33" / TPS3839K33DBZR /
+    LCSC C96333), same pin map (1=GND, 2=~RESET open... actually push-pull
+    per the symbol's "output" pin electrical type, matching 01f's own
+    precedent of no pull-up on this pin; 3=VDD/sense, tied DIRECTLY to the
+    monitored rail with no external divider, again matching 01f).
+
+    Two real cross-scope nets, handled per the sheet-03 module docstring's
+    "IMPORTANT DISTINCTION" note:
+      - RESET output -> "MPFS_SEQ_EN": a `global_nets` tap (>2 eventual
+        occurrences within this ONE thin parent -- 03a now, 03b/03c once they
+        unblock -- exceeds build_thin_parent's 2-occurrence "pairs" ceiling,
+        same shape as sheet 05's CAN_H/CAN_L).
+      - VDD/sense input -> "+3V3_MPFS": an ordinary hier_export,
+        root_exports=True, forward-declared awaiting 03b (a SIBLING leaf
+        within this SAME thin parent -- becomes a real build_thin_parent
+        "pair" automatically the instant 03b declares the same name, no
+        retroactive edit needed here)."""
+    lf = leaf03("03d", "03d-sequencing.kicad_sch", "03d-sequencing",
+               "TPS3839K33 PG-daisy-chain supervisor: gates EN on the "
+               "compute-rail bucks/LDOs (BOM-A U9 role)")
+    lf.add_part("U302", "cec-vendor", "TPS3839DBZ", "TPS3839K33", 0, 0,
+               "cec-Package_TO_SOT_SMD:SOT-23",
+               {"Manufacturer": TI, "MPN": "TPS3839K33DBZR", "LCSC": "C96333",
+                "Datasheet": "https://www.ti.com/lit/ds/symlink/tps3839.pdf",
+                "Description": "compute-rail supervisor -- new instance of the existing "
+                                "platform part (same MPN as 01f's U107); does NOT "
+                                "supervise the hub-logic +3V3 rail (that's 01f's own "
+                                "U107's job) -- a SEPARATE, dedicated instance for the "
+                                "MPFS compute-rail sequencing chain (BOM-A note 4)"})
+
+    lf.net("+3V3_MPFS", ("U302", "3"))
+    lf.net("GND", ("U302", "1"))
+    lf.net("MPFS_SEQ_EN", ("U302", "2"))
+
+    lf.hier_exports = {
+        "+3V3_MPFS": ("output", ("U302", "3")),
+    }
+
+    c = _Compose(lf)
+    c.place("U302", 60, 60)
+    c.io("+3V3_MPFS", "left")
+    c.caption(lf.desc, 10, 15)
+    multiline_note(c,
+           "GND: generic pass, label-matched. RESET (pin 2) carries the\n"
+           "MPFS_SEQ_EN global label -- fans out project-wide by name to\n"
+           "03a now, 03b/03c's own EN pins once those unblock (see the\n"
+           "sheet-03 module docstring). VDD/sense (pin 3) = +3V3_MPFS,\n"
+           "awaiting sibling leaf 03b (BLOCKED) -- pairs automatically once\n"
+           "03b declares the same hier_export name, no retroactive edit here.",
+           10, 90)
+    c.done()
+
+
+compose_sequencing()
+
+
+HIER_EXPORTS_03 = {
+    "+1V0_CORE":  ("output", ("L301", "2")),
+    "+3V3_MPFS":  ("output", ("U302", "3")),
+}
+ROOT_EXPORT_NETS_03 = set(HIER_EXPORTS_03)
+
+
 if __name__ == "__main__":
     from build_lib import build_root, build_leaf, build_placeholder, build_thin_parent
 
@@ -2051,9 +2560,138 @@ if __name__ == "__main__":
           "  ".join(f"{k}={v}" for k, v in parent_stats_04.items()) +
           f"  total_leaf_parts={total_parts_04}")
 
-    # ---- root: 01-power-input (page 2) + 05-module-ports (page 3) +
-    # 04-storage (page 4, NEW) + 6 remaining placeholders (page 5+; "04" is
-    # no longer a placeholder)
+    # ---- sheet 03: compute-rails (03a-core-buck REAL / 03b-bank-rails STUB /
+    # 03c-vdda-ldo STUB / 03d-sequencing REAL) -- see the module docstring
+    # above compose_core_buck() for the full library-status picture.
+    LEAF_ORDER_03 = SHEET03_LEAF_IDS
+    # top-level page numbers already taken: 01="2", 05="3", 04="4" -- this
+    # sheet (03) is captured NEXT in sequence, so it takes "5" (and
+    # placeholders, previously starting at 5, must shift to start at 6 --
+    # see the build_root call below).
+    leaf_page_03 = {lid: f"5.{i+1}" for i, lid in enumerate(LEAF_ORDER_03)}
+    # A4 (297x210) is too SHORT for all four leaves' vertical extent once
+    # centered -- measured via the MCP check_sheet_bounds tool (a real
+    # kicad-cli-calibrated text-metrics check, independent of and stricter
+    # than _center_shift's own internal per-line 1.6x estimate used when
+    # deciding the centering shift): even 03b/03c/03d's small captions+notes
+    # land off-sheet after centering. Bumped to A3 uniformly (matches 04b's
+    # own earlier A4->A2 precedent for the same class of problem).
+    LEAF_PAPER_03 = {lid: "A3" for lid in LEAF_ORDER_03}
+    # global_nets: ONLY 03a/03d actually declare an MPFS_SEQ_EN pin this pass
+    # (03b/03c are empty stubs -- nothing to tap yet); passing it for a leaf
+    # with no such net in its own `nets` dict is a silent no-op (build_leaf's
+    # own loop only fires per net_name actually present), so this dict simply
+    # omits 03b/03c rather than passing an inert empty/None differently.
+    GLOBAL_NETS_03 = {"03a": ["MPFS_SEQ_EN"], "03d": ["MPFS_SEQ_EN"]}
+    # PIN-NAME OVERLAP FIX (found this pass, see FOLLOWUPS.md): MIC22705YML-TR
+    # (03a's U301) is this project's first 4-SIDED (QFN) part -- every other
+    # IC captured so far is 2-sided (SOIC/SOT/TSSOP) or a BGA with hidden/
+    # unnamed balls. A 4-sided package's pin names wrap around all 4
+    # corners, and near each corner two ADJACENT SIDES' names sit close
+    # enough (at the vendored symbol's own 0.254mm name-offset) to collide --
+    # confirmed via cec_sch_layout.py --check-overlaps (7 pairs, e.g.
+    # PVIN[pin1,left] <-> PGND[pin24,bottom] near the bottom-left corner).
+    # ROTATING the whole part does not help (rotation preserves every
+    # pairwise pin-name distance, just moves which corner clashes).
+    # W25Q256JVFIQ (16-pin SOIC, 04a) has the IDENTICAL "(pin_names (offset
+    # 0.254))" declaration with ZERO overlaps, confirming this is a
+    # 4-sided-package-specific geometry issue, not a generic "many pins" one.
+    # Editing the vendored symbol itself is out of scope (a sibling agent
+    # owns lib/*.kicad_sym this pass), so this hides pin NAMES for the
+    # MIC22705YML-TR symbol as embedded in 03a-core-buck.kicad_sch's OWN
+    # lib_symbols cache ONLY -- a patched copy of the "cec-ent-power" library
+    # TEXT is built here and passed to build_leaf() for 03a alone (every
+    # other leaf still gets the real, unpatched LIBS dict); the master
+    # lib/cec-ent-power.kicad_sym on disk is never touched (same "the cache
+    # legitimately diverges from the master" pattern the whole project
+    # already tolerates as the lib_symbol_mismatch ERC class). FIRST
+    # ATTEMPT (failed, informative): patching `_Compose(lf).used[...]` at
+    # COMPOSITION time does nothing -- build_leaf() calls cec_sch.
+    # load_symbols() again itself, independently, and never sees Compose's
+    # own `used` dict; the patch has to land in the LIBRARY TEXT passed to
+    # build_leaf, not in Compose's private copy. cec_sch_layout.py's own
+    # overlap scanner (_pin_glyph_boxes_local) explicitly honors a symbol's
+    # `(pin_names ... (hide yes))` flag, so this is a real, verified fix,
+    # not a scanner blind spot. Pin NUMBERS stay visible (still cross-
+    # referenceable against the datasheet's pin table, cited in full in
+    # compose_core_buck's own docstring).
+    _mic_lib_patched = re.sub(
+        r'(\(symbol "MIC22705YML-TR"\n\s*\(pin_names\n\s*)(\(offset [\d.]+\)\n)(\s*)(\))',
+        r'\1\2\3(hide yes)\n\3\4',
+        LIBS["cec-ent-power"], count=1)
+    assert _mic_lib_patched != LIBS["cec-ent-power"], (
+        "MIC22705YML-TR pin_names hide patch did not apply -- check the vendored symbol's "
+        "exact (pin_names ...) formatting hasn't changed")
+    LIBS_03A = dict(LIBS, **{"cec-ent-power": _mic_lib_patched})
+    total_parts_03 = 0
+    for li, lid in enumerate(LEAF_ORDER_03):
+        lf = SHEET03_LEAVES[lid]
+        path_prefix = f"{ROOT_UUID}/{SHEET_UUIDS['03']}/{SHEET03_LEAF_SYM_UUIDS[lid]}"
+        sheet_instances_path = f"{SHEET_UUIDS['03']}/{SHEET03_LEAF_SYM_UUIDS[lid]}"
+        stats = build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS_03A if lid == "03a" else LIBS,
+            PROJECT, path_prefix, sheet_instances_path, SHEET03_LEAF_OWN_UUIDS[lid],
+            page=leaf_page_03[lid], out_path=f"{HERE}/{lf.filename}", paper=LEAF_PAPER_03[lid],
+            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
+            # 3600-block, disjoint from sheets 01 (100-800) / 05 (1000-2000) /
+            # 04 (3000-3300 incl. its own per-leaf spread): #PWR/#FLG refs
+            # must stay unique across the flattened hierarchy.
+            pwr_base=3600 + 100 * li, layout=lf.layout,
+            global_nets=GLOBAL_NETS_03.get(lid))
+        total_parts_03 += stats["parts"]
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
+
+    PARENT_PINS_03 = {
+        "03a": [("+1V0_CORE", "right")],
+        "03b": [],
+        "03c": [],
+        "03d": [("+3V3_MPFS", "left")],
+    }
+    for lid in LEAF_ORDER_03:
+        assert {n for n, _s in PARENT_PINS_03[lid]} == set(SHEET03_LEAVES[lid].hier_exports), lid
+
+    # left-to-right reading order a->b->c->d (no real inter-leaf wiring this
+    # pass -- both exported nets are "singles" today: +1V0_CORE and
+    # +3V3_MPFS each have exactly one leaf-pin occurrence within this thin
+    # parent right now, so build_thin_parent gives each a direct root-facing
+    # hierarchical label at its own stub rather than drawing a same-parent
+    # wire; MPFS_SEQ_EN doesn't appear here at all -- it's a `global_nets`
+    # project-wide label, invisible to this thin parent's own pin plumbing).
+    # Small uniform boxes: every leaf here carries 0 or 1 pin (vs sheet 04's
+    # up-to-14), so the sheet 04 per-leaf height formula would be needlessly
+    # tall.
+    BOX_03 = {"03a": (16, 16, 24), "03b": (110, 16, 24), "03c": (204, 16, 24),
+              "03d": (298, 16, 24)}
+    leaves_for_parent_03 = []
+    for lid in LEAF_ORDER_03:
+        lf = SHEET03_LEAVES[lid]
+        bx, by, bh = BOX_03[lid]
+        leaves_for_parent_03.append({
+            "id": lid, "sym_uuid": SHEET03_LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": leaf_page_03[lid],
+            "x": bx * u, "y": by * u, "w": 70 * u, "h": bh * u,
+            "pins": [(name, lf.hier_exports[name][0], side)
+                      for name, side in PARENT_PINS_03[lid]],
+        })
+
+    parent_stats_03 = build_thin_parent(
+        leaves_for_parent_03, ROOT_EXPORT_NETS_03, PROJECT, ROOT_UUID, SHEET_UUIDS["03"],
+        SHEET03_OWN_UUID, out_path=f"{HERE}/03-compute-rails.kicad_sch",
+        title="CEC Hub -- Enterprise (ENT): 03-compute-rails (thin parent)", paper="A3",
+        libs=LIBS, pwr_base=3900, page="5")
+    print("03-compute-rails.kicad_sch (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats_03.items()) +
+          f"  total_leaf_parts={total_parts_03}")
+
+    # ---- root: 01-power-input (page 2) + 05-module-ports (page 3, WAIT --
+    # page numbers below are the per-sheet `page` STRING passed to each
+    # extra_sheets entry, independent of this comment's prose numbering) +
+    # 04-storage + 03-compute-rails (NEW) + 5 remaining placeholders ("03" and
+    # "04" are no longer placeholders)
     root_extra_sheets = [
         {
             "hier_exports": HIER_EXPORTS_05, "sym_uuid": SHEET_UUIDS["05"],
@@ -2085,18 +2723,34 @@ if __name__ == "__main__":
             "sheetname": "04-storage", "sheetfile": "04-storage.kicad_sch",
             "geom": (95, 155, 70, 120), "page": "4",
         },
+        {
+            # Verified disjoint from every other box on the root page (the
+            # 2026-07-16 box-overlap netlist-corruption gotcha above/
+            # FOLLOWUPS.md means this is checked deliberately, not eyeballed):
+            # 01 occupies x[20,90] y[20,112]; 05 occupies x[20,90] y[120,300];
+            # 04 occupies x[95,165] y[155,275]; the placeholder grid (5
+            # remaining after 03/04 are both captured) occupies x[140,290]
+            # y[20,145]. This box's x[20,90] range overlaps 01/05's OWN
+            # column, but its y[310,350] range sits entirely BELOW all of
+            # them (05 ends at y=300, a 10mm clearance) -- box overlap
+            # requires BOTH axes to intersect, so this is clear. Re-verified
+            # empirically post-generation (netlist re-export, no merge).
+            "hier_exports": HIER_EXPORTS_03, "sym_uuid": SHEET_UUIDS["03"],
+            "sheetname": "03-compute-rails", "sheetfile": "03-compute-rails.kicad_sch",
+            "geom": (20, 310, 70, 40), "page": "5",
+        },
     ]
-    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n not in ("05", "04")}
+    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n not in ("05", "04", "03")}
     build_root(HIER_EXPORTS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
                placeholder_uuids, SHEET_TITLES,
                out_path=f"{HERE}/hub-enterprise.kicad_sch", paper="A2",
-               extra_sheets=root_extra_sheets, first_placeholder_page=5)
-    print("hub-enterprise.kicad_sch  sheets=3(power-input+module-ports+storage parents)+6(placeholder)")
+               extra_sheets=root_extra_sheets, first_placeholder_page=6)
+    print("hub-enterprise.kicad_sch  sheets=4(power-input+module-ports+storage+compute-rails parents)+5(placeholder)")
 
-    remaining = sorted(k for k in SHEET_TITLES if k not in ("05", "04"))
+    remaining = sorted(k for k in SHEET_TITLES if k not in ("05", "04", "03"))
     for i, num in enumerate(remaining):
         name, desc = SHEET_TITLES[num]
-        page = 5 + i
+        page = 6 + i
         build_placeholder(num, SHEET_UUIDS[num], name, desc, PROJECT, page,
                            out_path=f"{HERE}/{name}.kicad_sch", paper="A4")
-    print("Generated 6 placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))
+    print(f"Generated {len(remaining)} placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))

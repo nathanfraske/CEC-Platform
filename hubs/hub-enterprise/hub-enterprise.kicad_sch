@@ -36,77 +36,77 @@
 		)
 		(pin "+5V_MAIN" output
 			(at 90 27.94 0)
-			(uuid "03f470f6-143f-4f16-b1ba-be98d7406211")
+			(uuid "525d35cc-80e7-42f5-b565-3a084303a51f")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5VSB" output
 			(at 90 33.02 0)
-			(uuid "eb1cbe7c-0c25-444b-852b-800f2184c5fb")
+			(uuid "60dfcc44-b7de-49f9-a332-33fe693e8df1")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "EXT_5V" output
 			(at 90 39.37 0)
-			(uuid "889da619-82fa-4463-a666-ff1c4b01b20c")
+			(uuid "26851314-8109-46b4-9333-7d82212a62e1")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5V_SYS" output
 			(at 90 44.45 0)
-			(uuid "a2bc4af1-10a8-4f14-b53b-29d71c3a9962")
+			(uuid "588ec884-3fdc-4711-8c7a-7dab0075c93c")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+3V3" output
 			(at 90 50.8 0)
-			(uuid "7aaa3ae3-2201-4d5d-b0e4-e6fe1ae449b8")
+			(uuid "1601b34d-174d-4d52-a132-9451e485b921")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_MAIN" output
 			(at 90 55.88 0)
-			(uuid "85c967ba-5fed-4d8d-a026-c4679f70d157")
+			(uuid "41dce757-d157-489a-a487-1b27b7059fb7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_MAIN" output
 			(at 90 60.96 0)
-			(uuid "471f34d5-ed8b-4b0c-9352-d3eb64caee4d")
+			(uuid "1d73ef81-cccb-4898-97eb-d179ed7f89f1")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_SVB" output
 			(at 90 67.31 0)
-			(uuid "763bc895-a5ce-424b-935c-2653d83da6b5")
+			(uuid "adb831da-5359-40e1-a73f-029a49f7bcae")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_SVB" output
 			(at 90 72.39 0)
-			(uuid "c1bdb81c-0123-404d-acd1-60e976fb9795")
+			(uuid "6680ff30-4eb3-4195-aa9b-d311aacdf5e8")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_EXT" output
 			(at 90 78.74 0)
-			(uuid "1687db72-e8fc-43d4-be0c-e4998e5b772d")
+			(uuid "51de4423-6ff4-447b-b961-ec3cdb20529c")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_EXT" output
 			(at 90 83.82 0)
-			(uuid "fe2c7289-d4fe-4a78-a63c-f9ef8cc9aebc")
+			(uuid "63003327-4df5-4d88-b3eb-bf9814cd9356")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_MAIN" output
 			(at 90 88.9 0)
-			(uuid "fa982988-fbdf-4ddf-b4cb-c91230580719")
+			(uuid "c72ece8a-a771-4ded-ae4c-c7e6d5743b66")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SVB" output
 			(at 90 95.25 0)
-			(uuid "09106170-1dd2-4827-9f4d-99a4bba923eb")
+			(uuid "593019ac-8cbc-4a17-b09d-c8ac9a2747cd")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_EXT" output
 			(at 90 100.33 0)
-			(uuid "e415f489-6512-4c89-ad30-8676954193f3")
+			(uuid "3c70400b-ca48-456b-94e2-150ae93dad30")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SYS" output
 			(at 90 106.68 0)
-			(uuid "583a0260-8cd5-4849-8d82-ec43ac650fbe")
+			(uuid "199817b5-78c8-43a6-939e-1c4fe9caaccc")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
@@ -138,142 +138,142 @@
 		)
 		(pin "P1_T1_A" output
 			(at 90 128.27 0)
-			(uuid "aca91819-a3d3-4d1d-89a4-4bfee9382d47")
+			(uuid "722917d4-e12f-4c55-a8b9-a153027bf912")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P1_T1_B" output
 			(at 90 133.35 0)
-			(uuid "16465b6b-1ab2-45be-a42f-1af570aecb9a")
+			(uuid "e42b2473-db37-4d19-bffe-9232b9143745")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P1_SYNC7" output
 			(at 90 139.7 0)
-			(uuid "3c3fe8c7-08ca-4983-ab68-ff6e25146822")
+			(uuid "f04d9e63-e4f8-4c96-b0f0-2c269644ae2e")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P2_T1_A" output
 			(at 90 144.78 0)
-			(uuid "c20ea6fb-7d5e-452d-9e45-dab7b6c509e5")
+			(uuid "5406b1bd-48c5-4957-943e-f64c8708fcdd")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P2_T1_B" output
 			(at 90 149.86 0)
-			(uuid "776f055e-767c-4112-a7c8-bbc2625b3775")
+			(uuid "500d9eb3-c9e6-4056-8a4a-8a2029f911fa")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P2_SYNC7" output
 			(at 90 156.21 0)
-			(uuid "c6e312f3-cd28-4850-80d3-b7b5fe1c3610")
+			(uuid "25ea2332-6044-40c7-9348-d2a95a810270")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P3_T1_A" output
 			(at 90 161.29 0)
-			(uuid "ca445c2a-ae9d-4f22-8957-dbf3e8e0b470")
+			(uuid "88203b9c-17b7-4adf-8904-a5dc22c1a9da")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P3_T1_B" output
 			(at 90 167.64 0)
-			(uuid "c62be146-f33e-449b-95c8-4d439fecf571")
+			(uuid "07335a5d-c206-4a72-8e5f-2669214439a9")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P3_SYNC7" output
 			(at 90 172.72 0)
-			(uuid "810e0ad0-7875-49bc-9521-3d9ed6cd8556")
+			(uuid "b6210304-ec9c-4d92-86e0-c3b132ec253a")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P4_T1_A" output
 			(at 90 177.8 0)
-			(uuid "c7c91e71-6844-427b-94ec-1476dd71ab10")
+			(uuid "a70765a0-c272-4f92-9b82-8fd13daaf220")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P4_T1_B" output
 			(at 90 184.15 0)
-			(uuid "dd3e1e06-8a15-4828-b678-3bb36936b297")
+			(uuid "baabb238-ba39-4fef-9055-dc017614cb5d")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P4_SYNC7" output
 			(at 90 189.23 0)
-			(uuid "4bbc22d9-035a-4563-a204-00bb81fe5b86")
+			(uuid "58d0cdd7-3bc9-42e3-81e2-d27953b842db")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P5_T1_A" output
 			(at 90 195.58 0)
-			(uuid "318027fa-4681-4ee1-b646-a00692ef8b75")
+			(uuid "57806425-eb2e-464f-950d-80409efa51d6")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P5_T1_B" output
 			(at 90 200.66 0)
-			(uuid "582b4ad6-e434-4316-8875-1080b55a155a")
+			(uuid "8e609678-8050-449b-9f73-b0874fa12e13")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P5_SYNC7" output
 			(at 90 205.74 0)
-			(uuid "989c7630-3ee9-4f37-a070-d092eefd54cf")
+			(uuid "293929e0-b8f4-47ac-936a-46825fa4059b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P6_T1_A" output
 			(at 90 212.09 0)
-			(uuid "715bec8c-ce85-4172-b09c-5509ab5898a9")
+			(uuid "916e8675-ab49-419d-8429-d0efd1021833")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P6_T1_B" output
 			(at 90 217.17 0)
-			(uuid "a3fedc5e-9035-4f8e-bf0e-5a9188852085")
+			(uuid "e65a16a3-9247-428c-b831-e0498b47618c")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P6_SYNC7" output
 			(at 90 223.52 0)
-			(uuid "81ae1c2b-733c-465a-90aa-d1f5afcb9253")
+			(uuid "eacaf916-7d42-4218-82c9-c3a0f803362b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P7_T1_A" output
 			(at 90 228.6 0)
-			(uuid "d20328f8-10e2-4a45-b2f6-235b96214461")
+			(uuid "dc796dad-f05f-4f45-bfdb-26e13d6a2ae7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P7_T1_B" output
 			(at 90 233.68 0)
-			(uuid "84584e89-f022-416b-95bc-825e4f7a6ad2")
+			(uuid "0e822fd8-fc2e-4b33-aacc-e08fa0eb5211")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P7_SYNC7" output
 			(at 90 240.03 0)
-			(uuid "5e948f31-31a6-4169-8bbe-14bf6d1cd0de")
+			(uuid "a0fe41dd-2da9-4ca9-a927-ff38f6222920")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P8_T1_A" output
 			(at 90 245.11 0)
-			(uuid "be7900f6-1ad9-46fc-a118-c9d8ee232823")
+			(uuid "56211088-8ce6-4f9c-aec3-c175e58446ef")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P8_T1_B" output
 			(at 90 251.46 0)
-			(uuid "8a9f09a4-f722-4d93-ad76-566137289261")
+			(uuid "e8119464-b490-4e3f-973a-b4f088f938f2")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "P8_SYNC7" output
 			(at 90 256.54 0)
-			(uuid "44f2aacc-ccbe-419a-872a-2e1771dd3040")
+			(uuid "d6b108ce-90cc-46c0-8ec3-f26c286c5fbf")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "CAN_TX" output
 			(at 90 261.62 0)
-			(uuid "4c549159-ff1e-4475-b853-7c704cc6b258")
+			(uuid "d400f5f6-45c5-489e-be3b-1c6088eb4e86")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "CAN_RX" output
 			(at 90 267.97 0)
-			(uuid "7167beb4-d41e-4761-9a6f-4bdbab007c22")
+			(uuid "d517b30f-0b07-4d8e-8890-086ef1ccf8e7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "DETECT_SDA" output
 			(at 90 273.05 0)
-			(uuid "5912a103-2735-4748-9e28-9ca4abb26e0c")
+			(uuid "4af78a0d-a93d-4692-ba1f-20c872d778fc")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "DETECT_SCL" output
 			(at 90 279.4 0)
-			(uuid "15f9e6f8-ffd9-4653-8a0d-35392c5162f4")
+			(uuid "14b66510-de90-4c68-b403-f7c0677451bc")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
@@ -305,108 +305,145 @@
 		)
 		(pin "MSS_QSPI_CS" output
 			(at 165 162.56 0)
-			(uuid "bfba0e6f-65e5-4b2f-87bf-2ef0dd0375fb")
+			(uuid "5aee03da-b570-4d83-8d4d-9d87affec4ba")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_QSPI_CLK" output
 			(at 165 168.91 0)
-			(uuid "b883a88b-7536-4851-98ac-80e7b2857325")
+			(uuid "5cdda5cb-a127-4406-ab76-b1b521bd0299")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_QSPI_IO0" output
 			(at 165 173.99 0)
-			(uuid "c070e7fc-c489-4f7c-92b0-fe85cec936ba")
+			(uuid "4783c716-e37f-423c-b3d4-72692af12737")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_QSPI_IO1" output
 			(at 165 180.34 0)
-			(uuid "9e309f0c-8053-4908-ae25-cf42252147e1")
+			(uuid "e6d6c91d-ef2d-4e48-89c9-65021e73802d")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_QSPI_IO2" output
 			(at 165 185.42 0)
-			(uuid "d38c356a-b3b3-4bce-b1ae-8e8ed14f4339")
+			(uuid "0ab6d88e-c649-4a4a-b600-a5756f1043cf")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_QSPI_IO3" output
 			(at 165 190.5 0)
-			(uuid "e7011c6e-7bdd-414b-a499-6c7314dd6fe9")
+			(uuid "e772f40b-7b3e-4bbb-aa9a-37e33c77cb4a")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+3V3_IO" output
 			(at 165 196.85 0)
-			(uuid "2a73cc05-5403-465a-9858-10be09672ba1")
+			(uuid "fb9c9163-3d55-41a8-8565-05bde9eb6aa7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "VDD18" output
 			(at 165 201.93 0)
-			(uuid "3b7b2251-3517-453e-987e-a42f3180a458")
+			(uuid "bcfc08c7-e5b4-444a-ac1e-0c28e5b19be1")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_CLK" output
 			(at 165 208.28 0)
-			(uuid "fe51a883-c7ae-4428-b3b0-e8cb33b27389")
+			(uuid "e94afdf2-6831-437d-9b72-6cf0d181f8e7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_CMD" output
 			(at 165 213.36 0)
-			(uuid "17bb40a6-7b5c-452d-af22-fffa0073719d")
+			(uuid "62b4805c-f1a6-404d-a0b7-e74a37284a2e")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT0" output
 			(at 165 218.44 0)
-			(uuid "00863df6-82fe-4cad-9e46-8fd414ae3c69")
+			(uuid "bbcf463c-52d1-49fc-958b-cf894feed5a3")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT1" output
 			(at 165 224.79 0)
-			(uuid "15aafbc5-9b12-4d5d-a27f-f13aa4354a91")
+			(uuid "c24c5290-6d41-4ffb-a1aa-db3dc863af57")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT2" output
 			(at 165 229.87 0)
-			(uuid "8c22e201-09fe-48f8-9fa1-10cf4d19870b")
+			(uuid "1300876a-2ea5-42df-b23e-2edaf7a721b7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT3" output
 			(at 165 236.22 0)
-			(uuid "7f07fb2a-05e5-481a-a300-380ed3d6a413")
+			(uuid "aa33c13b-2109-4c9b-b4cd-09294234c63f")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT4" output
 			(at 165 241.3 0)
-			(uuid "9c908cc2-0cfc-4142-81c2-e8fa518ad622")
+			(uuid "38fd38af-7ba5-4fd0-a32e-125a8e855005")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT5" output
 			(at 165 246.38 0)
-			(uuid "4e09ac40-0e7e-4bf6-921b-32f391870960")
+			(uuid "56d042b0-9485-4ff1-938a-2f1f08d8a19e")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT6" output
 			(at 165 252.73 0)
-			(uuid "446a741b-ba71-4de1-8891-811f4c499e12")
+			(uuid "f9e6efbf-ba75-4b67-9568-dc1adaaa9437")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DAT7" output
 			(at 165 257.81 0)
-			(uuid "1b573caa-e53d-4b10-a802-72edf4dd10e2")
+			(uuid "a1073dc8-be82-4b7f-9949-32fe269bd675")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_RST_N" output
 			(at 165 264.16 0)
-			(uuid "0e271a10-28c4-4695-b0fd-41327fe1c6b0")
+			(uuid "2f0fdc73-d351-4ca0-af21-2580d1c192e9")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "MSS_EMMC_DS" output
 			(at 165 269.24 0)
-			(uuid "30c3ea7f-0efc-4023-9471-fca66a6241fa")
+			(uuid "6d9c222e-fe06-4fe1-a127-bd3619cfd2fc")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
 					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 20 310)
+		(size 70 40)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083")
+		(property "Sheetname" "03-compute-rails"
+			(at 20 308.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "03-compute-rails.kicad_sch"
+			(at 20 351.5 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(pin "+1V0_CORE" output
+			(at 90 317.5 0)
+			(uuid "88e1a24c-6d31-4aac-a7f8-f2bf10b5e33d")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "+3V3_MPFS" output
+			(at 90 323.85 0)
+			(uuid "66dc6296-88c2-421f-bf21-dfc44e633f58")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "5")
 				)
 			)
 		)
@@ -433,7 +470,7 @@
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "5")
+					(page "6")
 				)
 			)
 		)
@@ -448,19 +485,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083")
-		(property "Sheetname" "03-compute-rails"
+		(uuid "0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086")
+		(property "Sheetname" "06-t1-dataplane"
 			(at 220 18.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "03-compute-rails.kicad_sch"
+		(property "Sheetfile" "06-t1-dataplane.kicad_sch"
 			(at 220 56.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "6")
+					(page "7")
 				)
 			)
 		)
@@ -475,19 +512,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086")
-		(property "Sheetname" "06-t1-dataplane"
+		(uuid "0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087")
+		(property "Sheetname" "07-uplink"
 			(at 140 63.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "06-t1-dataplane.kicad_sch"
+		(property "Sheetfile" "07-uplink.kicad_sch"
 			(at 140 101.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "7")
+					(page "8")
 				)
 			)
 		)
@@ -502,19 +539,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087")
-		(property "Sheetname" "07-uplink"
+		(uuid "0a1b2c3d-4e5f-4068-8a2b-3c4d5e6f7088")
+		(property "Sheetname" "08-secio-aux"
 			(at 220 63.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "07-uplink.kicad_sch"
+		(property "Sheetfile" "08-secio-aux.kicad_sch"
 			(at 220 101.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "8")
+					(page "9")
 				)
 			)
 		)
@@ -529,40 +566,13 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4068-8a2b-3c4d5e6f7088")
-		(property "Sheetname" "08-secio-aux"
+		(uuid "0a1b2c3d-4e5f-4069-8a2b-3c4d5e6f7089")
+		(property "Sheetname" "09-watchdog"
 			(at 140 108.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "08-secio-aux.kicad_sch"
-			(at 140 146.5 0)
-			(effects (font (size 1.27 1.27)) (justify left top))
-		)
-		(instances
-			(project "hub-enterprise"
-				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "9")
-				)
-			)
-		)
-	)
-	(sheet
-		(at 220 110)
-		(size 70 35)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(stroke (width 0.1524) (type solid))
-		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4069-8a2b-3c4d5e6f7089")
-		(property "Sheetname" "09-watchdog"
-			(at 220 108.5 0)
-			(effects (font (size 1.27 1.27)) (justify left bottom))
-		)
 		(property "Sheetfile" "09-watchdog.kicad_sch"
-			(at 220 146.5 0)
+			(at 140 146.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
@@ -576,7 +586,7 @@
 	(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets 01a..01g, per functional block) 02=compute-core 03=compute-rails 04=storage 05=module-ports(CAPTURED -- thin parent + 8x 05a-port + 05b-can-frontend + 05c-detect-adc) 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
 		(at 20 185 0)
 		(effects (font (size 1.27 1.27)) (justify left top))
-		(uuid "82c8bbbb-e704-4b6d-a518-cdc5f177efa7")
+		(uuid "4983b243-8da4-414b-999b-5966b0aac5b8")
 	)
 	(sheet_instances
 		(path "/"

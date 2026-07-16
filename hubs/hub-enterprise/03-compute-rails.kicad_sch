@@ -2,21 +2,151 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid "0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083")
-	(paper "A4")
+	(uuid "980b8bff-db6a-532d-b3b6-c0446fea5fa4")
+	(paper "A3")
 	(title_block
-		(title "03-compute-rails")
+		(title "CEC Hub -- Enterprise (ENT): 03-compute-rails (thin parent)")
 		(date "2026-07-02")
 		(rev "DRAFT")
 		(company "CEC")
-		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+		(comment 1 "Thin parent sheet -- sheet-symbol fan-out/fan-in ONLY, no components, per the owner's 2026-07-02 format correction")
+		(comment 2 "Leaf sheets: 03a-core-buck, 03b-bank-rails, 03c-vdda-ldo, 03d-sequencing")
 	)
 	(lib_symbols
 	)
-	(text "03-compute-rails -- CAPTURE PENDING\n\nMIC22705YML-TR core buck + bank rails + sequencing/PG chain\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
-		(at 20 20 0)
-		(effects (font (size 2 2)))
-		(uuid "db198f82-e073-4cd1-a351-5a12e9c7910f")
+	(sheet
+		(at 15.24 127)
+		(size 88.9 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "de59b397-c9ec-5507-90bb-9ae559dadba7")
+		(property "Sheetname" "03a-core-buck"
+			(at 15.24 125.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "03a-core-buck.kicad_sch"
+			(at 15.24 158.98 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(pin "+1V0_CORE" output
+			(at 104.14 134.62 0)
+			(uuid "1985db22-bd88-423b-b3c2-647977530630")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "5.1")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 134.62 127)
+		(size 88.9 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "ecef439a-462e-5de1-9398-4991a61f2b7d")
+		(property "Sheetname" "03b-bank-rails"
+			(at 134.62 125.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "03b-bank-rails.kicad_sch"
+			(at 134.62 158.98 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "5.2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 254 127)
+		(size 88.9 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "571ca04c-4079-519f-af2b-956f40de8b3f")
+		(property "Sheetname" "03c-vdda-ldo"
+			(at 254 125.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "03c-vdda-ldo.kicad_sch"
+			(at 254 158.98 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "5.3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 373.38 127)
+		(size 88.9 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "1c353ef7-a324-5f09-b47b-62a17cae1d17")
+		(property "Sheetname" "03d-sequencing"
+			(at 373.38 125.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "03d-sequencing.kicad_sch"
+			(at 373.38 158.98 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(pin "+3V3_MPFS" output
+			(at 373.38 134.62 180)
+			(uuid "af9ab9ce-2ef6-48eb-bfb2-3b1f2bfc5b93")
+			(effects (font (size 1.27 1.27)) (justify left))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "5.4")
+				)
+			)
+		)
+	)
+	(wire (pts (xy 104.14 134.62) (xy 107.95 134.62))
+		(stroke (width 0) (type default)) (uuid "35047a18-f715-438a-9bd4-c3d5224ca2e0"))
+	(wire (pts (xy 373.38 134.62) (xy 369.57 134.62))
+		(stroke (width 0) (type default)) (uuid "a0e81fe0-b30f-42cd-985e-aa84f154e63e"))
+	(hierarchical_label "+1V0_CORE"
+		(shape output)
+		(at 107.95 134.62 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "e6905847-afcd-4f8a-8fac-16acd56c451c")
+	)
+	(hierarchical_label "+3V3_MPFS"
+		(shape output)
+		(at 369.57 134.62 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "0499e1a0-3918-443d-af05-f0fb97ecf3ca")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083"

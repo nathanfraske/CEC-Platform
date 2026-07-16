@@ -465,7 +465,29 @@ _TEXT_KINDS = (
 
 
 def _unescape(s):
-    return s.replace('\\"', '"').replace("\\\\", "\\")
+    """Reverse the escaping cec_sch_compose.emit_caption applies when writing
+    a text/label string (backslash -> \\\\, quote -> \\", real newline ->
+    literal \\n -- "KiCad stores multi-line text as literal \\n", see that
+    function's own comment). BUG FOUND + FIXED 2026-07-16 (hub-enterprise
+    sheet-03 capture): the previous version only reversed \\" and \\\\, never
+    \\n -- so every multi-line note/caption project-wide (04a/04b/04c and
+    01f already carry the same defect, just short enough not to have crossed
+    any bounds/overlap threshold there) got its width measured as ONE giant
+    line (the literal 2-char "\\n" text counted as ordinary characters
+    instead of a line break), inflating label_bbox/text_bbox's width
+    estimate by the full remaining text length. Measured directly: sheet-03d's
+    6-line, ~373-char note round-tripped as 0 real newlines / 373 chars on
+    one line, bbox width 483mm -- comfortably exceeding even an A3 page,
+    which is what surfaced this (check_sheet_bounds flagged it real, not a
+    page-size problem). A sequential `.replace("\\n", "\n")` is NOT safe to
+    just append (classic escape-order ambiguity: an escaped double-backslash
+    followed by a literal "n" would wrongly re-collapse into a newline), so
+    this is a single left-to-right regex pass consuming one escape sequence
+    at a time -- each backslash is resolved together with its own very next
+    character, so an already-consumed backslash can never feed a later
+    match."""
+    return re.sub(r'\\(.)', lambda m: {'"': '"', '\\': '\\', 'n': '\n'}.get(
+        m.group(1), '\\' + m.group(1)), s)
 
 
 def _strip_lib_symbols(text):
