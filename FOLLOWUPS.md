@@ -977,3 +977,11 @@ Conventions:
   clamp-frame design for commandeered CPU blocks (we dictate the mount), radiator-wall P-Q
   + rejection validation at first SE chassis article, coolant-temp governor thresholds into
   the tester firmware contract set.
+- [2026-07-17] STANDARD-DESIGN-SHEET §K mechanization set (from the owner-asked self-audit):
+  regenerator Value→silk becomes fit-tested (K.3 supersedes unconditional write — the
+  documented cosmetic-silk-hit source); new corpus/lint rows: MLCC-edge-orientation,
+  CPL-rotation-table presence, decoupler-adjacency, fiducial count/clear/asymmetry,
+  stitching-pitch + Hub-band assertion, e-cap edge/V-cut/thermal-tag; Hub beta rev2 layout
+  picks up the K.6 perimeter GND band; beta cable boards add a local fiducial at the INA
+  field; C1 Ymin VKM reflow-profile pull at beta BOM pass; adhesive-dot decision at proto
+  shake test.

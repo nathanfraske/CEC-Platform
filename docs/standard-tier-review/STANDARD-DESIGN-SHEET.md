@@ -250,6 +250,164 @@ guidance, synthesized in `docs/pass-form-plan.md` on the pipeline branch):** rou
 the precision/critical nets first with locked copper, fill bulk after — implemented
 as TPC; this sheet's §C.1/§C.6 ordering rules are its per-net expression.
 
+
+## K. Assembly-grade protocols (owner ask 2026-07-17: self-audit + industry standards)
+
+**K.0 SELF-AUDIT RECORD (what this sheet was missing or thin on, found
+2026-07-17):** (a) fiducials had one thin line (§C.19) with no clear-zone,
+asymmetry, or local-fiducial doctrine; (b) NO silkscreen protocol — while
+every routed board carries "documented cosmetic silk hits," i.e. the gap
+had visible symptoms; (c) placement rules were per-component with no
+industry placement ORDER/grid/orientation protocol; (d) grounding was
+current-centric (§C.7) with no RF stitching pitch or edge-band ruling;
+(e) decoupling existed as generator behavior (auto_cluster) with no
+geometry protocol; (f) no consolidated DFM/fabbability floor list;
+(g) the Hub's large SMD electrolytic had only "clearance + polarity
+silk" (§C.17) — no reflow/edge/lifetime/AOI rules; (h) CONFLICT found:
+the generator unconditionally writes Value→silk (§C.19) which IS the
+documented cosmetic-silk-hit source on dense clusters — K.3 supersedes
+with a conditional policy (FOLLOWUPS: regenerator change at beta).
+
+**K.1 Placement protocol (order + grid).** Place in this order: (1) FIXED
+mechanical — connectors at ruled edges (mouth-overhang rules §G), mounts,
+fiducials; (2) CRITICAL analog cells as rigid stamps (shunt+sense §C.1-4);
+(3) MCU/core; (4) DECOUPLING at pins (before any general passive); (5)
+bulk/filters at rail entries; (6) remaining passives clustered to owners
+(auto_cluster ownership = the mechanized form); (7) silk/fiducial pass.
+Grid: 0.5 mm coarse / 0.25 mm fine; passives aligned in rows/columns
+(paste + AOI); courtyard-to-courtyard ≥0.25 mm (JLC assembly floor 0.2);
+consigned/hand-solder THT gets ≥2 mm iron access; parts >5 mm tall keep
+≥1.5 mm from fine-pitch neighbors (AOI shadow cone); NOTHING
+flex-sensitive within 3 mm of a depanel line, and MLCCs near any
+board/depanel edge orient their long axis PARALLEL to that edge ≥1 mm in
+(flex-crack rule, practice I.15). Check: courtyard DRC + a
+cap-to-edge-orientation lint [wb new corpus row].
+
+**K.2 Rotation/orientation.** Library parts follow IPC-7351B
+zero-orientation; boards use 0/90/180/270 ONLY (no odd angles on
+Standard). POLARIZED parts (electrolytics, tants, diodes where routing
+allows) share ONE polarity direction per axis per board — AOI operators
+and rework techs read a board, not a part. ICs keep pin-1 in ≤2
+quadrants per board. Rotated footprints normalize pad-angle fields
+(CLAUDE.md rule). JLC CPL rotation corrections are TRACKED per footprint
+in each fab README — the platform has eaten easyeda-export rotation
+mismatches before; the correction table is part of the board, not tribal
+memory. Check: CPL-rotation table presence at fab-snapshot lint [wb].
+
+**K.3 Silkscreen protocol (dense areas).** Refdes ALWAYS: ≥0.8 mm text,
+≥0.15 mm stroke (JLC legibility floor class), never over pads, bare
+copper, or fiducial clear zones (IPC-A-610 legibility). In DENSE
+clusters, drop VALUES FIRST — values live on F.Fab + the assembly
+drawing; refdes moves adjacent-outside the cluster, reading in ≤2
+orientations per board. NEVER dropped, ever: polarity marks, pin-1
+indicators, connector pin labels, warning marks — and polarity/pin-1
+marking must extend BEYOND the part outline (marking under a can or
+body is invisible after assembly). DNP parts get the platform DNP silk
+convention. This SUPERSEDES the unconditional Value→silk generator
+behavior (K.0.h): Value renders on silk only where it fits un-clipped —
+fit-tested at generation, not documented-as-cosmetic after. Check:
+silk-over-pad DRC + a value-fit test in the regenerators [FOLLOWUPS].
+
+**K.4 Fiducial protocol.** 3 global fiducials per assembled side: 1.0 mm
+copper dot, 2.0 mm mask opening, ≥3 mm copper/silk CLEAR zone, placed
+ASYMMETRICALLY (L-arrangement — three corners, never four, never
+symmetric: symmetry leaves a 180° vision ambiguity), ≥5 mm from board
+edges, never under parts. Double-sided assembly (none today on
+Standard) would carry 3 per side. Panelized fab adds 3 PANEL fiducials
+on the rails. LOCAL fiducial pair recommended beside ≤0.5 mm-pitch
+fields — our VSSOP-10 (0.5 mm) sits exactly at the boundary: JLC does
+not require it; beta cable boards ADD one local fiducial at the INA
+field where room allows [wb]. The 12VHPWR precedent (FID1 TR / FID2 BR
+/ FID3 lower-center) already satisfies the asymmetry rule — now it is a
+rule, not a precedent. Check: DFM stage fiducial assertions (count,
+clear zone, asymmetry) [wb new].
+
+**K.5 Decoupling protocol.** Per-pin allocation, smallest-C CLOSEST:
+100 nF 0402 within ~1.5 mm pad-to-pad of its pin; connection order is
+PAD → CAP → VIA (never pin → via → cap — the via steals the loop);
+TWO vias to the plane per cap where room (shared vias between caps
+FORBIDDEN); LOOP AREA is the metric (Ott ch. 11 / Bogatin PDN: above
+self-resonance the loop inductance IS the capacitor). Bulk caps at rail
+entries; one bulk per rail per board minimum. The auto_cluster
+ownership engine implements WHO owns WHOM; this protocol binds the
+GEOMETRY. Check: decoupler-adjacency lint (cap-to-pin distance per
+class) [wb new corpus row].
+
+**K.6 Grounding arrays, stitching, and the edge-band RULING.** Stitching
+grid: ≤10 mm general via grid tying outer GND copper to the inner
+plane(s); ≤5 mm along the board PERIMETER and around any plane slot;
+every connector shield tab (SH1/SH2) gets ≥2 vias within 2 mm (the
+λ/20 basis at our fastest Standard content lands near 7 mm — 5 mm
+perimeter / 10 mm field satisfies it with margin, practice I.2/I.3).
+EDGE BAND RULING (the owner's question, answered per board class):
+**Hub Standard: YES** — perimeter GND band ≥0.5 mm on both outers,
+stitched ≤5 mm, tied to all four M3 chassis pads AND the four jacks'
+SH tabs (rationale: four cable entries + the chassis bond + handling
+ESD; the band contains inner-plane edge fringe and gives the FTP
+shields one low-inductance ring). **Cable modules: NO** — their outers
+are 12 V pour real estate (a band would cost §C.6 cross-section) and
+their inner GND PAIR is already the outermost inner copper on both
+sides = the edge fringe is GND-to-GND; instead: inner-plane edge
+setback ≥0.3 mm + the ≤5 mm perimeter stitching between the two GND
+inners where the pours allow. **24-pin: stitch-only** (one GND inner +
+one power-routing inner leaves no clean band budget); **out-dbs: no**
+(passive slabs). Check: stitching-pitch audit + band-presence assertion
+on the Hub beta [wb new].
+
+**K.7 DFM / fabbability floors (fab of record: JLCPCB; design floors
+deliberately above capability floors).** Trace/space: capability 0.09;
+DESIGN floor 0.127 signal (we run ≥0.22). Drill: capability 0.2; design
+≥0.3. Annular: ≥0.15 (we run 0.2+). Copper-to-edge ≥0.3 mm. Mask web
+≥0.2 mm else gang the opening. Teardrops ON for THT-heavy boards
+(KiCad 10 native) [wb pipeline flag]. No acute copper junctions <30°
+(acid-trap class). STENCIL: 1:1 apertures except pads >2 mm² get
+60–80 % windowpane (shunt pads, e-cap pads, blade tabs — anti-bead,
+anti-float); 0402 anti-tombstone: both terminals see BALANCED thermal
+copper (a 0402 with one terminal in pour gets symmetric entry — never
+a relief exception conflict, §C.8 governs only high-current joints and
+no 0402 is one). Via tenting: tent signal vias; LEAVE OPEN thermal/
+current fields (§C.7). Copper balance: the cable boards' mirrored pours
+already balance warp; oddform boards check layer balance at fab review.
+Panelization: V-cut for rectangular boards, mouse-bite for notched
+outlines (daughterboards); keep-away 1 mm from V-cut / 2 mm tooling
+holes; the K.1 MLCC-parallel rule binds along depanel lines.
+Single-side SMT assembly stays the Standard-tier default — do not
+migrate parts to B side without a cost/AOI review. Check: DFM stage +
+fab-README capability table per snapshot.
+
+**K.8 Large SMD electrolytic bulk caps (the Hub C1 class — Ymin VKMI
+4700 µF/16 V V-chip; any future V-chip ≥10 mm can).** (1) LAND: vendor
+drawing exactly — the plastic base pads carry the mechanical load; no
+"improved" hand edits. (2) REFLOW: large V-chip cans are
+reflow-limited — vendor profile governs (typ. peak ≤250 °C, bounded
+time-above-liquidus, commonly rated ONE pass): board schedules
+single-pass reflow; rework near the can is hand/selective only [wb:
+pull the exact Ymin VKM profile at the beta BOM pass]. (3) PLACEMENT:
+≥5 mm from any board edge, ≥3 mm from any V-cut (base-weld flex),
+polarity silk extending beyond the can (K.3), polarity direction
+uniform with the board's polar axis (K.2). (4) LIFETIME: electrolyte
+is Arrhenius — every 10 °C cooler ≈ doubles life; place ≥10 mm from
+the LDO/WROOM hot zone and OUT of enclosed-case hot pockets; the §6.6
+enclosed thermal model tags C1's local ambient explicitly [wb thermal
+gate tag]. (5) MECHANICAL: multi-gram can — adhesive dot is the
+shipping-shock option, decided at proto shake test [wb]. (6) AOI: a
+~21 mm can shadows — fine-pitch parts stay ≥2 mm outside its
+inspection cone or camera-side. (7) ENCLOSURE: ≥2 mm clearance above
+the scored (vent) end — never pot or press the vent. (8) SOURCING:
+confirm reel/tray packaging + the JLC large-nozzle line at order.
+Check: edge/V-cut distance lint + thermal-tag presence [wb new].
+
+**Citations added for K (extends §I):**
+**I.13 IPC-A-610** (acceptability: silk legibility, polarity marking
+visibility) — K.3's floor. **I.14 IPC-CM-770E + J-STD-001** (component
+mounting + soldering process classes) — K.1/K.7 process basis.
+**I.15 MLCC flex-crack vendor guidance (Murata/KEMET app-note class)** —
+the K.1/K.7 parallel-to-edge + depanel keep-away rules. **I.16 SMD
+aluminum-electrolytic reflow + lifetime — vendor datasheet/app-note
+class (Ymin VKM series spec; Würth/Panasonic eiCap reflow guidance;
+Arrhenius 10-°C rule)** — K.8. **I.17 JLCPCB published capability pages**
+(the fab-of-record floors in K.7) + **IPC-7351B zero-orientation** (K.2).
+
 ## J. Open items on this sheet
 
 1. Every **[wb]** + the §F.6 inherited open list (W6, D-11, J_SIG, OQ-86/87).
@@ -260,3 +418,8 @@ as TPC; this sheet's §C.1/§C.6 ordering rules are its per-net expression.
 4. This sheet lives on the firmware/tester branch; the pipeline of record is
    `claude/pipeline-consolidation` — reconcile at the next merge (FOLLOWUPS).
 5. OQ-11 shunt MPN write-ins on EPS/PCIe BOMs (W2) before their fab snapshots.
+6. K-section mechanization [wb set]: value-fit silk test + CPL-rotation table lint
+   + decoupler-adjacency lint + fiducial assertions + stitching/band audit +
+   e-cap edge/thermal-tag lint (new corpus rows); Hub beta picks up the K.6
+   perimeter band at its rev2 layout wave; local fiducial on beta cable boards.
+7. C1 reflow-profile pull (Ymin VKM) + adhesive-dot shake decision at proto (K.8).
