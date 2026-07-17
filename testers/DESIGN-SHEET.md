@@ -276,7 +276,26 @@ product)**
     base bolts bare to the grounded extrusion, ONE paste layer, no
     ceramic, no shoulder washers; ~2–4× device cost [wb price at BOM
     lock]. That and the per-rail-segment alternative below are the two
-    ways to kill the sandwich if assembly labor ever outweighs parts —
+    ways to kill the sandwich if assembly labor ever outweighs parts.
+    SEGMENT ALTERNATIVE REFINED (owner Q 2026-07-17, "electrically
+    separated mounting points + paste only"): works, but the insulation
+    MOVES rather than disappears — and it's per-DEVICE for the verniers,
+    not per-rail: each vernier is its own channel (§13 "one per big
+    channel"), so its drain rides its own ballast drop and no two
+    verniers share a potential → 8–13 floating segments at Pro/W, each
+    insulated from chassis AND neighbors (insulating mounts, creepage
+    gaps, discontinuous fins), live finned metal in the airstream (SELV,
+    but a dropped screw = rail-to-chassis short — today's build confines
+    live metal to component scale), lateral fin-sharing lost (a shared
+    grounded extrusion lets one hot device borrow its neighbors' fin
+    area), and floating fin structures couple loop-frequency hash where
+    the grounded extrusion doubles as a shield. BASELINE STAYS the AlN
+    sandwich. The ONE clean hybrid: the FAST CHANNEL's 3–4 devices
+    parallel into a single channel (drains common BY DESIGN) → one bare
+    segment per fast channel + paste-only is legitimate there — deck-mech
+    drafting may take exactly that piece. Pad pricing verified
+    (2026-07-17): $1.00–4.50/pc western-store retail (Innovacera, TO-247
+    0.635 + TO-264 1 mm, with-hole), ~$0.3–0.8 China volume —
     silicone insulator pads (0.5–1.5 K/W for TO-247) are PROHIBITED at
     this site, and **KryoSheet/Carbonaut are BANNED at every isolation
     site (electrically conductive graphene/carbon)**. Alternative under

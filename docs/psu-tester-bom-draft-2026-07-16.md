@@ -195,8 +195,9 @@ bolt-on tabs?" Answer state + tonight's live checks:
   One AlN pad + insulating shoulder washer per BIG-linear device only
   (verniers + fast FETs: ST ×2 / Pro ×12 / Max ×16 / W ×~19). Sizes are
   commodity: TO-247 22×17×0.635 mm, TO-264 22×28×1 mm, AlN ≥170 W/mK
-  (Innovacera-store/China class ~$0.5–3/pc small-qty, ~$0.3–0.8 volume —
-  [wb] exact SKU + qty price at BOM lock); nylon/PEEK shoulder washers
+  (PRICE VERIFIED 2026-07-17: Innovacera store $1.00–4.50/pc retail,
+  with-hole variants listed; China-direct ~$0.3–0.8 at volume — [wb]
+  exact SKU + qty ladder at BOM lock); nylon/PEEK shoulder washers
   pennies. ≈$2–15/unit hardware. Engineering basis: 0.635 mm AlN ≈0.02 K/W
   over the ~2 cm² tab vs alumina ≈0.12 — alumina alone eats the vernier
   stack's 0.10–0.15 K/W budget, so AlN is REQUIRED at verniers/fast FETs.
