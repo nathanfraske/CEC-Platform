@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import cec_fs_actuator as act          # noqa: E402
 import cec_fullstack as fs             # noqa: E402
 
-EPS_PCB = os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb")
+EPS_PCB = os.path.join(ROOT, "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb")  # legacy fixture (pre-beta geometry)
 try:
     import pcbnew                      # noqa: F401
     HAVE_PCBNEW = True

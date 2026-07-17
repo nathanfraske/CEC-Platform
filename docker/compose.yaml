@@ -45,6 +45,12 @@ services:
       # `inference` vLLM :8000 published on the host). host.docker.internal -> host via the extra_hosts
       # gateway below. Fail-fast: broker down -> connection-refused -> the judge's deterministic fallback.
       - CEC_VLLM_URL=http://host.docker.internal:8080/v1
+      # The repo is a host-owned bind mount read by root-in-container: git >=2.35 refuses it as
+      # 'dubious ownership' (breaks cec_pcb_reconcile / ledger git calls after any container
+      # recreate). GIT_CONFIG_* env is user/home-independent, unlike an exec'd `git config`.
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=safe.directory
+      - GIT_CONFIG_VALUE_0=/workspace
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -413,6 +419,167 @@ services:
   #   profiles: ["fem"]
   #   build: { context: .., dockerfile: docker/Dockerfile.fem }
   #   volumes: [ "..:/workspace" ]
+
+  # ---- 2026-07-13 Qwythos + Q36-35B test models (wired by the manager; benchmark sweep pending) ----
+  qwythos-mtp-q4:
+    profiles: ["qwythos-mtp-q4"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8020:8020"
+    volumes:
+      - "/mnt/e/AI Models:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwythos-9B-1M-MTP-Q4_K_M.gguf"
+      - "--alias"
+      - "qwythos-mtp-q4"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8020"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "32768"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  qwythos-mtp-q8:
+    profiles: ["qwythos-mtp-q8"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8021:8021"
+    volumes:
+      - "/mnt/e/AI Models:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwythos-9B-1M-MTP-Q8_0.gguf"
+      - "--alias"
+      - "qwythos-mtp-q8"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8021"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "32768"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  qwythos-mtp-bf16:
+    profiles: ["qwythos-mtp-bf16"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8022:8022"
+    volumes:
+      - "/mnt/e/AI Models:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwythos-9B-1M-MTP-BF16.gguf"
+      - "--alias"
+      - "qwythos-mtp-bf16"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8022"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "32768"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  qwythos-bf16:
+    profiles: ["qwythos-bf16"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8023:8023"
+    volumes:
+      - "/mnt/e/AI Models:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwythos-9B-1M-BF16.gguf"
+      - "--alias"
+      - "qwythos-bf16"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8023"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "32768"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  q36-35b-aggr:
+    profiles: ["q36-35b-aggr"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8024:8024"
+    volumes:
+      - "/mnt/e/AI Models:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3.6-35B-A3B-ResearchHHQ-Aggressive-Q4_K_P.gguf"
+      - "--alias"
+      - "q36-35b-aggr"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8024"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "32768"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
 volumes:
   cec-cache:

@@ -16,14 +16,31 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 # cec_fr does an unconditional top-level `import pcbnew`; the lever tests monkeypatch
 # cec_fr.derive_power_pours so the real engine is never exercised -- stub pcbnew so these stay
-# host-runnable (no container needed). A real pcbnew (in-container) shadows the stub harmlessly.
-sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
+# host-runnable (no container needed). ONLY stub when the real module is genuinely absent:
+# the old unconditional setdefault registered an EMPTY module whenever this file imported
+# before any real-pcbnew user (alphabetical discover order), poisoning every later test in
+# the process with 'pcbnew has no attribute LoadBoard' (found 2026-07-07 on the full sweep).
+try:
+    import pcbnew  # noqa: F401 -- real engine present (in-container); no stub
+except Exception:
+    sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
 
 
 class TestLeverFix(unittest.TestCase):
     """A: clipped_corridor_rects must derive rect_mm from derive_power_pours' 'polygon' key.
     The bug it fixes: the consumer read rect_mm/rect, the producer emits polygon -> {} every round ->
     the item4 corridor-avoid lever fired ZERO times across a 34-round run."""
+
+    def setUp(self):
+        # these tests STUB cec_fr.derive_power_pours; save + restore it so the monkeypatch does not
+        # LEAK into the rest of the suite (a leaked stub poisoned every downstream caller --
+        # test_foreign_on_pour_gate, test_gr_fr02_fixtures, and even this module's own later tests).
+        import cec_fr
+        self._orig_dpp = cec_fr.derive_power_pours
+
+    def tearDown(self):
+        import cec_fr
+        cec_fr.derive_power_pours = self._orig_dpp
 
     def _stub_pours(self):
         # exactly the shape cec_fr.derive_power_pours emits (cec_fr.py:617-618): net/layer/polygon

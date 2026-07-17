@@ -225,6 +225,31 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
             "failures": failures}
 
 
+def exclude_net_pins_in_dsn(dsn_path, nets):
+    """Remove *nets* from Freerouting's routable set by truncating each net's DSN
+    (pins ...) list to its FIRST pin -- a single-pin net has nothing to connect, so
+    FR neither routes nor optimizes it, while its (protected) wiring stays as
+    obstacles. Complements force_protect_in_dsn (protect stops RIP-UP; this stops
+    RE-ROUTE -- measured 2026-07-12: FR re-solved fully-laid locked nets at class
+    width). Returns the number of nets truncated."""
+    import re
+    txt = open(dsn_path, encoding="utf-8", errors="replace").read()
+    n_done = 0
+    for net in nets:
+        for quoted in ('"%s"' % net, net):
+            pat = re.compile(
+                r"(\(net\s+%s\s*\(pins\s+)([^)]+)(\))" % re.escape(quoted))
+            m = pat.search(txt)
+            if m:
+                pins = m.group(2).split()
+                if len(pins) > 1:
+                    txt = txt[:m.start()] + m.group(1) + pins[0] + m.group(3) + txt[m.end():]
+                n_done += 1
+                break
+    open(dsn_path, "w", encoding="utf-8").write(txt)
+    return n_done
+
+
 def force_protect_in_dsn(dsn_path, nets):
     """The plan's one-s-expression edit, MEASURED NECESSARY on FR 1.7.0
     (2026-06-10): KiCad exports locked tracks as '(type fix)', and Freerouting

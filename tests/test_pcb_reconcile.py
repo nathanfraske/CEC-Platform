@@ -33,6 +33,11 @@ HAVE_PCBNEW = R.pcbnew is not None
 
 HUB_STANDARD = os.path.join(ROOT, "hubs", "hub-standard")
 EPS8PIN = os.path.join(ROOT, "modules", "eps-8pin")
+# The pre-beta eps snapshot (generator cec-cec_pcb, legacy zone (net_name ...) form,
+# zero (path ...) fields) -- the exact property set EpsRoundTripTest documents. The live
+# modules/eps-8pin PCB was GUI re-saved during the beta arc (generator pcbnew) and no
+# longer carries them (re-baselined 2026-07-07).
+EPS8PIN_LEGACY = os.path.join(ROOT, "tests", "fixtures", "eps-8pin-legacy")
 HPWR12V = os.path.join(ROOT, "modules", "12vhpwr-standard")
 
 
@@ -174,7 +179,7 @@ class BuildRenameMapTest(unittest.TestCase):
 class EpsRoundTripTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="cec_pcb_reconcile_test_eps_")
-        self.board = _copy_board(EPS8PIN, self.tmp)
+        self.board = _copy_board(EPS8PIN_LEGACY, self.tmp)
         self.pcb = _find(self.board, ".kicad_pcb")
         # post round-4 the boards are hierarchical (root + leaves in one
         # dir); resolve the ROOT the same way the tool does

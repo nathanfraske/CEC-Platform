@@ -38,6 +38,7 @@
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
 import re
+import time
 import sys
 import math
 import shutil
@@ -60,6 +61,56 @@ with _cl.redirect_stderr(open(os.devnull, "w")):
 
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
+
+# ---------------------------------------------------------------------------
+# SHUNT-GAP notch (owner-ratified 2026-06-28) -- the un-poured channel the high-current pours leave
+# AT the Kelvin shunt for the sense cluster (INA238 + §6.13 INA181 + TLV7011) and a B.Cu overflow-
+# routing lane. A 2-pad R_2512 shunt's pads are only ~5.9mm apart, so hugging each pad with the 1.0mm
+# pour margin left a ~3.9mm notch -- TOO NARROW (the 4.19mm SOT-23-6 INA181 body overshot it, and the
+# B.Cu route-under had no lane to dive the overflow nets under the pour edge). SHUNT_GAP_MM opens that
+# notch to ~6.5mm by pulling each pour's shunt-side edge back to shunt_centre +/- SHUNT_GAP_MM/2 (the
+# pour still overlaps the shunt pad's outer half -> high-current continuity, completed by the B.Cu
+# mirror + via field). The placer grows the board ~3mm taller (J_IN<->J_OUT) so the pours stay long.
+# General to the per-cable EPS/PCIe interposer family (any 2-pad straddle shunt).
+def _shunt_gap_mm():
+    """Notch height (mm) between HI/LO pours at the shunt. Env-tunable per board
+    (CEC_SHUNT_GAP_MM; the 24-pin sets 16.0 -- the sense cell lives in the band).
+    Read per-call, never at import."""
+    return float(os.environ.get("CEC_SHUNT_GAP_MM", "6.5"))
+
+
+SHUNT_GAP_MM = 6.5   # legacy alias; live sites call _shunt_gap_mm()
+
+
+def _shunt_gap_on():
+    """The SHUNT_GAP_MM widen is OPT-IN (CEC_SHUNT_GAP=1), DEFAULT OFF. It is a board-specific
+    re-place change (owner ratification boundary: a ratified change is board-specific by default,
+    not platform-wide) -- the board must be PLACED with the matching wide notch + grown outline for
+    the pulled-back pour to stay on the shunt pad. Applying it to a legacy board placed for the
+    ~3.9mm notch (e.g. the frozen SB-08 golden eps-8pin) pulls the pour off the shunt and breaks the
+    route, so existing committed boards stay on the historical hug-the-shunt pour unless they opt in."""
+    return os.environ.get("CEC_SHUNT_GAP", "0") == "1"
+
+
+def _open_shunt_notch(box, shunt_xy, gap, *, vertical=True):
+    """Pull a high-current pour box's SHUNT-SIDE edge back so the un-poured notch centred on the shunt
+    is at least *gap* mm (the sense-cluster + B.Cu-overflow channel). *box*=(x0,x1,y0,y1) is one net's
+    pour (cable-in->shunt OR shunt->cable-out); *shunt_xy* is the shunt centre. The shunt-side edge is
+    the box edge nearest the shunt centre along the corridor axis (vertical for the EPS/PCIe top->bottom
+    cables). Only ever PULLS the edge toward the connector (clamped, never extends), so it can only OPEN
+    the notch -- the connector-side extent is untouched."""
+    x0, x1, y0, y1 = box
+    if vertical:
+        if (y0 + y1) / 2.0 < shunt_xy[1]:               # box ABOVE the shunt (cable-in/HI) -> clamp bottom up
+            y1 = min(y1, shunt_xy[1] - gap / 2.0)
+        else:                                           # box BELOW the shunt (cable-out/LO) -> clamp top down
+            y0 = max(y0, shunt_xy[1] + gap / 2.0)
+    else:
+        if (x0 + x1) / 2.0 < shunt_xy[0]:
+            x1 = min(x1, shunt_xy[0] - gap / 2.0)
+        else:
+            x0 = max(x0, shunt_xy[0] + gap / 2.0)
+    return (x0, x1, y0, y1)
 
 # Cross-platform scratch dir: the OS temp dir (/tmp on Linux/mac, %TEMP% on Windows).
 # Never hardcode /tmp -- it doesn't exist on Windows.
@@ -121,7 +172,13 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
         if workdir:
             base += [f"--user_data_path={os.path.abspath(workdir)}"]
         return base                                   # true headless: no xvfb needed
-    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+    # Linux: ALWAYS prefer xvfb-run when available, even if $DISPLAY is set. The routing container
+    # leaks a forwarded display (WSLg sets DISPLAY=:99 with a mounted X11 socket), and the old
+    # `not $DISPLAY` guard then took the native-window path -> Freerouting popped a real Swing window
+    # on the host desktop. Headless is the correct default for the compute plane; xvfb-run -a starts
+    # its own virtual server and overrides the leaked DISPLAY. CEC_FR_USE_DISPLAY=1 opts a Linux
+    # desktop dev back into the visible window. Windows/macOS are unaffected (native path below).
+    if sys.platform.startswith("linux") and shutil.which("xvfb-run") and os.environ.get("CEC_FR_USE_DISPLAY") != "1":
         return ["xvfb-run", "-a"] + base
     return base
 
@@ -132,7 +189,17 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
 # cec_fr.FR_VERSION, so an env override is automatically an AM-03 epoch boundary in every
 # decision log). The DEFAULT stays the banked-baseline pin until the FR-01 migration gate
 # passes on the successor.
-FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0")
+# DEFAULT FLIPPED to the CEC seed fork (owner directive 2026-07-14: "apply it so we
+# stop using stock now"). Unflagged behavior is byte-identical to stock 1.7.0
+# (ops/README-fr-fork.md leg 0b) and the seed axis is additionally OPT-IN via
+# CEC_FR_SEED_AXIS=1 (see run_freerouting), so this flip changes NO route anywhere
+# until a consumer opts in (the wave does). Version change = an AM-03 epoch (the
+# ledger manifest carries fr_version). SB-08 golden state at the flip, measured
+# 2026-07-14: RED-PENDING for PRE-EXISTING owner-gated reasons (item-3a
+# CEC_GOLDEN_SYNTH re-freeze) -- stock 1.7.0 and this fork produce IDENTICAL
+# golden metrics to the decimal (kelvin/unconn/drc/thermal; only elapsed_s
+# differs), logs build/golden-{stock-control,cec1-flip2}.log.
+FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec2")  # cec2 = cec1 + noecho/maxstall/progress (2026-07-14)
 
 # Hash pins (sha256). The 2.2.4 jar digest matches the official GitHub release-asset
 # digest (verified 2026-06-10); 1.7.0 is the hash of the jar the banked baseline ran on.
@@ -143,6 +210,36 @@ FR_RELEASES = {
     "1.7.0": {
         "jar_sha256": "e6c5db33792a00f99799b1113bb9f5e1576731f885b069da8850520528f7ef8f",
         "min_java": 17,
+    },
+    # the CEC seed-patched fork (A5, 2026-07-08): v1.7.0 + scripts/patches/
+    # freerouting-1.7.0-cec-seed.patch -- adds -seed <long> (per-pass net-order
+    # shuffle: same seed = byte-identical, different seeds = distinct routes,
+    # no-seed = byte-identical to stock). LOCAL-ONLY (no download URL): resolved
+    # from CEC_FREEROUTING_JAR or the durable copies (/mnt/e/toolchain/fr-fork/,
+    # build/fr-fork/); rebuildable from the committed patch (ops/README-fr-fork.md).
+    "1.7.0-cec1": {
+        "jar_sha256": "375e36b8ee347c57127670c06aeaa650d562a0365b0a4ed6dd3634d215f103b1",
+        "min_java": 17,
+        "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec1.jar",
+                        "build/fr-fork/freerouting-1.7.0-cec1.jar"),
+        "supports_seed": True,
+    },
+    # cec2 (2026-07-14, owner "do the surgery"): cec1 + three OPT-IN flags (unflagged
+    # still byte-identical to stock, the fork's standing guarantee): -noecho (no
+    # protect-wire SES echo -- retires reconcile's ~130 echo strips/route), -maxstall
+    # <k> (abort after k no-improvement passes; stock's own detector needs 200+ passes
+    # of bookkeeping), -progress (one CEC_PASS line/pass on stdout = the stage-0
+    # pre-kill contract). Patch: scripts/patches/freerouting-1.7.0-cec2.patch
+    # (cumulative over v1.7.0); rebuild per ops/README-fr-fork.md.
+    "1.7.0-cec2": {
+        "jar_sha256": "de01c829eab9406a1df6d1ad713a3334f138e77c122a61d2ba5a8364b8f904c2",
+        "min_java": 17,
+        "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec2.jar",
+                        "build/fr-fork/freerouting-1.7.0-cec2.jar"),
+        "supports_seed": True,
+        "supports_noecho": True,
+        "supports_maxstall": True,
+        "supports_progress": True,
     },
     "2.2.4": {
         "jar_sha256": "f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b",
@@ -283,6 +380,16 @@ def ensure_jar(path: str | None = None, version: str | None = None) -> str:
                       f"(pin for {v}: {pin[:16]}...)", file=sys.stderr)
             return c
 
+    # LOCAL-ONLY releases (the CEC fork): known durable paths, relative ones resolved
+    # against the repo root; always pin-verified (never trusted like an explicit arg).
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for c in (FR_RELEASES.get(v) or {}).get("local_paths", ()):
+        cc = c if os.path.isabs(c) else os.path.join(_root, c)
+        if os.path.isfile(cc):
+            if pin:
+                _verify_pin(cc, pin, f"FR {v} jar (local)")
+            return cc
+
     jar_cache = _jar_cache(v)
     for c in _jar_tmp_candidates(v) + [jar_cache]:
         if c and os.path.isfile(c):
@@ -356,6 +463,152 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     return done
 
 
+def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=None) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the current-sense IC INPUT pads (IN+/IN-) that the
+    GENERATIVE four-wire tap (:func:`synthesize_kelvin_taps`) owns -- i.e. the pads whose ONLY copper
+    connection must be the inner-edge shunt tap, never an FR-routed wire to the cable connector.
+
+    For each Kelvin pair (``*_HI``/``*_LO``) the 2-pad straddle shunt is found, and on each net the
+    IN+/IN- pad (by PIN FUNCTION, _SENSE_INPAD: INA238/228 pad 10/9, INA181 pad 3/4) of every seated
+    current-sense IC (``INA`` in value, not the shunt) within *max_ic_mm* of the shunt is collected.
+    This is the EXACT same selection synthesize_kelvin_taps uses, so the FR exclusion and the post-route
+    tap agree by construction: every pad removed here is re-connected by the tap (or, if the tap is
+    foreign-guard-REFUSED, the pad stays honestly UNCONNECTED -> the gate fails -> re-place; it is NEVER
+    papered over by an FR connector wire, which is the kelvin-from-connector bug this exclusion fixes).
+
+    NOTE: the INA238/228 Vbus pad (8, on the _LO net) is a high-impedance VOLTAGE tap, NOT a Kelvin
+    current-sense input, so it is deliberately left in the net for FR to route normally. Returns the set
+    of pin tokens; empty (no-op) on a board with no 2-pad straddle shunt / no seated INA (Hub, filtered
+    12VHPWR lanes)."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pos = None
+        for r, p, _fp in pads_by_net.get(hi, []) + pads_by_net.get(lo, []):
+            if r == sh:
+                sh_pos = p.GetPosition()
+                break
+        for net, role in ((hi, "HI"), (lo, "LO")):
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue                                  # not the IN+/IN- pad of a known part
+                if sh_pos is not None:
+                    d = math.hypot((p.GetPosition().x - sh_pos.x) / MM,
+                                   (p.GetPosition().y - sh_pos.y) / MM)
+                    # UNCONDITIONAL by default (escalated review round 4, 2026-07-08): the
+                    # contract is 'sense inputs are tap-owned, NEVER FR-routed' -- a slid
+                    # seat at 8mm escaped the old 6mm radius and FR wired it to the force
+                    # net CROSS-FACE (caught by the sense-side gate). Distance is the TAP
+                    # synthesizer's quality concern (it refuses far ICs honestly), not the
+                    # exclusion's. A radius applies only when explicitly passed.
+                    if max_ic_mm is not None and d > max_ic_mm:
+                        continue                              # too far to tap -> leave to FR (don't strand)
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
+def sensec_force_connector_pins(board, *, kelvin_pairs=None) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the CABLE-CONNECTOR force pins (J_IN / J_OUT THT pads)
+    on each high-current SENSEC net that ALSO gets a post-route FORCE POUR -- i.e. the pads whose
+    connector<->shunt connection is the job of :func:`add_power_pours`, NOT of an FR-routed wire.
+
+    THE INEFFICIENCY THIS FIXES (owner-caught 2026-06-30): the connector force pins sit on the same
+    ``*_HI``/``*_LO`` net as the shunt, so Freerouting must satisfy their connectivity -- and with the
+    NOTCHED corridor keepout active (:func:`corridor_keepouts`, ``DoNotAllowTracks`` over the pour box)
+    FR cannot route connector->shunt THROUGH the reserved corridor, so it DETOURS the force wire AROUND
+    it through the cramped sense row. On the congested 3-port that detour exploded to ~80 redundant force
+    tracks (~253mm) -- copper the F.Cu pour was going to lay anyway -- clogging the channel and pushing
+    foreign signals across the pours. Removing the connector force pins from the DSN makes FR LEAVE the
+    connector->shunt force path entirely to the pour (which fills the reserved corridor solid: the keepout
+    is ``block_fills=False``), freeing the channel. The exact analog of the kelvin exclusion
+    (:func:`kelvin_sense_pins`), but for the FORCE half of the shared shunt pad.
+
+    SURGICAL by design: ONLY the cable-connector THT pads are dropped. The shunt's OWN pads, the §6.13
+    INA181 detection-tap pads, and the §6.8 INA238 Kelvin/Vbus pads all stay on the net, so FR still
+    routes detection (shunt->INA181) and the post-route Kelvin tap is untouched -- the detection and
+    Kelvin paths are NOT broken, only the redundant connector->shunt force copper is.
+
+    SELF-GATING (matches :func:`derive_power_pours` exactly, so a pin is dropped iff a pour will reconnect
+    it): a net qualifies only when its pair has a 2-pad straddle shunt AND the net carries at least one THT
+    pad (the cable connector). A board with no straddle shunt / no THT cable connector (Hub, filtered
+    12VHPWR lanes) yields the empty set -> no-op. Returns the set of pin tokens."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _ in pads_by_net.get(lo, [])}
+        # the 2-pad straddle shunt -> a real Kelvin force corridor (same rule derive_power_pours uses)
+        if not {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}:
+            continue
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            # only nets with a THT cable connector get a force pour (derive_power_pours' has_tht gate)
+            tht = [(r, p) for r, p in entries if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+            if not tht:
+                continue
+            for r, p in tht:
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
+def _dsn_exclude_pins(dsn_path: str, pins) -> int:
+    """Remove the given ``"<ref>-<pad>"`` pin tokens from EVERY ``(net ... (pins ...))`` list in the
+    exported DSN so Freerouting does NOT route those pads. A pad belongs to exactly one net, so a token
+    is globally unique -- a global whole-token removal is safe and net-agnostic. The de-netted pad keeps
+    its real net in the .kicad_pcb (only the DSN is edited); FR treats it as a no-net obstacle and leaves
+    it for the post-route generative tap. Returns the number of token occurrences removed."""
+    import re
+    if not pins:
+        return 0
+    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    removed = 0
+    for tok in pins:
+        # whole-token match: not preceded/followed by a word char or '-' (so 'U10-10' != inside 'U10-100')
+        pat = re.compile(r"(?<![\w-])" + re.escape(tok) + r"(?![\w-])")
+        text, n = pat.subn("", text)
+        removed += n
+    if removed:
+        # tidy the gaps the removals leave inside (pins ... ) so the file stays clean s-expr
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"\(pins +", "(pins ", text)
+        text = re.sub(r" +\)", ")", text)
+        open(dsn_path, "w", encoding="utf-8").write(text)
+    return removed
+
+
 def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
 
@@ -368,6 +621,20 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
     """
     if plane_to_power is None:
         plane_to_power = os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0"
+    # PROJECT BIND (owner width defect 2026-07-15, measured): pcbnew's settings
+    # manager binds the FIRST project loaded in a process; a later LoadBoard of a
+    # different board (route_once's hinted copy) silently loses ITS sidecar's
+    # netclasses, so the DSN exports class-less and FR routes everything at the
+    # 0.2 default. Explicitly activating the board's own .kicad_pro before load
+    # restores the class rules (verified: DSN carries (class Power (rule (width
+    # 1000))) same-process only with this call). Fail-safe: no sidecar = no-op.
+    _pro = board_path[:-len(".kicad_pcb")] + ".kicad_pro"
+    if os.path.isfile(_pro):
+        try:
+            pcbnew.GetSettingsManager().LoadProject(_pro)
+        except Exception as _e:                                # noqa: BLE001
+            print(f"[cec_fr] project bind failed ({_e}) -- DSN may lose netclasses",
+                  flush=True)
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ExportSpecctraDSN(board, dsn_path)
     if not ok:
@@ -383,6 +650,36 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         if rewritten:
             print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
                   f"(FR signal routing excluded)", file=sys.stderr)
+    # KELVIN POLICY (owner directive 2026-06-28, the kelvin-from-connector fix): the current-sense IC
+    # IN+/IN- pads sit on the high-current SENSEC net (same net as the cable connector + shunt). If FR
+    # is allowed to route them it satisfies their connectivity by wiring them to the NEAREST net point
+    # -- the connector -- so the sense taps the connector->shunt copper (+ its IR drop / contact R) and
+    # the sense wire carries current: NOT a four-wire Kelvin. Remove those pads from the DSN net so FR
+    # leaves them alone; the post-route synthesize_kelvin_taps is then their ONLY connection (the §6.8
+    # inner-edge tap). Env kill-switch CEC_KELVIN_FR_EXCLUDE=0 reverts (A/B). Self-gating no-op on a
+    # board with no straddle shunt / seated INA.
+    if os.environ.get("CEC_KELVIN_FR_EXCLUDE", "1") != "0":
+        sense_pins = kelvin_sense_pins(board)
+        if sense_pins:
+            n = _dsn_exclude_pins(dsn_path, sense_pins)
+            print(f"[cec_fr] kelvin policy: excluded {len(sense_pins)} current-sense input pad(s) "
+                  f"{sorted(sense_pins)} from FR routing ({n} DSN token(s) removed) -- the inner-edge "
+                  f"tap is their only connection", file=sys.stderr)
+    # FORCE-POUR-ONLY POLICY (owner directive 2026-06-30, the redundant-force-trace fix): leave the
+    # cable connector<->shunt FORCE path entirely to the post-route pour. Without this, FR detours the
+    # connector force connectivity AROUND the corridor keepout (it cannot route through the reserved
+    # box), laying redundant connector->shunt copper the pour would carry anyway -- ~80 tracks on the
+    # congested 3-port, clogging the sense row and pushing foreign onto the pours. Drop ONLY the
+    # connector THT force pins (detection + Kelvin pads stay -> those taps still route); the post-route
+    # add_power_pours then makes the connector->shunt connection. OPT-IN (default OFF), self-gating to
+    # nets that have a force pour, so it is a safe no-op on a board without SENSEC pours. A/B kill-switch.
+    if os.environ.get("CEC_SENSEC_FORCE_POUR_ONLY", "0") == "1":
+        force_pins = sensec_force_connector_pins(board)
+        if force_pins:
+            n = _dsn_exclude_pins(dsn_path, force_pins)
+            print(f"[cec_fr] force-pour-only policy: excluded {len(force_pins)} cable-connector force "
+                  f"pin(s) {sorted(force_pins)} from FR routing ({n} DSN token(s) removed) -- the "
+                  f"post-route power pour is their only connection to the shunt", file=sys.stderr)
     return dsn_path
 
 
@@ -427,14 +724,41 @@ def run_freerouting(
     if _own_workdir:
         workdir = tempfile.mkdtemp(prefix="cec_fr_run_", dir=_TMP)
 
-    if seed is not None:
+    _seed_ok = bool((FR_RELEASES.get(v) or {}).get("supports_seed"))
+    if seed is not None and not _seed_ok:
         print(f"[cec_fr] note: seed={seed!r} logged (no -seed flag in FR {v})",
               file=sys.stderr)
 
     cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
                       version=v, workdir=workdir)
+    # SEED AXIS IS OPT-IN (CEC_FR_SEED_AXIS=1; 2026-07-14, the -cec1 default flip):
+    # every historical caller passes seed=N habitually because it was INERT on stock
+    # 1.7.0 -- activating it silently on the flip changed routes under them (measured:
+    # the SB-08 golden regressed kelvin/unconn/thermal on its frozen bands the moment
+    # the fork became default). Unflagged fork behavior is byte-identical to stock
+    # (leg 0b), so with the axis off the flip is bit-safe everywhere; consumers that
+    # WANT diversity (the wave) set the env explicitly.
+    if (seed is not None and _seed_ok
+            and os.environ.get("CEC_FR_SEED_AXIS", "0") == "1"):
+        cmd += ["-seed", str(int(seed))]   # the A5 fork's real diversity axis
+    _rel = FR_RELEASES.get(v) or {}
+    # cec2 flags (2026-07-14). -noecho defaults ON where supported: the echoes it
+    # suppresses are exactly the duplicates reconcile_locked_nets strips today, so
+    # behavior is net-identical with less work (CEC_FR_NOECHO=0 restores the echo
+    # for an A/B). -progress likewise ON (stdout-only; the runner captures it).
+    # -maxstall is a route-BEHAVIOR knob (aborts stalled candidates early), so it
+    # stays opt-in via CEC_FR_MAXSTALL=<k>; the wave sets it.
+    if _rel.get("supports_noecho") and os.environ.get("CEC_FR_NOECHO", "1") == "1":
+        cmd += ["-noecho"]
+    if _rel.get("supports_progress"):
+        cmd += ["-progress"]
+    _stall = os.environ.get("CEC_FR_MAXSTALL", "")
+    if _stall.isdigit() and int(_stall) > 0 and _rel.get("supports_maxstall"):
+        cmd += ["-maxstall", _stall]
 
     run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
+    # cec2: FR's stdout is captured; re-emit the machine-readable CEC_ lines
+    # (CEC_PASS / CEC_STALL_ABORT) so pipeline logs + the stage-0 pre-kill see them.
     if sys.platform == "win32":
         # Freerouting is a Java/Swing GUI app; on Windows (real desktop, no xvfb) its window
         # would pop to the foreground and steal focus from whatever you're doing. Ask Windows
@@ -447,19 +771,101 @@ def run_freerouting(
         run_kw["startupinfo"] = si
         run_kw["creationflags"] = subprocess.CREATE_NO_WINDOW
 
-    try:
-        result = subprocess.run(cmd, **run_kw)
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(
-            f"cec_fr.run_freerouting: timed out after {timeout}s "
-            f"(dsn={dsn_path!r}, jar={jar!r})"
-        ) from exc
-    finally:
-        if _own_workdir:
-            try:
+    # EXTERNAL PLATEAU-KILL (2026-07-14, replaces the in-FR -maxstall experiment: the
+    # in-jar abort left FR's improvement-bounded optimizer thrashing an incomplete
+    # board to timeout, 900s vs 194s). CEC_FR_PLATEAU_KILL=<k> + a -progress-capable
+    # jar: stream FR stdout, watch the CEC_PASS failed= counts, and KILL the JVM after
+    # k consecutive passes with no improvement while failures remain. The kill is
+    # CANDIDATE REJECTION (raises; route_once returns Candidate(ok=False)) -- a
+    # plateaued candidate is a loser whose board we do not want; the win is the
+    # wall-clock not spent finishing + optimizing garbage. Unset env = exactly the
+    # blocking subprocess.run path below.
+    _pk = os.environ.get("CEC_FR_PLATEAU_KILL", "")
+    if (_pk.isdigit() and int(_pk) > 0
+            and (FR_RELEASES.get(v) or {}).get("supports_progress")):
+        _k = int(_pk)
+        _pop_kw = {kk: vv for kk, vv in run_kw.items()
+                   if kk not in ("capture_output", "text", "timeout")}
+        # stderr MERGED into stdout (wave-13 stall forensic, 2026-07-15: a separate
+        # stderr PIPE that nobody drains deadlocks the JVM once it fills 64KB; and a
+        # timeout checked only when a line ARRIVES never fires on a silent child --
+        # select() below enforces the deadline for real).
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                text=True, bufsize=1, **_pop_kw)
+        _best, _streak, _killed, _lines = None, 0, False, []
+        _t0 = time.monotonic()
+        import select as _select
+        def _next_line():
+            while True:
+                if time.monotonic() - _t0 > timeout:
+                    proc.kill()
+                    raise RuntimeError(
+                        f"cec_fr.run_freerouting: timed out after {timeout}s "
+                        f"(dsn={dsn_path!r}, jar={jar!r})")
+                r, _w, _x = _select.select([proc.stdout], [], [], 10.0)
+                if r:
+                    return proc.stdout.readline()
+                if proc.poll() is not None:
+                    return ""
+        try:
+            while True:
+                _ln = _next_line()
+                if _ln == "":
+                    break
+                _lines.append(_ln)
+                if _ln.startswith("CEC_PASS "):
+                    print("[fr] " + _ln.strip(), flush=True)
+                    m_f = re.search(r"failed=(\d+)", _ln)
+                    m_g = re.search(r"togo=(\d+)", _ln)
+                    if m_f and m_g:
+                        # IMPROVEMENT = either counter dropping (wave-11 calibration,
+                        # 2026-07-15: failed= is the stable hard-core retry set and
+                        # sits flat from pass 2 while togo= is still falling 116->
+                        # 77->68->60 -- keying on failed alone culled ALL 16 live
+                        # candidates mid-progress. True plateau = BOTH flat.)
+                        _f, _g = int(m_f.group(1)), int(m_g.group(1))
+                        _cur = (_g, _f)
+                        if _best is None or _cur[0] < _best[0] or _cur[1] < _best[1]:
+                            _best = (_cur[0] if _best is None else min(_best[0], _cur[0]),
+                                     _cur[1] if _best is None else min(_best[1], _cur[1]))
+                            _streak = 0
+                        elif _f > 0:
+                            _streak += 1
+                            if _streak >= _k:
+                                _killed = True
+                                proc.kill()
+                                break
+            proc.wait(timeout=30)
+        finally:
+            if _own_workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
-            except Exception:
-                pass
+        if _killed:
+            print(f"[cec_fr] PLATEAU_KILL: togo/failed={_best} flat for {_streak} pass(es) "
+                  f"-- candidate rejected at {round(time.monotonic() - _t0, 1)}s",
+                  flush=True)
+            raise RuntimeError(
+                f"CEC_PLATEAU_KILL: unrouted plateau at togo/failed={_best} "
+                f"({_streak} flat passes)")
+        result = subprocess.CompletedProcess(
+            cmd, proc.returncode, "".join(_lines), proc.stderr.read() if proc.stderr else "")
+    else:
+        try:
+            result = subprocess.run(cmd, **run_kw)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"cec_fr.run_freerouting: timed out after {timeout}s "
+                f"(dsn={dsn_path!r}, jar={jar!r})"
+            ) from exc
+        finally:
+            if _own_workdir:
+                try:
+                    shutil.rmtree(workdir, ignore_errors=True)
+                except Exception:
+                    pass
+        for _ln in (result.stdout or "").splitlines():
+            if _ln.startswith(("CEC_PASS ", "CEC_STALL_ABORT ")):
+                print("[fr] " + _ln, flush=True)
 
     if result.returncode != 0:
         tail = (result.stdout + result.stderr)[-2000:]
@@ -548,6 +954,234 @@ def add_power_pours(board, pours, *, fill: bool = False):
 # ---------------------------------------------------------------------------
 # derive_power_pours -- auto-find the high-current pour rectangles from geometry
 # ---------------------------------------------------------------------------
+def _board_kelvin_pairs(board):
+    """Kelvin pairs from a LOADED board: name pairs (_HI/_LO) UNIONED with shunt-straddle
+    pairs (any 2-pad RS* footprint's two nets -- the 24-pin's 5V/5VSB rails carry a POWER
+    net on one shunt side and are invisible to the name rule; same derivation as
+    cec_score.Rules.from_board, 2026-07-08). Orientation: name hint, else the side a known
+    sense IC's IN+ pad taps, else lexical."""
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    pairs = {}
+    for h in sorted(names):
+        if h.endswith("_HI") and (h[:-3] + "_LO") in names:
+            pairs[frozenset((h, h[:-3] + "_LO"))] = (h, h[:-3] + "_LO")
+    inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+    ina_inp = set()
+    shunts = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference() or ""
+        val = (fp.GetValue() or "").upper()
+        want = next((v for k, v in inp_pin.items() if k in val), None)
+        for p in fp.Pads():
+            if want is not None and p.GetPadName() == want and p.GetNetname():
+                ina_inp.add(p.GetNetname())
+        if ref.startswith("RS") and fp.GetPadCount() == 2:
+            nets = sorted({p.GetNetname() for p in fp.Pads() if p.GetNetname()})
+            if len(nets) == 2:
+                shunts.append(tuple(nets))
+    for na, nb in shunts:
+        key = frozenset((na, nb))
+        if key in pairs:
+            continue
+        if na.endswith("_HI") or nb.endswith("_LO"):
+            hi, lo = na, nb
+        elif nb.endswith("_HI") or na.endswith("_LO"):
+            hi, lo = nb, na
+        elif na in ina_inp:
+            hi, lo = na, nb
+        elif nb in ina_inp:
+            hi, lo = nb, na
+        else:
+            hi, lo = na, nb
+        pairs[key] = (hi, lo)
+    return sorted(pairs.values())
+
+
+def _lane_width_mm(net):
+    """Lane width for a rail net under CEC_POUR_LANES. Default 6.0mm (2oz exterior,
+    ~10A at 30C rise first-order); per-net overrides via CEC_LANE_W_JSON. The FEM thermal
+    gate VERIFIES whatever is chosen -- widths here are provisional inputs, never trusted
+    conclusions."""
+    try:
+        import json as _json
+        return float(_json.loads(os.environ.get("CEC_LANE_W_JSON", "{}")).get(net,
+                     os.environ.get("CEC_LANE_W_MM", "6.0")))
+    except Exception:                                    # noqa: BLE001
+        return 6.0
+
+
+def _cluster_lanes(cluster, shunt_pts, net, bbox, margin, *, gap_mm=None):
+    """L-LANE rectangles for one pin cluster (strict no-parts-in-pours architecture).
+    Geometry (2026-07-08 v2): pad cover -> vertical lane at the CLUSTER x down to just
+    OUTSIDE the notch band -> horizontal jog AT the band edge (never along the shunt row:
+    a row-level jog crossed neighbor shunts) -> a narrow FINGER (pad-width, NOTCH-EXEMPT)
+    descending to the shunt pad. The band keeps PARTS out; copper enters only as fingers
+    -- without them a wide band would sever the force path from every pour."""
+    bx0, by0, bx1, by1 = bbox
+    w = _lane_width_mm(net)
+    g = (gap_mm if gap_mm is not None else _shunt_gap_mm()) / 2.0
+    xs = [p[0] for p in cluster]
+    ys = [p[1] for p in cluster]
+    ccx = sum(xs) / len(xs)
+    rects = [(max(bx0, min(xs) - margin), max(by0, min(ys) - margin),
+              min(bx1, max(xs) + margin), min(by1, max(ys) + margin))]
+    if shunt_pts:
+        sx = sum(p[0] for p in shunt_pts) / len(shunt_pts)
+        sy = sum(p[1] for p in shunt_pts) / len(shunt_pts)
+        cy = sum(ys) / len(ys)
+        from_above = cy <= sy
+        band_edge = (sy - g) if from_above else (sy + g)
+        # vertical lane: cluster -> band edge
+        vy0, vy1 = (min(ys), band_edge) if from_above else (band_edge, max(ys))
+        if vy1 - vy0 >= 0.8:
+            rects.append((max(bx0, ccx - w / 2), max(by0, vy0),
+                          min(bx1, ccx + w / 2), min(by1, vy1)))
+        # horizontal jog AT the band edge (outside the band)
+        if abs(ccx - sx) > w / 2:
+            jy0 = band_edge - w if from_above else band_edge
+            rects.append((max(bx0, min(ccx, sx) - w / 2), max(by0, jy0),
+                          min(bx1, max(ccx, sx) + w / 2), min(by1, jy0 + w)))
+        # FINGER: notch-exempt descent from the band edge to the shunt pad (pad-width-ish)
+        fw = 3.2
+        p_near = min(shunt_pts, key=lambda q: abs(q[1] - band_edge))
+        fy0, fy1 = (band_edge, p_near[1] + 1.0) if from_above else (p_near[1] - 1.0, band_edge)
+        rects.append((max(bx0, sx - fw / 2), max(by0, min(fy0, fy1)),
+                      min(bx1, sx + fw / 2), min(by1, max(fy0, fy1))))
+    return [r for r in rects if r[2] - r[0] >= 0.8 and r[3] - r[1] >= 0.6]
+
+def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
+                     inner_layer, *, margin=1.0, layer="F.Cu"):
+    """PURE-GEOMETRY pour-box core (box-model unification, 2026-07-08): both the pcbnew
+    extraction (derive_power_pours) and the PLACEMENT-side extractor feed this, so the
+    settle avoids EXACTLY the boxes the gate checks -- the two-model drift was the
+    cross-board craft blocker (re-stamped caps kept landing in gate boxes the settle
+    never saw). Inputs: pads_by_net = {net: [(ref, x_mm, y_mm, is_tht)]}; padcount =
+    {ref: n}; flipped = {ref: bool}; bbox = (bx0, by0, bx1, by1) already edge-cleared.
+    Returns the pour dict list."""
+    bx0, by0, bx1, by1 = bbox
+    pours = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {it[0] for it in pads_by_net.get(hi, [])}
+        refs_lo = {it[0] for it in pads_by_net.get(lo, [])}
+        # The shunt is the footprint straddling the pair with EXACTLY 2 pads (a Kelvin
+        # shunt). A differential INA also has a pad on each of HI/LO but is multi-pad, so
+        # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
+        # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
+        shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        # PER-SIDE (dual-sided, 2026-07-08): a back-side rail's pours go on B.Cu, keyed off
+        # the shunt's face (THT connector/blade barrels reach both faces, so a B pour
+        # connects them identically).
+        pair_layer = layer
+        if shunt_refs and flipped.get(sorted(shunt_refs)[0]):
+            pair_layer = "B.Cu"
+        if inner_layer is not None:
+            pair_layer = inner_layer
+        # shunt centre + corridor axis (for the SHUNT_GAP_MM notch): the two pads of the 2-pad shunt
+        # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
+        # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
+        # keeps hugging the shunt pad, the historical behaviour).
+        sh_pads = [(px, py) for ref, px, py, _t in (pads_by_net.get(hi, []) + pads_by_net.get(lo, []))
+                   if ref in shunt_refs]
+        shunt_xy = vertical = None
+        if _shunt_gap_on() and len(sh_pads) >= 2:
+            scx = sum(q[0] for q in sh_pads) / len(sh_pads)
+            scy = sum(q[1] for q in sh_pads) / len(sh_pads)
+            shunt_xy = (scx, scy)
+            vertical = (max(q[1] for q in sh_pads) - min(q[1] for q in sh_pads)) >= \
+                       (max(q[0] for q in sh_pads) - min(q[0] for q in sh_pads))
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            has_tht = any(it[3] for it in entries)
+            if not has_tht:
+                continue                          # not a cable high-current net -> skip
+            tht_pts, shunt_pts = [], []
+            for ref, px, py, is_tht in entries:
+                if ref in shunt_refs:
+                    shunt_pts.append((px, py))
+                elif is_tht:
+                    tht_pts.append((px, py))
+            if not (tht_pts or shunt_pts):
+                continue
+            # PER-CLUSTER FAN-IN (escalated review 2026-07-08): the ATX-24's interleaved
+            # pinout puts one rail's pins in 2-3 groups across the header; one bbox over all
+            # of them spanned the board and overlapped the neighbor rails' pours on the same
+            # layer (mass unconnected + foreign-on-pour). One sub-pour per pin x-cluster,
+            # each converging on the shunt, keeps the copper a fan instead of a blanket.
+            clusters = _x_clusters(tht_pts) or [[]]
+            _lanes_on = os.environ.get("CEC_POUR_LANES", "0") == "1"
+            for cluster in clusters:
+                if _lanes_on and cluster:
+                    for (lx0, ly0, lx1, ly1) in _cluster_lanes(cluster, shunt_pts, net,
+                                                               (bx0, by0, bx1, by1), margin):
+                        # lanes carry their own band/finger geometry -- no notch re-clip
+                        pours.append({"net": net, "layer": pair_layer,
+                                      "polygon": [(lx0, ly0), (lx1, ly0),
+                                                  (lx1, ly1), (lx0, ly1)]})
+                    continue
+                heavy = list(cluster) + shunt_pts
+                if not heavy:
+                    continue
+                xs = [x for x, _ in heavy]
+                ys = [y for _, y in heavy]
+                x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
+                y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
+                if shunt_xy is not None:          # open the un-poured notch at the shunt to SHUNT_GAP_MM
+                    x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, _shunt_gap_mm(),
+                                                       vertical=vertical)
+                pours.append({"net": net, "layer": pair_layer,
+                              "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
+    # SAME-LAYER OVERLAP CLIP (escalated review round 2, 2026-07-08): fan sub-boxes can
+    # overlap on one layer -- CROSS-NET (broken fills) and SAME-NET too: KiCad flags
+    # equal-priority overlapping zones as zones_intersect even on one net (measured: the
+    # 3V3/5V fans converging at their shunt). Deterministic priority = list order (earlier
+    # box wins); the later box is clipped on the axis that loses less area, dropped if it
+    # degenerates (< 1mm). Same-net clipped boxes ABUT exactly, so their fills stay
+    # electrically continuous at the shared edge.
+    def _rect(p):
+        xs = [q[0] for q in p["polygon"]]; ys = [q[1] for q in p["polygon"]]
+        return min(xs), max(xs), min(ys), max(ys)
+    kept = []
+    for p in pours:
+        x0, x1, y0, y1 = _rect(p)
+        dead = False
+        for q in kept:
+            if q["layer"] != p["layer"]:
+                continue
+            qx0, qx1, qy0, qy1 = _rect(q)
+            if x1 <= qx0 or x0 >= qx1 or y1 <= qy0 or y0 >= qy1:
+                continue
+            # clip p on the cheaper axis
+            cands = []
+            if qx0 > x0:
+                cands.append(("x1", qx0, (x1 - qx0) * (y1 - y0)))
+            if qx1 < x1:
+                cands.append(("x0", qx1, (qx1 - x0) * (y1 - y0)))
+            if qy0 > y0:
+                cands.append(("y1", qy0, (x1 - x0) * (y1 - qy0)))
+            if qy1 < y1:
+                cands.append(("y0", qy1, (x1 - x0) * (qy1 - y0)))
+            if not cands:
+                dead = True                              # fully contained
+                break
+            edge, val, _loss = min(cands, key=lambda c: c[2])
+            if edge == "x0":
+                x0 = val
+            elif edge == "x1":
+                x1 = val
+            elif edge == "y0":
+                y0 = val
+            else:
+                y1 = val
+            if x1 - x0 < 1.0 or y1 - y0 < 1.0:
+                dead = True
+                break
+        if not dead:
+            p["polygon"] = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            kept.append(p)
+    return kept
+
+
+
 def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
                        layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
     """Auto-derive additive high-current pour rectangles for an interposer board.
@@ -568,61 +1202,46 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
     Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
     that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
+
+    POUR LEVER (stage 1, docs/pour-lever-scoping-2026-07-08.md): this is now a thin POST-ROUTE
+    VIEW of a ``cec_pourplan.PourPlan`` -- ``PourPlan.from_board`` runs the SAME board-read +
+    ``_pour_boxes_core`` geometry kernel this body used to, and ``pour_polygons()`` returns the
+    identical ``{net, layer, polygon}`` dict list. Kept byte-for-byte (build/pourwt teeth).
     """
-    from collections import defaultdict
-    board = board if board is not None else pcbnew.LoadBoard(board_path)
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
-    if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
-
-    bb = board.GetBoardEdgesBoundingBox()
-    bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
-    bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
-
-    pads_by_net = defaultdict(list)
-    padcount = defaultdict(int)
-    for fp in board.GetFootprints():
-        ref = fp.GetReference()
-        for p in fp.Pads():
-            padcount[ref] += 1
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net[nn].append((ref, p))
-
-    pours = []
-    for hi, lo in kelvin_pairs:
-        refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
-        refs_lo = {ref for ref, _ in pads_by_net.get(lo, [])}
-        # The shunt is the footprint straddling the pair with EXACTLY 2 pads (a Kelvin
-        # shunt). A differential INA also has a pad on each of HI/LO but is multi-pad, so
-        # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
-        # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
-        shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
-        for net in (hi, lo):
-            entries = pads_by_net.get(net, [])
-            has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
-            if not has_tht:
-                continue                          # not a cable high-current net -> skip
-            heavy = []
-            for ref, p in entries:
-                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH or ref in shunt_refs:
-                    pos = p.GetPosition()
-                    heavy.append((pos.x / MM, pos.y / MM))
-            if not heavy:
-                continue
-            xs = [x for x, _ in heavy]
-            ys = [y for _, y in heavy]
-            x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
-            y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
-            pours.append({"net": net, "layer": layer,
-                          "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
-    return pours
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_board(
+        board_path, board=board, kelvin_pairs=kelvin_pairs,
+        margin=margin, edge_clear=edge_clear, layer=layer).pour_polygons()
 
 
-def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None):
+def _x_clusters(pts, gap_mm=8.0):
+    """Split (x,y) points into x-clusters (single-linkage, split at > gap_mm). The ATX-24's
+    interleaved pinout puts one rail's pins in 2-3 groups across the header; one bbox over
+    all of them spans the board (escalated review 2026-07-08) -- fan-in per cluster instead."""
+    if not pts:
+        return []
+    pts = sorted(pts)
+    out = [[pts[0]]]
+    for p in pts[1:]:
+        if p[0] - out[-1][-1][0] > gap_mm:
+            out.append([p])
+        else:
+            out[-1].append(p)
+    return out
+
+
+def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None,
+                      layers=("F.Cu", "B.Cu")):
     """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
     high-current-pour-integrity / kelvin-tap-inner-shunt-edge corpus rules).
+
+    *layers* selects which copper layers the keepout reserves. The default reserves BOTH outer pour
+    layers (F.Cu + B.Cu) so a foreign trace cannot cut either mirror. Passing ``("F.Cu",)`` reserves
+    ONLY F.Cu -- the "layer-tier lever": foreign then routes on B.Cu UNDER the F.Cu pour (which the
+    no-foreign-on-high-current-pour gate, F.Cu-scoped, treats as clear), so pass-1 itself lands
+    foreign-on-pour=0 with the F.Cu pour solid, WITHOUT a TPC re-route (whose track-based LO re-route
+    trips the cut-vertex kelvin check). Pair with tap_channel_keepouts so the notch tap channels stay
+    clear too.
 
     Reserve each high-current FORCE corridor -- the cable connector THT pads' span extended to the 2-pad
     Kelvin shunt -- as a Freerouting keepout, CLIPPED on the shunt's inner side so the tap window
@@ -634,12 +1253,36 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
     This is the piece cec_router.route() has (so it converges) and route_directed lacked (so the agentic
     loop stalled on pour-clip). Force nets = the Kelvin _HI/_LO pairs + the 12V nets (derived from the
     board via cec_score.Rules when not given). SELF-GATING: a net with no THT cable pad or no 2-pad shunt
-    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts."""
-    board = board if board is not None else pcbnew.LoadBoard(board_path)
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts.
+
+    POUR LEVER (stage 1, docs/pour-lever-scoping-2026-07-08.md): this is now a thin PRE-ROUTE VIEW
+    of a ``cec_pourplan.PourPlan`` -- ``PourPlan.keepout_hints`` reboxes the plan's own pours in
+    LANE mode (the keepouts ARE the lane pour shapes) and delegates to ``_force_corridor_hints``
+    (the non-lane force-corridor loop below, extracted verbatim) otherwise. Byte-identical (teeth)."""
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_board(
+        board_path, board=board, kelvin_pairs=kelvin_pairs,
+        nets_12v=nets_12v).keepout_hints(layers=layers)
+
+
+def _force_corridor_hints(board, board_path, *, kelvin_pairs=None, nets_12v=None,
+                          layers=("F.Cu", "B.Cu")):
+    """NON-LANE force-corridor keepout body (pour lever stage 1, extracted VERBATIM from the old
+    corridor_keepouts): reserve each cable connector->shunt FORCE corridor as a Freerouting keepout,
+    CLIPPED at the shunt notch so the Kelvin tap window stays open. ``PourPlan.keepout_hints``
+    delegates here for the non-lane path (the lane path reboxes the plan's own ``pour_polygons()``).
+    *board* is already loaded; *kelvin_pairs* resolved by the plan (else board-derived here)."""
+    _inner_mode = False
+    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # see derive_power_pours: experimental
+        for _lid in range(pcbnew.PCB_LAYER_ID_COUNT):
+            try:
+                if board.GetLayerName(_lid) == "PWR_RT" and board.GetLayerType(_lid) == pcbnew.LT_SIGNAL:
+                    _inner_mode = True
+                    break
+            except Exception:                                # noqa: BLE001
+                pass
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     if nets_12v is None:
         try:
             import cec_score
@@ -665,28 +1308,91 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
-                 for fp in board.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
-                 for p in fp.Pads() if p.GetNetname() == net]
+        # the 2-pad shunt footprint straddling this net. STRADDLE-FIRST (escalated review
+        # 2026-07-08): the shunt is the 2-pad footprint whose pads sit on BOTH members of
+        # the net's kelvin pair (prefer RS*) -- the old any-2-pad-on-the-net rule grabbed a
+        # DECOUPLING CAP on rail-sided nets (+5V_MAIN), collapsing the corridor to a sliver.
+        pair_other = None
+        for hi, lo in kelvin_pairs:
+            if net == hi:
+                pair_other = lo
+            elif net == lo:
+                pair_other = hi
+        cands = []
+        for fp in board.GetFootprints():
+            if npads.get(fp.GetReference(), 0) != 2:
+                continue
+            fp_nets = {p.GetNetname() for p in fp.Pads()}
+            if net not in fp_nets:
+                continue
+            if pair_other is not None and pair_other not in fp_nets:
+                continue                                     # not the straddle part (a cap)
+            if pair_other is None and not fp.GetReference().startswith("RS"):
+                continue                                     # non-pair net (name-matched "12V"
+                                                             # like /ATX_NEG12V): only a REAL
+                                                             # shunt makes it a force corridor
+            cands.append(fp)
+        cands.sort(key=lambda f: (not f.GetReference().startswith("RS"), f.GetReference()))
+        shunt = []
+        shunt_centre_y = None
+        shunt_flipped = False
+        if cands:
+            fp = cands[0]
+            shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                     for p in fp.Pads() if p.GetNetname() == net]
+            shunt_centre_y = fp.GetPosition().y / MM
+            shunt_flipped = fp.IsFlipped()
         if not tht or not shunt:
             continue                                         # not a cable-connector high-current net
+        # PER-PAIR LAYER (dual-sided): a flipped chain's pour lives on B.Cu -- reserve THAT,
+        # never F.Cu-only (the oracle's F-only lever was inverted for back chains). INNER-POUR
+        # boards (PWR_RT layer) reserve In2 instead -- the rail copper lives there and both
+        # faces stay free for signals.
+        net_layers = ("B.Cu",) if (shunt_flipped and tuple(layers) == ("F.Cu",)) else tuple(layers)
+        if _inner_mode:
+            net_layers = ("In2.Cu",)
         sx, sy = shunt[0]
-        txs = [x for x, _ in tht]
-        tys = [y for _, y in tht]
-        tcy = sum(tys) / len(tys)
-        x0 = min(txs + [sx]) - 1.0
-        x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom AT shunt
-            y0, y1 = min(tys) - 1.0, sy
-        else:                                                # shunt ABOVE the connector (cable-out): clip top AT shunt
-            y0, y1 = sy, max(tys) + 1.0
-        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
-                      "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
-                      # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
-                      # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
-                      "block_fills": False})
+        # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
+        # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
+        clip_hi = (shunt_centre_y - _shunt_gap_mm() / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        clip_lo = (shunt_centre_y + _shunt_gap_mm() / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        # PER-CLUSTER FAN-IN (escalated review 2026-07-08): one box per connector pin
+        # x-cluster, each converging on the shunt column -- never one bbox over an
+        # interleaved rail's whole pin spread (the 5V box spanned the board).
+        for ci, cluster in enumerate(_x_clusters(tht)):
+            txs = [x for x, _ in cluster]
+            tys = [y for _, y in cluster]
+            tcy = sum(tys) / len(tys)
+            x0 = min(txs + [sx]) - 1.0
+            x1 = max(txs + [sx]) + 1.0
+            if sy >= tcy:                                    # shunt BELOW the connector (cable-in): clip bottom at the notch top
+                y0, y1 = min(tys) - 1.0, clip_hi
+            else:                                            # shunt ABOVE the connector (cable-out): clip top at the notch bottom
+                y0, y1 = clip_lo, max(tys) + 1.0
+            hints.append({"name": f"corr_{net.strip('/')}_{ci}" if ci else f"corr_{net.strip('/')}",
+                          "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2),
+                          "layers": net_layers, "allow_vias": True,
+                          # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
+                          # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
+                          "block_fills": False})
     return hints
+
+
+def _fp_bbox_no_text(fp):
+    """A footprint's bounding box EXCLUDING its silk/fab reference + value TEXT. pcbnew's bare
+    FOOTPRINT.GetBoundingBox() folds in the F.Fab Value string, so a tiny part with a long value
+    reads enormous -- the M3 mounting hole (true courtyard 6.95mm) reports a 25.54mm-wide bbox
+    because its Value is the 28-char 'MountingHole_3.2mm_M3_Pad_Via'. Used by edge_keepout so an
+    edge-resident part's keepout EXCLUSION is its real copper/courtyard extent, not its text (an
+    inflated mount bbox otherwise punched a ~25mm hole in the board-edge keepout strip)."""
+    try:
+        return fp.GetBoundingBox(False, False)              # (aIncludeText=False, aIncludeInvisibleText=False)
+    except TypeError:
+        try:
+            return fp.GetBoundingBox(False)
+        except TypeError:
+            return fp.GetBoundingBox()
 
 
 def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
@@ -718,7 +1424,7 @@ def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs
     allow = []                                              # inflated bboxes that may touch the edge
     for fp in own.GetFootprints():
         if _edge_resident(fp):
-            fb = fp.GetBoundingBox()
+            fb = _fp_bbox_no_text(fp)
             allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
                           fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
 
@@ -762,6 +1468,78 @@ def _pt_seg_dist(px, py, ax, ay, bx, by):
     return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 
 
+def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, dia=0.9,
+                          stub_w=1.0, clear=0.25):
+    """INNER-POUR companion (2026-07-08): each 2-pad SMD shunt pad gets *n_per_pad* through-vias
+    just OUTBOARD of the pad (away from the shunt body, so the kelvin inner-edge tap window
+    stays untouched) plus a same-net face STUB from the pad to each via -- the force path
+    pad -> stub -> via -> In2 rail pour. Guarded: a via/stub that would collide with foreign
+    copper (track/pad/via) within *clear* is skipped (fewer parallel barrels, honest). Lays
+    copper only for pairs whose straddle shunt exists; returns {pads, vias, stubs}."""
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    nets = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    from collections import defaultdict
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            if p.GetNetname():
+                pads_by_net[p.GetNetname()].append((fp.GetReference(), p, fp))
+    n_v = n_s = n_p = 0
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        sh = next((r for r in sorted(refs_hi & refs_lo)
+                   if r.startswith("RS") and padcount.get(r) == 2), None)
+        if sh is None:
+            continue
+        sh_pads = [(net, p) for net in (hi, lo) for r, p, _f in pads_by_net.get(net, []) if r == sh]
+        if len(sh_pads) != 2:
+            continue
+        (net_a, pa), (net_b, pb) = sh_pads
+        for net, p, other in ((net_a, pa, pb), (net_b, pb, pa)):
+            nc = nets.get(net)
+            if nc is None:
+                continue
+            pos, opos = p.GetPosition(), other.GetPosition()
+            # outboard direction: away from the other terminal
+            dx, dy = pos.x - opos.x, pos.y - opos.y
+            L = max((dx * dx + dy * dy) ** 0.5, 1)
+            ux, uy = dx / L, dy / L
+            step = _nm(dia + 0.35)
+            base = pcbnew.VECTOR2I(int(pos.x + ux * _nm(1.6)), int(pos.y + uy * _nm(1.6)))
+            perp = (-uy, ux)
+            placed = 0
+            for k in range(n_per_pad):
+                off = (k - (n_per_pad - 1) / 2.0)
+                at = pcbnew.VECTOR2I(int(base.x + perp[0] * off * step),
+                                     int(base.y + perp[1] * off * step))
+                if not _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
+                                               board.GetLayerID(p.GetLayerName()), nc, set()):
+                    continue
+                v = pcbnew.PCB_VIA(board)
+                v.SetPosition(at)
+                v.SetDrill(_nm(drill))
+                v.SetWidth(_nm(dia))
+                v.SetNetCode(nc)
+                board.Add(v)
+                tr = pcbnew.PCB_TRACK(board)
+                tr.SetStart(pos)
+                tr.SetEnd(at)
+                tr.SetWidth(_nm(stub_w))
+                tr.SetLayer(board.GetLayerID(p.GetLayerName()))
+                tr.SetNetCode(nc)
+                board.Add(tr)
+                n_v += 1
+                n_s += 1
+                placed += 1
+            if placed:
+                n_p += 1
+    return {"pads": n_p, "vias": n_v, "stubs": n_s}
+
+
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
                      clearance=0.2, kelvin_pairs=None, board=None):
     """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
@@ -776,8 +1554,7 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
     board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
     all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
@@ -863,6 +1640,485 @@ def add_via_field(board, fields):
             board.Add(v)
             added.append(v)
     return added
+
+
+# ---------------------------------------------------------------------------
+# synthesize_kelvin_taps -- the GENERATIVE four-wire Kelvin inner-leg tap (§6.8)
+# ---------------------------------------------------------------------------
+def _inner_edge_pt(this_pad, other_pos, inset_mm=0.0):
+    """The §6.8 inner-edge sense point of a shunt pad: the centre of the pad EDGE that faces the
+    other terminal. inner_dir = unit(other_terminal - this_pad); the point is pad_centre advanced
+    by the pad half-extent ALONG inner_dir. This is byte-for-byte the inner-ness math the checker
+    uses (cec_constraints._chk_kelvin_inner: tap_pt = centre + inner_dir*(|ix|*sx/2 + |iy|*sy/2)),
+    so a tap STARTED here passes the inner-edge assertion by construction. Returns (x_mm, y_mm,
+    inner_dx, inner_dy).
+
+    *inset_mm* pulls the point that far BACK from the exact boundary toward the pad centre. The
+    builder lays the tap start with a small inset so the endpoint sits unambiguously INSIDE the pad
+    copper -- a point exactly on the boundary reads as a track_dangling end in KiCad connectivity
+    once it is a lone arm (when the sibling INA tap on the same pad is guard-refused, it no longer
+    shares the junction). The inset stays a small fraction of the pad reach, so inner-ness remains
+    far above the checker's inner_min."""
+    pc = this_pad.GetPosition()
+    dx, dy = (other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM
+    dn = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / dn, dy / dn                                   # inner direction (board frame, toward other terminal)
+    sz = this_pad.GetSize()
+    # PROJECT inner_dir onto the pad's LOCAL axes so reach is the TRUE edge distance even when the
+    # footprint (hence pad) is rotated: GetSize() is the UNROTATED size, so on a rot +-90 shunt the
+    # board-x/board-y extents are swapped and a naive |ux|*sx/2+|uy|*sy/2 lands the start OFF the pad
+    # (~1mm into the gap on the EPS R_2512 shunt -- it never tapped the shunt edge; the sibling INA tap
+    # meeting at that off-pad junction merely hid it). Support function of the local-axis rectangle:
+    # reach = |d.xhat|*hx + |d.yhat|*hy with d projected into the pad frame.
+    try:
+        ang = math.radians(this_pad.GetOrientationDegrees())
+    except Exception:                                          # older binding: EDA_ANGLE
+        ang = this_pad.GetOrientation().AsRadians()
+    ca, sa = math.cos(ang), math.sin(ang)
+    lux = ux * ca + uy * sa                                    # inner_dir in the pad-local frame
+    luy = -ux * sa + uy * ca
+    reach = abs(lux) * (sz.x / MM) / 2.0 + abs(luy) * (sz.y / MM) / 2.0
+    reach = max(0.0, reach - max(0.0, inset_mm))
+    return pc.x / MM + ux * reach, pc.y / MM + uy * reach, ux, uy
+
+
+# Current-sense IC input-pad map, keyed by part-value substring. The footprint pads carry
+# no GetPinFunction() (measured empty on the EPS INA238/INA181 lands), so the IN+ / IN- pin is
+# resolved by part value + pad NUMBER. IN+ takes the _HI tap, IN- takes the _LO tap. CRITICAL:
+# on the INA238/228 the _LO net carries BOTH IN-(pad 9) AND Vbus(pad 8) -- the old nearest-by-
+# distance picker grabbed Vbus (the GND-adjacent pad), so the straight stub shorted to GND. Pin
+# function is the correct selector.
+_SENSE_INPAD = {
+    "INA238": {"HI": "10", "LO": "9"},   # VSSOP-10: 10=IN+, 9=IN-, 8=Vbus
+    "INA228": {"HI": "10", "LO": "9"},
+    "INA181": {"HI": "3",  "LO": "4"},   # 3=IN+, 4=IN-
+}
+
+
+def _sense_in_pad(fp, role):
+    """The IN+/IN- input pad NAME of a current-sense IC for the given role ('HI'->IN+, 'LO'->IN-).
+    Maps by part value (footprint pads carry no pin function). Returns the pad name, or None when
+    the part is unrecognised (caller falls back to nearest-pad)."""
+    val = (fp.GetValue() or "").upper()
+    for key, m in _SENSE_INPAD.items():
+        if key in val:
+            return m.get(role)
+    return None
+
+
+def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_codes):
+    """True iff a single straight F.Cu segment S->T (width width_nm) has NO FOREIGN-net copper
+    within clearance_nm on layer_id. FOREIGN = any pad/track/via whose net code is NOT in
+    sense_codes (the set of all _HI/_LO Kelvin-pair codes -- so the partner sense leg and the
+    tap's own net never count, only GND/+3V3/signal/power foreign copper does). Uses the SAME
+    GetEffectiveShape().Collide() geometry KiCad DRC uses, so a PASS here is DRC-clean for copper
+    clearance on this segment -- the guard that lets the tap REFUSE rather than lay a shorting stub."""
+    seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() in sense_codes:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(seg, clearance_nm):
+                    return False
+            except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+    for t in board.GetTracks():
+        if t.GetNetCode() in sense_codes:
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            if layer_id not in t.GetLayerSet().CuStack():
+                continue
+        elif t.GetLayer() != layer_id:
+            continue
+        try:
+            if t.GetEffectiveShape(layer_id).Collide(seg, clearance_nm):
+                return False
+        except Exception:                           # noqa: BLE001
+            continue
+    return True
+
+
+def _tap_pair_overlap_clear(board, S, T, width_nm, layer_id, own_code, sense_codes):
+    """True iff the segment S->T does not PLOW THROUGH a sense pad of a DIFFERENT sense net.
+    The foreign guard (_tap_foreign_clear) deliberately ignores ALL sense-net copper (the partner
+    leg is legitimately ADJACENT at sub-clearance in the seated notch), which is safe for the
+    short straight taps but NOT for a multi-leg dogleg that could route a LO leg straight across
+    the shunt's HI pad -- a real short DRC would catch only after the copper is laid. This guard
+    closes that: different-sense-net pads are tested at a merely-touching clearance (0.02mm), so
+    adjacency stays allowed and overlap is refused."""
+    seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    near_nm = _nm(0.02)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nc = p.GetNetCode()
+            if nc == own_code or nc not in sense_codes:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(seg, near_nm):
+                    return False
+            except Exception:                       # noqa: BLE001
+                continue
+    return True
+
+
+def _canonical_tap_path(S, T, ux, uy, *, run_pref_mm=0.9, run_min_mm=0.3, gap_mm=None):
+    """The TEXTBOOK datasheet Kelvin tap shape (owner directive 2026-07-08): exit the
+    shunt pad's INNER edge PERPENDICULAR to it (= along the inner direction u), run
+    straight inward "a ways", then ONE 90-degree turn toward the sense IC, final
+    approach parallel to the axis. Decompose T-S onto (u, perp): axial a, lateral b.
+    Path = S -> P1 (u * run) -> P2 (perp * b) -> T (u * (a - run)). Canonical only
+    when the IC sits INWARD (a > run_min); the turn happens at or before the IC's
+    axial coordinate and inside the inter-pad gap. Returns the polyline or None."""
+    ax = (T.x - S.x) / MM
+    ay = (T.y - S.y) / MM
+    a = ax * ux + ay * uy                                # axial component (inward)
+    px, py = -uy, ux                                     # perpendicular unit
+    b = ax * px + ay * py                                # lateral component
+    if a <= run_min_mm:
+        return None                                      # IC not inward -- not canonical
+    run = min(run_pref_mm, a)
+    if gap_mm is not None:
+        run = min(run, max(run_min_mm, gap_mm * 0.45))   # stay inside the inter-pad gap
+    if run < run_min_mm:
+        return None
+    P1 = pcbnew.VECTOR2I(S.x + _nm(ux * run), S.y + _nm(uy * run))
+    P2 = pcbnew.VECTOR2I(P1.x + _nm(px * b), P1.y + _nm(py * b))
+    path = [S, P1]
+    if (P2.x, P2.y) != (P1.x, P1.y):
+        path.append(P2)
+    if (T.x, T.y) != (path[-1].x, path[-1].y):
+        path.append(T)
+    return path if len(path) >= 3 else None
+
+
+def _dogleg_candidates(S, T):
+    """Candidate 2-3 leg orthogonal paths S->..->T for a REFUSED straight tap, nearest-to-straight
+    first: the two L-bends, then channel doglegs that run the long axis at a fraction of the
+    offset (the '1-bend LO tap down the open notch'). Pure geometry -- every leg is still guarded
+    before anything is laid."""
+    out = [[S, pcbnew.VECTOR2I(S.x, T.y), T],
+           [S, pcbnew.VECTOR2I(T.x, S.y), T]]
+    for f in (0.5, 0.3, 0.7):
+        xf = int(S.x + f * (T.x - S.x))
+        yf = int(S.y + f * (T.y - S.y))
+        out.append([S, pcbnew.VECTOR2I(xf, S.y), pcbnew.VECTOR2I(xf, T.y), T])
+        out.append([S, pcbnew.VECTOR2I(S.x, yf), pcbnew.VECTOR2I(T.x, yf), T])
+    return out
+
+
+def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=9.0,
+                           clearance=0.2):
+    """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
+    2-pad shunt's INNER edge (the sense point facing the other terminal) to each seated current-sense
+    IC's matching input pad on that net -- HI-inner -> IN+ (the *_HI pad), LO-inner -> IN- (the *_LO
+    pad). The kelvin half cec_fr never had: derive_power_pours deliberately EXCLUDES the INA SMD sense
+    pads, so the HI box (cable-in -> shunt) and the LO box (shunt -> cable-out) stop ~3.9mm short of
+    each other at the shunt -- an open tap window. This lays the §6.8 inner-edge sense connection INTO
+    that window.
+
+    ADDITIVE same-net copper, run AFTER the route (like add_power_pours / add_via_field), so it can
+    only ADD a clean direct sense connection -- it never reshapes Freerouting's global solution and so
+    never strands the sense (the kelvin_ok gate holds). The stub starts on the shunt-pad copper at the
+    inner edge and merges with the same-net pour (ZONE_CONNECTION_FULL). NO VIA: each tap is a single
+    F.Cu segment (inner edge -> IN pad), so the sense never folds via inductance into the loop (§6.8).
+    The inner-edge geometry MATCHES cec_constraints._chk_kelvin_inner, so the build and the constraint
+    check agree by construction.
+
+    TWO defences against the stub shorting to foreign copper in the seated channel:
+      (1) PIN-FUNCTION termination -- the tap lands on the IN+/IN- pad by FUNCTION (HI->IN+, LO->IN-),
+          NOT the nearest pad by distance. The INA238/228 carries BOTH IN-(pad 9) and Vbus(pad 8) on
+          the _LO net; the old nearest-pick grabbed Vbus, which sits 0.5mm from the GND pad, so the
+          straight stub clipped GND. IN- is the §6.8 termination and sits clear of the GND cluster.
+      (2) CLEARANCE GUARD -- before laying, the straight stub is tested against all FOREIGN-net copper
+          (GND/+3V3/signal/power; the partner sense leg is never foreign) at the board *clearance*
+          using the same Collide() geometry DRC uses. If it is NOT clear the tap is REFUSED (laid
+          nowhere) and recorded in report['refused'] -- a shorting stub is NEVER laid (owner directive:
+          the tap yields to foreign copper, it never plows through it; a refused tap re-surfaces the
+          inner_tap placement directive so the seat can re-open the channel).
+
+    SELF-GATING: a board with no 2-pad straddle shunt, or no INA input pad on a sense net within
+    max_ic_mm of the shunt (shared-bus 24-pin / filtered 12VHPWR lanes), lays nothing and is a no-op.
+    Pass an already-loaded *board* (additive, in place). Returns a report dict
+    {taps, by_net: {net: ["RSn->Uk.pad", ...]}, refused: {net: [...]}}."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    # all _HI/_LO Kelvin codes -- foreign-copper guard treats none of these as foreign (the partner
+    # sense leg is legitimately adjacent; a real HI<->LO short is caught by DRC + the hardened gate).
+    sense_codes = {board.GetNetcodeFromNetname(n) for n in force_nets}
+
+    pads_by_net = defaultdict(list)                            # net -> [(ref, pad, fp)]
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+
+    f_cu = board.GetLayerID(layer)
+    if f_cu < 0:
+        raise KeyError(f"cec_fr.synthesize_kelvin_taps: layer {layer!r} not found")
+    clr_nm = _nm(clearance)
+    laid, report, refused = [], {}, {}
+    pending = []                                              # decide-then-lay: guard sees no in-call taps
+    for hi, lo in kelvin_pairs:
+        # the shunt is the footprint straddling BOTH halves with EXACTLY 2 pads (same test as
+        # derive_power_pours -- a differential INA is multi-pad and so excluded).
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        # PER-SIDE (dual-sided boards, 2026-07-08): a back-side rail chain's taps lay on
+        # B.Cu -- keyed off the SHUNT footprint's face (the chain shares it by invariant).
+        sh_fp = next((f for r, _p, f in pads_by_net.get(hi, []) if r == sh), None)
+        lay_id = board.GetLayerID("B.Cu") if (sh_fp is not None and sh_fp.IsFlipped()) else f_cu
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos = sh_pad[hi].GetPosition()
+        lo_pos = sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos, role in ((hi, sh_pad[hi], lo_pos, "HI"),
+                                               (lo, sh_pad[lo], hi_pos, "LO")):
+            pc = this_pad.GetPosition()
+            # inset the start a hair inside the pad so the endpoint connects to the pad copper
+            # even as a lone arm (the sibling INA tap may be guard-refused -> no shared junction).
+            psz = this_pad.GetSize()
+            reach = math.hypot(psz.x / MM, psz.y / MM) / 2.0
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos, inset_mm=min(0.12, reach * 0.25))
+            S = pcbnew.VECTOR2I(_nm(tx), _nm(ty))
+            nc = board.GetNetcodeFromNetname(net)
+            # each seated current-sense IC's input pad on THIS net, chosen by PIN FUNCTION
+            # (HI->IN+, LO->IN-) -- not nearest-by-distance (defence 1). INA238/228 + the §6.13
+            # INA181 detection amp both tap the shunt; skip a stray INA farther than max_ic_mm.
+            ic_pad = {}                                       # ref -> pad (the IN+/IN- pad)
+            ic_fp = {}                                        # ref -> footprint
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue                                  # not the IN+/IN- pad of a known part
+                d = math.hypot((p.GetPosition().x - pc.x) / MM, (p.GetPosition().y - pc.y) / MM)
+                if d > max_ic_mm:
+                    continue
+                ic_fp[r] = fp
+                if r not in ic_pad:
+                    ic_pad[r] = p
+                else:                                         # unknown part: keep the nearest sense pad
+                    d0 = math.hypot((ic_pad[r].GetPosition().x - pc.x) / MM,
+                                    (ic_pad[r].GetPosition().y - pc.y) / MM)
+                    if d < d0:
+                        ic_pad[r] = p
+            for r, p in sorted(ic_pad.items()):
+                T = p.GetPosition()
+                lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
+                # CANONICAL FIRST (owner 2026-07-08): the textbook datasheet tap --
+                # perpendicular off the inner edge, straight run inward, ONE 90 toward
+                # the sense IC. Preferred over the direct diagonal whenever it guards
+                # clean; falls through to straight, then doglegs, then refusal.
+                _gap = math.hypot((other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM)
+                canon = _canonical_tap_path(S, T, _ux, _uy, gap_mm=_gap)
+                if canon is not None:
+                    legs = list(zip(canon, canon[1:]))
+                    if all(a != b for a, b in legs) and \
+                       all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
+                                              sense_codes) and
+                           _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
+                                                   sense_codes)
+                           for a, b in legs):
+                        pending.append((canon, nc, net, lbl + " (canonical)", lay_id))
+                        continue
+                # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
+                if _tap_foreign_clear(board, S, T, _nm(width), lay_id, clr_nm, sense_codes):
+                    pending.append(([S, T], nc, net, lbl, lay_id))
+                    continue
+                # BENT-TAP FALLBACK (the ina238-lo-tap-refusal fix, 2026-07-07): the INA238's
+                # IN-(pad 9) sits mid-column with GND(7)/SDA(6) below it, so the straight stub
+                # from the LO inner edge clips the IC's OWN foreign pads. Try orthogonal
+                # doglegs down the open notch; EVERY leg must pass BOTH the foreign-clearance
+                # guard AND the different-sense-net overlap guard (a bent LO leg must never
+                # cross the shunt's HI pad, which the foreign guard deliberately ignores).
+                # Still via-free single-layer F.Cu (§6.8) -- only the shape bends.
+                bent = None
+                for path in _dogleg_candidates(S, T):
+                    legs = list(zip(path, path[1:]))
+                    if all(a != b for a, b in legs) and \
+                       all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
+                                              sense_codes) and
+                           _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
+                                                   sense_codes)
+                           for a, b in legs):
+                        bent = path
+                        break
+                if bent is not None:
+                    pending.append((bent, nc, net, lbl + " (bent)", lay_id))
+                else:
+                    refused.setdefault(net, []).append(lbl)
+            # VBUS BRIDGE: the INA238/228 ties Vbus (pad 8) to the SAME LO net as IN- (pad 9),
+            # 0.5mm below it INSIDE the reserved tap channel -- FR is kept out of the channel,
+            # so bridge the two same-net pads with a stub here (what a hand layout does). Only
+            # for the LO role of a recognised part, only when both pads are on this net.
+            if role == "LO":
+                for r, p in sorted(ic_pad.items()):
+                    fp9 = ic_fp.get(r)
+                    if fp9 is None or _sense_in_pad(fp9, "LO") != p.GetPadName():
+                        continue                       # unknown part -- no pin-function map
+                    vb = next((q for q in fp9.Pads()
+                               if q.GetPadName() == "8" and q.GetNetname() == net), None)
+                    if vb is None:
+                        continue
+                    A, B = p.GetPosition(), vb.GetPosition()
+                    if _tap_pair_overlap_clear(board, A, B, _nm(width), lay_id, nc, sense_codes):
+                        pending.append(([A, B], nc, net,
+                                        "%s.9->%s.8 (vbus bridge)" % (r, r), lay_id))
+    # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
+    for path, nc, net, lbl, p_lay in pending:
+        for A, B in zip(path, path[1:]):
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(A)
+            t.SetEnd(B)
+            t.SetWidth(_nm(width))
+            t.SetLayer(p_lay)
+            t.SetNetCode(nc)
+            board.Add(t)
+            laid.append(t)
+        report.setdefault(net, []).append(lbl)
+    return {"taps": sum(len(v) for v in report.values()),
+            "by_net": report, "refused": refused, "segments": len(laid)}
+
+
+def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
+                         pad_clear=0.35, max_ic_mm=9.0):
+    """Route-time F.Cu TAP-CHANNEL keepout -- the ENFORCE leg of "the inner-tap channel is CLEAR".
+
+    The §6.8 four-wire Kelvin tap (:func:`synthesize_kelvin_taps`) is a straight F.Cu stub from each
+    2-pad shunt's INNER edge to each seated current-sense IC input pad. It is laid AFTER the route and
+    REFUSES itself rather than plough through foreign copper -- so when pass-1 Freerouting routes a
+    TRANSITING foreign signal (a comparator output /DETC*, +3V3, I2C ...) across the notch at the tap
+    height, the tap is correctly left UNCONNECTED and kelvin_ok=False (the placement looks congested even
+    when it is geometrically clean). This reserves each tap's own channel as a Freerouting keepout on F.Cu
+    ONLY, so FR routes that transiting foreign AROUND the channel (or vias it DOWN to B.Cu, which does not
+    clip the F.Cu tap) -- pass-1 then lays the taps -> kelvin_ok -> the two-pass corridor / route-under can
+    clean the remaining foreign-on-pour. Distinct from :func:`corridor_keepouts`, which reserves the HI/LO
+    POUR boxes but deliberately leaves the notch (where the taps live) OPEN.
+
+    ONE box PER TAP (shunt inner-edge -> IN pad), the segment bounding box inflated by *margin*, then
+    each box edge is CLIPPED inward to stay *pad_clear* mm clear of any FOREIGN-net pad it would otherwise
+    cover (the INA's own +3V3/GND/I2C pads, ~0.5mm pitch in the column): the smaller inward clip per
+    offending pad. The shunt pad and the IN pad are same-net (never clipped), so the box reaches the IN
+    pad and reserves the full channel a transiting foreign would clip, while the IC's foreign pads stay
+    routable. F.Cu only (a B.Cu crossing does not clip the F.Cu tap and is the desired escape), allow_vias
+    True, block_fills False (the same-net SENSEC pour is not in the notch). SELF-GATING: no 2-pad straddle
+    shunt / no INA input pad within max_ic_mm -> []. Returns bake_hints dicts."""
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    from collections import defaultdict
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    foreign_pads = []                                          # (x, y, halfx, halfy) of every non-sense pad
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+            else:
+                pp = p.GetPosition(); sz = p.GetSize()
+                foreign_pads.append((pp.x / MM, pp.y / MM, sz.x / MM / 2.0, sz.y / MM / 2.0))
+
+    def _clip_foreign(x0, y0, x1, y1):
+        """Shrink the box edges inward so no foreign pad sits within pad_clear of the box interior."""
+        for px, py, hx, hy in foreign_pads:
+            pax0, pax1 = px - hx - pad_clear, px + hx + pad_clear
+            pay0, pay1 = py - hy - pad_clear, py + hy + pad_clear
+            if pax1 <= x0 or pax0 >= x1 or pay1 <= y0 or pay0 >= y1:
+                continue                                        # pad (inflated) doesn't intrude the box
+            # minimal inward clip among the 4 edges that removes the overlap
+            cands = []
+            if pax1 < x1:
+                cands.append(("x0", pax1, pax1 - x0))
+            if pax0 > x0:
+                cands.append(("x1", pax0, x1 - pax0))
+            if pay1 < y1:
+                cands.append(("y0", pay1, pay1 - y0))
+            if pay0 > y0:
+                cands.append(("y1", pay0, y1 - pay0))
+            if not cands:
+                return None                                     # pad spans the whole box -> degenerate
+            edge, val, _cost = min(cands, key=lambda c: c[2])
+            if edge == "x0":
+                x0 = val
+            elif edge == "x1":
+                x1 = val
+            elif edge == "y0":
+                y0 = val
+            else:
+                y1 = val
+            if x1 - x0 < 0.3 or y1 - y0 < 0.3:
+                return None
+        return (x0, y0, x1, y1)
+
+    hints = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        # PER-SIDE (dual-sided): a back-side chain's tap channel reserves B.Cu, not F.Cu
+        sh_fp2 = next((f for r, _p, f in pads_by_net.get(hi, []) if r == sh), None)
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos, lo_pos = sh_pad[hi].GetPosition(), sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos, role in ((hi, sh_pad[hi], lo_pos, "HI"),
+                                               (lo, sh_pad[lo], hi_pos, "LO")):
+            pc = this_pad.GetPosition()
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos, inset_mm=0.0)
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue
+                pp = p.GetPosition()
+                if math.hypot((pp.x - pc.x) / MM, (pp.y - pc.y) / MM) > max_ic_mm:
+                    continue
+                ix, iy = pp.x / MM, pp.y / MM
+                box = (min(tx, ix) - margin, min(ty, iy) - margin,
+                       max(tx, ix) + margin, max(ty, iy) + margin)
+                clipped = _clip_foreign(*box)
+                if clipped is None:
+                    continue
+                x0, y0, x1, y1 = clipped
+                hints.append({"name": f"tap_{sh}_{r}", "x0": round(x0, 2), "y0": round(y0, 2),
+                              "x1": round(x1, 2), "y1": round(y1, 2),
+                              "layers": (("B.Cu",) if (sh_fp2 is not None and sh_fp2.IsFlipped())
+                                          else ("F.Cu",)),
+                              "allow_vias": False, "block_fills": False})
+    return hints
 
 
 # ---------------------------------------------------------------------------
@@ -1163,8 +2419,7 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
             shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
 
     # Which pour layers each force net ALREADY carries (the router's pour-after-route lays a single F.Cu
@@ -1185,6 +2440,12 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
              for p in base for L in pour_layers if L not in existing[p["net"]]]
     added_zones = add_power_pours(board, pours, fill=False)
     added_vias = add_via_field(board, fields)
+    # NOTE: the GENERATIVE four-wire Kelvin inner-edge tap (synthesize_kelvin_taps) is laid in the
+    # ROUTE path (import_ses) on the SEATED board, NOT here. This force-copper synth runs on arbitrary
+    # boards (incl. non-seated ones, e.g. cec_synth_pipeline.physics / the additive-mirror adoption
+    # guard) where a direct inner-edge->IN+ stub would cross foreign copper -- the tap is only clean
+    # when the IC is seated adjacent, which is exactly the route()/import_ses board. A physics-stage
+    # board that came through route() already carries the tap.
 
     # 3. fill the mirror pours with the real engine (UnFill first -- re-fill segfault guard)
     for z in board.Zones():
@@ -1285,8 +2546,185 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
+def owned_locked_nets(board_path: str) -> set:
+    """Read-only: nets FULLY OWNED by locked copper (every pad on the net touched by
+    a locked track endpoint, pad half-extent + 0.15mm) -- the ownership test
+    reconcile_locked_nets enforces after the route, exposed pre-route so the DSN can
+    EXCLUDE those nets from Freerouting entirely (owner 2026-07-12: "the router is
+    still touching the force copper")."""
+    board = pcbnew.LoadBoard(board_path)
+    locked_pts = {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p_ = t.GetPosition()
+            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        else:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n in locked_pts:
+                pos = pd.GetPosition()
+                sz = pd.GetSize()
+                pads_by_net.setdefault(n, []).append(
+                    (pos.x, pos.y, max(sz.x, sz.y) / 2 + int(0.15e6)))
+    owned = set()
+    for n, pads in pads_by_net.items():
+        pts = locked_pts.get(n, [])
+        if pts and all(any((px - x) ** 2 + (py - y) ** 2 <= r * r for x, y in pts)
+                       for px, py, r in pads):
+            owned.add(n)
+    return owned
+
+
+def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float = 0.2):
+    """Rule-area keepout rects over LOCKED copper, per layer (owner defect report
+    2026-07-14: FR "is routing through the locked routes, and not layer changing
+    around it" -- MEASURED on the wave-9 winner: 154/157 shorting, 91/94 clearance,
+    75/75 tracks_crossing violations touch locked-copper space). Mechanism: the
+    owned-net exclusion truncates those nets to ONE DSN pin, and FR 1.7.0 treats
+    their '(type protect)' wires as dangling -- the fr02 bench proved protect stops
+    RIP-UP of a routable net's stubs, but an EXCLUDED net's copper drops out of the
+    obstacle model entirely. Rule-area keepouts are net-blind and proven respected
+    (the corridor lever), so FR must layer-change/route around the cells.
+
+    Scope: *only_nets* (pass the fully-owned set) -- a PARTIALLY-locked net (e.g.
+    /FAN_12V) must NOT contribute: FR still legitimately routes its remainder and
+    needs access to its pads. Same-layer rects merge only when the union stays
+    TIGHT (union area <= 1.15x the sum) so a dense cell collapses to a few zones
+    but a diagonal pair can never over-cover a foreign channel/pad."""
+    board = pcbnew.LoadBoard(board_path)
+    cl = int(clearance * 1e6)
+    per_layer = {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        if only_nets is not None and (t.GetNetname() or "") not in only_nets:
+            continue
+        bb = t.GetBoundingBox()
+        box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
+        if t.Type() == pcbnew.PCB_VIA_T:
+            lays = ("F.Cu", "B.Cu")
+        else:
+            lays = (board.GetLayerName(t.GetLayer()),)
+        for ly in lays:
+            per_layer.setdefault(ly, []).append(list(box))
+
+    def _area(b):
+        return max(0, b[2] - b[0]) * max(0, b[3] - b[1])
+
+    out = []
+    for ly, boxes in sorted(per_layer.items()):
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(boxes)):
+                for j in range(i + 1, len(boxes)):
+                    a, b = boxes[i], boxes[j]
+                    if not (a[0] <= b[2] and b[0] <= a[2]
+                            and a[1] <= b[3] and b[1] <= a[3]):
+                        continue
+                    u = [min(a[0], b[0]), min(a[1], b[1]),
+                         max(a[2], b[2]), max(a[3], b[3])]
+                    if _area(u) <= 1.15 * (_area(a) + _area(b)):
+                        boxes[i] = u
+                        del boxes[j]
+                        merged = True
+                        break
+                if merged:
+                    break
+        for k, (x0, y0, x1, y1) in enumerate(boxes):
+            out.append({"name": "lockedcu-%s-%d" % (ly.replace(".", ""), k),
+                        "x0": x0 / 1e6, "y0": y0 / 1e6,
+                        "x1": x1 / 1e6, "y1": y1 / 1e6, "layers": (ly,)})
+    return out
+
+
+def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
+    """POST-FR LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
+    nice traces... and redid the shunt 90s"). Measured mechanism, both halves:
+    (a) FR echoes protected wires back in the SES and the import re-adds them as
+    UNLOCKED duplicates at the same coords; (b) FR fails to credit a protected
+    tap/lane as connecting its pin and re-routes the net ITSELF at the DSN class
+    width -- 2.5mm F.Cu bulldozers through the Kelvin-tap region on /SENSEP*_LO.
+
+    Rule: a locked net is FULLY OWNED by its lay iff EVERY pad on the net is
+    touched by a locked track endpoint (pad half-extent + 0.15mm). Fully-owned ->
+    strip ALL unlocked tracks/vias on the net (the lay connects it by
+    construction; anything FR added is echo or spurious). Partially-owned (e.g.
+    /FAN_12V, whose R5/J2/D5 spurs the lay does not cover) -> strip only EXACT
+    geometric echoes of locked copper; FR's legitimate spurs stay. GND/+3V3
+    (locked stubs only, pads mostly uncovered) are inherently partial -> safe.
+
+    SWIG discipline: fresh load, collect-then-batch-Remove, save, no board API
+    after Remove beyond SaveBoard. Returns {net: removed_count} + "_echoes"."""
+    board = pcbnew.LoadBoard(board_path)
+    locked_by_net, locked_pts, locked_geo = {}, {}, set()
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        locked_by_net.setdefault(n, []).append(t)
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p_ = t.GetPosition()
+            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        else:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
+            k = (round(s_.x / 1e4), round(s_.y / 1e4), round(e_.x / 1e4), round(e_.y / 1e4))
+            locked_geo.add(k)
+            locked_geo.add((k[2], k[3], k[0], k[1]))
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n in locked_by_net:
+                pos = pd.GetPosition()
+                sz = pd.GetSize()
+                pads_by_net.setdefault(n, []).append(
+                    (pos.x, pos.y, max(sz.x, sz.y) / 2 + int(0.15e6)))
+    owned = set()
+    for n, pads in pads_by_net.items():
+        pts = locked_pts.get(n, [])
+        if pts and all(any((px - x) ** 2 + (py - y) ** 2 <= r * r for x, y in pts)
+                       for px, py, r in pads):
+            owned.add(n)
+    doomed, report, echoes = [], {}, 0
+    for t in board.GetTracks():
+        if t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if n not in locked_by_net:
+            continue
+        if n in owned:
+            doomed.append(t)
+            report[n] = report.get(n, 0) + 1
+            continue
+        if t.Type() != pcbnew.PCB_VIA_T:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            k = (round(s_.x / 1e4), round(s_.y / 1e4), round(e_.x / 1e4), round(e_.y / 1e4))
+            if k in locked_geo:
+                doomed.append(t)
+                echoes += 1
+    for t in doomed:
+        # Delete (not Remove): Remove orphans the SWIG proxy -> a 'memory leak of
+        # type PCB_TRACK*' warning PER ITEM at GC (measured: 20k-line log flood).
+        board.Delete(t)
+    doomed.clear()
+    pcbnew.SaveBoard(out_path or board_path, board)
+    if echoes:
+        report["_echoes"] = echoes
+    return report
+
+
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
-               fill_zones: bool = True, fix_annular: bool = True, power_pours=()) -> str:
+               fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
+               kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
     Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
@@ -1332,6 +2770,37 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
         add_power_pours(board, power_pours, fill=False)
+    if kelvin_taps:
+        # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
+        # window derive_power_pours leaves open. ADDITIVE same-net (after the route) -> never strands
+        # the sense; self-gating no-op on shared-bus / filtered-lane boards. (env kill-switch:
+        # CEC_KELVIN_TAPS=0 reverts to the un-tapped behaviour for an A/B.)
+        # PRECISION PRE-FR TAPS (cec_precision_route / plan §4 R2): when the board already carries
+        # LOCKED _HI/_LO tap copper -- laid + locked on the uncontended board pre-FR and PROTECTed
+        # through FR -- re-synthesizing here would DOUBLE-LAY the same stubs (synthesize_kelvin_taps
+        # is NOT idempotent). skip_locked_taps=True detects that copper and skips only the tap
+        # synthesis (the force-via bridge below still runs). Default False = today's post-route tap.
+        _has_locked_taps = False
+        if skip_locked_taps:
+            _has_locked_taps = any(
+                t.GetClass() == "PCB_TRACK" and t.IsLocked()
+                and (t.GetNetname().endswith("_HI") or t.GetNetname().endswith("_LO"))
+                for t in board.GetTracks())
+        if os.environ.get("CEC_KELVIN_TAPS", "1") != "0" and not _has_locked_taps:
+            kt = synthesize_kelvin_taps(board)
+            if kt["taps"]:
+                print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
+                      f"{kt['by_net']}", file=sys.stderr)
+        elif _has_locked_taps:
+            print("[cec_fr] kelvin taps: board carries LOCKED tap copper -- skipping re-synthesis "
+                  "(precision pre-FR taps already laid + protected)", file=sys.stderr)
+        # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
+        # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
+        if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
+            fv = synthesize_force_vias(board)
+            if fv["vias"]:
+                print(f"[cec_fr] force vias: {fv['vias']} via(s)/{fv['stubs']} stub(s) at "
+                      f"{fv['pads']} shunt pad(s) -> In2 rail pours", file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:
@@ -1377,6 +2846,19 @@ def bake_hints(
     """
     # Copy the board file itself
     shutil.copy2(board_path, out_path)
+
+    # Sidecars BEFORE the first LoadBoard (owner width defect 2026-07-15, measured):
+    # pcbnew's settings manager binds a project to the board path at FIRST load; if
+    # the .kicad_pro is not there yet it binds an EMPTY dummy, and a later
+    # LoadProject on that path returns the cached dummy (rc True, classes lost) --
+    # the DSN then exports class-less and FR routes every net at the 0.2 default.
+    if copy_pro:
+        base = os.path.splitext(board_path)[0]
+        out_base = os.path.splitext(out_path)[0]
+        for ext in (".kicad_pro", ".kicad_dru"):
+            src = base + ext
+            if os.path.isfile(src):
+                shutil.copy2(src, out_base + ext)
 
     if keepouts or copy_pro:
         board = pcbnew.LoadBoard(out_path)
@@ -1431,14 +2913,6 @@ def bake_hints(
 
         pcbnew.SaveBoard(out_path, board)
 
-    if copy_pro:
-        base = os.path.splitext(board_path)[0]
-        out_base = os.path.splitext(out_path)[0]
-        for ext in (".kicad_pro", ".kicad_dru"):
-            src = base + ext
-            if os.path.isfile(src):
-                shutil.copy2(src, out_base + ext)
-
     return out_path
 
 
@@ -1458,6 +2932,85 @@ class Candidate:
 # ---------------------------------------------------------------------------
 # route_once
 # ---------------------------------------------------------------------------
+def prune_dangling_tracks(board_or_path, out_path=None, *, tol_mm=0.02, max_iters=8):
+    """DANGLING-RUN safety net (owner scorecard finding, 2026-07-08 blind review: a
+    'weird floating CAN_TX run' -- FR litter that connects to nothing at one or both
+    ends). Iteratively removes UNLOCKED track segments with a dangling end. An end is
+    CONNECTED if it lands on: same-net pad copper (HitTest), a same-net via barrel, a
+    same-net track BODY on the same layer (point-to-segment, not just endpoints), or a
+    FILLED same-net zone (a pour entry is not dangling -- zone-aware, else legitimate
+    pour taps would be pruned). LOCKED tracks are never removed (deliberate stubs /
+    kelvin machinery) -- half-connected locked stubs are REPORTED instead. Iterates
+    because removing a segment can expose its neighbor."""
+    import math as _m
+    import pcbnew
+    b = board_or_path if not isinstance(board_or_path, str) else pcbnew.LoadBoard(board_or_path)
+    tol = int(tol_mm * 1e6)
+
+    def _on_seg(px, py, t2):
+        x0, y0 = t2.GetStart().x, t2.GetStart().y
+        x1, y1 = t2.GetEnd().x, t2.GetEnd().y
+        vx, vy = x1 - x0, y1 - y0
+        L2 = vx * vx + vy * vy
+        tt = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px - x0) * vx + (py - y0) * vy) / L2))
+        return _m.hypot(px - (x0 + tt * vx), py - (y0 + tt * vy)) <= t2.GetWidth() // 2 + tol
+
+    zones = [(z.GetNetname(), lid, z.GetFilledPolysList(lid))
+             for z in b.Zones() if z.IsOnCopperLayer()
+             for lid in z.GetLayerSet().CuStack()]
+
+    def _connected(pt, net, lyr, me):
+        for fp in b.GetFootprints():
+            for p in fp.Pads():
+                if p.GetNetname() == net and p.IsOnLayer(lyr) and p.HitTest(pt):
+                    return True
+        for t2 in b.GetTracks():
+            if t2 is me or t2.GetNetname() != net:
+                continue
+            if t2.GetClass() == "PCB_VIA":
+                r = t2.GetWidth(t2.TopLayer()) // 2   # KiCad-10: via GetWidth NEEDS a layer
+                if _m.hypot(t2.GetPosition().x - pt.x, t2.GetPosition().y - pt.y) <= r + tol:
+                    return True
+            elif t2.IsOnLayer(lyr) and _on_seg(pt.x, pt.y, t2):
+                return True
+        for znet, zlid, poly in zones:
+            if znet == net and zlid == lyr and poly and poly.OutlineCount() > 0 \
+                    and poly.Collide(pt, tol):
+                return True
+        return False
+
+    removed, kept_locked = [], []
+    for _ in range(max_iters):
+        doomed = []
+        for t in list(b.GetTracks()):
+            if t.GetClass() == "PCB_VIA":
+                continue
+            net, lyr = t.GetNetname(), t.GetLayer()
+            dang = [e for e in (t.GetStart(), t.GetEnd())
+                    if not _connected(e, net, lyr, t)]
+            if not dang:
+                continue
+            if t.IsLocked():
+                key = (net, b.GetLayerName(lyr), len(dang))
+                if key not in kept_locked:
+                    kept_locked.append(key)
+                continue
+            doomed.append(t)
+        if not doomed:
+            break
+        for t in doomed:
+            removed.append((t.GetNetname(), b.GetLayerName(t.GetLayer()),
+                            round(_m.hypot(t.GetEnd().x - t.GetStart().x,
+                                           t.GetEnd().y - t.GetStart().y) / 1e6, 2)))
+            b.Remove(t)
+    if out_path and removed:
+        b.Save(out_path)
+    elif isinstance(board_or_path, str) and removed and out_path is None:
+        b.Save(board_or_path)
+    return {"removed": len(removed), "detail": removed[:15],
+            "locked_dangling_kept": kept_locked[:10]}
+
+
 def route_once(
     board_path: str,
     out_path: str,
@@ -1472,6 +3025,11 @@ def route_once(
     jar: str | None = None,
     timeout: int = 600,
     version: str | None = None,   # FR release to run (default: the FR_VERSION pin)
+    protect_nets=(),              # nets whose LOCKED stubs get fix->protect in the DSN
+                                  # (FR 1.7.0 DROPS unprotected fix wires -- measured,
+                                  # cec_fr02 bench; the coord-hints A/B rides this)
+    skip_locked_taps: bool = False,  # precision pre-FR taps already laid+locked -> import_ses must
+                                     # NOT re-synthesize (double-lay). Plumbed to import_ses.
 ) -> Candidate:
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
@@ -1497,13 +3055,47 @@ def route_once(
     try:
         jar = ensure_jar(jar, version=v)
 
-        # 1. Bake hints (keepouts) into a working copy
+        # 1. Bake hints (keepouts) into a working copy. When locked-protected nets
+        # are in play, the FULLY-OWNED nets' locked copper ALSO bakes as rule-area
+        # keepouts (owner defect report 2026-07-14: FR routed straight through the
+        # blueprint cells -- an excluded net's protect wires drop out of FR's
+        # obstacle model, see locked_copper_keepouts). Computed on board_path
+        # (bake only adds zones; ownership reads tracks+pads, identical either way)
+        # so the SAME set drives the keepouts and the pin exclusion below.
+        _owned = set()
+        if protect_nets:
+            try:
+                _owned = owned_locked_nets(board_path)
+                if _owned:
+                    _lk = locked_copper_keepouts(board_path, only_nets=_owned)
+                    hints = list(hints) + _lk
+                    print("[cec_fr] locked-copper keepouts: %d zone(s) over %d owned "
+                          "net(s)" % (len(_lk), len(_owned)), flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                print("[cec_fr] locked-copper keepouts failed (%s) -- protect-only"
+                      % _e, flush=True)
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 
         # 2. Export DSN
         dsn_path = os.path.join(workdir, "board.dsn")
         export_dsn(hinted_board, dsn_path)
+        if protect_nets:
+            import cec_fr02
+            cec_fr02.force_protect_in_dsn(dsn_path, list(protect_nets))
+            # OWNED-NET EXCLUSION (owner 2026-07-12: FR was re-routing the locked
+            # lanes/taps at DSN class width -- 2.5mm B.Cu crossings under the bands;
+            # reconcile stripped them AFTER, this stops the work happening at all):
+            # a net the locked lay fully owns is removed from FR's routable pin
+            # lists; its copper is obstacle-modelled by the keepouts baked above.
+            try:
+                if _owned:
+                    n_x = cec_fr02.exclude_net_pins_in_dsn(dsn_path, sorted(_owned))
+                    print("[cec_fr] owned-net exclusion: %d net(s) removed from FR routing"
+                          % n_x, flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                print("[cec_fr] owned-net exclusion failed (%s) -- reconcile backstops"
+                      % _e, flush=True)
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
         fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)
@@ -1521,7 +3113,8 @@ def route_once(
         # 4. Import SES into the ORIGINAL board (not the hinted copy, so keepout
         #    zones from bake_hints don't clutter the final result). Pour the high-current
         #    nets AFTER the route (additive same-net copper) + fix FR's thin-annular vias.
-        import_ses(board_path, ses_path, out_path, power_pours=power_pours)
+        import_ses(board_path, ses_path, out_path, power_pours=power_pours,
+                   skip_locked_taps=skip_locked_taps)
 
         return Candidate(
             board=out_path,

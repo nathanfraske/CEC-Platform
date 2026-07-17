@@ -104,6 +104,16 @@
 			(uuid "1fa415a2-f112-403d-93b9-d8236666ebc0")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
+		(pin "FAN_EN" output
+			(at 107.95 190.5 0)
+			(uuid "fa5e0002-0000-4a2b-9c3d-4e5f6a7b8c01")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "FAN_TACH_GPIO" output
+			(at 107.95 195.58 0)
+			(uuid "fa5e0002-0000-4a2b-9c3d-4e5f6a7b8c02")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
 		(instances
 			(project "12vhpwr-standard-module"
 				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058"
@@ -580,6 +590,16 @@
 		(pin "GPIO0" output
 			(at 598.17 612.14 0)
 			(uuid "8bc404f7-2d1b-4d0d-b8f2-f85e292afee5")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "FAN_EN" output
+			(at 598.17 617.22 0)
+			(uuid "fa5e0002-0000-4a2b-9c3d-4e5f6a7b8c03")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "FAN_TACH_GPIO" output
+			(at 598.17 622.3 0)
+			(uuid "fa5e0002-0000-4a2b-9c3d-4e5f6a7b8c04")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
@@ -1362,6 +1382,18 @@
 		(stroke (width 0) (type default)) (uuid "c9534caa-c4aa-45d3-895f-97b8099f6d3f"))
 	(wire (pts (xy 1082.04 119.38) (xy 1087.12 119.38))
 		(stroke (width 0) (type default)) (uuid "7ac9e6c5-aa13-4860-8f4e-d3bfc2f4bc14"))
+	(wire (pts (xy 107.95 190.5) (xy 609.6 190.5))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c01"))
+	(wire (pts (xy 609.6 190.5) (xy 609.6 617.22))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c02"))
+	(wire (pts (xy 609.6 617.22) (xy 598.17 617.22))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c03"))
+	(wire (pts (xy 107.95 195.58) (xy 614.68 195.58))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c04"))
+	(wire (pts (xy 614.68 195.58) (xy 614.68 622.3))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c05"))
+	(wire (pts (xy 614.68 622.3) (xy 598.17 622.3))
+		(stroke (width 0) (type default)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c06"))
 	(junction (at 116.84 119.38) (diameter 0) (color 0 0 0 0) (uuid "48a246d2-deff-4de6-bb68-e1e4ba42e7a4"))
 	(junction (at 119.38 165.1) (diameter 0) (color 0 0 0 0) (uuid "b9b50e62-69a4-4015-bb67-c25638da23d5"))
 	(junction (at 121.92 170.18) (diameter 0) (color 0 0 0 0) (uuid "16e8b2d1-beee-4c6b-9851-24b8167d355b"))
@@ -1462,6 +1494,8 @@
 	(label "SB_SENSE0_GPIO" (at 464.82 152.4 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a699db8a-8ce5-4799-93fe-dbeaa41a8001"))
 	(label "SB_PWR_STABLE_GPIO" (at 462.28 142.24 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "46be1645-5407-4f91-b37a-0b61a3f7cf90"))
 	(label "SB_CBL_PRES_GPIO" (at 459.74 132.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "bfdc4bd0-b858-4f15-a6be-9d4c8e3eb0c9"))
+	(label "FAN_EN" (at 609.6 190.5 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c07"))
+	(label "FAN_TACH_GPIO" (at 614.68 195.58 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fa5e0003-0000-4a2b-9c3d-4e5f6a7b8c08"))
 	(label "CAN_TX" (at 623.57 574.04 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "dc2183ec-3099-4ed5-a35c-4915b0a1e860"))
 	(label "CAN_RX" (at 621.03 568.96 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6f895a7c-a869-444b-9131-cbdc6c0fa011"))
 	(label "USB_DP" (at 852.17 599.44 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b915c1c4-99d7-4ba0-8487-e3935df7e4fb"))

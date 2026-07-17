@@ -656,9 +656,14 @@ def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_fr
 # assert_steer_only, which permits only search-steering writes and forbids ANY gate field. The hard
 # gates (kelvin / diffpair / DRC / conformance) and shipping stay deterministic + human.
 STEER_FIELDS = {"rank_key", "select_weight", "seed", "placement_bias", "intent_bias",
-                "passes", "opt_time", "fr_params", "corridor_avoid"}
+                "passes", "opt_time", "fr_params", "corridor_avoid",
+                # POUR LEVER (stage 4, 2026-07-09): a router-initiated pour REBUILD is a
+                # geometry-only reshape of an auto-derived pour -- it STEERS the FR search (moves the
+                # keepout the router avoids + the post-route copper it lays) but writes NO gate field.
+                # This is assert_steer_only's FIRST live actuation caller (the graduation exemplar).
+                "pour_reshape"}
 GATE_FIELDS = {"gates_pass", "kelvin_ok", "diffpair_ok", "drc", "unconnected", "pour_integrity_ok",
-               "ship", "promote"}
+               "foreign_on_pour", "ship", "promote"}
 
 
 class SteerViolation(Exception):
@@ -1004,6 +1009,30 @@ def pour_facts(routed_host_path):
         for ln in o.splitlines():
             if ln.startswith("POUR_JSON="):
                 return json.loads(ln[len("POUR_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+    return {}
+
+
+def foreign_on_pour_count(routed_host_path):
+    """The ABSOLUTE high-current-pour keepout fact (in-container, like pour_facts). Foreign-net
+    track/via crossings of the authoritative derive_power_pours boxes -- GND/power counted as
+    foreign (a foreign trace on the pour layer antipads the fill; KiCad DRC is blind to it). Returns
+    {applicable, n_tracks, n_vias, by_pour}; the staggered-board gate (_remeasure_pour_gate) folds
+    n_tracks+n_vias into gates_pass so a layer-stagger re-fill that re-introduces foreign-on-pour
+    cannot re-promote the board. N/A boards -> applicable False, counts 0."""
+    rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    code = (
+        "import sys, json; sys.path.insert(0,'/workspace/scripts')\n"
+        "import cec_constraints as K\n"
+        f"s=K.foreign_on_pour_summary('/workspace/{rel}')\n"
+        "print('FOP_JSON='+json.dumps({'applicable':s['applicable'],'n_tracks':s['n_tracks'],"
+        "'n_vias':s['n_vias'],'by_pour':s['by_pour']}))\n")
+    try:
+        rc, o = _exec_py(code, timeout=120)
+        for ln in o.splitlines():
+            if ln.startswith("FOP_JSON="):
+                return json.loads(ln[len("FOP_JSON="):])
     except Exception as e:                                       # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     return {}
@@ -1409,6 +1438,19 @@ def _remeasure_pour_gate(rec, facts, scorer_penalties):
     if not pour_ok:
         rec["gates_pass"] = False                            # a fragmented sense pour blocks the board
         rec.setdefault("reasons", []).append("pour_integrity(staggered): " + "; ".join(pour_reasons))
+    # ABSOLUTE pour keepout (owner directive 2026-06-27): the layer-stagger re-fills the pours, which can
+    # re-introduce a foreign trace ON a pour -- KiCad DRC stays blind to the antipad, so re-verify the
+    # SHIPPED staggered board geometrically and force gates_pass False on any foreign-on-pour. The route
+    # accept gate (independent_drc) already enforces this on the pre-stagger board; this closes the same
+    # launder on the staggered re-promotion (the pour_integrity precedent).
+    fop = foreign_on_pour_count(rec.get("routed", ""))
+    rec["foreign_on_pour"] = fop
+    n_fop = (fop.get("n_tracks", 0) + fop.get("n_vias", 0)) if fop.get("applicable") else 0
+    if n_fop > 0:
+        rec["gates_pass"] = False
+        rec.setdefault("reasons", []).append(
+            "foreign_on_pour(staggered): %d foreign track/via crosses a high-current pour "
+            "(absolute keepout) -- %s" % (n_fop, fop.get("by_pour")))
     rec["objective"] = round(cec_score.objective_v2(
         gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
         sense_copper=sense_copper, base=_penalty_weighted_base(rec, scorer_penalties or {})), 2)

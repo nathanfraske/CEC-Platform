@@ -43,6 +43,17 @@ COSMETIC_DRC_TYPES = (
     "lib_footprint_issues",
 )
 
+# DRC types that make a routed sense / diff pair leg ELECTRICALLY INVALID even though it is
+# connected (>=1 track, 0 ratlines). A /SENSEC*_LO leg fully routed but shorted to GND/+3V3 reads
+# "routed" yet is a broken Kelvin sense -- _check_pairs used to false-green it. The kelvin/diffpair
+# gate now ALSO fails a leg whose net appears in any of these foreign-net-contact violations.
+SENSE_FAULT_DRC_TYPES = (
+    "shorting_items",
+    "clearance",
+    "solder_mask_bridge",
+    "tracks_crossing",
+)
+
 # ---------------------------------------------------------------------------
 #  Net-name conventions
 # ---------------------------------------------------------------------------
@@ -64,12 +75,19 @@ def _derive_pairs(net_names):
         m = _RE_KELVIN_HI.match(n)
         if m:
             lo = m.group(1) + "_LO"
-            kelvin.append((n, lo))
+            # PHANTOM-PAIR guard (escalated review 2026-07-08): only pair when the
+            # fabricated LO name EXISTS -- the 24-pin's 5V pair is (/SENSE5V_HI,
+            # +5V_MAIN), so a fabricated /SENSE5V_LO made the kelvin gate structurally
+            # unpassable. The shunt-straddle derivation carries the real rail-sided
+            # pairs; the name rule must never invent nets.
+            if lo in names:
+                kelvin.append((n, lo))
     for n in sorted(names):
         m = _RE_DIFF_P.match(n)
         if m:
             neg = m.group(1) + "_N"
-            diff.append((n, neg))
+            if neg in names:
+                diff.append((n, neg))
     return kelvin, diff
 
 
@@ -105,12 +123,48 @@ class Rules:
 
     @classmethod
     def from_board(cls, board_path: str) -> "Rules":
-        """Derive Rules from the board's actual net list."""
+        """Derive Rules from the board's actual net list PLUS shunt-straddle Kelvin pairs
+        (2026-07-08): the two nets of any 2-pad RS* shunt form a pair regardless of naming --
+        real boards carry a POWER net on one shunt side (24-pin RS2 -> +5V_MAIN, RS4 -> +5VSB;
+        12VHPWR lane 6's HI renamed /FAN_12V), and the name-only derivation silently DROPPED
+        those rails from the kelvin HARD GATE. Orientation: name hint, else the side a known
+        sense IC's IN+ pad taps, else lexical."""
         b = pcbnew.LoadBoard(board_path)
         net_names = [n.GetNetname()
                      for n in b.GetNetInfo().NetsByNetcode().values()
                      if n.GetNetname()]
         kelvin, diff = _derive_pairs(net_names)
+        seen = {frozenset(p) for p in kelvin}
+        inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+        ina_inp = {}                                   # net -> True (a known IN+ pad taps it)
+        shunts = []
+        for fp in b.GetFootprints():
+            ref = fp.GetReference() or ""
+            val = (fp.GetValue() or "").upper()
+            want = next((v for k, v in inp_pin.items() if k in val), None)
+            for p in fp.Pads():
+                if want is not None and p.GetPadName() == want and p.GetNetname():
+                    ina_inp[p.GetNetname()] = True
+            if ref.startswith("RS") and fp.GetPadCount() == 2:
+                nets = sorted({p.GetNetname() for p in fp.Pads() if p.GetNetname()})
+                if len(nets) == 2:
+                    shunts.append(tuple(nets))
+        for na, nb in shunts:
+            key = frozenset((na, nb))
+            if key in seen:
+                continue
+            seen.add(key)
+            if na.endswith("_HI") or nb.endswith("_LO"):
+                hi, lo = na, nb
+            elif nb.endswith("_HI") or na.endswith("_LO"):
+                hi, lo = nb, na
+            elif ina_inp.get(na):
+                hi, lo = na, nb
+            elif ina_inp.get(nb):
+                hi, lo = nb, na
+            else:
+                hi, lo = na, nb
+            kelvin.append((hi, lo))
         nets_12v = _derive_nets_12v(net_names)
         return cls(kelvin_pairs=kelvin, diff_pairs=diff, nets_12v=nets_12v)
 
@@ -184,7 +238,77 @@ def drc_types(board_path: str) -> tuple[dict, list]:
         except OSError:
             pass
     struct = [v for v in d.get("violations", []) if v.get("type") not in COSMETIC_DRC_TYPES]
+    try:
+        struct = _drop_impossible_pad_artifacts(struct, pcbnew.LoadBoard(board_path))
+    except Exception:                                      # noqa: BLE001 -- parity filter is best-effort here
+        pass
     return _types_loci(struct)
+
+
+# matches 'Pad 1 [GND] of SW2 on F.Cu' AND 'PTH pad 1 [GND] of H3' (kicad-cli varies the form)
+_RE_PAD_ITEM = re.compile(r"^(?:\w+ )??[Pp]ad (\S+) \[[^\]]*\] of (\S+)")
+
+
+def _drop_impossible_pad_artifacts(struct: list, board) -> list:
+    """Drop the DOCUMENTED headless kicad-cli false positives: a shorting_items /
+    solder_mask_bridge violation whose items are EXACTLY the pads of one footprint that do
+    not even touch (seen on the rotated TS-1088 buttons: 'SW2 pad1<->pad2 short', pads
+    4.36mm apart; recorded in CLAUDE.md as geometrically-impossible-absent-in-GUI). The
+    filter is GEOMETRY-VERIFIED against the live board -- pads are re-tested with the same
+    Collide() the DRC engine uses and the violation is kept whenever they truly touch, so a
+    REAL overlapping-pad short can never be filtered. A real short THROUGH copper lists the
+    track/via in items (>2 items or a non-pad item) and is never touched here."""
+    fcu = board.GetLayerID("F.Cu")
+    pads = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            pads[(fp.GetReference(), str(p.GetPadName()))] = p
+    mounts = {fp.GetReference() for fp in board.GetFootprints()
+              if "mountinghole" in str(fp.GetFPID().GetLibItemName()).lower()}
+    out = []
+    for v in struct:
+        if v.get("type") in ("shorting_items", "solder_mask_bridge"):
+            items = v.get("items", [])
+            parsed = [_RE_PAD_ITEM.match(it.get("description", "")) for it in items]
+            # CROSS-FACE artifact (2026-07-08, dual-sided boards): two SMD pads whose copper
+            # layer sets are DISJOINT (one F.Cu, one B.Cu) cannot short -- verified by layer
+            # sets, not position. kicad-cli reports these on coincident-xy opposite-face pads.
+            if len(items) == 2 and all(parsed):
+                pa = pads.get((parsed[0].group(2), parsed[0].group(1)))
+                pb = pads.get((parsed[1].group(2), parsed[1].group(1)))
+                if pa is not None and pb is not None:
+                    try:
+                        la = set(pa.GetLayerSet().CuStack())
+                        lb = set(pb.GetLayerSet().CuStack())
+                        if la and lb and not (la & lb):
+                            continue                   # opposite faces: impossible short
+                    except Exception:                  # noqa: BLE001
+                        pass
+            if len(items) == 2 and all(parsed) and parsed[0].group(2) == parsed[1].group(2):
+                pa = pads.get((parsed[0].group(2), parsed[0].group(1)))
+                pb = pads.get((parsed[1].group(2), parsed[1].group(1)))
+                if pa is not None and pb is not None:
+                    try:
+                        lay = fcu if fcu >= 0 else pa.GetLayer()
+                        if not pa.GetEffectiveShape(lay).Collide(pb.GetEffectiveShape(lay), 0):
+                            continue                       # impossible short -> the known artifact
+                    except Exception:                      # noqa: BLE001 -- never widen the filter on error
+                        pass
+        elif v.get("type") == "copper_edge_clearance":
+            # MOUNT-pad annulus near Edge.Cuts: the documented deliberate finishing state
+            # (place_mechanical e=3.5 note -- an M3 screw pad may hug the edge; the GUI
+            # clears it). Waived ONLY for a mounting-hole footprint's pad vs an edge
+            # segment; every other copper-vs-edge hit stays structural.
+            items = v.get("items", [])
+            if len(items) == 2:
+                descs = [it.get("description", "") for it in items]
+                pad_ms = [_RE_PAD_ITEM.match(x) for x in descs]
+                has_edge = any("Edge.Cuts" in x or "edge" in x.lower() for x in descs)
+                pad_refs = [m.group(2) for m in pad_ms if m]
+                if has_edge and pad_refs and all(r in mounts for r in pad_refs):
+                    continue
+        out.append(v)
+    return out
 
 
 def _parse_net_from_desc(desc: str) -> str | None:
@@ -208,6 +332,27 @@ def _unconnected_nets(unconnected_items: list) -> set:
             if n:
                 nets.add(n)
     return nets
+
+
+def _pair_fault_nets(struct: list, watch_nets: set) -> tuple[set, dict]:
+    """Nets in *watch_nets* (Kelvin/diff pair legs) that appear in any SENSE_FAULT_DRC_TYPES
+    violation -- a short/clearance/mask-bridge/crossing against a FOREIGN item. Returns
+    (fault_nets, fault_types: net -> set(violation_type)). This is the term that makes
+    kelvin_ok / diffpair_ok see a routed-but-shorted leg: a /SENSEC*_LO routed into the GND
+    pour reads 0 ratlines but DOES carry a shorting_items locus, so it now FAILs the gate."""
+    fault, types = set(), {}
+    for v in struct:
+        if v.get("type") not in SENSE_FAULT_DRC_TYPES:
+            continue
+        item_nets = set()
+        for it in v.get("items", []):
+            n = _parse_net_from_desc(it.get("description", ""))
+            if n:
+                item_nets.add(n)
+        for n in (item_nets & watch_nets):
+            fault.add(n)
+            types.setdefault(n, set()).add(v["type"])
+    return fault, types
 
 
 def _measure_board(b) -> dict:
@@ -284,11 +429,18 @@ def _check_pairs(
     net_tracks: dict,
     unconn_nets: set,
     board_nets: set,
+    fault_nets: set | None = None,
+    fault_types: dict | None = None,
 ) -> tuple[bool, list, list]:
-    """Check that every pair in `pairs` is routed (≥1 track, 0 unconnected).
+    """Check that every pair in `pairs` is routed (≥1 track, 0 unconnected) AND electrically
+    CLEAN (no short/clearance/mask/crossing DRC against a foreign net -- *fault_nets*). A pair
+    leg that is fully routed but shorted to GND/+3V3 is NOT a valid Kelvin/diff leg; the routed
+    +0-ratline test alone false-greened it (the documented kelvin_ok hole).
 
     Returns (all_ok, failing_pairs_detail, per_pair_dicts).
     """
+    fault_nets = fault_nets or set()
+    fault_types = fault_types or {}
     all_ok = True
     reasons = []
     per_pair = []
@@ -315,6 +467,15 @@ def _check_pairs(
                 pair_reasons.append(
                     f"{label} pair {a}/{b}: {net!r} has unconnected ratlines"
                 )
+            if net in fault_nets:
+                # HARDENED: a routed leg shorted/too-close to a foreign net is electrically
+                # invalid even with 0 ratlines -- the gate must reject it (not advisory).
+                tys = ",".join(sorted(fault_types.get(net, {"short/clearance"})))
+                pair_ok = False
+                pair_reasons.append(
+                    f"{label} pair {a}/{b}: {net!r} has a foreign-net DRC fault [{tys}] "
+                    f"-- routed but electrically shorted/too-close, not a valid sense leg"
+                )
 
         per_pair.append({"pair": (a, b), "ok": pair_ok, "reasons": pair_reasons})
         if not pair_ok:
@@ -322,6 +483,250 @@ def _check_pairs(
             reasons.extend(pair_reasons)
 
     return all_ok, reasons, per_pair
+
+
+# ---------------------------------------------------------------------------
+#  Kelvin four-wire TOPOLOGY gate (the current-carrying-sense hole)
+# ---------------------------------------------------------------------------
+# _check_pairs above proves each sense leg is ROUTED (>=1 track, 0 ratlines) and electrically
+# clean (no foreign-net short). It is BLIND to the WIRING TOPOLOGY: on a cable interposer the
+# cable connector pad (J_IN/J_OUT), the shunt terminal pad (RS*) and the sense IC input pad
+# (INA*) are ALL the same net (/SENSEC*_HI|_LO), so the router can satisfy the INA-input
+# connectivity by tying it to the NEAREST net point -- the connector -- and 0 ratlines still
+# reads kelvin_ok=True. That is NOT a 4-wire Kelvin tap: the sense then includes the
+# connector->shunt force trace + contact resistance, and the sense wire carries current.
+#
+# The §6.8 four-wire rule is GEOMETRIC: the INA input must tap the shunt element TERMINAL only,
+# so the sense stub carries no current. The deterministic test for that on the copper graph is a
+# CUT-VERTEX test: build the conductor graph for the net from TRACKS + VIAS (zones EXCLUDED --
+# the high-current force pour is the legitimate connector->shunt copper that terminates AT the
+# shunt pad), DELETE the shunt pad node, and assert the INA input pad can no longer reach ANY
+# cable-connector pad. If it can, a sense-carrying copper path bypasses the shunt element
+# (parallel sense-through-connector), so the tap is not 4-wire -> FAIL.
+#
+#   * legitimate tap (sense stub on the shunt inner edge, force = pour/wide copper terminating
+#     at the shunt pad): with the shunt pad removed the INA input dead-ends -> PASS.
+#   * the documented bug (FR routes the sense pad to the connector, or the INA taps the force
+#     trace upstream of the shunt): the INA reaches the connector WITHOUT the shunt -> FAIL.
+#
+# Self-gating: a net is checked only when it carries the per-cable triple (>=1 J connector pad,
+# >=1 RS shunt pad, >=1 INA input pad). Shared-bus per-pin (12VHPWR J3/J4) / per-rail (24-pin)
+# and the Hub have no such triple on a sense net -> N/A (no fault, no false-fail).
+# registry kelvin-sense-no-connector-tap params (kept in sync with cec_constraints REGISTRY so
+# score()'s folded gate and the standalone checker agree by construction).
+_KELVIN_TOPO_SNAP_NM = 60000    # 0.06 mm  terminal-coincidence tolerance (snap_tol_mm)
+_KELVIN_TOPO_REACH_NM = 150000  # 0.15 mm  pad HitTest accuracy beyond the pad edge (pad_reach_extra_mm)
+
+
+def _topo_is_ina(fp) -> bool:
+    s = (fp.GetReference() + " " + (fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    return "INA2" in s or "INA181" in s
+
+
+def _topo_is_vbus_pad(fp, padname: str) -> bool:
+    """The INA226/228/238 (VSSOP-10 power-monitor) Vbus pin is footprint pad 8 -- a high-Z VOLTAGE
+    tap, not a current-sense input, so it may be FR-routed to the bus/connector and is NOT a Kelvin
+    fault (registry kelvin-sense-no-connector-tap). INA181/240 current-shunt amps have no Vbus pin,
+    so nothing is excluded for them."""
+    s = ((fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    return padname == "8" and ("INA226" in s or "INA228" in s or "INA238" in s)
+
+
+def ina_highz_pad_names(fp) -> frozenset:
+    """Footprint pad NAMES that are HIGH-IMPEDANCE INA sense terminals carrying ~0
+    current: for the INA226/228/238 VSSOP-10 power monitors the Vin+/Vin-/Vbus pins
+    (pads 10/9/8); for the INA181/240 current-shunt amps the IN+/IN- pins (pads 3/4).
+    Empty for non-INA parts.
+
+    Shared with the electro-thermal solver (cec_thermal2d) so it never injects cable
+    current through Kelvin sense-tap copper, and kept consistent with this module's
+    Kelvin topology gate (uses the same `_topo_is_ina` footprint detection). The Vbus
+    pad (8) is INCLUDED here because, unlike the topology gate -- which excludes it as
+    a benign voltage tap that may legitimately reach the bus -- the SOLVER cares only
+    that it is high-Z (carries ~0 current), so it must not source/sink cable current."""
+    if not _topo_is_ina(fp):
+        return frozenset()
+    s = ((fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    if "INA181" in s or "INA240" in s:
+        return frozenset({"3", "4"})
+    return frozenset({"8", "9", "10"})
+
+
+def _topo_role(fp) -> str:
+    if _topo_is_ina(fp):
+        return "ina"
+    r = fp.GetReference().upper()
+    if r.startswith("RS"):
+        return "shunt"
+    if r.startswith("J"):
+        return "conn"
+    return "other"
+
+
+class _UF:
+    """Tiny union-find over hashable node ids."""
+    __slots__ = ("p",)
+
+    def __init__(self):
+        self.p = {}
+
+    def add(self, x):
+        if x not in self.p:
+            self.p[x] = x
+
+    def find(self, x):
+        self.add(x)
+        r = x
+        while self.p[r] != r:
+            r = self.p[r]
+        while self.p[x] != r:
+            self.p[x], x = r, self.p[x]
+        return r
+
+    def union(self, a, b):
+        ra, rb = self.find(a), self.find(b)
+        if ra != rb:
+            self.p[ra] = rb
+
+
+def kelvin_topology_faults(board, kelvin_pairs, *,
+                           snap_tol_nm: int = _KELVIN_TOPO_SNAP_NM,
+                           pad_reach_nm: int = _KELVIN_TOPO_REACH_NM):
+    """CUT-VERTEX 4-wire topology check (see the block comment above).
+
+    Parameters
+    ----------
+    board        a LOADED pcbnew board object.
+    kelvin_pairs [("/SENSEC1_HI","/SENSEC1_LO"), ...] -- the sense pairs to evaluate.
+    snap_tol_nm  terminal-coincidence tolerance (registry snap_tol_mm).
+    pad_reach_nm pad HitTest accuracy beyond the pad edge (registry pad_reach_extra_mm).
+
+    Returns (fault_nets:set, reasons:list[str], detail:list[dict], nets_checked:int).
+    A net contributes to nets_checked only when its per-cable connector/shunt/INA triple is
+    present (otherwise it is N/A and silently skipped). A fault means some INA CURRENT-SENSE
+    input pad (Vin+/Vin- -- the INA226/228/238 Vbus pad is excluded) on the net reaches a
+    cable-connector pad on the net with the shunt pad removed.
+    """
+    nets = set()
+    for hi, lo in kelvin_pairs:
+        nets.add(hi)
+        nets.add(lo)
+    if not nets:
+        return set(), [], [], 0
+
+    # pads on each sense net, tagged by role (one pass over footprints). The INA226/228/238 Vbus
+    # pad (a high-Z voltage tap) is reclassified to "vbus" so it is neither cut nor flagged.
+    padrec = {n: [] for n in nets}                       # net -> [(node_id, role, pad)]
+    for fp in board.GetFootprints():
+        role = _topo_role(fp)
+        ref = fp.GetReference()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in nets:
+                pad_role = role
+                if role == "ina" and _topo_is_vbus_pad(fp, p.GetPadName()):
+                    pad_role = "vbus"
+                padrec[nn].append(((ref, p.GetPadName()), pad_role, p))
+
+    # tracks / vias bucketed by sense net (one pass over tracks)
+    trk = {n: [] for n in nets}
+    via = {n: [] for n in nets}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn not in nets:
+            continue
+        if t.Type() == pcbnew.PCB_TRACE_T:
+            trk[nn].append(t)
+        elif t.Type() == pcbnew.PCB_VIA_T:
+            via[nn].append(t)
+
+    fault_nets, reasons, detail, checked = set(), [], [], 0
+
+    for net in sorted(nets):
+        recs = padrec[net]
+        ina = [r for r in recs if r[1] == "ina"]
+        shunt = [r for r in recs if r[1] == "shunt"]
+        conn = [r for r in recs if r[1] == "conn"]
+        if not ina or not shunt or not conn:
+            continue                                     # N/A: not a per-cable connector/shunt/INA triple
+        checked += 1
+
+        uf = _UF()
+        terms = []                                       # (x_nm, y_nm, frozenset(layers), node_id)
+        for t in trk[net]:
+            s, e = t.GetStart(), t.GetEnd()
+            ly = t.GetLayer()
+            na = ("t", s.x, s.y, ly)
+            nb = ("t", e.x, e.y, ly)
+            uf.add(na); uf.add(nb); uf.union(na, nb)
+            terms.append((s.x, s.y, frozenset((ly,)), na))
+            terms.append((e.x, e.y, frozenset((ly,)), nb))
+        for v in via[net]:
+            vp = v.GetPosition()
+            ls = frozenset(v.GetLayerSet().CuStack())
+            nv = ("v", vp.x, vp.y)
+            uf.add(nv)
+            terms.append((vp.x, vp.y, ls, nv))
+        # coincidence: same point within snap tol AND sharing a copper layer (a via bridges layers)
+        for i in range(len(terms)):
+            xi, yi, li, ni = terms[i]
+            for j in range(i + 1, len(terms)):
+                xj, yj, lj, nj = terms[j]
+                if abs(xi - xj) <= snap_tol_nm and abs(yi - yj) <= snap_tol_nm and (li & lj):
+                    uf.union(ni, nj)
+        # pad <-> terminal: skip the SHUNT pad(s) on this net -- that is the cut vertex
+        for nid, role, p in recs:
+            if role == "shunt":
+                continue
+            for (x, y, ls, tn) in terms:
+                hit = False
+                for ly in ls:
+                    if p.IsOnLayer(ly) and p.HitTest(pcbnew.VECTOR2I(int(x), int(y)), int(pad_reach_nm)):
+                        hit = True
+                        break
+                if hit:
+                    uf.add(nid); uf.union(nid, tn)
+
+        # any INA input pad in the same component as any cable connector pad => bypass fault
+        net_fault = False
+        for nid_a, _r, _pa in ina:
+            if nid_a not in uf.p:
+                continue                                 # INA input has no copper here (ratline -> _check_pairs)
+            ra = uf.find(nid_a)
+            for nid_c, _rc, _pc in conn:
+                if nid_c in uf.p and uf.find(nid_c) == ra:
+                    fault_nets.add(net)
+                    net_fault = True
+                    detail.append({"net": net, "ina": "%s.%s" % nid_a, "conn": "%s.%s" % nid_c})
+                    reasons.append(
+                        "kelvin pair %s: sense input %s.%s reaches connector %s.%s with the shunt "
+                        "removed -- current-carrying sense (not a 4-wire tap)" %
+                        (net, nid_a[0], nid_a[1], nid_c[0], nid_c[1]))
+                    break
+            if net_fault:
+                break                                    # one fault per net is enough to gate it
+
+    return fault_nets, reasons, detail, checked
+
+
+def kelvin_topology_summary(board_path, rules=None):
+    """Public path-based summary (mirrors cec_constraints.foreign_on_pour_summary). Loads the
+    board, derives Kelvin pairs (rules or by net name), runs the cut-vertex topology check and
+    reports {applicable, n_faults, faults, by_net, nets_checked}. applicable is False (vacuous)
+    when no per-cable connector/shunt/INA sense triple exists on the board."""
+    b = pcbnew.LoadBoard(board_path)
+    if rules is not None and rules.kelvin_pairs:
+        pairs = rules.kelvin_pairs
+    else:
+        names = [n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()]
+        pairs, _ = _derive_pairs(names)
+    fault_nets, reasons, detail, checked = kelvin_topology_faults(b, pairs)
+    by_net = {}
+    for d in detail:
+        by_net.setdefault(d["net"], []).append("%s<-%s" % (d["ina"], d["conn"]))
+    return {"applicable": checked > 0, "n_faults": len(detail), "faults": detail[:60],
+            "by_net": by_net, "nets_checked": checked, "fault_nets": sorted(fault_nets),
+            "reasons": reasons[:60]}
 
 
 # ---------------------------------------------------------------------------
@@ -400,6 +805,7 @@ def score(
 
     all_violations = drc_data.get("violations", [])
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
+    struct = _drop_impossible_pad_artifacts(struct, b)
     unconn = drc_data.get("unconnected_items", [])
     unconn_nets = _unconnected_nets(unconn)
 
@@ -409,13 +815,42 @@ def score(
     # ---- structural-violation breakdown (R-02: from the same run; no second DRC) ----
     drc_types, drc_loci = _types_loci(struct)
 
+    # ---- foreign-net DRC faults on the safety pairs (HARDENED gate term) ----
+    # A routed-but-shorted sense / diff leg carries a short/clearance/mask/crossing locus while
+    # reading 0 ratlines; fold those into the kelvin/diffpair gates so a /SENSEC*_LO->GND short
+    # can no longer pass kelvin_ok. Computed from the SAME structural DRC run (R-02).
+    watch_nets = ({n for pr in kelvin_pairs for n in pr}
+                  | {n for pr in diff_pairs for n in pr})
+    fault_nets, fault_types_map = _pair_fault_nets(struct, watch_nets)
+
     # ---- evaluate hard gates ----
     kelvin_ok, kelvin_reasons, kelvin_detail = _check_pairs(
-        kelvin_pairs, "kelvin", m["net_tracks"], unconn_nets, board_net_names
+        kelvin_pairs, "kelvin", m["net_tracks"], unconn_nets, board_net_names,
+        fault_nets, fault_types_map
     )
     diffpair_ok, diff_reasons, diff_detail = _check_pairs(
-        diff_pairs, "diffpair", m["net_tracks"], unconn_nets, board_net_names
+        diff_pairs, "diffpair", m["net_tracks"], unconn_nets, board_net_names,
+        fault_nets, fault_types_map
     )
+
+    # ---- Kelvin four-wire TOPOLOGY (cut-vertex) gate, FOLDED INTO kelvin_ok ----
+    # _check_pairs is blind to a current-carrying sense (INA input tied to the connector on the
+    # shared sense net, 0 ratlines). The cut-vertex trace fails kelvin_ok when any INA input
+    # reaches a cable-connector pad with the shunt pad removed. N/A boards (no per-cable triple)
+    # contribute nothing. This makes kelvin_ok the COMPLETE 4-wire gate, so gates_pass (below) and
+    # every reader (cec_router.independent_drc via gate(), the loop ranking, cec_constraints) inherit it.
+    # FAIL-CLOSED on error: a hard safety gate must never pass on an exception (the opposite of the
+    # foreign_on_pour fail-open summary). An unexpected board that breaks the trace fails kelvin_ok.
+    try:
+        topo_fault_nets, topo_reasons, topo_detail, topo_checked = kelvin_topology_faults(b, kelvin_pairs)
+    except Exception as _e:                                   # noqa: BLE001
+        topo_fault_nets, topo_checked = {"<error>"}, -1
+        topo_detail = [{"error": "%s: %s" % (type(_e).__name__, _e)}]
+        topo_reasons = ["kelvin topology gate errored (fail-closed, gate FAILS): %s: %s"
+                        % (type(_e).__name__, _e)]
+    if topo_fault_nets:
+        kelvin_ok = False
+        kelvin_reasons = list(kelvin_reasons) + topo_reasons
 
     drc_gate_ok = (drc_count == 0) if rules.require_drc_zero else True
 
@@ -436,6 +871,9 @@ def score(
         "diff_detail":     diff_detail,
         "diff_reasons":    diff_reasons,
         "unconn_nets":     sorted(unconn_nets),
+        "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
+        "kelvin_topology_faults":  topo_detail,
+        "kelvin_topology_checked": topo_checked,
         "drc_struct_count": drc_count,
         "drc_gate_ok":     drc_gate_ok,
         "require_drc_zero": rules.require_drc_zero,

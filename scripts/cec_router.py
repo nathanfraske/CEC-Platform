@@ -284,10 +284,58 @@ def apply_edit(state, edit):
             pcbnew.SaveBoard(state.board, b)
             edit["moved_refs"] = res.get("moved_refs")
         del b                                            # SWIG-01: never reuse a board object after Save
+    elif t == "pour_reshape":
+        # POUR LEVER (stage 4): a router-initiated pour REBUILD -- a geometry-only reshape
+        # {op, net, params, min_cross_mm2} of an auto-derived pour on state.pour_plan. The op passes
+        # the STEER-ONLY chokepoint (cec_fullstack.assert_steer_only -- its FIRST live caller: a
+        # reshape STEERS the FR keepout + post-route copper, never writes a gate field), then mutates
+        # the plan (state, not the board). PourPlan.rebuild enforces the autonomy line (add/drop/re-net
+        # -> EscalateToHuman) and the min-pour-cross-section HARD gate (neck -> PourCrossSectionRefused);
+        # both propagate up so the loop records a NAMED refusal rather than a silent proceed.
+        import cec_pourplan
+        import cec_fullstack
+        cec_fullstack.assert_steer_only({"pour_reshape": {"op": edit.get("op"), "net": edit.get("net")}})
+        if state.pour_plan is None:
+            state.pour_plan = cec_pourplan.PourPlan.from_board(state.board)
+        state.pour_plan.rebuild(edit["op"], net=edit["net"],
+                                min_cross_mm2=edit.get("min_cross_mm2"),
+                                **(edit.get("params") or {}))
+        # recompile BOTH views off the mutated plan: PRE-ROUTE keepout (state.hints) + POST-ROUTE
+        # copper (state.pour_pours the loop feeds to generate_batch). Drop stale corr_* lane keepouts
+        # first so the recompiled lane keepouts replace them (lane mode reboxes the pours).
+        try:
+            new_hints = state.pour_plan.keepout_hints()
+            state.hints = [h for h in state.hints
+                           if not str(h.get("name", "")).startswith("corr_")] + new_hints
+        except Exception as e:                           # noqa: BLE001 -- keepout recompile best-effort
+            print(f"[route] pour_reshape: keepout recompile skipped ({type(e).__name__}: {e})")
+        state.pour_pours = state.pour_plan.pour_polygons()
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
     state.edits.append(edit)
     return state
+
+
+def _apply_edit_guarded(state, edit, log, region, it):
+    """Apply an edit, but for a POUR REBUILD (stage 4) catch the two ratified refusals so a crossed
+    autonomy line (EscalateToHuman: add/drop/re-net a pour) or a necking reshape
+    (PourCrossSectionRefused: min-pour-cross-section HARD gate) is recorded as a NAMED refusal in
+    the decision log instead of crashing the loop OR silently proceeding. The refused edit is NOT
+    applied; the loop moves on (it will escalate / take best-so-far). Non-pour edits are unchanged."""
+    try:
+        apply_edit(state, edit)
+        return True
+    except Exception as e:                               # noqa: BLE001 -- narrowed below
+        import cec_pourplan
+        if isinstance(e, (cec_pourplan.EscalateToHuman, cec_pourplan.PourCrossSectionRefused)):
+            reason = f"POUR-REBUILD REFUSED [{type(e).__name__}]: {e}"
+            log.add(region=region.name, iteration=it, candidates=[], chosen=None,
+                    verdict=Verdict("refuse", reason, tier="pour-lever", edit=edit),
+                    note="pour-rebuild-refused")
+            if os.environ.get("CEC_VERBOSE"):
+                print(f"[route] {region.name} it{it}: {reason}")
+            return False
+        raise
 
 
 class RegionState:
@@ -299,6 +347,12 @@ class RegionState:
         self.fr = dict(region.fr_params)
         self.seeds = tuple(seeds)
         self.edits = []
+        # POUR LEVER (stage 4): the mutable PourPlan the rebuild verb reshapes, built lazily on the
+        # first pour_reshape edit off THIS state's working board; None until then so a route with no
+        # pour rebuild is byte-identical (spec.power_pours stays the source). Once set, the loop reads
+        # state.pour_pours / the recompiled state.hints instead of spec.power_pours.
+        self.pour_plan = None
+        self.pour_pours = None             # recompiled pour_polygons() after a rebuild; None = use spec
 
 
 # ============================================================ default control-tier policies
@@ -314,7 +368,30 @@ def default_planner(board, spec):
         return Plan(regions=spec.regions,
                     contracts=[c for r in spec.regions for c in r.contracts])
     rules = spec.rules or cec_score.Rules.from_board(board)
-    hints = _vital_keepouts_from_rules(board, rules)
+    import os
+    import cec_fr
+    hints = []
+    # CORRIDOR keepout: DEFAULT OFF (close-the-loop 2026-06-26, matching route_directed). It forces foreign
+    # signals around the high-current corridors so the pours fill solid, but on a placement that isn't
+    # corridor-clean it STRANDS the sense taps (kelvin true->false) -- so it must not be on by default
+    # (CEC_OVD_CORRIDOR_KEEPOUT=1 enables it, for use only with the corridor-packing placer).
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        hints += _vital_keepouts_from_rules(board, rules)
+    # TAP-CHANNEL keepout (2026-06-28): reserve the F.Cu inner-edge Kelvin tap channels so pass-1 FR
+    # routes TRANSITING foreign (a comparator /DETC*, +3V3, I2C) AROUND/UNDER them instead of through the
+    # notch at tap height -- otherwise the post-route tap refuses itself (kelvin_ok=False) on an otherwise
+    # geometrically-clean placement, and TPC (which needs a kelvin-ok pass-1) never runs. F.Cu only, so a
+    # B.Cu crossing (which does not clip the F.Cu tap) is the intended escape. CEC_TAP_CHANNEL_KEEPOUT=1.
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            hints += cec_fr.tap_channel_keepouts(board, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                               # noqa: BLE001 -- keepout is best-effort
+            print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
+    # EDGE keepout: SAFE + always-on. FR has no edge-clearance awareness (~100% of fresh DRC is
+    # copper_edge_clearance); reserve a thin strip just inside each edge (excludes edge-resident
+    # connectors/mounts). CEC_NO_EDGE_KEEPOUT=1 disables.
+    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+        hints += cec_fr.edge_keepout(board)
     return Plan(regions=[Region(name="all", nets=[], hints=hints)], contracts=[])
 
 
@@ -597,8 +674,85 @@ def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
                     f"pour) -> evict the cluster out the nearest edge")}
 
 
+def pour_rebuild_repair(board_path, rules=None, metrics=None):
+    """MANAGER-tier POUR LEVER (stage 4, docs/pour-lever-scoping §3.2). A FOREIGN net crossing a
+    high-current pour -> emit a 'pour_reshape' edit that reshapes the OFFENDED pour so FR re-routes
+    the foreign net off / under it, then the pour re-materializes clear. It is the corridor-evict
+    analogue for the pour itself: where corridor_evict moves a BODY out of a corridor, this moves
+    the POUR off a foreign trace.
+
+    Op choice (cheapest reshape that clears the intrusion):
+      * 2-layer pour (F.Cu+B.Cu mirror) -> DROP_LAYER the mirror the foreign crosses: the foreign
+        escapes on the vacated layer while the remaining pour still carries the current.
+      * 1-layer pour -> SHRINK the offended pour edge back off the foreign locus (a via locus if the
+        summary carries one, else the shunt-notch side).
+
+    FENCE (ruling 1, enforced in PourPlan.rebuild): SAME net, geometry only. This function never
+    emits add / drop / re-net -- those raise EscalateToHuman in the verb, and a shrink that necks the
+    pour raises PourCrossSectionRefused; _apply_edit_guarded records either as a NAMED refusal.
+    N/A (returns None) on shared-bus / per-rail boards where foreign-on-pour is not defined (the
+    24-pin per-rail winner: its OPEN circuits are routing failures OUTSIDE a pour op's reach -- named
+    in the eval residual, not force-fit to a reshape here).
+
+    CEC_POUR_LEVER=0 disables the lever entirely (returns None) -- the eval's byte-identical control
+    arm; default on (inert-when-unused, so on a clean board this changes nothing either way)."""
+    if os.environ.get("CEC_POUR_LEVER", "1") == "0":
+        return None
+    try:
+        import cec_constraints
+        fsum = cec_constraints.foreign_on_pour_summary(board_path)
+    except Exception:                                        # noqa: BLE001
+        return None
+    if not fsum or fsum.get("status") != "ok":
+        return None                                          # na (shared-bus/per-rail) or error
+    by_pour = fsum.get("by_pour") or {}
+    if not by_pour:
+        return None                                          # no foreign on any pour -> clean
+    # most-offended pour net (highest foreign track+via count); deterministic tiebreak by net name
+    net = max(sorted(by_pour), key=lambda n: sum(by_pour[n].values()))
+    foreigns = by_pour[net]
+    op, params = None, None
+    try:
+        import cec_pourplan
+        plan = cec_pourplan.PourPlan.from_board(board_path)
+        layers = {s.layers[0] for s in plan._specs_for(net) if s.layers}
+        vias = [v for v in (fsum.get("vias") or []) if v.get("pour") == net]
+        if len(layers) >= 2:
+            drop = "B.Cu" if "B.Cu" in layers else sorted(layers)[-1]
+            op, params = "drop_layer", {"layer": drop}
+        else:
+            edge, mm = _pour_shrink_plan(plan, net, vias)
+            op, params = "shrink", {"edge": edge, "mm": mm}
+    except Exception:                                        # noqa: BLE001
+        op, params = "shrink", {"edge": "y0", "mm": 1.5}
+    why = ("pour: foreign %s crosses high-current pour %s (%d track/via) -> %s the pour so FR "
+           "re-routes the foreign off it" % (",".join(list(foreigns)[:3]), net,
+                                             sum(foreigns.values()), op))
+    return {"type": "pour_reshape", "op": op, "net": net, "params": params,
+            "tier": "manager", "why": why}
+
+
+def _pour_shrink_plan(plan, net, vias):
+    """Pick (edge, mm) to pull the offended pour off a foreign intrusion: the edge NEAREST the mean
+    foreign-via locus, shrunk just PAST that locus (+0.5mm margin) so the reshaped box excludes it.
+    No via locus -> the shunt-notch side (y0) pulled a modest 1.5mm. The min-pour-cross-section HARD
+    gate (PourPlan.rebuild) refuses the shrink if it would neck the copper -- so a foreign that can
+    only be cleared by necking is NOT laundered; the loop escalates instead."""
+    rects = [s.rect() for s in plan._specs_for(net) if s.rect() is not None]
+    if not rects or not vias:
+        return "y0", 1.5
+    x0 = min(r[0] for r in rects); x1 = max(r[1] for r in rects)
+    y0 = min(r[2] for r in rects); y1 = max(r[3] for r in rects)
+    vx = sum(v["x"] for v in vias) / len(vias)
+    vy = sum(v["y"] for v in vias) / len(vias)
+    d = {"x0": abs(vx - x0), "x1": abs(vx - x1), "y0": abs(vy - y0), "y1": abs(vy - y1)}
+    edge = min(d, key=d.get)
+    return edge, round(d[edge] + 0.5, 3)                      # clear past the locus + margin
+
+
 # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
-# corridor body-in-band eviction, which outranks a generic part nudge. The loop stops at the first hit.
+# corridor body-in-band eviction, which outranks a pour reshape (foreign off the pour), which outranks
+# a generic part nudge. The loop stops at the first hit.
 # NOTE: logo_finishing_repair is implemented but NOT wired in yet -- a full-copper keepout over the logo
 # cuts the GND plane stitching (observed: unconnected 2 -> 24 on a demo route). The correct fix per the
 # corpus ('logo-not-in-high-current-corridor' / the documented 'GND-assign') is to ASSIGN the decorative
@@ -607,6 +761,7 @@ def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
 MANAGER_REPAIRS = [
     ("kelvin_inversion", kelvin_inversion_repair),
     ("corridor_evict", corridor_evict_repair),
+    ("pour_rebuild", pour_rebuild_repair),
     ("part_nudge", lambda bp, rules, metrics: targeted_repair(bp, tier="manager")),
 ]
 
@@ -652,7 +807,12 @@ def _vital_keepouts_from_rules(board, rules):
     instead of being blocked by the keepout's own DoNotAllowZoneFills (a latent pour-clip the route_directed
     validation exposed -- ~89% of the pour was blocked; this also benefits cec_router.route())."""
     import cec_fr
-    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
+    # CEC_CORRIDOR_FCU_ONLY=1: reserve only F.Cu (the "layer-tier lever") so foreign routes on B.Cu UNDER
+    # the F.Cu pour -- pass-1 lands foreign-on-pour=0 (F.Cu-scoped gate) WITHOUT a TPC re-route. Pair with
+    # the tap-channel keepout. Default keeps the both-outer reservation.
+    layers = ("F.Cu",) if os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1" else ("F.Cu", "B.Cu")
+    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v,
+                                    layers=layers)
 
 
 def _candidate_pool(cands, rules, weights):
@@ -732,10 +892,393 @@ def independent_drc(final, rules, *, weights=None):
     gates + metrics. Independent of the per-region scoring that drove the loop."""
     m = cec_score.score(final, rules)
     passed, reasons = cec_score.gate(m, rules)
-    return {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
-            "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
-            "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
-            "objective": round(cec_score.objective(m, weights), 2)}
+    reasons = list(reasons)
+    verdict = {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
+               "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
+               "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
+               "objective": round(cec_score.objective(m, weights), 2)}
+    # VIA-ON-PAD gate (cec_constraints.via_on_pad_summary): a via whose copper overlaps a pad is a
+    # fault KiCad DRC does NOT flag by default -- SAME-net = via-in-pad (needs tent/fill), DIFF-net =
+    # a short. The layer-swap / B.Cu-mirror finishing stages emit 1-6 of these, so route()'s
+    # INDEPENDENT verdict MUST surface them or a via-in-pad board ships silently (gates_pass=True at
+    # finishing DRC). Lazy import (cec_constraints -> cec_dispatch -> this module) + fallback-safe (a
+    # verdict must never break on the checker).
+    try:
+        import cec_constraints
+        vop = cec_constraints.via_on_pad_summary(final)
+        verdict["via_on_pad"] = {"same_net": vop["same"], "diff_net": vop["diff"], "vias": vop["n_vias"]}
+        if vop["same"] or vop["diff"]:
+            verdict["gates_pass"] = False
+            reasons.append("via-on-pad: %d SAME-net (via-in-pad, needs tent/fill), %d DIFF-net (short) "
+                           "-- KiCad DRC does not flag these" % (vop["same"], vop["diff"]))
+            verdict["via_on_pad"]["same_detail"] = vop["same_detail"][:8]
+            verdict["via_on_pad"]["diff_detail"] = vop["diff_detail"][:8]
+    except Exception as _e:                              # noqa: BLE001
+        # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
+        verdict["via_on_pad"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("via-on-pad gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
+
+    # FOREIGN-ON-POUR gate (cec_constraints.foreign_on_pour_summary): THE absolute high-current-pour
+    # keepout (owner directive 2026-06-27). A foreign-net track on the pour layer (or a via in the pour)
+    # forces the zone filler to carve an antipad that necks/fragments the 40A fill -- and KiCad DRC is
+    # BLIND to it (no clearance error), so 'drc==0' can NEVER catch foreign-through-pour (~80% of the
+    # crossings are silent). The verdict MUST fail or a board with 50+ foreign crossings ships silently
+    # at finishing DRC. ONE region (derive_power_pours) -- the same the placer body-keepout and the
+    # router corridor keepout obey. Per-cable interposer scope (EPS/PCIe); shared-bus boards report
+    # applicable=False (vacuous). Mirrors the via_on_pad fold; fail-safe (a verdict never breaks on it).
+    try:
+        import cec_constraints
+        fop = cec_constraints.foreign_on_pour_summary(final)
+        verdict["foreign_on_pour"] = {"applicable": fop["applicable"], "status": fop.get("status"),
+                                      "error": fop.get("error"), "tracks": fop["n_tracks"],
+                                      "vias": fop["n_vias"], "pours": fop["n_pours"],
+                                      "by_pour": fop["by_pour"]}
+        if fop.get("status") == "error":
+            # FAIL-CLOSED: the board HAS SENSEC pours but the region-finder raised/returned empty.
+            # The keepout cannot be verified, so the verdict must FAIL -- never pass silently on a
+            # board with unprotectable high-current pour copper (owner-flagged fail-open, 2026-06-28).
+            verdict["gates_pass"] = False
+            reasons.append("foreign-on-pour FAIL-CLOSED: the high-current pour region-finder errored on "
+                           "a board WITH SENSEC pours -- the absolute keepout cannot be verified: %s"
+                           % fop.get("error"))
+        elif fop["applicable"] and (fop["n_tracks"] or fop["n_vias"]):
+            verdict["gates_pass"] = False
+            reasons.append("foreign-on-pour (ABSOLUTE keepout): %d foreign track(s) + %d via(s) cross a "
+                           "high-current pour -- KiCad DRC is blind to the antipad; re-place corridor-clean "
+                           "or run the two-pass corridor protect -- %s"
+                           % (fop["n_tracks"], fop["n_vias"],
+                              "; ".join("%s<-%s" % (p, c) for p, c in sorted(fop["by_pour"].items()))[:200]))
+    except Exception as _e:                              # noqa: BLE001
+        # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
+        verdict["foreign_on_pour"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("foreign-on-pour gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
+
+    # KELVIN-SENSE DRC gate (tapshort hardening 2026-06-27): kelvin_ok (cec_score._check_pairs) is
+    # structurally BLIND to shorts -- it passes a pair on routed>=1 track + 0 ratlines only -- so a
+    # /SENSEC*_HI|_LO leg shorted to GND/+3V3 reads kelvin_ok=True. Fail the gate when any short /
+    # clearance / mask / crossing DRC locus references a sense (_HI/_LO) net. Read from the drc_loci the
+    # score() run already produced (no extra DRC run). Defense-in-depth with foreign-on-pour (which also
+    # catches the GND-on-LO-pour half geometrically).
+    try:
+        sense_nets = {n for pair in (rules.kelvin_pairs or []) for n in pair}
+        for n in m.detail.get("board_nets", []):
+            if n.endswith(("_HI", "_LO")):
+                sense_nets.add(n)
+        _SHORT_TYPES = ("shorting_items", "solder_mask_bridge", "tracks_crossing", "clearance")
+        bad = [l for l in m.drc_loci
+               if l.get("type") in _SHORT_TYPES
+               and any(("[" + sn + "]") in l.get("where", "") for sn in sense_nets)]
+        verdict["kelvin_sense_drc"] = len(bad)
+        if bad:
+            verdict["gates_pass"] = False
+            reasons.append("kelvin-sense DRC: %d short/clearance/mask locus on a sense (_HI/_LO) net "
+                           "(kelvin_ok is blind to shorts) -- %s"
+                           % (len(bad), "; ".join(b.get("where", "")[:70] for b in bad[:3])))
+    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+        verdict["kelvin_sense_drc"] = "error: %s: %s" % (type(_e).__name__, _e)
+    return verdict
+
+
+# ============================================================ two-pass corridor protect (TPC)
+# The SECOND PASS of the net-aware-keepout method (prototype build/two_pass_route.py, proven
+# 2026-06-27 on eps-8pin-rev3: field max_T 734C->121C, foreign-F.Cu-tracks-through-SENSEC-pour
+# 48->0, kelvin TRUE). It runs AFTER a normal route succeeds with kelvin_ok, on boards that have
+# SENSEC high-current corridors:
+#   1. SUBPROCESS rip -- load pass-1, LOCK every /SENSEC*_HI/_LO (+optionally GND) track and
+#      RIP every other (foreign) track, then SaveBoard. The rip MUST be a subprocess: removing
+#      tracks then SaveBoard corrupts pcbnew's NetInfo SWIG proxies for the rest of THIS
+#      interpreter (a documented KiCad-10 footgun), so isolating it keeps the FR pipeline clean.
+#   2. cec_fr.corridor_keepouts -> bake_hints  (the NOTCHED corridor reservation)
+#   3. cec_fr.export_dsn -> cec_fr02.force_protect_in_dsn(SENSEC only) -- the kept SENSEC wires
+#      export as (type fix); upgrade them to (type protect) so FR keeps them untouchable while it
+#      re-routes the ripped foreign nets AROUND the keepout into the clear channels.
+#   4. cec_fr.run_freerouting -> cec_fr.import_ses with cec_fr.derive_power_pours (solid F.Cu pour).
+# SENSEC-ONLY protect (NOT GND -- protecting the GND plane wires would over-constrain FR).
+
+# the rip child program (runs in a fresh interpreter -- see the SWIG note above). It locks the
+# SENSEC force/sense tracks, rips every other track, and reports the protect/keep sets.
+_TPC_RIP_CHILD = r'''
+import sys, json
+sys.path.insert(0, "scripts")
+import pcbnew
+pass1, base, also_gnd = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+# extra_keep (argv[4], comma-list): nets whose CLEAN pass-1 routing must survive the rip exactly like
+# SENSEC + the diff pair -- the "protect what FR drops" recovery. The first TPC re-route can leave a
+# congested core net (e.g. /GPIO0 on eps-rev3) unconnected even though pass-1 routed it; the caller then
+# retries the rip with that net added here so FR routes the OTHER foreign nets AROUND its locked copper.
+extra_keep = set(p for p in (sys.argv[4].split(",") if len(sys.argv) > 4 and sys.argv[4] else []) if p)
+board = pcbnew.LoadBoard(pass1)
+names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+protect = set()
+for h in names:
+    if h.endswith("_HI") and (h[:-3] + "_LO") in names:
+        protect.add(h); protect.add(h[:-3] + "_LO")
+# R1: PROTECT the well-routed pass-1 DIFFERENTIAL pair(s) (e.g. the USB /USB_D_P,/USB_D_N pair) the
+# SAME way SENSEC is protected -- keep+lock their tracks and (in the caller) force_protect them in the
+# DSN so FR does not rip them. Without this the two-pass RIPS the clean pass-1 diff pair and FR
+# reroutes it the long way, hugging the board edge (the copper_edge_clearance DRC the pass-1 board did
+# NOT have). A pair is protected ONLY when none of its tracks intrude a high-current pour box (so we
+# never preserve a pour clip); a clipping pair is left to the normal rip+reroute.
+diffpairs = set()
+pour_boxes = []
+try:
+    import cec_fr
+    for pr in cec_fr.derive_power_pours(pass1, board=board):
+        xs = [q[0] for q in pr["polygon"]]; ys = [q[1] for q in pr["polygon"]]
+        pour_boxes.append((min(xs), max(xs), min(ys), max(ys)))
+except Exception:
+    pour_boxes = []
+def _clips_pour(t):
+    # the pours are F.Cu; an inner-plane / B.Cu run UNDER an F.Cu pour does not clip it, so only an
+    # F.Cu member of the pair can intrude (this is why the USB pair, whose long inner-layer runs pass
+    # below the LO boxes, is still protectable).
+    if t.GetLayer() != pcbnew.F_Cu:
+        return False
+    s, e = t.GetStart(), t.GetEnd()
+    for k in range(11):
+        x = (s.x + (e.x - s.x) * k // 10) / 1e6
+        y = (s.y + (e.y - s.y) * k // 10) / 1e6
+        for x0, x1, y0, y1 in pour_boxes:
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                return True
+    return False
+for p in sorted(names):
+    if p.endswith("_P") and (p[:-2] + "_N") in names:
+        nn = p[:-2] + "_N"
+        members = [t for t in board.GetTracks()
+                   if t.GetClass() == "PCB_TRACK" and t.GetNetname() in (p, nn)]
+        if members and not any(_clips_pour(t) for t in members):
+            diffpairs.add(p); diffpairs.add(nn)
+keep = set(protect) | set(diffpairs) | (extra_keep & names) | ({"GND"} if also_gnd else set())
+kept = 0; doomed = []
+for t in board.GetTracks():
+    if t.GetNetname() in keep:
+        t.SetLocked(True); kept += 1
+    else:
+        doomed.append(t)
+for t in doomed:
+    board.Remove(t)
+# Strip the pass-1 SENSEC F.Cu pours too: TPC re-pours fresh via import_ses(power_pours=...),
+# so leaving the old pours here double-lays same-net zones (a benign-but-counted zones_intersect
+# DRC). Remove them so exactly ONE pour per net survives the re-route.
+for z in list(board.Zones()):
+    zn = z.GetNetname()
+    if zn and (zn.endswith("_HI") or zn.endswith("_LO")) and board.GetLayerName(z.GetLayer()) == "F.Cu":
+        board.Remove(z)
+pcbnew.SaveBoard(base, board)
+print("RIPJSON=" + json.dumps({"protect": sorted(protect), "keep": sorted(keep),
+                               "diffpairs": sorted(diffpairs),
+                               "extra_keep": sorted(extra_keep & names),
+                               "kept": kept, "ripped": len(doomed)}))
+'''
+
+
+def _tpc_run_rip(pass1, base, also_gnd, *, extra_keep=(), scripts_dir=None):
+    """Run the rip child in a SUBPROCESS (mandatory SWIG hygiene). Returns the rip-info dict.
+    extra_keep = nets whose clean pass-1 routing must survive the rip (the 'protect what FR drops'
+    recovery, same lock+force_protect path as SENSEC/diff pairs)."""
+    import subprocess
+    cwd = os.path.dirname(scripts_dir) if scripts_dir else ROOT
+    p = subprocess.run([sys.executable, "-c", _TPC_RIP_CHILD, pass1, base, "1" if also_gnd else "0",
+                        ",".join(sorted(extra_keep))],
+                       capture_output=True, text=True, cwd=cwd)
+    line = [l for l in p.stdout.splitlines() if l.startswith("RIPJSON=")]
+    if not line:
+        raise RuntimeError("TPC rip child failed:\n" + p.stdout[-2000:] + "\n" + p.stderr[-2000:])
+    return json.loads(line[0][len("RIPJSON="):])
+
+
+def board_has_sensec_corridors(board_path):
+    """True if the board carries at least one Kelvin _HI/_LO pair that resolves to a real
+    high-current corridor keepout (a 2-pad shunt + a THT cable connector). The TPC stage is a
+    no-op otherwise (e.g. the Hub, which has no cables)."""
+    try:
+        return len(cec_fr.corridor_keepouts(board_path)) > 0
+    except Exception:
+        return False
+
+
+def _foreign_on_pour_count(board_path):
+    """Foreign track+via crossings of the high-current pours (cec_constraints.foreign_on_pour_summary).
+    0 when the board is corridor-clean or N/A (shared-bus). Fail-safe (a probe never breaks a route)."""
+    try:
+        import cec_constraints
+        s = cec_constraints.foreign_on_pour_summary(board_path)
+        return (s.get("n_tracks", 0) + s.get("n_vias", 0)) if s.get("applicable") else 0
+    except Exception:                                        # noqa: BLE001
+        return 0
+
+
+def _should_default_tpc(board_path, *, verbose=False):
+    """The ROUTER ENFORCEMENT leg of the absolute pour keepout (owner directive 2026-06-27): run the
+    two-pass corridor protect by DEFAULT on a cable board whose pass-1 route left foreign copper on a
+    high-current pour. A corridor-clean pass-1 (foreign-on-pour == 0) skips it -- so the cost is only
+    paid where there is something to clean, and the gate (independent_drc) catches whatever TPC cannot.
+    Overridable via CEC_TWO_PASS_CORRIDOR (explicit 0/1 always wins)."""
+    if not board_has_sensec_corridors(board_path):
+        return False
+    n = _foreign_on_pour_count(board_path)
+    if n > 0 and verbose:
+        print(f"[route] TPC default-ON: pass-1 has {n} foreign track/via on the high-current pours "
+              f"(absolute-keepout enforcement; CEC_TWO_PASS_CORRIDOR=0 to disable)")
+    return n > 0
+
+
+def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_protect_gnd=False,
+                      extra_keep=(), work_dir=None, verbose=True):
+    """Run the TPC second pass on a pass-1 routed board. Returns (out_path, info) on success,
+    or (None, info_with_error) on any failure -- NEVER raises (the caller keeps pass-1 on failure).
+
+    `info` carries: protect (the SENSEC nets), kept/ripped track counts, n_protect_upgraded,
+    n_corridor_keepouts, fr_seconds, and on failure an 'error' string.
+
+    extra_keep = nets whose CLEAN pass-1 routing must survive the rip exactly like SENSEC + the diff
+    pair (lock + force_protect). It is the 'protect what FR drops' recovery: when the first TPC re-route
+    leaves a congested core net (e.g. /GPIO0) unconnected though pass-1 routed it, the caller retries
+    with that net here, so FR threads the OTHER foreign nets AROUND its locked copper."""
+    info = {"pass1": pass1_board, "out": out_path}
+    try:
+        import cec_fr02
+        wd = work_dir or os.path.join(tempfile.gettempdir(), "cec_tpc_" + str(os.getpid()))
+        os.makedirs(wd, exist_ok=True)
+        base = os.path.join(wd, "base.kicad_pcb")
+
+        # step A: rip in a subprocess (foreign ripped, SENSEC + diff pair + extra_keep kept+locked)
+        rip = _tpc_run_rip(pass1_board, base, also_protect_gnd, extra_keep=extra_keep,
+                           scripts_dir=os.path.dirname(os.path.abspath(__file__)))
+        info.update({k: rip[k] for k in ("protect", "keep", "kept", "ripped")})
+        info["diffpairs"] = rip.get("diffpairs", [])
+        info["extra_keep"] = rip.get("extra_keep", [])
+        for ext in (".kicad_pro", ".kicad_dru"):
+            src = os.path.splitext(pass1_board)[0] + ext
+            if os.path.isfile(src):
+                shutil.copy2(src, os.path.splitext(base)[0] + ext)
+        if verbose:
+            print(f"[route] TPC: ripped {rip['ripped']} foreign track(s); kept+locked "
+                  f"{rip['kept']} on {rip['protect']}"
+                  + (f" + diff pair {rip['diffpairs']}" if rip.get("diffpairs") else ""))
+
+        # step B: this process is pristine pcbnew -> keepout + DSN + force_protect + FR + import
+        hints = cec_fr.corridor_keepouts(base)
+        info["n_corridor_keepouts"] = len(hints)
+        # TAP-CHANNEL keepout in the TPC re-route too: the corridor keepout reserves the HI/LO POUR boxes
+        # but leaves the notch (the tap channels) OPEN, so TPC's re-routed foreign can clip a Kelvin tap
+        # there -> kelvin_ok True->False and the TPC board is rejected (the pour-clearing win is lost). The
+        # SENSEC FORCE wires are locked/protected, but the inner-edge taps are re-synthesized post-route, so
+        # the channel must be reserved against foreign just like in pass-1. CEC_TAP_CHANNEL_KEEPOUT=1.
+        if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+            try:
+                hints = list(hints) + cec_fr.tap_channel_keepouts(base)
+            except Exception:                                    # noqa: BLE001 -- best-effort
+                pass
+        # The TPC re-route must keep the SAME board-edge keepout the pass-1 route used
+        # (cec_fr has no edge-clearance awareness, so without it the re-routed nets -- notably the
+        # USB diff pair near J5 -- hug the board edge -> copper_edge_clearance DRC the pass-1 board
+        # did not have). Fail-safe: a missing edge keepout never breaks the TPC pass.
+        try:
+            hints = list(hints) + cec_fr.edge_keepout(base)
+        except Exception:                                    # noqa: BLE001
+            pass
+        hinted = os.path.join(wd, "hinted.kicad_pcb")
+        cec_fr.bake_hints(base, hinted, keepouts=hints, copy_pro=True)
+
+        dsn = os.path.join(wd, "board.dsn")
+        cec_fr.export_dsn(hinted, dsn)
+        # protect SENSEC (the kept force/sense wires) AND the kept pass-1 diff pair(s) AND any
+        # extra_keep recovery net -- NEVER GND (protecting the GND plane wires would over-constrain FR).
+        # Each is locked across the rip exactly like SENSEC so FR keeps its clean pass-1 route (R1).
+        protect_wires = sorted(set(rip["protect"]) | set(rip.get("diffpairs", []))
+                               | set(rip.get("extra_keep", [])))
+        n_prot = cec_fr02.force_protect_in_dsn(dsn, protect_wires)
+        info["n_protect_upgraded"] = n_prot
+        if verbose:
+            _tags = "SENSEC" + ("+diffpair" if rip.get("diffpairs") else "") \
+                + ("+keep" + str(rip.get("extra_keep")) if rip.get("extra_keep") else "")
+            print(f"[route] TPC: {len(hints)} corridor keepout(s); "
+                  f"force_protect upgraded {n_prot} fix->protect wire(s) for {_tags}")
+
+        ses = os.path.join(wd, "board.ses")
+        t0 = time.time()
+        cec_fr.run_freerouting(dsn, ses, passes=passes, opt_time=opt_time, threads=1, timeout=900)
+        info["fr_seconds"] = round(time.time() - t0, 1)
+
+        pours = cec_fr.derive_power_pours(base)
+        cec_fr.import_ses(base, ses, out_path, power_pours=pours)
+        for ext in (".kicad_pro", ".kicad_dru"):
+            src = os.path.splitext(pass1_board)[0] + ext
+            if os.path.isfile(src):
+                shutil.copy2(src, os.path.splitext(out_path)[0] + ext)
+        if verbose:
+            print(f"[route] TPC: FR re-route {info['fr_seconds']}s -> {os.path.basename(out_path)}")
+        return out_path, info
+    except Exception as e:                                    # noqa: BLE001 -- TPC must never break a route
+        info["error"] = f"{type(e).__name__}: {e}"
+        if verbose:
+            print(f"[route] TPC FAILED ({info['error']}); keeping the pass-1 board")
+        return None, info
+
+
+def _run_route_under(board_path, rules, *, verbose=True):
+    """ROUTE-UNDER finishing stage (scripts/cec_layer_swap.py): relayer the foreign F.Cu copper that
+    clips a SENSEC high-current pour OFF F.Cu so the pour fills solid. THROUGH crossings move to the
+    cheapest legal layer (B.Cu, else the In2 GND plane for signal nets only); R2 GAP-OVERFLOW edge
+    clips drop to minimal B.Cu hops UNDER the pour edge with their transition vias in the un-poured
+    gap; foreign in-box vias / GND stitch stubs are evacuated into the gap. Runs in its OWN process
+    (pcbnew SWIG hygiene), in place. Adopts the swapped board over `board_path` ONLY on a STRICT,
+    no-regress gate: kelvin still holds AND neither DRC nor unconnected got worse (the swap can only
+    add copper to the pours / move foreign off them, but the relayer is fragile on a dense pad-pinned
+    net + a congested B.Cu gap, so a regression -> keep the un-swapped board). Whatever it cannot
+    clear, the independent foreign-on-pour gate still reports (honest escalation). Returns the swap
+    SUMMARY string (or "") for logging."""
+    import subprocess
+    under = board_path[:-len(".kicad_pcb")] + "-under.kicad_pcb"
+    for ext in (".kicad_pro", ".kicad_dru"):
+        s = board_path[:-len(".kicad_pcb")] + ext
+        if os.path.exists(s):
+            shutil.copy(s, under[:-len(".kicad_pcb")] + ext)
+    try:
+        su = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "cec_layer_swap.py"),
+             board_path, under, "0.2", "0.25"],
+            env={**os.environ,
+                 "CEC_VIA_SLIDE_MM": os.environ.get("CEC_ROUTE_UNDER_SLIDE", "5.0"),
+                 "CEC_CHAIN_GAP_MM": os.environ.get("CEC_ROUTE_UNDER_GAP", "8.0")},
+            capture_output=True, text=True, timeout=600)
+    except Exception as _e:                                  # noqa: BLE001 -- finishing must never break a route
+        if verbose:
+            print(f"[route] ROUTE-UNDER error ({type(_e).__name__}: {_e}); keeping un-swapped board")
+        return ""
+    if su.returncode != 0 or not os.path.exists(under):
+        if verbose:
+            print(f"[route] ROUTE-UNDER skipped (rc={su.returncode}): "
+                  f"{((su.stdout or '') + (su.stderr or ''))[-200:]}")
+        return ""
+    pre_m = cec_score.score(board_path, rules)
+    post_m = cec_score.score(under, rules)
+    # STRICT no-regress gate: kelvin holds AND DRC + unconnected do not get worse.
+    adopt = (post_m.kelvin_ok and post_m.drc <= pre_m.drc and post_m.unconnected <= pre_m.unconnected)
+    if adopt:
+        shutil.copy(under, board_path)
+        for ext in (".kicad_pro", ".kicad_dru"):
+            s = under[:-len(".kicad_pcb")] + ext
+            if os.path.exists(s):
+                shutil.copy(s, board_path[:-len(".kicad_pcb")] + ext)
+    out_lines = (su.stdout or "").strip().splitlines()
+    summ = next((ln for ln in out_lines if ln.startswith("SUMMARY ")), "")
+    head = next((ln for ln in out_lines if ln.startswith("THROUGH crossings")), "")
+    r2 = next((ln for ln in out_lines if ln.startswith("R2 clip pass")), "")
+    if verbose:
+        tag = ("ADOPTED" if adopt
+               else f"NOT adopted (kelvin={post_m.kelvin_ok} drc={post_m.drc} unconn={post_m.unconnected} "
+                    f"vs pre drc={pre_m.drc} unconn={pre_m.unconnected}); keeping un-swapped")
+        print(f"[route] ROUTE-UNDER {tag}: {head}")
+        if r2:
+            print("[route] ROUTE-UNDER " + r2)
+        if summ:
+            print("[route] ROUTE-UNDER " + summ[:500])
+    return summ
 
 
 # ============================================================ the route() loop
@@ -837,8 +1380,11 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 spread_note = "single-seed"
                 def _mkparams(s, base=base):
                     return base
+            # POUR LEVER: after a rebuild, the reshaped pours (state.pour_pours) supersede the
+            # once-derived spec.power_pours; before any rebuild state.pour_pours is None (byte-identical).
+            _pours = state.pour_pours if state.pour_pours is not None else spec.power_pours
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
-                                          power_pours=spec.power_pours,
+                                          power_pours=_pours,
                                           out_dir=outd, params=_mkparams,
                                           max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
@@ -860,7 +1406,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             if K >= spec.Kmax:
                 ev = escalator(region, state, history)
                 if ev.edit:
-                    apply_edit(state, ev.edit)
+                    _apply_edit_guarded(state, ev.edit, log, region, it)
                 log.add(region=region.name, iteration=it, candidates=[], chosen=None, verdict=ev,
                         note="escalation")
                 if verbose:
@@ -869,7 +1415,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             else:
                 ed = verdict.edit and verdict or worker(region, verdict, state, history)
                 if ed.edit:
-                    apply_edit(state, ed.edit)
+                    _apply_edit_guarded(state, ed.edit, log, region, it)
                 K += 1
             history.append({"it": it, "best": (best[1] if best else None), "verdict": verdict})
             if it >= spec.max_iters:                      # hard stop: never loop forever
@@ -893,6 +1439,136 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         s = merged[:-len(".kicad_pcb")] + ext
         if os.path.exists(s):
             shutil.copy(s, spec.out[:-len(".kicad_pcb")] + ext)
+    # NOTE: ROUTE-UNDER now runs AFTER the TWO-PASS CORRIDOR below (not here). TPC rips + re-routes
+    # every foreign track from scratch, so any pre-TPC layer-swap would be discarded; worse, the
+    # pre-TPC swap relayers the USB diff pair onto the In2 plane, and protecting THAT messy multi-layer
+    # route over-constrains TPC's FR re-route (measured: unconn 0 -> 15). Route-under is the LAST
+    # finishing stage, applied to the adopted (TPC or pass-1) board.
+    # TWO-PASS CORRIDOR PROTECT (CEC_TWO_PASS_CORRIDOR=1): the net-aware-keepout SECOND PASS. After
+    # the normal route succeeds with kelvin_ok AND the board has SENSEC corridors, lock the SENSEC
+    # tracks + rip every foreign track, bake the notched corridor keepout, force-protect the SENSEC
+    # wires in the DSN, and re-route the foreign nets AROUND the corridor -> the F.Cu pours fill
+    # SOLID (genuinely-foreign-through-pour drops sharply: measured 51->8/71->16 on eps-8pin-rev3,
+    # kelvin/diffpair stay TRUE). GRACEFUL: any failure keeps the pass-1 board (spec.out untouched),
+    # so it can only help. Then RE-SCORE; if FR left unconnected leaves, run the deterministic GR-02
+    # repair battery per blocked net (a route must NEVER ship unconnected>0), and adopt the TPC board
+    # over pass-1 ONLY if kelvin holds AND unconnected does not regress vs pass-1.
+    # MEASURED LIMIT (2026-06-27, eps-8pin-rev3): the rip-reroute reliably protects the corridors,
+    # but on this center-congested cable board FR cannot fit ALL the ripped foreign nets back AROUND
+    # the reserved corridors in one pass -> it leaves ~15-29 unconnected leaves (+3V3/GND/I2C/DET),
+    # which GR-02 cannot clean (it is gated on drc==0) and a lock-all completion FR pass over-routes.
+    # So the adoption gate correctly KEEPS the complete pass-1 board here. TPC is wired + verified
+    # end-to-end and lands the corridor win on its artifact (spec.out[-tpc]); converting that into an
+    # ADOPTED board needs either a corridor-clean placement (the evacuation regressed eps-rev3-rev3's
+    # HI corridor) or a surgical re-route lever FR can satisfy -- see the session report.
+    # ENFORCEMENT (owner directive 2026-06-27): TPC is now DEFAULT-ON for a cable board whose pass-1
+    # left foreign copper on a high-current pour -- the router's leg of the absolute keepout. A
+    # corridor-clean pass-1 skips it (no cost), and whatever TPC cannot clear the independent_drc
+    # foreign-on-pour gate fails (never silently shipped). Explicit CEC_TWO_PASS_CORRIDOR=0/1 wins.
+    _tpc = os.environ.get("CEC_TWO_PASS_CORRIDOR")
+    _do_tpc = (_tpc == "1") if _tpc is not None else _should_default_tpc(spec.out, verbose=verbose)
+    if _do_tpc:
+        pass1_m = cec_score.score(spec.out, rules)
+        if not pass1_m.kelvin_ok:
+            if verbose:
+                print("[route] TPC skipped: pass-1 board is not kelvin_ok (needs a clean pass-1 first)")
+        elif not board_has_sensec_corridors(spec.out):
+            if verbose:
+                print("[route] TPC skipped: board has no SENSEC high-current corridors (no-op)")
+        else:
+            tpc_out = spec.out[:-len(".kicad_pcb")] + "-tpc.kicad_pcb"
+            tpc_passes = int(os.environ.get("CEC_TPC_PASSES", "14"))
+            tpc_opt = int(os.environ.get("CEC_TPC_OPT_TIME", "40"))
+            tpc_gnd = os.environ.get("CEC_TPC_PROTECT_GND", "0") == "1"
+            got, tpc_info = two_pass_corridor(spec.out, tpc_out, passes=tpc_passes, opt_time=tpc_opt,
+                                              also_protect_gnd=tpc_gnd,
+                                              work_dir=os.path.join(work_dir, "tpc"), verbose=verbose)
+            if got and os.path.exists(got):
+                tpc_m = cec_score.score(got, rules)
+                if verbose:
+                    print(f"[route] TPC re-score: kelvin={tpc_m.kelvin_ok} diffpair={tpc_m.diffpair_ok} "
+                          f"drc={tpc_m.drc} unconn={tpc_m.unconnected} (pass-1 was unconn={pass1_m.unconnected})")
+                # FR's re-route can leave a few unconnected leaves -> deterministic GR-02 repair battery
+                # per blocked net (the route's existing per-net mechanical repair). Never ships unconn>0
+                # silently: if repair clears nothing it just stays on the better of {pass-1, TPC}.
+                best_tpc, best_m = got, tpc_m
+                if tpc_m.kelvin_ok and tpc_m.unconnected > 0:
+                    blocked = sorted(_unconnected_net_set(got))
+                    if verbose and blocked:
+                        print(f"[route] TPC unconnected leaves on {blocked[:8]}"
+                              f"{'...' if len(blocked) > 8 else ''}: running GR-02 repair battery")
+                    cur = got
+                    for bn in blocked:
+                        rep_out = spec.out[:-len(".kicad_pcb")] + "-tpc-rep.kicad_pcb"
+                        try:
+                            res = gr02_repair_battery(cur, rep_out, blocked_net=bn,
+                                                      immovable=set(tpc_info.get("protect", ())) | {"GND"})
+                        except Exception as _e:               # noqa: BLE001
+                            if verbose:
+                                print(f"[route] TPC GR-02 on {bn} errored ({type(_e).__name__}: {_e})")
+                            break
+                        if res.get("repaired") and os.path.exists(rep_out):
+                            rm = cec_score.score(rep_out, rules)
+                            if rm.kelvin_ok and rm.unconnected < best_m.unconnected:
+                                best_tpc, best_m, cur = rep_out, rm, rep_out
+                                if verbose:
+                                    print(f"[route] TPC GR-02 repaired {bn} ({res.get('move')}) "
+                                          f"-> unconn={rm.unconnected}")
+                # RECOVERY -- "protect what FR drops" (generalizes the diff-pair protect): if the TPC
+                # re-route + GR-02 still leaves a net unconnected that pass-1 HAD routed (a congested
+                # core net like /GPIO0 that FR could not re-thread around the reserved corridors), retry
+                # the TPC ONCE with those nets force-protected from pass-1, so FR routes the OTHER foreign
+                # nets AROUND their locked copper. Measured on eps-rev3-widegap: this is the exact gap
+                # between TPC's corridor-clean (foreign-on-pour=0) board and full adoption -- it took the
+                # board from unconn=1 (/GPIO0) to a clean pass on ALL hard gates. The strict adoption gate
+                # below still applies, so the retry can only help. CEC_TPC_KEEP_RECOVERY=0 disables.
+                if (os.environ.get("CEC_TPC_KEEP_RECOVERY", "1") == "1"
+                        and best_m.kelvin_ok and best_m.unconnected > pass1_m.unconnected):
+                    dropped = sorted(_unconnected_net_set(best_tpc) - _unconnected_net_set(spec.out))
+                    if dropped:
+                        if verbose:
+                            print(f"[route] TPC recovery: re-running with pass-1 nets {dropped[:8]} "
+                                  f"force-protected (FR dropped them re-routing around the corridors)")
+                        rec_out = spec.out[:-len(".kicad_pcb")] + "-tpc-rec.kicad_pcb"
+                        got2, info2 = two_pass_corridor(spec.out, rec_out, passes=tpc_passes,
+                                                        opt_time=tpc_opt, also_protect_gnd=tpc_gnd,
+                                                        extra_keep=dropped,
+                                                        work_dir=os.path.join(work_dir, "tpc_rec"),
+                                                        verbose=verbose)
+                        if got2 and os.path.exists(got2):
+                            rec_m = cec_score.score(got2, rules)
+                            if verbose:
+                                print(f"[route] TPC recovery re-score: kelvin={rec_m.kelvin_ok} "
+                                      f"diffpair={rec_m.diffpair_ok} drc={rec_m.drc} unconn={rec_m.unconnected}")
+                            if rec_m.kelvin_ok and rec_m.unconnected < best_m.unconnected:
+                                best_tpc, best_m, tpc_info = got2, rec_m, info2
+                # adopt the TPC board over pass-1 ONLY if kelvin holds AND it is not strictly worse on
+                # unconnected (the corridor pours/thermal win is the point; a kelvin loss or new
+                # unconnected vs pass-1 means keep pass-1).
+                if best_m.kelvin_ok and best_m.unconnected <= pass1_m.unconnected:
+                    shutil.copy(best_tpc, spec.out)
+                    for ext in (".kicad_pro", ".kicad_dru"):
+                        s = best_tpc[:-len(".kicad_pcb")] + ext
+                        if os.path.exists(s):
+                            shutil.copy(s, spec.out[:-len(".kicad_pcb")] + ext)
+                    if verbose:
+                        print(f"[route] TPC ADOPTED (kelvin={best_m.kelvin_ok} drc={best_m.drc} "
+                              f"unconn={best_m.unconnected}); FR {tpc_info.get('fr_seconds')}s, "
+                              f"ripped {tpc_info.get('ripped')}, protected {tpc_info.get('n_protect_upgraded')}")
+                elif verbose:
+                    print(f"[route] TPC NOT adopted (kelvin={best_m.kelvin_ok} unconn={best_m.unconnected} "
+                          f"vs pass-1 unconn={pass1_m.unconnected}); keeping pass-1")
+            elif verbose:
+                print(f"[route] TPC produced no board ({tpc_info.get('error', 'unknown')}); keeping pass-1")
+    # ROUTE-UNDER finishing stage -- the LAST step, on the adopted (TPC or pass-1) board. Relayers the
+    # foreign F.Cu copper still clipping a SENSEC pour OFF F.Cu (R2 gap-overflow B.Cu hops + through
+    # crossings + foreign-via evacuation) so the pour fills solid. STRICT no-regress adoption gate, so
+    # it can only help; whatever it cannot clear the independent foreign-on-pour gate still reports.
+    # Explicit CEC_ROUTE_UNDER wins; else default ON iff the board carries SENSEC corridors.
+    _ru = os.environ.get("CEC_ROUTE_UNDER")
+    _do_under = (_ru == "1") if _ru is not None else board_has_sensec_corridors(spec.out)
+    if _do_under:
+        _run_route_under(spec.out, rules, verbose=verbose)
     verdict = independent_drc(spec.out, rules, weights=spec.weights)
     # tidy the merge intermediates (the candidate lives at spec.out now)
     import glob as _glob
@@ -906,6 +1582,35 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         print(f"[route] FINAL {os.path.relpath(spec.out, ROOT) if spec.out.startswith(ROOT) else spec.out}: "
               f"gates_pass={verdict['gates_pass']} drc={verdict['drc']} unconn={verdict['unconnected']} "
               f"tracks={verdict['tracks']} vias={verdict['vias']}")
+    # CL-13 outcome label (2026-06-26): emit ONE settleable, settled outcome per route run so the learning
+    # chain finally FIRES (it was coded but never fired -- 160 runs -> 0 grade-1 settles). The verdict is the
+    # independent cec_score gate -> a check_id-hooked claim settled grade-1 (claim+hook => PC-01 capture=full).
+    # Never breaks a route: the ledger degrades to a warning when the cec-runs repo is absent.
+    try:
+        import cec_ledger
+        gp = bool(verdict.get("gates_pass"))
+        did = cec_ledger.decision(
+            decision_class="accept" if gp else "reject",
+            artifact=os.path.basename(spec.out),
+            decider={"kind": "model", "id": "cec_router.route"},
+            verdict=(f"gates {'pass' if gp else 'fail'}: kelvin={verdict.get('kelvin_ok')} "
+                     f"diffpair={verdict.get('diffpair_ok')} drc={verdict.get('drc')} unconn={verdict.get('unconnected')} "
+                     f"foreign_on_pour={(verdict.get('foreign_on_pour') or {}).get('tracks', 0)}t"
+                     f"+{(verdict.get('foreign_on_pour') or {}).get('vias', 0)}v"),
+            cited_reasons=verdict.get("reasons", []),
+            claim={"asserts": (f"routed board {'meets' if gp else 'misses'} the hard gates "
+                               f"(kelvin+diffpair+absolute-pour-keepout) at finishing-only DRC"),
+                   "kelvin_ok": verdict.get("kelvin_ok"), "diffpair_ok": verdict.get("diffpair_ok"),
+                   "drc": verdict.get("drc"), "unconnected": verdict.get("unconnected"),
+                   "foreign_on_pour": verdict.get("foreign_on_pour")},
+            hook={"kind": "check_id", "ref": "cec_score:kelvin_ok+diffpair_ok+drc;"
+                                             "cec_constraints:no-foreign-on-high-current-pour"},
+            settlement={"state": "settled", "grade": 1})
+        if verbose and did:
+            print(f"[route] CL-13 outcome label emitted ({'accept' if gp else 'reject'}, settled g1): {did}")
+    except Exception as _e:                              # noqa: BLE001 -- a route must never break on the ledger
+        if verbose:
+            print(f"[route] CL-13 label skipped ({type(_e).__name__}: {_e})")
     return spec.out, log
 
 
@@ -941,8 +1646,29 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     spec = Spec(board=board_path, out=out, rules=rules, seeds=tuple(seeds), Kmax=kmax,
                 max_iters=max_iters, max_workers=max_workers, opt_spread=opt_spread,
                 weights=dict(cec_score.DEFAULT_WEIGHTS))
+    # CORRIDOR keepout DEFAULT-OFF (close-the-loop 2026-06-26): it forces foreign signals around the
+    # high-current corridors (pours fill solid) but STRANDS the sense taps on a placement that isn't
+    # corridor-clean (kelvin true->false) -- so it must not be on by default (this is the LIVE hints path
+    # for every route() caller; the default_planner copy is the no-regions fallback). CEC_OVD_CORRIDOR_KEEPOUT=1
+    # enables it (for use only with the corridor-packing placer). EDGE keepout is SAFE + always-on (FR has no
+    # edge-clearance awareness, ~100% of a fresh route's DRC); CEC_NO_EDGE_KEEPOUT=1 disables.
+    _hints = []
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        _hints += _vital_keepouts_from_rules(board_path, rules)
+    # TAP-CHANNEL keepout (2026-06-28): reserve each F.Cu inner-edge Kelvin tap channel so pass-1 FR
+    # routes TRANSITING foreign (a comparator /DETC*, +3V3, I2C) AROUND/UNDER it rather than through the
+    # notch at tap height -- otherwise the post-route tap refuses itself (kelvin_ok=False) on an otherwise
+    # geometrically-clean placement and TPC (which needs a kelvin-ok pass-1) never runs. F.Cu only, so a
+    # B.Cu crossing (which does not clip the F.Cu tap) is the intended escape. CEC_TAP_CHANNEL_KEEPOUT=1.
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            _hints += cec_fr.tap_channel_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                               # noqa: BLE001 -- keepout is best-effort
+            print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
+    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+        _hints += cec_fr.edge_keepout(board_path)
     spec.regions = [Region(name="all", nets=[],
-                           hints=_vital_keepouts_from_rules(board_path, rules),
+                           hints=_hints,
                            fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
     # High-current nets get a real copper POUR laid AFTER each FR route (additive same-net,
     # so it can't strand the Kelvin sense that shares the net). Auto-derived from geometry --

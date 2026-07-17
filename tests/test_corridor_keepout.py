@@ -15,7 +15,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-EPS_PCB = os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb")
+EPS_PCB = os.path.join(ROOT, "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb")  # legacy fixture (pre-beta geometry)
 HUB_PCB = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb")
 try:
     import pcbnew                                          # noqa: F401

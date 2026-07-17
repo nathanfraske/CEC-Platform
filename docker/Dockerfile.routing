@@ -37,8 +37,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Pipeline Python deps + the scipy/numpy the DC IR-drop slice (Phase 1) will use. --break-system-
 # packages: the KiCad image base is PEP-668 managed and pcbnew lives in the system python3, so we
 # install alongside it rather than in a venv (which would not see pcbnew).
+# pyamg: the thermal solver's AMG path (2026-06-20 lesson: "the win was AMG, not the GPU" --
+# without it cec_thermal2d silently degrades to ~4260-iter Jacobi-CG, 10-100x slower).
+# matplotlib+shapely: overlay/render + geometry legs. All three were runtime-pip'd into live
+# containers and lost on every recreate (bit us 2026-06-20, 07-08, 07-09) -- BAKED IN per the
+# solver-roadmap 2026-07-10 reachability scoping. Never runtime-pip deps into this container.
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
-        numpy scipy requests
+        numpy scipy requests pyamg matplotlib shapely
 
 WORKDIR /workspace
 

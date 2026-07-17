@@ -46,6 +46,7 @@ import shutil
 import tempfile
 import subprocess
 from enum import Enum
+from contextlib import contextmanager
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field, asdict
@@ -291,7 +292,13 @@ class Config:
 
     @classmethod
     def load(cls, board, **kw):
-        d = board if os.path.isdir(board) else os.path.join(ROOT, "modules", board)
+        if os.path.isdir(board):
+            d = board
+        else:
+            d = next((c for c in (os.path.join(ROOT, "modules", board),
+                                  os.path.join(ROOT, "hubs", board),
+                                  os.path.join(ROOT, "modules", "output-daughterboards", board))
+                      if os.path.isdir(c)), os.path.join(ROOT, "modules", board))
         if not os.path.isdir(d):
             # allow passing a .kicad_pcb / .kicad_sch directly
             if os.path.isfile(board):
@@ -302,7 +309,9 @@ class Config:
         params = dict(cls.DEFAULT_PARAMS)
         params.update(kw.pop("params", {}) or {})
         cfg = cls(board=name, dir=d, params=params, **kw)
-        cfg.sch = _one(glob.glob(os.path.join(d, "*.kicad_sch")))
+        # ROOT sheet, not sorted()[0] -- the hierarchical beta boards' numbered sub-sheets
+        # sort first and a leaf-sheet netlist silently drops most of the board (6/63 comps).
+        cfg.sch = _tc.find_root_sch(d)
         cfg.pcb = _one([p for p in glob.glob(os.path.join(d, "*.kicad_pcb"))
                         if "-routed" not in p and ".merged." not in p])
         cfg.net = _one(glob.glob(os.path.join(d, "*.net")))
@@ -600,8 +609,59 @@ ROUTE_GATE = [
 # ============================================================ STAGE: MEASURE
 # Measurement-quality checks: the telemetry is only as good as the sense topology.
 def _kelvin_pairs(nl):
+    """Kelvin (HI, LO) pairs, derived TWO ways and unioned:
+    1. NAME pairs -- <base>_HI with a matching <base>_LO (the platform convention).
+    2. SHUNT-STRADDLE pairs (2026-07-08, the 24-pin mechanism fix): the two nets of a
+       2-pad RS* shunt, regardless of what they are called. Real boards legitimately
+       carry a POWER net on one side of a shunt (the ordered 24-pin: RS2 spans
+       /SENSE5V_HI -> +5V_MAIN, RS4 spans +5VSB -> /SENSE5VSB_LO), and the old
+       name-only derivation silently dropped those rails from every kelvin-derived
+       consumer (chain classifier, gates, corridor former). Orientation: a _HI/_LO
+       name hint wins; else the side a recognised sense IC's IN+ pad taps is HI;
+       else lexical (deterministic).
+    """
+    pairs = {}
     his = [n for n in nl.nets if n.endswith("_HI")]
-    return [(h, h[:-3] + "_LO") for h in his if (h[:-3] + "_LO") in nl.nets]
+    for h in his:
+        lo = h[:-3] + "_LO"
+        if lo in nl.nets:
+            pairs[frozenset((h, lo))] = (h, lo)
+    # straddle pairs off 2-pad RS* shunts
+    ref_pins = {}
+    for net, mem in nl.nets.items():
+        for r, p in mem:
+            ref_pins.setdefault(r, set()).add((net, p))
+    inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+    for r, np_ in ref_pins.items():
+        if not r.startswith("RS") or len(np_) != 2:
+            continue
+        (na, _pa), (nb, _pb) = sorted(np_)
+        if na == nb:
+            continue
+        key = frozenset((na, nb))
+        if key in pairs:
+            continue
+        hi = lo = None
+        for n1, n2 in ((na, nb), (nb, na)):
+            if n1.endswith("_HI") or n2.endswith("_LO"):
+                hi, lo = n1, n2
+                break
+        if hi is None:
+            # orient by a sense IC's IN+ pad
+            for ref, c in nl.comps.items():
+                want = next((v for k, v in inp_pin.items() if k in (c.value or "").upper()), None)
+                if want is None:
+                    continue
+                for net in (na, nb):
+                    if (ref, want) in [tuple(x) for x in nl.nets.get(net, [])]:
+                        hi, lo = net, (nb if net == na else na)
+                        break
+                if hi is not None:
+                    break
+        if hi is None:
+            hi, lo = na, nb
+        pairs[key] = (hi, lo)
+    return sorted(pairs.values())
 
 
 def chk_kelvin_topology(view):
@@ -1539,7 +1599,7 @@ def oracle_similarity(cand, ref_pl, nl, *, weights=None):
         present["dist"] = sum(ds) / len(ds)
     # (c) IC-cluster tightness ratio
     _a, ics, _s, passives = _classify(nl)
-    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
+    spec, _series = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
     by_owner = defaultdict(list)
     for pref, (own, _pad) in spec.items():
         by_owner[own].append(pref)
@@ -1603,6 +1663,13 @@ def _role(ref, value, fp, nl=None):
         if "OUT" in u:
             return "power_out"
         return (_connector_net_role(ref, nl) if nl is not None else None) or "host"
+    # D-5a blade-field terminals (beta line, spec §2.8 revision): the TB* TE 63969 FASTON
+    # receptacles that replaced the J_OUT header -- the module's output is a FIELD of identical
+    # blades the output daughterboard blind-mates. Each blade is a connector anchor (power_out
+    # edge); the field PATTERN is seated by _seat_blade_fields, and the net->slot assignment is
+    # a free routing-time variable (owner 2026-07-07: "you can reorder them however you want").
+    if ref.startswith("TB") or "faston" in f:
+        return "power_out"
     return None
 
 
@@ -1630,21 +1697,44 @@ def _connector_net_role(ref, nl):
     net) is a 'power_in'; a connector carrying any non-rail net -- including an ADC sense/reference
     tap like /KVM_3V3_REF, which is DATA not a rail -- is a host/data port. Returns a role or None
     when it cannot tell (no nets resolved -> caller falls back to 'host')."""
-    nets = [n for n, nodes in nl.nets.items() if any(r == ref for r, _ in nodes)]
-    if not nets:
+    pads = [n for n, nodes in nl.nets.items() for r, _ in nodes if r == ref]
+    if not pads:
         return None
-    nonrail = [n for n in nets if not _is_rail_net(n)]
-    return "power_in" if not nonrail else None
+    # kelvin-pair members are the FORCE path -- power by definition, even though the
+    # _PWR_NOT_INPUT regex excludes SENSE* from the rail-token test (a shunt-side net like
+    # /SENSE12V_HI on an ATX input pin is bulk current, not data). Counted per PAD so a bulk
+    # power connector with a couple of status lines (ATX J3: 20+ rail/force pads vs
+    # PS_ON#/PWR_OK/-12V) still reads as power (2026-07-08, 24-pin mechanism item c).
+    force = {x for pr in _kelvin_pairs(nl) for x in pr}
+    data = [n for n in pads if not (_is_rail_net(n) or n in force)]
+    if not data:
+        return "power_in"
+    if len(pads) - len(data) >= 4 * len(data):
+        return "power_in"
+    return None
+
+
+def _trimmable_rf(fp):
+    """True iff *fp* is an RF module whose courtyard still CARRIES a droppable antenna-keepout
+    lobe. A footprint already named *NoAntKeepout* has a BODY-ONLY courtyard (the 12vhpwr S2
+    MINI's was hand-tightened 45x35 -> 16x21) -- the pad-band trim heuristic in
+    cec_pcb.courtyard_bbox cannot tell body from lobe and UNDERSTATES it by ~5mm (measured
+    2026-07-12: real board-DRC courtyard overlaps -- U4/FID3 parked in the phantom band the
+    trimmed model called free, while build_board's materialize-side trim is a C6-coordinate
+    string replace that no-ops on this footprint). Name-gated so every non-NoAntKeepout
+    board's placement model is bit-for-bit unchanged."""
+    f = fp.lower()
+    return (("rf_module" in f) or ("esp32" in f)) and ("noantkeepout" not in f)
 
 
 def _half_extent(fp, *, drop_antenna=False):
     """(hw, hh) courtyard half-extent of a footprint. When *drop_antenna* and the part is an
     RF module (ESP32 / RF_Module), trim the PCB-antenna keepout lobe to the pad band -- the
-    Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller."""
-    if "mountinghole" in fp.lower():
-        return (3.0, 3.0)                            # M3 keepout (the footprint courtyard parses degenerate)
+    Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller.
+    (Mounting holes now report their true ~6.9mm round courtyard via cec_pcb.courtyard_bbox's
+    circle handling -- the old hardcoded (3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
-    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    is_rf = _trimmable_rf(fp)
     x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, drop_keepout=(drop_antenna and is_rf))
     return ((x1 - x0) / 2.0, (y1 - y0) / 2.0)
 
@@ -1673,11 +1763,20 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     origin is near pin 1, the courtyard extends asymmetrically), so an origin-centred ±half check
     badly mismodels the real courtyard -> phantom 'legal' placements that DRC then flags. This
     uses cec_pcb.courtyard_bbox(fp, 0, 0, rot) = the real courtyard bbox around the origin at this
-    rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board."""
-    if "mountinghole" in fp.lower():
-        return (0.0, 0.0, 3.0, 3.0)                  # M3 keepout (footprint courtyard parses degenerate)
+    rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board.
+    (Mounting holes report their true round courtyard via cec_pcb's circle handling now; the old
+    hardcoded (0,0,3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
-    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    if fp.endswith("CEC_Logo_Copper"):
+        # KEEPOUT-BY-COURTYARD (owner 2026-07-15: "Logo needs to be a keepout for
+        # placers and routing"): the art footprint has no courtyard layer, so every
+        # consumer read it as ~zero extent. Hardcode its measured copper extent
+        # (13.0 x 11.9mm) + 0.5mm margin -- the M3-mount degenerate-courtyard
+        # precedent. With LOGO1 injected as a fixed anchor (rigid-group seat), every
+        # placement stage then treats the logo area as occupied. The ROUTING half is
+        # the F.Cu keepout hint in _oracle_hints_pours.
+        return (0.0, 0.0, 7.0, 6.45)
+    is_rf = _trimmable_rf(fp)      # NoAntKeepout footprints are body-only: never trim (see fn)
     try:
         x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, 0.0, 0.0, rot,
                                                 drop_keepout=(drop_antenna and is_rf))
@@ -1698,16 +1797,25 @@ def _is_power_net(n):
     return bool(_POWER_NET.search(n)) or base in ("GND",) or n.endswith(("_HI", "_LO"))
 
 
-def _classify(nl):
+def _classify(nl, role_overrides=None):
     """Partition the netlist parts: anchors {ref:role} (connectors/mounts by _role), ICs (active,
     placed by relative_place), shunts (RS*, the cable-column structure), passives (everything else
     1-2 pin -> auto_clustered onto an owner IC). Buttons (SW*) count as ICs so they place
-    deliberately (e.g. edge-accessible BOOT/RESET), not clustered."""
+    deliberately (e.g. edge-accessible BOOT/RESET), not clustered.
+
+    role_overrides (params["anchor_roles"]): explicit {ref: role} pins for boards whose
+    connector names/nets defeat _role -- measured 2026-07-09: the 12vhpwr fun-run stacked
+    J3 AND J4 at the same origin spot because neither classified power_in/power_out."""
     anchors, ics, shunts, passives = {}, [], [], []
     for ref, c in nl.comps.items():
         if not c.footprint or ":" not in c.footprint:
             continue
-        role = _role(ref, c.value, c.footprint, nl=nl)
+        role = (role_overrides or {}).get(ref) or _role(ref, c.value, c.footprint, nl=nl)
+        if role == "free":
+            # explicit opt-out (hub-rev2 J6 mezzanine, 2026-07-15): a connector that is
+            # NOT an edge part -- board-to-board, interior -- places as a deliberate IC.
+            ics.append(ref)
+            continue
         if role:
             anchors[ref] = role
         elif ref.startswith("RS"):
@@ -1733,41 +1841,154 @@ def _owner_pad(nl, owner, shared_nets):
     return cand[0][1]
 
 
-def derive_passive_spec(nl, passives, ic_refs):
-    """Generalize the hand PASSIVE_SPEC: ref -> (owner_ic, owner_pad). A passive's owner is the IC
-    it shares the most SIGNAL nets with (filter caps -> their INA, RC -> their IC); a pure-decoupling
-    cap (only power+GND) is BALANCED across the ICs on that rail (distributed decoupling) so the caps
-    don't pile on one IC. owner_pad = the owner's pad on a shared net (power preferred). This is what
-    feeds cec_pcb.auto_cluster -- the density engine the condensed boards use. The route swarm + the
-    placement handoff refine where connectivity can't disambiguate."""
+def _signal_nets_of(ref, nets_of):
+    """The non-power signal nets a part sits on (the ones that determine its FUNCTION). A net is
+    'signal' here if it is not a global rail/GND AND not a sense FORCE net (*_HI/_LO) -- those last
+    are the high-current Kelvin path, owned by the shunt, never a generic signal that binds a cap."""
+    return {n for n in nets_of.get(ref, set()) if not _is_power_net(n)}
+
+
+def _is_gnd_net(n):
+    base = n.rsplit("/", 1)[-1].upper()
+    return base in ("GND", "AGND", "PGND", "GNDA", "GNDD")
+
+
+def _series_endpoints(nl, pref, owner_cands, nets_of):
+    """If *pref* is a 2-terminal SERIES element bridging two DIFFERENT power/signal nets (NEITHER GND),
+    return ((endpA, padA, netA), (endpB, padB, netB)) -- the owner ref + its pad nearest each end. The
+    canonical case is the SS34 ORing diode between /VBUS (J5) and the +5VSB rail (LDO/Hub feed): both
+    nets are rails so it has no SIGNAL owner and used to scatter, but topologically it sits ON the
+    VBUS->rail path, so we anchor it on the segment between the two endpoints.
+
+    A part is NOT a series element (-> None, caller falls back to cluster ownership) when:
+      * it is not a clean 2-terminal part (one net per pad);
+      * either net is GND -- a GND-referenced 2-pin part is DECOUPLING/bypass, not a series pass element
+        (this is what stops every bypass cap from being mis-read as a VBUS->rail bridge);
+      * both pads share the same net; or
+      * an endpoint owner can't be resolved on one of the nets.
+
+    Endpoint selection per net: the owner-candidate (IC/connector/shunt) on that net with the FEWEST
+    nodes on the net -- a real point-to-point terminus (J5 on /VBUS, U3 the LDO on +5VSB), not a part
+    deep in a fanned plane. The two endpoints must be DISTINCT owners (else it's a stub, not a bridge)."""
+    pad_net = {}
+    for n in nets_of.get(pref, set()):
+        for r, p in nl.nets.get(n, []):
+            if r == pref:
+                pad_net[p] = n
+    if len(pad_net) != 2:
+        return None
+    (pa, na), (pb, nb) = sorted(pad_net.items())
+    if na == nb or _is_gnd_net(na) or _is_gnd_net(nb):
+        return None
+
+    def best_endpoint(net):
+        cands = []
+        for r, p in nl.nets.get(net, []):
+            if r in owner_cands and r != pref:
+                fan = sum(1 for rr, _ in nl.nets.get(net, []) if rr == r)
+                cands.append((fan, r, p))
+        if not cands:
+            return None
+        cands.sort()
+        return cands[0][1], cands[0][2]
+
+    A = best_endpoint(na)
+    B = best_endpoint(nb)
+    if not A or not B or A[0] == B[0]:
+        return None
+    return (A[0], A[1], na), (B[0], B[1], nb)
+
+
+def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
+    """Generalize the hand PASSIVE_SPEC to FUNCTIONAL grouping: ref -> (owner, owner_pad). A part's
+    owner is the ANCHOR (IC, connector J*, OR shunt RS*) it shares the most non-power SIGNAL nets with.
+
+    Broadening the owner set beyond ICs (the owner-caught gap 2026-06-27) is what lets a foreign part
+    sit at its TRUE function instead of scattering: the USB CC pull-downs couple only to the USB-C
+    connector (/USB_CC1,2 reach J5 alone), the DETECT ESD diode couples only to the host RJ-45 (J1.8),
+    so each now OWNS onto that connector at the relevant pad -- and a connector-owned cluster naturally
+    sits at the board I/O edge, OUT of the SENSEC high-current corridors (functional grouping is also
+    the root corridor-cleanliness fix, not the symptom-patch evacuator).
+
+    Roles (all derived from netlist topology, no per-board hardcoding):
+      * series-element -- a 2-terminal part whose two nets reach two DIFFERENT anchors (the SS34 between
+        J5.VBUS and the +5VSB rail). It has no signal owner (both nets are rails) but sits ON the path;
+        we hand it back with owner=the lower-fanout endpoint anchor and a SERIES marker via the second
+        return (placed mid-segment by the caller).
+      * connector/pull -- strongest SIGNAL coupling is a connector (CC pull-downs -> J5, DETECT ESD ->
+        J1): cluster ON that connector at its pad on the shared net.
+      * filter/sense -- strongest SIGNAL coupling is an IC (RC/filter caps -> their INA/comparator).
+      * decoupling (unchanged) -- a part on power+GND ONLY is BALANCED across the ICs on that rail
+        (distributed decoupling). NEVER owned by a connector/shunt (they are not decoupling seats).
+      * INA-at-shunt -- the kelvin seat is the existing corridor-spine + anneal connectivity, untouched.
+
+    owner_pad = the owner's pad on a shared net (signal preferred for a connector/IC functional owner;
+    power preferred for a pure-decoupling cap). This feeds cec_pcb.auto_cluster -- the same density
+    engine -- now also seated at a connector/shunt anchor pad.
+
+    Returns (spec, series): spec = {ref:(owner, pad)}; series = {ref:((aRef,aPad),(bRef,bPad))} for
+    series elements (the caller places them on the segment between the two endpoint anchors)."""
+    anchor_refs = set(anchor_refs or [])
     nets_of = defaultdict(set)
     for n, nodes in nl.nets.items():
         for r, _p in nodes:
             nets_of[r].add(n)
-    ic_nets = {ic: nets_of[ic] for ic in ic_refs}
-    load = {ic: 0 for ic in ic_refs}                    # decoupling-balance counter
-    spec = {}
+    ic_set = set(ic_refs)
+    # the FUNCTIONAL owner candidates = ICs + connectors + shunts (anything that anchors a cluster)
+    owner_cands = list(ic_set | anchor_refs)
+    cand_nets = {o: nets_of[o] for o in owner_cands}
+    load = {ic: 0 for ic in ic_refs}                    # decoupling-balance counter (ICs only)
+    spec, series = {}, {}
     for pref in passives:
         pnets = nets_of.get(pref, set())
         if not pnets:
             continue
+        psig = _signal_nets_of(pref, nets_of)
+        # 1. strongest NON-POWER signal coupling, over the broadened owner set (IC | connector | shunt)
         sig = []
-        for ic, icn in ic_nets.items():
-            signals = [n for n in (pnets & icn) if not _is_power_net(n)]
-            if signals:
-                sig.append((len(signals), ic))
-        if sig:
-            owner = max(sig)[1]                         # strongest signal-net coupling
-        else:
-            pwr_ics = [ic for ic, icn in ic_nets.items() if (pnets & icn)]
-            if not pwr_ics:
+        for o, on in cand_nets.items():
+            if o == pref:
                 continue
-            owner = min(pwr_ics, key=lambda ic: load[ic])   # balance decoupling across the rail
-            load[owner] += 1
+            shared_sig = psig & on
+            if shared_sig:
+                # tie-break: more shared signals first, then a connector/shunt over an IC for a part
+                # whose ONLY signal reach is that connector (CC pull-down), then a stable ref order.
+                is_anchor = 1 if o in anchor_refs else 0
+                sig.append((len(shared_sig), is_anchor, o))
+        if sig:
+            owner = _pick_signal_owner(sig)
+            pad = _owner_pad(nl, owner, (psig & nets_of[owner]) or (pnets & nets_of[owner]))
+            if pad:
+                spec[pref] = (owner, pad)
+            continue
+        # 2. no signal owner -> SERIES element? (two distinct anchor endpoints on its two nets)
+        ep = _series_endpoints(nl, pref, owner_cands, nets_of)
+        if ep:
+            (aR, aP, _na), (bR, bP, _nb) = ep
+            # owner = the lower-fanout endpoint anchor (a real terminus), so the cluster bbox tracks it;
+            # the caller overrides its position to the segment midpoint.
+            owner = aR
+            pad = aP
+            spec[pref] = (owner, pad)
+            series[pref] = ((aR, aP), (bR, bP))
+            continue
+        # 3. pure decoupling -> BALANCE across the rail ICs (never a connector/shunt seat)
+        pwr_ics = [ic for ic in ic_refs if (pnets & cand_nets.get(ic, set()))]
+        if not pwr_ics:
+            continue
+        owner = min(pwr_ics, key=lambda ic: load[ic])
+        load[owner] += 1
         pad = _owner_pad(nl, owner, pnets & nets_of[owner])
         if pad:
             spec[pref] = (owner, pad)
-    return spec
+    return spec, series
+
+
+def _pick_signal_owner(sig):
+    """Resolve the strongest-signal-coupling owner from [(n_shared_sig, is_anchor, ref)]. Most shared
+    signal nets wins; a connector/shunt anchor breaks a tie over an IC (a part whose signal reach is a
+    connector belongs ON it -- the CC pull-down case); ref order is the final deterministic tie-break."""
+    return max(sig, key=lambda t: (t[0], t[1], t[2]))[2]
 
 
 def place_mechanical(W, H, params):
@@ -1776,7 +1997,11 @@ def place_mechanical(W, H, params):
     are NOT in the netlist. e = edge inset. These become fixed obstacles for the placer (keep parts
     off the screw heads / fiducial windows) and are emitted at materialize time."""
     pos, fp = {}, {}
-    e = 3.5
+    e = 3.5   # edge inset of the mount CENTER. NOTE: bumping this to clear the M3-pad edge-clearance DRC
+    #           (pad radius ~3.2mm vs 0.5mm rule) collides H3 with the left-edge cable corridor and aborts
+    #           the placer worker -- the proper fix is to cohere parts around inset mounts, not just move
+    #           the mount (FOLLOWUPS 2026-06-26). 3.5 keeps the placer stable; mount edge-clearance is a
+    #           cosmetic finishing DRC the GUI clears.
     # MV2: a per-board mount-position INPUT (board-frame-relative coords derived from the reference
     # oracle, or a spec line) overrides the generic pattern -- mounts are board-specific inputs, not
     # a rule. Clamped in-board so a slightly different sweep size can't push a screw off the edge.
@@ -1786,7 +2011,9 @@ def place_mechanical(W, H, params):
                for _r, (x, y) in sorted(override.items())]
     else:
         m = params.get("mount_holes", "3_2logic_1conn")
-        if m == "4_corner":
+        if m in ("none", "0"):                          # owner may not use chassis mounts at all
+            pts = []
+        elif m == "4_corner":
             pts = [(e, e), (W - e, e), (e, H - e), (W - e, H - e)]
         elif m == "2_diag":
             pts = [(e, e), (W - e, H - e)]
@@ -1798,7 +2025,11 @@ def place_mechanical(W, H, params):
     f = params.get("fiducials", "3")
     if f and f != "none":
         nf = int(f) if str(f).isdigit() else 3
-        fpts = [(W * 0.85, e), (W * 0.85, H - e), (W * 0.5, H - e)][:nf]
+        # STAGED OFF-BOARD (owner 2026-07-12: fiducials go to 3 OPEN corners, placed
+        # LAST -- "not considered until then"). Parked at x=-8 so no placement pass
+        # sees them as obstacles; the p11_fiducials_last pass seats them in the three
+        # most-open corners once everything else has settled.
+        fpts = [(-8.0, 6.0 + 8.0 * k) for k in range(nf)]
         for i, (x, y) in enumerate(fpts, 1):
             pos[f"FID{i}"] = (x, y, 0.0)
             fp[f"FID{i}"] = _FID_FP
@@ -1824,7 +2055,8 @@ _ROLE_EDGE = {"power_in": "top", "power_out": "bottom", "host": "right", "usb": 
 
 
 def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8,
-                 edge_override=None):
+                 lane_center=0.0, pack_right_top=False,
+                 edge_override=None, role_overrides=None):
     """Place connector anchors at board edges. The edge a connector goes to is, by default, its
     role's generic edge (power_in->top, power_out->bottom, host/usb->right); MV2's *edge_override*
     {ref: 'top'|'bottom'|'left'|'right'} REPLACES that per connector -- it is a per-board INPUT
@@ -1839,8 +2071,14 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
     roles = defaultdict(list)            # ref -> edge (role-default, then per-board override)
     by_edge = defaultdict(list)
     for ref in fp_of:
-        r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint,
-                  nl=nl)
+        # role_overrides (params["anchor_roles"]) must reach EDGE SEATING, not just _classify:
+        # the 12vhpwr fun-run bug (2026-07-09/10) was exactly this gap -- J3/J4 were overridden
+        # power_in/power_out in _classify (so they became anchors) but seed_anchors re-derived
+        # the role itself, and the 12V-2x6's sideband data pins make _connector_net_role read
+        # both as "host" -> both seated on the RIGHT edge instead of top/bottom-centre.
+        r = ((role_overrides or {}).get(ref)
+             or _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint,
+                      nl=nl))
         if not r or r == "mount":
             continue
         roles[r].append(ref)
@@ -1867,11 +2105,37 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         seats its pads at the margin with the body off-board."""
         if not refs:
             return
-        rot = _ROT[edge]
+        base_rot = _ROT[edge]
         horiz = edge in ("top", "bottom")
         items = []
         for ref in sorted(refs):
             fp = fp_of.get(ref, "")
+            # MOUTH-OUT rotation (owner catch 2026-07-08, "the J3 header is backwards"): the
+            # per-edge rotation map is FOOTPRINT-BLIND, but right-angle connector footprints
+            # differ in which local direction the body/shroud extends (Molex vs TraceParts
+            # exports). Pick between base_rot and base_rot+180 by GEOMETRY: the courtyard
+            # bulk (the shroud/mouth) must sit on the OFF-BOARD side of the pad band.
+            rot = base_rot
+            if oh:
+                def _outward(cand):
+                    ccx, ccy, _hw, _hh = _courtyard_info(fp, cand)
+                    (bxl, bxh), (byl, byh) = _pad_band(fp, cand)
+                    if (byh - byl if horiz else bxh - bxl) < 0.1:
+                        return None                    # degenerate band (shared pad numbers): can't judge
+                    pad_c = ((byl + byh) / 2.0) if horiz else ((bxl + bxh) / 2.0)
+                    body_c = ccy if horiz else ccx
+                    return (pad_c - body_c) if edge in ("top", "left") else (body_c - pad_c)
+                # MOUTH-OUT REPAIR (owner catch 2026-07-08, "the J3 header is backwards"): the
+                # per-edge rotation map is footprint-blind and right-angle exports differ in
+                # local mouth direction. Flip ONLY when the default rotation demonstrably
+                # leaves the body INBOARD (outward < 0) and the flip fixes it -- a correct
+                # default (eps 87427) and degenerate-band receptacles stay byte-identical.
+                o_base = _outward(base_rot)
+                flip = (base_rot + 180.0) % 360.0
+                if o_base is not None and o_base < 0:
+                    o_flip = _outward(flip)
+                    if o_flip is not None and o_flip > o_base + 0.5:
+                        rot = flip
             cx, cy, hw, hh = _courtyard_info(fp, rot)
             (pxl, pxh), (pyl, pyh) = _pad_band(fp, rot)
             along = (2 * hw) if horiz else (2 * hh)              # COURTYARD extent along the edge
@@ -1890,6 +2154,11 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         total = sum(it[1] for it in items) + gap * (len(items) - 1)
         edge_len = W if horiz else H
         cursor = max(margin, (edge_len - total) / 2.0)
+        if pack_right_top and edge == "right":
+            # force-lane boards (owner 2026-07-12 "just nudge the RJ-45 up"): pack the
+            # right edge from the TOP so the jack sits in the corner and the column
+            # below stays free for the logic parts the corridors evict.
+            cursor = margin
         for ref, along, coff, perp in items:
             center = cursor + along / 2.0
             cursor += along + gap
@@ -1898,6 +2167,49 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
 
     for edge in ("top", "bottom", "left", "right"):
         place_edge(by_edge.get(edge, []), edge)
+    # STRAIGHT-THROUGH POWER CENTERING (owner 2026-07-11, "make the connectors centered
+    # on the board, like how the cells are"): a role-pinned power_in/power_out connector
+    # on a horizontal edge centres its PAD FIELD on W/2 -- the lanes re-fan centred there,
+    # so the pin field and the cell row share one axis (J4 already lands there when alone;
+    # J3 was group-packed beside the J2 fan header and sat +4mm off). Co-edge connectors
+    # keep their order and shift outboard just enough to clear, clamped on-board. Boards
+    # without anchor_roles are byte-identical (no prio ref -> no-op).
+    for edge in ("top", "bottom"):
+        _erefs = by_edge.get(edge, [])
+        _prio = [r for r in _erefs
+                 if (role_overrides or {}).get(r) in ("power_in", "power_out") and r in A]
+        if len(_prio) != 1:
+            continue
+        _pr = _prio[0]
+        _x0, _y0, _r0 = A[_pr]
+        (_pxl, _pxh), _ = _pad_band(fp_of.get(_pr, ""), _r0)
+        _dx = (float(lane_center or 0.0) or W / 2.0) - (_x0 + (_pxl + _pxh) / 2.0)
+        if abs(_dx) < 0.05:
+            continue
+        A[_pr] = (_x0 + _dx, _y0, _r0)
+        _pcx, _pcy_, _phw, _phh_ = _courtyard_info(fp_of.get(_pr, ""), _r0)
+        _plo, _phi = A[_pr][0] + _pcx - _phw, A[_pr][0] + _pcx + _phw
+        for _r in _erefs:
+            if _r == _pr or _r not in A:
+                continue
+            _xr, _yr, _rr = A[_r]
+            _rcx, _rcy_, _rhw, _rhh_ = _courtyard_info(fp_of.get(_r, ""), _rr)
+            _rlo, _rhi = _xr + _rcx - _rhw, _xr + _rcx + _rhw
+            if _rhi <= _plo - 0.5 or _rlo >= _phi + 0.5:
+                continue                              # already clear
+            _wid = _rhi - _rlo
+            _sh_l = (_plo - 2.0) - _rhi               # candidate: LEFT of the prio
+            _sh_r = (_phi + 2.0) - _rlo               # candidate: RIGHT of the prio
+            _fit_l = (_rlo + _sh_l) >= margin         # fully fits in the left span?
+            _fit_r = (_rhi + _sh_r) <= (W - margin)
+            _near_left = (_rlo + _rhi) / 2.0 <= (_plo + _phi) / 2.0
+            if _fit_l and (_near_left or not _fit_r):
+                _sh = _sh_l
+            elif _fit_r:
+                _sh = _sh_r
+            else:                                     # neither side fits fully: near side, clamped
+                _sh = max(_sh_l, margin - _rlo) if _near_left else min(_sh_r, (W - margin) - _rhi)
+            A[_r] = (_xr + _sh, _yr, _rr)
     for ref, xy in (pins or {}).items():               # honor user pins (override)
         if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in fp_of:
             A[ref] = (float(xy[0]), float(xy[1]), float(xy[2]) if len(xy) > 2 else 0.0)
@@ -1965,7 +2277,7 @@ def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
     return res
 
 
-def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
+def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     """Greedy non-overlap legalization (proper detailed placement): place each movable part at
     the NEAREST FREE position to its target by an outward spiral search, so the result has ZERO
     real courtyard overlap by construction. Each part's obstacle is its TRUE courtyard -- centre
@@ -1973,7 +2285,99 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
     test matches what KiCad/DRC sees (an origin-centred check mismodels the asymmetric connector
     courtyards and yields phantom-legal placements). Anchors are fixed obstacles; big parts go
     first; a part that genuinely can't fit overlap-free lands at its least-overlap spot and is
-    counted -- that residual is the honest 'board too tight -> grow' signal. Returns the residual."""
+    counted -- that residual is the honest 'board too tight -> grow' signal. Returns the residual.
+
+    *bounds* (the intent-compiler PARTITION lever, default None -> byte-identical to the
+    un-partitioned legalizer): {ref:(x0,y0,x1,y1)} HARD region containment -- a bounded ref's
+    courtyard is kept inside its box (intersected with the in-board range), so an agent's
+    structure-first assignment cannot be legalized away. Refs not in *bounds* are unconstrained.
+
+    VECTORIZED (2026-07-08, owner porting pass): the numpy path batches BOTH hot loops (the
+    placed-boxes scan and the spiral ring's candidate batch) -- profiled as 92% of placement
+    time (629k cost() calls / 94M abs() on one 24-pin synth); measured 12.3x on the 24-pin's
+    legalize calls (3.27s -> 0.27s) with 100% OUTPUT-IDENTICAL placements on 38 recorded real
+    calls across 2 boards x 2 seeds (record/replay bench build/bench_legalize.py; first-zero /
+    first-argmin candidate selection matches the sequential `c < bestc` semantics exactly).
+    No numpy -> the original sequential path (_legalize_pack_seq), same results (R-05
+    degradation discipline)."""
+    try:
+        import numpy as np
+    except ImportError:
+        return _legalize_pack_seq(P, movable, cyinfo, W, H, clr=clr, step=step, bounds=bounds)
+    DEF = (0.0, 0.0, 1.0, 1.0)
+    apx, apy, aphw, aphh = [], [], [], []
+    for r in P:
+        if r not in movable:
+            cx, cy, hw, hh = cyinfo.get(r, DEF)
+            apx.append(P[r][0] + cx)
+            apy.append(P[r][1] + cy)
+            aphw.append(hw)
+            aphh.append(hh)
+    px = np.array(apx, float)
+    py = np.array(apy, float)
+    phw = np.array(aphw, float)
+    phh = np.array(aphh, float)
+
+    order = sorted(movable, key=lambda r: -(cyinfo.get(r, DEF)[2] * cyinfo.get(r, DEF)[3]))
+    residual = 0
+    for r in order:
+        cx, cy, hw, hh = cyinfo.get(r, DEF)
+        tx, ty = P[r][0], P[r][1]
+        lo_x, hi_x = hw - cx, W - hw - cx
+        lo_y, hi_y = hh - cy, H - hh - cy
+        if hi_x < lo_x:
+            lo_x = hi_x = W / 2 - cx
+        if hi_y < lo_y:
+            lo_y = hi_y = H / 2 - cy
+        if bounds and r in bounds:
+            rx0, ry0, rx1, ry1 = bounds[r]
+            lo_x, hi_x = max(lo_x, rx0 + hw - cx), min(hi_x, rx1 - hw - cx)
+            lo_y, hi_y = max(lo_y, ry0 + hh - cy), min(hi_y, ry1 - hh - cy)
+            if hi_x < lo_x:
+                lo_x = hi_x = (rx0 + rx1) / 2 - cx
+            if hi_y < lo_y:
+                lo_y = hi_y = (ry0 + ry1) / 2 - cy
+            tx, ty = min(hi_x, max(lo_x, tx)), min(hi_y, max(lo_y, ty))
+        wx = hw + phw + clr
+        wy = hh + phh + clr
+        best, bestc, R = None, 1e18, 0.0
+        while R <= max(W, H):
+            if R == 0:
+                angs = np.zeros(1)
+            else:
+                n = max(10, int(2 * math.pi * R / step))
+                angs = 2 * math.pi * np.arange(n) / n
+            ox_ = np.minimum(hi_x, np.maximum(lo_x, tx + R * np.cos(angs)))
+            oy_ = np.minimum(hi_y, np.maximum(lo_y, ty + R * np.sin(angs)))
+            if len(px):
+                ovx = wx[None, :] - np.abs((ox_ + cx)[:, None] - px[None, :])
+                ovy = wy[None, :] - np.abs((oy_ + cy)[:, None] - py[None, :])
+                c = np.sum(np.where((ovx > 0) & (ovy > 0), ovx * ovy, 0.0), axis=1)
+            else:
+                c = np.zeros(len(ox_))
+            zi = np.nonzero(c == 0.0)[0]
+            if len(zi):
+                k = zi[0]
+                if 0.0 < bestc:
+                    best, bestc = (float(ox_[k]), float(oy_[k])), 0.0
+                break
+            k = int(np.argmin(c))
+            if c[k] < bestc:
+                best, bestc = (float(ox_[k]), float(oy_[k])), float(c[k])
+            R += step
+        P[r] = (best[0], best[1], P[r][2])
+        px = np.append(px, best[0] + cx)
+        py = np.append(py, best[1] + cy)
+        phw = np.append(phw, hw)
+        phh = np.append(phh, hh)
+        if bestc > 1e-6:
+            residual += 1
+    return residual
+
+
+def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
+    """The original sequential legalizer -- the no-numpy fallback + the record/replay
+    reference implementation (see legalize_pack's docstring for the equivalence proof)."""
     DEF = (0.0, 0.0, 1.0, 1.0)
     placed = []                                      # (courtyard_centre_x, _y, hw, hh)
     for r in P:
@@ -2001,6 +2405,15 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
             lo_x = hi_x = W / 2 - cx
         if hi_y < lo_y:
             lo_y = hi_y = H / 2 - cy
+        if bounds and r in bounds:                       # HARD region containment (partition lever)
+            rx0, ry0, rx1, ry1 = bounds[r]
+            lo_x, hi_x = max(lo_x, rx0 + hw - cx), min(hi_x, rx1 - hw - cx)
+            lo_y, hi_y = max(lo_y, ry0 + hh - cy), min(hi_y, ry1 - hh - cy)
+            if hi_x < lo_x:                              # region narrower than the part -> its centre
+                lo_x = hi_x = (rx0 + rx1) / 2 - cx
+            if hi_y < lo_y:
+                lo_y = hi_y = (ry0 + ry1) / 2 - cy
+            tx, ty = min(hi_x, max(lo_x, tx)), min(hi_y, max(lo_y, ty))   # start the spiral in-region
         best, bestc, R = None, 1e18, 0.0
         while R <= max(W, H):
             n = 1 if R == 0 else max(10, int(2 * math.pi * R / step))
@@ -2023,19 +2436,30 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
     return residual
 
 
-def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0):
+def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0, back_refs=()):
     """DRC-accurate courtyard-overlap count (matches kicad-cli courtyards_overlap): the honest
-    placement residual, not a self-reported one. Uses the real (cached) courtyard bboxes."""
+    placement residual, not a self-reported one. Uses the real (cached) courtyard bboxes.
+
+    FACE-AWARE (dual-sided fix, 2026-07-08): *back_refs* are the parts flipped to the back. KiCad's
+    courtyards_overlap checks F.CrtYd against F.CrtYd and B.CrtYd against B.CrtYd -- a front part
+    and a back part on the same X/Y do NOT overlap-flag (that class is the separate THT-backside
+    gate). So only SAME-mount-face pairs count. Empty back_refs -> all-front -> byte-identical to
+    the pre-face count (the golden-safety default for single-sided boards)."""
     import cec_pcb
+    back = set(back_refs or ())
     refs = [r for r in P if r in comps]
     bb = {}
+    face = {}
     for r in refs:
-        rf = drop_antenna and ("esp32" in comps[r].lower() or "rf_module" in comps[r].lower())
+        rf = drop_antenna and _trimmable_rf(comps[r])
         bb[r] = cec_pcb.courtyard_bbox(comps[r], *P[r], drop_keepout=rf)
+        face[r] = "B" if r in back else "F"
     n = 0
     for i, a in enumerate(refs):
         ax = bb[a]
         for b in refs[i + 1:]:
+            if face[a] != face[b]:
+                continue                                 # different CrtYd layer -> not a DRC overlap
             bx = bb[b]
             if not (ax[1] <= bx[0] - clr or bx[1] <= ax[0] - clr or
                     ax[3] <= bx[2] - clr or bx[3] <= ax[2] - clr):
@@ -2051,13 +2475,18 @@ def _ov_area(A, B, clr=0.0):
 
 
 def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, alpha=0.04,
-                  clr=0.4, t0=8.0, cool=0.9985, veto=None):
+                  clr=0.4, t0=8.0, cool=0.9985, veto=None, role_clr=None):
     """Simulated annealing on the MACRO-BLOCK positions (IC clusters + shunts; anchors fixed) to
     ESCAPE the greedy legalizer's local minimum. Objective = courtyard overlap AREA (heavily) +
     alpha*HPWL to connected parts (stay routable). Being STOCHASTIC, different *seed*s settle into
     different minima -- THAT spread is what makes a huge best-of-N sweep pay off (a deterministic
     placer just yields identical candidates). *veto(ref,(x,y))->bool* (Phase 2) HARD-rejects a move
     that puts a body in a forbidden region (a foreign high-current corridor), independent of T.
+    *role_clr* (round-2 item 7b, 2026-07-08): optional {ref: radius_mm} -- a pairwise interaction
+    takes max(clr, role_clr[r], role_clr[o]), a SOFT per-role keep-out (a COST term the anneal can
+    climb out of, deliberately NOT a veto -- the parked fix-B lesson: a veto without a repair path
+    freezes bad states). None (default) = byte-identical to the pre-lever anneal; ACTIVATION is
+    gated on the fixed-seed ablation protocol (cec_lever_eval), per the one-lever-at-a-time rule.
     Mutates P in place; returns P."""
     rnd = random.Random(seed)
     mv = [r for r in movable if r in cyinfo and r in P]
@@ -2070,12 +2499,17 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
         x, y = P[r][0], P[r][1]
         return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
 
+    def _pair_clr(a, b):
+        if not role_clr:
+            return clr
+        return max(clr, role_clr.get(a, 0.0), role_clr.get(b, 0.0))
+
     def cost(r):
         ar = bbox(r)
         c = 0.0
         for o in placed:
             if o != r:
-                c += _ov_area(ar, bbox(o), clr)
+                c += _ov_area(ar, bbox(o), _pair_clr(r, o))
         if nbrs:
             for n in sorted(nbrs.get(r, ())):           # sorted: deterministic across processes
                 if n in P:
@@ -2088,10 +2522,31 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
         cx, cy, hw, hh = cyinfo[r]
         ox, oy, orot = P[r]
         before = cost(r)
-        if rnd.random() < 0.7:                        # local jitter
+        _mv_roll = rnd.random()
+        if _mv_roll < 0.62:                           # local jitter
             nx, ny = ox + rnd.uniform(-3, 3), oy + rnd.uniform(-3, 3)
-        else:                                         # occasional teleport (escape)
+        elif _mv_roll < 0.80:                         # occasional teleport (escape)
             nx, ny = rnd.uniform(hw - cx, W - hw - cx), rnd.uniform(hh - cy, H - hh - cy)
+        elif len(mv) >= 2:                            # SWAP (owner lever pass 2026-07-08):
+            r2 = rnd.choice(mv)                        # exchange two macros' positions --
+            if r2 == r:                                # the escape the jitter can't make
+                T *= cool
+                continue
+            o2 = P[r2]
+            before2 = cost(r) + cost(r2)
+            if (veto is not None and (veto(r, (o2[0], o2[1])) or veto(r2, (ox, oy)))):
+                T *= cool
+                continue
+            P[r], P[r2] = (o2[0], o2[1], orot), (ox, oy, o2[2])
+            d2 = (cost(r) + cost(r2)) - before2
+            if d2 > 0 and rnd.random() >= math.exp(-d2 / max(T, 1e-3)):
+                P[r], P[r2] = (ox, oy, orot), o2       # reject swap
+            T *= cool
+            continue
+        # NOTE: a rotate-in-place move was tried and REMOVED (2026-07-08) -- rotating a
+        # MACRO unit invalidates its cyinfo extents AND its rot-0 cluster offsets (the
+        # stamp assumes unrotated units); a sound rotation move needs rotated cluster
+        # templates first.
         nx = min(W - hw - cx, max(hw - cx, nx))
         ny = min(H - hh - cy, max(hh - cy, ny))
         if veto is not None and veto(r, (nx, ny)):    # PHASE 2 hard veto -> never enter a foreign band
@@ -2184,6 +2639,19 @@ def _placement_obj(cfg, P, W, H, halfext, nl):
 # sense pads excluded) -- so the placement-time corridor and the route-time pour keepout track the
 # same J_IN->shunt->J_OUT current path. The band is meaningful only once the corridor is FORMED
 # (shunt inline, J_IN/J_OUT aligned); a degenerate near-board-wide band is guarded out, not trusted.
+def _pad_xy_global(nl, ref, pad, P, comps):
+    """Global (x,y) of *ref*'s *pad* from the placement P, or the part origin / None. Used to put a
+    SERIES element on the segment between its two endpoint anchors (the SS34 between J5.VBUS and the
+    +5VSB-rail feed)."""
+    import cec_pcb
+    if ref not in P or ref not in comps:
+        return None
+    try:
+        return cec_pcb.pad_global(ref, pad, {ref: P[ref]}, comps)
+    except Exception:
+        return (P[ref][0], P[ref][1])
+
+
 def _net_pads_global(nl, net, P, comps):
     """Global (x,y) of every pad on *net*, from the placement P (ref->(x,y,rot)) + footprints.
     pad_global is a pure footprint-text parse (no pcbnew), so this runs host-side."""
@@ -2375,6 +2843,76 @@ def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True,
     return total
 
 
+def channels_of(bands, W, H, *, channel_min=2.0, margin=1.0, board_w=None):
+    """The clear top/bottom horizontal CHANNELS above/below ALL formed corridor bands (close-the-loop
+    2026-06-27). The route-time corridor keepout (cec_fr.corridor_keepouts) clips each pour+keepout to
+    the connector-pad rows -- NOT the full board height -- so the strip above the highest band top and
+    below the lowest band bottom is physically clear of pour/keepout on BOTH layers, and a foreign net
+    routed along it crosses NO corridor in-plane. Returns (top, bot) as (y0, y1) strips (or None for a
+    channel shorter than channel_min). No formed bands -> (None, None) (a shared-bus board, no corridor
+    to escape)."""
+    formed = [r for b, r in bands.items() if board_w is None or _band_formed(r, board_w)]
+    if not formed:
+        return None, None
+    top_y1 = min(r[2] for r in formed) - margin            # above the highest band top (Y0)
+    bot_y0 = max(r[3] for r in formed) + margin            # below the lowest band bottom (Y1)
+    top = (margin, top_y1) if (top_y1 - margin) >= channel_min else None
+    bot = (bot_y0, H - margin) if (H - margin - bot_y0) >= channel_min else None
+    return top, bot
+
+
+def _body_clear(chan, x0, x1, foreign_bodies):
+    """True iff the channel y-strip chan=(y0,y1) is clear of every foreign IC courtyard bbox across
+    [x0,x1] -- i.e. a net spanning x0..x1 can run along the channel without hitting a body."""
+    if chan is None:
+        return False
+    cy0, cy1 = chan
+    for (fx0, fx1, fy0, fy1) in foreign_bodies:
+        if fx1 >= x0 and fx0 <= x1 and fy1 >= cy0 and fy0 <= cy1:
+            return False
+    return True
+
+
+def channels_feasible(bands, W, H, *, channel_h=2.5, margin=1.0, board_w=None):
+    """The seed-time GROW trigger: True iff the board is tall enough to hold the corridor band height
+    plus a usable channel above AND below. When False, the driver grows H (w_grow('H')) and re-seeds --
+    a bounded deterministic step, NOT a search (this is what replaces the 384-round hill-climb)."""
+    formed = [r for b, r in bands.items() if board_w is None or _band_formed(r, board_w)]
+    if not formed:
+        return True
+    return (min(r[2] for r in formed) - margin) >= channel_h and (H - max(r[3] for r in formed) - margin) >= channel_h
+
+
+def corridor_cross_channel_aware(pads_by_net, bands, corridor_nets, foreign_bodies, W, H, *,
+                                 channel_min=2.0, margin=1.0, signal_only=True, board_w=None):
+    """HONEST corridor predictor == predicted post-route F.Cu clips. Same straddle test as
+    corridor_cross_count, but a straddle is only COUNTED when it CANNOT escape via a body-clear top/
+    bottom channel. The old metric is layer-agnostic + channel-blind, so it OVER-counts and -- crucially
+    -- is UNREACHABLE to 0 (the hub->per-cable fan-out is a topological x-straddle invariant for K>=2
+    cables). This metric reaches 0 by construction once the channels are reserved (foreign bodies kept
+    out of them): every straddle either routes along a clear channel (cost 0) or is the irreducible set
+    the loop routes UNDER on B.Cu. Reaching 0 here == corridor-clean by construction. Returns the count
+    of straddles genuinely forced through a pour on F.Cu."""
+    top, bot = channels_of(bands, W, H, channel_min=channel_min, margin=margin, board_w=board_w)
+    usable = {b: rect for b, rect in bands.items()
+              if board_w is None or _band_formed(rect, board_w)}
+    total = 0
+    for net, pts in pads_by_net.items():
+        if net in corridor_nets or len(pts) < 2:
+            continue
+        if signal_only and _corridor_net_role(net, corridor_nets) != "signal":
+            continue
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+        bx0, bx1, by0, by1 = min(xs), max(xs), min(ys), max(ys)
+        if not any(by1 >= Y0 and by0 <= Y1 and bx0 < X0 and bx1 > X1
+                   for (X0, X1, Y0, Y1) in usable.values()):
+            continue                                       # doesn't straddle any formed band
+        if _body_clear(top, bx0, bx1, foreign_bodies) or _body_clear(bot, bx0, bx1, foreign_bodies):
+            continue                                       # escapes along a clear channel -> cuts no pour
+        total += 1                                         # genuinely forced through a pour on F.Cu
+    return total
+
+
 # --------------------------------------------------------- Phase 2: corridor FORMATION
 # corridor_cross only discriminates once the corridor is FORMED: J_IN above the shunt above J_OUT in
 # one tight column. The constructive placer left shunts free (anywhere) and packed J_IN/J_OUT on their
@@ -2388,19 +2926,96 @@ def _cable_topology(nl):
     variant, not a J_IN->shunt->J_OUT column."""
     pairs = _kelvin_pairs(nl)
     shared = _shared_bus_connectors(nl)
+    fp_of = _fp_of(nl)
     out = []
     for hi, lo in pairs:
         refs_hi = {r for r, _ in nl.nets.get(hi, [])}
         refs_lo = {r for r, _ in nl.nets.get(lo, [])}
         j_in = sorted(r for r in refs_hi if r.startswith("J") and r not in shared)
         j_out = sorted(r for r in refs_lo if r.startswith("J") and r not in shared)
+        # D-5a beta boards: the output header is replaced by a FIELD of TB* FASTON blade
+        # receptacles on the LO net (3 per cable on eps/pcie). They are the corridor's output
+        # end; j_out stays the first blade (a real anchor ref) and j_out_blades carries the
+        # whole per-cable group for the field seat.
+        blades = sorted(r for r in refs_lo
+                        if r not in shared and _is_blade(r, fp_of.get(r, "")))
+        if not j_out and blades:
+            j_out = blades
         straddle = refs_hi & refs_lo
         shunt = next((r for r in sorted(straddle) if r.startswith("RS") and _ref_padcount(nl, r) == 2),
                      next((r for r in sorted(straddle) if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
         if j_in and j_out and shunt:
             out.append({"base": hi[:-3], "hi": hi, "lo": lo,
-                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt})
+                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt,
+                        "j_out_blades": blades})
     return out
+
+
+def _is_blade(ref, footprint):
+    """A D-5a blade-field terminal: a TB*-ref or FASTON-footprint connector (TE 63969 receptacle
+    on the module side; the daughterboards' J1x 63951 tabs also match by footprint)."""
+    return ref.startswith("TB") or "faston" in (footprint or "").lower()
+
+
+def _shared_bus_topology(nl):
+    """Per-RAIL corridor topology for SHARED-BUS boards (the 24-pin; mechanism item b,
+    2026-07-08): every kelvin pair whose HI net lands on the ONE shared input connector
+    becomes a corridor entry -- input = the shared connector's rail-pin GROUP, output = the
+    TB blade group on the LO net (single contiguous daughterboard row, unlike the per-cable
+    boards' per-db windows). Entries carry shared_bus=True + j_in_pins so the spine can
+    order columns by the natural fan order. Empty on per-cable boards (they have no shared
+    connector), so _cable_topology remains their only source."""
+    shared = _shared_bus_connectors(nl)
+    if not shared:
+        return []
+    fp_of = _fp_of(nl)
+    out = []
+    for hi, lo in _kelvin_pairs(nl):
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        j_in = sorted(refs_hi & shared)
+        if not j_in:
+            continue
+        straddle = refs_hi & refs_lo
+        shunt = next((r for r in sorted(straddle) if r.startswith("RS")
+                      and _ref_padcount(nl, r) == 2), "")
+        blades = sorted(r for r in refs_lo if _is_blade(r, fp_of.get(r, "")))
+        if not shunt:
+            continue
+        pins = sorted((p for r, p in nl.nets.get(hi, []) if r == j_in[0]), key=lambda s: int(s) if s.isdigit() else 999)
+        out.append({"base": hi, "hi": hi, "lo": lo, "j_in": j_in[0], "j_in_pins": pins,
+                    "j_out": (blades[0] if blades else ""), "j_out_blades": blades,
+                    "shunt": shunt, "shared_bus": True})
+    return out
+
+
+def _shunt_gap_board_grow(nl, fp_of, topo, *, margin=1.0, headroom=1.0):
+    """Board-height INCREMENT (mm) for the SHUNT_GAP_MM widen (R2, owner-ratified 2026-06-28).
+
+    cec_fr.derive_power_pours pulls each high-current pour's shunt-side edge back so the un-poured
+    notch at the Kelvin shunt opens from (shunt-pad-separation - 2*margin) ~= 3.9mm to SHUNT_GAP_MM
+    ~= 6.5mm -- enough channel for the sense cluster (INA238 + §6.13 INA181 + TLV7011) AND a B.Cu
+    overflow-routing lane. Opening the notch shortens each pour by that delta; growing the board by
+    the same delta (+ a small cluster/B.Cu-lane *headroom*) moves J_IN/J_OUT apart so the pour
+    corridors keep their length and the shunt (seated at H/2) gets vertical room either side. Reads the
+    shunt pad separation from the first cable's 2-pad shunt FOOTPRINT, so it is general to any per-cable
+    interposer (EPS / PCIe). Returns 0.0 when there is no qualifying 2-pad shunt or cec_fr is absent."""
+    import cec_pcb
+    try:
+        import cec_fr
+        gap = cec_fr.SHUNT_GAP_MM
+    except Exception:
+        return 0.0
+    for c in topo:
+        sh = c.get("shunt")
+        if sh in fp_of:
+            pads = list(cec_pcb.local_pads(fp_of[sh]).values())
+            if len(pads) >= 2:                          # corridor-axis pad spacing = max pairwise separation
+                sep = max(math.hypot(a[0] - b[0], a[1] - b[1])
+                          for i, a in enumerate(pads) for b in pads[i + 1:])
+                base_notch = max(0.0, sep - 2.0 * margin)
+                return round(max(0.0, gap - base_notch) + headroom, 1)
+    return 0.0
 
 
 def _net_pad_xs(nl, comps, ref, net, P):
@@ -2426,7 +3041,7 @@ def _net_pad_centroid_x(nl, comps, ref, net, P):
     return (sum(xs) / len(xs)) if xs else P[ref][0]
 
 
-def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
+def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
     """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
     (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
     mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross), all as FIXED anchors. Mutates
@@ -2435,7 +3050,123 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
     *W* is given the column is CLAMPED so the connector/shunt pads stay on-board (no off-board pads on a
     narrow board)."""
     seated = []
+    blade_cables = []
+    shared = [c for c in topo if c.get("shared_bus")]
+    if shared:
+        # SHARED-BUS RAIL COLUMNS (24-pin): the blade row is ONE contiguous daughterboard
+        # field, so rail columns sit at their blade-group slots. Order rails by the shared
+        # connector's pin-centroid (the natural fan order minimizes crossings), pack the
+        # groups left-to-right at the field pitch centered on the input connector, and seat
+        # each rail's shunt on its group centroid. The sense chains DON'T fit four-abreast
+        # at this pitch on one face -- the dual-sided seat (mechanism item e) assigns
+        # alternating rails to the back; until it lands the seat is front-side.
+        jin = shared[0]["j_in"]
+        if jin in anchors:
+            # PIN-GROUP COLUMN ORDER (the lever gating box unification, 2026-07-08): a
+            # centroid sort is meaningless for INTERLEAVED rails (3V3's pins sit at both
+            # header ends -> centroid lands mid). Assign columns by MIN-COST permutation:
+            # cost = sum over each rail's pin x-CLUSTERS of cluster_size * |cluster_x -
+            # column_x| -- left-cluster rails take left columns (also clears the hub-jack
+            # zone the 3V3 fan box collided with). N<=4 rails -> brute force.
+            import itertools
+            import cec_fr as _cf
+            _clusters_of = {}
+            for c in shared:
+                xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                pts = sorted((x, 0.0) for x in xs)
+                _clusters_of[c["shunt"]] = [(sum(p[0] for p in cl) / len(cl), len(cl))
+                                            for cl in _cf._x_clusters(pts)] if pts else []
+            def _slot_centers(order, x0_, pitch_):
+                cols = []
+                k = 0
+                for c in order:
+                    n_lo = max(1, len(c["j_out_blades"]))
+                    cols.append(x0_ + (k + (n_lo - 1) / 2.0) * pitch_)
+                    k += n_lo
+                return cols
+            def _perm_cost(order, x0_, pitch_):
+                cols = _slot_centers(order, x0_, pitch_)
+                cost = 0.0
+                for c, col in zip(order, cols):
+                    for cx, w in _clusters_of.get(c["shunt"], ()):
+                        cost += w * abs(cx - col)
+                return cost
+            if len(shared) <= 6:
+                _pitch0 = float((params or {}).get("blade_pitch", 4.2))
+                _n_tot0 = sum(max(1, len(c["j_out_blades"])) for c in shared)
+                _span0 = (_n_tot0 - 1) * _pitch0
+                _x00 = max(_pitch0, min(anchors[jin][0] - _span0 / 2.0,
+                                        (W or 100) - _span0 - _pitch0))
+                shared = list(min(itertools.permutations(shared),
+                                  key=lambda o: _perm_cost(o, _x00, _pitch0)))
+            else:
+                def _cent(c):
+                    xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                    return (sum(xs) / len(xs)) if xs else anchors[jin][0]
+                shared.sort(key=_cent)
+            # field pitch: the MATING daughterboard's tab row is the contract (atx24-out-db:
+            # 10 tabs @ 4.2mm contiguous). Overridable per board; shared-bus default 4.2/4.2.
+            pitch = float((params or {}).get("blade_pitch", 4.2))
+            slots = []
+            n_tot = 0
+            for c in shared:
+                n_lo = max(1, len(c["j_out_blades"]))
+                slots.append(n_lo)
+                n_tot += n_lo
+            span = (n_tot - 1) * pitch
+            # RIGHT-EDGE CAP (owner catch 2026-07-08: "the 1x4 header is hanging off the
+            # edge -- those out headers can shift over and be on the board"): the row's
+            # rightward budget must reserve the SIGNAL STUB's full extent (pin1 sits one
+            # field pitch past the last blade, pads span +7.62, courtyard ~+1.0), so the
+            # whole output row shifts LEFT as a unit instead of the stub running off-board.
+            _stub_ext = 0.0
+            if any(r.startswith("J_SIG") for r in anchors) or any(
+                    r.startswith("J_SIG") for r in nl.comps):
+                _stub_ext = pitch + 3.81 + 3.81 + 1.0
+            x0 = max(pitch, min(anchors[jin][0] - span / 2.0,
+                                (W or 100) - span - pitch - _stub_ext))
+            # ANCHOR-vs-ANCHOR collision fix (exploratory finding, 2026-07-08): the row's
+            # y-band can run under an edge connector (J1's courtyard swallowed the row's
+            # left end -- 6 courtyard overlaps + a DETECT-pin short, invisible to the
+            # legalizer which never checks two anchors against each other). Clamp the row
+            # start clear of any seated anchor whose courtyard intersects the row band.
+            row_y = H / 2.0
+            half_band = 9.0
+            for _ar, _apos in list(anchors.items()):
+                if _ar not in comps:
+                    continue
+                _cx, _cy, _hw, _hh = _courtyard_info(comps[_ar], _apos[2] if len(_apos) > 2 else 0)
+                ax0 = _apos[0] + _cx - _hw
+                ax1 = _apos[0] + _cx + _hw
+                ay0 = _apos[1] + _cy - _hh
+                ay1 = _apos[1] + _cy + _hh
+                if ay1 < row_y - half_band or ay0 > row_y + half_band:
+                    continue                             # clear of the row band
+                if ax0 < (W or 100) / 2.0:               # left-side blocker: push the row right
+                    # +8mm: the first column's sense IC straddles LEFT of the shunt
+                    x0 = max(x0, ax1 + pitch + 8.0)
+            # the RIGHT-EDGE cap is FINAL (owner: pins off the board beats a jack graze
+            # never -- the stub must be ON the board; a residual jack graze shows in DRC
+            # and the wave iterates it)
+            x0 = min(x0, (W or 100) - span - pitch - _stub_ext)
+                # right-side blockers only matter if the row would reach them; the stub
+                # seat extends right, so leave headroom
+            
+            # WIDE SHUNT COLUMNS (strict rule): the sense cell needs pour-free ground
+            # around each shunt; shunts are NOT bound to the blade pitch (the LO lane
+            # fans shunt->blade), so columns spread to a cell pitch <= 16mm.
+            _wu = (W or 100)
+            _cell_pitch = min(16.0, max(pitch, (_wu - x0 - _stub_ext - pitch) / max(1, len(shared))))
+            for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
+                col = x0 + (_ci + 0.5) * _cell_pitch
+                anchors[c["shunt"]] = (col, H / 2.0, 270.0)
+                seated.append(c["shunt"])
+                if c["j_out_blades"]:
+                    blade_cables.append((c, col))
+    _lane_seats = []
     for c in topo:
+        if c.get("shared_bus"):
+            continue
         jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
         if jin not in anchors or jout not in anchors:
             continue
@@ -2444,14 +3175,578 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
         if W and in_xs:
             hw = (max(in_xs) - min(in_xs)) / 2.0 + 1.0               # keep the column's pads on-board
             col = min(max(col, hw), W - hw)
-        # shift J_OUT in x so its LO force-pad column lands under the J_IN column
-        ox, oy, orot = anchors[jout]
-        out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
-        out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
-        anchors[jout] = (ox + (col - out_col), oy, orot)
+        if c.get("j_out_blades"):
+            blade_cables.append((c, col))             # D-5a blade field -- seated as a group below
+        else:
+            # shift J_OUT in x so its LO force-pad column lands under the J_IN column
+            ox, oy, orot = anchors[jout]
+            out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
+            out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
+            anchors[jout] = (ox + (col - out_col), oy, orot)
         anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
+        _lane_seats.append((sh, col))
+    # LANE RE-FAN moved to end-of-function (topology-agnostic; the 12vhpwr's six
+    # lanes classify as SHARED-BUS topology -- measured seats=0 in this branch).
+    # (owner ladder 2026-07-11 + the alpha board's own fan-out doctrine:
+    # connector pins at 3mm FAN OUT to the ~6mm SENSE pitch, routing tapers): rigid
+    # blueprint cells make the pitch a HARD floor -- adjacent cells' locked copper at
+    # sub-pitch seats collide at materialize (measured: /IN2_N vs lane 1 at 5.7mm).
+    # params['lane_pitch'] re-fans the shunt columns to a centered sequence at that
+    # pitch; absent -> raw connector-column seats, byte-identical.
+
+    if blade_cables:
+        _p = (params or {})
+        _shared_row = any(c.get("shared_bus") for c, _col in blade_cables)
+        if any(c.get("shared_bus") for c, _col in blade_cables):
+            _seat_blade_fields(blade_cables, anchors, nl, comps, W,
+                               pitch=float(_p.get("blade_pitch", 4.2)),
+                               gap=float(_p.get("blade_group_gap", 4.2)), H=H)
+        else:
+            _seat_blade_fields(blade_cables, anchors, nl, comps, W,
+                               pitch=float(_p.get("blade_pitch", _BLADE_PITCH_MM)),
+                               gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)), H=H)
+        if _shared_row:
+            # SIGNAL-STUB ALIGNMENT (owner 2026-07-08): the J_SIG* stub is part of the
+            # daughterboard blind-mate interface -- collinear with the blade row, pad 1 one
+            # field pitch beyond the last slot (the atx24-out-db J20 contract; both boards
+            # regenerate from this rule). HDR-TH_4P pad1 local x = -3.81 at rot 0.
+            row = [anchors[r] for r in anchors if r.startswith("TB")]
+            stub = next((r for r in sorted(anchors) if r.startswith("J_SIG")), None)
+            if stub and row:
+                pch = float(_p.get("blade_pitch", 4.7))
+                last_x = max(p[0] for p in row)
+                row_y = row[0][1]
+                anchors[stub] = (last_x + pch + 3.81, row_y, 0.0)
+                # WHOLE-ROW ON-BOARD SHIFT (owner 2026-07-08: "the pins are off the board
+                # -- those out headers can be shifted over"): if the stub's far pad
+                # (+3.81 from origin, +~1.0 court) exceeds the right edge, shift EVERY
+                # blade + the stub left by the overhang as one unit. The blind-mate
+                # geometry (pitch + stub offset) is preserved exactly.
+                # CENTER the whole output ensemble (owner 2026-07-08: the off-center row
+                # gates width reduction) -- blades + stub move as one rigid unit to the
+                # middle of the usable span, still clamped fully on-board.
+                _tb_xs = [anchors[r][0] for r in anchors if r.startswith("TB")]
+                _lo_x = min(_tb_xs) - 2.4
+                _hi_x = anchors[stub][0] + 3.81 + 1.0
+                _span2 = _hi_x - _lo_x
+                _left_lim, _right_lim = 0.6, (W or 100) - 0.6
+                _want_lo = max(_left_lim, min(((W or 100) - _span2) / 2.0,
+                                              _right_lim - _span2))
+                _shift = _want_lo - _lo_x
+                if abs(_shift) > 0.05:
+                    for _r3 in list(anchors):
+                        if _r3.startswith("TB") or _r3 == stub:
+                            _ax, _ay = anchors[_r3][0] + _shift, anchors[_r3][1]
+                            _rt = anchors[_r3][2] if len(anchors[_r3]) > 2 else 0.0
+                            anchors[_r3] = (_ax, _ay, _rt)
+    # LANE RE-FAN (owner ladder 2026-07-11, topology-agnostic): rigid blueprint
+    # cells make the SENSE pitch a HARD floor -- adjacent cells' locked copper at
+    # sub-pitch seats collides at materialize (measured: /IN2_N vs lane 1 at 5.7mm;
+    # the alpha board's own doctrine fans 3mm connector pins out to ~6mm lanes).
+    _lp = float((params or {}).get("lane_pitch") or 0.0)
+    if os.environ.get("CEC_BP_DEBUG"):
+        print(f"  [spine] lane_pitch={_lp} seated={len(seated)}", file=sys.stderr, flush=True)
+    if _lp > 0 and len(seated) >= 2:
+        _cols0 = sorted((anchors[sh][0], sh) for sh in seated if sh in anchors)
+        _nat = min(b - a for (a, _r1), (b, _r2) in zip(_cols0, _cols0[1:]))
+        _lc0 = float((params or {}).get("lane_center") or 0.0)
+        _cur_mid = sum(cc for cc, _r in _cols0) / len(_cols0)
+        # ALSO re-fan when a lane axis is pinned and the natural seats sit off it
+        # (measured optA2/3: natural pitch 8.2 >= 6.8 -> no-op -> lanes 12.6..53.7
+        # while J3's pad field centred on 22 = an incoherent half-shift).
+        if _nat < _lp or (_lc0 and abs(_cur_mid - _lc0) > 0.5):
+            # centered ON THE BOARD (owner 2026-07-11: 'cells should be stamped
+            # centered the board'); connector-column mean was the old centre
+            # lane axis: params['lane_center'] (owner Option-A 2026-07-12, alpha
+            # doctrine: lanes left-of-center, logic column right) else board center
+            _mid = (float((params or {}).get("lane_center") or 0.0)
+                    or ((W / 2.0) if W else sum(cc for cc, _r in _cols0) / len(_cols0)))
+            _n = len(_cols0)
+            _new = [_mid + (k - (_n - 1) / 2.0) * _lp for k in range(_n)]
+            if W:
+                _shift = max(0.0, 3.0 - _new[0]) - max(0.0, _new[-1] - (W - 3.0))
+                _new = [cc + _shift for cc in _new]
+            for (_oldc, sh), cc in zip(_cols0, _new):
+                _ax, _ay, _ar = anchors[sh]
+                anchors[sh] = (cc, _ay, _ar)
+            if os.environ.get("CEC_BP_DEBUG"):
+                print(f"  [spine] re-fanned {len(_cols0)} lanes {_nat:.2f} -> {_lp}mm",
+                      file=sys.stderr, flush=True)
     return seated
+
+
+# D-5a blade-field geometry (spec §2.8 revision, docs/standard-tier-review/). The slot PITCH is the
+# mating contract with the output daughterboard's 63951 tab field -- 4.7mm as built on
+# modules/output-daughterboards/eps-out-db (J10..J15, x 2.5->26.0). NOTE the committed module-side
+# placeholder row used 4.75mm -- a 0.25mm accumulated blind-mate mismatch across 6 slots; fresh
+# synthesis standardizes on the daughterboard's 4.7. The GROUP gap keeps adjacent daughterboard
+# BODIES (28.6mm wide vs the 23.5mm 6-slot field span) from colliding: >= 5.1mm, as-built 6.5.
+_BLADE_PITCH_MM = 4.7
+_BLADE_GROUP_GAP_MM = 6.5
+
+
+def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, gap=None, H=None, pad_margin=1.8):
+    """Seat the D-5a output blade FIELD as one contiguous row at the power_out edge: a 6-slot
+    WINDOW per cable (one window == one mating daughterboard; adjacent windows separated by
+    _BLADE_GROUP_GAP_MM so the daughterboard BODIES clear), the cable's LO/rail blades assigned
+    to a contiguous TRIPLE of slots inside its window, GND blades filling the rest. Net->slot
+    order is a free variable (the blades are identical; the daughterboard routes to match --
+    owner 2026-07-07).
+
+    PER-CABLE OUTPUT UNIFORMITY (owner ruling 2026-07-09): the rail triple sits at the SAME
+    intra-window slot offset in EVERY window (a SHARED rail_off), so every window is an IDENTICAL,
+    interchangeable field and the LO output tabs land on the UNIFORM window pitch. (The prior code
+    snapped each triple to the slot nearest its corridor column, which quantised to a different
+    offset per cable -- window grid ~30mm vs columns ~21mm -- and produced the owner's uneven
+    25.3/20.6mm tab pitch. That is now the ROOT-fixed defect.) The shared offset is the per-cable
+    nearest-slot picks rounded, the row is least-squares centred on the columns, and the pour fans
+    shunt->tab per cable (the pour stays anchored to its own tabs, never regularised off them).
+    Mutates *anchors*."""
+    all_blades = [r for r in anchors if r in comps and _is_blade(r, str(comps.get(r, "")))]
+    assigned = {b for c, _col in blade_cables for b in c["j_out_blades"]}
+    gnd_pool = sorted(r for r in all_blades if r not in assigned)
+    ys = [anchors[b][1] for b in all_blades if b in anchors]
+    row_y = (sum(ys) / len(ys)) if ys else None       # fallback: the edge seed packed them on
+    if H is not None and all_blades and row_y is not None:
+        # GEOMETRIC row_y as a REPAIR only (2026-07-08): recompute from the pad band iff the
+        # seeded mean leaves a blade PAD off-board (the seed6 pathology -- a rotation
+        # perturbation shifted the band). Judged on PAD extent, never the origin (receptacle
+        # origins legitimately ride near the edge); a sane seeded mean stays byte-identical.
+        fp0 = str(comps.get(all_blades[0], ""))
+        try:
+            (_bxl, _bxh), (_byl, _byh) = _pad_band(fp0, 0.0)
+            if row_y + _byh > H - 0.2 or row_y + _byl < 0.2:
+                row_y = H - pad_margin - _byh
+        except Exception:                              # noqa: BLE001
+            pass
+    cables = sorted(blade_cables, key=lambda t: t[1])  # left-to-right by corridor column
+    # SHARED-BUS boards (24-pin per-rail) are NOT a per-cable interchangeability family (their rails
+    # carry different currents / different tab counts), so the owner's per-cable output-uniformity
+    # ruling does not apply -- they keep the original per-column blade seating BYTE-IDENTICALLY.
+    _is_shared = any(c.get("shared_bus") for c, _col in blade_cables)
+    _uniform = (len(cables) >= 3) and not _is_shared
+    p = float(pitch if pitch is not None else _BLADE_PITCH_MM)
+    g = float(gap if gap is not None else _BLADE_GROUP_GAP_MM)
+    win_pitch = None                                   # slot index stride between window starts
+    # window k slot positions: x0 + (win_start[i] + k)*p ; the inter-window gap is expressed in
+    # fractional slot units so all slots live on one arithmetic grid.
+    win_starts, s = [], 0.0
+    for i, (c, _col) in enumerate(cables):
+        n_lo = len(c["j_out_blades"])
+        n_win = n_lo + (len(gnd_pool) // len(cables) if cables else 0)
+        win_starts.append((s, n_win, n_lo))
+        # next window start: this window's END blade (start + n_win-1) plus the inter-window
+        # blade CENTER-to-CENTER gap (as-built 6.5mm vs the 4.7 in-window pitch -- enough for
+        # the 28.6mm daughterboard bodies to clear their 23.5mm fields by ~1.4mm).
+        s += (n_win - 1) + g / p
+    # PER-CABLE OUTPUT UNIFORMITY (owner ruling 2026-07-09, production/interchangeability): with
+    # >=3 cables the rail triple offset within the window MUST be the SAME for every cable, or the
+    # LO output tabs land at an UNEVEN pitch. The prior code snapped each cable's triple to the
+    # window slot NEAREST its corridor column; because the window grid (~30mm) and the corridor
+    # columns (~21mm) have DIFFERENT pitches, that "nearest slot" quantised to a different intra-
+    # window offset per cable, so the tabs landed at the owner's measured 25.3mm then 20.6mm -- a
+    # per-slot daughterboard could not then interchange. A SHARED rail_off makes every window an
+    # IDENTICAL, interchangeable field on the uniform window pitch (the shared offset is the per-
+    # cable nearest-slot picks rounded, so it is the minimal move off today's row). A pitch can
+    # only BE uneven with >=3 positions, so <=2 cables (eps / PCIe-2port) keep the ORIGINAL two-
+    # pass placement BYTE-IDENTICALLY (a 2-cable output field is single-pitch = always uniform).
+    x0 = (sum(col for _c, col in cables) / len(cables)) - (s - 1) * p / 2.0 if cables else 0.0
+    if _uniform:
+        _max_off = min((n_win - n_lo for (_ws, n_win, n_lo) in win_starts), default=0)
+        _picks = [min(range(0, win_starts[i][1] - win_starts[i][2] + 1),
+                      key=lambda k: abs(x0 + (win_starts[i][0] + k
+                                              + (win_starts[i][2] - 1) / 2.0) * p - col))
+                  for i, (c, col) in enumerate(cables)]
+        rail_const = max(0, min(_max_off, round(sum(_picks) / len(_picks))))
+        rail_off = [rail_const] * len(cables)             # UNIFORM -> even tab pitch, identical windows
+        x0 = sum(col - (ws + rail_const + (n_lo - 1) / 2.0) * p
+                 for (ws, n_win, n_lo), (_c, col) in zip(win_starts, cables)) / len(cables)
+    else:                                                 # ORIGINAL two-pass (byte-identical, <=2 cables)
+        rail_off = [0] * len(cables)
+        for _ in range(2):
+            offs = []
+            for i, (c, col) in enumerate(cables):
+                ws, n_win, n_lo = win_starts[i]
+                best = min(range(0, n_win - n_lo + 1),
+                           key=lambda k: abs(x0 + (ws + k + (n_lo - 1) / 2.0) * p - col))
+                rail_off[i] = best
+                offs.append(((win_starts[i][0] + best + (n_lo - 1) / 2.0) * p, col))
+            x0 = sum(col - o for o, col in offs) / len(offs)
+    if W is not None:
+        # after the loop s = last_window_start + (n_win-1) + gap/p, so the last blade sits at
+        # slot (s - gap/p); the row must stay on-board with half a pitch + margin each side.
+        span = (s - g / p) * p if cables else 0.0
+        x0 = min(max(x0, p / 2.0 + 0.5), W - span - p / 2.0 - 0.5)
+    for i, (c, _col) in enumerate(cables):
+        ws, n_win, n_lo = win_starts[i]
+        lo = sorted(c["j_out_blades"])
+        gnd = gnd_pool[i * (n_win - n_lo):(i + 1) * (n_win - n_lo)]
+        slots = [x0 + (ws + k) * p for k in range(n_win)]
+        rails = set(range(rail_off[i], rail_off[i] + n_lo))
+        li = gi = 0
+        for k, x in enumerate(slots):
+            r = None
+            if k in rails and li < len(lo):
+                r, li = lo[li], li + 1
+            elif gi < len(gnd):
+                r, gi = gnd[gi], gi + 1
+            elif li < len(lo):
+                r, li = lo[li], li + 1
+            if r and r in anchors:
+                _x, y, _rot = anchors[r]
+                anchors[r] = (x, row_y if row_y is not None else y, 0.0)
+        # PER-CABLE OUTPUT-POUR ALIGNMENT (owner ruling 2026-07-09, per-cable output uniformity):
+        # for the >=3-cable uniform-window case, centre this cable's SHUNT under its output tab
+        # block so the LO output pour (bbox of the LO tabs + the shunt's LO pad) is IDENTICAL across
+        # positions. Without it the shunt stays on the ~21mm INPUT pitch while the tabs sit on the
+        # ~30mm window pitch, so the outer cables' LO pours widen to FAN shunt->tab and their SHAPES
+        # diverge from the middle cable's (measured cable1 15.8mm vs cable2 11.4mm). The shunt is
+        # OWNED by this corridor pass (seated just above), so moving it is legal; the sense ICs seat
+        # AFTER (_seat_sense_ics) and follow. J_IN is owned+locked by seed_anchors (the input side is
+        # not an interchangeable daughterboard mate) -- left in place. Skipped for <=2 cables / shared
+        # bus so eps / PCIe-2port / 24-pin stay byte-identical (their tabs already track the columns).
+        if _uniform:
+            _tab_center = x0 + (ws + rail_off[i] + (n_lo - 1) / 2.0) * p
+            _sh = c.get("shunt")
+            if _sh and _sh in anchors:
+                _sx, _sy, _sr = anchors[_sh]
+                anchors[_sh] = (_tab_center, _sy, _sr)
+
+
+def _perp_half(size, rot, n):
+    """Half-extent of a (locally axis-aligned) pad rectangle, ROTATED by *rot*, projected onto unit
+    direction *n* -- the support of the rotated pad along n. Used to compute the lateral standoff that
+    lands a sense pad hard against the shunt inner edge."""
+    import cec_pcb
+    ex = cec_pcb._rot(size[0] / 2.0, 0.0, rot)
+    ey = cec_pcb._rot(0.0, size[1] / 2.0, rot)
+    return abs(ex[0] * n[0] + ex[1] * n[1]) + abs(ey[0] * n[0] + ey[1] * n[1])
+
+
+def _downstream_comparators(ic, hi, lo, nl, comps):
+    """§6.13 chain resolver: the DOWNSTREAM detection comparator(s) of a sense IC -- a small U-ref
+    (!= *ic*) sharing a NON-power, NON-(hi/lo) signal net with *ic*. The INA181 detection amp drives
+    its TLV7011 over the /DETAMP* output net, so this returns that comparator; an INA238 CURRENT sensor
+    has no such net (its outputs are I2C/digital) -> []. GUARDS: the candidate must NOT itself tap a
+    Kelvin _HI/_LO net (so it can't be another cable's INA) and must be SMALL (<=8 pads, so the MCU/ESP
+    on a shared DET net is never seated). Deterministic order."""
+    out, seen = [], set()
+    for net in sorted(nl.nets):
+        if net in (hi, lo):
+            continue
+        base = net.rsplit("/", 1)[-1].upper()
+        if _POWER_NET.search(net) or base == "GND":
+            continue
+        refs = [r for r, _ in nl.nets[net]]
+        if ic not in refs:
+            continue
+        for r in refs:
+            if r == ic or not r.startswith("U") or r in comps and r in seen or r not in comps:
+                continue
+            if _ref_padcount(nl, r) > 8:                          # MCU/ESP guard -- comparators are small
+                continue
+            r_nets = {n for n in nl.nets if r in {x for x, _ in nl.nets[n]}}
+            if any(n.endswith(("_HI", "_LO")) for n in r_nets):   # another cable's INA -> not downstream
+                continue
+            seen.add(r)
+            out.append(r)
+    return out
+
+
+def _seat_detection_comparator(ic, comp, anchors, nl, comps, hi, lo, ax, ay, nx, ny, side,
+                               *, gap=0.5, pour_margin=1.0):
+    """Seat the §6.13 detection COMPARATOR *comp* (TLV7011) CLUSTERED WITH its driving INA181 *ic*,
+    on the SAME lateral side, OUT of the SENSEC high-current pour. The comparator is DOWNSTREAM of the
+    INA181 (it takes the INA181 OUTPUT, not the shunt), so it does NOT need shunt-adjacency -- it needs
+    INA181-adjacency + pour-clearance. Returns (x,y,rot) or None.
+
+    GEOMETRY: the INA181 is already seated centred in the un-poured NOTCH (the y-band the pour leaves
+    open between the HI and LO boxes), offset laterally onto `side`. Seat the comparator just OUTBOARD
+    of the INA181 courtyard along the SAME side (side*n), at the INA181's notch a-level -- so it rides
+    in the notch too (clear of both pour boxes) AND further from the corridor column than the INA. A
+    safety push then slides it further out until its courtyard clears BOTH this cable's HI/LO pour boxes
+    (derive_power_pours rule, recomputed host-side off the anchors: connector THT + shunt pads, +margin),
+    so a tall rotation can never graze. The rotation faces the comparator INPUT pad (the /DETAMP* net it
+    shares with the INA) toward the INA OUTPUT for a short detection link."""
+    import cec_pcb
+    sn = (side * nx, side * ny)                                   # outboard unit = the side the INA is on
+    icx, icy, icrot = anchors[ic]
+    icx0, icy0, ihw, ihh = _courtyard_info(comps[ic], icrot)
+    ic_cen = (icx + icx0, icy + icy0)                             # INA181 courtyard centre (in the notch)
+    ic_perp = abs(ihw * sn[0]) + abs(ihh * sn[1])                # INA181 courtyard half-extent outboard
+    # this cable's HI/LO pour boxes -- the keepout the comparator BODY must clear (same pad class as
+    # cec_fr.derive_power_pours: connector THT + the 2-pad Kelvin shunt; INA SMD sense pads excluded).
+    boxes = []
+    for net in (hi, lo):
+        pts = []
+        for r, p in nl.nets.get(net, []):
+            if r in (ic, comp) or r not in anchors:
+                continue
+            if r.startswith("J") or (r.startswith("R") and _ref_padcount(nl, r) == 2):
+                try:
+                    pts.append(cec_pcb.pad_global(r, p, {r: anchors[r]}, comps))
+                except Exception:
+                    pass
+        if pts:
+            xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+            boxes.append((min(xs) - pour_margin, max(xs) + pour_margin,
+                          min(ys) - pour_margin, max(ys) + pour_margin))
+    # the comparator INPUT pad (the /DETAMP* net it shares with the INA) + the INA OUTPUT pad
+    sig = next((net for net in sorted(nl.nets)
+                if net not in (hi, lo) and not _POWER_NET.search(net)
+                and net.rsplit("/", 1)[-1].upper() != "GND"
+                and ic in {r for r, _ in nl.nets[net]} and comp in {r for r, _ in nl.nets[net]}), None)
+    in_pad = next((p for r, p in nl.nets.get(sig, []) if r == comp), None) if sig else None
+    out_pad = next((p for r, p in nl.nets.get(sig, []) if r == ic), None) if sig else None
+    out_xy = None
+    if out_pad:
+        try:
+            out_xy = cec_pcb.pad_global(ic, out_pad, {ic: anchors[ic]}, comps)
+        except Exception:
+            out_xy = ic_cen
+    lp = cec_pcb.local_pads(comps[comp])
+    best = None
+    for rot in (0.0, 90.0, 180.0, 270.0):
+        ccx, ccy, chw, chh = _courtyard_info(comps[comp], rot)
+        comp_perp = abs(chw * sn[0]) + abs(chh * sn[1])
+        reach = ic_perp + gap + comp_perp                        # start just outboard of the INA body
+        for _ in range(40):                                      # push out until the body clears the pours
+            cen = (ic_cen[0] + sn[0] * reach, ic_cen[1] + sn[1] * reach)
+            cyb = (cen[0] - chw, cen[0] + chw, cen[1] - chh, cen[1] + chh)
+            worst = 0.0
+            for b in boxes:
+                ox = min(cyb[1], b[1]) - max(cyb[0], b[0])
+                oy = min(cyb[3], b[3]) - max(cyb[2], b[2])
+                if ox > 0 and oy > 0:
+                    worst = max(worst, min(ox, oy))
+            if worst <= 0.05:
+                break
+            reach += worst + 0.2
+        cen = (ic_cen[0] + sn[0] * reach, ic_cen[1] + sn[1] * reach)
+        Of = (cen[0] - ccx, cen[1] - ccy, rot)
+        d = 0.0
+        if in_pad and out_xy and in_pad in lp:
+            try:
+                ip = cec_pcb.pad_global(comp, in_pad, {comp: Of}, comps)
+                d = math.hypot(ip[0] - out_xy[0], ip[1] - out_xy[1])
+            except Exception:
+                d = 0.0
+        score = (round(reach, 1), round(d, 2))                   # most compact reach first, then short link
+        if best is None or score < best[0]:
+            best = (score, Of)
+    return best[1] if best else None
+
+
+def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
+    """REAL geometric KELVIN SEAT (replaces the historical line-1732 anneal-connectivity non-seat).
+
+    For each FORMED per-cable corridor, seat its current-sense IC(s) -- the INA238/228 current sensor
+    AND the §6.13 INA181 detection amp -- HARD against the seated shunt's inner edge as FIXED anchors:
+      * BODY PERPENDICULAR to the J_IN->shunt->J_OUT corridor and CENTERED in the un-poured NOTCH (the
+        y-band the high-current pour deliberately leaves open between the HI and LO boxes), so the body
+        stays OUT of the SENSEC pour;
+      * ROTATED so the IN+/IN- input pads face the shunt's HI/LO inner-edge sense points
+        (HI-inner -> IN+, LO-inner -> IN-, taps don't cross) -- resolved by READ-BACK, since KiCad's
+        y-down transform inverts the naive math-CCW sign;
+      * the two ICs on a shunt take OPPOSITE corridor sides (so each gets a clean inner-edge tap and
+        neither sits in the pour).
+    Then, for the INA181, ALSO seat its DOWNSTREAM §6.13 detection comparator (TLV7011) -- which takes
+    the INA181 OUTPUT, not the shunt, so it needs INA181-adjacency + pour-clearance, NOT shunt-adjacency
+    (_seat_detection_comparator): clustered just outboard of the INA181 on the SAME lateral side, in the
+    notch, OUT of the SENSEC pour. The comparator becomes a FIXED anchor too (so connectivity drift can't
+    pull it back into the pour -- the U30-entirely-inside-/SENSEC1_HI bug).
+    Writes anchors[ic]=(x,y,rot); returns the seated IC refs (INAs + comparators) so synth_one can drop
+    them from the annealed set (connectivity drift can no longer pull them 6-8mm off the shunt and into
+    the pour -- the measured bug). The shunt must already be seated (anchors[shunt] = (col, H/2, 270) from
+    _seed_corridor_spine). SHARED-BUS connectors (24-pin / 12VHPWR) are absent from *topo*, so the seat
+    fires only on the per-cable EPS/PCIe family (correct -- the filtered 12VHPWR INA240 lanes use the
+    column-alignment branch of the checker instead)."""
+    import cec_pcb
+    seated = []
+    for c in topo:
+        sh, hi, lo = c["shunt"], c["hi"], c["lo"]
+        if sh not in anchors or sh not in comps:
+            continue
+        sh_hi = next((p for r, p in nl.nets.get(hi, []) if r == sh), None)   # shunt HI terminal pad
+        sh_lo = next((p for r, p in nl.nets.get(lo, []) if r == sh), None)   # shunt LO terminal pad
+        if not (sh_hi and sh_lo):
+            continue
+        P_HI = cec_pcb.pad_global(sh, sh_hi, {sh: anchors[sh]}, comps)
+        P_LO = cec_pcb.pad_global(sh, sh_lo, {sh: anchors[sh]}, comps)
+        ax, ay = P_LO[0] - P_HI[0], P_LO[1] - P_HI[1]
+        aL = math.hypot(ax, ay) or 1.0
+        ax, ay = ax / aL, ay / aL                       # current axis HI->LO (the corridor direction)
+        nx, ny = -ay, ax                                # lateral (perp to the corridor)
+        mid = ((P_HI[0] + P_LO[0]) / 2.0, (P_HI[1] + P_LO[1]) / 2.0)
+        ssz = cec_pcb.local_pad_sizes(comps[sh])
+        sh_perp = _perp_half(ssz.get(sh_hi, (1.0, 1.0)), anchors[sh][2], (nx, ny))
+        # NOTE: the un-poured notch ALONG a is +/-(aL/2 - pour_margin) about mid (derive_power_pours
+        # ends each pour box at the shunt pad CENTRE +/- margin). The seat centres the body on `a`
+        # (alpha below), so it sits in that notch; pour_margin is the documented calibration knob.
+        refs = {r for r, _ in nl.nets.get(hi, [])} | {r for r, _ in nl.nets.get(lo, [])}
+        # INA-FILTER (reach-gate finding 2026-07-08): on RAIL-SIDED straddle pairs
+        # (+5V_MAIN/+5VSB) the net-derived ref set sweeps in every IC on the rail (the
+        # mux, loads) -- the seat then mis-assigns sides and the real INA181 lands 33-49mm
+        # out (wave-10's kelvin=false). Only actual sense amps seat here.
+        sense = sorted(r for r in refs if r.startswith("U") and r in comps
+                       and "INA" in (nl.comps[r].value or "").upper())
+        for idx, ic in enumerate(sense):
+            side = 1.0 if idx % 2 == 0 else -1.0        # the two ICs straddle the shunt
+            inp = next((p for r, p in nl.nets.get(hi, []) if r == ic), None)   # IN+ pad (on HI)
+            inn = next((p for r, p in nl.nets.get(lo, []) if r == ic), None)   # IN- pad (on LO)
+            lp = cec_pcb.local_pads(comps[ic]); lsz = cec_pcb.local_pad_sizes(comps[ic])
+            if not inp or not inn or inp not in lp or inn not in lp:
+                continue
+            inp_l, inn_l = lp[inp], lp[inn]
+            chosen = None
+            for rot in (0.0, 90.0, 180.0, 270.0):
+                ig = cec_pcb._rot(*inp_l, rot)          # IN+/IN- pad offsets from origin at this rot
+                ng = cec_pcb._rot(*inn_l, rot)
+                cg = ((ig[0] + ng[0]) / 2.0, (ig[1] + ng[1]) / 2.0)     # IN-pair centroid offset
+                cx, cy, hwc, hhc = _courtyard_info(comps[ic], rot)      # courtyard centre offset + halves
+                inpad_perp = _perp_half(lsz.get(inp, (1.0, 1.0)), rot, (nx, ny))
+                g_lat = sh_perp + seat_gap + inpad_perp
+                # Solve O = mid + alpha*a + beta*n so (i) the IN-pair centroid sits g_lat off the shunt
+                # on side `side` (sense pads hard against the inner edge) and (ii) the body courtyard
+                # centre is on the corridor axis (centred in the notch -> out of the pour).
+                beta = side * g_lat - (cg[0] * nx + cg[1] * ny)
+                alpha = -(cx * ax + cy * ay)
+                O = (mid[0] + alpha * ax + beta * nx, mid[1] + alpha * ay + beta * ny)
+                INp = (O[0] + ig[0], O[1] + ig[1]); INn = (O[0] + ng[0], O[1] + ng[1])
+                order = (INp[0] - INn[0]) * ax + (INp[1] - INn[1]) * ay     # IN+ must be toward HI (-a)
+                face = ((INp[0] + INn[0]) / 2.0 - O[0]) * nx * side + \
+                       ((INp[1] + INn[1]) / 2.0 - O[1]) * ny * side          # IN pads must face the shunt
+                if order < -1e-6 and face < 1e-6:
+                    chosen = (rot, beta)
+                    break
+            if chosen is None:
+                continue
+            rot, beta = chosen
+            cx, cy, hwc, hhc = _courtyard_info(comps[ic], rot)
+            alpha = -(cx * ax + cy * ay)                    # body courtyard centred on the corridor axis
+            sh_cy = cec_pcb.courtyard_bbox(comps[sh], *anchors[sh])
+            # COURTYARD CLEARANCE: the seat lands the SENSE PADS hard against the shunt, but the IC
+            # BODY must not overlap the shunt COURTYARD (DRC) -- so slide the body laterally OUT (along
+            # `side`*n, away from the corridor) until its courtyard clears the shunt courtyard. The
+            # sense pads ride out with it but stay well within the 5mm/2mm Kelvin window (measured: edge
+            # gap ~0.2 -> ~0.8mm). `a` is unchanged, so the body stays centred in the notch.
+            for _ in range(24):
+                Ox = mid[0] + alpha * ax + beta * nx
+                Oy = mid[1] + alpha * ay + beta * ny
+                ic_cy = (Ox + cx - hwc, Ox + cx + hwc, Oy + cy - hhc, Oy + cy + hhc)
+                ovx = min(ic_cy[1], sh_cy[1]) - max(ic_cy[0], sh_cy[0])      # lateral overlap (n is horizontal)
+                ovy = min(ic_cy[3], sh_cy[3]) - max(ic_cy[2], sh_cy[2])
+                if ovx <= 0.2 or ovy <= 0.2:                # courtyards separated (or corner graze) -> done
+                    break
+                beta += side * (ovx + 0.2)                  # push the body out along n by the lateral overlap
+            anchors[ic] = (mid[0] + alpha * ax + beta * nx, mid[1] + alpha * ay + beta * ny, rot)
+            seated.append(ic)
+            # §6.13 DETECTION COMPARATOR (owner directive 2026-06-28): seat each cable's TLV7011 -- the
+            # detection comparator DOWNSTREAM of THIS sense IC -- CLUSTERED WITH it, on the SAME lateral
+            # side, OUT of the SENSEC pour. Only fires for the INA181 (it drives a comparator over its
+            # /DETAMP* output); the INA238 current sensor has none, so _downstream_comparators -> []. The
+            # comparator becomes a FIXED anchor too, so connectivity drift can't pull it back into the
+            # pour (the U30-entirely-inside-/SENSEC1_HI bug). Its bypass cap clusters onto it downstream.
+            for cmp in _downstream_comparators(ic, hi, lo, nl, comps):
+                if cmp in anchors:                       # already seated (shared by another sense IC)
+                    continue
+                seat = _seat_detection_comparator(ic, cmp, anchors, nl, comps, hi, lo,
+                                                  ax, ay, nx, ny, side)
+                if seat is not None:
+                    anchors[cmp] = seat
+                    seated.append(cmp)
+    return seated
+
+
+def _seat_conflict_repair(anchors, comps, topo, nl, W, H, *, clr=0.4, drop_antenna=False,
+                          step=1.5):
+    """SEAT CONFLICT REPAIR (dual-sided fix, 2026-07-08 -- Fix #1 THT-backside + Fix #2 same-face
+    overlap). The shared-bus rail cells (5VSB/12V/3V3/5V) sit on ONE thin sense band at H/2, columns
+    pitched narrower than the seated INA181+TLV cell width, so after the F/B alternation the two
+    SAME-FACE cells (2 columns apart) still collide -- AND the back cells fall under the FRONT
+    connectors' THT pin fields (RS2/U65V1/U75V1 under J6). Both are the SAME geometric conflict on a
+    board with 47mm of UNUSED vertical room, so resolve both by Y-STAGGERING each cell as a RIGID
+    unit (shunt + its INA238 + INA181 + TLV move together -> Kelvin sense-pad<->shunt geometry is
+    preserved EXACTLY). A cell's obstacles are, face-aware: (a) already-staggered SAME-face cells,
+    (b) SAME-face fixed connector/mount courtyards (front CrtYd), (c) OPPOSITE-face THT pin-field
+    keepouts (the _tht_pin_field_boxes shared derivation -- Fix #1). Mutates *anchors*; returns
+    (moved_refs, snags). A cell that cannot be cleared within the board keeps its least-bad Y and is
+    named in *snags* (honest 'too tight' rather than a hidden overlap)."""
+    import cec_pcb
+    cells = _dual_side_cells(topo, anchors, nl, comps)
+    if not cells:
+        return [], []
+
+    def _esp(libid):
+        s = str(libid).lower()
+        return "esp32" in s or "rf_module" in s
+
+    for cell in cells:
+        cell["mrefs"] = sorted(r for r in cell["members"] if r in anchors and r in comps)
+    cell_refs = {r for c in cells for r in c["mrefs"]}
+    # THT pin-field keepouts (both faces) off the current seat -- connectors are front (guard),
+    # so their fields carry mount_face 'F' and keep BACK cells out (and vice versa).
+    tht = _tht_pin_field_boxes(anchors, comps, back_refs=set())
+    # SAME-face fixed obstacles: every non-cell anchor's courtyard (front-mounted -> front CrtYd).
+    anchor_boxes = []
+    for r, pos in anchors.items():
+        if r in cell_refs or r not in comps:
+            continue
+        anchor_boxes.append(cec_pcb.courtyard_bbox(comps[r], *pos,
+                                                   drop_keepout=(drop_antenna and _esp(comps[r]))))
+
+    def _cell_bbox(mrefs, dy):
+        xs, ys = [], []
+        for r in mrefs:
+            x, y, rot = anchors[r]
+            cb = cec_pcb.courtyard_bbox(comps[r], x, y + dy, rot,
+                                        drop_keepout=(drop_antenna and _esp(comps[r])))
+            xs += [cb[0], cb[1]]
+            ys += [cb[2], cb[3]]
+        return (min(xs), max(xs), min(ys), max(ys))
+
+    cands = [0.0]
+    d = step
+    while d <= (H / 2.0 - 3.0):
+        cands += [d, -d]                                 # smallest |dy| first (down before up at each
+        d += step                                        # magnitude -- measured best for overlap+THT;
+    placed, moved, snags = [], [], []                    # an up-bias re-broke both near J3's field)
+    # order: process WIDEST-x-span cells first (most constrained), so the tight ones get first pick.
+    order = sorted(cells, key=lambda c: -(lambda b: b[1] - b[0])(_cell_bbox(c["mrefs"], 0.0)))
+    for cell in order:
+        face = cell["face"]
+        mrefs = cell["mrefs"]
+        best_dy, best_bad = 0.0, None
+        for dy in cands:
+            bb = _cell_bbox(mrefs, dy)
+            if bb[2] < 1.0 or bb[3] > H - 1.0:           # off-board
+                continue
+            bad = 0.0
+            for f2, b2 in placed:                        # (a) same-face staggered cells
+                if f2 == face:
+                    bad += _ov_area(bb, b2, clr)
+            if face == "F":                              # (b) same-face connector/mount courtyards
+                for ab in anchor_boxes:                  # (connectors are front-mounted -> front CrtYd)
+                    bad += _ov_area(bb, ab, clr)
+            for _tr, tb in tht.items():                  # (c) opposite-face THT pin fields
+                if tb[4] != face:                        # keepout is on the OTHER face -> this cell must avoid it
+                    bad += _ov_area(bb, (tb[0], tb[1], tb[2], tb[3]))
+            if bad <= 1e-6:
+                best_dy, best_bad = dy, 0.0
+                break
+            if best_bad is None or bad < best_bad:
+                best_dy, best_bad = dy, bad
+        if abs(best_dy) > 1e-6:
+            for r in mrefs:
+                x, y, rot = anchors[r]
+                anchors[r] = (x, y + best_dy, rot)
+                moved.append(r)
+        placed.append((face, _cell_bbox(mrefs, 0.0)))    # final bbox (anchors already moved)
+        if best_bad and best_bad > 1e-6:
+            snags.append({"cell": cell["shunt"], "face": face,
+                          "residual_conflict_mm2": round(best_bad, 2)})
+    return moved, snags
 
 
 def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
@@ -2469,6 +3764,334 @@ def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
         if X0 <= x <= X1 and Y0 <= y <= Y1:
             return True
     return False
+
+
+def _evacuate_corridors(P, comps, model, *, margin=0.8, fixed=()):
+    """RE-PLACE fix (owner-caught 2026-06-27): move any body whose CENTER sits inside a FORMED high-current
+    band OUT to the nearest band edge + margin (the corridor is the vertical connector->shunt column, so
+    evacuate in x). A foreign body in a SENSEC pour BLOCKS the fill AND its nets can't be routed (the
+    net-aware keepout then strands them). EXEMPT: the band's own shunt + sense ICs (Kelvin needs them
+    adjacent to the shunt), edge connectors (J*) / mounts (H*), and any *fixed* ref (the ladder's LOCKED
+    set -- Fix #3 lock respect: a locked ref is never moved here). The anneal veto only covers sensitive
+    ICs and the decoupling/DETECT passives are STAMPED into the band via their owner offset, so evacuate
+    them here. Returns the list of moved refs (re-legalize them after)."""
+    own = {c.shunt for c in model.cables} | {i for c in model.cables for i in c.sense_ics}
+    fixed = set(fixed or ())
+    moved = []
+    for c in model.cables:
+        if not c.formed:
+            continue
+        X0, X1, Y0, Y1 = c.band
+        for ref in list(P):
+            if ref in own or ref in fixed or ref[:1] in ("J", "H"):
+                continue
+            pr = P[ref]
+            x, y, rot = pr[0], pr[1], (pr[2] if len(pr) > 2 else 0.0)
+            if X0 <= x <= X1 and Y0 <= y <= Y1:                  # center inside a high-current band
+                nx = (X0 - margin) if (x - X0) < (X1 - x) else (X1 + margin)
+                P[ref] = (nx, y, rot)
+                moved.append(ref)
+    return moved
+
+
+def _pad_is_tht(libid):
+    """{pad_num: is_tht} for a footprint (memoized) -- the placement-side pour-box extractor
+    needs pad TYPE, which local_pads drops."""
+    if libid in _PAD_THT_CACHE:
+        return _PAD_THT_CACHE[libid]
+    out = {}
+    try:
+        import cec_pcb
+        nick, name = str(libid).split(":")
+        s = open(cec_pcb.fp_path(nick, name)).read()
+        for m in re.finditer(r'\(pad\s+"([^"]*)"\s+(\w+)', s):
+            out[m.group(1)] = (m.group(2) == "thru_hole")
+    except Exception:                                    # noqa: BLE001
+        pass
+    _PAD_THT_CACHE[libid] = out
+    return out
+
+
+_PAD_THT_CACHE = {}
+
+
+_THT_PADS_CACHE = {}
+
+
+def _tht_pads_local(libid):
+    """[(lx, ly, sx, sy, pad_rot)] for EVERY thru_hole pad of a footprint (memoized). Unlike
+    ``cec_pcb.local_pads`` (a dict keyed by pad NUMBER, which collapses the multiple pads a
+    connector puts on one number -- e.g. the TE-63969 receptacle's two Ø1.4 holes, the USB-C
+    shield pads), this keeps ALL PTH pads so the pin-field union spans the whole hole pattern
+    (the pcbnew PAD_ATTRIB_PTH union the gate reads). np_thru_hole (mechanical peg) is excluded,
+    matching PAD_ATTRIB_PTH."""
+    if libid in _THT_PADS_CACHE:
+        return _THT_PADS_CACHE[libid]
+    import cec_pcb
+    out = []
+    try:
+        nick, name = str(libid).split(":")
+        t = open(cec_pcb.fp_path(nick, name)).read()
+        for m in re.finditer(r'\(pad ', t):
+            b = cec_pcb.carve(t, m.start())
+            head = b.split("\n")[0]
+            if "thru_hole" not in head or "np_thru_hole" in head:
+                continue
+            at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', b)
+            sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)\)', b)
+            if not at:
+                continue
+            lx, ly = float(at.group(1)), float(at.group(2))
+            prot = float(at.group(3)) if at.group(3) else 0.0
+            sx, sy = (float(sz.group(1)), float(sz.group(2))) if sz else (0.0, 0.0)
+            out.append((lx, ly, sx, sy, prot))
+    except Exception:                                    # noqa: BLE001
+        pass
+    _THT_PADS_CACHE[libid] = out
+    return out
+
+
+def _tht_pin_field_boxes(P, comps, *, back_refs=(), refs=None, clearance=0.0):
+    """THT PIN-FIELD keepout boxes -- the ONE derivation shared by the placement passes AND the
+    ``_oracle_tht_backside`` gate (no box-model duality -- the PourPlan lesson).
+
+    A through-hole part's PTH pads pierce BOTH faces, so its pin-field bbox (the union of the PTH
+    pad bboxes) physically occupies space on the face OPPOSITE the part's own mount side (solder
+    joints + pin tails). KiCad's courtyard DRC is per-side and misses this class, so we register it
+    as a face-specific keepout. Returns {ref: (xmin, xmax, ymin, ymax, mount_face)} for every THT
+    footprint, where mount_face is ``"B"`` if the ref is flipped to the back (in *back_refs*) else
+    ``"F"`` -- the box is a keep-out for parts on the OTHER face.
+
+    Reads geometry from the footprint FILE (pcbnew-free, so the placer can call it before a board
+    exists): PTH pads via ``_pad_is_tht`` (the same np_thru_hole exclusion the gate's PAD_ATTRIB_PTH
+    gives), centres via ``cec_pcb.pad_global`` (flip-aware -- KiCad mirrors local pad x on the back),
+    sizes via ``cec_pcb.local_pad_sizes`` -> each pad's board-space axis-aligned bbox, matching
+    ``pcbnew`` ``pad.GetBoundingBox()``. The gate builds P/comps/back off a loaded board and calls
+    THIS function, so the two sides derive the identical field bbox."""
+    import cec_pcb
+    back = set(back_refs or ())
+    out = {}
+    pool = refs if refs is not None else list(P)
+    for r in pool:
+        if r not in P or r not in comps:
+            continue
+        pads = _tht_pads_local(comps[r])
+        if not pads:
+            continue
+        X, Y = P[r][0], P[r][1]
+        A = P[r][2] if len(P[r]) > 2 else 0.0
+        flipped = r in back
+        xs, ys = [], []
+        for lx, ly, sx, sy, prot in pads:
+            if flipped:                                   # KiCad flip mirrors local pad x + angle
+                lx = -lx
+                prot = -prot
+            dx, dy = cec_pcb._rot(lx, ly, A)
+            cx, cy = X + dx, Y + dy
+            aa = math.radians(A + prot)                   # total pad orientation in board frame
+            ca, sa = abs(math.cos(aa)), abs(math.sin(aa))
+            hbx = (sx / 2.0) * ca + (sy / 2.0) * sa       # axis-aligned pad bbox half-extents
+            hby = (sx / 2.0) * sa + (sy / 2.0) * ca
+            xs += [cx - hbx, cx + hbx]
+            ys += [cy - hby, cy + hby]
+        if not xs:
+            continue
+        out[r] = (min(xs) - clearance, max(xs) + clearance,
+                  min(ys) - clearance, max(ys) + clearance, ("B" if flipped else "F"))
+    return out
+
+
+def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4, asks=()):
+    """PLACEMENT-side pour boxes from the SAME pure core the route-time gate uses
+    (cec_fr._pour_boxes_core) -- box-model unification 2026-07-08: the settle previously
+    avoided topo-derived boxes while the gate checked straddle-derived clipped boxes, so
+    re-stamped caps kept landing in gate boxes the settle never saw (the cross-board craft
+    blocker). Returns [(net, x0, x1, y0, y1)] in the evac format.
+
+    POUR LEVER (stage 1/2, docs/pour-lever-scoping-2026-07-08.md): now a thin view of a
+    ``cec_pourplan.PourPlan`` built off the placement (``from_placement`` -> ``evac_boxes()``).
+    *asks* (the placer's ``pour()`` channel, cfg.params['pour_asks']) fold in as extra pour boxes;
+    ``asks=()`` is byte-identical to the old placement-side extractor (golden guarantee)."""
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_placement(P, nl, comps, W, H, asks=asks,
+                                                margin=margin, edge_clear=edge_clear).evac_boxes()
+
+
+def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
+    """The derive_power_pours SENSEC boxes recomputed HOST-SIDE off placement *P* (the same pad class:
+    connector THT + the 2-pad Kelvin shunt; the INA SMD sense pads excluded). Returns [(net,x0,x1,y0,y1)].
+    The route-time no-foreign-on-high-current-pour gate derives the very same boxes, so evacuating bodies
+    against these keeps placement and the gate in lockstep. Connectors+shunt are FIXED, so this is stable
+    across the evacuation loop (compute once)."""
+    import cec_pcb
+    try:                                                 # the SHUNT_GAP_MM notch (single source of truth in cec_fr); opt-in
+        import cec_fr
+        _gap, _notch = (cec_fr.SHUNT_GAP_MM, cec_fr._open_shunt_notch) if cec_fr._shunt_gap_on() else (None, None)
+    except Exception:                                    # pcbnew-less host: fall back to the historical hug-the-shunt box
+        _gap = _notch = None
+    out = []
+    for c in topo:
+        sh = c.get("shunt")
+        shunt_xy = vertical = None
+        if _gap and sh in P and sh in comps:             # shunt centre + corridor axis from its two terminals
+            shp = []
+            for net in (c["hi"], c["lo"]):
+                pp = next((q for r, q in nl.nets.get(net, []) if r == sh), None)
+                if pp is not None:
+                    try:
+                        shp.append(cec_pcb.pad_global(sh, pp, {sh: P[sh]}, comps))
+                    except Exception:
+                        pass
+            if len(shp) >= 2:
+                shunt_xy = ((shp[0][0] + shp[1][0]) / 2.0, (shp[0][1] + shp[1][1]) / 2.0)
+                vertical = abs(shp[0][1] - shp[1][1]) >= abs(shp[0][0] - shp[1][0])
+        for net in (c["hi"], c["lo"]):
+            pts = []
+            for r, p in nl.nets.get(net, []):
+                if r not in P:
+                    continue
+                if r.startswith("J") or (r.startswith("R") and _ref_padcount(nl, r) == 2):
+                    try:
+                        pts.append(cec_pcb.pad_global(r, p, {r: P[r]}, comps))
+                    except Exception:
+                        pass
+            if pts:
+                xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+                box = (min(xs) - margin, max(xs) + margin, min(ys) - margin, max(ys) + margin)
+                if shunt_xy is not None:                  # open the un-poured notch to match derive_power_pours
+                    box = _notch(box, shunt_xy, _gap, vertical=vertical)
+                out.append((net, box[0], box[1], box[2], box[3]))
+    return out
+
+
+def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=False,
+                    net_exempt=None):
+    """Push any FOREIGN MOVABLE body OUT of a derive_power_pours SENSEC box, laterally toward the nearest
+    box x-edge + *clr* (the corridor is the vertical connector->shunt column). FOREIGN = not a FIXED
+    seated anchor (*fixed*: the connectors / shunts / kelvin-seated INAs + comparators / ESP / mounts that
+    legitimately own or graze the pour). The route-time gate counts ANY foreign track/via in a box; a
+    foreign decoupling/threshold cap BODY here forces exactly that copper (its pads + the route to them),
+    so evacuate it at placement -- the placer-side ENFORCE of no-foreign-on-high-current-pour. This is the
+    box-accurate complement to _evacuate_corridors (which uses the tighter band). Returns the moved refs."""
+    net_exempt = net_exempt or {}
+    moved = []
+    for ref in list(P):
+        if ref in fixed or ref not in comps or ref[:1] in ("J", "H"):
+            continue
+        x, y = P[ref][0], P[ref][1]
+        rot = P[ref][2] if len(P[ref]) > 2 else 0.0
+        cx0, cy0, hw, hh = _courtyard_info(comps[ref], rot, drop_antenna=drop_antenna)
+        ccx, ccy = x + cx0, y + cy0
+        cb = (ccx - hw, ccx + hw, ccy - hh, ccy + hh)
+        _exn = net_exempt.get(ref, ())
+        worst = None
+        for _net, x0, x1, y0, y1 in boxes:
+            if _net in _exn:
+                continue                                 # own-rail box: the part belongs here
+            ox = min(cb[1], x1) - max(cb[0], x0)
+            oy = min(cb[3], y1) - max(cb[2], y0)
+            inb = x0 <= ccx <= x1 and y0 <= ccy <= y1
+            ov = max(0.0, ox) * max(0.0, oy)
+            if (inb or ov > tol) and (worst is None or ov > worst[0]):
+                worst = (ov, x0, x1)
+        if worst is None:
+            continue
+        _, x0, x1 = worst
+        tcx = (x0 - clr - hw) if (ccx - x0) <= (x1 - ccx) else (x1 + clr + hw)  # exit the nearer x-edge
+        P[ref] = (tcx - cx0, y, rot)
+        moved.append(ref)
+    return moved
+
+
+def _evacuate_tht(P, comps, tht_keep, faces, fixed, W, H, *, clr=0.3, silk_margin=1.6,
+                  drop_antenna=False):
+    """THT-BACKSIDE evac (Fix #1, movable half): push each OPPOSITE-face movable body just OUT of a
+    THT pin-field keepout, out the box's SHORT axis so a decoupling cap stays NEAR its owner (a
+    minimal nudge, NOT a full relocation that would strand it -- the universal-keepout attempt
+    stranded 6 caps). *tht_keep* {ref:(x0,x1,y0,y1,mount_face)}; *faces* ref->'F'/'B'; *fixed* =
+    never-moved. A body on the SAME face as a THT box is left to the courtyard gate (same-face pad
+    overlap), so only the cross-face backside class is handled here. *silk_margin* inflates the
+    body's extent to match the gate's SILK-INCLUSIVE GetBoundingBox (the value text overhangs the
+    courtyard ~1.5mm; a courtyard-clear cap can still trip the gate on silk -- measured). Returns
+    the moved refs."""
+    moved = []
+    for ref in list(P):
+        if (ref in fixed or ref not in comps or ref[:1] in ("J", "H")
+                or ref.startswith(("TB", "FID"))):
+            continue
+        rf = faces.get(ref, "F")
+        x, y = P[ref][0], P[ref][1]
+        rot = P[ref][2] if len(P[ref]) > 2 else 0.0
+        cx0, cy0, hw0, hh0 = _courtyard_info(comps[ref], rot, drop_antenna=drop_antenna)
+        hw, hh = hw0 + silk_margin, hh0 + silk_margin    # silk-inclusive extent (matches the gate)
+        ccx, ccy = x + cx0, y + cy0
+        cb = (ccx - hw, ccx + hw, ccy - hh, ccy + hh)
+        worst = None
+        for _tr, tb in tht_keep.items():
+            if tb[4] == rf:                              # same face -> courtyard gate, not backside
+                continue
+            x0, x1, y0, y1 = tb[0], tb[1], tb[2], tb[3]
+            ox = min(cb[1], x1) - max(cb[0], x0)
+            oy = min(cb[3], y1) - max(cb[2], y0)
+            if ox > 0 and oy > 0 and (worst is None or ox * oy > worst[0]):
+                worst = (ox * oy, x0, x1, y0, y1)
+        if worst is None:
+            continue
+        _, x0, x1, y0, y1 = worst
+        # opposite-face THT boxes this body must not LAND in (avoid whack-a-mole into a neighbour)
+        opp = [tb for tb in tht_keep.values() if tb[4] != rf]
+
+        def _clean(nx_ccx, nx_ccy):                      # new silk-inclusive body clears every opp box?
+            for tb in opp:
+                if (nx_ccx - hw < tb[1] and nx_ccx + hw > tb[0]
+                        and nx_ccy - hh < tb[3] and nx_ccy + hh > tb[2]):
+                    return False
+            return True
+        # evaluate all four exits (left/right/up/down); pick the smallest move that keeps the
+        # (silk-inclusive) body ON-BOARD *and* clear of every other THT field -- so a body pinned
+        # against the board edge (C17 below J_SIG) exits SIDEWAYS, and one boxed in a corner is
+        # LEFT courtyard-clear rather than shoved into TB9 (a new violation).
+        best = None
+        for ax, tc in (("x", x0 - clr - hw), ("x", x1 + clr + hw),
+                       ("y", y0 - clr - hh), ("y", y1 + clr + hh)):
+            if ax == "x":
+                if tc - hw < 0.5 or tc + hw > W - 0.5 or not _clean(tc, ccy):
+                    continue
+                move = abs(tc - ccx)
+            else:
+                if tc - hh < 0.5 or tc + hh > H - 0.5 or not _clean(ccx, tc):
+                    continue
+                move = abs(tc - ccy)
+            if best is None or move < best[0]:
+                best = (move, ax, tc)
+        if best is None:
+            continue                                     # corner-boxed -> leave courtyard-clear (snag)
+        _, ax, tc = best
+        P[ref] = ((tc - cx0, y, rot) if ax == "x" else (x, tc - cy0, rot))
+        moved.append(ref)
+    return moved
+
+
+def _legalize_avoiding_pours(P, movable, cyinfo, boxes, W, H, *, clr=0.4, bounds=None):
+    """POUR-AWARE legalize: run legalize_pack over the *movable* foreign parts with the derive_power_pours
+    SENSEC *boxes* injected as FIXED pseudo-obstacles, so each part lands in the nearest free spot that is
+    BOTH courtyard-overlap-free AND out of every pour -- pour-clearance and residual settled in ONE pass by
+    construction (legalize_pack already treats every non-movable P entry as a fixed obstacle). The seated
+    anchors (INAs/comparators/shunts/connectors/ESP) are NOT in *movable*, so their intentional pour graze
+    is untouched. Restores P/cyinfo (pseudo refs removed). Returns the residual legalize reports."""
+    pseudo = []
+    for i, b in enumerate(boxes):
+        _net, x0, x1, y0, y1 = b
+        k = "__POUR%d__" % i
+        P[k] = ((x0 + x1) / 2.0, (y0 + y1) / 2.0, 0.0)
+        cyinfo[k] = (0.0, 0.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
+        pseudo.append(k)
+    try:
+        return legalize_pack(P, movable, cyinfo, W, H, clr=clr, bounds=bounds)
+    finally:
+        for k in pseudo:
+            P.pop(k, None)
+            cyinfo.pop(k, None)
 
 
 def _board_corridor_model(board):
@@ -2638,6 +4261,35 @@ def hub_score(model, P, W, H):
     return out
 
 
+def _park_near(target_xy, t_cy, p_cy, pour_boxes, W, H, *, gap=0.6):
+    """Nearest lane-free slot adjacent to *target* (right/left/below/above at combined
+    extents); None when nothing clears. With LANE pours the boxes are thin, so a clear
+    slot almost always exists beside the owner -- the earlier inert result came from
+    zero/blanket boxes, not this logic."""
+    tx, ty = target_xy
+    tcx, tcy, thw, thh = t_cy
+    ccx, ccy, chw, chh = p_cy
+    cands = [
+        (tx + tcx + thw + chw + gap - ccx, ty + tcy - ccy),
+        (tx + tcx - thw - chw - gap - ccx, ty + tcy - ccy),
+        (tx + tcx - ccx, ty + tcy + thh + chh + gap - ccy),
+        (tx + tcx - ccx, ty + tcy - thh - chh - gap - ccy),
+    ]
+    def _clear(x, y):
+        bx0, bx1 = x + ccx - chw, x + ccx + chw
+        by0, by1 = y + ccy - chh, y + ccy + chh
+        if bx0 < 0.5 or bx1 > W - 0.5 or by0 < 0.5 or by1 > H - 0.5:
+            return False
+        for _net, px0, px1, py0, py1 in (pour_boxes or ()):
+            if not (bx1 <= px0 or bx0 >= px1 or by1 <= py0 or by0 >= py1):
+                return False
+        return True
+    for x, y in cands:
+        if _clear(x, y):
+            return (x, y)
+    return None
+
+
 def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, margin=1.8):
     """Seat the PCB-antenna IC against its antenna EDGE as a fixed anchor, returning (ref,(x,y,rot))
     or (None,None). An RF/ESP module is EDGE-CONSTRAINED (its lobe must radiate off a board edge --
@@ -2666,6 +4318,264 @@ def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, marg
     return esp, (x, y, 0.0)
 
 
+def _mcu_cluster_offsets(nl, passives, ic_refs, anchor_refs, esp, comps, *, drop_keepout=(),
+                         analog_refs=(), slim_axis=None, clr=0.45):
+    """Owner directive 2026-07-12 ('the ESP definitely needs to be moveable/rotatable as a
+    ladder piece ... pack [its decouplers, status LED, etc] together'): the passives *esp*
+    OWNS through the SAME ownership machinery p4_cluster_learn uses (derive_passive_spec --
+    decoupling, EN/boot pull resistors, a status LED + its resistor when they share a signal
+    with the ESP), packed around the ESP at (0,0,0) via cec_pcb.auto_cluster -- the identical
+    density engine every other IC cluster in this pipeline uses. SW* buttons can never land
+    here: _classify buckets SW as an IC, never a `passives`-bucket ref, so derive_passive_spec
+    never assigns one to *esp* -- they seat separately (_adjacent_pair_offsets), per the owner's
+    'Boot and Reset ... on their own next to each other' rule.
+
+    ANALOG-CHAIN FILTER (coordinator correction 2026-07-12, MEASURED on 12vhpwr seed 2: the
+    unfiltered 15-member macro was 21.1mm min-width vs an 18.35mm logic column -- a MEMBERSHIP
+    bug, not geometry): ownership-by-net hands *esp* every passive whose signal net terminates
+    at an ESP ADC pin, which wrongly sweeps in ANALOG FRONT-END parts whose placement doctrine
+    is elsewhere -- the NTC thermistors (TH1 = AT the shunt row for shunt temp, TH2 = AMBIENT,
+    both actively wrong packed against the warm MCU), their divider legs/filter caps, and the
+    VRAIL_DIV rail divider (taps a lane 12V node -- belongs near the lanes). The TRUE MCU
+    satellite set is only pure-decoupling caps on the ESP's power pins + digital-service
+    passives (EN/boot pulls, status-LED R). Realized as an ANALOG-TAINT walk, not a name list:
+    seed refs = every RS*/TH* ref + *analog_refs* (the power-path connectors, from the
+    caller's anchor roles); a non-rail net touching a tainted ref is tainted; a PASSIVE on a
+    tainted net is tainted (taint spreads through 2-pin chain elements -- R5's 12V tap taints
+    VRAIL_DIV and so R6/C24 two hops out -- but never through an IC: the ESP touching /TEMP1
+    must not condemn its own decouplers); fixpoint; a member touching any tainted net is
+    dropped. Rail nets (GND/+3V3/...) neither seed nor carry taint (everything shares them);
+    the force _HI/_LO nets are NOT rails here -- they are exactly the analog spine the walk
+    must travel (deliberately narrower than _is_power_net, which counts _HI/_LO as
+    power-like for ownership).
+
+    Returns (offsets, bbox): offsets = {ref:(dx,dy,rot)} INCLUDING the ESP itself at (0,0,0),
+    ESP-local (rot0) frame; bbox = (cx,cy,hw,hh) of the macro's courtyard union in that
+    same frame."""
+    import cec_pcb
+    spec, series = derive_passive_spec(nl, passives, ic_refs, anchor_refs=anchor_refs)
+    members = [(p, pad) for p, (own, pad) in spec.items() if own == esp and p not in series]
+    # ---- analog-taint walk (see docstring) ----
+    def _is_rail(n):
+        return bool(_POWER_NET.search(n)) or n.rsplit("/", 1)[-1].upper() == "GND"
+    _passive_set = set(passives)
+    _tainted_refs = ({r for r in nl.comps if r.startswith(("RS", "TH"))}
+                     | set(analog_refs or ()))
+    _tainted_nets = set()
+    _changed = True
+    while _changed:
+        _changed = False
+        for n, nodes in nl.nets.items():
+            if n in _tainted_nets or _is_rail(n):
+                continue
+            if any(r in _tainted_refs for r, _p in nodes):
+                _tainted_nets.add(n)
+                _changed = True
+                for r, _p in nodes:
+                    if r in _passive_set and r not in _tainted_refs:
+                        _tainted_refs.add(r)     # taint spreads through passives only
+    _dropped = sorted(p for p, _ in members if p in _tainted_refs)
+    members = [(p, pad) for p, pad in members if p not in _tainted_refs]
+    if _dropped and os.environ.get("CEC_BP_DEBUG"):
+        print(f"  [mcu-cluster] analog-chain satellites excluded (doctrine: shunt row/"
+              f"ambient/lane dividers, not MCU service): {_dropped}",
+              file=sys.stderr, flush=True)
+    Ptmp = {esp: (0.0, 0.0, 0.0)}
+    if members and slim_axis == "x":
+        # WIDTH-CONSTRAINED ROW PACK (2026-07-12, measured: the free auto_cluster fan
+        # parks satellites on the ESP's LEFT/RIGHT flanks -> macro 21.1mm wide vs the
+        # 12vhpwr force-lane logic column's 18.35mm, while the ESP body alone (16.05)
+        # fits. So when the caller's target is a width-limited column, satellites pack
+        # in TWO HORIZONTAL ROWS just outside the ESP's TOP/BOTTOM courtyard edges --
+        # macro width stays max(ESP, row); rows split by which half of the ESP holds
+        # each satellite's owner pad (nearest-half wiring), ordered by owner-pad x.
+        # Uses the FULL courtyard (no drop_keepout): the NoAntKeepout footprints carry
+        # a body-only courtyard the drop-trim heuristic UNDERSTATES (~5mm on the S2
+        # MINI, measured as real board-DRC courtyard overlaps in the lobe region).
+        ec = _courtyard_info(comps[esp], 0.0)
+        rows = {-1: [], +1: []}
+        for p, pad in sorted(members):
+            try:
+                px, py = cec_pcb.pad_global(esp, pad, {esp: (0.0, 0.0, 0.0)}, comps)
+            except Exception:                            # noqa: BLE001
+                px, py = 0.0, 0.0
+            rows[-1 if py < ec[1] else +1].append((px, p))
+        for sign, row in rows.items():
+            row.sort()
+            spans = [(p, _courtyard_info(comps[p], 0.0)) for _px, p in row]
+            total = sum(2.0 * c[2] for _p, c in spans) + clr * max(0, len(spans) - 1)
+            x = -total / 2.0
+            for p, c in spans:
+                y_edge = ec[1] + sign * (ec[3] + clr + c[3])
+                Ptmp[p] = (x + c[2] - c[0], y_edge - c[1], 0.0)
+                x += 2.0 * c[2] + clr
+    elif members:
+        cec_pcb.auto_cluster(Ptmp, comps, {p: (esp, pad) for p, pad in members},
+                             drop_keepout=drop_keepout)
+    xs, ys = [], []
+    for r in Ptmp:
+        x0, x1, y0, y1 = cec_pcb.courtyard_bbox(
+            comps[r], *Ptmp[r],
+            drop_keepout=(r in drop_keepout and slim_axis is None))
+        xs += [x0, x1]
+        ys += [y0, y1]
+    bbox = ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0,
+            (max(xs) - min(xs)) / 2.0, (max(ys) - min(ys)) / 2.0)
+    return Ptmp, bbox
+
+
+def _adjacent_pair_offsets(comps, ref_a, ref_b, *, gap=2.0):
+    """*ref_a*/*ref_b* packed side-by-side (rot 0, both on one axis) with a *gap*mm
+    courtyard-to-courtyard clearance, centred on a local origin -- the owner's 'Boot and
+    Reset buttons should be on their own next to each other orthogonally always' pairing.
+    Returns {ref_a:(dx,dy,0), ref_b:(dx,dy,0)} in the same (dx,dy,rot)-offset shape
+    _seat_mcu_macro expects (it is agnostic to what the offsets represent)."""
+    ca = _courtyard_info(comps[ref_a], 0.0)
+    cb = _courtyard_info(comps[ref_b], 0.0)
+    # total pair span = full width A + gap + full width B; each courtyard CENTRE sits its
+    # own half-width in from the pair's edge. (The first cut mixed spans and half-widths --
+    # centres landed ha+hb closer than intended and the courtyards interpenetrated ~2mm,
+    # measured SW1/SW2 on the 12vhpwr seed-2 board.)
+    span = 2.0 * ca[2] + gap + 2.0 * cb[2]
+    xa = -span / 2.0 + ca[2]                  # centre of A: half-width in from the left edge
+    xb = span / 2.0 - cb[2]                   # centre of B: half-width in from the right edge
+    return {ref_a: (xa - ca[0], -ca[1], 0.0), ref_b: (xb - cb[0], -cb[1], 0.0)}
+
+
+def _box_clear(box, obstacles, margin):
+    """box/obstacles entries are (...,x0,x1,y0,y1) -- the last 4 fields, so this accepts both
+    the 4-tuples the seat-settle occupancy list uses and the 5-tuples (name,x0,x1,y0,y1)
+    _blueprint_env_boxes/_force_corridor_boxes return. True iff *box* clears every obstacle
+    by at least *margin*mm (plain AABB separation, cec_pcb._ovl's convention)."""
+    x0, x1, y0, y1 = box
+    for b in obstacles:
+        bx0, bx1, by0, by1 = b[-4], b[-3], b[-2], b[-1]
+        if not (x1 + margin <= bx0 or bx1 + margin <= x0
+                or y1 + margin <= by0 or by1 + margin <= y0):
+            return False
+    return True
+
+
+def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
+                    forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
+                    drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0),
+                    antenna_overhang=0.0, edge_soft=0.0):
+    """Search a coarse grid x *rotations* for a LEGAL seat of the rigid macro *offsets*
+    ({ref:(dx,dy,rot)}, some local frame -- _mcu_cluster_offsets / _adjacent_pair_offsets)
+    inside *x_range* (default the full board width; the force-lane LOGIC COLUMN when the
+    caller passes one). LEGAL = every member's TRUE courtyard, transformed into the
+    candidate frame, lands fully on-board AND clears (by *margin*, real AABB separation --
+    not a centre-in-box test) every box in *forbid_boxes* (blueprint-cell + force-lane
+    envelopes) AND every box in *occ_boxes* (already-seated anchors'/seats' true
+    courtyards). Among legal candidates, ranks by (1) summed distance from *score_points*
+    [(x,y), ...] -- net proximity to the unit's already-seated peers -- then (2) macro
+    swept area, smaller first (compactness). Returns ({ref:(x,y,rot)}, rot) or (None, None)
+    -- NEVER forces an illegal seat; the caller decides how to refuse.
+
+    *antenna_ref* (owner defect report 2026-07-14: "the MCU is rotated such that the
+    antenna is downwards instead of out over the board edge"): when set, that member's
+    antenna end must FACE a board edge -- the PRIMARY rank key becomes the distance from
+    the antenna face of its true courtyard to the board edge it points toward (0 = flush,
+    interior-facing = the full run of board beyond it). Preference, not a hard filter, so
+    a cramped column still seats rather than refusing. *antenna_dir* is the antenna end's
+    direction in the footprint's LOCAL frame at rot 0 -- (0,-1) for every Espressif MINI
+    module vendored today (S2/S3 MINI + C6-MINI-1: pads stop ~y=-4.5/-4.95, the padless
+    antenna zone runs to y=-10.6/-10.98, both measured 2026-07-14); it co-rotates with
+    the member (cec_pcb._rot: 90->-x, 180->+y, 270->+x, KiCad y-down).
+
+    *antenna_overhang* (owner GO 2026-07-14, the alpha hand-board form): let the antenna
+    member's courtyard hang PAST the board edge by up to this many mm on the antenna side
+    -- CONTAINMENT only relaxes (the full box still collision-checks against forbid/occ).
+    5.0mm is the safe ceiling for the vendored MINI lands: the padless antenna zone is
+    6.15mm (S2/S3) / 6.03mm (C6) deep, so 5.0 keeps the nearest pad row >=1.0mm inside
+    the edge -- clear of the boards' copper-edge-clearance rule."""
+    import cec_pcb
+    x0r, x1r = (0.0, W) if x_range is None else x_range
+    x0r, x1r = max(0.0, x0r), min(W, x1r)
+    best, best_key = None, None
+    for rot in rotations:
+        parts = []
+        for ref, (dx, dy, prot) in offsets.items():
+            if ref not in comps:
+                continue
+            rdx, rdy = cec_pcb._rot(dx, dy, rot)
+            rrot = (prot + rot) % 360.0
+            ccx, ccy, chw, chh = _courtyard_info(comps[ref], rrot, drop_antenna=drop_antenna)
+            parts.append((ref, rdx, rdy, rrot, ccx, ccy, chw, chh))
+        if not parts:
+            continue
+        # containment extents; the antenna member's antenna-side extent relaxes by
+        # antenna_overhang (containment ONLY -- forbid/occ legality below still uses
+        # the full courtyard box).
+        _o = antenna_overhang if antenna_ref is not None else 0.0
+        _exts = []
+        for _ref, rdx, rdy, rrot2, ccx, ccy, chw, chh in parts:
+            _lx, _hx = rdx + ccx - chw, rdx + ccx + chw
+            _ly, _hy = rdy + ccy - chh, rdy + ccy + chh
+            if _o > 0.0 and _ref == antenna_ref:
+                _adx, _ady = cec_pcb._rot(antenna_dir[0], antenna_dir[1], rrot2)
+                if _adx < -0.5:
+                    _lx += _o
+                elif _adx > 0.5:
+                    _hx -= _o
+                elif _ady < -0.5:
+                    _ly += _o
+                else:
+                    _hy -= _o
+            _exts.append((_lx, _hx, _ly, _hy))
+        mlx = min(e[0] for e in _exts)
+        mhx = max(e[1] for e in _exts)
+        mly = min(e[2] for e in _exts)
+        mhy = max(e[3] for e in _exts)
+        area = (mhx - mlx) * (mhy - mly)
+        ax_lo, ax_hi = x0r - mlx, x1r - mhx
+        ay_lo, ay_hi = 0.0 - mly, H - mhy
+        if ax_hi < ax_lo or ay_hi < ay_lo:
+            continue                          # the macro doesn't fit the column at this rot
+        y = ay_lo
+        while y <= ay_hi + 1e-9:
+            x = ax_lo
+            while x <= ax_hi + 1e-9:
+                legal = True
+                for _ref, rdx, rdy, _rrot, ccx, ccy, chw, chh in parts:
+                    gcx, gcy = x + rdx + ccx, y + rdy + ccy
+                    box = (gcx - chw, gcx + chw, gcy - chh, gcy + chh)
+                    if not (_box_clear(box, forbid_boxes, margin)
+                            and _box_clear(box, occ_boxes, margin)):
+                        legal = False
+                        break
+                if legal:
+                    dist = sum(math.hypot(x - px, y - py) for px, py in score_points)
+                    if edge_soft > 0.0:
+                        # owner 2026-07-15 ("items parked out by the edges"): non-edge
+                        # parts prefer >=edge_soft mm of interior margin; a soft cost,
+                        # never a veto (connectors are seated by anchors, not here).
+                        _mrg = min(x + mlx, y + mly, W - (x + mhx), H - (y + mhy))
+                        if _mrg < edge_soft:
+                            dist += (edge_soft - _mrg) * 25.0
+                    ant_pen = 0.0
+                    if antenna_ref is not None:
+                        for _ref, rdx, rdy, _rrot, ccx, ccy, chw, chh in parts:
+                            if _ref != antenna_ref:
+                                continue
+                            adx, ady = cec_pcb._rot(antenna_dir[0], antenna_dir[1], _rrot)
+                            gcx, gcy = x + rdx + ccx, y + rdy + ccy
+                            if abs(adx) >= abs(ady):      # axis-aligned at 90-deg rots
+                                ant_pen = (W - (gcx + chw)) if adx > 0 else (gcx - chw)
+                            else:
+                                ant_pen = (H - (gcy + chh)) if ady > 0 else (gcy - chh)
+                            ant_pen = max(0.0, ant_pen)
+                            break
+                    key = (round(ant_pen, 1), round(dist, 3), round(area, 3))
+                    if best_key is None or key < best_key:
+                        best_key = key
+                        best = ({ref: (x + rdx, y + rdy, rrot)
+                                for ref, rdx, rdy, rrot, *_rest in parts}, rot)
+                x += grid
+            y += grid
+    return best if best is not None else (None, None)
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
@@ -2677,130 +4587,1645 @@ class Candidate:
     residual: int                 # legalization residual overlaps
     proxy: dict
     feasible: float = -1.0        # filled by the feasibility probe (stage: size oracle)
-    corridor_cross: int = 0       # foreign signals forced through a high-current band (Phase 1 rank key)
+    corridor_cross: int = 0       # OLD (unreachable) predictor -- tiebreak diagnostic only
+    corridor_cross_aware: int = 0  # HONEST channel-aware predictor (== F.Cu clips, reachable to 0) -- PRIMARY rank key
     similarity: float = -1.0      # MV3: reproduce-the-reference diagnostic (-1 = not computed)
     similarity_detail: dict = field(default_factory=dict)
+    back_refs: tuple = ()         # DUAL-SIDED (2026-07-08): refs materialized on the BACK face
+    oracle: dict = field(default_factory=dict)   # SLICE-1a: route_oracle_grade verdict (real post-route
+                                                 # gate); {} = not adjudicated. Set by adjudicate_candidates.
+    blueprint_stamps: list = field(default_factory=list)  # P4 (S3): stamped-cell specs; materialize()
+                                                          # lays their LOCKED internal copper on the board.
 
 
-def synth_one(cfg_dict, W, H, strat, seed):
+def _dual_side_guard(back, anchors_roles, comps):
+    """OWNER RULE (2026-07-08): connectors and the MCU NEVER go on the back -- only rail
+    sensing chains (+ their owned passives) may flip. Hard guard, not a convention: strips
+    any connector-role ref, any J*/TB* ref, and any RF/MCU module from a proposed back set
+    and reports what it stripped (a stripped ref means an upstream side-assignment bug)."""
+    stripped = set()
+    keep = set()
+    for r in back:
+        fpid = str(comps.get(r, "")).lower()
+        if (r in anchors_roles or r.startswith(("J", "TB"))
+                or "esp32" in fpid or "rf_module" in fpid):
+            stripped.add(r)
+        else:
+            keep.add(r)
+    return keep, stripped
+
+
+def _dual_side_cells(topo, pos, nl, comps):
+    """Per-rail sensing CELLS of a dual-sided shared-bus board + their F/B face assignment,
+    lifted OUT of the post-ladder back_refs block so the placement passes can be side-aware
+    BEFORE the board is built (the v1 note's gap). Columns are sorted by seated shunt x and
+    ALTERNATED even=front / odd=back -- exactly the old rule. Each cell = its shunt + the sense
+    ICs on its Kelvin nets (INA238/INA181) + their downstream comparators (TLV7011), i.e. every
+    part the seat pins rigidly around the shunt (Kelvin is preserved when a cell moves as a unit).
+    *pos* is the position dict (anchors or P). Needs no `spec` (passives fold in later)."""
+    entries = sorted((c for c in topo if c.get("shared_bus") and c["shunt"] in pos),
+                     key=lambda c: pos[c["shunt"]][0])
+    cells = []
+    for i, c in enumerate(entries):
+        refs = {r for net in (c["hi"], c["lo"]) for r, _ in nl.nets.get(net, [])}
+        sense = {r for r in refs if r in comps and "INA" in (nl.comps[r].value or "").upper()}
+        members = {c["shunt"]} | sense
+        for ic in sorted(sense):
+            members.update(_downstream_comparators(ic, c["hi"], c["lo"], nl, comps))
+        cells.append({"shunt": c["shunt"],
+                      "members": {r for r in members if r in pos},
+                      "sense": set(sense),
+                      "face": "F" if i % 2 == 0 else "B"})
+    return cells
+
+
+def _dual_side_back_refs(cells, spec, anchors_roles, comps):
+    """The full back set for a dual-sided board: each BACK cell's seated members PLUS the passives
+    those members own (spec), then the _dual_side_guard (connectors/MCU never flip). Returns
+    (back_tuple, stripped_set). Identical result to the old inline block; extracted so the SAME
+    face assignment drives the placement passes AND the materialize. Membership is by presence in
+    *comps* (a back part need not be placed yet -- a passive is flipped by identity, then placed)."""
+    back = set()
+    for cell in cells:
+        if cell["face"] != "B":
+            continue
+        chain = set(cell["members"])
+        chain |= {pref for pref, (own, _pad) in spec.items() if own in chain}
+        back |= {r for r in chain if r in comps}
+    kept, strp = _dual_side_guard(back, anchors_roles, comps)
+    return tuple(sorted(kept)), strp
+
+
+# =====================================================================================
+# REPAIR LADDER (owner policy, 2026-07-08): when an invariant conflicts with a
+# placement/route constraint, repairs are tried IN THIS ORDER -- both the automated
+# tiers and the human-escalation tier consult it. Separating a deliberate PAIR (BOOT/
+# RESET, divider pairs, sense cells) is always the LAST rung, and even escalation
+# prefers every earlier rung first. Board-agnostic; boards may append, never reorder.
+REPAIR_LADDER = (
+    "1: regenerate the placement candidate (seed/strategy/intent variation)",
+    "2: move FOREIGN parts out of the contested region (evac/legalize)",
+    "3: slide the invariant's own seat along its allowed axis (lane-aware park)",
+    "4: widen the local resource (notch band, cell pitch, board grow) -- board-specific",
+    "5: relax a SOFT bias (e.g. CAN-at-jack distance) with the delta surfaced",
+    "6: LAST RUNG -- separate a deliberate pair; requires escalation + a recorded reason",
+)
+
+
+def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True,
+              eval_gates=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
-    in a spawn-pool worker (on the runner's cores). Takes/returns plain types only."""
+    in a spawn-pool worker (on the runner's cores). Takes/returns plain types only.
+
+    *partition* (the intent-compiler lever, default None -> byte-identical to the un-partitioned
+    placer; the SB-08 golden routes a FROZEN board so it is untouched regardless): the agent's
+    GLOBAL structure-first assignment of free parts to named regions, enforced as proactive HARD
+    containment. {"regions": {name:(x0,y0,x1,y1)}, "assignment": {ref:name}}. Assigned free parts
+    are seeded into their region before the anneal and confined to it by every legalize pass -- so
+    the partition biases the placement, it is not a post-hoc evict (the 2026-06-14 anneal's failure
+    mode). PlacementSession (cec_placement_session.py) is the declarative builder over this.
+
+    PASS-FORM (S1->S4, docs/pass-form-plan.md): the placement stages below are declared as an ordered
+    PassLadder (P0..P8 boundaries) and executed through it, so the runner journals what each pass
+    placed/moved/locked and enforces progressive locking. *enforce_locks* now DEFAULTS TRUE (S4, the
+    first enforcement flip): every pass is lock-safe by construction (p8_evac_mop + the p10 THT
+    finish filter their movers by the ladder's LOCKED set and NAME any locked ref in a contested
+    region rather than move it), and the full fixed-seed probe -- eps/24pin/pcie x both strats x
+    seeds 0,1 + a partition -- runs with ZERO LockViolation. The passes share ONE flat scope via
+    `nonlocal`; the ladder re-sequences the same statements + records a journal. (Setting
+    enforce_locks=False restores the un-enforced order for an ablation.)"""
     import cec_pcb
+    from cec_passes import Pass, PassLadder
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
-    # materialize() embeds the FULL ESP footprint (antenna keepout intact), so for DRC-CONSISTENCY
-    # the placer must respect the keepout too -- otherwise it packs into space the board doesn't have
-    # (the J_IN2<->U1 overlap). Honouring the Stage-1 'drop the keepout' area win needs a trimmed-
-    # courtyard materialize (a follow-up); until then we keep the keepout to stay honest with DRC.
-    drop_antenna = False
+    # ANTENNA KEEPOUT: honoured by default for DRC-consistency with the materialized footprint.
+    # When the board declares wireless-unpopulated (respect_antenna_keepout: False -- the 24-pin
+    # owner directive 2026-07-08: "the keepout should not be on it anyway"), the placer drops the
+    # keepout AND materialize() trims the emitted courtyard lobe to match (build_board
+    # drop_keepout), so placer and DRC agree on the smaller courtyard end-to-end.
+    drop_antenna = (cfg.params.get("respect_antenna_keepout", True) is False)
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
-    anchors_roles, ics, shunts, passives = _classify(nl)
-    # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
-    #    mechanical asks (mounts + fiducials). A per-cable INTERPOSER must OVERHANG its cable ports
-    #    (plug overmold off-board, pads on-board) -- otherwise the connector bodies sit in-board and
-    #    crush the J_IN->shunt->J_OUT corridor into the mid-board strip (the as-built boards all
-    #    overhang). So default overhang to "edge" when the board has cable corridors, unless the
-    #    config overrides. (Owner: "it needs to know how to overhang the ports.")
-    _overhang = cfg.params.get("connector_overhang")
-    if _overhang is None:
-        _overhang = "power_able" if _cable_topology(nl) else "none"
-    # MV2: a per-board edge map (oracle-derived or a spec line) overrides the generic role->edge
-    # default so a multi-edge board (Hub: RJ-45 top, power-in right, USB bottom) frames correctly.
-    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
-                           edge_override=cfg.params.get("edge_override"))
-    mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
-    anchors.update(mech_pos)
-    comps = dict(fp_of)
-    comps.update(mech_fp)                               # ref->libid incl. mounts/fiducials
-    for r, fpp in mech_fp.items():
-        try:
-            halfext[r] = _half_extent(fpp)
-        except Exception:
-            halfext[r] = (1.6, 1.6)
-    # nudge the mounts/fiducials to the nearest free spot clear of the connectors (the default
-    # mount/fiducial coords don't know where the connectors landed)
-    anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
-                 for r in anchors if r in comps}
-    legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
-    # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
-    #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
-    #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
-    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps, W=W)
-    free_shunts = [r for r in shunts if r not in seated]
-    # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
-    #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
-    #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
-    #     it from the ANNEALED set so it stays put at the edge.
-    _esp, _esp_pos = _seat_antenna_ic(ics, comps, W, H, cfg.params.get("antenna_edge"),
-                                      drop_antenna=drop_antenna)
-    if _esp:
-        anchors[_esp] = _esp_pos
-    anneal_units = [r for r in (ics + free_shunts) if r != _esp]
-    # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
-    #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
-    #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
-    #    cluster as one macro and legalize with its full bbox, reserving the room.
-    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
-    by_owner = defaultdict(list)
-    for pref, (own, pad) in spec.items():
-        if own in ics:
-            by_owner[own].append((pref, pad))
-    drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
-    macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
-    cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
-    for unit in ics + free_shunts:
-        members = by_owner.get(unit, [])
-        if unit not in comps:
-            continue
-        if members:
-            Ptmp = {unit: (0.0, 0.0, 0.0)}
-            cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
-                                 drop_keepout=((unit,) if unit in drop_kc else ()))
+    anchors_roles, ics, shunts, passives = _classify(nl, role_overrides=cfg.params.get("anchor_roles"))
+    # PARTITION (intent-compiler): resolve the agent's region assignment to per-ref containment boxes.
+    # _bounds maps an assigned ref -> its region box; empty when partition is None -> all legalize calls
+    # below receive bounds={} which is inert (legalize_pack only constrains refs present in bounds).
+    _regions = (partition or {}).get("regions", {}) or {}
+    _assign = (partition or {}).get("assignment", {}) or {}
+    _bounds = {r: tuple(_regions[_assign[r]]) for r in _assign if _assign.get(r) in _regions}
+
+    # ---- FORWARD DECLARATIONS: the shared placement state every Pass fn `nonlocal`s. Binding
+    #      every cross-pass name to this ONE flat scope reproduces the pre-ladder monolith's
+    #      single-function scoping EXACTLY (the S1 byte-identity guarantee) -- the ladder only
+    #      re-sequences the SAME statements into thunks and records a journal between them.
+    anchors = comps = mech_pos = mech_fp = None
+    _topo = seated = free_shunts = seated_inas = None
+    _esp = _esp_pos = _sw_seated = _can = _can_seated = _rj = anneal_units = None
+    _seated_shunts = _fixed_anchor_refs = None
+    spec = series = by_owner = fixed_owner = drop_kc = None
+    macro = cluster_offsets = fixed_stamp = None
+    P = cyinfo_all = None
+    _spine = _bands = _paired = _sensitive = _veto = None
+    _rk = _role_clr = _func_stamped = None
+    _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
+    # DUAL-SIDED face model (lifted from the post-ladder block so the passes are side-aware):
+    # _cells = per-rail sensing cells + F/B faces; _back = the full back-ref set; _tht_keep =
+    # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts; _seat_snags = seat-repair residuals.
+    # Empty on non-dual-sided boards (byte-identical inertness -- the golden guarantee).
+    _cells = _back = _back_stripped = _tht_keep = None
+    _seat_snags = []
+    # P4 BLUEPRINT CELLS (docs/pass-form-plan.md §4, stage S3). Empty unless
+    # cfg.params['blueprint_cells'] is set -> every downstream `not in _bp_refs` filter is a
+    # no-op and synth_one is BYTE-IDENTICAL (the golden-safety invariant). _blueprint_stamps
+    # carries each stamped cell's spec forward to materialize(), which lays its LOCKED internal
+    # copper on the real .kicad_pcb (placement candidates carry no copper, like fiducials).
+    _blueprint_stamps = []
+    _bp_refs = set()
+
+    # ============================================================ P2: anchors + mounts/fiducials
+    def _p2_anchors(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # R2 SHUNT-GAP widen (owner-ratified 2026-06-28, OPT-IN via CEC_SHUNT_GAP=1 -- board-specific by
+        # the ratification boundary, so legacy boards/the golden stay byte-identical by default): on a
+        # per-cable interposer (EPS/PCIe) GROW the board ~3mm taller so the J_IN<->J_OUT pours stay
+        # full-length after cec_fr.derive_power_pours pulls their shunt-side edges back to open the
+        # SHUNT_GAP_MM (~6.5mm) un-poured notch -- room for the sense cluster + a B.Cu overflow lane the
+        # route-under dives the overflow nets through. Self-gating (0.0 on a board with no 2-pad shunt).
+        if os.environ.get("CEC_SHUNT_GAP", "0") == "1":
+            _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl) or _shared_bus_topology(nl))
+            if _grow > 0:
+                H = round(H + _grow, 1)
+        # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
+        #    mechanical asks (mounts + fiducials). A per-cable INTERPOSER must OVERHANG its cable ports
+        #    (plug overmold off-board, pads on-board) -- otherwise the connector bodies sit in-board and
+        #    crush the J_IN->shunt->J_OUT corridor into the mid-board strip (the as-built boards all
+        #    overhang). So default overhang to "edge" when the board has cable corridors, unless the
+        #    config overrides. (Owner: "it needs to know how to overhang the ports.")
+        _overhang = cfg.params.get("connector_overhang")
+        if _overhang is None:
+            _overhang = "power_able" if (_cable_topology(nl) or _shared_bus_topology(nl)) else "none"
+        # MV2: a per-board edge map (oracle-derived or a spec line) overrides the generic role->edge
+        # default so a multi-edge board (Hub: RJ-45 top, power-in right, USB bottom) frames correctly.
+        _eov = dict(cfg.params.get("edge_override") or {})
+        _hub_jacks = list(cfg.params.get("hub_jacks") or ())
+        if _hub_jacks:
+            # HUB-JACK EDGE COUPLING (owner 2026-07-08): the hub-facing jacks (RJ-45 + the
+            # TO-HUB-PWR feed) cluster TOGETHER on the edge tied to the PSU input's edge --
+            # input on top -> jacks left, input on bottom -> jacks right (case cable dressing).
+            _in_edge = "top"
+            for _r in fp_of:
+                _c = nl.comps.get(_r, Comp(_r))
+                if _role(_r, _c.value, _c.footprint, nl=nl) == "power_in":
+                    _in_edge = str(_eov.get(_r, "top")).lower()
+                    break
+            _jack_edge = {"top": "left", "bottom": "right"}.get(_in_edge)
+            if _jack_edge:
+                for _r in _hub_jacks:
+                    _eov.setdefault(_r, _jack_edge)
+        anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
+                               edge_override=_eov or None,
+                               role_overrides=cfg.params.get("anchor_roles"),
+                               lane_center=float(cfg.params.get("lane_center") or 0.0),
+                               pack_right_top=bool(cfg.params.get("force_lanes")))
+        mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
+        anchors.update(mech_pos)
+        comps = dict(fp_of)
+        comps.update(mech_fp)                               # ref->libid incl. mounts/fiducials
+        for r, fpp in mech_fp.items():
+            try:
+                halfext[r] = _half_extent(fpp)
+            except Exception:
+                halfext[r] = (1.6, 1.6)
+        # nudge the mounts/fiducials to the nearest free spot clear of the connectors (the default
+        # mount/fiducial coords don't know where the connectors landed)
+        anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
+                     for r in anchors if r in comps}
+        legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
+        # ANCHOR-JACK CLEARANCE (owner: "the RJ-45 needs to be moved up"; DRC-measured
+        # J1-court-vs-RS6 + the lane-6 force-lane refusal). The LOCK CHECKER walked this
+        # to its true owner (measured: LockViolation from p3crit, then from the spine) --
+        # p2 locks the jacks, so p2 must seat them clear. At p2 the cell row is fully
+        # DERIVABLE from params: force_lanes waves re-fan the lanes to a centered
+        # lane_pitch sequence and anchor each cell to its shunt at (lane_x, H/2, 270),
+        # so the row boxes come from the declared templates + that formula -- the same
+        # data the spine/p4b/materialize chain realizes later.
+        _cells_p = cfg.params.get("blueprint_cells") or ()
+        _lp2 = float(cfg.params.get("lane_pitch") or 0.0)
+        if _cells_p and cfg.params.get("force_lanes") and _lp2 > 0:
+            try:
+                import json as _json
+                import cec_cell_extract as _cx
+                _n_l = len(_cells_p)
+                _lc2 = float(cfg.params.get("lane_center") or 0.0) or (W / 2.0)
+                _lanes2 = [_lc2 + (k - (_n_l - 1) / 2.0) * _lp2 for k in range(_n_l)]
+                _tpl_cache = {}
+                _jboxes = []
+                for _lx in _lanes2:
+                    _sx, _sy, _srot = _lx, H / 2.0, 270.0
+                    _tp = next((c.get("template") for c in _cells_p), None)
+                    if isinstance(_tp, str):
+                        if _tp not in _tpl_cache:
+                            with open(_tp) as _fh:
+                                _tpl_cache[_tp] = _json.load(_fh)
+                        _t = _tpl_cache[_tp]
+                    elif isinstance(_tp, dict):
+                        _t = _tp
+                    else:
+                        continue
+                    _xs, _ys = [], []
+                    for _tr in _t.get("internal_tracks", []):
+                        for _pt in (_tr["start_rel_mm"], _tr["end_rel_mm"]):
+                            _g = _cx._to_global(_pt[0], _pt[1], _sx, _sy, _srot)
+                            _xs.append(_g[0]); _ys.append(_g[1])
+                    for _v in _t.get("vias", []):
+                        _g = _cx._to_global(_v["at_rel_mm"][0], _v["at_rel_mm"][1],
+                                            _sx, _sy, _srot)
+                        _xs.append(_g[0]); _ys.append(_g[1])
+                    for _pr, _pd in (_t.get("parts") or {}).items():
+                        _off = _pd.get("offset_mm", (0, 0))
+                        _g = _cx._to_global(_off[0], _off[1], _sx, _sy, _srot)
+                        _c0p, _c1p, _hwp, _hhp = _courtyard_info(
+                            _pd.get("footprint", ""),
+                            (_srot + float(_pd.get("rot_delta", 0.0))) % 360.0)
+                        _xs += [_g[0] + _c0p - _hwp, _g[0] + _c0p + _hwp]
+                        _ys += [_g[1] + _c1p - _hhp, _g[1] + _c1p + _hhp]
+                    if _xs:
+                        _jboxes.append((min(_xs) - 1.6, max(_xs) + 1.6,
+                                        min(_ys) - 1.6, max(_ys) + 1.6))
+                for _r in sorted(anchors):
+                    if (not _r.startswith("J")) or _r in ("J3", "J4") or _r not in comps:
+                        continue
+                    _ax, _ay = anchors[_r][0], anchors[_r][1]
+                    _art = anchors[_r][2] if len(anchors[_r]) > 2 else 0.0
+                    _c0, _c1, _jhw, _jhh = _courtyard_info(comps[_r], _art)
+                    _mvd = False
+                    for _x0, _x1, _y0, _y1 in _jboxes:
+                        if (_ax + _c0 - _jhw < _x1 and _ax + _c0 + _jhw > _x0
+                                and _ay + _c1 - _jhh < _y1 and _ay + _c1 + _jhh > _y0):
+                            _up = (_ay + _c1) <= (_y0 + _y1) / 2.0
+                            _ay = (_y0 - 0.3 - _jhh - _c1) if _up else (_y1 + 0.3 + _jhh - _c1)
+                            _mvd = True
+                    if _mvd:
+                        anchors[_r] = (_ax, min(max(_ay, 1.0), H - 1.0), _art)
+                        if os.environ.get("CEC_BP_DEBUG"):
+                            print(f"  [p2] edge jack {_r} seated clear of the declared "
+                                  f"cell row (y={anchors[_r][1]:.1f})",
+                                  file=sys.stderr, flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                _tc.warn_once("p2_jack_clear",
+                              "p2 jack clearance skipped: %s: %s"
+                              % (type(_e).__name__, _e))
+
+    # ============================================================ P3a: corridor spine (form the bands)
+    def _p3_corridor_spine(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
+        #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
+        #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
+        _topo = _cable_topology(nl) or _shared_bus_topology(nl)
+        seated = _seed_corridor_spine(_topo, anchors, H, nl, comps, W=W, params=cfg.params)
+        free_shunts = [r for r in shunts if r not in seated]
+
+    # ============================================================ P3b: critical seats (kelvin/ESP/CAN)
+    def _p3_critical_seats(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped, _seat_snags
+        # 1b'. REAL KELVIN SEAT (owner directive 2026-06-27): seat each cable's sense IC(s) HARD against
+        #      the just-seated shunt's inner edge as FIXED anchors -- body perpendicular to the corridor,
+        #      centred in the un-poured notch (OUT of the SENSEC pour), IN+/IN- facing the HI/LO inner
+        #      edges. This OVERRIDES the connectivity drift (the historical non-seat let the anneal leave
+        #      the INA 6-8mm away + inside the pour). Seated INAs drop from the annealed set below.
+        seated_inas = []
+        if os.environ.get("CEC_KELVIN_SEAT", "1") != "0":
+            # blueprint cells own their INAs (p4b runs FIRST now, pinned + LOCKED
+            # them): snapshot/restore so the kelvin seat cannot move them (a
+            # post-hoc list filter would leave the anchors mutated = lock violation)
+            _bp_save = {r: anchors[r] for r in (_bp_refs or ()) if r in anchors}
+            seated_inas = _seat_sense_ics(_topo, anchors, nl, comps)
+            for _r, _v in _bp_save.items():
+                anchors[_r] = _v
+            seated_inas = [r for r in seated_inas if r not in (_bp_refs or ())]
+        # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
+        #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
+        #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
+        #     it from the ANNEALED set so it stays put at the edge.
+        _esp, _esp_pos = _seat_antenna_ic(ics, comps, W, H, cfg.params.get("antenna_edge"),
+                                          drop_antenna=drop_antenna)
+        if _esp:
+            anchors[_esp] = _esp_pos
+        # BUTTONS CLUSTER (owner 2026-07-08: "keep the buttons together in an easily accessible
+        # place that actually makes sense"): seat SW* as a fixed side-by-side pair inboard of the
+        # USB connector -- BOOT is pressed while plugging USB, so that IS the sensible place.
+        _sw_seated = []
+        if cfg.params.get("buttons_near") == "usb":     # OPT-IN (board manifest), never a default
+            _usb = next((r for r, role in anchors_roles.items()
+                         if role == "usb" and r in anchors), None)
+            _sws = sorted(r for r in ics if r.startswith("SW"))
+            if _usb and _sws:
+                ux, uy, _ur = anchors[_usb]
+                bx = min(max(ux - 14.0, 6.0), W - 6.0)
+                for k, sw in enumerate(_sws):
+                    by = min(max(uy + (k - (len(_sws) - 1) / 2.0) * 9.0, 6.0), H - 6.0)
+                    anchors[sw] = (bx, by, 0.0)
+                    _sw_seated.append(sw)
+        # LEVER 1 (opus fundamentals; landed ALONE per the ablation discipline): the CAN
+        # transceiver seats inboard of the link jack (hand boards: 15-17mm from the RJ45).
+        # Simple fixed offset toward board center; exempted from anneal AND from the mop-up
+        # eviction (the batch failure's lesson: deliberate seats must not be re-evicted).
+        _can_seated = []
+        _rj = next((r for r, role in anchors_roles.items()
+                    if role == "host" and r in anchors and "rj45" in str(fp_of.get(r, "")).lower()),
+                   None)
+        _can = next((r for r in ics if "TJA" in (nl.comps[r].value or "").upper()), None)
+        if _can and _can in _bounds:
+            _can = None                                   # EXPLICIT partition assignment WINS over
+                                                          # the seat bias (the intent API is the
+                                                          # actuator's lever; teeth test contract)
+        if _rj and _can and _can in comps:
+            rx, ry, _rr = anchors[_rj]
+            _rj_cy = _courtyard_info(comps[_rj], _rr)
+            _can_cy = _courtyard_info(comps[_can], 0.0)
+            _dxs = _rj_cy[2] + _can_cy[2] + 2.0
+            bx = rx + (_dxs if rx < W / 2.0 else -_dxs)
+            anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
+                             min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
+            _can_seated.append(_can)
+        # RIGID GROUPS (hub-rev2, owner 2026-07-15 "center logo and LEDs"): params
+        # rigid_groups = [{"offsets": {ref: (dx,dy,rot)}, "score": "center"}] -- a
+        # purely aesthetic/rigid formation (the LED ring) seated as one macro by the
+        # same legality machinery as the MCU seat. Board-agnostic; no param = no-op.
+        for _rg in (cfg.params.get("rigid_groups") or ()):
+            _offs = {r: tuple(v) for r, v in (_rg.get("offsets") or {}).items()
+                     if r in comps and r not in _bp_refs}
+            if not _offs:
+                continue
+            _rg_occ = [(anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                        - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                        anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                        + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                        anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                        - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3],
+                        anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                        + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3])
+                       for _o in anchors if _o in comps]
+            _rg_env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            _rg_pts = [(W / 2.0, H / 2.0)] if _rg.get("score") == "center" else []
+            _rg_placed, _rg_rot = _seat_mcu_macro(
+                _offs, comps, W, H, forbid_boxes=_rg_env, occ_boxes=_rg_occ,
+                score_points=_rg_pts, rotations=(0.0,))
+            if _rg_placed is None:
+                print("  [p3crit] rigid-group: NO legal seat "
+                      "(left for ordinary placement)", file=sys.stderr)
+            else:
+                for _r2, _xyz in _rg_placed.items():
+                    anchors[_r2] = _xyz
+                _bp_refs.update(_rg_placed)
+                if _rg.get("logo"):
+                    # LOGO1 = a PHANTOM FIXED PART at the ring centroid: comps gains
+                    # its footprint (honest hardcoded courtyard above) and anchors
+                    # pins it, so legalize/anneal/parks all see the logo area as
+                    # OCCUPIED (owner 2026-07-15 keepout directive). materialize
+                    # places the real copper via logo_at=ring; build_board iterates
+                    # NETLIST comps only, so the phantom never double-places.
+                    _lcx = sum(_rg_placed[r][0] for r in _rg_placed) / len(_rg_placed)
+                    _lcy = sum(_rg_placed[r][1] for r in _rg_placed) / len(_rg_placed)
+                    comps["LOGO1"] = "cec:CEC_Logo_Copper"
+                    anchors["LOGO1"] = (_lcx - 0.08, _lcy - 1.82, 0.0)
+                    _bp_refs.add("LOGO1")
+
+        # MCU-CLUSTER SEAT (owner directive 2026-07-12: "the ESP definitely needs to be
+        # moveable/rotatable as a ladder piece ... pack [decouplers, status LED, etc]
+        # together ... Boot and Reset ... on their own next to each other orthogonally
+        # always"). GENERIC gate (no board-name check): an ESP-like IC exists AND it
+        # was not already seated by the radio antenna-edge path above (_esp stays None
+        # there whenever antenna_edge is unset -- true today for every module board,
+        # the Hub is the only board that sets antenna_edge) AND the board declares
+        # force_lanes (the logic-column geometry this seat targets; 12vhpwr-standard is
+        # the only board that sets it today, but nothing here names it -- any future
+        # force-lane board picks this up for free). Absent that gate, ESP falls through
+        # to the ordinary relative_place/anneal IC path UNCHANGED (byte-identical
+        # elsewhere -- the golden-safety discipline).
+        if _esp is None and (cfg.params.get("force_lanes")
+                             or cfg.params.get("mcu_cluster_seat")):
+            _mcu_esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
+                             or "rf_module" in (comps.get(r, "") or "").lower()), None)
+            if _mcu_esp:
+                # HONEST GEOMETRY throughout this seat (drop_antenna deliberately NOT
+                # forwarded, measured 2026-07-12): the placer-wide drop_antenna trim
+                # understates the NoAntKeepout footprints' BODY-ONLY courtyard (~5mm on
+                # the S2 MINI -- there is no droppable lobe left; build_board's trim is
+                # a C6-coordinate string replace, a no-op here), which let a "legal"
+                # trimmed seat intrude 2.5mm into the locked lane-6 cell on the real
+                # board's DRC courtyards. The seat gates on what pcbnew will measure.
+                def _mcu_true_box(_r, _pos):
+                    _cx, _cy, _hw, _hh = _courtyard_info(
+                        comps[_r], _pos[2] if len(_pos) > 2 else 0.0)
+                    return (_pos[0] + _cx - _hw, _pos[0] + _cx + _hw,
+                           _pos[1] + _cy - _hh, _pos[1] + _cy + _hh)
+                # exclude _bp_refs (blueprint-cell members p4b already stamped+locked,
+                # runs BEFORE this pass) from candidacy -- a lane's RFH/RFL/CF/etc. must
+                # never be re-claimed as an ESP satellite and relocated out from under
+                # its rigid cell stamp, mirroring p4_cluster_learn's own _bp_passives filter.
+                # analog_refs = the power-path connectors (role, not name): together with
+                # the built-in RS*/TH* seeds they root the analog-taint walk that keeps
+                # NTC/divider front-end parts OUT of the MCU macro (their placement
+                # doctrine is the shunt row / ambient / the lanes, never the MCU flank).
+                # slim_axis="x": satellites row-pack above/below the ESP so the macro
+                # stays ESP-wide -- the force-lane logic column is width-limited.
+                _mcu_offs, _mcu_bbox = _mcu_cluster_offsets(
+                    nl, [p for p in passives if p not in _bp_refs],
+                    [r for r in ics if not r.startswith("SW")],
+                    set(anchors_roles) | {r for r in shunts if r not in free_shunts},
+                    _mcu_esp, comps,
+                    slim_axis=str(cfg.params.get("mcu_slim_axis", "x")),
+                    analog_refs={r for r, _role2 in anchors_roles.items()
+                                 if _role2 in ("power_in", "power_out")})
+                _mcu_env = (_blueprint_env_boxes(lambda d: anchors.get(d))
+                           + _force_corridor_boxes(lambda d: anchors.get(d)))
+                _mcu_occ = [_mcu_true_box(_o, anchors[_o]) for _o in anchors if _o in comps]
+                _mcu_lanes = _force_corridor_boxes(lambda d: anchors.get(d))
+                _mcu_x0 = (max(b[2] for b in _mcu_lanes) + 1.0) if _mcu_lanes else 0.0
+                # hub-class (mcu_cluster_seat, no lanes): full-board x_range; the
+                # antenna key + per-board overhang put the module ON the edge,
+                # antenna out (owner 2026-07-15) -- the WROOM's keepout drawing
+                # rides off-board with it, exactly the intended geometry.
+                _mcu_nbrs = _adjacency(nl).get(_mcu_esp, set())
+                _mcu_score_pts = [anchors[r][:2] for r in _mcu_nbrs if r in anchors]
+                # antenna_ref (owner 2026-07-14): the ESP's antenna end faces the nearest
+                # board edge -- primary rank key, ahead of peer-distance/compactness.
+                # antenna_overhang=5.0 (owner GO, same day): the antenna zone may hang
+                # past the edge like the alpha hand boards (pads stay >=1.0mm inside).
+                _mcu_placed, _mcu_rot = _seat_mcu_macro(
+                    _mcu_offs, comps, W, H, x_range=(_mcu_x0, W),
+                    forbid_boxes=_mcu_env, occ_boxes=_mcu_occ, score_points=_mcu_score_pts,
+                    antenna_ref=_mcu_esp,
+                    antenna_overhang=float(cfg.params.get("antenna_overhang", 5.0)))
+                _mcu_locked = set()
+                if _mcu_placed is None:
+                    print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)
+                else:
+                    for _r, _xyz in _mcu_placed.items():
+                        anchors[_r] = _xyz
+                    _esp = _mcu_esp
+                    _esp_pos = _mcu_placed[_mcu_esp]
+                    _mcu_locked = set(_mcu_placed)
+                    # .update(), NOT |= -- an augmented-assignment `_bp_refs |= x` REBINDS the
+                    # name, which would make _bp_refs a compile-time LOCAL for this whole
+                    # function (Python's static scoping) and break every earlier/later read
+                    # of the enclosing set (e.g. the seat-settle loop below) with
+                    # UnboundLocalError; this pass never declares _bp_refs `nonlocal`.
+                    _bp_refs.update(_mcu_locked)       # exempt from re-cluster/evac/re-stamp
+                    if os.environ.get("CEC_BP_DEBUG"):
+                        print(f"  [p3crit] mcu-cluster seated {_mcu_esp} @ "
+                              f"({_esp_pos[0]:.1f},{_esp_pos[1]:.1f},{_esp_pos[2]:.0f}) rot"
+                              f" + {len(_mcu_locked) - 1} satellite(s)", file=sys.stderr)
+                # BOOT/RESET as an adjacent orthogonal pair (owner: "on their own next to
+                # each other orthogonally always"), REPLACING whatever the buttons_near=
+                # "usb" path above may already have seated. UNCONDITIONAL on the MCU
+                # macro itself finding a home (measured 2026-07-12: on the current 62x62/
+                # lane_center=22 floorplan the ESP+satellite macro, ~21x23mm, genuinely
+                # does not fit the ~18mm logic column at any of the 4 rotations -- a real
+                # infeasibility, correctly refused above -- but "always" reads as an
+                # unconditional owner rule, and leaving the buttons to ordinary
+                # relative_place/anneal is what let SW2 drift onto the force-lane
+                # corridor in the first place, since _sw_seated -- and so the corridor
+                # veto's sensitive-part list -- never covers it on this board). When the
+                # macro DID seat, the pair goes next to it (score = distance to the
+                # macro's own centroid); when it did not, the pair still seats clear of
+                # every forbid/occupied box, scored against the ESP's already-seated net
+                # neighbours (CAN transceiver / host jack) as the next-best proxy for
+                # "near the MCU".
+                _mcu_sws = sorted(r for r in ics if r.startswith("SW"))
+                if len(_mcu_sws) == 2:
+                    _sw_a, _sw_b = _mcu_sws
+                    if _mcu_locked:
+                        _pair_score_pts = [(sum(anchors[r][0] for r in _mcu_locked) / len(_mcu_locked),
+                                            sum(anchors[r][1] for r in _mcu_locked) / len(_mcu_locked))]
+                    else:
+                        _pair_score_pts = _mcu_score_pts
+                    _pair_offs = _adjacent_pair_offsets(comps, _sw_a, _sw_b)
+                    _pair_occ = _mcu_occ + [_mcu_true_box(_r, anchors[_r]) for _r in _mcu_locked]
+                    _pair_placed, _pair_rot = _seat_mcu_macro(
+                        _pair_offs, comps, W, H, x_range=(_mcu_x0, W),
+                        forbid_boxes=_mcu_env, occ_boxes=_pair_occ,
+                        score_points=_pair_score_pts)
+                    if _pair_placed is None:
+                        print("  [p3crit] mcu-cluster: SW pair NO legal seat "
+                             "(buttons left for ordinary placement)", file=sys.stderr)
+                    else:
+                        for _r, _xyz in _pair_placed.items():
+                            anchors[_r] = _xyz
+                        _sw_seated = [_sw_a, _sw_b]
+                        _bp_refs.update(_pair_placed)
+                elif _mcu_sws:
+                    print(f"  [p3crit] mcu-cluster: {len(_mcu_sws)} SW ref(s), "
+                         "expected exactly 2 for a pair -- left for ordinary placement",
+                         file=sys.stderr)
+                # FAN-GATE SATELLITE SEAT (owner 2026-07-14 "see if the wave can get the
+                # boards down cleaner ... if you can make any fixes go ahead"): the fan
+                # header's discrete leg was the wave-7 winner's single largest stranded
+                # family (5 fan-net ratlines, measured via kicad-cli DRC) -- Q1/D5/R14/
+                # R16/R17 are passives-bucket refs the analog-taint walk rightly keeps
+                # OUT of the MCU macro, but nothing seated them AT the header either.
+                # Membership by NET, never by name list: a passives-bucket ref (never an
+                # IC/anchor/blueprint member) touching any net whose name contains "FAN"
+                # (/01-input/FAN_* + /FAN_12V + the MCU-side /FAN_EN, /FAN_TACH_GPIO
+                # halves -- U1 also touches those but is an IC, excluded by bucket).
+                # Packed as one courtyard-true row and seated by the same machinery,
+                # scored to the fan connector's anchor. Rides the same force-lanes gate
+                # as the MCU seat; boards without FAN nets no-op (empty member set).
+                _ref_nets = {}
+                for _net, _nodes in nl.nets.items():
+                    for _r2, _p2 in _nodes:
+                        _ref_nets.setdefault(_r2, set()).add(_net)
+                _fan_conn = next((r for r in anchors_roles if r in anchors and
+                                  any("FAN" in (n or "").upper()
+                                      for n in _ref_nets.get(r, ()))), None)
+                _fan_sats = sorted(p for p in passives
+                                   if p in comps and p not in _bp_refs and p not in anchors
+                                   and any("FAN" in (n or "").upper()
+                                           for n in _ref_nets.get(p, ())))
+                if _fan_conn and _fan_sats:
+                    _run = 0.0
+                    _fan_offs = {}
+                    for _r2 in _fan_sats:
+                        _fcx, _fcy, _fhw, _fhh = _courtyard_info(comps[_r2], 0.0)
+                        _fan_offs[_r2] = (_run + _fhw - _fcx, -_fcy, 0.0)
+                        _run += 2 * _fhw + 0.5
+                    _fan_occ = [_mcu_true_box(_o, anchors[_o])
+                                for _o in anchors if _o in comps]
+                    _fan_placed, _fan_rot = _seat_mcu_macro(
+                        _fan_offs, comps, W, H,
+                        forbid_boxes=_mcu_env, occ_boxes=_fan_occ,
+                        score_points=[anchors[_fan_conn][:2]])
+                    if _fan_placed is None:
+                        print("  [p3crit] fan-gate seat: NO legal seat "
+                              "(left for ordinary placement)", file=sys.stderr)
+                    else:
+                        for _r2, _xyz in _fan_placed.items():
+                            anchors[_r2] = _xyz
+                        _bp_refs.update(_fan_placed)
+                        if os.environ.get("CEC_BP_DEBUG"):
+                            print(f"  [p3crit] fan-gate seat: {len(_fan_placed)} part(s) "
+                                  f"rot {_fan_rot:.0f} by {_fan_conn} "
+                                  f"@ {anchors[_fan_conn][:2]}", file=sys.stderr)
+        # 1d. SEAT CONFLICT REPAIR (dual-sided fix): Y-stagger the rail sensing CELLS (rigidly, so
+        #     Kelvin holds) clear of same-face overlaps AND opposite-face THT pin fields. Runs HERE --
+        #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what
+        #     the ladder locks (the p3 shunt lock moved to critical_seats for exactly this). Gated to
+        #     dual_sided shared-bus boards; inert (byte-identical) elsewhere.
+        _seat_snags = []
+        if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
+            _moved_cells, _seat_snags = _seat_conflict_repair(anchors, comps, _topo, nl, W, H,
+                                                              drop_antenna=drop_antenna)
+            if _seat_snags:
+                print("  [seat-repair] %d cell(s) not fully cleared: %s"
+                      % (len(_seat_snags), _seat_snags), file=sys.stderr)
+        # BLUEPRINT-AWARE SEAT SETTLE (owner ladder 2026-07-11: p4b now runs FIRST,
+        # so these deliberate seats -- evac-exempt by design (lever 1) -- must seat
+        # AROUND the stamped cells while this pass still owns them): displace any
+        # seat whose courtyard center landed in a cell envelope out the nearest
+        # edge (fixpoint across the tiled lane boxes).
+        _env3 = (_blueprint_env_boxes(lambda d: anchors.get(d))
+                 + _force_corridor_boxes(lambda d: anchors.get(d)))
+        if _env3:
+            for _r in ([_esp] if _esp else []) + list(_can_seated) + list(_sw_seated):
+                if _r not in anchors or _r not in comps or _r in _bp_refs:
+                    continue
+                _sx, _sy = anchors[_r][0], anchors[_r][1]
+                _srot = anchors[_r][2] if len(anchors[_r]) > 2 else 0.0
+                _c0, _c1, _shw, _shh = _courtyard_info(comps[_r], _srot,
+                                                       drop_antenna=drop_antenna)
+                _scx, _scy = _sx + _c0, _sy + _c1
+                _mvd = False
+                _occ = []                     # other placed anchors/seats (owner catch
+                for _o in anchors:            # 2026-07-12: the scan parked the ESP ON
+                    if _o == _r or _o not in comps:   # the RJ-45 -- boxes alone are blind
+                        continue                       # to parts)
+                    _op = anchors[_o]
+                    _oc0, _oc1, _ohw, _ohh = _courtyard_info(
+                        comps[_o], _op[2] if len(_op) > 2 else 0.0,
+                        drop_antenna=drop_antenna)
+                    _occ.append((_op[0] + _oc0 - _ohw, _op[0] + _oc0 + _ohw,
+                                 _op[1] + _oc1 - _ohh, _op[1] + _oc1 + _ohh))
+
+                def _clear_of_all(cx_, cy_):
+                    if not (_shw <= cx_ <= W - _shw and _shh <= cy_ <= H - _shh):
+                        return False
+                    if any(b[1] - _shw < cx_ < b[2] + _shw
+                           and b[3] - _shh < cy_ < b[4] + _shh for b in _env3):
+                        return False
+                    return not any(o0 - _shw + 0.2 < cx_ < o1 + _shw - 0.2
+                                   and o2 - _shh + 0.2 < cy_ < o3 + _shh - 0.2
+                                   for o0, o1, o2, o3 in _occ)
+
+                def _scan_exit(cx0_, cy0_):
+                    # MULTI-HOP exit scan (FOLLOWUPS 2026-07-12: the single-hop exit
+                    # candidate landed 1.7mm short of clearing the NEIGHBORING cell
+                    # box and the 16.1mm ESP fell to nearest-edge -> off-board).
+                    # Walk outward in 1mm steps along each axis until clear; nearest
+                    # clear point wins.
+                    best_ = None
+                    for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        for step_ in range(1, 61):
+                            nx_, ny_ = cx0_ + ddx * step_, cy0_ + ddy * step_
+                            if _clear_of_all(nx_, ny_):
+                                if best_ is None or step_ < best_[0]:
+                                    best_ = (step_, nx_, ny_)
+                                break
+                    return best_
+                for _rd in range(4):
+                    # COURTYARD-OVERLAP hit test (coordinator scope-add 2026-07-12,
+                    # measured at seed 2: U2's courtyard CENTER can sit in the narrow
+                    # gap BETWEEN two adjacent lane-strip boxes while its BODY still
+                    # straddles both -- a centre-in-box test misses that; inflate each
+                    # box by this seat's own half-extent (_shw/_shh), the same
+                    # box-vs-point convention _clear_of_all already uses below, so a
+                    # true courtyard/box overlap is caught even when the centre point
+                    # itself lands outside every box.
+                    _hb = next((b for b in _env3
+                                if b[1] - _shw < _scx < b[2] + _shw
+                                and b[3] - _shh < _scy < b[4] + _shh), None)
+                    if _hb is None:
+                        break
+                    _nn, _x0, _x1, _y0, _y1 = _hb
+                    # FIT-CHECKED exits, nearest first (measured 2026-07-12: blind
+                    # nearest-edge pushed the 16.1mm ESP off-board left and hopped U2
+                    # between adjacent lane strips instead of out of the band).
+                    _cands = sorted([
+                        (_scx - _x0, _x0 - 0.4 - _shw, None, "L"),
+                        (_x1 - _scx, _x1 + 0.4 + _shw, None, "R"),
+                        (_scy - _y0, None, _y0 - 0.4 - _shh, "T"),
+                        (_y1 - _scy, None, _y1 + 0.4 + _shh, "B")],
+                        key=lambda c: c[0])
+                    _took = False
+                    for _dd, _cxc, _cyc, _tag in _cands:
+                        _nx = _cxc if _cxc is not None else _scx
+                        _ny = _cyc if _cyc is not None else _scy
+                        if _clear_of_all(_nx, _ny):
+                            _scx, _scy, _mvd, _took = _nx, _ny, True, True
+                            break
+                    if _took:
+                        break
+                    # single-hop failed: MULTI-HOP scan before the legacy fallback
+                    _mh = _scan_exit(_scx, _scy)
+                    if _mh is not None:
+                        _scx, _scy, _mvd = _mh[1], _mh[2], True
+                        break
+                    # no clean exit anywhere: legacy nearest-edge step and re-loop
+                    _pp = min((_scx - _x0, "L"), (_x1 - _scx, "R"),
+                              (_scy - _y0, "T"), (_y1 - _scy, "B"))
+                    if _pp[1] == "L":
+                        _scx = _x0 - 0.4 - _shw
+                    elif _pp[1] == "R":
+                        _scx = _x1 + 0.4 + _shw
+                    elif _pp[1] == "T":
+                        _scy = _y0 - 0.4 - _shh
+                    else:
+                        _scy = _y1 + 0.4 + _shh
+                    _mvd = True
+                if _mvd:
+                    anchors[_r] = (min(max(_scx - _c0, 2.0), W - 2.0),
+                                   min(max(_scy - _c1, 2.0), H - 2.0), _srot)
+                    if os.environ.get("CEC_BP_DEBUG"):
+                        print(f"  [p3crit] seat {_r} displaced out of a cell envelope",
+                              file=sys.stderr, flush=True)
+        anneal_units = [r for r in (ics + free_shunts)
+                        if r != _esp and r not in seated_inas and r not in _sw_seated
+                        and r not in _can_seated
+                        # p4b runs BEFORE this pass now (owner ladder): the stamped
+                        # cell refs are locked -- this rebuild must not re-arm them
+                        # for the anneal (measured: p6 moved locked U10)
+                        and r not in (_bp_refs or ())]
+
+    def _blueprint_env_boxes(pos_of):
+        """Envelope boxes of every stamped blueprint cell: part courtyards UNION the
+        cell's transformed copper, + margin sized for center-out eviction (pad-half +
+        clearance). Shared by p7 (series/functional stamping must not enter -- the
+        stamps LOCK, and a locked ref in a cell means whole-cell copper refusal at
+        materialize; measured: series R13 vs lane 1) and p8 (foreign-body evac)."""
+        if not _blueprint_stamps:
+            return []
+        import cec_cell_extract as _cx
+        boxes = []
+        for _st in _blueprint_stamps:
+            refs_ = [d for d in (_st.get("ref_map") or {}).values()
+                     if d in comps and pos_of(d) is not None]
             xs, ys = [], []
-            for r in Ptmp:
-                x0, x1, y0, y1 = cec_pcb.courtyard_bbox(comps[r], *Ptmp[r],
-                                                        drop_keepout=(r in drop_kc))
-                xs += [x0, x1]; ys += [y0, y1]
-            macro[unit] = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2,
-                           (max(xs) - min(xs)) / 2, (max(ys) - min(ys)) / 2)
-            cluster_offsets[unit] = {p: Ptmp[p] for p, _ in members}
-        else:
-            macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
-            cluster_offsets[unit] = {}
-    # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
-    P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
-                          strat=strat, seed=seed, only=ics + free_shunts, cyinfo_override=macro)
-    # 3b. ANNEAL the macros to escape the greedy minimum (compaction + the diversity engine), then
-    #     a final greedy snap from the annealed start. Full cyinfo = macro bbox for ICs/shunts,
-    #     real courtyard for the fixed anchors.
-    cyinfo_all = {}
-    for r in P:
-        if r in macro:
-            cyinfo_all[r] = macro[r]
-        elif r in comps:
-            cyinfo_all[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
-    # PHASE 2 hard veto: build the corridor model on the SEEDED spine (J_IN/J_OUT/shunt now placed) and
-    # forbid any HOT/SENSITIVE body from entering a FOREIGN cable's formed band (paired INA exempt for
-    # its own band -- Kelvin). Keeps the detection ICs + ESP out of the corridors.
-    _spine = build_corridor_model(nl, P, comps, board_w=W)
-    _bands = {c.base: {"band": c.band, "formed": c.formed} for c in _spine.cables}
-    _paired = {c.base: set(c.sense_ics) for c in _spine.cables}
-    _sensitive = _spine.sensitive
+            for d in refs_:
+                p_ = pos_of(d)
+                cx0, cy0, hw, hh = _courtyard_info(comps[d], p_[2] if len(p_) > 2 else 0,
+                                                   drop_antenna=drop_antenna)
+                xs += [p_[0] + cx0 - hw, p_[0] + cx0 + hw]
+                ys += [p_[1] + cy0 - hh, p_[1] + cy0 + hh]
+            t_ = _st.get("template") or {}
+            ax_, ay_ = _st.get("at_mm", (0.0, 0.0))
+            rot_ = float(_st.get("rot", 0.0))
+            for tr_ in t_.get("internal_tracks", []):
+                for pt_ in (tr_["start_rel_mm"], tr_["end_rel_mm"]):
+                    g_ = _cx._to_global(pt_[0], pt_[1], ax_, ay_, rot_)
+                    xs.append(g_[0])
+                    ys.append(g_[1])
+            for v_ in t_.get("vias", []):
+                g_ = _cx._to_global(v_["at_rel_mm"][0], v_["at_rel_mm"][1], ax_, ay_, rot_)
+                xs.append(g_[0])
+                ys.append(g_[1])
+            if xs:
+                bm = 1.6
+                boxes.append(("__BLUEPRINT__", min(xs) - bm, max(xs) + bm,
+                              min(ys) - bm, max(ys) + bm))
+        return boxes
 
-    def _veto(ref, xy):
-        return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
+    def _force_corridor_boxes(pos_of):
+        """Placement keepouts for the FORCE-LANE copper (owner rung 2026-07-11,
+        'set and not infringed on'): the fat J3->shunt->J4 copper is laid LOCKED
+        at materialize (cec_force_lanes), so everything later must seat OUTSIDE
+        its path. Boxes mirror the v7 lay geometry from the same seat data the
+        lay will measure: (a) the top fan-band region under J3 (stubs + jogs +
+        necks + nested bands, depth 4.7 pad-row offset + 3.2 + 2x2.9 + 1.45
+        endcap + 1.25 half-width + 0.45 clr ~= 16.5 from the connector origin);
+        (b) the mirrored J4 return-band region (B.Cu, reserved anyway -- THT
+        barrels + honest 'not infringed'); (c) per-lane HI vertical strips from
+        band bottom into the cell row. Gated on params['force_lanes'] -> absent
+        = byte-identical."""
+        if not (_blueprint_stamps and cfg.params.get("force_lanes")):
+            return []
+        lanes = sorted(float(_st.get("at_mm", (0, 0))[0]) for _st in _blueprint_stamps)
+        j3 = pos_of("J3")
+        j4 = pos_of("J4")
+        if not lanes or j3 is None or j4 is None:
+            return []
+        x0, x1 = min(lanes) - 3.65, max(lanes) + 3.65
+        depth = 4.7 + 3.2 + 2.9 * 2 + 1.45 + 1.25 + 0.45          # 16.5mm from origin
+        boxes = [("__FORCELANE__", x0, x1, j3[1], j3[1] + depth),
+                 ("__FORCELANE__", x0, x1, j4[1] - depth, j4[1])]
+        ymid = (j3[1] + j4[1]) / 2.0
+        for lx in lanes:
+            boxes.append(("__FORCELANE__", lx - 1.7, lx + 1.7, j3[1] + depth, ymid))
+        return boxes
 
-    anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
-    legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4)
-    # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
-    for unit, offs in cluster_offsets.items():
-        if unit not in P:
-            continue
-        ux, uy, _ur = P[unit]
-        for pref, (dx, dy, pr) in offs.items():
-            P[pref] = (ux + dx, uy + dy, pr)
-    res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
+    # ============================================================ P4: blueprint cells (rigid stamp)
+    def _p4b_blueprint_stamp(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped, _blueprint_stamps, _bp_refs
+        # OPT-IN (docs/pass-form-plan.md §4 P4): stamp each declared blueprint cell as a RIGID,
+        # FIXED unit -- placement here, internal COPPER laid + LOCKED at materialize(). Absent ->
+        # no-op -> byte-identical (the S1 golden-safety discipline). Each cell dict:
+        #   {"template": <path or template dict>, "anchor_at": [x,y] | "anchor_ref": <ref>,
+        #    "rot": deg, "ref_map": {tref:dref}, "net_map": {role:net} | "cable_index": n,
+        #    "ideal_internal": bool (default True: compile super-tight ideal routing for the
+        #    cell's LOCAL nets -- the owner addition), "ideal_width": mm}
+        cells = cfg.params.get("blueprint_cells") or ()
+        if not cells:
+            return
+        import cec_cell_extract
+        for cell in cells:
+            template = cell.get("template")
+            if isinstance(template, str):
+                with open(template) as _f:
+                    template = json.load(_f)
+            if cell.get("ideal_internal", True):
+                template = cec_cell_extract.synthesize_ideal_internal(
+                    template, width=float(cell.get("ideal_width", 0.2)))
+            ref_map = dict(cell.get("ref_map") or {})
+            net_map = cell.get("net_map")
+            if net_map is None and cell.get("cable_index") is not None:
+                net_map = cec_cell_extract.net_map_for_index(template, int(cell["cable_index"]))
+            # anchor position: explicit xy, else the current anchors[] slot of a named ref.
+            _seat_rot = 0.0
+            if cell.get("anchor_at") is not None:
+                at_mm = tuple(cell["anchor_at"])
+            elif cell.get("anchor_ref") and cell["anchor_ref"] in anchors:
+                _ap = anchors[cell["anchor_ref"]]
+                at_mm = (_ap[0], _ap[1])
+                if len(_ap) > 2:                  # inherit the SEAT's rotation: the cell
+                    _seat_rot = float(_ap[2])     # frame is anchor-local (owner ladder,
+            else:                                 # fresh-board lanes seat rotated)
+                print(f"  [p4b] cell skipped: no anchor_at/anchor_ref resolvable ({cell.get('template')!r})",
+                      file=sys.stderr)
+                continue
+            rot = float(cell.get("rot", _seat_rot))
+            placement, _copper = cec_cell_extract.stamp(template, at_mm=at_mm, rot=rot,
+                                                        ref_map=ref_map, net_map=net_map)
+            for dref, (x, y, r, _fl) in placement.items():
+                if dref in comps:
+                    cur = anchors.get(dref)
+                    if cur is not None and abs(cur[0] - x) < 1e-4 and abs(cur[1] - y) < 1e-4 \
+                            and (len(cur) < 3 or min((cur[2] - r) % 360.0,
+                                                     360.0 - (cur[2] - r) % 360.0) < 1e-3):
+                        _bp_refs.add(dref)         # identical seat (stamp round(,6) jitter):
+                        continue                   # not a move -- the lock checker is right
+                    anchors[dref] = (x, y, r)      # FIXED: pinned in relative_place (P=dict(anchors))
+                    _bp_refs.add(dref)
+            _blueprint_stamps.append({"template": template, "at_mm": list(at_mm), "rot": rot,
+                                      "ref_map": ref_map, "net_map": net_map})
+        # the stamped cell refs are FIXED -> drop them from the annealed set (progressive locking).
+        if _bp_refs and anneal_units is not None:
+            anneal_units[:] = [r for r in anneal_units if r not in _bp_refs]
+
+    # ============================================================ P4/P5: cluster learn (macro blocks)
+    def _p4_cluster_learn(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped, _cells, _back, _back_stripped, _tht_keep
+        # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
+        #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
+        #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
+        #    cluster as one macro and legalize with its full bbox, reserving the room.
+        #    FUNCTIONAL grouping (owner-caught 2026-06-27): the owner set is broadened to ICs + connectors
+        #    + seated shunts, so a part's owner is its true FUNCTIONAL anchor (CC pull-downs -> J5, DETECT
+        #    ESD -> J1, SS34 -> the VBUS->+5VSB segment, decoupling -> its IC). A part owned by a FIXED
+        #    anchor (connector / seated shunt) clusters relative to that anchor's pad and is STAMPED after
+        #    placement (fixed_clusters); only IC/free-shunt owners become annealed macro blocks.
+        _seated_shunts = [r for r in shunts if r not in free_shunts]
+        _fixed_anchor_refs = set(anchors_roles) | set(_seated_shunts)   # connectors (J*/host/usb) + seated shunts
+        # BLUEPRINT (P4): a stamped cell's parts (incl. its owned passives) are RIGID -- exclude them
+        # from the cluster/stamp flow so p7/p9 never re-stamp them off the cell. Empty _bp_refs ->
+        # identical inputs -> byte-identical (the golden-safety invariant).
+        _bp_passives = [p for p in passives if p not in _bp_refs]
+        spec, series = derive_passive_spec(nl, _bp_passives, [r for r in ics if not r.startswith("SW")],
+                                           anchor_refs=_fixed_anchor_refs)
+        by_owner = defaultdict(list)
+        fixed_owner = defaultdict(list)                     # parts owned by a FIXED anchor (connector/shunt)
+        for pref, (own, pad) in spec.items():
+            if pref in series:                              # series elements are placed mid-segment, not clustered
+                continue
+            if own in ics + free_shunts:
+                by_owner[own].append((pref, pad))
+            elif own in _fixed_anchor_refs:
+                fixed_owner[own].append((pref, pad))
+        drop_kc = tuple(r for r in comps if _trimmable_rf(comps[r])) if drop_antenna else ()
+        macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
+        cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
+        for unit in ics + free_shunts:
+            members = by_owner.get(unit, [])
+            if unit not in comps:
+                continue
+            if members:
+                Ptmp = {unit: (0.0, 0.0, 0.0)}
+                cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
+                                     drop_keepout=((unit,) if unit in drop_kc else ()))
+                # PAIR-AWARE pass (2026-07-08): divider/RC pairs (two 2-pad Rs sharing a 3-ref
+                # mid net with this unit) must sit ADJACENT within the cluster -- the fan
+                # otherwise puts them on opposite lobes (R52<->R53 measured 13-23mm inside
+                # U5's 12-part cluster; hand boards: ~2mm). Re-cluster once with member B
+                # pinned beside member A; the relaxation accommodates the rest.
+                _mnames = {p for p, _ in members}
+                _pins = {}
+                for _nn2, _mem2 in nl.nets.items():
+                    _rr = sorted({r for r, _p in _mem2})
+                    if len(_rr) == 3 and unit in _rr:
+                        _pr = [r for r in _rr if r in _mnames and r[:1] == "R"]
+                        if len(_pr) == 2 and all(r in Ptmp for r in _pr):
+                            _a, _b = _pr
+                            _acx, _acy, _ahw, _ahh = _courtyard_info(comps[_a], Ptmp[_a][2]
+                                                                     if len(Ptmp[_a]) > 2 else 0)
+                            _bcx, _bcy, _bhw, _bhh = _courtyard_info(comps[_b], 0)
+                            _pins[_a] = Ptmp[_a]          # pin BOTH: A re-relaxes otherwise
+                            _pins[_b] = (Ptmp[_a][0] + _acx + _ahw + _bhw + 0.4 - _bcx,
+                                         Ptmp[_a][1] + _acy - _bcy, 0.0)
+                if _pins:
+                    Ptmp = {unit: (0.0, 0.0, 0.0)}
+                    cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
+                                         drop_keepout=((unit,) if unit in drop_kc else ()),
+                                         fixed_overrides=_pins)
+                xs, ys = [], []
+                for r in Ptmp:
+                    x0, x1, y0, y1 = cec_pcb.courtyard_bbox(comps[r], *Ptmp[r],
+                                                            drop_keepout=(r in drop_kc))
+                    xs += [x0, x1]; ys += [y0, y1]
+                macro[unit] = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2,
+                               (max(xs) - min(xs)) / 2, (max(ys) - min(ys)) / 2)
+                cluster_offsets[unit] = {p: Ptmp[p] for p, _ in members}
+            else:
+                macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
+                cluster_offsets[unit] = {}
+        # MCU-CLUSTER SEAT-FRAME CONSISTENCY (2026-07-12, the p3crit MCU seat's p4 half;
+        # gated on the seat having fired -- _esp in _bp_refs -- and on a non-zero seat
+        # rotation, so every other board/path is byte-identical). The learn above is
+        # OWNER-FRAME-ROT-0 (Ptmp[unit]=(0,0,0)) and the p7/p9 stamps apply offsets
+        # UNROTATED, which was correct while every macro owner came out of relative_place
+        # at rot 0 -- but the seated ESP can sit at 90/180/270. Two concrete failures
+        # measured on the 12vhpwr seed-2 board without this block: (1) the ESP's REMAINING
+        # owned passives (the analog-chain parts the macro filter deliberately left to the
+        # ordinary flow -- TH*/divider/fan-gate) stamped at rot-0 offsets AROUND a rot-90
+        # ESP = straight onto its courtyard; (2) macro[_esp]'s rot-0 bbox understated the
+        # true obstacle, so p9's legalize could not see (and thus not clear) the real
+        # courtyard -- 8 residual overlaps on U1. Fix: rotate the ESP's cluster offsets +
+        # re-derive its macro bbox in the SEATED frame, so the existing stamp/legalize
+        # machinery reproduces the seat's geometry instead of fighting it.
+        if _esp and _esp in _bp_refs and _esp in anchors:
+            _erot = (anchors[_esp][2] if len(anchors[_esp]) > 2 else 0.0) % 360.0
+            if _erot and _esp in cluster_offsets:
+                cluster_offsets[_esp] = {
+                    p: (*cec_pcb._rot(dx, dy, _erot), (pr + _erot) % 360.0)
+                    for p, (dx, dy, pr) in cluster_offsets[_esp].items()}
+            # macro[_esp] = the ESP's FULL courtyard at the SEATED rotation, no drop trim
+            # (the seat's honest-geometry rule: the NoAntKeepout footprints are body-only
+            # -- the trim understates them, measured as U4/lobe-region board-DRC overlaps
+            # p9 could not clear) and deliberately NOT inflated by the remaining owned
+            # (analog-chain) passives' ring: a ring-inflated reserve over-claimed the
+            # thin logic column (measured: the compact seed-2 anneal then squeezed U3
+            # into force-lane 4 and U4 onto U1 -- worse than the smaller honest box).
+            # The ring parts are individually legalized against this honest box at p9.
+            macro[_esp] = _courtyard_info(comps[_esp], _erot)
+        # 2b. FIXED-ANCHOR clusters: a part owned by a connector / seated shunt (CC pull-downs on J5, DETECT
+        #     ESD on J1) clusters at that anchor's pad. The anchor is already at its final (fixed) position,
+        #     so auto_cluster places the parts in absolute coords; we record them for a direct stamp after
+        #     the macro placement (they are NOT annealed -- they ride their anchor). This is the functional
+        #     grouping that pulls the foreign I/O parts to the board edge connectors, OUT of the corridors.
+        fixed_stamp = {}                                    # pref -> (x,y,rot) absolute
+        for unit, members in fixed_owner.items():
+            if unit not in anchors or unit not in comps:
+                continue
+            Pfx = {unit: anchors[unit]}
+            cec_pcb.auto_cluster(Pfx, comps, {p: (unit, pad) for p, pad in members})
+            for p, _pad in members:
+                if p in Pfx:
+                    fixed_stamp[p] = Pfx[p]
+        # DUAL-SIDED FACE MODEL (lifted from the old post-ladder back_refs block so EVERY downstream
+        # pass is side-aware -- the v1 note's documented gap). Compute the per-rail sensing cells +
+        # their F/B faces (from the seated shunt x-order) and the full back set (cell members + their
+        # owned passives, guarded). Empty unless the board declares dual_sided + is shared-bus ->
+        # every face-aware branch below is inert -> byte-identical on single-sided boards.
+        _cells = _back = _tht_keep = None
+        _back_stripped = set()
+        if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
+            _cells = _dual_side_cells(_topo, anchors, nl, comps)
+            _back, _back_stripped = _dual_side_back_refs(_cells, spec, anchors_roles, comps)
+            if _back_stripped:
+                print(f"  [dual-side guard] kept OFF the back (owner rule): {sorted(_back_stripped)}",
+                      file=sys.stderr)
+
+    # ============================================================ P5/P7: relative_place + veto model
+    def _p5_relative_place(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
+        P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
+                              strat=strat, seed=seed, only=ics + free_shunts, cyinfo_override=macro)
+        # 3b. ANNEAL the macros to escape the greedy minimum (compaction + the diversity engine), then
+        #     a final greedy snap from the annealed start. Full cyinfo = macro bbox for ICs/shunts,
+        #     real courtyard for the fixed anchors.
+        cyinfo_all = {}
+        for r in P:
+            if r in macro:
+                cyinfo_all[r] = macro[r]
+            elif r in comps:
+                cyinfo_all[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
+        # PHASE 2 hard veto: build the corridor model on the SEEDED spine (J_IN/J_OUT/shunt now placed) and
+        # forbid any HOT/SENSITIVE body from entering a FOREIGN cable's formed band (paired INA exempt for
+        # its own band -- Kelvin). Keeps the detection ICs + ESP out of the corridors.
+        _spine = build_corridor_model(nl, P, comps, board_w=W)
+        _bands = {c.base: {"band": c.band, "formed": c.formed} for c in _spine.cables}
+        _paired = {c.base: set(c.sense_ics) for c in _spine.cables}
+        _sensitive = _spine.sensitive
+
+        def _veto(ref, xy):
+            return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
+
+        # PARTITION seed: move each assigned free macro's courtyard INTO its region before the anneal, so
+        # the structure-first containment biases the search from the start (proactive, not a post-evict).
+        if _bounds:
+            for r in anneal_units:
+                if r in _bounds and r in P and r in cyinfo_all:
+                    cx, cy, hw, hh = cyinfo_all[r]
+                    x0, y0, x1, y1 = _bounds[r]
+                    ox, oy, rot = P[r]
+                    ccx, ccy = ox + cx, oy + cy                     # current courtyard centre
+                    if not (x0 + hw <= ccx <= x1 - hw and y0 + hh <= ccy <= y1 - hh):
+                        nccx = min(x1 - hw, max(x0 + hw, ccx)) if x1 - hw >= x0 + hw else (x0 + x1) / 2
+                        nccy = min(y1 - hh, max(y0 + hh, ccy)) if y1 - hh >= y0 + hh else (y0 + y1) / 2
+                        P[r] = (nccx - cx, nccy - cy, rot)
+        # ROLE-BASED VARIABLE KEEP-OUT lever (round-2 item 7b, 2026-07-08): params
+        # 'role_keepouts' = {role: radius_mm} (roles from _role: host/usb/power_in/power_out/
+        # mount, plus 'ic' for U*/Q* refs) -> per-ref soft radii in the anneal cost. Hand
+        # boards vary clearance BY ROLE (probe forensics: functional pairs near 0, sense
+        # corridors ~3.5, independent blocks 1.0-2.0mm+) where the synth placer packs one
+        # uniform band. INERT unless set (default anneal byte-identical); activation goes
+        # through the fixed-seed ablation protocol (cec_lever_eval), one lever at a time.
+        _rk = dict(cfg.params.get("role_keepouts") or {})
+        _role_clr = None
+        if _rk:
+            _role_clr = {}
+            for r in P:
+                c_ = nl.comps.get(r, Comp(r))
+                rl = _role(r, c_.value, c_.footprint, nl=nl) \
+                    or ("ic" if r[:1] in ("U", "Q") else None)
+                if rl in _rk:
+                    _role_clr[r] = float(_rk[rl])
+
+    # ============================================================ P7: anneal + legalize
+    def _p6_anneal(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto,
+                      role_clr=_role_clr)
+        legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
+
+    # ============================================================ P7b: affinity re-seat
+    def _p8b_affinity_reseat(_state):
+        """Owner 2026-07-15 ("overlaps and items parked out by the edges ... should go
+        next to other netlisted parts"): for every MOVABLE part that ended the earlier
+        passes either courtyard-OVERLAPPED (the least-overlap park residue) or hugging
+        an edge (<2mm interior margin, non-anchor), run a FULL-BOARD single-part seat
+        search scored by its NETLIST NEIGHBORS' positions (+ the seat's edge-soft cost)
+        -- affinity placement, never first-available-legal. A part with no legal
+        affinity seat stays put (refuse-loud print), never force-parked worse."""
+        nonlocal P, cyinfo_all, anchors
+        import math as _math
+        adj = _adjacency(nl)
+        # RESPECT THE PASS-LOCK REGISTRY (wave-5 LockViolations, correctly raised by
+        # the pass-form discipline: C18/C9/D8 were locked by earlier owning passes).
+        fixed = set(anchors) | set(_bp_refs) | set(_state.locked_refs())
+        # measure overlaps + edge-huggers on the CURRENT P
+        def _box(r):
+            x, y, rot = P[r]
+            cx, cy, hw, hh = _courtyard_info(comps[r], rot)
+            return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
+        boxes = {r: _box(r) for r in P if r in comps}
+        bad = []
+        for r in P:
+            if r in fixed or r not in comps:
+                continue
+            l0, r0, t0, b0 = boxes[r]
+            edge_m = min(l0, t0, W - r0, H - b0)
+            olap = any(o != r and not (r0 <= boxes[o][0] or boxes[o][1] <= l0
+                                        or b0 <= boxes[o][2] or boxes[o][3] <= t0)
+                       for o in boxes)
+            if olap or edge_m < 2.0:
+                bad.append(r)
+        if not bad:
+            return
+        moved = 0
+        for r in bad:
+            nbr_pts = [P[o][:2] for o in adj.get(r, ()) if o in P and o != r]
+            if not nbr_pts:
+                nbr_pts = [(W / 2.0, H / 2.0)]
+            occ = [boxes[o] for o in boxes if o != r]
+            env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            offs = {r: (0.0, 0.0, P[r][2] if len(P[r]) > 2 else 0.0)}
+            placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
+                                           occ_boxes=occ, score_points=nbr_pts,
+                                           grid=1.0, edge_soft=2.0)
+            if placed:
+                P[r] = placed[r]
+                boxes[r] = _box(r)
+                moved += 1
+            else:
+                print(f"  [p8b] affinity re-seat: no legal seat for {r} -- left as-is",
+                      file=sys.stderr)
+        if moved:
+            print(f"  [p8b] affinity re-seat: {moved}/{len(bad)} overlapped/edge-parked "
+                  f"part(s) moved beside their netlist neighbors", file=sys.stderr)
+
+    # ============================================================ P5: passive stamps (cluster + series)
+    def _p7_stamps(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
+        for unit, offs in cluster_offsets.items():
+            if unit not in P:
+                continue
+            ux, uy, _ur = P[unit]
+            for pref, (dx, dy, pr) in offs.items():
+                P[pref] = (ux + dx, uy + dy, pr)
+        # 4b. FUNCTIONAL stamps: the fixed-anchor (connector/shunt) clusters in their pre-computed absolute
+        #     coords, and the SERIES elements on the segment between their two endpoint anchors. The fixed
+        #     anchor (J*) does not move during anneal, so its absolute cluster coords are still valid here.
+        _func_stamped = []
+        for pref, xyr in fixed_stamp.items():
+            if pref in comps:
+                P[pref] = xyr
+                _func_stamped.append(pref)
+        for pref, ((aR, aP), (bR, bP)) in series.items():
+            if pref not in comps:
+                continue
+            pa = _pad_xy_global(nl, aR, aP, P, comps)
+            pb = _pad_xy_global(nl, bR, bP, P, comps)
+            if pa is None or pb is None:
+                continue
+            rot = 90.0 if abs(pb[1] - pa[1]) > abs(pb[0] - pa[0]) else 0.0   # orient along the segment
+            # BLUEPRINT-AWARE t: this stamp LOCKS, so landing inside a stamped cell's
+            # envelope would refuse that cell's copper at materialize (the p8 evac may
+            # not move locked refs -- repair belongs HERE, the owning pass). Slide t
+            # along the segment to the first envelope-free spot; midpoint when free.
+            _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                       + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+            mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0
+            for _t in (0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82, 0.12, 0.88):
+                _px = pa[0] + _t * (pb[0] - pa[0])
+                _py = pa[1] + _t * (pb[1] - pa[1])
+                if not any(x0 <= _px <= x1 and y0 <= _py <= y1
+                           for _nn, x0, x1, y0, y1 in _bp_env):
+                    mx, my = _px, _py
+                    break
+            P[pref] = (mx, my, rot)
+            _func_stamped.append(pref)
+        # the functional target lands a part AT its connector pad / mid-segment -- which is a DENSE I/O
+        # cluster (J1/J5 + the CC pull-downs all share the right edge). Legalize the stamped parts to the
+        # NEAREST FREE spot to that target so they keep the functional adjacency but don't overlap a
+        # connector body (the SS34 was landing on top of J1/J5/R9 -> 3 of the 5 residual overlaps + a
+        # route-time short). Owners (the connectors/shunts) are fixed obstacles, so the parts ride near them.
+        if _func_stamped:
+            _func_cy = {}
+            for r in P:
+                if r in macro:
+                    _func_cy[r] = macro[r]
+                elif r in comps:
+                    _func_cy[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
+            legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4, bounds=_bounds)
+        # BLUEPRINT-AWARE settle (owning-pass repair, 2026-07-11): everything THIS pass
+        # stamped locks at pass end -- p8's evac may not move it, and a stamped body
+        # inside a cell envelope refuses that cell's copper at materialize (measured:
+        # J3's sideband cluster fan R13 vs lane 1). Displace out the nearest envelope
+        # edge NOW, while this pass still owns the refs, then re-legalize the moved set.
+        _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                   + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+        if _bp_env:
+            _stamped_here = set(_func_stamped)
+            _stamped_here |= {pref for offs in cluster_offsets.values() for pref in offs}
+            _bp_moved = []
+            for _r in sorted(_stamped_here):
+                if _r not in P or _r not in comps or _r in _bp_refs:
+                    continue
+                _rx, _ry = P[_r][0], P[_r][1]
+                _rrot = P[_r][2] if len(P[_r]) > 2 else 0.0
+                _cx0, _cy0, _chw, _chh = _courtyard_info(comps[_r], _rrot,
+                                                         drop_antenna=drop_antenna)
+                _ccx, _ccy = _rx + _cx0, _ry + _cy0
+                _was_moved = False
+                for _round in range(4):           # fixpoint: adjacent lane boxes tile,
+                    _hit_box = next((b for b in _bp_env    # out of A can mean into B
+                                     if b[1] <= _ccx <= b[2] and b[3] <= _ccy <= b[4]), None)
+                    if _hit_box is None:
+                        break
+                    _nn, _x0, _x1, _y0, _y1 = _hit_box
+                    _push = min((_ccx - _x0, "L"), (_x1 - _ccx, "R"),
+                                (_ccy - _y0, "T"), (_y1 - _ccy, "B"))
+                    if _push[1] == "L":
+                        _ccx = _x0 - 0.4 - _chw
+                    elif _push[1] == "R":
+                        _ccx = _x1 + 0.4 + _chw
+                    elif _push[1] == "T":
+                        _ccy = _y0 - 0.4 - _chh
+                    else:
+                        _ccy = _y1 + 0.4 + _chh
+                    _was_moved = True
+                if _was_moved:
+                    P[_r] = (_ccx - _cx0, _ccy - _cy0, _rrot)
+                    _bp_moved.append(_r)
+            if _bp_moved:
+                _cy2 = {r: (macro[r] if r in macro else
+                            _courtyard_info(comps[r], P[r][2] if len(P[r]) > 2 else 0,
+                                            drop_antenna=drop_antenna))
+                        for r in P if r in comps}
+                # BOX-AWARE legalize (the mop's technique): envelopes injected as fixed
+                # pseudo-obstacles, else the plain legalize pushes a displaced body
+                # straight back into a cell (measured: R13 out -> R12 in)
+                _legalize_avoiding_pours(P, [r for r in _bp_moved if r in P], _cy2,
+                                         _bp_env, W, H, clr=0.4, bounds=_bounds)
+                if os.environ.get("CEC_BP_DEBUG"):
+                    print(f"  [p7] blueprint-aware settle displaced: {_bp_moved}",
+                          file=sys.stderr, flush=True)
+
+    # ============================================================ P7: corridor/pour evac + final mop-up
+    def _p8_evac_mop(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped, _seat_snags
+        # LOCK RESPECT (Fix #3, S4 -- the ladder's first enforcement flip): this settle NEVER moves a
+        # ref an earlier pass LOCKED. The locked set is read off the ladder (passed as *state*); adding
+        # it to every mover's fixed/exempt below makes p8 lock-safe BY CONSTRUCTION, so enforce_locks
+        # can be turned on. A locked ref that DOES sit in a contested region (band / pour / THT field)
+        # is not moved -- it is NAMED in a snag (the repair-ladder wall: the pass that OWNS + locked it
+        # is the one that must re-place it), never a whole-pass veto.
+        _locked = set(getattr(_state, "locked", None) or ())
+        # CORRIDOR + POUR EVACUATION: pull any non-belonging body (decoupling / DETECT / threshold / detection-
+        # amp) OUT of a formed high-current band AND out of the actual derive_power_pours SENSEC box so the pour
+        # fills + the nets can route (the anneal veto + passive/cluster stamp leave them inside -- the owner-
+        # caught re-place issue). The band evac uses the tighter §2.2 band; the POUR evac uses the box the
+        # route-time no-foreign-on-high-current-pour gate derives (wider by the pour margin), so a cap grazing
+        # only the box-but-not-the-band (e.g. a comparator's clustered threshold cap, or a balanced decoupling
+        # cap that drifted onto the column) is evacuated too. EXEMPT = the FIXED seated anchors (connectors,
+        # shunts, kelvin-seated INAs + §6.13 comparators, ESP, mounts). Re-legalize only the moved refs so the
+        # seat stays put.
+        # FIDUCIALS are movable in the settle on a DUAL-SIDED board (they carry no electrical
+        # constraint): a fiducial the place_mechanical grid dropped under a LATER seat (the ESP
+        # antenna seat -> the U1|FID2 graze) must be nudge-able. Mounts (H*) stay fixed (deliberate
+        # chassis positions); gated to _back so single-sided placements stay byte-identical.
+        _mech_fixed = ({m for m in mech_pos if not m.startswith("FID")} if _back else set(mech_pos))
+        _pour_fixed = (set(anchors_roles) | _mech_fixed | set(_seated_shunts)
+                       | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
+        _pour_fixed |= _bp_refs        # BLUEPRINT (P4): stamped cells are FIXED, never evacuated
+        # (empty _bp_refs -> no change -> byte-identical).
+        _pour_fixed |= _locked         # Fix #3: a locked ref is never a mover (evac_pours + _mop below)
+        # POUR LEVER (stage 2): fold the placer's pour() asks (cfg.params['pour_asks']) into the
+        # placement-time PourPlan so the evac sees an asked pour even on a rail the derivation would
+        # not pour. `pour_asks` empty -> byte-identical to the un-asked settle (the golden guarantee).
+        _pour_asks = tuple(cfg.params.get("pour_asks") or ())
+        _pour_boxes = (_pour_boxes_unified(P, nl, comps, W, H, asks=_pour_asks)
+                       if (seated_inas or _pour_asks) else [])
+        # BLUEPRINT (P4): each stamped cell OWNS its region -- reserve its courtyard-union bbox as a
+        # pour box so foreign movable bodies EVACUATE out of the cell (its own refs are in _pour_fixed
+        # -> exempt). This is what lets materialize() lay the cell's internal copper without a foreign
+        # collision on a dense board. Empty _bp_refs -> no boxes -> byte-identical.
+        if _bp_refs:
+            _bpb = (_blueprint_env_boxes(lambda d: P.get(d))
+                    + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+            _pour_boxes = list(_pour_boxes) + _bpb
+            if os.environ.get("CEC_BP_DEBUG"):
+                for _nn, _x0, _x1, _y0, _y1 in _bpb:
+                    print(f"  [p8] blueprint box: ({_x0:.1f},{_x1:.1f},{_y0:.1f},{_y1:.1f})",
+                          file=sys.stderr, flush=True)
+        # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
+        _nets_of = defaultdict(set)
+        for _nn, _mem in nl.nets.items():
+            for _r, _p in _mem:
+                _nets_of[_r].add(_nn)
+        _net_exempt = {r: set(_nets_of.get(r, ())) for r in P}
+        for _pref, (_own, _pad) in spec.items():
+            if _own in _nets_of:
+                _net_exempt.setdefault(_pref, set()).update(_nets_of[_own])
+        # STRICT (owner overrule): only a part's OWN nets exempt it from eviction.
+        # LOCK-SNAG (Fix #3): before evacuating, name any LOCKED ref that sits in a formed band or a
+        # pour box -- it would be evicted but a lock forbids it, so its owning pass must re-place it.
+        _lm0 = build_corridor_model(nl, P, comps, board_w=W)
+        _band0 = {c.base: c.band for c in _lm0.cables if c.formed}
+        for _lr in sorted(_locked):
+            if _lr not in P or _lr in _pour_fixed - _locked or _lr[:1] in ("J", "H", "T"):
+                continue
+            _lx, _ly = P[_lr][0], P[_lr][1]
+            _hit = next((b for b in _band0.values() if b[0] <= _lx <= b[1] and b[2] <= _ly <= b[3]), None) \
+                or next((("pour", nn) for nn, x0, x1, y0, y1 in (_pour_boxes or [])
+                         if x0 <= _lx <= x1 and y0 <= _ly <= y1), None)
+            if _hit and not any(s.get("locked_ref") == _lr for s in _seat_snags):
+                _seat_snags.append({"locked_ref": _lr, "region": str(_hit),
+                                    "note": "locked ref in a contested region -- owning pass must re-place"})
+        for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
+            _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
+            _evac = _evacuate_corridors(P, comps, _evm, fixed=_locked)  # (Fix #3) never move a locked ref
+            _evac = [r for r in _evac if r not in _can_seated]    # deliberate seats are never evicted (lever 1)
+            _pevac = ([r for r in _evacuate_pours(P, comps, _pour_boxes, _pour_fixed,
+                                                  drop_antenna=drop_antenna,
+                                                  net_exempt=_net_exempt) if r not in _can_seated]
+                      if _pour_boxes else [])                     # push-back) -- a center out of the box is enough
+            _moved = list(dict.fromkeys(_evac + _pevac))          # for the pour to fill + the net to route around.
+            if not _moved:
+                break
+            if _ev_round < 5:
+                legalize_pack(P, [r for r in _moved if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
+        # FINAL MOP-UP (only when the Kelvin seat fired): fixing the sense ICs + comparators as anchors reduces
+        # the anneal's freedom, so a rigidly-stamped decoupling cap can be left grazing its IC (residual). One
+        # legalize over EVERY movable body (all but the fixed anchors -- connectors, mounts, the seated
+        # shunt + sense ICs + comparators, the ESP) nudges those few to the nearest free spot, restoring
+        # residual 0 without touching the seat. Confined to seated boards so non-cable placements are byte-
+        # unchanged. A final POUR evac (no legalize) then guarantees no body the mop-up nudged sits in a box.
+        if seated_inas:
+            _mop = [r for r in P if r in comps and r not in _pour_fixed and r not in _can_seated]
+            _mop_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2],
+                                                                        drop_antenna=drop_antenna))
+                       for r in P if r in comps}
+            # SETTLE the cascade with a POUR-AWARE legalize: the SENSEC pour boxes are injected as fixed
+            # obstacles, so each movable body lands in the nearest spot that is BOTH overlap-free AND out of
+            # every pour -- clearance + residual in ONE pass, no evac-vs-legalize oscillation (the bare evac
+            # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
+            # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
+            # RIGID BUTTON PAIR (owner 2026-07-08: BOOT/RESET drift apart -- separating a
+            # deliberate pair is the repair ladder's LAST rung, never eviction's side effect).
+            # Post-evac, both buttons re-pin side by side at the nearest lane-free spot to
+            # their seat target; they were exempted from the anneal but strict eviction had
+            # been moving them individually.
+            _sws2 = sorted(r for r in P if r.startswith("SW") and r in comps)
+            if len(_sws2) >= 2 and _can_seated is not None and not (set(_sws2[:2]) & _locked):
+                _usb2 = next((r for r, role in anchors_roles.items()
+                              if role == "usb" and r in P), None)
+                if _usb2:
+                    _u_cy = _courtyard_info(comps[_usb2], P[_usb2][2] if len(P[_usb2]) > 2 else 0,
+                                            drop_antenna=drop_antenna)
+                    _s_cy = _courtyard_info(comps[_sws2[0]], 0)
+                    _pairspot = _park_near((P[_usb2][0], P[_usb2][1]), _u_cy,
+                                           (_s_cy[0], _s_cy[1], _s_cy[2],
+                                            _s_cy[3] * 2 + 4.5),          # combined pair extent
+                                           _pour_boxes, W, H, gap=1.2)
+                    if _pairspot is not None:
+                        for _k6, _sw6 in enumerate(_sws2[:2]):
+                            P[_sw6] = (_pairspot[0], _pairspot[1] + _k6 * 9.0, 0.0)
+            # DECOUPLER RE-SEAT (retry under LANES, 2026-07-08): any rail cap whose center is
+            # >8mm from every working part on its rail parks at the nearest LANE-FREE slot
+            # beside the nearest one (the earlier inert result came from zero/blanket boxes).
+            _tgt = defaultdict(list)
+            _railcap = {}
+            for _nn, _mem in nl.nets.items():
+                if not _nn.startswith("+"):
+                    continue
+                for _r, _p in _mem:
+                    if _r[:1] == "C" and _ref_padcount(nl, _r) == 2:
+                        _on = {n for n, mm in nl.nets.items() for rr, _pp in mm if rr == _r}
+                        if "GND" in _on:
+                            _railcap[_r] = _nn
+                    elif _r[:1] in ("U", "D", "J", "Q") or _r.startswith(("TB", "SW", "FB")):
+                        _tgt[_nn].append(_r)
+            for _c2, _rail2 in _railcap.items():
+                if _c2 not in P or _c2 in _locked:               # Fix #3: never re-seat a locked cap
+                    continue
+                _cands2 = [r for r in _tgt.get(_rail2, []) if r in P]
+                if not _cands2:
+                    continue
+                _dmin2, _near2 = min((math.hypot(P[_c2][0] - P[r][0], P[_c2][1] - P[r][1]), r)
+                                     for r in _cands2)
+                if _dmin2 <= 8.0 or _near2 not in comps:
+                    continue
+                _tc = _mop_cy.get(_near2) or _courtyard_info(comps[_near2],
+                                                             P[_near2][2] if len(P[_near2]) > 2 else 0)
+                _cc = _mop_cy.get(_c2) or _courtyard_info(comps[_c2], 0)
+                _sp = _park_near((P[_near2][0], P[_near2][1]), _tc, _cc, _pour_boxes, W, H)
+                if _sp is not None:
+                    P[_c2] = (_sp[0], _sp[1], 0.0)
+            _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4, bounds=_bounds)
+
+    # ============================================================ P5: rigid-cluster re-stamp
+    def _p9_restamp(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # RIGID-CLUSTER RE-STAMP (trace-driven fix, 2026-07-08): the evac/mop rounds move a
+        # cluster's OWNER after its passives were stamped at the owner's OLD position (traced:
+        # U5 stamped at 57.4 -> evac'd to 9.5 -> mopped to 32.5 while R52/R53 stayed near 57-65
+        # -- THE decoupler/divider scatter mechanism; three ownership-side "fixes" were inert
+        # because ownership was never broken). Re-stamp every cluster at its owner's FINAL
+        # position, then settle only the re-stamped parts (owners never move here).
+        _restamped = []
+        for unit, offs in cluster_offsets.items():
+            if unit not in P:
+                continue
+            ux, uy, _ur = P[unit]
+            for pref, (dx, dy, pr) in offs.items():
+                if pref in P:
+                    P[pref] = (ux + dx, uy + dy, pr)
+                    _restamped.append(pref)
+        if _restamped:
+            _rs_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2]
+                                                                      if len(P[r]) > 2 else 0,
+                                                                      drop_antenna=drop_antenna))
+                      for r in P if r in comps}
+            if _pour_boxes:
+                _legalize_avoiding_pours(P, _restamped, _rs_cy, _pour_boxes, W, H, clr=0.4,
+                                         bounds=_bounds)
+            else:
+                legalize_pack(P, _restamped, _rs_cy, W, H, clr=0.4, bounds=_bounds)
+
+    # ============================================================ P7/P8: intent levers (LAST)
+    def _p10_intents(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped
+        # INTENT LEVERS (owner pass 2026-07-08): applied LAST so nothing downstream undoes
+        # them (the lesson every seat learned). A near()/order() intent is the USER's explicit
+        # actuator -- the top RATIFIER tier -- so it may move a ref an earlier pass seated + locked
+        # (e.g. order(U2,...) overriding the CAN seat); it then RE-RATIFIES that lock at the new
+        # position (Fix #3: an intent is a legitimate re-lock, not a forbidden move).
+        _intent_touched = set()
+        for _ref4, _tgt4, _gap4 in (cfg.params.get("near_intents") or ()):
+            if _ref4 in P and _tgt4 in P and _ref4 in comps and _tgt4 in comps:
+                _tc4 = _courtyard_info(comps[_tgt4], P[_tgt4][2] if len(P[_tgt4]) > 2 else 0,
+                                       drop_antenna=drop_antenna)
+                _cc4 = _courtyard_info(comps[_ref4], 0, drop_antenna=drop_antenna)
+                _sp4 = _park_near((P[_tgt4][0], P[_tgt4][1]), _tc4, _cc4, _pour_boxes, W, H,
+                                  gap=_gap4)
+                if _sp4 is None:                      # no lane-free slot: park adjacent anyway
+                    _sp4 = (P[_tgt4][0] + _tc4[0] + _tc4[2] + _cc4[2] + _gap4 - _cc4[0],
+                            P[_tgt4][1] + _tc4[1] - _cc4[1])
+                P[_ref4] = (_sp4[0], _sp4[1], 0.0)
+                _intent_touched.add(_ref4)
+        for _refs5, _axis5 in (cfg.params.get("order_intents") or ()):
+            _live5 = [r for r in _refs5 if r in P]
+            if len(_live5) >= 2:
+                _ax5 = 0 if _axis5 == "x" else 1
+                _slots5 = sorted((P[r][_ax5], P[r]) for r in _live5)
+                for r, (_k5, _pos5) in zip(_live5, _slots5):
+                    P[r] = _pos5
+                    _intent_touched.add(r)
+        _lk = getattr(_state, "locked", None)         # re-ratify any locked ref an intent moved
+        if _lk is not None:
+            for r in _intent_touched:
+                if r in _lk and r in P:
+                    _lk[r] = P[r]
+        # THT-BACKSIDE finish (Fix #1, movable half): the seat-repair cleared the SEATED cells; any
+        # MOVABLE straggler (a decoupling cap the restamp left under a front THT on the back) is
+        # nudged out HERE, last, so nothing undoes it. Minimal short-axis move -> stays near its
+        # owner (no strand). Never moves a FIXED/LOCKED ref (Fix #3). Gated to dual-sided.
+        if _back:
+            _bset = set(_back)
+            _faces10 = {r: ("B" if r in _bset else "F") for r in P}
+            _thtk10 = _tht_pin_field_boxes(P, comps, back_refs=(_back or ()), clearance=0.3)
+            _lk10 = set(getattr(_state, "locked", None) or ())
+            _evacuate_tht(P, comps, _thtk10, _faces10, (_pour_fixed or set()) | _lk10, W, H,
+                          drop_antenna=drop_antenna)
+
+    # ---- DECLARE the ladder (P0..P8 boundaries; the internal call order is unchanged from the
+    #      pre-ladder monolith). P0/P1 (stackup/netclass + outline/keepouts) are UPSTREAM of
+    #      synth_one -- declared here as provenance no-ops so the journal carries the full ladder.
+    #      locks_out/gate are recorded but ENFORCEMENT is opt-in (enforce_locks / gate_enabled);
+    #      no real gate is enabled in S1 (that is later fixed-seed ablation work).
+    def _p11_fiducials_last(_state):
+        # FIDUCIALS LAST (owner 2026-07-12): parked off-board through every prior
+        # pass; now seat each in its own corner, corners ranked by OPENNESS (distance
+        # from the corner slot to the nearest placed courtyard). One fiducial per
+        # corner, most-open corners first.
+        _fids = sorted(r for r in (P or anchors) if r.startswith("FID") and r[3:].isdigit())
+        if not _fids:
+            return
+        _PP = P if P is not None else anchors
+        _e = 3.0
+        _corners = [(_e, _e), (W - _e, _e), (_e, H - _e), (W - _e, H - _e)]
+        _bodies = []
+        for _r, _pp in _PP.items():
+            if _r.startswith("FID") or _r not in comps:
+                continue
+            try:
+                _c0, _c1, _hw, _hh = _courtyard_info(comps[_r], _pp[2] if len(_pp) > 2 else 0.0,
+                                                     drop_antenna=drop_antenna)
+            except Exception:                                # noqa: BLE001
+                continue
+            _bodies.append((_pp[0] + _c0 - _hw, _pp[0] + _c0 + _hw,
+                            _pp[1] + _c1 - _hh, _pp[1] + _c1 + _hh))
+        def _openness(cx_, cy_):
+            _d = 1e9
+            for _x0, _x1, _y0, _y1 in _bodies:
+                _dx = max(_x0 - cx_, 0.0, cx_ - _x1)
+                _dy = max(_y0 - cy_, 0.0, cy_ - _y1)
+                _d = min(_d, (_dx * _dx + _dy * _dy) ** 0.5)
+            return _d
+        # Corner assignment with EDGE-SLIDE fallback (measured: the diagonal walk
+        # marched FID3 into the MCU macro mid-board). A fiducial takes a corner only
+        # if openness >= _FID_R there or at an edge-slide position (slide along each
+        # of the corner's two edges, staying in the edge band); corners that cannot
+        # host are skipped for the NEXT corner (4 corners, 3 fids = one spare).
+        _FID_R = 1.6
+        _ranked = sorted(_corners, key=lambda c: -_openness(c[0], c[1]))
+        _used = set()
+        _placed_f = {}
+        for _f in _fids:
+            _best = None
+            for _ci, (_cx, _cy) in enumerate(_ranked):
+                if _ci in _used:
+                    continue
+                _cands = [(_cx, _cy)]
+                _sx = 1.0 if _cx < W / 2 else -1.0
+                _sy = 1.0 if _cy < H / 2 else -1.0
+                for _k in range(1, 29):
+                    # slide up to ~half the edge (measured: the MCU macro owns 17mm of
+                    # the bottom-right corner -- 12mm never cleared it; the legal slot
+                    # is the J4<->macro gap further along the bottom edge)
+                    _cands.append((_cx + _sx * _k, _cy))       # slide along the x edge
+                    _cands.append((_cx, _cy + _sy * _k))       # slide along the y edge
+                _hit = next(((qx, qy) for qx, qy in _cands
+                             if _openness(qx, qy) >= _FID_R), None)
+                if _hit:
+                    _best = (_ci, _hit)
+                    break
+            if _best is None:
+                # no corner can host: most-open corner position as the honest fallback
+                _ci = next(i for i in range(len(_ranked)) if i not in _used)
+                _best = (_ci, _ranked[_ci])
+            _used.add(_best[0])
+            _placed_f[_f] = _best[1]
+        for _f, (_fx, _fy) in _placed_f.items():
+            _PP[_f] = (_fx, _fy, 0.0)
+        if os.environ.get("CEC_BP_DEBUG"):
+            print("  [p11] fiducials seated: %s" % {f: (round(_PP[f][0], 1), round(_PP[f][1], 1))
+                                                    for f in _fids},
+                  file=sys.stderr, flush=True)
+
+    _passes = [
+        Pass("p0_stackup_basis", lambda _s: None, phase="P0",
+             doc="stackup/netclass basis (upstream: build_board + .kicad_dru author it)"),
+        Pass("p1_outline_keepouts", lambda _s: None, phase="P1",
+             doc="outline + mechanical keep-outs (upstream: build_board edges)"),
+        Pass("p2_anchors", _p2_anchors, phase="P2",
+             # DECLARED lock (enforcement = S4 ablation): anchors/mounts EXCEPT the spine-owned
+             # refs -- TB* tab rows, J_OUT* columns, J_SIG* (the signal stub is collinear-with-
+             # blade-row BY CONTRACT, so the spine seats it) -- AND FID* fiducials (they carry no
+             # electrical constraint and the dual-sided settle nudges one out from under a later
+             # seat, the U1|FID2 fix; locking them here would make that a lock violation).
+             locks_out=lambda _s: [r for r in anchors
+                                   if not r.startswith(("TB", "J_OUT", "J_SIG", "FID"))],
+             doc="connectors by role (overhang) + mounts/fiducials, legalized among anchors"),
+        Pass("p3_corridor_spine", _p3_corridor_spine, phase="P3",
+             # LOCKS the output row (TB blades + J_OUT). The SHUNTS are locked one pass later
+             # (critical_seats) because the dual-sided seat-conflict repair Y-staggers each rail
+             # CELL -- shunt included -- as a rigid unit; locking the shunt here would make that
+             # repair a lock violation (the enforcement-probe blocker), so the whole cell locks
+             # together AFTER it is repaired.
+             locks_out=lambda _s: [r for r in anchors
+                                   if r.startswith(("TB", "J_OUT"))],
+             doc="form per-cable corridors: align J_OUT under J_IN + seat the shunt inline"),
+        Pass("p4b_blueprint_stamp", _p4b_blueprint_stamp, phase="P4",
+             # LOCKS the stamped cell's refs -- rigid from here (internal copper laid at
+             # materialize). No-op + locks nothing when blueprint_cells is absent (byte-identical).
+             # RUNS BEFORE critical seats (owner ladder 2026-07-11: connectors -> SENSING
+             # FRONT-END -> everything else): the ESP/CAN/button seats must seat AROUND
+             # the cells, not the cells around the seats (measured: the evac-exempt CAN
+             # seat landed inside lane envelopes on every probe).
+             locks_out=lambda _s: sorted(_bp_refs),
+             doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
+        Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
+             # _bp_refs here also covers the MCU-cluster seat's satellites + SW pair
+             # (2026-07-12): they self-add to _bp_refs on success so this lambda locks
+             # them without a second bespoke list; harmless when empty/blueprint-only.
+             locks_out=lambda _s: (list(seated) + list(seated_inas) + ([_esp] if _esp else [])
+                                   + list(_sw_seated) + list(_can_seated) + sorted(_bp_refs)),
+             doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat + cell Y-stagger repair"),
+        Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
+             doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
+        Pass("p5_relative_place", _p5_relative_place, phase="P5",
+             doc="relative-place macros by connectivity + build the corridor veto model"),
+        Pass("p6_anneal", _p6_anneal, phase="P7",
+             doc="anneal macro blocks to escape the greedy minimum + legalize"),
+        Pass("p7_stamps", _p7_stamps, phase="P5",
+             locks_out=lambda _s: list(_func_stamped),
+             doc="stamp cluster passives + functional/series parts, legalize the stamped set"),
+        Pass("p8_evac_mop", _p8_evac_mop, phase="P7",
+             doc="evacuate corridors/pours of foreign bodies + final mop-up settle"),
+        Pass("p8b_affinity_reseat", _p8b_affinity_reseat, phase="P7",
+             doc="owner 2026-07-15: overlapped/edge-parked parts re-seated NEXT TO their "
+                 "netlist neighbors (full-board legal search, affinity-scored + edge-soft) "
+                 "instead of the least-overlap park"),
+        Pass("p9_restamp", _p9_restamp, phase="P5",
+             doc="re-stamp clusters at owners' FINAL positions (the scatter fix)"),
+        Pass("p10_intents", _p10_intents, phase="P7",
+             doc="near()/order() intent levers, applied LAST so nothing undoes them"),
+        Pass("p11_fiducials_last", _p11_fiducials_last, phase="P7",
+             doc="seat FID1..n in the 3 most-open corners LAST (staged off-board until now)"),
+    ]
+
+    def _positions(_state):
+        # the ladder observes P once relative_place has created it, else the anchor dict.
+        return P if P is not None else anchors
+
+    ladder = PassLadder(_passes, _positions, enforce_locks=enforce_locks, eval_gates=eval_gates)
+    # Pass the ladder itself AS the state so a pass can consult the growing LOCKED set (the pass
+    # fns ignore *state* otherwise -- they share scope via nonlocal). This is what lets p8_evac_mop
+    # + the p10 THT finish refuse to move a ref an earlier pass locked (Fix #3 lock respect).
+    ladder.run(state=ladder)
+
+    # ============================================================ SCORING + RETURN (post-ladder)
+    res = _count_overlaps(P, comps, drop_antenna=drop_antenna,   # honest DRC-accurate residual
+                          back_refs=(_back or ()))               # face-aware: cross-face != overlap
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
     # through a FORMED high-current band. The rank key + a pre-route reject (proxy_reject). The
@@ -2810,21 +6235,56 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # corridors are formed (Phase 2) or on a well-formed board.
     model = build_corridor_model(nl, P, comps, board_w=W)
     cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets, board_w=W)
+    # CHANNEL-AWARE corridor cross (close-the-loop 2026-06-27): the HONEST, REACHABLE metric. The old
+    # corridor_cross_count is unreachable to 0 (the hub->per-cable fan-out is a topological straddle
+    # invariant), so it stalled the hill-climb at 15-24. cc_aware == predicted post-route F.Cu clips: a
+    # straddle that escapes via a body-clear top/bottom channel cuts no pour. It IS reachable to 0 -> the
+    # PRIMARY rank key. Foreign bodies = the foreign IC courtyards (NOT the corridor anchors) -- they are
+    # what can block a channel.
+    _anchors = {c.shunt for c in model.cables} | {i for c in model.cables for i in c.sense_ics}
+    _fbodies = []
+    for _r, _pr in P.items():
+        if _r[:1] == "U" and _r not in _anchors and _r in comps:
+            _bx, _by, _brot = _pr[0], _pr[1], (_pr[2] if len(_pr) > 2 else 0)
+            _cx, _cy, _hw, _hh = _courtyard_info(comps[_r], _brot)
+            _fbodies.append((_bx + _cx - _hw, _bx + _cx + _hw, _by + _cy - _hh, _by + _cy + _hh))
+    cc_aware = corridor_cross_channel_aware(obj.pads_by_net, model.bands, model.corridor_nets,
+                                            _fbodies, W, H, board_w=W)
     proxy = placement_proxy(obj)
     proxy["corridor_cross"] = cc
+    proxy["corridor_cross_aware"] = cc_aware
     # MV5: Hub-domain structural quality (inert/0 on non-Hub boards via build_hub_model's gate).
     hs = hub_score(build_hub_model(nl, P, comps, antenna_edge=cfg.params.get("antenna_edge", ""),
                                    power_input_nets=cfg.params.get("power_input_nets")), P, W, H)
     proxy["hub_penalty"] = hs["hub_penalty"]
     proxy["hub_terms"] = {k: v for k, v in hs.items() if k not in ("active", "hub_penalty")}
-    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)
+    # DUAL-SIDED (owner GO 2026-07-08, board-scoped via params.dual_sided): on shared-bus
+    # boards, alternate rail chains F/B by column order. INVARIANT (owner): each rail's ENTIRE
+    # sensing chain -- shunt + INA sensors + comparators + their owned passives -- lives on ONE
+    # side; only digital crosses vias. ICs are INA-filtered so a POWER net on a shunt side (the
+    # 5VSB pair's +5VSB) can never drag the mux or rail loads to the back. v1 note: the placer's
+    # internal overlap model is not yet side-aware (residual may overreport across faces); the
+    # materialized board's DRC -- which the oracle grades -- is side-correct via place(flip).
+    # The dual-sided F/B assignment was computed ONCE in _p4_cluster_learn (_back) off the SAME
+    # _dual_side_cells rule the placement passes used -- so the materialized board's faces match
+    # what the side-aware overlap/evac/repair passes assumed (no post-hoc divergence). Filtered to
+    # placed refs here (a passive not in P is not materialized).
+    back_refs = tuple(sorted(r for r in (_back or ()) if r in P))
+    cand = Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
+                     corridor_cross=cc, corridor_cross_aware=cc_aware, back_refs=back_refs)
+    cand.journal = ladder.journal          # per-pass placement provenance (JSON-able; diagnostic)
+    # BLUEPRINT (P4): carry each stamped cell's spec to materialize(), which lays its LOCKED
+    # internal copper on the real board (placement candidates carry no copper -- like fiducials).
+    cand.blueprint_stamps = _blueprint_stamps
+    return cand
 
 
 def _candidate_sort_key(c):
     """The production candidate rank key (best-first): legality, then corridor-cleanliness, then the
     MV4 composite proxy_score. similarity (MV3) is intentionally NOT here -- ranking toward the
     reference is the over-fit the charter forbids; it stays a reported diagnostic only."""
-    return (c.residual, c.corridor_cross, c.proxy.get("proxy_score", c.proxy.get("hpwl", 0.0)))
+    return (c.residual, c.corridor_cross_aware, c.corridor_cross,
+            c.proxy.get("proxy_score", c.proxy.get("hpwl", 0.0)))
 
 
 def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_workers=None):
@@ -2867,6 +6327,15 @@ def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_worker
     # ALWAYS beats a sandwich, regardless of proxy_score (which used to tie them at residual==0).
     # NOTE similarity (MV3) is DELIBERATELY ABSENT from the key (charter: a diagnostic, never a rank).
     cands.sort(key=_candidate_sort_key)
+    # SLICE-1a two-stage selection: the cheap proxy above PRUNED to a best-first order; when the route
+    # ORACLE is opted in (CEC_ROUTE_ORACLE=1 / cfg.params['route_oracle']) ADJUDICATE the top-k survivors
+    # with a real route -- its post-route gate verdict is the FINAL key (proxy-good-but-routes-dirty
+    # candidates get demoted). Default OFF -> the cheap path is byte-for-byte unchanged.
+    if _route_oracle_enabled(cfg):
+        k = int(cfg.params.get("route_oracle_topk", 3))
+        gkw = dict(cfg.params.get("route_oracle_kw", {}))
+        cands = adjudicate_candidates(cfg, cands, k=k, verbose=cfg.params.get("route_oracle_verbose", False),
+                                      **gkw)
     return cands
 
 
@@ -2903,6 +6372,1819 @@ def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
                 best = place_candidates(cfg2, W, H, strategies=strategies, seeds=seeds,
                                         max_workers=max_workers)[0]
     return best
+
+
+# ============================================================ SLICE-1a: the ROUTE-ORACLE grader
+# docs/placer-feasibility-2026-06-30.md: the placer selects candidates on placement_proxy (HPWL/RUDY/
+# low-res thermal) -- a CHEAP proxy that does NOT predict real routability, so it converges on
+# placements that proxy-look-good but route DIRTY. There is no confirm_winner / route_once in the
+# candidate path: that absent route-oracle IS the documented failure mode.
+#
+# route_oracle_grade closes it: grade a placement by ACTUALLY ROUTING it (the SAME proven gate-clean
+# recipe the committed gate-clean routes use) and reading the REAL post-route FULL ACCEPT CONJUNCTION:
+#
+#     kelvin_ok  AND  diffpair_ok  AND  drc-finishing-only  AND  foreign_on_pour==0  AND  thermal-in-budget
+#     AND  routing-complete (no safety/power ratline left; only the documented finishing residual)
+#
+# NEVER a subset: kelvin_ok+drc alone is a DOCUMENTED FALSE SUMMIT (passes at max_T ~181-300 C). The
+# grader can never pass a board the real route fails -- TRUE BY CONSTRUCTION, because it IS the real route.
+#
+# Wiring (two-stage prune->adjudicate): placement_proxy stays the cheap PRUNE to top-k (routing every
+# candidate is minutes each); route_oracle_grade ADJUDICATES the top-k survivors and its real-gate verdict
+# is the FINAL selection key. Opt-in (CEC_ROUTE_ORACLE=1 / cfg.params['route_oracle']); default-safe so the
+# existing cheap path is byte-for-byte unchanged when off.
+
+# The gate-clean route recipe -- commit 515cae7 (eps-rev3, FIRST gate-clean board), generalizes across the
+# EPS/PCIe cable family: tap-channel keepout + F.Cu-only corridor lever + sense-force-pour-only +
+# kelvin-FR-exclude + shunt-gap, with derive_power_pours laid AFTER the route. Applied via os.environ so the
+# in-process readers (cec_fr.export_dsn / import_ses / derive_power_pours, cec_constraints foreign check)
+# pick them up; setdefault so a caller may override any single flag (e.g. CEC_CORRIDOR_FCU_ONLY=0 for A/B).
+_ORACLE_RECIPE_ENV = {
+    "CEC_KELVIN_FR_EXCLUDE":     "1",   # INA sense pads excluded from FR -> the §6.8 inner-edge tap is their only link
+    "CEC_TAP_CHANNEL_KEEPOUT":   "1",   # reserve each F.Cu Kelvin tap channel so foreign routes AROUND/UNDER it
+    "CEC_CORRIDOR_FCU_ONLY":     "1",   # F.Cu-only corridor lever: foreign routes B.Cu UNDER the solid F.Cu pour
+    "CEC_SENSEC_FORCE_POUR_ONLY":"1",   # leave the connector<->shunt FORCE path to the pour (no redundant trace)
+    "CEC_SHUNT_GAP":             "1",   # widen the shunt notch -- REQUIRED for the foreign==0 check to read clean
+    "CEC_POUR_UNIFORM":          "1",   # per-cable output pours DERIVED ONCE, stamped uniform-shape (owner 2026-07-09)
+    # During waves the CPU is contended by FR JVMs while the GPU idles; wave-grade solves
+    # (~100k unknowns) sit just under the measured 120k solo crossover, so push them to the
+    # GPU anyway -- break-even solve speed, net wall-clock win (owner catch 2026-07-08).
+    "CEC_THERMAL_GPU_MIN_N":     "60000",
+}
+
+
+@contextmanager
+def _oracle_env(params=None):
+    """Apply the gate-clean route recipe to os.environ for the duration of a grade (setdefault, so a
+    caller-set flag wins), then restore exactly. The FR worker subprocess (spawn) inherits the env at
+    launch; the in-process pour/foreign readers read it live -- both need it set across the whole grade.
+    *params* may carry shunt_gap_mm -> CEC_SHUNT_GAP_MM and pour_lanes -> CEC_POUR_LANES
+    (the strict no-parts-in-pours architecture, per board)."""
+    extra = {}
+    if params:
+        if params.get("shunt_gap_mm"):
+            extra["CEC_SHUNT_GAP_MM"] = str(params["shunt_gap_mm"])
+        if params.get("pour_lanes"):
+            extra["CEC_POUR_LANES"] = "1"
+        if params.get("lane_w_json"):
+            extra["CEC_LANE_W_JSON"] = json.dumps(params["lane_w_json"])                 if not isinstance(params["lane_w_json"], str) else params["lane_w_json"]
+    merged = {**_ORACLE_RECIPE_ENV, **extra}
+    saved = {k: os.environ.get(k) for k in merged}
+    try:
+        for k, v in merged.items():
+            os.environ.setdefault(k, v)
+        yield
+    finally:
+        for k, old in saved.items():
+            if old is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = old
+
+
+def _load_pourplan_sidecar(board_path, rules):
+    """POUR LEVER (stage 3): load a <board>.pourplan.json sidecar for *board_path* if present AND
+    still valid for this placement + compile recipe, else None (the caller re-derives from_board).
+
+    A sidecar is trusted only when BOTH its board_sig (the placement pad signature) AND its recipe
+    (the CEC_POUR_LANES/CEC_SHUNT_GAP/... env the geometry was compiled under) match the current
+    board + env -- so a sidecar written under a different placement or a different recipe is ignored
+    (never silently applying stale/mismatched geometry). On a match the sidecar's SPECS are used
+    verbatim (identical to a fresh derive in stages 1-3; the carrier for a stage-4 router reshape),
+    with the live board + resolved rules attached for the non-lane keepout derivation."""
+    import cec_pourplan
+    side = board_path[:-len(".kicad_pcb")] + ".pourplan.json" if board_path.endswith(".kicad_pcb") \
+        else os.path.splitext(board_path)[0] + ".pourplan.json"
+    if not os.path.isfile(side):
+        return None
+    try:
+        with open(side) as f:
+            d = json.load(f)
+        fresh = cec_pourplan.PourPlan.from_board(board_path, kelvin_pairs=rules.kelvin_pairs,
+                                                 nets_12v=rules.nets_12v)
+        if (not d.get("board_sig") or d["board_sig"] != fresh.board_sig
+                or d.get("recipe") != cec_pourplan.PourPlan.recipe_from_env()):
+            return None                                      # stale placement/recipe -> re-derive
+        return cec_pourplan.PourPlan.from_dict(d, board_path=board_path, board=fresh._board,
+                                               kelvin_pairs=rules.kelvin_pairs,
+                                               nets_12v=rules.nets_12v)
+    except Exception as e:                                   # noqa: BLE001 -- any error -> re-derive
+        _tc.warn_once("pourplan_sidecar", "pourplan sidecar ignored (%s)" % e)
+        return None
+
+
+def _oracle_hints_pours(board_path):
+    """Derive the gate-clean recipe's keepout HINTS + power POURS for a placement board, honouring the
+    recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules).
+
+    POUR LEVER (stage 1/3, docs/pour-lever-scoping-2026-07-08.md): the corridor keepout + power
+    pours are now TWO VIEWS of ONE ``cec_pourplan.PourPlan`` (§1.3 -- 'where the compiled PourPlan
+    plugs in'), so the reservation FR routes around and the copper laid after are geometrically
+    identical by construction. Stage 3 loads that plan from a ``<board>.pourplan.json`` sidecar when
+    present (``_load_pourplan_sidecar``), falling back to ``from_board`` so old boards still route.
+    Byte-identical to the old two-call form: rules.kelvin_pairs == the board-derived pairs on every
+    board (verified) so a single plan matches both the old corridor_keepouts(kelvin_pairs=...) and
+    the old derive_power_pours() calls. The tap-channel + edge keepouts are not pour-derived and
+    stay as their own cec_fr calls."""
+    import cec_fr
+    import cec_pourplan
+    rules = cec_score.Rules.from_board(board_path)
+    plan = _load_pourplan_sidecar(board_path, rules) or cec_pourplan.PourPlan.from_board(
+        board_path, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
+    hints = []
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            hints += cec_fr.tap_channel_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                                   # noqa: BLE001 -- keepout is best-effort
+            _tc.warn_once("oracle_tap_keepout", "tap-channel keepout skipped (%s)" % e)
+    # The corridor keepout is the load-bearing lever (without it the EPS route strands kelvin + 30+ foreign
+    # crossings -- measured); F.Cu-only when CEC_CORRIDOR_FCU_ONLY=1 so foreign escapes B.Cu under the pour.
+    fcu_only = os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1"
+    try:
+        hints += plan.keepout_hints(layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
+    # LOGO ROUTING KEEPOUT (owner 2026-07-15): the front copper art must see no
+    # tracks/vias -- net-less copper under a routed track is a short by definition.
+    try:
+        import re as _re
+        _bt = open(board_path).read()
+        _lm = _re.search(r'\(property "Reference" "LOGO1"', _bt)
+        if _lm:
+            _li = _bt.rindex("(footprint", 0, _lm.start())
+            _lat = _re.search(r'\(at ([\d.\-]+) ([\d.\-]+)', _bt[_li:_li + 400])
+            _lx, _ly = float(_lat.group(1)), float(_lat.group(2))
+            hints.append({"name": "logo-keepout", "x0": _lx - 7.0, "y0": _ly - 6.45,
+                          "x1": _lx + 7.0, "y1": _ly + 6.45, "layers": ("F.Cu",)})
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_logo_keepout", "logo keepout skipped (%s)" % e)
+    try:
+        hints += cec_fr.edge_keepout(board_path)
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_edge_keepout", "edge keepout skipped (%s)" % e)
+    pours = plan.pour_polygons()
+    # LOCKED-LAY OWNERSHIP (owner 2026-07-12: the router "trying to connect the fan
+    # header with a *massive* pour when it won't actually take that much power"):
+    # a net that carries LOCKED copper has its fat path laid by the ladder -- never
+    # derive a pour for it. Kills the /FAN_12V mega-pour (the geometric deriver saw
+    # THT-connector+shunt pads and classified the 50mA fan net as a cable net); the
+    # J2/R5/D5 spur routes thin on its own class.
+    try:
+        import cec_cell_extract
+        _lkn = cec_cell_extract.locked_nets(board_path)
+        if _lkn:
+            _n0 = len(pours)
+            pours = [q for q in pours if q.get("net") not in _lkn]
+            if len(pours) != _n0:
+                print("[pours] skipped %d pour(s) on locked-lay nets" % (_n0 - len(pours)),
+                      file=sys.stderr)
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_pour_lockskip", "locked-net pour skip failed (%s)" % e)
+    return hints, pours, rules
+
+
+def _classify_unconnected(unconn_nets, rules):
+    """Split the routed board's unconnected NET names into (critical, signal). A critical ratline -- a
+    Kelvin/diff-pair safety net, a 12V/high-current net, or GND -- is a HARD route failure. A signal-net
+    ratline is the documented finishing residual (commit 515cae7 closed the EPS /GPIO0 hop with the
+    cec_route toolkit AFTER Freerouting squeezed its F.Cu escape shut), tolerated up to unconn_finish_tol."""
+    safety = {n for pr in (rules.kelvin_pairs or []) for n in pr}
+    safety |= {n for pr in (rules.diff_pairs or []) for n in pr}
+    power = set(rules.nets_12v or [])
+    crit = []
+    sig = []
+    for n in unconn_nets:
+        u = (n or "").upper()
+        is_crit = (n in safety or n in power or u == "GND" or u == "/GND"
+                   or u.endswith("_HI") or u.endswith("_LO") or "12V" in u)
+        (crit if is_crit else sig).append(n)
+    return crit, sig
+
+
+def _oracle_sense_side(board_path):
+    """OWNER RULE checker (2026-07-08, the dual-sided gate term): on a DUAL-SIDED board
+    (any flipped shunt), each kelvin pair's PURE-SENSE nets (the '/SENSE*'-style locals --
+    a pair's shared RAIL side like +5V_MAIN legitimately routes everywhere and is excluded)
+    must carry ZERO vias and every track on the CHAIN's own face. 'Only via-tolerant
+    digital crosses faces' -- previously by-construction, now independently verified.
+    Returns {applicable, ok, violations}; N/A (applicable=False, ok=True) on single-sided
+    boards so eps/12vhpwr behavior is untouched (the 12VHPWR's SENSEP lanes carry
+    legitimate F->B lane-transition vias)."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(board_path)
+    flipped = {fp.GetReference(): fp.IsFlipped() for fp in board.GetFootprints()}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    # chain side per pair = the straddling 2-pad RS* shunt's face
+    pad_refs = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetname():
+                pad_refs.setdefault(p.GetNetname(), set()).add(fp.GetReference())
+    any_flipped_shunt = False
+    viol = []
+    for hi, lo in pairs:
+        sh = next((r for r in sorted(pad_refs.get(hi, set()) & pad_refs.get(lo, set()))
+                   if r.startswith("RS")), None)
+        if sh is None:
+            continue
+        side_flipped = bool(flipped.get(sh))
+        any_flipped_shunt = any_flipped_shunt or side_flipped
+    if not any_flipped_shunt:
+        return {"applicable": False, "ok": True, "violations": []}
+    want_layer = {}
+    for hi, lo in pairs:
+        sh = next((r for r in sorted(pad_refs.get(hi, set()) & pad_refs.get(lo, set()))
+                   if r.startswith("RS")), None)
+        if sh is None:
+            continue
+        lay = "B.Cu" if flipped.get(sh) else "F.Cu"
+        for net in (hi, lo):
+            if net.startswith("+"):
+                continue                                   # shared rail side: excluded
+            want_layer[net] = lay
+    for tr in board.GetTracks():
+        net = tr.GetNetname()
+        if net not in want_layer:
+            continue
+        if tr.Type() == pcbnew.PCB_VIA_T:
+            viol.append(f"via on sense net {net}")
+        elif tr.GetLayerName() != want_layer[net]:
+            viol.append(f"track on {tr.GetLayerName()} for {net} (chain side {want_layer[net]})")
+    return {"applicable": True, "ok": not viol, "violations": viol[:12]}
+
+
+def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
+    """PLACEMENT-QUALITY gate term (owner 2026-07-08: 'decouplers right up against their
+    respective components... should be gating'). FUNCTIONAL formulation, board-only: a
+    decoupling cap (2-pad C, one pad GND, one pad a rail '+...') must sit within *max_mm*
+    of SOME IC pad on that same rail -- its electrical job is proximity to whoever it
+    decouples, independent of any ownership bookkeeping (an ownership-model check fired on
+    the gate-clean eps fixture; this one passes it and fires on real strays). Series/RC/
+    signal parts never match the pad pattern, so they are exempt by construction.
+    max_mm CALIBRATED on the hand-quality fab boards (charter rule: measure, never guess):
+    hub/12vhpwr worst legitimate case = 6.35mm (a bulk cap beside its entry element);
+    real strays measure 10-62mm -- an order of magnitude of separation."""
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    if board is None:
+        return {"ok": False, "violations": [("board", "unloadable", -1)]}
+    ic_pads_by_net = {}
+    caps = []
+    for fp in board.GetFootprints():
+        r = fp.GetReference() or ""
+        # 'respective COMPONENTS': any working part on the rail -- IC, diode, connector,
+        # blade, switch. A bulk cap at the power ENTRY (eps C1 next to its ORing diode,
+        # 62mm from the LDO) is correctly placed; an IC-only target set false-fired on it.
+        if r[:1] in ("U", "D", "J", "Q") or r.startswith(("TB", "SW", "FB")):
+            for p in fp.Pads():
+                nn = p.GetNetname()
+                if nn:
+                    ic_pads_by_net.setdefault(nn, []).append(p.GetPosition())
+        if r.startswith("C") and fp.GetPadCount() == 2:
+            nets = {p.GetNetname() for p in fp.Pads()}
+            rail = next((n for n in nets if n.startswith("+")), None)
+            if rail and "GND" in nets:
+                caps.append((r, rail, fp.GetPosition()))
+    viol = []
+    for ref, rail, pos in caps:
+        tgts = ic_pads_by_net.get(rail, [])
+        if not tgts:
+            continue                                     # no IC on that rail: bulk/input cap
+        d = min(math.hypot((pos.x - q.x) / 1e6, (pos.y - q.y) / 1e6) for q in tgts)
+        if d > max_mm:
+            viol.append((ref, rail, round(d, 2)))
+    viol.sort(key=lambda v: -v[2])
+    return {"ok": not viol, "violations": viol[:12]}
+
+def _oracle_pour_family(routed_board_path):
+    """ORPHANED-CHECKER wiring (blind-spots lens, 2026-07-08): the mature high-current
+    pour family in cec_constraints existed and route_oracle_grade NEVER called it. Runs
+    high-current-pour-present / min-pour-cross-section / trace-width-high-current on the
+    routed board, plus the pad-local zone-connection assert (a THERMAL_RELIEF override on
+    a solid-required pad silently defeats the joint with zero DRC signal)."""
+    import pcbnew
+    import cec_constraints as K
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "checks": {"load": {"ok": False, "detail": "board unloadable"}}}
+    out = {}
+    ok_all = True
+    ctx = {}
+    for cid in ("high-current-pour-present", "min-pour-cross-section",
+                "trace-width-high-current"):
+        fn = K.CHECKERS.get(cid)
+        if fn is None:
+            continue
+        try:
+            res = fn(board, routed_board_path, ctx)
+            ok, detail = bool(res[0]), res[1]
+        except Exception as e:                           # noqa: BLE001 -- FAIL-CLOSED
+            ok, detail = False, "checker error: %s" % e
+        out[cid] = {"ok": ok, "detail": str(detail)[:200]}
+        ok_all &= ok
+    # zone-connection override assert: pads on force nets must be INHERITED/FULL
+    try:
+        import cec_fr
+        force = {n for pr in cec_fr._board_kelvin_pairs(board) for n in pr}
+        bad = []
+        for fp in board.GetFootprints():
+            for p in fp.Pads():
+                if p.GetNetname() in force and                         p.GetLocalZoneConnection() == pcbnew.ZONE_CONNECTION_THERMAL:
+                    bad.append("%s.%s" % (fp.GetReference(), p.GetPadName()))
+        out["zone-connection-override"] = {"ok": not bad, "detail": str(bad[:6])}
+        ok_all &= not bad
+    except Exception as e:                               # noqa: BLE001
+        out["zone-connection-override"] = {"ok": False, "detail": str(e)[:120]}
+        ok_all = False
+    return {"ok": ok_all, "checks": out}
+
+
+def _oracle_dfm(routed_board_path):
+    """DFM defect classes (cec_dfm_check: slivers, isolated copper, starved thermals,
+    hole-near-hole, acid traps + sub-min connection width) -- existed, never in the
+    conjunction."""
+    import cec_dfm_check
+    try:
+        v = cec_dfm_check.dfm_check(routed_board_path)
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["dfm error: %s" % e]}
+    slim = [(x.get("type"), x.get("desc", "")[:60]) for x in v][:12]
+    return {"ok": not v, "violations": slim, "count": len(v)}
+
+
+def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10):
+    """ROUTE-SANITY advisory (exploration round 2 item 5, 2026-07-08): per-net detour
+    RATIO (routed track length / pad-MST lower bound) + per-net VIA BUDGET. The probe
+    (build/probe_length_via.py) proved the blind spot: a 43x meander and a 41-via chain
+    between the same two pads are both fully DRC-legal and gates_pass=True. CALIBRATION
+    (build/meander_via_calib.py, 2026-07-08): board-level weighted detour does NOT
+    separate hand from fresh (pour-connected nets sink it below 1.0 -- fresh 0.85/0.94
+    vs hand 1.03/1.27), so this stays PER-NET pathological ceilings: hand worst ratio
+    2.7 (12vhpwr /TEMP1) vs ceiling 6.0; via budget exempts zoned nets AND force
+    (kelvin-pair) nets -- the 12vhpwr's mirrored high-current LANES are plain tracks,
+    no zone, and legitimately stitch 10 vias onto 3-pad /SENSEP* nets (measured; GND
+    fields 209); the shipped 12vhpwr's /SB_CBL_PRES sideband hops 8 vias (the accepted
+    signal-net max, hence base 10). ADVISORY -- no real board fails today; it
+    back-stops absurd routes (the synthetic 41-via chain and 53.8x meander fail)."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    try:
+        force_nets = {n for pr in cec_fr._board_kelvin_pairs(board) for n in pr}
+    except Exception:                                    # noqa: BLE001
+        force_nets = set()
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append(
+                    (p.GetPosition().x / 1e6, p.GetPosition().y / 1e6))
+    zoned = {z.GetNetname() for z in board.Zones() if z.IsOnCopperLayer()}
+    tlen = {}
+    nvias = {}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if not nn:
+            continue
+        if t.GetClass() == "PCB_VIA":
+            nvias[nn] = nvias.get(nn, 0) + 1
+        else:
+            tlen[nn] = tlen.get(nn, 0.0) + math.hypot(
+                (t.GetEnd().x - t.GetStart().x) / 1e6,
+                (t.GetEnd().y - t.GetStart().y) / 1e6)
+
+    def _mst(pts):
+        used = {0}
+        total = 0.0
+        d = [math.hypot(pts[0][0] - x, pts[0][1] - y) for x, y in pts]
+        while len(used) < len(pts):
+            best, bi = min((dist, i) for i, dist in enumerate(d) if i not in used)
+            used.add(bi)
+            total += best
+            d = [min(d[i], math.hypot(pts[bi][0] - x, pts[bi][1] - y))
+                 for i, (x, y) in enumerate(pts)]
+        return total
+
+    viol = []
+    worst_ratio = 0.0
+    for nn, length in tlen.items():
+        pts = pads_by_net.get(nn, [])
+        if len(pts) < 2 or length <= 0:
+            continue
+        lb = _mst(pts)
+        if lb >= 2.0:                     # tiny nets: the ratio is unstable, skip
+            ratio = length / lb
+            worst_ratio = max(worst_ratio, ratio)
+            if ratio > ratio_max:
+                viol.append(("detour", nn, round(ratio, 1), round(lb, 1)))
+        if nn not in zoned and nn not in force_nets:
+            budget = max(via_budget_base, 2 * len(pts))
+            if nvias.get(nn, 0) > budget:
+                viol.append(("vias", nn, nvias[nn], budget))
+    viol.sort(key=lambda v: -(v[2] if isinstance(v[2], (int, float)) else 0))
+    # LAYERS-PER-ROUTE (owner scorecard metric, 2026-07-08 blind review: "uses less
+    # layers to accomplish the same goal... an important metric"): distinct copper
+    # layers each routed net touches; fewer = better readability + fab margin.
+    layers_by_net = {}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn and t.GetClass() != "PCB_VIA":
+            layers_by_net.setdefault(nn, set()).add(t.GetLayer())
+    nlayers = sorted(((len(v), n) for n, v in layers_by_net.items()), reverse=True)
+    mean_layers = round(sum(c for c, _n in nlayers) / max(1, len(nlayers)), 2)
+    return {"ok": not viol, "violations": viol[:10],
+            "worst_ratio": round(worst_ratio, 2),
+            "vias_total": sum(nvias.values()),
+            "mean_layers_per_net": mean_layers,
+            "most_layered": [(n, c) for c, n in nlayers[:5]]}
+
+
+def _oracle_fiducials(placed_board_path, *, min_count=3, min_clear_mm=1.5,
+                      min_tri_mm2=30.0, expect=None):
+    """FIDUCIAL quality gate (exploration round 2 item 6, 2026-07-08). Assembly wants
+    >=3 well-separated, non-collinear fiducials with a clear window around each.
+    CALIBRATION (build/fid_calib.py): hand hub = 3 fids, min nearest-OTHER-pad 3.53mm,
+    max triangle 1781mm2; hand 12vhpwr = 3 fids, 2.17mm, 1697mm2; a fresh
+    materialized eps legalizes FID2 to 1.99mm -- floors 1.5mm / 30mm2 sit under all
+    three (the fid's own mask window is 1mm radius; a fid ON a pad reads <0.5). Fresh wave boards shipped ZERO fiducials (materialize
+    dropped the planned FID1-3 -- fixed in the same change as this gate).
+    SCOPE: N/A (clean pass) on a board with no fiducials when *expect* is falsy --
+    the committed eps/pcie boards carry none by their generator's design and the
+    SB-08 golden must not flip. The wave path passes expect=True (place_mechanical
+    plans them unless params say 'none'), so a fresh board missing fiducials FAILS."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    fids = [fp for fp in board.GetFootprints()
+            if fp.GetReference().upper().startswith("FID")]
+    if not fids:
+        if expect:
+            return {"ok": False, "count": 0,
+                    "violations": ["fiducials expected but NONE on board"]}
+        return {"ok": True, "count": 0, "violations": [], "note": "no fiducials -- N/A"}
+    viol = []
+    if len(fids) < min_count:
+        viol.append(("count", len(fids), min_count))
+    others = [(p, p.GetBoundingBox()) for fp in board.GetFootprints()
+              if not fp.GetReference().upper().startswith("FID") for p in fp.Pads()]
+    for fid in fids:
+        fx, fy = fid.GetPosition().x / 1e6, fid.GetPosition().y / 1e6
+        nd = 1e9
+        for p, bb in others:
+            d = math.hypot(p.GetPosition().x / 1e6 - fx, p.GetPosition().y / 1e6 - fy) \
+                - (bb.GetWidth() / 1e6) / 2.0
+            if d < nd:
+                nd = d
+        if nd < min_clear_mm:
+            viol.append(("clear", fid.GetReference(), round(nd, 2), min_clear_mm))
+    if len(fids) >= 3:
+        pts = [(f.GetPosition().x / 1e6, f.GetPosition().y / 1e6) for f in fids]
+        amax = 0.0
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                for k in range(j + 1, len(pts)):
+                    (x1, y1), (x2, y2), (x3, y3) = pts[i], pts[j], pts[k]
+                    amax = max(amax, abs((x2 - x1) * (y3 - y1)
+                                         - (x3 - x1) * (y2 - y1)) / 2.0)
+        if amax < min_tri_mm2:
+            viol.append(("collinear", round(amax, 1), min_tri_mm2))
+    return {"ok": not viol, "count": len(fids), "violations": viol[:8]}
+
+
+def _oracle_gap_profile(placed_board_path):
+    """NEAREST-GAP profile advisory (exploration round 2 item 7a, 2026-07-08): per-part
+    nearest-neighbor courtyard gap -- TRUE polygon-to-polygon distance on the real
+    courtyard outline, SAME-SIDE pairs only (the round-2 lens probe's bbox/side-blind
+    variant was measured to disagree; this is the corrected method from the same-day
+    measure.py family). HONEST STATUS from the probe forensics: NO bimodality statistic
+    was ever computed -- the round-2 'bimodality' was an eyeballed histogram, the
+    committed eps is a counterexample (69% one bucket), touch-counts do NOT separate
+    hand from fresh (4-22% overlapping), and CV is seed-noisy. The one robust
+    descriptive pattern (16-board sample): fresh boards' NON-touching population
+    collapses into one narrow band (p75 <= 0.75mm every sample) while hand hub/12vhpwr/
+    pcie spread real mass to 1.0-2.0mm+ (p75 1.08-1.25). ADVISORY ONLY -- reports the
+    distribution (p25/med/p75, jammed%<0.2mm, modebin%), asserts nothing."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "note": "board unloadable"}
+
+    def _seg_seg(p1, p2, p3, p4):
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        d1, d2 = cross(p3, p4, p1), cross(p3, p4, p2)
+        d3, d4 = cross(p1, p2, p3), cross(p1, p2, p4)
+        if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)):
+            return 0.0
+
+        def pd(p, a, b):
+            vx, vy = b[0] - a[0], b[1] - a[1]
+            wx, wy = p[0] - a[0], p[1] - a[1]
+            length = vx * vx + vy * vy
+            t = 0.0 if length == 0 else max(0.0, min(1.0, (wx * vx + wy * vy) / length))
+            return math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vy))
+        return min(pd(p1, p3, p4), pd(p2, p3, p4), pd(p3, p1, p2), pd(p4, p1, p2))
+
+    def _poly(fp):
+        for lyr in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+            poly = fp.GetCourtyard(lyr)
+            if poly and poly.OutlineCount() > 0:
+                o = poly.Outline(0)
+                return [(o.CPoint(i).x / 1e6, o.CPoint(i).y / 1e6)
+                        for i in range(o.PointCount())]
+        bb = fp.GetBoundingBox()
+        return [(bb.GetLeft() / 1e6, bb.GetTop() / 1e6), (bb.GetRight() / 1e6, bb.GetTop() / 1e6),
+                (bb.GetRight() / 1e6, bb.GetBottom() / 1e6), (bb.GetLeft() / 1e6, bb.GetBottom() / 1e6)]
+
+    def _pdist(A, B):
+        m = 1e9
+        for i in range(len(A)):
+            a1, a2 = A[i], A[(i + 1) % len(A)]
+            for j in range(len(B)):
+                d = _seg_seg(a1, a2, B[j], B[(j + 1) % len(B)])
+                if d < m:
+                    m = d
+                if m == 0:
+                    return 0.0
+        return m
+
+    comps = [fp for fp in board.GetFootprints() if fp.GetPadCount() > 0
+             and not (fp.GetReference() or "").startswith(("FID", "LOGO", "H", "M"))]
+    polys = {fp.GetReference(): _poly(fp) for fp in comps}
+    side = {fp.GetReference(): fp.IsFlipped() for fp in comps}
+    gaps = []
+    for r in polys:
+        best = 1e9
+        for r2 in polys:
+            if r2 == r or side[r2] != side[r]:
+                continue
+            best = min(best, _pdist(polys[r], polys[r2]))
+        if best < 1e9:
+            gaps.append(best)
+    if len(gaps) < 4:
+        return {"ok": True, "note": "too few parts -- N/A"}
+    g = sorted(gaps)
+
+    def q(p):
+        return round(g[max(0, min(len(g) - 1, int(p * len(g))))], 2)
+    edges = [0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 99]
+    hist = [sum(1 for x in g if lo <= x < hi) for lo, hi in zip(edges, edges[1:])]
+    return {"ok": True, "n": len(g), "p25": q(0.25), "med": q(0.5), "p75": q(0.75),
+            "jammed_pct": round(100.0 * sum(1 for x in g if x < 0.2) / len(g), 1),
+            "modebin_pct": round(100.0 * max(hist) / len(g), 1)}
+
+
+def _oracle_tht_backside(placed_board_path, *, clearance_mm=0.3):
+    """THT-BACKSIDE gate (OWNER-FOUND on the blind renders, 2026-07-08, machine-confirmed):
+    a through-hole part's pins PROTRUDE through the board, so its PTH pin field occupies
+    BOTH faces -- but dual-sided placement is not yet side-aware (the documented v1 note at
+    the back_refs assignment) and KiCad's courtyard DRC misses this class (courtyards are
+    per-side: it caught J6|U712V1 but NOT RS2/U75V1/U65V1 under J6's pin field, C16 under
+    J3). Gate: any footprint on the OPPOSITE face whose bbox overlaps a THT part's PTH
+    pin-field bbox (+clearance) fails -- solder joints/pin tails physically occupy that
+    space. Placement-only; N/A on single-sided boards."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    # Build the placement view off the board, then derive the THT pin-field boxes via the ONE
+    # shared function the PLACER also uses (_tht_pin_field_boxes) -- gate + generator agree by
+    # construction (validated 0.000mm vs the pcbnew PTH-pad union). Non-THT bodies stay read from
+    # pcbnew GetBoundingBox (silk-inclusive), the historical "other part" extent.
+    P, comps, back_set = {}, {}, set()
+    front, back = [], []
+    pth_refs = set()
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        pos = fp.GetPosition()
+        P[ref] = (pos.x / 1e6, pos.y / 1e6, fp.GetOrientationDegrees())
+        comps[ref] = fp.GetFPIDAsString()
+        if fp.IsFlipped():
+            back_set.add(ref)
+        has_pth = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for p in fp.Pads())
+        if has_pth:
+            pth_refs.add(ref)
+        else:
+            bb = fp.GetBoundingBox()
+            (back if fp.IsFlipped() else front).append(
+                (ref, bb.GetLeft() / 1e6, bb.GetRight() / 1e6,
+                 bb.GetTop() / 1e6, bb.GetBottom() / 1e6))
+    boxes = _tht_pin_field_boxes(P, comps, back_refs=back_set, refs=list(pth_refs))
+    # robustness: if a lib footprint is unresolvable (odd/committed board), fall back to the
+    # pcbnew PTH-pad union for that one ref so the gate never silently drops a THT.
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if ref in pth_refs and ref not in boxes:
+            pth = [p for p in fp.Pads() if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+            xs1 = [p.GetBoundingBox().GetLeft() / 1e6 for p in pth]
+            xs2 = [p.GetBoundingBox().GetRight() / 1e6 for p in pth]
+            ys1 = [p.GetBoundingBox().GetTop() / 1e6 for p in pth]
+            ys2 = [p.GetBoundingBox().GetBottom() / 1e6 for p in pth]
+            boxes[ref] = (min(xs1), max(xs2), min(ys1), max(ys2),
+                          "B" if fp.IsFlipped() else "F")
+    if not back and not any(mf == "B" for *_x, mf in boxes.values()):
+        return {"ok": True, "violations": [], "note": "single-sided -- N/A"}
+    c = clearance_mm
+    viol = []
+    for ref, (l, r, t, bm, mount_face) in boxes.items():
+        # the pin field conflicts with parts on the face OPPOSITE the THT body's mount side
+        others = back if mount_face == "F" else front
+        for oref, ol, orr, ot, ob in others:
+            if ol < r + c and orr > l - c and ot < bm + c and ob > t - c:
+                viol.append((oref, "under THT pin field of", ref))
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_facing_fraction(placed_board_path, *, net_span_max=12):
+    """FACING-FRACTION metric (exploration round 2 item 4, 2026-07-08): over every
+    pair of footprints sharing a LOCAL net (board-wide pad count <= *net_span_max*,
+    excluding planes/buses), the pair is FACING when the minimum shared-net pad-pad
+    distance is also the minimum ANY-pad distance (+0.05mm) -- i.e. the parts are
+    ORIENTED toward their electrical partner instead of showing it their back. Ported
+    verbatim from the round-2 lens probe (build/lens1.py metric 4). Calibration:
+    hand boards 29-36% vs fresh 19%. ADVISORY METRIC (never gates): it exists to
+    drive + evaluate the backlogged face() placement lever; higher = better."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "facing_pct": None, "note": "board unloadable"}
+    pads = []
+    cxy = {}
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        cxy[ref] = (fp.GetPosition().x / 1e6, fp.GetPosition().y / 1e6)
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads.append((ref, nn, p.GetPosition().x / 1e6, p.GetPosition().y / 1e6))
+    ns = {}
+    for _ref, nn, _x, _y in pads:
+        ns[nn] = ns.get(nn, 0) + 1
+    byref = {}
+    for ref, nn, x, y in pads:
+        byref.setdefault(ref, []).append((nn, x, y))
+    reflist = list(byref.keys())
+    facing = 0
+    npair = 0
+    for i in range(len(reflist)):
+        for j in range(i + 1, len(reflist)):
+            ra, rb = reflist[i], reflist[j]
+            shared = ({n for n, _x, _y in byref[ra] if ns.get(n, 0) <= net_span_max}
+                      & {n for n, _x, _y in byref[rb] if ns.get(n, 0) <= net_span_max})
+            if not shared:
+                continue
+            msh = many = 1e9
+            for na, xa, ya in byref[ra]:
+                for nb, xb, yb in byref[rb]:
+                    d = math.hypot(xa - xb, ya - yb)
+                    if d < many:
+                        many = d
+                    if na == nb and na in shared and d < msh:
+                        msh = d
+            cd = math.hypot(cxy[ra][0] - cxy[rb][0], cxy[ra][1] - cxy[rb][1])
+            if cd < 0.01:
+                continue
+            npair += 1
+            if msh <= many + 0.05:
+                facing += 1
+    pct = round(100.0 * facing / npair, 2) if npair else None
+    return {"ok": True, "facing_pct": pct, "pairs": npair}
+
+
+def _oracle_silk_score(routed_board_path, *, per_fp_max=1.0):
+    """SILK score/footprint (exploration round 2 item 3, 2026-07-08): all silk* DRC
+    classes (overlap / over_copper / edge_clearance) at --severity-all, divided by the
+    footprint count. CALIBRATION (build/silk_calib.py, reproduced 2026-07-08): hand hub
+    0.32, hand 12vhpwr 0.18, committed eps 0.43 -- vs fresh wave boards 4.48 (24-pin)
+    and 5.32 (eps): a 10x separation, dominated by silk_overlap + silk_over_copper
+    (values stamped onto copper/each other by the placer). SOFT SCORE TERM: silk is
+    the repo's documented cosmetic/finishing class, so this never gates -- it feeds
+    the tier-0 sort_key tie-break (a reserved slot) + an advisory field. per_fp_max
+    1.0 = 2.3x over the worst accepted board, 4.5x under the best fresh."""
+    import json as _json
+    import subprocess
+    import pcbnew
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "score_per_fp": None, "violations": ["board unloadable"]}
+    nfp = max(1, len(list(board.GetFootprints())))
+    out = tempfile.mkstemp(suffix=".json")[1]
+    try:
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                        "-o", out, routed_board_path], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "score_per_fp": None, "violations": ["drc error: %s" % e]}
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    breakdown = {}
+    for v in d.get("violations", []):
+        t = v.get("type", "")
+        if t.startswith("silk"):
+            breakdown[t] = breakdown.get(t, 0) + 1
+    n = sum(breakdown.values())
+    score = round(n / nfp, 2)
+    return {"ok": score <= per_fp_max, "score_per_fp": score, "count": n,
+            "footprints": nfp, "breakdown": breakdown, "per_fp_max": per_fp_max}
+
+
+def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
+    """STRANDED-PART gate (owner eyesight finding 2026-07-08: diodes jammed in a corner,
+    a slew orphaned by the 1x4 header): every part must sit within *max_mm* of its
+    NEAREST CONNECTED NEIGHBOR (a part sharing any non-GND net). Eviction/legalize
+    orphans have no nearby electrical partner -- that is what the eye catches. Threshold
+    generous (hand boards route across ~15mm legitimately); catches the 25-60mm class.
+    Board-agnostic; connectors/mechanical exempt (endpoints others chase) plus the
+    ACCESS-placed classes (SW/TP/DL -- buttons, test points, LEDs are placed for reach/
+    visibility, not proximity; hand boards run them at 24-33mm). max_mm CALIBRATED: hand
+    worst non-access case 19.7mm -> 22.0 with margin; real strays measure 25-60mm."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    nets_of = {}
+    pos = {}
+    for fp in board.GetFootprints():
+        r = fp.GetReference() or ""
+        pos[r] = fp.GetPosition()
+        nets_of[r] = {p.GetNetname() for p in fp.Pads() if p.GetNetname()} - {"GND"}
+    viol = []
+    for r, nets in nets_of.items():
+        if not nets or r.startswith(("J", "TB", "H", "LOGO", "FID", "SW", "TP", "DL")):
+            continue                             # connectors/mech + ACCESS-placed classes
+                                                 # (buttons/testpoints/LEDs sit far by
+                                                 # design -- hand worst 24-33mm)
+        partners = [q for q, qn in nets_of.items() if q != r and (qn & nets)]
+        if not partners:
+            continue
+        d = min(math.hypot((pos[r].x - pos[q].x) / 1e6, (pos[r].y - pos[q].y) / 1e6)
+                for q in partners)
+        if d > max_mm:
+            viol.append((r, round(d, 1)))
+    viol.sort(key=lambda v: -v[1])
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_circuit_complete(routed_board_path):
+    """CIRCUIT-COMPLETENESS gate (owner ask 2026-07-08: 'does the FEM look for complete
+    circuits?' -- it did NOT: current is injected at sources and extracted at sinks
+    regardless of copper connectivity, so a stranded zone island passed thermal while
+    electrically dead). For every kelvin force net: ALL of its pads must live on ONE
+    connected copper island (pcbnew connectivity, zones filled). Generalizes to any
+    board with force nets; N/A without them."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    if not pairs:
+        return {"ok": True, "violations": [], "note": "no force nets -- N/A"}
+    # zones must be FILLED for a copper walk (fixtures store unfilled zones -- the
+    # eps reference false-fired); fill an in-memory copy, never write back.
+    def _has_polys(z):
+        try:
+            return any(z.GetFilledPolysList(l).OutlineCount() > 0
+                       for l in z.GetLayerSet().CuStack())
+        except Exception:                                # noqa: BLE001
+            return False
+    if not any(_has_polys(z) for z in board.Zones()):    # IsFilled() is the FLAG, not polys
+        try:
+            for z in board.Zones():
+                z.UnFill()                        # the recorded double-fill footgun
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        except Exception:                            # noqa: BLE001
+            pass
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
+    viol = []
+    for net in sorted({n for pr in pairs for n in pr}):
+        code = board.GetNetcodeFromNetname(net)
+        if code <= 0:
+            continue
+        # pads on the net vs connectivity: unconnected count for this net's items
+        pads = [(fp.GetReference(), p) for fp in board.GetFootprints()
+                for p in fp.Pads() if p.GetNetCode() == code]
+        if len(pads) < 2:
+            continue
+        # ISLAND BFS (the proven gnd-forensics pattern; GetRatsnestForNet is absent in
+        # this SWIG build): flood from the first pad via GetConnectedItems; every other
+        # pad must be reachable through copper.
+        try:
+            # the PROVEN forensics form: no-types GetConnectedItems + UUID identity
+            # (SWIG re-proxies objects; ids are unstable -- the recorded footgun)
+            keyf = lambda it: it.m_Uuid.AsString()
+            seen = {keyf(pads[0][1])}
+            frontier = [pads[0][1]]
+            while frontier:
+                nxt = []
+                for it in frontier:
+                    for c2 in conn.GetConnectedItems(it):
+                        k = keyf(c2)
+                        if k not in seen:
+                            seen.add(k)
+                            nxt.append(c2)
+                frontier = nxt
+            missing = [r for r, p in pads[1:] if keyf(p) not in seen]
+            if missing:
+                viol.append((net, "OPEN circuit -- unreachable pads", missing[:4]))
+        except Exception as e:                           # noqa: BLE001 -- FAIL-CLOSED
+            viol.append((net, "connectivity walk failed: %s" % str(e)[:60], []))
+    return {"ok": not viol, "violations": viol[:8]}
+
+
+def _oracle_kelvin_reach(placed_board_path, *, max_mm=9.0):
+    """PRE-ROUTE kelvin-reach gate (owner lever pass, 2026-07-08): every current-sense IC
+    input pad must sit within *max_mm* (the tap synthesizer's reach) of its pair's shunt
+    -- a placement that strands an INA past tap reach ALWAYS fails kelvin after routing,
+    so reject it BEFORE burning a 3-5 minute route. Board-only; N/A without pairs."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    if not pairs:
+        return {"ok": True, "violations": [], "note": "no kelvin pairs -- N/A"}
+    inp_pin = {"INA238": ("9", "10"), "INA228": ("9", "10"), "INA226": ("9", "10"),
+               "INA181": ("3", "4")}
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append((fp, p))
+    viol = []
+    n_checked = 0
+    for hi, lo in pairs:
+        sh = next((fp for fp, _p in pads_by_net.get(hi, [])
+                   if fp.GetReference().startswith("RS")
+                   and fp.GetReference() in {f.GetReference() for f, _q in pads_by_net.get(lo, [])}
+                   and fp.GetPadCount() == 2), None)
+        if sh is None:
+            continue
+        for net in (hi, lo):
+            for fp, p in pads_by_net.get(net, []):
+                val = (fp.GetValue() or "").upper()
+                want = next((v for k, v in inp_pin.items() if k in val), None)
+                if want is None or p.GetPadName() not in want:
+                    continue
+                n_checked += 1
+                d = min(math.hypot((p.GetPosition().x - q.GetPosition().x) / 1e6,
+                                   (p.GetPosition().y - q.GetPosition().y) / 1e6)
+                        for q in sh.Pads())
+                if d > max_mm:
+                    viol.append((fp.GetReference(), p.GetPadName(), net, round(d, 1)))
+    if n_checked == 0:
+        return {"ok": True, "violations": [], "note": "no sense inputs -- N/A"}
+    viol.sort(key=lambda v: -v[3])
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_courtyard_overlaps(placed_board_path):
+    """HARD courtyard gate (owner lever pass, 2026-07-08): ANY courtyard overlap on the
+    placed board fails -- the class that let J1 crash the sense row was visible to DRC
+    but not gated in the oracle path. Uses the real kicad-cli DRC (never a model)."""
+    import json as _json
+    import subprocess
+    import tempfile
+    out = tempfile.mkstemp(suffix=".json")[1]
+    try:
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out,
+                        placed_board_path], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["drc error: %s" % e]}
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    viol = []
+    for v in d.get("violations", []):
+        if v.get("type") == "courtyards_overlap":
+            pair = "|".join(it.get("description", "")[:40] for it in v.get("items", []))
+            viol.append(pair)
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_pin_escape(placed_board_path, *, boxed_pct_max=4.0, le1_pct_max=12.0,
+                       max_pads=10):
+    """PIN-ESCAPE gate (exploration round 2, 2026-07-08): every copper pad on a small
+    footprint (<= *max_pads* pads -- ICs/passives, not connectors) probes 8 directions
+    for a 0.3mm routing corridor (16 x 0.2mm steps from the pad's own edge, blocked by
+    any FOREIGN-net pad bbox inflated 0.15mm). A pad with 0 free directions is BOXED
+    (unroutable without a via-in-pad miracle); <=1 free direction is NEARLY boxed.
+    CALIBRATION (measured 2026-07-08, build/lens1_calib_all.py in-container):
+    hand hub/12vhpwr = 0.00%/0.00% on both; committed eps 1.71/6.86, pcie2 1.09/3.80,
+    pcie3 0.87/4.80 (boxed0/le1 %); fresh 24-pin wave board 9.06/23.02 -- all offenders
+    the sense front-end (U10-U13 INA/TLV). Floors 4.0/12.0 give ~2x headroom over every
+    accepted board and fail the fresh board on both terms. Placement-only (pads, no
+    copper) -- valid pre-route."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    dirs = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+    pads = []
+    padcount = {}
+    for f in board.GetFootprints():
+        cp = [p for p in f.Pads() if p.IsOnCopperLayer()]
+        padcount[f.GetReference()] = len(cp)
+        for p in cp:
+            nn = p.GetNetname()
+            if not nn:
+                continue
+            bb = p.GetBoundingBox()
+            pads.append((f.GetReference(), nn,
+                         p.GetCenter().x / 1e6, p.GetCenter().y / 1e6,
+                         bb.GetLeft() / 1e6, bb.GetRight() / 1e6,
+                         bb.GetTop() / 1e6, bb.GetBottom() / 1e6))
+    boxes = [(r[4], r[5], r[6], r[7], r[1]) for r in pads]
+    targets = [r for r in pads if padcount[r[0]] <= max_pads]
+    if not targets:
+        return {"ok": True, "violations": [], "note": "no small-footprint pads -- N/A"}
+
+    def _free_dirs(pad):
+        _ref, net, cx, cy, l, r, t, bot = pad
+        nf = 0
+        for dx, dy in dirs:
+            n = math.hypot(dx, dy)
+            ux, uy = dx / n, dy / n
+            sx = cx + (r - cx if dx > 0 else (l - cx if dx < 0 else 0))
+            sy = cy + (bot - cy if dy > 0 else (t - cy if dy < 0 else 0))
+            blocked = False
+            for s in range(1, 16):
+                px, py = sx + ux * 0.2 * s, sy + uy * 0.2 * s
+                for (bl, br, bt, bb2, bn) in boxes:
+                    if bn == net:
+                        continue
+                    if bl - 0.15 <= px <= br + 0.15 and bt - 0.15 <= py <= bb2 + 0.15:
+                        blocked = True
+                        break
+                if blocked:
+                    break
+            if not blocked:
+                nf += 1
+        return nf
+
+    free = [(_free_dirs(p), p) for p in targets]
+    n = len(free)
+    boxed0 = 100.0 * sum(1 for c, _p in free if c == 0) / n
+    le1 = 100.0 * sum(1 for c, _p in free if c <= 1) / n
+    by_ref = {}
+    for c, p in free:
+        if c <= 1:
+            by_ref[p[0]] = by_ref.get(p[0], 0) + 1
+    offenders = sorted(by_ref.items(), key=lambda x: -x[1])[:10]
+    ok = (boxed0 <= boxed_pct_max) and (le1 <= le1_pct_max)
+    return {"ok": ok, "boxed0_pct": round(boxed0, 2), "le1_pct": round(le1, 2),
+            "floors": {"boxed0": boxed_pct_max, "le1": le1_pct_max},
+            "violations": ([] if ok else offenders)}
+
+
+# ref prefixes whose courtyards LEGITIMATELY ride the board edge: connectors (mouths
+# overhang by design), mounts/holes, fiducials/markers, buttons + testpoints + LEDs
+# (access classes, same exemption set as the stranded-parts gate), blade receptacles,
+# logos. The ESP32 radio-module exemption is by VALUE (its antenna half sits at the
+# edge on the hand hub AND committed eps -- an accepted pattern, not a defect).
+_EDGE_EXEMPT_PREFIXES = ("J", "H", "M", "FID", "MK", "SW", "TB", "TP", "DL", "LOGO")
+
+
+def _oracle_courtyard_edge(placed_board_path, *, min_mm=0.8):
+    """COURTYARD-EDGE clearance gate (exploration round 2, 2026-07-08) via the NATIVE
+    KiCad DRU physical_clearance rule -- the bbox proxy false-flags rotated courtyards
+    (agent-PROVED), so the real engine measures. A temp copy of the board gets a
+    .kicad_dru with (constraint physical_clearance (min Xmm)) between F/B.CrtYd
+    graphics and Edge.Cuts; kicad-cli DRC reports the actual gap per part.
+    CALIBRATION (measured 2026-07-08, build/edge_gate_calib2.py in-container, floor
+    0.8mm + exemptions): hub/12vhpwr/eps/pcie2 all CLEAN (the 12vhpwr's closest
+    non-exempt part sits at 0.84mm -- the calibration floor); the fresh 24-pin wave
+    board fails with C50/FB2/C7/D7/U1 at 0.00mm and 5 more under 0.76mm. Exempt: the
+    _EDGE_EXEMPT_PREFIXES classes + ESP32 radio modules by value. Placement-only."""
+    import json as _json
+    import re as _re
+    import subprocess
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    val_by_ref = {fp.GetReference(): (fp.GetValue() or "").upper()
+                  for fp in board.GetFootprints()}
+    dru = (
+        '(version 1)\n'
+        '(rule "courtyard-edge-margin-f"\n'
+        '   (layer "F.CrtYd")\n'
+        '   (constraint physical_clearance (min %.3fmm))\n'
+        '   (condition "A.Type == \'Graphic\' && B.Layer == \'Edge.Cuts\'")\n'
+        '   (severity error))\n'
+        '(rule "courtyard-edge-margin-b"\n'
+        '   (layer "B.CrtYd")\n'
+        '   (constraint physical_clearance (min %.3fmm))\n'
+        '   (condition "A.Type == \'Graphic\' && B.Layer == \'Edge.Cuts\'")\n'
+        '   (severity error))\n' % (min_mm, min_mm))
+    work = tempfile.mkdtemp(prefix="cec_edge_gate_")
+    try:
+        bp = os.path.join(work, "board.kicad_pcb")
+        shutil.copy(placed_board_path, bp)
+        with open(os.path.join(work, "board.kicad_dru"), "w") as fh:
+            fh.write(dru)
+        out = os.path.join(work, "drc.json")
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                        "-o", out, bp], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["edge-gate drc error: %s" % e]}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    worst = {}
+    for v in d.get("violations", []):
+        if "courtyard-edge-margin" not in (v.get("description") or ""):
+            continue
+        mgap = _re.search(r"actual ([0-9.]+) mm", v.get("description", ""))
+        gap = float(mgap.group(1)) if mgap else 0.0
+        for it in v.get("items", []):
+            mref = _re.search(r"of (\S+) on [FB]\.Courtyard", it.get("description", ""))
+            if mref:
+                ref = mref.group(1)
+                if ref not in worst or gap < worst[ref]:
+                    worst[ref] = gap
+    viol = sorted(((r, g) for r, g in worst.items()
+                   if not r.upper().startswith(_EDGE_EXEMPT_PREFIXES)
+                   and "ESP32" not in val_by_ref.get(r, "")),
+                  key=lambda x: x[1])
+    return {"ok": not viol, "min_mm": min_mm, "violations": viol[:10]}
+
+
+def _oracle_comparator_adjacency(placed_board_path, *, max_mm=8.0):
+    """DETECTION-CELL gate term (opus fundamentals audit 2026-07-08, gate-worthy with a
+    BIMODAL clean cut: seated cells measure 3.9-7.3mm, failures 30-48mm): each TLV7011
+    comparator must sit within *max_mm* pad-to-pad of the INA181 it shares a /DETAMP* net
+    with -- the sec6.13 transient cell is shunt->INA181->comparator and fragments on ~40%
+    of placer rails with zero DRC/gate visibility. N/A on boards without the cell."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    by_net = {}
+    for fp in board.GetFootprints():
+        val = (fp.GetValue() or "").upper()
+        kind = "cmp" if "TLV70" in val else ("ina" if "INA181" in val else None)
+        if not kind:
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn and "DETAMP" in nn.upper():
+                by_net.setdefault(nn, {})[kind] = by_net.get(nn, {}).get(kind) or []
+                by_net[nn][kind].append((fp.GetReference(), p.GetPosition()))
+    viol = []
+    n_cells = 0
+    for net, kinds in by_net.items():
+        if "cmp" not in kinds or "ina" not in kinds:
+            continue
+        n_cells += 1
+        d = min(math.hypot((a.x - b.x) / 1e6, (a.y - b.y) / 1e6)
+                for _r1, a in kinds["cmp"] for _r2, b in kinds["ina"])
+        if d > max_mm:
+            viol.append((kinds["cmp"][0][0], kinds["ina"][0][0], net, round(d, 1)))
+    if n_cells == 0:
+        return {"ok": True, "violations": [], "note": "no detection cells -- N/A"}
+    return {"ok": not viol, "violations": viol[:8]}
+
+
+def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
+    """HARD body-in-pour gate (owner 2026-07-08: 'NO TRACES OR PLACEMENTS IN POURS AT ALL
+    EVER' -- the traces half is the existing foreign_on_pour 0/0 term; THIS is the
+    placements half, which until now was only a soft legalizer evacuation and was silently
+    inert on shared-bus boards). A FOREIGN part's courtyard center inside any rail pour box
+    on its own mounting side = violation. Exempt: parts carrying the pour's own net (the
+    shunt, the connector/blades the pour feeds -- the box is derived FROM their pads) and
+    THT connectors (the pour legitimately laps their barrel field).
+    OPERATING DOMAIN: pipeline-FRESH boards only (the oracle path). Hand fab boards carry
+    their high-current copper as tracks/hand shapes and interleave sense parts by design --
+    they are governed by the pour-integrity/cross-section checkers, never this boolean."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    # PREFER the board's REAL zones (a hand board's pours are exact shapes weaving between
+    # legitimate parts -- derived bounding boxes false-fired on the fab 12vhpwr's sensing
+    # row); derived boxes only when the board carries no rail zones yet (fresh placements).
+    # Boards with REAL rail zones (hand boards): a boolean body test is the WRONG model --
+    # foreign fill legitimately flows UNDER small bodies (only pads short; measured: the fab
+    # 12vhpwr's interleaved sense row sits over filled SENSEP copper by design). What hand
+    # boards obey is "the pour still meets cross-section after carving" = the existing
+    # pour-integrity/min-cross-section checkers. The HARD boolean below applies to FRESH
+    # placements (derived boxes, no zones yet) where the placer controls everything.
+    for z in board.Zones():
+        zn = z.GetNetname()
+        if zn and zn != "GND" and (zn.startswith("+") or "SENSE" in zn.upper()):
+            return {"ok": True, "violations": [],
+                    "note": "real rail zones present -- governed by pour-integrity checkers"}
+    viol = []
+    # POUR LEVER (stage 1): the bodies gate is now a PourPlan consumer -- the same plan view the
+    # settle/keepout/copper compile from, so the box a body is tested against == the box the pour
+    # fills. Byte-identical to the old derive_power_pours(board=board) (both board-derived pairs).
+    import cec_pourplan
+    pours = cec_pourplan.PourPlan.from_board(placed_board_path, board=board).pour_polygons()
+    if not pours:
+        return {"ok": True, "violations": [], "note": "no rail pours -- N/A"}
+    boxes = []
+    for p in pours:
+        xs = [q[0] for q in p["polygon"]]
+        ys = [q[1] for q in p["polygon"]]
+        boxes.append((p["net"], p["layer"], min(xs) - margin, max(xs) + margin,
+                      min(ys) - margin, max(ys) + margin))
+    # STRICT (owner overrule 2026-07-08, third statement of this rule): NO family
+    # exemption -- with LANE pours the chains live BETWEEN lanes / in the notch band,
+    # never inside pour copper.
+    for fp in board.GetFootprints():
+        ref = fp.GetReference() or ""
+        if ref.startswith(("J", "TB", "H", "LOGO", "FID")):
+            continue                                     # connectors/blades/mechanical: exempt
+        fp_nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
+        side = "B.Cu" if fp.IsFlipped() else "F.Cu"
+        c = fp.GetPosition()
+        cx, cy = c.x / 1e6, c.y / 1e6
+        for net, layer, x0, x1, y0, y1 in boxes:
+            if net in fp_nets:
+                continue                                 # the pour's own component
+            if layer != side:
+                continue                                 # inner pours: no bodies live there
+            if x0 <= cx <= x1 and y0 <= cy <= y1:
+                viol.append((ref, net, layer))
+                break
+    return {"ok": not viol, "violations": viol[:14]}
+
+
+def _oracle_pour_uniformity(placed_board_path, *, tol_pitch=0.1, tol_shape=0.1):
+    """PER-CABLE OUTPUT-FIELD UNIFORMITY gate (owner ruling 2026-07-09, production/interchangeability
+    grounds). The pipeline controls the per-cable output pinout WITHIN ampacity, but the assignment
+    and the resulting pours must be IDENTICAL across cable positions (and across the PCIe 2-/3-port
+    SKUs). Two surfaces, BOTH gated:
+
+      (a) TAB-ROW pitch uniformity -- the output blade tabs are the mechanical mate = the actual
+          interchangeability spec. A daughterboard designed for one cable slot must fit any slot, so
+          the cable-to-cable tab pitch must be CONSTANT. Uneven pitch (the owner's observed defect on
+          fresh PCIe boards) FAILS. Fixed at its ROOT in the placer (uniform cable-column pitch);
+          this gate is the standing production guarantee.
+      (b) OUTPUT pour SHAPE identity across positions -- derive-once-stamp-N keeps this true; gated so
+          it stays true.
+
+    The tab POSITIONS themselves are the reference (read straight off the board footprints, like the
+    daughterboard keying checker reads pcb_placement()); the pour is only allowed to differ from a
+    per-position translate if that difference is a REAL shape delta (b), never a pitch (a). N/A
+    (applicable=False, ok=True) on boards with no per-cable output family (24-pin / 12VHPWR / Hub).
+    OPERATING DOMAIN: pipeline-FRESH boards (the oracle path)."""
+    import pcbnew
+    import cec_pourplan
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"applicable": True, "ok": False, "violations": ["board unloadable"]}
+    MM = 1e6
+    # OUTPUT tab positions: the THT pads on each cable's _LO (post-shunt, output) net, grouped by
+    # (prefix, cable index). Excludes the shunt (SMD) -- the tab blocks are the mechanical mate.
+    tab_pts = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            pr = cec_pourplan._parse_cable_net(p.GetNetname())
+            if pr is None or pr[2] != "_LO" or p.GetAttribute() != pcbnew.PAD_ATTRIB_PTH:
+                continue
+            pos = p.GetPosition()
+            tab_pts.setdefault(pr[0], {}).setdefault(pr[1], []).append((pos.x / MM, pos.y / MM))
+    out_roles = {pre: by for pre, by in tab_pts.items() if len(by) >= 2}
+    if not out_roles:
+        return {"applicable": False, "ok": True, "violations": [],
+                "note": "no per-cable output tab family (shared-bus / per-rail board)"}
+    # the OUTPUT pours (honours the live recipe -- e.g. CEC_POUR_UNIFORM stamps the shape uniform)
+    plan = cec_pourplan.PourPlan.from_board(placed_board_path, board=board)
+    lo_pours = {}
+    for s in plan.specs:
+        pr = cec_pourplan._parse_cable_net(s.net)
+        if pr and pr[2] == "_LO" and s.rect() is not None:
+            lo_pours.setdefault(pr[0], {}).setdefault(pr[1], []).append(s.rect())
+    return _pour_uniformity_verdict(out_roles, lo_pours, tol_pitch=tol_pitch, tol_shape=tol_shape)
+
+
+def _pour_uniformity_verdict(tabs_by_role, pours_by_role, *, tol_pitch=0.1, tol_shape=0.1):
+    """PURE (pcbnew-free) uniformity math -- so the firing case is unit-testable without a board.
+    `tabs_by_role`  = {prefix: {cable_idx: [(x,y), ...] output tab pad positions}} (>=2 idx per role).
+    `pours_by_role` = {prefix: {cable_idx: [(x0,x1,y0,y1) LO pour rects]}}.
+    Verdict: tab-row pitch uniform across positions (a) AND output pour SHAPE identical (b)."""
+    def _mag(v):
+        return (v[0] ** 2 + v[1] ** 2) ** 0.5
+
+    def _shape_dev(a, b):
+        """max |w/h diff| between two sorted (w,h) shape lists; None if the counts differ."""
+        if len(a) != len(b):
+            return None
+        return max((max(abs(aw - bw), abs(ah - bh)) for (aw, ah), (bw, bh) in zip(a, b)), default=0.0)
+
+    viol = []
+    max_pitch_dev = 0.0
+    max_shape_dev = 0.0
+    for pre, by in tabs_by_role.items():
+        positions = sorted(by)
+        # (a) TAB-ROW pitch uniformity -- per-cable reference = min-corner of its output tab pads
+        refs = {i: (min(p[0] for p in by[i]), min(p[1] for p in by[i])) for i in positions}
+        pitches = [(refs[positions[k + 1]][0] - refs[positions[k]][0],
+                    refs[positions[k + 1]][1] - refs[positions[k]][1])
+                   for k in range(len(positions) - 1)]
+        if len(pitches) >= 2:                              # >=3 positions -> a pitch CAN be uneven
+            p0 = pitches[0]
+            for k, pk in enumerate(pitches[1:], start=1):
+                dev = max(abs(pk[0] - p0[0]), abs(pk[1] - p0[1]))
+                max_pitch_dev = max(max_pitch_dev, dev)
+                if dev > tol_pitch:
+                    viol.append(
+                        "tab-row pitch NON-UNIFORM (%s output field): cable %d->%d pitch %.3fmm vs "
+                        "cable %d->%d %.3fmm (dev %.3fmm > %.2f) -- a per-slot daughterboard would not "
+                        "interchange" % (pre, positions[k], positions[k + 1], _mag(pk),
+                                         positions[0], positions[1], _mag(p0), dev, tol_pitch))
+        # (b) output pour SHAPE identity across positions
+        shapes = {i: sorted((round(r[1] - r[0], 4), round(r[3] - r[2], 4))
+                            for r in pours_by_role.get(pre, {}).get(i, []))
+                  for i in positions}
+        ref_i = positions[0]
+        for i in positions[1:]:
+            sd = _shape_dev(shapes[ref_i], shapes[i])
+            max_shape_dev = max(max_shape_dev, 999.0 if sd is None else sd)
+            if sd is None or sd > tol_shape:
+                viol.append("output pour SHAPE differs (%s): cable %d %s vs cable %d %s"
+                            % (pre, ref_i, shapes[ref_i], i, shapes[i]))
+    return {"applicable": True, "ok": not viol, "violations": viol[:12],
+            "max_pitch_dev_mm": round(max_pitch_dev, 3), "max_shape_dev_mm": round(max_shape_dev, 3),
+            "tol_pitch_mm": tol_pitch, "tol_shape_mm": tol_shape,
+            "positions": {pre: sorted(by) for pre, by in tabs_by_role.items()}}
+
+
+def _oracle_pair_quality(routed_board_path, *, max_skew_mm=4.0):
+    """DATA-PAIR gate term (owner 2026-07-08: 'data lines as short and ran as pairs'):
+    each recognized pair (USB *_P/_N, CAN *_H/_L) must be length-matched within
+    *max_skew_mm* -- gross skew means the members took different paths (loop area), i.e.
+    NOT run as a pair. Lengths measured directly from the routed board's tracks (the
+    cec_score net_len subset excludes signal nets). Unrouted members are the routing
+    gate's business, never double-flagged here."""
+    import pcbnew
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"], "pairs": {}}
+    lens = {}
+    for tr in board.GetTracks():
+        if tr.Type() == pcbnew.PCB_VIA_T:
+            continue
+        n = tr.GetNetname()
+        if not n:
+            continue
+        a, b = tr.GetStart(), tr.GetEnd()
+        lens[n] = lens.get(n, 0.0) + math.hypot((a.x - b.x) / 1e6, (a.y - b.y) / 1e6)
+    names = set(lens)
+    pairs = []
+    for n in sorted(names):
+        u = n.upper()
+        # DATA pairs only (USB/CAN): the analog boards' IN*_P/_N sense-filter pairs differ
+        # by legitimate geometry and are not data lines (measured 6.7mm on the hand-routed
+        # 12vhpwr). max_skew CALIBRATED on the hand boards: CAN skew 2.8mm on both.
+        if ("USB" not in u and "CAN" not in u):
+            continue
+        if n.endswith("_P") and n[:-2] + "_N" in names:
+            pairs.append((n, n[:-2] + "_N"))
+        if n.endswith("_H") and "CAN" in u and n[:-2] + "_L" in names:
+            pairs.append((n, n[:-2] + "_L"))
+    viol = []
+    detail = {}
+    for a, b in pairs:
+        la, lb = lens[a], lens[b]
+        if la <= 0.0 or lb <= 0.0:
+            continue
+        skew = abs(la - lb)
+        detail["%s|%s" % (a, b)] = {"len_a": round(la, 1), "len_b": round(lb, 1),
+                                    "skew": round(skew, 1)}
+        if skew > max_skew_mm:
+            viol.append("%s vs %s skew %.1fmm (max %.1f)" % (a, b, skew, max_skew_mm))
+    return {"ok": not viol, "violations": viol, "pairs": detail}
+
+def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
+    """The THERMAL gate term: the dashboard solve recipe (cec_thermal_overlay._solve_thermal -> the 2.5D
+    cec_thermal2d field solver, with the per-board currents/stackup/cooling) -> dT <= gate_dt. FAIL-CLOSED:
+    a solver error is NOT a pass (the false-summit hazard is exactly a board that LOOKS routed but cooks).
+
+    MIRAGE GUARD (owner concern + MEASURED 2026-07-08, build/probe_thermal_repeat*.py): the solve is
+    NON-DETERMINISTIC on at least one fresh artifact -- back-to-back identical calls returned dT 119.5/
+    103.3/174.4 (GPU) and 0.0/20.8/20.9 (forced CPU); the pyamg ml.solve path returns its best iterate
+    with NO convergence flag. Two guards until the solver investigation closes (FOLLOWUPS): (a) dT<=0.05
+    on a powered board is physically impossible -> solver error, FAIL; (b) a would-be PASS must be
+    CONFIRMED by a second independent solve -- disagreement (>max(2C, 20%)) or a failing re-solve FAILS,
+    and the REPORTED dT is the worst of the two. A thermal-mirage pass now needs two lucky solves."""
+    import cec_thermal_overlay as _tov
+    res, _filled, label = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
+    dT = float(res.max_T) - float(res.ambient)
+    if dT <= 0.05:
+        return {"ok": False, "max_T": round(float(res.max_T), 2),
+                "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+                "gate_dt": gate_dt, "cooling": label,
+                "error": "solver returned dT~0 -- impossible for a powered board (broken solve)"}
+    if dT <= gate_dt:
+        res2, _f2, _l2 = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
+        dT2 = float(res2.max_T) - float(res2.ambient)
+        worst = max(dT, dT2)
+        if dT2 <= 0.05 or abs(dT2 - dT) > max(2.0, 0.2 * max(dT, dT2)) or worst > gate_dt:
+            return {"ok": False, "max_T": round(float(res.ambient) + worst, 2),
+                    "ambient": round(float(res.ambient), 2), "dT": round(worst, 2),
+                    "gate_dt": gate_dt, "cooling": label,
+                    "error": "UNSTABLE solve: dT %.2f vs %.2f on identical re-solve "
+                             "(pass requires two agreeing solves)" % (dT, dT2)}
+        dT = worst
+    return {"ok": (dT <= gate_dt), "max_T": round(float(res.ambient) + dT, 2),
+            "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+            "gate_dt": gate_dt, "cooling": label}
+
+
+def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
+                       gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
+                       route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600,
+                       craft_gates=True, thermal="always", protect_nets=(), precision=False):
+    """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
+    post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
+
+    placement_or_board : a Candidate (materialized via cfg) OR a path to a .kicad_pcb placement.
+    route              : True -> route the (placement) board with the gate-clean recipe, then grade the
+                         routed board; False -> grade the input board AS-IS (it is already routed).
+
+    The verdict is the conjunction -- ALL must hold (never a subset; kelvin_ok+drc is a false summit):
+      * gates_pass        = kelvin_ok AND diffpair_ok AND drc-finishing-only (cec_score, structural drc==0)
+      * foreign_ok        = cec_constraints.foreign_on_pour_summary (status ok, 0 foreign track/via; run
+                            with CEC_SHUNT_GAP=1 -- status 'error' FAILS, 'na' is a clean N/A on shared-bus)
+      * thermal_ok        = the 2.5D field solve dT <= gate_dt (FAIL-CLOSED on solver error)
+      * routing_complete  = no unconnected ratline on a safety/power net, and <= unconn_finish_tol signal
+                            ratlines (the documented cec_route finishing residual). unconn_finish_tol=0 = strict.
+
+    Returns a dict carrying gate (bool), the per-term verdicts, the raw metrics, and `sort_key` -- the
+    sortable selection key (lower = better): gate-clean candidates rank first (tie-break thermal margin /
+    via / length), gate-FAILING below ordered by how CLOSE to clean (safety fails, then foreign, then
+    unconnected, then drc, then thermal) so the placer still yields a best-effort + a clear escalation signal."""
+    import cec_constraints
+    import cec_fr  # noqa: F401  -- ensures pcbnew/FR availability surfaces here, not mid-route
+
+    own_wd = work_dir is None
+    work_dir = work_dir or tempfile.mkdtemp(prefix="cec_oracle_")
+    os.makedirs(work_dir, exist_ok=True)
+    label = None
+    try:
+        with _oracle_env():
+            # ---- 1. resolve the placement board (materialize a Candidate; else use the path) ----
+            if isinstance(placement_or_board, Candidate):
+                if cfg is None:
+                    raise ValueError("route_oracle_grade(Candidate) requires cfg= to materialize")
+                label = f"{placement_or_board.strat}/seed{placement_or_board.seed}"
+                placed = materialize(placement_or_board, cfg,
+                                     os.path.join(work_dir, "placed.kicad_pcb"))
+            else:
+                placed = placement_or_board
+                label = os.path.basename(str(placed))
+                if not os.path.isfile(placed):
+                    raise FileNotFoundError(f"route_oracle_grade: board not found: {placed!r}")
+
+            # PROTECT-LIST helper (P4, docs/pass-form-plan.md §4, S3): a stamped blueprint cell's
+            # LOCKED internal copper must SURVIVE Freerouting -- add its nets to protect_nets
+            # (cec_fr02.force_protect_in_dsn upgrades fix->protect; FR 1.7.0 DROPS unprotected fix
+            # wires). locked_nets() is EMPTY on every non-blueprint board (FR output isn't locked,
+            # the golden floorplan has 0 tracks) -> protect_nets unchanged + the guard inert ->
+            # byte-identical. The SAME set arms the double-lay guard so the tap/pair synthesizer
+            # never re-lays on a net the cell already routed (my own guard; cec_fr.py untouched).
+            import cec_cell_extract
+            _locked_bp = cec_cell_extract.locked_nets(placed)
+            if _locked_bp:
+                protect_nets = tuple(set(protect_nets) | _locked_bp)
+
+            # ---- 2. route it with the gate-clean recipe (ONE route_once), or grade as-is ----
+            t0 = time.monotonic()
+            prec_report = None
+            if route:
+                hints, pours, rules = _oracle_hints_pours(placed)
+                routed = os.path.join(work_dir, "routed.kicad_pcb")
+                # PRECISION-FIRST (STAGE S2, plan §4/§5): lay R2 kelvin + R3 coupled pairs on
+                # the UNCONTENDED placement and LOCK them, then FR fills only the residual with
+                # the locked copper PROTECTed (fix->protect in the DSN, else FR 1.7.0 drops it).
+                # precision=False (default) = byte-identical single-route_once path. Composes
+                # with the S3 blueprint guard: _locked_bp nets are already in protect_nets and
+                # the double-lay guard wraps the route either way.
+                route_input, _protect, _skip_taps = placed, list(protect_nets), False
+                if precision:
+                    import cec_precision_route
+                    prec = os.path.join(work_dir, "precision.kicad_pcb")
+                    prec_report = cec_precision_route.precision_route(placed, prec, verbose=verbose)
+                    route_input = prec
+                    _protect = sorted(set(_protect) | set(prec_report.get("locked_nets", [])))
+                    _skip_taps = True  # taps laid+locked pre-FR; import_ses must not re-lay them
+                    # REFUSED-PAIR TIER (owner blind verdict, 2026-07-09: precision's
+                    # refused 24-pin CAN went UNROUTED in the contended residual): each
+                    # refused pair gets a SOLO uncontended FR pass (staged-FR tier-only
+                    # mode) with the precision copper protected, BEFORE the recipe route.
+                    _refused = [pr for pr in (prec_report.get("pairs") or {}).get("refused", [])
+                                if isinstance(pr, dict) and pr.get("p") and pr.get("n")]
+                    if _refused:
+                        import cec_staged_fr
+                        tier_nets = sorted({n for pr in _refused for n in (pr["p"], pr["n"])})
+                        prec2 = os.path.join(work_dir, "precision-tiered.kicad_pcb")
+                        try:
+                            cec_staged_fr.route_tiered(
+                                prec, prec2, tiers=[tier_nets], include_residual=False,
+                                pre_locked_nets=set(_protect), passes=passes, opt=opt,
+                                seed=seed, timeout=int(fr_timeout), verbose=verbose)
+                            route_input = prec2
+                            _protect = sorted(set(_protect) | set(tier_nets))
+                            prec_report["refused_pair_tier"] = tier_nets
+                        except Exception as _te:         # noqa: BLE001 -- fail-safe
+                            prec_report["refused_pair_tier_error"] = str(_te)[:160]
+                with cec_cell_extract.guard_kelvin_double_lay(cec_fr, _locked_bp):
+                    cand = cec_fr.route_once(route_input, routed, hints=hints, power_pours=pours,
+                                             passes=passes, opt_time=opt, seed=seed,
+                                             timeout=int(fr_timeout),
+                                             protect_nets=_protect, skip_locked_taps=_skip_taps)
+                if not cand.ok:
+                    return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
+                                             error=f"route failed: {cand.err}")
+                # LOCKED-NET RECONCILE (owner catch 2026-07-12: the wave "scrapped the
+                # nice traces... redid the shunt 90s" -- FR echoes protected wires back
+                # as unlocked duplicates AND re-routes force nets it fails to credit as
+                # connected, at DSN class width: measured 2.5mm F.Cu bulldozers through
+                # the tap region). Strip FR's additions on nets the locked lay fully
+                # owns (pad-coverage-tested); partial nets lose exact echoes only. The
+                # grade's own DRC right after verifies connectivity survived.
+                if _locked_bp:
+                    try:
+                        _rec = cec_fr.reconcile_locked_nets(routed)
+                        if _rec:
+                            print("[route] locked-net reconcile removed: %s"
+                                  % _rec, file=sys.stderr)
+                    except Exception as e:                    # noqa: BLE001 -- surface, don't die
+                        print("[route] locked-net reconcile FAILED: %s: %s"
+                              % (type(e).__name__, e), file=sys.stderr)
+                # GND-FANOUT (owner rule 2026-07-08, wired post-wave-12): impedance-
+                # reducing per-GND-pin vias on the oracle's OWN routed copy, fully
+                # legality-guarded + teeth-verified DRC-neutral (cec_gnd_fanout).
+                # route=False leaves external input boards UNTOUCHED by design.
+                try:
+                    import cec_gnd_fanout
+                    # ISLAND STITCH first (owner must-fix 2026-07-15): pierce locked
+                    # GND stub islands to the inner plane; the report's plane_mm2 is
+                    # the standing plane-presence guard in every verdict.
+                    stitch_rep = cec_gnd_fanout.stitch_locked_islands(routed)
+                    gnd_rep = cec_gnd_fanout.synthesize(routed)
+                    gnd_rep["stitch"] = stitch_rep
+                except Exception as e:                        # noqa: BLE001 -- fail-safe
+                    gnd_rep = {"added": 0, "error": "%s: %s" % (type(e).__name__, e)}
+            else:
+                routed = placed
+                rules = cec_score.Rules.from_board(routed)
+                gnd_rep = {"added": 0, "note": "route=False -- input board not mutated"}
+            route_s = round(time.monotonic() - t0, 1)
+
+            # ---- 3. grade: the full conjunction ----
+            m = cec_score.score(routed, rules=rules)
+            gates_pass = bool(m.gates_pass)                  # kelvin_ok AND diffpair_ok AND drc==0
+
+            fsum = cec_constraints.foreign_on_pour_summary(routed)
+            foreign_ok = (fsum.get("status") != "error"
+                          and fsum.get("n_tracks", 0) == 0 and fsum.get("n_vias", 0) == 0)
+
+            unconn_nets = list(m.detail.get("unconn_nets", []))
+            crit, sig = _classify_unconnected(unconn_nets, rules)
+            routing_complete = (len(crit) == 0) and (m.unconnected <= unconn_finish_tol)
+
+            try:
+                sside = _oracle_sense_side(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                sside = {"applicable": True, "ok": False,
+                         "violations": ["checker error: %s" % e]}
+            sense_side_ok = bool(sside.get("ok"))
+
+            try:
+                dq = _oracle_decoupler_adjacency(placed, cfg)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                dq = {"ok": False, "violations": [("checker error", str(e)[:80], -1)]}
+            try:
+                bq = _oracle_bodies_in_pours(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                bq = {"ok": False, "violations": ["checker error: %s" % e]}
+            bodies_ok = bool(bq.get("ok")) or not craft_gates
+            try:
+                puni = _oracle_pour_uniformity(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                puni = {"applicable": True, "ok": False, "violations": ["checker error: %s" % e]}
+            pour_uniform_ok = bool(puni.get("ok")) or not craft_gates
+            try:
+                pq = _oracle_pair_quality(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                pq = {"ok": False, "violations": ["checker error: %s" % e]}
+            # ADVISORY (2026-07-08): the orphaned pour-family + DFM checkers are WIRED but
+            # not gating -- teeth showed both mis-fire on controls (pour-present name-
+            # matches /DET12V as high-current; DFM counts 94 on the SHIPPED 12vhpwr).
+            # Calibration owner-queued; visibility now beats silent orphanhood.
+            try:
+                pfam = _oracle_pour_family(routed)
+            except Exception as e:                            # noqa: BLE001
+                pfam = {"ok": False, "checks": {"error": {"ok": False, "detail": str(e)[:120]}}}
+            try:
+                dfm = _oracle_dfm(routed)
+            except Exception as e:                            # noqa: BLE001
+                dfm = {"ok": False, "violations": [str(e)[:120]]}
+            try:
+                rsan = _oracle_route_sanity(routed)
+            except Exception as e:                            # noqa: BLE001
+                rsan = {"ok": False, "violations": ["checker error: %s" % e]}
+            try:
+                facing = _oracle_facing_fraction(placed)
+            except Exception as e:                            # noqa: BLE001
+                facing = {"ok": False, "facing_pct": None, "note": str(e)[:120]}
+            try:
+                gapp = _oracle_gap_profile(placed)
+            except Exception as e:                            # noqa: BLE001
+                gapp = {"ok": False, "note": str(e)[:120]}
+            # SI advisories (cheap wins, owner GO 2026-07-08): Z0/Zdiff vs the stackup
+            # (netclass-file-only, ~ms), kelvin loop-area + crosstalk on ONE shared load.
+            try:
+                import cec_impedance
+                import pcbnew as _pn
+                _sib = _pn.LoadBoard(routed)
+                si = {"impedance": cec_impedance.audit_impedance(routed),
+                      "kelvin_loops": cec_impedance.audit_kelvin_loops(routed, board=_sib),
+                      "crosstalk": cec_impedance.audit_crosstalk(routed, board=_sib)}
+            except Exception as e:                            # noqa: BLE001
+                si = {"error": "%s: %s" % (type(e).__name__, e)}
+            try:
+                sp = _oracle_stranded_parts(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                sp = {"ok": False, "violations": ["checker error: %s" % e]}
+            stranded_ok = bool(sp.get("ok")) or not craft_gates
+            try:
+                cc = _oracle_circuit_complete(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cc = {"ok": False, "violations": ["checker error: %s" % e]}
+            circuit_ok = bool(cc.get("ok")) or not craft_gates
+            try:
+                kr = _oracle_kelvin_reach(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                kr = {"ok": False, "violations": ["checker error: %s" % e]}
+            kelvin_reach_ok = bool(kr.get("ok")) or not craft_gates
+            try:
+                cy = _oracle_courtyard_overlaps(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cy = {"ok": False, "violations": ["checker error: %s" % e]}
+            courtyards_ok = bool(cy.get("ok")) or not craft_gates
+            try:
+                cq = _oracle_comparator_adjacency(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cq = {"ok": False, "violations": ["checker error: %s" % e]}
+            comparator_ok = bool(cq.get("ok")) or not craft_gates
+            try:
+                pe = _oracle_pin_escape(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                pe = {"ok": False, "violations": ["checker error: %s" % e]}
+            pin_escape_ok = bool(pe.get("ok")) or not craft_gates
+            try:
+                ce = _oracle_courtyard_edge(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                ce = {"ok": False, "violations": ["checker error: %s" % e]}
+            courtyard_edge_ok = bool(ce.get("ok")) or not craft_gates
+            try:
+                _fid_expect = bool(cfg is not None and str(
+                    (cfg.params or {}).get("fiducials", "3")).lower()
+                    not in ("none", "0", ""))
+                fq = _oracle_fiducials(placed, expect=_fid_expect)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                fq = {"ok": False, "violations": ["checker error: %s" % e]}
+            fiducials_ok = bool(fq.get("ok")) or not craft_gates
+            try:
+                tb = _oracle_tht_backside(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                tb = {"ok": False, "violations": ["checker error: %s" % e]}
+            tht_backside_ok = bool(tb.get("ok")) or not craft_gates
+            decouple_ok = bool(dq.get("ok")) or not craft_gates
+            pairs_ok = bool(pq.get("ok")) or not craft_gates
+
+            # ---- thermal LAST (owner directive 2026-07-08: "thermal gate only on a
+            # 'new best' board"). thermal='lazy' runs the 5-17s field solve ONLY when
+            # every OTHER gate term already passed -- i.e. the candidate would be
+            # gate-clean and could win the wave, so thermal must CONFIRM it is not a
+            # thermal mirage. An already-failing candidate skips the solve (its gate is
+            # False either way; dT was only ever its LAST tie-break). A gate=True can
+            # NEVER be produced without a real thermal pass (thermal-gate-required).
+            others_ok = bool(gates_pass and foreign_ok and routing_complete
+                             and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
+                             and comparator_ok and kelvin_reach_ok and courtyards_ok
+                             and circuit_ok and stranded_ok and pin_escape_ok
+                             and courtyard_edge_ok and fiducials_ok and tht_backside_ok
+                             and pour_uniform_ok)
+            if thermal == "lazy" and not others_ok:
+                therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
+                         "gate_dt": gate_dt,
+                         "note": "lazy skip: other gate terms already failed"}
+                # the SILK score (its own ~0.9s --severity-all DRC) only matters as the
+                # TIER-0 tie-break, unreachable for a failing candidate -- skip with it.
+                silk = {"ok": True, "score_per_fp": None, "skipped": True}
+            else:
+                try:
+                    therm = _oracle_thermal(routed, ambient=ambient, gate_dt=gate_dt,
+                                            grid_mm=grid_mm)
+                except Exception as e:                        # noqa: BLE001 -- FAIL-CLOSED
+                    therm = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                             "max_T": None, "dT": None, "gate_dt": gate_dt}
+                try:
+                    silk = _oracle_silk_score(routed)
+                except Exception as e:                        # noqa: BLE001
+                    silk = {"ok": False, "score_per_fp": None,
+                            "violations": ["checker error: %s" % e]}
+            thermal_ok = bool(therm.get("ok"))
+
+            gate = bool(others_ok and thermal_ok)
+
+            ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
+            safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
+            dT_for_key = therm.get("dT")
+            dT_for_key = float(dT_for_key) if dT_for_key is not None else 1e6
+            # sort_key (ascending, best first). tier 0 = gate-clean: tie-break by thermal MARGIN
+            # (smaller dT first), then fewer vias, then the SILK score/fp (round-2 item 3 -- the
+            # craft term: hand 0.18-0.43 vs fresh 4.5+), then shorter length. tier 1 = failing:
+            # ordered by CLOSENESS -- safety fails first, then foreign, then unconnected, then
+            # drc, then thermal.
+            silk_key = silk.get("score_per_fp")
+            silk_key = float(silk_key) if silk_key is not None else 99.0
+            if gate:
+                sort_key = (0, round(dT_for_key, 1), m.vias, round(silk_key, 1),
+                            round(m.length, 1), 0)
+            else:
+                # len(crit) ranks ahead of raw unconnected (owner-run finding 2026-07-14:
+                # wave-8's "best" stranded FIVE critical nets incl. two force lanes yet
+                # outranked cleaner boards on raw unconn -- _classify_unconnected already
+                # declares a critical ratline a HARD route failure; the key now agrees).
+                sort_key = (1, safety_fails, len(crit), ft, m.unconnected, m.drc,
+                            round(dT_for_key, 1))
+
+            res = {
+                "gate": gate, "label": label, "route_s": route_s, "routed": routed,
+                "passes": passes, "opt": opt, "seed": seed,
+                "gates_pass": gates_pass, "kelvin_ok": bool(m.kelvin_ok),
+                "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "drc_finishing_only": (m.drc == 0),
+                "drc_types": dict(m.drc_types), "unconnected": m.unconnected,
+                "unconn_nets": unconn_nets, "unconn_critical": crit, "unconn_signal": sig,
+                "routing_complete": routing_complete, "unconn_finish_tol": unconn_finish_tol,
+                "foreign_ok": foreign_ok, "foreign": {"status": fsum.get("status"),
+                    "tracks": fsum.get("n_tracks", 0), "vias": fsum.get("n_vias", 0),
+                    "pours": fsum.get("n_pours", 0)},
+                "thermal_ok": thermal_ok, "thermal": therm,
+                "sense_side_ok": sense_side_ok, "sense_side": sside,
+                "decouple_ok": decouple_ok, "decouple": dq,
+                "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
+                "pour_uniform_ok": pour_uniform_ok, "pour_uniformity": puni,
+                "comparator_ok": comparator_ok, "comparator": cq,
+                "kelvin_reach_ok": kelvin_reach_ok, "kelvin_reach": kr,
+                "circuit_ok": circuit_ok, "circuit": cc,
+                "stranded_ok": stranded_ok, "stranded": sp,
+                "pour_family_advisory": pfam, "dfm_advisory": dfm,
+                "route_sanity_advisory": rsan, "silk_score": silk,
+                "facing_advisory": facing, "gap_advisory": gapp,
+                "gnd_fanout": gnd_rep, "si_advisory": si, "precision": prec_report,
+                "courtyards_ok": courtyards_ok, "courtyards": cy,
+                "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
+                "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
+                "fiducials_ok": fiducials_ok, "fiducials": fq,
+                "tht_backside_ok": tht_backside_ok, "tht_backside": tb,
+                "pairs_ok": pairs_ok, "pair_quality": pq,
+                "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
+                "sort_key": sort_key,
+                "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
+                                           routing_complete, crit, sig, unconn_finish_tol,
+                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
+                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq,
+                                           tb_g=tb, puni=puni),
+            }
+            if verbose:
+                print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
+                      f"drc={m.drc} unconn={m.unconnected}({len(crit)}crit) "
+                      f"foreign={res['foreign']['tracks']}t/{res['foreign']['vias']}v "
+                      f"dT={therm.get('dT')} ({route_s}s)")
+            return res
+    finally:
+        if own_wd and not keep:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def _oracle_fail_dict(label, *, route_s=None, error=""):
+    """A worst-rank failing verdict for a route that could not even produce a board."""
+    return {"gate": False, "label": label, "route_s": route_s, "routed": None,
+            "error": error, "gates_pass": False, "kelvin_ok": False, "diffpair_ok": False,
+            "drc": 9999, "drc_finishing_only": False, "unconnected": 9999, "unconn_critical": [],
+            "unconn_signal": [], "routing_complete": False, "foreign_ok": False,
+            "foreign": {"status": "error", "tracks": 9999, "vias": 9999, "pours": 0},
+            "thermal_ok": False, "thermal": {"ok": False, "dT": None},
+            "sort_key": (1, 9, 9999, 9999, 9999, 1e6), "reasons": [error or "route produced no board"]}
+
+
+def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
+                    routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
+                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None,
+                    fq_g=None, tb_g=None, puni=None):
+    """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
+    r = []
+    if not m.kelvin_ok:
+        r.append("kelvin_ok=False (a Kelvin sense pair is not routed / cut-vertex)")
+    if not m.diffpair_ok:
+        r.append("diffpair_ok=False (a diff pair is not routed)")
+    if m.drc != 0:
+        r.append(f"structural DRC={m.drc} (not finishing-only): {dict(m.drc_types)}")
+    if not foreign_ok:
+        r.append(f"foreign_on_pour status={fsum.get('status')} "
+                 f"tracks={fsum.get('n_tracks')} vias={fsum.get('n_vias')} (must be 0/0)")
+    if not thermal_ok:
+        if therm.get("skipped"):
+            r.append("thermal SKIPPED (lazy: other gate terms already failed)")
+        else:
+            r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
+                     + (f" ({therm['error']})" if therm.get("error") else ""))
+    if sp_g is not None and not sp_g.get("ok"):
+        r.append(f"STRANDED parts (no connected neighbor within reach): {sp_g.get('violations')[:5]}")
+    if cc_g is not None and not cc_g.get("ok"):
+        r.append(f"OPEN force circuits (current cannot traverse): {cc_g.get('violations')[:4]}")
+    if kr is not None and not kr.get("ok"):
+        r.append(f"kelvin REACH violated pre-route (tap cannot connect): {kr.get('violations')[:4]}")
+    if cy is not None and not cy.get("ok"):
+        r.append(f"courtyard overlaps on the placed board: {cy.get('violations')[:4]}")
+    if pe_g is not None and not pe_g.get("ok"):
+        r.append(f"pin-escape violated (boxed pads, no routing corridor): "
+                 f"boxed0={pe_g.get('boxed0_pct')}% le1={pe_g.get('le1_pct')}% "
+                 f"offenders={pe_g.get('violations')[:5]}")
+    if ce_g is not None and not ce_g.get("ok"):
+        r.append(f"courtyard-edge clearance < {ce_g.get('min_mm')}mm: "
+                 f"{ce_g.get('violations')[:5]}")
+    if fq_g is not None and not fq_g.get("ok"):
+        r.append(f"fiducial quality violated (count/clear/collinear): "
+                 f"{fq_g.get('violations')[:4]}")
+    if tb_g is not None and not tb_g.get("ok"):
+        r.append(f"THT-backside clip (part under a through-hole pin field): "
+                 f"{tb_g.get('violations')[:4]}")
+    if cq is not None and not cq.get("ok"):
+        r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
+    if bq is not None and not bq.get("ok"):
+        r.append(f"bodies IN pours (hard rule): {bq.get('violations')[:6]}")
+    if puni is not None and puni.get("applicable", True) and not puni.get("ok"):
+        r.append(f"per-cable output NOT uniform (tab-pitch dev {puni.get('max_pitch_dev_mm')}mm / "
+                 f"shape dev {puni.get('max_shape_dev_mm')}mm): {puni.get('violations', [])[:4]}")
+    if dq is not None and not dq.get("ok"):
+        r.append(f"decoupler adjacency violated (cap > threshold from its IC): {dq.get('violations')[:5]}")
+    if pq is not None and not pq.get("ok"):
+        r.append(f"data-pair quality violated: {pq.get('violations')[:4]}")
+    if sside is not None and sside.get("applicable") and not sside.get("ok"):
+        r.append(f"sense-side rule violated (analog across faces): {sside.get('violations')[:4]}")
+    if not routing_complete:
+        if crit:
+            r.append(f"unconnected on safety/power nets: {crit}")
+        if len(sig) > tol or m.unconnected > tol:
+            r.append(f"{m.unconnected} unconnected ratline(s) > finishing tol {tol}: signal={sig}")
+    return r
+
+
+def adjudicate_candidates(cfg, cands, *, k=3, max_workers=None, verbose=False, **grade_kw):
+    """Two-stage selection (prune -> adjudicate): the cheap placement_proxy already sorted *cands*
+    best-first; route_oracle_grade ADJUDICATES the top-k survivors with a real route, and the oracle
+    sort_key becomes the FINAL order over those k. Routing is minutes each, so k stays small (default 3).
+
+    Mutates each adjudicated candidate's `.oracle`; returns the FULL list re-ordered so the oracle-graded
+    top-k lead (by sort_key), followed by the un-adjudicated tail in their original proxy order. A graded
+    candidate ALWAYS outranks an un-graded one (we only trust a real route)."""
+    if not cands:
+        return cands
+    topk = cands[:max(1, k)]
+    tail = cands[len(topk):]
+    for c in topk:
+        try:
+            c.oracle = route_oracle_grade(c, cfg=cfg, verbose=verbose, **grade_kw)
+        except Exception as e:                                # noqa: BLE001 -- a grade failure ranks worst, never crashes selection
+            _tc.warn_once("route_oracle_grade", "oracle grade failed (%s); candidate ranked worst" % e)
+            c.oracle = _oracle_fail_dict(f"{c.strat}/seed{c.seed}", error="%s: %s" % (type(e).__name__, e))
+    topk.sort(key=lambda c: c.oracle.get("sort_key", (2,)))
+    if verbose:
+        clean = sum(1 for c in topk if c.oracle.get("gate"))
+        print(f"  [oracle] adjudicated top-{len(topk)}: {clean} gate-clean; "
+              f"winner={topk[0].strat}/seed{topk[0].seed} gate={topk[0].oracle.get('gate')}")
+    return topk + tail
+
+
+def _route_oracle_enabled(cfg):
+    """Opt-in switch: CEC_ROUTE_ORACLE=1 (env) or cfg.params['route_oracle'] truthy. Default OFF so the
+    cheap proxy path is byte-for-byte unchanged."""
+    if os.environ.get("CEC_ROUTE_ORACLE", "0") == "1":
+        return True
+    return bool(cfg.params.get("route_oracle")) if cfg is not None else False
 
 
 # ============================================================ Stage 1: requirements (human I/O)
@@ -3025,15 +8307,138 @@ def materialize(cand, cfg, out, *, logo=None):
     def _is_mount(r):
         return r.startswith("H") and r[1:].isdigit()
     mounts = [(p[0], p[1]) for r, p in cand.P.items() if _is_mount(r)]
-    # build_board places mounts (H1..) itself; FID/LOGO are board-level finishing it doesn't emit.
+    # build_board places mounts (H1..) + fiducials (FID1..) itself; LOGO stays
+    # board-level finishing. (Round-2 item 6, 2026-07-08: the placer always PLANNED
+    # FID1-3 via place_mechanical but this line dropped them -- every fresh wave board
+    # shipped with ZERO fiducials while hand hub/12vhpwr carry 3.)
+    fids = [(p[0], p[1]) for r, p in sorted(cand.P.items())
+            if r.startswith("FID") and r[3:].isdigit()]
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
           if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False)
+    _dropk = ()
+    if cfg.params.get("respect_antenna_keepout", True) is False:
+        _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
+    # NETCLASS + DRU CARRIAGE (owner 2026-07-15: "trace width needs to be a thing"):
+    # fresh boards shipped with only a Default netclass and no DRU, so thin power was
+    # INVISIBLE to DRC. Carry the donor board dir's power-class netclasses (min track
+    # width >= 0.3mm -- Power/GND/CAN classes) + its .kicad_dru sidecar onto every
+    # materialized candidate. Signal-class floors are deliberately NOT carried yet:
+    # FR 1.7.0 routes at 0.2mm regardless (the measured 2026-06-06 limitation; the
+    # real fix = the queued FR width surgery), and a 0.22 signal floor would flood
+    # every candidate's DRC with hundreds of hits and drown the ranking signal --
+    # power-net hits are the honest pressure at the right magnitude.
+    try:
+        import glob as _glob
+        import json as _json
+        import shutil as _shutil
+        _bdir = os.path.join(ROOT, "hubs", cfg.board) if os.path.isdir(
+            os.path.join(ROOT, "hubs", cfg.board)) else os.path.join(ROOT, "modules", cfg.board)
+        _pros = sorted(_glob.glob(os.path.join(_bdir, "*.kicad_pro")), key=len)
+        _outpro = out[:-len(".kicad_pcb")] + ".kicad_pro"
+        if _pros:
+            _donor = _json.load(open(_pros[0]))
+            # CREATE the sidecar when absent (owner 2026-07-15 width fix, part 2:
+            # materialize alone never wrote a .kicad_pro, so the guard below
+            # silently no-opped and the DSN export saw no classes at all).
+            if os.path.isfile(_outpro):
+                _mine = _json.load(open(_outpro))
+            else:
+                _mine = {"meta": {"filename": os.path.basename(_outpro), "version": 3}}
+            _dns = _donor.get("net_settings") or {}
+            _dc = _dns.get("classes") or []
+            _keep = [c for c in _dc if c.get("name") == "Default"
+                     or float(c.get("track_width", 0) or 0) >= 0.3]
+            if len(_keep) > 1:
+                # PATTERNS TOO (owner 2026-07-15 "trace width seems completely
+                # unchanged" -- the original carriage copied classes WITHOUT their
+                # netclass_patterns, so every net stayed Default and the DSN carried
+                # no width rules; with patterns bound, FR routes the class width
+                # natively, the mechanism the 12vhpwr locked-net reconcile measured).
+                _kn = {c.get("name") for c in _keep}
+                _kp = [q for q in (_dns.get("netclass_patterns") or [])
+                       if q.get("netclass") in _kn]
+                _ns = _mine.setdefault("net_settings", {})
+                _ns["classes"] = _keep
+                _ns["netclass_patterns"] = _kp
+                open(_outpro, "w").write(_json.dumps(_mine, indent=2))
+        for _dru in _glob.glob(os.path.join(_bdir, "*.kicad_dru")):
+            _shutil.copy(_dru, out[:-len(".kicad_pcb")] + ".kicad_dru")
+            break
+    except Exception as _e:                                     # noqa: BLE001 -- fail-safe
+        print(f"[materialize] netclass/dru carriage failed ({_e})", file=sys.stderr)
+    if logo is None and cfg and (cfg.params.get("logo_at") == "ring"):
+        # hub-rev2 centerpiece: FRONT logo at the seated LED ring's centroid
+        # (+ the old board's measured logo offset within the ring).
+        _rr = [r for r in (cfg.params.get("logo_ring_refs") or ()) if r in cand.P]
+        if _rr:
+            _cx = sum(cand.P[r][0] for r in _rr) / len(_rr)
+            _cy = sum(cand.P[r][1] for r in _rr) / len(_rr)
+            logo = (_cx - 0.08, _cy - 1.82, False)
+    cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
+                        corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
+                        drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
+                        inner_power_routing=bool(cfg.params.get('inner_power_routing')),
+                        fiducials=fids)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
             shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+    # BLUEPRINT CELLS (P4, docs/pass-form-plan.md §4, S3): the placement is on the board (build_board
+    # placed the cell parts at their p4b positions); now lay each cell's INTERNAL copper as real LOCKED
+    # tracks/vias -- guard-checked against foreign copper (whole-cell refusal). Placement candidates
+    # carry no copper (like fiducials); the copper is laid HERE at materialize. No stamps -> untouched.
+    _bp_stamps = list(getattr(cand, "blueprint_stamps", None) or ())
+    if _bp_stamps:
+        import cec_cell_extract
+        import pcbnew
+        _bpb = pcbnew.LoadBoard(out)
+        _laid = _refused = 0
+        for _st in _bp_stamps:
+            _, _cop = cec_cell_extract.stamp(_st["template"], board=_bpb,
+                                             at_mm=tuple(_st["at_mm"]), rot=float(_st.get("rot", 0.0)),
+                                             ref_map=_st.get("ref_map") or {}, net_map=_st.get("net_map"),
+                                             lay=True, apply=False)
+            _rep = _cop.get("laid", {})
+            if _rep.get("refused"):
+                _refused += 1
+                _tc.warn_once("blueprint_refuse", "blueprint cell copper REFUSED: %s" % _rep.get("reason"))
+            else:
+                _laid += _rep.get("laid_tracks", 0) + _rep.get("laid_vias", 0)
+        # FORCE LANES (owner rung 2026-07-11, "the trace routing to and from the
+        # shunts needs to be SET and not infringed on"): lay the DRC-proven fat
+        # copper (cec_force_lanes, the probe's v7 geometry) LOCKED, right after
+        # the cells -- locked copper exports as "fix" and cec_fr upgrades it to
+        # protect, so the FR residual routes AROUND it, same as cell copper. A
+        # lane that would hit a foreign pad REFUSES with the collider named
+        # (corridor reservation failed at the placer -- fix there, never force).
+        if cfg.params.get("force_lanes"):
+            import cec_force_lanes
+            _flr = cec_force_lanes.lay_force_lanes(_bpb, lock=True)
+            _bad = {k: v for k, v in _flr.items() if not isinstance(v, dict)}
+            print("[materialize] force lanes: %d/6 laid%s"
+                  % (6 - len(_bad),
+                     (" -- " + "; ".join("lane %s %s" % kv for kv in sorted(_bad.items())))
+                     if _bad else ""), file=sys.stderr)
+        pcbnew.SaveBoard(out, _bpb)
+        print("[materialize] blueprint cells: laid %d LOCKED segment(s), %d cell(s) refused"
+              % (_laid, _refused), file=sys.stderr)
+    # POUR LEVER (stage 3, docs/pour-lever-scoping-2026-07-08.md): write the placement's PourPlan
+    # to a <board>.pourplan.json sidecar. Only board_path strings cross the materialize ->
+    # route_oracle_grade -> route_once -> spawn-worker boundary, so the plan (derived pours +
+    # folded pour() asks, and -- stage 4 -- any router reshape) must ride a sidecar to reach the
+    # route. Derived under the ACTIVE recipe env; _oracle_hints_pours re-validates the sidecar's
+    # board_sig + recipe before trusting it and re-derives otherwise, so this is purely additive
+    # (a board routed without a sidecar is byte-identical to today). Best-effort: never blocks the
+    # materialize on a serialization error.
+    try:
+        import cec_pourplan
+        _asks = tuple(cfg.params.get("pour_asks") or ())
+        _plan = cec_pourplan.PourPlan.from_board(out, asks=_asks)
+        with open(out[:-len(".kicad_pcb")] + ".pourplan.json", "w") as _f:
+            json.dump(_plan.to_dict(), _f, indent=1, sort_keys=True)
+    except Exception as _e:                                  # noqa: BLE001 -- sidecar is best-effort
+        _tc.warn_once("pourplan_write", "pourplan sidecar not written (%s)" % _e)
     return out
 
 
@@ -3635,10 +9040,49 @@ def physics_gates(res, cfg):
     return flags
 
 
+def field_electrothermal_solve(board_path, cfg, *, grid_mm=None, backend="auto"):
+    """HIGH-FIDELITY thermal tier: the 2.5D FIELD solve (scripts/cec_thermal2d.py -- the solver the owner
+    built; see memory cec-thermal2d-field-solver). It rasterizes the REAL copper, couples layers through
+    REAL via barrels, and sub-grid anti-aliases thin traces, so it resolves the LOCAL current-density /
+    temperature hotspots the lumped per-net electrothermal_solve AVERAGES AWAY -- it catches a shredded-
+    pour neck at ~2635 A/mm^2 / 858C that the analytic reports as 83 A/mm^2 / 181C. Returns a result
+    shaped for physics_gates (nets dict + max_T/max_dT), with the raw field result on .field. Needs the
+    cec_thermal2d deps (shapely + scipy/pyamg; optional cupy for the GPU backend on the 5090)."""
+    import cec_thermal2d as t2d
+    import pcbnew
+    from types import SimpleNamespace
+    amb = float(cfg.params.get("ambient_C", 50.0))
+    grid = grid_mm if grid_mm is not None else float(cfg.params.get("thermal_grid_mm", 0.15))
+    b = pcbnew.LoadBoard(board_path)
+    board_nets = sorted({t.GetNetname() for t in b.GetTracks() if t.GetNetname()})
+    ncur = _net_currents(cfg, board_nets)
+    fr = t2d.solve_board_thermal(board_path, net_currents=ncur, grid_mm=grid, ambient=amb, backend=backend)
+    nets = {}                                                 # per-net maxT/maxJ already capture the via +
+    for net, mt in fr.per_net_maxT.items():                   # neck hotspots (the field couples via barrels)
+        I = ncur.get(net, 0.0)
+        if not I or I <= 0:
+            continue
+        nets[net] = {"T": mt, "dT": mt - amb, "I": I, "J": fr.per_net_maxJ.get(net, 0.0),
+                     "cross_mm2": 0.0, "poured": True}
+    return SimpleNamespace(max_T=fr.max_T, max_dT=fr.max_T - amb, ambient=amb, grid_mm=grid,
+                           nets=nets, vias=[], shunts=[], calibration="uncalibrated", field=fr)
+
+
 def physics(board_path, cfg, armed=()):
     """Pipeline physics(routed, cfg, armed): run the electrothermal FEA + J/T/derating gates.
-    (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags)."""
-    res = electrothermal_solve(board_path, cfg)
+    (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags).
+    CEC_THERMAL_FIELD=1 (or cfg.params['thermal_field']) selects the HIGH-FIDELITY field solve
+    (field_electrothermal_solve / cec_thermal2d) instead of the lumped analytic -- the field tier is
+    what catches the local shredded-neck / via-fusing hotspots. Falls back to the analytic on any field-
+    solver error (deps absent, etc.) so the gate never silently skips."""
+    res = None
+    if os.environ.get("CEC_THERMAL_FIELD") == "1" or cfg.params.get("thermal_field"):
+        try:
+            res = field_electrothermal_solve(board_path, cfg)
+        except Exception:                                     # noqa: BLE001 -- analytic fallback, never skip
+            res = None
+    if res is None:
+        res = electrothermal_solve(board_path, cfg)
     flags = physics_gates(res, cfg)
     return res, flags
 

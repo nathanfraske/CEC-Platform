@@ -70,10 +70,32 @@ def local_pads(libid):
     for m in re.finditer(r'\(pad ', t):
         b = carve(t, m.start())
         num = re.match(r'\(pad "([^"]*)"', b); at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', b)
+        if "np_thru_hole" in b.split("\n")[0]:
+            continue          # mechanical peg/stabilizer: no net, never an electrical pad-band member
         if num and at and num.group(1):
             out[num.group(1)] = (float(at.group(1)), float(at.group(2)))
     _PADS_CACHE[libid] = out
     return out
+
+_PADSZ_CACHE = {}
+
+
+def local_pad_sizes(libid):
+    """{pad-number: (sx, sy)} LOCAL (un-rotated) pad sizes of a footprint. Memoized like local_pads
+    (geometry is fixed). Used by the Kelvin seat to compute a pad's lateral half-extent toward the
+    shunt (the standoff that lands the sense pad hard against the shunt inner edge)."""
+    if libid in _PADSZ_CACHE:
+        return _PADSZ_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); out = {}
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        num = re.match(r'\(pad "([^"]*)"', b); sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if num and sz and num.group(1):
+            out[num.group(1)] = (float(sz.group(1)), float(sz.group(2)))
+    _PADSZ_CACHE[libid] = out
+    return out
+
 
 def _rot(lx, ly, A):
     a = math.radians(A)                       # KiCad footprint rotation (y-down)
@@ -85,8 +107,17 @@ def pad_global(ref, pad, P, comps):
     dx, dy = _rot(lx, ly, A); return (X + dx, Y + dy)
 
 def _crtyd_local(libid):
-    """Cached (pts, pad_lo, pad_hi): the footprint's local CrtYd points + pad band. Read+parsed
-    once per libid (the geometry is fixed); courtyard_bbox then just rotates/translates."""
+    """Cached (pts, circles, pad_lo, pad_hi): the footprint's local CrtYd vertices + CrtYd circles
+    + pad band. Read+parsed once per libid (the geometry is fixed); courtyard_bbox then just
+    rotates/translates.
+
+    A CrtYd drawn as an `fp_circle` (the M3 mounting-hole courtyard, round passives, ...) carries
+    only a `(center)` and an `(end)` point in the s-expr -- a point ON the circumference, NOT a bbox
+    corner. The old parse harvested those two points as if they were polygon vertices, so a mount's
+    round courtyard collapsed to the segment centre->end: bbox (0,3.45,0,0) => half (1.725, 0) -- a
+    DEGENERATE ~zero-height extent (the long-known mounting-hole bbox bug: edge_keepout and placement
+    keepouts then read a 0-height hole at every mount). Circles are now captured as (cx,cy,radius) and
+    expanded to their true full bbox below, so an M3 mount reports its real ~6.9mm (half 3.45) extent."""
     if libid in _CRTYD_CACHE:
         return _CRTYD_CACHE[libid]
     nick, name = libid.split(":")
@@ -94,13 +125,23 @@ def _crtyd_local(libid):
     pys = [ly for (_lx, ly) in local_pads(libid).values()]
     pad_lo, pad_hi = (min(pys), max(pys)) if pys else (-1e9, 1e9)
     pts = []
-    for m in re.finditer(r'\(fp_(?:line|poly|rect|circle)\b', t):
+    circles = []
+    for m in re.finditer(r'\(fp_(line|poly|rect|circle)\b', t):
+        kind = m.group(1)
         b = carve(t, m.start())
         if 'CrtYd' not in b:
             continue
+        if kind == "circle":                            # round courtyard -> (centre, radius), not 2 verts
+            cen = re.search(r'\(center (-?[\d.]+) (-?[\d.]+)\)', b)
+            end = re.search(r'\(end (-?[\d.]+) (-?[\d.]+)\)', b)
+            if cen and end:
+                cx, cy = float(cen.group(1)), float(cen.group(2))
+                ex, ey = float(end.group(1)), float(end.group(2))
+                circles.append((cx, cy, math.hypot(ex - cx, ey - cy)))
+            continue
         for a, c in re.findall(r'\((?:start|end|xy|mid|center) (-?[\d.]+) (-?[\d.]+)\)', b):
             pts.append((float(a), float(c)))
-    _CRTYD_CACHE[libid] = (pts, pad_lo, pad_hi)
+    _CRTYD_CACHE[libid] = (pts, circles, pad_lo, pad_hi)
     return _CRTYD_CACHE[libid]
 
 
@@ -109,7 +150,7 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
     drop_keepout, trim an RF-module antenna keepout (a courtyard lobe extending far
     past the pad rows) to the pad band -- used when wireless is unpopulated. The footprint
     parse is memoized (see _crtyd_local), so this is cheap even under auto_cluster's relaxation."""
-    pts, pad_lo, pad_hi = _crtyd_local(libid)
+    pts, circles, pad_lo, pad_hi = _crtyd_local(libid)
     xs = []; ys = []
     for (lx, ly) in pts:
         if drop_keepout and ly < pad_lo - 3.0:          # antenna lobe past the pads
@@ -117,6 +158,13 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
         elif drop_keepout and ly > pad_hi + 3.0:
             ly = pad_hi + 1.0
         dx, dy = _rot(lx, ly, rot); xs.append(x + dx); ys.append(y + dy)
+    for (cx, cy, r) in circles:                         # a circle is rotation-invariant: rotate the
+        if drop_keepout and cy < pad_lo - 3.0:          # centre, then expand by +/- the radius
+            cy = pad_lo - 1.0
+        elif drop_keepout and cy > pad_hi + 3.0:
+            cy = pad_hi + 1.0
+        dx, dy = _rot(cx, cy, rot)
+        xs += [x + dx - r, x + dx + r]; ys += [y + dy - r, y + dy + r]
     if not xs:
         return (x - 1, x + 1, y - 1, y + 1)
     return (min(xs), max(xs), min(ys), max(ys))
@@ -350,7 +398,9 @@ def export_netlist(dir_, base):
     return netf
 
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
-                drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True):
+                drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
+                corner_radius=0.0, back_refs=(), inner_power_routing=False,
+                fiducials=()):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -365,24 +415,61 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
     for ref, (x, y, rot) in P.items():
         lib = comps.get(ref)
         if lib:
-            fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref)))
+            fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref),
+                             flip=(ref in back_refs)))
         else:
             print(f"  WARN no footprint for {ref}", file=sys.stderr)
     for i, (x, y) in enumerate(mounts, 1):
         fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via", f"H{i}", x, y, 0,
                          padnet, code_of, gnd_all=True))
+    for i, (x, y) in enumerate(fiducials, 1):
+        # assembly fiducials (round-2 item 6, 2026-07-08): the placer always PLANNED
+        # FID1.. via place_mechanical but materialize dropped them ("board-level
+        # finishing") -- same emission path as the hand 12vhpwr's FID1-3.
+        fps.append(place("cec-Fiducial:Fiducial_1mm_Mask2mm", f"FID{i}", x, y, 0,
+                         padnet, code_of))
     if logo:
-        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=True))
+        # (x, y) = back copper logo (module convention); (x, y, False) = FRONT logo
+        # (hub-rev2 centerpiece: the shine-through CEC mark at the LED-ring center).
+        _lflip = logo[2] if len(logo) > 2 else True
+        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=_lflip))
     e = []
-    pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
-    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
-        e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
-                 f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+    r = float(corner_radius or 0.0)
+    if r <= 0:
+        pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+    else:
+        # ROUNDED-CORNER outline (owner ask 2026-07-08): 4 shortened edges + 4 quarter arcs.
+        c = r * (1 - 0.7071067811865476)          # arc midpoint inset from the corner
+        lines = [((r, 0), (W - r, 0)), ((W, r), (W, H - r)),
+                 ((W - r, H), (r, H)), ((0, H - r), (0, r))]
+        arcs = [((W - r, 0), (W - c, c), (W, r)),          # TR
+                ((W, H - r), (W - c, H - c), (W - r, H)),  # BR
+                ((r, H), (c, H - c), (0, H - r)),          # BL
+                ((0, r), (c, c), (r, 0))]                  # TL
+        for (x1, y1), (x2, y2) in lines:
+            e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+        for (sx, sy), (mx, my), (ex, ey) in arcs:
+            e.append(f'\t(gr_arc (start {ff(sx)} {ff(sy)}) (mid {ff(mx)} {ff(my)}) (end {ff(ex)} {ff(ey)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
     note = note or f'\t(gr_text "CEC {os.path.basename(out)[:-10]}  4L 2oz/1oz" ' \
                    f'(at {ff(logo[0] if logo else W/2)} {ff(H-3)} 0) (layer "B.SilkS") (uuid "{U()}") ' \
                    f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))'
     netdecl = '\t(net 0 "")\n' + "\n".join(f'\t(net {code_of[x]} "{x}")' for x in names)
-    zone = (gnd_planes(code_of["GND"], W, H) + "\n") if (zones and "GND" in code_of) else ""
+    # inner_power_routing (the 24-pin/Hub stackup exception, CLAUDE.md): ONE inner GND
+    # plane (In1) + In2 left EMPTY as a rail-routing layer (12V/5V/3V3/5VSB route around
+    # each other) -- cable boards keep both inners GND.
+    _zl = '"In1.Cu"' if inner_power_routing else '"In1.Cu" "In2.Cu"'
+    zone = (gnd_planes(code_of["GND"], W, H, layers=_zl) + "\n") if (zones and "GND" in code_of) else ""
+    if inner_power_routing:
+        # In2's declared KIND drives KiCad's DSN (type ...) export: 'power' makes
+        # Freerouting refuse the layer entirely (measured: 0 tracks on the freed In2
+        # until this flip). Rename the stale '12V' hint too -- it is a rail-ROUTING
+        # layer on this stackup class, not a plane.
+        doc_kind_fix = True
     g = (guides_str + "\n") if guides_str else ""
     doc = (f"(kicad_pcb\n\t(version 20260206)\n\t(generator \"{gen}\")\n\t(generator_version \"10.0\")\n"
            "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n" + LAYERS +
@@ -390,6 +477,8 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
            "\t\t(allow_soldermask_bridges_in_footprints no)\n\t)\n"
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n" + zone + g + note +
            "\n\t(embedded_fonts no)\n)\n")
+    if inner_power_routing:
+        doc = doc.replace('(6 "In2.Cu" power "12V")', '(6 "In2.Cu" signal "PWR_RT")', 1)
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body

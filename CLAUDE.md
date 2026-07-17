@@ -1206,6 +1206,17 @@ Open items (surface before acting):
    cable nets 9.8–38°C, GND 37°C, vias ≤16°C). The committed golden was already red-pending
    on item-3a, so this changes WHAT it produces, not green→red.
 
+5. 24-pin rev3 ATX control-signal block (owner-approved + LANDED 2026-07-14,
+   `scripts/splice_24pin_atxctl.py`, ERC/netlist/BOM verified): PWR_OK + PS_ON# read
+   buffers restored (74LVC1G17 → IO4/IO5), NEW AO3400A open-drain PS_ON# drive (IO3,
+   100k gate pull-down = released fail-safe), NEW −12V divider/clamp ADC (IO2), PESD
+   clamps on both signals. Policy (owner-ruled): assert REFUSES with host attached
+   unless explicit user override. PS_ON# assert = PSU-on/self-test/bench, NOT OS boot.
+   Study + margins: `docs/standard-tier-review/atx24-sense-wire-interaction-study-2026-07-14.md`;
+   landed detail: rev3 README §2026-07-14. OPEN: spec §6.1 note (owner's pen), OQ-85
+   interlock rows, first-article bench trio (gate scope / PSU pull-up survey / BAT54S
+   pin-map) — owner-queue §1 RULED row.
+
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch
   claude/agentic-pipeline-punchlist; spec v1.1.0 + R-05 landed earlier via PR #18 merge).

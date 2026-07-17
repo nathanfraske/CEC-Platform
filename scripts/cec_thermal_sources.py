@@ -714,14 +714,11 @@ def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None):
             sch_path = board_dir
             board_dir = os.path.dirname(os.path.abspath(board_dir))
         else:
-            import glob
-            cands = [p for p in glob.glob(os.path.join(board_dir, "*.kicad_sch"))]
-            # prefer the top-level (non hierarchical-leaf) sheet: the one whose
-            # basename matches the directory name, matching this repo's naming
-            # convention (e.g. 12vhpwr-standard-module.kicad_sch).
-            base = os.path.basename(os.path.normpath(board_dir))
-            top = [p for p in cands if base in os.path.basename(p)]
-            sch_path = sorted(top or cands)[0] if (top or cands) else None
+            # ROOT sheet of a (possibly hierarchical) board dir -- .kicad_pro-stem match
+            # first, then the sheet that instantiates sub-sheets (cec_toolchain; the old
+            # dir-name heuristic missed eps-8pin -> eps8pin-module and fell to a leaf).
+            import cec_toolchain as _tc
+            sch_path = _tc.find_root_sch(board_dir) or None
     if not sch_path or not os.path.isfile(sch_path):
         raise FileNotFoundError("cec_thermal_sources.inventory: no .kicad_sch found for %r" % board_dir)
 

@@ -623,20 +623,28 @@
         "pattern": "*RAIL*"
       },
       {
-        "netclass": "CAN",
-        "pattern": "*CAN1_P"
-      },
-      {
-        "netclass": "CAN",
-        "pattern": "*CAN1_N"
-      },
-      {
         "netclass": "USB",
         "pattern": "*USB_D+"
       },
       {
         "netclass": "USB",
         "pattern": "*USB_D-"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "/CAN_H"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "/CAN_L"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "/CAN_H_BUS"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "/CAN_L_BUS"
       }
     ]
   },

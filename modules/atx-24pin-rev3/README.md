@@ -6,8 +6,11 @@
 > output form and the female-to-female 24-pin ATX bridging-cable premise that went with it.
 > Output rails now cross the ratified **all-Keystone/TE connector-daughterboard interface**
 > (`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
-> `docs/standard-tier-review/blade-fit-check-2026-07-04.md`): **9 Keystone 3586 SMT
-> universal-entry blade clips** (`TB1`–`TB9`, LCSC C238113, one per ratified joint — 12V×1,
+> `docs/standard-tier-review/blade-fit-check-2026-07-04.md`): **9 blade-joint receptacles**
+> (`TB1`–`TB9` — FINAL PART per iteration 7, 2026-07-06, owner-ratified: **TE 63969-1** FASTON
+> .250 PCB receptacle, LCSC C2961150; the Keystone 3586/3557 mentioned below in this
+> paragraph's original text were interim picks, retired to vendored fallbacks — the full
+> selection chain lives in each TB's Note property + blade-fit-check-2026-07-04.md addendum 7, one per ratified joint — 12V×1,
 > 5V×2, 3.3V×1, 5VSB×1, GND×4), each a single-pin part landing on the SAME post-shunt rail
 > node its share of J4 used to carry (`TB1`→`/SENSE12V_LO`, `TB2`/`TB3`→`+5V_MAIN`,
 > `TB4`→`/SENSE3V3_LO`, `TB5`→`/SENSE5VSB_LO`, `TB6`–`TB9`→`GND`), plus **one 2×5 2.54 mm
@@ -122,3 +125,47 @@ Starts as a blank slate: **only J3 and J4 are placed**, on the inherited 1 oz
 stackup + netclasses (USB/CAN/Power/HighCurrent) + design rules. Everything else
 arrives via *Update PCB from Schematic*, ready to place around the right-angle
 header arrangement. (A fresh DRC will show unconnected items until that import.)
+
+---
+
+## 2026-07-14 — ATX control-signal interaction block (owner-approved + landed)
+
+Owner-approved same-day (study: `docs/standard-tier-review/atx24-sense-wire-interaction-study-2026-07-14.md`,
+ruling recorded in its Status block + `docs/owner-queue.md`). Spliced by `scripts/splice_24pin_atxctl.py`
+(idempotent-guarded); ERC delta = +7 documented-benign Unspecified-pin warnings only (the 1 pre-existing
+U2 TXD `pin_not_driven` error is unchanged); netlist diff verified node-for-node (69 untouched nets
+byte-identical, 8 new nets); `bom/bom.csv` regenerated (also trued up the stale `J_SIG1` 2x5 row to the
+as-built 1x4).
+
+What it adds (all hanging on the existing `/ATX_PWROK` / `/ATX_PSON` / `/ATX_NEG12V` pass-through nets —
+J_SIG1 map and §2.8 output architecture untouched):
+
+- **PWR_OK read** (restores the alpha/netmap-§4 pattern rev3 had regressed): R70 1k → U4 74LVC1G17
+  (5V-tolerant Schmitt @3V3, C62) → `/PWROK_SENSE` → **IO4**. Interrupt-timestamps the ATX 100–500 ms
+  T_pwr_ok window.
+- **PS_ON# read**: R71 1k → U8 74LVC1G17 (high-Z — does not load the PSU's internal pull-up, C63) →
+  `/PSON_SENSE` → **IO5**. Lets firmware distinguish motherboard-asserting from CEC-asserting and verify
+  line integrity after own assert.
+- **PS_ON# open-drain drive (NEW capability)**: **IO3** → R72 100Ω → gate (R73 100k pull-down =
+  RELEASED at reset/brownout/crash, safety-critical, never DNP) → Q1 AO3400A drain → `/ATX_PSON`,
+  source → GND. Wired-OR with the motherboard: can force PSU ON, can never source or force off.
+- **−12V measurement (NEW)**: divider hung **+3V3↔−12V** (R74 15k / R75 100k → node ≈1.30 V @ −12.0 V,
+  1.15–1.46 V across ±10%, 2.87 V = rail-at-0V, 3.30 V = wire absent — all separable, all in-window),
+  R76 10k series → `/NEG12V_ADC` → **IO2** (ADC1), C64 100n, D5 BAT54S dual clamp (A1→GND low clamp for
+  the single-fault 3V3-collapse case ≈127 µA; K2→+3V3 high clamp).
+- **ESD clamps** (owner: "may as well clamp them"): D4/D3 PESD5V0S1BA on PWR_OK / PS_ON#
+  (DETECT-pin posture, C5261083).
+
+Pin choices: IO2/IO3/IO4/IO5 are free non-strapping C6 pins (straps are IO8/IO9/IO15); IO3 (gate) is a
+plain no-default-pull pin — **scope-verify at first-article power-up** anyway (bench item).
+
+**Firmware contract (OQ-85, owner-ruled policy)**: two-phase arm+fire over CAN; hold watchdog with
+unconditional release; release on CAN/Hub-heartbeat loss; post-assert line-integrity check; always-on
+`pson_line/pson_ours/pwrok` telemetry bits; **assert REFUSES with a host attached unless the arm command
+carries the explicit user-override flag (owner 2026-07-14: override transfers responsibility to the
+user)**. Scope honesty: PS_ON# assert = PSU-on (self-test / §6.14 bench / standalone), NOT OS boot —
+the chipset stays in S5; PSU-direct drives/fans will spin.
+
+First-article bench items: gate power-up scope; PSU-zoo PS_ON# pull-up survey (sets the measured sink
+worst case); BAT54S C545549 pin-map confirm (p1/p3/p2 = A1/mid/K2 — symbol drawing verified, pin-name
+text sloppy).

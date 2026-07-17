@@ -497,14 +497,41 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
     a fresh AMG build below, so it's always correct."""
     n = rhs.shape[0]
     if precond is not None and n >= 8000:
+        is_gpu = False
         try:
-            try:
-                x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10, atol=0.0)
-            except TypeError:                                # older scipy: tol= kw
-                x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
-            if info == 0 and np.all(np.isfinite(x)):
+            import cec_gpu_amg
+            is_gpu = isinstance(precond, cec_gpu_amg.GpuVcyclePrecond)
+        except Exception:                                    # noqa: BLE001
+            is_gpu = False
+        if is_gpu:                                           # REUSED GPU AMG V-cycle (the 5090 path) -> cupy CG
+            x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs, precond=precond)
+            if x is not None and np.all(np.isfinite(x)):
                 return x
-        except Exception:                                    # noqa: BLE001 -- stale precond -> fresh build below
+            # GPU precond stalled (matrix drifted) -> fall through to a fresh AMG/CPU build below
+        else:                                                # scipy aspreconditioner (CPU AMG reuse)
+            try:
+                try:
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10, atol=0.0)
+                except TypeError:                            # older scipy: tol= kw
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
+                if info == 0 and np.all(np.isfinite(x)):
+                    return x
+            except Exception:                                # noqa: BLE001 -- stale precond -> fresh build below
+                pass
+    # GPU-ACCELERATED AMG (the RTX 5090 path, scripts/cec_gpu_amg.py): pyamg SA setup on CPU + the V-cycle
+    # APPLY on the GPU inside cupy CG. AMG-quality (grid-INDEPENDENT) convergence with the per-iteration
+    # V-cycle on the 5090 -> measured 14-22x faster apply than CPU pyamg, the win GROWING with grid size
+    # (the fine-density 0.05-0.1mm regime). Tried FIRST when CEC_THERMAL_GPU_AMG=1 + cupy + n large; returns
+    # None on any cupy/build/stall failure -> falls through to the guaranteed-correct CPU AMG below. Default
+    # OFF until soaked. Reuse across the Picard loop (build_precond once) is the ~1.8x end-to-end amortization.
+    gpu_amg_min = int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "300000"))   # measured crossover (soak 2026-06-27)
+    if os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0" and n >= gpu_amg_min:   # ON by default (soak-verified); =0 opts out
+        try:
+            import cec_gpu_amg
+            x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs)
+            if x is not None and np.all(np.isfinite(x)):
+                return x
+        except Exception:                                    # noqa: BLE001 -- fall through to CPU AMG
             pass
     # ALGEBRAIC MULTIGRID first for large systems. The thermal matrix is a 2D screened Poisson, for which a
     # Jacobi-preconditioned CG needs THOUSANDS of iterations (measured avg ~4260 @217k cells) -- THE dominant
@@ -516,9 +543,17 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
         try:
             import pyamg
             ml = pyamg.smoothed_aggregation_solver(Aspmat.tocsr())
-            x = ml.solve(rhs, tol=1e-10, accel="cg", maxiter=300)
-            if np.all(np.isfinite(x)):
+            # CONVERGENCE GUARD (solver-roadmap 2026-07-10 FEM audit #1): pyamg's ml.solve
+            # returns the LAST ITERATE flagless even when unconverged (measured: dT swung
+            # 21<->174 on one artifact). Capture the residual history and REJECT an
+            # unconverged solve (fall through to the GPU/CG paths) instead of returning it.
+            _res = []
+            x = ml.solve(rhs, tol=1e-10, accel="cg", maxiter=300, residuals=_res)
+            _bnorm = float(np.linalg.norm(rhs)) or 1.0
+            if _res and _res[-1] <= 1e-8 * _bnorm and np.all(np.isfinite(x)):
                 return np.asarray(x)
+            print("[cec_thermal2d] AMG solve UNCONVERGED (rel resid %.2e); falling through"
+                  % ((_res[-1] / _bnorm) if _res else float("nan")), file=sys.stderr)
         except Exception:                                    # noqa: BLE001 -- no pyamg / AMG failure -> GPU/CG below
             pass
     use_gpu = False
@@ -751,11 +786,19 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
         # SETUP (not the solve) was the dominant fine-grid cost. _spd_solve falls back to a fresh build if the
         # reused preconditioner ever stalls, so it stays correct.
         if amg_on and amg_precond is None and it >= 1:
-            try:
-                import pyamg
-                amg_precond = pyamg.smoothed_aggregation_solver(Msolve.tocsr()).aspreconditioner(cycle="V")
-            except Exception:                                # noqa: BLE001
-                amg_precond = None
+            if (os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0"     # ON by default (soak-verified 2026-06-27)
+                    and N >= int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "300000"))):   # measured crossover
+                try:                                         # GPU AMG V-cycle, built ONCE here + reused across the
+                    import cec_gpu_amg                        # Picard loop (the 5090 path; amortizes the CPU SA setup)
+                    amg_precond = cec_gpu_amg.build_precond(Msolve.tocsr())
+                except Exception:                            # noqa: BLE001
+                    amg_precond = None
+            if amg_precond is None:                          # CPU AMG (default, or GPU build unavailable)
+                try:
+                    import pyamg
+                    amg_precond = pyamg.smoothed_aggregation_solver(Msolve.tocsr()).aspreconditioner(cycle="V")
+                except Exception:                            # noqa: BLE001
+                    amg_precond = None
         Tnew = _spd_solve(Msolve, rhs, backend, precond=amg_precond)
         if not np.all(np.isfinite(Tnew)):
             Tnew = np.full(N, Ta)
@@ -1238,11 +1281,18 @@ def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True):
 
 
 def _default_src_sink(net, pad_map):
-    """Pass-through interposer heuristic (unchanged)."""
+    """Pass-through interposer heuristic. The OUTPUT side is either the classic J_OUT*
+    header or (D-5a beta boards) the TB* FASTON blade field -- without the TB alternative a
+    blade board's LO net has NO sink, the solve pushes zero current and the thermal gate
+    passes VACUOUSLY at dT=0 (found 2026-07-07 on the fresh beta eps wave)."""
     refs = pad_map.get(net, {})
     src, sink = [], []
     is_hi = net.endswith("_HI")
     is_lo = net.endswith("_LO")
+
+    def _is_out(ref):
+        return ref.startswith("J_OUT") or ref.startswith("TB")
+
     for ref, cells in refs.items():
         if ref == "__pads__":
             continue
@@ -1254,14 +1304,92 @@ def _default_src_sink(net, pad_map):
         elif is_lo:
             if ref.startswith("RS"):
                 src += cells
-            elif ref.startswith("J_OUT"):
+            elif _is_out(ref):
                 sink += cells
         else:
             if ref.startswith("J_IN"):
                 src += cells
-            elif ref.startswith("J_OUT"):
+            elif _is_out(ref):
                 sink += cells
     return src, sink
+
+
+def _ina_highz_pad_cells(board, grid: Grid, grid_layer_for_phys):
+    """dict net -> set of (std_layer, cell_id) for HIGH-Z INA sense-INPUT pad copper.
+
+    These pads (INA226/228/238 Vin+/Vin-/Vbus ; INA181/240 IN+/IN-) are high-impedance
+    and carry ~0 current, so they must never act as a current source/sink and the thin
+    tap copper that reaches them must not carry the cable current. Pad identification is
+    delegated to cec_score.ina_highz_pad_names so the solver and the Kelvin topology gate
+    agree on which pads are sense inputs. Degrades to {} if cec_score is unavailable."""
+    try:
+        import cec_score
+    except Exception:                                    # pragma: no cover
+        return {}
+    enabled_std = _enabled_std_layers(board, grid_layer_for_phys)
+    out = {}
+    for fp in board.GetFootprints():
+        names = cec_score.ina_highz_pad_names(fp)
+        if not names:
+            continue
+        for p in fp.Pads():
+            if p.GetPadName() not in names:
+                continue
+            net = p.GetNetname()
+            if not net:
+                continue
+            stds = set()
+            for lid in p.GetLayerSet().Seq():
+                std = enabled_std.get(lid)
+                if std:
+                    stds.add(std)
+            if not stds:                                 # THT INA pad: all enabled roles
+                stds = set(enabled_std.values())
+            cells = _pad_cell_set(p, grid)
+            for std in stds:
+                for c in cells:
+                    out.setdefault(net, set()).add((std, c))
+    return out
+
+
+def _kelvin_sense_drop_cells(phys_masks, zone_phys_masks, pad_phys_masks, grid: Grid):
+    """Routed-TRACK-only cells of a Kelvin-sense net's CURRENT graph to drop so the
+    cable current flows ONLY along the force path: connector -> POUR -> shunt -> POUR
+    -> connector.
+
+    PHYSICS / WHY: on these boards the force current is carried by the high-current
+    ZONE (the pour) entering/leaving at the connector and shunt PADS. The 4-wire Kelvin
+    sense is a thin ROUTED TRACE whose far end dead-ends at the high-Z INA current-sense
+    input -- it carries ~0 current. If that sense is MIS-ROUTED so a thin 0.2 mm strip
+    bridges the connector and the shunt (or dips onto a bare inner-layer run), the old
+    solver, modelling the strip as just more net copper, drove the FULL cable current
+    through it and fabricated a ~1000 C hot neck while the wide pour sat cool and unused
+    -- bad routing masquerading as a thermal failure. Dropping the routed-track copper
+    from the CURRENT graph (it still conducts HEAT -- klat is untouched) makes the
+    board's thermal independent of whether, or how, the sense tap is routed. The Kelvin
+    mis-route is a routing fault, caught separately by cec_score.kelvin_topology_faults.
+
+    KEEP: filled ZONE (pour) cells and ALL PAD cells (connector/shunt force terminals
+    AND the high-Z INA input pads -- pad copper carries ~0 current on its own once the
+    sense traces are gone, and keeping it preserves the legitimate pour<->pad contact so
+    boards WITHOUT a mis-route are unchanged). DROP: routed-track-only copper. The caller
+    gates this to nets that (a) carry a high-Z INA sense input and (b) HAVE a pour, so a
+    trace-force board (e.g. 12VHPWR, force = wide traces, no zone) keeps all of its copper.
+    """
+    drop = set()
+    for phys, m in phys_masks.items():
+        zm = zone_phys_masks.get(phys)
+        pm = pad_phys_masks.get(phys)
+        # a cell is routed-track-only iff it is net copper but neither a pour nor a pad
+        track_only = m.copy()
+        if zm is not None:
+            track_only &= ~zm
+        if pm is not None:
+            track_only &= ~pm
+        ys, xs = np.where(track_only)
+        for iy, ix in zip(ys.tolist(), xs.tolist()):
+            drop.add((phys, grid.idx(ix, iy)))
+    return drop
 
 
 def solve_board_thermal(board_path,
@@ -1341,6 +1469,9 @@ def solve_board_thermal(board_path,
     polys = _zone_polys(board, grid_layer_for_phys)
     std_to_phys = {v: k for k, v in grid_layer_for_phys.items()}
     net_layer_mask = {}
+    # per-net per-layer ZONE-ONLY mask (filled pours, no routed tracks); used to keep
+    # the high-current FORCE pour as a wall when dropping Kelvin sense-tap copper.
+    net_zone_mask = {}
     # per-net per-layer effective copper-width fraction (1.0 for plane/zone cells,
     # <1 for sub-grid trace cells); used to scale sheet conductance + lateral k.
     net_width_frac = {}
@@ -1359,6 +1490,7 @@ def solve_board_thermal(board_path,
             continue
         wfrac = np.where(m, 1.0, 0.0)
         net_layer_mask.setdefault(net, {})[std] = m
+        net_zone_mask.setdefault(net, {})[std] = m
         net_width_frac.setdefault(net, {})[std] = wfrac
         copper_any |= m
         _add_layer_klat(net, std, m, wfrac)
@@ -1390,6 +1522,9 @@ def solve_board_thermal(board_path,
             klat += K_CU * oz * OZ_M * klat_add
 
     pad_map = _pad_cells(board, grid, grid_layer_for_phys, area=area_injection)
+    # per-net per-layer PAD-cell mask -- pad copper is a valid current terminal and is
+    # never stripped as a sense tap (the Kelvin tap is the routed TRACE, not the pads).
+    net_pad_mask = {}
     # add each pad's OWN copper to its net's layer mask (full-width) so the pad is a
     # valid src/sink contact patch AND a thin trace ties into the pad copper. Without
     # this a track that stops at a pad centre leaves the pad cells off the mask and
@@ -1399,6 +1534,11 @@ def solve_board_thermal(board_path,
         for _key, cl in groups.items():
             for (std, c) in cl:
                 iy, ix = divmod(c, grid.nx)
+                pm = net_pad_mask.setdefault(net, {}).get(std)
+                if pm is None:
+                    pm = np.zeros((grid.ny, grid.nx), dtype=bool)
+                    net_pad_mask[net][std] = pm
+                pm[iy, ix] = True
                 m = net_layer_mask.setdefault(net, {}).get(std)
                 if m is None:
                     m = np.zeros((grid.ny, grid.nx), dtype=bool)
@@ -1413,6 +1553,9 @@ def solve_board_thermal(board_path,
                         klat[iy, ix] += K_CU * oz * OZ_M
                     copper_any[iy, ix] = True
     vertical_by_net = _collect_vertical_connectors(board, grid, grid_layer_for_phys)
+    # high-Z INA sense-INPUT pad copper (carries ~0 current): used to strip mis-routed
+    # Kelvin sense-tap copper from each net's current graph (shared id with cec_score).
+    ina_input_cells = _ina_highz_pad_cells(board, grid, grid_layer_for_phys)
     n_vias = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
     n_pth = sum(1 for fp in board.GetFootprints() for p in fp.Pads()
                 if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
@@ -1449,6 +1592,7 @@ def solve_board_thermal(board_path,
     T = np.full((grid.ny, grid.nx), ambient + 1.0)
     n_outer = 5 if rho_T else 1
     prev_maxT = None
+    sense_drop_by_net = {}                # net -> high-Z Kelvin sense-tap cells (computed once)
     for outer in range(n_outer):
         if rho_T:
             Tflat = T.ravel()
@@ -1519,6 +1663,46 @@ def solve_board_thermal(board_path,
                           for k, v in groups.items()}
 
             vat = vertical_by_net.get(net, {})
+
+            # ---- drop high-Z KELVIN SENSE-TAP copper from the current graph --------
+            # A mis-routed thin sense tap that bridges the connector and the shunt would
+            # otherwise be driven with the full cable current -> a fabricated ~1000 C hot
+            # neck while the wide force pour sits unused. Strip the routed sense-tap copper
+            # (and the high-Z INA input pads) so current can only flow along the force path
+            # (connector -> pour -> shunt). Gated to nets that HAVE a pour: a trace-force
+            # board (no zone) keeps all of its copper. NEVER touches zones or force pads.
+            if net not in sense_drop_by_net:
+                has_ina = bool(ina_input_cells.get(net))
+                drop = set()
+                if has_ina:
+                    zmasks = {}
+                    has_zone = False
+                    for std, zm in net_zone_mask.get(net, {}).items():
+                        ph = std_to_phys.get(std)
+                        if ph in masks and zm.any():
+                            zmasks[ph] = zm
+                            has_zone = True
+                    if has_zone:                          # force = pour; strip the sense tap
+                        pmasks = {std_to_phys[std]: pm
+                                  for std, pm in net_pad_mask.get(net, {}).items()
+                                  if std in std_to_phys and std_to_phys[std] in masks}
+                        drop = _kelvin_sense_drop_cells(masks, zmasks, pmasks, grid)
+                sense_drop_by_net[net] = drop
+            drop = sense_drop_by_net[net]
+            if drop:
+                masks = {ph: m.copy() for ph, m in masks.items()}
+                for (ph, c) in drop:
+                    if ph in masks:
+                        iy, ix = divmod(c, grid.nx)
+                        masks[ph][iy, ix] = False
+                src = [t for t in src if valid(t)]
+                sink = [t for t in sink if valid(t)]
+                if not src or not sink:
+                    if verbose and outer == 0:
+                        print(f"  [skip] net {net}: force terminals lost after "
+                              f"sense-tap strip")
+                    continue
+
             sol = _solve_net_electrical(
                 masks, vat, src, sink, I, grid, oz_by_layer,
                 z_centers, t_plating_m, backend=backend,

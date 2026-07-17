@@ -21,7 +21,9 @@ try:
 except Exception:
     HAVE_PCBNEW = False
 
-EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "modules", "eps-8pin", "eps8pin-module.kicad_pcb"))
+# LEGACY fixture: the pre-beta committed board this suite's geometry assertions encode
+# (the live modules/eps-8pin is the beta TB-blade board; see tests/fixtures/.../README.md).
+EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb"))
 
 
 # --------------------------------------------------------------------------- pure geometry
@@ -364,7 +366,7 @@ class TestPlacerCorridorEps(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cfg = sp.Config.load("eps-8pin")
+        cls.cfg = sp.Config.load(os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy")))
         cls.cd = {k: getattr(cls.cfg, k) for k in ("board", "profile", "pins", "params",
                                                    "dir", "sch", "net", "pcb", "bom_csv")}
 
@@ -406,7 +408,10 @@ class TestPlacerCorridorEps(unittest.TestCase):
         cands = sp.place_candidates(self.cfg, 96.0, 37.0,
                                     strategies=("thermal_separated", "compact"), seeds=(0, 1),
                                     max_workers=1)
-        keys = [(c.residual, c.corridor_cross, c.proxy["hpwl"]) for c in cands]
+        # assert against the REAL production key (residual, cc_aware, cc, proxy_score) -- the earlier
+        # (residual, cc, hpwl) proxy silently dropped corridor_cross_aware (the true 2nd key), so a
+        # candidate that ties on cc but differs on cc_aware looked mis-sorted when it was correct.
+        keys = [sp._candidate_sort_key(c) for c in cands]
         self.assertEqual(keys, sorted(keys))
 
     def test_stored_corridor_cross_matches_recompute(self):

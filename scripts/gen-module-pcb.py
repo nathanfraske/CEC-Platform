@@ -226,20 +226,23 @@ LAYERS = """\t(layers
 \t)"""
 
 def stackup():
+    # MATTE-BLACK ENIG is the PLATFORM spec (CLAUDE.md Hub v1.1 decisions; owner
+    # 2026-07-15: winner renders must show the black finish) -- fresh boards are
+    # born black so every render matches the real product.
     def cu(n, t): return f'\t\t\t(layer "{n}" (type "copper") (thickness {t}))'
     def di(n, t): return (f'\t\t\t(layer "{n}" (type "core") (thickness {t}) '
                           f'(material "FR4") (epsilon_r 4.5) (loss_tangent 0.02))')
     return ("\t\t(stackup\n"
-            '\t\t\t(layer "F.SilkS" (type "Top Silk Screen"))\n'
+            '\t\t\t(layer "F.SilkS" (type "Top Silk Screen") (color "White"))\n'
             '\t\t\t(layer "F.Paste" (type "Top Solder Paste"))\n'
-            '\t\t\t(layer "F.Mask" (type "Top Solder Mask") (thickness 0.01))\n'
+            '\t\t\t(layer "F.Mask" (type "Top Solder Mask") (color "Black") (thickness 0.01))\n'
             + cu("F.Cu", 0.07) + "\n" + di("dielectric 1", 0.2) + "\n"
             + cu("In1.Cu", 0.035) + "\n" + di("dielectric 2", 1.065) + "\n"
             + cu("In2.Cu", 0.035) + "\n" + di("dielectric 3", 0.2) + "\n"
             + cu("B.Cu", 0.07) + "\n"
-            '\t\t\t(layer "B.Mask" (type "Bottom Solder Mask") (thickness 0.01))\n'
+            '\t\t\t(layer "B.Mask" (type "Bottom Solder Mask") (color "Black") (thickness 0.01))\n'
             '\t\t\t(layer "B.Paste" (type "Bottom Solder Paste"))\n'
-            '\t\t\t(layer "B.SilkS" (type "Bottom Silk Screen"))\n'
+            '\t\t\t(layer "B.SilkS" (type "Bottom Silk Screen") (color "White"))\n'
             '\t\t\t(copper_finish "ENIG")\n\t\t\t(dielectric_constraints no)\n\t\t)')
 
 def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, val=None):
@@ -250,9 +253,45 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         s = re.sub(rf'\n\s*\({k} [^\n]*\)', "", s, count=1)
     s = re.sub(r'(\(layer "[^"]+"\))\n\t\(uuid "[^"]+"\)', r"\1", s, count=1)
     if flip:
-        s = re.sub(r'"F\.(Cu|Mask|SilkS|Fab|Paste|Adhes)"', r'"B.\1"', s)
+        s = re.sub(r'"F\.(Cu|Mask|SilkS|Fab|Paste|Adhes|CrtYd)"', r'"B.\1"', s)
         s = re.sub(r'\(xy (-?[\d.]+) (-?[\d.]+)\)',
                    lambda m: f"(xy {ff(-float(m.group(1)))} {m.group(2)})", s)
+        # REAL-PART flip (2026-07-08, dual-sided placement): the logo-era flip mirrored
+        # graphics only; a real footprint's PADS must mirror too (KiCad flips about the
+        # footprint origin: local x -> -x, pad angle -> -angle). Property/text anchors
+        # mirror with the same rule. Verified against pcbnew's native Flip() -- see
+        # tests/test_place_flip.py.
+        def _mirror_pad_at(m):
+            px, py, pang = m.group(1), m.group(2), m.group(3)
+            a = (-float(pang or 0)) % 360
+            return f"(at {ff(-float(px))} {py} {a:g})" if (pang or a) else f"(at {ff(-float(px))} {py})"
+        out2, pos2 = "", 0
+        for mp in re.finditer(r'\(pad "', s):
+            if mp.start() < pos2:
+                continue
+            blk = carve(s, mp.start())
+            end = mp.start() + len(blk)
+            out2 += s[pos2:mp.start()]
+            blk = re.sub(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', _mirror_pad_at, blk, count=1)
+            out2 += blk
+            pos2 = end
+        s = out2 + s[pos2:]
+        s = re.sub(r'\(property ("[^"]*" "[^"]*"\n\s*)\(at (-?[\d.]+) ',
+                   lambda m: f'(property {m.group(1)}(at {ff(-float(m.group(2)))} ', s)
+        # back-side text must carry the mirror justify token or DRC flags
+        # nonmirrored_text_on_back_layer on every field/silk text (60 hits measured).
+        def _mirror_justify(m):
+            toks = m.group(1).strip()
+            return "(justify %s mirror)" % toks if "mirror" not in toks else m.group(0)
+        s = re.sub(r'\(justify ([^)]+)\)', _mirror_justify, s)
+        s = re.sub(r'(\(effects\n(?:[^()]|\([^()]*\))*?\(font(?:[^()]|\([^()]*\))*?\))(\n\s*\))',
+                   lambda m: m.group(1) + ("" if "justify" in m.group(0) else "\n\t\t\t(justify mirror)") + m.group(2),
+                   s)
+        # mirror and rotation ANTI-COMMUTE: KiCad computes a B-side pad as mirror(R(rot)*local);
+        # we store mirror(local), so the stored rotation must be NEGATED to compose identically
+        # (R(-rot)*mirror(local) == mirror(R(rot)*local)). Calibrated: tests/test_place_flip.py
+        # rot-270 shunt case fails without this.
+        rot = (-rot) % 360
     s = re.sub(r'(\(footprint "[^"]+"\n\t\(layer "[^"]+"\))',
                lambda m: m.group(1) + f'\n\t(at {ff(x)} {ff(y)} {rot})\n\t(uuid "{U()}")', s, count=1)
     s = re.sub(r'\(property "Reference" "[^"]*"', f'(property "Reference" "{ref}"', s, count=1)
@@ -289,7 +328,7 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         out += blk; pos = end
     return "\t" + (out + s[pos:]).strip() + "\n"
 
-def gnd_planes(code, W, H):
+def gnd_planes(code, W, H, layers='"In1.Cu" "In2.Cu"'):
     """Dual whole-board GND pour on BOTH inner layers (In1+In2), one zone spanning
     the two. EPS/PCIe run two GND inners (§6.7 high-current return + a quiet
     reference under the INA Kelvin sense); 12V lives on the OUTERS, split at the
@@ -298,12 +337,12 @@ def gnd_planes(code, W, H):
     ins = 0.25
     pts = f"(xy {ins} {ins}) (xy {ff(W-ins)} {ins}) (xy {ff(W-ins)} {ff(H-ins)}) (xy {ins} {ff(H-ins)})"
     return ('\t(zone\n\t\t(net %d)\n\t\t(net_name "GND")\n'
-            '\t\t(layers "In1.Cu" "In2.Cu")\n\t\t(uuid "%s")\n\t\t(name "GND Plane")\n'
+            '\t\t(layers %s)\n\t\t(uuid "%s")\n\t\t(name "GND Plane")\n'
             '\t\t(hatch edge 0.5)\n\t\t(connect_pads yes\n\t\t\t(clearance 0.3)\n\t\t)\n'
             '\t\t(min_thickness 0.25)\n'
             '\t\t(fill yes\n\t\t\t(thermal_gap 0.3)\n\t\t\t(thermal_bridge_width 0.5)\n'
             '\t\t\t(island_removal_mode 0)\n\t\t)\n'
-            '\t\t(polygon\n\t\t\t(pts\n\t\t\t\t%s\n\t\t\t)\n\t\t)\n\t)') % (code, U(), pts)
+            '\t\t(polygon\n\t\t\t(pts\n\t\t\t\t%s\n\t\t\t)\n\t\t)\n\t)') % (code, layers, U(), pts)
 
 def build(dir_, base, n, kind):
     out = f"{ROOT}/modules/{dir_}/{base}.kicad_pcb"
