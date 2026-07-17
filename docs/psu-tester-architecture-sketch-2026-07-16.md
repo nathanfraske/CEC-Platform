@@ -220,6 +220,26 @@ pass). Rule 24 checker addition: relay coil node reachable ONLY from the
 arm bit (never the fire path), and the branch-absent self-test is a
 REQUIRED power-on sequence in the firmware contract.
 
+**MAINS-SIDE IMPACT of the SCP event (owner Q 2026-07-17; manual/FAQ
+material — "will this trip my shop's breakers?"):** No — the event never
+meaningfully reaches the wall. Designed event ≈ 230 A × 12 V × 1–2 ms ≈
+5 J at the DUT output vs 30–40+ J already stored in the DUT's primary
+bulk cap: the short runs on stored energy, and the PFC front-end's
+deliberately slow loop (~10–20 Hz) cannot ramp mains draw within a ms
+event; then the DUT's SCP (the thing under test) cuts draw to ~zero. A
+15/20 A thermal-magnetic breaker needs 5–10× rating (75–200 A) for a
+half-cycle (magnetic) or sustained overload for tens of seconds
+(thermal) — the wall never sees more than normal draw for a few cycles;
+the DUT's own plug-in inrush (40–100 A half-cycle) is harsher than our
+test. GFCI: no earth-path current (isolated secondary event); AFCI:
+double-filtered (transformer + DUT EMI front-end). Edge cases: SCP-fail
+hiccup = few-hundred-W blips (nothing); catastrophic DUT primary failure
+= the DUT's internal fuse blows first (wall breaker is third in line
+behind our time-fuse and the DUT fuse). The REAL panel constraint is
+steady-state: W-tier 3 kW output ≈ 27 A at 120 V = thermal trip in
+minutes on a 15 A circuit — the §13 ruling (240 V / dedicated-circuit
+bench guidance for W), unrelated to SCP transients.
+
 ## 3c. Hold-up + AC-cut timing WITHOUT a mains product — the AC SENSE POD
 
 **PROPOSED (2026-07-16, answers the owner's cert question; supersedes the
