@@ -83,8 +83,26 @@ def name_to_number(block):
     return m
 
 
+def all_pins_named(block, name):
+    """Every pin NUMBER sharing a given NAME (name_to_number collapses
+    duplicates to the last match -- fine for the single-instance signals
+    this leaf cares about, WRONG for GND: the ESP32-C6-MINI-1-N4 exposes 22
+    separate GND pins/pads, not one. Discovered when the exported netlist
+    showed 20 of them as `unconnected-(U8-GND-PadN)` -- only the one
+    C6["GND"] happened to collapse to (pin 53) was ever actually wired."""
+    out = []
+    for mm in re.finditer(r'\(pin\s+\S+\s+\S+\s*\(at[^)]*\)\s*\(length[^)]*\)', block):
+        seg = block[mm.start(): mm.start() + 400]
+        nm = re.search(r'\(name "([^"]+)"', seg)
+        nu = re.search(r'\(number "([^"]+)"', seg)
+        if nm and nu and nm.group(1) == name:
+            out.append(nu.group(1))
+    return out
+
+
 C6_BLOCK = cec_sch.symbol_block(LIBS["cec-vendor"], "ESP32-C6-MINI-1-N4")
 C6 = name_to_number(C6_BLOCK)
+C6_GND_PINS = all_pins_named(C6_BLOCK, "GND")   # all 22, not just C6["GND"]
 
 Leaf = cec_sch_compose.Leaf
 LEAVES = {}
@@ -804,16 +822,617 @@ def compose_02():
     c.done()
 
 
+# ===========================================================================
+# 03 -- mcu: ESP32-C6-MINI-1-N4 core + the GPIO-budget shift-register
+# expansion bus that the ST board's raw signal count forces (see pin-audit-
+# review-2026-07-16.txt addenda 1/2 for the full derivation; this leaf
+# CAPTURES that already-reviewed design, it does not re-decide it).
+#
+# GPIO MAP -- FINAL, ALL 20 GPIOs COMMITTED, ZERO SPARE (tightened from the
+# addenda's "17 of 20 / 3 spare" by two real findings made DURING capture,
+# both logged in the audit review, not silently absorbed):
+#   (a) the coordinator's ladder v1.1 scope update upgraded the 5VSB loop to
+#       a full analog CC channel needing its own PWM setpoint -- +1 GPIO.
+#   (b) 74HC165 has NO output-enable/tri-state pin (verified against the
+#       promoted symbol -- pins are ~PL/CP/D0-D7/~Q7/Q7/DS/~CE/VCC only), so
+#       the addenda's "DATA reverses direction, half-duplex" plan for the
+#       shift bus is NOT buildable as a single wire: the last 165's Q7
+#       output would permanently contend with the MCU driving the same node
+#       for the 595 side. Split into SHIFT_DATA_OUT (MCU->595 chain) +
+#       SHIFT_DATA_IN (165 chain->MCU) -- +1 GPIO. RXD0/TXD0 are separate
+#       dedicated UART0 pins (not part of the 20-GPIO count), so the debug
+#       console costs nothing from this budget.
+#   IO0  ADC_MUX_IN (CD4051 COM, analog in: DETECT_SENSE relay + 6 local NTC)
+#   IO1  PWM_SETPOINT_5VSB   IO2  BACKLIGHT_PWM (real PWM, not a 595 bit --
+#        LCD dimming wants continuous control, a shift bit is only on/off)
+#   IO3  TRIP_ANY (direct GPIO interrupt, diode-OR'd project-wide)
+#   IO4  SCP_FIRE_SHARED (direct GPIO, ANDed per-block with its expander ARM)
+#   IO5  DEGATE_DRIVE (direct GPIO, in series through the bimetal backstop
+#        header to DEGATE_RAIL)
+#   IO6  SHIFT_OE# (direct GPIO, PULLED UP = safe Hi-Z default)
+#   IO7  SHIFT_DATA_IN (165 chain -> MCU)      IO8  FAN_PWM (shared, all fans)
+#   IO9  BOOT strap (button to GND)
+#   IO12 USB_D_N   IO13 USB_D_P (native USB, SHARED with 02-power's J2/CH224K
+#        port -- global_nets, not hier_exports: this is a genuine 2-endpoint
+#        bus between exactly 02-power and 03-mcu, simpler to declare
+#        symmetrically as a global net than to reason about hier_exports
+#        parent/child direction for a peer-to-peer link)
+#   IO14 SHIFT_SCK   IO15 SHIFT_DATA_OUT   IO18 SHIFT_STROBE (595 STCP AND
+#        165 ~PL share this wire -- legitimate double-duty, firmware never
+#        needs both phases at once; see the addenda)
+#   IO19 PWM_SETPOINT_12V   IO20 CAN_TX   IO21 CAN_RX (hier_exports, joins
+#        01-link's TJA1051T/3 at the root)   IO22 PWM_SETPOINT_5V
+#   IO23 PWM_SETPOINT_3V3
+# FOLLOWUPS.md carries the zero-spare-margin flag (a future feature needing
+# one more direct GPIO has no room without trimming an existing one).
+#
+# SHIFT-REGISTER BIT MAP (32 out / 16 in, see the per-net tables below for
+# the exact generated names) -- fits EXACTLY, no spare bit either:
+#   595 chain (U9->U10->U11->U12, DS/Q7S cascade): 19 bank-group CTRL bits
+#     (12V x6 / 5V x4 / 3V3 x4 / 5VSB x3 / -12V x2, ladder v1.1 counts) +
+#     3 SCP arm bits (12V/5V/3V3) + 7 LCD CS bits (main + 6 bay) + 3 CD4051
+#     mux-select bits (A/B/C) = 32.
+#   165 chain (U13->U14, Q7/DS cascade): 12 trip-detail bits (4 loop + 5
+#     bank + 3 SCP) + 3 fan-tach bits + 1 service-button bit = 16.
+# Both counts were arrived at by first listing every signal the brief and
+# the ladder v1.1 respec actually require, THEN checking it against the
+# fixed 32/16 hardware budget -- they fit exactly by construction, not by
+# coincidence (see the note() on the sheet for the itemized list).
+#
+# TRIP_ANY / SCP_FIRE_SHARED / DEGATE_RAIL -- this leaf provides the SHARED
+# node (pulldown default + the direct-GPIO tie) but NOT the per-source
+# diodes or per-block AND-gates: those are DISTRIBUTED onto the leaves that
+# actually own each trip comparator / SCP block (04a-04d, 05a-05e, 06a-06c)
+# per the orchestrator's "protection paths never transit the expander"
+# review -- declared here as `global_nets` bus members so those leaves can
+# tap in when built.
+# ===========================================================================
+L03 = leaf("03", "03-mcu.kicad_sch", "03-mcu",
+           "ESP32-C6-MINI-1-N4 core + shift-register expansion bus (4x "
+           "74HC595 / 2x 74HC165 / 2x MM74HC273 trip latches / CD4051 "
+           "analog mux) + 4x PWM setpoint RC + fan PWM/tach + NTC dividers "
+           "+ bimetal de-gate backstop + BOOT/RESET/service buttons")
+
+FOOTPRINTS.update({
+    "U8":  "cec-RF_Module:ESP32-C6-MINI-1",
+    "U9":  "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U10": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U11": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U12": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U13": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U14": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "U15": "cec-tester:SOIC-20_L13.0-W7.6-P1.27-LS10.3-BL",
+    "U16": "cec-tester:SOIC-20_L13.0-W7.6-P1.27-LS10.3-BL",
+    "U17": "cec-tester:SOIC-16_L9.9-W3.9-P1.27-LS6.0-BL",
+    "J4":  "cec-tester:PinHeader_1x04_P2.54mm_Vertical",
+    "J5":  "cec-tester:PinHeader_1x04_P2.54mm_Vertical",
+    "J6":  "cec-tester:PinHeader_1x04_P2.54mm_Vertical",
+    "J7":  "cec-tester:PinHeader_1x04_P2.54mm_Vertical",
+})
+
+ap(L03, "U8", "cec-vendor", "ESP32-C6-MINI-1-N4", "ESP32-C6-MINI-1-N4",
+   {"Manufacturer": "Espressif", "MPN": "ESP32-C6-MINI-1-N4",
+    "Description": "tester core MCU -- 20 GPIO, all committed (see the "
+                    "leaf header note)"})
+ap(L03, "C40", "cec-vendor", "C_Small", "10u")   # 3V3 bulk
+ap(L03, "C41", "cec-vendor", "C_Small", "100n")  # 3V3 bypass
+ap(L03, "R40", "cec-vendor", "R_Small", "10k")   # EN pullup
+ap(L03, "C42", "cec-vendor", "C_Small", "100n")  # EN cap (reset delay)
+ap(L03, "SW3", "cec-vendor", "SW_Push", "TS-1088-AR02016")  # RESET (EN)
+ap(L03, "R41", "cec-vendor", "R_Small", "10k")   # BOOT/IO9 pullup
+ap(L03, "SW4", "cec-vendor", "SW_Push", "TS-1088-AR02016")  # BOOT (IO9)
+
+for u in ("U9", "U10", "U11", "U12"):
+    ap(L03, u, "cec-tester", "74HC595D,118", "74HC595D,118",
+       {"Manufacturer": "Nexperia", "MPN": "74HC595D,118", "LCSC": "C5947",
+        "Description": "shift-out expander (bank CTRL / SCP arm / LCD CS / "
+                        "mux select), cascaded DS->Q7S"})
+for u in ("U13", "U14"):
+    ap(L03, u, "cec-tester", "74HC165D,653", "74HC165D,653",
+       {"Manufacturer": "Nexperia", "MPN": "74HC165D,653", "LCSC": "C5613",
+        "Description": "shift-in expander (trip detail / fan tach / "
+                        "service button), cascaded Q7->DS"})
+for u in ("U15", "U16"):
+    ap(L03, u, "cec-tester", "MM74HC273WM", "MM74HC273WM",
+       {"Manufacturer": "ON Semi/Fairchild", "MPN": "MM74HC273WM",
+        "LCSC": "C906662",
+        "Description": "trip-snapshot octal D-latch, D tied HIGH so "
+                        "TRIP_ANY's own rising edge self-clocks a permanent "
+                        "capture (un-decayed between 165 polls); shared "
+                        "async CLEAR is an expander bit"})
+ap(L03, "U17", "cec-tester", "CD4051BM96", "CD4051BM96",
+   {"Manufacturer": "TI", "MPN": "CD4051BM96", "LCSC": "C21379",
+    "Description": "8:1 analog mux, DETECT_SENSE relay + 6 local NTC -> 1 "
+                    "ADC channel; 3 select lines on the expander (slow, "
+                    "non-critical)"})
+for i, u in enumerate(("U9", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17")):
+    ap(L03, f"C{43+i}", "cec-vendor", "C_Small", "100n")  # per-IC bypass
+
+ap(L03, "R42", "cec-vendor", "R_Small", "10k")   # TRIP_ANY pulldown (default safe/no-trip)
+ap(L03, "R43", "cec-vendor", "R_Small", "10k")   # SCP_FIRE_SHARED pulldown (default off)
+ap(L03, "R44", "cec-vendor", "R_Small", "10k")   # DEGATE_RAIL pulldown (default no-load)
+ap(L03, "R45", "cec-vendor", "R_Small", "10k")   # SHIFT_OE# pullup (default Hi-Z/safe)
+
+for i in range(1, 7):
+    ap(L03, f"TH{i}", "cec-vendor", "Thermistor_NTC", "NCP15XH103F03RC",
+       {"Manufacturer": "Murata", "MPN": "NCP15XH103F03RC", "LCSC": "C77131"})
+    ap(L03, f"R{45+i}", "cec-vendor", "R_Small", "10k")   # NTC divider pulldown
+
+ap(L03, "J4", "cec-tester", "CEC_CONN_1x4", "Fan1")
+ap(L03, "J5", "cec-tester", "CEC_CONN_1x4", "Fan2")
+ap(L03, "J6", "cec-tester", "CEC_CONN_1x4", "Fan3")
+ap(L03, "J7", "cec-tester", "CEC_CONN_1x4", "Bimetal de-gate backstop",
+   {"Description": "series loop out to the remote plate-mounted 120C "
+                    "bimetal thermal switches (DESIGN-SHEET.md sec 3b/G) -- "
+                    "pins 1/2 used (DEGATE_DRIVE out / DEGATE_RAIL return), "
+                    "3/4 spare for a second independent loop. ANY open "
+                    "switch de-gates regardless of MCU state (R44 pulldown "
+                    "makes an open loop -- switch tripped OR header "
+                    "unplugged -- read as the safe/no-load default)."})
+ap(L03, "SW5", "cec-vendor", "SW_Push", "TS-1088-AR02016")  # service button
+ap(L03, "R52", "cec-vendor", "R_Small", "10k")   # service button pullup
+
+for name, val in (("R53", "10k"), ("R54", "10k"), ("R55", "10k"), ("R56", "10k")):
+    ap(L03, name, "cec-vendor", "R_Small", val)   # PWM setpoint RC series R
+for name in ("C61", "C62", "C63", "C64"):
+    ap(L03, name, "cec-vendor", "C_Small", "100n")  # PWM setpoint RC shunt C
+
+L03.net("+3V3", ("U8", C6["3V3"]), ("C40", "1"), ("C41", "1"), ("R40", "1"),
+        *[(u, "16") for u in ("U9", "U10", "U11", "U12", "U13", "U14")],
+        *[(u, "20") for u in ("U15", "U16")], ("U17", "16"),
+        *[(f"C{43+i}", "1") for i in range(9)],
+        ("R41", "1"), ("R45", "1"), ("R52", "1"),
+        # NTC divider high sides (TH1-TH6 pin1 -> +3V3)
+        *[(f"TH{i}", "1") for i in range(1, 7)])
+        # MM74HC273 D-inputs are NOT +3V3 members (superseded design fix,
+        # see pin-audit-review-2026-07-16.txt addendum 4): 12 read their
+        # real TRIP_* source, 4 spare ones are tied GND instead (added to
+        # the GND net table below, near the trip-latch stage).
+L03.net("GND", ("C40", "2"), ("C41", "2"), ("C42", "2"), ("SW3", "2"),
+        ("SW4", "2"),
+        *[(u, "8") for u in ("U9", "U10", "U11", "U12", "U13", "U14")],
+        *[(u, "10") for u in ("U15", "U16")], ("U17", "8"), ("U17", "7"),
+        *[(f"C{43+i}", "2") for i in range(9)],
+        ("R42", "1"),   # TRIP_ANY pulldown -- MUST be GND, not +3V3 (default
+                         # LOW/no-trip, rising edge on any trip): a copy-paste
+                         # slip first put it in the +3V3 list, which would
+                         # have made it a pullup and inverted the whole
+                         # TRIP_ANY safety convention; caught before layout
+                         # left the sheet, not by ERC (both are valid nets,
+                         # ERC has no way to know which polarity was intended).
+        ("R43", "2"), ("R44", "2"),
+        ("J4", "2"), ("J5", "2"), ("J6", "2"), ("SW5", "2"),
+        *[(f"TH{i}", "2") for i in range(1, 7)],
+        *[(f"R{45+i}", "2") for i in range(1, 7)],
+        ("U13", "15"), ("U14", "15"),          # ~CE tied always-enabled
+        *[(f"C{61+i}", "2") for i in range(4)],
+        *[("U8", p) for p in C6_GND_PINS])
+L03.net("EN", ("U8", C6["EN"]), ("R40", "2"), ("C42", "1"), ("SW3", "1"))
+L03.net("BOOT_STRAP", ("U8", C6["IO9"]), ("R41", "2"), ("SW4", "1"))
+
+L03.net("ADC_MUX_IN", ("U8", C6["IO0"]), ("U17", "3"))
+L03.net("BACKLIGHT_PWM", ("U8", C6["IO2"]))
+L03.net("TRIP_ANY", ("U8", C6["IO3"]), ("R42", "2"),
+        ("U15", "11"), ("U16", "11"))          # shared CLOCK, both latches
+L03.net("SCP_FIRE_SHARED", ("U8", C6["IO4"]), ("R43", "1"))
+L03.net("DEGATE_DRIVE", ("U8", C6["IO5"]), ("J7", "1"))
+L03.net("DEGATE_RAIL", ("J7", "2"), ("R44", "1"))   # global_nets member (fans out to every hot cluster)
+L03.net("SHIFT_OE#", ("U8", C6["IO6"]), ("R45", "2"),
+        *[(u, "13") for u in ("U9", "U10", "U11", "U12")])
+L03.net("SHIFT_DATA_IN", ("U8", C6["IO7"]), ("U13", "9"))    # last-in-chain 165's Q7
+L03.net("FAN_PWM", ("U8", C6["IO8"]), ("J4", "3"), ("J5", "3"), ("J6", "3"))
+L03.net("USB_D_N", ("U8", C6["IO12"]))         # global_nets: joins 02-power's J2/U5
+L03.net("USB_D_P", ("U8", C6["IO13"]))
+L03.net("SHIFT_SCK", ("U8", C6["IO14"]),
+        *[(u, "11") for u in ("U9", "U10", "U11", "U12")],
+        ("U13", "2"), ("U14", "2"))
+L03.net("SHIFT_DATA_OUT", ("U8", C6["IO15"]), ("U9", "14"))
+L03.net("SHIFT_STROBE", ("U8", C6["IO18"]),
+        *[(u, "12") for u in ("U9", "U10", "U11", "U12")],
+        ("U13", "1"), ("U14", "1"))
+L03.net("PWM_SETPOINT_12V", ("U8", C6["IO19"]), ("R53", "1"))
+L03.net("CAN_TX", ("U8", C6["IO20"]))          # hier_export, joins 01-link
+L03.net("CAN_RX", ("U8", C6["IO21"]))
+L03.net("PWM_SETPOINT_5V", ("U8", C6["IO22"]), ("R54", "1"))
+L03.net("PWM_SETPOINT_3V3", ("U8", C6["IO23"]), ("R55", "1"))
+L03.net("PWM_SETPOINT_5VSB", ("U8", C6["IO1"]), ("R56", "1"))
+
+# RC setpoint filters (series R into a shunt C, PWM duty -> analog DC level
+# for each loop's OPA2277 setpoint input -- 04a-04d's own leaf reads the
+# filtered node by name).
+L03.net("SETPOINT_12V", ("R53", "2"), ("C61", "1"))
+L03.net("SETPOINT_5V", ("R54", "2"), ("C62", "1"))
+L03.net("SETPOINT_3V3", ("R55", "2"), ("C63", "1"))
+L03.net("SETPOINT_5VSB", ("R56", "2"), ("C64", "1"))
+
+# 595 cascade (DS -> Q7S chain) + 165 cascade (Q7 -> DS chain)
+L03.net("SHIFT595_A_B", ("U9", "9"), ("U10", "14"))
+L03.net("SHIFT595_B_C", ("U10", "9"), ("U11", "14"))
+L03.net("SHIFT595_C_D", ("U11", "9"), ("U12", "14"))
+L03.net("SHIFT165_B_A", ("U14", "9"), ("U13", "10"))
+# U13 pin9 (Q7, the near-MCU chip's own serial output) is NOT a separate
+# net -- it IS SHIFT_DATA_IN (declared above with the direct-GPIO nets),
+# the 165 chain's final output back to the MCU.
+
+# ~MR (595 master reset) tied inactive -- OE# pulled-up already guarantees
+# the safe Hi-Z power-up state (see the leaf header note); a hardware MR
+# pulse is not needed for that guarantee, so it is simply tied to +3V3
+# (real fix: an earlier pass declared this as its OWN isolated net instead
+# of actually joining +3V3, leaving all four ~MR pins tied together but
+# floating -- an undriven CMOS reset input is a real noise-susceptibility
+# risk, not just a cosmetic gap. Found via the exported netlist showing
+# "SHIFT_MR_INACTIVE" as a genuinely separate 4-member net with no path to
+# any rail at all.)
+L03.net("+3V3", *[(u, "10") for u in ("U9", "U10", "U11", "U12")])
+
+# ---- 595 CHAIN A (U9): 19 bank-group CTRL bits + 3 SCP arm bits (22 of 32)
+_BANK_GROUPS = (("12V", 6), ("5V", 4), ("3V3", 4), ("5VSB", 3), ("N12V", 2))
+_U9_BITS = ["Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]
+_U10_BITS = list(_U9_BITS)
+_U11_BITS = list(_U9_BITS)
+_U12_BITS = list(_U9_BITS)
+_PIN_OF = {"Q0": "15", "Q1": "1", "Q2": "2", "Q3": "3", "Q4": "4", "Q5": "5",
+           "Q6": "6", "Q7": "7"}
+_bank_ctrl_names = []
+for rail, n in _BANK_GROUPS:
+    for g in range(1, n + 1):
+        _bank_ctrl_names.append(f"BANK_{rail}_G{g}_CTRL")
+_scp_arm_names = ["SCP_12V_ARM", "SCP_5V_ARM", "SCP_3V3_ARM"]
+# LCD_CS_MAIN is NOT a 595 bit (real budget finding, see below): the main
+# display is the one SPI device that is always present and sits on its own
+# header, not the fanned-out bay-LCD chain -- with nothing else sharing
+# that bus it needs no chip-select at all (07-displays hardwires its CS pin
+# tied active/GND). That freed exactly the ONE bit CLEAR_SHARED needed: the
+# MM74HC273 trip latches' async CLEAR (found missing during 03-mcu capture
+# -- both chips' CLEAR pins were floating, undriven, in the first pass) has
+# nowhere else to live (all 20 direct GPIOs and, without this trim, all 32
+# 595 bits were already committed). CLEAR_SHARED defaults safe the same way
+# every other 595 output does: OE# stays pulled up (Hi-Z) until firmware
+# has written a known pattern (CLEAR_SHARED inactive-HIGH included) and
+# only then asserts OE# -- so an undefined power-up shift-register content
+# never actually drives the pin.
+_lcd_cs_names = [f"LCD_CS_BAY{i}" for i in range(1, 7)]
+_mux_sel_names = ["MUX_SEL_A", "MUX_SEL_B", "MUX_SEL_C"]
+_595_BITS = _bank_ctrl_names + _scp_arm_names + _lcd_cs_names + _mux_sel_names + ["CLEAR_SHARED"]
+assert len(_595_BITS) == 32, len(_595_BITS)
+_595_CHIPS = [("U9", _U9_BITS), ("U10", _U10_BITS), ("U11", _U11_BITS), ("U12", _U12_BITS)]
+_bi = 0
+for chip, bits in _595_CHIPS:
+    for bit in bits:
+        L03.net(_595_BITS[_bi], (chip, _PIN_OF[bit]))
+        _bi += 1
+# CLEAR_SHARED's 595 driver pin was just added above (U12's last bit); add
+# the actual consumers -- both MM74HC273 CLEAR pins -- to that same net.
+L03.net("CLEAR_SHARED", ("U15", "1"), ("U16", "1"))
+
+# ---- 165 CHAIN (U13/U14): 12 trip-DETAIL (latched, see below) + 3
+# fan-tach + 1 service-button (16 of 16)
+_165_PIN_OF = {"D0": "11", "D1": "12", "D2": "13", "D3": "14", "D4": "3",
+               "D5": "4", "D6": "5", "D7": "6"}
+_165_BITS = ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"]
+_trip_detail_names = (
+    [f"TRIP_LOOP_{r}" for r in ("12V", "5V", "3V3", "5VSB")] +
+    [f"TRIP_BANK_{r}" for r in ("12V", "5V", "3V3", "5VSB", "N12V")] +
+    [f"TRIP_SCP_{r}" for r in ("12V", "5V", "3V3")])
+assert len(_trip_detail_names) == 12, len(_trip_detail_names)
+_fan_tach_names = ["FAN_TACH_1", "FAN_TACH_2", "FAN_TACH_3"]
+_165_BIT_NAMES = _trip_detail_names + _fan_tach_names + ["SVC_BUTTON"]
+assert len(_165_BIT_NAMES) == 16, len(_165_BIT_NAMES)
+_165_CHIPS = [("U14", _165_BITS), ("U13", _165_BITS)]   # U14 = far chip (loaded first), U13 = near chip (closest to MCU)
+
+# ---- MM74HC273 trip-snapshot latch stage -- REAL DESIGN, not the "D tied
+# HIGH" placeholder an earlier pass in this same file wrote. Tying every D
+# HIGH would make every Q latch HIGH on ANY single trip (CLOCK=TRIP_ANY
+# fires for ALL of them at once), destroying the whole point of the
+# addendum's own "per-leg detail read via comparator-side LATCHES" design
+# -- there would be no way to tell WHICH rail tripped from the latch
+# outputs. The correct wiring: each trip source's RAW signal (the 12
+# `_trip_detail_names`, global_nets) drives its OWN D-input; TRIP_ANY
+# (shared CLOCK) captures ALL 12 D states into their Qs at the instant of
+# the FIRST trip; each Q -- the LATCHED value, un-decayed until the shared
+# CLEAR -- then feeds the 74HC165 poll chain, LOCALLY (no cross-sheet name
+# needed, both chains live on this one leaf). 4 of the 16 D/Q pairs have no
+# trip source (12 real signals, 16 hardware bits) -- their D inputs are
+# tied GND (never float an unused digital input); their Q outputs are
+# genuinely left unconnected (an unused OUTPUT driving nothing is normal,
+# not a float risk the way an input is).
+_273_DQ = [("3", "2"), ("4", "5"), ("7", "6"), ("8", "9"),
+           ("13", "12"), ("14", "15"), ("17", "16"), ("18", "19")]
+_273_FLAT = [("U15", d, q) for d, q in _273_DQ] + [("U16", d, q) for d, q in _273_DQ]
+_latch_of = {}   # trip name -> (chip165, dpin165) already resolved below
+for i, name in enumerate(_trip_detail_names):
+    chip273, dpin273, qpin273 = _273_FLAT[i]
+    L03.net(name, (chip273, dpin273))            # global_net: raw source -> D
+    _latch_of[name] = (chip273, qpin273)          # remember the Q for the 165 wiring
+_spare_dq = _273_FLAT[12:]                        # 4 unused D/Q pairs
+L03.net("GND",
+        *[(chip, d) for chip, d, _q in _spare_dq])   # tie spare D's, not left floating
+# (appended to the existing "GND" net table entry above via a second
+# L03.net("GND", ...) call -- Leaf.net() appends rather than replacing, see
+# its definition in cec_sch_compose.py, so this is additive, not a
+# silent overwrite of the earlier, larger GND member list.)
+
+_ti = 0
+for chip, bits in _165_CHIPS:
+    for bit in bits:
+        if chip == "U13" and bit == "D0":
+            # SVC_BUTTON is hand-wired to the service button, not left for
+            # the generic pass (needs the pullup R52 + SW5 topology drawn).
+            L03.net("SVC_BUTTON", ("U13", _165_PIN_OF[bit]), ("SW5", "1"), ("R52", "2"))
+        elif _ti < 12:
+            # trip-detail bit: read the MM74HC273 Q output, not the raw
+            # source directly -- LOCAL net (both ends on this leaf).
+            name = _165_BIT_NAMES[_ti]
+            chip273, qpin273 = _latch_of[name]
+            L03.net(f"{name}_LATCH", (chip273, qpin273), (chip, _165_PIN_OF[bit]))
+        else:
+            L03.net(_165_BIT_NAMES[_ti], (chip, _165_PIN_OF[bit]))
+        _ti += 1
+
+# fan tach inputs (open-collector fan tach pulled up locally at the header;
+# each header's TACH pin IS its own net member here)
+L03.net("FAN_TACH_1", ("J4", "4"))
+L03.net("FAN_TACH_2", ("J5", "4"))
+L03.net("FAN_TACH_3", ("J6", "4"))
+# +12V_FAN feeds the fan headers' pin1 -- cross-sheet from 02-power
+L03.net("+12V_FAN", ("J4", "1"), ("J5", "1"), ("J6", "1"))
+
+# CD4051 8:1 mux channels: 6 local NTC taps (CH0-5) + DETECT_SENSE relayed
+# from 01-link (CH6) + 1 spare (CH7, left unconnected on the mux side --
+# ~{CH7} is simply never selected by firmware, no netlist entry needed).
+_CD4051_CH_PIN = {0: "13", 1: "14", 2: "15", 3: "12", 4: "1", 5: "5", 6: "2"}
+for i in range(1, 7):
+    L03.net(f"NTC{i}_TAP", (f"R{45+i}", "1"), ("U17", _CD4051_CH_PIN[i - 1]))
+L03.net("DETECT_SENSE", ("U17", _CD4051_CH_PIN[6]))   # hier_export from 01-link
+
+L03.hier_exports = {
+    "CAN_TX": ("input", ("U8", C6["IO20"])),
+    "CAN_RX": ("input", ("U8", C6["IO21"])),
+    "DETECT_SENSE": ("input", ("U17", _CD4051_CH_PIN[6])),
+}
+L03.powerflag_nets = ["+12V_FAN", "+3V3", "GND"]
+# +12V_FAN has no on-board Output-Power pin (it is entirely cross-sheet,
+# sourced by 02-power's buck1) -- same externally-fed-net class as this
+# leaf's other cross-board rails. +3V3/GND ALSO belong here for the same
+# reason: this leaf has no local regulator of its own -- +3V3 is 01-link's
+# LP5907 output, GND is the RJ-45 jack shell, both arriving purely via
+# cross-sheet global-power-symbol name-merging once the root thin-parent
+# exists. Root-caused via a real puzzle: ERC flagged exactly ONE
+# `power_pin_not_driven` instance each for +3V3 and GND (out of 47 and 77
+# same-named members respectively) -- not "these 2 pins are special", but
+# ERC reporting ONE representative violation per UNDRIVEN NET, and neither
+# net has an Output-Power-typed pin ANYWHERE in this leaf (verified via the
+# exported netlist: both nets are fully, correctly merged -- the finding
+# was never about connectivity). Exactly the same class 01-link's
+# VCC_PROT/02-power's VBUS_C already needed a powerflag for; this leaf is
+# just the first one where EVERY rail (not only one) is cross-sheet-only.
+L03.global_nets = {"USB_D_P", "USB_D_N", "DEGATE_RAIL", "SCP_FIRE_SHARED",
+                    "TRIP_ANY"}
+L03.global_nets |= set(_bank_ctrl_names) | set(_scp_arm_names) | \
+                    set(_lcd_cs_names) | set(_mux_sel_names) | \
+                    set(_trip_detail_names) | {"BACKLIGHT_PWM"}
+# every OTHER 595/165 bit + the 4 PWM setpoints + DEGATE_RAIL/SCP_FIRE_
+# SHARED/TRIP_ANY are real project-wide buses (the whole point of the
+# shared expander): each one's OTHER endpoint lives on a 04-08 leaf not yet
+# built. FAN_TACH_*/SVC_BUTTON/SETPOINT_* stay LOCAL to this leaf (no other
+# leaf needs them -- tach/button/setpoint-filter are entirely 03-mcu-side;
+# 04a-04d read PWM_SETPOINT_* directly, which the leaf's `note()` documents
+# still needs those 4 names added to global_nets once 04a-04d exist and
+# actually consume them -- tracked in FOLLOWUPS.md).
+
+
+def compose_03():
+    c = _Compose(L03)
+    c.place("U8", 140, 140)
+    u8 = lambda p: c.pin("U8", p)   # noqa: E731
+
+    # ---- EN (reset) circuit: pullup (pin1 = +3V3, LEFT UNCONSUMED so the
+    # generic pass auto-flags it -- this is the fix, not a style choice: an
+    # earlier pass wired the MCU pin to R40's pin1 while the net table
+    # declared pin1 a +3V3 member, then marked pin1 "consumed" so the auto-
+    # flag never fired -- the pullup's actual copper never reached +3V3 at
+    # all, EN legs.pin1 = C_Small (undriven except by the button). Caught
+    # by re-deriving the exported +3V3 net membership and finding U8/C40/
+    # R40/R41 entirely missing from it, not by a top-line ERC message.)
+    # + cap + button on the EN node (pin2).
+    c.place("R40", 100, 100, 90)
+    c.place("C42", 100, 112)
+    c.place("SW3", 90, 112)
+    en = u8(C6["EN"])
+    r40_2 = c.pin("R40", "2")
+    c.wire(en, (100, en[1]), (100, r40_2[1]), r40_2)
+    c.use((("U8", C6["EN"])), ("R40", "2"))
+    c42_1 = c.pin("C42", "1")
+    c.wire(r40_2, (r40_2[0], c42_1[1]), c42_1)
+    c.use(("C42", "1"))
+    # R40 pin1 (+3V3) and SW3 pin1 (EN, same node as r40_2/c42_1) both stay
+    # UNCONSUMED for the generic pass -- SW3.1 shares "EN" by net-table
+    # membership + auto-label, same technique used throughout this file.
+
+    # ---- BOOT (IO9) strap: pullup (pin1 = +3V3, unconsumed, same fix) +
+    # button on the BOOT_STRAP node (pin2).
+    c.place("R41", 100, 128, 90)
+    c.place("SW4", 90, 136)
+    io9 = u8(C6["IO9"])
+    r41_2 = c.pin("R41", "2")
+    c.wire(io9, (100, io9[1]), (100, r41_2[1]), r41_2)
+    c.use((("U8", C6["IO9"])), ("R41", "2"))
+    # R41 pin1 (+3V3) and SW4 pin1 (BOOT_STRAP) stay UNCONSUMED.
+
+    # ---- bulk/bypass decoupling at the 3V3 pin -- U8's own 3V3 pin and
+    # C40/C41 all stay UNCONSUMED (same fix): each independently auto-flags
+    # "+3V3" and merges by shared power-symbol name, exactly like the 9
+    # per-IC bypass caps below already do. (No hand-wiring needed here at
+    # all -- the earlier hand-wired version was the bug, not a simplification
+    # of it.)
+    c.place("C40", 100, 150)
+    c.place("C41", 100, 158)
+
+    # ---- ADC mux input (IO0 -> CD4051 COM)
+    c.place("U17", 260, 260)
+    io0 = u8(C6["IO0"])
+    u17c = c.pin("U17", "3")
+    c.wire(io0, (io0[0], 200), (u17c[0], 200), u17c)
+    c.use((("U8", C6["IO0"])), ("U17", "3"))
+
+    # ---- 4x PWM setpoint RC filters (series R off the direct GPIO, shunt C
+    # to GND at the filtered node -- 04a-04d's own CC-loop leaf reads
+    # SETPOINT_{rail} at its own OPA2277 non-inverting input)
+    _pwm_rows = (("R53", "C61", C6["IO19"], 40), ("R54", "C62", C6["IO22"], 48),
+                 ("R55", "C63", C6["IO23"], 56), ("R56", "C64", C6["IO1"], 64))
+    for rref, cref, pinnum, yoff in _pwm_rows:
+        c.place(rref, 40, yoff, 90)
+        c.place(cref, 48, yoff + 4)
+        gp = u8(pinnum)
+        rp1 = c.pin(rref, "1")
+        c.wire(gp, (40, gp[1]), (40, rp1[1]), rp1)
+        c.use((("U8", pinnum)), (rref, "1"))
+        rp2, cp1 = c.pin(rref, "2"), c.pin(cref, "1")
+        c.wire(rp2, (cp1[0], rp2[1]), cp1)
+        c.use((rref, "2"), (cref, "1"))
+
+    # ---- 74HC595 cascade (bank CTRL / SCP arm / LCD CS / mux select),
+    # placed as a row; SCK/STROBE/OE#/MR bussed vertically across all four.
+    # Q7S(9) and DS(14) are BOTH on each chip's RIGHT edge (real 74HC595
+    # pinout: 9 is bottom-right, 14 is upper-right, only 15/16 above it) --
+    # a same-row left-to-right chain therefore can't join them with a
+    # straight or single-jog wire (DS never faces the chip to its left).
+    # Routed instead via a corridor BELOW the whole row, offset clear of
+    # each chip's own right-edge pin column (which would otherwise be
+    # passed straight through -- the same class of accidental-short the
+    # 01-link/02-power passes already found and fixed).
+    _595_x = {"U9": 200, "U10": 240, "U11": 280, "U12": 320}
+    for u, x in _595_x.items():
+        c.place(u, x, 40)
+    for a, b in (("U9", "U10"), ("U10", "U11"), ("U11", "U12")):
+        pa, pb = c.pin(a, "9"), c.pin(b, "14")
+        cx = pb[0] + 6                          # clear of chip b's own pin column
+        c.wire(pa, (pa[0] + 4, pa[1]), (pa[0] + 4, 20), (cx, 20), (cx, pb[1]), pb)
+        c.use((a, "9"), (b, "14"))
+
+    # ---- 74HC165 cascade (trip detail / fan tach / service button). Q7(9)
+    # is bottom-right, DS(10) is on the RIGHT too (just above Q7) -- same
+    # same-edge issue as the 595s, same corridor-detour fix.
+    c.place("U14", 200, 90)
+    c.place("U13", 280, 90)
+    p14q7, p13ds = c.pin("U14", "9"), c.pin("U13", "10")
+    cx165 = p13ds[0] + 6
+    c.wire(p14q7, (p14q7[0] + 4, p14q7[1]), (p14q7[0] + 4, 110),
+           (cx165, 110), (cx165, p13ds[1]), p13ds)
+    c.use(("U14", "9"), ("U13", "10"))
+
+    # ---- MM74HC273 trip-snapshot latches. All D/Q/CLEAR pins are left
+    # UNCONSUMED (each is a real net member per the tables above -- 12 D's
+    # on their own TRIP_* global net, 4 spare D's on GND, 12 Q's on their
+    # own local *_LATCH net shared with the matching 165 D-input, CLEAR on
+    # CLEAR_SHARED); the generic per-net pass auto-labels every one. (The
+    # 4 spare Q's are in NO net at all, by design -- an unused digital
+    # OUTPUT driving nothing is a normal, safe end state, unlike a floating
+    # input.)
+    # (widened from the original 40-unit U15<->U16 gap -- with 8 real
+    # trip-source D-pins plus 8 latched Q-pins per chip, each independently
+    # auto-labeled at the real 2.54mm IC pin pitch, the tight gap put the
+    # two chips' own label clusters and pin-number text on top of each
+    # other; cec_sch_layout --check-overlaps.)
+    c.place("U15", 200, 140)
+    c.place("U16", 280, 140)
+
+    # ---- per-IC bypass caps (C43-C51, one per U9-U17) -- placed just above
+    # each chip, left UNCONSUMED (both pins are +3V3/GND net members
+    # already, per the leaf's net tables) for the generic per-net pass.
+    _bypass_xy = {
+        "C43": (200, 26), "C44": (240, 26), "C45": (280, 26), "C46": (320, 26),
+        "C47": (280, 76), "C48": (200, 76),
+        "C49": (200, 126), "C50": (280, 126),
+        "C51": (272, 246),
+    }
+    for cref, (x, y) in _bypass_xy.items():
+        c.place(cref, x, y)
+
+    # ---- direct-GPIO pulldown/pullup quartet (TRIP_ANY / SCP_FIRE_SHARED /
+    # DEGATE_RAIL / SHIFT_OE#) -- placed near the ESP32's own left-side pin
+    # column since all four originate there; each is a 2-member net already
+    # (signal + rail) so no further hand-wiring is needed beyond placement.
+    c.place("R42", 40, 180, 90)
+    c.place("R43", 40, 188, 90)
+    c.place("R44", 40, 196, 90)
+    c.place("R45", 40, 204, 90)
+
+    # ---- fan headers x3 + bimetal de-gate backstop header
+    # (moved well clear of the 595 row -- the original y=40 placement put
+    # J4-J6's own 4-pin label cluster directly on top of U10/U11/U12's own
+    # SHCP/STCP/DS pin text, cec_sch_layout --check-overlaps caught it)
+    c.place("J4", 40, 300)
+    c.place("J5", 80, 300)
+    c.place("J6", 120, 300)
+    c.place("J7", 40, 220)
+
+    # ---- service button (pulls SVC_BUTTON, the 165 D0 bit, low on press;
+    # R52 pullup already placed with the other direct-signal pulldown/
+    # pullup quartet's net membership pattern)
+    c.place("SW5", 40, 212)
+    c.place("R52", 48, 212, 90)
+
+    # ---- NTC dividers (+3V3 -> TH -> node(->CD4051 channel) -> R -> GND)
+    for i in range(1, 7):
+        x = 260 + (i - 1) * 14
+        thref, rref = f"TH{i}", f"R{45+i}"
+        c.place(thref, x, 200, 90)
+        c.place(rref, x, 216, 90)
+        th1, th2 = c.pin(thref, "1"), c.pin(thref, "2")
+        r1 = c.pin(rref, "1")
+        c.stamp("+3V3", th1[0], th1[1], 90)
+        c.use((thref, "1"))
+        c.wire(th2, (th2[0], r1[1]), r1)
+        c.use((thref, "2"), (rref, "1"))
+
+    c.caption(L03.desc, 6, 8)
+    c.note(
+        "GPIO map, shift-register bit map, and the real findings made "
+        "DURING capture (not just planned in advance) are in this file's "
+        "own header comment above compose_03() and in pin-audit-review-"
+        "2026-07-16.txt addendum 4: the 5VSB setpoint upgrade + 165 having "
+        "no tri-state (needs a separate DATA_IN line) used up the last "
+        "spare GPIO; the MM74HC273 D-inputs were first captured tied HIGH "
+        "(would have made every latch fire identically on ANY trip, "
+        "destroying the whole point of per-source detail) and the CLEAR "
+        "pins were found entirely unwired -- fixed by reading the real "
+        "trip source into each D, the matching Q into the 165 chain, and "
+        "trimming LCD_CS_MAIN (the main display has no bus-mate, needs no "
+        "chip-select bit at all -- 07-displays hardwires it) to free the "
+        "one CLEAR_SHARED bit. 595 chain A order (U9->U10->U11->U12): 19 "
+        "bank-group CTRL (12V G1-6, 5V G1-4, 3V3 G1-4, 5VSB G1-3, -12V "
+        "G1-2), 3 SCP arm (12V/5V/3V3), 6 bay LCD CS, 3 CD4051 mux-select "
+        "(A/B/C), 1 CLEAR_SHARED (MM74HC273 async clear). 165 chain (U14 "
+        "far -> U13 near-MCU): 12 trip-detail (4 loop + 5 bank + 3 SCP, "
+        "each reading its MM74HC273 Q, not the raw source), 3 fan tach, 1 "
+        "service button. All 595/165/MM74HC273 data pins except the "
+        "cascade taps and the service button are left UNCONSUMED for the "
+        "generic per-net pass (matches 01/02's proven-safer philosophy) -- "
+        "each net name is listed in the GENERATOR SOURCE, not hand-typed "
+        "here, to guarantee the sheet and the bit-count assertions in "
+        "scripts/check_tester_st_sch.py never drift apart. TRIP_ANY / "
+        "SCP_FIRE_SHARED / DEGATE_RAIL: this sheet provides the shared "
+        "node only (pulldown default + the direct-GPIO "
+        "tie) -- the per-source diodes / per-block AND-gates live on the "
+        "leaf that owns each trip comparator or SCP block, never on the "
+        "expander (orchestrator safety review, addendum 2).", 6, 420)
+    c.done()
+
 
 if __name__ == "__main__":
     compose_01()
     compose_02()
-    for lf, fname in ((L01, "01-link"), (L02, "02-power")):
+    compose_03()
+    _PAPER = {"03-mcu": "A1"}
+    for lf, fname in ((L01, "01-link"), (L02, "02-power"), (L03, "03-mcu")):
         stats = cec_sch_compose.build_leaf(
             lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
             LIBS, PROJECT, path_prefix="TESTROOT", sheet_instances_path="TESTROOT",
             own_uuid="11111111-1111-1111-1111-111111111111",
-            page="2", out_path=f"{HERE}/{fname}.kicad_sch", paper="A3",
-            title="TEST", comment1=lf.desc, pwr_base=100, layout=lf.layout)
+            page="2", out_path=f"{HERE}/{fname}.kicad_sch",
+            paper=_PAPER.get(fname, "A3"),
+            title="TEST", comment1=lf.desc, pwr_base=100, layout=lf.layout,
+            global_nets=getattr(lf, "global_nets", None))
         print(f"{fname}:", stats)

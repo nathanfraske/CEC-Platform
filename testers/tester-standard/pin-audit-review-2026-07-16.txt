@@ -334,3 +334,121 @@ CD4051BM96: pin 16 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD fa
 ## order for every future leaf is: generate -> --nudge every leaf touched
 ## -> --check-overlaps every leaf touched, repeated until 0, immediately
 ## before ERC/netlist/commit.
+
+## Addendum 5 (Phase B, 03-mcu capture): the largest, most safety-relevant
+## leaf so far -- ESP32-C6 core + the full shift-register expander backbone
+## (4x 74HC595 / 2x 74HC165 / 2x MM74HC273 trip latches / CD4051 mux). Five
+## real design/wiring bugs were found and fixed DURING capture (none of
+## these were present in the pre-capture addenda 1/2 design -- they are
+## CAPTURE mistakes, caught by the same generate -> ERC/netlist/overlap
+## verify loop, not new design decisions):
+##
+## (1) U8's GND pin collapsed to ONE pin number. `name_to_number()` (the
+## symbol pin-name->number lookup shared with gen_p4_t1_block.py's own P4
+## map) keeps only the LAST match per name -- fine for every single-
+## instance signal, WRONG for GND: ESP32-C6-MINI-1-N4 exposes 22 separate
+## GND pins/pads (1,2,11,14 + the 36-53 exposed-pad cluster), and only pin
+## 53 was ever actually wired; the other 21 were floating, silently, with
+## no ERC complaint (a genuinely disconnected power pin with no net table
+## entry at all doesn't trip `pin_not_connected` the way a mis-routed
+## SIGNAL pin does). Caught by re-deriving the exported netlist's own net
+## list and finding 20 `unconnected-(U8-GND-PadN)` entries. Fixed with a
+## new `all_pins_named()` helper (returns every match, not just the last)
+## and `C6_GND_PINS`, used for the GND net table instead of `C6["GND"]`.
+## FOLLOWUPS.md flags this as a class of bug to check on U8's +3V3 uses
+## too if a future MCU variant ever exposes multiple 3V3 pins (this one
+## doesn't -- verified, only pin 3).
+##
+## (2) EN and BOOT pullups wired BACKWARDS -- the more serious sibling of
+## Addendum 4's diode-polarity bug, same root cause (assuming a pin
+## relationship instead of checking what was actually drawn). The net
+## table correctly declared R40/R41 pin1 as the +3V3 side and pin2 as the
+## MCU-signal side, but the WIRING code connected U8.EN/IO9 to pin1 (the
+## side the table said was +3V3) and marked pin1 "consumed" -- so no
+## auto-flag ever fired there, and the pullup's real copper had NO path to
+## +3V3 at all: EN's actual built circuit was just "SW3-to-GND + C42",
+## permanently missing the pull-up half, i.e. EN would float low-ish
+## whenever the button wasn't pressed rather than defaulting HIGH
+## (enabled). Caught by re-deriving the exported +3V3 net's membership
+## (43 expected components, U8/C40/R40/R41 all silently absent) after the
+## `power_pin_not_driven` puzzle below pointed at "something about this
+## leaf's +3V3 net is incomplete." Fixed by re-wiring the MCU pin to pin2
+## instead, leaving pin1 genuinely unconsumed for the auto-flag -- matches
+## the file's own established "wire to the near pin, leave the far pin for
+## the generic pass" pattern from the 02-power buck-stage fix.
+##
+## (3) `power_pin_not_driven` on exactly one +3V3 instance and one GND
+## instance (out of 47 and 77 same-named members respectively) -- a real
+## puzzle, root-caused by elimination (coordinate archaeology: reverse-
+## computed both flagged points' grid position via the leaf's placement-
+## to-real-mm offset, checked for wire pass-through, duplicate coordinates,
+## and UUID collisions -- all clean) before landing on the right
+## explanation: this leaf, unlike 01-link and 02-power, has NO local
+## regulator for EITHER rail -- +3V3 is entirely 01-link's LP5907 output
+## and GND is entirely the RJ-45 jack shell, both arriving purely via
+## cross-sheet global-power-symbol name-merging that does not exist yet in
+## a standalone-leaf test. ERC reports exactly ONE representative
+## violation per undriven NET (not "these 2 pins are special"), and with
+## every OTHER rail on this leaf already needing a `powerflag_nets` entry
+## (+12V_FAN), it was easy to miss that +3V3/GND ALSO qualified here even
+## though they didn't on the other two leaves (where +3V3 IS locally
+## regulated). Fixed: `+3V3` and `GND` added to `L03.powerflag_nets`.
+##
+## (4) MM74HC273 D-inputs first captured tied HIGH. This was a REAL
+## conceptual error, not just a wiring slip: with every D pinned to +3V3
+## and CLOCK=TRIP_ANY shared across all 12 real bits, EVERY Q would latch
+## HIGH identically on ANY single trip -- there would be no way to tell
+## WHICH rail/loop/SCP block actually tripped from the latch outputs,
+## defeating the entire "per-leg detail read via comparator-side LATCHES"
+## design the orchestrator's own safety review (addendum 2) asked for.
+## Fixed: each of the 12 real trip sources (the same `_trip_detail_names`
+## the 165 chain already used) now drives its own D-input (global_net, the
+## leaf that owns each comparator will tap in when built); each Q -- the
+## LATCHED snapshot -- feeds the matching 74HC165 D-input over a new LOCAL
+## net (`{name}_LATCH`); the 4 unused D/Q pairs (16 hardware bits, 12 real
+## sources) have their D tied GND (never leave a digital input floating)
+## and their Q left in no net at all (an unused OUTPUT driving nothing
+## needs no tie, unlike an input).
+##
+## (5) MM74HC273 CLEAR pins entirely unwired, AND no expander bit was
+## budgeted for them. Both chips' CLEAR (pin 1) showed as
+## `unconnected-(U15/16-CLEAR-Pad1)` in the netlist -- the addenda's own
+## design said the shared async CLEAR "IS an expander output bit" but the
+## actual 32-bit 595 budget built in this capture (19 bank + 3 SCP-arm + 7
+## LCD-CS + 3 mux-select) left no room for it. Root cause: the budget was
+## planned before capture without re-checking against what got literally
+## implemented. Fixed by trimming ONE bit, not by discovering new headroom
+## -- LCD_CS_MAIN is not really an expander duty at all: the main display
+## sits on its own header with no other device sharing its bus, so it
+## needs no chip-select signal whatsoever (07-displays will hardwire the
+## pin active). That freed exactly the one CLEAR_SHARED bit needed, at the
+## cost of 07-displays inheriting a one-line hardwiring note instead of a
+## generated bit.
+##
+## (6, smaller) `SHIFT_MR_INACTIVE` -- same class as (2): declared as its
+## OWN isolated 4-member net instead of actually being added to +3V3, so
+## all four 595 ~{MR} (active-low master reset) pins were tied together
+## but floating -- a real noise-susceptibility risk on a reset input, not
+## just cosmetic. Fixed by folding those 4 pins into the +3V3 net table
+## instead of giving them a separate net name.
+##
+## LAYOUT: reached 0 cec_sch_layout --check-overlaps via the same
+## established techniques (widen tight IC-to-IC spacing so independently-
+## auto-labeled, real-pin-pitch-spaced signals stop landing on each other;
+## move a long note() block clear of whatever now occupies its old
+## position after other placement changed) plus ONE new one: this leaf's
+## total content is tall enough that A2 paper put a bottom-of-sheet note()
+## and a stray power-flag PAST the page's own printable frame (`cec_sch_
+## lint`'s SL-09) -- fixed by moving the leaf to A1, not by fighting exact
+## coordinates. `cec_sch_layout.py --check-overlaps` does not itself check
+## the page-frame boundary; `cec_sch_lint.py` (SL-09) is the one that
+## catches it, so both need to be green, not just the overlap count.
+##
+## GPIO / bit-budget final state (all real, capture-time findings folded
+## in): 20 of 20 direct GPIOs committed (zero spare -- flagged in
+## FOLLOWUPS.md), 32 of 32 595 output bits committed (zero spare), 16 of
+## 16 165 input bits committed (zero spare). Every one of these three
+## numbers changed at least once during actual capture versus what the
+## pre-capture addenda assumed -- the lesson generalizing past this one
+## leaf: a bit/pin budget planned on paper is a STARTING estimate, not a
+## verified fact, until the real wiring is drawn and checked.

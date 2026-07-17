@@ -934,3 +934,25 @@ Conventions:
   TIM part + bond-line thickness lines per DESIGN-SHEET rule 25; §4 extrusion/plate ledger
   must use the spec'd interface R (never bare-metal); vernier isolation stack pick (AlN +
   paste both faces vs per-rail isolated extrusion segments) lands at deck-mech drafting.
+- [2026-07-16] ST 03-mcu GPIO/bit budget is at ZERO spare on all three pools (20/20 direct
+  GPIOs, 32/32 74HC595 output bits, 16/16 74HC165 input bits) as-captured — see
+  testers/tester-standard/pin-audit-review-2026-07-16.txt addendum 5 for the full derivation.
+  Any future feature needing one more direct-GPIO or shift-bit signal has no headroom without
+  trimming an existing one (candidates already identified: BACKLIGHT_PWM could fold back into
+  a 595 bit if continuous dimming turns out not to matter; a 5th 74HC595/3rd 74HC165 is the
+  brute-force fallback). Flag before adding any new 03-mcu signal.
+- [2026-07-16] 07-displays (not yet captured) must hardwire the main SPI LCD header's CS pin
+  ACTIVE (tied low/selected, no expander bit) — LCD_CS_MAIN was deliberately dropped from the
+  595 bit list during 03-mcu capture to free the MM74HC273 CLEAR_SHARED bit (pin-audit-review
+  addendum 5); the main display has no other device sharing its bus so it never needs a real
+  chip-select signal. Only the 6 bay-LCD CS lines (LCD_CS_BAY1-6) are real 595 bits.
+- [2026-07-16] 03-mcu residual cec_sch_layout --check-wires cosmetic findings (text-crosses-
+  wire / power-flag rotation "MISROT" hints) were not hand-polished after the --check-overlaps
+  gate reached 0 (that was the mission's stated hard gate; --check-wires is a stricter, GUI-
+  finishing-tier check per the charter's own "GUI stays the top rung" allowance). Same applies
+  to 01-link/02-power's own smaller --check-wires residuals. Revisit in a dedicated GUI polish
+  pass across all tester-standard leaves once 04-08 + root exist, rather than leaf-by-leaf.
+- [2026-07-16] ST 03-mcu debug UART (ESP32-C6 pins RXD0/TXD0, separate from the 20-GPIO pool)
+  is currently left as bare stubs with no header — cheap to add a 2-pin debug header later if
+  bench bring-up wants one; not required for the design to function (native USB-CDC covers
+  normal firmware console use per the platform's own H3 standalone-mode convention).
