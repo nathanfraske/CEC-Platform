@@ -335,6 +335,32 @@ CD4051BM96: pin 16 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD fa
 ## -> --check-overlaps every leaf touched, repeated until 0, immediately
 ## before ERC/netlist/commit.
 
+## Addendum 6 (Phase B, 04-loops prep): IRLZ44N added to lib/cec-tester.
+## kicad_sym for the 5V/3.3V/5VSB CC loops' pass FET (12V keeps the
+## already-promoted IXTH75N10L2 TO-247 vernier pair per the brief). Per
+## the coordinator's mid-flight FET correction (2026-07-16: "TO-220 or
+## IPAK THT part, jellybean logic-level NFET, IRLZ44N class, NOT DPAK"),
+## the real IRLZ44N (Infineon/Vishay/ON-Semi, 55V/47A, VGS(th) 1-2V logic-
+## level, TO-220AB) is CLONED from the already-promoted+verified IRLB3034
+## (same TO-220-3 package family, same standard JEDEC G=1/D=2/S=3 TO-220
+## pinout IRLB3034 was pulled and pin-audited with) rather than a fresh
+## easyeda2kicad pull -- a web search for an LCSC C-number came back empty
+## (no confirmed LCSC listing found this pass); IRLZ44N is flagged BOM
+## supply-risk (DigiKey/Mouser second-sourced jellybean, same class as
+## IXTH75N10L2) for the BOM-sourcing pass to resolve, not silently assumed
+## stocked. Reuses IRLB3034's own `cec-tester:TO-220-3_L10.2-W4.5-P2.54-L`
+## footprint verbatim (same package). Hit the SAME multi-line-Description
+## bug this file's own promote_tester_lib.py already found+fixed once
+## (Phase A "Design decision" notes below) -- the property text embedded a
+## literal newline (a Python `\n` in an f-string meant to be read as two
+## backslash-n characters, not evaluated) and `kicad-cli sym upgrade`
+## failed with the same bare "Unable to load library" symptom; fixed by
+## collapsing it back to one line. `cec_sym_audit.py --audit`: 17 symbols,
+## high=0 medium=7 low=89 (both counts grew by exactly one entry vs
+## addendum 5's 16/86 -- IRLZ44N's G/D/S pins are `unspecified` type, same
+## low-severity "manual review" bucket as every other hand-cloned/pulled
+## FET in this library, not a new finding class).
+
 ## Addendum 5 (Phase B, 03-mcu capture): the largest, most safety-relevant
 ## leaf so far -- ESP32-C6 core + the full shift-register expander backbone
 ## (4x 74HC595 / 2x 74HC165 / 2x MM74HC273 trip latches / CD4051 mux). Five
