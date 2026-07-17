@@ -284,3 +284,14 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   across leg swaps = service win); isolation-site ban stands. The TG ask is therefore
   SHEETS + CO-BRAND (and the SE/TTV threads), not paste supply. Remaining TIM hardware =
   AlN insulator pads + shoulder washers (engineering line, BOM §3d, no owner action).
+
+- [2026-07-17] **TESTER LOAD-PLANE SURVEY YIELDS — two owner items** (survey = sketch §8b,
+  answered "any fancier way for Pro/Max?"; verdict = hybrid staircase+vernier+fast-channel
+  stands): (1) NOD WANTED — **DAC80508 setpoints at Pro/Max baseline** (pull the W-tier
+  16-bit DAC down; kills PWM-RC setpoint ripple feeding the CC loops; ~$7/board, 8 ch/chip;
+  ST keeps PWM-RC). (2) PARKED IDEA — **regenerative/burn-in-farm SKU**: energy-recycling
+  load (~90 % of 3 kW back to the wall) is WRONG for the fidelity testers (injects converter
+  noise into the DUT) but is a real product for 24/7 burn-in shops; revisit if that market
+  ever knocks. Adopted-without-nod (engineering): closed-outer-loop + cal-time conductance
+  map (firmware contract), FPGA-timed bank strobes on Max, SCP arm relay (owner's own
+  question, §3b addendum + rule 24g).

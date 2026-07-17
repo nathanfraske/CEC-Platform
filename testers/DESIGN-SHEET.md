@@ -224,7 +224,16 @@ mess of wires" challenge)**
     (owner-ruled covered; tester PD rail = the standing second source on
     the deck); (f) front-end abs-max vs the release transient (TVS clamps
     fixture-side, PSU caps clamp module-side) — formalize with a measured
-    release envelope at tester proto.
+    release envelope at tester proto; (g) ARM RELAY (adopted 2026-07-17,
+    sketch §3b addendum): per-block series relay = galvanic disarm layer,
+    dry-switched only (FET does all switching; relay carries surge
+    pre-closed, 70–100 A automotive class), coil driven by the EXISTING
+    per-block 595 arm bit (zero new pool consumption) — checker asserts
+    the coil node is reachable ONLY from the arm bit (never the fire
+    path), and the branch-absent POWER-ON SELF-TEST (relay open → no
+    conduction; closed+disarmed → fuse+shunt continuity) is a required
+    firmware-contract sequence (catches failed-short FETs before a DUT
+    ever connects).
 
 **TIM schedule (owner add 2026-07-16 night; Thermal Grizzly sponsorship
 available — TG supplies on hand, co-brand coherent for a thermal-audience

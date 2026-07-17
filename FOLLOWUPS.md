@@ -956,3 +956,10 @@ Conventions:
   is currently left as bare stubs with no header — cheap to add a 2-pin debug header later if
   bench bring-up wants one; not required for the design to function (native USB-CDC covers
   normal firmware console use per the platform's own H3 standalone-mode convention).
+- [2026-07-17] Tester firmware contracts (SB-07 family, when the tester runtime contract doc
+  is drafted): (a) outer current loop closes on MEASURED total (shunt chain) trimming the
+  vernier setpoint — makes ±5 % bank resistors shunt-grade; (b) calibration-time per-group
+  conductance map stored + used by staircase planning; (c) SCP crowbar POWER-ON SELF-TEST
+  sequence (relay open → no conduction; closed+disarmed → fuse+shunt continuity) REQUIRED
+  before any DUT connect; (d) additive-path stepping protocol (duplicate-1× reshuffle under
+  vernier cover) per README ladder operating model.

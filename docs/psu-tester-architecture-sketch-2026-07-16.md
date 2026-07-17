@@ -189,6 +189,37 @@ ruled covered); bench adds an SCP-surge leg to the OQ-88 soak (N surges →
 contact-R + shunt-R drift); firmware may tighten the per-head backstop
 timing if bench asks.
 
+**ARM RELAY addendum (owner Q 2026-07-17: "use a relay to fully disarm the
+crowbar?" — YES, adopted):** each SCP block gains a series relay upstream
+of its branch, giving a GALVANIC third disarm layer on the most destructive
+actuator in the box. Duty is deliberately benign — the relay is
+**dry-switched only** (closes before arm, opens after the event, with the
+FET off and zero current; the FET does all fast/hot switching, the
+time-fuse keeps the stuck-FET backstop), so contact life is mechanical and
+the only electrical duty is SURGE CARRY: ~230 A × ms-class ≈ 100–500 A²s
+through pre-closed contacts → 70–100 A automotive-class relay ($3–8),
+paralleled contacts acceptable. What the galvanic break buys beyond the
+existing two layers (de-gate rail + arm bits): (a) a spurious fire is
+impossible with the branch absent — gate transients, dV/dt Miller lift on
+DUT hot-plug edges, firmware bugs all have nothing to actuate; (b) a
+FAILED-SHORT FET (the way FETs die) is DETECTABLE before it matters — the
+**crowbar pre-flight self-test**: relay open, bias the drain node, verify
+no conduction; relay closed (still disarmed), verify continuity through
+fuse+shunt — a shorted crowbar is caught at power-on self-test instead of
+discovered as an instant fuse event on the customer's next DUT connect;
+(c) the disarmed branch's SMCJ15A no longer loads the rail if any test ever
+drives it above TVS standoff. CONTROL COSTS ZERO NEW BITS (pools are full):
+the existing per-block 595 ARM bit drives the relay coil (via a small
+coil transistor) instead of a logic gate — the layering becomes (1) 595
+arm bit = relay closes, (2) de-gate rail (direct GPIO) = gate drivers
+alive, (3) comparator/direct-GPIO = fire; three independent layers, two of
+them physical. Front-panel visibility: ARMED state surfaces on the main
+LCD + bay screens (a keyed physical ARM switch stays an SE-tier idea).
+BOM: +4 relays + coil drivers ≈ +$15–35/unit (§3d line pending sourcing
+pass). Rule 24 checker addition: relay coil node reachable ONLY from the
+arm bit (never the fire path), and the branch-absent self-test is a
+REQUIRED power-on sequence in the firmware contract.
+
 ## 3c. Hold-up + AC-cut timing WITHOUT a mains product — the AC SENSE POD
 
 **PROPOSED (2026-07-16, answers the owner's cert question; supersedes the
@@ -458,6 +489,66 @@ replaced by the $15–30 sense pod. The canonical margin-honesty note stands:
 the low-mid BOM holds the ~3× convention; the high end runs
 capital-equipment multiples (1.8–2.5× is test-gear-normal) — owner call at
 pricing lock.
+
+## 8b. Load-plane architecture survey — "any fancier way?" (owner Q, 2026-07-17)
+
+_Owner asked whether staircase+vernier+fast-channel is the best shape for
+Pro/Max or whether fancier/more-accurate/outside-the-box architectures win.
+Steelmanned survey; verdict = the hybrid stands, four refinements adopted._
+
+**Alternatives examined and where they lose:**
+- **All-linear FET plane** (Chroma/Itech/Kikusui shape — every watt in FET
+  SOA on heatsinks): infinitely programmable, native CV/CR/CP — and it is
+  exactly why commercial 3 kW loads cost $10–30k: 20–30 linear devices AT
+  their thermal budget, Spirito hot-spotting as the fleet failure mode, same
+  total heat as resistors but in $13–28 silicon instead of $2–3 ceramic at
+  48 % derate. Our hybrid puts ~85–90 % of the power in bulletproof
+  resistors and spends SOA silicon ONLY on interpolation + dynamics — that
+  asymmetry IS the price wedge. REJECTED as baseline (it is the competitor's
+  shape, not an upgrade).
+- **Regenerative / switched-mode load** (energy-recycling PFC front end,
+  Chroma 63800R / EA-ELR class): genuinely outside-the-box, ~90 % of 3 kW
+  pumped back instead of heated — and wrong for a FIDELITY instrument: a
+  switching converter input injects its own ripple/EMI into the DUT's output
+  (corrupting exactly the ripple/transient truth the ecosystem measures),
+  the input filters that tame it soften transient edges, and grid-tie adds
+  a UL-1741-class cert program. PARKED as a possible future **burn-in-farm
+  SKU** (24/7 duty shops, power-bill economics — different product, real
+  market; owner-queue note).
+- **PWM-chopped resistor banks** (synthesize intermediate values by chopping
+  a leg at kHz): resolution without linear FETs — REJECTED ON PRINCIPLE:
+  it injects switching noise into the DUT at exactly the frequencies we
+  grade; the vernier does the same job silently. Recorded so the tempting
+  cost-down never sneaks back in.
+- **CR-vs-CC honesty note**: banks are constant-resistance (draw sags with
+  a drooping rail — ~0.5 % at ATX droop limits, negligible for baselines);
+  everything spec-shaped that must drive INTO a droop or collapse (OCP
+  ramps, excursions, SCP) already rides the CC loops (verniers/fast
+  channel). Right tool per role; no change.
+
+**Adopted refinements (the question's real yield):**
+1. **DAC80508 setpoints at Pro/Max baseline** — pull the W-tier's 16-bit
+   DAC (§13) down: PWM-RC setpoints ripple through the CC loops as
+   load-current ripple at the PWM frequency; ST keeps PWM-RC (its class),
+   Pro/Max get real DACs (~$7/board, 8 ch/chip). [OWNER NOD — queued.]
+2. **Closed-outer-loop + calibration conductance map = precision from ±5 %
+   parts (FIRMWARE CONTRACT, record now):** the staircase's ±5 % RX24
+   tolerance never reaches the user because (a) firmware closes the outer
+   loop on the MEASURED total (platform-grade shunts) and trims the vernier
+   setpoint, and (b) at calibration each group's real conductance is
+   measured and stored, so staircase planning uses actual values. The
+   resistors provide POWER, the measurement chain provides TRUTH — accuracy
+   lives in the shunt/ADC chain we already build. Goes into the firmware
+   contracts doc with the tester runtime (SB-07 family).
+3. **FPGA-timed bank switching on Max**: route group-enable strobes through
+   the GW5A so staircase steps land with sub-µs determinism on the CEC_MARK
+   timeline — bank recruit/release becomes a characterized stimulus edge
+   (Pro's MCU-timed ±tens-of-µs stays fine for its class). Costs a routing
+   decision at Max capture, not parts.
+4. **SCP arm relay** (owner's same-night question): adopted — see §3b
+   addendum + DESIGN-SHEET rule 24; galvanic third layer, zero new control
+   bits (the existing 595 arm bit drives the coil), enables the crowbar
+   pre-flight self-test.
 
 ## 10. Quality & reliability refinements (owner directive 2026-07-16: "extremely solid and reliable")
 
