@@ -478,3 +478,156 @@ CD4051BM96: pin 16 'VDD': unspecified -> power_in  (VDD: supply-rail pin (VDD fa
 ## pre-capture addenda assumed -- the lesson generalizing past this one
 ## leaf: a bit/pin budget planned on paper is a STARTING estimate, not a
 ## verified fact, until the real wiring is drawn and checked.
+
+## Addendum 7 (CONTINUATION agent, 2026-07-17, 04a-04d CC loops). Built the
+## repeated-leaf template compose_04() (gen_tester_st.py) -- 12V (2x
+## IXTH75N10L2 + source-degeneration ballast) / 5V / 3.3V / 5VSB (1x IRLZ44N
+## each), each: AND(PWM_SETPOINT_{rail} raw, DEGATE_RAIL) -> RC setpoint
+## filter -> OPA2277UA channel-A CC loop -> gate R -> FET(s) -> [ballast] ->
+## Kelvin shunt -> GND; INA181A2IDBVR+TLV7011DBVR trip-watch off the same
+## shunt vs a LOCAL fixed threshold divider -> TRIP_LOOP_{rail} (global) ->
+## diode-OR into TRIP_ANY (global); CEC_CONN_1x8 harness-boundary connector
+## (GND/+3V3/DEGATE_RAIL/PWM_SETPOINT_{rail} in/TRIP_LOOP_{rail} out, 3
+## spare). All four gates green (ERC 0 errors, cec_sch_layout
+## --check-overlaps 0, cec_sch_lint --exit-on-error 0/exit-0, netlist
+## re-derived with only the 3 expected harness-spare unconnected pins per
+## leaf) -- see the commit for exact hashes.
+##
+## REAL BUG #1 (SAFETY-RELEVANT, library-level): cec-tester:OPA2277UA's
+## channel-B sub-symbol (OPA2277UA_2_1) was drawn at THE EXACT SAME local
+## pin coordinates as channel A's (INB+/INB-/OUTB numerically coincide with
+## INA+/INA-/OUTA) -- standard, CORRECT KiCad practice for a multi-unit part
+## (only one unit is ever shown/placed at a time in real KiCad), but THIS
+## project's own cec_sch.py pin_table() scanner flattens ALL units' pins
+## into ONE merged table applied to every placed instance regardless of the
+## hardcoded `(unit 1)` (the same "engine limit" the Phase-A OPA2277
+## decision already named) -- so leaving channel B "unwired/spare" as
+## Phase-A intended does NOT leave it floating: OUTB (an independent,
+## still-powered internal amplifier output, since V+/V- are shared pins)
+## lands exactly on OUTA, MY ACTIVELY-DRIVEN loop output. Verified harmless-
+## but-real via direct coordinate probes (cec_sch_layout.pin_abs_rot) before
+## concluding it needed a fix rather than a footnote: INB+/INB- also
+## coincide with INA+/INA- (channel B would see the identical inputs, so
+## the paralleled internal amplifier targets the identical output -- not a
+## cross-rail short, but two live op-amp outputs wired together is bad
+## practice regardless of matched targets, and ERC correctly flagged it as
+## `no_connect_connected` once channel B's NC flags landed on top of
+## channel A's real, connected pins). FIX (library, lib/cec-tester.kicad_sym):
+## relocated the WHOLE OPA2277UA_2_1 sub-block (triangle glyph + both tick
+## polylines + all 3 pins) by a rigid -19.05mm Y shift (15 grid units --
+## the FIRST attempt used an arbitrary -20mm, which is NOT a 1.27mm grid
+## multiple and tripped a NEW cec_sch_lint SL-01 "off-grid no_connect"
+## ERROR on the 3 now-genuinely-isolated channel-B pins; caught by re-
+## running the lint gate, not assumed clean) so channel B is now GENUINELY
+## floating, matching the Phase-A note's actual intent. cec_sym_audit.py
+## --audit unchanged (17 symbols, high=0 medium=7 low=89) and `kicad-cli
+## sym upgrade` round-trips clean after the edit. Benefits every future
+## OPA2277UA instance platform-wide, not just these 4 leaves.
+##
+## REAL BUG #2 (schematic-level, this leaf's own template): INA181's IN-
+## (pin 4) was omitted from the GND net table entirely on the first pass --
+## the re-derived netlist showed `unconnected-(U10x-IN--Pad4)`, a genuinely
+## floating differential input on the trip-watch CSA (undefined/noisy
+## amplifier output, not a cosmetic gap). Fixed by adding (U_INA,"4") to
+## the leaf's GND net table, matching the platform's own sec6.13 INA181
+## precedent (gen-modules.py ties SENSE_LO to amp pin 4) -- this design's
+## shunt LO terminal is itself the GND node (2-terminal R_2512 land), so
+## IN- reading GND directly is the correct simplification, not a shortcut.
+## Caught by netlist re-derivation (grep for "unconnected-"), not by ERC
+## (a fully undriven, un-netted pin with no net-table entry at all doesn't
+## trip a "not driven" ERC class the way a mis-routed signal pin does --
+## the SAME detection gap the 03-mcu GND-pin bug (addendum 5, item 1) hit).
+##
+## MECHANICAL BUG CLASS (same family as addendum 4's "hand-consumed point
+## needs an explicit label" lesson): the AND-gate-output -> RC-filter ->
+## op-amp-setpoint chain and the AND-gate-output -> RC-filter's OWN 2-member
+## net were originally left for the generic per-net auto-label pass; at
+## this leaf's compact scale the two independent auto-labels for one net
+## landed close enough to trip `cec_sch_layout --check-overlaps`
+## ("{rail}_SP_GATED"/"{rail}_SETPOINT" self-collisions). Fixed by hand-
+## wiring both chains (a single T-junction, not two independent overlapping
+## runs from the same start point -- the first attempt at the fix drew two
+## overlapping horizontal segments from the same start pin, cosmetically
+## harmless but redundant; corrected to one shared tap point) WITH an
+## explicit c.label() at the tap, since a fully hand-consumed net with no
+## explicit label exports only under KiCad's own auto-derived name (the
+## same class 02-power's D6/+12V_AUX_RAW already documents). 04a's ballast
+## case needed one more spacing pass (fx_pitch 30->44 grid units, RS moved
+## further from the ballast row) to clear a THIRD, unrelated overlap
+## ("{rail}_LOOP_HI" vs "{rail}_BALLAST1" auto-labels, only present when
+## ballast=True i.e. 04a only).
+##
+## PROCESS LESSON (operational, not a design bug): `gen_tester_st.py`
+## regenerates ALL leaves named in its build list on every run, including
+## the three ALREADY-COMMITTED ones (01-link/02-power/03-mcu) -- every
+## element gets a FRESH random uuid4 each pass, and 01-link/02-power's
+## committed bytes additionally reflect the a49641ef re-nudge pass (their
+## field-text positions differ from a bare fresh-generate). Re-running the
+## generator while developing 04a-04d therefore left all three showing as
+## "modified" in git status with NO logical change (confirmed by diffing
+## with uuid/coordinate noise stripped) -- `git checkout --` restored them
+## before every commit. Discipline for the REMAINDER of this task (05-08):
+## after every `python3 gen_tester_st.py` run, `git checkout --` the three
+## committed leaves (and any other already-committed 04-08 leaf not touched
+## by that specific run) BEFORE running gates/committing, so no accidental
+## UUID-churn diff ever lands in a commit.
+##
+## DESIGN DECISIONS made (not silently assumed, recorded per CLAUDE.md):
+## (1) Shunt convention: 2-terminal R_Small on the R_2512 land (Kelvin taps
+## in copper at layout), matching the platform's DOMINANT precedent (EPS/
+## PCIe/24-pin RS1-3) rather than the rarer 24-pin-RS4 4-terminal
+## CEC_SHUNT_4T exception (which pairs with a genuine Vishay WSK2512-family
+## MPN, not the Bourns CSS2H-2512R-1L00F this leaf's BOM line names) --
+## avoids inventing/flagging an unverified WSK2512 value+MPN for a part
+## whose real Kelvin geometry is a PCB-layout-time concern either way.
+## (2) Trip threshold: a LOCAL FIXED R-divider (R_TH1/R_TH2, +3V3/2), not a
+## firmware-programmable PWM+RC DAC the way the platform's per-cable MODULE
+## sec6.13 cell gets one -- 03-mcu's fixed 20-GPIO budget (HARD CONSTRAINT,
+## zero spare) has no channel left for a dedicated per-loop threshold PWM.
+## [wb] bench-calibrate the divider ratio per loop's expected shunt swing.
+## (3) Loop de-gate mechanism: DEGATE_RAIL ANDs the RAW PWM (before the RC
+## filter), not a hard gate-to-GND clamp -- since the FET is analog-driven
+## (op-amp output), a "soft-kill" (0% duty -> a genuine 0V reference, the
+## loop then regulates toward 0A) is the achievable mechanism; R_PD (a
+## plain, always-present gate-to-GND pulldown, independent of DEGATE_RAIL)
+## is the hard backup matching DESIGN-SHEET C.10's literal "gate pull-down
+## at the gate pin" rule. Flagged as a DIFFERENT mechanism than banks/SCP's
+## hard AND-gated drive (which IS a genuine kill, since THOSE gates are
+## logic-level all the way to the FET) -- both reuse the SAME SN74AHCT1G08
+## part, just wired into a different point in the signal chain.
+## (4) PWM_SETPOINT_{rail}/DEGATE_RAIL/TRIP_LOOP_{rail}/TRIP_ANY/RAIL_{rail}
+## are ALL `global_nets` (real KiCad global_label), never `hier_exports` --
+## even though several are nominally 2-leaf nets today, global_nets avoids
+## `build_thin_parent`'s PARENT_PINS bookkeeping entirely and matches
+## 03-mcu's own already-committed convention for every one of these names
+## it already owns. RAIL_{rail} deliberately does NOT cross the J_HARN
+## harness connector (unlike the logic-level signals) -- it is real load
+## current, not a "logic-level enable/PWM" signal, so per the split-arch
+## rule it reaches the FET drains directly from 08-deck-io's own fixture
+## connector (not yet built).
+## (5) Ref-number allocation: fresh per-class counters (nref(), R/C/U from
+## 100, Q/F from 1 -- Q and F are BRAND NEW ref classes, 01/02/03 never
+## used them) shared across ALL of 04-08 so no leaf can collide with
+## another by construction; verified clear of 01/02/03's own R1-R56/C1-C64/
+## U1-U17/D1-D6/J1-J7/SW3-SW5/TH1-TH6 ranges.
+##
+## STILL-DEFERRED TOUCHES to the three committed leaves (planned, NOT yet
+## applied -- see this file's gen_tester_st.py module docstring and the
+## build-order brief's own note): 03-mcu's `global_nets` set needs
+## PWM_SETPOINT_12V/5V/3V3/5VSB, +12V_FAN, SHIFT_SCK, and SHIFT_DATA_OUT
+## added (03-mcu's own header comment already flags the PWM_SETPOINT_* half
+## of this as expected future work; +12V_FAN closes a REAL pre-existing gap
+## between 02-power and 03-mcu -- neither leaf's own hier_exports/
+## global_nets currently plumbs it, so it would NOT actually connect at
+## root assembly today; SHIFT_SCK/SHIFT_DATA_OUT are needed once 07-
+## displays taps the shared SPI bus per the architecture sketch sec5's own
+## "via the same expander" plan). 01-link and 02-power's "+5V_LOGIC"
+## `hier_exports` entries need to become `global_nets` instead (currently a
+## same-name 2-leaf hier_exports pair between just those two leaves; 04-08
+## do not need +5V_LOGIC today, so this is deferred purely to batch it with
+## the other root-assembly-time touches, not because it's blocking yet).
+## All of these are single-line, additive, well-justified two-sided
+## touches per this task's own explicit allowance -- planned for the root-
+## composition step (build order item 6), applied and gated together with
+## the full-project ERC at that time, not silently deferred without a
+## paper trail.

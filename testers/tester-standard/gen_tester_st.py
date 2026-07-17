@@ -147,7 +147,54 @@ def fp_for(ref, lib, name, val):
         return "cec-Button_Switch_SMD:TS-1088-AR02016"
     if name == "Thermistor_NTC":
         return "cec-Resistor_SMD:NTC_0402_1005Metric"
+    # ---- 04-08 additions (2026-07-17, continuation capture): name-based so
+    # every instance across the load-plane/display/deck leaves picks up the
+    # right land with no per-ref FOOTPRINTS bookkeeping.
+    if name == "IRLB3034":
+        return "cec-tester:TO-220-3_L10.2-W4.5-P2.54-L"
+    if name == "IRLZ44N":
+        return "cec-tester:TO-220-3_L10.2-W4.5-P2.54-L"
+    if name == "IXTH75N10L2":
+        return "cec-tester:TO-247-3_L15.9-W20.8-P5.45-Vertical"
+    if name == "AOD4184A":
+        return "cec-tester:TO-252-2_L6.6-W6.1-P4.57-LS9.9-TL-CW"
+    if name == "OPA2277UA":
+        return "cec-tester:SOIC-8_L5.0-W4.0-P1.27-LS6.0-BL"
+    if name == "INA181A2IDBVR":
+        return "cec-Package_TO_SOT_SMD:SOT-23-6"
+    if name == "TLV7011DBVR":
+        return "cec-Package_TO_SOT_SMD:SOT-23-5"
+    if name == "SN74AHCT1G08":
+        return "cec-Package_TO_SOT_SMD:SOT-23-5"
+    if name == "3557-10":
+        return "cec-tester:FUSE-TH_4P-L19.8-W6.7_3557-2"
+    if name == "SMCJ15A-13-F":
+        return "cec-tester:SMC_L7.1-W6.2-LS8.1-FD"
+    if name == "CEC_CONN_1x4":
+        return "cec-tester:PinHeader_1x04_P2.54mm_Vertical"
+    if name == "CEC_CONN_1x8":
+        return "cec-tester:PinHeader_1x08_P2.54mm_Vertical"
+    if name == "CEC_CONN_1x12":
+        return "cec-tester:PinHeader_1x12_P2.54mm_Vertical"
     return ""
+
+
+# ===========================================================================
+# Shared ref allocator for 04-08 (2026-07-17 continuation). 01-link/02-power/
+# 03-mcu used R1-R56 (gaps), C1-C64 (gaps), U1-U17, D1-D6, J1-J7, SW3-SW5,
+# TH1-TH6 -- every new leaf below draws from ONE counter per class, starting
+# well clear of that range, shared across ALL of 04-08 so two leaves can
+# never collide even by mistake (refs must be unique project-wide once the
+# root composes all 17 leaves together). "Q" and "F" are fresh ref classes
+# (FETs, fuses) -- 01/02/03 never used them, so they start at 1.
+# ===========================================================================
+_REF_NEXT = {"R": 100, "C": 100, "U": 100, "Q": 1, "D": 100, "F": 1, "J": 100}
+
+
+def nref(cls):
+    n = _REF_NEXT[cls]
+    _REF_NEXT[cls] = n + 1
+    return f"{cls}{n}"
 
 
 def ap(lf, ref, lib, name, val, props=None):
@@ -1420,12 +1467,333 @@ def compose_03():
     c.done()
 
 
+# ===========================================================================
+# 04 -- CC loops (12V / 5V / 3V3 / 5VSB), ONE template function building all
+# 4 files (repeated-leaf convention, matching hub-enterprise's compose_port()
+# / leaf05() pattern -- see that file's own module note). Split-architecture
+# readiness (this file's header, mid-flight owner directive 2026-07-16): a
+# keyed CEC_CONN_1x8 harness-boundary connector carries GND / +3V3 /
+# DEGATE_RAIL / PWM_SETPOINT_{rail} in, and this loop's own TRIP_LOOP_{rail}
+# out; the op-amp CC loop, Kelvin shunt, and trip-watch stay entirely on the
+# hot side, per the connector.
+#
+# CELL (identical shape across all 4 -- differs only in FET part/count and
+# whether a ballast resistor is needed for paralleled devices):
+#   PWM_SETPOINT_{rail} (global, RAW pre-filter PWM off 03-mcu's own IO19/
+#     22/23/1) AND DEGATE_RAIL (global, the bimetal dead-man rail) feed a
+#     local SN74AHCT1G08 2-input AND (U_AND) -- de-gate qualifies the PWM
+#     BEFORE it is filtered to an analog level, so an unplugged harness or a
+#     tripped bimetal forces 0% duty -> a genuine 0V reference, not just an
+#     unplugged pull-down fighting an actively-driven op-amp output. A local
+#     RC (R_SP/C_SP, 10k/100n) then filters the qualified PWM into an
+#     analog SETPOINT node.
+#   OPA2277UA channel A (channel B intentionally left NC, Phase-A engine-
+#     limit note): INA+ <- SETPOINT; INA- <- the shunt's HI terminal
+#     (classic e-load feedback: the shunt's own I*R IS the regulated
+#     quantity); OUTA -> R_GATE (series, Gate netclass) -> the FET gate(s);
+#     a local comp cap (C_COMP) ties OUTA back to INA- for loop stability;
+#     R_PD is a hard gate-to-GND pulldown at every FET gate (DESIGN-SHEET
+#     C.10 "gate pull-down at the gate pin"), independent of DEGATE_RAIL,
+#     so an unpowered/disconnected op-amp still leaves the gate defined.
+#   RAIL_{rail} (global, the DUT's own rail under test, sourced by
+#     08-deck-io) -> FET drain(s) -> source(s) [-> ballast R, 04a's 2x
+#     paralleled verniers only, DESIGN-SHEET C.10 current-share] -> the
+#     loop's own Kelvin shunt (R_Small on the R_2512 land, Kelvin taps in
+#     copper at layout -- the platform's DOMINANT convention per EPS/PCIe/
+#     24-pin RS1-3, not the rarer 24-pin RS4 4-terminal CEC_SHUNT_4T
+#     exception; see the leaf's own note()) -> GND.
+#   Trip-watch: the SAME shunt feeds an INA181A2IDBVR (gain 50, platform
+#     sec6.13 CSA) -> TLV7011DBVR hysteresis comparator vs a LOCAL FIXED
+#     R-divider threshold (R_TH1/R_TH2, +3V3/2) -- there is no spare GPIO
+#     for a firmware-programmable PWM threshold DAC the way the platform's
+#     per-cable MODULE sec6.13 cell gets one (04-08's fixed pin/bit budget,
+#     HARD CONSTRAINT) -- flagged as a known simplification vs. the module
+#     precedent, [wb] bench-calibrate the divider ratio. Comparator OUT ->
+#     TRIP_LOOP_{rail} (global, lands on 03-mcu's MM74HC273 D-input) AND a
+#     local diode (anode on TRIP_LOOP_{rail}, cathode on TRIP_ANY) ORs it
+#     into the shared TRIP_ANY node -- the orchestrator's addendum-2 rule
+#     ("per-source diodes live on the leaf that owns the comparator, never
+#     the expander").
+#
+# NOTE on cross-leaf wiring: PWM_SETPOINT_{rail}, DEGATE_RAIL, TRIP_LOOP_
+# {rail}, TRIP_ANY, and RAIL_{rail} are all GLOBAL nets (real KiCad
+# global_label, project-wide-by-name -- see cec_sch.emit_global_label /
+# cec_sch_compose.build_leaf's global_nets param). PWM_SETPOINT_* was added
+# to 03-mcu's OWN global_nets set at the root-assembly pass (a genuine two-
+# sided touch this file's header + pin-audit-review-2026-07-16.txt addendum
+# 7 both call out) so this leaf's stub actually binds to 03-mcu's
+# already-placed pin; RAIL_* is sourced by 08-deck-io (also built at this
+# pass). +3V3/GND are platform POWER_PORTS (auto-global via power symbols,
+# no global_nets bookkeeping needed at all).
+# ===========================================================================
+_LOOP_RAILS = [
+    ("04a", "04a-loop-12v", "12V", ["IXTH75N10L2", "IXTH75N10L2"], True),
+    ("04b", "04b-loop-5v", "5V", ["IRLZ44N"], False),
+    ("04c", "04c-loop-3v3", "3V3", ["IRLZ44N"], False),
+    ("04d", "04d-loop-5vsb", "5VSB", ["IRLZ44N"], False),
+]
+
+
+def compose_04(rid, fid, rail, fets, ballast):
+    n = len(fets)
+    lf = leaf(rid, f"{fid}.kicad_sch", fid,
+              f"CC loop, {rail} rail -- OPA2277 + {n}x {fets[0]} + Kelvin "
+              "shunt + INA181/TLV7011 trip-watch; CEC_CONN_1x8 harness-"
+              "boundary connector (split-arch readiness)")
+    J = nref("J")
+    U_AND = nref("U")
+    R_SP, C_SP = nref("R"), nref("C")
+    U_OP = nref("U")
+    C_OPB = nref("C")
+    R_GATE = nref("R")
+    R_PD = nref("R")
+    C_COMP = nref("C")
+    fet_refs = [nref("Q") for _ in fets]
+    ballast_refs = [nref("R") for _ in fets] if ballast else []
+    RS = nref("R")
+    U_INA, U_CMP = nref("U"), nref("U")
+    C_INA, C_CMP = nref("C"), nref("C")
+    R_TH1, R_TH2 = nref("R"), nref("R")
+    D_OR = nref("D")
+
+    ap(lf, J, "cec-tester", "CEC_CONN_1x8", "J_HARN",
+       {"Description": f"Harness-boundary connector (split-arch readiness): "
+                        f"1=GND 2=+3V3 3=DEGATE_RAIL 4=PWM_SETPOINT_{rail}"
+                        f"(in) 5=TRIP_LOOP_{rail}(out) 6-8=spare. [wb] real "
+                        "keyed-connector class/MPN pending split-arch "
+                        "ratification (README.md)"})
+    ap(lf, U_AND, "cec-vendor", "SN74AHCT1G08", "SN74AHCT1G08",
+       {"Manufacturer": "Texas Instruments", "MPN": "SN74AHCT1G08DBVR",
+        "Description": f"AND(PWM_SETPOINT_{rail}, DEGATE_RAIL) -- de-gate "
+                        "qualifier ahead of the RC setpoint filter (this "
+                        "loop's own de-gate mechanism: a REGULATED-to-zero "
+                        "soft-kill, since the FET is analog-driven, not a "
+                        "hard clamp like the bank/SCP AND-cells -- R_PD's "
+                        "gate pulldown is the hard backup). Same platform "
+                        "part Hub-Standard uses as an LED level-shift "
+                        "buffer, reused here with two genuinely different "
+                        "inputs."})
+    ap(lf, R_SP, "cec-vendor", "R_Small", "10k")
+    ap(lf, C_SP, "cec-vendor", "C_Small", "100n")
+    ap(lf, U_OP, "cec-tester", "OPA2277UA", "OPA2277UA-2K5",
+       {"Manufacturer": "Texas Instruments", "MPN": "OPA2277UA-2K5", "LCSC": "C24460",
+        "Description": "CC loop error amp, channel A only (channel B "
+                        "intentionally NC, Phase-A engine-limit note)"})
+    ap(lf, C_OPB, "cec-vendor", "C_Small", "100n")
+    ap(lf, R_GATE, "cec-vendor", "R_Small", "100",
+       {"Description": "Gate-class series R at the driver end (DESIGN-SHEET "
+                        "sec D) [wb value]"})
+    ap(lf, R_PD, "cec-vendor", "R_Small", "10k",
+       {"Description": "hard gate-to-GND pulldown, independent of DEGATE_"
+                        "RAIL (DESIGN-SHEET C.10 'gate pull-down at the "
+                        "gate pin')"})
+    ap(lf, C_COMP, "cec-vendor", "C_Small", "1n",
+       {"Description": "loop dominant-pole compensation (OUTA -> INA-) "
+                        "[wb value, bench-tune]"})
+    for i, fref in enumerate(fet_refs):
+        ap(lf, fref, "cec-tester", fets[i], fets[i],
+           {"Description": f"CC loop pass FET {i + 1}/{n}" +
+                           (" -- Linear-L2 vernier (TO-247)" if fets[i] == "IXTH75N10L2"
+                            else " -- logic-level TO-220 (rule 25(b) packaging corollary)")})
+    if ballast:
+        for bref in ballast_refs:
+            ap(lf, bref, "cec-vendor", "R_Small", "0R1",
+               {"Description": "source-degeneration ballast, current-share "
+                                "across paralleled verniers (DESIGN-SHEET "
+                                "C.10, Array 3711A precedent) [wb value]"})
+    ap(lf, RS, "cec-vendor", "R_Small", "1m",
+       {"Manufacturer": "Bourns", "MPN": "CSS2H-2512R-1L00F", "LCSC": "C4175647",
+        "Description": f"{rail} loop Kelvin shunt -- honest 2-pad R_2512 "
+                        "land, Kelvin taps in copper at layout (platform's "
+                        "DOMINANT shunt convention: EPS/PCIe/24-pin RS1-3 -- "
+                        "NOT the rarer 24-pin RS4 4-terminal CEC_SHUNT_4T "
+                        "exception, which would need a genuine Vishay "
+                        "WSK2512-family MPN, not this Bourns 2-terminal "
+                        "part)"})
+    ap(lf, U_INA, "cec-vendor", "INA181A2IDBVR", "INA181A2IDBVR",
+       {"Manufacturer": "Texas Instruments", "MPN": "INA181A2IDBVR", "LCSC": "C2058784",
+        "Description": "trip-watch CSA, gain 50 (platform sec6.13 pattern)"})
+    ap(lf, C_INA, "cec-vendor", "C_Small", "100n")
+    ap(lf, U_CMP, "cec-vendor", "TLV7011DBVR", "TLV7011DBVR",
+       {"Manufacturer": "Texas Instruments", "MPN": "TLV7011DBVR", "LCSC": "C702117",
+        "Description": "trip-watch hysteresis comparator vs a LOCAL fixed "
+                        "threshold divider -- no spare GPIO for a firmware "
+                        "PWM threshold DAC (unlike the platform per-cable "
+                        "module precedent); [wb] bench-calibrate R_TH1/"
+                        "R_TH2's ratio"})
+    ap(lf, C_CMP, "cec-vendor", "C_Small", "100n")
+    ap(lf, R_TH1, "cec-vendor", "R_Small", "10k")
+    ap(lf, R_TH2, "cec-vendor", "R_Small", "10k")
+    ap(lf, D_OR, "cec-vendor", "D_Schottky", "SS34",
+       {"Description": f"diode-ORs this loop's own TRIP_LOOP_{rail} into "
+                        "the shared TRIP_ANY node (orchestrator safety "
+                        "review addendum 2 -- per-source diodes live on "
+                        "the leaf that owns the comparator, never the "
+                        "expander). Pin1=K(cathode)->TRIP_ANY, "
+                        f"pin2=A(anode)<-TRIP_LOOP_{rail} -- verified vs "
+                        "the real cec-vendor D_Schottky symbol body per "
+                        "the addendum-4 lesson (never assume pin1=A)."})
+
+    hi = f"{rail}_LOOP_HI"        # local: shunt HI / opamp feedback / INA IN+
+    gate_n = f"{rail}_LOOP_GATE"  # local: op-amp OUTA -> R_GATE -> FET gate(s)
+    sp_gated = f"{rail}_SP_GATED"  # local: AND output (qualified PWM)
+    sp = f"{rail}_SETPOINT"        # local: RC-filtered analog setpoint
+    detamp = f"{rail}_DETAMP"      # local: INA181 OUT -> comparator IN+
+    thresh = f"{rail}_THRESH"      # local: fixed threshold divider tap
+    trip = f"TRIP_LOOP_{rail}"     # GLOBAL: raw comparator output
+
+    # NOTE (real bug, caught by netlist re-derivation, same class as the
+    # pin-audit log's addendum-4 lesson): U_INA pin4 (IN-) was FIRST omitted
+    # from this net table entirely -- the exported netlist showed
+    # "unconnected-(U102-IN--Pad4)", a genuinely floating differential input
+    # on the trip-watch CSA (undefined/noisy amplifier behavior, not just a
+    # cosmetic gap). Fixed: IN- ties to GND, matching the platform's own
+    # sec6.13 INA181 precedent (gen-modules.py: SENSE_LO -> amp pin 4) --
+    # this design's shunt LO terminal is itself GND-referenced (2-terminal
+    # R_2512 land, Kelvin-in-copper), so IN- reads the same GND node.
+    lf.net("GND", (J, "1"), (U_AND, "3"), (C_SP, "2"), (U_OP, "4"),
+           (C_OPB, "2"), (R_PD, "2"), (RS, "2"), (U_INA, "2"), (U_INA, "4"),
+           (U_INA, "5"), (C_INA, "2"), (U_CMP, "2"), (C_CMP, "2"), (R_TH2, "2"))
+    lf.net("+3V3", (J, "2"), (U_AND, "5"), (U_OP, "8"), (C_OPB, "1"),
+           (U_INA, "6"), (C_INA, "1"), (U_CMP, "5"), (C_CMP, "1"), (R_TH1, "1"))
+    lf.net("DEGATE_RAIL", (J, "3"), (U_AND, "2"))
+    lf.net(f"PWM_SETPOINT_{rail}", (J, "4"), (U_AND, "1"))
+    lf.net(sp_gated, (U_AND, "4"), (R_SP, "1"))
+    lf.net(sp, (R_SP, "2"), (C_SP, "1"), (U_OP, "3"))
+    # FET pin numbers (verified against every promoted symbol -- AOD4184A/
+    # IRLB3034/IRLZ44N/IXTH75N10L2 all share the standard TO-220/247/252
+    # 3-pin numbering 1=G 2=D 3=S; using the NAME string here instead of the
+    # NUMBER raised a real KeyError in cec_sch_layout.pin_abs_rot (pin
+    # tables are keyed by number, not name -- caught by the very first
+    # generator run, before any gate).
+    lf.net(hi, (RS, "1"), (U_OP, "2"), (U_INA, "3"), (C_COMP, "2"),
+           *([(b, "2") for b in ballast_refs] if ballast
+             else [(fet_refs[0], "3")]))
+    lf.net("RAIL_" + rail, *[(f_, "2") for f_ in fet_refs])
+    lf.net(gate_n, (U_OP, "1"), (R_GATE, "1"), (C_COMP, "1"))
+    lf.net(f"{rail}_GATE_DRIVE", (R_GATE, "2"), (R_PD, "1"),
+           *[(f_, "1") for f_ in fet_refs])
+    lf.net(detamp, (U_INA, "1"), (U_CMP, "3"))
+    lf.net(thresh, (R_TH1, "2"), (R_TH2, "1"), (U_CMP, "4"))
+    lf.net(trip, (U_CMP, "1"), (J, "5"), (D_OR, "2"))
+    lf.net("TRIP_ANY", (D_OR, "1"))
+    if ballast:
+        for i, f_ in enumerate(fet_refs):
+            lf.net(f"{rail}_BALLAST{i}", (f_, "3"), (ballast_refs[i], "1"))
+
+    lf.hier_exports = {}
+    lf.global_nets = {f"PWM_SETPOINT_{rail}", "DEGATE_RAIL", trip, "TRIP_ANY",
+                       "RAIL_" + rail}
+    # this leaf has NO local regulator (like 03-mcu): +3V3 is 01-link's LDO
+    # output, GND is the RJ-45 shell, both purely cross-sheet -- same
+    # externally-fed-net class 03-mcu's own +3V3/GND powerflag_nets entry
+    # documents (ERC power_pin_not_driven, one representative hit per net).
+    lf.powerflag_nets = ["GND", "+3V3"]
+
+    def _compose():
+        c = _Compose(lf)
+        c.place(J, 20, 60)
+        c.place(U_AND, 60, 40)
+        c.place(R_SP, 90, 40, 90)
+        c.place(C_SP, 100, 50)
+        c.place(U_OP, 135, 60)
+        c.place(C_OPB, 135, 40)
+        c.place(R_GATE, 170, 52, 90)
+        c.place(R_PD, 170, 70, 90)
+        c.place(C_COMP, 155, 84)
+        fx0 = 200
+        fx_pitch = 44
+        for i, f_ in enumerate(fet_refs):
+            c.place(f_, fx0 + i * fx_pitch, 60, 90)
+        if ballast:
+            for i, b in enumerate(ballast_refs):
+                c.place(b, fx0 + i * fx_pitch, 88, 90)
+        c.place(RS, fx0 + (n - 1) * fx_pitch // 2 + 15, 112)
+        c.place(U_INA, 200, 140)
+        c.place(C_INA, 200, 126)
+        c.place(U_CMP, 232, 140)
+        c.place(C_CMP, 232, 126)
+        c.place(R_TH1, 254, 132, 90)
+        c.place(R_TH2, 254, 150, 90)
+        c.place(D_OR, 254, 162, 270)
+
+        # ---- AND -> RC filter -> op-amp setpoint chain: hand-wired (not
+        # left for the generic per-net pass) so the 2/3-member local nets
+        # each get ONE visible run instead of 2-3 independent auto-labels
+        # landing close enough on the SAME leaf to collide (measured:
+        # cec_sch_layout --check-overlaps caught "{rail}_SP_GATED"/
+        # "{rail}_SETPOINT" self-collisions on the first pass -- both nets'
+        # members sit close together at this leaf's compact scale).
+        a4 = c.pin(U_AND, "4")
+        r1 = c.pin(R_SP, "1")
+        c.wire(a4, (a4[0] + 3, a4[1]), (a4[0] + 3, r1[1]), r1)
+        c.use((U_AND, "4"), (R_SP, "1"))
+        # explicit label at the mid-run corner: both endpoints of this net
+        # are now hand-consumed, so without an explicit label the exported
+        # netlist would show only KiCad's own auto-derived name (the SAME
+        # class of cosmetic gap the pin-audit log's addendum 4 already
+        # documents for 02-power's D6/+12V_AUX_RAW run) instead of the
+        # intended sp_gated name this leaf's own note()/checker reference.
+        c.label(sp_gated, a4[0] + 3, a4[1], 90)
+        r2 = c.pin(R_SP, "2")
+        cs1 = c.pin(C_SP, "1")
+        op3 = c.pin(U_OP, "3")
+        # single T: r2 -> tap (at C_SP's x) -> drop to C_SP.1; tap -> continue
+        # right to U_OP.3 -- avoids drawing two overlapping horizontal runs
+        # from the same start point (both reaching a shared row).
+        tap = (cs1[0], r2[1])
+        c.wire(r2, tap)
+        c.wire(tap, cs1)
+        c.wire(tap, (op3[0], r2[1]), op3)
+        c.use((R_SP, "2"), (C_SP, "1"), (U_OP, "3"))
+        c.label(sp, tap[0], tap[1], 90)
+
+        c.caption(lf.desc, 6, 8)
+        c.note(
+            f"{rail} CC loop. Harness-boundary CEC_CONN_1x8 (split-arch "
+            "readiness, README.md): pins 1-5 real, 6-8 spare. De-gate is a "
+            "REGULATED-to-zero soft-kill (AND on the RAW pre-filter PWM, "
+            "before the RC) backed by R_PD's hard gate pulldown. Shunt "
+            "Kelvin taps are a PCB-layout-time concern (R_2512 land, "
+            "platform's dominant 2-terminal shunt convention). Trip "
+            "threshold is a LOCAL FIXED divider (R_TH1/R_TH2), not a "
+            "firmware PWM DAC -- 03-mcu's fixed pin/bit budget has no "
+            "spare channel for one (HARD CONSTRAINT); [wb] bench-"
+            "calibrate. TRIP_LOOP_" + rail + " diode-ORs into the shared "
+            "TRIP_ANY node (orchestrator addendum 2).", 6, 170)
+        c.done()
+
+    return lf, _compose
+
+
+LOOP_LEAVES = {}
+for _rid, _fid, _rail, _fets, _ballast in _LOOP_RAILS:
+    _lf, _fn = compose_04(_rid, _fid, _rail, _fets, _ballast)
+    LOOP_LEAVES[_rid] = (_lf, _fid, _fn)
+
+
 if __name__ == "__main__":
     compose_01()
     compose_02()
     compose_03()
+    # PHASE-1 STANDALONE BUILD LIST (2026-07-17 continuation): every leaf
+    # below 03-mcu is still built the SAME "TESTROOT" placeholder way 01/02/
+    # 03 were -- each file gets its own individual-leaf ERC/lint/overlap/
+    # netlist gate before it is trusted, exactly matching the established
+    # per-leaf workflow. This list grows as each build-order group (04, 05,
+    # 06, 07, 08) lands; the FINAL step (root composition) throws this whole
+    # block away and rebuilds every leaf with real path_prefix/sheet_
+    # instances_path/own_uuid chains + the actual thin-parent root, per
+    # build_thin_parent's own convention (modules/ent-common/
+    # gen_p4_t1_block.py's __main__ is the worked example).
+    _STANDALONE_BUILD = [(L01, "01-link"), (L02, "02-power"), (L03, "03-mcu")]
+    for _rid in ("04a", "04b", "04c", "04d"):
+        _lf, _fid, _fn = LOOP_LEAVES[_rid]
+        _fn()
+        _STANDALONE_BUILD.append((_lf, _fid))
+
     _PAPER = {"03-mcu": "A1"}
-    for lf, fname in ((L01, "01-link"), (L02, "02-power"), (L03, "03-mcu")):
+    for lf, fname in _STANDALONE_BUILD:
         stats = cec_sch_compose.build_leaf(
             lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
