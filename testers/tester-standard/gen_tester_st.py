@@ -1772,6 +1772,337 @@ for _rid, _fid, _rail, _fets, _ballast in _LOOP_RAILS:
     LOOP_LEAVES[_rid] = (_lf, _fid, _fn)
 
 
+# ===========================================================================
+# 05 -- R-banks, LADDER v1.1 [wb] (README.md "R-bank ladder proposal v1.1" --
+# pending owner nod, marked [wb] on every caption per the build order). ONE
+# template function building all 5 rail leaves. Per group (NOT per leg,
+# DESIGN-SHEET C.12): AOD4184A low-side switch, sized-on-TIME 3557-10 ATOF
+# fuse UPSTREAM of the FET, and a local SN74AHCT1G08 AND(BANK_{rail}_G{g}_
+# CTRL, DEGATE_RAIL) gate driver (VCC=+5V_LOGIC -- unlike the loops' +3V3
+# AND-cell, this one drives a POWER FET gate directly, so the higher rail
+# gives better RDS(on); see the addendum). Trip-watch is SHARED PER RAIL,
+# not per group (see the addendum's "trip-watch granularity" note) -- one
+# Kelvin shunt in the common FET-source return bus, one INA181+TLV7011
+# cell, exactly matching 03-mcu's committed TRIP_BANK_{rail} budget (one
+# bit per rail, five total). ST-1000 BASELINE LEG COUNTS drawn (32/8/8/4/2
+# = 54 legs); the ST-1300 population variant (+12 legs in 12V's group 6,
+# 16->28, "never in copper" per README) is NOT physically drawn this pass
+# -- documented, deferred population-only extension (see the addendum).
+# ===========================================================================
+_BANK_RAILS = [
+    ("05a", "05a-bank-12v", "12V", [1, 1, 2, 4, 8, 16], "6R0"),
+    ("05b", "05b-bank-5v", "5V", [1, 1, 2, 4], "1R0"),
+    ("05c", "05c-bank-3v3", "3V3", [1, 1, 2, 4], "0R68"),
+    ("05d", "05d-bank-5vsb", "5VSB", [1, 1, 2], "3R3"),
+    ("05e", "05e-bank-n12v", "N12V", [1, 1], "47"),
+]
+
+
+def compose_05(rid, fid, rail, groups, leg_value):
+    ng = len(groups)
+    total_legs = sum(groups)
+    lf = leaf(rid, f"{fid}.kicad_sch", fid,
+              f"R-bank, {rail} rail -- LADDER v1.1 [wb]: {ng} groups "
+              f"({'+'.join(str(g) for g in groups)} legs, {total_legs} "
+              f"total, {leg_value} each) x AOD4184A+3557-10 fuse+local "
+              "AND gate driver, shared Kelvin shunt + INA181/TLV7011 "
+              "trip-watch per rail; CEC_CONN harness-boundary connector")
+
+    # harness pins: GND, +3V3, DEGATE_RAIL, one CTRL per group, TRIP_OUT
+    n_harn = 3 + ng + 1
+    harn_kind = "CEC_CONN_1x12" if n_harn > 8 else "CEC_CONN_1x8"
+    J = nref("J")
+    ctrl_names = [f"BANK_{rail}_G{g}_CTRL" for g in range(1, ng + 1)]
+    trip = f"TRIP_BANK_{rail}"
+
+    ap(lf, J, "cec-tester", harn_kind, "J_HARN",
+       {"Description": f"Harness-boundary connector (split-arch readiness): "
+                        f"1=GND 2=+3V3 3=DEGATE_RAIL 4..{3 + ng}="
+                        f"{','.join(ctrl_names)}(in) {4 + ng}={trip}(out) "
+                        f"{5 + ng}..{'12' if harn_kind.endswith('12') else '8'}"
+                        "=spare. [wb] real keyed-connector class/MPN pending "
+                        "split-arch ratification"})
+
+    # per-group parts + local wiring
+    fet_refs, fuse_refs, and_refs, gr_refs, pd_refs = [], [], [], [], []
+    leg_refs_by_group = []
+    for gi, count in enumerate(groups):
+        gnum = gi + 1
+        legs = []
+        for _ in range(count):
+            r = nref("R")
+            ap(lf, r, "cec-vendor", "R_Small", leg_value,
+               {"Manufacturer": "[wb]", "MPN": "HoRX-50W-class [wb exact "
+                                                "LCSC line pending BOM lock]",
+                "Description": f"{rail} bank leg, group {gnum} -- chassis-"
+                                "mounted, off-board (DESIGN-SHEET 22b "
+                                "wall-cartridge form); this pad is the "
+                                "wire-lug landing, not the resistor body"})
+            FOOTPRINTS[r] = "cec-tester:HoRX_50W_WireLug_2Pin"
+            legs.append(r)
+        leg_refs_by_group.append(legs)
+        f_ = nref("F")
+        ap(lf, f_, "cec-tester", "3557-10", f"ATOF-[wb]",
+           {"Manufacturer": "Keystone", "MPN": "3557-10", "LCSC": "C3205403",
+            "Description": f"group {gnum} ATOF fuse holder, sized on TIME "
+                            "(carries the ms-scale test surge, blows on "
+                            "seconds-scale cook) -- UPSTREAM of the FET "
+                            "(DESIGN-SHEET C.12); [wb] exact amperage per "
+                            "group current"})
+        fuse_refs.append(f_)
+        q = nref("Q")
+        ap(lf, q, "cec-tester", "AOD4184A", "AOD4184A",
+           {"Manufacturer": "Alpha & Omega", "MPN": "AOD4184A", "LCSC": "C99124",
+            "Description": f"group {gnum} low-side bank switch"})
+        fet_refs.append(q)
+        u = nref("U")
+        ap(lf, u, "cec-vendor", "SN74AHCT1G08", "SN74AHCT1G08",
+           {"Manufacturer": "Texas Instruments", "MPN": "SN74AHCT1G08DBVR",
+            "Description": f"AND(BANK_{rail}_G{gnum}_CTRL, DEGATE_RAIL) -- "
+                            "hard gate qualifier + level-shift-up-to-5V "
+                            "drive in one part (VCC=+5V_LOGIC, unlike the "
+                            "loops' +3V3 AND-cell -- this output drives a "
+                            "power FET gate directly)"})
+        and_refs.append(u)
+        gr = nref("R")
+        ap(lf, gr, "cec-vendor", "R_Small", "100",
+           {"Description": "Gate-class series R at the driver end [wb value]"})
+        gr_refs.append(gr)
+        pd = nref("R")
+        ap(lf, pd, "cec-vendor", "R_Small", "10k",
+           {"Description": "hard gate-to-GND pulldown, independent of "
+                            "DEGATE_RAIL (DESIGN-SHEET C.10 pattern, "
+                            "applied here to the bank switch FET)"})
+        pd_refs.append(pd)
+
+    RS = nref("R")
+    ap(lf, RS, "cec-vendor", "R_Small", "1m",
+       {"Manufacturer": "Bourns", "MPN": "CSS2H-2512R-1L00F", "LCSC": "C4175647",
+        "Description": f"{rail} bank RAIL-LEVEL Kelvin shunt (shared "
+                        "across all groups' common FET-source return -- "
+                        "trip-watch granularity is per-RAIL not per-GROUP, "
+                        "matching 03-mcu's committed 1-bit-per-rail TRIP_"
+                        "BANK budget; per-group fusing is the real per-leg "
+                        "protection element, see the addendum). Honest "
+                        "2-pad R_2512 land, same platform-dominant "
+                        "convention as the CC loops."})
+    U_INA, U_CMP = nref("U"), nref("U")
+    C_INA, C_CMP = nref("C"), nref("C")
+    R_TH1, R_TH2 = nref("R"), nref("R")
+    D_OR = nref("D")
+    ap(lf, U_INA, "cec-vendor", "INA181A2IDBVR", "INA181A2IDBVR",
+       {"Manufacturer": "Texas Instruments", "MPN": "INA181A2IDBVR", "LCSC": "C2058784",
+        "Description": "rail trip-watch CSA, gain 50 (platform sec6.13 pattern)"})
+    ap(lf, C_INA, "cec-vendor", "C_Small", "100n")
+    ap(lf, U_CMP, "cec-vendor", "TLV7011DBVR", "TLV7011DBVR",
+       {"Manufacturer": "Texas Instruments", "MPN": "TLV7011DBVR", "LCSC": "C702117",
+        "Description": "rail trip-watch comparator vs a LOCAL fixed "
+                        "threshold divider; [wb] bench-calibrate"})
+    ap(lf, C_CMP, "cec-vendor", "C_Small", "100n")
+    ap(lf, R_TH1, "cec-vendor", "R_Small", "10k")
+    ap(lf, R_TH2, "cec-vendor", "R_Small", "10k")
+    ap(lf, D_OR, "cec-vendor", "D_Schottky", "SS34",
+       {"Description": f"diode-ORs this rail's own {trip} into the shared "
+                        "TRIP_ANY node (orchestrator addendum 2). "
+                        "Pin1=K(cathode)->TRIP_ANY, pin2=A(anode)<-"
+                        f"{trip} -- verified vs the real symbol body per "
+                        "the addendum-4 lesson."})
+
+    ret = f"{rail}_BANK_RETURN"
+    detamp = f"{rail}_BANK_DETAMP"
+    thresh = f"{rail}_BANK_THRESH"
+
+    lf.net("GND", (J, "1"), (RS, "2"), (U_INA, "2"), (U_INA, "4"), (U_INA, "5"),
+           (C_INA, "2"), (U_CMP, "2"), (C_CMP, "2"), (R_TH2, "2"),
+           *[(u, "3") for u in and_refs], *[(pd, "2") for pd in pd_refs])
+    lf.net("+3V3", (J, "2"), (U_INA, "6"), (C_INA, "1"), (U_CMP, "5"),
+           (C_CMP, "1"), (R_TH1, "1"))
+    lf.net("+5V_LOGIC", *[(u, "5") for u in and_refs])
+    lf.net("DEGATE_RAIL", (J, "3"), *[(u, "2") for u in and_refs])
+    for gi in range(ng):
+        lf.net(ctrl_names[gi], (J, str(4 + gi)), (and_refs[gi], "1"))
+    lf.net(ret, (RS, "1"), (U_INA, "3"), *[(q, "3") for q in fet_refs])
+    lf.net(detamp, (U_INA, "1"), (U_CMP, "3"))
+    lf.net(thresh, (R_TH1, "2"), (R_TH2, "1"), (U_CMP, "4"))
+    lf.net(trip, (U_CMP, "1"), (J, str(4 + ng)), (D_OR, "2"))
+    lf.net("TRIP_ANY", (D_OR, "1"))
+    lf.net("RAIL_" + rail, *[(r, "1") for legs in leg_refs_by_group for r in legs])
+    for gi in range(ng):
+        legs = leg_refs_by_group[gi]
+        lf.net(f"{rail}_G{gi + 1}_NODE",
+               *[(r, "2") for r in legs], (fuse_refs[gi], "1"), (fuse_refs[gi], "2"))
+        lf.net(f"{rail}_G{gi + 1}_FUSED",
+               (fuse_refs[gi], "3"), (fuse_refs[gi], "4"), (fet_refs[gi], "2"))
+        lf.net(f"{rail}_G{gi + 1}_GATE",
+               (and_refs[gi], "4"), (gr_refs[gi], "1"))
+        lf.net(f"{rail}_G{gi + 1}_GATE_DRIVE",
+               (gr_refs[gi], "2"), (pd_refs[gi], "1"), (fet_refs[gi], "1"))
+
+    lf.hier_exports = {}
+    lf.global_nets = set(ctrl_names) | {"DEGATE_RAIL", trip, "TRIP_ANY",
+                                        "RAIL_" + rail, "+5V_LOGIC"}
+    lf.powerflag_nets = ["GND", "+3V3", "+5V_LOGIC"]
+
+    def _compose():
+        c = _Compose(lf)
+        c.place(J, 20, 40)
+        leg_pitch, group_gap = 8, 6
+        x = 60
+        group_x0 = []
+        for gi, count in enumerate(groups):
+            group_x0.append(x)
+            legs = leg_refs_by_group[gi]
+            for li, r in enumerate(legs):
+                c.place(r, x, 40)
+                x += leg_pitch
+            x += group_gap
+        # ALL legs share one row (y=40, rot=0 vertical) so every pin1 sits
+        # on the exact same absolute Y. FIRST ATTEMPT drew ONE long bus wire
+        # from the leftmost to the rightmost leg, relying on "KiCad binds a
+        # pin wherever a drawn wire's path touches it, not only at declared
+        # endpoints" (the addendum-4 lesson, there observed on a 2-endpoint
+        # wire that happened to pass through a THIRD, unrelated pin). That
+        # does NOT generalize to a bus serving MANY intermediate pins on one
+        # long segment -- re-verified against the real netlist/ERC: kicad-
+        # cli's `pin_not_connected` fired on most of the interior legs (e.g.
+        # 05b's group-4 row, all 4 legs on one 30mm run: R183/184/185 each
+        # partly unconnected, only the two segment ENDPOINTS reliably
+        # bound). FIX: chain the bus as ADJACENT-PAIR segments (leg[i] to
+        # leg[i+1], matching this file's own established archetypes --
+        # divider_chain/protection_chain build their runs the same way) so
+        # EVERY leg pin is a genuine wire ENDPOINT for at least one segment,
+        # never just a mid-span pass-through.
+        all_legs = [r for legs in leg_refs_by_group for r in legs]
+        p1_all = [c.pin(r, "1") for r in all_legs]
+        rail_bus_y = p1_all[0][1]
+        for a, b in zip(all_legs, all_legs[1:]):
+            c.wire(c.pin(a, "1"), c.pin(b, "1"))
+        c.label("RAIL_" + rail, p1_all[0][0], rail_bus_y, 90)
+        for gi, count in enumerate(groups):
+            legs = leg_refs_by_group[gi]
+            for a, b in zip(legs, legs[1:]):
+                c.wire(c.pin(a, "2"), c.pin(b, "2"))
+            c.use(*[(r, "1") for r in legs], *[(r, "2") for r in legs])
+
+        # Per-group control cluster: EVERY group's fuse/FET/AND-gate/gate-R/
+        # pulldown sits in its OWN narrow x-column (gx, the group's own
+        # anchor) so no group's wiring ever needs a wide horizontal span
+        # that could reach into a neighboring group. ALSO staggers each
+        # group's row by `row_stagger` grid units as a second, independent
+        # safety margin. BOTH were needed: a first pass placed every
+        # group's AND-gate/gate-R far to the group's OWN right edge (at
+        # `gx + leg_pitch*count`) while its FET stayed at `gx` -- the
+        # resulting gr-to-FET-gate wire spanned nearly the group's full
+        # width, and at tight group pitches (adjacent single-leg groups
+        # only ~14 units apart) that span COLLIDED, COLLINEARLY, with the
+        # next group's own same-shape wire on the SAME y row: KiCad merges
+        # overlapping collinear wire segments regardless of where their
+        # OWN endpoints are, so two different groups' gate-drive nets
+        # silently shorted together (ERC caught it as `pin_to_pin` "Output
+        # and Output are connected" between two different AND-gate Y
+        # pins -- a real cross-group short, not a cosmetic finding).
+        row_stagger = 50   # generous -- > the vertical extent of one
+                            # group's own fuse/FET/AND/gateR/pulldown
+                            # cluster PLUS the nudge pass's own search
+                            # radius, so adjacent groups' clusters never
+                            # share a row AND nudge has clear room to push
+                            # each part's self-colliding Value/Ref text
+                            # into (a first, tighter attempt left several
+                            # small parts' OWN Value-text self-colliding
+                            # with their OWN pin labels unresolved -- not a
+                            # cross-part issue, but nudge needs empty space
+                            # nearby to resolve even a self-collision into)
+        for gi, count in enumerate(groups):
+            gnum = gi + 1
+            legs = leg_refs_by_group[gi]
+            gx = group_x0[gi]
+            ry = 60 + gi * row_stagger
+            f_, q, u, gr, pd = fuse_refs[gi], fet_refs[gi], and_refs[gi], gr_refs[gi], pd_refs[gi]
+            c.place(f_, gx, ry)
+            c.place(q, gx, ry + 22, 90)
+            c.place(u, gx + 24, ry)
+            c.place(gr, gx + 24, ry + 16, 90)
+            c.place(pd, gx + 40, ry + 16, 90)
+            # group node: leg pin2 row -> fuse pin1/2. Every hand-consumed
+            # net gets an explicit c.label() at its tap point -- without
+            # one, a fully hand-wired net exports only under KiCad's own
+            # auto-derived name (e.g. "Net-(F1-Pad1)"), the same class
+            # this file's own addendum 7 already documents for the loop
+            # leaves' SP_GATED/SETPOINT nets; the checker script (build
+            # order item 7) needs these names to actually mean something.
+            p2mid = c.pin(legs[len(legs) // 2], "2")
+            f1, f2 = c.pin(f_, "1"), c.pin(f_, "2")
+            c.wire(p2mid, (p2mid[0], f1[1]), f1)
+            c.wire(f1, f2)
+            c.use((legs[len(legs) // 2], "2"), (f_, "1"), (f_, "2"))
+            c.label(f"{rail}_G{gnum}_NODE", f1[0], f1[1], 90)
+            # fuse out -> FET drain
+            f3, f4 = c.pin(f_, "3"), c.pin(f_, "4")
+            qd = c.pin(q, "2")
+            c.wire(f3, f4)
+            c.wire(f4, (f4[0], qd[1]), qd)
+            c.use((f_, "3"), (f_, "4"), (q, "2"))
+            c.label(f"{rail}_G{gnum}_FUSED", f4[0], f4[1], 90)
+            # AND -> gate R -> FET gate; also gate pulldown -- all within
+            # this group's own tight column now (gx..gx+30), never
+            # reaching toward gx of any neighboring group.
+            u4 = c.pin(u, "4")
+            gr1 = c.pin(gr, "1")
+            c.wire(u4, (u4[0], gr1[1]), gr1)
+            c.use((u, "4"), (gr, "1"))
+            c.label(f"{rail}_G{gnum}_GATE", u4[0], u4[1], 90)
+            gr2 = c.pin(gr, "2")
+            qg = c.pin(q, "1")
+            pd1 = c.pin(pd, "1")
+            c.wire(gr2, (qg[0], gr2[1]), qg)
+            c.wire(gr2, (pd1[0], gr2[1]), pd1)
+            c.use((gr, "2"), (q, "1"), (pd, "1"))
+            c.label(f"{rail}_G{gnum}_GATE_DRIVE", gr2[0], gr2[1], 90)
+
+        # ---- shared rail-level shunt + trip-watch, placed clear below
+        # EVERY group's row (dynamic on group count, not a fixed guess --
+        # a fixed sy=100 collided with the later-staggered groups once
+        # row_stagger grew past 100/ng).
+        sy = 60 + ng * row_stagger + 20
+        # SAME relative offsets as compose_04's already-clean (0-overlap)
+        # trip-watch cell, just re-based at (100, sy) -- reusing proven
+        # geometry rather than re-deriving new spacing from scratch.
+        c.place(RS, 60, sy)
+        c.place(U_INA, 100, sy + 20)
+        c.place(C_INA, 100, sy + 6)
+        c.place(U_CMP, 132, sy + 20)
+        c.place(C_CMP, 132, sy + 6)
+        c.place(R_TH1, 154, sy + 12, 90)
+        c.place(R_TH2, 154, sy + 30, 90)
+        c.place(D_OR, 154, sy + 42, 270)
+
+        c.caption(lf.desc, 6, 8)
+        c.note(
+            f"{rail} R-bank, LADDER v1.1 [wb] (README.md, pending owner "
+            f"nod): {ng} groups, {'+'.join(str(g) for g in groups)} legs "
+            f"({total_legs} total @ {leg_value} each), ST-1000 baseline "
+            "drawn -- the ST-1300 population variant (12V group "
+            f"{ng if rail == '12V' else '-'} +12 legs, 16->28) is a "
+            "population-only BOM extension, not physically drawn this "
+            "pass (\"never in copper\" per README -- deferred, see the "
+            "pin-audit addendum). Fuse UPSTREAM of FET (DESIGN-SHEET "
+            "C.12). Trip-watch is PER-RAIL (one shared Kelvin shunt in "
+            "the common FET-source return), not per-group -- matches "
+            "03-mcu's committed 1-bit TRIP_BANK budget; per-group ATOF "
+            "fusing is the real per-leg protection. Harness-boundary "
+            f"{harn_kind}: pins 1-{3 + ng} real, rest spare.", 6,
+            sy + 60)
+        c.done()
+
+    return lf, _compose
+
+
+BANK_LEAVES = {}
+for _rid, _fid, _rail, _groups, _legval in _BANK_RAILS:
+    _lf, _fn = compose_05(_rid, _fid, _rail, _groups, _legval)
+    BANK_LEAVES[_rid] = (_lf, _fid, _fn)
+
+
 if __name__ == "__main__":
     compose_01()
     compose_02()
@@ -1791,8 +2122,13 @@ if __name__ == "__main__":
         _lf, _fid, _fn = LOOP_LEAVES[_rid]
         _fn()
         _STANDALONE_BUILD.append((_lf, _fid))
+    for _rid in ("05a", "05b", "05c", "05d", "05e"):
+        _lf, _fid, _fn = BANK_LEAVES[_rid]
+        _fn()
+        _STANDALONE_BUILD.append((_lf, _fid))
 
-    _PAPER = {"03-mcu": "A1"}
+    _PAPER = {"03-mcu": "A1", "05a-bank-12v": "A1", "05b-bank-5v": "A2",
+              "05c-bank-3v3": "A2", "05d-bank-5vsb": "A2", "05e-bank-n12v": "A2"}
     for lf, fname in _STANDALONE_BUILD:
         stats = cec_sch_compose.build_leaf(
             lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
