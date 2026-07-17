@@ -928,6 +928,57 @@ corollary for 08-deck-io: each HPWR slot presents the CARD-side contract
 the tester advertises the cable class under test, reusing the 12VHPWR
 module's sideband knowledge.
 
+## 12d. 12VHPWR dual-ended cable metrology (owner insight 2026-07-17)
+
+_Owner: with the 12VHPWR module on the PSU end and the tester owning the
+card end, do we get a "cable balance" stress test? And proper
+Kelvin/temperature sensing at the PORT end, not just the cable?_ YES on
+both — with one physics upgrade on the first:
+
+**What dual-ended actually unlocks — the per-pin RESISTANCE map.**
+Per-pin current BALANCE was always visible single-ended (current is
+conserved along a wire; the module's six shunts already read it). What a
+second instrumented end adds is per-pin VOLTAGE at both ends of every
+lane → per-pin ΔV at known per-pin I → **absolute per-pin PATH RESISTANCE
+under live load** (wire + BOTH connector contact pairs), solved using the
+module's rail divider as the common-plane reference. Contact-resistance
+growth is THE melt precursor — nobody in the melting-connector story can
+see it live; we can, per pin, per second, as a trend. That is the
+headline capability, and it composes with everything else: R-map vs
+temperature vs current vs mating-cycle count, logged on the CEC_MARK
+timeline.
+
+**"Cable balance stress test" — two modes, one design fork:**
+- **OBSERVE (baseline, all tiers with an HPWR slot):** the slot lands all
+  six 12 V pins on ONE node exactly like a real GPU — balance emerges
+  from path resistances, which is the realistic condition — and the test
+  ramps/holds while logging per-pin I spread, the R-map, and port temps:
+  imbalance-vs-load curves, contact-heating→R-rise→redistribution
+  detection (the thermal-runaway precursor), pass/fail against per-pin
+  spec (9.2 A/pin bar).
+- **FORCE (Max/W option, [wb] owner nod at Max capture):** a PER-PIN
+  LOADABLE slot variant — six small isolated pin nodes (~2–3 bank legs
+  each, ≈15–18 legs + switches ≈ +$50–80) lets us deliberately hog one
+  pin to spec-worst-case and beyond-with-consent: **recreating the melt
+  scenario safely, on purpose, instrumented** — verify a cable/connector
+  design's runaway threshold instead of reading about it on Reddit.
+  Per-pin fence = the 9.2 A bar, same §12c fence discipline.
+
+**Port-end ownership = the deferred direct-contact read, realized.** We
+could never instrument a customer's GPU receptacle (the §6.1
+pigtail/GPU-plug NTC was DEFERRED for exactly that reason). The tester
+slot is OUR receptacle: per-pin Kelvin voltage taps at the contact lands
+(true 4-wire — force through the power path, sense traces to the
+acquisition mux) + NTCs embedded in the receptacle body at the pin field
+(the platform's TH1-by-the-shunt pattern moved to the actual melt site).
+EPS/PCIe slots inherit the same port-end treatment for free. TIERING BY
+ADC DEPTH (honesty): full per-pin port metrology (6 V-taps + port NTCs
+per slot) belongs to Pro/Max acquisition (SAR/AFE depth); ST gets port
+NTC + aggregate sense (its C6 pools are closed). Cross-links: the slot
+Kelvin design rides the same sense-return discipline as OQ-88; capture
+lands in 08-deck-io + the Max acquisition sheets; analog-channel budget
+per tier at that pass.
+
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 
 **Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.

@@ -295,3 +295,10 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   ever knocks. Adopted-without-nod (engineering): closed-outer-loop + cal-time conductance
   map (firmware contract), FPGA-timed bank strobes on Max, SCP arm relay (owner's own
   question, §3b addendum + rule 24g).
+
+- [2026-07-17] **NOD WANTED — per-pin loadable 12VHPWR slot on Max/W** (sketch §12d FORCE
+  mode): six isolated pin nodes (~15–18 extra legs + switches, +$50–80) to deliberately
+  recreate the melt scenario safely — single-pin hog to the 9.2 A bar and beyond-with-consent,
+  runaway-threshold characterization. Baseline OBSERVE mode (single-node slot, per-pin R-map
+  via dual-ended metrology) needs no nod — it rides existing architecture. Decide at Max
+  capture.
