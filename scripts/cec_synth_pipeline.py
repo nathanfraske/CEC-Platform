@@ -2504,7 +2504,7 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             return clr
         return max(clr, role_clr.get(a, 0.0), role_clr.get(b, 0.0))
 
-    def cost(r):
+    def _cost_scalar(r):
         ar = bbox(r)
         c = 0.0
         for o in placed:
@@ -2515,6 +2515,67 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
                 if n in P:
                     c += alpha * (abs(P[r][0] - P[n][0]) + abs(P[r][1] - P[n][1]))
         return c
+
+    # VECTORIZED cost (roadmap throughput lever 5, owner GO 2026-07-17): the overlap
+    # scan is the anneal's hot loop (O(parts) bbox builds + _ov_area per move x 2500
+    # moves, profiled ~0.3s/synth -- the packing-quality headroom lever: cheaper cost
+    # = more iterations affordable later; RAISING iters stays a separate, ablation-
+    # gated lever). BIT-IDENTITY is the contract, stricter than the legalize
+    # precedent because every accept/reject rides on exact floats: per-element ops
+    # mirror _ov_area exactly (min/max/+clr then dx*dy -- IEEE ops, same order), the
+    # self slot contributes +0.0 in place (x+0.0 == x for the non-negative sums
+    # here), and accumulation is SEQUENTIAL over the same `placed` order via
+    # .tolist() -- np.sum's pairwise reduction would round differently. Arrays are
+    # synced at every P write site (_sync); no numpy -> the scalar path (R-05).
+    # CEC_ANNEAL_VEC=0 forces the scalar path (the identity test's other arm + the
+    # ops revert handle).
+    try:
+        if os.environ.get("CEC_ANNEAL_VEC", "1") == "0":
+            raise ImportError("scalar path forced")
+        import numpy as _np
+        _A0 = _np.empty(len(placed))
+        _A1 = _np.empty(len(placed))
+        _B0 = _np.empty(len(placed))
+        _B1 = _np.empty(len(placed))
+        _idx = {r: i for i, r in enumerate(placed)}
+        for r in placed:
+            b = bbox(r)
+            i = _idx[r]
+            _A0[i], _A1[i], _B0[i], _B1[i] = b
+        _RC = (_np.array([role_clr.get(r, 0.0) for r in placed])
+               if role_clr else None)
+
+        def _sync(r):
+            i = _idx.get(r)
+            if i is not None:
+                b = bbox(r)
+                _A0[i], _A1[i], _B0[i], _B1[i] = b
+
+        def cost(r):
+            ar = bbox(r)
+            if _RC is None:
+                pc = clr
+            else:
+                pc = _np.maximum(max(clr, role_clr.get(r, 0.0)), _RC)
+            dx = _np.minimum(ar[1], _A1) - _np.maximum(ar[0], _A0) + pc
+            dy = _np.minimum(ar[3], _B1) - _np.maximum(ar[2], _B0) + pc
+            contrib = _np.where((dx > 0) & (dy > 0), dx * dy, 0.0)
+            i = _idx.get(r)
+            if i is not None:
+                contrib[i] = 0.0
+            c = 0.0
+            for v in contrib.tolist():                  # sequential adds == scalar order
+                c += v
+            if nbrs:
+                for n in sorted(nbrs.get(r, ())):       # sorted: deterministic across processes
+                    if n in P:
+                        c += alpha * (abs(P[r][0] - P[n][0]) + abs(P[r][1] - P[n][1]))
+            return c
+    except ImportError:
+        cost = _cost_scalar
+
+        def _sync(r):
+            pass
 
     T = t0
     for _ in range(iters):
@@ -2538,9 +2599,13 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
                 T *= cool
                 continue
             P[r], P[r2] = (o2[0], o2[1], orot), (ox, oy, o2[2])
+            _sync(r)
+            _sync(r2)
             d2 = (cost(r) + cost(r2)) - before2
             if d2 > 0 and rnd.random() >= math.exp(-d2 / max(T, 1e-3)):
                 P[r], P[r2] = (ox, oy, orot), o2       # reject swap
+                _sync(r)
+                _sync(r2)
             T *= cool
             continue
         # NOTE: a rotate-in-place move was tried and REMOVED (2026-07-08) -- rotating a
@@ -2553,9 +2618,11 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             T *= cool
             continue
         P[r] = (nx, ny, orot)
+        _sync(r)
         d = cost(r) - before
         if d > 0 and rnd.random() >= math.exp(-d / max(T, 1e-3)):
             P[r] = (ox, oy, orot)                     # reject
+            _sync(r)
         T *= cool
     return P
 

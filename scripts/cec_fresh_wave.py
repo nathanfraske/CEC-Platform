@@ -357,22 +357,11 @@ def _board_params(board):
     return p
 
 
-def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None):
-    """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
-    it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
-    not fork-safe, the cec_fr.generate_batch precedent). *proposal* = a VALIDATED seat
-    proposal dict (cec_wave_intents) -- applied instead of a named hand intent; its
-    role_keepouts merge into params (the params-level lever)."""
-    label = f"{iname}-{strat}-s{seed}"
-    t0 = time.monotonic()
-    # The wave is the consumer that WANTS the fork's real seed-diversity axis
-    # (R-01); everything else stays stock-order unless it opts in (see cec_fr
-    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
-    os.environ["CEC_FR_SEED_AXIS"] = "1"
-    # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
-    # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
-    # JVM, grade it failed, spend the wall-clock on live candidates instead.
-    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
+def _build_session(board, W, H, iname, strat, seed, proposal=None):
+    """The variant's PlacementSession, identically for the place-only (prune) and
+    full-grade phases -- factored so the two can never drift. *proposal* = a
+    VALIDATED seat proposal dict (cec_wave_intents), applied instead of a named
+    hand intent; its role_keepouts merge into params (the params-level lever)."""
     _p = _board_params(board)
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)
@@ -388,6 +377,78 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
         cec_wave_intents.apply_proposal(s, proposal)
     else:
         dict(_intents_for(board))[iname](s)
+    return s, _p
+
+
+def _place_variant(board, W, H, iname, strat, seed, proposal=None):
+    """PRUNE PHASE 1 (roadmap throughput lever 1, owner GO 2026-07-17): compile the
+    PLACEMENT only (seconds) and return the cheap production key -- the same
+    csp._candidate_sort_key place_candidates ranks by (residual, corridor-aware,
+    corridor, proxy). NO route, NO oracle: this exists so the wave can spend its
+    FR minutes on the variants whose placements earn it. Errors return an
+    error row -- the caller treats those FAIL-OPEN (never silently pruned on an
+    infrastructure error; ranking-fidelity is the cost being managed, roadmap
+    false-summit caveat)."""
+    label = f"{iname}-{strat}-s{seed}"
+    t0 = time.monotonic()
+    try:
+        s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+        with csp._oracle_env(s.cfg.params if s.cfg else None):
+            cand = s.compile()
+        key = csp._candidate_sort_key(cand)
+        return {"label": label, "iname": iname, "strat": strat, "seed": seed,
+                "place_key": [float(k) for k in key],
+                "residual": cand.residual, "corridor_cross": cand.corridor_cross,
+                "place_wall_s": round(time.monotonic() - t0, 1)}
+    except Exception as e:                                  # noqa: BLE001 -- fail-open
+        return {"label": label, "iname": iname, "strat": strat, "seed": seed,
+                "place_key": None, "error": "%s: %s" % (type(e).__name__, e),
+                "place_wall_s": round(time.monotonic() - t0, 1)}
+
+
+def _prune_variants(variants, placed_rows, k):
+    """The prune DECISION (pure -- unit-tested): keep the top-*k* variants by their
+    cheap place_key; a variant whose placement phase ERRORED stays in the route set
+    (fail-open). Returns (route_variants, pruned_rows). k<=0 or fewer variants than
+    k -> everything routes (byte-identical legacy wave)."""
+    if k <= 0 or len(variants) <= k:
+        return list(variants), []
+    by_label = {r["label"]: r for r in placed_rows}
+
+    def _label(v):
+        return f"{v[0]}-{v[1]}-s{v[2]}"
+
+    keyed, erred = [], []
+    for v in variants:
+        row = by_label.get(_label(v))
+        if row is None or row.get("place_key") is None:
+            erred.append(v)                                  # fail-open: route it
+        else:
+            keyed.append((tuple(row["place_key"]), _label(v), v))
+    keyed.sort(key=lambda t: (t[0], t[1]))
+    keep = keyed[:max(0, k - len(erred))] if len(erred) < k else []
+    route = [v for _key, _lbl, v in keep] + erred
+    kept_labels = {_label(v) for v in route}
+    pruned = [dict(by_label[_label(v)], pruned=True) for v in variants
+              if _label(v) not in kept_labels]
+    return route, pruned
+
+
+def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None):
+    """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
+    it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
+    not fork-safe, the cec_fr.generate_batch precedent)."""
+    label = f"{iname}-{strat}-s{seed}"
+    t0 = time.monotonic()
+    # The wave is the consumer that WANTS the fork's real seed-diversity axis
+    # (R-01); everything else stays stock-order unless it opts in (see cec_fr
+    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
+    os.environ["CEC_FR_SEED_AXIS"] = "1"
+    # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
+    # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
+    # JVM, grade it failed, spend the wall-clock on live candidates instead.
+    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
+    s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
     v = s.grade(out=out, keep=True,
                 passes=int(_p.get("wave_passes", passes)),
@@ -499,6 +560,36 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         except Exception as e:                              # noqa: BLE001 -- fail-safe
             print(f"[wave] {board}: proposals unavailable ({e})", flush=True)
 
+    # PRUNE -> ADJUDICATE (roadmap throughput lever 1, owner GO 2026-07-17): compile
+    # ALL variants' placements cheaply first (seconds each), FR-route only the top-K
+    # by the production cheap key (csp._candidate_sort_key -- the same ranking
+    # place_candidates/adjudicate_candidates already use). The FR route is 71-95% of
+    # candidate cost (roadmap profile), so K=4 on the recent 16-32-variant grids is
+    # the ~8x saving. Fidelity cost is managed, not hidden: pruned variants are
+    # RECORDED in the wave report with their placement keys (no silent caps), a
+    # placement-phase ERROR routes anyway (fail-open), and CEC_WAVE_PRUNE=0 restores
+    # the route-everything wave byte-identically.
+    pruned_rows = []
+    prune_k = int(os.environ.get("CEC_WAVE_PRUNE", "4"))
+    if prune_k > 0 and len(variants) > prune_k:
+        _t0p = time.monotonic()
+        if workers <= 1:
+            placed_rows = [_place_variant(board, W, H, i, st, sd, prop)
+                           for i, st, sd, prop in variants]
+        else:
+            import concurrent.futures as _cf
+            import multiprocessing as _mp
+            _ctx = _mp.get_context("spawn")                    # pcbnew is NOT fork-safe
+            with _cf.ProcessPoolExecutor(max_workers=workers, mp_context=_ctx) as _pool:
+                placed_rows = list(_pool.map(
+                    _place_variant,
+                    *zip(*[(board, W, H, i, st, sd, prop) for i, st, sd, prop in variants])))
+        variants, pruned_rows = _prune_variants(variants, placed_rows, prune_k)
+        print(f"[wave] {board} prune: routing {len(variants)}/{len(placed_rows)} "
+              f"variant(s) by cheap placement key ({len(pruned_rows)} pruned, recorded "
+              f"in the report; CEC_WAVE_PRUNE=0 routes all) "
+              f"[{round(time.monotonic() - _t0p, 1)}s]", flush=True)
+
     def _consume(v):
         _was_best = (not results or
                      tuple(v.get("sort_key") or (9,)) <
@@ -563,12 +654,17 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     report = {"board": board, "ts": ts, "W": W, "H": H, "passes": passes, "opt": opt,
               "published": os.path.relpath(dst, ROOT) if src else None,
               "new_best": new_best,
+              "prune": {"k": prune_k, "routed": len(results),
+                        "pruned": len(pruned_rows)} if pruned_rows else None,
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
                         "unconn_critical", "foreign", "thermal_ok", "thermal", "sort_key",
                         "reasons")},
-              "ranking": [{"label": v["label"], "gate": v.get("gate"),
-                           "sort_key": v.get("sort_key")} for v in results]}
+              "ranking": ([{"label": v["label"], "gate": v.get("gate"),
+                            "sort_key": v.get("sort_key")} for v in results]
+                          + [{"label": r["label"], "pruned": True,
+                              "place_key": r.get("place_key"),
+                              "error": r.get("error")} for r in pruned_rows])}
     with open(os.path.join(pub_dir, f"{ts}-wave-report.json"), "w") as fh:
         json.dump(report, fh, indent=2, default=str)
     print(f"[wave] {board} BEST={best['label']} gate={best.get('gate')} -> {dst}", flush=True)
