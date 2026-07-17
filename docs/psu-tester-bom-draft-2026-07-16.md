@@ -216,6 +216,53 @@ bolt-on tabs?" Answer state + tonight's live checks:
   list the margin reads ~2.0–2.1× — below the 3× convention like the rest
   of the ST value line, same standing owner call (§3a note).
 
+## 3e. STRUCTURE-UPDATE PASS (2026-07-17) — ladder v1.1 RATIFIED + §12c/§12d/relays across tiers
+
+_Owner sign-off batch 2026-07-17: ladder v1.1 in the §12c per-slot structure,
+split load-slice (multi-board), DAC80508 at Pro/Max, per-pin HPWR slot on
+Max/W + conditional Pro. This pass re-bases every tier with the new
+structure. Sketch-grade ±15 %; real sourcing at BOM lock._
+
+**New/changed cost lines by mechanism:**
+- **Wall-cartridge hardware beyond ST** (the §3d pass priced ST only —
+  Pro/Max/W now carry their own tabs + per-leg receptacles + AlN sets):
+  Pro/Max ≈ +$70–75, W tiers ≈ +$120–125.
+- **Per-slot fuses + SCP arm relays** (all tiers): blade ATOF + holder per
+  small slot, MIDI 50–60 A per big slot, 4× arm relay + coil drivers:
+  ST ≈ +$30–40, Pro/Max ≈ +$40–45, W ≈ +$50–55.
+- **W-tier family-pool steering relays**: Pro-W ≈ +$70, Max-W ≈ +$90.
+- **DAC80508**: Pro +$7, Max +$14 (2nd chip with the fast-channel set).
+- **Per-pin loadable HPWR slot** (§12d FORCE): Max/Max-W +$70; Pro/Pro-W
+  +$60 CONDITIONAL-INCLUDE (fence: drop if the BOM-lock pass exceeds ~$100).
+- **Port-end metrology** (per-pin Kelvin taps + port NTCs + sense muxes):
+  Pro +$15, Max/W +$20. (ST: port NTC + aggregate only, ≈ +$2, absorbed.)
+- **Slam-gate/SE console**: sequencing is free (same arm relay); the SE
+  key-switch + molly-guard + illuminated button ≈ +$25–40 lands on the SE
+  SKU only, not here.
+
+**Re-based tier table:**
+
+| Tier | Base (§3/§3d) | Wall hw | Fuses+relays | Steering | DAC | Per-pin | Port metr. | **New BOM** | List | Margin |
+|---|---|---|---|---|---|---|---|---|---|---|
+| ST-1000 | ~630 | (incl.) | +35 | — | — | — | +2 | **~$665** | $1,299 | ~1.95× |
+| ST-1300 | ~665 | (incl.) | +35 | — | — | — | +2 | **~$700** | $1,499 | ~2.1× |
+| Pro | 1,064 | +70 | +42 | — | +7 | +60 | +15 | **~$1,258** | $3,495 | ~2.8× |
+| Max | 1,357 | +75 | +45 | — | +14 | +70 | +20 | **~$1,580** | $5,995–6,995 | 3.8–4.4× |
+| Pro-W | 1,635 | +120 | +52 | +70 | +7 | +60 | +15 | **~$1,960** | $4,995 | ~2.55× |
+| Max-W | 1,955 | +125 | +55 | +90 | +14 | +70 | +20 | **~$2,330** | $7,995 | ~3.4× |
+
+**Reads:** every margin holds its class — ST stays the accepted
+below-3× value line (standing owner call), Pro at ~2.8× is healthy, Max
+holds capital-equipment multiples, Pro-W's 2.55× remains the §13
+"capital-equipment-normal" note (owner call at pricing lock), Max-W
+comfortable. The per-pin-on-Pro conditional passes its fence by a wide
+margin (+$60 = +5.6 % BOM, +1.7 % of list) → carried as INCLUDED.
+Multi-board split adds PCB count but pennies-class board cost at these
+sizes (slices are small 2-layer thick-Cu; the deck absorbs the copper
+complexity) — no separate line at sketch grade; the electrothermal gate
+may promote specific W 12 V slices to IMS at ~+$5–10/slice, decided at
+layout per the ratified split ruling.
+
 ## 4. Sourcing-pass results (rounds 1 + 2)
 
 - Round 1: ~15 parts vendored with symbol+footprint+3D+datasheet into

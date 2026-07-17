@@ -46,13 +46,13 @@ report end-to-end.
    open-drain DRIVE + ESD clamps; drive gated to not-plugged-in / override,
    system-wide BENCH-TESTER-MODE flag = the liability answer). Dependency
    CLOSED — the tester also gains DUT power-CYCLING through the module.
-3. R-bank ladder proposal v1 (below) — pending nod.
+3. R-bank ladder v1.1 — RATIFIED 2026-07-17 (in the §12c structure; see the ladder section header).
 4. **OQ-1/OQ-10 WAIVED for ST** ("just want it to exist; we know plenty of
    shops"). Pro/Max keep the canonical gate queue.
 5. Blade samples: owner orders at some point; **press-fit tool + lever-assist
    de-fit mechanism drafting QUEUED** (deck mechanical work, OQ-86 extension).
 
-## R-bank ladder proposal v1.1 (2026-07-16 — pending owner nod; [wb] until then)
+## R-bank ladder v1.1 — **OWNER-RATIFIED 2026-07-17** ("yes the ladder has my sign off in the new structure" = v1.1 values/groups/counts + §12c per-slot channelization together; the historical [wb]-pending-nod markers below and in the 05 sheets are CONVERTED by this sign-off; the 6R LCSC SKU confirm remains the one BOM-lock item)
 
 _v1.1 supersedes v1 pre-nod on the owner's minor-rail directive (2026-07-16
 night): "I think you're underestimating the capacity of some PSU's 5V and
@@ -182,7 +182,7 @@ class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
   ladder v1.1's overkill minors settle ST-1000 at THREE walls (3 × 9). Fixed
   in DESIGN-SHEET 22b.
 
-## Split architecture — hot load slices vs cool control board (owner question 2026-07-16 night; RECOMMENDED, pending nod)
+## Split architecture — hot load slices vs cool control board (**OWNER-RATIFIED 2026-07-17: "absolutely"** — the unit is officially MULTI-BOARD: SELV control board + per-rail load slices + deck + display boards; IMS/metal-core stays the per-slice option decided at layout by the electrothermal gate, most likely earned by the 12 V switch slices at W-tier currents)
 
 Owner: "make the hot loop ends with all the hot components on their own
 (metal cored?) PCB, run the signalling to them, all signaling separate —

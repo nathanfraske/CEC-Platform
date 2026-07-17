@@ -220,6 +220,29 @@ pass). Rule 24 checker addition: relay coil node reachable ONLY from the
 arm bit (never the fire path), and the branch-absent self-test is a
 REQUIRED power-on sequence in the firmware contract.
 
+**SLAM-GATE SEQUENCING (owner ruling 2026-07-17 — the relay IS the audible
+event, one physics-preserving beat early):** the owner wants the relay as
+the "slam gate" clunk. The relay must stay DRY-SWITCHED (making 230 A
+would bounce — a train of partial shorts is a terrible stimulus — and
+weld contacts; and ms-class close + bounce can't deliver the µs-precise
+timestamped edge the SCP test grades). So the FET keeps the electrical
+fire, and the CLUNK comes free from sequencing: ARM = relay closes
+(*clunk*, T-minus state, LCDs show ARMED) → FET fires µs-precise →
+event → relay opens on disarm (*clunk* bracket). Since the electrical
+event itself is near-silent, the arm clunk IS the event's audible
+signature — breaker-charging theater with clean physics. All tiers.
+**SE ARMING CONSOLE (owner, same ruling — "missile arming thing,
+spectacle and fun, without being annoying"):** the SE tier adds a
+physical SCP console: KEY-SWITCH wired IN SERIES WITH THE ARM-RELAY COIL
+SUPPLY (a real hardware interlock, not decoration — no key, no coil, no
+galvanic connection possible), flip-up molly-guard cover over a big
+illuminated red FIRE button (the button is the fire *request*; the
+comparator/firmware still qualifies), LED semantics white=safe /
+amber=key-armed / red-latch=fired. Justified by the owner's own framing:
+the SCP event is the most violent thing in the box, so ceremony = good
+UX, and the interlock is genuinely load-bearing. Recorded for §14 SE;
+baseline tiers keep LCD ARMED indication only.
+
 **MAINS-SIDE IMPACT of the SCP event (owner Q 2026-07-17; manual/FAQ
 material — "will this trip my shop's breakers?"):** No — the event never
 meaningfully reaches the wall. Designed event ≈ 230 A × 12 V × 1–2 ms ≈
@@ -550,7 +573,8 @@ Steelmanned survey; verdict = the hybrid stands, four refinements adopted._
 1. **DAC80508 setpoints at Pro/Max baseline** — pull the W-tier's 16-bit
    DAC (§13) down: PWM-RC setpoints ripple through the CC loops as
    load-current ripple at the PWM frequency; ST keeps PWM-RC (its class),
-   Pro/Max get real DACs (~$7/board, 8 ch/chip). [OWNER NOD — queued.]
+   Pro/Max get real DACs (~$7/board, 8 ch/chip). **OWNER-RATIFIED
+   2026-07-17 ("yes, as it seems necessary").**
 2. **Closed-outer-loop + calibration conductance map = precision from ±5 %
    parts (FIRMWARE CONTRACT, record now):** the staircase's ±5 % RX24
    tolerance never reaches the user because (a) firmware closes the outer
@@ -956,8 +980,11 @@ timeline.
   imbalance-vs-load curves, contact-heating→R-rise→redistribution
   detection (the thermal-runaway precursor), pass/fail against per-pin
   spec (9.2 A/pin bar).
-- **FORCE (Max/W option, [wb] owner nod at Max capture):** a PER-PIN
-  LOADABLE slot variant — six small isolated pin nodes (~2–3 bank legs
+- **FORCE (Max/W **OWNER-RATIFIED 2026-07-17**; Pro CONDITIONAL-INCLUDE —
+  owner fence "if it makes sense on the BOM… if it increases it a large
+  amount don't worry": §3e math says +$60 ≈ +1.7 % of Pro list →
+  INCLUDED on Pro unless the detailed BOM-lock pass blows past ~$100):**
+  a PER-PIN LOADABLE slot variant — six small isolated pin nodes (~2–3 bank legs
   each, ≈15–18 legs + switches ≈ +$50–80) lets us deliberately hog one
   pin to spec-worst-case and beyond-with-consent: **recreating the melt
   scenario safely, on purpose, instrumented** — verify a cable/connector

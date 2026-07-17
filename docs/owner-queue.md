@@ -302,3 +302,16 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   runaway-threshold characterization. Baseline OBSERVE mode (single-node slot, per-pin R-map
   via dual-ended metrology) needs no nod — it rides existing architecture. Decide at Max
   capture.
+
+- [2026-07-17] **RULINGS BATCH (owner, this morning) — RECORDED:** (1) LADDER v1.1 RATIFIED
+  in the §12c per-slot structure ([wb] markers converted; 6R SKU confirm = the one BOM-lock
+  residue). (2) SPLIT LOAD-SLICE RATIFIED ("absolutely") — unit is officially multi-board;
+  IMS/metal-core = per-slice at layout via electrothermal gate (W 12 V slices the likely
+  earners). (3) DAC80508 Pro/Max baseline RATIFIED. (4) PER-PIN HPWR SLOT: Max/W RATIFIED;
+  Pro conditional-include PASSES its fence (+$60 ≈ +1.7 % of list, §3e) → carried on Pro.
+  (5) SLAM-GATE: arm-clunk sequencing all tiers (relay stays dry-switched — physics note in
+  §3b); SE gets the key-interlock + molly-guard + red-button arming console (key is IN the
+  coil path, a real interlock). (6) CAPTURE STOP CORRECTED: owner never stopped the
+  continuation agent (accidental/system stop) — resume is DEFERRED by owner ("wait on that
+  for now"), not forbidden; errand items stay owner-held. BOM re-base = §3e (margins hold
+  across all six tiers).
