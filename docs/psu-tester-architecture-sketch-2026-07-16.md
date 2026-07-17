@@ -1006,6 +1006,12 @@ Kelvin design rides the same sense-return discipline as OQ-88; capture
 lands in 08-deck-io + the Max acquisition sheets; analog-channel budget
 per tier at that pass.
 
+**[2026-07-17 PROPOSED MERGE — see the §14 W-MERGE RIFF: kill Pro-W/Max-W
+as air SKUs, promote the ~3 kW tier to Pro SE / Max SE ($6,995/$9,995,
+water/glass/halo trim on the UNCHANGED W electrical build). This section's
+air-field math is retained as provenance + special-order drawer either
+way. Awaiting explicit owner ruling.]**
+
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 
 **Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.
@@ -1140,6 +1146,38 @@ the schematic-pass step-table treatment; (b) W chassis/two-lane-duct quote;
 count — coordinate with §12 before the blade-field drawing freezes; (e)
 owner pick on relief valve 2 (design the DNP jacks in, or ship
 USB-overflow-only).
+
+## 13b. W-MERGE RIFF (2026-07-17, owner: "get rid of Pro-W/Max-W and make those the Pro/Max Special Edition SKUs" — PROPOSED, recommendation YES; awaiting explicit ruling)
+
+The merge collapses the two overlapping high-end lines (air-W + roadmap SE)
+into ONE halo family: line becomes ST-1000 / ST-1300 / Pro / Max /
+**Pro SE $6,995** / **Max SE $9,995**. Key facts:
+- **Electrically SE = the W build UNCHANGED** (ladder, §12c steering +
+  fences, slices, checkers, per-pin slot, DAC) — the merge is
+  thermal/chassis/trim only. Wall-cartridge doctrine survives on WATER
+  COLD PLATES instead of air-finned plates (36 mm air pitch was an
+  airflow constraint; water may pack tighter).
+- **Physics argument**: 3 kW air = 263 CFM/two lanes/six walls (the bulk
+  and noise of the line); §14a two-chamber + power-tiering (internal
+  ~800 W silent / QDC external full-send) is the better 3 kW answer
+  outright — the spectacle is load-bearing.
+- **BOM**: SE trim ≈ +$700–1,100 over the W electrical build (2× D5-class
+  pumps, radiator wall, resistor cold plates, dry-break QDCs,
+  reservoir/fittings, leak rope + flow + level sensing, glass premium,
+  5–7″ touch screens, RGB, arming console) → Max SE ≈ $3,000–3,450 at
+  $9,995 = 2.9–3.3×; Pro SE ≈ $2,700 at $6,995 = ~2.6×. Healthier than
+  Pro-W's 2.55×.
+- **Honesty flags**: (1) the 3 kW clock now rides the water program (no
+  air-W stopgap; market clock for 2.4–3 kW PSUs plausibly aligns);
+  (2) the $4,995 "affordable 3 kW" slot vacates (accepted-risk: that
+  buyer barely exists; §13 air math stays drawered for special orders);
+  (3) the leak doctrine becomes LOAD-BEARING (two-chamber isolation,
+  dry-breaks, leak/flow/level as standard on-screen telemetry — which
+  dogfoods the telemetry stack; cold plates share DNA with the TTV
+  pedestal program).
+If RULED: convert §13 header/table, BOM §3c/§3e columns, DESIGN-SHEET
+§A/§H census, and the §14 SE section from "roadmap halo" to "the
+flagship tier."
 
 ## 14. "SPECIAL EDITION" — glass shell + full-loop water cooling (owner idea, 2026-07-16 night; **ROADMAP — HALO NORTH STAR**, owner-committed same night: "I genuinely do want to have it")
 
