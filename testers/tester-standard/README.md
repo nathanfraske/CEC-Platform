@@ -164,10 +164,16 @@ class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
 - **Volume check (the "does it balloon" answer)**: W-tier = 6 walls × ~400 mm
   rows × ~100 mm resistor zone ≈ 13 L total for 3 kW delivered — the field
   IS the heatsink AND the radiator, so no second thermal volume exists to grow;
-  air rise ≈ 20 K at 263 CFM. Banks are PER RAIL and pooled: the fixture matrix
-  routes any head (12V-2x6/EPS/PCIe/24-pin) into the same 12 V plane; only the
-  12 V bank count scales with tier, minors are constant (22 legs everywhere,
-  ladder v1.1).
+  air rise ≈ 20 K at 263 CFM. Banks are PER RAIL; 12 V groups are ASSIGNED PER
+  SLOT NODE (sketch §12c, owner Q 2026-07-17 — the earlier "any head into the
+  same 12 V plane" pooling is RETIRED: a shared plane can neither fence
+  per-cable current nor attribute it; division would ride cable resistance).
+  Fixed deck copper maps groups→slot nodes; per-slot fuses + firmware ceiling
+  map + module-measured attribution per §12c's fence table (24-pin 12 V fence
+  = 10 A on the 2×6 A ATX bar). Only the 12 V bank count scales with tier;
+  minors are constant (22 legs, ladder v1.1) and enter via the 24-pin slot
+  node under its own fences (recruit ≤ connector bar even though installed
+  capacity is higher — §12c honesty note).
 - Group maps beyond ST (Pro 53-leg / W ~100-leg 12 V ladders) = [wb] at each
   tier's ladder pass; switching/fusing stays per GROUP (AOD4184A + ATOF sized
   at group current), the resistor is the per-leg unit, trip watch per group.

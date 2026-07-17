@@ -849,6 +849,60 @@ PD assist stays the §2.9 third-source option.
 architecture (retiring §12a); fold the socket design into the D-3/OQ-77
 decision as its second customer; Max-tier link = port vs J6-rev sub-call.
 
+## 12c. PER-SLOT LOAD CHANNELIZATION + cable-spec fences (owner Q 2026-07-17 — ADOPTED, engineering-forced)
+
+_Owner: "how do we make the 24-pin test its own 12 V at the same time,
+but limited so it doesn't exceed the cable spec?" The question caught a
+real trap: the README's pooled posture ("any head routes into the same
+12 V plane") makes that IMPOSSIBLE — with paralleled cables on one node,
+current division is set by cable/connector resistance, not by us; you can
+neither fence a cable nor attribute amps to it. Pooling is RETIRED._
+
+**The architecture:** every plugged head's 12 V lands on its OWN slot
+node on the deck; bank groups are ASSIGNED to slot nodes by fixed deck
+copper. Concurrency is then free (each slot channel runs its own
+staircase+vernier setpoint; total PSU 12 V = the sum) and the fence is
+physical. Four layers, strongest first:
+1. **Wiring IS the limit** — the 24-pin slot node physically reaches only
+   its small group set (1+1+2 legs = 8 A staircase; a vernier share fills
+   between); no firmware bug can recruit the big ladder into a cable that
+   can't carry it.
+2. **Per-slot fuse** at ~1.25× the fence (24-pin 12 V: 15 A ATOF class).
+3. **Firmware ceiling map** (head type → per-rail max recruit), with one
+   principled exception: spec-defined test pulses (e.g. 5VSB 3.5 A/500 ms)
+   are allowed to their governing spec's magnitude+duration — the spec
+   that defines the test also rated the connector for it.
+4. **Measured attribution closes the loop**: the docked CEC 24-pin module
+   measures its section's REAL per-rail current (the ecosystem synergy —
+   the tester's channel truth comes from the modules in the path);
+   firmware trims to measured, and a plane/mis-plug discrepancy alarms.
+
+**Fence table (sustained recruitment ceilings; bars = the ratified
+design-basis currents, §2.8 daughterboard math):**
+
+| Head / rail | Circuits × bar | Cable bar | FENCE (recruit ≤) |
+|---|---|---|---|
+| 24-pin +12 V | 2 × 6 A (ATX bar) | 12 A / 144 W | **10 A** |
+| 24-pin +5 V | 5 × 6 A | 30 A | **25 A** |
+| 24-pin +3.3 V | 4 × 6 A | 24 A | **20 A** |
+| 24-pin 5VSB | 1 × 6 A | 6 A | **5 A** (+3.5 A/500 ms spec pulse) |
+| EPS | 4 × ~13 A | ~52 A | **~45 A** |
+| PCIe-8pin | 3 × ~13 A | ~39 A | **~35 A** |
+| 12VHPWR | 6 × 9.2 A | ~55 A / 600 W class | **~50 A** |
+
+**Honesty notes:** (a) minor rails physically enter ONLY through the
+24-pin (no SATA/molex heads in scope), so the v1.1 minor-bank CAPACITY
+(5 V 40 A / 3.3 V 38.8 A) deliberately exceeds its recruitable fence —
+installed capacity is headroom/future peripheral heads, recruitment is
+fenced at the connector bar; (b) an OCP hunt that would need a section to
+exceed its cable bar is REFUSED by the fence and the result is flagged
+"limited by connector spec" — we never abuse a cable to find a trip point
+(big-head channels reach any realistic 12 V OCP without it); (c) per-slot
+nodes ALSO fix same-family multi-slot division (2× EPS no longer split
+one plane by cable-resistance luck). Group-to-slot assignment maps per
+tier fold into the existing Pro/W ladder-pass [wb]; the 05/08 capture
+sheets pick up slot-node structure when they resume.
+
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 
 **Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.

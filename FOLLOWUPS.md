@@ -963,3 +963,7 @@ Conventions:
   sequence (relay open → no conduction; closed+disarmed → fuse+shunt continuity) REQUIRED
   before any DUT connect; (d) additive-path stepping protocol (duplicate-1× reshuffle under
   vernier cover) per README ladder operating model.
+- [2026-07-17] Tester firmware ceiling map (per-slot recruitment fences, sketch §12c table +
+  spec-pulse exception) — joins the SB-07-family tester runtime contract alongside the
+  outer-loop/cal-map/self-test items; per-tier group→slot assignment maps land at each
+  tier's ladder pass [wb].

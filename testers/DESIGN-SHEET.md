@@ -235,6 +235,20 @@ mess of wires" challenge)**
     firmware-contract sequence (catches failed-short FETs before a DUT
     ever connects).
 
+**Per-slot channelization (owner Q 2026-07-17, sketch §12c — ADOPTED)**
+26. Every head's 12 V lands on its OWN slot node; bank groups map to slot
+    nodes by FIXED deck copper (wiring is the limit — the 24-pin node
+    physically reaches only its small group set). Per-slot fuse at ~1.25×
+    the §12c fence; firmware ceiling map with the spec-pulse exception;
+    docked-module measured attribution closes the loop. CHECKERS: (a) per
+    slot node, the sum of reachable group capacities ≤ its §12c fence
+    (netlist-computed); (b) a per-slot fuse exists in every slot's 12 V
+    path; (c) the 24-pin minor-rail nodes' reachable capacity ≤ their
+    connector bars (5 V 25 A / 3.3 V 20 A / 5VSB 5 A) even though installed
+    bank capacity is higher; (d) no slot node reaches another slot's
+    groups (attribution isolation). Applies to the 05/08 capture sheets on
+    resume and every tier's ladder-pass group map.
+
 **TIM schedule (owner add 2026-07-16 night; Thermal Grizzly sponsorship
 available — TG supplies on hand, co-brand coherent for a thermal-audience
 product)**
