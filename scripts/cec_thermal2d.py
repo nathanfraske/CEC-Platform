@@ -488,14 +488,32 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
     return dict(V=V, links=links, nodes=nodes, node_of=node_of, sheetR=sheetR)
 
 
-def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
+def _resid_ok(Aspmat, rhs, x, tol=1e-6):
+    """TRUE-residual audit for an iterate an iterative solver returned without its
+    convergence flag: accept only if ||Ax-b|| <= tol*||b|| (a loose engineering
+    bound -- 4 orders past the 1e-10 target is still a fine temperature field;
+    an unconverged garbage iterate is orders off). The 2026-07-10 FEM audit's
+    scipy-leg half: info!=0 iterates were returned SILENTLY (same class the
+    pyamg residuals guard rejects)."""
+    if x is None or not np.all(np.isfinite(x)):
+        return False
+    b = float(np.linalg.norm(rhs)) or 1.0
+    return float(np.linalg.norm(Aspmat @ x - rhs)) <= tol * b
+
+
+def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     """Solve a symmetric positive-(semi)definite sparse system. Small -> spsolve;
     large -> CG with a Jacobi preconditioner (GPU via cupy if backend allows +
     importable, else scipy). Falls back to lsqr on any failure.
     precond: a REUSED preconditioner (e.g. an AMG hierarchy's aspreconditioner) -- tried first so the Picard
     loop doesn't rebuild the AMG every iteration; if it stalls (the matrix drifted too far) we fall through to
-    a fresh AMG build below, so it's always correct."""
+    a fresh AMG build below, so it's always correct.
+    precond_out: optional dict -- the STALENESS-REBUILD channel (FEM audit #1, second half): when the reused
+    preconditioner stalls and the AMG leg builds a fresh hierarchy anyway, the fresh aspreconditioner is
+    handed back in precond_out['precond'] so the Picard caller REPLACES its stale copy -- without this, every
+    later iteration re-pays the stalled 400-iteration reuse attempt PLUS a discarded fresh AMG setup."""
     n = rhs.shape[0]
+    _reuse_stalled = False
     if precond is not None and n >= 8000:
         is_gpu = False
         try:
@@ -507,6 +525,7 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
             x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs, precond=precond)
             if x is not None and np.all(np.isfinite(x)):
                 return x
+            _reuse_stalled = True
             # GPU precond stalled (matrix drifted) -> fall through to a fresh AMG/CPU build below
         else:                                                # scipy aspreconditioner (CPU AMG reuse)
             try:
@@ -516,8 +535,9 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
                     x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
                 if info == 0 and np.all(np.isfinite(x)):
                     return x
+                _reuse_stalled = True
             except Exception:                                # noqa: BLE001 -- stale precond -> fresh build below
-                pass
+                _reuse_stalled = True
     # GPU-ACCELERATED AMG (the RTX 5090 path, scripts/cec_gpu_amg.py): pyamg SA setup on CPU + the V-cycle
     # APPLY on the GPU inside cupy CG. AMG-quality (grid-INDEPENDENT) convergence with the per-iteration
     # V-cycle on the 5090 -> measured 14-22x faster apply than CPU pyamg, the win GROWING with grid size
@@ -551,6 +571,11 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
             x = ml.solve(rhs, tol=1e-10, accel="cg", maxiter=300, residuals=_res)
             _bnorm = float(np.linalg.norm(rhs)) or 1.0
             if _res and _res[-1] <= 1e-8 * _bnorm and np.all(np.isfinite(x)):
+                if _reuse_stalled and precond_out is not None:
+                    # hand the fresh hierarchy back so the caller retires its stale copy
+                    precond_out["precond"] = ml.aspreconditioner(cycle="V")
+                    print("[cec_thermal2d] stale reused precond REPLACED with the fresh "
+                          "AMG hierarchy", file=sys.stderr)
                 return np.asarray(x)
             print("[cec_thermal2d] AMG solve UNCONVERGED (rel resid %.2e); falling through"
                   % ((_res[-1] / _bnorm) if _res else float("nan")), file=sys.stderr)
@@ -608,8 +633,17 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
             x, info = spla.cg(Aspmat, rhs, M=M, maxiter=10000, tol=1e-10)
         if info == 0 and np.all(np.isfinite(x)):
             return x
-        if np.all(np.isfinite(x)):
+        # info!=0 iterate: accept ONLY on a TRUE-residual audit (FEM audit #1, the
+        # scipy-leg half -- the old blind return here was the exact unconverged-
+        # iterate class the pyamg guard rejects, and the nondeterminism source on
+        # any AMG-less box: same input, different garbage by iteration budget).
+        if _resid_ok(Aspmat, rhs, x):
+            print("[cec_thermal2d] CG hit maxiter but the iterate passes the true-"
+                  "residual audit (<=1e-6 rel) -- accepted", file=sys.stderr)
             return x
+        if np.all(np.isfinite(x)):
+            print("[cec_thermal2d] CG UNCONVERGED iterate REJECTED by the true-residual "
+                  "audit; falling through to direct/lsqr", file=sys.stderr)
     except Exception:
         pass
     try:
@@ -618,7 +652,15 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
             return x
     except Exception:
         pass
-    return spla.lsqr(Aspmat, rhs)[0]
+    x = spla.lsqr(Aspmat, rhs)[0]
+    if not _resid_ok(Aspmat, rhs, x, tol=1e-4):
+        # last resort stays a return (callers fail-close on the field downstream:
+        # the oracle's mirage guard + dT~0 check), but NEVER a silent one
+        _b = float(np.linalg.norm(rhs)) or 1.0
+        print("[cec_thermal2d] WARNING: lsqr last-resort solution rel-residual %.2e "
+              "-- treat the field as suspect" % (float(np.linalg.norm(Aspmat @ x - rhs)) / _b),
+              file=sys.stderr)
+    return x
 
 
 def _joule_from_solution(sol, grid: Grid, width_frac=None, oz_by_layer=None):
@@ -799,7 +841,10 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
                     amg_precond = pyamg.smoothed_aggregation_solver(Msolve.tocsr()).aspreconditioner(cycle="V")
                 except Exception:                            # noqa: BLE001
                     amg_precond = None
-        Tnew = _spd_solve(Msolve, rhs, backend, precond=amg_precond)
+        _pout = {} if amg_precond is not None else None
+        Tnew = _spd_solve(Msolve, rhs, backend, precond=amg_precond, precond_out=_pout)
+        if _pout and _pout.get("precond") is not None:
+            amg_precond = _pout["precond"]       # stale hierarchy retired (FEM audit #1)
         if not np.all(np.isfinite(Tnew)):
             Tnew = np.full(N, Ta)
         if nonlinear:

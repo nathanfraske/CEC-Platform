@@ -21,6 +21,7 @@ The variant set is deliberately structure-first (the 2026-06-30 placer-feasibili
 finding: partitions/intents move the needle, absolute-coord jitter does not).
 """
 import argparse
+import glob
 import json
 import os
 import subprocess
@@ -408,6 +409,57 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     return v
 
 
+def _prev_best_key(pub_dir):
+    """Sort_key of the board's INCUMBENT best: the latest previously-published
+    wave-report in *pub_dir* (chained waves share out_root). None = no incumbent."""
+    try:
+        reports = sorted(glob.glob(os.path.join(pub_dir, "*-wave-report.json")))
+        if not reports:
+            return None
+        with open(reports[-1]) as fh:
+            k = ((json.load(fh).get("best") or {}).get("sort_key"))
+        return tuple(k) if k else None
+    except Exception:                                   # noqa: BLE001 -- fail-safe
+        return None
+
+
+def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
+    """NEW-BEST THERMAL (owner design call 2026-07-17: 'thermal fires on every wave
+    that produces a new best'). The per-candidate lazy skip stands (the solve costs
+    5-17s GPU / ~97s CPU-AMG, measured -- too much x N variants), but no fresh
+    candidate reaches gate-clean today, so the lazy path never fired and every
+    published best carried dT=None (the roadmap's silent-skip finding). This stamp
+    closes that: a wave whose winner BEATS the board's incumbent (or has none)
+    runs the SAME fail-closed, mirage-guarded, double-solve-confirmed oracle term
+    the gate uses (_oracle_thermal, route_oracle_grade's default 50C/30C/0.4mm),
+    under the same recipe env, on the PUBLISHED routed board. A thermal FAIL
+    publishes LOUD in the verdict/report/print -- never silently dropped; the
+    sort_key is NOT retroactively rewritten (grading already happened; this is
+    the publish-time evidence behind the claim). Returns the new-best flag."""
+    prev = _prev_best_key(pub_dir)
+    new_best = prev is None or tuple(best.get("sort_key") or (9,)) < prev
+    th = best.get("thermal") or {}
+    routed = best.get("routed")
+    if not new_best or th.get("dT") is not None:
+        return new_best
+    if not (routed and os.path.isfile(str(routed))):
+        best["thermal"] = {"ok": False, "dT": None, "max_T": None,
+                           "note": "new best has no routed board -- thermal not solvable"}
+        return new_best
+    solve = solve or (lambda p: csp._oracle_thermal(p, ambient=50.0, gate_dt=30.0,
+                                                    grid_mm=0.4))
+    env = env or csp._oracle_env
+    try:
+        with env(board_params):
+            therm = solve(str(routed))
+    except Exception as e:                              # noqa: BLE001 -- FAIL-CLOSED
+        therm = {"ok": False, "dT": None, "max_T": None, "gate_dt": 30.0,
+                 "error": "%s: %s" % (type(e).__name__, e)}
+    best["thermal"] = therm
+    best["thermal_ok"] = bool(therm.get("ok"))
+    return new_best
+
+
 def _wave_workers():
     """Candidate-level parallelism (profiling 2026-07-08: the wave was FULLY SERIAL while
     FR -- 71-95% of each candidate -- is single-threaded). The routing container has ALL
@@ -501,11 +553,20 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         for ext in (".kicad_pro", ".kicad_dru"):
             if os.path.isfile(base + ext):
                 shutil.copy(base + ext, dst[:-len(".kicad_pcb")] + ext)
+    new_best = _new_best_thermal(best, pub_dir, _bp)
+    if new_best:
+        _th = best.get("thermal") or {}
+        print(f"[wave] {board} NEW BEST -> thermal: ok={_th.get('ok')} "
+              f"dT={_th.get('dT')} "
+              f"({_th.get('error') or _th.get('note') or _th.get('cooling')})",
+              flush=True)
     report = {"board": board, "ts": ts, "W": W, "H": H, "passes": passes, "opt": opt,
               "published": os.path.relpath(dst, ROOT) if src else None,
+              "new_best": new_best,
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
-                        "unconn_critical", "foreign", "thermal_ok", "sort_key", "reasons")},
+                        "unconn_critical", "foreign", "thermal_ok", "thermal", "sort_key",
+                        "reasons")},
               "ranking": [{"label": v["label"], "gate": v.get("gate"),
                            "sort_key": v.get("sort_key")} for v in results]}
     with open(os.path.join(pub_dir, f"{ts}-wave-report.json"), "w") as fh:

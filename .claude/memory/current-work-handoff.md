@@ -1,5 +1,36 @@
 # Current work handoff
 
+## CORRECTNESS-GAPS WAVE (2026-07-17 ~22:20Z, same branch — owner GO 'correctness gaps first', all landed + pushed)
+(1) **WAVE NEW-BEST THERMAL (owner design call: 'thermal fires on every wave that produces a
+new best')**: cec_fresh_wave._new_best_thermal — a wave whose winner beats the board's
+incumbent (latest wave-report in out_root; none = new best) runs the REAL _oracle_thermal
+(fail-closed + mirage guard + double-solve, route_oracle_grade's 50C/30C/0.4mm defaults,
+same recipe env) on the published routed board; stamped into verdict + report (new_best +
+best.thermal fields) + loud print; sort_key NOT rewritten. Per-candidate lazy skip stands.
+Measured cost/new-best: ~97s CPU-AMG on this box (matplotlib/pyamg/shapely pip'd locally —
+container has them baked), 5-17s GPU. Teeth: test_wave_new_best_thermal 10/10.
+(2) **cec_thermal2d NONDETERMINISM COMPLETION** (FEM audit #1 remainder + #2): scipy
+last-resort CG no longer returns info!=0 iterates silently (_resid_ok true-residual audit;
+lsqr last resort stays a return but LOUD); stale reused precond now REPLACED via the
+precond_out write-back channel (Picard caller retires its copy — was re-paying 400 wasted
+iters + a discarded AMG build EVERY later iteration); determinism golden landed
+(test_thermal2d_determinism 7/7, honesty test PROVEN failing on pre-fix code via stash).
+Real-board re-solve post-fix: dT 23.64 vs 23.62 pre (double-solve band) — hot path intact.
+(3) **LOCKED-CELL RESIDUE (a)+(b)**: cec_fr.partial_locked_keepouts (partially-owned nets'
+lane copper bakes as keepouts with pad-access WINDOWS around uncovered pads — the
+/SENSEP6_HI divider tap + /FAN_12V fan-gate spur class) + locked_mutual_collisions
+(locked-vs-locked bbox audit, report-only, escalation-to-refusal rung documented), both
+wired into route_once behind protect_nets. Teeth: test_locked_residue 6/6 (synthetic boards,
+test_kelvin_topology pattern). ROUTE-LEVEL effect rides work14 (FOLLOWUPS).
+(4) **RUN-DIR ESCAPE CLOSED** (pipeline-pass item 3): PERM honors CEC_FULLSTACK_DIR; the
+real writer-caller was test_prompt_audit_fixes (fs._audit_prompt, NOT test_actuation_lever
+— attribution corrected in FOLLOWUPS); AuditorRedesign now patches fs.PERM to tmp
+(test_auditor_dispatch pattern). No stub re-created across the fs suites (106/106).
+(5) **beta/README**: hub-standard-rev2 documented (rev2 hub schematic line, NOT superseded,
+promotion into the authoritative row = owner's call at the rev2 layout wave; disambiguated
+from the superseded hubs/hub-rev2 June regen).
+Battery (checklist leg, now 15 modules incl. the 3 new): **378/378 OK**.
+
 ## PIPELINE PASS SESSION (2026-07-17 ~21:00Z, branch claude/freerouting-pipeline-status-yoli0z — pushed)
 Three landings, all verified with real tools:
 (1) **Pipeline-pass item 1 CLOSED**: the inherited corridor-test CI red (test_phase2_default_

@@ -32,6 +32,27 @@ MANIFEST = {
 FENCE = {"nets": set(), "refs": {"RS1", "RS2", "U20", "U21", "U2"}}
 
 
+_FS_TMP = None
+_FS_PERM_ORIG = None
+
+
+def setUpModule():
+    """fs writers (_audit_prompt / deepseek_audit persist round-<n> findings via
+    _d) must never touch docs/fullstack-run-<date> from unit tests -- the run-dir
+    escape fix 2026-07-17, MODULE-wide (a class-scoped patch missed deepseek_audit
+    in NewImplPolishFixes; the test_auditor_dispatch pattern, lifted a level)."""
+    global _FS_TMP, _FS_PERM_ORIG
+    import tempfile
+    _FS_TMP = tempfile.TemporaryDirectory()
+    _FS_PERM_ORIG = fs.PERM
+    fs.PERM = _FS_TMP.name
+
+
+def tearDownModule():
+    fs.PERM = _FS_PERM_ORIG
+    _FS_TMP.cleanup()
+
+
 class WpRefs(unittest.TestCase):
     def test_extracts_ref_and_between(self):
         self.assertEqual(fs._wp_refs({"ref": "U1"}), ["U1"])

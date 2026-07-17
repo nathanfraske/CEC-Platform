@@ -2615,34 +2615,166 @@ def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float 
         for ly in lays:
             per_layer.setdefault(ly, []).append(list(box))
 
-    def _area(b):
-        return max(0, b[2] - b[0]) * max(0, b[3] - b[1])
-
     out = []
     for ly, boxes in sorted(per_layer.items()):
-        merged = True
-        while merged:
-            merged = False
-            for i in range(len(boxes)):
-                for j in range(i + 1, len(boxes)):
-                    a, b = boxes[i], boxes[j]
-                    if not (a[0] <= b[2] and b[0] <= a[2]
-                            and a[1] <= b[3] and b[1] <= a[3]):
-                        continue
-                    u = [min(a[0], b[0]), min(a[1], b[1]),
-                         max(a[2], b[2]), max(a[3], b[3])]
-                    if _area(u) <= 1.15 * (_area(a) + _area(b)):
-                        boxes[i] = u
-                        del boxes[j]
-                        merged = True
-                        break
-                if merged:
-                    break
-        for k, (x0, y0, x1, y1) in enumerate(boxes):
+        for k, (x0, y0, x1, y1) in enumerate(_merge_tight_boxes(boxes)):
             out.append({"name": "lockedcu-%s-%d" % (ly.replace(".", ""), k),
                         "x0": x0 / 1e6, "y0": y0 / 1e6,
                         "x1": x1 / 1e6, "y1": y1 / 1e6, "layers": (ly,)})
     return out
+
+
+def _box_area(b):
+    return max(0, b[2] - b[0]) * max(0, b[3] - b[1])
+
+
+def _merge_tight_boxes(boxes):
+    """Union-merge overlapping boxes only when the union stays TIGHT (union area
+    <= 1.15x the sum) so a dense cell collapses to a few zones but a diagonal
+    pair can never over-cover a foreign channel/pad (locked_copper_keepouts'
+    rule, factored for the partial-net variant)."""
+    boxes = [list(b) for b in boxes]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                a, b = boxes[i], boxes[j]
+                if not (a[0] <= b[2] and b[0] <= a[2]
+                        and a[1] <= b[3] and b[1] <= a[3]):
+                    continue
+                u = [min(a[0], b[0]), min(a[1], b[1]),
+                     max(a[2], b[2]), max(a[3], b[3])]
+                if _box_area(u) <= 1.15 * (_box_area(a) + _box_area(b)):
+                    boxes[i] = u
+                    del boxes[j]
+                    merged = True
+                    break
+            if merged:
+                break
+    return boxes
+
+
+def _box_minus_window(box, win):
+    """Axis-aligned rect subtraction: *box* minus *win* -> up to 4 remainder rects
+    (left/right slabs at full height, top/bottom bands inside the x-overlap)."""
+    bx0, by0, bx1, by1 = box
+    wx0, wy0, wx1, wy1 = win
+    if wx1 <= bx0 or bx1 <= wx0 or wy1 <= by0 or by1 <= wy0:
+        return [list(box)]
+    out = []
+    if wx0 > bx0:
+        out.append([bx0, by0, wx0, by1])
+    if wx1 < bx1:
+        out.append([wx1, by0, bx1, by1])
+    mx0, mx1 = max(bx0, wx0), min(bx1, wx1)
+    if wy0 > by0:
+        out.append([mx0, by0, mx1, wy0])
+    if wy1 < by1:
+        out.append([mx0, wy1, mx1, by1])
+    return [b for b in out if _box_area(b) > 0]
+
+
+def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: float = 0.2,
+                            window_mm: float = 1.0):
+    """Keepouts over PARTIALLY-owned locked nets' copper, with ACCESS WINDOWS
+    subtracted around each net's UNCOVERED pads (the 2026-07-14 bulldozing round's
+    residue item (b): /SENSEP6_HI and /FAN_12V carry locked lane copper but are NOT
+    fully owned -- a divider tap / fan-gate spur shares the net -- so the owned-set
+    keepouts skipped them entirely and FR still crossed their fat copper).
+
+    Semantics: FR must still ROUTE the net's remainder, so it needs to REACH the
+    pads the locked lay does not cover -- each uncovered pad (the owned_locked_nets
+    coverage rule: locked track endpoint within pad half-extent + 0.15mm) opens a
+    window (pad half-extent + *window_mm*) subtracted from the keepout rects; the
+    rest of the locked lane stays obstacle-modelled. Fully-owned nets (pass them
+    as *exclude_nets*) are locked_copper_keepouts' business, not this function's."""
+    board = pcbnew.LoadBoard(board_path)
+    cl = int(clearance * 1e6)
+    ex = set(exclude_nets or ())
+    locked_pts, locked_boxes = {}, {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if not n or n in ex:
+            continue
+        bb = t.GetBoundingBox()
+        box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
+        lays = (("F.Cu", "B.Cu") if t.Type() == pcbnew.PCB_VIA_T
+                else (board.GetLayerName(t.GetLayer()),))
+        for ly in lays:
+            locked_boxes.setdefault(n, {}).setdefault(ly, []).append(box)
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p_ = t.GetPosition()
+            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        else:
+            s_, e_ = t.GetStart(), t.GetEnd()
+            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
+    if not locked_boxes:
+        return []
+    win = int(window_mm * 1e6)
+    windows = {}                                 # net -> [window rects around uncovered pads]
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n not in locked_boxes:
+                continue
+            pos = pd.GetPosition()
+            sz = pd.GetSize()
+            r = max(sz.x, sz.y) / 2 + int(0.15e6)
+            covered = any((px - pos.x) ** 2 + (py - pos.y) ** 2 <= r * r
+                          for px, py in locked_pts.get(n, ()))
+            if not covered:
+                w = max(sz.x, sz.y) / 2 + win
+                windows.setdefault(n, []).append(
+                    [pos.x - w, pos.y - w, pos.x + w, pos.y + w])
+    out = []
+    for n in sorted(locked_boxes):
+        for ly, boxes in sorted(locked_boxes[n].items()):
+            for wrect in windows.get(n, ()):
+                boxes = [rb for b in boxes for rb in _box_minus_window(b, wrect)]
+            for k, (x0, y0, x1, y1) in enumerate(_merge_tight_boxes(boxes)):
+                out.append({"name": "lockedcu-part-%s-%d" % (ly.replace(".", ""), len(out)),
+                            "x0": x0 / 1e6, "y0": y0 / 1e6,
+                            "x1": x1 / 1e6, "y1": y1 / 1e6, "layers": (ly,)})
+    return out
+
+
+def locked_mutual_collisions(board_path: str, *, clearance: float = 0.2):
+    """READ-ONLY audit: locked copper of DIFFERENT nets within *clearance* on a
+    shared layer -- the 2026-07-14 bulldozing round's residue item (a): lanes and
+    blueprint cells never mutual-legality-check (refusals check foreign PADS only),
+    measured 43 locked-vs-locked self-collisions on the wave-9 winner. Bbox proxy
+    (locked lanes/taps are axis-parallel; a diagonal pair may over-report -- the
+    audit REPORTS, it does not refuse; the escalation to a bake-time refusal is a
+    later ratchet once the fleet is clean). Returns [{a, b, layer, x_mm, y_mm}]."""
+    board = pcbnew.LoadBoard(board_path)
+    cl = int(clearance * 1e6)
+    items = []
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        bb = t.GetBoundingBox()
+        box = (bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom())
+        lays = (("F.Cu", "B.Cu") if t.Type() == pcbnew.PCB_VIA_T
+                else (board.GetLayerName(t.GetLayer()),))
+        for ly in lays:
+            items.append((n, ly, box))
+    hits = []
+    for i in range(len(items)):
+        na, la, a = items[i]
+        for j in range(i + 1, len(items)):
+            nb, lb, b = items[j]
+            if na == nb or la != lb:
+                continue
+            if (a[0] - cl <= b[2] and b[0] - cl <= a[2]
+                    and a[1] - cl <= b[3] and b[1] - cl <= a[3]):
+                hits.append({"a": na, "b": nb, "layer": la,
+                             "x_mm": round((max(a[0], b[0]) + min(a[2], b[2])) / 2e6, 2),
+                             "y_mm": round((max(a[1], b[1]) + min(a[3], b[3])) / 2e6, 2)})
+    return hits
 
 
 def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
@@ -3074,6 +3206,31 @@ def route_once(
             except Exception as _e:                            # noqa: BLE001
                 print("[cec_fr] locked-copper keepouts failed (%s) -- protect-only"
                       % _e, flush=True)
+            # PARTIALLY-owned locked nets (2026-07-14 residue (b)): their lane copper
+            # bakes as keepouts too, with pad-access WINDOWS so FR can still finish
+            # the net's remainder (/SENSEP6_HI divider tap, /FAN_12V fan-gate spur).
+            try:
+                _pk = partial_locked_keepouts(board_path, exclude_nets=_owned)
+                if _pk:
+                    hints = list(hints) + _pk
+                    print("[cec_fr] partial-locked keepouts: %d zone(s) (windowed "
+                          "pad access)" % len(_pk), flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                print("[cec_fr] partial-locked keepouts failed (%s) -- owned-only"
+                      % _e, flush=True)
+            # Residue (a) audit: lanes/cells never mutual-legality-check; report
+            # locked-vs-locked collisions LOUD (43 measured on the wave-9 winner)
+            # so a jank bake is visible at route time, not at the zoom review.
+            try:
+                _mc = locked_mutual_collisions(board_path)
+                if _mc:
+                    print("[cec_fr] WARNING: %d locked-vs-locked collision(s) "
+                          "(first: %s x %s on %s at %.1f,%.1f) -- the locked lay "
+                          "overlaps ITSELF; fix the lanes/cells, keepouts cannot"
+                          % (len(_mc), _mc[0]["a"], _mc[0]["b"], _mc[0]["layer"],
+                             _mc[0]["x_mm"], _mc[0]["y_mm"]), flush=True)
+            except Exception:                                  # noqa: BLE001
+                pass
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 

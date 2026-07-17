@@ -46,6 +46,20 @@ Output daughterboards (per the D-5a architecture, also beta and authoritative):
 Each carries a `SUPERSEDED` marker. None was ever fabbed. Safe to delete once you
 confirm you want them gone; git history keeps them.
 
+## Hub rev2 line (NOT superseded — the merged-in pipeline branch's hub revision)
+
+`hubs/hub-standard-rev2` (DRAFT) is the **rev2 Hub Standard schematic** finalized
+2026-07-15 on `claude/pipeline-consolidation` and merged 2026-07-17: F1–F4 per-port
+polyfuses, D8/D9 SMAJ5.0A power-entry TVS, C18–21 DETECT filters, the J6 column-paired
+mezzanine header (DNP THT), D-11 DRU exception. Layout is UNSTARTED (the wave-7 route
+run died with its session; relaunch owed). It is neither in the authoritative table
+above nor superseded — the table's `hubs/hub-standard` row remains the shipped
+fab-ready baseline, and `hub-standard-rev2` is the beta-line successor **whose
+promotion into the authoritative row is the owner's call at the rev2 layout wave**.
+Recorded here 2026-07-17 so the -rev2 name-reads-newer trap this manifest exists to
+prevent cannot recur (do NOT confuse it with `hubs/hub-rev2` in the superseded table
+— that is an older, unrelated June regen).
+
 ## Alpha / ordered prototypes (keep as history, not part of the beta line)
 
 - `modules/atx-24pin` — alpha, the validated prototype (INA228).
