@@ -18,7 +18,7 @@
 "100kΩ","R7","cec-Resistor_SMD:R_0402_1005Metric","C25741"
 "5.1kΩ","R8,R9","cec-Resistor_SMD:R_0402_1005Metric","C25905"
 "0Ω","R11,R12","cec-Resistor_SMD:R_0402_1005Metric",""
-"0.5mΩ","RS1,RS2","cec-Resistor_SMD:R_2512_6332Metric",""
+"0.5mΩ CSS2H-2512R-L500F (Bourns; DigiKey std reel -- JLC mini-reel C1848841 thin/0)","RS1,"cec-Resistor_SMD:R_2512_6332Metric",""
 "TE 63969-1","TB11,TB12,TB13,TB14,TB15,TB16,TB21,TB22,TB23,TB24,TB25,TB26","cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT","C2961150"
 "BOOT","SW1","cec-Button_Switch_SMD:TS-1088-AR02016","C720477"
 "RESET","SW2","cec-Button_Switch_SMD:TS-1088-AR02016","C720477"

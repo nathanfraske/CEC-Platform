@@ -12989,6 +12989,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 389.128 83.312 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 388.62 81.28 0)
 			(hide yes)
@@ -13144,6 +13155,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C15850"
+			(at 111.76 269.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
 			(at 110.49 267.97 0)
 			(hide yes)
@@ -13214,6 +13236,17 @@
 		)
 		(property "Value" "USB-C 2.0"
 			(at 33.02 275.336 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C319148"
+			(at 33.02 275.336 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14208,6 +14241,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25879"
+			(at 230.632 283.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 228.6 281.94 0)
 			(hide yes)
@@ -14402,6 +14446,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C38695"
+			(at 305.308 278.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 311.15 278.13 0)
 			(hide yes)
@@ -14499,6 +14554,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C25879"
+			(at 163.322 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -14885,6 +14951,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 186.69 116.84 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 185.42 115.57 0)
 			(hide yes)
@@ -15076,6 +15153,17 @@
 		)
 		(property "Value" "TLV7011DBVR"
 			(at 364.49 71.12 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C702117"
+			(at 364.49 71.12 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15730,6 +15818,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C5261083"
+			(at 245.11 271.78 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323"
 			(at 245.11 275.59 0)
 			(hide yes)
@@ -16319,6 +16418,17 @@
 		)
 		(property "Value" "RESET"
 			(at 95.25 285.75 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C720477"
+			(at 95.25 285.75 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17054,6 +17164,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 226.314 184.658 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 226.06 182.88 0)
 			(hide yes)
@@ -17649,6 +17770,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 324.358 83.312 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 323.85 81.28 0)
 			(hide yes)
@@ -17720,6 +17852,17 @@
 		)
 		(property "Value" "BOOT"
 			(at 69.85 285.75 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C720477"
+			(at 69.85 285.75 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17935,6 +18078,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C25741"
+			(at 36.322 189.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -18312,6 +18466,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C2058784"
+			(at 294.64 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6"
 			(at 294.64 110.49 0)
 			(hide yes)
@@ -18515,6 +18680,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C1525"
+			(at 234.95 196.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
@@ -19589,6 +19765,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C25879"
+			(at 182.372 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 180.34 38.1 0)
 			(hide yes)
@@ -19823,6 +20010,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C25741"
+			(at 230.632 269.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -20492,6 +20690,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 236.22 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 234.95 54.61 0)
 			(hide yes)
@@ -21135,6 +21344,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C25905"
+			(at 135.382 273.05 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -22940,6 +23160,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C702117"
+			(at 364.49 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 364.49 110.49 0)
 			(hide yes)
@@ -23168,6 +23399,17 @@
 		)
 		(property "Value" "INA181A2IDBVR"
 			(at 294.64 71.12 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C2058784"
+			(at 294.64 71.12 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23415,6 +23657,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C8678"
+			(at 90.17 264.16 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Diode_SMD:D_SMA"
 			(at 90.17 267.97 0)
 			(hide yes)
@@ -23494,6 +23747,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C15850"
+			(at 97.79 191.77 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
@@ -23649,6 +23913,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C25905"
+			(at 118.872 273.05 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -24171,6 +24446,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C80670"
+			(at 170.18 187.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 170.18 195.58 0)
 			(hide yes)
@@ -24332,6 +24618,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C1525"
+			(at 321.056 266.954 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
@@ -24637,6 +24934,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 186.69 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 185.42 85.09 0)
 			(hide yes)
@@ -24835,6 +25143,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C1525"
+			(at 324.358 114.808 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
@@ -25161,6 +25480,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C15850"
+			(at 219.964 184.658 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
@@ -25630,6 +25960,17 @@
 				)
 			)
 		)
+		(property "LCSC" "C485916"
+			(at 55.88 178.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A"
 			(at 55.88 201.93 0)
 			(hide yes)
@@ -25739,6 +26080,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C2683360"
+			(at 173.34 279.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal"
@@ -26038,6 +26390,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C1525"
+			(at 389.89 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
@@ -26867,6 +27230,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 276.86 288.798 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 283.21 287.02 0)
 			(hide yes)
@@ -26938,6 +27312,17 @@
 		)
 		(property "Value" "ESP32-C6-MINI-1-N4"
 			(at 275.59 166.03 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C5736265"
+			(at 275.59 166.03 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -27516,6 +27901,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 389.128 114.808 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 388.62 113.03 0)
 			(hide yes)
@@ -27743,6 +28139,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C17168"
+			(at 286.512 347.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
@@ -28135,6 +28542,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 186.69 55.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 185.42 54.61 0)
 			(hide yes)
@@ -28382,6 +28800,17 @@
 		(uuid "0cee93ad-5f38-4971-9849-42d359e0d651")
 		(property "Reference" "U63V31" (at 294.64 132.08 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "INA181A2IDBVR" (at 294.64 134.62 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C2058784"
+			(at 294.64 134.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 294.64 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 294.64 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "1979da37-b573-4705-9a23-74db23ed257b"))
@@ -28477,6 +28906,17 @@
 		(uuid "d3bf5e3c-d1f3-4765-b7a9-71b4456eae27")
 		(property "Reference" "C63V31" (at 323.85 132.08 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 323.85 134.62 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 323.85 134.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 323.85 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ee2de3f2-4850-44b4-b458-0c93eedc565f"))
@@ -28539,6 +28979,17 @@
 		(uuid "42ba5955-ad07-44b4-88b0-1eca0282f667")
 		(property "Reference" "U73V31" (at 364.49 132.08 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TLV7011DBVR" (at 364.49 134.62 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C702117"
+			(at 364.49 134.62 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 364.49 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 364.49 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7e1e1bae-5eee-4222-b3ea-851c3feaa8c2"))
@@ -28613,6 +29064,17 @@
 		(uuid "25223f85-280d-4b1c-ae03-52224bb5a4b6")
 		(property "Reference" "U65VSB1" (at 294.64 151.13 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "INA181A2IDBVR" (at 294.64 153.67 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C2058784"
+			(at 294.64 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 294.64 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 294.64 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6485b706-246b-45b4-ae9a-de44b377e665"))
@@ -28781,6 +29243,17 @@
 		(uuid "0f298165-edbc-4818-ad4c-d8155fd0ad3e")
 		(property "Reference" "C65VSB1" (at 323.85 151.13 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 323.85 153.67 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 323.85 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 323.85 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "b129732c-abb2-42b1-a689-5819318e6528"))
@@ -28843,6 +29316,17 @@
 		(uuid "df829a9e-eb68-4bb4-8f90-c915a7b91eb1")
 		(property "Reference" "U75VSB1" (at 364.49 151.13 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TLV7011DBVR" (at 364.49 153.67 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C702117"
+			(at 364.49 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 364.49 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 364.49 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "f521be64-8d09-4a2d-8ea8-510e98bb84e8"))
@@ -28923,6 +29407,17 @@
 		(uuid "3d37979c-f6cd-4624-96b1-1dda7dbbbe34")
 		(property "Reference" "C61" (at 69.85 294.64 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 69.85 307.34 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 69.85 307.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 69.85 300.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 300.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "5288eca4-54af-4c03-a408-c80085a14a80"))
@@ -29013,6 +29508,17 @@
 		(uuid "8346dee9-1eff-4051-ab1c-5dbc4fb164b0")
 		(property "Reference" "C73V31" (at 388.62 138.43 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 388.62 151.13 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 388.62 151.13 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 388.62 144.78 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 144.78 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7d393406-50dc-4a6c-99f0-6d6b4e57fcc7"))
@@ -29075,6 +29581,17 @@
 		(uuid "a79c45ae-ef0e-425b-aea4-3fc5a73aab30")
 		(property "Reference" "C75VSB1" (at 388.62 157.48 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 388.62 170.18 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 388.62 170.18 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 388.62 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "0b359762-66b2-421e-86aa-9abaca7869a5"))
@@ -29258,6 +29775,17 @@
 		(uuid "9d0a1f94-be30-48c6-9f3f-a4134224f07c")
 		(property "Reference" "C62" (at 384.81 237.49 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 384.81 267.97 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 384.81 267.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 384.81 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 384.81 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "2577c0e6-ece7-4637-96a4-77029843102e"))
@@ -29477,6 +30005,17 @@
 		(uuid "a90ca2f7-c86a-443f-a17e-702eace64af1")
 		(property "Reference" "C63" (at 384.81 248.92 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 384.81 279.4 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 384.81 279.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 384.81 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 384.81 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "2f5f90b3-65b9-42ed-be01-1e6e06e76c71"))
@@ -29835,6 +30374,17 @@
 		(uuid "83b2d6ab-9c69-464d-b5b8-4a4d000fdd27")
 		(property "Reference" "C64" (at 398.78 262.89 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100nF" (at 398.78 293.37 0) (effects (font (size 1.27 1.27))))
+		(property "LCSC" "C1525"
+			(at 398.78 293.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 398.78 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 398.78 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "af6e2d31-af9d-44c6-8f0d-9070799766dd"))
@@ -31773,6 +32323,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 426.08 61.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 424.18 60.0 0)
 			(show_name no)
@@ -32020,6 +32581,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C15850"
+			(at 433.7 61.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
@@ -32271,6 +32843,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 410.84 79.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 408.94 78.0 0)
 			(show_name no)
@@ -32518,6 +33101,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C15850"
+			(at 418.46 79.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
@@ -32769,6 +33363,17 @@
 				(justify left)
 			)
 		)
+		(property "LCSC" "C1525"
+			(at 426.08 79.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 424.18 78.0 0)
 			(show_name no)
@@ -32942,6 +33547,17 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
+			)
+		)
+		(property "LCSC" "C15850"
+			(at 433.7 79.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
