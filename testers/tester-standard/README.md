@@ -75,6 +75,29 @@ coarse staircase is in-scope).
 | 5VSB | 3.3 Ω | 1.5 A / 7.6 W | 1+1+2 | 4 legs = 6.0 A + mini-CC loop (below) | same |
 | −12 V | 47 Ω 10 W | 0.26 A | 1+1 | 2 legs = 0.52 A | same |
 
+**Operating model (owner Q&A 2026-07-17, recorded verbatim-intent):** bank
+FETs are DOORS, never dimmers — fully enhanced or fully off; a leg draws its
+Ohm's-law current (12 V / 6 Ω = 2 A) whenever its group is on, and nothing in
+the banks modulates saturation. The staircase comes from group selection; the
+ONE linear FET per rail (the 04a-d vernier, deliberately half-on in its CC
+loop) slides 0–1-step continuously between staircase steps. Target 37.3 A =
+banks 36 A (18 legs) + vernier 1.3 A. It is a segmented DAC: binary-weighted
+coarse segments, linear interpolator fine.
+
+**Why the duplicate 1× group (the "1+1" at the head of every ladder):**
+transition insurance, not resolution. (a) GLITCH-FREE STEPPING — crossing a
+binary boundary with a single 1-group is break-AND-make (3→4 legs = {1,2}
+OFF + {4} ON together; any switching skew and the DUT sees a 2–8 A spike or
+droop WE injected). With the spare unit, every ±1 step has a pure-ADDITIVE
+path (3→4 = just ADD 1b; the {1a,1b,2}→{4} reshuffle happens later, net-zero,
+under vernier cover) — every step becomes a single switch action and the
+vernier's transition duty never exceeds one unit. (b) FAULT TOLERANCE — with
+one 1-group, an opened LSB fuse deletes every odd step; with two, the full
+staircase survives degraded. (c) WEAR/HEAT SHARING — the LSB toggles most in
+any profile; two units split the switching and thermal duty (firmware
+rotates which serves). Cost: one extra leg per rail (~$3). −12 V's "1+1" is
+the same insurance where the whole bank is two legs.
+
 **5VSB mini-CC loop (v1.1)**: the v1 "small-FET peak leg" upgrades to a
 proper small LINEAR channel (DPAK-class FET + op-amp, 0–3.5 A programmable,
 extrusion-mounted) — one cell, three duties: the ATX 3.5 A/500 ms peak-leg
