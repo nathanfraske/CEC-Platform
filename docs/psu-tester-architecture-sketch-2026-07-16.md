@@ -898,10 +898,35 @@ fenced at the connector bar; (b) an OCP hunt that would need a section to
 exceed its cable bar is REFUSED by the fence and the result is flagged
 "limited by connector spec" — we never abuse a cable to find a trip point
 (big-head channels reach any realistic 12 V OCP without it); (c) per-slot
-nodes ALSO fix same-family multi-slot division (2× EPS no longer split
-one plane by cable-resistance luck). Group-to-slot assignment maps per
-tier fold into the existing Pro/W ladder-pass [wb]; the 05/08 capture
-sheets pick up slot-node structure when they resume.
+nodes ALSO fix same-family multi-slot division (2× EPS / 3× PCIe no
+longer split one plane by cable-resistance luck — each cable is its own
+node, own fence, own fuse, whether standalone or a multi-port module's
+bundle: the module bundles MEASUREMENT, never the nodes). Group-to-slot
+assignment maps per tier fold into the existing Pro/W ladder-pass [wb];
+the 05/08 capture sheets pick up slot-node structure when they resume.
+
+**SAME-FAMILY AT SCALE — W-tier 4× 12VHPWR (owner follow-up 2026-07-17):**
+fixed copper breaks here on arithmetic — 4 HPWR fences × ~50 A = 200 A of
+ceiling ≈ the ENTIRE ~100-leg W pool, so hard-wiring would either strand
+capacity (groups welded to slot 1 can't serve slot 3's test) or demand a
+~300 A install once EPS + 24-pin join. Sum-of-fences > pool is FINE (the
+DUT itself binds — a 3 kW PSU cannot sustain 200 A of 12 V; switch-fabric
+oversubscription logic; the scheduler allocates groups per test plan).
+Realization is TIERED: **ST/Pro keep full fixed-copper assignment**
+(small slot sets, nothing strands, layer-1 wiring-as-limit holds
+everywhere); **W-tier's big same-family slots get FAMILY-POOL STEERING**
+— per-GROUP steering relays (same benign duty class as the SCP arm
+relay: dry-switched at zero recruit, carry-only, 30–40 A class, ~$40–100
+total) steer the 12 V pool to slot nodes; the hard physical per-cable
+layer moves to the PER-SLOT FUSE (HPWR slots 50–60 A MIDI bolt-down —
+blade ATOF tops out ~40 A), with the firmware ceiling map + docked-module
+measured attribution unchanged. CROSS-CLASS ISOLATION STAYS COPPER-HARD
+ON EVERY TIER: no steering path to the 24-pin/minor nodes exists — a
+12 A cable is never one relay fault from a 200 A pool. Sideband
+corollary for 08-deck-io: each HPWR slot presents the CARD-side contract
+(CARD_CBL_PRES#, CARD_PWR_STABLE, SENSE0/1 class straps) per test plan —
+the tester advertises the cable class under test, reusing the 12VHPWR
+module's sideband knowledge.
 
 ## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
 

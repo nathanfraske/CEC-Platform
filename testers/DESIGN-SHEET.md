@@ -246,8 +246,16 @@ mess of wires" challenge)**
     path; (c) the 24-pin minor-rail nodes' reachable capacity ≤ their
     connector bars (5 V 25 A / 3.3 V 20 A / 5VSB 5 A) even though installed
     bank capacity is higher; (d) no slot node reaches another slot's
-    groups (attribution isolation). Applies to the 05/08 capture sheets on
-    resume and every tier's ladder-pass group map.
+    groups (attribution isolation — on W-tier's steered family pools this
+    reads: only via steering relays within the SAME family pool, never
+    cross-family); (e) W-tier steered slots: per-slot fuse present AND
+    sized at the slot fence (HPWR 50–60 A MIDI class — the fuse IS the
+    hard per-cable layer where steering replaces fixed copper), steering
+    relay coils reachable only from their control bits (never a fire/trip
+    path), and NO steering path exists to the 24-pin/minor nodes on any
+    tier (cross-class isolation stays copper — netlist-asserted). Applies
+    to the 05/08 capture sheets on resume and every tier's ladder-pass
+    group map.
 
 **TIM schedule (owner add 2026-07-16 night; Thermal Grizzly sponsorship
 available — TG supplies on hand, co-brand coherent for a thermal-audience
