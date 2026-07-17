@@ -4964,9 +4964,46 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             _can_cy = _courtyard_info(comps[_can], 0.0)
             _dxs = _rj_cy[2] + _can_cy[2] + 2.0
             bx = rx + (_dxs if rx < W / 2.0 else -_dxs)
-            anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
-                             min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
-            _can_seated.append(_can)
+            _can_x = min(max(bx, 4.0), W - 4.0) - _can_cy[0]
+            _can_y = min(max(ry, 5.0), H - 5.0) - _can_cy[1]
+            # SEAT LEGALITY (2026-07-17, the corridor-model CI red): the fixed offset was
+            # BLIND -- on the eps-legacy fixture it lands exactly on the cable-2 §6.13
+            # comparator's kelvin seat (U2 x U31, 2.7x2.5mm interpenetration), and since
+            # BOTH are fixed anchors the pass-lock discipline correctly forbids every
+            # later pass from resolving it -> every candidate carried residual 1. Keep
+            # the offset VERBATIM when its courtyard clears every already-seated anchor
+            # (byte-identical to the historical seat on every board where it was legal);
+            # otherwise slide to the nearest legal seat scored toward the ideal spot;
+            # no legal seat -> refuse-loud unseated (the rigid-group convention below).
+            def _anchor_box(_o):
+                _oa = anchors[_o]
+                _ocy = _courtyard_info(comps[_o], _oa[2] if len(_oa) > 2 else 0.0)
+                return (_oa[0] + _ocy[0] - _ocy[2], _oa[0] + _ocy[0] + _ocy[2],
+                        _oa[1] + _ocy[1] - _ocy[3], _oa[1] + _ocy[1] + _ocy[3])
+            _occ = [_anchor_box(_o) for _o in anchors if _o in comps]
+            _env = _blueprint_env_boxes(lambda d: anchors.get(d)) \
+                + _force_corridor_boxes(lambda d: anchors.get(d))
+            _cb = (_can_x + _can_cy[0] - _can_cy[2], _can_x + _can_cy[0] + _can_cy[2],
+                   _can_y + _can_cy[1] - _can_cy[3], _can_y + _can_cy[1] + _can_cy[3])
+            if not any(not (_cb[1] <= _b[0] or _b[1] <= _cb[0]
+                            or _cb[3] <= _b[2] or _b[3] <= _cb[2])
+                       for _b in _occ + list(_env)):
+                anchors[_can] = (_can_x, _can_y, 0.0)
+                _can_seated.append(_can)
+            else:
+                _cp, _crot = _seat_mcu_macro({_can: (0.0, 0.0, 0.0)}, comps, W, H,
+                                             forbid_boxes=_env, occ_boxes=_occ,
+                                             score_points=[(_can_x, _can_y)],
+                                             rotations=(0.0,), grid=1.0, edge_soft=2.0)
+                if _cp:
+                    anchors[_can] = _cp[_can]
+                    _can_seated.append(_can)
+                    print(f"  [p3crit] CAN seat: fixed offset collides with a seated "
+                          f"anchor -- slid {_can} to the nearest legal seat",
+                          file=sys.stderr)
+                else:
+                    print(f"  [p3crit] CAN seat: NO legal seat inboard of the jack for "
+                          f"{_can} (left for ordinary placement)", file=sys.stderr)
         # RIGID GROUPS (hub-rev2, owner 2026-07-15 "center logo and LEDs"): params
         # rigid_groups = [{"offsets": {ref: (dx,dy,rot)}, "score": "center"}] -- a
         # purely aesthetic/rigid formation (the LED ring) seated as one macro by the
