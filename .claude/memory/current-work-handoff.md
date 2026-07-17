@@ -1,5 +1,29 @@
 # Current work handoff
 
+## PIPELINE PASS SESSION (2026-07-17 ~21:00Z, branch claude/freerouting-pipeline-status-yoli0z — pushed)
+Three landings, all verified with real tools:
+(1) **Pipeline-pass item 1 CLOSED**: the inherited corridor-test CI red (test_phase2_default_
+placement_is_legal residual 1) root-caused — NOT the placer-package merges (FOLLOWUPS 1083
+corrected): the p3crit LEVER-1 CAN seat placed U2 by a BLIND fixed offset onto the §6.13
+comparator U31 kelvin seat (both FIXED; pass-lock correctly forbids later repair; ablation
+CEC_KELVIN_SEAT=0 flips green). Fix in the seat (15f69ca2): offset kept verbatim when legal,
+_seat_mcu_macro slide when colliding, refuse-loud else. Host battery 355/355.
+(2) **BOM completion the merge left half-landed** (1e2726b3): hub-standard-rev2/bom/ NEW
+(44 JLC lines, 0 unsourced; J6 DNP-excluded), atx-24pin-rev3 56 symbols gained sibling-
+propagated LCSC (netlist-identical; unsourced 28→10 w/ documented reasons — tolerance-
+doctrine 10k split + rev3-new values, FOLLOWUPS), PCIe RS rows enriched to the EPS DigiKey-
+channel convention, scripts/gen-bom-outputs.py = the reproducible generator. NOTE:
+hubs/hub-rev2 is SUPERSEDED-marked history; the REAL rev2 hub = hubs/hub-standard-rev2
+(NOT yet in beta/README.md's authoritative table — reconcile owed).
+(3) **Design-sheet §K → pipeline wave 1**: 4 advisory+proposed checkers in cec_constraints
+(fiducial-protocol, mlcc-edge-orientation, ecap-edge-distance, decoupler-adjacency-k5) w/
+teeth (tests/test_design_sheet_checks.py 12/12; sabotage legs avoid the Remove segfault
+footgun — rename instead) + 10 corpus staging rows (design-sheet-k-protocols.json, lint 0
+errors). Measured: hub passes fiducial protocol; 12vhpwr fires on 2.9/4.2mm fid edge margin
+vs the 5.0 [wb] target (honest audit); K.5 fires everywhere (as-built = 3.5mm class).
+Remainder + ratification path: FOLLOWUPS K-MECHANIZATION entry. Wave/work14 resume state
+unchanged (owner compute still parked).
+
 ## MAIN CONSOLIDATION DONE (2026-07-17 ~19:00Z) — read before pipeline work
 main = 81bb853a: session line (95 commits, FF) + claude/pipeline-consolidation (312, merge
 commit; 4 append-logs union-resolved, cec-vendor.kicad_sym auto-merge verified). CI on the
