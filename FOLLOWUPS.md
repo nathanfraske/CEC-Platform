@@ -967,3 +967,7 @@ Conventions:
   spec-pulse exception) — joins the SB-07-family tester runtime contract alongside the
   outer-loop/cal-map/self-test items; per-tier group→slot assignment maps land at each
   tier's ladder pass [wb].
+- [2026-07-17] ST capture resume brief must note: the checkpointed 05a-e WIP (47b4fd78)
+  predates §12c per-slot channelization — bank sheets restructure so group outputs land on
+  SLOT NODES (not one rail node), 06 gains the arm relay, 08 gains slot fuses/steering(W)/
+  HPWR sideband/port-Kelvin; rule 26 checkers enforce. Generator extension largely reusable.
