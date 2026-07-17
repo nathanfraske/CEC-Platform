@@ -1,5 +1,29 @@
 # Current work handoff
 
+## THROUGHPUT WAVE (2026-07-17 ~23:10Z, same branch — owner GO 'implement the other changes'; landed 1+5, deferred 2/3/8 w/ measured resume notes)
+(1) **WAVE PRUNE→ADJUDICATE (roadmap lever 1)**: cec_fresh_wave now compiles ALL variants'
+placements first (~1-2s each, spawn pool) and FR-routes only the top-K by the production
+cheap key (csp._candidate_sort_key). CEC_WAVE_PRUNE (default K=4; =0 restores route-all
+byte-identically). Fidelity managed not hidden: pruned rows RECORDED in the wave report
+(place_key + pruned:true), placement ERRORS route fail-open. Factored _build_session so
+place/grade phases can't drift. Teeth: test_wave_prune 7/7 (pure decision matrix + real-
+compile smoke + spawn-glue proof: 2-worker pool compiled real eps variants, better key
+routed). E2E leg (prune→FR→new-best thermal live) rides work14 — the FR jar is unreachable
+on this CCR box (repo-scoped GitHub proxy 403s the freerouting release asset).
+(5) **ANNEAL COST VECTORIZED, BIT-IDENTICAL** (lever 5): anneal_macros.cost() numpy path
+with array sync at every P-write site; identity contract stricter than the legalize
+precedent (sequential .tolist() summation preserves the scalar accumulation order — every
+accept/reject rides exact floats). CEC_ANNEAL_VEC=0 = scalar arm. test_anneal_vectorized
+4/4 (identity across seeds/role_clr/veto). Measured 1.9x @60 parts; the BIGGER wins
+(np.sum pairwise reduction, iters raise) are OUTPUT-CHANGING → fixed-seed ablation
+protocol, not landed.
+DEFERRED w/ evidence (FOLLOWUPS): oracle consolidation (MEASURED this tree: 22
+pcbnew.LoadBoard calls / 7.5s per route_oracle_grade(route=False) on 12vhpwr); PDN solver
+(prereq — thermal determinism — CLEARED this session; days-class build next); FR REST
+(needs the live server on the owner box). Battery (now 17 modules): OK, no escape dir.
+NOTE work14's first firing now exercises: prune (K=4), new-best thermal stamp, partial-net
+keepouts, locked-vs-locked audit, plateau-kill stream fix — read its report against ALL five.
+
 ## CORRECTNESS-GAPS WAVE (2026-07-17 ~22:20Z, same branch — owner GO 'correctness gaps first', all landed + pushed)
 (1) **WAVE NEW-BEST THERMAL (owner design call: 'thermal fires on every wave that produces a
 new best')**: cec_fresh_wave._new_best_thermal — a wave whose winner beats the board's
