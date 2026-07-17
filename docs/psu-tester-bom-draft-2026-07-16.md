@@ -248,14 +248,20 @@ structure. Sketch-grade ±15 %; real sourcing at BOM lock._
 | ST-1300 | ~665 | (incl.) | +35 | — | — | — | +2 | **~$700** | $1,499 | ~2.1× |
 | Pro | 1,064 | +70 | +42 | — | +7 | +60 | +15 | **~$1,258** | $3,495 | ~2.8× |
 | Max | 1,357 | +75 | +45 | — | +14 | +70 | +20 | **~$1,580** | $5,995–6,995 | 3.8–4.4× |
-| Pro-W | 1,635 | +120 | +52 | +70 | +7 | +60 | +15 | **~$1,960** | $4,995 | ~2.55× |
-| Max-W | 1,955 | +125 | +55 | +90 | +14 | +70 | +20 | **~$2,330** | $7,995 | ~3.4× |
+| Pro SE | 1,635 | +120 | +52 | +70 | +7 | +60 | +15 | ~1,960 +SE trim ~740 = **~$2,700** | $6,995 | ~2.6× |
+| Max SE | 1,955 | +125 | +55 | +90 | +14 | +70 | +20 | ~2,330 +SE trim ~900 = **~$3,230** | $9,995 | ~3.1× |
 
-**Reads:** every margin holds its class — ST stays the accepted
-below-3× value line (standing owner call), Pro at ~2.8× is healthy, Max
-holds capital-equipment multiples, Pro-W's 2.55× remains the §13
-"capital-equipment-normal" note (owner call at pricing lock), Max-W
-comfortable. The per-pin-on-Pro conditional passes its fence by a wide
+**Reads (W-MERGE RATIFIED 2026-07-17, sketch §13b — Pro-W/Max-W SKUs
+RETIRED; the 3 kW tier ships only as Pro SE / Max SE):** SE trim =
++$700–1,100 (2× D5, radiator wall + 140 mm fans, bank cold plates
+[replacing air plates — partial offset], commandeered CPU blocks ×2–3,
+dry-break QDCs, reservoir/level/leak/flow sensing, glass premium, 5–7″
+touch screens, RGB, arming console) — table uses ~$740/$900 mid
+estimates, [wb] at SE chassis quotes. Every margin holds its class — ST
+stays the accepted below-3× value line, Pro ~2.8×, Max 3.8–4.4×, Pro SE
+~2.6× (better than Pro-W's 2.55× was), Max SE ~3.1× = proper halo. The
+optional CEC Radiator Tower accessory (silent-3 kW external panel +
+QDC whips) prices separately at accessory margins, ~$120–180 BOM class. The per-pin-on-Pro conditional passes its fence by a wide
 margin (+$60 = +5.6 % BOM, +1.7 % of list) → carried as INCLUDED.
 Multi-board split adds PCB count but pennies-class board cost at these
 sizes (slices are small 2-layer thick-Cu; the deck absorbs the copper

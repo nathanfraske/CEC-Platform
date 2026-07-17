@@ -151,7 +151,7 @@ class ([wb] confirm the 6R sibling's LCSC line at BOM lock; 5R fallback =
 | ST-1000 | 32 | 22 | 54 | 27 | 3 × 9 (~324 mm) | ~160 mm |
 | ST-1300 | 44 | 22 | 66 | 33 | 3 × 11 (~396 mm) | ~160 mm |
 | Pro / Max | ~53 | 22 | ~75 | 38 | 4 × 10 (~360 mm) | ~210 mm |
-| Pro-W / Max-W | ~96–100 | ~22 | ~120–125 (§13) | ~61 | 6 × 11 (~396 mm) = two lanes of 3 | 2 × ~160 mm (§13 two-lane) |
+| Pro SE / Max SE (W-merge 2026-07-17; water cold-plate walls — air fold rules = provenance) | ~96–100 | ~22 | ~120–125 (§13) | ~61 | 6 × 11 (~396 mm) = two lanes of 3 | 2 × ~160 mm (§13 two-lane) |
 
 - **Continuous-power ledger** (banks × per-leg W + verniers): Pro 12 V
   53×24 ≈ 1.27 kW + 8 verniers ≈ 0.4 kW ≈ the 1600 W continuous rating ✓;

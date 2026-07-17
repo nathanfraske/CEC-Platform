@@ -315,3 +315,14 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
   continuation agent (accidental/system stop) — resume is DEFERRED by owner ("wait on that
   for now"), not forbidden; errand items stay owner-held. BOM re-base = §3e (margins hold
   across all six tiers).
+
+- [2026-07-17] **W-MERGE RATIFIED ("do the swap")**: Pro-W/Max-W SKUs retired; the ~3 kW
+  tier IS Pro SE $6,995 / Max SE $9,995 (sketch §13b; §14 promoted to flagship tier; BOM §3e
+  re-based ~$2,700/~$3,230, margins 2.6×/3.1×; air math drawered as provenance). Loop
+  realization v1 = §14b. NEW OWNER-ADJACENT ITEMS from it: (a) CPU-block partner pick for
+  the FET stations (TG Mycro the synergy candidate — fold into the TG conversation; Watercool/
+  EK/Alphacool/Optimus alternates); (b) bank cold-plate quotes (custom tube-in-plate, China
+  $20–50 vs western $100–250 — quote at SE capture); (c) SE rad-wall fan pick reopened
+  (140 mm quiet-static class, NOT the S12038 duct ruling); (d) coolant + tubing trim call
+  (EPDM service runs vs hardline showcase, clear-vs-dyed); (e) CEC Radiator Tower accessory
+  SKU (optional silent-3 kW external panel + QDC whips) — define at SE program start.

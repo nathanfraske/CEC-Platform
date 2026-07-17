@@ -1006,13 +1006,7 @@ Kelvin design rides the same sense-return discipline as OQ-88; capture
 lands in 08-deck-io + the Max acquisition sheets; analog-channel budget
 per tier at that pass.
 
-**[2026-07-17 PROPOSED MERGE — see the §14 W-MERGE RIFF: kill Pro-W/Max-W
-as air SKUs, promote the ~3 kW tier to Pro SE / Max SE ($6,995/$9,995,
-water/glass/halo trim on the UNCHANGED W electrical build). This section's
-air-field math is retained as provenance + special-order drawer either
-way. Awaiting explicit owner ruling.]**
-
-## 13. WORKSTATION tier (~3,000 W) — replaces the 2 kW ballast (owner ruling, 2026-07-16)
+## 13. The ~3,000 W tier (owner ruling 2026-07-16; **W-MERGE RATIFIED 2026-07-17 — this tier now ships ONLY as Pro SE / Max SE, §13b/§14**; the air-cooled Pro-W/Max-W SKUs are RETIRED and this section's air-field/duct math is retained as PROVENANCE + special-order drawer)
 
 **Owner ruling:** *"dip the 2K unit, because that is over a US breaker anyway.
 Go big or go home, Max Workstation or Pro Workstation (if Pro tier is doable
@@ -1147,7 +1141,7 @@ count — coordinate with §12 before the blade-field drawing freezes; (e)
 owner pick on relief valve 2 (design the DNP jacks in, or ship
 USB-overflow-only).
 
-## 13b. W-MERGE RIFF (2026-07-17, owner: "get rid of Pro-W/Max-W and make those the Pro/Max Special Edition SKUs" — PROPOSED, recommendation YES; awaiting explicit ruling)
+## 13b. W-MERGE — **OWNER-RATIFIED 2026-07-17** ("I agree with you overall. Do the swap.") — Pro-W/Max-W SKUs RETIRED; the ~3 kW tier IS Pro SE / Max SE ($6,995/$9,995)
 
 The merge collapses the two overlapping high-end lines (air-W + roadmap SE)
 into ONE halo family: line becomes ST-1000 / ST-1300 / Pro / Max /
@@ -1175,11 +1169,11 @@ into ONE halo family: line becomes ST-1000 / ST-1300 / Pro / Max /
   dry-breaks, leak/flow/level as standard on-screen telemetry — which
   dogfoods the telemetry stack; cold plates share DNA with the TTV
   pedestal program).
-If RULED: convert §13 header/table, BOM §3c/§3e columns, DESIGN-SHEET
-§A/§H census, and the §14 SE section from "roadmap halo" to "the
-flagship tier."
+CONVERSION EXECUTED 2026-07-17: §13 header retitled (air math retained
+as provenance/drawer), §14 promoted to flagship tier, BOM §3e re-based,
+DESIGN-SHEET census renamed. Loop realization v1 = §14b.
 
-## 14. "SPECIAL EDITION" — glass shell + full-loop water cooling (owner idea, 2026-07-16 night; **ROADMAP — HALO NORTH STAR**, owner-committed same night: "I genuinely do want to have it")
+## 14. SPECIAL EDITION — **THE FLAGSHIP TIER (ratified 2026-07-17, §13b)**: Pro SE $6,995 / Max SE $9,995 — the ~3 kW W electrical build (ladder + §12c steering + per-pin slot + DAC, UNCHANGED) in the glass shell + full-loop water + RGB + arming console. (Originally the 2026-07-16 "halo north star" riff; promoted from roadmap to line by the W-merge.)
 
 **Owner (verbatim intent):** "more for flair and because we are a bespoke PC
 shop known for extreme water cooling — Special Edition Pro and Max variants
@@ -1292,6 +1286,66 @@ is a heater); glass vs polycarbonate (thermal + shatter + cost); loop spec
 per tier (Pro/Max 1.6 kW vs SE-W 3 kW radiator area); whether SE replaces
 or accompanies the fan bank (redundancy vs purity); certification posture
 unchanged-check (still SELV, still unintentional radiator).
+
+
+**§14b SE LOOP REALIZATION v1 (2026-07-17, owner: "what waterblocks, how
+do we plumb it, can it be self-contained at 3 kW?"):**
+
+- **Heat inventory (Max SE full send):** bank cold-plate walls ~2.4 kW +
+  linear-FET stations ~0.5–0.75 kW = **~3.0–3.2 kW into the loop**. SCP
+  blocks (ms pulses), deck electronics, displays stay AIR in the dry
+  chamber — water only where sustained watts live.
+- **Blocks — two jobs, two parts:** (1) BANK WALLS = industrial
+  tube-in-plate COLD PLATES, not PC blocks (distributed 24 W resistors
+  want plate area, not die-flux microfin). Wall-cartridge doctrine (22b)
+  survives verbatim — legs bolt both faces, blades down — the plate
+  swaps air fins for water veins, and the 36 mm air-pitch constraint
+  RELAXES (walls may pack tighter/fewer). Sourcing: custom aluminum
+  plate w/ pressed/brazed copper serpentine (China custom $20–50/plate
+  at qty; Boyd/Wieland catalog $100–250 western); OUR bolt-pattern
+  drawing either way [wb quotes at SE capture]. (2) LINEAR-FET STATIONS
+  = COMMANDEERED CPU BLOCKS (the owner's original riff, now
+  load-bearing): 3–4 TO-247s clamped under one block cold face ≈
+  300–450 W/station, inside modern 500 W-class blocks; we design the
+  clamp frame (we dictate the mount), G1/4 everywhere; 2–3 stations;
+  candidates TG Mycro (co-brand synergy), Watercool Heatkiller, EK,
+  Alphacool, Optimus — acrylic tops face the glass: the visual
+  centerpiece IS the correct part [wb partner pick rides the TG thread].
+- **Plumbing order (deliberate):** pump/res → **FET stations FIRST**
+  (coolest liquid to the Tj-limited parts; resistor shells tolerate hot
+  coolant happily) → **bank walls in PARALLEL via manifolds** (serial
+  would staircase ΔT across walls) → radiator wall → return. 2× D5
+  serial (redundancy). Flow math: 3 kW at ΔT_coolant 10 K = ~4.3 L/min
+  (258 L/h) — one D5 covers it with margin, two give redundancy. Soft
+  EPDM ZMT-class tubing for service runs + selective hardline where the
+  showcase wants it (Max SE trim call); dry-break QDCs (Koolance
+  QD4/CPC NS6 class) at external ports + drain; reservoir w/ level
+  sensor, leak rope around the wet gallery, inline flow meter — all
+  standard on-screen telemetry (the tester instruments its own loop;
+  the §14a governor arbitrates).
+- **SELF-CONTAINED AT 3 kW: YES, at big-console scale — with the honest
+  physics note first:** water does not reduce the 3 kW; the ROOM still
+  receives it (space-heater class at full send). Water moves the
+  exchange surface and buys acoustics. Rejection: PC-class radiator
+  surface rejects ~150–300 W per 120 mm section at ΔT(air-liquid)
+  20–25 K moderate fans → 3 kW wants ~10–15 sections pushed / ~20
+  quiet. A built-in RADIATOR WALL of 2× 9×140 panels (MO-RA-420-class
+  equivalent, ~450×900 mm) with 6–8 large slow 140 mm fans rejects
+  ~3 kW at ΔT ≈ 25–30 K at tolerable noise — large slow fans over huge
+  area beat 38 mm duct screamers by a wide margin. Chassis ~40–60 L
+  bench console ≈ the retired air-W footprint. NOT ridiculous.
+- **TIERED OPERATING MODES** (extends §14a power-tiering): (1)
+  internal-only SILENT ≈ 1.5–2 kW continuous; (2) internal-only FULL
+  3 kW = fans ramp ("performance acoustics", still far below air-W);
+  (3) QDC EXTERNAL — the optional **CEC Radiator Tower accessory**
+  (MO-RA4-600-class panel + QDC whips, sold alongside, NOT required) =
+  silent 3 kW for labs; (4) chiller-capable via the same QDCs
+  (sub-ambient = future TTV cross-sell, not an SE requirement). The
+  coolant-temp governor derates honestly if the operator ignores it.
+- **SE fan pick REOPENED** for the rad wall (the Arctic S12038-4K
+  ruling was the air-duct part; the wall wants 140 mm high-static quiet
+  class — P14 MAX / NF-A14 industrial candidates, [wb] at chassis
+  quote).
 
 ## 9. Open sketch questions (for the schematic pass)
 

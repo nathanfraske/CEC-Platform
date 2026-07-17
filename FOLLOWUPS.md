@@ -971,3 +971,9 @@ Conventions:
   predates §12c per-slot channelization — bank sheets restructure so group outputs land on
   SLOT NODES (not one rail node), 06 gains the arm relay, 08 gains slot fuses/steering(W)/
   HPWR sideband/port-Kelvin; rule 26 checkers enforce. Generator extension largely reusable.
+- [2026-07-17] SE loop engineering follow-ups (§14b): leak-doctrine formalization (two-chamber
+  boundary spec, leak-rope zones, drain-assist firmware contract), cold-plate bolt-pattern
+  drawing (wall-cartridge 22b geometry on water plates — air pitch relaxation math), FET
+  clamp-frame design for commandeered CPU blocks (we dictate the mount), radiator-wall P-Q
+  + rejection validation at first SE chassis article, coolant-temp governor thresholds into
+  the tester firmware contract set.

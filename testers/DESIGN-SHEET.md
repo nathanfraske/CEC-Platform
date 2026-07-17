@@ -16,8 +16,8 @@ verbatim.
 | Board | Tiers | Why it is its own board |
 |---|---|---|
 | `tester-standard/` | ST-1000/1300 (population variants, same copper) | C6-class control, no fast channel/OVP/streams — different compute + loop count than Pro |
-| `tester-pro/` | Pro + **Pro-W** (~3 kW population variant, §H) | P4 + RS-485 + OVP-A + 8 verniers + SCP |
-| `tester-max/` | Max + **Max-W** (~3 kW population variant, §H) | Pro superset + on-board digitizer lane (AD9253+GW5A LVDS must stay short) + T1 PHY |
+| `tester-pro/` | Pro + **Pro SE** (~3 kW population variant, §H) | P4 + RS-485 + OVP-A + 8 verniers + SCP |
+| `tester-max/` | Max + **Max SE** (~3 kW population variant, §H) | Pro superset + on-board digitizer lane (AD9253+GW5A LVDS must stay short) + T1 PHY |
 | `fast-channel-slice/` | Pro ×1, Max ×2 | The µH-budget lives at the fixture — the slice's copper IS the circuit; separable bench-gate prototype |
 | `slot-deck/` | all | Thick-copper blade fields + load-bus routing + Hub bay; mechanically chassis-bound, revs with fixture geometry not electronics |
 | `hpwr-fixture-head/` | all | The per-test wear position; replaceable by design |
@@ -59,7 +59,7 @@ Format: component → board/zone → rule → why → how the pipeline checks it
    CAN jack; crystal per Espressif keepout; NO antenna keepout (wired
    product, platform beta precedent W9). Check: courtyard + net-length lint.
 2. **Setpoint DAC (DAC80508-class)** → Z1, SPI run ≤60 mm to MCU, its 8 ref
-   outputs fan TOWARD the FET row so每 loop's ref trace crosses no load
+   outputs fan TOWARD the FET row so EACH loop's ref trace crosses no load
    copper; internal-ref part = keep 10 mm from any >1 W dissipator. Check:
    ref-trace-crosses-load-pour lint (new corpus row).
 3. **CC op-amps (one per loop)** → AT their L2 FET, gate trace ≤15 mm with
@@ -424,7 +424,7 @@ LVDS lane plane-integrity rule (new, Max only).
 - **Max adds**: digitizer lane rules (LVDS class, AFE mux stubs ≤10 mm,
   AGND island policy per the AD9253 DS (grade: -105 recommended post-sourcing, C514281); AFE = ADA4930-1 LFCSP-16 drivers + ADG1408 TSSOP-16 mux (mux BW = confirm-before-lock flag)), T1 PHY cell,
   second slice position, OVP characterization = firmware only.
-- **Pro-W / Max-W (~3,000 W Workstation, owner 2026-07-16 — sketch §13, BOM
+- **Pro SE / Max SE (~3,000 W Workstation, owner 2026-07-16 — sketch §13, BOM
   §3c): POPULATION variants of tester-pro/tester-max, NOT new boards.**
   Design the Pro/Max copper for the W population count from day one: ~13
   vernier loop positions (2× DAC80508 footprints, second DNP on Pro), bank
@@ -432,7 +432,7 @@ LVDS lane plane-integrity rule (new, Max only).
   fixture feed positions (Pro populates 1), extrusion edge sized for the
   ~500 mm class, 6 fan headers (Pro populates 4), 11 bay-LCD CS lines. The
   W chassis (two-lane duct, ~430×450×170) and the W slot-deck length variant
-  are the only new mechanical items. Max-W gangs the two fast-channel slice
+  are the only new mechanical items. Max SE gangs the two fast-channel slice
   positions (whole-PSU 200 % fence per sketch §13). PORT LEDGER (owner flag):
   flagship W suite = 8 CAN nodes = Hub Pro exactly full — carry 2–3 CAN-only
   expansion-jack positions as DNP provision (RJ-45 + DETECT ESD + switched
