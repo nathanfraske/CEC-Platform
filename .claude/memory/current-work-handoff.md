@@ -1,5 +1,20 @@
 # Current work handoff
 
+## WORKSPACE RE-SYNC + LADDER SURVEY — 2026-07-19 (this box; session rebased onto claude/freerouting-pipeline-status-yoli0z = the live pipeline tip, 6 ahead of main)
+This box: main @ 24d170ab (was 1106 behind — root-owned container files blocked the pull,
+docker-chown'd; strays salvaged to build/pre-sync-salvage). Broker VERIFIED end-to-end
+(on-demand cold start + completion, cec-worker); dash relaunched :8090; routing container
+up w/ GPU deps (cupy 14.1.1/pyamg 5.3.0) reachable. Memory-dir handoff was STALE-pre-merge
+→ re-synced FROM repo; session-end hook now mirrors NEWEST-WINS (clobber hazard closed).
+NEW: scripts/cec_housekeep.py ring-buffer cleanup (build/ + agent sessions + job tmp;
+first run -3.0GB) wired into session-end.sh. PIPELINE-PASS ITEM #1 ROOT-CAUSED by bisect:
+first bad = 92fbdf49 (CAN-seat lever, 2026-07-08) — seat wins 54.7→4.3mm but costs eps
+default residual 0→1; wrap commits exonerated; RECONCILED: the status branch had already
+fixed it same-day (legality-aware seat, 2026-07-17 20:55) — bisect independently confirms. LADDER/DESIGN-SHEET SURVEY: 4 sheets read (STANDARD/PRO-MAX/ENT/tester);
+enforcement queue + per-tier PROFILE-toggle plan in FOLLOWUPS 2026-07-19 entry — Standard
+K-mechanization first, ENT ★ gates next (Aug demo clock), checkers arm per-board-tier,
+default standard = inert. Tester ST capture resume stays OWNER-DEFERRED (do not relaunch).
+
 ## THROUGHPUT WAVE (2026-07-17 ~23:10Z, same branch — owner GO 'implement the other changes'; landed 1+5, deferred 2/3/8 w/ measured resume notes)
 (1) **WAVE PRUNE→ADJUDICATE (roadmap lever 1)**: cec_fresh_wave now compiles ALL variants'
 placements first (~1-2s each, spawn pool) and FR-routes only the top-K by the production
