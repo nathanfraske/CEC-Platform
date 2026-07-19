@@ -9132,7 +9132,8 @@ def materialize(cand, cfg, out, *, logo=None):
             import pcbnew as _pcb_fr
             _rlb = _pcb_fr.LoadBoard(out)
             _frr = cec_force_rails.lay_force_rails(
-                _rlb, lock=True, alt_layer=cfg.params.get("rail_alt_layer"))
+                _rlb, lock=True, alt_layer=cfg.params.get("rail_alt_layer"),
+                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")))
             if _frr:
                 _pcb_fr.SaveBoard(out, _rlb)
             _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}

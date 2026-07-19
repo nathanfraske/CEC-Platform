@@ -290,7 +290,8 @@ def discover_rails(board):
     return rails
 
 
-def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
+def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
+                    mirror_bcu=False):
     """Lay the per-rail force copper LOCKED. Returns {rs: report|'REFUSED: ...'}.
     *alt_layer* (e.g. "In2.Cu", the board-class inner POWER-ROUTING layer -- In1
     stays the solid GND plane per the owner's 2026-07-19 ruling): plan in ALT
@@ -340,7 +341,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             for ref, net, px, py, half, tht in pads:
                 if net in own_nets or ref.startswith(tuple(skip_refs) or ("\0",)):
                     continue
-                if tag == "alt" and not tht:
+                if tag in ("alt", "back") and not tht:
                     continue
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < (w / 2 + half + 0.25) ** 2:
                     return ("%s [%s] at (%.1f,%.1f) vs plan (%.1f,%.1f)-(%.1f,%.1f)"
@@ -401,6 +402,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         return sites if len(sites) >= n else None
 
     def _layer_of(tag, face_ly):
+        if tag == "back":
+            return layer_id["B.Cu"]
         return alt_id if (tag == "alt" and alt_on) else face_ly
 
     def _commit(net, plan, face_ly):
@@ -651,6 +654,25 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             continue
         _commit(rl["src_net"], spine + pin_plans, face_ly)
         _commit(rl["snk_net"], snk, face_ly)
+        _bcu_twins = 0
+        if mirror_bcu and alt_on:
+            # B.Cu TRUNK MIRROR (owner ask 2026-07-19: "are the large pours/
+            # traces able to go to the bottom layer too?"): on a single-sided-
+            # assembly board B.Cu is free real estate -- twin every committed
+            # ALT (In2) trunk seg onto B.Cu, guarded per-seg (THT barrels +
+            # cross-net locked copper; SMD pads are front-only). The through
+            # J3/TB barrels and the via arrays bond the layers, doubling the
+            # trunk cross-section. Best-effort: a colliding twin is skipped,
+            # the In2 original stands.
+            for (_net_m, _segs_m) in ((rl["src_net"], spine + pin_plans),
+                                      (rl["snk_net"], snk)):
+                for (x1, y1, x2, y2, w2, tg) in _segs_m:
+                    if tg != "alt":
+                        continue
+                    _tw = [(x1, y1, x2, y2, w2, "back")]
+                    if _collide(_tw, {_net_m}, skip_refs=("FID",)) is None:
+                        _commit(_net_m, _tw, face_ly)
+                        _bcu_twins += 1
         if not _snk_arr_on:          # face-staggered sink: no layer transition,
             arr_sites = [(n, s_) for (n, s_) in arr_sites   # its array would dangle
                          if n != rl["snk_net"]]
@@ -660,6 +682,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         report[rl["rs"]] = {"segs": len(spine) + len(pin_plans) + len(snk),
                             "pins": "%d/%d" % (picked, len(rl["j3"])),
                             "vias": n_arr, "alt": alt_on,
+                            "bcu_twins": _bcu_twins,
                             "w": w, "face": rl["face"],
                             "dropped_pins": dropped}
         if verbose:

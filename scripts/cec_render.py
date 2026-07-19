@@ -143,8 +143,19 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
             if not render(board_path, p, side=side, no_bodies=True):
                 return None
         tiles[side] = p
-    # 2. layer plots
-    for key, layer in (("l1", "F.Cu"), ("l4", "B.Cu"), ("l2", "In1.Cu"), ("l3", "In2.Cu")):
+    # 2. layer plots -- inner layer names RESOLVED from the board (the 24-pin
+    # renames In1/In2 -> GND/PWR_RT; the hardcoded stock names plotted EMPTY
+    # tiles, read as "L2 not filled as a ground plane" -- owner report
+    # 2026-07-19; the plane measured 85% filled)
+    try:
+        import pcbnew as _pn
+        _bl = _pn.LoadBoard(board_path)
+        _lname = {"l1": _bl.GetLayerName(_pn.F_Cu), "l4": _bl.GetLayerName(_pn.B_Cu),
+                  "l2": _bl.GetLayerName(_pn.In1_Cu), "l3": _bl.GetLayerName(_pn.In2_Cu)}
+    except Exception:                                       # noqa: BLE001
+        _lname = {"l1": "F.Cu", "l4": "B.Cu", "l2": "In1.Cu", "l3": "In2.Cu"}
+    for key, layer in (("l1", _lname["l1"]), ("l4", _lname["l4"]),
+                       ("l2", _lname["l2"]), ("l3", _lname["l3"])):
         svg = os.path.join(wd, key + ".svg")
         r = subprocess.run(["kicad-cli", "pcb", "export", "svg", "--layers",
                             layer + ",Edge.Cuts", "--page-size-mode", "2",

@@ -280,6 +280,10 @@ BOARD_PARAMS = {
                        # (cec_force_rails -- J3 group -> straddle shunt -> TBs) laid
                        # locked at materialize; refusals teach the placer.
                        "force_rails": True,
+                       # B.Cu trunk mirror (owner 2026-07-19: single-sided
+                       # assembly leaves the bottom free -- twin the In2
+                       # trunks there, bonded by the through arrays/barrels)
+                       "rail_mirror_bcu": True,
                        # LAYER-CROSSING RAILS (owner 2026-07-19: "it should be able
                        # to cross layers with via arrays ... keep one INNER layer
                        # as GND, use the other for power routing"): In1 = the solid
