@@ -1,5 +1,25 @@
 # Current work handoff
 
+## OWNER GO BATCH 2+3 — seats/ratify/de-scatter/straight-through/force-rails — 2026-07-19 (small hours)
+All owner GOs implemented (commits 06855027..18f38139): ANALOG SEATS (vrail@lane6/th1/th2,
+net-keyed; unblocks the R5 tap), J2.2 single-pin-tap exemption from force-pin exclusion
+(the /FAN_12V root-close's second half), RATIFIED mlcc-edge-orientation + ecap-edge-distance
+(strong/ratified; fiducial-protocol + decoupler-k5 held w/ evidence), 12VHPWR DE-SCATTER
+(p8b 4mm+corner trigger, seats got edge_soft 4 [had 0], TH2 10mm inboard, fan cluster =
+2-row block seating 10mm from J2 interior; corners 8->4, rind 21->14, residue =
+p9-restamp geometry), 24-PIN STRAIGHT-THROUGH TB ORDER (J3-centroid term in _perm_cost;
+positions/pitch = mating contract untouched; out-db net-map regen at adoption = FOLLOWUPS)
++ ONE-SIDED preference (alternate only when shunt columns overlap <9mm), and
+CEC_FORCE_RAILS built (name-independent straddle discovery, plan_bands interval packing,
+_force_rail_boxes placement corridors at 9 env sites, MCU seat gated on force_rails,
+5/5 teeth). WAVE READOUTS: 14d = no regression (39; incumbent 32 stands). 24-pin wave =
+NEW BEST 35 unconn/drc 61, but rails 0/4 on every variant w/ TWO stable named blocker
+classes -> v3 (FOLLOWUPS): (a) stamp/restamp passes don't respect rail corridors (control
+block Q1/R75/C22 squat the RS1 sink; SAME class as the 12vhpwr rind residue = the
+cross-cutting item); (b) spine-vs-neighbor-shunt (centroid columns attempted: residual
+3->22, the dual-sided y-stagger scatters cells -> row/stagger/corridor CO-DESIGN needed,
+measured + reverted). Criticals on the 24-pin best = exactly the unlaid rails.
+
 ## OWNER BATCH + WAVE-14C — criticals nearly dissolved, NEW BEST 32 — 2026-07-19 (late)
 Owner batch (5 asks) implemented + validated in wave 14c (commits 44ca64a4..65408be6+):
 parks (densify ladder; D2 = measured capacity → seed 62x66; residual 0), MCU antenna-out
