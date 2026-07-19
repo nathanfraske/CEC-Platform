@@ -610,10 +610,32 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         resolved_vias.append((v, nc))
 
     all_codes = {n.GetNetCode() for n in board.GetNetInfo().NetsByNetcode().values()}
-    foreign_codes = all_codes - cell_codes
 
-    # BUILD in memory (not yet added) + GUARD every segment against foreign copper.
+    # PER-SEGMENT exemption (codex stack-audit 2026-07-19 #1): only the
+    # segment's OWN net is exempt -- the old cell-wide set let two internal
+    # nets cross each other or a sibling net's pad and lock a real short.
+    # Each accepted piece also joins the obstacle set for the NEXT piece
+    # (cross-net intra-cell check via SHAPE Collide).
     built = []
+
+    def _intra_hit(shape, nc, ly_top, ly_bot=None):
+        for item in built:
+            if item[0] == "track":
+                _k, _tr, _nc2, _ly2, _S2, _E2, _w2 = item
+                if _nc2 == nc:
+                    continue
+                if ly_bot is None and _ly2 != ly_top:
+                    continue                      # different copper layer
+                if shape.Collide(pcbnew.SHAPE_SEGMENT(_S2, _E2, _w2), clr_nm):
+                    return "cell-internal track on net %r" % _tr["net"]
+            else:
+                _k, _v2, _nc2, _t2, _b2, _at2, _dia2 = item
+                if _nc2 == nc:
+                    continue
+                if shape.Collide(pcbnew.SHAPE_CIRCLE(_at2, _dia2 // 2), clr_nm):
+                    return "cell-internal via on net %r" % _v2["net"]
+        return None
+
     for tr, nc in resolved_tracks:
         ly = board.GetLayerID(tr["layer"])
         if ly < 0:
@@ -624,7 +646,8 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         E = pcbnew.VECTOR2I(_nm(ex), _nm(ey))
         w = _nm(tr["width_mm"])
         seg = pcbnew.SHAPE_SEGMENT(S, E, w)
-        _hit = _foreign_clear(board, seg, ly, foreign_codes, clr_nm)
+        _hit = (_foreign_clear(board, seg, ly, all_codes - {nc}, clr_nm)
+                or _intra_hit(seg, nc, ly))
         if _hit:
             report.update(refused=True,
                           reason=f"track on net {tr['net']!r} ({tr['layer']}) collides FOREIGN "
@@ -636,8 +659,9 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         at = pcbnew.VECTOR2I(_nm(v["at_mm"][0]), _nm(v["at_mm"][1]))
         dia = _nm(v["dia_mm"])
         circ = pcbnew.SHAPE_CIRCLE(at, dia // 2)
-        _hit = (_foreign_clear(board, circ, top, foreign_codes, clr_nm)
-                or _foreign_clear(board, circ, bot, foreign_codes, clr_nm))
+        _hit = (_foreign_clear(board, circ, top, all_codes - {nc}, clr_nm)
+                or _foreign_clear(board, circ, bot, all_codes - {nc}, clr_nm)
+                or _intra_hit(circ, nc, top, bot))
         if _hit:
             report.update(refused=True,
                           reason=f"via on net {v['net']!r} collides FOREIGN {_hit} -- whole cell refused")

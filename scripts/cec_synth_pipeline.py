@@ -8650,14 +8650,33 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # placed board; absent sidecar (every non-rail board) => inert.
             rails = None
             rails_ok = True
+            _rails_expected = bool(cfg and cfg.params.get("force_rails"))
             try:
                 _rrp = str(placed)[:-len(".kicad_pcb")] + ".railreport.json"
                 if os.path.isfile(_rrp):
                     with open(_rrp) as _fh:
                         rails = json.load(_fh)
+                    # schema/board identity (audit #21: unversioned sidecars +
+                    # fail-open parse); a mismatched or unparseable report on a
+                    # rail-enabled board must fail CLOSED, never pass silently
+                    if (rails.get("schema", 1) != 1
+                            or (rails.get("board")
+                                and rails["board"] != os.path.basename(str(placed)))):
+                        rails = {"total": 1, "laid": 0,
+                                 "refused": {"_": "sidecar identity mismatch"}}
                     rails_ok = int(rails.get("laid", 0)) >= int(rails.get("total", 0))
+                elif _rails_expected:
+                    rails = {"total": 1, "laid": 0,
+                             "refused": {"_": "railreport sidecar MISSING on a "
+                                              "force_rails board"}}
+                    rails_ok = False
             except Exception:                                 # noqa: BLE001
-                rails, rails_ok = None, True
+                if _rails_expected:
+                    rails = {"total": 1, "laid": 0,
+                             "refused": {"_": "railreport sidecar unreadable"}}
+                    rails_ok = False
+                else:
+                    rails, rails_ok = None, True
             rails_refused = ((int(rails.get("total", 0)) - int(rails.get("laid", 0)))
                              if rails else 0)
 
@@ -8755,7 +8774,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
             "unconn_signal": [], "routing_complete": False, "foreign_ok": False,
             "foreign": {"status": "error", "tracks": 9999, "vias": 9999, "pours": 0},
             "thermal_ok": False, "thermal": {"ok": False, "dT": None},
-            "sort_key": (1, 9, 9999, 9999, 9999, 1e6), "reasons": [error or "route produced no board"]}
+            "sort_key": (1, float("inf")), "reasons": [error or "route produced no board"]}
 
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
@@ -9123,7 +9142,8 @@ def materialize(cand, cfg, out, *, logo=None):
             # along for the readout. Best-effort; absent sidecar = no pressure.
             try:
                 with open(out[:-len(".kicad_pcb")] + ".railreport.json", "w") as _f:
-                    json.dump({"total": len(_frr), "laid": len(_frr) - len(_badr),
+                    json.dump({"schema": 1, "board": os.path.basename(out),
+                               "total": len(_frr), "laid": len(_frr) - len(_badr),
                                "refused": {k: str(v) for k, v in _badr.items()}},
                               _f, indent=1, sort_keys=True)
             except Exception:                               # noqa: BLE001

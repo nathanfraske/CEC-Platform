@@ -487,7 +487,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                     _dw2 = min(dw, 1.0)
                     _dtry = [(px, py, px + _ddx, py, _dw2, dtag),
                              (px + _ddx, py, px + _ddx, y2, _dw2, dtag)]
-                if _collide(_dtry, own_src, skip_refs=(rl["rs"], "TB", "FID")) is None:
+                if _collide(_dtry, own_src, skip_refs=("FID",)) is None:
                     _xs_live.append(px)
                     break
         # BAND-WIDTH shrink (2026-07-19: a pin can pass the drop-width pre-test
@@ -500,7 +500,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                 return True
             _b = [(min(xs), band_y, max(xs), band_y, w,
                    "alt" if alt_on else "face")]
-            return _collide(_b, own_src, skip_refs=(rl["rs"], "TB", "FID")) is None
+            return _collide(_b, own_src, skip_refs=("FID",)) is None
         while len(_xs_live) > 1 and not _band_ok(_xs_live):
             _lo_e, _hi_e = min(_xs_live), max(_xs_live)
             _cut = _lo_e if abs(_lo_e - hx) >= abs(_hi_e - hx) else _hi_e
@@ -552,7 +552,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         _drops_tag = None
         _vreasons = []                       # per-variant refusal trace (audit:
         for _vi, (_sv, _sa, _dtag_v) in enumerate(_src_variants):  # the message showed only the LAST
-            col = _collide(_sv, own_src, skip_refs=("J3", rl["rs"], "TB", "FID"))
+            col = _collide(_sv, own_src, skip_refs=("FID",))
             if col is not None:
                 _vreasons.append("v%d %s" % (_vi, col))
                 continue
@@ -610,7 +610,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                     _dw2 = min(dw, 1.0)
                     drop = [(px, py, px + _ddx, py, _dw2, _dt),
                             (px + _ddx, py, px + _ddx, y2, _dw2, _dt)]
-                c2 = _collide(drop, own_src, skip_refs=(rl["rs"], "TB", "FID"))
+                c2 = _collide(drop, own_src, skip_refs=("FID",))
                 if c2 is None:
                     break
                 _dreasons.append("%+.1f:%s" % (_ddx, c2))
@@ -625,12 +625,12 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         # next rail's alt sink band -- measured at 3.95 vs 4.0mm on W74):
         # the whole sink moves to the face; THT TB barrels need no array.
         snk = list(_ch["snk"])
-        c3 = _collide(snk, own_snk, skip_refs=("J3", rl["rs"], "TB", "FID"))
+        c3 = _collide(snk, own_snk, skip_refs=("FID",))
         _snk_arr_on = True
         if c3 and alt_on:
             _snk_face = [(x1, y1, x2, y2, w2, "face")
                          for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
-            c3b = _collide(_snk_face, own_snk, skip_refs=("J3", rl["rs"], "TB", "FID"))
+            c3b = _collide(_snk_face, own_snk, skip_refs=("FID",))
             if c3b is None:
                 snk, c3, _snk_arr_on = _snk_face, None, False
             else:

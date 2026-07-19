@@ -1391,6 +1391,10 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             best = scored[0] if scored else None
             if best:                                     # so the worker can target a rip-up at this candidate's loci
                 state.last_candidate = best[0].board
+                _gk = (0 if best[1].gates_pass else 1,
+                       cec_score.objective(best[1], spec.weights))
+                if g_best is None or _gk < g_best[2]:
+                    g_best = (best[0], best[1], _gk)
             verdict = manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
@@ -1421,7 +1425,9 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             if it >= spec.max_iters:                      # hard stop: never loop forever
                 if verbose:
                     print(f"[route] {region.name}: hit iteration ceiling ({spec.max_iters}); taking best-so-far")
-                if best:
+                if g_best is not None:
+                    routed[region.name] = (region, g_best[0])
+                elif best:
                     routed[region.name] = (region, best[0])
                 break
 

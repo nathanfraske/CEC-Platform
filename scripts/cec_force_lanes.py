@@ -70,7 +70,8 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             lock_vias.append((pos.x / MM, pos.y / MM))
         elif t.IsLocked():
             s_, e_ = t.GetStart(), t.GetEnd()
-            lock_segs.append((t.GetNetname(), s_.x / MM, s_.y / MM, e_.x / MM, e_.y / MM))
+            lock_segs.append((t.GetNetname(), s_.x / MM, s_.y / MM, e_.x / MM, e_.y / MM,
+                              t.GetWidth() / MM))
 
     added = []
 
@@ -112,16 +113,18 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         for vx, vy in lock_vias:
             if (vx - x) ** 2 + (vy - y) ** 2 < 1.45 ** 2:
                 return False
-        for net, sx, sy, ex, ey in lock_segs:
-            if _seg_pt_d2(x, y, sx, sy, ex, ey) < 0.85 ** 2:
+        for net, sx, sy, ex, ey, _lw in lock_segs:
+            if _seg_pt_d2(x, y, sx, sy, ex, ey) < (0.45 + _lw / 2.0 + 0.25) ** 2:
                 return False
         return True
 
     def lane_collider(plan, own_nets):
-        """First foreign pad within reach of a planned segment (w/2 + pad-half
-        1.0 + clearance 0.25), or None. Foreign = not J3/J4/own-lane/GND-via-
-        exempt; GND THT barrels are part of the DESIGN (the necks thread their
-        gaps) so J3/J4 are skipped -- the geometry owns that clearance."""
+        """First foreign pad OR foreign locked copper within reach of a planned
+        segment, or None. Foreign = not J3/J4/own-lane; GND THT barrels are part
+        of the DESIGN (the necks thread their gaps) so J3/J4 are skipped -- the
+        geometry owns that clearance. Locked copper/vias added per the codex
+        stack-audit 2026-07-19 #2 (the collider was blind to them)."""
+        from cec_force_rails import _seg_seg_d2
         for (x1, y1, x2, y2, w, _ly) in plan:
             for ref, num, net, px, py, half in pads:
                 if ref.startswith(("J3", "J4", "FID")) or net in own_nets:
@@ -129,6 +132,14 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                 reach = (w / 2.0 + half + 0.25) ** 2
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < reach:
                     return "%s.%s [%s] at (%.1f,%.1f)" % (ref, num, net, px, py)
+            for lnet, sx, sy, ex, ey, lw in lock_segs:
+                if lnet in own_nets:
+                    continue
+                if _seg_seg_d2(x1, y1, x2, y2, sx, sy, ex, ey) < (w / 2.0 + lw / 2.0 + 0.25) ** 2:
+                    return "locked copper [%s] (%.1f,%.1f)-(%.1f,%.1f)" % (lnet, sx, sy, ex, ey)
+            for vx, vy in lock_vias:
+                if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2.0 + 0.45 + 0.25) ** 2:
+                    return "locked via at (%.1f,%.1f)" % (vx, vy)
         return None
 
     j3_gnd = sorted(y for r, n, net, x, y, h_ in pads if r == "J3" and net == "GND")
@@ -165,7 +176,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             (rs1[0], fan_y, rs1[0], rs1[1], 2.5, fcu),
         ]
         own = {hi, lo}
-        col = lane_collider(hi_plan, own)
+        col = lane_collider(hi_plan, {hi})
         if col:
             # HOOK-DESCENT fallback (lane 6 vs the right-edge RJ-45): drop on an
             # offset column clear of the obstacle, approach the shunt from ABOVE
@@ -178,7 +189,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                     (hx, rs1[1] - 1.2, rs1[0], rs1[1] - 1.2, 2.5, fcu),
                     (rs1[0], rs1[1] - 1.2, rs1[0], rs1[1], 2.5, fcu),
                 ]
-                if lane_collider(hook, own) is None:
+                if lane_collider(hook, {hi}) is None:
                     hi_plan, col = hook, None
                     break
         if col:
@@ -203,7 +214,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         y_h = j4_gnd_y - 3.2 - 2.9 * rank - off
         xn4 = p4[0] + gap_dir
         lo_spokes = [(rs2[0], rs2[1], cx, cy, 1.0, fcu) for cx, cy in sites]
-        col = lane_collider(lo_spokes, own)
+        col = lane_collider(lo_spokes, {lo})
         if col:
             report[n] = "REFUSED: LO spoke vs " + col
             continue
@@ -236,7 +247,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                           % (r_, pn_, n), flush=True)
                 continue
             def _tap_col(plan):
-                _c = lane_collider(plan, own)
+                _c = lane_collider(plan, {hi})
                 if _c is not None:
                     return _c
                 # foreign locked copper: pre-existing (lock_segs, width unknown ->
@@ -247,12 +258,13 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                     if _t.Type() != pcbnew.PCB_TRACE_T:
                         continue
                     _n2 = _t.GetNetname()
-                    if _n2 in own or _n2 == hi:
-                        continue
+                    if _n2 == hi:                  # per-leg own net (audit #2):
+                        continue                   # LO copper IS foreign to a HI tap
                     _s2, _e2 = _t.GetStart(), _t.GetEnd()
-                    _run.append((_n2, _s2.x / MM, _s2.y / MM, _e2.x / MM, _e2.y / MM))
-                for net_, sx_, sy_, ex_, ey_ in list(lock_segs) + _run:
-                    if net_ in own or net_ == hi:
+                    _run.append((_n2, _s2.x / MM, _s2.y / MM, _e2.x / MM, _e2.y / MM,
+                                 _t.GetWidth() / MM))
+                for net_, sx_, sy_, ex_, ey_, _lw2 in list(lock_segs) + _run:
+                    if net_ == hi:
                         continue
                     for (_ax, _ay, _bx, _by, _tw, _tl) in plan:
                         for _q in (0.0, 0.25, 0.5, 0.75, 1.0):

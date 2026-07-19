@@ -2936,20 +2936,43 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         # through FR -- re-synthesizing here would DOUBLE-LAY the same stubs (synthesize_kelvin_taps
         # is NOT idempotent). skip_locked_taps=True detects that copper and skips only the tap
         # synthesis (the force-via bridge below still runs). Default False = today's post-route tap.
+        # PER-PAIR coverage (codex stack-audit 2026-07-19 #9: the old blanket
+        # any-locked-_HI/_LO check let locked TRUNK copper -- the 24-pin force
+        # rails share those nets -- suppress ALL tap synthesis while the INA
+        # pads sat FR-excluded = open sense inputs). A pair counts covered
+        # only when locked copper actually CONTACTS an INA input pad on each
+        # of its nets.
         _has_locked_taps = False
+        _uncovered = None
         if skip_locked_taps:
-            _has_locked_taps = any(
-                t.GetClass() == "PCB_TRACK" and t.IsLocked()
-                and (t.GetNetname().endswith("_HI") or t.GetNetname().endswith("_LO"))
-                for t in board.GetTracks())
+            def _net_tap_covered(net):
+                _pads = [p for fp in board.GetFootprints() for p in fp.Pads()
+                         if p.GetNetname() == net
+                         and "INA" in (fp.GetValue() or "").upper()]
+                if not _pads:
+                    return True                  # no INA pad -> nothing owed
+                for t in board.GetTracks():
+                    if (t.GetClass() != "PCB_TRACK" or not t.IsLocked()
+                            or t.GetNetname() != net):
+                        continue
+                    for _end in (t.GetStart(), t.GetEnd()):
+                        if any(p.HitTest(_end) for p in _pads):
+                            return True
+                return False
+            _prs = _board_kelvin_pairs(board)
+            _uncovered = [pr for pr in _prs
+                          if not (_net_tap_covered(pr[0]) and _net_tap_covered(pr[1]))]
+            _has_locked_taps = bool(_prs) and not _uncovered
         if os.environ.get("CEC_KELVIN_TAPS", "1") != "0" and not _has_locked_taps:
-            kt = synthesize_kelvin_taps(board)
+            kt = synthesize_kelvin_taps(
+                board, kelvin_pairs=(_uncovered if skip_locked_taps else None))
             if kt["taps"]:
                 print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
                       f"{kt['by_net']}", file=sys.stderr)
         elif _has_locked_taps:
-            print("[cec_fr] kelvin taps: board carries LOCKED tap copper -- skipping re-synthesis "
-                  "(precision pre-FR taps already laid + protected)", file=sys.stderr)
+            print("[cec_fr] kelvin taps: every pair carries LOCKED pad-contact tap copper -- "
+                  "skipping re-synthesis (precision pre-FR taps already laid + protected)",
+                  file=sys.stderr)
         # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
         # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
         if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
