@@ -1,5 +1,19 @@
 # Current work handoff
 
+## POUR COMPILER DONE + B.CU LADDER + LAYER FIXES -- 2026-07-20 (small hours)
+Commits 3668daaa (B.Cu trunk mirrors + hex-panel resolves renamed inner layers; In1
+measured 85%-filled GND -- the empty tile was stock-name plotting), bbd4a493 (B.Cu =
+third ESCAPE tier in both rail ladders, mirror symmetric), 3c5733fb (THE POUR
+COMPILER, owner GO): compile_rail_pour_asks off plan_rail_chains -> J3 pickup floods
+(the ZONE_FILLER connects the measured-unpickable pins), sink floods, trunk widening;
+asks ride the PourPlan sidecar, lay POST-FR, provenance=rail_compiler exempts the
+locked-net pour filter (28/28 survive, 31 derived correctly dropped on locked nets).
+FULL-BUDGET VALIDATION = chain 3's FINAL wave (seeds 98-103; the 92-97 wave is
+in flight; watcher bp6ggzj0n). Surfaced pre-existing: /USB_DP x /USB_DM locked pair
+self-collision on In2 (21 hits) + wave_fr_timeout headroom -> FOLLOWUPS. NEXT after
+the chain readout: the pair-lay fix, codex #10 reconciliation, #16 sorts, 24-pin
+production cooling config, container image dep bake.
+
 ## AUTHORED KELVIN-90 CELLS STAMPED + 4/4 RAILS -- 2026-07-19 (night)
 Commit f3b68496, owner render report ("taps not perpendicular 90s... cross over...
 INA181 tapping the outside of the shunt") closed: measured the fallback spaghetti in
