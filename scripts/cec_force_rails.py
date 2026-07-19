@@ -73,6 +73,42 @@ def plan_bands(items, j3_bot):
     return {k: ys[ri] for k, ri in assign.items()}, (y - j3_bot)
 
 
+def plan_rail_chains(rails, j3_bot):
+    """The IDEAL per-rail CHAIN segments -- pure data, THE one geometry source
+    (pour-strategy refinement §2.1/§2.4, owner GO 2026-07-19): the lay commits
+    these (with collider guards + dogleg fallbacks), the placement keepouts
+    inflate them, and the future pour compiler widens them. *rails* is the
+    discover_rails entry shape (rs/src_net/snk_net/amps/hi/lo/j3/tb; the
+    placement side builds the same shape from netlist+anchors). Returns
+    {rs: {w, band_y, src: [(x1,y1,x2,y2,w)], pin_drops: [...], snk: [...]}}."""
+    items = []
+    for rl in rails:
+        w = max(1.5, min(6.0, rl["amps"] * 0.25))
+        xs = [q[1] for q in rl["j3"]] + [rl["hi"][0]]
+        items.append({"key": rl["rs"], "w": w, "x_lo": min(xs), "x_hi": max(xs)})
+    band_ys, _depth = plan_bands(items, j3_bot)
+    out = {}
+    for rl in rails:
+        w = max(1.5, min(6.0, rl["amps"] * 0.25))
+        band_y = band_ys[rl["rs"]]
+        hx, hy = rl["hi"]
+        lx, lyy = rl["lo"]
+        xs = [q[1] for q in rl["j3"]] + [hx]
+        src = [(min(xs), band_y, max(xs), band_y, w),
+               (hx, band_y, hx, hy, w)]
+        pin_drops = [(px, py, px, band_y, min(w, 1.4), pn)
+                     for pn, px, py, _h in rl["j3"]]
+        tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
+        band2 = max(lyy + 1.5, tb_y - 3.0)
+        txs = [q[2] for q in rl["tb"]] + [lx]
+        snk = [(lx, lyy, lx, band2, w),
+               (min(txs), band2, max(txs), band2, w)]
+        snk += [(tx, band2, tx, ty, w) for _r, _pn, tx, ty, _h in rl["tb"]]
+        out[rl["rs"]] = {"w": w, "band_y": band_y, "src": src,
+                         "pin_drops": pin_drops, "snk": snk}
+    return out
+
+
 def _seg_pt_d2(x, y, sx, sy, ex, ey):
     dx, dy = ex - sx, ey - sy
     L2 = dx * dx + dy * dy
@@ -179,24 +215,19 @@ def lay_force_rails(board, *, lock=True, verbose=True):
 
     j3_ys = [q[2] for rl in rails for q in rl["j3"]]
     j3_bot = max(j3_ys) if j3_ys else 8.0
-    _items = []
-    for rl in rails:
-        _w = max(1.5, min(6.0, rl["amps"] * 0.25))
-        _xs = [q[1] for q in rl["j3"]] + [rl["hi"][0]]
-        _items.append({"key": rl["rs"], "w": _w,
-                       "x_lo": min(_xs), "x_hi": max(_xs)})
-    band_ys, _depth = plan_bands(_items, j3_bot)
+    # ONE geometry source (§2.1/§2.4): the ideal chains; guards/doglegs below
+    # ADAPT them, the placement keepouts inflate the same plan.
+    chains = plan_rail_chains(rails, j3_bot)
     report = {}
     for rank, rl in enumerate(rails):
-        w = max(1.5, min(6.0, rl["amps"] * 0.25))
+        _ch = chains[rl["rs"]]
+        w = _ch["w"]
         ly = layer_id[rl["face"]]
         own = {rl["src_net"], rl["snk_net"]}
-        band_y = band_ys[rl["rs"]]
+        band_y = _ch["band_y"]
         hx, hy = rl["hi"]
-        # SOURCE band + spine (rail-fatal on collision)
-        xs = [q[1] for q in rl["j3"]] + [hx]
-        spine = [(min(xs), band_y, max(xs), band_y, w, ly),
-                 (hx, band_y, hx, hy, w, ly)]
+        # SOURCE band + spine from the plan (rail-fatal on collision)
+        spine = [(x1, y1, x2, y2, sw, ly) for (x1, y1, x2, y2, sw) in _ch["src"]]
         col = _collide(spine, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
         if col:
             report[rl["rs"]] = "REFUSED: src spine vs " + col
@@ -206,25 +237,16 @@ def lay_force_rails(board, *, lock=True, verbose=True):
             continue
         picked, dropped = 0, []
         pin_plans = []
-        for pn, px, py, half in rl["j3"]:
-            drop = [(px, py, px, band_y, min(w, 1.4), ly)]
+        for (px, py, x2, y2, dw, pn) in _ch["pin_drops"]:
+            drop = [(px, py, x2, y2, dw, ly)]
             c2 = _collide(drop, own, skip_refs=(rl["rs"], "TB", "FID"))
             if c2 is None:
                 pin_plans += drop
                 picked += 1
             else:
                 dropped.append("J3.%s vs %s" % (pn, c2))
-        # SINK: lo -> lower band -> TB drops
-        lx, lyy = rl["lo"]
-        tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
-        # ONE shared sink row just above the TB field: post-straight-through the
-        # sink runs are short verticals with x-disjoint spans -- no rank stack
-        band2 = max(lyy + 1.5, tb_y - 3.0)
-        txs = [q[2] for q in rl["tb"]] + [lx]
-        snk = [(lx, lyy, lx, band2, w, ly),
-               (min(txs), band2, max(txs), band2, w, ly)]
-        for _r, _pn, tx, ty, _h in rl["tb"]:
-            snk.append((tx, band2, tx, ty, w, ly))
+        # SINK from the plan: lo -> shared lower band -> TB drops
+        snk = [(x1, y1, x2, y2, sw, ly) for (x1, y1, x2, y2, sw) in _ch["snk"]]
         c3 = _collide(snk, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3

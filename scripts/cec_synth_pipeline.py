@@ -5658,37 +5658,37 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         except Exception:                                   # noqa: BLE001
             j3_bot = j3p[1] + 6.5
         import cec_force_rails as _cfr
-        items, geo = [], {}
+        # ONE GEOMETRY SOURCE (pour-strategy refinement §2.1/§2.4, owner GO):
+        # build the SAME rails-data shape discover_rails() produces (netlist+
+        # anchors side), run the SAME chain planner the lay commits from, and
+        # inflate the planned segments into keepouts. Pin drops are deliberately
+        # NOT reserved (thin, per-pin guarded at lay -- reserving 24 columns
+        # would re-tile the board).
+        rails_data = []
         for c in rails:
             sx, sy = pos_of(c["shunt"])[:2]
             amps = {"12": 12.0, "3V3": 20.0, "5VSB": 5.0}.get(
                 next((k for k in ("5VSB", "3V3", "12") if k in (c["hi"] or "").upper()), ""), 25.0)
-            w = max(1.5, min(6.0, amps * 0.25))
             try:
-                jxs = [cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps)[0]
-                       for _r2, p_ in nl.nets.get(c["hi"], []) if _r2 == "J3"]
+                j3pads = [(p_, *cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps), 0.9)
+                          for _r2, p_ in nl.nets.get(c["hi"], []) if _r2 == "J3"]
             except Exception:                               # noqa: BLE001
-                jxs = []
-            x_lo = min(jxs + [sx]) if jxs else sx
-            x_hi = max(jxs + [sx]) if jxs else sx
-            items.append({"key": c["shunt"], "w": w, "x_lo": x_lo, "x_hi": x_hi})
-            geo[c["shunt"]] = (sx, sy, w, x_lo, x_hi, c)
-        # ONE planner for the lay AND these keepouts (cec_force_rails.plan_bands:
-        # x-disjoint bands share a row -- the naive per-rail stack measured ~26mm
-        # deep and walled the MCU out of the board)
-        band_ys, _depth = _cfr.plan_bands(items, j3_bot)
-        boxes = []
-        for key, (sx, sy, w, x_lo, x_hi, c) in geo.items():
-            band_y = band_ys[key]
-            half = w / 2.0 + 0.75
-            boxes.append(("__FORCERAIL__", x_lo - half, x_hi + half,
-                          band_y - half, band_y + half))
-            boxes.append(("__FORCERAIL__", sx - half, sx + half, band_y, sy))
-            tbs = [pos_of(_r2) for _r2, _p2 in nl.nets.get(c["lo"], [])
+                j3pads = []
+            tbs = [(_r2, "1", pos_of(_r2)[0], pos_of(_r2)[1], 1.2)
+                   for _r2, _p2 in nl.nets.get(c["lo"], [])
                    if _r2.startswith("TB") and pos_of(_r2)]
-            if tbs:
-                tb_y = min(t[1] for t in tbs)
-                boxes.append(("__FORCERAIL__", sx - half, sx + half, sy, tb_y))
+            rails_data.append({"rs": c["shunt"], "src_net": c["hi"], "snk_net": c["lo"],
+                               "amps": amps, "hi": (sx, sy), "lo": (sx, sy),
+                               "j3": sorted(j3pads, key=lambda q: q[1]),
+                               "tb": sorted(tbs, key=lambda q: q[2])})
+        chains = _cfr.plan_rail_chains(rails_data, j3_bot)
+        boxes = []
+        for rs2, ch in chains.items():
+            half = ch["w"] / 2.0 + 0.75
+            for (x1, y1, x2, y2, _sw) in list(ch["src"]) + list(ch["snk"]):
+                boxes.append(("__FORCERAIL__",
+                              min(x1, x2) - half, max(x1, x2) + half,
+                              min(y1, y2) - half, max(y1, y2) + half))
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
