@@ -1,5 +1,28 @@
 # Current work handoff
 
+## OWNER RENDER BATCH -- 24-PIN RAILS 3/4 DETERMINISTIC, W74 -- 2026-07-19 (midday)
+Commit 85590d9e on claude/pipeline-pass-2. The owner's four wave-15 render items all
+landed, probe series s0i..s0z: (1) p2 jack TUCK (J1 against J3; pass-lock contract
+respected after a measured p3 LockViolation; fiducials exempt + auto-nudged) + the
+walk's per-column shunt DROP; (2) via-array LANDING PATCHES both layers; (3) Kelvin
+textbook-90 taps AUTHORED into the sense-cell template (parametric from measured pads,
+clearance-asserted, candidate-shape trials -- caught 5 real collisions; INA181 rot-180;
+v0/v0-left/v0-taps artifacts, taps variant NOT yet stamped: +0.35mm reach re-wedges,
+needs TLV-beside, FOLLOWUPS); (4) bank handedness MEASURED (parts+tracks agree via
+_to_global; bank lands board-RIGHT at 270 seats; the 12V cell always overlapped J6 --
+uniform-right + tucked J1 is the only fitting family). Lay/plan hardening: outlier
+trim, live-span + width-shrink bands, per-joint TB drop widths, sink face-stagger
+retry + array suppression, sink descent/band-row reservation boxes, pad-field walk
+bounds both sides, seg-named refusals everywhere. **W 70->74**: wedge chain MEASURED
+82.2mm > 70 (J1 14.4 + stub 2.45 + 3x11.85 + bank 9.4 + array 3.05 + J6 17.4), every
+assignment 0.03-0.6mm short -- the ladder's last lever earned, 12vhpwr 62->66
+precedent, owner veto = one line in BOARD_WH. Probe s0z @74: RS1+RS3+RS4 LAID
+(RS3 10 segs + 20 In2 vias), cells 12 segs / 0 refused, RS2 dust-blocked by
+late-pass pushback into its reserved sink row (mover unidentified -- FOLLOWUPS;
+wave-grind class). All suites green. WAVE 16 @74 IN FLIGHT (watcher armed).
+CODEX full-stack audit still running (2.1MB+, resumed across the reboot; watcher
+armed) -- triage its ranked findings + the wave-16 readout next.
+
 ## CODEX-AUDIT BATCH LANDED — 24-PIN RAILS 3/4 — 2026-07-19 (morning)
 Branch claude/pipeline-pass-2, commits 2cbc17d0 + bookkeeping. The Codex (gpt-5.6-sol,
 effort max) loop-audit findings are implemented + probe-verified on atx-24pin-rev3
