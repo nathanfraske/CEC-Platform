@@ -1,5 +1,30 @@
 # Current work handoff
 
+## WAVE-14 TESTED UP — 3 first-firing defects fixed; readout + next rungs — 2026-07-19
+Wave 14/14b ran on this box (owner GO, coarse-CPU thermals). THREE defects found+fixed+
+teeth'd (commits 6e307a5c..dc5129df on claude/pipeline-pass-2): (1) CAN-seat legality
+indexed labeled 5-tuple env boxes as 4-tuples -> float<=str on EVERY stamped-cell-board
+variant (eps fixture has empty _env -> CI blind); fixed via _box_clear. (2) new-best
+thermal stamp solved CONFIGLESS on wave variants (basename keying) -> mirage dT~0;
+fixed via thermal_board_hint/CEC_THERMAL_BOARD_HINT; LIVE: dT 20.76 @3.2s coarse-CPU
+w/ production cooling (vs ~97s fine). Coarse knobs CEC_WAVE_THERMAL_GRID_MM=0.8 +
+CEC_THERMAL_BACKEND=cpu, provenance-stamped. (3) prune K=4 pruned ALL 12 seat proposals
+(the winning class) -> intent-class floor (CEC_WAVE_PRUNE_CLASS_FLOOR default on).
+14b READOUT: 7/16 routed (floor ok), 0 errors, no stalls (plateau-kill path clean),
+foreign 0t fleet-wide; BEST plain-dataflow-s1 unconn 63/drc 47 -- NO new best (incumbent
+49 stands) so the stamp lazily skipped (machinery validated out-of-band). CRITICALS
+UNCHANGED [/FAN_12V, GND]. KEY MEASUREMENT: the J2-near-lane-6 anchor pin IS LANDED AND
+HOLDS (pcbnew-verified 48.5,23.5,90 on the routed board) yet /FAN_12V still strands ->
+the "J2 move dissolves it" hypothesis is FALSE; the net is FR-excluded (partial-owned)
+and NOTHING LAYS the now-short tap->J2 spur. #1 RUNG: deterministic /FAN_12V spur lay
+(force-lane/precision extension) -- should also unpoison the kelvin gate (lane-6 HI
+alias). #2: GND still critical AFTER the island stitch landed -- stitch expectation not
+realized, needs its own forensic. #3: edge-margin/park-elimination (21/47 drc =
+copper_edge class) awaiting owner GO. Dash: watcher now covers build/fresh-wave-loop
+(owner report fixed); activity feed streaming wave renders. Doctrine coverage matrix:
+docs/design-doctrine-coverage-2026-07-19.md (per-sheet there-vs-not + profile-toggle
+prereq + ranked queue).
+
 ## WORKSPACE RE-SYNC + LADDER SURVEY — 2026-07-19 (this box; session rebased onto claude/freerouting-pipeline-status-yoli0z = the live pipeline tip, 6 ahead of main)
 This box: main @ 24d170ab (was 1106 behind — root-owned container files blocked the pull,
 docker-chown'd; strays salvaged to build/pre-sync-salvage). Broker VERIFIED end-to-end
