@@ -354,6 +354,12 @@ def _board_params(board):
                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
         except Exception:                                  # noqa: BLE001
             pass
+    # thermal config resolves by BOARD NAME, not the variant filename (wave variants
+    # are plain-<strat>-s<seed>.kicad_pcb -> basename keying missed, the solve ran
+    # configless and the new-best stamp mirage-FAILED dT~0 on its first live target,
+    # 2026-07-19). Set HERE so BOTH the parent (_new_best_thermal) and the spawn
+    # workers (_build_session -> grade -> _oracle_env) export CEC_THERMAL_BOARD_HINT.
+    p.setdefault("thermal_board_hint", board)
     return p
 
 
@@ -410,7 +416,15 @@ def _prune_variants(variants, placed_rows, k):
     """The prune DECISION (pure -- unit-tested): keep the top-*k* variants by their
     cheap place_key; a variant whose placement phase ERRORED stays in the route set
     (fail-open). Returns (route_variants, pruned_rows). k<=0 or fewer variants than
-    k -> everything routes (byte-identical legacy wave)."""
+    k -> everything routes (byte-identical legacy wave).
+
+    INTENT-CLASS FLOOR (first live firing, work14 2026-07-19): the raw top-K pruned
+    ALL 12 seat-proposal variants and routed only the 4 plains -- the cheap key does
+    not predict routability (the documented false-summit), and the pruned class is
+    exactly the one that has been WINNING waves since 2026-07-14 (wave-3 winner = a
+    seat proposal). Every intent class (v[0]) therefore keeps its best-by-key variant
+    IN ADDITION to the top-K, so a proposal class can never be silently eliminated
+    before it ever routes. CEC_WAVE_PRUNE_CLASS_FLOOR=0 restores the raw top-K."""
     if k <= 0 or len(variants) <= k:
         return list(variants), []
     by_label = {r["label"]: r for r in placed_rows}
@@ -427,6 +441,12 @@ def _prune_variants(variants, placed_rows, k):
             keyed.append((tuple(row["place_key"]), _label(v), v))
     keyed.sort(key=lambda t: (t[0], t[1]))
     keep = keyed[:max(0, k - len(erred))] if len(erred) < k else []
+    if os.environ.get("CEC_WAVE_PRUNE_CLASS_FLOOR", "1") != "0":
+        kept_classes = {v[0] for _key, _lbl, v in keep} | {v[0] for v in erred}
+        for _key, _lbl, v in keyed:                          # sorted: first hit = class best
+            if v[0] not in kept_classes:
+                keep.append((_key, _lbl, v))
+                kept_classes.add(v[0])
     route = [v for _key, _lbl, v in keep] + erred
     kept_labels = {_label(v) for v in route}
     pruned = [dict(by_label[_label(v)], pruned=True) for v in variants
@@ -559,7 +579,7 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                  f"passes {passes}/opt {opt}, workers {workers}")
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
-    _bp = _board_params(board)
+    _bp = _board_params(board)      # carries thermal_board_hint (set in _board_params)
     variants = [(iname, strat, seed, None) for iname, _fn in _intents_for(board)
                 for strat in ("dataflow", "compact") for seed in seeds]
     # SEAT PROPOSALS (owner GO 2026-07-08): validated intents from the previous wave's

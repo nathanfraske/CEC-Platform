@@ -6534,6 +6534,11 @@ def _oracle_env(params=None):
             extra["CEC_SHUNT_GAP_MM"] = str(params["shunt_gap_mm"])
         if params.get("pour_lanes"):
             extra["CEC_POUR_LANES"] = "1"
+        if params.get("thermal_board_hint"):
+            # board_thermal_config keys on basename; wave variants don't carry the
+            # board name -> export the hint so the per-board currents/stackup/cooling
+            # config resolves (see cec_thermal_overlay.board_thermal_config).
+            extra["CEC_THERMAL_BOARD_HINT"] = str(params["thermal_board_hint"])
         if params.get("lane_w_json"):
             extra["CEC_LANE_W_JSON"] = json.dumps(params["lane_w_json"])                 if not isinstance(params["lane_w_json"], str) else params["lane_w_json"]
     merged = {**_ORACLE_RECIPE_ENV, **extra}

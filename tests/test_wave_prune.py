@@ -35,6 +35,13 @@ def _row(iname, strat, seed, key):
 
 class TestPruneDecision(unittest.TestCase):
     def setUp(self):
+        # These fixtures give every variant a UNIQUE intent class, so the
+        # intent-class floor (2026-07-19: the raw top-K's first live firing
+        # pruned all 12 seat proposals -- the winning class) would keep all
+        # of them. Pin the RAW top-K arm here; the floor has its own teeth
+        # in tests/test_thermal_coarse_cpu.py::TestPruneClassFloor.
+        os.environ["CEC_WAVE_PRUNE_CLASS_FLOOR"] = "0"
+        self.addCleanup(os.environ.pop, "CEC_WAVE_PRUNE_CLASS_FLOOR", None)
         self.variants = [_v("a", "dataflow", 0), _v("b", "dataflow", 0),
                          _v("c", "compact", 1), _v("d", "compact", 1)]
         self.rows = [_row("a", "dataflow", 0, [0, 3.0, 5.0, 100.0]),

@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_thermal2d as T2                                     # noqa: E402
 import cec_fresh_wave as W                                     # noqa: E402
+import cec_thermal_overlay as TOV                              # noqa: E402
 
 
 @contextlib.contextmanager
@@ -116,6 +117,78 @@ class TestWaveCoarseStamp(unittest.TestCase):
             with _env(CEC_WAVE_THERMAL_GRID_MM="0.8"):
                 W._new_best_thermal(best, d, {}, solve=solve, env=_null_env)
             self.assertEqual(best["thermal"]["grid_mm"], 0.2)
+
+
+class TestBoardHint(unittest.TestCase):
+    """CEC_THERMAL_BOARD_HINT (2026-07-19): wave variants (plain-dataflow-s1.kicad_pcb)
+    carry no board name -> board_thermal_config missed and the new-best stamp
+    mirage-FAILED dT~0 on its first live target. The hint resolves the config."""
+
+    def test_variant_filename_misses_without_hint(self):
+        nc, stack, ov, cool = TOV.board_thermal_config("/x/plain-dataflow-s1.kicad_pcb")
+        self.assertIsNone(nc)
+        self.assertIsNone(cool)
+
+    def test_hint_resolves_12vhpwr_config(self):
+        os.environ["CEC_THERMAL_BOARD_HINT"] = "12vhpwr-standard"
+        try:
+            nc, stack, ov, cool = TOV.board_thermal_config("/x/plain-dataflow-s1.kicad_pcb")
+        finally:
+            os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
+        self.assertIsNotNone(nc)                     # per-pin lane currents present
+        self.assertIsNotNone(cool)                   # production case-cooling model
+        self.assertTrue(any("SENSEP" in k for k in nc))
+
+    def test_wave_board_params_carry_hint(self):
+        p = W._board_params("12vhpwr-standard")
+        self.assertEqual(p.get("thermal_board_hint"), "12vhpwr-standard")
+
+
+class TestPruneClassFloor(unittest.TestCase):
+    """First-live-firing fix: the raw top-K pruned ALL seat-proposal variants
+    (the winning class since 2026-07-14). Every intent class keeps its
+    best-by-key variant; CEC_WAVE_PRUNE_CLASS_FLOOR=0 restores raw top-K."""
+
+    def _mk(self, intents, key_of):
+        variants, rows = [], []
+        for i, iname in enumerate(intents):
+            v = (iname, "compact", 0, None)
+            variants.append(v)
+            rows.append({"label": f"{iname}-compact-s0", "place_key": key_of(iname, i)})
+        return variants, rows
+
+    def test_class_floor_keeps_best_of_each_intent(self):
+        intents = ["plain", "plain2", "propA", "propB"]
+        # plains score best -> raw top-2 would drop BOTH proposal classes
+        variants, rows = self._mk(intents, lambda n, i: (0, i) if n.startswith("plain") else (9, i))
+        route, pruned = W._prune_variants(variants, rows, 2)
+        kept = {v[0] for v in route}
+        self.assertEqual(kept, {"plain", "plain2", "propA", "propB"})
+        self.assertEqual(len(route), 4)              # top-2 + one floor rep per missing class
+        self.assertEqual(len(pruned), 0)
+
+    def test_floor_adds_only_class_best(self):
+        intents = ["plain", "propA", "propA2", "propB"]
+        variants, rows = self._mk(intents, lambda n, i: (0, 0) if n == "plain" else (9, i))
+        # k=1 -> plain kept; floor adds best of propA/propA2/propB classes (all distinct)
+        route, pruned = W._prune_variants(variants, rows, 1)
+        self.assertEqual({v[0] for v in route}, {"plain", "propA", "propA2", "propB"})
+
+    def test_env_zero_restores_raw_topk(self):
+        intents = ["plain", "plain2", "propA", "propB"]
+        variants, rows = self._mk(intents, lambda n, i: (0, i) if n.startswith("plain") else (9, i))
+        os.environ["CEC_WAVE_PRUNE_CLASS_FLOOR"] = "0"
+        try:
+            route, pruned = W._prune_variants(variants, rows, 2)
+        finally:
+            os.environ.pop("CEC_WAVE_PRUNE_CLASS_FLOOR", None)
+        self.assertEqual({v[0] for v in route}, {"plain", "plain2"})
+        self.assertEqual(len(pruned), 2)
+
+    def test_k_zero_and_small_sets_unchanged(self):
+        variants, rows = self._mk(["plain", "propA"], lambda n, i: (i,))
+        self.assertEqual(W._prune_variants(variants, rows, 0)[0], variants)
+        self.assertEqual(W._prune_variants(variants, rows, 5)[0], variants)
 
 
 if __name__ == "__main__":

@@ -85,7 +85,13 @@ def board_thermal_config(board_path):
     Conservative-TIM / mount-only / still-air bounds are reachable via the CEC_THERMAL_* env knobs in
     render_per_layer. Scoped to 12VHPWR only -- the EPS/PCIe cable boards keep still-air pending owner
     sign-off on whether they share the same enclosure model (FOLLOWUPS)."""
-    name = os.path.basename(board_path).lower()
+    # CEC_THERMAL_BOARD_HINT (2026-07-19, closes the FOLLOWUPS 2026-07-11 keying gap):
+    # wave variants (plain-dataflow-s1.kicad_pcb) and renamed dashboard archives never
+    # carry the board name in their basename, so this config silently missed and the
+    # solve ran configless -> the impossible dT~0 the mirage guard trips on. Callers
+    # that KNOW the board (the wave's _oracle_env exports it from board params) set the
+    # hint; the basename stays the fallback for committed boards.
+    name = (os.environ.get("CEC_THERMAL_BOARD_HINT") or os.path.basename(board_path)).lower()
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         for n in range(1, 7):
