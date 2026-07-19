@@ -187,6 +187,16 @@ BOARD_PARAMS = {
     # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
     # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
+                          # MEZZANINE ALIGNMENT CONTRACT (x-mirrored twin of
+                          # the 24-pin values -- the Hub flips to stack; see
+                          # the 24-pin block + the 2026-06-24 stack doc §4):
+                          # J6 = center + (-31, +10.5) = (13, 41.5) vertical;
+                          # standoff rect 66x46 about center = mounts pulled
+                          # in from the Hub's own corners per the contract
+                          # ("the rectangle must fit within BOTH outlines").
+                          "anchor_pins": {"J6": (13.0, 41.5, 90)},
+                          "mount_pos_override": {"H1": (11.0, 27.5), "H2": (77.0, 27.5),
+                                                 "H3": (11.0, 52.5), "H4": (77.0, 52.5)},
                           "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
@@ -266,7 +276,21 @@ BOARD_PARAMS = {
     # blocks (internal copper laid + LOCKED at materialize; ideal_internal False
     # keeps the B7 refined routing -- textbook taps + GND vias + mitre).
     # blueprint_cells is injected below (needs the lane loop).
-    "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
+    "atx-24pin-rev3": {
+                       # MEZZANINE ALIGNMENT CONTRACT (owner 2026-07-20 "they
+                       # need to be cross-coordinated" + the 2026-06-24 stack
+                       # doc §4): the Hub stacks on the 24-pin CENTER-ALIGNED
+                       # (maximal overlap, zero offset); the shared frame =
+                       # {J6 at center+dc, the 4-standoff 66x46 rect}. The
+                       # Hub carries the X-MIRRORED twin values (it flips to
+                       # mate). J6 vertical on the right flank -- clear of
+                       # the rail columns/bands/sinks on THIS board and of
+                       # the LED ring/jack rows on the Hub. DRAFT coords
+                       # (dc=+31,+10.5 / rect 66x46): finalize at rev layout.
+                       "anchor_pins": {"J6": (68.0, 38.0, 90)},
+                       "mount_pos_override": {"H1": (4.0, 24.0), "H2": (70.0, 24.0),
+                                              "H3": (4.0, 49.0), "H4": (70.0, 49.0)},
+                       "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
                        # physical antenna section just rides at an edge like any body extent.

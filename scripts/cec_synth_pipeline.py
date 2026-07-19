@@ -5043,10 +5043,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             except Exception:
                 halfext[r] = (1.6, 1.6)
         # nudge the mounts/fiducials to the nearest free spot clear of the connectors (the default
-        # mount/fiducial coords don't know where the connectors landed)
+        # mount/fiducial coords don't know where the connectors landed) -- EXCEPT
+        # override'd mounts (mount_pos_override): those are an ALIGNMENT DATUM
+        # (the mezzanine standoff contract, owner 2026-07-20 "they need to be
+        # cross-coordinated") -- nudging them broke the shared frame AND walked
+        # two mounts into the rail band rows (measured). They stay pinned;
+        # conflicts surface via colliders/DRC, never silent relocation.
+        _mount_pinned = set(cfg.params.get("mount_pos_override") or ())
         anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
                      for r in anchors if r in comps}
-        legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
+        legalize_pack(anchors, [r for r in mech_pos if r in anchors
+                                and r not in _mount_pinned],
+                      anchor_cy, W, H, clr=0.5)
         # ANCHOR-JACK CLEARANCE (owner: "the RJ-45 needs to be moved up"; DRC-measured
         # J1-court-vs-RS6 + the lane-6 force-lane refusal). The LOCK CHECKER walked this
         # to its true owner (measured: LockViolation from p3crit, then from the spine) --
@@ -5811,7 +5819,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         # p4b runs BEFORE this pass now (owner ladder): the stamped
                         # cell refs are locked -- this rebuild must not re-arm them
                         # for the anneal (measured: p6 moved locked U10)
-                        and r not in (_bp_refs or ())]
+                        and r not in (_bp_refs or ())
+                        # USER-PINNED refs are locked datum (the mezzanine
+                        # alignment contract -- measured: p6 moved the Hub's
+                        # pinned J6, LockViolation)
+                        and r not in (cfg.pins or {})]
 
     def _blueprint_env_boxes(pos_of):
         """Envelope boxes of every stamped blueprint cell: part courtyards UNION the
