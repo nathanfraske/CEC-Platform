@@ -134,6 +134,47 @@ def _stamp_back_face(png):
     except Exception:                                  # noqa: BLE001
         pass
 
+def mating_frame_pins(W, H, contract, side):
+    """SHARED MATING FRAME derivation (owner 2026-07-20: mezzanine first, but
+    "that derivation methodology can also be used for all of the daughterboards
+    and the eventual psu tester pipeline" -- keep it general). Boards stack
+    CENTER-ALIGNED (maximal overlap, zero offset); the contract declares, in
+    SHARED coordinates (offsets from the common center):
+      {"conn_dc": (dx, dy), "conn_rot": deg,
+       "rect_dc": (x0, y0, x1, y1),     # the standoff datum rectangle
+       "sides": {name: {"conn_ref": .., "mount_refs": (..), "mirror_x": bool}}}
+    A side with mirror_x=True flips to mate (its x offsets negate). Returns
+    {"anchor_pins": .., "mount_pos_override": ..} for that side -- feed into
+    BOARD_PARAMS. One declaration, every mating side derived; the standoff
+    refs are alignment DATUM (exempt from nudge/anneal by the pipeline)."""
+    sd = contract["sides"][side]
+    m = -1.0 if sd.get("mirror_x") else 1.0
+    cx, cy = W / 2.0, H / 2.0
+    dx, dy = contract["conn_dc"]
+    pins = {sd["conn_ref"]: (cx + m * dx, cy + dy, contract.get("conn_rot", 0))}
+    x0, y0, x1, y1 = contract["rect_dc"]
+    corners = sorted((cx + m * mx, cy + my)
+                     for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)))
+    mounts = {}
+    for ref, (px, py) in zip(sd.get("mount_refs", ()), corners):
+        mounts[ref] = (px, py)
+    return {"anchor_pins": pins, "mount_pos_override": mounts}
+
+
+# THE HUB-ON-24PIN MEZZANINE CONTRACT (the 2026-06-24 stack doc §4, finalized
+# 2026-07-20): connector right-flank vertical (clear of the 24-pin rails and
+# the Hub ring/jack rows), standoff datum 66x25 -- DRAFT values, wave-iterable.
+MEZZ_HUB_24PIN = {
+    "conn_dc": (31.0, 10.5), "conn_rot": 90,
+    "rect_dc": (-33.0, -3.5, 33.0, 21.5),
+    "sides": {"atx-24pin-rev3": {"conn_ref": "J6",
+                                 "mount_refs": ("H1", "H2", "H3", "H4"),
+                                 "mirror_x": False},
+              "hub-standard-rev2": {"conn_ref": "J6",
+                                    "mount_refs": ("H1", "H2", "H3", "H4"),
+                                    "mirror_x": True}},
+}
+
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
 # (the shrink pass comes after a gate-clean baseline exists; SHUNT_GAP may grow H).
 BOARD_WH = {
@@ -194,9 +235,8 @@ BOARD_PARAMS = {
                           # standoff rect 66x46 about center = mounts pulled
                           # in from the Hub's own corners per the contract
                           # ("the rectangle must fit within BOTH outlines").
-                          "anchor_pins": {"J6": (13.0, 41.5, 90)},
-                          "mount_pos_override": {"H1": (11.0, 27.5), "H2": (77.0, 27.5),
-                                                 "H3": (11.0, 52.5), "H4": (77.0, 52.5)},
+                          **mating_frame_pins(88.0, 62.0, MEZZ_HUB_24PIN,
+                                              "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
@@ -287,9 +327,8 @@ BOARD_PARAMS = {
                        # the rail columns/bands/sinks on THIS board and of
                        # the LED ring/jack rows on the Hub. DRAFT coords
                        # (dc=+31,+10.5 / rect 66x46): finalize at rev layout.
-                       "anchor_pins": {"J6": (68.0, 38.0, 90)},
-                       "mount_pos_override": {"H1": (4.0, 24.0), "H2": (70.0, 24.0),
-                                              "H3": (4.0, 49.0), "H4": (70.0, 49.0)},
+                       **mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN,
+                                           "atx-24pin-rev3"),
                        "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
