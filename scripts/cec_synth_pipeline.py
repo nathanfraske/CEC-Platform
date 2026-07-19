@@ -3157,6 +3157,17 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 for c, col in zip(order, cols):
                     for cx, w in _clusters_of.get(c["shunt"], ()):
                         cost += w * abs(cx - col)
+                    # STRAIGHT-THROUGH POURS (owner directive 2026-07-19: "the
+                    # order, but not positions, of the output headers can be
+                    # re-positioned for straight through pours"): each rail's
+                    # TB slot group prefers the column under its J3 PIN GROUP
+                    # centroid, so the J3->shunt->TB chain runs straight down.
+                    # Strong weight -- alignment IS the point; the daughterboard
+                    # absorbs the net-order change by architecture (§2.8: all
+                    # output pin-mapping lives inside it).
+                    _jxs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                    if _jxs:
+                        cost += 3.0 * abs(sum(_jxs) / len(_jxs) - col)
                 return cost
             if len(shared) <= 6:
                 _pitch0 = float((params or {}).get("blade_pitch", 4.2))
@@ -4718,6 +4729,13 @@ def _dual_side_cells(topo, pos, nl, comps):
     *pos* is the position dict (anchors or P). Needs no `spec` (passives fold in later)."""
     entries = sorted((c for c in topo if c.get("shared_bus") and c["shunt"] in pos),
                      key=lambda c: pos[c["shunt"]][0])
+    # ONE-SIDED PREFERENCE (owner directive 2026-07-19: "try to keep it one
+    # sided if possible"): F/B alternation exists to de-conflict OVERLAPPING
+    # rail columns -- when the straight-through TB ordering spreads the seated
+    # shunt columns so every consecutive gap clears a cell width (~9mm), the
+    # conflict alternation solves is absent and every chain stays FRONT.
+    xs = [pos[c["shunt"]][0] for c in entries]
+    single = len(xs) < 2 or min(b - a for a, b in zip(xs, xs[1:])) >= 9.0
     cells = []
     for i, c in enumerate(entries):
         refs = {r for net in (c["hi"], c["lo"]) for r, _ in nl.nets.get(net, [])}
@@ -4728,7 +4746,7 @@ def _dual_side_cells(topo, pos, nl, comps):
         cells.append({"shunt": c["shunt"],
                       "members": {r for r in members if r in pos},
                       "sense": set(sense),
-                      "face": "F" if i % 2 == 0 else "B"})
+                      "face": "F" if (single or i % 2 == 0) else "B"})
     return cells
 
 
@@ -5306,18 +5324,34 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                    and not any("VRAIL" in (n or "").upper()
                                                for n in _ref_nets.get(p, ())))
                 if _fan_conn and _fan_sats:
-                    _run = 0.0
+                    # 2-ROW courtyard-true BLOCK, not a strip (owner report
+                    # 2026-07-19: the ~16mm single row could not fit anywhere
+                    # legal near J2 and seated 40mm away at the bottom edge --
+                    # a compact block fits the gaps beside the header, keeping
+                    # the gate loop short). Rows pack by real courtyard widths;
+                    # row 1 sits below row 0's tallest member.
                     _fan_offs = {}
-                    for _r2 in _fan_sats:
-                        _fcx, _fcy, _fhw, _fhh = _courtyard_info(comps[_r2], 0.0)
-                        _fan_offs[_r2] = (_run + _fhw - _fcx, -_fcy, 0.0)
-                        _run += 2 * _fhw + 0.5
+                    _half_n = (len(_fan_sats) + 1) // 2
+                    _rows2 = (_fan_sats[:_half_n], _fan_sats[_half_n:])
+                    _row_y2 = 0.0
+                    for _row_mem in _rows2:
+                        _run, _max_hh = 0.0, 0.0
+                        for _r2 in _row_mem:
+                            _fcx, _fcy, _fhw, _fhh = _courtyard_info(comps[_r2], 0.0)
+                            _fan_offs[_r2] = (_run + _fhw - _fcx, _row_y2 + _fhh - _fcy, 0.0)
+                            _run += 2 * _fhw + 0.5
+                            _max_hh = max(_max_hh, _fhh)
+                        _row_y2 += 2 * _max_hh + 0.5
                     _fan_occ = [_mcu_true_box(_o, anchors[_o])
                                 for _o in anchors if _o in comps]
                     _fan_placed, _fan_rot = _seat_mcu_macro(
                         _fan_offs, comps, W, H,
                         forbid_boxes=_mcu_env, occ_boxes=_fan_occ,
-                        score_points=[anchors[_fan_conn][:2]])
+                        score_points=[anchors[_fan_conn][:2]],
+                        # owner report 2026-07-19 ("stuff shoved along the edges"):
+                        # deliberate seats had edge_soft 0 -> their rows landed
+                        # flush at edges whenever the scored spot was nearby
+                        edge_soft=4.0)
                     if _fan_placed is None:
                         print("  [p3crit] fan-gate seat: NO legal seat "
                               "(left for ordinary placement)", file=sys.stderr)
@@ -5361,7 +5395,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                              for _o in anchors if _o in comps]
                     _pl2, _rot2 = _seat_mcu_macro(_offs2, comps, W, H,
                                                   forbid_boxes=_mcu_env,
-                                                  occ_boxes=_occ2, score_points=_pts)
+                                                  occ_boxes=_occ2, score_points=_pts,
+                                                  edge_soft=4.0)
                     if _pl2 is None:
                         print(f"  [p3crit] {_tag} seat: NO legal seat "
                               f"(left for ordinary placement)", file=sys.stderr)
@@ -5380,8 +5415,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     _far = max(((0.0, 0.0), (W, 0.0), (0.0, H), (W, H)),
                                key=lambda c: (c[0] - _row_c[0]) ** 2
                                              + (c[1] - _row_c[1]) ** 2)
-                    _far = (min(max(_far[0], 6.0), W - 6.0),
-                            min(max(_far[1], 6.0), H - 6.0))
+                    # 10mm inboard: "ambient, away from heat" must not read as
+                    # "shoved in the corner" (owner report 2026-07-19)
+                    _far = (min(max(_far[0], 10.0), W - 10.0),
+                            min(max(_far[1], 10.0), H - 10.0))
                     _seat_row("vrail-divider", _net_sats("VRAIL"), [_lane6_pt])
                     _seat_row("th1-shunt-ntc", _net_sats("TEMP1"), [_row_c])
                     _seat_row("th2-ambient-ntc", _net_sats("TEMP2"), [_far])
@@ -5884,11 +5921,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if r in fixed or r not in comps:
                 continue
             l0, r0, t0, b0 = boxes[r]
-            edge_m = min(l0, t0, W - r0, H - b0)
+            _margs = sorted((l0, t0, W - r0, H - b0))
+            edge_m = _margs[0]
+            # CORNER TEST (owner report 2026-07-19 "stuff shoved in the corners"):
+            # small margins on TWO axes = a corner park even when neither alone
+            # trips the edge trigger.
+            corner = _margs[0] < 6.0 and _margs[1] < 6.0
             olap = any(o != r and not (r0 <= boxes[o][0] or boxes[o][1] <= l0
                                         or b0 <= boxes[o][2] or boxes[o][3] <= t0)
                        for o in boxes)
-            if olap or edge_m < 2.0:
+            # edge trigger 2.0 -> 4.0 (owner report 2026-07-19 "still a bunch of
+            # stuff shoved ... along the edges" -- the 2mm band left a visible
+            # rind of parts the affinity seat never touched)
+            if olap or edge_m < 4.0 or corner:
                 bad.append(r)
         if not bad:
             return
@@ -5909,7 +5954,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             for _g, _m in ((1.0, 0.3), (0.5, 0.2), (0.25, 0.1)):
                 placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
                                                occ_boxes=occ, score_points=nbr_pts,
-                                               grid=_g, margin=_m, edge_soft=2.0)
+                                               grid=_g, margin=_m, edge_soft=4.0)
                 if placed:
                     break
             if placed:
@@ -8645,19 +8690,6 @@ def materialize(cand, cfg, out, *, logo=None):
         # protect, so the FR residual routes AROUND it, same as cell copper. A
         # lane that would hit a foreign pad REFUSES with the collider named
         # (corridor reservation failed at the placer -- fix there, never force).
-        # FORCE RAILS (owner GO 2026-07-19, "the 24 pin is pretty much fully gated
-        # on [the zone creator] working"): the shared-bus sibling -- per-rail
-        # J3-group -> straddle-shunt -> TB trunks laid LOCKED, name-independent
-        # discovery, per-pin guarded pickups, refuse-loud spines. Same fix->
-        # protect export contract as lanes/cells.
-        if cfg.params.get("force_rails"):
-            import cec_force_rails
-            _frr = cec_force_rails.lay_force_rails(_bpb, lock=True)
-            _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}
-            print("[materialize] force rails: %d/%d laid%s"
-                  % (len(_frr) - len(_badr), len(_frr),
-                     (" -- " + "; ".join("%s %s" % kv for kv in sorted(_badr.items())))
-                     if _badr else ""), file=sys.stderr)
         if cfg.params.get("force_lanes"):
             import cec_force_lanes
             _flr = cec_force_lanes.lay_force_lanes(_bpb, lock=True)
@@ -8669,6 +8701,28 @@ def materialize(cand, cfg, out, *, logo=None):
         pcbnew.SaveBoard(out, _bpb)
         print("[materialize] blueprint cells: laid %d LOCKED segment(s), %d cell(s) refused"
               % (_laid, _refused), file=sys.stderr)
+    # FORCE RAILS (owner GO 2026-07-19, "the 24 pin is pretty much fully gated on
+    # [the zone creator] working"): the shared-bus sibling of force lanes -- per-rail
+    # J3-group -> straddle-shunt -> TB trunks laid LOCKED (name-independent discovery,
+    # per-pin guarded pickups, refuse-loud spines; fix->protect export contract).
+    # INDEPENDENT of blueprint stamps (first firing found the hook nested under the
+    # stamps block, which the 24-pin -- no cell blueprints -- never enters).
+    if cfg and cfg.params.get("force_rails"):
+        try:
+            import cec_force_rails
+            import pcbnew as _pcb_fr
+            _rlb = _pcb_fr.LoadBoard(out)
+            _frr = cec_force_rails.lay_force_rails(_rlb, lock=True)
+            if _frr:
+                _pcb_fr.SaveBoard(out, _rlb)
+            _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}
+            print("[materialize] force rails: %d/%d laid%s"
+                  % (len(_frr) - len(_badr), len(_frr),
+                     (" -- " + "; ".join("%s %s" % kv for kv in sorted(_badr.items())))
+                     if _badr else ""), file=sys.stderr)
+        except Exception as _e:                             # noqa: BLE001 -- surface, don't die
+            print("[materialize] force rails FAILED: %s: %s"
+                  % (type(_e).__name__, _e), file=sys.stderr)
     # POUR LEVER (stage 3, docs/pour-lever-scoping-2026-07-08.md): write the placement's PourPlan
     # to a <board>.pourplan.json sidecar. Only board_path strings cross the materialize ->
     # route_oracle_grade -> route_once -> spawn-worker boundary, so the plan (derived pours +
