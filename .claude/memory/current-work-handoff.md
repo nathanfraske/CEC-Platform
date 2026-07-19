@@ -1,5 +1,31 @@
 # Current work handoff
 
+## CODEX-AUDIT BATCH LANDED — 24-PIN RAILS 3/4 — 2026-07-19 (morning)
+Branch claude/pipeline-pass-2, commits 2cbc17d0 + bookkeeping. The Codex (gpt-5.6-sol,
+effort max) loop-audit findings are implemented + probe-verified on atx-24pin-rev3
+seed 0: rails 0/4 -> 3/4 LAID (RS4 5VSB, RS2 5V@25A w/ 26-via In2 arrays, RS1 12V via
+the new plain-FACE stagger variant). Landed: exact shunt pad geometry + full array
+envelope in _force_rail_boxes; p7 sweep courtyard-AABB overlap + penetration-depth
+push; walk right-bound from in-band anchor blockers (J6) + infeasibility guard
+(LEFT-bound raise measured HARMFUL 0/4 -> reverted, comment records it); face stubs
+clamped to shunt pad width; plain-FACE source last-resort (ATX interleaves 5V/12V at
+the same x -> earlier rail's In2 drops contend the next band; stagger loser to face,
+drops follow); 1.0mm mid-column pin doglegs; per-variant AND per-drop refusal traces;
+RAIL SELECTION PRESSURE: materialize writes .railreport.json sidecar -> the oracle
+folds refused rails into gate + the SAFETY sort-key term (tuple shape preserved),
+wave report surfaces rails. RS3 (3V3) refused: J1 squats its band row = seat
+diversity / v3 RailPlan-pre-anchor territory (FOLLOWUPS). HONEST FLOOR: J3 O-3.2
+pads @4.2 leave 0.5mm mid-column -> top-row pins over foreign barrels unpickable
+(trunk + FR + future pour flood carry them). Teeth all green (rails 8, keepout 6,
+prune 7, blueprint 8, oracle 44). SB-08 golden RED PRE-EXISTS at HEAD
+(stash-ablated identical fail — FOLLOWUPS root-cause item, not tonight's batch).
+NEXT: 24-pin wave under rail pressure (launching), readout expects seat-diverse
+variants reaching 3-4/4 + rails visible in the report; then v3 structural
+(FOLLOWUPS: RailPlan pre-anchor, typed constraints, template channels,
+template_from_netlist generalization — the owner's generalizability answer:
+stamp engine generic, template generation board-specific).
+
+
 ## POUR REFINEMENT + ALT-LAYER RAILS + V3 KEYSTONE NAMED — 2026-07-19 (pre-dawn)
 Owner-directed pour brainstorm COMMITTED (docs/pour-strategy-refinement-2026-07-19.md) +
 recs implemented same session: §2.1/§2.4 plan_rail_chains = ONE rail geometry source (lay +
