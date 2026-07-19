@@ -1,5 +1,23 @@
 # Current work handoff
 
+## OWNER BATCH + WAVE-14C — criticals nearly dissolved, NEW BEST 32 — 2026-07-19 (late)
+Owner batch (5 asks) implemented + validated in wave 14c (commits 44ca64a4..65408be6+):
+parks (densify ladder; D2 = measured capacity → seed 62x66; residual 0), MCU antenna-out
+w/ overhang (antenna_side satellite constraint — winner U1 -90° over the right edge),
+§K ratification calibration (mlcc+ecap READY; fiducial-protocol + decoupler-k5 HOLD w/
+evidence), trace-width = half-live (classes ride, FR lays 0.25 → cec3; 12vhpwr dru donor
+AUTHORED, other boards queued), 24-pin zone-creator plan = cec_force_rails (FOLLOWUPS).
+BONUS ROOT-CLOSES: GND island stitch had NEVER RUN (SetIsLocked typo, swallowed —
+fixed + pierce tooth); /FAN_12V = J2.2 is FORCE-PIN-EXCLUDED from FR → only a
+deterministic lay could close it → lane HI-tap lays it (straight+dogleg, guarded).
+WAVE 14c: NEW BEST prop-snagfix-compact-s0 32 unconn (incumbent 49; a PROPOSAL the raw
+prune would have cut — class floor paid), drc 41, THERMAL STAMP FIRED (first production
+firing: dT 22.14 @0.8mm coarse-CPU, hint-resolved production cooling, provenance stamped);
+winner /FAN_12V 1 edge (tap laid, 11 locked segs), GND 3 edges (was 23). NEXT RUNGS:
+analog-doctrine seats (R5/VRAIL near lane 6 — its tap refusal chains to it; TH1/TH2),
+J2-tap variant for refusing seeds OR lift J2-2 from force-pin exclusion, then kelvin flip
++ gates chase. §K ratify flip = owner's pen (2-line registry edit for mlcc+ecap).
+
 ## WAVE-14 TESTED UP — 3 first-firing defects fixed; readout + next rungs — 2026-07-19
 Wave 14/14b ran on this box (owner GO, coarse-CPU thermals). THREE defects found+fixed+
 teeth'd (commits 6e307a5c..dc5129df on claude/pipeline-pass-2): (1) CAN-seat legality
