@@ -559,6 +559,13 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             _face_src = [(min(_xs_live), band_y, max(_xs_live), band_y, w, "face"),
                          (hx, band_y, hx, hy, w, "face")]
             _src_variants.append((_face_src, None, "face"))
+            # THIRD ESCAPE TIER: B.Cu (owner observation 2026-07-19: the
+            # bottom was only a mirror, "not another via-around layer") --
+            # the default alt shape retagged onto the back, THT pickups
+            # pierce natively, the same via array bonds the SMD stub end.
+            _back_src = [(x1, y1, x2, y2, w2, ("back" if tg == "alt" else tg))
+                         for (x1, y1, x2, y2, w2, tg) in _respan(list(_ch["src"]))]
+            _src_variants.append((_back_src, _src_arr, "back"))
         col, spine, arr_sites = "no plan", None, []
         _drops_tag = None
         _vreasons = []                       # per-variant refusal trace (audit:
@@ -645,7 +652,15 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             if c3b is None:
                 snk, c3, _snk_arr_on = _snk_face, None, False
             else:
-                c3 = c3 + "; face retry: " + c3b
+                # THIRD ESCAPE TIER: B.Cu (the via-around rung -- alt segs
+                # retagged back; TB barrels pierce, the LO-stub array bonds)
+                _snk_back = [(x1, y1, x2, y2, w2, ("back" if _tg == "alt" else _tg))
+                             for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
+                c3c = _collide(_snk_back, own_snk, skip_refs=("FID",))
+                if c3c is None:
+                    snk, c3 = _snk_back, None
+                else:
+                    c3 = c3 + "; face retry: " + c3b + "; back retry: " + c3c
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
             if verbose:
@@ -667,9 +682,13 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             for (_net_m, _segs_m) in ((rl["src_net"], spine + pin_plans),
                                       (rl["snk_net"], snk)):
                 for (x1, y1, x2, y2, w2, tg) in _segs_m:
-                    if tg != "alt":
+                    if tg == "alt":
+                        _mt = "back"
+                    elif tg == "back":       # a trunk that took the back
+                        _mt = "alt"          # escape rung mirrors up to In2
+                    else:
                         continue
-                    _tw = [(x1, y1, x2, y2, w2, "back")]
+                    _tw = [(x1, y1, x2, y2, w2, _mt)]
                     if _collide(_tw, {_net_m}, skip_refs=("FID",)) is None:
                         _commit(_net_m, _tw, face_ly)
                         _bcu_twins += 1
