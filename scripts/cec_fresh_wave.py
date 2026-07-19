@@ -235,8 +235,12 @@ BOARD_PARAMS = {
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
                        # physical antenna section just rides at an edge like any body extent.
                        "respect_antenna_keepout": False,
-                       # owner GO 2026-07-08: alternate rail chains F/B (same-side-per-rail)
-                       "dual_sided": True,
+                       # SINGLE-SIDED (owner 2026-07-19: "make it single sided" --
+                       # supersedes the 2026-07-08 F/B alternation GO). Going single-
+                       # sided also removes the dual-sided y-stagger repair, which is
+                       # exactly the interplay that broke the straight-through centroid
+                       # shunt columns (v3-a, measured residual 3->22 then reverted).
+                       "dual_sided": False,
                        # ZONE CREATOR (owner GO 2026-07-19): per-rail force trunks
                        # (cec_force_rails -- J3 group -> straddle shunt -> TBs) laid
                        # locked at materialize; refusals teach the placer.

@@ -3233,6 +3233,13 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # WIDE SHUNT COLUMNS (strict rule): the sense cell needs pour-free ground
             # around each shunt; shunts are NOT bound to the blade pitch (the LO lane
             # fans shunt->blade), so columns spread to a cell pitch <= 16mm.
+            # NOTE (2026-07-19, twice-measured): J3-group-CENTROID columns (the
+            # straight-through geometry) were attempted under BOTH dual-sided and
+            # single-sided and scattered the cells each time (residual 3->22/29;
+            # shunts off the H/2 row AT COMPILE with the y-stagger gated off) -- a
+            # THIRD mover re-places the shunt clusters, prime suspect the p7
+            # functional-stamp pre-computed absolute positions. v3 forensic entry
+            # point; until then the even spread stands and crossing spines refuse.
             _wu = (W or 100)
             _cell_pitch = min(16.0, max(pitch, (_wu - x0 - _stub_ext - pitch) / max(1, len(shared))))
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
@@ -5983,6 +5990,16 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             cx, cy, hw, hh = _courtyard_info(comps[r], rot)
             return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
         boxes = {r: _box(r) for r in P if r in comps}
+        # corridor squatters (owner GO 2026-07-19): a movable part INSIDE a
+        # force-rail/lane corridor blocks the locked lay (measured: Q1 in the
+        # RS1 sink on every 24-pin variant) -- flag it for the affinity re-seat,
+        # whose forbid env keeps the new seat outside the corridors.
+        _corr = (_force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
+                 + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+        def _in_corr(bx):
+            l0, r0, t0, b0 = bx
+            return any(not (r0 <= c[1] or c[2] <= l0 or b0 <= c[3] or c[4] <= t0)
+                       for c in _corr)
         bad = []
         for r in P:
             if r in fixed or r not in comps:
@@ -6000,7 +6017,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # edge trigger 2.0 -> 4.0 (owner report 2026-07-19 "still a bunch of
             # stuff shoved ... along the edges" -- the 2mm band left a visible
             # rind of parts the affinity seat never touched)
-            if olap or edge_m < 4.0 or corner:
+            if olap or edge_m < 4.0 or corner or _in_corr(boxes[r]):
                 bad.append(r)
         if not bad:
             return
@@ -6358,8 +6375,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                                                       if len(P[r]) > 2 else 0,
                                                                       drop_antenna=drop_antenna))
                       for r in P if r in comps}
-            if _pour_boxes:
-                _legalize_avoiding_pours(P, _restamped, _rs_cy, _pour_boxes, W, H, clr=0.4,
+            # CORRIDOR-AWARE SETTLE (owner GO 2026-07-19; the cross-cutting restamp
+            # blocker): the settle avoided POUR boxes only, so restamped cluster
+            # passives (the rev3 control block Q1/R75/C22 class) landed back inside
+            # the force-rail/lane corridors on EVERY wave variant -- the measured
+            # 0/4 rails refusal cause (a). Corridor boxes share the pour-box tuple
+            # shape, so they join the same avoiding legalize.
+            _corr_boxes = (_force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
+                           + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+            _avoid = list(_pour_boxes or ()) + _corr_boxes
+            if _avoid:
+                _legalize_avoiding_pours(P, _restamped, _rs_cy, _avoid, W, H, clr=0.4,
                                          bounds=_bounds)
             else:
                 legalize_pack(P, _restamped, _rs_cy, W, H, clr=0.4, bounds=_bounds)
