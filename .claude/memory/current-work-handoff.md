@@ -1,5 +1,24 @@
 # Current work handoff
 
+## AUTHORED KELVIN-90 CELLS STAMPED + 4/4 RAILS -- 2026-07-19 (night)
+Commit f3b68496, owner render report ("taps not perpendicular 90s... cross over...
+INA181 tapping the outside of the shunt") closed: measured the fallback spaghetti in
+copper, then made the authored cell stampable -- TLV-BESIDE (9.4,-5.0; reach 9.75->
+7.9, the -4.4 first try grazed its own sink descent 0.3mm), bank-aware walk right-
+bound (margin 7.0 with cells -- the array-only 3.05 had put RS1's bank on J6),
+authored DETAMP (around-west + mid-channel rise + side entry; 3 assert-caught
+reroutes: GND under OUT, DET under TLV-IN), role-pair cross-checks generalized,
+face-mode pad-width tail clamps BOTH sides (honest collider exposed full-width
+tails reaching the opposite shunt pad). PROBE s2h @74x55: cells 68 LOCKED segs /
+0 refused, FORCE RAILS 4/4 (first ever, RS2's sink cleared by the TLV move),
+textbook orthogonal taps everywhere, per-pair coverage retires the route-time
+diagonal fallback. Render on the dash (probe-s2f-authored-taps-4of4.png).
+CHAIN 3 still grinding (10 waves, seeds 56-103; watcher bp6ggzj0n) -- its later
+waves inherit the new template+wiring at process boundaries; expect kelvin-pair
+completeness to improve (taps now locked+protected) and the criticals walk to
+continue. Then the morning ladder (pour-flood at J3, codex #10, #16 sorts,
+24-pin cooling config, image dep bake).
+
 ## CHAIN 2 DONE, CHAIN 3 OVERNIGHT -- 2026-07-19 (evening)
 Chain 2 (8 waves): FIVE NEW BESTS. 24-pin criticals day trajectory 10->9->8->7 (the
 sort key correctly trades raw unconn for critical-net count; kelvin-class proposals
