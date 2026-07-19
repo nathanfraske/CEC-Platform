@@ -38,7 +38,7 @@
     -5.6,
     -4.4
    ],
-   "rot_delta": 0.0,
+   "rot_delta": 180.0,
    "flipped": false,
    "footprint": "cec-Package_TO_SOT_SMD:SOT-23-6",
    "value": "INA181A2IDBVR"
@@ -46,7 +46,7 @@
   "U75V1": {
    "offset_mm": [
     -5.6,
-    -8.2
+    -8.5
    ],
    "rot_delta": 0.0,
    "flipped": false,
@@ -89,8 +89,8 @@
      "ref": "U65V1",
      "pad": "6",
      "rel_mm": [
-      -4.4625,
-      -5.35
+      -6.7375,
+      -3.45
      ]
     },
     {
@@ -98,7 +98,7 @@
      "pad": "5",
      "rel_mm": [
       -4.4625,
-      -9.15
+      -9.45
      ]
     }
    ]
@@ -134,8 +134,8 @@
      "ref": "U65V1",
      "pad": "4",
      "rel_mm": [
-      -4.4625,
-      -3.45
+      -6.7375,
+      -5.35
      ]
     }
    ]
@@ -148,7 +148,7 @@
      "pad": "1",
      "rel_mm": [
       -6.7375,
-      -9.15
+      -9.45
      ]
     }
    ]
@@ -202,8 +202,8 @@
      "ref": "U65V1",
      "pad": "3",
      "rel_mm": [
-      -6.7375,
-      -3.45
+      -4.4625,
+      -5.35
      ]
     }
    ]
@@ -216,7 +216,7 @@
      "pad": "4",
      "rel_mm": [
       -4.4625,
-      -7.25
+      -7.55
      ]
     }
    ]
@@ -244,7 +244,7 @@
      "ref": "U65V1",
      "pad": "2",
      "rel_mm": [
-      -6.7375,
+      -4.4625,
       -4.4
      ]
     },
@@ -252,7 +252,7 @@
      "ref": "U65V1",
      "pad": "5",
      "rel_mm": [
-      -4.4625,
+      -6.7375,
       -4.4
      ]
     },
@@ -261,7 +261,7 @@
      "pad": "2",
      "rel_mm": [
       -6.7375,
-      -8.2
+      -8.5
      ]
     }
    ]
@@ -274,8 +274,8 @@
      "ref": "U65V1",
      "pad": "1",
      "rel_mm": [
-      -6.7375,
-      -5.35
+      -4.4625,
+      -3.45
      ]
     },
     {
@@ -283,13 +283,157 @@
      "pad": "3",
      "rel_mm": [
       -6.7375,
-      -7.25
+      -7.55
      ]
     }
    ]
   }
  },
- "internal_tracks": [],
+ "internal_tracks": [
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    2.85,
+    0.0
+   ],
+   "end_rel_mm": [
+    2.85,
+    -3.125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    2.85,
+    -3.125
+   ],
+   "end_rel_mm": [
+    3.325,
+    -3.125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -3.125
+   ],
+   "end_rel_mm": [
+    3.325,
+    -6.725
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -6.725
+   ],
+   "end_rel_mm": [
+    -6.7375,
+    -6.725
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -6.7375,
+    -6.725
+   ],
+   "end_rel_mm": [
+    -6.7375,
+    -5.35
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -5.1
+   ],
+   "end_rel_mm": [
+    2.2,
+    -5.1
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -3.35,
+    0.0
+   ],
+   "end_rel_mm": [
+    -3.35,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -3.35,
+    -6.225
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -6.225
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -5.35
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -3.35,
+    -6.225
+   ],
+   "end_rel_mm": [
+    2.2,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    2.2,
+    -6.225
+   ],
+   "end_rel_mm": [
+    2.2,
+    -5.6
+   ],
+   "width_mm": 0.25
+  }
+ ],
  "port_tracks": [],
  "standins": [],
  "vias": [],

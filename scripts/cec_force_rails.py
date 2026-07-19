@@ -104,10 +104,22 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
     to the band junction. Sink rows rank-stagger (shared-y alt rows of
     different nets would mutually collide). Returns
     {rs: {w, band_y, src, pin_drops, snk, arrays: [(x,y,n,net)]}}."""
+    # OUTLIER TRIM (2026-07-19: ATX puts one 3V3 pin 43mm from its cluster --
+    # the full-width band it forced always sank to the DEEPEST row, straight
+    # into the tucked jack's contact row; trimmed, the cluster band packs into
+    # the shallow rows). A pin > 18mm from the shunt column is dropped from
+    # the band span AND from the pickups (reported), never below 1 kept pin.
+    trimmed = {}
     items = []
     for rl in rails:
         w = max(1.5, min(6.0, rl["amps"] * 0.25))
-        xs = [q[1] for q in rl["j3"]] + [rl["hi"][0]]
+        hx0 = rl["hi"][0]
+        keep = [q for q in rl["j3"] if abs(q[1] - hx0) <= 18.0]
+        if keep and len(keep) < len(rl["j3"]):
+            trimmed[rl["rs"]] = [q for q in rl["j3"] if q not in keep]
+        else:
+            keep = rl["j3"]
+        xs = [q[1] for q in keep] + [hx0]
         items.append({"key": rl["rs"], "w": w, "x_lo": min(xs), "x_hi": max(xs)})
     band_ys, _depth = plan_bands(items, j3_bot)
     spans = {}
@@ -135,7 +147,9 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
         n_via = max(2, int(math.ceil(rl["amps"] / 2.0)))
         body = "alt" if alt else "face"
         arrays = []
-        xs = [q[1] for q in rl["j3"]] + [hx]
+        _trim = trimmed.get(rl["rs"], ())
+        j3_kept = [q for q in rl["j3"] if q not in _trim]
+        xs = [q[1] for q in j3_kept] + [hx]
         if not alt:
             src = [(min(xs), band_y, max(xs), band_y, w, "face"),
                    (hx, band_y, hx, hy, w, "face")]
@@ -153,25 +167,37 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
                 src.append((hx, hy - 3.0, hx, hy, sw, "face"))
                 arrays.append((hx, hy - 3.0, n_via, rl["src_net"]))
         pin_drops = [(px, py, px, band_y, min(w, 1.4), pn, body)
-                     for pn, px, py, _h, _tht in rl["j3"]]
+                     for pn, px, py, _h, _tht in j3_kept]
         tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
         # sink rows: the SAME width-aware interval packing as the source bands
         # (audit landmine: the fixed 1.7mm rank stagger let crossing multi-mm
         # sink spans overlap). _sink_ys computed once below the loop entry.
+        # TB drops carry PER-JOINT current, not the rail total -- graded down
+        # (2026-07-19: the full-width face drop grazed a neighbor cell's cap
+        # at 2.8 vs 3.75mm; per-joint share needs ~2mm at the 2oz class).
         band2 = max(lyy + 1.5, tb_y - 2.0 - _sink_ys.get(rl["rs"], 1.0))
         txs = [q[2] for q in rl["tb"]] + [lx]
+        dwt = max(2.0, w / max(1, len(rl["tb"])))
         if not alt:
             snk = [(lx, lyy, lx, band2, w, "face"),
                    (min(txs), band2, max(txs), band2, w, "face")]
-            snk += [(tx, band2, tx, ty, w, "face") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
+            snk += [(tx, band2, tx, ty, dwt, "face") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
         else:
             snk = [(lx, lyy, lx, lyy + 2.5, sw, "face"),
                    (lx, lyy + 2.5, lx, band2, w, "alt"),
                    (min(txs), band2, max(txs), band2, w, "alt")]
-            snk += [(tx, band2, tx, ty, w, "alt") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
+            snk += [(tx, band2, tx, ty, dwt, "alt") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
             arrays.append((lx, lyy + 2.5, n_via, rl["snk_net"]))
         out[rl["rs"]] = {"w": w, "band_y": band_y, "src": src,
-                         "pin_drops": pin_drops, "snk": snk, "arrays": arrays}
+                         "pin_drops": pin_drops, "snk": snk, "arrays": arrays,
+                         "trimmed": [q[0] for q in _trim],
+                         # the LO descent column + the sink band row (placement
+                         # reserves both so the lay's FACE-RETRY escape stays
+                         # open -- 2026-07-19: a cluster cap 2.8mm off the
+                         # column, then a buffer IC under the band row, killed
+                         # the alt sink AND its face retry in turn)
+                         "snk_desc": (lx, lyy, band2, w),
+                         "snk_band": (min(txs), max(txs), band2, w)}
     return out
 
 
@@ -309,14 +335,17 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                 if tag == "alt" and not tht:
                     continue
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < (w / 2 + half + 0.25) ** 2:
-                    return "%s [%s] at (%.1f,%.1f)" % (ref, net, px, py)
+                    return ("%s [%s] at (%.1f,%.1f) vs plan (%.1f,%.1f)-(%.1f,%.1f)"
+                            % (ref, net, px, py, x1, y1, x2, y2))
             for (net2, a1, b1, a2, b2, w2, tag2) in laid_segs:
                 if net2 in own_nets or tag2 != tag:
                     continue
                 # exact seg-seg distance (audit landmine: 5-point sampling
                 # missed thin crossings)
                 if _seg_seg_d2(x1, y1, x2, y2, a1, b1, a2, b2) < (w / 2 + w2 / 2 + 0.25) ** 2:
-                    return "laid copper [%s]" % net2
+                    return ("laid copper [%s] (%.1f,%.1f)-(%.1f,%.1f) vs plan "
+                            "(%.1f,%.1f)-(%.1f,%.1f)"
+                            % (net2, a1, b1, a2, b2, x1, y1, x2, y2))
             for (vx, vy) in laid_vias:
                 if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2 + 0.45 + 0.25) ** 2:
                     return "laid via at (%.1f,%.1f)" % (vx, vy)
@@ -381,7 +410,33 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             board.Add(t)
             laid_segs.append((net, x1, y1, x2, y2, w, tag))
 
-    def _commit_array(net, sites):
+    def _commit_array(net, sites, face_ly):
+        # LANDING PATCHES (owner, wave-15 render: "the via fields are clipped
+        # out of the pours"): every via must land on same-net copper on BOTH
+        # layers -- the plan's stub/band segs don't cover the full site spread.
+        # Try one bbox patch per layer (collide-checked, own-net exempt); fall
+        # back to per-site pads where the full patch is contended.
+        if sites:
+            _pxs = [s[0] for s in sites]
+            _pys = [s[1] for s in sites]
+            _px0, _px1, _py0, _py1 = min(_pxs), max(_pxs), min(_pys), max(_pys)
+            _pm = 0.65
+            for _ptag in (("face", "alt") if alt_on else ("face",)):
+                if _px1 - _px0 >= _py1 - _py0:
+                    _patch = [(_px0 - _pm, (_py0 + _py1) / 2.0,
+                               _px1 + _pm, (_py0 + _py1) / 2.0,
+                               (_py1 - _py0) + 2 * _pm, _ptag)]
+                else:
+                    _patch = [((_px0 + _px1) / 2.0, _py0 - _pm,
+                               (_px0 + _px1) / 2.0, _py1 + _pm,
+                               (_px1 - _px0) + 2 * _pm, _ptag)]
+                if _collide(_patch, {net}) is None:
+                    _commit(net, _patch, face_ly)
+                else:
+                    for (cx, cy) in sites:
+                        _p1 = [(cx - _pm, cy, cx + _pm, cy, 2 * _pm, _ptag)]
+                        if _collide(_p1, {net}) is None:
+                            _commit(net, _p1, face_ly)
         for (cx, cy) in sites:
             v = pcbnew.PCB_VIA(board)
             v.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -417,13 +472,58 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                          if an == rl["src_net"]), None)
         _oth_arrs = [(ax, ay, nv, an) for (ax, ay, nv, an) in _plan_arrays
                      if an != rl["src_net"]]
+        # LIVE SPAN (2026-07-19: the tucked jack's contact field shadows the
+        # 3V3 cluster pins at every y -- a band stretched to unpickable pins
+        # dies on the jack while the rail itself could lay): pre-test each
+        # planned pickup with the same drop shapes; a pin with NO viable drop
+        # leaves the band span, which shrinks to the pins that can actually
+        # join (+ the shunt column).
+        _xs_live = [hx]
+        for (px, py, x2, y2, dw, pn, dtag) in _ch["pin_drops"]:
+            for _ddx in (0.0, 2.1, -2.1, 1.8, -1.8):
+                if _ddx == 0.0:
+                    _dtry = [(px, py, x2, y2, dw, dtag)]
+                else:
+                    _dw2 = min(dw, 1.0)
+                    _dtry = [(px, py, px + _ddx, py, _dw2, dtag),
+                             (px + _ddx, py, px + _ddx, y2, _dw2, dtag)]
+                if _collide(_dtry, own_src, skip_refs=(rl["rs"], "TB", "FID")) is None:
+                    _xs_live.append(px)
+                    break
+        # BAND-WIDTH shrink (2026-07-19: a pin can pass the drop-width pre-test
+        # while the FULL-width band still dies at its thin extremity -- RS3's
+        # w=5 band's 4.35mm radius vs J1's VCC pad; the pin's 6A reach doesn't
+        # need rail width): iteratively drop the extreme pin farther from the
+        # shunt column until the band itself guards clean.
+        def _band_ok(xs):
+            if max(xs) - min(xs) < 0.1:
+                return True
+            _b = [(min(xs), band_y, max(xs), band_y, w,
+                   "alt" if alt_on else "face")]
+            return _collide(_b, own_src, skip_refs=(rl["rs"], "TB", "FID")) is None
+        while len(_xs_live) > 1 and not _band_ok(_xs_live):
+            _lo_e, _hi_e = min(_xs_live), max(_xs_live)
+            _cut = _lo_e if abs(_lo_e - hx) >= abs(_hi_e - hx) else _hi_e
+            if _cut == hx:
+                break
+            _xs_live.remove(_cut)
+
+        def _respan(segs):
+            """Clamp the (single) band segment of a source shape to the live span."""
+            o = []
+            for (x1, y1, x2, y2, w2, tg) in segs:
+                if y1 == y2 == band_y and abs(x2 - x1) > 0.1:
+                    o.append((min(_xs_live), band_y, max(_xs_live), band_y, w2, tg))
+                else:
+                    o.append((x1, y1, x2, y2, w2, tg))
+            return o
         # SOURCE variants: (segs, src_array_pos). A colliding FACE-fallback
         # column retries JOGGED variants around the cell envelope (audit
         # finding 4: the full-width fallback ran straight through the shunt-pad
         # column where the one-sided cell bank sits): the column offsets
         # sideways, the alt band EXTENDS to the jog x, the via array moves to
         # the jog junction, and a short axial elbow re-enters the pad.
-        _src_variants = [(list(_ch["src"]), _src_arr, None)]
+        _src_variants = [(_respan(list(_ch["src"])), _src_arr, None)]
         if alt_on and any(tg == "face" and abs(y2 - y1) > 4.0
                           for (x1, y1, x2, y2, _w2, tg) in _ch["src"]):
             _alt_only = [s for s in _ch["src"] if s[5] != "face"]
@@ -445,8 +545,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             # rail's laid In2 pin drops contend the next rail's In2 band --
             # stagger the loser onto the face. THT pickups need no via array;
             # pin drops follow onto the face (tag threaded per-variant).
-            _xs_all = [q[1] for q in rl["j3"]] + [hx]
-            _face_src = [(min(_xs_all), band_y, max(_xs_all), band_y, w, "face"),
+            _face_src = [(min(_xs_live), band_y, max(_xs_live), band_y, w, "face"),
                          (hx, band_y, hx, hy, w, "face")]
             _src_variants.append((_face_src, None, "face"))
         col, spine, arr_sites = "no plan", None, []
@@ -486,8 +585,13 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                       % (rl["rs"], rl["src_net"], col), flush=True)
             continue
         picked, dropped = 0, []
+        for _tpn in _ch.get("trimmed", ()):
+            dropped.append("J3.%s [trimmed: >18mm span outlier]" % _tpn)
         pin_plans = []
         for (px, py, x2, y2, dw, pn, dtag) in _ch["pin_drops"]:
+            if not (min(_xs_live) - 0.1 <= px <= max(_xs_live) + 0.1):
+                dropped.append("J3.%s [band shrunk away from x=%.1f]" % (pn, px))
+                continue                         # its drop would dangle off-band
             _dt = _drops_tag or dtag
             # straight drop first; else MID-COLUMN DOGLEGS (s0e probe: ATX
             # stacks two rows at the SAME x, so a top-row pin's straight drop
@@ -515,9 +619,22 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                 picked += 1
             else:
                 dropped.append("J3.%s [%s]" % (pn, "; ".join(_dreasons)))
-        # SINK from the plan: lo -> lower band -> TB drops
+        # SINK from the plan: lo -> lower band -> TB drops. FACE-STAGGER
+        # retry (2026-07-19, the source-side medicine applied to the sink:
+        # TB fields interleave in x, so one rail's alt sink drop crosses the
+        # next rail's alt sink band -- measured at 3.95 vs 4.0mm on W74):
+        # the whole sink moves to the face; THT TB barrels need no array.
         snk = list(_ch["snk"])
         c3 = _collide(snk, own_snk, skip_refs=("J3", rl["rs"], "TB", "FID"))
+        _snk_arr_on = True
+        if c3 and alt_on:
+            _snk_face = [(x1, y1, x2, y2, w2, "face")
+                         for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
+            c3b = _collide(_snk_face, own_snk, skip_refs=("J3", rl["rs"], "TB", "FID"))
+            if c3b is None:
+                snk, c3, _snk_arr_on = _snk_face, None, False
+            else:
+                c3 = c3 + "; face retry: " + c3b
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
             if verbose:
@@ -526,8 +643,11 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             continue
         _commit(rl["src_net"], spine + pin_plans, face_ly)
         _commit(rl["snk_net"], snk, face_ly)
+        if not _snk_arr_on:          # face-staggered sink: no layer transition,
+            arr_sites = [(n, s_) for (n, s_) in arr_sites   # its array would dangle
+                         if n != rl["snk_net"]]
         for (a_net, s_) in arr_sites:
-            _commit_array(a_net, s_)
+            _commit_array(a_net, s_, face_ly)
         n_arr = sum(len(s_) for _n2, s_ in arr_sites)
         report[rl["rs"]] = {"segs": len(spine) + len(pin_plans) + len(snk),
                             "pins": "%d/%d" % (picked, len(rl["j3"])),

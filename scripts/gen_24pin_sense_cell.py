@@ -40,8 +40,13 @@ ROOT = os.path.dirname(HERE)
 ROLE_PARTS = {
     "RS2":   {"offset_mm": (0.0, 0.0),   "rot_delta": 0.0},
     "U11":   {"offset_mm": (0.0, -4.6),  "rot_delta": 0.0},    # INA238 hard against the inner edge
-    "U65V1": {"offset_mm": (-5.6, -4.4), "rot_delta": 0.0},    # INA181A2 beside it
-    "U75V1": {"offset_mm": (-5.6, -8.2), "rot_delta": 0.0},    # TLV7011 below the 181
+    # INA181 ROTATED 180 (tap-ability redesign, 2026-07-19: with the inputs on
+    # its shunt-facing row, LO could not reach IN- without crossing HI copper
+    # or a rail-stub corridor -- every entry measured walled by the v0..v3
+    # generator asserts. Rotated, BOTH inputs face the under-lane and each
+    # polarity approaches from its own below-lane.)
+    "U65V1": {"offset_mm": (-5.6, -4.4), "rot_delta": 180.0},
+    "U75V1": {"offset_mm": (-5.6, -8.2), "rot_delta": 0.0},    # authored-taps variant deepens to -8.5
 }
 ROLE_RAIL = "5V"
 
@@ -61,6 +66,203 @@ RAILS = {
              "CELL_DET": "/DET5VSB", "CELL_DETAMP": "/DETAMP5VSB"},
 }
 SHARED_NETS = ("GND", "+3V3", "/I2C_SDA", "/I2C_SCL", "/THRESH")
+TAP_W = 0.25          # sense-class track width for the authored Kelvin taps
+TAP_CLR = 0.2         # min copper clearance every authored leg must prove
+
+
+def _pad_geom(fp_of, pose, ref, cec_pcb):
+    """{pad: (x, y, sx, sy)} cell-local pad centres + sizes for *ref*. Centres
+    come from cec_pcb.pad_global (the ONE rotation convention -- the stamp and
+    the placer use the same call); only the sizes are parsed here, axis-swapped
+    for 90/270."""
+    import re
+    nick, name = fp_of[ref].split(":")
+    t = open(cec_pcb.fp_path(nick, name)).read()
+    rot = pose[ref][2]
+    sizes = {}
+    for m in re.finditer(r"\(pad ", t):
+        b = cec_pcb.carve(t, m.start())
+        num = re.match(r'\(pad "([^"]*)"', b)
+        sz = re.search(r"\(size ([\d.]+) ([\d.]+)", b)
+        if num and sz and num.group(1) and "np_thru_hole" not in b.split("\n")[0]:
+            sx, sy = float(sz.group(1)), float(sz.group(2))
+            if rot % 180.0 == 90.0:
+                sx, sy = sy, sx
+            sizes[num.group(1)] = (sx, sy)
+    out = {}
+    for p, (sx, sy) in sizes.items():
+        gx, gy = cec_pcb.pad_global(ref, p, pose, fp_of)
+        out[p] = (gx, gy, sx, sy)
+    return out
+
+
+def _leg_pad_gap(a, b, px, py, hx, hy):
+    """Distance from axis-aligned segment a->b (points) to the pad rect centred
+    (px,py) half (hx,hy). 0 = touching/inside."""
+    x0, x1 = min(a[0], b[0]), max(a[0], b[0])
+    y0, y1 = min(a[1], b[1]), max(a[1], b[1])
+    dx = max(px - hx - x1, x0 - (px + hx), 0.0)
+    dy = max(py - hy - y1, y0 - (py + hy), 0.0)
+    return (dx * dx + dy * dy) ** 0.5
+
+
+def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
+    """The §6.8 Kelvin taps AUTHORED into the cell (owner, wave-15 render: taps
+    must be the textbook orthogonal 90s, not the route-time guard-refusal
+    fallbacks). Four all-orthogonal paths in template coordinates, derived
+    parametrically from the measured pad geometry; every leg is clearance-
+    asserted against every foreign pad and opposite-polarity taps are
+    cross-checked -- the generator FAILS LOUD rather than emit a colliding
+    template. Returns internal_tracks entries (net_role CELL_HI/CELL_LO).
+
+    *side*: -1 = the bank at template -y (the original derivation frame),
+    +1 = the MIRRORED cell (bank at +y). Handled by normalizing the measured
+    geometry into the -y frame (y *= -side), deriving with the one set of
+    formulas, and denormalizing the emitted points -- the asserts run on the
+    normalized geometry, so both handednesses carry the same proofs."""
+    geom = {r: _pad_geom(fp_of, pose, r, cec_pcb) for r in pose}
+    if side > 0:                                   # normalize: mirror into the -y frame
+        geom = {r: {p: (x, -y, sx, sy) for p, (x, y, sx, sy) in g.items()}
+                for r, g in geom.items()}
+    rs, u238, u181 = role["rs"], role["ina238"], role["ina181"]
+    hi_net, lo_net = role["CELL_HI"], role["CELL_LO"]
+
+    def net_pads(net):
+        return [(r, p) for r, p in nl.nets[net] if r in pose]
+
+    def one(net, ref):
+        ps = [p for r, p in net_pads(net) if r == ref]
+        assert len(ps) == 1, "%s on %s: expected 1 pad, got %s" % (net, ref, ps)
+        return ps[0]
+
+    hi_rs, lo_rs = one(hi_net, rs), one(lo_net, rs)
+    in_p = one(hi_net, u238)                       # INA238 IN+ (the only HI pad)
+    lo238 = [p for r, p in net_pads(lo_net) if r == u238]
+    # IN- = the LO-net pad ADJACENT to IN+ (defence-1 by geometry: VBUS shares
+    # the net but sits one pitch farther)
+    in_n = min(lo238, key=lambda p: abs(geom[u238][p][1] - geom[u238][in_p][1]))
+    inp181, inn181 = one(hi_net, u181), one(lo_net, u181)
+
+    g = lambda ref, pad: geom[ref][pad]
+    hx_rs, hy_rs = g(rs, hi_rs)[:2]
+    lx_rs, ly_rs = g(rs, lo_rs)[:2]
+    x10, y10 = g(u238, in_p)[:2]
+    x9, y9 = g(u238, in_n)[:2]
+    xi181p, yi181 = g(u181, inp181)[:2]
+    xi181n = g(u181, inn181)[0]
+
+    cols238 = sorted({round(v[0], 3) for v in geom[u238].values()})
+    lcol_edge = min(v[0] - v[2] / 2 for v in geom[u238].values())
+    rcol_edge = max(v[0] + v[2] / 2 for v in geom[u238].values())
+    bot238 = min(v[1] - v[3] / 2 for v in geom[u238].values())   # most-negative edge
+    in_top = yi181 + g(u181, inp181)[3] / 2                     # 181 input row top edge
+
+    hw = TAP_W / 2.0
+    # channel constants, all derived + then proven by the asserts below.
+    # Shapes (v4 -- the redesign: with the 181 ROTATED 180 both its inputs
+    # face DOWN, so each polarity approaches from its own below-lane and no
+    # leg ever crosses y=0 outside the pad gap, keeping clear of the rail
+    # plan's stub corridors (template x in ~[-7,-3] and [3,6.2] at |y|<~2.9,
+    # which v3's over-the-top LO legs measurably violated -- the laid-copper
+    # collisions at (35.5,24.8) on the s0k probe):
+    #   LO: gap drop beside the 238's column top, jog OUT at the column-top
+    #       line, down outside the column, branch into 238.IN-, continue to
+    #       the LOWER lane, west under everything, up into 181.IN-.
+    #   HI: corridor drop (own-net through its own stub zone), the under-238
+    #       lane east into 238.IN+ from below, and a short branch up into
+    #       181.IN+ from the same lane.
+    hx_o = lcol_edge - TAP_CLR - hw - 0.1                        # HI corridor drop
+    b181_bot = min(v[1] - v[3] / 2 for v in geom[u181].values())
+    tlv_top = max(v[1] + v[3] / 2 for v in geom[role["tlv"]].values())
+    y_bot = min(bot238, b181_bot) - TAP_CLR - hw - 0.15          # HI under-lane
+    y_lo2 = y_bot - (2 * hw + TAP_CLR + 0.05)                    # LO lower lane
+    assert y_lo2 - tlv_top >= TAP_CLR + hw - 1e-6, \
+        "no LO lane between the HI under-lane and the TLV top row"
+    col_top = max(v[1] + v[3] / 2 for v in geom[u238].values())  # 238 col highest edge
+    y_jog = col_top + TAP_CLR + hw                               # over-the-column line
+    x_gd = (lx_rs - g(rs, lo_rs)[2] / 2) + 0.5                   # gap drop, on the LO pad
+    x_od = rcol_edge + TAP_CLR + hw + 0.075                      # outer drop column
+
+    net_of = {"CELL_HI": hi_net, "CELL_LO": lo_net}
+    pad_net = {}
+    for net in set(n for n, nodes in nl.nets.items()):
+        for r, p in nl.nets[net]:
+            if r in pose:
+                pad_net[(r, p)] = net
+
+    def _check(taps):
+        """None if every leg clears every FOREIGN pad (same-net exempt; the
+        opposite sense leg is NOT exempt) and HI/LO taps clear each other;
+        else the first violation as a string."""
+        for rolek, pts in taps:
+            tnet = net_of[rolek]
+            for a, b in zip(pts, pts[1:]):
+                if a == b:
+                    return "degenerate leg in %s tap" % rolek
+                for r in pose:
+                    for p, (px, py, sx, sy) in geom[r].items():
+                        if pad_net.get((r, p)) == tnet:
+                            continue
+                        gap = _leg_pad_gap(a, b, px, py, sx / 2, sy / 2) - hw
+                        if gap < TAP_CLR - 1e-6:
+                            return "%s leg %s->%s clips %s.%s [%s] by %.3f" % (
+                                rolek, a, b, r, p, pad_net.get((r, p)), TAP_CLR - gap)
+        def segs(k):
+            return [(a, b) for rk, pts in taps if rk == k
+                    for a, b in zip(pts, pts[1:])]
+        for a1, b1 in segs("CELL_HI"):
+            for a2, b2 in segs("CELL_LO"):
+                x0a, x1a = min(a1[0], b1[0]) - hw, max(a1[0], b1[0]) + hw
+                y0a, y1a = min(a1[1], b1[1]) - hw, max(a1[1], b1[1]) + hw
+                x0b, x1b = min(a2[0], b2[0]) - hw, max(a2[0], b2[0]) + hw
+                y0b, y1b = min(a2[1], b2[1]) - hw, max(a2[1], b2[1]) + hw
+                dx = max(x0a - x1b, x0b - x1a, 0.0)
+                dy = max(y0a - y1b, y0b - y1a, 0.0)
+                if (dx * dx + dy * dy) ** 0.5 < TAP_CLR - 1e-6:
+                    return "HI/LO taps collide: %s->%s vs %s->%s" % (a1, b1, a2, b2)
+        return None
+
+    # candidate shapes: the straight-column 181 approaches first, then
+    # offset-column variants (a mirrored cell's non-mirroring part layouts put
+    # a foreign pad in the straight column -- measured on the -left variant)
+    inn_l = xi181n - g(u181, inn181)[2] / 2 - TAP_CLR - hw - 0.1
+    inn_r = xi181n + g(u181, inn181)[2] / 2 + TAP_CLR + hw + 0.1
+    inp_l = xi181p - g(u181, inp181)[2] / 2 - TAP_CLR - hw - 0.1
+    inp_r = xi181p + g(u181, inp181)[2] / 2 + TAP_CLR + hw + 0.1
+    cands = []
+    for xn in (xi181n, inn_l, inn_r):
+        for xp in (xi181p, inp_l, inp_r):
+            _lo1 = [(x_gd, ly_rs), (x_gd, y_jog), (x_od, y_jog), (x_od, y_lo2),
+                    (xn, y_lo2), (xn, yi181)]
+            if xn != xi181n:
+                _lo1 = _lo1[:-1] + [(xn, yi181), (xi181n, yi181)]
+            _hi1 = [(hx_o, hy_rs), (hx_o, y_bot), (xp, y_bot), (xp, yi181)]
+            if xp != xi181p:
+                _hi1 = _hi1[:-1] + [(xp, yi181), (xi181p, yi181)]
+            cands.append([
+                ("CELL_LO", _lo1),
+                ("CELL_LO", [(x_od, y9), (x9, y9)]),             # 238 IN- branch
+                ("CELL_HI", _hi1),                               # 181 IN+ path
+                ("CELL_HI", [(hx_o, y_bot), (x10, y_bot), (x10, y10)]),
+            ])
+    taps, _reasons = None, []
+    for _ci, _cand in enumerate(cands):
+        _why = _check(_cand)
+        if _why is None:
+            taps = _cand
+            break
+        _reasons.append("cand%d: %s" % (_ci, _why))
+    assert taps is not None, \
+        "no tap shape passes (side=%+d): %s" % (side, "; ".join(_reasons))
+    tracks = []
+    _ys = -1.0 if side > 0 else 1.0                # denormalize back to the real frame
+    for rolek, pts in taps:
+        for a, b in zip(pts, pts[1:]):
+            tracks.append({"net_role": rolek, "layer": "F.Cu",
+                           "start_rel_mm": [round(a[0], 4), round(a[1] * _ys, 4)],
+                           "end_rel_mm": [round(b[0], 4), round(b[1] * _ys, 4)],
+                           "width_mm": TAP_W})
+    return tracks
 
 
 def main():
@@ -87,8 +289,47 @@ def main():
         assert n in nl.nets, "shared net %s missing" % n
 
     role = RAILS[ROLE_RAIL]
-    pose = {r: (sp["offset_mm"][0], sp["offset_mm"][1], sp["rot_delta"])
-            for r, sp in ROLE_PARTS.items()}
+    return _emit_variants(args, nl, fp_of, role, csp, cec_pcb)
+
+
+def _emit_variants(args, nl, fp_of, role, csp, cec_pcb):
+    """Write BOTH handedness variants: the base file (bank at template -y =
+    board-RIGHT of the column at the 270 seats) and the *-left sibling (bank
+    mirrored to +y = board-LEFT). Per-rail handedness is the wave wiring's
+    choice -- the J1/J6 wedge (2026-07-19): the rightmost rail's bank must
+    not reach J6, the leftmost's must not reach J1, and one handedness for
+    all four cannot satisfy both."""
+    rc = 0
+    # THREE artifacts (the 2026-07-19 wedge arithmetic: the authored-tap
+    # cell's extra ~0.35mm of bank reach re-wedges every four-column
+    # handedness assignment at pitch 12 on W=70, so the STAMPED template is
+    # parts-only tonight):
+    #   v0.json       parts-only, bank right -- what all four stamps use
+    #   v0-left.json  parts-only, bank left  -- kept for per-rail handedness
+    #   v0-taps.json  the authored Kelvin-90 cell -- next pass's artifact
+    #                 (needs the TLV-beside redesign to shave its reach)
+    for suffix, side, taps_on in (("", -1, False), ("-left", +1, False),
+                                  ("-taps", -1, True)):
+        out = args.out if not suffix else args.out[:-len(".json")] + suffix + ".json"
+        _emit_one(out, nl, fp_of, role, csp, cec_pcb, side=side, author_taps=taps_on)
+    return rc
+
+
+def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=True):
+    # the mirrored (+y) variant reflects the offsets only; part rotations keep
+    # their template values (the shunt anchor's rotation is the board hi/lo
+    # polarity contract either way).
+    pose = {}
+    for r, sp in ROLE_PARTS.items():
+        ox, oy, rot = sp["offset_mm"][0], sp["offset_mm"][1], sp["rot_delta"]
+        if r == "U75V1" and author_taps and side < 0:
+            oy = -8.5          # the authored LO lane needs the deeper TLV (its
+        if r == "U65V1" and not author_taps:
+            rot = 0.0          # the 181's rot-180 exists FOR the authored taps
+        if side > 0:           # (inputs facing the under-lane); parts-only
+            oy = -oy           # cells keep the original facing -- rot 180
+        pose[r] = (ox, oy, rot)  # moved the ideal-DETAMP path onto +3V3
+                                 # (measured whole-cell refusal)
 
     # ---- courtyard legality of the template itself ----------------------------
     boxes = {}
@@ -127,15 +368,15 @@ def main():
         "DETAMP must be exactly the 181-out -> 7011-in pair"
 
     parts = {}
-    for r, sp in ROLE_PARTS.items():
-        parts[r] = {"offset_mm": [sp["offset_mm"][0], sp["offset_mm"][1]],
-                    "rot_delta": sp["rot_delta"], "flipped": False,
+    for r in ROLE_PARTS:
+        parts[r] = {"offset_mm": [pose[r][0], pose[r][1]],
+                    "rot_delta": pose[r][2], "flipped": False,
                     "footprint": fp_of[r],
                     "value": nl.comps[r].value or ""}
 
     template = {
         "meta": {"board": "atx-24pin-rev3", "generator": "gen_24pin_sense_cell v0",
-                 "role_rail": ROLE_RAIL,
+                 "role_rail": ROLE_RAIL, "bank_side": ("left" if side > 0 else "right"),
                  "doctrine": "parts pack perpendicular to the pad axis; both "
                              "pad-axis approaches stay free for the force-rail "
                              "face stubs + via arrays (the v3-keystone rule)"},
@@ -148,25 +389,25 @@ def main():
         "ports": {k: {"net": (role[k] if k in role else k), "pads": v}
                   for k, v in pads_by_role.items()},
         "internal_pads": internal,
-        "internal_tracks": [],
+        # AUTHORED Kelvin taps (owner, wave-15 render: textbook orthogonal 90s,
+        # stamped LOCKED with the cell -- the route-time synthesizer's
+        # double-lay guard then skips these pairs, ending the guard-refusal
+        # diagonal fallbacks). CELL_DETAMP stays ideal-synthesized (the
+        # have-set in synthesize_ideal_internal skips authored roles only).
+        "internal_tracks": (author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=side)
+                            if author_taps else []),
         "port_tracks": [],
         "standins": [],
         "vias": [],
         "gnd_vias": [],
     }
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, "w") as fh:
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w") as fh:
         json.dump(template, fh, indent=1)
-    print("template written:", args.out)
-    print("parts:", list(parts), "| ports:", list(template["ports"]),
-          "| internal:", list(internal))
-    # the wiring block (kept in cec_fresh_wave; printed for cross-check)
-    for rail, m in RAILS.items():
-        ref_map = {role["rs"]: m["rs"], role["ina238"]: m["ina238"],
-                   role["ina181"]: m["ina181"], role["tlv"]: m["tlv"]}
-        net_map = {k: m[k] for k in ("CELL_HI", "CELL_LO", "CELL_DET", "CELL_DETAMP")}
-        print(rail, "anchor_ref", m["rs"], "ref_map", ref_map, "net_map", net_map)
-    return 0
+    print("template written:", out_path, "(bank", template["meta"]["bank_side"] + ")")
+    print("  parts:", list(parts), "| ports:", list(template["ports"]),
+          "| internal:", list(internal),
+          "| taps:", len(template["internal_tracks"]))
 
 
 if __name__ == "__main__":

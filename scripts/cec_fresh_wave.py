@@ -129,7 +129,14 @@ BOARD_WH = {
     # size (16 at 76x60/80x62) is the PIPELINE'S problem to grind down, not a board
     # grow; the wave's strategy/seed/intent variance + p8b + proposal chaining are
     # the levers. Size-up only after the search levers are exhausted.
-    "atx-24pin-rev3": (70.0, 55.0),
+    # W 70->74 (2026-07-19 late, the lever EARNED -- rungs exhausted with named
+    # numbers): after the jack tuck + per-column drop + outlier/live-span bands
+    # + handedness + stub clamps, the four-rail wedge chain still measures
+    # J1 field 14.4 + stub 2.45 + 3x11.85 pitch + cell bank 9.4 + array 3.05 +
+    # J6 field 17.4 = 82.2mm > 70, every remaining assignment 0.03-0.6mm short
+    # (probe series s0d..s0u). W74 clears the chain with 3.2mm spare. The
+    # 12vhpwr 62x62->62x66 measured-capacity precedent applies.
+    "atx-24pin-rev3": (74.0, 55.0),
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
@@ -305,6 +312,8 @@ def _lane_net_map(n):
 # ownership (they cluster to these stamped positions).
 _SENSE_RAIL_BP_24 = os.path.join(ROOT, "modules", "atx-24pin-rev3",
                                  "blueprints", "sense-rail-v0.json")
+_SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "modules", "atx-24pin-rev3",
+                                      "blueprints", "sense-rail-v0-left.json")
 _BP_RAILS_24 = {
     "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
             {"CELL_HI": "/SENSE12V_HI", "CELL_LO": "/SENSE12V_LO",
@@ -320,6 +329,16 @@ _BP_RAILS_24 = {
              "CELL_DET": "/DET5VSB", "CELL_DETAMP": "/DETAMP5VSB"}),
 }
 BOARD_PARAMS["atx-24pin-rev3"]["blueprint_cells"] = [
+    # PER-RAIL BANK HANDEDNESS (owner render pass 2026-07-19, the J1/J6
+    # wedge): the bank lands board-RIGHT of the column at the 270 seats, so
+    # the rightmost rails take the MIRRORED bank-left template (parts-only
+    # for now) while RS3 -- whose left flank is J1 -- keeps the bank-right
+    # v0 with the authored Kelvin-90 taps.
+    # UNIFORM bank-right parts-only (2026-07-19 wedge arithmetic: with J1
+    # tucked, four right-banked cells fit at pitch 12 with real margin; any
+    # mixed handedness FACES two banks at ~19mm of combined reach, and the
+    # authored-tap variant's extra reach re-wedges every assignment --
+    # v0-taps.json returns after the TLV-beside redesign, FOLLOWUPS).
     {"template": _SENSE_RAIL_BP_24, "anchor_ref": rs, "ideal_internal": True,
      "ref_map": rm, "net_map": nm}
     for rs, (rm, nm) in _BP_RAILS_24.items()]

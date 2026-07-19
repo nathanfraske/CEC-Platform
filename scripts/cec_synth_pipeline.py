@@ -3244,6 +3244,22 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # FIXED-pitch TB row (the mating contract).
             _wu = (W or 100)
             _min_sep = 12.0
+            # Left-half in-band blocker boxes for the per-column DROP below.
+            # (The companion TUCK -- "RJ-45 moved up" -- lives in the P2 jack
+            # block: p2 OWNS + LOCKS the jacks, and a first attempt to tuck
+            # here in p3 died on the pass-lock contract, LockViolation.)
+            _lblk = []
+            for _ar2, _apos2 in list(anchors.items()):
+                if _ar2 not in comps or not _ar2.startswith("J") or _ar2 == "J3":
+                    continue
+                _cx2, _cy2, _hw2, _hh2 = _courtyard_info(
+                    comps[_ar2], _apos2[2] if len(_apos2) > 2 else 0)
+                _ay0 = _apos2[1] + _cy2 - _hh2
+                _ay1 = _apos2[1] + _cy2 + _hh2
+                if (_apos2[0] + _cx2 < _wu / 2.0
+                        and _ay1 > H / 2.0 - 9.0 and _ay0 < H / 2.0 + 9.0):
+                    _lblk.append((_apos2[0] + _cx2 - _hw2, _apos2[0] + _cx2 + _hw2,
+                                  _ay0, _ay1))
             # RIGHT walk bound from in-band ANCHOR blockers (audit 2026-07-19 +
             # the first full-board probe: J6 seated at x=60.2 in the shunt row
             # band and the pull-back clamped the 12V column dead onto its THT
@@ -3254,6 +3270,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # column, compressing pitch below the sense-cell bank reach and
             # refusing ALL rails -- left contention is per-rail (jog variants,
             # per-pin drops) and the wave's seat diversity, not a global clamp.
+            import cec_pcb
             _lb, _rb = 6.0, _wu - 10.0
             for _ar2, _apos2 in list(anchors.items()):
                 if _ar2 not in comps:
@@ -3263,10 +3280,36 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 _ax0 = _apos2[0] + _cx2 - _hw2
                 _ay0 = _apos2[1] + _cy2 - _hh2
                 _ay1 = _apos2[1] + _cy2 + _hh2
+                # PAD-FIELD extent, not just the courtyard: a mouth-overhang
+                # jack's THT pads reach past its courtyard (J6 measured ~3.5mm
+                # -- the courtyard-based bound seated the 12V column inside
+                # J6's pad field and the cell tap copper landed on its pads)
+                try:
+                    for _pn2 in cec_pcb.local_pads(comps[_ar2]):
+                        _pg2 = cec_pcb.pad_global(_ar2, _pn2, {_ar2: _apos2}, comps)
+                        _ax0 = min(_ax0, _pg2[0] - 0.8)
+                        _ay0 = min(_ay0, _pg2[1] - 0.8)
+                        _ay1 = max(_ay1, _pg2[1] + 0.8)
+                except Exception:                        # noqa: BLE001
+                    pass
                 if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
                     continue                             # clear of the shunt row band
                 if _ax0 >= _wu / 2.0:
                     _rb = min(_rb, _ax0 - 3.05)
+                else:
+                    # LEFT bound re-added 2026-07-19 (with the jack TUCK + the
+                    # W74 seed there is slack; the original harmful cascade was
+                    # measured at W70 with the untucked courtyard): the
+                    # descent/stub zone must clear the jack's pad field --
+                    # 0.8 pad half + 2.5 widest-descent half + 0.25.
+                    _ax1p = _apos2[0] + _cx2 + _hw2
+                    try:
+                        for _pn2 in cec_pcb.local_pads(comps[_ar2]):
+                            _pg2 = cec_pcb.pad_global(_ar2, _pn2, {_ar2: _apos2}, comps)
+                            _ax1p = max(_ax1p, _pg2[0] + 0.8)
+                    except Exception:                    # noqa: BLE001
+                        pass
+                    _lb = max(_lb, _ax1p + 2.75)
             # INFEASIBILITY GUARD (audit 2026-07-19): if (n-1)*min_sep exceeds
             # the usable span, the L->R re-enforce below silently pushes the
             # tail column back past the right bound -- undoing the pull-back
@@ -3300,7 +3343,24 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             _st_cols = [max(_lb, _c2) for _c2 in _st_cols]
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
                 col = _st_cols[_ci]
-                anchors[c["shunt"]] = (col, H / 2.0, 270.0)
+                # PER-COLUMN DROP (the owner pair's second half): a column whose
+                # shunt courtyard still x-overlaps a left-half in-band edge
+                # connector drops below it for real margin (cap 4.5mm; the
+                # chains + cell stamp follow the actual seat).
+                _sy2 = H / 2.0
+                if c["shunt"] in comps and _lblk:
+                    _sc0, _sc1, _shw2, _shh2 = _courtyard_info(comps[c["shunt"]], 270.0)
+                    for (_bx0, _bx1, _by0, _by1) in _lblk:
+                        if (col + _sc0 - _shw2 < _bx1 + 0.4
+                                and col + _sc0 + _shw2 > _bx0 - 0.4
+                                and _by1 > _sy2 + _sc1 - _shh2 - 0.4):
+                            _need = (_by1 + 0.4 + _shh2 - _sc1) - _sy2
+                            if 0 < _need <= 4.5:
+                                _sy2 += _need
+                                print(f"  [rails] {c['shunt']} dropped {_need:.1f}mm "
+                                      f"below the row (edge-connector margin)",
+                                      file=sys.stderr, flush=True)
+                anchors[c["shunt"]] = (col, _sy2, 270.0)
                 seated.append(c["shunt"])
                 if c["j_out_blades"]:
                     blade_cables.append((c, col))
@@ -5055,6 +5115,92 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _tc.warn_once("p2_jack_clear",
                               "p2 jack clearance skipped: %s: %s"
                               % (type(_e).__name__, _e))
+        if cfg.params.get("force_rails"):
+            # OWNER TUCK (2026-07-19, wave-15 render: "the leftmost shunt can
+            # be moved down with the RJ-45 moved up and that will definitely
+            # fit"): on a force_rails board an edge jack squatting the shunt
+            # row band (H/2 +- 9) tucks UP against J3's courtyard when the
+            # destination clears every other anchor. Done HERE because p2 owns
+            # + locks the jacks (a p3 attempt died on the pass-lock contract).
+            # J1's ~3mm lift clears RS3's band row (pads 21.0 vs centerline
+            # 23.7, a 0.85mm miss) and its courtyard overlap with the RS3
+            # seat; the walk's per-column shunt DROP completes the pair.
+            try:
+                _j3b = None
+                if "J3" in anchors and "J3" in comps:
+                    _jp3 = anchors["J3"]
+                    _jc0, _jc1, _jhw3, _jhh3 = _courtyard_info(
+                        comps["J3"], _jp3[2] if len(_jp3) > 2 else 0)
+                    _j3b = _jp3[1] + _jc1 + _jhh3
+                for _r in sorted(anchors):
+                    if (_j3b is None or _r not in comps
+                            or not _r.startswith("J") or _r == "J3"):
+                        continue
+                    _ap = anchors[_r]
+                    _c0, _c1, _jhw, _jhh = _courtyard_info(
+                        comps[_r], _ap[2] if len(_ap) > 2 else 0)
+                    _ay0 = _ap[1] + _c1 - _jhh
+                    _ay1 = _ap[1] + _c1 + _jhh
+                    if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
+                        continue
+                    _nay = _j3b + 0.4 + _jhh - _c1     # courtyard top against J3
+                    if _nay >= _ap[1]:
+                        continue                       # only ever moves UP
+                    _nx0 = _ap[0] + _c0 - _jhw
+                    _nx1 = _ap[0] + _c0 + _jhw
+                    _ny0 = _nay + _c1 - _jhh
+                    _ny1 = _nay + _c1 + _jhh
+                    _tclear, _tblk = True, None
+                    for _o, _op in anchors.items():
+                        # fiducials never block a jack tuck -- they are the
+                        # most relocatable object on the board (FID2 blocked
+                        # J1's 3mm lift, measured); an overlapped one is
+                        # NUDGED clear after the move.
+                        if _o in (_r, "J3") or _o not in comps or _o.startswith("FID"):
+                            continue
+                        _oc0, _oc1, _ohw, _ohh = _courtyard_info(
+                            comps[_o], _op[2] if len(_op) > 2 else 0)
+                        if (_op[0] + _oc0 - _ohw < _nx1 + 0.3
+                                and _op[0] + _oc0 + _ohw > _nx0 - 0.3
+                                and _op[1] + _oc1 - _ohh < _ny1 + 0.3
+                                and _op[1] + _oc1 + _ohh > _ny0 - 0.3):
+                            _tclear, _tblk = False, _o
+                            break
+                    if not _tclear:
+                        print(f"  [p2] jack {_r} tuck blocked by {_tblk} "
+                              f"(dest y {_nay:.1f})", file=sys.stderr, flush=True)
+                    if _tclear:
+                        anchors[_r] = (_ap[0], _nay,
+                                       _ap[2] if len(_ap) > 2 else 0.0)
+                        if P and _r in P:
+                            P[_r] = anchors[_r]
+                        print(f"  [p2] edge jack {_r} tucked up against J3 "
+                              f"(y->{_nay:.1f}) clear of the rail band stack",
+                              file=sys.stderr, flush=True)
+                        for _o in list(anchors):
+                            if not _o.startswith("FID") or _o not in comps:
+                                continue
+                            _op = anchors[_o]
+                            _oc0, _oc1, _ohw, _ohh = _courtyard_info(
+                                comps[_o], _op[2] if len(_op) > 2 else 0)
+                            if (_op[0] + _oc0 - _ohw < _nx1 + 0.3
+                                    and _op[0] + _oc0 + _ohw > _nx0 - 0.3
+                                    and _op[1] + _oc1 - _ohh < _ny1 + 0.3
+                                    and _op[1] + _oc1 + _ohh > _ny0 - 0.3):
+                                _fy = _ny0 - 0.5 - _ohh - _oc1   # above the jack
+                                if _fy - _ohh < 1.0:             # else below it
+                                    _fy = _ny1 + 0.5 + _ohh - _oc1
+                                anchors[_o] = (_op[0], _fy,
+                                               _op[2] if len(_op) > 2 else 0.0)
+                                if P and _o in P:
+                                    P[_o] = anchors[_o]
+                                print(f"  [p2] fiducial {_o} nudged clear of the "
+                                      f"tucked {_r} (y->{_fy:.1f})",
+                                      file=sys.stderr, flush=True)
+            except Exception as _e:                            # noqa: BLE001
+                _tc.warn_once("p2_rail_tuck",
+                              "p2 rail-band jack tuck skipped: %s: %s"
+                              % (type(_e).__name__, _e))
 
     # ============================================================ P3a: corridor spine (form the bands)
     def _p3_corridor_spine(_state):
@@ -5774,6 +5920,23 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 # via barrel + clearance
                 ah = 2.6 + 0.45 + 0.45
                 boxes.append(("__FORCERAIL__", ax - ah, ax + ah, ay - ah, ay + ah))
+            _sd = ch.get("snk_desc")
+            if _sd:
+                # the LO descent column: reserved so the lay's sink FACE-RETRY
+                # escape stays open (2026-07-19: a cluster cap 2.8mm off the
+                # column killed both the alt sink and its face retry)
+                _dx0, _dy0, _dy1, _dw = _sd
+                _dh = _dw / 2.0 + 0.75
+                boxes.append(("__FORCERAIL__", _dx0 - _dh, _dx0 + _dh,
+                              min(_dy0, _dy1), max(_dy0, _dy1)))
+            _sb = ch.get("snk_band")
+            if _sb:
+                # the sink band row, same rationale (a buffer IC under the row
+                # was the face-retry's next blocker)
+                _bx0, _bx1, _by, _bw = _sb
+                _bh = _bw / 2.0 + 0.75
+                boxes.append(("__FORCERAIL__", _bx0 - _bh, _bx1 + _bh,
+                              _by - _bh, _by + _bh))
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
