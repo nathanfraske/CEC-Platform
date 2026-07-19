@@ -3230,20 +3230,39 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 # right-side blockers only matter if the row would reach them; the stub
                 # seat extends right, so leave headroom
             
-            # WIDE SHUNT COLUMNS (strict rule): the sense cell needs pour-free ground
-            # around each shunt; shunts are NOT bound to the blade pitch (the LO lane
-            # fans shunt->blade), so columns spread to a cell pitch <= 16mm.
-            # NOTE (2026-07-19, twice-measured): J3-group-CENTROID columns (the
-            # straight-through geometry) were attempted under BOTH dual-sided and
-            # single-sided and scattered the cells each time (residual 3->22/29;
-            # shunts off the H/2 row AT COMPILE with the y-stagger gated off) -- a
-            # THIRD mover re-places the shunt clusters, prime suspect the p7
-            # functional-stamp pre-computed absolute positions. v3 forensic entry
-            # point; until then the even spread stands and crossing spines refuse.
+            # STRAIGHT-THROUGH SHUNT COLUMNS (owner directive; THIRD application,
+            # 2026-07-19 -- the first two were reverted because a "third mover"
+            # scattered the shunts off the seeded row. ABLATION CLOSED IT: the
+            # mover was the functional-stamp cell placement, and with the sense
+            # cells now BLUEPRINT-STAMPED (anchor-seated, p4b) the scatter is
+            # measurably gone -- RS row seeded and HELD at one y. Each rail's
+            # shunt seats at its J3 PIN-GROUP x-centroid (straight source spine);
+            # a monotone min-separation walk (>=12mm, the wide-cell intent) keeps
+            # cells + their neighbor's stub/array approach zones apart -- the
+            # measured 6mm even-spread crammed each cell onto the NEXT rail's
+            # via-array sites. The sink band absorbs the lateral to the
+            # FIXED-pitch TB row (the mating contract).
             _wu = (W or 100)
-            _cell_pitch = min(16.0, max(pitch, (_wu - x0 - _stub_ext - pitch) / max(1, len(shared))))
+            _min_sep = 12.0
+            _st_cols = []
+            for c in shared:
+                _gxs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                _tgt = (sum(_gxs) / len(_gxs)) if _gxs else (x0 + len(_st_cols) * _min_sep)
+                _lo_b = (_st_cols[-1] + _min_sep) if _st_cols else 6.0
+                _st_cols.append(max(_tgt, _lo_b))
+            # BACKWARD PULL-BACK (first lay, 2026-07-19: the forward walk pushed
+            # the last column to x=64, dead on the right-edge connector zone --
+            # J5 collider): clamp from the right bound and pull earlier columns
+            # left where the gap allows, keeping >= _min_sep throughout.
+            _rb = _wu - 10.0
+            for _i3 in range(len(_st_cols) - 1, -1, -1):
+                _ub = _rb if _i3 == len(_st_cols) - 1 else _st_cols[_i3 + 1] - _min_sep
+                _st_cols[_i3] = min(_st_cols[_i3], _ub)
+            for _i3 in range(1, len(_st_cols)):              # re-enforce separation L->R
+                _st_cols[_i3] = max(_st_cols[_i3], _st_cols[_i3 - 1] + _min_sep)
+            _st_cols = [max(6.0, _c2) for _c2 in _st_cols]
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
-                col = x0 + (_ci + 0.5) * _cell_pitch
+                col = _st_cols[_ci]
                 anchors[c["shunt"]] = (col, H / 2.0, 270.0)
                 seated.append(c["shunt"])
                 if c["j_out_blades"]:

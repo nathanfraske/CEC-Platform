@@ -55,8 +55,14 @@ def plan_bands(items, j3_bot):
     one-rank-per-rail stack measured ~26mm deep and walled the 24-pin's MCU out
     of its own board). Returns ({key: band_center_y}, total_depth). Rows are
     packed widest-span-first; a row's height is its widest member."""
+    # NARROWEST span first => the WIDEST bands land on the LOWEST rows (closest
+    # to the shunts). Measured consequence (first alt lay, 2026-07-19): pin
+    # drops descend from the J3 field to their own row -- with a full-width
+    # band (3V3 spans the whole connector) on the TOP row, every other rail's
+    # drops crossed it on the same alt layer and refused; widest-lowest means
+    # a rail's drops stop at their row before reaching any wider band.
     ranks, assign = [], {}
-    for it in sorted(items, key=lambda q: (-(q["x_hi"] - q["x_lo"]), q["key"])):
+    for it in sorted(items, key=lambda q: ((q["x_hi"] - q["x_lo"]), q["key"])):
         for ri, occ in enumerate(ranks):
             if all(it["x_hi"] + 1.0 < a or b + 1.0 < it["x_lo"] for a, b, _w in occ):
                 occ.append((it["x_lo"], it["x_hi"], it["w"]))
