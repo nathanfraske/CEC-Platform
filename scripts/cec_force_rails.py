@@ -73,39 +73,79 @@ def plan_bands(items, j3_bot):
     return {k: ys[ri] for k, ri in assign.items()}, (y - j3_bot)
 
 
-def plan_rail_chains(rails, j3_bot):
+def plan_rail_chains(rails, j3_bot, *, alt=False):
     """The IDEAL per-rail CHAIN segments -- pure data, THE one geometry source
-    (pour-strategy refinement §2.1/§2.4, owner GO 2026-07-19): the lay commits
-    these (with collider guards + dogleg fallbacks), the placement keepouts
-    inflate them, and the future pour compiler widens them. *rails* is the
-    discover_rails entry shape (rs/src_net/snk_net/amps/hi/lo/j3/tb; the
-    placement side builds the same shape from netlist+anchors). Returns
-    {rs: {w, band_y, src: [(x1,y1,x2,y2,w)], pin_drops: [...], snk: [...]}}."""
+    (pour-strategy refinement §2.1/§2.4 + §2.3 layer crossing, owner GO
+    2026-07-19): the lay commits these (guards adapt), the placement keepouts
+    inflate the FACE segments + array sites, the future pour compiler widens
+    them. *rails* = the discover_rails entry shape (j3/tb tuples carry a
+    trailing THT flag). Segments are 6-tuples (x1,y1,x2,y2,w,tag) with tag
+    "face"|"alt".
+
+    alt=True (the 24-pin In2 mode -- single-sided ASSEMBLY, not single-layer
+    copper: the board-class inner POWER-ROUTING layer): collection bands, pin
+    drops and sink runs live on the ALT layer, connecting J3/TB THT barrels
+    DIRECTLY (no via needed at a through pad) and passing legally under SMD
+    parts and foreign face copper; only the SMD shunt needs the face -- one
+    short face stub per side with a VIA ARRAY (n = max(2, ceil(amps/2)) at the
+    2A/via platform class) at the transition. A spine column that would cross
+    a FOREIGN alt band row falls back to a face column with its array moved up
+    to the band junction. Sink rows rank-stagger (shared-y alt rows of
+    different nets would mutually collide). Returns
+    {rs: {w, band_y, src, pin_drops, snk, arrays: [(x,y,n,net)]}}."""
     items = []
     for rl in rails:
         w = max(1.5, min(6.0, rl["amps"] * 0.25))
         xs = [q[1] for q in rl["j3"]] + [rl["hi"][0]]
         items.append({"key": rl["rs"], "w": w, "x_lo": min(xs), "x_hi": max(xs)})
     band_ys, _depth = plan_bands(items, j3_bot)
+    spans = {}
+    for rl, it in zip(rails, items):
+        spans[rl["rs"]] = (it["x_lo"], it["x_hi"], band_ys[rl["rs"]],
+                           max(1.5, min(6.0, rl["amps"] * 0.25)))
     out = {}
-    for rl in rails:
+    for rank, rl in enumerate(rails):
         w = max(1.5, min(6.0, rl["amps"] * 0.25))
         band_y = band_ys[rl["rs"]]
         hx, hy = rl["hi"]
         lx, lyy = rl["lo"]
+        n_via = max(2, int(math.ceil(rl["amps"] / 2.0)))
+        body = "alt" if alt else "face"
+        arrays = []
         xs = [q[1] for q in rl["j3"]] + [hx]
-        src = [(min(xs), band_y, max(xs), band_y, w),
-               (hx, band_y, hx, hy, w)]
-        pin_drops = [(px, py, px, band_y, min(w, 1.4), pn)
-                     for pn, px, py, _h in rl["j3"]]
+        if not alt:
+            src = [(min(xs), band_y, max(xs), band_y, w, "face"),
+                   (hx, band_y, hx, hy, w, "face")]
+        else:
+            # spine column: alt unless it crosses a FOREIGN alt band row
+            lo_y, hi_y = min(band_y, hy - 3.0), max(band_y, hy - 3.0)
+            crossed = any(lo_y < by < hi_y and (bx0 - bw / 2 - 0.5) <= hx <= (bx1 + bw / 2 + 0.5)
+                          for k2, (bx0, bx1, by, bw) in spans.items() if k2 != rl["rs"])
+            src = [(min(xs), band_y, max(xs), band_y, w, "alt")]
+            if crossed:
+                src.append((hx, band_y, hx, hy, w, "face"))
+                arrays.append((hx, band_y, n_via, rl["src_net"]))
+            else:
+                src.append((hx, band_y, hx, hy - 3.0, w, "alt"))
+                src.append((hx, hy - 3.0, hx, hy, w, "face"))
+                arrays.append((hx, hy - 3.0, n_via, rl["src_net"]))
+        pin_drops = [(px, py, px, band_y, min(w, 1.4), pn, body)
+                     for pn, px, py, _h, _tht in rl["j3"]]
         tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
-        band2 = max(lyy + 1.5, tb_y - 3.0)
+        band2 = max(lyy + 1.5, tb_y - 3.0 - (rank * 1.7 if alt else 0.0))
         txs = [q[2] for q in rl["tb"]] + [lx]
-        snk = [(lx, lyy, lx, band2, w),
-               (min(txs), band2, max(txs), band2, w)]
-        snk += [(tx, band2, tx, ty, w) for _r, _pn, tx, ty, _h in rl["tb"]]
+        if not alt:
+            snk = [(lx, lyy, lx, band2, w, "face"),
+                   (min(txs), band2, max(txs), band2, w, "face")]
+            snk += [(tx, band2, tx, ty, w, "face") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
+        else:
+            snk = [(lx, lyy, lx, lyy + 2.5, w, "face"),
+                   (lx, lyy + 2.5, lx, band2, w, "alt"),
+                   (min(txs), band2, max(txs), band2, w, "alt")]
+            snk += [(tx, band2, tx, ty, w, "alt") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
+            arrays.append((lx, lyy + 2.5, n_via, rl["snk_net"]))
         out[rl["rs"]] = {"w": w, "band_y": band_y, "src": src,
-                         "pin_drops": pin_drops, "snk": snk}
+                         "pin_drops": pin_drops, "snk": snk, "arrays": arrays}
     return out
 
 
@@ -149,10 +189,12 @@ def discover_rails(board):
         lo_p = p2 if hi_p is p1 else p1
         face = "B.Cu" if fp.IsFlipped() else "F.Cu"
         j3 = [(p.GetPadName(), p.GetPosition().x / MM, p.GetPosition().y / MM,
-               max(p.GetSize().x, p.GetSize().y) / (2 * MM))
+               max(p.GetSize().x, p.GetSize().y) / (2 * MM),
+               p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
               for r, p in pads_by_net[src] if r.startswith("J3")]
         tb = [(r, p.GetPadName(), p.GetPosition().x / MM, p.GetPosition().y / MM,
-               max(p.GetSize().x, p.GetSize().y) / (2 * MM))
+               max(p.GetSize().x, p.GetSize().y) / (2 * MM),
+               p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
               for r, p in pads_by_net[snk] if r.startswith("TB")]
         rails.append({
             "rs": ref, "src_net": src, "snk_net": snk,
@@ -165,13 +207,19 @@ def discover_rails(board):
     return rails
 
 
-def lay_force_rails(board, *, lock=True, verbose=True):
-    """Lay the per-rail force copper LOCKED. Returns {rs: report|'REFUSED: ...'}."""
+def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
+    """Lay the per-rail force copper LOCKED. Returns {rs: report|'REFUSED: ...'}.
+    *alt_layer* (e.g. "In2.Cu", the board-class inner POWER-ROUTING layer -- In1
+    stays the solid GND plane per the owner's 2026-07-19 ruling): plan in ALT
+    mode (bands/sinks on the inner layer, direct into THT barrels, via arrays at
+    the SMD shunt stubs). Absent/not-found -> face-only planning (unchanged)."""
     import pcbnew
     rails = discover_rails(board)
     if not rails:
         return {}
     layer_id = {"F.Cu": board.GetLayerID("F.Cu"), "B.Cu": board.GetLayerID("B.Cu")}
+    alt_id = board.GetLayerID(alt_layer) if alt_layer else -1
+    alt_on = alt_id >= 0
     netmap = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
     pads = []                                                  # foreign-guard universe
@@ -179,55 +227,122 @@ def lay_force_rails(board, *, lock=True, verbose=True):
         for p in fp.Pads():
             pos = p.GetPosition()
             pads.append((fp.GetReference(), p.GetNetname(), pos.x / MM, pos.y / MM,
-                         max(p.GetSize().x, p.GetSize().y) / (2 * MM)))
-    laid_segs = []                                             # this-run mutual guard
+                         max(p.GetSize().x, p.GetSize().y) / (2 * MM),
+                         p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH))
+    laid_segs = []                                             # (net, x1,y1,x2,y2, w, tag)
+    laid_vias = []                                             # (x, y)
 
     def _collide(plan, own_nets, skip_refs=()):
-        for (x1, y1, x2, y2, w, _ly) in plan:
-            for ref, net, px, py, half in pads:
+        """Layer-aware: an ALT segment passes under SMD pads (face-only copper)
+        and foreign face segments; it collides with THT barrels (all layers),
+        same-tag laid copper, and laid via barrels. FACE segments collide as
+        before (all pads + face copper + vias)."""
+        for (x1, y1, x2, y2, w, tag) in plan:
+            for ref, net, px, py, half, tht in pads:
                 if net in own_nets or ref.startswith(tuple(skip_refs) or ("\0",)):
+                    continue
+                if tag == "alt" and not tht:
                     continue
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < (w / 2 + half + 0.25) ** 2:
                     return "%s [%s] at (%.1f,%.1f)" % (ref, net, px, py)
-            for (net2, a1, b1, a2, b2, w2) in laid_segs:
-                if net2 in own_nets:
+            for (net2, a1, b1, a2, b2, w2, tag2) in laid_segs:
+                if net2 in own_nets or tag2 != tag:
                     continue
                 for t in (0.0, 0.25, 0.5, 0.75, 1.0):
                     qx, qy = x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
                     if _seg_pt_d2(qx, qy, a1, b1, a2, b2) < (w / 2 + w2 / 2 + 0.25) ** 2:
                         return "laid rail copper [%s]" % net2
+            for (vx, vy) in laid_vias:
+                if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2 + 0.45 + 0.25) ** 2:
+                    return "laid rail via at (%.1f,%.1f)" % (vx, vy)
         return None
 
-    def _commit(net, plan):
-        for (x1, y1, x2, y2, w, ly) in plan:
+    # generated ring-ordered grid (25 sites @1.3mm): the fat rails need real
+    # arrays -- 5V@25A -> 13 vias, 3V3@20A -> 10 (2A/via platform class); a
+    # 9-site hand list could never seat them (caught by the alt teeth)
+    _ARR_OFF = sorted(((dx * 1.3, dy * 1.3) for dx in range(-2, 3)
+                       for dy in range(-2, 3)),
+                      key=lambda q: (q[0] ** 2 + q[1] ** 2, q))
+
+    def _array_sites(x, y, n, own_nets):
+        """n clear through-barrel sites clustered at (x,y), or None (via barrels
+        pierce every layer -> clear of ALL pads regardless of tag)."""
+        sites = []
+        for dx, dy in _ARR_OFF:
+            if len(sites) >= n:
+                break
+            cx, cy = x + dx, y + dy
+            ok = all(not (net not in own_nets
+                          and (px - cx) ** 2 + (py - cy) ** 2 < (half + 0.45 + 0.25) ** 2)
+                     for ref, net, px, py, half, tht in pads)
+            ok = ok and all((vx - cx) ** 2 + (vy - cy) ** 2 >= 1.15 ** 2
+                            for vx, vy in (laid_vias + sites))
+            if ok:
+                sites.append((cx, cy))
+        return sites if len(sites) >= n else None
+
+    def _layer_of(tag, face_ly):
+        return alt_id if (tag == "alt" and alt_on) else face_ly
+
+    def _commit(net, plan, face_ly):
+        for (x1, y1, x2, y2, w, tag) in plan:
             t = pcbnew.PCB_TRACK(board)
             t.SetStart(pcbnew.VECTOR2I(int(x1 * MM), int(y1 * MM)))
             t.SetEnd(pcbnew.VECTOR2I(int(x2 * MM), int(y2 * MM)))
             t.SetWidth(int(w * MM))
-            t.SetLayer(ly)
+            t.SetLayer(_layer_of(tag, face_ly))
             ni = netmap.get(net)
             if ni is not None:
                 t.SetNet(ni)
             if lock:
                 t.SetLocked(True)
             board.Add(t)
-            laid_segs.append((net, x1, y1, x2, y2, w))
+            laid_segs.append((net, x1, y1, x2, y2, w, tag))
+
+    def _commit_array(net, sites):
+        for (cx, cy) in sites:
+            v = pcbnew.PCB_VIA(board)
+            v.SetViaType(pcbnew.VIATYPE_THROUGH)
+            v.SetPosition(pcbnew.VECTOR2I(int(cx * MM), int(cy * MM)))
+            v.SetDrill(int(0.5 * MM))
+            v.SetWidth(int(0.9 * MM))
+            ni = netmap.get(net)
+            if ni is not None:
+                v.SetNet(ni)
+            if lock:
+                v.SetLocked(True)
+            board.Add(v)
+            laid_vias.append((cx, cy))
 
     j3_ys = [q[2] for rl in rails for q in rl["j3"]]
     j3_bot = max(j3_ys) if j3_ys else 8.0
-    # ONE geometry source (§2.1/§2.4): the ideal chains; guards/doglegs below
-    # ADAPT them, the placement keepouts inflate the same plan.
-    chains = plan_rail_chains(rails, j3_bot)
+    # ONE geometry source (§2.1/§2.4/§2.3): the ideal chains (alt mode when the
+    # inner power-routing layer exists); guards below ADAPT them, the placement
+    # keepouts inflate the same plan's FACE segs + array sites.
+    chains = plan_rail_chains(rails, j3_bot, alt=alt_on)
     report = {}
     for rank, rl in enumerate(rails):
         _ch = chains[rl["rs"]]
         w = _ch["w"]
-        ly = layer_id[rl["face"]]
+        face_ly = layer_id[rl["face"]]
         own = {rl["src_net"], rl["snk_net"]}
-        band_y = _ch["band_y"]
-        hx, hy = rl["hi"]
+        # VIA ARRAYS first (alt mode; the transitions are essential -- a rail
+        # whose array cannot seat refuses loud)
+        arr_sites = []
+        _arr_fail = None
+        for (ax, ay, n_v, a_net) in _ch.get("arrays", ()):
+            s_ = _array_sites(ax, ay, n_v, own)
+            if s_ is None:
+                _arr_fail = "no clear %d-via array at (%.1f,%.1f)" % (n_v, ax, ay)
+                break
+            arr_sites.append((a_net, s_))
+        if _arr_fail:
+            report[rl["rs"]] = "REFUSED: " + _arr_fail
+            if verbose:
+                print("[force-rails] %s REFUSED: %s" % (rl["rs"], _arr_fail), flush=True)
+            continue
         # SOURCE band + spine from the plan (rail-fatal on collision)
-        spine = [(x1, y1, x2, y2, sw, ly) for (x1, y1, x2, y2, sw) in _ch["src"]]
+        spine = list(_ch["src"])
         col = _collide(spine, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
         if col:
             report[rl["rs"]] = "REFUSED: src spine vs " + col
@@ -237,16 +352,16 @@ def lay_force_rails(board, *, lock=True, verbose=True):
             continue
         picked, dropped = 0, []
         pin_plans = []
-        for (px, py, x2, y2, dw, pn) in _ch["pin_drops"]:
-            drop = [(px, py, x2, y2, dw, ly)]
+        for (px, py, x2, y2, dw, pn, dtag) in _ch["pin_drops"]:
+            drop = [(px, py, x2, y2, dw, dtag)]
             c2 = _collide(drop, own, skip_refs=(rl["rs"], "TB", "FID"))
             if c2 is None:
                 pin_plans += drop
                 picked += 1
             else:
                 dropped.append("J3.%s vs %s" % (pn, c2))
-        # SINK from the plan: lo -> shared lower band -> TB drops
-        snk = [(x1, y1, x2, y2, sw, ly) for (x1, y1, x2, y2, sw) in _ch["snk"]]
+        # SINK from the plan: lo -> lower band -> TB drops
+        snk = list(_ch["snk"])
         c3 = _collide(snk, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
@@ -254,16 +369,22 @@ def lay_force_rails(board, *, lock=True, verbose=True):
                 print("[force-rails] %s (%s) REFUSED snk: %s"
                       % (rl["rs"], rl["snk_net"], c3), flush=True)
             continue
-        _commit(rl["src_net"], spine + pin_plans)
-        _commit(rl["snk_net"], snk)
+        _commit(rl["src_net"], spine + pin_plans, face_ly)
+        _commit(rl["snk_net"], snk, face_ly)
+        for (a_net, s_) in arr_sites:
+            _commit_array(a_net, s_)
+        n_arr = sum(len(s_) for _n2, s_ in arr_sites)
         report[rl["rs"]] = {"segs": len(spine) + len(pin_plans) + len(snk),
                             "pins": "%d/%d" % (picked, len(rl["j3"])),
+                            "vias": n_arr, "alt": alt_on,
                             "w": w, "face": rl["face"],
                             "dropped_pins": dropped}
         if verbose:
-            print("[force-rails] %s %s->%s laid: %d segs, pins %d/%d, w=%.1f on %s%s"
+            print("[force-rails] %s %s->%s laid: %d segs + %d array via(s), "
+                  "pins %d/%d, w=%.1f%s%s"
                   % (rl["rs"], rl["src_net"], rl["snk_net"],
-                     report[rl["rs"]]["segs"], picked, len(rl["j3"]), w, rl["face"],
+                     report[rl["rs"]]["segs"], n_arr, picked, len(rl["j3"]), w,
+                     (" [alt=%s]" % alt_layer) if alt_on else "",
                      (" (dropped: %s)" % "; ".join(dropped)) if dropped else ""),
                   flush=True)
     return report

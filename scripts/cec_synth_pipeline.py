@@ -5670,25 +5670,37 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             amps = {"12": 12.0, "3V3": 20.0, "5VSB": 5.0}.get(
                 next((k for k in ("5VSB", "3V3", "12") if k in (c["hi"] or "").upper()), ""), 25.0)
             try:
-                j3pads = [(p_, *cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps), 0.9)
+                # trailing True = THT (J3 Mini-Fit + TB blades are through-hole
+                # by construction -- the alt-layer plan connects them directly)
+                j3pads = [(p_, *cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps), 0.9, True)
                           for _r2, p_ in nl.nets.get(c["hi"], []) if _r2 == "J3"]
             except Exception:                               # noqa: BLE001
                 j3pads = []
-            tbs = [(_r2, "1", pos_of(_r2)[0], pos_of(_r2)[1], 1.2)
+            tbs = [(_r2, "1", pos_of(_r2)[0], pos_of(_r2)[1], 1.2, True)
                    for _r2, _p2 in nl.nets.get(c["lo"], [])
                    if _r2.startswith("TB") and pos_of(_r2)]
             rails_data.append({"rs": c["shunt"], "src_net": c["hi"], "snk_net": c["lo"],
                                "amps": amps, "hi": (sx, sy), "lo": (sx, sy),
                                "j3": sorted(j3pads, key=lambda q: q[1]),
                                "tb": sorted(tbs, key=lambda q: q[2])})
-        chains = _cfr.plan_rail_chains(rails_data, j3_bot)
+        _alt_on = bool(cfg.params.get("rail_alt_layer"))
+        chains = _cfr.plan_rail_chains(rails_data, j3_bot, alt=_alt_on)
         boxes = []
         for rs2, ch in chains.items():
             half = ch["w"] / 2.0 + 0.75
-            for (x1, y1, x2, y2, _sw) in list(ch["src"]) + list(ch["snk"]):
+            # Reserve ONLY the FACE segments (alt copper passes under parts --
+            # §2.3: reserving the inner-layer runs would re-tile the board for
+            # nothing) + the via-array sites (through barrels need part-free
+            # spots).
+            for (x1, y1, x2, y2, _sw, _tag) in list(ch["src"]) + list(ch["snk"]):
+                if _tag != "face":
+                    continue
                 boxes.append(("__FORCERAIL__",
                               min(x1, x2) - half, max(x1, x2) + half,
                               min(y1, y2) - half, max(y1, y2) + half))
+            for (ax, ay, n_v, _an) in ch.get("arrays", ()):
+                ah = 1.3 + 0.9
+                boxes.append(("__FORCERAIL__", ax - ah, ax + ah, ay - ah, ay + ah))
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
@@ -8805,7 +8817,8 @@ def materialize(cand, cfg, out, *, logo=None):
             import cec_force_rails
             import pcbnew as _pcb_fr
             _rlb = _pcb_fr.LoadBoard(out)
-            _frr = cec_force_rails.lay_force_rails(_rlb, lock=True)
+            _frr = cec_force_rails.lay_force_rails(
+                _rlb, lock=True, alt_layer=cfg.params.get("rail_alt_layer"))
             if _frr:
                 _pcb_fr.SaveBoard(out, _rlb)
             _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}

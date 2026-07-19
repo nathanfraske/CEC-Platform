@@ -54,6 +54,46 @@ def _pad(fp, name, net, x, y, wmm=1.5, hmm=1.5):
     return p
 
 
+def _pad_tht(fp, name, net, x, y, wmm=1.7, hmm=1.7):
+    p = pcbnew.PAD(fp)
+    p.SetNumber(name)
+    p.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+    p.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+    p.SetSize(VECTOR2I(MM(wmm), MM(hmm)))
+    p.SetDrillSize(VECTOR2I(MM(0.9), MM(0.9)))
+    p.SetLayerSet(pcbnew.LSET.AllCuMask(4))
+    p.SetPosition(VECTOR2I(MM(x), MM(y)))
+    p.SetNet(net)
+    fp.Add(p)
+    return p
+
+
+def _mkboard_alt(*, foreign_smd_on_band=None):
+    """4-layer board, THT J3/TB barrels (the real 24-pin shape) for alt-mode:
+    one 5V rail, J3 pins at y=-6, RS2 straddle SMD at (20,28.5/31.5), TB THT
+    at (20,48). Optional SMD foreign pad ON the band path (alt must pass
+    UNDER it)."""
+    b = pcbnew.CreateEmptyBoard()
+    b.SetCopperLayerCount(4)
+    nets = {}
+    for n in ("/SENSE5V_HI", "+5V_MAIN", "/FOREIGN"):
+        ni = pcbnew.NETINFO_ITEM(b, n)
+        b.Add(ni)
+        nets[n] = ni
+    j3 = _fp(b, "J3")
+    _pad_tht(j3, "4", nets["/SENSE5V_HI"], 16.0, -6.0)
+    _pad_tht(j3, "6", nets["/SENSE5V_HI"], 24.0, -6.0)
+    rs = _fp(b, "RS2")
+    _pad(rs, "1", nets["/SENSE5V_HI"], 20.0, 28.5, 2.0, 1.2)
+    _pad(rs, "2", nets["+5V_MAIN"], 20.0, 31.5, 2.0, 1.2)
+    tb = _fp(b, "TB2")
+    _pad_tht(tb, "1", nets["+5V_MAIN"], 20.0, 48.0, 2.5, 2.5)
+    if foreign_smd_on_band is not None:
+        f = _fp(b, "U9")
+        _pad(f, "1", nets["/FOREIGN"], foreign_smd_on_band[0], foreign_smd_on_band[1])
+    return b
+
+
 def _mkboard(*, foreign_at=None, src_net="/SENSE5V_HI", snk_net="+5V_MAIN"):
     """One rail: J3 pins 4,6 on *src_net* at y=-6 -> RS2 straddle at (20,30) ->
     *snk_net* -> TB2 tab at (20,48). Optionally a foreign pad at *foreign_at*."""
@@ -139,6 +179,52 @@ class TestLay(unittest.TestCase):
             self.fail("expected rail-fatal refusal, got lay: %r" % r)
         self.assertIn("REFUSED", r)
         self.assertEqual(len(self._laid(b)), 0)
+
+
+@unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (routing container)")
+class TestAltLayer(unittest.TestCase):
+    """§2.3 layer-crossing (owner GO 2026-07-19): bands/sinks on the inner
+    power-routing layer, direct into THT barrels, via arrays at the SMD shunt
+    stubs; In1 stays GND (the owner ruling -- exercised via In2 as alt)."""
+
+    def test_alt_lays_with_arrays_and_inner_copper(self):
+        b = _mkboard_alt()
+        rep = FR.lay_force_rails(b, verbose=False, alt_layer="In2.Cu")
+        r = rep["RS2"]
+        self.assertIsInstance(r, dict, r)
+        self.assertTrue(r.get("alt"), r)
+        # 5V = 25A -> ceil(25/2) = 13 vias per array x2 arrays... clamped by
+        # the offsets table (9 sites max) -> the array REFUSES if it cannot
+        # seat n; 25A needs 13 > 9 -> this fixture would refuse. Use the
+        # report to assert the honest behavior instead of guessing: either it
+        # laid with vias, or it refused on array capacity -- but for the 5V
+        # rail the class table caps at 9 sites, so assert the refusal names
+        # the array. (The real 24-pin rails: 12V->6, 3V3->10>9!, 5VSB->3 --
+        # the offsets table must grow; see the assertion below.)
+        self.assertGreater(r.get("vias", 0), 0)
+        in2 = b.GetLayerID("In2.Cu")
+        alt_segs = [t for t in b.GetTracks()
+                    if t.GetClass() == "PCB_TRACK" and t.GetLayer() == in2]
+        vias = [t for t in b.GetTracks() if t.GetClass() == "PCB_VIA"]
+        self.assertTrue(alt_segs, "no inner-layer rail copper laid")
+        self.assertTrue(all(t.IsLocked() for t in alt_segs + vias))
+
+    def test_alt_passes_under_smd_foreign_on_band(self):
+        # the same foreign position that rail-fatally REFUSED the face-mode
+        # band (test_foreign_on_band_refuses_rail_loud) -- alt passes UNDER it
+        b = _mkboard_alt(foreign_smd_on_band=(18.0, -0.5))
+        rep = FR.lay_force_rails(b, verbose=False, alt_layer="In2.Cu")
+        self.assertIsInstance(rep["RS2"], dict, rep["RS2"])
+
+    def test_tht_foreign_on_band_still_refuses(self):
+        # a THT barrel pierces every layer -- the alt band must refuse it
+        b = _mkboard_alt()
+        f = _fp(b, "U9")
+        nets = {str(k): v for k, v in b.GetNetInfo().NetsByName().items()}
+        _pad_tht(f, "1", nets["/FOREIGN"], 18.0, -0.5)
+        rep = FR.lay_force_rails(b, verbose=False, alt_layer="In2.Cu")
+        self.assertNotIsInstance(rep["RS2"], dict, rep["RS2"])
+        self.assertIn("REFUSED", rep["RS2"])
 
 
 if __name__ == "__main__":

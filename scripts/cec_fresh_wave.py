@@ -250,6 +250,15 @@ BOARD_PARAMS = {
                        # (cec_force_rails -- J3 group -> straddle shunt -> TBs) laid
                        # locked at materialize; refusals teach the placer.
                        "force_rails": True,
+                       # LAYER-CROSSING RAILS (owner 2026-07-19: "it should be able
+                       # to cross layers with via arrays ... keep one INNER layer
+                       # as GND, use the other for power routing"): In1 = the solid
+                       # GND plane, In2 = the rail alt layer -- bands/sinks on In2
+                       # direct into the J3/TB THT barrels, via arrays only at the
+                       # SMD shunt stubs. inner_power_routing frees In2 in
+                       # build_board (the board-class stackup exception made real).
+                       "inner_power_routing": True,
+                       "rail_alt_layer": "In2.Cu",
                        # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to
