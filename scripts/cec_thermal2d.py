@@ -501,6 +501,19 @@ def _resid_ok(Aspmat, rhs, x, tol=1e-6):
     return float(np.linalg.norm(Aspmat @ x - rhs)) <= tol * b
 
 
+def _resolve_backend(backend):
+    """Apply the CEC_THERMAL_BACKEND env override (auto|cpu|gpu) to an 'auto'
+    backend argument. An EXPLICIT caller argument always wins; the env only
+    resolves 'auto' (owner ask 2026-07-18: run wave thermals coarse on CPU for
+    now -- the env knob forces cpu fleet-wide without touching call sites).
+    Unknown env values are ignored (auto stands)."""
+    if backend == "auto":
+        env = os.environ.get("CEC_THERMAL_BACKEND", "").strip().lower()
+        if env in ("cpu", "gpu", "auto"):
+            return env or "auto"
+    return backend
+
+
 def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     """Solve a symmetric positive-(semi)definite sparse system. Small -> spsolve;
     large -> CG with a Jacobi preconditioner (GPU via cupy if backend allows +
@@ -512,6 +525,7 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     preconditioner stalls and the AMG leg builds a fresh hierarchy anyway, the fresh aspreconditioner is
     handed back in precond_out['precond'] so the Picard caller REPLACES its stale copy -- without this, every
     later iteration re-pays the stalled 400-iteration reuse attempt PLUS a discarded fresh AMG setup."""
+    backend = _resolve_backend(backend)
     n = rhs.shape[0]
     _reuse_stalled = False
     if precond is not None and n >= 8000:
@@ -545,7 +559,8 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     # None on any cupy/build/stall failure -> falls through to the guaranteed-correct CPU AMG below. Default
     # OFF until soaked. Reuse across the Picard loop (build_precond once) is the ~1.8x end-to-end amortization.
     gpu_amg_min = int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "300000"))   # measured crossover (soak 2026-06-27)
-    if os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0" and n >= gpu_amg_min:   # ON by default (soak-verified); =0 opts out
+    if (backend != "cpu"                                     # a cpu backend request must ALSO skip the GPU-AMG try
+            and os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0" and n >= gpu_amg_min):   # ON by default; =0 opts out
         try:
             import cec_gpu_amg
             x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs)

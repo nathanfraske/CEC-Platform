@@ -507,8 +507,16 @@ def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
         best["thermal"] = {"ok": False, "dT": None, "max_T": None,
                            "note": "new best has no routed board -- thermal not solvable"}
         return new_best
+    # COARSE-ON-CPU knob (owner ask 2026-07-18): CEC_WAVE_THERMAL_GRID_MM coarsens the
+    # wave stamp's grid (0.4 = the gate default; 0.8 ~= 4x fewer cells, which also lands
+    # the solve under the GPU auto-engage floor -> fast CPU-AMG); pair with
+    # CEC_THERMAL_BACKEND=cpu to pin the backend. PROVENANCE: grid_mm + backend are
+    # stamped into the result so a coarse CPU number is never read as the 0.4 mm gate
+    # figure (a coarse grid under-resolves thin necks -> optimistic dT; the mirage
+    # guard + double-solve confirm still apply, but gate-grade thermal stays 0.4).
+    grid_mm = float(os.environ.get("CEC_WAVE_THERMAL_GRID_MM", "0.4"))
     solve = solve or (lambda p: csp._oracle_thermal(p, ambient=50.0, gate_dt=30.0,
-                                                    grid_mm=0.4))
+                                                    grid_mm=grid_mm))
     env = env or csp._oracle_env
     try:
         with env(board_params):
@@ -516,6 +524,12 @@ def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
     except Exception as e:                              # noqa: BLE001 -- FAIL-CLOSED
         therm = {"ok": False, "dT": None, "max_T": None, "gate_dt": 30.0,
                  "error": "%s: %s" % (type(e).__name__, e)}
+    if isinstance(therm, dict):
+        therm.setdefault("grid_mm", grid_mm)
+        _be = os.environ.get("CEC_THERMAL_BACKEND", "").strip().lower()
+        therm.setdefault("backend", _be or "auto")
+        if grid_mm > 0.4:
+            therm.setdefault("provenance", "coarse (%.1fmm > 0.4mm gate grid)" % grid_mm)
     best["thermal"] = therm
     best["thermal_ok"] = bool(therm.get("ok"))
     return new_best
