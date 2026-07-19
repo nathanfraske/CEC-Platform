@@ -48,6 +48,31 @@ def _amps_for(nets):
     return 10.0
 
 
+def plan_bands(items, j3_bot):
+    """Greedy interval-packed BAND rows (shared by the lay and the placement
+    keepouts -- one geometry, two consumers). *items* = [{key, w, x_lo, x_hi}];
+    bands whose x-spans clear each other by >=1.0mm SHARE a row (the naive
+    one-rank-per-rail stack measured ~26mm deep and walled the 24-pin's MCU out
+    of its own board). Returns ({key: band_center_y}, total_depth). Rows are
+    packed widest-span-first; a row's height is its widest member."""
+    ranks, assign = [], {}
+    for it in sorted(items, key=lambda q: (-(q["x_hi"] - q["x_lo"]), q["key"])):
+        for ri, occ in enumerate(ranks):
+            if all(it["x_hi"] + 1.0 < a or b + 1.0 < it["x_lo"] for a, b, _w in occ):
+                occ.append((it["x_lo"], it["x_hi"], it["w"]))
+                assign[it["key"]] = ri
+                break
+        else:
+            ranks.append([(it["x_lo"], it["x_hi"], it["w"])])
+            assign[it["key"]] = len(ranks) - 1
+    ys, y = {}, j3_bot + 2.5
+    for ri, occ in enumerate(ranks):
+        h = max(w for _a, _b, w in occ)
+        ys[ri] = y + h / 2.0
+        y += h + 1.2
+    return {k: ys[ri] for k, ri in assign.items()}, (y - j3_bot)
+
+
 def _seg_pt_d2(x, y, sx, sy, ex, ey):
     dx, dy = ex - sx, ey - sy
     L2 = dx * dx + dy * dy
@@ -154,12 +179,19 @@ def lay_force_rails(board, *, lock=True, verbose=True):
 
     j3_ys = [q[2] for rl in rails for q in rl["j3"]]
     j3_bot = max(j3_ys) if j3_ys else 8.0
+    _items = []
+    for rl in rails:
+        _w = max(1.5, min(6.0, rl["amps"] * 0.25))
+        _xs = [q[1] for q in rl["j3"]] + [rl["hi"][0]]
+        _items.append({"key": rl["rs"], "w": _w,
+                       "x_lo": min(_xs), "x_hi": max(_xs)})
+    band_ys, _depth = plan_bands(_items, j3_bot)
     report = {}
     for rank, rl in enumerate(rails):
         w = max(1.5, min(6.0, rl["amps"] * 0.25))
         ly = layer_id[rl["face"]]
         own = {rl["src_net"], rl["snk_net"]}
-        band_y = j3_bot + 2.5 + rank * (w + 1.2)
+        band_y = band_ys[rl["rs"]]
         hx, hy = rl["hi"]
         # SOURCE band + spine (rail-fatal on collision)
         xs = [q[1] for q in rl["j3"]] + [hx]
@@ -185,8 +217,9 @@ def lay_force_rails(board, *, lock=True, verbose=True):
         # SINK: lo -> lower band -> TB drops
         lx, lyy = rl["lo"]
         tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
-        band2 = lyy + 2.0 + rank * 1.2
-        band2 = min(band2, tb_y - 2.0)
+        # ONE shared sink row just above the TB field: post-straight-through the
+        # sink runs are short verticals with x-disjoint spans -- no rank stack
+        band2 = max(lyy + 1.5, tb_y - 3.0)
         txs = [q[2] for q in rl["tb"]] + [lx]
         snk = [(lx, lyy, lx, band2, w, ly),
                (min(txs), band2, max(txs), band2, w, ly)]

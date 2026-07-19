@@ -5093,7 +5093,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         _oa[1] + _ocy[1] - _ocy[3], _oa[1] + _ocy[1] + _ocy[3])
             _occ = [_anchor_box(_o) for _o in anchors if _o in comps]
             _env = _blueprint_env_boxes(lambda d: anchors.get(d)) \
-                + _force_corridor_boxes(lambda d: anchors.get(d))
+                + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d))
             _cb = (_can_x + _can_cy[0] - _can_cy[2], _can_x + _can_cy[0] + _can_cy[2],
                    _can_y + _can_cy[1] - _can_cy[3], _can_y + _can_cy[1] + _can_cy[3])
             # _box_clear, NOT an inline AABB: _env entries are LABELED 5-tuples
@@ -5137,7 +5137,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
                         + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3])
                        for _o in anchors if _o in comps]
-            _rg_env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            _rg_env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d))
             _rg_pts = [(W / 2.0, H / 2.0)] if _rg.get("score") == "center" else []
             _rg_placed, _rg_rot = _seat_mcu_macro(
                 _offs, comps, W, H, forbid_boxes=_rg_env, occ_boxes=_rg_occ,
@@ -5175,6 +5175,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # to the ordinary relative_place/anneal IC path UNCHANGED (byte-identical
         # elsewhere -- the golden-safety discipline).
         if _esp is None and (cfg.params.get("force_lanes")
+                             or cfg.params.get("force_rails")
                              or cfg.params.get("mcu_cluster_seat")):
             _mcu_esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
                              or "rf_module" in (comps.get(r, "") or "").lower()), None)
@@ -5214,8 +5215,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     # measured convention -> side -1)
                     antenna_side=-1)
                 _mcu_env = (_blueprint_env_boxes(lambda d: anchors.get(d))
-                           + _force_corridor_boxes(lambda d: anchors.get(d)))
+                           + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d)))
                 _mcu_occ = [_mcu_true_box(_o, anchors[_o]) for _o in anchors if _o in comps]
+                # x_range derives from LANE boxes only (the 12vhpwr logic-column
+                # geometry); rail boxes span most of a shared-bus board's width
+                # and would poison x0 -- rails constrain via _mcu_env instead,
+                # so a force_rails board seats full-range around the corridors.
                 _mcu_lanes = _force_corridor_boxes(lambda d: anchors.get(d))
                 _mcu_x0 = (max(b[2] for b in _mcu_lanes) + 1.0) if _mcu_lanes else 0.0
                 # hub-class (mcu_cluster_seat, no lanes): full-board x_range; the
@@ -5440,7 +5445,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # seat whose courtyard center landed in a cell envelope out the nearest
         # edge (fixpoint across the tiled lane boxes).
         _env3 = (_blueprint_env_boxes(lambda d: anchors.get(d))
-                 + _force_corridor_boxes(lambda d: anchors.get(d)))
+                 + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d)))
         if _env3:
             for _r in ([_esp] if _esp else []) + list(_can_seated) + list(_sw_seated):
                 if _r not in anchors or _r not in comps or _r in _bp_refs:
@@ -5615,6 +5620,68 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         ymid = (j3[1] + j4[1]) / 2.0
         for lx in lanes:
             boxes.append(("__FORCELANE__", lx - 1.7, lx + 1.7, j3[1] + depth, ymid))
+        return boxes
+
+    def _force_rail_boxes(pos_of):
+        """Placement keepouts for the FORCE-RAIL copper (the shared-bus 24-pin
+        zone creator, owner GO 2026-07-19). The first live lay measured 0/4
+        rails: with no reservation, decouplers/buttons/other shunts squat every
+        band row (C3, C17, SW2, RS3-in-the-5V-spine -- named colliders,
+        build/fresh-wave-24pin-rails.log). Boxes mirror cec_force_rails' band
+        geometry from the SAME topology the TB row permutation uses: per rail,
+        (a) the source band row below the J3 field (rank-staggered), (b) the
+        J3-group->shunt spine column, (c) the shunt->TB sink column. Gated on
+        params['force_rails'] + shared-bus topo -> absent = byte-identical."""
+        if not (cfg.params.get("force_rails") and _topo):
+            return []
+        rails = [c for c in _topo if c.get("shared_bus") and pos_of(c.get("shunt"))]
+        if not rails:
+            return []
+        j3p = pos_of("J3")
+        if j3p is None:
+            return []
+        rails.sort(key=lambda c: pos_of(c["shunt"])[0])
+        # j3_bot from the connector's pad field (pad_global needs comps; fall
+        # back to the anchor +6.5 -- the 24-pin J3 field is ~6.5mm deep)
+        try:
+            _jys = [cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps)[1]
+                    for _n2, _pads in nl.nets.items() for _r2, p_ in _pads
+                    if _r2 == "J3"]
+            j3_bot = max(_jys) if _jys else j3p[1] + 6.5
+        except Exception:                                   # noqa: BLE001
+            j3_bot = j3p[1] + 6.5
+        import cec_force_rails as _cfr
+        items, geo = [], {}
+        for c in rails:
+            sx, sy = pos_of(c["shunt"])[:2]
+            amps = {"12": 12.0, "3V3": 20.0, "5VSB": 5.0}.get(
+                next((k for k in ("5VSB", "3V3", "12") if k in (c["hi"] or "").upper()), ""), 25.0)
+            w = max(1.5, min(6.0, amps * 0.25))
+            try:
+                jxs = [cec_pcb.pad_global("J3", p_, {"J3": j3p}, comps)[0]
+                       for _r2, p_ in nl.nets.get(c["hi"], []) if _r2 == "J3"]
+            except Exception:                               # noqa: BLE001
+                jxs = []
+            x_lo = min(jxs + [sx]) if jxs else sx
+            x_hi = max(jxs + [sx]) if jxs else sx
+            items.append({"key": c["shunt"], "w": w, "x_lo": x_lo, "x_hi": x_hi})
+            geo[c["shunt"]] = (sx, sy, w, x_lo, x_hi, c)
+        # ONE planner for the lay AND these keepouts (cec_force_rails.plan_bands:
+        # x-disjoint bands share a row -- the naive per-rail stack measured ~26mm
+        # deep and walled the MCU out of the board)
+        band_ys, _depth = _cfr.plan_bands(items, j3_bot)
+        boxes = []
+        for key, (sx, sy, w, x_lo, x_hi, c) in geo.items():
+            band_y = band_ys[key]
+            half = w / 2.0 + 0.75
+            boxes.append(("__FORCERAIL__", x_lo - half, x_hi + half,
+                          band_y - half, band_y + half))
+            boxes.append(("__FORCERAIL__", sx - half, sx + half, band_y, sy))
+            tbs = [pos_of(_r2) for _r2, _p2 in nl.nets.get(c["lo"], [])
+                   if _r2.startswith("TB") and pos_of(_r2)]
+            if tbs:
+                tb_y = min(t[1] for t in tbs)
+                boxes.append(("__FORCERAIL__", sx - half, sx + half, sy, tb_y))
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
@@ -5943,7 +6010,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if not nbr_pts:
                 nbr_pts = [(W / 2.0, H / 2.0)]
             occ = [boxes[o] for o in boxes if o != r]
-            env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
+            env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d))
             offs = {r: (0.0, 0.0, P[r][2] if len(P[r]) > 2 else 0.0)}
             # DENSIFY LADDER (owner GO 2026-07-19, "still placement overlaps"): a
             # jellybean-sized park failing at grid 1.0 is a SEARCH-SCOPE miss, not
@@ -6025,7 +6092,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # not move locked refs -- repair belongs HERE, the owning pass). Slide t
             # along the segment to the first envelope-free spot; midpoint when free.
             _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
-                       + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+                       + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)) + _force_rail_boxes(lambda d: P.get(d) or anchors.get(d)))
             mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0
             for _t in (0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82, 0.12, 0.88):
                 _px = pa[0] + _t * (pb[0] - pa[0])
@@ -6055,7 +6122,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # J3's sideband cluster fan R13 vs lane 1). Displace out the nearest envelope
         # edge NOW, while this pass still owns the refs, then re-legalize the moved set.
         _bp_env = (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
-                   + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+                   + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)) + _force_rail_boxes(lambda d: P.get(d) or anchors.get(d)))
         if _bp_env:
             _stamped_here = set(_func_stamped)
             _stamped_here |= {pref for offs in cluster_offsets.values() for pref in offs}
@@ -6150,7 +6217,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # collision on a dense board. Empty _bp_refs -> no boxes -> byte-identical.
         if _bp_refs:
             _bpb = (_blueprint_env_boxes(lambda d: P.get(d))
-                    + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+                    + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)) + _force_rail_boxes(lambda d: P.get(d) or anchors.get(d)))
             _pour_boxes = list(_pour_boxes) + _bpb
             if os.environ.get("CEC_BP_DEBUG"):
                 for _nn, _x0, _x1, _y0, _y1 in _bpb:

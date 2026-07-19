@@ -130,9 +130,9 @@ class TestLay(unittest.TestCase):
         self.assertTrue(any("J3.4" in d for d in r["dropped_pins"]))
 
     def test_foreign_on_band_refuses_rail_loud(self):
-        # foreign pad dead on the source band row (band_y = j3_bot+2.5 = 4.5?
-        # j3_bot=2.0 -> band 4.5; put it mid-band x=20 ... use the spine midpoint)
-        b = _mkboard(foreign_at=(18.0, 4.5))
+        # foreign pad dead on the source band row (plan_bands center for the
+        # single w=6 rail: j3_bot(-6) + 2.5 + w/2 = -0.5)
+        b = _mkboard(foreign_at=(18.0, -0.5))
         rep = FR.lay_force_rails(b, verbose=False)
         r = rep["RS2"]
         if isinstance(r, dict):                            # geometry drifted -> fail loud
