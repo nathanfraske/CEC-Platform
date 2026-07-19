@@ -4386,7 +4386,7 @@ def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, marg
 
 
 def _mcu_cluster_offsets(nl, passives, ic_refs, anchor_refs, esp, comps, *, drop_keepout=(),
-                         analog_refs=(), slim_axis=None, clr=0.45):
+                         analog_refs=(), slim_axis=None, clr=0.45, antenna_side=None):
     """Owner directive 2026-07-12 ('the ESP definitely needs to be moveable/rotatable as a
     ladder piece ... pack [its decouplers, status LED, etc] together'): the passives *esp*
     OWNS through the SAME ownership machinery p4_cluster_learn uses (derive_passive_spec --
@@ -4466,7 +4466,18 @@ def _mcu_cluster_offsets(nl, passives, ic_refs, anchor_refs, esp, comps, *, drop
                 px, py = cec_pcb.pad_global(esp, pad, {esp: (0.0, 0.0, 0.0)}, comps)
             except Exception:                            # noqa: BLE001
                 px, py = 0.0, 0.0
-            rows[-1 if py < ec[1] else +1].append((px, p))
+            _sgn = -1 if py < ec[1] else +1
+            # ANTENNA-SIDE CONSTRAINT (FOLLOWUPS 2026-07-14, owner report 2026-07-19
+            # "the MCU hasn't been rotated so the antenna overhangs the edge"): a
+            # satellite row on the antenna face makes the MACRO extent -- not the
+            # antenna face -- the seat bound, so _seat_mcu_macro's antenna_overhang
+            # can never engage (measured: winner stuck at 2.8mm standoff, waves 8-9).
+            # All satellites pack the NON-antenna row; longer decoupler wires on the
+            # antenna-half pads are the accepted trade for the edge-overhang area win
+            # (alpha hand-board geometry).
+            if antenna_side is not None and _sgn == antenna_side:
+                _sgn = -antenna_side
+            rows[_sgn].append((px, p))
         for sign, row in rows.items():
             row.sort()
             spans = [(p, _courtyard_info(comps[p], 0.0)) for _px, p in row]
@@ -4479,6 +4490,21 @@ def _mcu_cluster_offsets(nl, passives, ic_refs, anchor_refs, esp, comps, *, drop
     elif members:
         cec_pcb.auto_cluster(Ptmp, comps, {p: (esp, pad) for p, pad in members},
                              drop_keepout=drop_keepout)
+        if antenna_side is not None:
+            # free-fan branch: mirror any satellite whose courtyard crosses the
+            # ESP's antenna-face courtyard edge to the opposite flank (about the
+            # ESP courtyard centre-y; rot kept -- 2-pad jellybeans are symmetric,
+            # and the downstream legalizer/anneal resolves residual overlaps).
+            _ec = _courtyard_info(comps[esp], 0.0)
+            _face = _ec[1] + antenna_side * _ec[3]
+            for _p in list(Ptmp):
+                if _p == esp:
+                    continue
+                _dx, _dy, _rt = Ptmp[_p]
+                _pc = _courtyard_info(comps[_p], _rt)
+                _ext = _dy + _pc[1] + antenna_side * _pc[3]
+                if (antenna_side < 0 and _ext < _face) or (antenna_side > 0 and _ext > _face):
+                    Ptmp[_p] = (_dx, 2.0 * _ec[1] - _dy, _rt)
     xs, ys = [], []
     for r in Ptmp:
         x0, x1, y0, y1 = cec_pcb.courtyard_bbox(
@@ -5164,7 +5190,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     _mcu_esp, comps,
                     slim_axis=str(cfg.params.get("mcu_slim_axis", "x")),
                     analog_refs={r for r, _role2 in anchors_roles.items()
-                                 if _role2 in ("power_in", "power_out")})
+                                 if _role2 in ("power_in", "power_out")},
+                    # keep the antenna face clear so the seat's antenna_overhang can
+                    # engage (local antenna dir is (0,-1) on the MINI/C6/WROOM
+                    # measured convention -> side -1)
+                    antenna_side=-1)
                 _mcu_env = (_blueprint_env_boxes(lambda d: anchors.get(d))
                            + _force_corridor_boxes(lambda d: anchors.get(d)))
                 _mcu_occ = [_mcu_true_box(_o, anchors[_o]) for _o in anchors if _o in comps]
@@ -5809,16 +5839,45 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             occ = [boxes[o] for o in boxes if o != r]
             env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d))
             offs = {r: (0.0, 0.0, P[r][2] if len(P[r]) > 2 else 0.0)}
-            placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
-                                           occ_boxes=occ, score_points=nbr_pts,
-                                           grid=1.0, edge_soft=2.0)
+            # DENSIFY LADDER (owner GO 2026-07-19, "still placement overlaps"): a
+            # jellybean-sized park failing at grid 1.0 is a SEARCH-SCOPE miss, not
+            # lack of space (board ~51% covered, measured) -- retry finer + tighter
+            # before refusing. The last rung drops the seat margin to 0.1 (still
+            # real AABB separation; courtyard DRC floor is what matters).
+            placed = None
+            for _g, _m in ((1.0, 0.3), (0.5, 0.2), (0.25, 0.1)):
+                placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
+                                               occ_boxes=occ, score_points=nbr_pts,
+                                               grid=_g, margin=_m, edge_soft=2.0)
+                if placed:
+                    break
             if placed:
                 P[r] = placed[r]
                 boxes[r] = _box(r)
                 moved += 1
             else:
-                print(f"  [p8b] affinity re-seat: no legal seat for {r} -- left as-is",
-                      file=sys.stderr)
+                # WHICH constraint kills it: free cells vs occ alone vs occ+env at
+                # 0.5mm (diagnostic only, failure path -- cheap; names the fix:
+                # 0 vs occ = genuinely tiled board, >0 occ but 0 both = the
+                # env/corridor boxes own the remaining space).
+                _cx0, _cy0, _chw, _chh = _courtyard_info(
+                    comps[r], P[r][2] if len(P[r]) > 2 else 0.0)
+                _n_occ = _n_both = 0
+                _yy = _chh
+                while _yy <= H - _chh:
+                    _xx = _chw
+                    while _xx <= W - _chw:
+                        _bx = (_xx + _cx0 - _chw, _xx + _cx0 + _chw,
+                               _yy + _cy0 - _chh, _yy + _cy0 + _chh)
+                        if _box_clear(_bx, occ, 0.1):
+                            _n_occ += 1
+                            if _box_clear(_bx, env, 0.1):
+                                _n_both += 1
+                        _xx += 0.5
+                    _yy += 0.5
+                print(f"  [p8b] affinity re-seat: no legal seat for {r} "
+                      f"(ladder exhausted; free cells vs parts={_n_occ}, "
+                      f"vs parts+corridors={_n_both}) -- left as-is", file=sys.stderr)
         if moved:
             print(f"  [p8b] affinity re-seat: {moved}/{len(bad)} overlapped/edge-parked "
                   f"part(s) moved beside their netlist neighbors", file=sys.stderr)

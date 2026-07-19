@@ -128,7 +128,12 @@ BOARD_WH = {
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
-    "12vhpwr-standard": (62.0, 62.0),  # ALPHA-DOCTRINE floorplan (owner Option-A ruling 2026-07-12: lanes left-of-center at lane_center, ESP/CAN/RJ-45 logic column right -- centered lanes + the 16.1mm ESP measured impossible at W=60). Prior: (owner 2026-07-11: cells board-centered,
+    # H 62->66 (2026-07-19, MEASURED capacity limit): at 62x62 the last jellybean
+    # (D2, 7x3.5 SMA diode) has 2248 part-free cells but ZERO corridor-free ones --
+    # the corridor/cell reservations own every hole, so it parks overlapping (the
+    # owner-flagged overlap class). +4mm height = the smallest admit; still -13%
+    # area vs the 58x80 hand board; the shrink pass walks it back after gate-clean.
+    "12vhpwr-standard": (62.0, 66.0),  # ALPHA-DOCTRINE floorplan (owner Option-A ruling 2026-07-12: lanes left-of-center at lane_center, ESP/CAN/RJ-45 logic column right -- centered lanes + the 16.1mm ESP measured impossible at W=60). Prior: (owner 2026-07-11: cells board-centered,
     # RJ45/USB movable): 6 lanes at 6.8 = 43.5mm span leaves no flank for the
     # 16x21 ESP on W60 -- it seats ABOVE the lane field beside J3. Geometry:
     # J3 y0-9 / ESP+periph band / lanes centered / J4 band. Still -20% area vs

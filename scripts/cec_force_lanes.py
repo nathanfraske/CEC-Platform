@@ -211,6 +211,85 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         # ---- commit
         for seg in hi_plan:
             track(hi, *seg[:4], seg[4], seg[5])
+        # ---- HI TAPS (2026-07-19, wave-14b forensic): the lane's HI net can carry
+        # OFF-LANE pads -- on 12vhpwr lane 6 the HI alias is /FAN_12V, whose R5.1
+        # (rail-divider tap), J2.2 (fan header, anchor-pinned beside the lane) and
+        # D5.1 (flyback) hang off it. FR consistently fails those hops (measured
+        # every wave; landing windows alone did not fix it), so the lane LAYS them:
+        # a straight locked tap off the committed vertical at the pad's own y,
+        # guarded against foreign pads (lane_collider) AND locked copper of other
+        # nets (the taps break the lanes' non-crossing-by-construction assumption,
+        # so pad-only guarding is not enough). Out-of-span or blocked -> refuse
+        # LOUD and leave the pad to FR (the windows remain its backstop).
+        _vx = hi_plan[-1][0]                       # committed vertical column x
+        _vy0 = min(hi_plan[-1][1], hi_plan[-1][3])
+        _vy1 = max(hi_plan[-1][1], hi_plan[-1][3])
+        _lane_refs = ("J3", "J4", f"RS{n}", f"RFH{n}", f"RFL{n}", f"CF{n}", "FID")
+        _extra = [(r_, pn_, px_, py_, h_) for r_, pn_, net_, px_, py_, h_ in pads
+                  if net_ == hi and not r_.startswith(_lane_refs)
+                  and abs(px_ - _vx) > 0.8]
+        for r_, pn_, px_, py_, h_ in sorted(_extra, key=lambda q: abs(q[2] - _vx)):
+            _w = 0.8 if r_.startswith(("J", "D", "Q")) else 0.4
+            if not (_vy0 + 0.6 <= py_ <= _vy1 - 0.6):
+                if verbose:
+                    print("[force-lanes] HI tap %s.%s out of lane-%d span -- left to FR"
+                          % (r_, pn_, n), flush=True)
+                continue
+            def _tap_col(plan):
+                _c = lane_collider(plan, own)
+                if _c is not None:
+                    return _c
+                # foreign locked copper: pre-existing (lock_segs, width unknown ->
+                # assume 2.5mm lane half 1.25 + 0.25 clearance) AND this run's
+                # earlier lanes (added, sampled the same way)
+                _run = []
+                for _t in added:
+                    if _t.Type() != pcbnew.PCB_TRACE_T:
+                        continue
+                    _n2 = _t.GetNetname()
+                    if _n2 in own or _n2 == hi:
+                        continue
+                    _s2, _e2 = _t.GetStart(), _t.GetEnd()
+                    _run.append((_n2, _s2.x / MM, _s2.y / MM, _e2.x / MM, _e2.y / MM))
+                for net_, sx_, sy_, ex_, ey_ in list(lock_segs) + _run:
+                    if net_ in own or net_ == hi:
+                        continue
+                    for (_ax, _ay, _bx, _by, _tw, _tl) in plan:
+                        for _q in (0.0, 0.25, 0.5, 0.75, 1.0):
+                            _qx, _qy = _ax + (_bx - _ax) * _q, _ay + (_by - _ay) * _q
+                            if _seg_pt_d2(_qx, _qy, sx_, sy_, ex_, ey_) < (_tw / 2 + 1.5) ** 2:
+                                return "locked %s" % net_
+                return None
+
+            _plans = [[(_vx, py_, px_, py_, _w, fcu)]]
+            # DOGLEG fallbacks (measured refusal class: the target part's OWN other
+            # pad, or a parked part, sits dead on the straight path): run at an
+            # offset row, pass the pad's x, drop on the FAR-side column, enter the
+            # pad from the far side.
+            _dir = 1.0 if _vx > px_ else -1.0        # toward the lane from the pad
+            _xj = px_ - _dir * (h_ + 0.9)
+            for _dy in (1.6, -1.6):
+                if _vy0 + 0.6 <= py_ + _dy <= _vy1 - 0.6:
+                    _plans.append([(_vx, py_ + _dy, _xj, py_ + _dy, _w, fcu),
+                                   (_xj, py_ + _dy, _xj, py_, _w, fcu),
+                                   (_xj, py_, px_, py_, _w, fcu)])
+            _col, _laid = "no plan", None
+            for _pl in _plans:
+                _col = _tap_col(_pl)
+                if _col is None:
+                    _laid = _pl
+                    break
+            if _laid is None:
+                if verbose:
+                    print("[force-lanes] HI tap %s.%s REFUSED vs %s -- left to FR"
+                          % (r_, pn_, _col), flush=True)
+                continue
+            for _seg in _laid:
+                track(hi, *_seg[:4], _seg[4], _seg[5])
+                lock_segs.append((hi, _seg[0], _seg[1], _seg[2], _seg[3]))
+            if verbose:
+                print("[force-lanes] HI tap laid: lane %d -> %s.%s (%.1f,%.1f, %d seg)"
+                      % (n, r_, pn_, px_, py_, len(_laid)), flush=True)
         for cx, cy in sites:
             via(lo, cx, cy)
             track(lo, rs2[0], rs2[1], cx, cy, 1.0, fcu)
