@@ -3244,23 +3244,60 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # FIXED-pitch TB row (the mating contract).
             _wu = (W or 100)
             _min_sep = 12.0
+            # RIGHT walk bound from in-band ANCHOR blockers (audit 2026-07-19 +
+            # the first full-board probe: J6 seated at x=60.2 in the shunt row
+            # band and the pull-back clamped the 12V column dead onto its THT
+            # field -- the walk never saw right-side blockers). 3.05 = the via
+            # array's site envelope (+-2.6 + via radius); the column's stub is
+            # narrower. LEFT blockers deliberately NOT raised into a bound: a
+            # measured attempt (s0c probe) cascaded the pull-back into every
+            # column, compressing pitch below the sense-cell bank reach and
+            # refusing ALL rails -- left contention is per-rail (jog variants,
+            # per-pin drops) and the wave's seat diversity, not a global clamp.
+            _lb, _rb = 6.0, _wu - 10.0
+            for _ar2, _apos2 in list(anchors.items()):
+                if _ar2 not in comps:
+                    continue
+                _cx2, _cy2, _hw2, _hh2 = _courtyard_info(
+                    comps[_ar2], _apos2[2] if len(_apos2) > 2 else 0)
+                _ax0 = _apos2[0] + _cx2 - _hw2
+                _ay0 = _apos2[1] + _cy2 - _hh2
+                _ay1 = _apos2[1] + _cy2 + _hh2
+                if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
+                    continue                             # clear of the shunt row band
+                if _ax0 >= _wu / 2.0:
+                    _rb = min(_rb, _ax0 - 3.05)
+            # INFEASIBILITY GUARD (audit 2026-07-19): if (n-1)*min_sep exceeds
+            # the usable span, the L->R re-enforce below silently pushes the
+            # tail column back past the right bound -- undoing the pull-back
+            # and re-landing the last cell on the edge-connector zone. Degrade
+            # min_sep to fit, floored at 8mm (the sense cell's physical width);
+            # at the floor any residual overhang surfaces in DRC/the wave
+            # instead of cells being crushed into each other silently.
+            if len(shared) > 1:
+                _avail = _rb - _lb
+                _need = (len(shared) - 1) * _min_sep
+                if _need > _avail:
+                    _min_sep = max(8.0, _avail / (len(shared) - 1))
+                    print(f"  [rails] straight-through walk: {len(shared)} cols need "
+                          f"{_need:.0f}mm > {_avail:.0f}mm avail -> min_sep degraded "
+                          f"to {_min_sep:.1f}", file=sys.stderr, flush=True)
             _st_cols = []
             for c in shared:
                 _gxs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
                 _tgt = (sum(_gxs) / len(_gxs)) if _gxs else (x0 + len(_st_cols) * _min_sep)
-                _lo_b = (_st_cols[-1] + _min_sep) if _st_cols else 6.0
+                _lo_b = (_st_cols[-1] + _min_sep) if _st_cols else _lb
                 _st_cols.append(max(_tgt, _lo_b))
             # BACKWARD PULL-BACK (first lay, 2026-07-19: the forward walk pushed
             # the last column to x=64, dead on the right-edge connector zone --
             # J5 collider): clamp from the right bound and pull earlier columns
             # left where the gap allows, keeping >= _min_sep throughout.
-            _rb = _wu - 10.0
             for _i3 in range(len(_st_cols) - 1, -1, -1):
                 _ub = _rb if _i3 == len(_st_cols) - 1 else _st_cols[_i3 + 1] - _min_sep
                 _st_cols[_i3] = min(_st_cols[_i3], _ub)
             for _i3 in range(1, len(_st_cols)):              # re-enforce separation L->R
                 _st_cols[_i3] = max(_st_cols[_i3], _st_cols[_i3 - 1] + _min_sep)
-            _st_cols = [max(6.0, _c2) for _c2 in _st_cols]
+            _st_cols = [max(_lb, _c2) for _c2 in _st_cols]
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
                 col = _st_cols[_ci]
                 anchors[c["shunt"]] = (col, H / 2.0, 270.0)
@@ -5685,9 +5722,23 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # would re-tile the board).
         rails_data = []
         for c in rails:
-            sx, sy = pos_of(c["shunt"])[:2]
+            _sp = pos_of(c["shunt"])
+            sx, sy = _sp[:2]
             amps = {"12": 12.0, "3V3": 20.0, "5VSB": 5.0}.get(
                 next((k for k in ("5VSB", "3V3", "12") if k in (c["hi"] or "").upper()), ""), 25.0)
+            # EXACT shunt pad geometry (audit finding 2a: passing the shunt
+            # ORIGIN as both hi and lo shifted the reserved stubs/arrays by up
+            # to the 2512's +-2.96mm pad offset vs what the lay measures)
+            _srot = _sp[2] if len(_sp) > 2 else 270.0
+            try:
+                _hi_p = cec_pcb.pad_global(c["shunt"], "1",
+                                           {c["shunt"]: (sx, sy, _srot)}, comps)
+                _lo_p = cec_pcb.pad_global(c["shunt"], "2",
+                                           {c["shunt"]: (sx, sy, _srot)}, comps)
+                if _hi_p[1] > _lo_p[1]:                     # hi = the J3-facing (upper) pad
+                    _hi_p, _lo_p = _lo_p, _hi_p
+            except Exception:                               # noqa: BLE001
+                _hi_p, _lo_p = (sx, sy), (sx, sy)
             try:
                 # trailing True = THT (J3 Mini-Fit + TB blades are through-hole
                 # by construction -- the alt-layer plan connects them directly)
@@ -5699,7 +5750,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                    for _r2, _p2 in nl.nets.get(c["lo"], [])
                    if _r2.startswith("TB") and pos_of(_r2)]
             rails_data.append({"rs": c["shunt"], "src_net": c["hi"], "snk_net": c["lo"],
-                               "amps": amps, "hi": (sx, sy), "lo": (sx, sy),
+                               "amps": amps, "hi": tuple(_hi_p), "lo": tuple(_lo_p),
                                "j3": sorted(j3pads, key=lambda q: q[1]),
                                "tb": sorted(tbs, key=lambda q: q[2])})
         _alt_on = bool(cfg.params.get("rail_alt_layer"))
@@ -5718,7 +5769,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                               min(x1, x2) - half, max(x1, x2) + half,
                               min(y1, y2) - half, max(y1, y2) + half))
             for (ax, ay, n_v, _an) in ch.get("arrays", ()):
-                ah = 1.3 + 0.9
+                # FULL candidate-site envelope (audit finding 2b: the lay may
+                # select sites at +-2.6mm while only +-2.2 was reserved) + the
+                # via barrel + clearance
+                ah = 2.6 + 0.45 + 0.45
                 boxes.append(("__FORCERAIL__", ax - ah, ax + ah, ay - ah, ay + ah))
         return boxes
 
@@ -6185,13 +6239,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _ccx, _ccy = _rx + _cx0, _ry + _cy0
                 _was_moved = False
                 for _round in range(4):           # fixpoint: adjacent lane boxes tile,
+                    # courtyard-AABB overlap, not center-in-box (audit 2026-07-19
+                    # finding 5: a body straddling a box edge kept its center out
+                    # and was never swept -> squatted half-in on the rail corridor)
                     _hit_box = next((b for b in _bp_env    # out of A can mean into B
-                                     if b[1] <= _ccx <= b[2] and b[3] <= _ccy <= b[4]), None)
+                                     if _ccx - _chw < b[2] and _ccx + _chw > b[1]
+                                     and _ccy - _chh < b[4] and _ccy + _chh > b[3]), None)
                     if _hit_box is None:
                         break
                     _nn, _x0, _x1, _y0, _y1 = _hit_box
-                    _push = min((_ccx - _x0, "L"), (_x1 - _ccx, "R"),
-                                (_ccy - _y0, "T"), (_y1 - _ccy, "B"))
+                    # cheapest escape = smallest PENETRATION depth (courtyard edge
+                    # past box edge), not center-to-edge
+                    _push = min(((_ccx + _chw) - _x0, "L"), (_x1 - (_ccx - _chw), "R"),
+                                ((_ccy + _chh) - _y0, "T"), (_y1 - (_ccy - _chh), "B"))
                     if _push[1] == "L":
                         _ccx = _x0 - 0.4 - _chw
                     elif _push[1] == "R":
@@ -8408,10 +8468,33 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             "violations": ["checker error: %s" % e]}
             thermal_ok = bool(therm.get("ok"))
 
-            gate = bool(others_ok and thermal_ok)
+            # RAIL FEASIBILITY (audit 2026-07-19 finding 7 -- selection pressure):
+            # a force_rails board whose materialize REFUSED rails is not gate-clean;
+            # the locked power trunk is missing and FR's thin residual would mask
+            # it. The materialize writes a .railreport.json sidecar next to the
+            # placed board; absent sidecar (every non-rail board) => inert.
+            rails = None
+            rails_ok = True
+            try:
+                _rrp = str(placed)[:-len(".kicad_pcb")] + ".railreport.json"
+                if os.path.isfile(_rrp):
+                    with open(_rrp) as _fh:
+                        rails = json.load(_fh)
+                    rails_ok = int(rails.get("laid", 0)) >= int(rails.get("total", 0))
+            except Exception:                                 # noqa: BLE001
+                rails, rails_ok = None, True
+            rails_refused = ((int(rails.get("total", 0)) - int(rails.get("laid", 0)))
+                             if rails else 0)
+
+            gate = bool(others_ok and thermal_ok and rails_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
-            safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
+            # refused rails fold into the SAFETY term (not a new tuple slot: key
+            # shape must stay comparable with published incumbents) -- a placement
+            # admitting more rails outranks one that refuses them, at the same
+            # priority as a broken kelvin/diff pair.
+            safety_fails = ((0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
+                            + rails_refused)
             dT_for_key = therm.get("dT")
             dT_for_key = float(dT_for_key) if dT_for_key is not None else 1e6
             # sort_key (ascending, best first). tier 0 = gate-clean: tie-break by thermal MARGIN
@@ -8462,6 +8545,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "fiducials_ok": fiducials_ok, "fiducials": fq,
                 "tht_backside_ok": tht_backside_ok, "tht_backside": tb,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
+                "rails_ok": rails_ok, "rails": rails,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
@@ -8470,11 +8554,18 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                            cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq,
                                            tb_g=tb, puni=puni),
             }
+            if not rails_ok and rails:
+                res["reasons"].append(
+                    "force rails refused %d/%d: %s"
+                    % (rails_refused, int(rails.get("total", 0)),
+                       "; ".join("%s: %s" % kv
+                                 for kv in sorted((rails.get("refused") or {}).items()))))
             if verbose:
+                _rs = (f" rails={rails.get('laid')}/{rails.get('total')}" if rails else "")
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
                       f"drc={m.drc} unconn={m.unconnected}({len(crit)}crit) "
                       f"foreign={res['foreign']['tracks']}t/{res['foreign']['vias']}v "
-                      f"dT={therm.get('dT')} ({route_s}s)")
+                      f"dT={therm.get('dT')}{_rs} ({route_s}s)")
             return res
     finally:
         if own_wd and not keep:
@@ -8831,6 +8922,10 @@ def materialize(cand, cfg, out, *, logo=None):
     # per-pin guarded pickups, refuse-loud spines; fix->protect export contract).
     # INDEPENDENT of blueprint stamps (first firing found the hook nested under the
     # stamps block, which the 24-pin -- no cell blueprints -- never enters).
+    try:                                                    # stale-sidecar guard: a re-materialize
+        os.unlink(out[:-len(".kicad_pcb")] + ".railreport.json")   # to the same path must never
+    except OSError:                                         # inherit the previous run's report
+        pass
     if cfg and cfg.params.get("force_rails"):
         try:
             import cec_force_rails
@@ -8845,6 +8940,19 @@ def materialize(cand, cfg, out, *, logo=None):
                   % (len(_frr) - len(_badr), len(_frr),
                      (" -- " + "; ".join("%s %s" % kv for kv in sorted(_badr.items())))
                      if _badr else ""), file=sys.stderr)
+            # RAIL-FEASIBILITY SIDECAR (audit 2026-07-19 finding 7): persist the
+            # per-rail lay outcome so the wave's grader can put SELECTION
+            # PRESSURE on it -- a placement that admits more rails must outrank
+            # one that refuses them, else the loop optimizes unconn while every
+            # candidate leaves the power path unbuilt. Refusal REASONS ride
+            # along for the readout. Best-effort; absent sidecar = no pressure.
+            try:
+                with open(out[:-len(".kicad_pcb")] + ".railreport.json", "w") as _f:
+                    json.dump({"total": len(_frr), "laid": len(_frr) - len(_badr),
+                               "refused": {k: str(v) for k, v in _badr.items()}},
+                              _f, indent=1, sort_keys=True)
+            except Exception:                               # noqa: BLE001
+                pass
         except Exception as _e:                             # noqa: BLE001 -- surface, don't die
             print("[materialize] force rails FAILED: %s: %s"
                   % (type(_e).__name__, _e), file=sys.stderr)

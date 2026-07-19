@@ -48,30 +48,35 @@ def _amps_for(nets):
     return 10.0
 
 
-def plan_bands(items, j3_bot):
+def plan_bands(items, j3_bot, *, y0_off=2.5):
     """Greedy interval-packed BAND rows (shared by the lay and the placement
     keepouts -- one geometry, two consumers). *items* = [{key, w, x_lo, x_hi}];
-    bands whose x-spans clear each other by >=1.0mm SHARE a row (the naive
-    one-rank-per-rail stack measured ~26mm deep and walled the 24-pin's MCU out
-    of its own board). Returns ({key: band_center_y}, total_depth). Rows are
-    packed widest-span-first; a row's height is its widest member."""
-    # NARROWEST span first => the WIDEST bands land on the LOWEST rows (closest
-    # to the shunts). Measured consequence (first alt lay, 2026-07-19): pin
-    # drops descend from the J3 field to their own row -- with a full-width
-    # band (3V3 spans the whole connector) on the TOP row, every other rail's
-    # drops crossed it on the same alt layer and refused; widest-lowest means
-    # a rail's drops stop at their row before reaching any wider band.
+    x-spans on a shared row must clear each other by the TRACKS' half-widths +
+    1.0mm (the audit's width-blind landmine: a 1mm CENTERLINE gap between two
+    multi-mm tracks is copper-on-copper). Returns ({key: band_center_y},
+    total_depth).
+
+    Row order: NARROWEST span first => the WIDEST bands land on the LOWEST
+    rows (closest to the shunts). Measured consequence (first alt lay,
+    2026-07-19): pin drops descend from the J3 field to their own row -- with
+    a full-width band (3V3 spans the whole connector) on the TOP row, every
+    other rail's drops crossed it on the same alt layer and refused;
+    widest-lowest means a rail's drops stop at their row before reaching any
+    wider band."""
     ranks, assign = [], {}
     for it in sorted(items, key=lambda q: ((q["x_hi"] - q["x_lo"]), q["key"])):
+        hw = it["w"] / 2.0
         for ri, occ in enumerate(ranks):
-            if all(it["x_hi"] + 1.0 < a or b + 1.0 < it["x_lo"] for a, b, _w in occ):
+            if all(it["x_hi"] + hw + w_o / 2.0 + 1.0 <= a
+                   or b + hw + w_o / 2.0 + 1.0 <= it["x_lo"]
+                   for a, b, w_o in occ):
                 occ.append((it["x_lo"], it["x_hi"], it["w"]))
                 assign[it["key"]] = ri
                 break
         else:
             ranks.append([(it["x_lo"], it["x_hi"], it["w"])])
             assign[it["key"]] = len(ranks) - 1
-    ys, y = {}, j3_bot + 2.5
+    ys, y = {}, j3_bot + y0_off
     for ri, occ in enumerate(ranks):
         h = max(w for _a, _b, w in occ)
         ys[ri] = y + h / 2.0
@@ -109,9 +114,21 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
     for rl, it in zip(rails, items):
         spans[rl["rs"]] = (it["x_lo"], it["x_hi"], band_ys[rl["rs"]],
                            max(1.5, min(6.0, rl["amps"] * 0.25)))
+    # SINK span packing (width-aware, rows stack UP from the TB field)
+    _sink_items = []
+    for rl in rails:
+        _sw = max(1.5, min(6.0, rl["amps"] * 0.25))
+        _sxs = [q[2] for q in rl["tb"]] + [rl["lo"][0]]
+        _sink_items.append({"key": rl["rs"], "w": _sw,
+                            "x_lo": min(_sxs), "x_hi": max(_sxs)})
+    _sink_ys, _ = plan_bands(_sink_items, 0.0, y0_off=0.0)
     out = {}
     for rank, rl in enumerate(rails):
         w = max(1.5, min(6.0, rl["amps"] * 0.25))
+        # face-stub width ceiling = the shunt pad's long dim (the pad is the
+        # neck; the via array carries the layer transition -- a 3mm stub at pad
+        # width is the same current class as the pad itself)
+        sw = min(w, rl.get("pad_w") or w)
         band_y = band_ys[rl["rs"]]
         hx, hy = rl["hi"]
         lx, lyy = rl["lo"]
@@ -133,19 +150,22 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
                 arrays.append((hx, band_y, n_via, rl["src_net"]))
             else:
                 src.append((hx, band_y, hx, hy - 3.0, w, "alt"))
-                src.append((hx, hy - 3.0, hx, hy, w, "face"))
+                src.append((hx, hy - 3.0, hx, hy, sw, "face"))
                 arrays.append((hx, hy - 3.0, n_via, rl["src_net"]))
         pin_drops = [(px, py, px, band_y, min(w, 1.4), pn, body)
                      for pn, px, py, _h, _tht in rl["j3"]]
         tb_y = min(q[3] for q in rl["tb"]) if rl["tb"] else lyy + 8.0
-        band2 = max(lyy + 1.5, tb_y - 3.0 - (rank * 1.7 if alt else 0.0))
+        # sink rows: the SAME width-aware interval packing as the source bands
+        # (audit landmine: the fixed 1.7mm rank stagger let crossing multi-mm
+        # sink spans overlap). _sink_ys computed once below the loop entry.
+        band2 = max(lyy + 1.5, tb_y - 2.0 - _sink_ys.get(rl["rs"], 1.0))
         txs = [q[2] for q in rl["tb"]] + [lx]
         if not alt:
             snk = [(lx, lyy, lx, band2, w, "face"),
                    (min(txs), band2, max(txs), band2, w, "face")]
             snk += [(tx, band2, tx, ty, w, "face") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
         else:
-            snk = [(lx, lyy, lx, lyy + 2.5, w, "face"),
+            snk = [(lx, lyy, lx, lyy + 2.5, sw, "face"),
                    (lx, lyy + 2.5, lx, band2, w, "alt"),
                    (min(txs), band2, max(txs), band2, w, "alt")]
             snk += [(tx, band2, tx, ty, w, "alt") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
@@ -163,6 +183,24 @@ def _seg_pt_d2(x, y, sx, sy, ex, ey):
     t = max(0.0, min(1.0, ((x - sx) * dx + (y - sy) * dy) / L2))
     px, py = sx + t * dx, sy + t * dy
     return (x - px) ** 2 + (y - py) ** 2
+
+
+def _seg_seg_d2(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2):
+    """Exact min distance^2 between two segments (audit landmine: the 5-point
+    sampling missed thin crossings). Intersection -> 0; else min of the four
+    endpoint-to-segment distances (exact for non-intersecting segments)."""
+    d1x, d1y = ax2 - ax1, ay2 - ay1
+    d2x, d2y = bx2 - bx1, by2 - by1
+    den = d1x * d2y - d1y * d2x
+    if abs(den) > 1e-12:
+        t = ((bx1 - ax1) * d2y - (by1 - ay1) * d2x) / den
+        u = ((bx1 - ax1) * d1y - (by1 - ay1) * d1x) / den
+        if 0.0 <= t <= 1.0 and 0.0 <= u <= 1.0:
+            return 0.0
+    return min(_seg_pt_d2(ax1, ay1, bx1, by1, bx2, by2),
+               _seg_pt_d2(ax2, ay2, bx1, by1, bx2, by2),
+               _seg_pt_d2(bx1, by1, ax1, ay1, ax2, ay2),
+               _seg_pt_d2(bx2, by2, ax1, ay1, ax2, ay2))
 
 
 def discover_rails(board):
@@ -207,6 +245,11 @@ def discover_rails(board):
             "amps": _amps_for(nets), "face": face,
             "hi": (hi_p.GetPosition().x / MM, hi_p.GetPosition().y / MM),
             "lo": (lo_p.GetPosition().x / MM, lo_p.GetPosition().y / MM),
+            # the shunt pad's long dim: the face stub's width ceiling (the pad
+            # IS the neck -- a stub wider than its landing pad buys no copper
+            # and grazes the sense cell's own parts; probe: U65V1 3.5mm off a
+            # 6mm stub)
+            "pad_w": max(hi_p.GetSize().x, hi_p.GetSize().y) / MM,
             "j3": sorted(j3, key=lambda q: q[1]), "tb": sorted(tb, key=lambda q: q[2]),
         })
     rails.sort(key=lambda rl: rl["hi"][0])                     # rank by shunt column
@@ -237,6 +280,22 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                          p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH))
     laid_segs = []                                             # (net, x1,y1,x2,y2, w, tag)
     laid_vias = []                                             # (x, y)
+    # PRE-INDEX existing LOCKED copper (audit landmine: the collider started
+    # empty while blueprint-cell copper is laid BEFORE the rails on the same
+    # board) -- tagged by layer class so the layer-aware checks apply.
+    _alt_ln = alt_layer or ""
+    for _t0 in board.GetTracks():
+        if not _t0.IsLocked():
+            continue
+        if _t0.Type() == pcbnew.PCB_VIA_T:
+            _p0 = _t0.GetPosition()
+            laid_vias.append((_p0.x / MM, _p0.y / MM))
+        else:
+            _ln = board.GetLayerName(_t0.GetLayer())
+            _tag0 = "alt" if _ln == _alt_ln else "face"
+            _s0, _e0 = _t0.GetStart(), _t0.GetEnd()
+            laid_segs.append((_t0.GetNetname() or "", _s0.x / MM, _s0.y / MM,
+                              _e0.x / MM, _e0.y / MM, _t0.GetWidth() / MM, _tag0))
 
     def _collide(plan, own_nets, skip_refs=()):
         """Layer-aware: an ALT segment passes under SMD pads (face-only copper)
@@ -254,13 +313,13 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
             for (net2, a1, b1, a2, b2, w2, tag2) in laid_segs:
                 if net2 in own_nets or tag2 != tag:
                     continue
-                for t in (0.0, 0.25, 0.5, 0.75, 1.0):
-                    qx, qy = x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
-                    if _seg_pt_d2(qx, qy, a1, b1, a2, b2) < (w / 2 + w2 / 2 + 0.25) ** 2:
-                        return "laid rail copper [%s]" % net2
+                # exact seg-seg distance (audit landmine: 5-point sampling
+                # missed thin crossings)
+                if _seg_seg_d2(x1, y1, x2, y2, a1, b1, a2, b2) < (w / 2 + w2 / 2 + 0.25) ** 2:
+                    return "laid copper [%s]" % net2
             for (vx, vy) in laid_vias:
                 if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2 + 0.45 + 0.25) ** 2:
-                    return "laid rail via at (%.1f,%.1f)" % (vx, vy)
+                    return "laid via at (%.1f,%.1f)" % (vx, vy)
         return None
 
     # generated ring-ordered grid (25 sites @1.3mm): the fat rails need real
@@ -270,19 +329,36 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
                        for dy in range(-2, 3)),
                       key=lambda q: (q[0] ** 2 + q[1] ** 2, q))
 
-    def _array_sites(x, y, n, own_nets):
-        """n clear through-barrel sites clustered at (x,y), or None (via barrels
-        pierce every layer -> clear of ALL pads regardless of tag)."""
+    _bb = board.GetBoardEdgesBoundingBox()
+    _bx0, _by0 = _bb.GetLeft() / MM, _bb.GetTop() / MM
+    _bx1, _by1 = _bb.GetRight() / MM, _bb.GetBottom() / MM
+    # a board with no Edge.Cuts (synthetic fixtures) yields a degenerate bbox --
+    # the edge-margin test must not reject every site then
+    _bb_ok = (_bx1 - _bx0) > 2.0 and (_by1 - _by0) > 2.0
+
+    def _array_sites(x, y, n, own_nets, pending=()):
+        """n clear through-barrel sites clustered at (x,y), or None. Via barrels
+        pierce every layer -> clear of ALL pads regardless of tag, ALL laid
+        copper on any tag (audit landmine: tracks were unchecked), the board
+        edge (>=1.2mm), prior vias, and *pending* same-rail array sites."""
         sites = []
+        occupied = list(laid_vias) + [q for arr in pending for q in arr]
         for dx, dy in _ARR_OFF:
             if len(sites) >= n:
                 break
             cx, cy = x + dx, y + dy
+            if _bb_ok and not (_bx0 + 1.2 <= cx <= _bx1 - 1.2
+                               and _by0 + 1.2 <= cy <= _by1 - 1.2):
+                continue
             ok = all(not (net not in own_nets
                           and (px - cx) ** 2 + (py - cy) ** 2 < (half + 0.45 + 0.25) ** 2)
                      for ref, net, px, py, half, tht in pads)
+            ok = ok and all(not (net2 not in own_nets
+                                 and _seg_pt_d2(cx, cy, a1, b1, a2, b2)
+                                 < (w2 / 2 + 0.45 + 0.25) ** 2)
+                            for (net2, a1, b1, a2, b2, w2, _tg) in laid_segs)
             ok = ok and all((vx - cx) ** 2 + (vy - cy) ** 2 >= 1.15 ** 2
-                            for vx, vy in (laid_vias + sites))
+                            for vx, vy in (occupied + sites))
             if ok:
                 sites.append((cx, cy))
         return sites if len(sites) >= n else None
@@ -331,27 +407,80 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         _ch = chains[rl["rs"]]
         w = _ch["w"]
         face_ly = layer_id[rl["face"]]
-        own = {rl["src_net"], rl["snk_net"]}
-        # VIA ARRAYS first (alt mode; the transitions are essential -- a rail
-        # whose array cannot seat refuses loud)
-        arr_sites = []
-        _arr_fail = None
-        for (ax, ay, n_v, a_net) in _ch.get("arrays", ()):
-            s_ = _array_sites(ax, ay, n_v, own)
-            if s_ is None:
-                _arr_fail = "no clear %d-via array at (%.1f,%.1f)" % (n_v, ax, ay)
+        # PER-SIDE own nets (audit landmine: the two-net own set let source
+        # copper ignore sink-net pads and vice versa)
+        own_src, own_snk = {rl["src_net"]}, {rl["snk_net"]}
+        hx, hy = rl["hi"]
+        band_y = _ch["band_y"]
+        _plan_arrays = list(_ch.get("arrays", ()))
+        _src_arr = next(((ax, ay, nv) for (ax, ay, nv, an) in _plan_arrays
+                         if an == rl["src_net"]), None)
+        _oth_arrs = [(ax, ay, nv, an) for (ax, ay, nv, an) in _plan_arrays
+                     if an != rl["src_net"]]
+        # SOURCE variants: (segs, src_array_pos). A colliding FACE-fallback
+        # column retries JOGGED variants around the cell envelope (audit
+        # finding 4: the full-width fallback ran straight through the shunt-pad
+        # column where the one-sided cell bank sits): the column offsets
+        # sideways, the alt band EXTENDS to the jog x, the via array moves to
+        # the jog junction, and a short axial elbow re-enters the pad.
+        _src_variants = [(list(_ch["src"]), _src_arr, None)]
+        if alt_on and any(tg == "face" and abs(y2 - y1) > 4.0
+                          for (x1, y1, x2, y2, _w2, tg) in _ch["src"]):
+            _alt_only = [s for s in _ch["src"] if s[5] != "face"]
+            _bxs = [q for s in _alt_only for q in (s[0], s[2])]
+            for _dxo in (3.6, -3.6, 5.2, -5.2):
+                _jx = hx + _dxo
+                _v = list(_alt_only)
+                if _bxs and not (min(_bxs) <= _jx <= max(_bxs)):
+                    _near = min(_bxs, key=lambda q: abs(q - _jx))
+                    _v.append((_near, band_y, _jx, band_y, w, "alt"))
+                _v += [(_jx, band_y, _jx, hy - 2.0, w, "face"),
+                       (_jx, hy - 2.0, hx, hy - 2.0, w, "face"),
+                       (hx, hy - 2.0, hx, hy, w, "face")]
+                _sa = (_jx, band_y, _src_arr[2]) if _src_arr else None
+                _src_variants.append((_v, _sa, None))
+        if alt_on:
+            # LAST-RESORT plain-FACE source (pour doc §2.3 layer stagger; s0d
+            # probe: ATX interleaves 5V/12V pins at the SAME x, so an earlier
+            # rail's laid In2 pin drops contend the next rail's In2 band --
+            # stagger the loser onto the face. THT pickups need no via array;
+            # pin drops follow onto the face (tag threaded per-variant).
+            _xs_all = [q[1] for q in rl["j3"]] + [hx]
+            _face_src = [(min(_xs_all), band_y, max(_xs_all), band_y, w, "face"),
+                         (hx, band_y, hx, hy, w, "face")]
+            _src_variants.append((_face_src, None, "face"))
+        col, spine, arr_sites = "no plan", None, []
+        _drops_tag = None
+        _vreasons = []                       # per-variant refusal trace (audit:
+        for _vi, (_sv, _sa, _dtag_v) in enumerate(_src_variants):  # the message showed only the LAST
+            col = _collide(_sv, own_src, skip_refs=("J3", rl["rs"], "TB", "FID"))
+            if col is not None:
+                _vreasons.append("v%d %s" % (_vi, col))
+                continue
+            _trial, _ok = [], True
+            if _sa is not None:
+                s_ = _array_sites(_sa[0], _sa[1], _sa[2], {rl["src_net"]})
+                if s_ is None:
+                    col = "no clear %d-via src array at (%.1f,%.1f)" % (_sa[2], _sa[0], _sa[1])
+                    _ok = False
+                else:
+                    _trial.append((rl["src_net"], s_))
+            if _ok:
+                for (ax, ay, nv, an) in _oth_arrs:
+                    s_ = _array_sites(ax, ay, nv, {an},
+                                      pending=[s for _n2, s in _trial])
+                    if s_ is None:
+                        col = "no clear %d-via array at (%.1f,%.1f)" % (nv, ax, ay)
+                        _ok = False
+                        break
+                    _trial.append((an, s_))
+            if _ok:
+                spine, arr_sites, _drops_tag = _sv, _trial, _dtag_v
                 break
-            arr_sites.append((a_net, s_))
-        if _arr_fail:
-            report[rl["rs"]] = "REFUSED: " + _arr_fail
-            if verbose:
-                print("[force-rails] %s REFUSED: %s" % (rl["rs"], _arr_fail), flush=True)
-            continue
-        # SOURCE band + spine from the plan (rail-fatal on collision)
-        spine = list(_ch["src"])
-        col = _collide(spine, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
-        if col:
-            report[rl["rs"]] = "REFUSED: src spine vs " + col
+            _vreasons.append("v%d %s" % (_vi, col))
+        if spine is None:
+            col = "; ".join(_vreasons) if _vreasons else col
+            report[rl["rs"]] = "REFUSED: src " + col
             if verbose:
                 print("[force-rails] %s (%s) REFUSED: %s"
                       % (rl["rs"], rl["src_net"], col), flush=True)
@@ -359,16 +488,36 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None):
         picked, dropped = 0, []
         pin_plans = []
         for (px, py, x2, y2, dw, pn, dtag) in _ch["pin_drops"]:
-            drop = [(px, py, x2, y2, dw, dtag)]
-            c2 = _collide(drop, own, skip_refs=(rl["rs"], "TB", "FID"))
+            _dt = _drops_tag or dtag
+            # straight drop first; else MID-COLUMN DOGLEGS (s0e probe: ATX
+            # stacks two rows at the SAME x, so a top-row pin's straight drop
+            # dies on the bottom-row barrel 1.8mm beneath -- escape
+            # horizontally at pad y between the same-row barrels, descend on
+            # the half-pitch column). The collider verifies each candidate.
+            c2, _dreasons = None, []
+            for _ddx in (0.0, 2.1, -2.1, 1.8, -1.8):
+                if _ddx == 0.0:
+                    drop = [(px, py, x2, y2, dw, _dt)]
+                else:
+                    # dogleg width 1.0: the Mini-Fit barrel half (1.18) + 0.25
+                    # clearance leaves exactly ~1.93mm to the half-pitch column
+                    # -- a 1.4 drop misses it by 0.03mm (measured, s0f). Short
+                    # per-pin stub; the thermal gate judges the result.
+                    _dw2 = min(dw, 1.0)
+                    drop = [(px, py, px + _ddx, py, _dw2, _dt),
+                            (px + _ddx, py, px + _ddx, y2, _dw2, _dt)]
+                c2 = _collide(drop, own_src, skip_refs=(rl["rs"], "TB", "FID"))
+                if c2 is None:
+                    break
+                _dreasons.append("%+.1f:%s" % (_ddx, c2))
             if c2 is None:
                 pin_plans += drop
                 picked += 1
             else:
-                dropped.append("J3.%s vs %s" % (pn, c2))
+                dropped.append("J3.%s [%s]" % (pn, "; ".join(_dreasons)))
         # SINK from the plan: lo -> lower band -> TB drops
         snk = list(_ch["snk"])
-        c3 = _collide(snk, own, skip_refs=("J3", rl["rs"], "TB", "FID"))
+        c3 = _collide(snk, own_snk, skip_refs=("J3", rl["rs"], "TB", "FID"))
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
             if verbose:

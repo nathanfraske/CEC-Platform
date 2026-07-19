@@ -749,8 +749,8 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                         "pruned": len(pruned_rows)} if pruned_rows else None,
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
-                        "unconn_critical", "foreign", "thermal_ok", "thermal", "sort_key",
-                        "reasons")},
+                        "unconn_critical", "foreign", "thermal_ok", "thermal", "rails",
+                        "sort_key", "reasons")},
               "ranking": ([{"label": v["label"], "gate": v.get("gate"),
                             "sort_key": v.get("sort_key")} for v in results]
                           + [{"label": r["label"], "pruned": True,
