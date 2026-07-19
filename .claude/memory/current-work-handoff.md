@@ -1,5 +1,21 @@
 # Current work handoff
 
+## MEZZANINE ALIGNMENT CONTRACT + GENERALIZED MATING FRAMES -- 2026-07-20 (midday)
+Commits 58dcf8a9 + ce289eb4 (owner: "cross-coordinated... standoffs... maximal
+overlap"; then "generalizable -- daughterboards + PSU tester"). The 2026-06-24
+stack-doc §4 contract is FINALIZED IN THE PIPELINE: center-aligned zero-offset
+stack; J6 24-pin (68,38,90) <-> Hub (13,41.5,90) = exact x-mirror; standoff datum
+66x25 both boards (DRAFT -- the 24-pin's top corners are jack territory, so the
+rect is slimmer than ideal; wave-iterable, owner can push it). ENFORCEMENT (both
+measured as violations first): datum mounts EXEMPT from the free-slot nudge (it
+walked two into the band rows and killed two rails); user-pinned refs EXEMPT from
+the anneal (p6 moved the pinned Hub J6 -> LockViolation). GENERALIZED:
+mating_frame_pins(W,H,contract,side) + ONE declaration (MEZZ_HUB_24PIN) derives
+both sides, mirror-invariant ref order, reproduces the verified coords exactly --
+the same machinery is the vehicle for the out-daughterboard mating frames + the
+PSU-tester pipeline (owner direction recorded). Parallel 24-pin/Hub chains
+(watcher biwmo2cde) inherit at their wave boundaries.
+
 ## OWNER BATCH + PARALLEL 24-PIN/HUB CHAINS -- 2026-07-20 (morning)
 Commit e795e79a: (1) USB-C CORNERED -- tuck ceiling from x-overlapping anchors only
 + sliver-shift-outward for edge jacks (J5 15.4->7.3 against the fiducial); tuck
