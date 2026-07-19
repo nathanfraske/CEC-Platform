@@ -1,5 +1,28 @@
 # Current work handoff
 
+## CODEX CRITICALS BATCH + OVERNIGHT CHAIN -- 2026-07-19 (afternoon)
+Commit b38f4b7b (owner GO "wrap these findings and fix... let a few run overnight").
+Landed + regression-probed: #1 cell copper per-SEGMENT own-net exemption + intra-cell
+cross-net Collide (was cell-wide exempt = lockable shorts); #2 lanes lock_segs carry
+widths, lane_collider checks foreign locked copper/vias, per-leg own-net exemption
+(incl. the HI-tap path); #3 rails collider skips narrowed to fiducials only (J3/TB
+foreign pads were invisible to the spine/sink); #9 import_ses tap suppression is
+per-PAIR by PAD CONTACT -- locked TRUNK copper on _HI/_LO (the force rails!) no
+longer suppresses tap synthesis for FR-excluded INA pads = the ROOT of the standing
+kelvin=False on rails boards, fix rides the overnight waves; #17 error sentinel ->
+(1, inf) (a boardless failure outranked real boards with >9 safety fails); #20 route
+loop publishes the GLOBAL best at the ceiling; #21 rail sidecar schema+board identity
++ fail-CLOSED on rail boards. Probes: 24-pin 3/4 rails + cells clean under the honest
+colliders; 12vhpwr 6/6 lanes + 444 cell segs (2 HI taps now honestly refuse on named
+adjacencies -> FR). Earlier same day: #4 #5 #12 #22 #24 (c1541e65). Remaining triage
+in FOLLOWUPS (#7 #8 #13 #14 #15 #16 #18 #19 #23 + structural).
+IN FLIGHT: wave 16 (24-pin @W74, pre-fix tree, 9/10 graded) -> then the 6-WAVE
+OVERNIGHT CHAIN auto-starts (4x 24-pin seeds 4-19 + 2x 12vhpwr, shared incumbent
+chain, ALL tonight's fixes incl. per-pair taps + W74 + tuck/drop/patches/handedness).
+Watchers: wave-16 (b8ix91ije), night chain (bx0b5sknf, 15-min poll). MORNING READOUT:
+expect kelvin flips + rails in reports + criticals list cleaned (#22); compare
+incumbent chain progression across the night waves.
+
 ## OWNER RENDER BATCH -- 24-PIN RAILS 3/4 DETERMINISTIC, W74 -- 2026-07-19 (midday)
 Commit 85590d9e on claude/pipeline-pass-2. The owner's four wave-15 render items all
 landed, probe series s0i..s0z: (1) p2 jack TUCK (J1 against J3; pass-lock contract
