@@ -1,5 +1,20 @@
 # Current work handoff
 
+## CHAIN 2 DONE, CHAIN 3 OVERNIGHT -- 2026-07-19 (evening)
+Chain 2 (8 waves): FIVE NEW BESTS. 24-pin criticals day trajectory 10->9->8->7 (the
+sort key correctly trades raw unconn for critical-net count; kelvin-class proposals
+dominate the winners = intent chaining homing on the residuals); rails 3/4 every
+wave; thermal stamps FIRED on every new best post-deps-fix (dT 54.97/49.48/35.43/
+49.09 still-air -- 35.43 within sight of the 30 gate even with NO cooling model).
+12vhpwr: NEW BEST dT 22.14 PASS (production case), drc ->23, crit 2 stable.
+CHAIN 3 RUNNING overnight: 10 waves (24-pin seeds 56-103 x8 + 12vhpwr 24-35 x2),
+same env, watcher bp6ggzj0n (50-min poll; note its log header says "NIGHT CHAIN 3"
+but wave lines still read NIGHT2 -- sed artifact, cosmetic only). MORNING LADDER
+after the chain-3 readout: (1) §2.4 pour-flood at the J3 field (the kelvin/criticals
+path -- carries the unpickable pins); (2) codex #10 precision-locked reconciliation;
+(3) #16 determinism sorts; (4) 24-pin production cooling config (owner-adjacent);
+(5) container image dep bake. All prior context in the sections below.
+
 ## NIGHT CHAIN 1 READOUT + CHAIN 2 IN FLIGHT -- 2026-07-19 (late)
 Chain 1 (6 waves, post-fix tree) DONE in 90min (prune kept 3-4 routed/wave): FOUR NEW
 BESTS -- 24-pin unconn 104->95 (first sub-100), criticals 9->8 (the #22 fix visible in
