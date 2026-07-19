@@ -81,7 +81,7 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
               f"foreign={(v.get('foreign') or {}).get('tracks')}t dT={th.get('dT')} "
               f"({v.get('route_s')}s route)")
     _wlog(f"{star}{board} {label}", tag="wave", detail=detail,
-          image=(png if png and os.path.isfile(png) else None))
+          image=_snap_into_repo(png, board))
     if best and dual:
         pngb = os.path.join(work_root, board, f"{label}-bottom.png")
         try:
@@ -91,9 +91,32 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
                 _stamp_back_face(pngb)
                 _wlog(f"{board} {label} — BACK FACE (mirrored view)", tag="wave",
                       detail="bottom view: left/right appear MIRRORED vs the top view. " + detail,
-                      image=pngb)
+                      image=_snap_into_repo(pngb, board))
         except Exception:                              # noqa: BLE001
             pass
+
+
+def _snap_into_repo(png, board):
+    """Worklog images must live INSIDE the repo -- the host dashboard serves
+    /artifact paths repo-relative, and a work_root outside the repo (the night
+    chains' container /tmp) produced ../tmp/... paths the dash 404s ('image
+    failed to load', owner report 2026-07-19). Copy the snapshot into
+    build/wave-snaps/<board>/ and return that path; a repo-internal png passes
+    through unchanged."""
+    if not (png and os.path.isfile(png)):
+        return None
+    ap = os.path.abspath(png)
+    if ap.startswith(ROOT + os.sep):
+        return png
+    try:
+        import shutil
+        dst_dir = os.path.join(ROOT, "build", "wave-snaps", board)
+        os.makedirs(dst_dir, exist_ok=True)
+        dst = os.path.join(dst_dir, os.path.basename(png))
+        shutil.copy(ap, dst)
+        return dst
+    except Exception:                                  # noqa: BLE001
+        return None
 
 
 def _stamp_back_face(png):
