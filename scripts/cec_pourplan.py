@@ -306,7 +306,9 @@ class PourPlan:
                 d["min_thickness"] = s.min_thickness
             if s.island_removal != _ISLAND_REMOVAL_DEFAULT:
                 d["island_removal"] = s.island_removal
-            out.append(d)
+            if getattr(s, "provenance", "derived") not in ("derived", None):
+                d["provenance"] = s.provenance      # the locked-net pour filter
+            out.append(d)                           # exempts rail_compiler asks
         return out
 
     def evac_boxes(self):

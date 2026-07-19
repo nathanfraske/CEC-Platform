@@ -7165,7 +7165,9 @@ def _oracle_hints_pours(board_path):
         _lkn = cec_cell_extract.locked_nets(board_path)
         if _lkn:
             _n0 = len(pours)
-            pours = [q for q in pours if q.get("net") not in _lkn]
+            pours = [q for q in pours
+                     if q.get("net") not in _lkn
+                     or q.get("provenance") == "rail_compiler"]
             if len(pours) != _n0:
                 print("[pours] skipped %d pour(s) on locked-lay nets" % (_n0 - len(pours)),
                       file=sys.stderr)
@@ -9158,6 +9160,27 @@ def materialize(cand, cfg, out, *, logo=None):
         except Exception as _e:                             # noqa: BLE001 -- surface, don't die
             print("[materialize] force rails FAILED: %s: %s"
                   % (type(_e).__name__, _e), file=sys.stderr)
+        # THE POUR COMPILER (owner GO 2026-07-19 "do the pour compiler...
+        # so it's done"): compile the SAME rail plan into widened pour ASKS;
+        # they ride the PourPlan sidecar below and lay AFTER Freerouting
+        # (add_power_pours doctrine). The floods connect what the drop
+        # grammar could not -- the ZONE_FILLER flows around foreign barrels.
+        try:
+            _rl2 = cec_force_rails.discover_rails(_rlb)
+            _j3ys2 = [q[2] for _r3 in _rl2 for q in _r3["j3"]]
+            _ch2 = cec_force_rails.plan_rail_chains(
+                _rl2, max(_j3ys2) if _j3ys2 else 8.0,
+                alt=bool(cfg.params.get("rail_alt_layer")))
+            _rail_asks = cec_force_rails.compile_rail_pour_asks(
+                _rl2, _ch2, alt_layer=cfg.params.get("rail_alt_layer"),
+                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")))
+            if _rail_asks:
+                print("[materialize] pour compiler: %d rail pour ask(s)"
+                      % len(_rail_asks), file=sys.stderr)
+        except Exception as _e:                             # noqa: BLE001
+            _rail_asks = []
+            print("[materialize] pour compiler FAILED: %s: %s"
+                  % (type(_e).__name__, _e), file=sys.stderr)
     # POUR LEVER (stage 3, docs/pour-lever-scoping-2026-07-08.md): write the placement's PourPlan
     # to a <board>.pourplan.json sidecar. Only board_path strings cross the materialize ->
     # route_oracle_grade -> route_once -> spawn-worker boundary, so the plan (derived pours +
@@ -9169,6 +9192,10 @@ def materialize(cand, cfg, out, *, logo=None):
     try:
         import cec_pourplan
         _asks = tuple(cfg.params.get("pour_asks") or ())
+        try:
+            _asks = _asks + tuple(_rail_asks)
+        except NameError:
+            pass                                            # no rails block ran
         _plan = cec_pourplan.PourPlan.from_board(out, asks=_asks)
         with open(out[:-len(".kicad_pcb")] + ".pourplan.json", "w") as _f:
             json.dump(_plan.to_dict(), _f, indent=1, sort_keys=True)

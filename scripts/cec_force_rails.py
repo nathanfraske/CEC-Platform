@@ -713,3 +713,66 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                      (" (dropped: %s)" % "; ".join(dropped)) if dropped else ""),
                   flush=True)
     return report
+
+
+def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
+    """THE POUR COMPILER (§2.1/§2.4 of docs/pour-strategy-refinement-2026-07-19.md,
+    owner GO "do the pour compiler... so it's done instead of deferred"): compile
+    the rail plan into WIDENED same-net pour ASKS that ride the PourPlan sidecar
+    and lay AFTER Freerouting (the add_power_pours doctrine -- additive same-net
+    copper can never strand the locked taps). The ZONE_FILLER is DRC-aware by
+    construction, so the FLOOD regions connect what the drop grammar could not:
+    an unpickable J3 pin (foreign barrel underneath, jack shadow, span outlier)
+    is picked up by copper FLOWING AROUND the obstacles with clearance.
+
+    Per rail, three region families:
+      1. J3 PICKUP FLOOD -- the rail's own pin-group bbox, extended down INTO
+         the band row so the flood merges with the trunk. F.Cu + the alt layer.
+      2. SINK FLOOD -- the TB tab field up through the sink band row. F.Cu +
+         alt (+ B.Cu when the trunk mirrors there).
+      3. TRUNK WIDEN -- the band row itself at ~2x the track width.
+    Returns PourPlan ask dicts ({net, region_hint, layers, priority,
+    provenance="rail_compiler"}); the _oracle_hints_pours locked-net filter
+    exempts this provenance (deliberate plan-derived copper, not the geometric
+    deriver's mega-pour class)."""
+    asks = []
+    layers_src = ("F.Cu",) + ((alt_layer,) if alt_layer else ())
+    for rl in rails:
+        ch = chains.get(rl["rs"]) or {}
+        w = float(ch.get("w", 1.5))
+        band_y = float(ch.get("band_y", 0.0))
+        # 1. J3 pickup flood
+        if rl["j3"]:
+            xs = [q[1] for q in rl["j3"]]
+            ys = [q[2] for q in rl["j3"]]
+            reg = (min(xs) - 2.2, min(ys) - 1.2,
+                   max(xs) + 2.2, max(band_y + w / 2.0, max(ys) + 1.2))
+            for ln in layers_src:
+                asks.append({"net": rl["src_net"], "region_hint": reg,
+                             "layers": (ln,), "priority": 3,
+                             "provenance": "rail_compiler"})
+        # 2. sink flood
+        sd = ch.get("snk_desc")
+        if rl["tb"] and sd:
+            _lx, _lyy, band2, _wd = sd
+            txs = [q[2] for q in rl["tb"]]
+            tys = [q[3] for q in rl["tb"]]
+            reg = (min(txs) - 2.2, min(band2 - w / 2.0, min(tys) - 1.2),
+                   max(txs) + 2.2, max(tys) + 1.2)
+            lset = layers_src + (("B.Cu",) if mirror_bcu else ())
+            for ln in lset:
+                asks.append({"net": rl["snk_net"], "region_hint": reg,
+                             "layers": (ln,), "priority": 3,
+                             "provenance": "rail_compiler"})
+        # 3. trunk widen (the band row at ~2x width)
+        segs = [s for s in (ch.get("src") or ()) if s[5] != "face"
+                and abs(s[2] - s[0]) > 3.0]
+        for (x1, y1, x2, y2, w2, _tg) in segs:
+            reg = (min(x1, x2) - 0.5, y1 - w2, max(x1, x2) + 0.5, y2 + w2)
+            lset = ((alt_layer,) if alt_layer else ("F.Cu",)) \
+                + (("B.Cu",) if mirror_bcu else ())
+            for ln in lset:
+                asks.append({"net": rl["src_net"], "region_hint": reg,
+                             "layers": (ln,), "priority": 3,
+                             "provenance": "rail_compiler"})
+    return asks
