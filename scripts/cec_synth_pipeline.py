@@ -5052,9 +5052,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 + _force_corridor_boxes(lambda d: anchors.get(d))
             _cb = (_can_x + _can_cy[0] - _can_cy[2], _can_x + _can_cy[0] + _can_cy[2],
                    _can_y + _can_cy[1] - _can_cy[3], _can_y + _can_cy[1] + _can_cy[3])
-            if not any(not (_cb[1] <= _b[0] or _b[1] <= _cb[0]
-                            or _cb[3] <= _b[2] or _b[3] <= _cb[2])
-                       for _b in _occ + list(_env)):
+            # _box_clear, NOT an inline AABB: _env entries are LABELED 5-tuples
+            # (name,x0,x1,y0,y1) -- the inline test indexed them as 4-tuples and
+            # died float<=str on the FIRST board with stamped cells/force lanes
+            # (12vhpwr work14, 2026-07-19; the eps fixture never exercises a
+            # non-empty _env, which is why the CI teeth stayed green). Same
+            # zero-margin touching-is-clear semantics as the inline test.
+            if _box_clear(_cb, _occ + list(_env), 0.0):
                 anchors[_can] = (_can_x, _can_y, 0.0)
                 _can_seated.append(_can)
             else:
