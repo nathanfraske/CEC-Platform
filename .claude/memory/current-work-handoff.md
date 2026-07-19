@@ -1,5 +1,27 @@
 # Current work handoff
 
+## POUR REFINEMENT + ALT-LAYER RAILS + V3 KEYSTONE NAMED — 2026-07-19 (pre-dawn)
+Owner-directed pour brainstorm COMMITTED (docs/pour-strategy-refinement-2026-07-19.md) +
+recs implemented same session: §2.1/§2.4 plan_rail_chains = ONE rail geometry source (lay +
+placement keepouts both compile from it); §2.3 LAYER-CROSSING landed (owner: "cross layers
+with via arrays ... keep one INNER layer GND, the other for power routing"): alt-mode
+chains on In2 (In1 = solid GND; inner_power_routing already existed in build_board, now ON
+for atx-24pin-rev3 w/ rail_alt_layer=In2.Cu), THT-direct barrel pickup (no via at through
+pads), via arrays only at the SMD shunt stubs (2A/via, ring-grid sites — 9-site hand list
+could never seat 5V's 13, caught by teeth), layer-aware colliders, keepouts collapse to
+face-stubs+arrays. Teeth 8/8. SINGLE-SIDED: manifest override caught BY THE OWNER
+(placement_directives merges OVER BOARD_PARAMS — dual_sided:true rode through; canonical
+manifest now false w/ supersede note); 70x55 held (owner: size-up = LAST lever); baseline
+single-sided wave w/o rails = 117 unconn (the alt rails are the unblock). Blade-coupler
+recouple rung designed (§1: positions fixed, refs permute, pour-cost-scored — PourPlan
+verb; out-db internal regen at adoption). BLUEPRINT ANSWER: the INA238+INA181 cell stamp
+has NEVER fired on the 24-pin (no template; 12vhpwr b7 = INA240 geometry) — build queued.
+V3 KEYSTONE NAMED (3 consistent measurements, one pass): the cell/functional-stamp seat
+(p7 4b fixed_stamp absolutes) scatters shunts off the seeded row AND packs cell members
+onto the rail stub/array sites (final probe: ALL FOUR stubs refused vs cell parts at
+y~28). Fix shape + the cell-blueprint build in FOLLOWUPS — likely ONE change (blueprint
+stamps replace the functional-stamp cell placement). Then the 24-pin wave re-runs.
+
 ## OWNER GO BATCH 2+3 — seats/ratify/de-scatter/straight-through/force-rails — 2026-07-19 (small hours)
 All owner GOs implemented (commits 06855027..18f38139): ANALOG SEATS (vrail@lane6/th1/th2,
 net-keyed; unblocks the R5 tap), J2.2 single-pin-tap exemption from force-pin exclusion
