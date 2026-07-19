@@ -173,17 +173,22 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
     #       181.IN+ from the same lane.
     hx_o = lcol_edge - TAP_CLR - hw - 0.1                        # HI corridor drop
     b181_bot = min(v[1] - v[3] / 2 for v in geom[u181].values())
-    tlv_top = max(v[1] + v[3] / 2 for v in geom[role["tlv"]].values())
     y_bot = min(bot238, b181_bot) - TAP_CLR - hw - 0.15          # HI under-lane
     y_lo2 = y_bot - (2 * hw + TAP_CLR + 0.05)                    # LO lower lane
-    assert y_lo2 - tlv_top >= TAP_CLR + hw - 1e-6, \
-        "no LO lane between the HI under-lane and the TLV top row"
+    # the TLV constrains the LO lane only if it actually sits UNDER it (the
+    # TLV-beside layout moves it to x_t ~9.4, out of the lane's x-reach)
+    _tlv_under = [v[1] + v[3] / 2 for v in geom[role["tlv"]].values()
+                  if v[0] < 4.5]
+    if _tlv_under:
+        assert y_lo2 - max(_tlv_under) >= TAP_CLR + hw - 1e-6, \
+            "no LO lane between the HI under-lane and the TLV top row"
     col_top = max(v[1] + v[3] / 2 for v in geom[u238].values())  # 238 col highest edge
     y_jog = col_top + TAP_CLR + hw                               # over-the-column line
     x_gd = (lx_rs - g(rs, lo_rs)[2] / 2) + 0.5                   # gap drop, on the LO pad
     x_od = rcol_edge + TAP_CLR + hw + 0.075                      # outer drop column
 
-    net_of = {"CELL_HI": hi_net, "CELL_LO": lo_net}
+    net_of = {"CELL_HI": hi_net, "CELL_LO": lo_net,
+              "CELL_DETAMP": role["CELL_DETAMP"]}
     pad_net = {}
     for net in set(n for n, nodes in nl.nets.items()):
         for r, p in nl.nets[net]:
@@ -210,16 +215,22 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
         def segs(k):
             return [(a, b) for rk, pts in taps if rk == k
                     for a, b in zip(pts, pts[1:])]
-        for a1, b1 in segs("CELL_HI"):
-            for a2, b2 in segs("CELL_LO"):
-                x0a, x1a = min(a1[0], b1[0]) - hw, max(a1[0], b1[0]) + hw
-                y0a, y1a = min(a1[1], b1[1]) - hw, max(a1[1], b1[1]) + hw
-                x0b, x1b = min(a2[0], b2[0]) - hw, max(a2[0], b2[0]) + hw
-                y0b, y1b = min(a2[1], b2[1]) - hw, max(a2[1], b2[1]) + hw
-                dx = max(x0a - x1b, x0b - x1a, 0.0)
-                dy = max(y0a - y1b, y0b - y1a, 0.0)
-                if (dx * dx + dy * dy) ** 0.5 < TAP_CLR - 1e-6:
-                    return "HI/LO taps collide: %s->%s vs %s->%s" % (a1, b1, a2, b2)
+        _roles = sorted({rk for rk, _pts in taps})
+        for i, k1 in enumerate(_roles):
+            for k2 in _roles[i + 1:]:
+                if net_of[k1] == net_of[k2]:
+                    continue
+                for a1, b1 in segs(k1):
+                    for a2, b2 in segs(k2):
+                        x0a, x1a = min(a1[0], b1[0]) - hw, max(a1[0], b1[0]) + hw
+                        y0a, y1a = min(a1[1], b1[1]) - hw, max(a1[1], b1[1]) + hw
+                        x0b, x1b = min(a2[0], b2[0]) - hw, max(a2[0], b2[0]) + hw
+                        y0b, y1b = min(a2[1], b2[1]) - hw, max(a2[1], b2[1]) + hw
+                        dx = max(x0a - x1b, x0b - x1a, 0.0)
+                        dy = max(y0a - y1b, y0b - y1a, 0.0)
+                        if (dx * dx + dy * dy) ** 0.5 < TAP_CLR - 1e-6:
+                            return "%s/%s taps collide: %s->%s vs %s->%s" % (
+                                k1, k2, a1, b1, a2, b2)
         return None
 
     # candidate shapes: the straight-column 181 approaches first, then
@@ -229,6 +240,39 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
     inn_r = xi181n + g(u181, inn181)[2] / 2 + TAP_CLR + hw + 0.1
     inp_l = xi181p - g(u181, inp181)[2] / 2 - TAP_CLR - hw - 0.1
     inp_r = xi181p + g(u181, inp181)[2] / 2 + TAP_CLR + hw + 0.1
+    # AUTHORED DETAMP (the 181's OUT -> the TLV's IN): the blind ideal
+    # synthesis crossed the authored HI tap and the per-segment intra-cell
+    # guard (audit #1) rightly refused the whole cell -- authoring it routes
+    # the deepest lane (below the LO lane) east to the beside-TLV. The
+    # have-set in synthesize_ideal_internal then skips this role.
+    da_net = role["CELL_DETAMP"]
+    da_pads = [(r, p) for r, p in nl.nets[da_net] if r in pose]
+    xo181 = yo181 = xtin = ytin = None
+    for r, p in da_pads:
+        gx, gy, _sx, _sy = geom[r][p]
+        if r == u181:
+            xo181, yo181 = gx, gy
+        elif r == role["tlv"]:
+            xtin, ytin = gx, gy
+    assert None not in (xo181, yo181, xtin, ytin), \
+        "DETAMP pads not resolvable (need 181 OUT + TLV IN)"
+    y_dt = y_lo2 - (2 * hw + TAP_CLR + 0.05)             # deepest lane
+    # around-the-west shape (the straight drop clips the GND pad stacked
+    # directly under OUT -- measured): north over the 181's top row, west
+    # past its body, down the far side, then the deep lane east to the TLV.
+    _t181 = max(v[1] + v[3] / 2 for v in geom[u181].values())   # 181 top edge
+    _rs_bot = -(max(v[3] for v in geom[rs].values()) / 2.0)     # shunt pad bottom
+    y_up = (_rs_bot - 0.325 + _t181 + 0.325) / 2.0
+    x_far2 = min(v[0] - v[2] / 2 for v in geom[u181].values()) - TAP_CLR - hw - 0.1
+    # rise mid-channel (between the LO outer drop and the TLV's left column)
+    # and enter IN from the side -- the TLV's DET pad stacks directly below
+    # IN in the same column (measured), so a bottom-up entry clips it
+    x_rise = (x_od + TAP_CLR + hw + 0.2
+              + (xtin - g(role["tlv"], [p for r, p in da_pads
+                                        if r == role["tlv"]][0])[2] / 2 - 0.325)) / 2.0
+    detamp = [("CELL_DETAMP", [(xo181, yo181), (xo181, y_up), (x_far2, y_up),
+                               (x_far2, y_dt), (x_rise, y_dt),
+                               (x_rise, ytin), (xtin, ytin)])]
     cands = []
     for xn in (xi181n, inn_l, inn_r):
         for xp in (xi181p, inp_l, inp_r):
@@ -244,7 +288,7 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
                 ("CELL_LO", [(x_od, y9), (x9, y9)]),             # 238 IN- branch
                 ("CELL_HI", _hi1),                               # 181 IN+ path
                 ("CELL_HI", [(hx_o, y_bot), (x10, y_bot), (x10, y10)]),
-            ])
+            ] + detamp)
     taps, _reasons = None, []
     for _ci, _cand in enumerate(cands):
         _why = _check(_cand)
@@ -323,7 +367,17 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
     for r, sp in ROLE_PARTS.items():
         ox, oy, rot = sp["offset_mm"][0], sp["offset_mm"][1], sp["rot_delta"]
         if r == "U75V1" and author_taps and side < 0:
-            oy = -8.5          # the authored LO lane needs the deeper TLV (its
+            # TLV BESIDE the sink corridor, not below the 181 (owner render
+            # report 2026-07-19 evening: the deep TLV column cost +0.35mm of
+            # bank reach, which kept the authored-90 cell un-stampable and
+            # left the route-time diagonal/wraparound fallback taps on the
+            # boards). At (9.4, -4.4) it sits board-(col-4.4, row+9.4) --
+            # measured clear of the sink stub corridor (x_t 3..6.2) and the
+            # LO outer drop; the cell's deep reach drops ~9.75 -> ~7.9 and
+            # fits the 11.9 pitch with ~1.6mm spare. y -4.4 -> -5.0 (measured
+            # s2a: at -4.4 the TLV pads sat 0.3mm inside the rail's own sink
+            # descent corridor, board col+3.45 vs the 3.75 radius).
+            ox, oy = 9.4, -5.0
         if r == "U65V1" and not author_taps:
             rot = 0.0          # the 181's rot-180 exists FOR the authored taps
         if side > 0:           # (inputs facing the under-lane); parts-only

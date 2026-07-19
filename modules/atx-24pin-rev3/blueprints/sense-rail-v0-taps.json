@@ -45,8 +45,8 @@
   },
   "U75V1": {
    "offset_mm": [
-    -5.6,
-    -8.5
+    9.4,
+    -5.0
    ],
    "rot_delta": 0.0,
    "flipped": false,
@@ -97,8 +97,8 @@
      "ref": "U75V1",
      "pad": "5",
      "rel_mm": [
-      -4.4625,
-      -9.45
+      10.5375,
+      -5.95
      ]
     }
    ]
@@ -147,8 +147,8 @@
      "ref": "U75V1",
      "pad": "1",
      "rel_mm": [
-      -6.7375,
-      -9.45
+      8.2625,
+      -5.95
      ]
     }
    ]
@@ -215,8 +215,8 @@
      "ref": "U75V1",
      "pad": "4",
      "rel_mm": [
-      -4.4625,
-      -7.55
+      10.5375,
+      -4.05
      ]
     }
    ]
@@ -260,8 +260,8 @@
      "ref": "U75V1",
      "pad": "2",
      "rel_mm": [
-      -6.7375,
-      -8.5
+      8.2625,
+      -5.0
      ]
     }
    ]
@@ -282,8 +282,8 @@
      "ref": "U75V1",
      "pad": "3",
      "rel_mm": [
-      -6.7375,
-      -7.55
+      8.2625,
+      -4.05
      ]
     }
    ]
@@ -430,6 +430,84 @@
    "end_rel_mm": [
     2.2,
     -5.6
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -3.45
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -2.4125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -2.4125
+   ],
+   "end_rel_mm": [
+    -7.825,
+    -2.4125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -7.825,
+    -2.4125
+   ],
+   "end_rel_mm": [
+    -7.825,
+    -7.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -7.825,
+    -7.225
+   ],
+   "end_rel_mm": [
+    5.5625,
+    -7.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    5.5625,
+    -7.225
+   ],
+   "end_rel_mm": [
+    5.5625,
+    -4.05
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    5.5625,
+    -4.05
+   ],
+   "end_rel_mm": [
+    8.2625,
+    -4.05
    ],
    "width_mm": 0.25
   }

@@ -151,8 +151,14 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
         j3_kept = [q for q in rl["j3"] if q not in _trim]
         xs = [q[1] for q in j3_kept] + [hx]
         if not alt:
+            # the descent's LAST reach onto the HI pad clamps to pad width --
+            # same physics as the alt-mode stub (the pad is the neck; a fat
+            # tail's radius can reach the LO pad = a shunt bypass, surfaced
+            # by the honest collider once the shunt's own pads stopped being
+            # ref-skipped)
             src = [(min(xs), band_y, max(xs), band_y, w, "face"),
-                   (hx, band_y, hx, hy, w, "face")]
+                   (hx, band_y, hx, hy - 3.0, w, "face"),
+                   (hx, hy - 3.0, hx, hy, sw, "face")]
         else:
             # spine column: alt unless it crosses a FOREIGN alt band row
             lo_y, hi_y = min(band_y, hy - 3.0), max(band_y, hy - 3.0)
@@ -179,7 +185,9 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
         txs = [q[2] for q in rl["tb"]] + [lx]
         dwt = max(2.0, w / max(1, len(rl["tb"])))
         if not alt:
-            snk = [(lx, lyy, lx, band2, w, "face"),
+            _mid = min(lyy + 3.0, band2)         # pad-width tail off the LO pad
+            snk = [(lx, lyy, lx, _mid, sw, "face"),   # (mirror of the src clamp)
+                   (lx, _mid, lx, band2, w, "face"),
                    (min(txs), band2, max(txs), band2, w, "face")]
             snk += [(tx, band2, tx, ty, dwt, "face") for _r, _pn, tx, ty, _h, _t in rl["tb"]]
         else:

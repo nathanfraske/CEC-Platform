@@ -3295,7 +3295,13 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
                     continue                             # clear of the shunt row band
                 if _ax0 >= _wu / 2.0:
-                    _rb = min(_rb, _ax0 - 3.05)
+                    # margin = the via-array envelope, OR the CELL BANK's
+                    # rightward reach when blueprint cells ride the columns
+                    # (measured s2a: RS1's col at 53.6 put the bank's 181/TLV
+                    # pads onto J6's field -- the 3.05 array margin never knew
+                    # the cell extends +~6.5 right of the column)
+                    _rbm = 7.0 if (params or {}).get("blueprint_cells") else 3.05
+                    _rb = min(_rb, _ax0 - _rbm)
                 else:
                     # LEFT bound re-added 2026-07-19 (with the jack TUCK + the
                     # W74 seed there is slack; the original harmful cascade was

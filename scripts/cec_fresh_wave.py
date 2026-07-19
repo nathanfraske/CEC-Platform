@@ -337,6 +337,8 @@ _SENSE_RAIL_BP_24 = os.path.join(ROOT, "modules", "atx-24pin-rev3",
                                  "blueprints", "sense-rail-v0.json")
 _SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "modules", "atx-24pin-rev3",
                                       "blueprints", "sense-rail-v0-left.json")
+_SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "modules", "atx-24pin-rev3",
+                                      "blueprints", "sense-rail-v0-taps.json")
 _BP_RAILS_24 = {
     "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
             {"CELL_HI": "/SENSE12V_HI", "CELL_LO": "/SENSE12V_LO",
@@ -357,12 +359,14 @@ BOARD_PARAMS["atx-24pin-rev3"]["blueprint_cells"] = [
     # the rightmost rails take the MIRRORED bank-left template (parts-only
     # for now) while RS3 -- whose left flank is J1 -- keeps the bank-right
     # v0 with the authored Kelvin-90 taps.
-    # UNIFORM bank-right parts-only (2026-07-19 wedge arithmetic: with J1
-    # tucked, four right-banked cells fit at pitch 12 with real margin; any
-    # mixed handedness FACES two banks at ~19mm of combined reach, and the
-    # authored-tap variant's extra reach re-wedges every assignment --
-    # v0-taps.json returns after the TLV-beside redesign, FOLLOWUPS).
-    {"template": _SENSE_RAIL_BP_24, "anchor_ref": rs, "ideal_internal": True,
+    # UNIFORM bank-right AUTHORED cells (owner render report 2026-07-19
+    # evening: the route-time fallback taps were diagonal/wraparound spaghetti
+    # -- the textbook-90 authored cell is now stampable because the
+    # TLV-BESIDE redesign dropped its deep reach ~9.75 -> ~7.9, inside the
+    # 11.9 walk pitch; the per-pair coverage guard then skips route-time
+    # synthesis for these pairs). Mixed handedness still faces two banks in
+    # one pitch -- uniform-right + the J1 tuck stands.
+    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": True,
      "ref_map": rm, "net_map": nm}
     for rs, (rm, nm) in _BP_RAILS_24.items()]
 
