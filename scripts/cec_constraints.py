@@ -312,21 +312,24 @@ REGISTRY = [
       status="proposed", params={"count": 3, "edge_min_mm": 5.0, "clear_mm": 3.0,
                                  "sym_tol_mm": 1.0}),
     C(id="mlcc-edge-orientation", title="MLCC near a board edge lies parallel to it",
-      category="assembly-dfm", severity="advisory", checkable="yes", directive="none",
+      category="assembly-dfm", severity="strong", checkable="yes", directive="none",
       rule="An MLCC (C* on an 0402/0603/0805 land) whose courtyard comes within edge_band_mm of a "
            "board edge must orient its LONG axis PARALLEL to that edge (depanel/handling flex "
            "cracks the terminations of a perpendicular part; the K.1 rule also keeps them >= 1mm "
            "in). N/A when no MLCC sits in the band.",
-      source="STANDARD-DESIGN-SHEET §K.1 + MLCC flex-crack vendor guidance (I.15)",
-      status="proposed", params={"edge_band_mm": 1.0}),
+      source="STANDARD-DESIGN-SHEET §K.1 + MLCC flex-crack vendor guidance (I.15); RATIFIED "
+             "2026-07-19 (owner GO after fleet calibration: zero alpha false-positives, all "
+             "N/A; caught a real fresh-wave defect C22-perpendicular-at-edge)",
+      status="ratified", params={"edge_band_mm": 1.0}),
     C(id="ecap-edge-distance", title="Large SMD electrolytic clear of board edges",
-      category="assembly-dfm", severity="advisory", checkable="yes", directive="none",
+      category="assembly-dfm", severity="strong", checkable="yes", directive="none",
       rule="A large SMD aluminum-electrolytic can (>= min_uf uF, or a CP_Elec-class land) sits "
            ">= edge_min_mm from every board edge (base-weld flex + V-cut rule; the vent/enclosure "
            "and reflow rules are BOM/enclosure-side, sheet §K.8). N/A when the board carries none.",
       source="STANDARD-DESIGN-SHEET §K.8 + SMD e-cap vendor reflow/lifetime guidance (I.16); "
-             "hub-standard C1 measured 12.05mm 2026-07-17 (passes)",
-      status="proposed", params={"edge_min_mm": 5.0, "min_uf": 470.0}),
+             "hub-standard C1 measured 12.05mm 2026-07-17 (passes); RATIFIED 2026-07-19 "
+             "(owner GO after fleet calibration: only e-cap board PASSES, rest N/A)",
+      status="ratified", params={"edge_min_mm": 5.0, "min_uf": 470.0}),
     C(id="decoupler-adjacency-k5", title="Decoupling loop length vs the K.5 target (audit)",
       category="assembly-dfm", severity="advisory", checkable="yes", directive="adjacent",
       rule="AUDIT of the K.5 geometry target: every 100nF-class decoupler's power pad sits within "

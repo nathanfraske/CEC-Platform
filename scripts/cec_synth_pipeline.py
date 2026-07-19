@@ -5299,7 +5299,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _fan_sats = sorted(p for p in passives
                                    if p in comps and p not in _bp_refs and p not in anchors
                                    and any("FAN" in (n or "").upper()
-                                           for n in _ref_nets.get(p, ())))
+                                           for n in _ref_nets.get(p, ()))
+                                   # a VRAIL-divider member (R5 taps the lane-6 HI,
+                                   # whose alias contains FAN) belongs to the
+                                   # vrail-divider seat below, never the fan row
+                                   and not any("VRAIL" in (n or "").upper()
+                                               for n in _ref_nets.get(p, ())))
                 if _fan_conn and _fan_sats:
                     _run = 0.0
                     _fan_offs = {}
@@ -5324,6 +5329,62 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                             print(f"  [p3crit] fan-gate seat: {len(_fan_placed)} part(s) "
                                   f"rot {_fan_rot:.0f} by {_fan_conn} "
                                   f"@ {anchors[_fan_conn][:2]}", file=sys.stderr)
+                # ANALOG-DOCTRINE SEATS (owner GO 2026-07-19; the FOLLOWUPS 2026-07-12/14
+                # standing rung): net-keyed deliberate seats for the analog front-end
+                # families the taint walk keeps OUT of the MCU macro but nothing seated --
+                # measured stranding: /TEMP2 3 edges + /VRAIL_DIV on the wave-7 winner,
+                # and the force-lane R5 tap refuses until R5 sits beside lane 6.
+                #   vrail-divider (R5/R6/C24, nets *VRAIL*) -> AT the lane-6 stamp (the
+                #     alpha doctrine "VRAIL near lane 6"; unblocks the R5 HI tap).
+                #   th1 (TH* + legs on /TEMP1) -> shunt-row centroid (shunt temp).
+                #   th2 (/TEMP2) -> the corner FARTHEST from the stamp row (ambient,
+                #     away from lane/MCU heat; clamped 6mm inboard).
+                # Same machinery as the fan seat; empty members or no stamps = no-op.
+                _stamp_pts = [tuple(map(float, _st.get("at_mm", (0.0, 0.0))))
+                              for _st in (_blueprint_stamps or [])]
+
+                def _net_sats(_sub):
+                    return sorted(p for p in passives
+                                  if p in comps and p not in _bp_refs and p not in anchors
+                                  and any(_sub in (n or "").upper()
+                                          for n in _ref_nets.get(p, ())))
+
+                def _seat_row(_tag, _mems, _pts):
+                    if not (_mems and _pts):
+                        return
+                    _run2, _offs2 = 0.0, {}
+                    for _r2 in _mems:
+                        _c2 = _courtyard_info(comps[_r2], 0.0)
+                        _offs2[_r2] = (_run2 + _c2[2] - _c2[0], -_c2[1], 0.0)
+                        _run2 += 2 * _c2[2] + 0.5
+                    _occ2 = [_mcu_true_box(_o, anchors[_o])
+                             for _o in anchors if _o in comps]
+                    _pl2, _rot2 = _seat_mcu_macro(_offs2, comps, W, H,
+                                                  forbid_boxes=_mcu_env,
+                                                  occ_boxes=_occ2, score_points=_pts)
+                    if _pl2 is None:
+                        print(f"  [p3crit] {_tag} seat: NO legal seat "
+                              f"(left for ordinary placement)", file=sys.stderr)
+                        return
+                    for _r2, _xyz in _pl2.items():
+                        anchors[_r2] = _xyz
+                    _bp_refs.update(_pl2)
+                    if os.environ.get("CEC_BP_DEBUG"):
+                        print(f"  [p3crit] {_tag} seat: {len(_pl2)} part(s) "
+                              f"@ {_pts[0]}", file=sys.stderr)
+
+                if _stamp_pts:
+                    _lane6_pt = max(_stamp_pts)
+                    _row_c = (sum(q[0] for q in _stamp_pts) / len(_stamp_pts),
+                              sum(q[1] for q in _stamp_pts) / len(_stamp_pts))
+                    _far = max(((0.0, 0.0), (W, 0.0), (0.0, H), (W, H)),
+                               key=lambda c: (c[0] - _row_c[0]) ** 2
+                                             + (c[1] - _row_c[1]) ** 2)
+                    _far = (min(max(_far[0], 6.0), W - 6.0),
+                            min(max(_far[1], 6.0), H - 6.0))
+                    _seat_row("vrail-divider", _net_sats("VRAIL"), [_lane6_pt])
+                    _seat_row("th1-shunt-ntc", _net_sats("TEMP1"), [_row_c])
+                    _seat_row("th2-ambient-ntc", _net_sats("TEMP2"), [_far])
         # 1d. SEAT CONFLICT REPAIR (dual-sided fix): Y-stagger the rail sensing CELLS (rigidly, so
         #     Kelvin holds) clear of same-face overlaps AND opposite-face THT pin fields. Runs HERE --
         #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what

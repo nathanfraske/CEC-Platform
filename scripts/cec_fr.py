@@ -581,6 +581,17 @@ def sensec_force_connector_pins(board, *, kelvin_pairs=None) -> set:
                 continue
             for r, p in tht:
                 out.add(f"{r}-{p.GetPadName()}")
+    # SINGLE-PIN TAP EXEMPTION (2026-07-19, the /FAN_12V root-close): the drop
+    # contract is "a pin is dropped iff a pour/lay will reconnect it" -- true for
+    # CABLE connectors (J_IN/J_OUT/J3/J4 carry >=2 force-net THT pads per ref and
+    # sit inside the pour/lane geometry), FALSE for a single-pin tap header (the
+    # 12vhpwr J2 fan feed: ONE force pad, outside every pour region -- excluding
+    # it made the net uncompletable by FR on every wave, measured). A ref with
+    # exactly one force-net THT pad keeps that pin routable.
+    ref_force_tht = defaultdict(int)
+    for tok in out:
+        ref_force_tht[tok.rsplit("-", 1)[0]] += 1
+    out = {tok for tok in out if ref_force_tht[tok.rsplit("-", 1)[0]] >= 2}
     return out
 
 
@@ -2723,12 +2734,16 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
             pos = pd.GetPosition()
             sz = pd.GetSize()
             r = max(sz.x, sz.y) / 2 + int(0.15e6)
-            covered = any((px - pos.x) ** 2 + (py - pos.y) ** 2 <= r * r
-                          for px, py in locked_pts.get(n, ()))
-            if not covered:
-                w = max(sz.x, sz.y) / 2 + win
-                windows.setdefault(n, []).append(
-                    [pos.x - w, pos.y - w, pos.x + w, pos.y + w])
+            # EVERY pad of a partial net opens a window -- covered pads included
+            # (2026-07-19 wave-14b forensic): windows-around-uncovered-only let FR
+            # LEAVE R5.1/J2.2 but never LAND anywhere -- the lane body AND its
+            # covered pads (RS6.1/J3.6, the natural attach points) were walled off,
+            # so /FAN_12V was uncompletable BY CONSTRUCTION (3 standing edges on
+            # the 14b best). A covered pad's window exposes only pad+1mm of lane,
+            # and connecting AT the pad is the electrically-correct attach.
+            w = max(sz.x, sz.y) / 2 + win
+            windows.setdefault(n, []).append(
+                [pos.x - w, pos.y - w, pos.x + w, pos.y + w])
     out = []
     for n in sorted(locked_boxes):
         for ly, boxes in sorted(locked_boxes[n].items()):

@@ -38,14 +38,25 @@ def _mm_pt(x, y):
 
 @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(HUB), "pcbnew + boards required")
 class TestRegistration(unittest.TestCase):
-    def test_registered_advisory_proposed(self):
+    # RATIFICATION STATE (owner GO 2026-07-19, after the fleet calibration run):
+    # mlcc-edge-orientation + ecap-edge-distance ratified strong (zero alpha
+    # false-positives); fiducial-protocol + decoupler-adjacency-k5 HELD at
+    # advisory/proposed (the shipped 12vhpwr alpha fails the 5mm fiducial edge
+    # rule; the K.5 1.5mm target fails 100% of the fleet -- doctrine gap, not
+    # defects). This test pins the RULED state per checker, not a blanket.
+    RULED = {"mlcc-edge-orientation": ("strong", "ratified"),
+             "ecap-edge-distance": ("strong", "ratified"),
+             "fiducial-protocol": ("advisory", "proposed"),
+             "decoupler-adjacency-k5": ("advisory", "proposed")}
+
+    def test_registered_per_ruled_state(self):
         by_id = {c.id: c for c in K.REGISTRY}
         for cid in CIDS:
             self.assertIn(cid, by_id)
             self.assertIn(cid, K.CHECKERS)
-            self.assertEqual(by_id[cid].severity, "advisory",
-                             "%s: K-protocol thresholds are [wb] -- audit, never gate" % cid)
-            self.assertEqual(by_id[cid].status, "proposed")
+            sev, st = self.RULED[cid]
+            self.assertEqual(by_id[cid].severity, sev, cid)
+            self.assertEqual(by_id[cid].status, st, cid)
 
 
 @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(HUB) and os.path.isfile(HPWR)
