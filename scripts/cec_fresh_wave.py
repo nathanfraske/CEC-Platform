@@ -124,7 +124,10 @@ BOARD_WH = {
     # owner 2026-07-08 "way too large -- tone it down": geometry floor is J3 (~63mm) and
     # the blade row + signal stub (~59mm); dual-sided chains + no mounts + full overhang
     # make 70x55 the aggressive seed (the shrink pass walks further once gate-clean).
-    "atx-24pin-rev3": (70.0, 55.0),
+    "atx-24pin-rev3": (76.0, 60.0),  # single-sided seed (owner 2026-07-19): 70x55 fit only
+    # dual-sided (residual 35 one-faced); 76x60 = the measured single-sided plateau
+    # (residual 16 at 76x60 AND 80x62 -> mechanism floor, not space; still -31% vs
+    # the 6576mm2 single-sided alpha; shrink pass walks it back after gate-clean).
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
