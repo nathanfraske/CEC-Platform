@@ -1573,7 +1573,11 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
     ex_vias = []                           # (x, y, radius) -- existing vias
     for t in board.GetTracks():
         if t.Type() == pcbnew.PCB_VIA_T:
-            p = t.GetPosition(); ex_vias.append((p.x / MM, p.y / MM, t.GetWidth() / MM / 2.0))
+            # KiCad-10: PCB_VIA.GetWidth() with NO layer arg asserts (modal
+            # Debug Alert on Windows debug builds) -- the normalize_via_annular
+            # fix, applied here too (codex stack-audit 2026-07-19 #12)
+            p = t.GetPosition(); ex_vias.append((p.x / MM, p.y / MM,
+                                                 t.GetWidth(t.TopLayer()) / MM / 2.0))
         elif t.Type() == pcbnew.PCB_TRACE_T:
             s, e = t.GetStart(), t.GetEnd()
             segs.append((t.GetNetname(), s.x / MM, s.y / MM, e.x / MM, e.y / MM, t.GetWidth() / MM / 2.0))
@@ -2907,8 +2911,13 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     if os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0":
         _plane_names = set(plane_layers(board))
         if _plane_names:
+            # never strip LOCKED copper (codex stack-audit 2026-07-19 #4: a
+            # locked force trunk on a plane-detected layer would be silently
+            # erased -- latent on today's boards, measured: the 24-pin's In2
+            # is freed/renamed PWR_RT and not plane-detected, but the hole is
+            # real for any future planed-layer locked lay)
             _doomed = [t for t in board.GetTracks()
-                       if t.GetClass() == "PCB_TRACK"
+                       if t.GetClass() == "PCB_TRACK" and not t.IsLocked()
                        and board.GetLayerName(t.GetLayer()) in _plane_names]
             for t in _doomed:
                 board.Remove(t)

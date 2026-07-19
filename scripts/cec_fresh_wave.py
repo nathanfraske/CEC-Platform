@@ -538,7 +538,12 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     t0 = time.monotonic()
     # The wave is the consumer that WANTS the fork's real seed-diversity axis
     # (R-01); everything else stays stock-order unless it opts in (see cec_fr
-    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
+    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14). RESTORED after the
+    # grade (codex stack-audit 2026-07-19 #24: the unrestored process-global
+    # leaked the wave-only axis + plateau-kill into any later same-process
+    # route, e.g. a golden run).
+    _env_prev = {k: os.environ.get(k) for k in ("CEC_FR_SEED_AXIS",
+                                                "CEC_FR_PLATEAU_KILL")}
     os.environ["CEC_FR_SEED_AXIS"] = "1"
     # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
     # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
@@ -563,6 +568,11 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     v["label"] = label
     v["placed"] = out
     v["wall_s"] = round(time.monotonic() - t0, 1)
+    for _ek, _ev in _env_prev.items():          # restore (audit #24)
+        if _ev is None:
+            os.environ.pop(_ek, None)
+        else:
+            os.environ[_ek] = _ev
     return v
 
 

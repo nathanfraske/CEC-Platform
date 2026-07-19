@@ -7180,8 +7180,16 @@ def _classify_unconnected(unconn_nets, rules):
     sig = []
     for n in unconn_nets:
         u = (n or "").upper()
-        is_crit = (n in safety or n in power or u == "GND" or u == "/GND"
-                   or u.endswith("_HI") or u.endswith("_LO") or "12V" in u)
+        # the bare "12V" substring promoted SIGNAL derivatives (/DET12V,
+        # /DETAMP12V, /NEG12V_ADC, /NEG12V_DIV, /ATX_NEG12V readback chain)
+        # to safety criticals -- codex stack-audit 2026-07-19 #22; a
+        # detect/readback net is the documented finishing class, not a
+        # power-path open
+        is_sig_deriv = ("DET" in u or u.endswith("_ADC") or u.endswith("_DIV")
+                        or "NEG12V" in u)
+        is_crit = (n in safety or u == "GND" or u == "/GND"
+                   or u.endswith("_HI") or u.endswith("_LO")
+                   or ((n in power or "12V" in u) and not is_sig_deriv))
         (crit if is_crit else sig).append(n)
     return crit, sig
 
@@ -8364,7 +8372,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
     os.makedirs(work_dir, exist_ok=True)
     label = None
     try:
-        with _oracle_env():
+        with _oracle_env(cfg.params if cfg else None):  # params carry thermal_board_hint
+                                                        # (codex stack-audit 2026-07-19 #5:
+                                                        # the paramless entry dropped it ->
+                                                        # wrong cooling model on wave paths
+                                                        # entering here directly)
             # ---- 1. resolve the placement board (materialize a Candidate; else use the path) ----
             if isinstance(placement_or_board, Candidate):
                 if cfg is None:
