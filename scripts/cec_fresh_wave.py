@@ -237,6 +237,10 @@ BOARD_PARAMS = {
                        "respect_antenna_keepout": False,
                        # owner GO 2026-07-08: alternate rail chains F/B (same-side-per-rail)
                        "dual_sided": True,
+                       # ZONE CREATOR (owner GO 2026-07-19): per-rail force trunks
+                       # (cec_force_rails -- J3 group -> straddle shunt -> TBs) laid
+                       # locked at materialize; refusals teach the placer.
+                       "force_rails": True,
                        # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to

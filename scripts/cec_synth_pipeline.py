@@ -8645,6 +8645,19 @@ def materialize(cand, cfg, out, *, logo=None):
         # protect, so the FR residual routes AROUND it, same as cell copper. A
         # lane that would hit a foreign pad REFUSES with the collider named
         # (corridor reservation failed at the placer -- fix there, never force).
+        # FORCE RAILS (owner GO 2026-07-19, "the 24 pin is pretty much fully gated
+        # on [the zone creator] working"): the shared-bus sibling -- per-rail
+        # J3-group -> straddle-shunt -> TB trunks laid LOCKED, name-independent
+        # discovery, per-pin guarded pickups, refuse-loud spines. Same fix->
+        # protect export contract as lanes/cells.
+        if cfg.params.get("force_rails"):
+            import cec_force_rails
+            _frr = cec_force_rails.lay_force_rails(_bpb, lock=True)
+            _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}
+            print("[materialize] force rails: %d/%d laid%s"
+                  % (len(_frr) - len(_badr), len(_frr),
+                     (" -- " + "; ".join("%s %s" % kv for kv in sorted(_badr.items())))
+                     if _badr else ""), file=sys.stderr)
         if cfg.params.get("force_lanes"):
             import cec_force_lanes
             _flr = cec_force_lanes.lay_force_lanes(_bpb, lock=True)
