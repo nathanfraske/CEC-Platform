@@ -1,5 +1,25 @@
 # Current work handoff
 
+## OWNER BATCH + PARALLEL 24-PIN/HUB CHAINS -- 2026-07-20 (morning)
+Commit e795e79a: (1) USB-C CORNERED -- tuck ceiling from x-overlapping anchors only
++ sliver-shift-outward for edge jacks (J5 15.4->7.3 against the fiducial); tuck
+window narrowed to the band-stack rows (J6's over-lift walled RS1's descent,
+measured). (2) RECTANGULAR COPPER -- landing patches = sharp filled ZONES via
+add_power_pours at materialize (14/probe); the pour compiler's trunk-widen covers
+EVERY non-face trunk seg orientation-aware, so published boards read as rectangular
+pours over the protect-spine tracks (the pill/stacked-trace look retired).
+(3) 24-PIN PRODUCTION COOLING AUTHORED (owner ruling: plastic case + vent holes =
+still-air posture): board_thermal_config entry with the rail-bar currents + the
+board-class stackup; cooling None by design. (4) wave_fr_timeout 1500 both boards.
+PARALLEL CHAINS RUNNING (owner: "the two holdups"): 24-pin seeds 110-145 + HUB
+seeds 0-35, 6 waves each, simultaneous; dual watcher biwmo2cde (45-min poll). Hub
+pipeline verified up-to-par vs the docs (rich doc-derived params: top jack row,
+LED-ring rigid group, MCU antenna-out edge seat; no manifest-override hazard;
+K.6 edge-band checker = filed, calibrates on the routed hubs this chain makes).
+Part overlaps: the p8b/p9 grind + courtyard gate own them; per-board residual
+lists in the wave verdicts. NEXT on the chains' readout: overlap classes, hub
+first-ever wave readout, criticals from 4, kelvin flip watch.
+
 ## WAVE 17: THE EVERYTHING-BOARD IS NEW BEST -- 2026-07-20 (pre-dawn)
 Wave 17 (first wave carrying ALL of 2026-07-19/20: authored-90 cells, 4/4 rails,
 per-rail PRIMARY In2/B.Cu layers 85edccdc, pour compiler 3c5733fb, B.Cu escape+twins,
