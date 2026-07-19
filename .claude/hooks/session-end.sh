@@ -39,7 +39,14 @@ committed="$ROOT/.claude/memory"
 if [ -d "$memdir" ] && [ -d "$committed" ]; then
   for f in "$memdir"/*.md; do
     [ -e "$f" ] || continue
-    cp "$f" "$committed/$(basename "$f")" 2>/dev/null || true
+    dst="$committed/$(basename "$f")"
+    # NEWEST-WINS (FOLLOWUPS 2026-07-17, bit twice): after a merge the REPO copy
+    # can be fresher than the live memory dir -- an unconditional cp here clobbered
+    # the merged handoff with a stale pre-merge copy. Only mirror live->committed
+    # when the live file is strictly newer; the start hook covers committed->live.
+    if [ ! -e "$dst" ] || [ "$f" -nt "$dst" ]; then
+      cp "$f" "$dst" 2>/dev/null || true
+    fi
   done
 fi
 
@@ -124,4 +131,10 @@ if [ -n "${CEC_BOT_PAT:-}" ]; then
 else
   run git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null || true
 fi
+
+# --- 4) ring-buffer housekeeping (owner ask 2026-07-18): trim the disposable
+# working dirs (repo build/, agent project sessions, agent job tmp) so they
+# never balloon. Fail-soft + time-capped; runs AFTER the durable push so
+# cleanup can never delay or break the handoff.
+timeout 120 python3 "$ROOT/scripts/cec_housekeep.py" --quiet >/dev/null 2>&1 || true
 exit 0
