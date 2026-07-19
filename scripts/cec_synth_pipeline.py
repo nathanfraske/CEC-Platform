@@ -5147,10 +5147,52 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         comps[_r], _ap[2] if len(_ap) > 2 else 0)
                     _ay0 = _ap[1] + _c1 - _jhh
                     _ay1 = _ap[1] + _c1 + _jhh
-                    if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
+                    # tuck only jacks sitting on the BAND-STACK rows (just
+                    # below J3): a jack parked at the SHUNT row is already
+                    # handled by the walk's right-bound, and tucking it UP
+                    # drags it through the descent lanes (measured: J6's
+                    # lift to y16.5 walled RS1's descent, 2026-07-20)
+                    if _ay1 < _j3b or _ay0 > _j3b + 12.0:
                         continue
-                    _nay = _j3b + 0.4 + _jhh - _c1     # courtyard top against J3
-                    if _nay >= _ap[1]:
+                    # ceiling = the lowest courtyard bottom among anchors that
+                    # actually X-OVERLAP this jack (owner 2026-07-20: the USB-C
+                    # sits BEYOND J3's right edge -- "can be easily moved up
+                    # way more, right up against the top-right fiducial"; the
+                    # unconditional J3 line held it 10mm low). No overlapping
+                    # anchor above -> the top-edge margin (fiducials nudge).
+                    def _ceil_for(_jcx):
+                        _x0 = _jcx + _c0 - _jhw
+                        _x1 = _jcx + _c0 + _jhw
+                        _c, _ov = 2.0, 0.0
+                        for _o, _op in anchors.items():
+                            if _o == _r or _o not in comps or _o.startswith("FID"):
+                                continue
+                            _oc0, _oc1, _ohw, _ohh = _courtyard_info(
+                                comps[_o], _op[2] if len(_op) > 2 else 0)
+                            _ox0 = _op[0] + _oc0 - _ohw
+                            _ox1 = _op[0] + _oc0 + _ohw
+                            if _ox1 <= _x0 or _ox0 >= _x1:
+                                continue               # no x-overlap
+                            _ob = _op[1] + _oc1 + _ohh
+                            if _ob <= _ay0 + 0.1:      # sits ABOVE this jack
+                                if _ob + 0.4 > _c:
+                                    _c = _ob + 0.4
+                                    _ov = min(_ox1, _x1) - max(_ox0, _x0)
+                        return _c, _ov
+                    _jx_new = _ap[0]
+                    _ceil, _ovl = _ceil_for(_jx_new)
+                    # SLIVER SHIFT (owner 2026-07-20: the USB-C "can be easily
+                    # moved up way more, right up against the top-right
+                    # fiducial"): a <=2.5mm courtyard sliver binding an
+                    # EDGE-mounted jack is cleared by shifting it OUTWARD
+                    # (mouth-overhang connectors own that margin), then rising.
+                    if _ceil > 2.0 and 0.0 < _ovl <= 2.5 and _ap[0] > 0.8 * W:
+                        _try = _ap[0] + _ovl + 0.3
+                        _c2b, _ov2 = _ceil_for(_try)
+                        if _c2b < _ceil:
+                            _jx_new, _ceil = _try, _c2b
+                    _nay = _ceil + _jhh - _c1
+                    if _nay >= _ap[1] and _jx_new == _ap[0]:
                         continue                       # only ever moves UP
                     _nx0 = _ap[0] + _c0 - _jhw
                     _nx1 = _ap[0] + _c0 + _jhw
@@ -9136,6 +9178,18 @@ def materialize(cand, cfg, out, *, logo=None):
             _frr = cec_force_rails.lay_force_rails(
                 _rlb, lock=True, alt_layer=cfg.params.get("rail_alt_layer"),
                 mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")))
+            # RECTANGULAR landing zones (owner 2026-07-20: no pill fields) --
+            # laid + filled here so every render shows real rectangles
+            _fpatch = (_frr.pop("_patches", None) or {}).get("pours") or []
+            if _fpatch:
+                try:
+                    import cec_fr as _cfr2
+                    _cfr2.add_power_pours(_rlb, _fpatch, fill=True)
+                    print("[materialize] landing zones: %d rectangular patch(es)"
+                          % len(_fpatch), file=sys.stderr)
+                except Exception as _e:                     # noqa: BLE001
+                    print("[materialize] landing zones FAILED: %s: %s"
+                          % (type(_e).__name__, _e), file=sys.stderr)
             if _frr:
                 _pcb_fr.SaveBoard(out, _rlb)
             _badr = {k: v for k, v in _frr.items() if not isinstance(v, dict)}

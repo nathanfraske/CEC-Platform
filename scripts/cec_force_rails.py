@@ -457,33 +457,30 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             board.Add(t)
             laid_segs.append((net, x1, y1, x2, y2, w, tag))
 
-    def _commit_array(net, sites, face_ly):
-        # LANDING PATCHES (owner, wave-15 render: "the via fields are clipped
-        # out of the pours"): every via must land on same-net copper on BOTH
-        # layers -- the plan's stub/band segs don't cover the full site spread.
-        # Try one bbox patch per layer (collide-checked, own-net exempt); fall
-        # back to per-site pads where the full patch is contended.
+    def _commit_array(net, sites, face_ly, face_name="F.Cu", alt_name=None):
+        # LANDING PATCHES as RECTANGULAR ZONES (owner 2026-07-20: "make the
+        # via fields one rectangular pour... not pills of rows of traces"):
+        # one sharp-cornered filled zone per layer over the site bbox,
+        # collide-checked as a covering fat segment, collected for
+        # add_power_pours at the end of the lay. Segment pills retired.
         if sites:
             _pxs = [s[0] for s in sites]
             _pys = [s[1] for s in sites]
             _px0, _px1, _py0, _py1 = min(_pxs), max(_pxs), min(_pys), max(_pys)
             _pm = 0.65
-            for _ptag in (("face", "alt") if alt_on else ("face",)):
-                if _px1 - _px0 >= _py1 - _py0:
-                    _patch = [(_px0 - _pm, (_py0 + _py1) / 2.0,
-                               _px1 + _pm, (_py0 + _py1) / 2.0,
-                               (_py1 - _py0) + 2 * _pm, _ptag)]
-                else:
-                    _patch = [((_px0 + _px1) / 2.0, _py0 - _pm,
-                               (_px0 + _px1) / 2.0, _py1 + _pm,
-                               (_px1 - _px0) + 2 * _pm, _ptag)]
-                if _collide(_patch, {net}) is None:
-                    _commit(net, _patch, face_ly)
-                else:
-                    for (cx, cy) in sites:
-                        _p1 = [(cx - _pm, cy, cx + _pm, cy, 2 * _pm, _ptag)]
-                        if _collide(_p1, {net}) is None:
-                            _commit(net, _p1, face_ly)
+            _r0x, _r1x = _px0 - _pm, _px1 + _pm
+            _r0y, _r1y = _py0 - _pm, _py1 + _pm
+            _lays = [("face", face_name)]
+            if alt_on and alt_name:
+                _lays.append(("alt", alt_name))
+            for _ptag, _lname in _lays:
+                _chk = [((_r0x + _r1x) / 2.0, _r0y, (_r0x + _r1x) / 2.0, _r1y,
+                         _r1x - _r0x, _ptag)]
+                if _collide(_chk, {net}) is None:
+                    _patch_pours.append({"net": net, "layer": _lname,
+                                         "priority": 3,
+                                         "polygon": [(_r0x, _r0y), (_r1x, _r0y),
+                                                     (_r1x, _r1y), (_r0x, _r1y)]})
         for (cx, cy) in sites:
             v = pcbnew.PCB_VIA(board)
             v.SetViaType(pcbnew.VIATYPE_THROUGH)
@@ -506,6 +503,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     chains = plan_rail_chains(rails, j3_bot, alt=alt_on)
     report = {}
     _twin_cands = []          # (rs, net, seg, face_ly) -- committed pass 2
+    _patch_pours = []         # rectangular landing-zone dicts (add_power_pours)
     for rank, rl in enumerate(rails):
         _ch = chains[rl["rs"]]
         w = _ch["w"]
@@ -738,8 +736,11 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         if not _snk_arr_on:          # face-staggered sink: no layer transition,
             arr_sites = [(n, s_) for (n, s_) in arr_sites   # its array would dangle
                          if n != rl["snk_net"]]
+        _bodyl = _ch.get("body", "alt")
+        _alt_name = (alt_layer if _bodyl == "alt" else "B.Cu")
         for (a_net, s_) in arr_sites:
-            _commit_array(a_net, s_, face_ly)
+            _commit_array(a_net, s_, face_ly, face_name=rl["face"],
+                          alt_name=_alt_name)
         n_arr = sum(len(s_) for _n2, s_ in arr_sites)
         report[rl["rs"]] = {"segs": len(spine) + len(pin_plans) + len(snk),
                             "pins": "%d/%d" % (picked, len(rl["j3"])),
@@ -769,6 +770,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     if verbose and _twin_cands:
         print("[force-rails] ampacity twins: %d/%d laid (pass 2, yield-to-primary)"
               % (_twinned, len(_twin_cands)), flush=True)
+    if _patch_pours:
+        report["_patches"] = {"pours": _patch_pours}
     return report
 
 
@@ -827,11 +830,19 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
                 asks.append({"net": rl["snk_net"], "region_hint": reg,
                              "layers": (ln,), "priority": 3,
                              "provenance": "rail_compiler"})
-        # 3. trunk widen (the band row at ~2x width)
-        segs = [s for s in (ch.get("src") or ()) if s[5] != "face"
-                and abs(s[2] - s[0]) > 3.0]
+        # 3. trunk widen -- EVERY non-face trunk seg, src AND snk (owner
+        # 2026-07-20: rectangular pours over the whole trunk so the spine
+        # tracks read as clean rectangles on the final board)
+        segs = [s for s in (list(ch.get("src") or ()) + list(ch.get("snk") or ()))
+                if s[5] != "face"
+                and (abs(s[2] - s[0]) > 2.0 or abs(s[3] - s[1]) > 2.0)]
         for (x1, y1, x2, y2, w2, _tg) in segs:
-            reg = (min(x1, x2) - 0.5, y1 - w2, max(x1, x2) + 0.5, y2 + w2)
+            if abs(x2 - x1) >= abs(y2 - y1):     # horizontal run
+                reg = (min(x1, x2) - 0.5, min(y1, y2) - w2,
+                       max(x1, x2) + 0.5, max(y1, y2) + w2)
+            else:                                # vertical run
+                reg = (min(x1, x2) - w2, min(y1, y2) - 0.5,
+                       max(x1, x2) + w2, max(y1, y2) + 0.5)
             _mirr2 = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
             lset = ((_blayer,) if _blayer else ("F.Cu",)) \
                 + ((_mirr2,) if mirror_bcu and _mirr2 != _blayer else ())

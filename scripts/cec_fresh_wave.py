@@ -186,7 +186,8 @@ BOARD_PARAMS = {
     # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
     # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
     # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
-    "hub-standard-rev2": {"mount_holes": "corners", "connector_overhang": "edge",
+    "hub-standard-rev2": {"wave_fr_timeout": 1500,
+                          "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
                           # 21.5mm allowance = keepout-drawing depth (27.75) minus the
@@ -284,6 +285,9 @@ BOARD_PARAMS = {
                        # assembly leaves the bottom free -- twin the In2
                        # trunks there, bonded by the through arrays/barrels)
                        "rail_mirror_bcu": True,
+                       # FR headroom under parallel-chain contention (filed
+                       # 2026-07-20: 900s sentinel-timed-out a loaded route)
+                       "wave_fr_timeout": 1500,
                        # LAYER-CROSSING RAILS (owner 2026-07-19: "it should be able
                        # to cross layers with via arrays ... keep one INNER layer
                        # as GND, use the other for power routing"): In1 = the solid

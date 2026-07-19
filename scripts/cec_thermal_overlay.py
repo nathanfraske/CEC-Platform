@@ -109,6 +109,30 @@ def board_thermal_config(board_path):
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
                    "label": "production: metal case (TIM on RS shunts + M3 mounts)"}
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, cooling
+    if "atx-24pin" in name or "atx24" in name:
+        # 24-PIN PRODUCTION COOLING (owner ruling 2026-07-20: "24 pin ideally
+        # doesn't need anything besides a plastic case for the first prod runs
+        # with some vent holes"): a vented plastic enclosure is thermally
+        # ~still-air -- no TIM path, no chassis coupling -- so the still-air
+        # solve IS the production posture (mild vent convection is margin, not
+        # modeled). cooling=None keeps the still-air default; this entry
+        # supplies the rail currents + the board-class stackup (one inner GND
+        # plane + one inner power-routing layer, 2oz outers) so the solve
+        # stops running configless. Rail currents = the owner connector bars
+        # (spec §6.4-adjacent, the force-rails RAIL_AMPS table).
+        nc = {"/SENSE12V_HI": 12.0, "/SENSE12V_LO": 12.0,
+              "/SENSE5V_HI": 25.0, "+5V_MAIN": 25.0,
+              "/SENSE3V3_HI": 20.0, "/SENSE3V3_LO": 20.0,
+              "+5VSB": 5.0, "/SENSE5VSB_LO": 5.0,
+              "GND": 62.0}
+        ov = {}
+        for hi, lo, rs in (("/SENSE12V_HI", "/SENSE12V_LO", "RS1"),
+                           ("/SENSE5V_HI", "+5V_MAIN", "RS2"),
+                           ("/SENSE3V3_HI", "/SENSE3V3_LO", "RS3"),
+                           ("+5VSB", "/SENSE5VSB_LO", "RS4")):
+            ov[hi] = {"refs_src": ["J3"], "refs_sink": [rs]}
+            ov[lo] = {"refs_src": [rs], "refs_sink": ["TB1"]}
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
     return None, None, None, None
 
 
