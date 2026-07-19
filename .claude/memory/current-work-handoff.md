@@ -1,5 +1,21 @@
 # Current work handoff
 
+## WAVE 17: THE EVERYTHING-BOARD IS NEW BEST -- 2026-07-20 (pre-dawn)
+Wave 17 (first wave carrying ALL of 2026-07-19/20: authored-90 cells, 4/4 rails,
+per-rail PRIMARY In2/B.Cu layers 85edccdc, pour compiler 3c5733fb, B.Cu escape+twins,
+tuck/drop, honest colliders): NEW BEST periph-right-compact-s109. PAYOFF CONFIRMED:
+the 12V + 3V3-LO OPEN circuits CLOSED -- the compiler floods picked up the
+measured-unpickable J3 pins. Rails 4/4 zero-refusal on every variant. Criticals hold
+at 4 (+5VSB/+5V_MAIN branch residuals [C21/U65VSB1/U5/U13; TB3/U11] + /SENSE3V3_HI +
+GND) = FR-completion class, NOT plan gaps. DAY TOTALS: criticals 10->4, rails
+0/4->4/4, cells 0->68 locked segs (textbook 90s), W70->74 (wedge-measured), 10 NEW
+BESTS across 25 waves, codex audit (24 findings) triaged with ~12 fixed same-day.
+NEXT LADDER: (1) FR completion on the residual branches (+5VSB/+5V_MAIN legs -- the
+last criticals; codex #10 reconciliation may be the lever), (2) kelvin_ok flip (needs
+those rail nets ratline-free), (3) USB pair self-collision on In2 (FOLLOWUPS), (4)
+#16 determinism sorts, (5) 24-pin production cooling config (owner-adjacent), (6)
+container image dep bake, (7) SB-08 recipe pin + re-freeze (owner-gated).
+
 ## POUR COMPILER DONE + B.CU LADDER + LAYER FIXES -- 2026-07-20 (small hours)
 Commits 3668daaa (B.Cu trunk mirrors + hex-panel resolves renamed inner layers; In1
 measured 85%-filled GND -- the empty tile was stock-name plotting), bbd4a493 (B.Cu =
