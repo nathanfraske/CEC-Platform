@@ -19,8 +19,16 @@ pads @4.2 leave 0.5mm mid-column -> top-row pins over foreign barrels unpickable
 (trunk + FR + future pour flood carry them). Teeth all green (rails 8, keepout 6,
 prune 7, blueprint 8, oracle 44). SB-08 golden RED PRE-EXISTS at HEAD
 (stash-ablated identical fail — FOLLOWUPS root-cause item, not tonight's batch).
-NEXT: 24-pin wave under rail pressure (launching), readout expects seat-diverse
-variants reaching 3-4/4 + rails visible in the report; then v3 structural
+WAVE 15 READOUT (post-reboot relaunch, 0835 report): rails 3/4 on EVERY routed
+variant, sort keys carry rails, incumbent stands. RS3's refusal is SEED-INVARIANT
+(J1 at (13.6,21) every seed -- wave grinding cannot fix it; v3 pre-anchor is the
+only path). Circuit gate correctly calls unpicked-pin rails OPEN at J3. Regressions
+queued behind the codex triage: unconn 133 (baseline 117), DRC 83 (shorting 8,
+zones_intersect 6, via_dangling 9 -- suspect In2 array vias off the band + FR vs
+locked copper), foreign-on-pour 1t/1v, placed courtyard J1|RS3 (the seat itself is
+illegal). Full-stack codex audit RESUMED after the box reboot (session intact,
+transcript 831KB->1.9MB+), watcher armed; triage its ranked findings TOGETHER with
+these regressions, then v3 structural
 (FOLLOWUPS: RailPlan pre-anchor, typed constraints, template channels,
 template_from_netlist generalization — the owner's generalizability answer:
 stamp engine generic, template generation board-specific).
