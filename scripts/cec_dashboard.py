@@ -83,7 +83,16 @@ _page_rev = str(int(time.time()))   # server-start stamp: stale browser tabs sel
 # auto-archives anything NEW matching WATCH_GLOBS (the fresh-run output convention:
 # every accepted candidate of the synthesis wave lands in build/fresh/<board>/), so
 # new boards appear in the snapshot timeline as they are made.
-WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb"]
+# build/fresh = the original fresh-run convention; build/fresh-wave-loop = the wave
+# drivers' --out publish root (winners + reports land there at wave end -- the 12vhpwr
+# work14 relaunch surfaced the gap: the dash never archived its PCBs). WORK dirs
+# (build/fresh-wave-loop-work*, build/fresh-work) stay UNWATCHED on purpose: the
+# activity feed + the fresh list already show in-progress variants, and auto-archiving
+# every intermediate would churn renders/GPU solves. CEC_DASH_WATCH adds extra
+# repo-relative globs (comma-separated) without a code edit.
+WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb",
+               "build/fresh-wave-loop/**/*.kicad_pcb"] + [
+    g.strip() for g in os.environ.get("CEC_DASH_WATCH", "").split(",") if g.strip()]
 _watch_seen = {}              # path -> mtime already enqueued
 _watch_status = {"globs": list(WATCH_GLOBS), "enqueued": 0, "last_scan": None}
 
