@@ -1,5 +1,25 @@
 # Current work handoff
 
+## NIGHT CHAIN 1 READOUT + CHAIN 2 IN FLIGHT -- 2026-07-19 (late)
+Chain 1 (6 waves, post-fix tree) DONE in 90min (prune kept 3-4 routed/wave): FOUR NEW
+BESTS -- 24-pin unconn 104->95 (first sub-100), criticals 9->8 (the #22 fix visible in
+production), rails 3/4 on every winner; 12vhpwr drc 39->24 + NEW BEST, re-stamped
+thermal dT 22.22 PASS (production case model). DIAGNOSED: kelvin=false on rails
+boards = RAIL-NET RESIDUALS (unpicked J3 pins + FR completion around locked trunks),
+NOT missing taps -- precision-first lays them pre-FR and the 53 per-pair "covered"
+skips are correct (#9 verified working as designed). REPAIRS: the reboot's container
+recreation had eaten runtime pip deps (matplotlib, shapely) -- every night-1 NEW-BEST
+thermal stamp failed ModuleNotFoundError; reinstalled live (--break-system-packages),
+FOLLOWUPS to bake into the image. 24-pin best re-solved dT 67.55 FAIL-HONEST under
+"still-air (no case)" -- atx-24pin-rev3 has NO production cooling config (FOLLOWUPS,
+owner-adjacent enclosure thermal path). NIGHT CHAIN 2 RUNNING: 8 waves x 6 seeds
+(24-pin seeds 20-55 x6 waves + 12vhpwr 12-23 x2), thermal env exported
+(GRID 0.8/cpu), watcher b6qllb2fe (30-min poll). Chain-1 launcher lesson: a
+pgrep-based waiter matched its own command line and deadlocked -- chain 2 runs from
+a script FILE (/tmp/night-chain2.sh in-container). MORNING: chain-2 readout,
+incumbent trajectory, then the FOLLOWUPS ladder (pour-flood at the J3 field = the
+kelvin/criticals path; codex #10 reconciliation; #16 determinism sorts).
+
 ## CODEX CRITICALS BATCH + OVERNIGHT CHAIN -- 2026-07-19 (afternoon)
 Commit b38f4b7b (owner GO "wrap these findings and fix... let a few run overnight").
 Landed + regression-probed: #1 cell copper per-SEGMENT own-net exemption + intra-cell
