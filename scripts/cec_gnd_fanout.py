@@ -279,7 +279,11 @@ def stitch_locked_islands(board_path, out_path=None, *, dia=0.6, drill=0.3,
                 v.SetDrill(int(drill * MM))
                 v.SetWidth(int(dia * MM))
                 v.SetNet(gnd)
-                v.SetIsLocked(True)
+                # KiCad 10: PCB_VIA has SetLocked, NOT SetIsLocked -- the wrong name
+                # crashed EVERY production stitch (swallowed by the route path's
+                # fail-safe except; the teeth fixture had no pierceable island so
+                # this line never executed there). 2026-07-19, wave-14b forensic.
+                v.SetLocked(True)
                 b.Add(v)
                 added += 1
                 placed = True
