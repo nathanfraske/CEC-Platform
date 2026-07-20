@@ -6875,7 +6875,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         _e = 3.0
         _corners = [(_e, _e), (W - _e, _e), (_e, H - _e), (W - _e, H - _e)]
         _bodies = []
-        for _r, _pp in _PP.items():
+        # P AND anchors (owner defect batch #2, 2026-07-20): openness scanned P only,
+        # so an anchors-only ref (the tucked J5) was invisible and FID3 seated "open"
+        # directly on it -- the fourth instance of the P-vs-anchors blindness class.
+        _pp_union = dict(anchors or {})
+        _pp_union.update(_PP)
+        for _r, _pp in _pp_union.items():
             if _r.startswith("FID") or _r not in comps:
                 continue
             try:

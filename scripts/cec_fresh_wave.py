@@ -200,10 +200,11 @@ def mating_frame_pins(W, H, contract, side):
 # no-overlap on both boards gate any future change to these numbers.
 MEZZ_HUB_24PIN = {
     "conn_dc": (32.5, 10.5), "conn_rot": 180,
-    "mount_dc": ((-32.0, 11.0), (33.0, 19.5), (33.0, -10.5)),   # BL, BR, TR
-    # BL y: the left edge's legal window sits BETWEEN the 24-pin's J1/J2 jacks
-    # (y~26-41) AND above RS3's sink-spine row (y~46.7, probe-measured refusal
-    # when the mount sat at y47) -- (5, 38.5) board-frame.
+    "mount_dc": ((-32.0, 2.5), (33.0, 19.5), (33.0, -10.5)),   # BL, BR, TR
+    # BL y: measured COURTYARD window on the 24-pin left edge -- J1's courtyard
+    # ends y26.1, J2's spans y34.1-42.5 hugging the edge (x<=4.7), so an x=5 mount
+    # fits only the y~30 sliver ((5,38.5) was courtyard-illegal vs J2 + U1's p5/p6
+    # seat; RS3's spine killed y47) -- (5, 30) board-frame, tight both sides.
     "sides": {"atx-24pin-rev3": {"conn_ref": "J6",
                                  "mount_refs": ("H1", "H2", "H3"),
                                  "mirror_x": False},
