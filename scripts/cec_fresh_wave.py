@@ -79,7 +79,10 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
     detail = (f"gate={v.get('gate')} kelvin={v.get('kelvin_ok')} diff={v.get('diffpair_ok')} "
               f"drc={v.get('drc')} unconn={v.get('unconnected')} "
               f"foreign={(v.get('foreign') or {}).get('tracks')}t dT={th.get('dT')} "
-              f"({v.get('route_s')}s route)")
+              f"({v.get('route_s')}s route)"
+              # the 9999-with-no-reason class (owner, 2026-07-20): a refused/failed
+              # variant's error was in the dict but never displayed anywhere
+              + (f" ERR={str(v.get('error'))[:140]}" if v.get("error") else ""))
     _wlog(f"{star}{board} {label}", tag="wave", detail=detail,
           image=_snap_into_repo(png, board))
     if best and dual:
@@ -152,11 +155,19 @@ def mating_frame_pins(W, H, contract, side):
     cx, cy = W / 2.0, H / 2.0
     dx, dy = contract["conn_dc"]
     pins = {sd["conn_ref"]: (cx + m * dx, cy + dy, contract.get("conn_rot", 0))}
-    x0, y0, x1, y1 = contract["rect_dc"]
-    corners = sorted((cx + m * mx, cy + my)
-                     for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)))
+    # standoffs: either an explicit "mount_dc" POINT LIST (the measured-derivation
+    # form -- 2026-07-20, 3-point BL/BR/TR after the joint legality search showed
+    # a full corner RECT is physics-blocked: the hub jack row owns the shared top
+    # band and the 24-pin's own left jacks own its left corners) or the legacy
+    # "rect_dc" 4-corner rectangle.
+    if "mount_dc" in contract:
+        pts = [(cx + m * mx, cy + my) for (mx, my) in contract["mount_dc"]]
+    else:
+        x0, y0, x1, y1 = contract["rect_dc"]
+        pts = [(cx + m * mx, cy + my)
+               for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))]
     mounts = {}
-    for ref, (px, py) in zip(sd.get("mount_refs", ()), corners):
+    for ref, (px, py) in zip(sd.get("mount_refs", ()), sorted(pts)):
         mounts[ref] = (px, py)
     return {"anchor_pins": pins, "mount_pos_override": mounts}
 
@@ -177,14 +188,27 @@ def mating_frame_pins(W, H, contract, side):
 # BOTTOM -- dc y +17.5 centers the barrels on the y-31..45 strip (between the
 # standoffs, clear of the sink bands' x-range). The 24-pin overlap zone
 # belongs to J1/J2, which are DNP in the stacked variant (doc §5 XOR).
+# MEASURED RE-DERIVATION (2026-07-20, owner: mounts "not going to fit as is...
+# middle of the board"; "drop the top right mount [on the hub] if that is
+# tripping you up"): joint point-legality over BOTH probe boards (anchors:
+# jacks/headers/TB/fiducials, 3.2mm M3 clearance, stack offset (+7,+3.5)) shows
+# TL is impossible (the 24-pin's OWN left jacks J1/J2) while TR is legal on both
+# (24-pin blocker was only the movable FID2; hub spot sits 3+mm below its jack
+# row) -- so the 3 standoffs are BL/BR/TR, spread 65x30. J6 moves to the RIGHT
+# flank between TR and BR (left flank now hosts the 24-pin jack column; the old
+# left-flank spot rammed the hub's C1 zone). Probe = the arbiter: rails 4/4 +
+# no-overlap on both boards gate any future change to these numbers.
 MEZZ_HUB_24PIN = {
-    "conn_dc": (-31.0, 17.5), "conn_rot": 180,
-    "rect_dc": (-33.0, -3.5, 33.0, 21.5),
+    "conn_dc": (32.5, 10.5), "conn_rot": 180,
+    "mount_dc": ((-32.0, 11.0), (33.0, 19.5), (33.0, -10.5)),   # BL, BR, TR
+    # BL y: the left edge's legal window sits BETWEEN the 24-pin's J1/J2 jacks
+    # (y~26-41) AND above RS3's sink-spine row (y~46.7, probe-measured refusal
+    # when the mount sat at y47) -- (5, 38.5) board-frame.
     "sides": {"atx-24pin-rev3": {"conn_ref": "J6",
-                                 "mount_refs": ("H1", "H2", "H3", "H4"),
+                                 "mount_refs": ("H1", "H2", "H3"),
                                  "mirror_x": False},
               "hub-standard-rev2": {"conn_ref": "J6",
-                                    "mount_refs": ("H1", "H2", "H3", "H4"),
+                                    "mount_refs": ("H1", "H2", "H3"),
                                     "mirror_x": False}},
 }
 
@@ -832,7 +856,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
               f"kelvin={v.get('kelvin_ok')} unconn={v.get('unconnected')} "
               f"foreign={v.get('foreign',{}).get('tracks')}t "
               f"dT={((v.get('thermal') or {}).get('dT'))} "
-              f"({v.get('wall_s')}s)", flush=True)
+              f"({v.get('wall_s')}s)"
+              + (f" ERR={str(v.get('error'))[:140]}" if v.get("error") else ""),
+              flush=True)
 
     if workers <= 1:
         for iname, strat, seed, prop in variants:

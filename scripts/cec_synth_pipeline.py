@@ -8468,6 +8468,20 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             t0 = time.monotonic()
             prec_report = None
             if route:
+                # PRE-ROUTE PLACEMENT GATE (owner defect report 2026-07-20: overlapped
+                # placements sailed into full-length routes and died as bare 9999
+                # sentinels -- "a lot of placement overlaps ... not being caught. The
+                # hub never gets to routing"). The same courtyard DRC the post-route
+                # battery uses, hoisted BEFORE the route: a broken placement refuses
+                # in ~40s with the offending pairs named instead of burning the FR
+                # budget. craft_gates governs it like the rest of the battery.
+                if craft_gates:
+                    _cy0 = _oracle_courtyard_overlaps(placed)
+                    if not _cy0.get("ok"):
+                        return _oracle_fail_dict(
+                            label, route_s=0.0,
+                            error="placement refused pre-route: courtyard overlaps: %s"
+                                  % "; ".join(_cy0.get("violations", [])[:6]))
                 hints, pours, rules = _oracle_hints_pours(placed)
                 routed = os.path.join(work_dir, "routed.kicad_pcb")
                 # PRECISION-FIRST (STAGE S2, plan §4/§5): lay R2 kelvin + R3 coupled pairs on
@@ -9202,6 +9216,10 @@ def materialize(cand, cfg, out, *, logo=None):
             # RECTANGULAR landing zones (owner 2026-07-20: no pill fields) --
             # laid + filled here so every render shows real rectangles
             _fpatch = (_frr.pop("_patches", None) or {}).get("pours") or []
+            if _fpatch and os.environ.get("CEC_ABLATE_RAIL_PATCHES") == "1":
+                print("[materialize] landing zones ABLATED (%d patch(es) skipped, "
+                      "CEC_ABLATE_RAIL_PATCHES=1)" % len(_fpatch), file=sys.stderr)
+                _fpatch = []
             if _fpatch:
                 try:
                     import cec_fr as _cfr2
