@@ -1,5 +1,23 @@
 # Current work handoff
 
+## ANCHOR-BLINDNESS ROOT CAUSE + ROUTE-REGRESSION STATUS -- 2026-07-20 (~04:00 UTC)
+Commits d6c2b6e2 + p11/BL follow-ons. THE HUB REFUSAL CLASS ROOT-CAUSED by legalizer
+monkeypatch probes: p4's macro learn frames units at rot 0 -> the pinned-rot-180 J6
+carried a macro box 14mm below its REAL field (cy +7 vs -7) -> every legalize parked
+the TPS2121 satellites ON the real barrels. Fixed: pinned-rot macro re-derive + p9
+anchor pseudo-obstacles + p11 anchors-union. The P-vs-ANCHORS BLINDNESS CLASS is the
+running theme (J6 = the first INBOARD anchor, surfacing it everywhere): fixed 3
+instances, FOLLOWUPS carries p5/p6 (U1xH1), FID3xJ5 (persists post-union -- model-vs-
+DRC mismatch on the tucked J5), hub C1xU6. 24-pin BL mount -> measured (5,30)
+courtyard sliver (J2's courtyard y34.1-42.5 hugs the edge; 38.5 was illegal). Probes:
+hub courtyard residual 1 pair, 24-pin rails 4/4 + 1 pair. ROUTE REGRESSION (24-pin):
+full-8 solo does NOT converge (failed ~230 flat, unconn 204) -- the chain plateau-
+kills were CORRECT; ablations non-decisive at 1 pass; the pre-era full-8 comparator
+(/tmp/pre-full8.log) delivers attribution; 24-PIN CHAIN PARKED until the route side
+converges. HUB CHAIN RUNNING (waves 4+ carry all fixes -- the first true yield
+readout). Pre-route gate = every refusal now 12-26s with named pairs (was 1500s
+silent 9999s).
+
 ## OWNER DEFECT BATCH #2: PLACEMENT TRUTH + MEZZ RE-DERIVATION -- 2026-07-20 (~02:30 UTC)
 Commits 71a01eb4 + 17b0b12b. Owner reported: 9999s persist BOTH boards, datum mounts
 mid-board + overlapping, mezz "not derived from the 24 pin or vice versa", overlaps
