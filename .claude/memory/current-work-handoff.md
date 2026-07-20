@@ -1,5 +1,17 @@
 # Current work handoff
 
+## ROUTE-REGRESSION RESOLVED: PLACEMENT-HARDNESS -- 2026-07-20 (~05:15 UTC)
+Full attribution matrix (four 8-pass solo comparators): pre-board+pre-code 127/54;
+pre-board+CURRENT-code 127/54 (ROUTE STACK EXONERATED -- identical); current-board
+195/82 with AND without pours (pour compiler innocent; 76 asks fine). The delta is
+the BOARD -- tuck density + mezz right-flank + new rail geometry route harder. Not a
+defect: the wave ladder's selection surface. BOTH CHAINS NOW RUNNING all-fixes
+(24-pin relaunched 03:44 UTC, hub since 02:28; workers=3 each; pre-route gates make
+every refusal 12-26s + named). Watch items for the morning: hub waves 4-6 yield
+(first post-macro-truth routing waves), 24-pin unconn-post-grade trend vs the
+placement-hardness number, the three remaining anchor-blindness FOLLOWUPS instances
+(p5/p6 U1xH1, FID3xJ5 post-union, hub C1xU6), SB-08 owner-gated re-freeze.
+
 ## ANCHOR-BLINDNESS ROOT CAUSE + ROUTE-REGRESSION STATUS -- 2026-07-20 (~04:00 UTC)
 Commits d6c2b6e2 + p11/BL follow-ons. THE HUB REFUSAL CLASS ROOT-CAUSED by legalizer
 monkeypatch probes: p4's macro learn frames units at rot 0 -> the pinned-rot-180 J6
