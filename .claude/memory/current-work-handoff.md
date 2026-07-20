@@ -1,5 +1,34 @@
 # Current work handoff
 
+## OWNER DEFECT BATCH #2: PLACEMENT TRUTH + MEZZ RE-DERIVATION -- 2026-07-20 (~02:30 UTC)
+Commits 71a01eb4 + 17b0b12b. Owner reported: 9999s persist BOTH boards, datum mounts
+mid-board + overlapping, mezz "not derived from the 24 pin or vice versa", overlaps
+uncaught, hub never routes; ruled "drop the top right mount [hub] if it trips you up".
+LANDED (each probe-verified): (1) PRE-ROUTE COURTYARD GATE in route_oracle_grade --
+the craft battery ran POST-route, so overlapped placements burned full FR budgets and
+died as bare 9999s; now they refuse in ~40s with named pairs, and wave rows display
+the ERR field. (2) MEZZ DATUM MEASURED: joint point-legality over both probe boards
+(anchors + copper). Corner RECTS are physics-blocked (hub 4-jack row owns the whole
+shared top band to y15.4; the 24-pin's OWN left jacks J1/J2 own its left corners; TB
+row the bottom) -> 3-point standoffs BL(5,38.5)/BR(70,47)/TR(70,17) (65x30) + J6 on
+the RIGHT flank, mount_dc point-list form in MEZZ_HUB_24PIN. NOTE the owner offered
+dropping hub-TR; measured, TR is CLEAN on both and TL is the impossible one -- flagged
+in the wrap-up. BL y=38.5 = the J1/J2 window AND clear of RS3's sink spine (y47 killed
+the rail -- probed, moved, rails 4/4). (3) HUB C1 ROOT-CAUSED: 21x17 cap, ZERO free
+cells at p8b (55 smalls pass-locked by then; eviction forbidden by the lock
+discipline). Fix: OVERSIZED-PASSIVE EARLY SEAT at the anchor stage AFTER the MCU
+macro (seated before it, C1 stole the WROOM region -- measured, reordered) + hub
+88x62 -> 88x70 MEASURED SIZE WEDGE (at 62 the board was genuinely full vs the
+durable set alone). Probe: C1+U1+J6+datum all seat, p8b 20/20 clean. Residual: ONE
+class -- D8/C14/R_ILIM1/D9 re-parked onto J6 by a pass after p8b; the pre-route gate
+names it, the wave exposes per-seed variance. (4) 24-PIN ROUTE REGRESSION isolated:
+the ~1264s chain deaths = PLATEAU-KILLS on a stable failed~190 core (hub 1524s =
+timeouts). Ablations: pre-e795e79a ALSO leaves 155 unconn at 1 pass (1-pass = weak
+proxy); patches cost only ~11. The decisive full-8-pass solo run (plateau-kill off,
+3600s) is IN FLIGHT -- 24-pin chain relaunch is GATED on its verdict. HUB CHAIN
+RELAUNCHED 02:28 UTC with everything (workers=3, all fixes). SB-08 golden: still the
+pre-existing owner-gated red class, unchanged.
+
 ## PARALLEL-CHAIN FORENSIC: 4-FIX BATCH + RELAUNCH -- 2026-07-19 (late evening)
 Commit 76566c37. The overnight parallel 24-pin/Hub chains were 100% SENTINEL WASTE
 (every variant unconn=9999): 6 wave-workers/chain x 2 chains = 12 FR JVMs on 18
