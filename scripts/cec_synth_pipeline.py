@@ -5427,6 +5427,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     anchors["LOGO1"] = (_lcx - 0.08, _lcy - 1.82, 0.0)
                     _bp_refs.add("LOGO1")
 
+
         # MCU-CLUSTER SEAT (owner directive 2026-07-12: "the ESP definitely needs to be
         # moveable/rotatable as a ladder piece ... pack [decouplers, status LED, etc]
         # together ... Boot and Reset ... on their own next to each other orthogonally
@@ -5697,6 +5698,47 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what
         #     the ladder locks (the p3 shunt lock moved to critical_seats for exactly this). Gated to
         #     dual_sided shared-bus boards; inert (byte-identical) elsewhere.
+        # OVERSIZED-PASSIVE EARLY SEAT (owner defect report 2026-07-20: the hub's
+        # ~21x17mm C1 hold-up cap measured ZERO free cells by p8b -- 55 smalls are
+        # pass-locked by their owning passes by then, so no 18mm hole survives and
+        # eviction is forbidden by the lock discipline. A part this size is an
+        # anchor-class occupant: it claims its hole AFTER the MCU macro (measured:
+        # seated first, C1 stole the WROOM's only viable region and U1 went homeless)
+        # but BEFORE ordinary placement, affinity-scored beside its
+        # netlist neighbors, while the board is still empty. Threshold 150mm2
+        # courtyard; board-agnostic (no board today has a second such part).
+        _big_seated = []
+        for _bigr in sorted(r for r in comps if r not in anchors and r not in ics
+                            and not r.startswith(("H", "FID", "LOGO"))):
+            _bcy = _courtyard_info(comps[_bigr], 0.0)
+            if (2.0 * _bcy[2]) * (2.0 * _bcy[3]) < 150.0:
+                continue
+            _badj = _adjacency(nl)
+            _bnbr = [anchors[o][:2] for o in _badj.get(_bigr, ()) if o in anchors]
+            _bocc = [(anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                      - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                      anchors[_o][0] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[0]
+                      + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[2],
+                      anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                      - _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3],
+                      anchors[_o][1] + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[1]
+                      + _courtyard_info(comps[_o], anchors[_o][2] if len(anchors[_o]) > 2 else 0.0)[3])
+                     for _o in anchors if _o in comps]
+            _benv = _blueprint_env_boxes(lambda d: anchors.get(d)) \
+                + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d))
+            _bp2, _ = _seat_mcu_macro({_bigr: (0.0, 0.0, 0.0)}, comps, W, H,
+                                      forbid_boxes=_benv, occ_boxes=_bocc,
+                                      score_points=_bnbr or [(W / 2.0, H / 2.0)],
+                                      rotations=(0.0,), grid=1.0, edge_soft=4.0)
+            if _bp2:
+                anchors[_bigr] = _bp2[_bigr]
+                _big_seated.append(_bigr)
+                print(f"  [p3crit] oversized passive {_bigr} seated early at "
+                      f"({_bp2[_bigr][0]:.1f},{_bp2[_bigr][1]:.1f})", file=sys.stderr)
+            else:
+                print(f"  [p3crit] oversized passive {_bigr}: NO legal early seat "
+                      f"(left for ordinary placement)", file=sys.stderr)
+
         _seat_snags = []
         if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
             _moved_cells, _seat_snags = _seat_conflict_repair(anchors, comps, _topo, nl, W, H,
@@ -6329,12 +6371,24 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 bad.append(r)
         if not bad:
             return
+        # OVERSIZE-FIRST + EVICTION RUNG (owner defect report 2026-07-20: the hub's
+        # ~18mm C1 measured free-cells-vs-parts=0 -- after 100+ smalls scatter there
+        # is no 18mm hole left anywhere, so a big part seats against the DURABLE
+        # occupants only (fixed refs + other bigs); the jellybeans under its landing
+        # are EVICTED into this very loop, which re-places them fine -- they fit
+        # anywhere, an 18mm cap does not.)
+        def _bxarea(bx):
+            return max(0.0, bx[1] - bx[0]) * max(0.0, bx[3] - bx[2])
+        _oversized = {r for r in bad if _bxarea(boxes[r]) >= 90.0}
+        bad = sorted(_oversized) + [r for r in bad if r not in _oversized]
         moved = 0
         for r in bad:
+            _is_big = r in _oversized
             nbr_pts = [P[o][:2] for o in adj.get(r, ()) if o in P and o != r]
             if not nbr_pts:
                 nbr_pts = [(W / 2.0, H / 2.0)]
-            occ = [boxes[o] for o in boxes if o != r]
+            occ = [boxes[o] for o in boxes if o != r
+                   and not (_is_big and o not in fixed and _bxarea(boxes[o]) < 60.0)]
             env = _blueprint_env_boxes(lambda d: anchors.get(d))                 + _force_corridor_boxes(lambda d: anchors.get(d)) + _force_rail_boxes(lambda d: anchors.get(d))
             offs = {r: (0.0, 0.0, P[r][2] if len(P[r]) > 2 else 0.0)}
             # DENSIFY LADDER (owner GO 2026-07-19, "still placement overlaps"): a
@@ -6353,6 +6407,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 P[r] = placed[r]
                 boxes[r] = _box(r)
                 moved += 1
+                if _is_big:
+                    _nb = boxes[r]
+                    for o in list(boxes):
+                        if (o != r and o not in fixed and o not in bad
+                                and _bxarea(boxes[o]) < 60.0
+                                and not (_nb[1] <= boxes[o][0] or boxes[o][1] <= _nb[0]
+                                         or _nb[3] <= boxes[o][2] or boxes[o][3] <= _nb[2])):
+                            bad.append(o)      # evicted small -> re-seated later in THIS loop
             else:
                 # WHICH constraint kills it: free cells vs occ alone vs occ+env at
                 # 0.5mm (diagnostic only, failure path -- cheap; names the fix:
@@ -6373,9 +6435,23 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                 _n_both += 1
                         _xx += 0.5
                     _yy += 0.5
+                _n_rung = 0
+                _yy = _chh
+                while _yy <= H - _chh:
+                    _xx = _chw
+                    while _xx <= W - _chw:
+                        _bx = (_xx + _cx0 - _chw, _xx + _cx0 + _chw,
+                               _yy + _cy0 - _chh, _yy + _cy0 + _chh)
+                        if _box_clear(_bx, occ, 0.1):
+                            _n_rung += 1
+                        _xx += 0.5
+                    _yy += 0.5
+                _fx_small = [o for o in boxes if o in fixed and _bxarea(boxes[o]) < 60.0]
                 print(f"  [p8b] affinity re-seat: no legal seat for {r} "
                       f"(ladder exhausted; free cells vs parts={_n_occ}, "
-                      f"vs parts+corridors={_n_both}) -- left as-is", file=sys.stderr)
+                      f"vs parts+corridors={_n_both}, vs rung-occ={_n_rung}; "
+                      f"env boxes={len(env)}, fixed smalls={len(_fx_small)}: "
+                      f"{_fx_small[:8]}) -- left as-is", file=sys.stderr)
         if moved:
             print(f"  [p8b] affinity re-seat: {moved}/{len(bad)} overlapped/edge-parked "
                   f"part(s) moved beside their netlist neighbors", file=sys.stderr)

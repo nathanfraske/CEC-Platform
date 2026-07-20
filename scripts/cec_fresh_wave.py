@@ -218,7 +218,11 @@ BOARD_WH = {
     # HUB REV2 (owner directive 2026-07-15: "get the Hub down properly ... start from
     # just the connectors and go from there"): proto-V1 is ~120x95-class; the 4-jack
     # row (~4x16mm + gaps) floors one edge at ~70mm. Aggressive seed; refusals teach.
-    "hub-standard-rev2": (88.0, 62.0),
+    # H 62->70 (MEASURED SIZE WEDGE, 2026-07-20): with every deliberate macro seated
+    # (4-jack row, WROOM cluster ~48x41, LED ring, bottom J_KVM/J_USB, mezz J6+datum)
+    # the 21x17mm C1 hold-up cap measured ZERO free cells at every stage -- the board
+    # was genuinely full, every hub variant refused. 8mm of height is the cap's row.
+    "hub-standard-rev2": (88.0, 70.0),
     "eps-8pin": (96.0, 37.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
@@ -272,7 +276,7 @@ BOARD_PARAMS = {
                           # standoff rect 66x46 about center = mounts pulled
                           # in from the Hub's own corners per the contract
                           # ("the rectangle must fit within BOTH outlines").
-                          **mating_frame_pins(88.0, 62.0, MEZZ_HUB_24PIN,
+                          **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
