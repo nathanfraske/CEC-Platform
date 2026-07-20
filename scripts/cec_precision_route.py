@@ -196,6 +196,40 @@ def _seg_cross(a, b, c, d):
     return (ccw(a, c, d) * ccw(b, c, d) < 0) and (ccw(a, b, c) * ccw(a, b, d) < 0)
 
 
+def _seg_seg_dist(a, b, c, d):
+    """Min distance between segments ab and cd (mm coords)."""
+    if _seg_cross(a, b, c, d):
+        return 0.0
+    def pt_seg(p, s, e):
+        vx, vy = e[0] - s[0], e[1] - s[1]
+        L2 = vx * vx + vy * vy
+        if L2 <= 1e-12:
+            return math.hypot(p[0] - s[0], p[1] - s[1])
+        t = max(0.0, min(1.0, ((p[0] - s[0]) * vx + (p[1] - s[1]) * vy) / L2))
+        return math.hypot(p[0] - (s[0] + t * vx), p[1] - (s[1] + t * vy))
+    return min(pt_seg(a, c, d), pt_seg(b, c, d), pt_seg(c, a, b), pt_seg(d, a, b))
+
+
+def _pair_min_clear(p_pts, n_pts, mid_p, mid_n, width, gap):
+    """True iff no P segment runs illegally close to any N segment. The foreign guard
+    exempts BOTH pair nets (own={pc,nc}) and _polys_no_cross only catches strict
+    CROSSINGS, so partner-track OVERLAP was unguarded -- measured live on the Hub
+    chain 2026-07-19: 3-19 locked-vs-locked /CAN_H x /CAN_L collisions on EVERY
+    route ("the locked lay overlaps ITSELF"). Floors: the coupled MIDDLE pair
+    (indices mid_p/mid_n) is constructed at exactly width+gap -> allow it with a
+    2% tolerance; every other segment combination must keep >= width + gap/2
+    centerline (an escape dipping inside half the pair gap is always wrong
+    geometry; legitimate outside-approaches keep >= gap)."""
+    floor_mid = width + gap - 0.02
+    floor_other = width + 0.5 * gap
+    for i, (a, b) in enumerate(zip(p_pts, p_pts[1:])):
+        for j, (c, d) in enumerate(zip(n_pts, n_pts[1:])):
+            need = floor_mid if (i == mid_p and j == mid_n) else floor_other
+            if _seg_seg_dist(a, b, c, d) < need:
+                return False
+    return True
+
+
 def _polys_no_cross(p_pts, n_pts):
     """True iff the two members never CROSS each other. The foreign guard (cec_fr._tap_foreign_clear)
     deliberately excludes the pair's own two nets (they are MEANT to run adjacent), so P-vs-N
@@ -368,6 +402,9 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
             n_pts = eN0 + [Nle] + list(reversed(eN1))[1:]
             if not _polys_no_cross(p_pts, n_pts):
                 continue
+            if not _pair_min_clear(p_pts, n_pts, len(eP0) - 1, len(eN0) - 1,
+                                   width, gap):
+                continue                          # partner overlap/graze -> next candidate
             laid = _lay(board, pc, p_pts, width_nm, lay_id)
             laid += _lay(board, nc, n_pts, width_nm, lay_id)
             zd_nom = cec_impedance.zdiff_edge_coupled(width, gap)

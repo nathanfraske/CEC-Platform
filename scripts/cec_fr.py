@@ -42,6 +42,7 @@ import time
 import sys
 import math
 import shutil
+import signal
 import tempfile
 import subprocess
 import urllib.request
@@ -697,6 +698,26 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
 # ---------------------------------------------------------------------------
 # run_freerouting
 # ---------------------------------------------------------------------------
+def _kill_fr_tree(proc):
+    """Kill the FR child AND its whole process group. On headless Linux the child
+    is the `xvfb-run -a` WRAPPER, so a bare proc.kill() (or subprocess.run's own
+    timeout kill) reaps only the wrapper and ORPHANS the java JVM underneath --
+    measured 2026-07-19: 85 leaked JVMs (load avg ~90 on 18 cores) after a night
+    of parallel-chain timeouts, each one churning CPU against a dead pipe.
+    Requires the child to have been started with start_new_session=True (POSIX),
+    which makes its pgid == its pid; falls back to plain kill otherwise/Windows."""
+    if os.name == "posix":
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+            return
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+    try:
+        proc.kill()
+    except Exception:
+        pass
+
+
 def run_freerouting(
     dsn_path: str,
     ses_path: str,
@@ -803,14 +824,15 @@ def run_freerouting(
         # select() below enforces the deadline for real).
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
-                                text=True, bufsize=1, **_pop_kw)
+                                text=True, bufsize=1,
+                                start_new_session=(os.name == "posix"), **_pop_kw)
         _best, _streak, _killed, _lines = None, 0, False, []
         _t0 = time.monotonic()
         import select as _select
         def _next_line():
             while True:
                 if time.monotonic() - _t0 > timeout:
-                    proc.kill()
+                    _kill_fr_tree(proc)
                     raise RuntimeError(
                         f"cec_fr.run_freerouting: timed out after {timeout}s "
                         f"(dsn={dsn_path!r}, jar={jar!r})")
@@ -845,7 +867,7 @@ def run_freerouting(
                             _streak += 1
                             if _streak >= _k:
                                 _killed = True
-                                proc.kill()
+                                _kill_fr_tree(proc)
                                 break
             proc.wait(timeout=30)
         finally:
@@ -861,13 +883,30 @@ def run_freerouting(
         result = subprocess.CompletedProcess(
             cmd, proc.returncode, "".join(_lines), proc.stderr.read() if proc.stderr else "")
     else:
+        # Popen + communicate instead of subprocess.run: run's own timeout kill
+        # reaps only the DIRECT child (the xvfb-run wrapper on headless Linux),
+        # orphaning the JVM -- the measured 85-zombie leak. _kill_fr_tree takes
+        # the whole group. Windows keeps identical semantics (no session group).
+        _blk_kw = {kk: vv for kk, vv in run_kw.items()
+                   if kk not in ("capture_output", "text", "timeout")}
         try:
-            result = subprocess.run(cmd, **run_kw)
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(
-                f"cec_fr.run_freerouting: timed out after {timeout}s "
-                f"(dsn={dsn_path!r}, jar={jar!r})"
-            ) from exc
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, text=True,
+                                    start_new_session=(os.name == "posix"), **_blk_kw)
+            try:
+                _out, _err = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired as exc:
+                _kill_fr_tree(proc)
+                try:
+                    proc.communicate(timeout=15)
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f"cec_fr.run_freerouting: timed out after {timeout}s "
+                    f"(dsn={dsn_path!r}, jar={jar!r})"
+                ) from exc
+            result = subprocess.CompletedProcess(cmd, proc.returncode,
+                                                 _out or "", _err or "")
         finally:
             if _own_workdir:
                 try:
@@ -2760,39 +2799,61 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
     return out
 
 
+def _coupled_pair_partners(a: str, b: str) -> bool:
+    """True iff nets *a*/*b* are the two members of one coupled pair by the repo's
+    naming conventions (_P/_N diff pairs, CAN_H/CAN_L, legacy USB_DP/USB_DM).
+    Explicit suffix forms only -- a generic single-letter tail would mis-exempt
+    unrelated nets in a report-only audit."""
+    for pa, pb in (("_P", "_N"), ("_H", "_L"), ("DP", "DM")):
+        for x, y in ((pa, pb), (pb, pa)):
+            if a.endswith(x) and b.endswith(y) and a[:-len(x)] == b[:-len(y)]:
+                return True
+    return False
+
+
 def locked_mutual_collisions(board_path: str, *, clearance: float = 0.2):
     """READ-ONLY audit: locked copper of DIFFERENT nets within *clearance* on a
     shared layer -- the 2026-07-14 bulldozing round's residue item (a): lanes and
     blueprint cells never mutual-legality-check (refusals check foreign PADS only),
-    measured 43 locked-vs-locked self-collisions on the wave-9 winner. Bbox proxy
-    (locked lanes/taps are axis-parallel; a diagonal pair may over-report -- the
-    audit REPORTS, it does not refuse; the escalation to a bake-time refusal is a
-    later ratchet once the fleet is clean). Returns [{a, b, layer, x_mm, y_mm}]."""
+    measured 43 locked-vs-locked self-collisions on the wave-9 winner.
+
+    REAL SHAPES + PAIR EXEMPTION (2026-07-19 forensic): the original bbox proxy
+    over-reported EVERY diagonal segment pair -- measured on a solo-tier-routed Hub:
+    16 bbox 'collisions' between /CAN_H and /CAN_L whose real shapes were > 0.2mm
+    apart everywhere (GetEffectiveShape probe), and the same class flagged the
+    24-pin's coupled USB continuation at its LEGAL design gap. Now: exact
+    GetEffectiveShape().Collide at *clearance*; declared coupled-pair partners
+    (_P/_N, _H/_L, DP/DM) are held only to TRUE OVERLAP (Collide 0) -- running at
+    their pair gap is their job, not a defect. The audit REPORTS, it does not
+    refuse. Returns [{a, b, layer, x_mm, y_mm}]."""
     board = pcbnew.LoadBoard(board_path)
     cl = int(clearance * 1e6)
-    items = []
+    by_layer = {}
     for t in board.GetTracks():
         if not t.IsLocked():
             continue
         n = t.GetNetname() or ""
-        bb = t.GetBoundingBox()
-        box = (bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom())
-        lays = (("F.Cu", "B.Cu") if t.Type() == pcbnew.PCB_VIA_T
-                else (board.GetLayerName(t.GetLayer()),))
-        for ly in lays:
-            items.append((n, ly, box))
+        if t.Type() == pcbnew.PCB_VIA_T:
+            lids = [pcbnew.F_Cu, pcbnew.B_Cu]
+        else:
+            lids = [t.GetLayer()]
+        for lid in lids:
+            by_layer.setdefault(lid, []).append((n, t))
     hits = []
-    for i in range(len(items)):
-        na, la, a = items[i]
-        for j in range(i + 1, len(items)):
-            nb, lb, b = items[j]
-            if na == nb or la != lb:
-                continue
-            if (a[0] - cl <= b[2] and b[0] - cl <= a[2]
-                    and a[1] - cl <= b[3] and b[1] - cl <= a[3]):
-                hits.append({"a": na, "b": nb, "layer": la,
-                             "x_mm": round((max(a[0], b[0]) + min(a[2], b[2])) / 2e6, 2),
-                             "y_mm": round((max(a[1], b[1]) + min(a[3], b[3])) / 2e6, 2)})
+    for lid, items in sorted(by_layer.items()):
+        ly = board.GetLayerName(lid)
+        for i in range(len(items)):
+            na, ta = items[i]
+            for j in range(i + 1, len(items)):
+                nb, tb = items[j]
+                if na == nb:
+                    continue
+                need = 0 if _coupled_pair_partners(na, nb) else cl
+                if ta.GetEffectiveShape(lid).Collide(tb.GetEffectiveShape(lid), need):
+                    pa = ta.GetPosition()
+                    hits.append({"a": na, "b": nb, "layer": ly,
+                                 "x_mm": round(pa.x / 1e6, 2),
+                                 "y_mm": round(pa.y / 1e6, 2)})
     return hits
 
 

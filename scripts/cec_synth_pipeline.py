@@ -8519,7 +8519,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # the tap region). Strip FR's additions on nets the locked lay fully
                 # owns (pad-coverage-tested); partial nets lose exact echoes only. The
                 # grade's own DRC right after verifies connectivity survived.
-                if _locked_bp:
+                # GATE = the full protect UNION (codex stack-audit #10, 2026-07-19): the old
+                # `if _locked_bp:` skipped reconciliation on boards with precision/rail locked
+                # copper but NO blueprint cells (the Hub: locked USB/CAN pairs, zero cells) --
+                # FR's unlocked echo-duplicates + class-width re-routes of protected wires
+                # survived unreconciled there. reconcile_locked_nets self-derives from the
+                # board's OWN locked tracks (covers blueprint+precision+rails alike) and is a
+                # no-op scan when none exist; _protect empty (golden/deterministic path) still
+                # skips the call entirely, preserving byte-identity (the save inside is
+                # unconditional).
+                if _protect:
                     try:
                         _rec = cec_fr.reconcile_locked_nets(routed)
                         if _rec:
