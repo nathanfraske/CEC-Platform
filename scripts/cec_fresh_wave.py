@@ -162,17 +162,30 @@ def mating_frame_pins(W, H, contract, side):
 
 
 # THE HUB-ON-24PIN MEZZANINE CONTRACT (the 2026-06-24 stack doc §4, finalized
-# 2026-07-20): connector right-flank vertical (clear of the 24-pin rails and
-# the Hub ring/jack rows), standoff datum 66x25 -- DRAFT values, wave-iterable.
+# 2026-07-20). NO-FLIP convention (owner ruling 2026-07-20: "the Hub will just
+# sit over top normally, not flip -- the flip will cause too much heat issues
+# and case design issues"): both boards component-side UP, the Hub's socket
+# mounted on its UNDERSIDE, so NO shared-frame x-mirror on either side. The
+# 2026-06-24 doc's board-flip convention (+ its MIRROR-GOTCHA framing) is
+# SUPERSEDED; the J6/J_MEZZ mated pin map must be RE-VERIFIED under the
+# bottom-mounted-socket convention (FOLLOWUPS). Connector left-flank vertical
+# (the shared point must be free on BOTH unmirrored boards; the Hub side of
+# this spot is probe-verified clear), standoff datum 66x25 -- DRAFT values,
+# wave-iterable.
+# conn geometry: the 2x8's 14mm pad field extends along LOCAL +y from the
+# anchor (measured); rot 180 points it -y, so the anchor sits at the field's
+# BOTTOM -- dc y +17.5 centers the barrels on the y-31..45 strip (between the
+# standoffs, clear of the sink bands' x-range). The 24-pin overlap zone
+# belongs to J1/J2, which are DNP in the stacked variant (doc §5 XOR).
 MEZZ_HUB_24PIN = {
-    "conn_dc": (31.0, 10.5), "conn_rot": 90,
+    "conn_dc": (-31.0, 17.5), "conn_rot": 180,
     "rect_dc": (-33.0, -3.5, 33.0, 21.5),
     "sides": {"atx-24pin-rev3": {"conn_ref": "J6",
                                  "mount_refs": ("H1", "H2", "H3", "H4"),
                                  "mirror_x": False},
               "hub-standard-rev2": {"conn_ref": "J6",
                                     "mount_refs": ("H1", "H2", "H3", "H4"),
-                                    "mirror_x": True}},
+                                    "mirror_x": False}},
 }
 
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size

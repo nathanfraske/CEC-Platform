@@ -1,5 +1,205 @@
 # Current work handoff
 
+## MEZZANINE ALIGNMENT CONTRACT + GENERALIZED MATING FRAMES -- 2026-07-20 (midday)
+Commits 58dcf8a9 + ce289eb4 (owner: "cross-coordinated... standoffs... maximal
+overlap"; then "generalizable -- daughterboards + PSU tester"). The 2026-06-24
+stack-doc §4 contract is FINALIZED IN THE PIPELINE: center-aligned zero-offset
+stack; J6 24-pin (68,38,90) <-> Hub (13,41.5,90) = exact x-mirror; standoff datum
+66x25 both boards (DRAFT -- the 24-pin's top corners are jack territory, so the
+rect is slimmer than ideal; wave-iterable, owner can push it). ENFORCEMENT (both
+measured as violations first): datum mounts EXEMPT from the free-slot nudge (it
+walked two into the band rows and killed two rails); user-pinned refs EXEMPT from
+the anneal (p6 moved the pinned Hub J6 -> LockViolation). GENERALIZED:
+mating_frame_pins(W,H,contract,side) + ONE declaration (MEZZ_HUB_24PIN) derives
+both sides, mirror-invariant ref order, reproduces the verified coords exactly --
+the same machinery is the vehicle for the out-daughterboard mating frames + the
+PSU-tester pipeline (owner direction recorded). Parallel 24-pin/Hub chains
+(watcher biwmo2cde) inherit at their wave boundaries.
+
+## OWNER BATCH + PARALLEL 24-PIN/HUB CHAINS -- 2026-07-20 (morning)
+Commit e795e79a: (1) USB-C CORNERED -- tuck ceiling from x-overlapping anchors only
++ sliver-shift-outward for edge jacks (J5 15.4->7.3 against the fiducial); tuck
+window narrowed to the band-stack rows (J6's over-lift walled RS1's descent,
+measured). (2) RECTANGULAR COPPER -- landing patches = sharp filled ZONES via
+add_power_pours at materialize (14/probe); the pour compiler's trunk-widen covers
+EVERY non-face trunk seg orientation-aware, so published boards read as rectangular
+pours over the protect-spine tracks (the pill/stacked-trace look retired).
+(3) 24-PIN PRODUCTION COOLING AUTHORED (owner ruling: plastic case + vent holes =
+still-air posture): board_thermal_config entry with the rail-bar currents + the
+board-class stackup; cooling None by design. (4) wave_fr_timeout 1500 both boards.
+PARALLEL CHAINS RUNNING (owner: "the two holdups"): 24-pin seeds 110-145 + HUB
+seeds 0-35, 6 waves each, simultaneous; dual watcher biwmo2cde (45-min poll). Hub
+pipeline verified up-to-par vs the docs (rich doc-derived params: top jack row,
+LED-ring rigid group, MCU antenna-out edge seat; no manifest-override hazard;
+K.6 edge-band checker = filed, calibrates on the routed hubs this chain makes).
+Part overlaps: the p8b/p9 grind + courtyard gate own them; per-board residual
+lists in the wave verdicts. NEXT on the chains' readout: overlap classes, hub
+first-ever wave readout, criticals from 4, kelvin flip watch.
+
+## WAVE 17: THE EVERYTHING-BOARD IS NEW BEST -- 2026-07-20 (pre-dawn)
+Wave 17 (first wave carrying ALL of 2026-07-19/20: authored-90 cells, 4/4 rails,
+per-rail PRIMARY In2/B.Cu layers 85edccdc, pour compiler 3c5733fb, B.Cu escape+twins,
+tuck/drop, honest colliders): NEW BEST periph-right-compact-s109. PAYOFF CONFIRMED:
+the 12V + 3V3-LO OPEN circuits CLOSED -- the compiler floods picked up the
+measured-unpickable J3 pins. Rails 4/4 zero-refusal on every variant. Criticals hold
+at 4 (+5VSB/+5V_MAIN branch residuals [C21/U65VSB1/U5/U13; TB3/U11] + /SENSE3V3_HI +
+GND) = FR-completion class, NOT plan gaps. DAY TOTALS: criticals 10->4, rails
+0/4->4/4, cells 0->68 locked segs (textbook 90s), W70->74 (wedge-measured), 10 NEW
+BESTS across 25 waves, codex audit (24 findings) triaged with ~12 fixed same-day.
+NEXT LADDER: (1) FR completion on the residual branches (+5VSB/+5V_MAIN legs -- the
+last criticals; codex #10 reconciliation may be the lever), (2) kelvin_ok flip (needs
+those rail nets ratline-free), (3) USB pair self-collision on In2 (FOLLOWUPS), (4)
+#16 determinism sorts, (5) 24-pin production cooling config (owner-adjacent), (6)
+container image dep bake, (7) SB-08 recipe pin + re-freeze (owner-gated).
+
+## POUR COMPILER DONE + B.CU LADDER + LAYER FIXES -- 2026-07-20 (small hours)
+Commits 3668daaa (B.Cu trunk mirrors + hex-panel resolves renamed inner layers; In1
+measured 85%-filled GND -- the empty tile was stock-name plotting), bbd4a493 (B.Cu =
+third ESCAPE tier in both rail ladders, mirror symmetric), 3c5733fb (THE POUR
+COMPILER, owner GO): compile_rail_pour_asks off plan_rail_chains -> J3 pickup floods
+(the ZONE_FILLER connects the measured-unpickable pins), sink floods, trunk widening;
+asks ride the PourPlan sidecar, lay POST-FR, provenance=rail_compiler exempts the
+locked-net pour filter (28/28 survive, 31 derived correctly dropped on locked nets).
+FULL-BUDGET VALIDATION = chain 3's FINAL wave (seeds 98-103; the 92-97 wave is
+in flight; watcher bp6ggzj0n). Surfaced pre-existing: /USB_DP x /USB_DM locked pair
+self-collision on In2 (21 hits) + wave_fr_timeout headroom -> FOLLOWUPS. NEXT after
+the chain readout: the pair-lay fix, codex #10 reconciliation, #16 sorts, 24-pin
+production cooling config, container image dep bake.
+
+## AUTHORED KELVIN-90 CELLS STAMPED + 4/4 RAILS -- 2026-07-19 (night)
+Commit f3b68496, owner render report ("taps not perpendicular 90s... cross over...
+INA181 tapping the outside of the shunt") closed: measured the fallback spaghetti in
+copper, then made the authored cell stampable -- TLV-BESIDE (9.4,-5.0; reach 9.75->
+7.9, the -4.4 first try grazed its own sink descent 0.3mm), bank-aware walk right-
+bound (margin 7.0 with cells -- the array-only 3.05 had put RS1's bank on J6),
+authored DETAMP (around-west + mid-channel rise + side entry; 3 assert-caught
+reroutes: GND under OUT, DET under TLV-IN), role-pair cross-checks generalized,
+face-mode pad-width tail clamps BOTH sides (honest collider exposed full-width
+tails reaching the opposite shunt pad). PROBE s2h @74x55: cells 68 LOCKED segs /
+0 refused, FORCE RAILS 4/4 (first ever, RS2's sink cleared by the TLV move),
+textbook orthogonal taps everywhere, per-pair coverage retires the route-time
+diagonal fallback. Render on the dash (probe-s2f-authored-taps-4of4.png).
+CHAIN 3 still grinding (10 waves, seeds 56-103; watcher bp6ggzj0n) -- its later
+waves inherit the new template+wiring at process boundaries; expect kelvin-pair
+completeness to improve (taps now locked+protected) and the criticals walk to
+continue. Then the morning ladder (pour-flood at J3, codex #10, #16 sorts,
+24-pin cooling config, image dep bake).
+
+## CHAIN 2 DONE, CHAIN 3 OVERNIGHT -- 2026-07-19 (evening)
+Chain 2 (8 waves): FIVE NEW BESTS. 24-pin criticals day trajectory 10->9->8->7 (the
+sort key correctly trades raw unconn for critical-net count; kelvin-class proposals
+dominate the winners = intent chaining homing on the residuals); rails 3/4 every
+wave; thermal stamps FIRED on every new best post-deps-fix (dT 54.97/49.48/35.43/
+49.09 still-air -- 35.43 within sight of the 30 gate even with NO cooling model).
+12vhpwr: NEW BEST dT 22.14 PASS (production case), drc ->23, crit 2 stable.
+CHAIN 3 RUNNING overnight: 10 waves (24-pin seeds 56-103 x8 + 12vhpwr 24-35 x2),
+same env, watcher bp6ggzj0n (50-min poll; note its log header says "NIGHT CHAIN 3"
+but wave lines still read NIGHT2 -- sed artifact, cosmetic only). MORNING LADDER
+after the chain-3 readout: (1) §2.4 pour-flood at the J3 field (the kelvin/criticals
+path -- carries the unpickable pins); (2) codex #10 precision-locked reconciliation;
+(3) #16 determinism sorts; (4) 24-pin production cooling config (owner-adjacent);
+(5) container image dep bake. All prior context in the sections below.
+
+## NIGHT CHAIN 1 READOUT + CHAIN 2 IN FLIGHT -- 2026-07-19 (late)
+Chain 1 (6 waves, post-fix tree) DONE in 90min (prune kept 3-4 routed/wave): FOUR NEW
+BESTS -- 24-pin unconn 104->95 (first sub-100), criticals 9->8 (the #22 fix visible in
+production), rails 3/4 on every winner; 12vhpwr drc 39->24 + NEW BEST, re-stamped
+thermal dT 22.22 PASS (production case model). DIAGNOSED: kelvin=false on rails
+boards = RAIL-NET RESIDUALS (unpicked J3 pins + FR completion around locked trunks),
+NOT missing taps -- precision-first lays them pre-FR and the 53 per-pair "covered"
+skips are correct (#9 verified working as designed). REPAIRS: the reboot's container
+recreation had eaten runtime pip deps (matplotlib, shapely) -- every night-1 NEW-BEST
+thermal stamp failed ModuleNotFoundError; reinstalled live (--break-system-packages),
+FOLLOWUPS to bake into the image. 24-pin best re-solved dT 67.55 FAIL-HONEST under
+"still-air (no case)" -- atx-24pin-rev3 has NO production cooling config (FOLLOWUPS,
+owner-adjacent enclosure thermal path). NIGHT CHAIN 2 RUNNING: 8 waves x 6 seeds
+(24-pin seeds 20-55 x6 waves + 12vhpwr 12-23 x2), thermal env exported
+(GRID 0.8/cpu), watcher b6qllb2fe (30-min poll). Chain-1 launcher lesson: a
+pgrep-based waiter matched its own command line and deadlocked -- chain 2 runs from
+a script FILE (/tmp/night-chain2.sh in-container). MORNING: chain-2 readout,
+incumbent trajectory, then the FOLLOWUPS ladder (pour-flood at the J3 field = the
+kelvin/criticals path; codex #10 reconciliation; #16 determinism sorts).
+
+## CODEX CRITICALS BATCH + OVERNIGHT CHAIN -- 2026-07-19 (afternoon)
+Commit b38f4b7b (owner GO "wrap these findings and fix... let a few run overnight").
+Landed + regression-probed: #1 cell copper per-SEGMENT own-net exemption + intra-cell
+cross-net Collide (was cell-wide exempt = lockable shorts); #2 lanes lock_segs carry
+widths, lane_collider checks foreign locked copper/vias, per-leg own-net exemption
+(incl. the HI-tap path); #3 rails collider skips narrowed to fiducials only (J3/TB
+foreign pads were invisible to the spine/sink); #9 import_ses tap suppression is
+per-PAIR by PAD CONTACT -- locked TRUNK copper on _HI/_LO (the force rails!) no
+longer suppresses tap synthesis for FR-excluded INA pads = the ROOT of the standing
+kelvin=False on rails boards, fix rides the overnight waves; #17 error sentinel ->
+(1, inf) (a boardless failure outranked real boards with >9 safety fails); #20 route
+loop publishes the GLOBAL best at the ceiling; #21 rail sidecar schema+board identity
++ fail-CLOSED on rail boards. Probes: 24-pin 3/4 rails + cells clean under the honest
+colliders; 12vhpwr 6/6 lanes + 444 cell segs (2 HI taps now honestly refuse on named
+adjacencies -> FR). Earlier same day: #4 #5 #12 #22 #24 (c1541e65). Remaining triage
+in FOLLOWUPS (#7 #8 #13 #14 #15 #16 #18 #19 #23 + structural).
+IN FLIGHT: wave 16 (24-pin @W74, pre-fix tree, 9/10 graded) -> then the 6-WAVE
+OVERNIGHT CHAIN auto-starts (4x 24-pin seeds 4-19 + 2x 12vhpwr, shared incumbent
+chain, ALL tonight's fixes incl. per-pair taps + W74 + tuck/drop/patches/handedness).
+Watchers: wave-16 (b8ix91ije), night chain (bx0b5sknf, 15-min poll). MORNING READOUT:
+expect kelvin flips + rails in reports + criticals list cleaned (#22); compare
+incumbent chain progression across the night waves.
+
+## OWNER RENDER BATCH -- 24-PIN RAILS 3/4 DETERMINISTIC, W74 -- 2026-07-19 (midday)
+Commit 85590d9e on claude/pipeline-pass-2. The owner's four wave-15 render items all
+landed, probe series s0i..s0z: (1) p2 jack TUCK (J1 against J3; pass-lock contract
+respected after a measured p3 LockViolation; fiducials exempt + auto-nudged) + the
+walk's per-column shunt DROP; (2) via-array LANDING PATCHES both layers; (3) Kelvin
+textbook-90 taps AUTHORED into the sense-cell template (parametric from measured pads,
+clearance-asserted, candidate-shape trials -- caught 5 real collisions; INA181 rot-180;
+v0/v0-left/v0-taps artifacts, taps variant NOT yet stamped: +0.35mm reach re-wedges,
+needs TLV-beside, FOLLOWUPS); (4) bank handedness MEASURED (parts+tracks agree via
+_to_global; bank lands board-RIGHT at 270 seats; the 12V cell always overlapped J6 --
+uniform-right + tucked J1 is the only fitting family). Lay/plan hardening: outlier
+trim, live-span + width-shrink bands, per-joint TB drop widths, sink face-stagger
+retry + array suppression, sink descent/band-row reservation boxes, pad-field walk
+bounds both sides, seg-named refusals everywhere. **W 70->74**: wedge chain MEASURED
+82.2mm > 70 (J1 14.4 + stub 2.45 + 3x11.85 + bank 9.4 + array 3.05 + J6 17.4), every
+assignment 0.03-0.6mm short -- the ladder's last lever earned, 12vhpwr 62->66
+precedent, owner veto = one line in BOARD_WH. Probe s0z @74: RS1+RS3+RS4 LAID
+(RS3 10 segs + 20 In2 vias), cells 12 segs / 0 refused, RS2 dust-blocked by
+late-pass pushback into its reserved sink row (mover unidentified -- FOLLOWUPS;
+wave-grind class). All suites green. WAVE 16 @74 IN FLIGHT (watcher armed).
+CODEX full-stack audit still running (2.1MB+, resumed across the reboot; watcher
+armed) -- triage its ranked findings + the wave-16 readout next.
+
+## CODEX-AUDIT BATCH LANDED — 24-PIN RAILS 3/4 — 2026-07-19 (morning)
+Branch claude/pipeline-pass-2, commits 2cbc17d0 + bookkeeping. The Codex (gpt-5.6-sol,
+effort max) loop-audit findings are implemented + probe-verified on atx-24pin-rev3
+seed 0: rails 0/4 -> 3/4 LAID (RS4 5VSB, RS2 5V@25A w/ 26-via In2 arrays, RS1 12V via
+the new plain-FACE stagger variant). Landed: exact shunt pad geometry + full array
+envelope in _force_rail_boxes; p7 sweep courtyard-AABB overlap + penetration-depth
+push; walk right-bound from in-band anchor blockers (J6) + infeasibility guard
+(LEFT-bound raise measured HARMFUL 0/4 -> reverted, comment records it); face stubs
+clamped to shunt pad width; plain-FACE source last-resort (ATX interleaves 5V/12V at
+the same x -> earlier rail's In2 drops contend the next band; stagger loser to face,
+drops follow); 1.0mm mid-column pin doglegs; per-variant AND per-drop refusal traces;
+RAIL SELECTION PRESSURE: materialize writes .railreport.json sidecar -> the oracle
+folds refused rails into gate + the SAFETY sort-key term (tuple shape preserved),
+wave report surfaces rails. RS3 (3V3) refused: J1 squats its band row = seat
+diversity / v3 RailPlan-pre-anchor territory (FOLLOWUPS). HONEST FLOOR: J3 O-3.2
+pads @4.2 leave 0.5mm mid-column -> top-row pins over foreign barrels unpickable
+(trunk + FR + future pour flood carry them). Teeth all green (rails 8, keepout 6,
+prune 7, blueprint 8, oracle 44). SB-08 golden RED PRE-EXISTS at HEAD
+(stash-ablated identical fail — FOLLOWUPS root-cause item, not tonight's batch).
+WAVE 15 READOUT (post-reboot relaunch, 0835 report): rails 3/4 on EVERY routed
+variant, sort keys carry rails, incumbent stands. RS3's refusal is SEED-INVARIANT
+(J1 at (13.6,21) every seed -- wave grinding cannot fix it; v3 pre-anchor is the
+only path). Circuit gate correctly calls unpicked-pin rails OPEN at J3. Regressions
+queued behind the codex triage: unconn 133 (baseline 117), DRC 83 (shorting 8,
+zones_intersect 6, via_dangling 9 -- suspect In2 array vias off the band + FR vs
+locked copper), foreign-on-pour 1t/1v, placed courtyard J1|RS3 (the seat itself is
+illegal). Full-stack codex audit RESUMED after the box reboot (session intact,
+transcript 831KB->1.9MB+), watcher armed; triage its ranked findings TOGETHER with
+these regressions, then v3 structural
+(FOLLOWUPS: RailPlan pre-anchor, typed constraints, template channels,
+template_from_netlist generalization — the owner's generalizability answer:
+stamp engine generic, template generation board-specific).
+
+
 ## POUR REFINEMENT + ALT-LAYER RAILS + V3 KEYSTONE NAMED — 2026-07-19 (pre-dawn)
 Owner-directed pour brainstorm COMMITTED (docs/pour-strategy-refinement-2026-07-19.md) +
 recs implemented same session: §2.1/§2.4 plan_rail_chains = ONE rail geometry source (lay +
