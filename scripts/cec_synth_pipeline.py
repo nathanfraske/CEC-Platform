@@ -6186,6 +6186,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             else:
                 macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
                 cluster_offsets[unit] = {}
+        # PINNED-ROT MACRO TRUTH (owner defect batch #2, 2026-07-20): the macro learn
+        # frames every unit at rot 0, but a cfg.pins ref carries a mandated rotation --
+        # J6 pinned at 180 got a macro box sitting 14mm below its REAL barrel field
+        # (cy +7 vs the true -7), so every later legalize read the field as free and
+        # parked the TPS2121 satellites ON it (the every-hub-variant pre-route
+        # refusal). Re-derive the macro at the pinned rot -- the ESP seated-rot
+        # re-derive below is the precedent. Courtyard-only (satellite slack dropped):
+        # the satellites place via the pad-true func/stamp paths regardless.
+        for _pr, _pv in (((cfg.pins or {}) if cfg is not None else {}) or {}).items():
+            if _pr in macro and _pr in comps and len(_pv) > 2 and float(_pv[2]) % 360.0:
+                macro[_pr] = _courtyard_info(comps[_pr], float(_pv[2]),
+                                             drop_antenna=drop_antenna)
         # MCU-CLUSTER SEAT-FRAME CONSISTENCY (2026-07-12, the p3crit MCU seat's p4 half;
         # gated on the seat having fired -- _esp in _bp_refs -- and on a non-zero seat
         # rotation, so every other board/path is byte-identical). The learn above is
@@ -6773,7 +6785,21 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # shape, so they join the same avoiding legalize.
             _corr_boxes = (_force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
                            + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
-            _avoid = list(_pour_boxes or ()) + _corr_boxes
+            # ANCHOR-AWARE SETTLE (owner defect batch #2, 2026-07-20: EVERY hub
+            # variant refused pre-route on the same class -- this settle parked
+            # D8/C14/R_ILIM1/C_SS ON the pinned J6. cfg.pins/mount/jack anchors
+            # live in `anchors`, not P, and legalize_pack treats only P entries
+            # as obstacles -- so the re-stamp was blind to every pinned part.
+            # Inject them as fixed pseudo-obstacles exactly like the pour boxes.
+            _anch_boxes = []
+            for _o, _oa in anchors.items():
+                if _o in P or _o not in comps:
+                    continue
+                _ocy = _courtyard_info(comps[_o], _oa[2] if len(_oa) > 2 else 0.0)
+                _anch_boxes.append(("anchor:" + _o,
+                                    _oa[0] + _ocy[0] - _ocy[2], _oa[0] + _ocy[0] + _ocy[2],
+                                    _oa[1] + _ocy[1] - _ocy[3], _oa[1] + _ocy[1] + _ocy[3]))
+            _avoid = list(_pour_boxes or ()) + _corr_boxes + _anch_boxes
             if _avoid:
                 _legalize_avoiding_pours(P, _restamped, _rs_cy, _avoid, W, H, clr=0.4,
                                          bounds=_bounds)
