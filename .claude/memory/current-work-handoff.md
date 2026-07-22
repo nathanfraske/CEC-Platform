@@ -1,5 +1,39 @@
 # Current work handoff
 
+## CHAIN READOUT (both chains DONE 2026-07-20; read 2026-07-22)
+Both all-fixes chains completed naturally (hub 04:21, 24-pin 08:28 UTC; the 8h capper
+fired at 14:01 on nothing). Box idle since; branch claude/pipeline-pass-2; stray
+untracked tmp-pre795/ at repo root (attribution-comparator leftover).
+**HUB: FIRST ROUTED HUB BOARDS EVER.** Wave 5 (s20) unconn 39 / drc 14, wave 6 (s28)
+unconn 36 / drc 24 -- BOTH kelvin_ok=TRUE, crit=[GND] only. Best artifact =
+build/fresh-wave-loop/hub-standard-rev2/20260720T0358-periph-left-dataflow-s28.kicad_pcb
+(957KB routed; NOTE the LAST-published 0421 s31 is a REFUSED unrouted board -- the
+incumbent logic kept s28, but "latest published" on a dash shows the refusal). Yield
+2/6 waves: every other wave's survivors refused pre-route on the C1 class (C1|H3
+dominant; H1/F1/U8 pairs too) -- C1-vs-anchor legality = the hub #1 yield lever; the
+chain-end intent proposal `c1-anchor-periph-split` targets exactly it. Hub thermal:
+both new-bests stamped dT=0 "broken solve" -- hub has NO board_thermal_config entry
+(FOLLOWUPS 2026-07-22): expected-red until authored, no signal.
+**24-PIN: PLATEAU -- THE 1174 WATCH FIRED.** unconn post-grade 152/151/158/151/153/155
+across the 6 waves (no trend), drc 180-209, rails 4/4 ZERO-refusal every wave,
+criticals stable [+5VSB, +5V_MAIN, GND] (+sometimes /SENSE5V_HI or /SENSE3V3_HI),
+kelvin=False throughout, 3 marginal new-bests. Per the placement-hardness resolution:
+the placement lever is now the named next step (mezz-flank routing windows / tuck
+relaxation) + the chain-end `kelvin-relax-adjacency` intent proposal (U10-13 gap 1.5mm
+vs RS1-4 -- attacks the U10|J6 courtyard refusals + cut-vertex kelvin).
+**THERMAL MIRAGE FOUND (FOLLOWUPS 2026-07-22):** the s125/s145 "thermal ok=True
+dT~10.7-10.9" new-best stamps are likely VACUOUS -- cec_thermal2d.py:465-474 silently
+drops a configured net when src/sink are on disconnected islands, and +5V_MAIN/+5VSB/
+GND are still open on those boards (s112 same recipe read 61.8). Do not trust thermal
+PASS on boards with open configured rails; fix = per-net injection accounting in the
+stamp. dT is last tie-break at tier 1 (low mis-rank risk) but PRIMARY at tier 0.
+Prior watch items: SB-08 owner-gated re-freeze unchanged; anchor-blindness p5/p6
+U1xH1 + FID3xJ5 unobserved this chain (no probe); C1 class confirmed live (above).
+RESUME: (a) hub C1 legality fix or the c1 intent proposal wave, (b) 24-pin placement
+lever + kelvin-relax proposal wave, (c) thermal injection-accounting patch, (d) the
+v3 structural ladder (FOLLOWUPS 2026-07-19: RailPlan pre-anchor, cell-seat-vs-rail-plan
+keystone, codex #7/#8/#11/#13/#14/#15/#16/#18/#19/#23).
+
 ## ROUTE-REGRESSION RESOLVED: PLACEMENT-HARDNESS -- 2026-07-20 (~05:15 UTC)
 Full attribution matrix (four 8-pass solo comparators): pre-board+pre-code 127/54;
 pre-board+CURRENT-code 127/54 (ROUTE STACK EXONERATED -- identical); current-board
