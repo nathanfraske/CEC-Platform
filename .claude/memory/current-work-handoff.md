@@ -1,5 +1,42 @@
 # Current work handoff
 
+## IMPLEMENTATION BATCH 2026-07-22 (owner GO on the readout's next move) -- commits 5fd03b47+36d3ca44
+(1) THERMAL INJECTION ACCOUNTING LANDED (the mirage fix): solve_board_thermal
+records nets_requested/nets_dropped/nets_absent (dropped = on-board, no current
+path, per-reason; absent = not on this board, advisory per the alpha /FAN_12V
+contract); _oracle_thermal FAILS any stamp with a dropped net ("INJECTION
+INCOMPLETE" + named nets + accounting on every stamp). Proof: chain s145 (had
+stamped ok=True dT=10.94) re-stamps ok=False 7/9 dropped. Found+fixed two 24-pin
+board_thermal_config gaps: GND had NO override (62A NEVER injected on any 24-pin
+solve, ever) and TB1-hardcoded sinks vs placement-chosen TB order (now whole TB
+row, net-scoped). Post-fix s145: 6/9 inject, honest dT 168.8. Teeth:
+tests/test_thermal_injection_accounting.py (6) + all 9 thermal suites green.
+(2) CEC FORK REST SERVICE LIVE (owner: "REST must serve our custom cec jar"):
+scripts/cec_fr_server.py = thin job API that executes cec_fr.run_freerouting per
+job (pinned 1.7.0-cec2, allow-listed env forwarding CEC_FR_{SEED_AXIS,NOECHO,
+MAXSTALL,PLATEAU_KILL}, plateau/tree-kill server-side); cec_fr.run_freerouting
+now reads CEC_FREEROUTING_URL (route VERDICTS re-raise RuntimeError unchanged;
+infra failures fall back to the local jar LOUDLY; CEC_FR_REST=0 opts out; jar-sha
++ version epoch guards). compose `freerouting` = the server on cec/routing:kicad10,
+CEC_FR_SERVER_WORKERS=6 = THE box-wide FR concurrency governor (the "never >6 FRs"
+rule now lives there). The official freerouting:2.2.4 API image is RETIRED from
+compose (probed 2026-07-22: binds 127.0.0.1 in its own netns as shipped -- fix was
+--api_server-endpoints=0.0.0.0; requires freerouting.app API keys + EDA-tool
+headers; and it is the wrong router per FR-01). PROOF: REST-vs-local SES
+BYTE-IDENTICAL on eps (ses_name matched -- FR embeds the -do basename as session
+name); SB-08 golden ran THROUGH REST = the identical pre-existing red signature
+(unconn 16 / thermal 257.5, owner-gated re-freeze unchanged); 12 contract teeth
+(tests/test_fr_rest.py, incl. verdict-vs-infra classification + cancel + env
+allow-list). All in-container routes now flow through the service by default.
+(3) INTENT-PROPOSAL WAVES RUNNING (launched ~2026-07-22 23:35 UTC): 24-pin seeds
+146-151 + hub seeds 36-41, 3 wave-workers each, same chain env, consuming the
+chain-end proposals (kelvin-relax-adjacency / c1-anchor-periph-split) from
+build/fresh-wave-loop/*/intent-proposals.json. Logs /tmp/wave-{24pin,hub}-0722.log
+in-container; watcher bjb6wh03g (4h cap). These waves' new-best thermal stamps
+carry the new accounting (hub's dT=0 mirage becomes named GND-dropped etc.).
+READOUT PENDING -- judge prop-variant wins vs the C1-refusal and kelvin-adjacency
+blockers when done.
+
 ## CHAIN READOUT (both chains DONE 2026-07-20; read 2026-07-22)
 Both all-fixes chains completed naturally (hub 04:21, 24-pin 08:28 UTC; the 8h capper
 fired at 14:01 on nothing). Box idle since; branch claude/pipeline-pass-2; stray
