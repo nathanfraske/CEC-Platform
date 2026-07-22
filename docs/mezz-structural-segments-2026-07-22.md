@@ -104,11 +104,25 @@ Symbols (in `lib/cec.kicad_sym`, pre-staged): `cec:CEC_CONN_2x3` (J6P), `cec:CEC
 (J6C), `cec:CEC_CONN_2x2` (J6D). Footprints (vendored from pinned KiCad-10 stock):
 `cec-Connector_PinHeader_2.54mm:PinHeader_2x0{3,4,2}_P2.54mm_Vertical`.
 
-Roles derive from the EXISTING J6 (`CEC_MEZZANINE_16P`) pin→net map on each board
-(read from the exported netlist — pins 1,2,3 = the +5V role net; 4,7,10,12,14,15,16 =
-the GND role net; 5=CAN_H role; 6=CAN_L; 8=STREAM_P; 9=STREAM_N; 11=DETECT; 13=RSVD).
-**Preserve each board's ACTUAL net names** (no renames); if a board's current J6 map
-deviates from these role positions, STOP and report — never guess.
+Roles derive from the stack-doc 16-pin role table (pins 1,2,3 = the +5V role;
+4,7,10,12,14,15,16 = GND; 5=CAN_H; 6=CAN_L; 8=STREAM_P; 9=STREAM_N; 11=DETECT;
+13=RSVD). **Preserve each board's ACTUAL net names** (no renames). A role a board
+does not carry (the Standard hub has no STREAM_P/N or RSVD nets) maps to an
+explicitly-flagged no-connect pin — forward-compat pins ride as copper, unwired.
+
+**SUPERSESSION RECORD (2026-07-22, surfaced by the hub splice agent's stop-rule):**
+the hub-rev2 J6 had been remapped 2026-07-15 to a COLUMN-PAIRED 2×08 scheme
+(wide-ganged +5VSB×4 / CAN pairs / DETECT1 pairs) whose sole premise was
+FLIP-INVARIANT mating ("the 3×5V map is NOT flip-safe"), with a pending conjugate
+rewire of the 24-pin (FOLLOWUPS 2026-07-15, now retired). The owner's 2026-07-19
+NO-FLIP ruling killed that premise, and this contract defines the map fresh under
+no-flip — the column-paired map and its pending conjugate contract are SUPERSEDED;
+the doubled signal pins collapse to one per signal. Per-board role→net as built:
+hub-standard-rev2: +5V→`+5VSB`, GND→`GND`, CAN→its CAN_H/CAN_L nets,
+DETECT→`/DETECT1` (port-1 detect — the stacked 24-pin replaces the port-1 cable),
+STREAM_P/N + RSVD→NC. atx-24pin-rev3: +5V→`/+5V_SYS_PORT`,
+CAN→`/CAN_H_BUS`/`/CAN_L_BUS`, DETECT→`/DETECT`, STREAM_P/N + RSVD→unconnected
+(as today). Mating joins ROLES, not names.
 
 | New ref | Pin | Role | | New ref | Pin | Role |
 |---|---|---|---|---|---|---|

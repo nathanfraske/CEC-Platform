@@ -2019,9 +2019,12 @@ def place_mechanical(W, H, params):
             pts = [(e, e), (W - e, H - e)]
         else:                                           # 3: 2 logic-side (right) + 1 conn-side (left)
             pts = [(W - e, e), (W - e, H - e), (e, H / 2)]
+    # per-ref mount-land override (mating_frame_pins v2 "mount_fp" -- e.g. the
+    # R2-provisioned M2 land, 2026-07-22); default stays the platform M3.
+    fpov = params.get("mount_fp_override") or {}
     for i, (x, y) in enumerate(pts, 1):
         pos[f"H{i}"] = (x, y, 0.0)
-        fp[f"H{i}"] = _MOUNT_FP
+        fp[f"H{i}"] = fpov.get(f"H{i}", _MOUNT_FP)
     f = params.get("fiducials", "3")
     if f and f != "none":
         nf = int(f) if str(f).isdigit() else 3

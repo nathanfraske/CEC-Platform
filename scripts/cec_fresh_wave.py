@@ -142,34 +142,55 @@ def mating_frame_pins(W, H, contract, side):
     "that derivation methodology can also be used for all of the daughterboards
     and the eventual psu tester pipeline" -- keep it general). Boards stack
     CENTER-ALIGNED (maximal overlap, zero offset); the contract declares, in
-    SHARED coordinates (offsets from the common center):
+    SHARED coordinates (offsets from the common center), EITHER the v2
+    segment-list form (structural segmented mezz, owner GO 2026-07-22,
+    docs/mezz-structural-segments-2026-07-22.md):
+      {"conns": [{"ref": .., "dc": (dx, dy), "rot": deg}, ...],
+       "mount_dc": ((dx, dy), ...),     # optional (R2 provision); () = R1 pure
+       "mount_fp": "lib:footprint",     # optional per-contract mount land (e.g. M2)
+       "sides": {name: {"mount_refs": (..), "mirror_x": bool}}}
+    OR the legacy single-connector form:
       {"conn_dc": (dx, dy), "conn_rot": deg,
        "rect_dc": (x0, y0, x1, y1),     # the standoff datum rectangle
        "sides": {name: {"conn_ref": .., "mount_refs": (..), "mirror_x": bool}}}
     A side with mirror_x=True flips to mate (its x offsets negate). Returns
-    {"anchor_pins": .., "mount_pos_override": ..} for that side -- feed into
-    BOARD_PARAMS. One declaration, every mating side derived; the standoff
-    refs are alignment DATUM (exempt from nudge/anneal by the pipeline)."""
+    {"anchor_pins": .., "mount_pos_override": .., ["mount_fp_override": ..]}
+    for that side -- feed into BOARD_PARAMS. One declaration, every mating
+    side derived; the mating refs are alignment DATUM (exempt from
+    nudge/anneal by the pipeline). MATE INVARIANT (the property that matters):
+    for any two sides, every mating ref's position differs by ONE constant
+    translation -- guaranteed by construction since both sides add the same
+    (dx, dy) to their own centers."""
     sd = contract["sides"][side]
     m = -1.0 if sd.get("mirror_x") else 1.0
     cx, cy = W / 2.0, H / 2.0
-    dx, dy = contract["conn_dc"]
-    pins = {sd["conn_ref"]: (cx + m * dx, cy + dy, contract.get("conn_rot", 0))}
-    # standoffs: either an explicit "mount_dc" POINT LIST (the measured-derivation
-    # form -- 2026-07-20, 3-point BL/BR/TR after the joint legality search showed
-    # a full corner RECT is physics-blocked: the hub jack row owns the shared top
-    # band and the 24-pin's own left jacks own its left corners) or the legacy
-    # "rect_dc" 4-corner rectangle.
+    if "conns" in contract:                       # v2: N structural segments
+        pins = {c["ref"]: (cx + m * c["dc"][0], cy + c["dc"][1],
+                           c.get("rot", 0))
+                for c in contract["conns"]}
+    else:                                         # legacy single connector
+        dx, dy = contract["conn_dc"]
+        pins = {sd["conn_ref"]: (cx + m * dx, cy + dy,
+                                 contract.get("conn_rot", 0))}
+    # standoffs: an explicit "mount_dc" POINT LIST (possibly EMPTY -- the R1
+    # structural-segment form carries stability in the segments themselves; a
+    # single point = the R2 provisioned DNP-able land) or the legacy "rect_dc"
+    # 4-corner rectangle.
     if "mount_dc" in contract:
         pts = [(cx + m * mx, cy + my) for (mx, my) in contract["mount_dc"]]
-    else:
+    elif "rect_dc" in contract:
         x0, y0, x1, y1 = contract["rect_dc"]
         pts = [(cx + m * mx, cy + my)
                for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))]
+    else:
+        pts = []
     mounts = {}
     for ref, (px, py) in zip(sd.get("mount_refs", ()), sorted(pts)):
         mounts[ref] = (px, py)
-    return {"anchor_pins": pins, "mount_pos_override": mounts}
+    out = {"anchor_pins": pins, "mount_pos_override": mounts}
+    if mounts and contract.get("mount_fp"):
+        out["mount_fp_override"] = {r: contract["mount_fp"] for r in mounts}
+    return out
 
 
 # THE HUB-ON-24PIN MEZZANINE CONTRACT (the 2026-06-24 stack doc §4, finalized
@@ -199,18 +220,26 @@ def mating_frame_pins(W, H, contract, side):
 # left-flank spot rammed the hub's C1 zone). Probe = the arbiter: rails 4/4 +
 # no-overlap on both boards gate any future change to these numbers.
 MEZZ_HUB_24PIN = {
-    "conn_dc": (32.5, 10.5), "conn_rot": 180,
-    "mount_dc": ((-32.0, 2.5), (33.0, 19.5), (33.0, -10.5)),   # BL, BR, TR
-    # BL y: measured COURTYARD window on the 24-pin left edge -- J1's courtyard
-    # ends y26.1, J2's spans y34.1-42.5 hugging the edge (x<=4.7), so an x=5 mount
-    # fits only the y~30 sliver ((5,38.5) was courtyard-illegal vs J2 + U1's p5/p6
-    # seat; RS3's spine killed y47) -- (5, 30) board-frame, tight both sides.
-    "sides": {"atx-24pin-rev3": {"conn_ref": "J6",
-                                 "mount_refs": ("H1", "H2", "H3"),
-                                 "mirror_x": False},
-              "hub-standard-rev2": {"conn_ref": "J6",
-                                    "mount_refs": ("H1", "H2", "H3"),
-                                    "mirror_x": False}},
+    # STRUCTURAL SEGMENTED MEZZ (owner GO 2026-07-22, R1 + the R2 provision --
+    # docs/mezz-structural-segments-2026-07-22.md): the single 2x8 J6 + the
+    # H1-H3 M3 standoff trio are RETIRED; three KEYED segments (J6P 2x3 power /
+    # J6C 2x4 comms / J6D 2x2 ID, Appendix A pin maps) ARE the mounting system.
+    # Seats reuse the 2026-07-20 measured-legal datum points (J6P = the old BL
+    # left-flank sliver; J6C = old TR; J6D = old BR -- same proven ~65x30
+    # support triangle, screws deleted). rot 0 all = DRAFT, wave-iterable.
+    "conns": [
+        {"ref": "J6P", "dc": (-32.0, 2.5), "rot": 0},   # power (left flank)
+        {"ref": "J6C", "dc": (33.0, -10.5), "rot": 0},  # comms (right upper)
+        {"ref": "J6D", "dc": (33.0, 19.5), "rot": 0},   # ID    (right lower)
+    ],
+    # R2 PROVISION: ONE DNP-able M2 land so the bench peel/shake gate is a
+    # population decision, never a respin. DRAFT seat (bottom-center-left,
+    # between the rail band and the TB row start); the pre-route courtyard
+    # gate names any collision per-variant -- probe/wave is the arbiter.
+    "mount_dc": ((-20.0, 14.0),),
+    "mount_fp": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+    "sides": {"atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False},
+              "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": False}},
 }
 
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
@@ -267,16 +296,10 @@ BOARD_PARAMS = {
     # HUB REV2 (2026-07-15): connector-first, no force lanes (no shunt corridors on a
     # hub) -- the MCU/fan seats stay dormant by their force_lanes gate; hub-specific
     # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
-    # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
-    # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
+    # Mezz segments are DNP but their LANDS place like any part; positions are the
+    # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, no-flip, 2026-07-22
+    # segmented form -- J6P/J6C/J6D + the one provisioned M2).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
-                          # MEZZANINE ALIGNMENT CONTRACT (x-mirrored twin of
-                          # the 24-pin values -- the Hub flips to stack; see
-                          # the 24-pin block + the 2026-06-24 stack doc §4):
-                          # J6 = center + (-31, +10.5) = (13, 41.5) vertical;
-                          # standoff rect 66x46 about center = mounts pulled
-                          # in from the Hub's own corners per the contract
-                          # ("the rectangle must fit within BOTH outlines").
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
@@ -296,8 +319,10 @@ BOARD_PARAMS = {
                                            "J2": "host", "J3": "host",
                                            "J4": "host", "J5": "host",
                                            "J_KVM": "host",
-                                           # board-to-board, interior -- never an edge
-                                           "J6": "free"},
+                                           # board-to-board mezz segments, interior --
+                                           # never an edge (2026-07-22 segmented split)
+                                           "J6P": "free", "J6C": "free",
+                                           "J6D": "free"},
                           # owner catch on wave-1 snapshots (2026-07-15): jacks were
                           # seated on the RIGHT (the host-role default edge) -- the
                           # 4-jack row belongs on the long TOP edge like the proto;
@@ -360,15 +385,15 @@ BOARD_PARAMS = {
     # blueprint_cells is injected below (needs the lane loop).
     "atx-24pin-rev3": {
                        # MEZZANINE ALIGNMENT CONTRACT (owner 2026-07-20 "they
-                       # need to be cross-coordinated" + the 2026-06-24 stack
-                       # doc §4): the Hub stacks on the 24-pin CENTER-ALIGNED
-                       # (maximal overlap, zero offset); the shared frame =
-                       # {J6 at center+dc, the 4-standoff 66x46 rect}. The
-                       # Hub carries the X-MIRRORED twin values (it flips to
-                       # mate). J6 vertical on the right flank -- clear of
-                       # the rail columns/bands/sinks on THIS board and of
-                       # the LED ring/jack rows on the Hub. DRAFT coords
-                       # (dc=+31,+10.5 / rect 66x46): finalize at rev layout.
+                       # need to be cross-coordinated"; SEGMENTED 2026-07-22):
+                       # the Hub stacks on the 24-pin CENTER-ALIGNED, NO-FLIP;
+                       # the shared frame = MEZZ_HUB_24PIN's three structural
+                       # segments (J6P left / J6C right-upper / J6D right-
+                       # lower) + one provisioned M2. NOTE the frame math uses
+                       # the STATIC BOARD_WH (74x55); a runtime H-grow (e.g.
+                       # SHUNT_GAP -> 59) only biases the stack's centering
+                       # over the 24-pin, never the mate (constant-translation
+                       # invariant, test_mating_frame).
                        **mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN,
                                            "atx-24pin-rev3"),
                        "corner_radius": 2.5,
