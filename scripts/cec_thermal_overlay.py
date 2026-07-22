@@ -126,12 +126,20 @@ def board_thermal_config(board_path):
               "+5VSB": 5.0, "/SENSE5VSB_LO": 5.0,
               "GND": 62.0}
         ov = {}
+        # Sink = the WHOLE TB blade row, not TB1 (2026-07-22, found by the injection
+        # accounting): the wave's straight-through pass chooses the TB net order PER
+        # CANDIDATE, so a rail's blade is not always TB1 -- pad lookups are net-scoped,
+        # so listing every TB ref is safe (only same-net blades match). GND previously
+        # had NO override at all -> fell to the J_IN/J_OUT default (absent on this
+        # board) -> the 62A return path never injected on ANY 24-pin solve.
+        tb_all = ["TB%d" % i for i in range(1, 11)]
         for hi, lo, rs in (("/SENSE12V_HI", "/SENSE12V_LO", "RS1"),
                            ("/SENSE5V_HI", "+5V_MAIN", "RS2"),
                            ("/SENSE3V3_HI", "/SENSE3V3_LO", "RS3"),
                            ("+5VSB", "/SENSE5VSB_LO", "RS4")):
             ov[hi] = {"refs_src": ["J3"], "refs_sink": [rs]}
-            ov[lo] = {"refs_src": [rs], "refs_sink": ["TB1"]}
+            ov[lo] = {"refs_src": [rs], "refs_sink": tb_all}
+        ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
     return None, None, None, None
 

@@ -9,7 +9,7 @@ memory entry [[pipeline-solver-roadmap]] and FOLLOWUPS point here._
 
 | Solver | Where | Backend | Status |
 |---|---|---|---|
-| 2.5D thermal field solve (per-layer conduction, via coupling, sub-grid traces) | `cec_thermal2d.py` via `_oracle_thermal` | GPU cupy CG/AMG, scipy fallback | GATING (with the mirage guard: dT≈0 fail + double-solve confirm). **Known defect: non-deterministic** — root-cause open (FOLLOWUPS; pyamg `ml.solve` returns unconverged iterates flagless, dT swung 21↔174 on one artifact) |
+| 2.5D thermal field solve (per-layer conduction, via coupling, sub-grid traces) | `cec_thermal2d.py` via `_oracle_thermal` | GPU cupy CG/AMG, scipy fallback | GATING. Nondeterminism defect FIXED 2026-07-17 (unconverged-iterate guards + determinism golden `tests/test_thermal2d_determinism.py` — the PDN prereq is CLEARED). Injection accounting added 2026-07-22 (`nets_requested/dropped/absent` on every stamp; a dropped configured net = FAIL "INJECTION INCOMPLETE" — kills the partial-injection mirage where an OPEN rail read cooler than a routed one) |
 | Analytic electrothermal (IPC-2221 Picard, serial min-cut cross-section, per-via split) | `cec_synth_pipeline.electrothermal_solve` | CPU closed-form | Lumped fallback / synth-pipeline gate |
 | Closed-form Z0/Zdiff (Hammerstad-Jensen + edge-coupled approx) vs the committed stackup | `cec_impedance.audit_impedance` | CPU instant | ADVISORY (landed 2026-07-08). First finding: USB netclass = 91.3Ω vs 90 target (+1.4%, validated); **CAN = 91–105Ω vs 120 target platform-wide** (fine at 500k; the 1Mbps option's SI bench would care) |
 | Kelvin loop-area (∫separation·dl along routed force/sense pairs) | `cec_impedance.audit_kelvin_loops` | CPU instant | ADVISORY (landed 2026-07-08; calibrate bands before gating) |
@@ -193,9 +193,16 @@ landed same day (see the defect note in the table).
   final fill/DRC + audit as advisory verdict field. (FOLLOWUPS; teeth done.)
 - **Oracle checker consolidation** — ~15-20 redundant `pcbnew.LoadBoard`s + 2 mergeable
   kicad-cli DRC spawns per candidate (~1.5-2.5s/candidate measured). (FOLLOWUPS.)
-- **Freerouting REST server wiring** — `docker-freerouting-1` idle 3 weeks;
-  `CEC_FREEROUTING_URL` env exists, `cec_fr` never reads it. Session reuse + live progress
-  → stage-0 pre-kill becomes possible. Large. (FOLLOWUPS.)
+- **Freerouting REST server wiring — LANDED 2026-07-22, as the CEC FORK server** (owner
+  directive: REST serves our 1.7.0-cec2 jar, not the official 2.x image, which is a
+  different router behind a freerouting.app auth wall and binds 127.0.0.1 as shipped).
+  `scripts/cec_fr_server.py` job API executes `cec_fr.run_freerouting` per job (all env
+  knobs + plateau-kill + tree-kill identical); `cec_fr` reads `CEC_FREEROUTING_URL`
+  (route verdicts re-raise, infra falls back to local loudly; `CEC_FR_REST=0` opts out);
+  compose `freerouting` service = the server, `CEC_FR_SERVER_WORKERS=6` is the box-wide
+  FR concurrency governor. PROVEN: REST-vs-local SES byte-identical (eps), SB-08 golden
+  through REST = identical pre-existing signature, 12 contract tests. Not built: warm-JVM
+  reuse (1.7.0 is batch-mode) and richer server-side pre-kill policies.
 - **Pre-route gate screen** — placement-only gates could skip the FR route (71-95% of
   candidate cost) for doomed placements; costs failure-ranking fidelity. Opt-in design
   sketched. (FOLLOWUPS.)

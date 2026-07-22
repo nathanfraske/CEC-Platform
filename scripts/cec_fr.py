@@ -718,6 +718,137 @@ def _kill_fr_tree(proc):
         pass
 
 
+class _RestUnavailable(Exception):
+    """REST service infra failure -> the caller falls back to the local jar, loudly.
+    NEVER raised for a route VERDICT (timeout/plateau/FR-exit/SES-missing): those
+    re-raise RuntimeError so wave/oracle semantics are identical REST or local."""
+
+
+def _rest_base():
+    """The CEC fork REST service base URL, or None for the local-jar path.
+    CEC_FREEROUTING_URL points at scripts/cec_fr_server.py (the compose
+    `freerouting` service since 2026-07-22 -- OUR fork jar behind a thin job
+    API, NOT the official freerouting 2.x API image, which is a different
+    router with measured blockers and a freerouting.app auth wall).
+    CEC_FR_REST=0 force-disables REST even when the URL is set."""
+    u = (os.environ.get("CEC_FREEROUTING_URL") or "").strip().rstrip("/")
+    if not u or os.environ.get("CEC_FR_REST", "1") == "0":
+        return None
+    return u
+
+
+def _run_freerouting_rest(base, dsn_path, ses_path, *, passes, opt_time, threads,
+                          seed, timeout, version):
+    """Route via the cec_fr_server job API. The server executes run_freerouting
+    itself (same pinned fork jar, same env knobs -- forwarded allow-listed below),
+    so with equal params the SES is byte-identical to a local run. Streams the
+    job log through (CEC_PASS progress lines stay visible in pipeline logs).
+    Raises _RestUnavailable on infra failure, RuntimeError on route verdicts."""
+    import json as _json
+    import base64 as _b64
+    import urllib.error                                        # noqa: F401  (explicit)
+
+    def _call(method, path, body=None, ctimeout=30):
+        req = urllib.request.Request(base + path, method=method)
+        data = None
+        if body is not None:
+            data = _json.dumps(body).encode()
+            req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, data=data, timeout=ctimeout) as r:
+                raw = r.read()
+                if (r.headers.get("Content-Type") or "").startswith("text/plain"):
+                    return raw.decode(errors="replace")
+                return _json.loads(raw.decode() or "{}")
+        except urllib.error.HTTPError as e:
+            try:
+                detail = _json.loads(e.read().decode() or "{}").get("error", "")
+            except Exception:                                  # noqa: BLE001
+                detail = ""
+            raise _RestUnavailable(f"HTTP {e.code} {path}: {detail}") from e
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise _RestUnavailable(f"{type(e).__name__}: {e}") from e
+
+    status = _call("GET", "/v1/system/status", ctimeout=10)
+    srv_v = status.get("fr_version")
+    if srv_v and srv_v != version:
+        raise _RestUnavailable(f"server fr_version={srv_v} != requested {version} "
+                               f"(epoch integrity: versions must match)")
+    with open(dsn_path, "rb") as fh:
+        dsn_b64 = _b64.b64encode(fh.read()).decode()
+    env = {k: os.environ[k] for k in ("CEC_FR_SEED_AXIS", "CEC_FR_NOECHO",
+                                      "CEC_FR_MAXSTALL", "CEC_FR_PLATEAU_KILL")
+           if k in os.environ}
+    job = _call("POST", "/v1/jobs", body={
+        "dsn_b64": dsn_b64, "name": os.path.basename(dsn_path),
+        # FR names the SES session after the -do basename; sending ours lets the
+        # server route under the SAME name -> REST and local SES are byte-identical
+        "ses_name": os.path.basename(ses_path),
+        "passes": int(passes), "opt_time": int(opt_time), "threads": int(threads),
+        "seed": seed, "version": version, "timeout": int(timeout), "env": env})
+    jid = job.get("id")
+    if not jid:
+        raise _RestUnavailable(f"job create returned {job!r}")
+
+    queue_cap = float(os.environ.get("CEC_FR_REST_QUEUE_CAP") or 3600)
+    t_post = time.monotonic()
+    t_running = None
+    log_off = 0
+    try:
+        while True:
+            st = _call("GET", f"/v1/jobs/{jid}", ctimeout=15)
+            # stream new log lines through (progress visibility == local path)
+            if st.get("log_size", 0) > log_off:
+                chunk = _call("GET", f"/v1/jobs/{jid}/log?offset={log_off}",
+                              ctimeout=15)
+                if isinstance(chunk, str) and chunk:
+                    log_off += len(chunk.encode())
+                    for ln in chunk.splitlines():
+                        if ln.strip():
+                            print(f"[fr-rest {jid[-8:]}] {ln}", flush=True)
+            state = st.get("state")
+            if state == "COMPLETED":
+                pin = (FR_RELEASES.get(version) or {}).get("jar_sha256")
+                got = st.get("jar_sha256")
+                if pin and got and got != pin:
+                    raise _RestUnavailable(
+                        f"server routed with jar sha {got[:16]}... != pin "
+                        f"{pin[:16]}... for {version} (epoch integrity)")
+                out = _call("GET", f"/v1/jobs/{jid}/output", ctimeout=60)
+                ses = _b64.b64decode(out.get("ses_b64") or "")
+                if not ses:
+                    raise _RestUnavailable("empty SES from COMPLETED job")
+                with open(ses_path, "wb") as fh:
+                    fh.write(ses)
+                return ses_path
+            if state == "FAILED":
+                msg = st.get("error") or "job FAILED with no error message"
+                if st.get("error_kind") == "route":
+                    raise RuntimeError(msg)        # verdict: propagate, never fall back
+                raise _RestUnavailable(msg)
+            if state == "CANCELLED":
+                raise _RestUnavailable("job cancelled server-side")
+            now = time.monotonic()
+            if state == "RUNNING" and t_running is None:
+                t_running = now
+            if t_running is not None and now - t_running > timeout + 60:
+                _call("DELETE", f"/v1/jobs/{jid}", ctimeout=15)
+                raise _RestUnavailable(
+                    f"server blew the route deadline ({timeout}s + 60s grace) "
+                    f"without its own timeout verdict -- unresponsive")
+            if t_running is None and now - t_post > queue_cap:
+                _call("DELETE", f"/v1/jobs/{jid}", ctimeout=15)
+                raise _RestUnavailable(f"queued longer than {queue_cap:.0f}s "
+                                       f"(CEC_FR_REST_QUEUE_CAP)")
+            time.sleep(2.0)
+    except (KeyboardInterrupt, SystemExit):
+        try:
+            _call("DELETE", f"/v1/jobs/{jid}", ctimeout=10)
+        except _RestUnavailable:
+            pass
+        raise
+
+
 def run_freerouting(
     dsn_path: str,
     ses_path: str,
@@ -749,6 +880,23 @@ def run_freerouting(
     FR exits non-zero or the SES is missing/empty.
     """
     v = version or FR_VERSION
+
+    # REST path (2026-07-22, owner-directed): when CEC_FREEROUTING_URL points at the
+    # CEC fork job service (scripts/cec_fr_server.py), route THERE -- the server runs
+    # this very function with the same pinned fork jar and forwarded env knobs, so
+    # the SES is byte-identical for equal params. Infra failure falls back to the
+    # local jar LOUDLY; a route VERDICT (timeout/plateau/FR-exit) re-raises
+    # unchanged -- never double-routed.
+    _base = _rest_base()
+    if _base:
+        try:
+            return _run_freerouting_rest(_base, dsn_path, ses_path, passes=passes,
+                                         opt_time=opt_time, threads=threads,
+                                         seed=seed, timeout=timeout, version=v)
+        except _RestUnavailable as e:
+            print(f"[cec_fr] REST service unavailable ({e}) -- "
+                  f"falling back to the LOCAL jar", file=sys.stderr, flush=True)
+
     jar = ensure_jar(jar, version=v)
 
     # Always route under /tmp to keep logs/ away from the repo.

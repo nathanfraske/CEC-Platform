@@ -8489,10 +8489,33 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     import cec_thermal_overlay as _tov
     res, _filled, label = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
     dT = float(res.max_T) - float(res.ambient)
+    # INJECTION ACCOUNTING (2026-07-22, the partial-injection mirage fix): a configured
+    # net PRESENT on the board whose src/sink have no common copper component injects
+    # NOTHING -- its Joule heat is simply missing from the field, so a less-complete
+    # board reads COOLER (measured: 24-pin chain "dT~10.9 PASS" stamps on boards with
+    # +5V_MAIN/+5VSB still open, vs 61.8 on a sibling). Any dropped net => FAIL with
+    # the named nets; absent-from-board nets stay advisory (the alpha /FAN_12V
+    # contract). The accounting rides every stamp so a pass is provably complete.
+    req = dict(getattr(res, "nets_requested", None) or {})
+    dropped = dict(getattr(res, "nets_dropped", None) or {})
+    absent = dict(getattr(res, "nets_absent", None) or {})
+    inj = {"nets_requested": len(req), "nets_injected": len(req) - len(dropped) - len(absent)}
+    if dropped:
+        inj["nets_dropped"] = {n: dropped[n] for n in sorted(dropped)}
+    if absent:
+        inj["nets_absent"] = sorted(absent)
+    if dropped:
+        return {"ok": False, "max_T": round(float(res.max_T), 2),
+                "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+                "gate_dt": gate_dt, "cooling": label, **inj,
+                "error": "INJECTION INCOMPLETE: %d/%d configured net(s) injected no "
+                         "current (%s) -- their Joule heat is EXCLUDED from dT, a pass "
+                         "would be vacuous (close the rail circuits first)"
+                         % (len(dropped), len(req), ", ".join(sorted(dropped)))}
     if dT <= 0.05:
         return {"ok": False, "max_T": round(float(res.max_T), 2),
                 "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
-                "gate_dt": gate_dt, "cooling": label,
+                "gate_dt": gate_dt, "cooling": label, **inj,
                 "error": "solver returned dT~0 -- impossible for a powered board (broken solve)"}
     if dT <= gate_dt:
         res2, _f2, _l2 = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
@@ -8501,13 +8524,13 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
         if dT2 <= 0.05 or abs(dT2 - dT) > max(2.0, 0.2 * max(dT, dT2)) or worst > gate_dt:
             return {"ok": False, "max_T": round(float(res.ambient) + worst, 2),
                     "ambient": round(float(res.ambient), 2), "dT": round(worst, 2),
-                    "gate_dt": gate_dt, "cooling": label,
+                    "gate_dt": gate_dt, "cooling": label, **inj,
                     "error": "UNSTABLE solve: dT %.2f vs %.2f on identical re-solve "
                              "(pass requires two agreeing solves)" % (dT, dT2)}
         dT = worst
     return {"ok": (dT <= gate_dt), "max_T": round(float(res.ambient) + dT, 2),
             "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
-            "gate_dt": gate_dt, "cooling": label}
+            "gate_dt": gate_dt, "cooling": label, **inj}
 
 
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,

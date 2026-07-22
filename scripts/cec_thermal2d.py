@@ -171,6 +171,14 @@ class ThermalResult:
     per_net_maxJ: dict = field(default_factory=dict)   # max volumetric J [A/mm^2]
     total_joule_W: float = 0.0
     total_convected_W: float = 0.0
+    # Injection accounting (2026-07-22): every REQUESTED (I>0) net is either injected,
+    # DROPPED (present on the board but no current path -- gate-relevant: its heat is
+    # missing from T, so a "cool" result may be a mirage), or ABSENT (no copper/pads on
+    # this board at all -- advisory; configured-but-unpopulated nets are ignored by
+    # contract). nets_injected = requested minus dropped minus absent.
+    nets_requested: dict = field(default_factory=dict)  # net -> requested I [A]
+    nets_dropped: dict = field(default_factory=dict)    # net -> reason (on-board, no path)
+    nets_absent: dict = field(default_factory=dict)     # net -> reason (not on this board)
     copper_mask: Optional[np.ndarray] = None
     # per std-layer (F.Cu/In1.Cu/In2.Cu/B.Cu) boolean copper mask INCLUDING routed
     # traces + pads (so the dashboard per-layer overlay shows trace hotspots, not
@@ -186,6 +194,11 @@ class ThermalResult:
             lines.append(f"  net {n:<16s} maxT={self.per_net_maxT[n]:.1f}C  "
                          f"maxK={self.per_net_maxK.get(n,0):.1f} A/mm  "
                          f"maxJ={self.per_net_maxJ.get(n,0):.1f} A/mm^2")
+        for n in sorted(self.nets_dropped):
+            lines.append(f"  net {n:<16s} DROPPED ({self.nets_dropped[n]}) -- "
+                         f"{self.nets_requested.get(n, 0):.1f}A requested, 0 injected")
+        for n in sorted(self.nets_absent):
+            lines.append(f"  net {n:<16s} absent ({self.nets_absent[n]})")
         return "\n".join(lines)
 
 
@@ -1645,6 +1658,16 @@ def solve_board_thermal(board_path,
     total_joule = 0.0
     component_W = 0.0
     net_currents_resolved = {}
+    # Injection accounting (2026-07-22, the partial-injection mirage fix): a REQUESTED
+    # (I>0) net that injects nothing is RECORDED, never silently omitted -- on a board
+    # with open rail circuits the omission made dT read COOLER the LESS complete the
+    # board was (measured: 24-pin chain s125/s145 "dT~10.9 PASS" vs s112's 61.8, same
+    # recipe, +5V_MAIN/+5VSB still open). nets_absent (no copper at all = not on this
+    # board) stays ADVISORY -- the documented contract that a configured-but-absent
+    # net (e.g. /FAN_12V on alpha 12vhpwr) is ignored. nets_dropped (present on the
+    # board but no current path) is the gate-relevant set.
+    net_drop_reasons = {}                 # net (present on board) -> why nothing injected
+    nets_absent = {}                      # net -> "no copper/pads on this board" (advisory)
 
     # ---- ELECTRICAL with optional rho(T) outer Picard ----------------------
     # We solve all nets, build Q, run the thermal solve, then (rho_T) feed the
@@ -1670,7 +1693,10 @@ def solve_board_thermal(board_path,
         per_net_maxK, per_net_maxJ = {}, {}
         total_joule = 0.0
         for net, I in net_currents.items():
-            if I <= 0 or net not in net_layer_mask:
+            if I <= 0:
+                continue
+            if net not in net_layer_mask:
+                nets_absent[net] = "no copper/pads on this board"
                 continue
             masks = {}
             oz_by_layer = {}
@@ -1684,6 +1710,7 @@ def solve_board_thermal(board_path,
                 oz_by_layer[phys] = oz
                 wfrac_by_layer[phys] = net_width_frac[net][std]
             if not masks:
+                net_drop_reasons[net] = "copper only on zero-weight stackup layers"
                 continue
             if src_sink_override and net in src_sink_override:
                 ov = src_sink_override[net]
@@ -1710,6 +1737,7 @@ def solve_board_thermal(board_path,
             if not src or not sink:
                 src, sink = _snap_terminals(src, sink, masks, grid)
             if not src or not sink:
+                net_drop_reasons[net] = "no src/sink terminals on copper"
                 if verbose and outer == 0:
                     print(f"  [skip] net {net}: no src/sink on copper")
                 continue
@@ -1758,6 +1786,7 @@ def solve_board_thermal(board_path,
                 src = [t for t in src if valid(t)]
                 sink = [t for t in sink if valid(t)]
                 if not src or not sink:
+                    net_drop_reasons[net] = "force terminals lost after sense-tap strip"
                     if verbose and outer == 0:
                         print(f"  [skip] net {net}: force terminals lost after "
                               f"sense-tap strip")
@@ -1772,6 +1801,8 @@ def solve_board_thermal(board_path,
                 sol = _augment_overlap_stitch(sol, masks, grid, via_R, I, src, sink,
                                               oz_by_layer, backend)
             if sol is None:
+                net_drop_reasons[net] = ("src/sink on disconnected copper islands "
+                                         "(open circuit -- no current injected)")
                 continue
             q, maxK, maxJ, tW = _joule_from_solution(
                 sol, grid, width_frac=wfrac_by_layer, oz_by_layer=oz_by_layer)
@@ -1779,6 +1810,7 @@ def solve_board_thermal(board_path,
             per_net_maxK[net] = maxK
             per_net_maxJ[net] = maxJ
             net_currents_resolved[net] = I
+            net_drop_reasons.pop(net, None)         # geometry is outer-invariant; keep exact
             for lid, qg in q.items():
                 Q += qg
 
@@ -1843,6 +1875,9 @@ def solve_board_thermal(board_path,
         extent_mm=(xmin, ymin, xmax, ymax),
         per_net_maxT=per_net_maxT, per_net_maxK=per_net_maxK, per_net_maxJ=per_net_maxJ,
         total_joule_W=total_joule + component_W, total_convected_W=loss_W,
+        nets_requested={n: i for n, i in net_currents.items() if i > 0},
+        nets_dropped=dict(net_drop_reasons),
+        nets_absent=dict(nets_absent),
         copper_mask=copper_any,
         layer_copper_mask=layer_copper_mask,
         meta={"stackup_oz": stackup_oz, "h_eff": h_eff,

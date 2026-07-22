@@ -4,7 +4,7 @@
 # Services share ONE passed-through RTX 5090 (the card is not MIG-capable -> at most one heavy GPU
 # job at a time; share via MPS/time-slicing if needed). The split is deliberate:
 #   * routing    -- CPU: Freerouting JVM swarm + kicad-cli DRC (the actual throughput engine).
-#   * freerouting-- the official headless Freerouting REST server (the future path for cec_fr).
+#   * freerouting-- the CEC fork REST service (cec_fr_server.py wrapping OUR pinned 1.7.0-cec2 jar).
 #   * inference  -- GPU, OPT-IN (profile): one batched vLLM server for the local judge tiers.
 #   * fem        -- GPU/CPU, OPT-IN (profile): placeholder for the Elmer/openEMS tier (Phase 2/3).
 #
@@ -38,7 +38,8 @@ services:
     environment:
       # SB-01: where cec_ledger appends run lines (the sibling cec-runs repo mounted above)
       - CEC_RUNS_DIR=/cec-runs
-      # Point cec_fr at the headless REST server instead of spawning a local jar (Task #2 wiring):
+      # cec_fr routes through the CEC fork REST service (LIVE 2026-07-22; CEC_FR_REST=0 opts out,
+      # and an unreachable service falls back to the local jar loudly):
       - CEC_FREEROUTING_URL=http://freerouting:37864
       # The local LLM judge tier goes through the cec-llm-broker on the HOST (:8080), which serializes
       # GPU access against the other LLM project on this box and routes by model name (cec-judge -> the
@@ -57,14 +58,33 @@ services:
       - freerouting
     command: ["sleep", "infinity"]          # stay alive; exec in or use `compose run`
 
-  # Official Freerouting headless REST server (no Xvfb, no interactive desktop). Bundles its own JRE.
-  # cec_fr currently spawns the pinned 1.7.0 jar itself; switching it to this REST API is Task #2.
+  # The CEC Freerouting REST service (scripts/cec_fr_server.py) -- OUR fork jar behind a thin
+  # job API (owner directive 2026-07-22: the REST path serves the custom cec jar with the vital
+  # corrections, NOT the official freerouting 2.x API image). Each job executes
+  # cec_fr.run_freerouting itself (hash-pinned 1.7.0-cec2 fork, seed axis, noecho, maxstall,
+  # plateau-kill, xvfb + tree-kill all identical to the local path), so REST-vs-local is an
+  # infrastructure choice, not an epoch change. cec_fr reads CEC_FREEROUTING_URL (set on the
+  # routing service above) and falls back to the local jar loudly if this service is down.
+  # CEC_FR_SERVER_WORKERS is the box-wide FR concurrency governor (the measured "never exceed
+  # ~6 concurrent FRs on 18 cores" rule now lives HERE, not in per-chain worker counts).
+  # HISTORY: until 2026-07-22 this service ran ghcr.io/freerouting/freerouting (v2.2.4 official
+  # API image) -- retired: different router (measured 12vhpwr GND normalize-hang, no seed axis),
+  # its API binds 127.0.0.1 inside its netns as shipped (fix was --api_server-endpoints=
+  # http://0.0.0.0:37864), and it requires freerouting.app API keys + EDA-tool headers. The
+  # 2.2.4 app-image stays reachable for FR-01 epoch benches via FR_RELEASES, not through REST.
   freerouting:
-    image: ghcr.io/freerouting/freerouting:latest   # consider pinning a specific tag for reproducibility
+    image: cec/routing:kicad10                # same image as `routing` (java + xvfb + repo deps)
+    working_dir: /workspace
+    command: ["python3", "scripts/cec_fr_server.py", "--host", "0.0.0.0",
+              "--port", "37864", "--data", "/mnt/freerouting/jobs"]
+    environment:
+      - CEC_FR_SERVER_WORKERS=6
     ports:
       - "37864:37864"
     volumes:
-      - fr-data:/mnt/freerouting
+      - ..:/workspace                         # repo: the fork jar (build/fr-fork) + scripts
+      - cec-cache:/root/.cache/cec            # shared jar cache with `routing`
+      - fr-data:/mnt/freerouting              # job store (dsn/ses/logs per job)
     restart: unless-stopped
 
   # GPU local-inference server for the control-plane judge tiers (Thrust A). OPT-IN.
