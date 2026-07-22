@@ -1,5 +1,30 @@
 # Current work handoff
 
+## PROP-WAVE READOUT + MEZZ SEGMENT STUDY -- 2026-07-22 (evening)
+PROP WAVES DONE (both ~23:17 UTC). HUB: NEW BEST plain-dataflow-s41 unconn 28 /
+drc 22 / kelvin=TRUE / crit [GND] (was 36); second survivor = a PROPOSAL variant
+(prop-linear-sense-chain-order-s39, 41/22, kelvin=true). The new injection
+accounting fired in production: hub stamp now reads "INJECTION INCOMPLETE: GND"
+(named) instead of the bare dT=0 mirage; hub board_thermal_config entry still
+owed. 24-PIN: no new best (s148 148 unconn loses to incumbent s145 on crit count
+4>3); plateau 146-158 holds = placement-hardness confirmed. BOTH target proposals
+refused pre-route on ALREADY-FILED anchor-blindness pairs: prop-c1-anchor -> C1|H1
+(+D3|C1 -- C1 parked on a datum STANDOFF), prop-kelvin-relax -> J6|U10 + FID3|J5.
+Conclusion: proposal steering cannot clear what the placement passes cannot see;
+the FOLLOWUPS-1173 structural fixes are the binding path on both boards.
+MEZZ MOUNT RIFF (owner: M2-corners? better idea? split the mezz into segments?):
+docs/mezz-structural-segments-2026-07-22.md + owner-queue SS1 row. R1 RECOMMENDED =
+three KEYED structural segments (J6P 2x3 power / J6C 2x4 comms / J6D 2x2 ID from
+the netlist-verified 16-pin map) that ARE the mounts -- zero screws, ~65x30
+triangle, >20x retention margin, keying via distinct sizes; deletes H1-H3 +
+splits the J6 field = dissolves the C1|H1 + J6|U10 refusal classes AND disperses
+the right-flank 16-net funnel named in the hardness attribution. R2 = same + one
+provisioned DNP-able M2. M2-at-4-corners: size fine, corners physics-blocked
+(all four 24-pin edges owned J3/TB/jacks/J6). One bench gate: peel/shake on a
+mated sample. AWAITING OWNER RULING; on GO ~1 session (absorbs the no-flip
+pin-map re-verify). FR REST server served the whole prop wave (byte-identical
+plane, governor at 6).
+
 ## IMPLEMENTATION BATCH 2026-07-22 (owner GO on the readout's next move) -- commits 5fd03b47+36d3ca44
 (1) THERMAL INJECTION ACCOUNTING LANDED (the mirage fix): solve_board_thermal
 records nets_requested/nets_dropped/nets_absent (dropped = on-board, no current

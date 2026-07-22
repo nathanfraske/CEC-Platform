@@ -97,3 +97,38 @@ a respin).
    classes to vanish from the ERR streams (the measurable success criterion).
 4. Owner bench: the R1 peel/shake gate on the first mated sample (parts orderable same-day —
    generic 2.54 machined-pin strips).
+
+## Appendix A — EXACT implementation contract (owner GO 2026-07-22; both boards IDENTICAL)
+
+Symbols (in `lib/cec.kicad_sym`, pre-staged): `cec:CEC_CONN_2x3` (J6P), `cec:CEC_CONN_2x4`
+(J6C), `cec:CEC_CONN_2x2` (J6D). Footprints (vendored from pinned KiCad-10 stock):
+`cec-Connector_PinHeader_2.54mm:PinHeader_2x0{3,4,2}_P2.54mm_Vertical`.
+
+Roles derive from the EXISTING J6 (`CEC_MEZZANINE_16P`) pin→net map on each board
+(read from the exported netlist — pins 1,2,3 = the +5V role net; 4,7,10,12,14,15,16 =
+the GND role net; 5=CAN_H role; 6=CAN_L; 8=STREAM_P; 9=STREAM_N; 11=DETECT; 13=RSVD).
+**Preserve each board's ACTUAL net names** (no renames); if a board's current J6 map
+deviates from these role positions, STOP and report — never guess.
+
+| New ref | Pin | Role | | New ref | Pin | Role |
+|---|---|---|---|---|---|---|
+| J6P (2×3) | 1 | +5V | | J6C (2×4) | 1 | GND |
+| | 2 | GND | | | 2 | GND |
+| | 3 | +5V | | | 3 | CAN_H |
+| | 4 | GND | | | 4 | STREAM_P |
+| | 5 | +5V | | | 5 | CAN_L |
+| | 6 | GND | | | 6 | STREAM_N |
+| J6D (2×2) | 1 | DETECT | | | 7 | GND |
+| | 2 | GND | | | 8 | GND |
+| | 3 | RSVD | | | 9-... | — |
+| | 4 | GND | | | | |
+
+(Column-pair physical layout: odd/even numbering = columns (1,2),(3,4),(5,6),(7,8) —
+J6C row A reads GND,CAN_H,CAN_L,GND and row B reads GND,STREAM_P,STREAM_N,GND: each
+diff pair adjacent along its row, GND at both ends.) Totals: 18 pins (+5V×3, GND×9 —
+two more GND contacts than the 16-pin form, a retention/return bonus — plus the 6
+signals). The old J6 instance is REMOVED (the CEC_MEZZANINE_16P symbol stays in the
+lib, unreferenced, per repo precedent). BOM/DNP posture: the three new refs carry
+EXACTLY the properties the old J6 carried (DNP/exclusion flags). Mate consistency is
+by construction: both boards implement this same table, so mated pin N↔N carries the
+same role.
