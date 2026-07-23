@@ -7465,6 +7465,8 @@ def _oracle_env(params=None):
             # last-mile completer (2026-07-23): close <=5mm same-net cluster
             # gaps FR left in dense fields, post-fill (cec_fr synthesize_lastmile)
             extra["CEC_LASTMILE"] = "1"
+            if params.get("lastmile_max_mm"):
+                extra["CEC_LASTMILE_MAX_MM"] = str(float(params["lastmile_max_mm"]))
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling

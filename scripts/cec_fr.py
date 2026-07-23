@@ -3892,7 +3892,8 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     # to re-yield clearance around them).
     if os.environ.get("CEC_LASTMILE", "0") == "1" and fill_zones:
         board.BuildConnectivity()
-        lm = synthesize_lastmile(board)
+        lm = synthesize_lastmile(
+            board, max_mm=float(os.environ.get("CEC_LASTMILE_MAX_MM", "5.0")))
         print(f"[cec_fr] lastmile: {lm['closed']} gap(s) closed ({lm['legs']} leg(s)), "
               f"{lm['refused']} refused, {lm['far']} far, "
               f"{lm['cross_layer']} cross-layer", file=sys.stderr)

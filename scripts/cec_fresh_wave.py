@@ -365,6 +365,10 @@ BOARD_PARAMS = {
                           # In2/B leg -> back down); measured on s120: 8
                           # closed, unconn 30->22, zero new DRC of any class.
                           "lastmile": True,
+                          # LED-chain daisy links measure 7-10mm (s140's top
+                          # strand, 4x DL6-DOUT items) -- just past the 5mm
+                          # default reach; GND is down to ONE 2.2mm gap.
+                          "lastmile_max_mm": 8.0,
                           # ONE INNER GND, In2 = SIGNAL (owner 2026-07-23 "can
                           # we make the second inner ground into a signalling
                           # layer?" -- which is ALREADY the standing 2026-06-14
@@ -536,6 +540,22 @@ BOARD_PARAMS = {
                        # it -- sense connects only through authored taps).
                        "power_pickup": True,
                        "lastmile": True,
+                       # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
+                       # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
+                       # scattered logic-side supply pads with NO flood for the
+                       # stitch to bond into; the rail compiler only floods the
+                       # J3/TB/trunk regions. The hub pattern: additive In2
+                       # asks, regions auto-derived from each net's pads,
+                       # post-route only (evac False).
+                       "pour_asks": [
+                           {"net": n, "region_hint": None,
+                            "layers": ("In2.Cu",), "shape": "rect",
+                            "priority": 2, "provenance": "placer_ask",
+                            "evac": False}
+                           for n in ("+3V3", "+5VSB", "+5V_MAIN")],
+                       # LED-chain-class gaps sit at 7-10mm (measured s140/s120:
+                       # DL* daisy links just past the 5mm default)
+                       "lastmile_max_mm": 8.0,
                        # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to
