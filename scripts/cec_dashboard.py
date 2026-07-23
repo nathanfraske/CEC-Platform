@@ -101,7 +101,9 @@ def _beta_boards():
     """The committed beta line: every dir carrying a BETA marker (beta/README.md convention)
     plus the output daughterboards. Newest .kicad_pcb (non-routed) + DRAFT state per board."""
     out = []
-    pats = [os.path.join(ROOT, "modules", "*"), os.path.join(ROOT, "hubs", "*"),
+    pats = [os.path.join(ROOT, "beta", "*"), os.path.join(ROOT, "modules", "*"),
+            os.path.join(ROOT, "hubs", "*"),
+            os.path.join(ROOT, "beta", "output-daughterboards", "*"),
             os.path.join(ROOT, "modules", "output-daughterboards", "*")]
     for d in sorted({d for p in pats for d in glob.glob(p) if os.path.isdir(d)}):
         is_beta = os.path.exists(os.path.join(d, "BETA"))

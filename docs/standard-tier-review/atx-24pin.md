@@ -1,7 +1,7 @@
 # 24-pin ATX module — Standard-tier consumer refinement review
 
 Read-only review. Ground truth pulled from `modules/atx-24pin/` (the ordered/frozen
-board), `modules/atx-24pin-rev2/` and `modules/atx-24pin-rev3/` (post-order
+board), `modules/atx-24pin-rev2/` and `beta/atx-24pin-rev3/` (post-order
 exploratory dirs — naming is confusing, see §5), `docs/24pin-rev3-respin-2026-06-24.md`,
 `docs/24pin-shrink-2026-06-24.md`, `docs/mezzanine-stack-design-2026-06-24.md`,
 `CEC-Platform-Ground-Truth-Spec.md` §2.7/§2.8/§6, and live `kicad-cli` ERC/DRC/netlist
@@ -10,7 +10,7 @@ runs (KiCad 10.0.4) against the actual files, not just the docs' claims about th
 **Directory-naming trap, read this first:** `modules/atx-24pin/` (no suffix) is the
 **straight-through, ordered** board — 110 × 75.5 mm, 8342 mm², J3/J4 both vertical.
 `modules/atx-24pin-rev2/` is *not* a copy of the ordered board — it's the shrink
-study's 90°-rotated ("L") variant, 82.9 × 79.0 mm, 6576 mm². `modules/atx-24pin-rev3/`
+study's 90°-rotated ("L") variant, 82.9 × 79.0 mm, 6576 mm². `beta/atx-24pin-rev3/`
 is the respin scaffold, and its `.kicad_pcb` is byte-identical to `atx-24pin-rev2/`'s
 (confirmed via checksum) — i.e. rev3's PCB baseline is the 90° L-shape, not the
 shipped board. The rev3 **schematic** is a fresh, verified rebuild (confirmed below);

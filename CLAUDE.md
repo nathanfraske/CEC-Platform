@@ -88,7 +88,7 @@ OQ-1..OQ-89. No other LOCKED electrical decision altered, no section renumbered.
 The 24-pin's J4 removal, the EPS/PCIe per-cable output-header removal, and the Keystone clip
 placement (`TB1..TBn`) on each main board landed (commit `b76a62a`, "Task 9: blade interface
 on main boards"). The three passive daughterboard projects (the mating TE-63849-1-tab side)
-now exist at `modules/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
+now exist at `beta/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
 DRC/ERC-clean 4-layer PCBs (`scripts/gen-output-daughterboard.py`), per-family asymmetric
 keying documented in each board's README, BETA-1 title blocks, DRAFT markers (fit-check gate
 still open, OQ-86). New library assets: `cec-Connector_Generic:{ATX24,EPS8,PCIe8}_Daughterboard_
@@ -398,18 +398,24 @@ cec-platform/
     cec.kicad_sym            # symbols
     cec.pretty/              # footprints (RJ-45 FTP jack, SK6812, ESP32, power input; per-pin protection net dropped for consumer (§2.4), Enterprise/MC uplink protection under OQ-7)
     3dmodels/
+  beta/                      # THE AUTHORITATIVE BETA LINE (physical move 2026-07-22, owner
+                             #   directive "no further confusion on where the latest ones are"):
+                             #   atx-24pin-rev3, eps-8pin, eps-8pin-rev3, pcie-8pin-2port,
+                             #   pcie-8pin-3port, 12vhpwr-standard, argb-standard,
+                             #   hub-standard-rev2, output-daughterboards/{atx24,eps,pcie}-out-db.
+                             #   RULE: in beta/ = the latest; modules//hubs/ = alpha + history.
+                             #   Index + move record: beta/README.md. Resolvers (cec_router
+                             #   find_board, cec_facts board_catalog, cec_synth_pipeline
+                             #   Config.load) search beta/ FIRST.
   hubs/
-    hub-standard/
+    hub-standard/            # ALPHA (shipped proto-v1)
     hub-pro/
     hub-enterprise/          # platform-summary only for now (OQ-7)
     hub-mission-critical/    # platform-summary only for now (OQ-7)
-  modules/
+  modules/                   # ALPHA + superseded history (beta line moved to beta/)
     atx-24pin/
-    eps-8pin/
-    pcie-8pin-2port/           # PCIe SKU: 2 ports (4 connectors)
-    pcie-8pin-3port/           # PCIe SKU: 3 ports (6 connectors)
-    12vhpwr-standard/
     12vhpwr-pro/
+    ...                      # + the -rev2 SUPERSEDED copies (markers in each dir)
   fab/                       # tagged release snapshots of exactly what was sent to the board house
   firmware/                  # module firmware: shared ESP-IDF components + per-app trees + RTL (see "Firmware tree" below)
   scripts/                   # kicad-cli wrappers and CI helpers
@@ -433,10 +439,10 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
 | 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35* |
-| EPS 8-pin module | modules/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
-| PCIe 8-pin 2-port | modules/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
-| PCIe 8-pin 3-port | modules/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
-| 12VHPWR Standard module | modules/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
+| EPS 8-pin module | beta/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
+| PCIe 8-pin 2-port | beta/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
+| PCIe 8-pin 3-port | beta/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
+| 12VHPWR Standard module | beta/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
 | 12VHPWR Pro module (lead) | modules/12vhpwr-pro | Pro | ESP32-P4 | - | - | $98 to $99 |
 
 Every board uses the RJ-45 connector defined below. Enterprise and Mission
@@ -1167,7 +1173,7 @@ Open items (surface before acting):
    does not drop them. Test points recommended ONLY if room
    (GND/+3V3/+5VSB/VRAIL_DIV/CAN_H/CAN_L) — add in the GUI, not the schematic
    (TestPoint symbol isn't embedded). Plan + diagram:
-   modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
+   beta/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
    FEM PROBE FINDINGS (2026-06-09, adversarially verified; corrected for the model's
    segment-sum optimism — see the model-debt note below): balanced 600W (8.33A/pin)
    worst-lane dT ~+14C / 64C max (pass); connector-rating 9.2A/pin ~+18C / 68C (pass,
@@ -1785,7 +1791,7 @@ Done (kept for context):
   99x44 2-port floorplan.
 - 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
   All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
-  the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
+  the bom skill); outputs in beta/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
   BOM-jlcpcb.csv). ~$21/board JLC parts (single-qty) under the $49 target; cost driven
   by 6x INA240A3DR ($1.87, C2060584 = the SOIC-8 **D** part, never PW) + ESP32
   (C3013941) + 6x 1mΩ shunt. D1 corrected PESD5V0S1UL->PESD5V0S1BA (C5261083). Pinouts
@@ -1907,7 +1913,7 @@ Done (kept for context):
   (C720477, same cec-vendor:SW_Push symbol, netlist preserved). Sourced 29/35 parts
   with LCSC (INA238AIDGSR C2868250, ESP32-S3-MINI-1-N4R2 C3013941, RJ45 54602
   C2847314, USB-C C2765186, SS34 C8678, LP5907 C80670, TJA1051T/3 C38695, passives
-  reused from the Hub). BOM at modules/eps-8pin/bom/. UNSOURCED (6): RS1/RS2 the
+  reused from the Hub). BOM at beta/eps-8pin/bom/. UNSOURCED (6): RS1/RS2 the
   0.5mOhm 2512 shunt (OQ-11 open) + J_IN1/2/J_OUT1/2 Mini-Fit Jr (THT). ERC clean
   (benign lib_symbol_mismatch). The EPS schematic is now HAND-SOURCED -> do not
   regenerate with gen-modules.py (would revert). gen-modules.py STILL emits
@@ -2047,7 +2053,7 @@ Done (kept for context):
   dominate). The per-lane sense passives (RFH/RFL/CF + C10-15) are PLACED by the
   generator now; the control-side decoupling (C1-C8, R1/R2/R7, D1) still comes via
   Update-from-Schematic. High-current routing PLAN
-  is documented in modules/12vhpwr-standard/12vhpwr-routing-plan.png
+  is documented in beta/12vhpwr-standard/12vhpwr-routing-plan.png
   (scripts/gen-hpwr-routing-plan.py, ENRICHED v3.4): a to-placement top-down of the
   six equal-length lanes, the four-wire Kelvin detail + the INA RC filter, the
   4-layer stackup, and explicit WIDTH/VIA/STITCH tables — 12V lane 2.5mm on F.Cu +
@@ -2094,7 +2100,7 @@ Done (kept for context):
   Update-from-Schematic (incl. the 12VHPWR INA input-filter RFH/RFL/CF + sideband
   taps R10-R13), then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
-- 12VHPWR routing netclasses LOADED into modules/12vhpwr-standard/*.kicad_pro
+- 12VHPWR routing netclasses LOADED into beta/12vhpwr-standard/*.kicad_pro
   (2026-06-04) so the GUI auto-applies width + via per net while routing: Power12V
   (track 2.5mm, via 0.9/0.5mm, clr 0.25 — pattern /SENSEP* = the six 12V lanes),
   Sense (0.25mm, via 0.6/0.3 — /INPP* /INNP* /ISENSEP* /VRAIL_DIV), GND (0.5mm, via

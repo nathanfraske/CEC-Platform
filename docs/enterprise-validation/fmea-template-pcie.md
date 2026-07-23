@@ -1,8 +1,8 @@
 # FMEA — PCIe 8-pin module (`fmea-template-pcie`)
 
 Instantiated from `fmea-template-common.md`. Family: PCIe 8-pin per-cable
-interposer — two SKUs, 2-port (modules/pcie-8pin-2port) and 3-port
-(modules/pcie-8pin-3port), rev2 current. Sensing: INA238 per cable (up to 3
+interposer — two SKUs, 2-port (beta/pcie-8pin-2port) and 3-port
+(beta/pcie-8pin-3port), rev2 current. Sensing: INA238 per cable (up to 3
 cables). Qualitative FMEA only — FMEDA deferred per the common template's
 depth ruling. This worksheet is written generically across both SKUs; the
 3-port SKU carries one additional cable row (RS3/J_IN3/J_OUT3) that the

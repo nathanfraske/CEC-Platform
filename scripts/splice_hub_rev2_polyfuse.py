@@ -35,7 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cec_sch
 
-SCH = os.path.join(HERE, "..", "hubs", "hub-standard-rev2", "hub-standard-rev2.kicad_sch")
+SCH = os.path.join(HERE, "..", "beta", "hub-standard-rev2", "hub-standard-rev2.kicad_sch")
 PROJECT = "hub-standard-rev2"     # matches the most recent splice's (project "hub-standard-rev2" ...)
                                    # instances (J6/etc.); the file's OLDER parts still carry the
                                    # pre-fork "hub-standard" instance name, which KiCad tolerates

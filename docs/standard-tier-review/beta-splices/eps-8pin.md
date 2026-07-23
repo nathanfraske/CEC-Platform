@@ -1,6 +1,6 @@
 # EPS 8-pin module -- BETA-1 splice (W11/H3a standalone-mode ESD/EMI suite)
 
-Scope: `modules/eps-8pin/eps8pin-module.kicad_sch` (+ its BOM CSV). PCB untouched
+Scope: `beta/eps-8pin/eps8pin-module.kicad_sch` (+ its BOM CSV). PCB untouched
 (board stays placement-complete / zero-copper, per its committed state). Splice
 discipline followed: hand-edited the existing hand-maintained schematic, never
 regenerated via `gen-modules.py`.
@@ -140,7 +140,7 @@ pass needs to:
 
 ## Not touched
 
-`modules/eps-8pin/eps8pin-module.kicad_pcb`, `.kicad_pro`/`.kicad_dru`
+`beta/eps-8pin/eps8pin-module.kicad_pcb`, `.kicad_pro`/`.kicad_dru`
 netclasses (the new `VBUS_RAW`/`VCC_RJ45_RAW`/`CAN_H_RJ`/`CAN_L_RJ` segments
 fall to Default class today -- flagging for W6 to fold them into the existing
 Power/CAN netclass patterns), any other board, and `lib/vendor/cec-vendor.kicad_sym`

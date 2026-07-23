@@ -3713,7 +3713,7 @@ def generate_batch(
 if __name__ == "__main__":
     import time
 
-    EPS_BOARD = "/home/user/CEC-Platform/modules/eps-8pin/eps8pin-module.kicad_pcb"
+    EPS_BOARD = "/home/user/CEC-Platform/beta/eps-8pin/eps8pin-module.kicad_pcb"
     OUT_DIR = os.path.join(_TMP, "cec_fr_selftest")
 
     print("=" * 70)

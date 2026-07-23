@@ -9,7 +9,7 @@ under that delegation — it does not itself close OQ-11 (see the checklist at t
 `CLAUDE.md` §6.4 shunt table (24-pin 12V/5V/3V3 = 2 mΩ; 24-pin 5VSB = 25 mΩ; EPS/PCIe
 per-cable = 0.5 mΩ; 12VHPWR per-pin = 1 mΩ; low-TCR precision metal-element, four-wire Kelvin
 per §6.8), `CEC-Platform-Ground-Truth-Spec.md` §6.4/§6.11/OQ-11/OQ-18,
-`modules/12vhpwr-standard/bom/bom.csv` (RS1–RS6), `modules/atx-24pin/bom/bom.csv` (RS1/RS2/RS5,
+`beta/12vhpwr-standard/bom/bom.csv` (RS1–RS6), `modules/atx-24pin/bom/bom.csv` (RS1/RS2/RS5,
 RS6). Verified against the Bourns CSS2H-2512 datasheet (rev. 08/16, fetched directly), the
 Bourns N1902 PCN (the exhaustive CSS2H-2512 affected-parts list — this is the authoritative
 "does this exact MPN exist" check, since the 5-line datasheet summary table is not exhaustive),
@@ -52,7 +52,7 @@ Two instances need the same class of fix, not one:
    OQ-11 and OQ-18 discussion of the 12VHPWR 1 mΩ candidate): text reads
    `CSS2H-2512K-1L00F`. Per the exhaustive parts list above, this part number **does not exist** —
    fix to `CSS2H-2512R-1L00F`, matching the already-sourced/already-fabbed BOM
-   (`modules/12vhpwr-standard/bom/bom.csv`, LCSC C4175647). This is a documentation-only fix;
+   (`beta/12vhpwr-standard/bom/bom.csv`, LCSC C4175647). This is a documentation-only fix;
    no board, BOM, or footprint changes since the sourced part was already correct.
 2. **Checked separately per the brief's own instruction** ("check that reference separately,
    don't assume it's the same erratum"): spec lines ~497/507 citing `CSS2H-2512K-2L00F` for the
@@ -102,7 +102,7 @@ exists if Bourns supply ever breaks.
       (`docs/enterprise-requirements/ratification/briefs/apply-spec-v1.2.0.md` is the vehicle
       already in flight per the eighth ruling — R2 sign-off staged behind the N1 RS-485 confirm).
       **The formal OQ-11 close rides that spec edit, not this sheet alone.**
-- [ ] `modules/eps-8pin/bom/*.csv` and `modules/pcie-8pin-*/bom/*.csv` currently carry only the
+- [ ] `beta/eps-8pin/bom/*.csv` and `modules/pcie-8pin-*/bom/*.csv` currently carry only the
       generic "0.5mΩ / R_2512_6332Metric" placeholder with no MPN/LCSC — this sheet gives them
       `CSS2H-2512R-L500F`, but writing the MPN into those BOM files is a follow-up BOM-sourcing
       pass (out of scope for this document per instructions: no existing file was modified here).

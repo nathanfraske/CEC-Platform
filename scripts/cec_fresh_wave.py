@@ -441,7 +441,7 @@ BOARD_PARAMS = {
 # stamps anchored on the placer's own lane seats (RS{n}), inheriting each seat's
 # rotation; cable_index drives the per-lane net map; ideal_internal False keeps
 # the B7 refined copper verbatim.
-_SENSE_LANE_BP = "modules/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+_SENSE_LANE_BP = "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
 try:
     import json as _json
     with open(os.path.join(ROOT, _SENSE_LANE_BP)) as _f:
@@ -471,11 +471,11 @@ def _lane_net_map(n):
 # the one internal net (DETAMP: 181-out -> 7011-in); kelvin copper stays the
 # precision tap pass's job. Bypass/threshold passives keep auto_cluster
 # ownership (they cluster to these stamped positions).
-_SENSE_RAIL_BP_24 = os.path.join(ROOT, "modules", "atx-24pin-rev3",
+_SENSE_RAIL_BP_24 = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                  "blueprints", "sense-rail-v0.json")
-_SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "modules", "atx-24pin-rev3",
+_SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                       "blueprints", "sense-rail-v0-left.json")
-_SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "modules", "atx-24pin-rev3",
+_SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                       "blueprints", "sense-rail-v0-taps.json")
 _BP_RAILS_24 = {
     "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
@@ -587,7 +587,10 @@ def _board_params(board):
     """The BOARD_PARAMS + board-manifest placement_directives merge (shared by the serial
     and parallel candidate paths)."""
     p = dict(BOARD_PARAMS.get(board) or {})
-    mf = os.path.join(ROOT, "modules", board, "board-manifest.json")
+    mf = next((m for m in (os.path.join(ROOT, r, board, "board-manifest.json")
+                           for r in ("beta", "modules", "hubs"))
+               if os.path.isfile(m)),
+              os.path.join(ROOT, "beta", board, "board-manifest.json"))
     if os.path.isfile(mf):
         try:
             pd = (json.load(open(mf)) or {}).get("placement_directives") or {}

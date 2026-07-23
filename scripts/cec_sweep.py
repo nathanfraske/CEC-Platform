@@ -33,10 +33,10 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 # every board, for the constraint sweep (path relative to ROOT)
 ALL_BOARDS = [
     ("24pin-rev2",      "modules/atx-24pin-rev2/24pin-module.kicad_pcb"),
-    ("eps-8pin",        "modules/eps-8pin/eps8pin-module.kicad_pcb"),
-    ("pcie-2port",      "modules/pcie-8pin-2port/pcie8pin-2port-module.kicad_pcb"),
-    ("pcie-3port",      "modules/pcie-8pin-3port/pcie8pin-3port-module.kicad_pcb"),
-    ("12vhpwr-std",     "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"),
+    ("eps-8pin",        "beta/eps-8pin/eps8pin-module.kicad_pcb"),
+    ("pcie-2port",      "beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_pcb"),
+    ("pcie-3port",      "beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_pcb"),
+    ("12vhpwr-std",     "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"),
     ("12vhpwr-pro",     "modules/12vhpwr-pro/12vhpwr-pro-module.kicad_pcb"),
     ("hub-standard",    "hubs/hub-standard/hub-standard.kicad_pcb"),
 ]

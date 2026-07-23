@@ -92,7 +92,7 @@ all pending PCB layout:
 
 - **Hub Standard Rev2** (`hubs/hub-rev2/`): BOM-preserving sectioned regen + the new
   **mezzanine socket** (`CEC_MEZZANINE_16P`, 2×8 2.0mm, wired as "port 0").
-- **24-pin ATX rev3** (`modules/atx-24pin-rev3/`): ESP32-C6 move + §6.13 transient front-end +
+- **24-pin ATX rev3** (`beta/atx-24pin-rev3/`): ESP32-C6 move + §6.13 transient front-end +
   TPS2121 power-mux consolidation (+5V_SYS) + mezzanine male header + parity fixes (DETECT
   ESD, poke-and-ack, FTP jack, J1.1 open).
 - **EPS rev2, PCIe-2/3 rev2**: sectioned BOM-preserving regens (already C6 + §6.13).

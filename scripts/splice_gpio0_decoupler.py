@@ -15,19 +15,19 @@ RES_FP = "cec-Resistor_SMD:R_0402_1005Metric"
 GRID = 1.27
 
 MODS = [
-    dict(file="modules/atx-24pin-rev3/24pin-module.kicad_sch", project="24pin-module",
+    dict(file="beta/atx-24pin-rev3/24pin-module.kicad_sch", project="24pin-module",
          root="a4774022-41d4-4be7-85b6-fed5477a3f9f",
          cap="C61", res="R61", pwr0=930, cap_xy=(69.85, 300.99), res_xy=(78.74, 300.99)),
-    dict(file="modules/eps-8pin/04-mcu.kicad_sch", project="eps8pin-module",
+    dict(file="beta/eps-8pin/04-mcu.kicad_sch", project="eps8pin-module",
          root="ef7f6c4c-2dd9-4559-b472-96b33604786a/83ceb2d1-e50f-4838-831a-71136b7d1260",
          cap="C41", res="R13", pwr0=720, cap_xy=(199.39, 110.49), res_xy=(209.55, 110.49)),
-    dict(file="modules/pcie-8pin-2port/04-mcu.kicad_sch", project="pcie8pin-2port-module",
+    dict(file="beta/pcie-8pin-2port/04-mcu.kicad_sch", project="pcie8pin-2port-module",
          root="a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/83ceb2d1-e50f-4838-831a-71136b7d1260",
          cap="C41", res="R13", pwr0=720, cap_xy=(199.39, 110.49), res_xy=(209.55, 110.49)),
-    dict(file="modules/pcie-8pin-3port/04-mcu.kicad_sch", project="pcie8pin-3port-module",
+    dict(file="beta/pcie-8pin-3port/04-mcu.kicad_sch", project="pcie8pin-3port-module",
          root="a8ecf94e-f41a-4523-8cf1-1d72f47f3e7e/83ceb2d1-e50f-4838-831a-71136b7d1260",
          cap="C41", res="R13", pwr0=720, cap_xy=(200.66, 110.49), res_xy=(210.82, 110.49)),
-    dict(file="modules/12vhpwr-standard/05-mcu.kicad_sch", project="12vhpwr-standard-module",
+    dict(file="beta/12vhpwr-standard/05-mcu.kicad_sch", project="12vhpwr-standard-module",
          root="436b24cb-7227-4a56-93c7-4c5d9a5d0058/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05",
          cap="C25", res="R24", pwr0=1120, cap_xy=(241.30, 113.03), res_xy=(251.46, 113.03)),
 ]

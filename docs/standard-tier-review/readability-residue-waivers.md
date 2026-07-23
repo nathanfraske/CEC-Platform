@@ -10,7 +10,7 @@ never appears in any exported/printed view). All entries were verified by
 rendering the specific region and reading it at zoom, per the task's ACCEPT
 criteria. Gate state per board is recorded at the end of the board's table.
 
-## modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch
+## beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch
 
 Fixed by hand-edit: the `/FAN_12V` = `/SENSEP6_HI` documentation wire (DNP J2 fan
 provision, off-page parking point) was a single diagonal segment that sliced
@@ -36,7 +36,7 @@ exact; ERC errors 0->0.
 Gate: `--check-overlaps` 1 (waivered) / `--check-wires` 9 (waivered). Identity
 87->87 exact. ERC errors 0->0 (unchanged).
 
-## modules/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch
+## beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch
 
 Fixed by hand-edit: `SENSEC1_HI`/`SENSEC2_HI`/`SENSEC3_HI` (the near-pin copy at
 each INA238's Vin+ pin 10) were justified the wrong direction (`justify left`
@@ -58,7 +58,7 @@ improvement (illegible mash-up traded for a single-character-edge graze).
 Gate: `--check-overlaps` 0 (clean) / `--check-wires` 4 (waivered). Identity
 62->62 exact. ERC errors 2->2 (unchanged, pre-existing).
 
-## modules/eps-8pin/eps8pin-module.kicad_sch
+## beta/eps-8pin/eps8pin-module.kicad_sch
 
 Fixed by mutator + hand-edit. `readability_pipeline` alone took wire findings
 29->3 (spread/snap/nudge cleared the bulk of the fleet-wide residue). Two
@@ -86,7 +86,7 @@ hand-edits on top:
 Gate: `--check-overlaps` 0 (clean) / `--check-wires` 4 (waivered). Identity
 58->58 exact. ERC errors 2->2 (unchanged, pre-existing).
 
-## modules/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch
+## beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch
 
 Fixed by mutator + hand-edit. `readability_pipeline` alone took wire findings
 20->0 (spread/snap/nudge). One hand-edit on top: `SENSEC1_HI`/`SENSEC2_HI`
@@ -102,7 +102,7 @@ justify as pcie-8pin-3port and eps-8pin — flipped `justify left` ->
 Gate: `--check-overlaps` 0 (clean) / `--check-wires` 2 (waivered). Identity
 58->58 exact. ERC errors 2->2 (unchanged, pre-existing).
 
-## modules/atx-24pin-rev3/24pin-module.kicad_sch
+## beta/atx-24pin-rev3/24pin-module.kicad_sch
 
 Fixed by mutator + hand-edit. `readability_pipeline` took wire findings 10->2
 (GLYPH-CLIP only remained). A systemic justify bug was then found and fixed by
@@ -439,7 +439,7 @@ X-oriented; these ICs' GND pins face downward) given the round-4 cost directive 
 this is a quality item, not one of the graded gates. Tracked as a FOLLOWUP, not a regression
 (the flat baseline had no single-link GND bus either).
 
-**PCB reconcile** (`cec_pcb_reconcile.py --board modules/12vhpwr-standard --baseline-rev
+**PCB reconcile** (`cec_pcb_reconcile.py --board beta/12vhpwr-standard --baseline-rev
 e65b9f8`): 0 net renames, 77 `(path ...)` relinks (the real case the round-4 plan doc flagged
 this board for — 77/85 refs carry a footprint on the committed, routed PCB), 7 mechanical
 (mounts/fiducials, no schematic symbol), `net_count` 84->84 unchanged, `netclass_changes: []`

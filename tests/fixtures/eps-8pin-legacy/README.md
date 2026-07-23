@@ -2,7 +2,7 @@
 
 The pre-beta committed eps-8pin board (merge-base 3a8af24 of the beta arc and the
 placement-corridor branch) — the EXACT artifact the corridor-model / keepout /
-placer tests were written against. The live `modules/eps-8pin` is the BETA board
+placer tests were written against. The live `beta/eps-8pin` is the BETA board
 (hierarchical C6 schematic, TB blade fields, placeholder PCB), so geometry-bound
 tests point HERE instead. Never edit; regenerating a new baseline means writing a
 NEW fixture, not mutating this one. (Deliberately NOT under tests/golden/** — that

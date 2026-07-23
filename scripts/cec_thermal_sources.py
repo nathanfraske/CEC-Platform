@@ -46,7 +46,7 @@ cec_thermal_sources
 Two independent capabilities, both read-only / additive:
 
 1. **Heat-source inventory** (`inventory()`): given a board directory (e.g.
-   ``modules/12vhpwr-standard`` or ``hubs/hub-standard``), enumerates every
+   ``beta/12vhpwr-standard`` or ``hubs/hub-standard``), enumerates every
    DISSIPATING component beyond the shunts the existing solvers already model
    (LDOs, addressable LEDs, MCU modules, CAN transceivers, current-sense
    amplifiers, protection diodes, and a few board-specific extras such as the
@@ -1054,7 +1054,7 @@ def format_emissivity_table(regions):
 
 # ============================================================ CLI self-test / demo
 def main(argv=None):
-    boards = argv or ["hubs/hub-standard", "modules/12vhpwr-standard"]
+    boards = argv or ["hubs/hub-standard", "beta/12vhpwr-standard"]
     for b in boards:
         d = os.path.join(ROOT, b)
         print("=" * 78)

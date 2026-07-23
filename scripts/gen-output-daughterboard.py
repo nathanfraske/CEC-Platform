@@ -6,7 +6,7 @@
 #  gen-output-daughterboard -- §2.8 v1.4.0 output-connector daughterboards
 # ============================================================================
 # Builds the three passive-daughterboard projects under
-# modules/output-daughterboards/ (24-pin ATX / EPS 8-pin per-cable / PCIe
+# beta/output-daughterboards/ (24-pin ATX / EPS 8-pin per-cable / PCIe
 # 8-pin per-cable, the last shared unmodified by the 2-port and 3-port SKUs).
 # Per family: TE 63951-1 right-angle FASTON tabs (input side; blades point
 # straight DOWN past the board's bottom edge and drop into the MAIN board's

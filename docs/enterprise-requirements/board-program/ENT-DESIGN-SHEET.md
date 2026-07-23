@@ -16,7 +16,7 @@ tagged **[wb]** — freeze at layout kickoff, never silently._
 |---|---|---|
 | `hubs/hub-enterprise/` | NET/AIR × B/MC/MCX (6) + TS HS-silicon fit — ONE PCB, DNP matrix (REQ-105) | FCVG484 BGA + T1 fabric + uplink isolation = a fab class above every other platform board |
 | `modules/atx-24pin` ENT build | ENT-24 | rev3 copper + P4/T1/misplug deltas; INA228 sensing UNCHANGED; bulk-5VSB source role |
-| `modules/eps-8pin` ENT build | ENT-EPS (= EPS Pro) | + ADS131M08 fast path + T1 stream; per-cable shunts unchanged |
+| `beta/eps-8pin` ENT build | ENT-EPS (= EPS Pro) | + ADS131M08 fast path + T1 stream; per-cable shunts unchanged |
 | `modules/pcie-8pin-{2,3}port` ENT | ENT-PCIe ×2 SKUs | same as EPS pattern ×2/3 cables |
 | `modules/12vhpwr-pro` ENT build | ENT-12VHPWR | the existing Pro board (P4 + per-pin INA240 + fast ADC) + common ENT deltas |
 | `modules/ent-kvm-carrier/` | NET accessory | M.2 KVM compute + HDMI capture + USB gating — its own I/O set |

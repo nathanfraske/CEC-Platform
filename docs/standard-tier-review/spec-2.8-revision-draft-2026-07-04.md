@@ -349,8 +349,8 @@ draft.** Below is what happens only after sign-off, so the downstream scope is v
 | Area | Directory / file | What changes, if ratified |
 |---|---|---|
 | 24-pin ATX module | `modules/atx-24pin/` | Remove J4; add inter-board connector + daughterboard project; rev3 scope grows (D-5/D-5a critical path) |
-| EPS / PCIe modules | `modules/eps-8pin/`, `modules/pcie-8pin-2port/`, `modules/pcie-8pin-3port/` | Remove per-cable output headers (J_OUT*); add per-cable inter-board connector + daughterboard sites (Shape A, pending 4(b)); rides the W6 routing wave already queued |
-| 12VHPWR (Standard, Pro) | `modules/12vhpwr-standard/`, `modules/12vhpwr-pro/` | **No change** — out of scope |
+| EPS / PCIe modules | `beta/eps-8pin/`, `beta/pcie-8pin-2port/`, `beta/pcie-8pin-3port/` | Remove per-cable output headers (J_OUT*); add per-cable inter-board connector + daughterboard sites (Shape A, pending 4(b)); rides the W6 routing wave already queued |
+| 12VHPWR (Standard, Pro) | `beta/12vhpwr-standard/`, `modules/12vhpwr-pro/` | **No change** — out of scope |
 | Daughterboard artifacts, fab, enclosure | new dir TBD; `fab/<board>-*`; J1/J2 work (`beta-lock-register-2026-07-03.md` §J) | Repo-layout decision not made here; fab output follows the existing beta-naming convention once a board exists; enclosure gains the stand-off/keying/strain-relief interface (OQ-87) |
 | D-1 kit SKUs | `SYNTHESIS-beta-plan.md` §D-1 | LOCKED-today F-F 24-pin bridging cable retired/replaced by the daughterboard+extension assembly (OQ-89); JST 5VSB Hub-feed cable unaffected |
 | Ground-truth spec | `CEC-Platform-Ground-Truth-Spec.md` §2.8, §10, §11 | The actual edit this draft proposes — not made until sign-off |

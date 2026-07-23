@@ -33,7 +33,7 @@
 # wiring onto cec_router.route, the electrothermal physics FEA, sign-off, build+freeze)
 # land in subsequent commits and plug into this backbone.
 #
-# Verified against the real EPS module (modules/eps-8pin) -- see the __main__ self-test.
+# Verified against the real EPS module (beta/eps-8pin) -- see the __main__ self-test.
 import os
 import re
 import sys
@@ -295,10 +295,14 @@ class Config:
         if os.path.isdir(board):
             d = board
         else:
-            d = next((c for c in (os.path.join(ROOT, "modules", board),
+            # beta/ FIRST: the authoritative beta line (physical move 2026-07-22);
+            # then alpha/history under modules/ and hubs/.
+            d = next((c for c in (os.path.join(ROOT, "beta", board),
+                                  os.path.join(ROOT, "modules", board),
                                   os.path.join(ROOT, "hubs", board),
+                                  os.path.join(ROOT, "beta", "output-daughterboards", board),
                                   os.path.join(ROOT, "modules", "output-daughterboards", board))
-                      if os.path.isdir(c)), os.path.join(ROOT, "modules", board))
+                      if os.path.isdir(c)), os.path.join(ROOT, "beta", board))
         if not os.path.isdir(d):
             # allow passing a .kicad_pcb / .kicad_sch directly
             if os.path.isfile(board):
@@ -3488,7 +3492,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
 
 # D-5a blade-field geometry (spec §2.8 revision, docs/standard-tier-review/). The slot PITCH is the
 # mating contract with the output daughterboard's 63951 tab field -- 4.7mm as built on
-# modules/output-daughterboards/eps-out-db (J10..J15, x 2.5->26.0). NOTE the committed module-side
+# beta/output-daughterboards/eps-out-db (J10..J15, x 2.5->26.0). NOTE the committed module-side
 # placeholder row used 4.75mm -- a 0.25mm accumulated blind-mate mismatch across 6 slots; fresh
 # synthesis standardizes on the daughterboard's 4.7. The GROUP gap keeps adjacent daughterboard
 # BODIES (28.6mm wide vs the 23.5mm 6-slot field span) from colliding: >= 5.1mm, as-built 6.5.

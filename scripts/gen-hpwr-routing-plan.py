@@ -271,5 +271,5 @@ axT.text(0.0, -0.20,
 fig.suptitle("CEC 12VHPWR Standard — high-current + Kelvin-sense ROUTING PLAN  "
              "(route the copper in the KiCad GUI; this is the spec)",
              fontsize=12.5, y=0.995, color="0.25", fontweight="bold")
-fig.savefig("modules/12vhpwr-standard/12vhpwr-routing-plan.png", dpi=145, bbox_inches="tight")
-print("wrote modules/12vhpwr-standard/12vhpwr-routing-plan.png")
+fig.savefig("beta/12vhpwr-standard/12vhpwr-routing-plan.png", dpi=145, bbox_inches="tight")
+print("wrote beta/12vhpwr-standard/12vhpwr-routing-plan.png")

@@ -20,7 +20,7 @@ NOT precision analog simulation. A deterministic harness that:
          +5VSB bulk feed -- rev2 FLAGS, rev3 PASSES: the tool's teeth).
 
 Run (in the routing container -- ngspice lives there):
-    python3 scripts/cec_spice_sanity.py --board hubs/hub-standard-rev2 [--json]
+    python3 scripts/cec_spice_sanity.py --board beta/hub-standard-rev2 [--json]
 
 Model honesty: unknown IC pins default to 10G high-Z with a note in the report;
 the tool NEVER silently guesses a low-impedance model. Adding a platform part =

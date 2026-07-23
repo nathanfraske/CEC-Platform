@@ -1,7 +1,7 @@
 # FMEA — 12VHPWR Standard module (`fmea-template-12vhpwr`)
 
 Instantiated from `fmea-template-common.md`. Family: 12VHPWR Standard, 6x
-per-pin interposer (modules/12vhpwr-standard, routed/fab-direction per CLAUDE.md
+per-pin interposer (beta/12vhpwr-standard, routed/fab-direction per CLAUDE.md
 action item 4). Sensing: 6x INA240 per-pin current-sense + 47k/10k rail-voltage
 divider. Qualitative FMEA only — FMEDA deferred per the common template's depth
 ruling; this family is the furthest along toward FMEDA-readiness since its

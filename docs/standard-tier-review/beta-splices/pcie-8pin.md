@@ -1,7 +1,7 @@
 # PCIe 8-pin modules (2-port + 3-port) -- BETA-1 splice (W11/H3a + W5)
 
-Scope: `modules/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch` and
-`modules/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch` (+ their BOM CSVs,
+Scope: `beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch` and
+`beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch` (+ their BOM CSVs,
 `.kicad_pro` net_settings, new `.kicad_dru`). Both boards are placement-complete
 / zero-copper (per `docs/standard-tier-review/pcie-8pin.md`); this pass is
 schematic + project-file only, applied identically to both SKUs since their

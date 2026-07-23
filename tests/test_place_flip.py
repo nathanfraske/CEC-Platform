@@ -109,7 +109,7 @@ class TestSenseSideChecker(unittest.TestCase):
     def test_na_on_single_sided(self):
         import cec_synth_pipeline as sp
         for p in ("tests/golden/fixtures/route-oracle/eps-rev3-n2.kicad_pcb",
-                  "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"):
+                  "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"):
             full = os.path.join(HERE, "..", p)
             if not os.path.isfile(full):
                 continue

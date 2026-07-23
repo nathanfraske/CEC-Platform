@@ -24,7 +24,7 @@
 # auto_cluster ownership (they cluster to these ICs' stamped positions).
 #
 # Run IN the routing container:
-#   python3 scripts/gen_24pin_sense_cell.py [--out modules/atx-24pin-rev3/blueprints/sense-rail-v0.json]
+#   python3 scripts/gen_24pin_sense_cell.py [--out beta/atx-24pin-rev3/blueprints/sense-rail-v0.json]
 # Verifies: nets exist for every rail, footprints resolve, courtyards clear.
 import argparse
 import json

@@ -16,10 +16,10 @@ numbers are tagged **[wb]**. **Pipeline of record: branch `claude/pipeline-conso
 |---|---|---|
 | `hubs/hub-standard` | alpha ROUTED + fab snapshot; beta rev2 route waves in flight on pipeline-consolidation (W9 keepout drop, WROOM edge seat) | S3-WROOM, 4 ports |
 | `modules/atx-24pin` (rev3 beta) | beta line: INA238 reversion (v1.5.0), blade TB field landed | bulk-5VSB source |
-| `modules/eps-8pin` | C6 + §6.13 placed, **ZERO copper — W6 routing pass owed** | 2-cable interposer |
+| `beta/eps-8pin` | C6 + §6.13 placed, **ZERO copper — W6 routing pass owed** | 2-cable interposer |
 | `modules/pcie-8pin-{2,3}port` | same state as EPS (W6) | 2/3-cable |
-| `modules/12vhpwr-standard` | ROUTED + fab snapshot (proto-v1) | 6× per-pin INA240 |
-| `modules/output-daughterboards/{atx24,eps,pcie}-out-db` | routed, DRC/ERC-clean, DRAFT (OQ-86 fit gate) | iteration-7 blade boards |
+| `beta/12vhpwr-standard` | ROUTED + fab snapshot (proto-v1) | 6× per-pin INA240 |
+| `beta/output-daughterboards/{atx24,eps,pcie}-out-db` | routed, DRC/ERC-clean, DRAFT (OQ-86 fit gate) | iteration-7 blade boards |
 
 ## B. Floorplan doctrine (zones)
 

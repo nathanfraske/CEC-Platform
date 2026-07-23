@@ -1,6 +1,6 @@
 # 12VHPWR Standard module -- BETA-1 splice (W11/H3/H3a suite + J2 fan provision)
 
-Scope: `modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` (+ its BOM
+Scope: `beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` (+ its BOM
 CSVs). PCB untouched -- the board stays fully routed/fab-ready per its
 committed state (DRC.rpt: 0 unconnected, 0 copper/clearance/courtyard). Splice
 discipline followed: hand-edited the existing hand-maintained schematic (real
@@ -148,11 +148,11 @@ untouched)
 
 ## Files touched
 
-- `modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` (title_block
+- `beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` (title_block
   added, 8 new component instances + wires/labels, 3 existing nets
   re-pointed, 1 power-flag symbol relocated, 4 shared library symbols
   embedded: `USBLC6-2SC6`, `CEC_PWR_IN_2P`, `FerriteBead_Small`,
   `CEC_CMC_4T`).
-- `modules/12vhpwr-standard/bom/bom.csv`,
-  `modules/12vhpwr-standard/bom/12vhpwr-standard-BOM-jlcpcb.csv`
+- `beta/12vhpwr-standard/bom/bom.csv`,
+  `beta/12vhpwr-standard/bom/12vhpwr-standard-BOM-jlcpcb.csv`
   (regenerated).

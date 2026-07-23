@@ -22,7 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cec_sch
 
-SCH = os.path.join(HERE, "..", "modules", "atx-24pin-rev3", "24pin-module.kicad_sch")
+SCH = os.path.join(HERE, "..", "beta", "atx-24pin-rev3", "24pin-module.kicad_sch")
 PROJECT = "24pin-module"
 GRID = 1.27
 

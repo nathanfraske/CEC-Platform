@@ -1627,15 +1627,18 @@ def find_board(board):
     if board.endswith(".kicad_pcb") and os.path.isfile(board):
         return os.path.abspath(board)
     import glob as _glob
-    # Path-B generalization: search modules/ AND hubs/ so the Hub flows through the same router.
-    cands = [p for roots in ("modules", "hubs")
+    # Search order: beta/ FIRST (the authoritative beta line lives there since the
+    # 2026-07-22 physical move -- owner directive "no further confusion on where the
+    # latest ones are"), then modules/ and hubs/ (alpha + history).
+    cands = [p for roots in ("beta", "modules", "hubs")
              for p in _glob.glob(f"{ROOT}/{roots}/{board}/*.kicad_pcb")
              if "-routed" not in p and ".merged." not in p]
     if not cands:
         have = sorted(os.path.basename(os.path.dirname(p))
-                      for p in _glob.glob(ROOT + "/modules/*/") + _glob.glob(ROOT + "/hubs/*/"))
-        raise FileNotFoundError(f"no floorplan .kicad_pcb under modules/{board}/ or hubs/{board}/ "
-                                f"(have: {have})")
+                      for p in _glob.glob(ROOT + "/beta/*/") + _glob.glob(ROOT + "/modules/*/")
+                      + _glob.glob(ROOT + "/hubs/*/"))
+        raise FileNotFoundError(f"no floorplan .kicad_pcb under beta/{board}/, modules/{board}/ "
+                                f"or hubs/{board}/ (have: {have})")
     return os.path.abspath(sorted(cands)[0])
 
 

@@ -8,7 +8,7 @@ enterprise module board start.
 
 Spec §6.4/§6.11 (`CEC-Platform-Ground-Truth-Spec.md` lines 511/625/836/1351) names the
 **Bourns CSS2H-2512K-1L00F** as the 1 mΩ per-pin shunt candidate for 12VHPWR. The sourced
-12VHPWR Standard BOM (`modules/12vhpwr-standard/bom/bom.csv` line 21, RS1–RS6) carries
+12VHPWR Standard BOM (`beta/12vhpwr-standard/bom/bom.csv` line 21, RS1–RS6) carries
 **CSS2H-2512R-1L00F**, LCSC C4175647 — a different suffix.
 
 Checked against the Bourns CSS2H-2512 datasheet and distributor listings (DigiKey
@@ -43,7 +43,7 @@ exists to prevent.
 ## Evidence
 
 - `CEC-Platform-Ground-Truth-Spec.md` lines 497, 507–511, 625, 836, 1351.
-- `modules/12vhpwr-standard/bom/bom.csv` line 21 — RS1–RS6, LCSC C4175647.
+- `beta/12vhpwr-standard/bom/bom.csv` line 21 — RS1–RS6, LCSC C4175647.
 - `module-requirements-common.md` REQ-MOD-COMMON-051 (line 67).
 - `docs/owner-queue.md` — "OQ-11 (within CSS-class)" row.
 - Bourns CSS2H-2512 datasheet + DigiKey/Octopart listings, checked 2026-07-02.

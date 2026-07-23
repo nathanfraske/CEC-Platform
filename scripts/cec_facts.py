@@ -37,7 +37,11 @@ def board_catalog():
     """[{name, dir, pcb, sch, families:[...]}] for every board dir with a design file.
     Sorted by name (compiler determinism depends on stable iteration)."""
     out = []
-    for side, fam in (("hubs", "hub"), ("modules", "module")):
+    # beta/ = the authoritative beta line (physical move 2026-07-22). A beta board
+    # KEEPS its side family (hub/module -- corpus scoping depends on it; name prefix
+    # decides) and additionally carries "beta" (additive: families_match is
+    # intersection-based, so extra families only widen legitimate scoping).
+    for side, fam in (("beta", None), ("hubs", "hub"), ("modules", "module")):
         base = os.path.join(ROOT, side)
         if not os.path.isdir(base):
             continue
@@ -49,11 +53,13 @@ def board_catalog():
             schs = sorted(f for f in os.listdir(bdir) if f.endswith(".kicad_sch"))
             if not pcbs and not schs:
                 continue
+            f0 = fam or ("hub" if name.startswith("hub") else "module")
+            fams = [f0, name] + (["beta"] if fam is None else [])
             out.append({
                 "name": name, "dir": bdir,
                 "pcb": os.path.join(bdir, pcbs[0]) if pcbs else None,
                 "sch": os.path.join(bdir, schs[0]) if schs else None,
-                "families": [fam, name],
+                "families": fams,
             })
     return out
 

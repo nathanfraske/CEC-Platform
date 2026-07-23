@@ -312,7 +312,7 @@ class TextCollisionEngineTest(unittest.TestCase):
         2026-07-03 readability passes cleaned the fleet to ZERO, so the
         live-board assertion inverted: the board must now STAY clean, and
         the detector's teeth moved to a synthetic fixture (below)."""
-        path = os.path.join(ROOT, "modules/eps-8pin/eps8pin-module.kicad_sch")
+        path = os.path.join(ROOT, "beta/eps-8pin/eps8pin-module.kicad_sch")
         pairs = L.detect_overlaps(path)
         self.assertEqual(len(pairs), 0,
                           "eps-8pin regressed: the readability-pass zero-overlap state is a gate now")
@@ -341,7 +341,7 @@ class CLITest(unittest.TestCase):
         """Clean fleet: eps must exit 0 now (was the known-bad exit-1 board
         pre-readability-pass); nonzero exit teeth ride the synthetic fixture
         in TextCollisionEngineTest."""
-        eps = os.path.join(ROOT, "modules/eps-8pin/eps8pin-module.kicad_sch")
+        eps = os.path.join(ROOT, "beta/eps-8pin/eps8pin-module.kicad_sch")
         rc = L.main(["--check-overlaps", eps])
         self.assertEqual(rc, 0)
 
