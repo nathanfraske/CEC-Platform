@@ -1,6 +1,22 @@
 # Current work handoff
 
-## LADDER 1+2 EXECUTED -- 2026-07-23 (~05:15), FIX BATCH LANDED, WAVES PENDING RELAUNCH
+## FIX-WAVES RUNNING -- 2026-07-23 (~05:35), commit 870ef278 PUSHED
+Gate cleared: checklist green; SB-08 golden = the identical standing owner-gated
+signature (kelvin F / unconn 16 / thermal 257.5); full-discover's 20 reds (7F+13E)
+A/B-PROVEN pre-existing at HEAD via stash bisect (FOLLOWUPS entry filed: suspected
+beta-move paths in TEST FIXTURES + injection-accounting expectation rot -- triage
+sweep owed; the curated battery/checklist remains the gate of record).
+WAVES: 24-pin s176-181 + hub s66-71 (3 workers each, scripts /tmp/wave-*-0723e.sh
+in-container, logs /tmp/wave-{24pin,hub}-0723e.log, monitor bfco4e0ea filters
+bests/graded/plateau-disabled/refusals). READOUT JUDGES: (1) hub -- first GRADED
+boards since s41; plateau floor should show "kill disabled" lines + winner-band
+unconn (probe: 7 achievable); (2) 24-pin -- INA|shunt class must be GONE, numbers
+NOT comparable to seg-era rows (those routed without netclasses); (3) J6C
+fallback-tier grind rate + C1|U10 hub rate = the two accepted per-seed classes;
+(4) any walk INFEASIBLE print = a variant seat drifted into the band (should not
+happen with pins). Dash: 2 verify renders + launch entries in ACTIVITY.
+
+## LADDER 1+2 EXECUTED -- 2026-07-23 (~05:15), FIX BATCH LANDED (detail below)
 Owner ask: "Continue on with the ladder. See why the Hub is no longer getting to a new
 routing stage too." BOTH ANSWERED + FIXED (commit pending at write time; battery running).
 
