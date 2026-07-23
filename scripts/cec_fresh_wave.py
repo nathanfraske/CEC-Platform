@@ -807,11 +807,18 @@ def _prune_variants(variants, placed_rows, k):
     return route, pruned
 
 
-def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None):
+def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None,
+                   polish=False):
     """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
     it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
-    not fork-safe, the cec_fr.generate_batch precedent)."""
-    label = f"{iname}-{strat}-s{seed}"
+    not fork-safe, the cec_fr.generate_batch precedent).
+
+    polish=True (the winner-polish stage, 2026-07-23): the effort args are taken
+    VERBATIM (wave_passes/wave_opt board params normally override them -- a polish
+    at 16/20 must not be silently clamped back to the wave's 8/10), the FR timeout
+    doubles, and the label gets a -polish suffix so its work files never clobber
+    the original grade."""
+    label = f"{iname}-{strat}-s{seed}" + ("-polish" if polish else "")
     t0 = time.monotonic()
     # The wave is the consumer that WANTS the fork's real seed-diversity axis
     # (R-01); everything else stays stock-order unless it opts in (see cec_fr
@@ -838,9 +845,12 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
                           str(int(_p.get("wave_plateau_floor", 100))))
     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
     v = s.grade(out=out, keep=True,
-                passes=int(_p.get("wave_passes", passes)),
-                opt=int(_p.get("wave_opt", opt)),
-                fr_timeout=int(_p.get("wave_fr_timeout", 900)),
+                passes=(int(passes) if polish
+                        else int(_p.get("wave_passes", passes))),
+                opt=(int(opt) if polish
+                     else int(_p.get("wave_opt", opt))),
+                fr_timeout=(2 * int(_p.get("wave_fr_timeout", 900)) if polish
+                            else int(_p.get("wave_fr_timeout", 900))),
                 seed=seed,              # pin FR seed: wave-to-wave comparability
                 unconn_finish_tol=2,
                 # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
@@ -1038,6 +1048,39 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         return None
     results.sort(key=lambda v: tuple(v.get("sort_key") or (9,)))
     best = results[0]
+    # WINNER POLISH (2026-07-23): re-grade the winning variant once at HIGH FR
+    # effort before publishing -- probes at 16/20 consistently land 21-26 unconn
+    # where wave-effort bests land 30+ (the s70/s120 ladder). One extra route
+    # per wave, winner-only; adopted only when it actually sorts better.
+    polish_info = None
+    if _bp.get("wave_polish", True) and best.get("unconnected") is not None:
+        _mt = [t for t in variants
+               if f"{t[0]}-{t[1]}-s{t[2]}" == best.get("label")]
+        if _mt:
+            _pi, _ps, _pseed, _pprop = _mt[0]
+            try:
+                pv = _grade_variant(board, W, H, _pi, _ps, _pseed,
+                                    int(_bp.get("polish_passes", 16)),
+                                    int(_bp.get("polish_opt", 20)),
+                                    work_root, proposal=_pprop, polish=True)
+                polish_info = {"label": pv.get("label"),
+                               "unconnected": pv.get("unconnected"),
+                               "drc": pv.get("drc"),
+                               "sort_key": pv.get("sort_key"),
+                               "adopted": False}
+                if tuple(pv.get("sort_key") or (9,)) \
+                        < tuple(best.get("sort_key") or (9,)):
+                    polish_info["adopted"] = True
+                    results.insert(0, pv)
+                    best = pv
+                print(f"[wave] {board} polish: unconn "
+                      f"{polish_info['unconnected']} drc {polish_info['drc']} "
+                      f"({'ADOPTED' if polish_info['adopted'] else 'kept original'})",
+                      flush=True)
+            except Exception as e:                              # noqa: BLE001
+                polish_info = {"error": f"{type(e).__name__}: {e}"}
+                print(f"[wave] {board} polish ERROR {polish_info['error']}",
+                      flush=True)
     # publish ONLY the winner (routed board if the route produced one, else the placement)
     pub_dir = os.path.join(out_root, board)
     os.makedirs(pub_dir, exist_ok=True)
@@ -1062,6 +1105,7 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     report = {"board": board, "ts": ts, "W": W, "H": H, "passes": passes, "opt": opt,
               "published": os.path.relpath(dst, ROOT) if src else None,
               "new_best": new_best,
+              "polish": polish_info,
               "prune": {"k": prune_k, "routed": len(results),
                         "pruned": len(pruned_rows)} if pruned_rows else None,
               "best": {k: best.get(k) for k in
