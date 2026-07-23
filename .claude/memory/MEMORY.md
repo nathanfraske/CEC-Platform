@@ -19,3 +19,4 @@
 - [Agent cost policy](agent-cost-policy.md) — panels/fan-out go to the LOCAL broker seats first (cec-worker-quality etc. on :8080, ~free); cloud agents only for tool-using legs, cheapest tier that does the job.
 - [Pipeline solver roadmap](pipeline-solver-roadmap.md) — standing answer for 'what solvers/improvements can we add': docs/pipeline-solver-roadmap.md
 - [Codex exec auditor](codex-exec-auditor.md) — direct `codex exec -m gpt-5.6-sol` effort max; rescue = single-action forwarder only.
+- [No dimension increases](no-dimension-increases.md) — owner ruling 2026-07-23: never grow board W/H to escape placement/routing pressure; machinery, not millimeters.
