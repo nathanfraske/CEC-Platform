@@ -244,7 +244,8 @@ def _prepare_filled(board_path):
 
 
 def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
-                   grid_mm=0.3, h_eff=15.0, src_sink_override=None):
+                   grid_mm=0.3, h_eff=15.0, src_sink_override=None,
+                   time_budget_s=None):
     """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
     render_thermal_detail). Reads the per-board config, pours+fills the candidate, applies
     the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
@@ -281,7 +282,8 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
     res = t2.solve_board_thermal(
         board_path, stackup_oz=stackup, net_currents=currents,
         ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
-        src_sink_override=src_sink_override, **cool_kw)
+        src_sink_override=src_sink_override, time_budget_s=time_budget_s,
+        **cool_kw)
     return res, board_path, cool_label
 
 

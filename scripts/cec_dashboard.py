@@ -248,8 +248,21 @@ def _analyze_in_container(board, detail_png, current_png, width,
     # ---- thermal solve + the two blended detail panels (reuse cec_thermal_overlay) ----
     try:
         import cec_thermal_overlay as ov
+        # BUDGETED + COARSEN-RETRY (2026-07-23, the archive-analyzer pathology:
+        # fine-grid per-net CG spun 2.5 cores for 2-4.5h on fat-copper boards
+        # -- faulthandler-traced). Fine grid gets a hard wall-clock budget; a
+        # PARTIAL result (budget-skipped nets) retries once at the waves'
+        # proven 0.8mm grid with its own budget. Never camp a core for hours.
         res, fpath, cool = ov._solve_thermal(
-            board, ambient=SOLVE["ambient"], grid_mm=SOLVE["grid_mm"], h_eff=SOLVE["h_eff"])
+            board, ambient=SOLVE["ambient"], grid_mm=SOLVE["grid_mm"],
+            h_eff=SOLVE["h_eff"], time_budget_s=180.0)
+        if any("time budget" in str(v)
+               for v in (getattr(res, "nets_dropped", None) or {}).values()):
+            print("[dash] fine-grid thermal hit its budget -- retrying at 0.8mm",
+                  file=sys.stderr)
+            res, fpath, cool = ov._solve_thermal(
+                board, ambient=SOLVE["ambient"], grid_mm=0.8,
+                h_eff=SOLVE["h_eff"], time_budget_s=300.0)
         ov._draw_detail_blend(fpath, res, detail_png, mode="thermal", cool_label=cool,
                               gate_dt=GATE_DT, final_board_w=width, title=os.path.basename(board))
         ov._draw_detail_blend(fpath, res, current_png, mode="current", cool_label=cool,

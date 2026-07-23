@@ -98,6 +98,7 @@ from __future__ import annotations
 import math
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -527,6 +528,24 @@ def _resolve_backend(backend):
     return backend
 
 
+_SOLVE_DEADLINE = None      # absolute monotonic deadline; solve_board_thermal
+                            # RE-INITIALIZES it on every call (None when no
+                            # budget), so a stale value from an aborted run
+                            # self-heals -- never carried into a retry.
+
+
+class TimeBudgetExceeded(Exception):
+    """Raised inside _spd_solve when the caller's wall-clock budget passes --
+    a single fat-copper net's fine-grid CG can outlast the whole budget on its
+    own (measured: the dashboard analyzer spun hours inside ONE cg call), so
+    the between-net check alone cannot bound the solve."""
+
+
+def _deadline_check(_xk=None):
+    if _SOLVE_DEADLINE is not None and time.monotonic() > _SOLVE_DEADLINE:
+        raise TimeBudgetExceeded()
+
+
 def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     """Solve a symmetric positive-(semi)definite sparse system. Small -> spsolve;
     large -> CG with a Jacobi preconditioner (GPU via cupy if backend allows +
@@ -539,6 +558,7 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
     handed back in precond_out['precond'] so the Picard caller REPLACES its stale copy -- without this, every
     later iteration re-pays the stalled 400-iteration reuse attempt PLUS a discarded fresh AMG setup."""
     backend = _resolve_backend(backend)
+    _deadline_check()                     # budget may already be spent (leg entry)
     n = rhs.shape[0]
     _reuse_stalled = False
     if precond is not None and n >= 8000:
@@ -557,12 +577,16 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
         else:                                                # scipy aspreconditioner (CPU AMG reuse)
             try:
                 try:
-                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10, atol=0.0)
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10,
+                                      atol=0.0, callback=_deadline_check)
                 except TypeError:                            # older scipy: tol= kw
-                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10,
+                                      callback=_deadline_check)
                 if info == 0 and np.all(np.isfinite(x)):
                     return x
                 _reuse_stalled = True
+            except TimeBudgetExceeded:                       # budget beats the broad catch
+                raise
             except Exception:                                # noqa: BLE001 -- stale precond -> fresh build below
                 _reuse_stalled = True
     # GPU-ACCELERATED AMG (the RTX 5090 path, scripts/cec_gpu_amg.py): pyamg SA setup on CPU + the V-cycle
@@ -656,9 +680,11 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
         d[d == 0] = 1.0
         M = sp.diags(1.0 / d)
         try:
-            x, info = spla.cg(Aspmat, rhs, M=M, maxiter=10000, rtol=1e-10, atol=0.0)
+            x, info = spla.cg(Aspmat, rhs, M=M, maxiter=10000, rtol=1e-10, atol=0.0,
+                              callback=_deadline_check)
         except TypeError:                                # older scipy: tol= kw
-            x, info = spla.cg(Aspmat, rhs, M=M, maxiter=10000, tol=1e-10)
+            x, info = spla.cg(Aspmat, rhs, M=M, maxiter=10000, tol=1e-10,
+                              callback=_deadline_check)
         if info == 0 and np.all(np.isfinite(x)):
             return x
         # info!=0 iterate: accept ONLY on a TRUE-residual audit (FEM audit #1, the
@@ -672,6 +698,8 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
         if np.all(np.isfinite(x)):
             print("[cec_thermal2d] CG UNCONVERGED iterate REJECTED by the true-residual "
                   "audit; falling through to direct/lsqr", file=sys.stderr)
+    except TimeBudgetExceeded:                           # budget beats the broad catch
+        raise
     except Exception:
         pass
     try:
@@ -1492,7 +1520,8 @@ def solve_board_thermal(board_path,
                         t_chassis=None,
                         chassis_refs=None,
                         g_chassis_W_per_K=0.0,
-                        board_mask_enable=False):
+                        board_mask_enable=False,
+                        time_budget_s=None):
     """2.5D electro-thermal solve on a real board.
 
     stackup_oz:   dict std-layer -> oz copper (default F/B=1, In1/In2=0.5).
@@ -1668,6 +1697,10 @@ def solve_board_thermal(board_path,
     # board but no current path) is the gate-relevant set.
     net_drop_reasons = {}                 # net (present on board) -> why nothing injected
     nets_absent = {}                      # net -> "no copper/pads on this board" (advisory)
+    _t_start = time.monotonic()           # time_budget_s reference (per-net loop bail)
+    global _SOLVE_DEADLINE                # in-solve abort (a single CG can outlast the
+    _SOLVE_DEADLINE = ((_t_start + float(time_budget_s))    # whole budget); re-init
+                       if time_budget_s else None)          # every call = self-healing
 
     # ---- ELECTRICAL with optional rho(T) outer Picard ----------------------
     # We solve all nets, build Q, run the thermal solve, then (rho_T) feed the
@@ -1676,7 +1709,12 @@ def solve_board_thermal(board_path,
     n_outer = 5 if rho_T else 1
     prev_maxT = None
     sense_drop_by_net = {}                # net -> high-Z Kelvin sense-tap cells (computed once)
+    _budget_hit = False
     for outer in range(n_outer):
+        if outer > 0 and _budget_hit:
+            # budget latched last pass: further Picard passes would re-run the
+            # (empty-after-bail) net loop and WIPE the partial per-net results
+            break
         if rho_T:
             Tflat = T.ravel()
 
@@ -1693,6 +1731,24 @@ def solve_board_thermal(board_path,
         per_net_maxK, per_net_maxJ = {}, {}
         total_joule = 0.0
         for net, I in net_currents.items():
+            # WALL-CLOCK BUDGET (2026-07-23, the dashboard-analyzer pathology:
+            # per-net CG at fine grid spun ~2.5 cores for 2-4.5h per archive
+            # board -- faulthandler-traced to spla.cg inside this loop). When a
+            # caller sets time_budget_s, the loop bails LOUDLY between net
+            # solves; remaining nets are recorded as budget-skipped so the
+            # result is honestly partial, never silently complete.
+            if time_budget_s is not None and (time.monotonic() - _t_start) > time_budget_s:
+                _left = [n for n, i2 in net_currents.items()
+                         if i2 > 0 and n not in per_net_maxK
+                         and n not in nets_absent and n not in net_drop_reasons]
+                for _n in _left:
+                    net_drop_reasons[_n] = (f"time budget {time_budget_s:.0f}s "
+                                            "exceeded -- net skipped")
+                print(f"[cec_thermal2d] TIME BUDGET {time_budget_s:.0f}s exceeded "
+                      f"after {len(per_net_maxK)} net(s); {len(_left)} net(s) "
+                      "skipped (field PARTIAL)", file=sys.stderr)
+                _budget_hit = True
+                break
             if I <= 0:
                 continue
             if net not in net_layer_mask:
@@ -1792,11 +1848,24 @@ def solve_board_thermal(board_path,
                               f"sense-tap strip")
                     continue
 
-            sol = _solve_net_electrical(
-                masks, vat, src, sink, I, grid, oz_by_layer,
-                z_centers, t_plating_m, backend=backend,
-                width_frac=wfrac_by_layer, pad_cells_by_ref=pcells,
-                link_R_scale=rscale)
+            try:
+                sol = _solve_net_electrical(
+                    masks, vat, src, sink, I, grid, oz_by_layer,
+                    z_centers, t_plating_m, backend=backend,
+                    width_frac=wfrac_by_layer, pad_cells_by_ref=pcells,
+                    link_R_scale=rscale)
+            except TimeBudgetExceeded:
+                _left2 = [n for n, i2 in net_currents.items()
+                          if i2 > 0 and n not in per_net_maxK
+                          and n not in nets_absent and n not in net_drop_reasons]
+                for _n in _left2:
+                    net_drop_reasons[_n] = (f"time budget {time_budget_s:.0f}s "
+                                            "exceeded mid-solve -- net skipped")
+                print(f"[cec_thermal2d] TIME BUDGET {time_budget_s:.0f}s exceeded "
+                      f"INSIDE net {net}; {len(_left2)} net(s) skipped "
+                      "(field PARTIAL)", file=sys.stderr)
+                _budget_hit = True
+                break
             if via_R is not None:            # back-compat overlap stitch (deprecated)
                 sol = _augment_overlap_stitch(sol, masks, grid, via_R, I, src, sink,
                                               oz_by_layer, backend)
@@ -1834,13 +1903,22 @@ def solve_board_thermal(board_path,
             iy, ix = divmod(c, grid.nx)
             Q[iy, ix] += w / grid.cell_area_m2
 
-        T = _thermal_solve(klat, Q, grid, ambient, h_eff=h_eff, nonlinear=nonlinear,
-                           c_nat=c_nat, eps_rad=eps_rad, backend=backend,
-                           verbose=verbose and (outer == n_outer - 1),
-                           mount_cells=mount_cells,
-                           g_mount_W_per_K=g_mount_W_per_K, t_chassis=t_chassis,
-                           extra_sink_cells=chassis_cells,
-                           g_extra_W_per_K=g_chassis_W_per_K)
+        try:
+            T = _thermal_solve(klat, Q, grid, ambient, h_eff=h_eff, nonlinear=nonlinear,
+                               c_nat=c_nat, eps_rad=eps_rad, backend=backend,
+                               verbose=verbose and (outer == n_outer - 1),
+                               mount_cells=mount_cells,
+                               g_mount_W_per_K=g_mount_W_per_K, t_chassis=t_chassis,
+                               extra_sink_cells=chassis_cells,
+                               g_extra_W_per_K=g_chassis_W_per_K)
+        except TimeBudgetExceeded:
+            # keep the previous pass's field (ambient on pass 0); the result is
+            # honestly partial via the stamped drop reasons
+            print(f"[cec_thermal2d] TIME BUDGET {time_budget_s:.0f}s exceeded in the "
+                  "temperature solve -- keeping the previous field (PARTIAL)",
+                  file=sys.stderr)
+            _budget_hit = True
+            break
         mt = float(T.max())
         if verbose and rho_T:
             print(f"  rho(T) outer it{outer}: max_T={mt:.2f}")
