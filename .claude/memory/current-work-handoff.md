@@ -1,5 +1,21 @@
 # Current work handoff
 
+## SEG4 READOUT -- 2026-07-23 (~03:30), CYCLE CLOSED, pushed. RESUME LADDER BELOW.
+SEG4 verdict: the D5/pads-out class is GONE in production (pad-truth verified).
+Refusals moved to the NEXT truth layer: (a) 24-pin 10/11 = KELVIN SEAT vs truthful
+courtyards (U12|RS2 / RS4|U11 / RS1|U13 -- the doctrine's tight INA-shunt seating,
+constants tuned on body-only models; the HAND boards pass real DRC at the same
+doctrine, so recalibrate the seat/cell standoffs to truthful boxes + DRC clearance,
+target band = MEASURE the hand boards' actual gaps -- FOLLOWUPS w/ protocol);
+(b) hub = H1 M2-provision marginals (re-derive via cec_mezz_probe + mount-envelope
+support) and, deeper, the PLATEAU-KILL routing collapse (probe filed = top hub item).
+DO NOT relaunch waves before the Kelvin recalibration (same-pair re-refusal certain).
+RESUME LADDER: (1) Kelvin seat recalibration -> 24-pin wave; (2) hub plateau
+root-cause probe -> hub wave; (3) H1 + left-J6P probe re-derivation; (4) the
+codex improvement-plan ruling (owner-queue) + segment-era PCB mating drawing
+(bottom-mount mirror transform) when a layout freezes; (5) SB-08 owner-gated
+re-freeze unchanged.
+
 ## SEG3 READOUT + PAD-TRUTH COURTYARDS -- 2026-07-23 (~03:00), pushed
 SEG3 verdicts: J6P|J1/J2 GONE (seats v3 validated). 24-pin full-refused on the NEW
 pads-in-bounds gate: D5 (SOT-23) 0.77mm off-board on ALL 10 variants -- ROOT-CAUSED
