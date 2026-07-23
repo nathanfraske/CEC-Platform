@@ -53,9 +53,14 @@ GRID = 1.0            # candidate grid pitch (mm)
 MIN_SPREAD = 22.0     # min pairwise segment distance (stability triangle width)
 ASYM_MIN = 8.0        # min distance pattern<->its own 180-rotated image (keying)
 
-# hard-obstacle refs: the seed-stable anchors + macro parts. Everything else is a
-# SOFT obstacle (jellybeans the wave re-seats around datum pins).
-HARD_RE = re.compile(r"^(J\d|J[A-Z_]|TB\d|U1$|U2$|C1$|DL\d|SW|H\d|FID|RS\d|F\d)")
+# hard-obstacle refs: the SEED-STABLE skeleton only -- pinned/role-seated
+# anchors (jacks/connectors, the TB blade row, the U1/U2 macro seats, the
+# early-seated C1, walk shunts, mounts). DL ring / SW buttons / FIDs are
+# per-seed MOVERS: they re-place around a pinned segment, so classing them
+# hard made multi-substrate derivation infeasible (their union covered every
+# pocket) while single-substrate derivation was a per-seed fluke -- the v3
+# J6D hub-side lesson (2026-07-23).
+HARD_RE = re.compile(r"^(J\d|J[A-Z_]|TB\d|U1$|U2$|C1$|RS\d|H\d|F\d)")
 
 # function targets per segment: per-board ANATOMY refs whose centroid defines the
 # region the segment wants to be near. DETECT: hub port-1 jack J2; 24-pin R1 (the
@@ -74,8 +79,10 @@ def _board_model(path):
     hard, soft, pos = [], [], {}
     for fp in b.GetFootprints():
         ref = fp.GetReference()
-        if ref in SEG_ENV or ref == "H1":
+        if ref in SEG_ENV:
             continue                          # re-deriving these
+        # H1 is NO LONGER excluded (2026-07-23): the M2 provision keeps its
+        # ratified (-20,14) seat -- segments must clear it like any anchor.
         r = fp.GetCourtyard(fp.GetLayer())    # SHAPE_POLY_SET; may be empty
         try:
             cb = r.BBox()
@@ -101,7 +108,42 @@ def _board_model(path):
     if "24pin" in os.path.basename(path) or "atx" in os.path.basename(path).lower() \
             or any(r.startswith("TB") for r in pos):
         model["hard"] = hard + [(x0 + 5.0, y0, x0 + 39.0, y0 + H)]
+        # SHUNT-ROW WALK BAND (seg4 forensic 2026-07-23): the rail walk's right
+        # bound clamps on ANY anchor whose pad-extended box clips y in H/2+-9,
+        # and the sense cells themselves span y row-7.7..row+11.5 about the
+        # seeded row (H/2+1.8, measured 29.3@H55) across the walk span. J6C's
+        # v3 seat (dc 11.2,12.6) landed in this band, walled the walk at
+        # x~39 and crushed the column pitch 12->5.38/8.0 (the INA|shunt
+        # refusal class). Segments must clear the whole band: y from the
+        # planner's trigger edge (H/2-9, -1.0 guard) down to the cell TLV
+        # reach (+12.1 incl. clearance), x over the walkable span.
+        # y matches the planner's calibrated cell band [H/2-6.5, H/2+13.9]
+        # (with a 1.0 trigger guard on the top edge). x-hi 62.0: an anchor whose
+        # box starts past 62.6 (band + probe MARGIN) clamps the walk's _rb to
+        # >=55.6, which still admits every J3 pin-group column target (<=~55)
+        # at full pitch under the backward pull-back.
+        model["hard"].append((x0 + 8.0, y0 + H / 2 - 7.5,
+                              x0 + 62.0, y0 + H / 2 + 13.9))
     return model
+
+
+def _board_model_multi(paths):
+    """Merge N same-board substrates (comma-list): UNION of hard/soft obstacle
+    boxes = the INTERSECTION of legal seat space across placements. Single-
+    substrate derivation is hostage to one seed's satellite positions (the v3
+    J6D hub-side lesson, 2026-07-23); requiring joint legality across several
+    seeds is what makes a contract seat wave-stable. Frames must match."""
+    models = [_board_model(p) for p in paths]
+    base = models[0]
+    for m in models[1:]:
+        if abs(m["W"] - base["W"]) > 0.1 or abs(m["H"] - base["H"]) > 0.1:
+            raise SystemExit(f"substrate frame mismatch: {m['path']} "
+                             f"{m['W']}x{m['H']} vs {base['W']}x{base['H']}")
+        base["hard"] = base["hard"] + m["hard"]
+        base["soft"] = base["soft"] + m["soft"]
+        # positions: keep the first substrate's (targets only need a centroid)
+    base["paths"] = paths
+    return base
 
 
 def _clear(box, obstacles, m):
@@ -168,11 +210,39 @@ def _asym(pts):
 def derive(hub_pcb, p24_pcb, top=400, min_spread=None, asym_min=None):
     min_spread = MIN_SPREAD if min_spread is None else min_spread
     asym_min = ASYM_MIN if asym_min is None else asym_min
-    boards = {"hub": _board_model(hub_pcb), "p24": _board_model(p24_pcb)}
+    hub_paths = str(hub_pcb).split(",")
+    p24_paths = str(p24_pcb).split(",")
+    boards = {"hub": _board_model_multi(hub_paths),
+              "p24": _board_model_multi(p24_paths)}
+    # STABILITY TIERS (2026-07-23, measured: the 74x55 24-pin's jointly-stable
+    # free space holds only ONE large-segment pocket + one J6D pocket, so a
+    # fully substrate-stable 3-set does not exist -- W-grow is the owner-queue
+    # lever). Tier-STABLE = legal on the UNION skeleton of every substrate;
+    # tier-FALLBACK = legal on the first substrate only (a per-seed-grind seat
+    # whose residual conflicts the pre-route gates name). derive() prefers
+    # all-stable and admits AT MOST ONE fallback member.
     cands = {s: _candidates(s, boards) for s in SEG_ENV}
+    b1 = {"hub": _board_model(hub_paths[0]), "p24": _board_model(p24_paths[0])}
+    cands1 = {s: _candidates(s, b1) for s in SEG_ENV}
+    stable_keys = {s: {(c["dc"], c["rot"]) for c in cands[s]} for s in SEG_ENV}
+    for s in SEG_ENV:
+        merged, seen = [], set()
+        for c in cands[s] + cands1[s]:
+            k = (c["dc"], c["rot"])
+            if k in seen:
+                continue
+            seen.add(k)
+            merged.append(dict(c, stable=(k in stable_keys[s])))
+        cands[s] = merged
     for s, cs in cands.items():
         if not cs:
             raise SystemExit(f"NO jointly-legal seat for {s} -- widen search/relax")
+    def _env_box(seg, cand):
+        w0, h0 = SEG_ENV[seg]
+        w, h = (w0, h0) if cand["rot"] == 0 else (h0, w0)
+        dx, dy = cand["dc"]
+        return (dx - w / 2, dy - h / 2, dx + w / 2, dy + h / 2)
+
     best = None
     for a in cands["J6P"][:top]:
         for b in cands["J6C"][:top]:
@@ -181,13 +251,25 @@ def derive(hub_pcb, p24_pcb, top=400, min_spread=None, asym_min=None):
                 if min(math.hypot(p[0] - q[0], p[1] - q[1])
                        for i, p in enumerate(pts) for q in pts[i + 1:]) < min_spread:
                     continue
+                # SEGMENT-vs-SEGMENT legality (2026-07-23): the old 22mm spread
+                # floor masked that nothing checked the segments against EACH
+                # OTHER -- at lower spreads the "best" sets physically overlap.
+                boxes = [_env_box(s, c2) for s, c2 in
+                         (("J6P", a), ("J6C", b), ("J6D", c))]
+                if any(not _clear(boxes[i], boxes[i + 1:], MARGIN)
+                       for i in range(2)):
+                    continue
                 asym = _asym(pts)
                 if asym < asym_min:
                     continue
+                n_stable = sum(1 for c2 in (a, b, c) if c2.get("stable"))
+                if n_stable < 2:
+                    continue                      # at most ONE fallback member
                 score = a["score"] + b["score"] + c["score"] - 0.5 * asym
-                if best is None or score < best["score"]:
-                    best = {"score": round(score, 1), "asym": asym,
-                            "J6P": a, "J6C": b, "J6D": c}
+                key = (-n_stable, score)
+                if best is None or key < best["key"]:
+                    best = {"key": key, "score": round(score, 1), "asym": asym,
+                            "n_stable": n_stable, "J6P": a, "J6C": b, "J6D": c}
     if best is None:
         raise SystemExit("no seat SET satisfies spread+asymmetry -- relax knobs")
     return best, {s: cs[:5] for s, cs in cands.items()}, boards

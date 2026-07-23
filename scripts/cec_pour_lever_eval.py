@@ -47,7 +47,7 @@ if not os.path.isfile(WINNER):
     _main = os.path.join("/home/nathan/CEC-Platform", _WINNER_REL)
     if os.path.isfile(_main):
         WINNER = _main
-EPS = os.path.join(ROOT, "modules", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
+EPS = os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
 
 # the 24-pin wave recipe (docs/pour-lever-scoping §7): lanes + 16mm shunt gap
 LANES24 = {"CEC_POUR_LANES": "1", "CEC_SHUNT_GAP": "1", "CEC_SHUNT_GAP_MM": "16.0"}

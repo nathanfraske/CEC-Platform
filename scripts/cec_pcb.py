@@ -460,8 +460,15 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                              flip=(ref in back_refs)))
         else:
             print(f"  WARN no footprint for {ref}", file=sys.stderr)
-    for i, (x, y) in enumerate(mounts, 1):
-        fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via", f"H{i}", x, y, 0,
+    for i, m in enumerate(mounts, 1):
+        # (x, y) -> the platform M3 default; (x, y, libid) -> that land (the
+        # mount_fp_override contract: the H1 M2 provision measured 2026-07-23
+        # as an M3 stamped under an M2 model -- a 1.04mm/side model-vs-board
+        # gap that parked jellybeans "legally" onto the real courtyard).
+        x, y = m[0], m[1]
+        mfp = (m[2] if len(m) > 2 and m[2] else
+               "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via")
+        fps.append(place(mfp, f"H{i}", x, y, 0,
                          padnet, code_of, gnd_all=True))
     for i, (x, y) in enumerate(fiducials, 1):
         # assembly fiducials (round-2 item 6, 2026-07-08): the placer always PLANNED

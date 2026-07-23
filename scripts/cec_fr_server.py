@@ -61,7 +61,7 @@ SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 
 # env knobs a client may forward into its job (allow-list -- never arbitrary env)
 ENV_ALLOW = ("CEC_FR_SEED_AXIS", "CEC_FR_NOECHO", "CEC_FR_MAXSTALL",
-             "CEC_FR_PLATEAU_KILL")
+             "CEC_FR_PLATEAU_KILL", "CEC_FR_PLATEAU_FLOOR")
 
 TERMINAL = ("COMPLETED", "FAILED", "CANCELLED")
 

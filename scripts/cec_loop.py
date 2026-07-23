@@ -27,7 +27,8 @@ import cec_fr       # route_once / derive_power_pours
 
 
 def _resolve(board):
-    cands = [p for p in glob.glob(os.path.join(ROOT, "modules", board, "*.kicad_pcb"))
+    cands = [p for p in glob.glob(os.path.join(ROOT, "beta", board, "*.kicad_pcb"))
+             + glob.glob(os.path.join(ROOT, "modules", board, "*.kicad_pcb"))
              if "-routed" not in p and ".merged." not in p]
     if not cands:
         raise FileNotFoundError("no .kicad_pcb under modules/%s" % board)

@@ -698,6 +698,15 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
 # ---------------------------------------------------------------------------
 # run_freerouting
 # ---------------------------------------------------------------------------
+def _plateau_floor_disables(best_togo, floor):
+    """Plateau-floor semantics (probe 2026-07-23): a flat streak whose best togo
+    sits AT/UNDER the floor is FR's normal terminal grind / rip-up phase, not a
+    collapse -- the kill is disabled for the rest of the run so the board
+    finishes and grades (the killed togo-34 hub board re-routed to unconn 7 =
+    the best hub result ever). floor<=0 = feature off (historical behavior)."""
+    return floor > 0 and best_togo <= floor
+
+
 def _kill_fr_tree(proc):
     """Kill the FR child AND its whole process group. On headless Linux the child
     is the `xvfb-run -a` WRAPPER, so a bare proc.kill() (or subprocess.run's own
@@ -777,7 +786,8 @@ def _run_freerouting_rest(base, dsn_path, ses_path, *, passes, opt_time, threads
     with open(dsn_path, "rb") as fh:
         dsn_b64 = _b64.b64encode(fh.read()).decode()
     env = {k: os.environ[k] for k in ("CEC_FR_SEED_AXIS", "CEC_FR_NOECHO",
-                                      "CEC_FR_MAXSTALL", "CEC_FR_PLATEAU_KILL")
+                                      "CEC_FR_MAXSTALL", "CEC_FR_PLATEAU_KILL",
+                                      "CEC_FR_PLATEAU_FLOOR")
            if k in os.environ}
     job = _call("POST", "/v1/jobs", body={
         "dsn_b64": dsn_b64, "name": os.path.basename(dsn_path),
@@ -974,7 +984,21 @@ def run_freerouting(
                                 stderr=subprocess.STDOUT,
                                 text=True, bufsize=1,
                                 start_new_session=(os.name == "posix"), **_pop_kw)
+        # PLATEAU FLOOR (probe 2026-07-23): a togo-34 "plateau" on the hub,
+        # killed by the streak rule, re-routed with the kill off to unconn 7 /
+        # kelvin TRUE in 145s -- the best hub board ever; FR's rip-up phases go
+        # flat-then-recover, so a flat streak at LOW togo is the normal terminal
+        # grind, not a collapse. With CEC_FR_PLATEAU_FLOOR=<n>, a plateau whose
+        # togo is <= n DISABLES the kill for the rest of the run (the board is
+        # nearly routed -- worth finishing + grading); above the floor the kill
+        # fires as before (the 24-pin's true collapses sit flat at 190-230 from
+        # early passes). Default 0 = floor off, exactly the historical behavior.
+        _pfloor = 0
+        _pfe = os.environ.get("CEC_FR_PLATEAU_FLOOR", "")
+        if _pfe.isdigit():
+            _pfloor = int(_pfe)
         _best, _streak, _killed, _lines = None, 0, False, []
+        _pk_disabled = False
         _t0 = time.monotonic()
         import select as _select
         def _next_line():
@@ -1011,12 +1035,19 @@ def run_freerouting(
                             _best = (_cur[0] if _best is None else min(_best[0], _cur[0]),
                                      _cur[1] if _best is None else min(_best[1], _cur[1]))
                             _streak = 0
-                        elif _f > 0:
+                        elif _f > 0 and not _pk_disabled:
                             _streak += 1
                             if _streak >= _k:
-                                _killed = True
-                                _kill_fr_tree(proc)
-                                break
+                                if _plateau_floor_disables(_best[0], _pfloor):
+                                    _pk_disabled = True
+                                    print(f"[cec_fr] plateau at togo/failed={_best} is "
+                                          f"WITHIN the floor ({_pfloor}) -- terminal "
+                                          f"grind, kill disabled; running to completion",
+                                          flush=True)
+                                else:
+                                    _killed = True
+                                    _kill_fr_tree(proc)
+                                    break
             proc.wait(timeout=30)
         finally:
             if _own_workdir:

@@ -54,6 +54,16 @@ from dataclasses import dataclass, field, asdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
+# RAIL-WALK CELL PITCH FLOOR (measured 2026-07-23, seg4 forensic): the stamped
+# sense cell's rightward reach is 6.75mm past its anchor shunt (TLV band; the
+# INA binds at 6.39 within the shunt's own y-band) and the NEXT column's shunt
+# courtyard reaches 1.98mm left of ITS anchor -- a pitch below 6.75+1.98+0.27
+# seats the cell INTO the neighbor shunt (the U12|RS2 / RS4|U11 / RS1|U13
+# courtyard-refusal class; the old inline 8.0 "physical width" floor was 0.7mm
+# short -- measured -0.27mm overlaps at pitch 8.0). tests/test_rail_walk_floor.py
+# re-derives the need from the blueprint + pad-truth courtyards and pins this.
+CELL_PITCH_FLOOR = 9.0
+
 import cec_toolchain as _tc  # noqa: E402  -- dependency-free; safe on a KiCad-less box (R-05)
 
 # cec_score gives the routed-board hard gates (kelvin / diffpair / DRC / unconnected).
@@ -3274,6 +3284,14 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # FIXED-pitch TB row (the mating contract).
             _wu = (W or 100)
             _min_sep = 12.0
+            # CELL BAND about H/2 (measured 2026-07-23 from the stamped v0-taps
+            # cell: parts span row-7.7 (bypass caps) .. row+11.5 (TLV) with the
+            # row seeded at H/2+1.8, +0.6/-0.6 clearance -> [H/2-6.5, H/2+13.9]).
+            # Replaces the +-9.0 proxy band: the old band's fat TOP edge treated
+            # anchors 2.5mm above any cell copper as walk blockers, and its thin
+            # BOTTOM edge missed the TLV depth. An anchor is a walk blocker only
+            # if it can actually touch a cell.
+            _BAND_Y0, _BAND_Y1 = -6.5, 13.9
             # Left-half in-band blocker boxes for the per-column DROP below.
             # (The companion TUCK -- "RJ-45 moved up" -- lives in the P2 jack
             # block: p2 OWNS + LOCKS the jacks, and a first attempt to tuck
@@ -3287,7 +3305,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 _ay0 = _apos2[1] + _cy2 - _hh2
                 _ay1 = _apos2[1] + _cy2 + _hh2
                 if (_apos2[0] + _cx2 < _wu / 2.0
-                        and _ay1 > H / 2.0 - 9.0 and _ay0 < H / 2.0 + 9.0):
+                        and _ay1 > H / 2.0 + _BAND_Y0 and _ay0 < H / 2.0 + _BAND_Y1):
                     _lblk.append((_apos2[0] + _cx2 - _hw2, _apos2[0] + _cx2 + _hw2,
                                   _ay0, _ay1))
             # RIGHT walk bound from in-band ANCHOR blockers (audit 2026-07-19 +
@@ -3322,7 +3340,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                         _ay1 = max(_ay1, _pg2[1] + 0.8)
                 except Exception:                        # noqa: BLE001
                     pass
-                if _ay1 < H / 2.0 - 9.0 or _ay0 > H / 2.0 + 9.0:
+                if _ay1 < H / 2.0 + _BAND_Y0 or _ay0 > H / 2.0 + _BAND_Y1:
                     continue                             # clear of the shunt row band
                 if _ax0 >= _wu / 2.0:
                     # margin = the via-array envelope, OR the CELL BANK's
@@ -3353,14 +3371,25 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             # min_sep to fit, floored at 8mm (the sense cell's physical width);
             # at the floor any residual overhang surfaces in DRC/the wave
             # instead of cells being crushed into each other silently.
+            _CELL_PITCH_FLOOR = CELL_PITCH_FLOOR
             if len(shared) > 1:
                 _avail = _rb - _lb
                 _need = (len(shared) - 1) * _min_sep
                 if _need > _avail:
-                    _min_sep = max(8.0, _avail / (len(shared) - 1))
+                    _min_sep = max(_CELL_PITCH_FLOOR, _avail / (len(shared) - 1))
                     print(f"  [rails] straight-through walk: {len(shared)} cols need "
                           f"{_need:.0f}mm > {_avail:.0f}mm avail -> min_sep degraded "
                           f"to {_min_sep:.1f}", file=sys.stderr, flush=True)
+                    if (len(shared) - 1) * _CELL_PITCH_FLOOR > _avail:
+                        # INFEASIBLE even at the cell-legality floor: the tail
+                        # column(s) will cross _rb and the pre-route courtyard
+                        # gate names the pair -- surfaced, never silently
+                        # crushed (the seg-era J6C wall measured avail ~21mm
+                        # vs 27 needed; the seat re-derivation is the fix).
+                        print(f"  [rails] walk INFEASIBLE at the {_CELL_PITCH_FLOOR}mm "
+                              f"cell floor ({len(shared)} cols, {_avail:.0f}mm avail) "
+                              f"-- tail will cross the right bound; expect a named "
+                              f"courtyard refusal", file=sys.stderr, flush=True)
             _st_cols = []
             for c in shared:
                 _gxs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
@@ -3374,9 +3403,14 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             for _i3 in range(len(_st_cols) - 1, -1, -1):
                 _ub = _rb if _i3 == len(_st_cols) - 1 else _st_cols[_i3 + 1] - _min_sep
                 _st_cols[_i3] = min(_st_cols[_i3], _ub)
+            # _lb clamp BEFORE the L->R separation enforce: the old trailing
+            # [max(_lb, c)] ran AFTER it and could re-compress a pitch below
+            # min_sep (measured seg4 s175: RS3 raised to _lb while RS2 stayed
+            # -> 5.38mm pitch, the INA-pads-on-shunt crash class).
+            if _st_cols:
+                _st_cols[0] = max(_st_cols[0], _lb)
             for _i3 in range(1, len(_st_cols)):              # re-enforce separation L->R
                 _st_cols[_i3] = max(_st_cols[_i3], _st_cols[_i3 - 1] + _min_sep)
-            _st_cols = [max(_lb, _c2) for _c2 in _st_cols]
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
                 col = _st_cols[_ci]
                 # PER-COLUMN DROP (the owner pair's second half): a column whose
@@ -6956,9 +6990,89 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     _best = (_ci, _hit)
                     break
             if _best is None:
-                # no corner can host: most-open corner position as the honest fallback
+                # NO corner/slide can host (measured 2026-07-23 on the 24-pin
+                # v4 frame: J5's tuck owns TR, the pinned U1 column owns the
+                # right edge, and p8b's affinity rind crowds BR -- the old raw-
+                # corner dump then seated FID2 ON the jellybeans, a hard
+                # courtyard refusal on every variant). EVICTION RUNG (the p8b
+                # oversize precedent): a fiducial is an assembly REQUIREMENT
+                # with a corner doctrine; jellybeans fit anywhere -- take the
+                # max-openness slide candidate of the least-crowded unused
+                # corner and evict overlapping small MOVABLES back through a
+                # mini-legalize. Anchors/locked refs are never evicted.
                 _ci = next(i for i in range(len(_ranked)) if i not in _used)
-                _best = (_ci, _ranked[_ci])
+                _cx, _cy = _ranked[_ci]
+                _fr = _FID_R
+                # openness vs NON-EVICTABLE bodies only (anchors / locked /
+                # large movables): the seat must be legal against what cannot
+                # move; small movables overlapping it are evicted below. (A
+                # first cut maximized openness over ALL bodies -- with every
+                # slot crowded that picked the least-bad point, which sat ON
+                # U1/J6P/J1 where eviction cannot apply.)
+                _fixed_e = set(anchors or ()) | set(_state.locked_refs())
+                _hardb, _smalls = [], {}
+                for _r, _pp in _pp_union.items():
+                    if _r.startswith("FID") or _r not in comps:
+                        continue
+                    try:
+                        _c0, _c1, _hw, _hh = _courtyard_info(
+                            comps[_r], _pp[2] if len(_pp) > 2 else 0.0,
+                            drop_antenna=drop_antenna)
+                    except Exception:                        # noqa: BLE001
+                        continue
+                    _bx = (_pp[0] + _c0 - _hw, _pp[0] + _c0 + _hw,
+                           _pp[1] + _c1 - _hh, _pp[1] + _c1 + _hh)
+                    if _r in _fixed_e or max(_hw, _hh) >= 4.0 or _r not in _PP:
+                        _hardb.append(_bx)
+                    else:
+                        _smalls[_r] = _bx
+                def _open_hard(cx_, cy_):
+                    _d = 1e9
+                    for _x0, _x1, _y0, _y1 in _hardb:
+                        _dx = max(_x0 - cx_, 0.0, cx_ - _x1)
+                        _dy = max(_y0 - cy_, 0.0, cy_ - _y1)
+                        _d = min(_d, (_dx * _dx + _dy * _dy) ** 0.5)
+                    return _d
+                _cands = [(_cx, _cy)]
+                _sx = 1.0 if _cx < W / 2 else -1.0
+                _sy = 1.0 if _cy < H / 2 else -1.0
+                for _k in range(1, 29):
+                    _cands.append((_cx + _sx * _k, _cy))
+                    _cands.append((_cx, _cy + _sy * _k))
+                _ok = [q for q in _cands if _open_hard(q[0], q[1]) >= _fr]
+                if not _ok:
+                    # truly nothing hostable even with eviction: the historical
+                    # raw-corner dump (loud in the gate) -- never silent.
+                    _used.add(_ci)
+                    _placed_f[_f] = (_cx, _cy)
+                    continue
+                # among hard-legal candidates prefer the one displacing least
+                _fx, _fy = min(_ok, key=lambda q: sum(
+                    1 for _bx in _smalls.values()
+                    if _bx[0] - _fr < q[0] < _bx[1] + _fr
+                    and _bx[2] - _fr < q[1] < _bx[3] + _fr))
+                _evict = [_r for _r, _bx in _smalls.items()
+                          if _bx[0] - _fr < _fx < _bx[1] + _fr
+                          and _bx[2] - _fr < _fy < _bx[3] + _fr]
+                if _evict:
+                    import cec_pcb as _cpcb
+                    _cy_ev = {}
+                    for _r in _PP:
+                        if _r in comps:
+                            try:
+                                _cy_ev[_r] = _courtyard_info(
+                                    comps[_r], _PP[_r][2] if len(_PP[_r]) > 2 else 0.0)
+                            except Exception:                # noqa: BLE001
+                                pass
+                    _PP[_f] = (_fx, _fy, 0.0)
+                    _cy_ev[_f] = (0.0, 0.0, _fr, _fr)
+                    for _r in _evict:                        # displace, then legalize
+                        _PP[_r] = (_PP[_r][0] + 6.0 * _sx, _PP[_r][1], _PP[_r][2])
+                    legalize_pack(_PP, _evict, _cy_ev, W, H, clr=0.5)
+                    print(f"  [p11] fiducial {_f}: no corner hosts -- seated at "
+                          f"({_fx:.1f},{_fy:.1f}), evicted {sorted(_evict)}",
+                          file=sys.stderr, flush=True)
+                _best = (_ci, (_fx, _fy))
             _used.add(_best[0])
             _placed_f[_f] = _best[1]
         for _f, (_fx, _fy) in _placed_f.items():
@@ -9281,7 +9395,15 @@ def materialize(cand, cfg, out, *, logo=None):
     import cec_pcb
     def _is_mount(r):
         return r.startswith("H") and r[1:].isdigit()
-    mounts = [(p[0], p[1]) for r, p in cand.P.items() if _is_mount(r)]
+    # Sorted by ref so build_board's H{i} re-enumeration maps H1->H1 (dict order
+    # is placement-pass arrival order); carry each mount's overridden land so the
+    # BOARD matches the model (mount_fp_override existed only in place_mechanical
+    # -- the materialized board stamped the M3 default under an M2 model, the
+    # measured 1.04mm/side gap behind the whole H1|jellybean refusal class).
+    _fpov = (cfg.params.get("mount_fp_override") or {}) if cfg else {}
+    mounts = [(p[0], p[1], _fpov.get(r)) for r, p in
+              sorted(cand.P.items(), key=lambda kv: (len(kv[0]), kv[0]))
+              if _is_mount(r)]
     # build_board places mounts (H1..) + fiducials (FID1..) itself; LOGO stays
     # board-level finishing. (Round-2 item 6, 2026-07-08: the placer always PLANNED
     # FID1-3 via place_mechanical but this line dropped them -- every fresh wave board
@@ -9307,8 +9429,14 @@ def materialize(cand, cfg, out, *, logo=None):
         import glob as _glob
         import json as _json
         import shutil as _shutil
-        _bdir = os.path.join(ROOT, "hubs", cfg.board) if os.path.isdir(
-            os.path.join(ROOT, "hubs", cfg.board)) else os.path.join(ROOT, "modules", cfg.board)
+        # beta/ FIRST (physical move 2026-07-22; this fallback chain was a
+        # reader-sweep miss -- with both wave boards in beta/ it resolved to a
+        # nonexistent dir and every materialized candidate silently lost the
+        # netclass/DRU carriage, re-hiding thin power from FR and DRC).
+        _bdir = next((c for c in (os.path.join(ROOT, "beta", cfg.board),
+                                  os.path.join(ROOT, "hubs", cfg.board),
+                                  os.path.join(ROOT, "modules", cfg.board))
+                      if os.path.isdir(c)), os.path.join(ROOT, "beta", cfg.board))
         _pros = sorted(_glob.glob(os.path.join(_bdir, "*.kicad_pro")), key=len)
         _outpro = out[:-len(".kicad_pcb")] + ".kicad_pro"
         if _pros:

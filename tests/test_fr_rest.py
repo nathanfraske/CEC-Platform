@@ -138,6 +138,7 @@ class TestServerContract(unittest.TestCase):
             self.assertEqual(st["backend"], "cec-fr-fork")
             self.assertEqual(st["fr_version"], "1.7.0-cec2")
             jid = _submit(sv.base, env={"CEC_FR_PLATEAU_KILL": "3",
+                                        "CEC_FR_PLATEAU_FLOOR": "100",
                                         "NOT_ALLOWED": "x"})["id"]
             got = _wait_state(sv.base, jid, ("COMPLETED", "FAILED"))
             self.assertEqual(got["state"], "COMPLETED")
@@ -147,6 +148,8 @@ class TestServerContract(unittest.TestCase):
             self.assertIn("(session fake)", ses)
             self.assertIn("CEC_FR_PLATEAU_KILL", ses,
                           "allow-listed env must reach the job")
+            self.assertIn("CEC_FR_PLATEAU_FLOOR", ses,
+                          "the plateau floor must reach the job (2026-07-23)")
             self.assertNotIn("NOT_ALLOWED", ses,
                              "non-allow-listed env must be stripped")
             # progress surfaced

@@ -40,7 +40,10 @@ def main():
     from cec_placement_session import PlacementSession
     from cec_fresh_wave import _stamp_back_face
 
-    mf = os.path.join(ROOT, "modules", args.board, "board-manifest.json")
+    mf = next((c for c in (os.path.join(ROOT, "beta", args.board, "board-manifest.json"),
+                           os.path.join(ROOT, "modules", args.board, "board-manifest.json"))
+               if os.path.isfile(c)),
+              os.path.join(ROOT, "beta", args.board, "board-manifest.json"))
     P = {}
     if os.path.isfile(mf):
         pd = (json.load(open(mf)) or {}).get("placement_directives") or {}

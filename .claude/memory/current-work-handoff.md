@@ -1,5 +1,97 @@
 # Current work handoff
 
+## LADDER 1+2 EXECUTED -- 2026-07-23 (~05:15), FIX BATCH LANDED, WAVES PENDING RELAUNCH
+Owner ask: "Continue on with the ladder. See why the Hub is no longer getting to a new
+routing stage too." BOTH ANSWERED + FIXED (commit pending at write time; battery running).
+
+HUB ANSWER (two stacked layers, both measured):
+(1) seg4 = 100% PRE-ROUTE refusals H1|R13 / H1|RJ_BUCK / C21|H1 etc -- ROOT: the H1 M2
+    mount_fp_override existed only in place_mechanical; materialize/build_board stamped
+    the M3 default (real crtyd +-3.49) under an M2 model (+-2.45) = 1.04mm/side
+    model-vs-board gap; movers parked jellybeans "legally" onto the real courtyard.
+    FIXED: mounts carry (x,y,fp) through materialize -> build_board (sorted by ref).
+(2) seg3 = CEC_PLATEAU_KILL discarding WINNER-BAND boards: killed togo/failed=(34,31)
+    hub board re-routed with kill OFF -> unconn 7 / kelvin TRUE / crit [] in 145s = BEST
+    HUB EVER (prior best 28). FR rip-up goes flat-then-recovers; streak-only kill can't
+    tell terminal grind from collapse. FIXED: CEC_FR_PLATEAU_FLOOR (cec_fr
+    _plateau_floor_disables; wave_plateau_floor hub=100 / 24-pin=170 splitting winner vs
+    collapse bands; REST ENV_ALLOW + client forwarding). BONUS FINDING: seg-era hub
+    placements route BETTER than pre-seg (7 vs 28) -- the segment split's funnel-
+    dispersion win was real and the kill hid it.
+
+24-PIN (ladder item 1, Kelvin recalibration -- DIFFERENT root than filed): the INA|shunt
+refusals were the RAIL-WALK PITCH COLLAPSE 12 -> 5.38/8.0 (J6C's v3 seat walled _rb at
+x~39; floor 8.0 was 0.7mm under the true cell need; the _lb clamp ran after the
+separation enforce). The Kelvin cell itself is IN the hand-board band (own-shunt dc 4.6
+vs hand 4.5-6.5; hand gaps crtyd +0.53..+1.4 / pads 1.03..2.37 = the calibration record).
+FIXED: CELL_PITCH_FLOOR=9.0 (module-level, measured; teeth test_rail_walk_floor.py),
+clamp ordering, calibrated blocker band [-6.5,+13.9] about H/2 (was +-9 proxy).
+
+SEATS v4 (probe upgraded: walk-band hard region, MULTI-SUBSTRATE stability tiers,
+seg-vs-seg legality, movers reclassified soft): J6P (31.2,-1.2) r0 + J6D (30.2,-11.2) r0
+STABLE right column; J6C (11.2,-12.2) r90 top strip = the ONE fallback-tier member
+(74x55 PROVABLY can't host a 3rd stable seat -- W-grow ~81 ruling now in owner-queue).
+Asym 33.1mm. U1 (ESP macro) HARD-PINNED (66,41.4,-90) = its measured seg-era home (all
+3 strats chose it identically; p3crit/p8b can't find sub-cell windows -- unpin = p5/p6
+audit lever). p11 fiducial EVICTION rung (no-corner-hosts -> best hard-legal slide seat
++ evict jellybeans via mini-legalize; raw dump only when truly nothing hosts).
+
+ALSO: materialize's netclass/DRU donor chain missed beta/ SINCE THE MOVE (every wave
+candidate since 2026-07-22 routed with NO power classes -- seg-era drc/unconn rows not
+comparable to post-fix). Swept 7 more composed-path stragglers (compute_mcp, escalator
+manifest, corpus_compile dru glob, cec_loop, fr02 x2, pour_lever_eval).
+
+VERIFIED (production _build_session path -- NB: ad-hoc scripts MUST pop anchor_pins into
+pins= or every pin silently drops; two early probe reads were invalidated by this):
+24-pin s175+s170 FULLY CLEAN pre-route, pitches 10.35 uniform; hub s65 clean, s62 =
+pre-existing C1|U10 only. Teeth: test_plateau_floor (host) + test_rail_walk_floor
+(container, derivation calibrated vs measured extents) + fr_rest/mating_frame extended.
+
+NEXT (this session, in order): (1) battery+golden readout (/tmp/battery-0723.log
+in-container; golden must stay the pre-existing red signature unconn 16/thermal 257.5);
+(2) commit + push; (3) RELAUNCH both waves (fresh seeds, 3 workers each; hub expect
+first graded boards since s41 + plateau-floor "kill disabled" lines; 24-pin expect
+INA|shunt gone, criticals trend under honest netclasses); (4) readout. OWNER QUEUE
+ADDED: W-grow row. STANDING: hub board_thermal_config still owed (thermal reads on hub
+new-bests are expected-red); SB-08 re-freeze owner-gated; C1|U10 class + J6C fallback
+grind = wave-visible, named.
+
+## SEG4 READOUT -- 2026-07-23 (~03:30), CYCLE CLOSED, pushed. RESUME LADDER BELOW.
+SEG4 verdict: the D5/pads-out class is GONE in production (pad-truth verified).
+Refusals moved to the NEXT truth layer: (a) 24-pin 10/11 = KELVIN SEAT vs truthful
+courtyards (U12|RS2 / RS4|U11 / RS1|U13 -- the doctrine's tight INA-shunt seating,
+constants tuned on body-only models; the HAND boards pass real DRC at the same
+doctrine, so recalibrate the seat/cell standoffs to truthful boxes + DRC clearance,
+target band = MEASURE the hand boards' actual gaps -- FOLLOWUPS w/ protocol);
+(b) hub = H1 M2-provision marginals (re-derive via cec_mezz_probe + mount-envelope
+support) and, deeper, the PLATEAU-KILL routing collapse (probe filed = top hub item).
+DO NOT relaunch waves before the Kelvin recalibration (same-pair re-refusal certain).
+RESUME LADDER: (1) Kelvin seat recalibration -> 24-pin wave; (2) hub plateau
+root-cause probe -> hub wave; (3) H1 + left-J6P probe re-derivation; (4) the
+codex improvement-plan ruling (owner-queue) + segment-era PCB mating drawing
+(bottom-mount mirror transform) when a layout freezes; (5) SB-08 owner-gated
+re-freeze unchanged.
+
+## SEG3 READOUT + PAD-TRUTH COURTYARDS -- 2026-07-23 (~03:00), pushed
+SEG3 verdicts: J6P|J1/J2 GONE (seats v3 validated). 24-pin full-refused on the NEW
+pads-in-bounds gate: D5 (SOT-23) 0.77mm off-board on ALL 10 variants -- ROOT-CAUSED
+as a MODEL-TRUTH defect: easyeda-class footprints draw body-only courtyards
+(D5 half-x 0.65 vs real pad reach 1.87), so every courtyard-based model under-sized
+them and movers parked pads past the edge "legally". FIXED AT THE ROOT:
+cec_pcb.local_pad_boxes (pad-rot aware) + courtyard_bbox PAD-EXTENT UNION -- every
+seat/collider/legalizer is now pad-truthful (likely also fixes FID3xJ5, same class
+-- verify + retire that 1173 sub-item). tests/test_edge_seat_rot.py general leg
+rewritten to the honest END-TO-END form (full wave-config compile -> materialize ->
+_oracle_pads_in_bounds; raw-seed_anchors probes trip the KNOWN place_edge overflow
+on synthetic configs -- instances J_SIG1/J_KVM filed under that lever). 136-suite
+battery + checklist green; golden = identical pre-existing signature.
+HUB: 4/6 = PLATEAU-KILLS (failed~togo near-total routing collapse) = the hub's #1
+blocker now; the FOLLOWUPS'd plateau root-cause probe (full-effort no-plateau route
++ placement diff vs the routed s28/s41 winners; suspect segments/locked copper
+walling regions) is the TOP HUB RESUME ITEM. SEG4 WAVES RUNNING s170-175/s60-65
+(watcher bgvuct1sc) -- first waves with truthful courtyards; expect D5 gone,
+watch H1/J6P-vs-jellybean marginals grind + any first segment-era routed board.
+
 ## SEATS-V3 ARC -- 2026-07-23 (small hours), commits through the seats-v3 batch (pushed)
 Owner directives landed: segments FUNCTION-ADJACENT ("near where their connectors
 are"), pattern ASYMMETRIC (one-way intentional insertion), segments may ROTATE to

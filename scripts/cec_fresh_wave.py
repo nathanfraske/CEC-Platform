@@ -224,19 +224,21 @@ MEZZ_HUB_24PIN = {
     # docs/mezz-structural-segments-2026-07-22.md): the single 2x8 J6 + the
     # H1-H3 M3 standoff trio are RETIRED; three KEYED segments (J6P 2x3 power /
     # J6C 2x4 comms / J6D 2x2 ID, Appendix A pin maps) ARE the mounting system.
-    # SEATS v3 (2026-07-23, PROBE-DERIVED -- scripts/cec_mezz_probe.py on fresh
-    # post-J3-fix substrates, real segment courtyards, rot in the search space,
-    # 24-pin rail-lane region excluded as a hard obstacle): a wide asymmetric
-    # triangle (pattern-vs-its-180-image min distance 33.7mm = intentionally
-    # one-way insertion, the owner's keying directive; pairwise spread >=14 with
-    # the H1 M2 provision as the 4th support vertex). Function adjacency is as
-    # close as JOINT legality physically allows (the boards' power/CAN anatomy
-    # conflicts across sides -- target distances recorded in the probe report).
-    # All three sit right-of-lane on the 24-pin (x>39, clear of the rail spines).
+    # SEATS v4 (2026-07-23, seg4 forensic -- scripts/cec_mezz_probe.py with the
+    # SHUNT-ROW WALK BAND as a hard region + MULTI-SUBSTRATE stability tiers +
+    # seg-vs-seg legality): v3's J6C sat inside the rail walk's blocker band and
+    # walled the column walk at x~39, crushing the pitch 12->5.38/8.0 (the
+    # INA|shunt courtyard-refusal class). v4: J6P + J6D on the right column
+    # (STABLE across 3 substrates/side), J6C top strip near its U2/comms target
+    # (the ONE fallback-tier member: the 74x55 frame provably cannot host a
+    # third stable seat -- per-seed conflicts are named by the pre-route gates;
+    # the measured W-grow lever is in docs/owner-queue.md). Pattern asymmetry
+    # 33.1mm (>=8 tooth), pairwise spread >=10 with the H1 M2 provision as the
+    # 4th support vertex. Probe report /tmp/mezz-probe5-sp9.json (container).
     "conns": [
-        {"ref": "J6P", "dc": (22.2, -8.4), "rot": 90},  # power (right-center up)
-        {"ref": "J6C", "dc": (11.2, 12.6), "rot": 90},  # comms (center-right low)
-        {"ref": "J6D", "dc": (30.2, 4.6), "rot": 90},   # ID    (right flank mid)
+        {"ref": "J6P", "dc": (31.2, -1.2), "rot": 0},    # power (right column mid)
+        {"ref": "J6C", "dc": (11.2, -12.2), "rot": 90},  # comms (top strip, U2-adjacent)
+        {"ref": "J6D", "dc": (30.2, -11.2), "rot": 0},   # ID    (right column top)
     ],
     # R2 PROVISION: ONE DNP-able M2 land so the bench peel/shake gate is a
     # population decision, never a respin. DRAFT seat (bottom-center-left,
@@ -306,6 +308,9 @@ BOARD_PARAMS = {
     # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, no-flip, 2026-07-22
     # segmented form -- J6P/J6C/J6D + the one provisioned M2).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
+                          # winners finish at unconn 7-36; the seg3 kills fired
+                          # flat at togo 34-67 and the probe recovered 34 -> 7
+                          "wave_plateau_floor": 100,
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
@@ -394,14 +399,28 @@ BOARD_PARAMS = {
                        # need to be cross-coordinated"; SEGMENTED 2026-07-22):
                        # the Hub stacks on the 24-pin CENTER-ALIGNED, NO-FLIP;
                        # the shared frame = MEZZ_HUB_24PIN's three structural
-                       # segments (J6P left / J6C right-upper / J6D right-
-                       # lower) + one provisioned M2. NOTE the frame math uses
+                       # segments (v4: J6P/J6D right column, J6C top strip)
+                       # + one provisioned M2. NOTE the frame math uses
                        # the STATIC BOARD_WH (74x55); a runtime H-grow (e.g.
                        # SHUNT_GAP -> 59) only biases the stack's centering
                        # over the 24-pin, never the mate (constant-translation
                        # invariant, test_mating_frame).
                        **mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN,
                                            "atx-24pin-rev3"),
+                       # U1 (ESP macro) HARD PIN (2026-07-23, seats-v4 verify):
+                       # under v4 the p3crit mcu-cluster + p8b ladder find NO
+                       # legal U1 seat ("free cells=0") and leave it overlapping
+                       # H1/cell parts -- yet the measured seg-era home
+                       # (66.0,41.4,rot-90; right column below J6P, above the TB
+                       # row) is STILL legal under v4 and was chosen IDENTICALLY
+                       # by all three strat families (placement diversity already
+                       # zero). Pin = the honest encoding of the measured
+                       # optimum, J2-precedent; unpin when the seat search learns
+                       # sub-cell windows (p5/p6 audit lever).
+                       "anchor_pins": {**mating_frame_pins(
+                           74.0, 55.0, MEZZ_HUB_24PIN,
+                           "atx-24pin-rev3")["anchor_pins"],
+                           "U1": (66.0, 41.4, -90)},
                        "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
@@ -424,6 +443,9 @@ BOARD_PARAMS = {
                        # FR headroom under parallel-chain contention (filed
                        # 2026-07-20: 900s sentinel-timed-out a loaded route)
                        "wave_fr_timeout": 1500,
+                       # winner band 146-158 unconn vs true collapse flat at
+                       # 190-230 (attribution matrix 2026-07-20) -- 170 splits
+                       "wave_plateau_floor": 170,
                        # LAYER-CROSSING RAILS (owner 2026-07-19: "it should be able
                        # to cross layers with via arrays ... keep one INNER layer
                        # as GND, use the other for power routing"): In1 = the solid
@@ -717,13 +739,22 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     # leaked the wave-only axis + plateau-kill into any later same-process
     # route, e.g. a golden run).
     _env_prev = {k: os.environ.get(k) for k in ("CEC_FR_SEED_AXIS",
-                                                "CEC_FR_PLATEAU_KILL")}
+                                                "CEC_FR_PLATEAU_KILL",
+                                                "CEC_FR_PLATEAU_FLOOR")}
     os.environ["CEC_FR_SEED_AXIS"] = "1"
     # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
     # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
     # JVM, grade it failed, spend the wall-clock on live candidates instead.
     os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
     s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+    # PLATEAU FLOOR (probe 2026-07-23: a togo-34 hub "plateau" recovered to
+    # unconn 7 with the kill off -- the flat streak fires on FR's normal
+    # terminal-grind/rip-up phases, discarding boards in the winner band). A
+    # plateau at togo <= floor finishes and grades; above it the kill stands
+    # (true collapses sit flat at 190+). Per-board: hub winners live at 7-36,
+    # 24-pin winners 146-158 vs collapse 190-230 -> wave_plateau_floor.
+    os.environ.setdefault("CEC_FR_PLATEAU_FLOOR",
+                          str(int(_p.get("wave_plateau_floor", 100))))
     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
     v = s.grade(out=out, keep=True,
                 passes=int(_p.get("wave_passes", passes)),

@@ -58,7 +58,8 @@ def _board_path(board):
     rp = os.path.join(ROOT, board)
     if os.path.isfile(rp):
         return rp
-    for pat in (os.path.join(ROOT, "modules", board),
+    for pat in (os.path.join(ROOT, "beta", board),          # beta/ FIRST (move 2026-07-22)
+                os.path.join(ROOT, "modules", board),
                 os.path.join(ROOT, "hubs", board)):
         if os.path.isdir(pat):
             pcbs = [f for f in os.listdir(pat) if f.endswith(".kicad_pcb")]
