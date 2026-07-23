@@ -5581,7 +5581,34 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     antenna_overhang=float(cfg.params.get("antenna_overhang", 5.0)))
                 _mcu_locked = set()
                 if _mcu_placed is None:
-                    print("  [p3crit] mcu-cluster: NO legal seat", file=sys.stderr)
+                    # SUB-CELL FALLBACK (2026-07-23, the U1-unpin lever): the
+                    # rigid ESP+satellite macro (~21x23mm) has no seat on a
+                    # dense board even where the ESP ALONE has a measured-legal
+                    # home -- the 24-pin's U1 hard pin encoded exactly that
+                    # state. Decompose: seat the ESP solo through the SAME
+                    # legality/antenna machinery; the satellites flow to the
+                    # ordinary owner-cluster passes (which is where an
+                    # unseatable macro's members end up anyway -- minus the
+                    # overlap wreckage of an unseated ESP).
+                    _solo, _srot = _seat_mcu_macro(
+                        {_mcu_esp: (0.0, 0.0, 0.0)}, comps, W, H,
+                        x_range=(_mcu_x0, W), forbid_boxes=_mcu_env,
+                        occ_boxes=_mcu_occ, score_points=_mcu_score_pts,
+                        antenna_ref=_mcu_esp,
+                        antenna_overhang=float(cfg.params.get("antenna_overhang", 5.0)))
+                    if _solo is not None:
+                        anchors[_mcu_esp] = _solo[_mcu_esp]
+                        _esp = _mcu_esp
+                        _esp_pos = _solo[_mcu_esp]
+                        _mcu_locked = {_mcu_esp}
+                        _bp_refs.update(_mcu_locked)
+                        print(f"  [p3crit] mcu-cluster: rigid macro has no seat"
+                              f" -> SOLO ESP seat @ ({_esp_pos[0]:.1f},"
+                              f"{_esp_pos[1]:.1f},{_esp_pos[2]:.0f})",
+                              file=sys.stderr)
+                    else:
+                        print("  [p3crit] mcu-cluster: NO legal seat "
+                              "(macro NOR solo)", file=sys.stderr)
                 else:
                     for _r, _xyz in _mcu_placed.items():
                         anchors[_r] = _xyz
