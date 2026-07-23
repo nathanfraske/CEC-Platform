@@ -1766,6 +1766,13 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
         for p in fp.Pads():
             if p.GetNetname():
                 pads_by_net[p.GetNetname()].append((fp.GetReference(), p, fp))
+    # VIA-SPACING LEDGER (2026-07-23, owner catch "vias clipping into each
+    # other" on s218: the locked rail arrays already sit at these outboard
+    # spots, and the per-layer pour emission made this stage fire on top of
+    # them -- 9 same-net stacks at 0.1-0.4mm). Existing barrels of ANY net +
+    # own placements; hole spacing is net-agnostic.
+    ex_vias = [(t.GetPosition().x, t.GetPosition().y)
+               for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
     n_v = n_s = n_p = 0
     for hi, lo in kelvin_pairs:
         refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
@@ -1795,6 +1802,9 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
                 off = (k - (n_per_pad - 1) / 2.0)
                 at = pcbnew.VECTOR2I(int(base.x + perp[0] * off * step),
                                      int(base.y + perp[1] * off * step))
+                if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(0.85) ** 2
+                       for qx, qy in ex_vias):
+                    continue          # a barrel already serves this spot -- never stack
                 if not _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                board.GetLayerID(p.GetLayerName()), nc, set()):
                     continue
@@ -1804,6 +1814,7 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
                 v.SetWidth(_nm(dia))
                 v.SetNetCode(nc)
                 board.Add(v)
+                ex_vias.append((at.x, at.y))
                 tr = pcbnew.PCB_TRACK(board)
                 tr.SetStart(pos)
                 tr.SetEnd(at)
@@ -1817,6 +1828,116 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
             if placed:
                 n_p += 1
     return {"pads": n_p, "vias": n_v, "stubs": n_s}
+
+
+def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
+                          clearance=0.25):
+    """POUR-BOND GUARANTEE (2026-07-23, owner catch on s218: 23 mirror-layer
+    pours carried no same-net barrel inside their region -- dead or only
+    incidentally-connected copper. The mirror doctrine was always 'bonded by
+    the through arrays/barrels', but the layers[0] truncation had hidden the
+    mirror dicts; un-truncating them exposed the missing bond half). Per net,
+    the LARGEST pour's layer is its PRIMARY -- legitimate distribution copper,
+    never barrel-required. Every NON-primary (mirror) dict must contain a
+    same-net via/THT pad, or this pass plants up to *max_per* bond vias inside
+    its overlap with a same-net pour on another layer (all-layer foreign-clear
+    + 0.85mm barrel spacing + copper-edge margin). A mirror with no barrel and
+    no plantable bond is DROPPED loudly -- no dead copper on the board.
+    Returns (kept_pours, {bonded, planned, dropped})."""
+    from collections import defaultdict
+    nets_nc = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    all_vias = [(t.GetPosition().x, t.GetPosition().y, t.GetNetCode())
+                for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+    tht = defaultdict(list)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() > 0 and p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+                pos = p.GetPosition()
+                tht[p.GetNetCode()].append((pos.x, pos.y))
+    bb = board.GetBoardEdgesBoundingBox()
+
+    def _rect(d):
+        xs = [q[0] for q in d["polygon"]]
+        ys = [q[1] for q in d["polygon"]]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+    def _area(r):
+        return max(0.0, r[2] - r[0]) * max(0.0, r[3] - r[1])
+
+    by_net = defaultdict(list)
+    for d in pours:
+        by_net[d["net"]].append(d)
+    primary = {}
+    for net, ds in by_net.items():
+        primary[net] = max(ds, key=lambda d: _area(_rect(d)))["layer"]
+
+    def _barrel_in(nc_, r):
+        m = _nm(0.05)
+        for (vx, vy, vn) in all_vias:
+            if vn == nc_ and r[0] * 1e6 - m <= vx <= r[2] * 1e6 + m \
+                    and r[1] * 1e6 - m <= vy <= r[3] * 1e6 + m:
+                return True
+        for (px, py) in tht.get(nc_, ()):
+            if r[0] * 1e6 <= px <= r[2] * 1e6 and r[1] * 1e6 <= py <= r[3] * 1e6:
+                return True
+        return False
+
+    kept, n_bond = [], 0
+    n_plant = n_drop = 0
+    for d in pours:
+        net, lay = d["net"], d.get("layer", "F.Cu")
+        nc_ = nets_nc.get(net)
+        if nc_ is None or lay == primary.get(net):
+            kept.append(d)
+            continue
+        r = _rect(d)
+        if _barrel_in(nc_, r):
+            n_bond += 1
+            kept.append(d)
+            continue
+        # plant a bond array in the overlap with a same-net pour on another layer
+        planted = 0
+        for pd in sorted((x for x in by_net[net] if x.get("layer") != lay),
+                         key=lambda x: -_area(_rect(x))):
+            pr = _rect(pd)
+            ox0, oy0 = max(r[0], pr[0]), max(r[1], pr[1])
+            ox1, oy1 = min(r[2], pr[2]), min(r[3], pr[3])
+            if ox1 - ox0 < dia or oy1 - oy0 < dia:
+                continue
+            horiz = (ox1 - ox0) >= (oy1 - oy0)
+            for k in range(max_per):
+                f = (k + 1) / (max_per + 1)
+                ax = ox0 + f * (ox1 - ox0) if horiz else (ox0 + ox1) / 2
+                ay = (oy0 + oy1) / 2 if horiz else oy0 + f * (oy1 - oy0)
+                at = pcbnew.VECTOR2I(int(ax * 1e6), int(ay * 1e6))
+                m = _nm(0.5) + _nm(dia) // 2
+                if not (bb.GetLeft() + m <= at.x <= bb.GetRight() - m
+                        and bb.GetTop() + m <= at.y <= bb.GetBottom() - m):
+                    continue
+                if any((at.x - vx) ** 2 + (at.y - vy) ** 2 < _nm(0.85) ** 2
+                       for vx, vy, _vn in all_vias):
+                    continue
+                if not _via_spot_clear(board, at, _nm(dia), _nm(clearance), {nc_}):
+                    continue
+                v = pcbnew.PCB_VIA(board)
+                v.SetPosition(at)
+                v.SetDrill(_nm(drill))
+                v.SetWidth(_nm(dia))
+                v.SetNetCode(nc_)
+                board.Add(v)
+                all_vias.append((at.x, at.y, nc_))
+                planted += 1
+            if planted:
+                break
+        if planted:
+            n_plant += planted
+            kept.append(d)
+        else:
+            n_drop += 1
+            print(f"[cec_fr] pour bonds: DROPPED unbondable mirror pour "
+                  f"{net} on {lay} ({r[0]:.1f},{r[1]:.1f})-({r[2]:.1f},{r[3]:.1f})",
+                  file=sys.stderr)
+    return kept, {"bonded": n_bond, "planned": n_plant, "dropped": n_drop}
 
 
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
@@ -1858,6 +1979,10 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     # pads already touched by copper: any track/via endpoint within the pad box
     touched = set()
     tracks = [t for t in board.GetTracks()]
+    # via-spacing ledger (the s218 clipping class): never seat a pickup barrel
+    # within 0.85mm of ANY existing or just-placed via
+    _pk_vias = [(t.GetPosition().x, t.GetPosition().y)
+                for t in tracks if t.GetClass() == "PCB_VIA"]
     n_p = n_v = n_s = n_skip = 0
     for fp in board.GetFootprints():
         for pad in fp.Pads():
@@ -1902,6 +2027,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                                and b[1] + dia / 2 <= ay <= b[3] - dia / 2
                                for b in boxes):
                         continue               # via must sit inside the pour
+                    if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(0.85) ** 2
+                           for qx, qy in _pk_vias):
+                        continue               # barrel spacing (never stack)
                     # CALIBRATED GUARDS (rung probes v2/v3: pair-overlap alone
                     # laid 9 shorts; whole-stub-at-via-diameter placed 0 of 5 --
                     # the honest middle is stub at STUB width plus the via spot
@@ -1931,6 +2059,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     v.SetWidth(_nm(dia))
                     v.SetNetCode(nc)
                     board.Add(v)
+                    _pk_vias.append((at.x, at.y))
                     tr = pcbnew.PCB_TRACK(board)
                     tr.SetStart(pos)
                     tr.SetEnd(at)
@@ -3678,6 +3807,11 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                 print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
+        power_pours, _pb = synthesize_pour_bonds(board, power_pours)
+        if _pb["planned"] or _pb["dropped"]:
+            print(f"[cec_fr] pour bonds: {_pb['planned']} bond via(s) planted, "
+                  f"{_pb['dropped']} unbondable mirror pour(s) dropped "
+                  f"({_pb['bonded']} already barrel-bonded)", file=sys.stderr)
         add_power_pours(board, power_pours, fill=False)
     if kelvin_taps:
         # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
