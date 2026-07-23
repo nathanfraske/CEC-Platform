@@ -1624,7 +1624,7 @@ def _fp_bbox_no_text(fp):
             return fp.GetBoundingBox()
 
 
-def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
+def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_refs=("J", "H"),
                  layers=("F.Cu", "B.Cu")):
     """Route-time board-EDGE keepout (lever B, 2026-06-17). Freerouting has NO board-edge-clearance
     awareness -- the standard ExportSpecctraDSN gives it only the outline, so it routes signal tracks hard
@@ -1635,7 +1635,14 @@ def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs
     sit at the edge and must stay routable. allow_vias=False (no copper of any kind in the strip);
     block_fills=False so the high-current pours still fill to their own edge clamp. Returns bake_hints-ready
     rects; SELF-GATING (a board with no outline / all-edge parts yields fewer/no strips). Stack with
-    corridor_keepouts in the same hints list."""
+    corridor_keepouts in the same hints list.
+
+    MARGIN IS WIDTH-AWARE (2026-07-23 forensic): the keepout constrains a track's
+    CENTER, but the DRC edge rule (min_copper_edge_clearance 0.5) measures the
+    track EDGE -- the hub best's 19 edge hits were 1.0mm Power tracks whose
+    centers sat legally at 0.845 (old 0.6 strip + FR clearance) with edges at
+    0.345. margin = rule 0.5 + half the widest carried class width (1.5mm Power
+    -> 0.75) = 1.25, so even the fattest class keeps its edge >= the rule."""
     own = board if board is not None else pcbnew.LoadBoard(board_path)
     bb = own.GetBoardEdgesBoundingBox()
     if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
@@ -1681,6 +1688,29 @@ def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs
             hints.append({"name": f"edge_{nm}_{i}", "x0": round(x0, 2), "y0": round(y0, 2),
                           "x1": round(x1, 2), "y1": round(y1, 2), "layers": layers,
                           "allow_vias": False, "block_fills": False})
+    # CURVED-EDGE COVER (2026-07-23 forensic): the strips derive from the AABB,
+    # but a ROUNDED CORNER (hub corner_radius 2.5) curves the real outline
+    # INSIDE the AABB -- copper in the corner notch is legal-by-strip yet
+    # violates against the arc (all 20 residual edge hits on the rung probe sat
+    # at the two arc corners). Cover every Edge.Cuts ARC's bbox + margin.
+    ai = 0
+    for d in own.GetDrawings():
+        try:
+            if own.GetLayerName(d.GetLayer()) != "Edge.Cuts":
+                continue
+            if d.GetShape() != pcbnew.SHAPE_T_ARC:
+                continue
+        except Exception:                                   # noqa: BLE001
+            continue
+        ab = d.GetBoundingBox()
+        hints.append({"name": f"edge_arc_{ai}",
+                      "x0": round(ab.GetLeft() / MM - margin, 2),
+                      "y0": round(ab.GetTop() / MM - margin, 2),
+                      "x1": round(ab.GetRight() / MM + margin, 2),
+                      "y1": round(ab.GetBottom() / MM + margin, 2),
+                      "layers": layers,
+                      "allow_vias": False, "block_fills": False})
+        ai += 1
     return hints
 
 
@@ -1767,6 +1797,123 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
             if placed:
                 n_p += 1
     return {"pads": n_p, "vias": n_v, "stubs": n_s}
+
+
+def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
+                             stub_w=0.3, offset=0.8, drill=0.3, dia=0.6):
+    """POWER-PICKUP STITCH (2026-07-23, the hub power rung's missing piece --
+    measured on the rung probe: additive floods laid but the hub's power pads
+    are SMD, and a pour on another layer cannot reach an F.Cu pad without a
+    via; the eps precedent worked because THT pads pierce natively). For every
+    SMD pad on a poured net (or a *plane_nets* net with an inner plane zone)
+    that NO track/via currently touches, lay a short stub + a through-via just
+    off the pad, placed INSIDE the covering pour/plane polygon, so the later
+    ZONE_FILLER connects it. Foreign-collision-guarded per candidate direction
+    (the synthesize_force_vias discipline); a pad with no clear direction is
+    skipped loudly-by-count, never forced. Returns {pads, vias, stubs, skipped}."""
+    import math as _math
+    nets_nc = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    # target polygons per net: the ask/derived pour rects + any same-net ZONE
+    # outline (the GND inner plane) -- coverage is tested on the OUTLINE bbox
+    # (rect pours today; plane zones are near-board-sized).
+    polys = {}
+    for p in (power_pours or ()):
+        net = p.get("net")
+        poly = p.get("polygon") or ()
+        if net and poly:
+            xs = [q[0] for q in poly]; ys = [q[1] for q in poly]
+            polys.setdefault(net, []).append((min(xs), min(ys), max(xs), max(ys)))
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        nn = z.GetNetname()
+        if nn in plane_nets:
+            bb = z.GetBoundingBox()
+            polys.setdefault(nn, []).append(
+                (bb.GetX() / 1e6, bb.GetY() / 1e6,
+                 (bb.GetX() + bb.GetWidth()) / 1e6,
+                 (bb.GetY() + bb.GetHeight()) / 1e6))
+    if not polys:
+        return {"pads": 0, "vias": 0, "stubs": 0, "skipped": 0}
+    # pads already touched by copper: any track/via endpoint within the pad box
+    touched = set()
+    tracks = [t for t in board.GetTracks()]
+    n_p = n_v = n_s = n_skip = 0
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            net = pad.GetNetname()
+            if net not in polys:
+                continue
+            if pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+                continue                       # THT pierces the stack natively
+            pos = pad.GetPosition()
+            px, py = pos.x / 1e6, pos.y / 1e6
+            boxes = [b for b in polys[net]
+                     if b[0] <= px <= b[2] and b[1] <= py <= b[3]]
+            if not boxes:
+                continue                       # no covering pour -> not ours
+            hit = False
+            pr = max(pad.GetSizeX(), pad.GetSizeY()) / 2 + 50000
+            for t in tracks:
+                if t.GetNetCode() != pad.GetNetCode():
+                    continue
+                for q in (t.GetStart(), t.GetEnd()):
+                    if abs(q.x - pos.x) < pr and abs(q.y - pos.y) < pr:
+                        hit = True
+                        break
+                if hit:
+                    break
+            if hit:
+                continue                       # FR/locked copper reached it
+            nc = nets_nc.get(net)
+            if nc is None:
+                continue
+            lay_id = board.GetLayerID(pad.GetLayerName())
+            placed = False
+            for off_mm in (offset, offset + 0.4, offset - 0.25):
+                if placed:
+                    break
+                for ang in (0, 90, 180, 270, 45, 135, 225, 315):
+                    a = _math.radians(ang)
+                    at = pcbnew.VECTOR2I(int(pos.x + _math.cos(a) * _nm(off_mm)),
+                                         int(pos.y + _math.sin(a) * _nm(off_mm)))
+                    ax, ay = at.x / 1e6, at.y / 1e6
+                    if not any(b[0] + dia / 2 <= ax <= b[2] - dia / 2
+                               and b[1] + dia / 2 <= ay <= b[3] - dia / 2
+                               for b in boxes):
+                        continue               # via must sit inside the pour
+                    # CALIBRATED GUARDS (rung probes v2/v3: pair-overlap alone
+                    # laid 9 shorts; whole-stub-at-via-diameter placed 0 of 5 --
+                    # the honest middle is stub at STUB width plus the via spot
+                    # checked point-locally at its own diameter).
+                    _via_probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+                    if not (_tap_foreign_clear(board, pos, at, _nm(stub_w),
+                                               lay_id, _nm(0.25), set())
+                            and _tap_foreign_clear(board, at, _via_probe, _nm(dia),
+                                                   lay_id, _nm(0.25), set())
+                            and _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
+                                                        lay_id, nc, set())):
+                        continue
+                    v = pcbnew.PCB_VIA(board)
+                    v.SetPosition(at)
+                    v.SetDrill(_nm(drill))
+                    v.SetWidth(_nm(dia))
+                    v.SetNetCode(nc)
+                    board.Add(v)
+                    tr = pcbnew.PCB_TRACK(board)
+                    tr.SetStart(pos)
+                    tr.SetEnd(at)
+                    tr.SetWidth(_nm(stub_w))
+                    tr.SetLayer(lay_id)
+                    tr.SetNetCode(nc)
+                    board.Add(tr)
+                    tracks.append(tr)
+                    n_v += 1; n_s += 1; n_p += 1
+                    placed = True
+                    break
+            if not placed:
+                n_skip += 1
+    return {"pads": n_p, "vias": n_v, "stubs": n_s, "skipped": n_skip}
 
 
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
@@ -3220,6 +3367,15 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             if fv["vias"]:
                 print(f"[cec_fr] force vias: {fv['vias']} via(s)/{fv['stubs']} stub(s) at "
                       f"{fv['pads']} shunt pad(s) -> In2 rail pours", file=sys.stderr)
+        # POWER-PICKUP STITCH (2026-07-23, recipe-gated -- the hub power rung):
+        # SMD pads on poured/plane nets that FR never reached get stub+via into
+        # the covering flood before the fill. Off by default (golden safety).
+        if os.environ.get("CEC_POWER_PICKUP", "0") == "1":
+            pk = synthesize_power_pickups(board, power_pours)
+            if pk["vias"] or pk["skipped"]:
+                print(f"[cec_fr] power pickups: {pk['vias']} via(s) at {pk['pads']} "
+                      f"stranded pad(s), {pk['skipped']} skipped (no clear slot)",
+                      file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:

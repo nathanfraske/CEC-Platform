@@ -170,6 +170,43 @@ landed same day (see the defect note in the table).
   are anneal-cost vectorization, packing-correctness fixes, and the prune/adjudicate
   split — all CPU-cheap).
 
+## BGA-READINESS (owner directive 2026-07-23: "we have multi-BGA chip boards coming up, so something's gotta give to get it better at figuring out routing/placements")
+
+Context: the current stack (FR 1.7.0-cec2 + deterministic pre-lay + the wave) strains on a
+108-part hub with 2 signal layers; the upcoming board class (ENT PolarFire MPFS095TC on
+FCVG484 = 484-ball 0.8mm BGA, ESP32-P4 hubs/Pro modules) is a different league — BGA
+escape/fanout, 6+ layer stackups, length-matched buses. The measured lesson of this month
+points ONE direction: every durable win came from moving copper OUT of the stochastic
+router INTO the deterministic plane (locked rails, authored cells, pour compiler, tap
+synthesis). FR's role has been shrinking toward "jellybean interconnect only" — and that is
+exactly the right shape for BGA work, because BGA fanout is the MOST deterministic routing
+there is (dogbone/via-in-pad patterns per ring, escape channels per quadrant are formulaic).
+
+Rungs (owner picks funding order; A+B are the recommendation):
+- **A. BGA fanout/escape generator on the deterministic plane** (build): per-ring dogbone +
+  escape-channel synthesis as locked copper (the authored-cell pattern generalized), stackup-
+  aware (ring depth -> layer assignment), emitted pre-FR exactly like rails/cells today. FR
+  then routes only channel-to-channel interconnect. This is OUR proven pattern and no
+  external router does it better than a generator can.
+- **B. Escape-aware placement terms** (extend the wave): courtyard/escape-corridor
+  reservation around BGA macros (the walk-band lesson generalized), per-quadrant fanout
+  budget as a placement score term. Without this the placer will park jellybeans in escape
+  channels and no router survives it.
+- **C. Router re-evaluation for the interconnect residual** (evaluate, don't assume): FR
+  2.x fork surgery (we already maintain a fork; the 2.2.4 blockers — normalize hang, no
+  seed axis — are patchable in principle), KiCad 10 IPC-API scripted routing (kipy — no
+  headless P&S exposure today, watch upstream), commercial/ML (DeepPCB-class) as a paid
+  benchmark only. Gate any adoption on the FR-01-style epoch protocol (byte-determinism,
+  bench parity, seed diversity).
+- **D. Stackup/DRU authoring for 6-layer** (prereq for A): layer-pair plan + via classes
+  (blind/buried decision is a SPEC/owner item), netclass coverage synthesized from the
+  schematic role map instead of hand patterns (the 2026-07-23 pattern-coverage gap made
+  the case).
+
+Sizing note: A+B are weeks-scale on the existing codebase (the cell/rail machinery is the
+harness); C is open-ended and should trail A/B since the interconnect residual shrinks as
+the deterministic plane grows.
+
 ## Pipeline improvements — non-solver (same standing list)
 
 - **ACTUATION-SPACE DEEP DIVE (owner ask 2026-07-08, orchestrator's own analysis):

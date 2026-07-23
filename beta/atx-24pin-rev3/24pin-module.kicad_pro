@@ -645,6 +645,34 @@
       {
         "netclass": "CAN",
         "pattern": "/CAN_L_BUS"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE12V_HI"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE12V_LO"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE5V_HI"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "+5V_MAIN"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE3V3_HI"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE3V3_LO"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/SENSE5VSB_LO"
       }
     ]
   },

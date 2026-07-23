@@ -141,6 +141,42 @@ def board_thermal_config(board_path):
             ov[lo] = {"refs_src": [rs], "refs_sink": tb_all}
         ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+    if "hub-standard" in name or "hub" in name.split("-")[0:1]:
+        # HUB ENTRY (2026-07-23, closes the FOLLOWUPS 2026-07-22 gap that made
+        # every hub new-best stamp read dT=0 "INJECTION INCOMPLETE"): the hub
+        # has no J_IN/J_OUT or *_HI cable anatomy, so the generic defaults
+        # never injected anything. Currents = the §2.5/OQ-2 basis: the 5VSB
+        # trunk carries ~3A worst case (4 ports x ~0.5A + the hub's own LEDs +
+        # MCU under the firmware cap) J1 -> mux -> star; each port VCC branch
+        # ~0.5A; MAIN_5V feed ~2A (J_5V -> U7 mux); USB VBUS ~0.5A. GND = the
+        # ~3A aggregate return to the power-in. Stackup = the board-class
+        # ruling (2026-06-14): ONE inner GND plane + one inner SIGNAL layer,
+        # 1oz inners, 2oz outers. cooling=None (still-air conservative): the
+        # enclosed Hub case model (RGB shine-through, §4) is an owner rung --
+        # still-air is the honest bound until then.
+        nc = {"+5VSB": 3.0, "/5VSB_RAW": 3.0, "/PSU_5V": 3.0,
+              "/MAIN_5V_RAW": 2.0, "/+5V_HOLD": 1.0, "/USB_VBUS": 0.5,
+              "/VCC_P1": 0.5, "/VCC_P2": 0.5, "/VCC_P3": 0.5, "/VCC_P4": 0.5,
+              "GND": 3.0}
+        # rev2 anatomy: the A4 consolidation makes J_PWR the ONE 3-pin power-in
+        # (MAIN_5V / GND / 5VSB) -- there is no J1/J_5V on this board (measured
+        # 2026-07-23; the first entry draft used the alpha names and every net
+        # dropped "no src/sink terminals").
+        ov = {
+            "/5VSB_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
+            "/PSU_5V": {"refs_src": ["U5"], "refs_sink": ["U7"]},
+            "/MAIN_5V_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
+            "+5VSB": {"refs_src": ["U7"], "refs_sink": ["J2", "J3", "J4", "J5"]},
+            "/+5V_HOLD": {"refs_src": ["D1"], "refs_sink": ["U3"]},
+            "/USB_VBUS": {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
+            "/VCC_P1": {"refs_src": ["U7"], "refs_sink": ["J2"]},
+            "/VCC_P2": {"refs_src": ["U7"], "refs_sink": ["J3"]},
+            "/VCC_P3": {"refs_src": ["U7"], "refs_sink": ["J4"]},
+            "/VCC_P4": {"refs_src": ["U7"], "refs_sink": ["J5"]},
+            "GND": {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
+                    "refs_sink": ["J_PWR"]},
+        }
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
     return None, None, None, None
 
 

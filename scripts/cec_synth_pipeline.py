@@ -7357,6 +7357,10 @@ def _oracle_env(params=None):
             extra["CEC_SHUNT_GAP_MM"] = str(params["shunt_gap_mm"])
         if params.get("pour_lanes"):
             extra["CEC_POUR_LANES"] = "1"
+        if params.get("power_pickup"):
+            # hub power rung (2026-07-23): stitch stranded SMD power pads into
+            # their covering floods/plane at import (cec_fr power pickups)
+            extra["CEC_POWER_PICKUP"] = "1"
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling
@@ -9464,7 +9468,20 @@ def materialize(cand, cfg, out, *, logo=None):
                 _ns = _mine.setdefault("net_settings", {})
                 _ns["classes"] = _keep
                 _ns["netclass_patterns"] = _kp
-                open(_outpro, "w").write(_json.dumps(_mine, indent=2))
+            # DESIGN-SETTINGS RULES TOO (2026-07-23 forensic): the donor's DRC
+            # constraint set (min hole / edge clearance / ...) never rode along,
+            # so candidates were judged by KiCad DEFAULTS -- the hand hub sets
+            # min_through_hole 0.2 for the WROOM EP thermal vias, and default
+            # 0.3 flagged 12 footprint-intrinsic drill_out_of_range on every
+            # hub candidate (measured: carrying the rules takes structural drc
+            # 36 -> 24 on the wave best). The donor's own constraints are the
+            # design's ruling -- carrying them is as honest as the netclasses.
+            _drules = ((_donor.get("board") or {}).get("design_settings")
+                       or {}).get("rules")
+            if _drules:
+                _mine.setdefault("board", {}).setdefault(
+                    "design_settings", {})["rules"] = _drules
+            open(_outpro, "w").write(_json.dumps(_mine, indent=2))
         for _dru in _glob.glob(os.path.join(_bdir, "*.kicad_dru")):
             _shutil.copy(_dru, out[:-len(".kicad_pcb")] + ".kicad_dru")
             break

@@ -318,6 +318,30 @@ BOARD_PARAMS = {
                           # measured recoverable band (34->7, 112->17);
                           # winners finish at unconn 7-36.
                           "wave_plateau_floor": 150,
+                          # HUB POWER RUNG (2026-07-23, owner "power is a rung
+                          # there... tune that rung up"): the hub is the ONE
+                          # board with no pour machinery -- FR was handed the
+                          # whole 51-connection power tree raw, and the wall
+                          # probe's residual unconn was exactly these nets +
+                          # GND. Post-route ADDITIVE floods per power net
+                          # (evac=False: copper-only, no placement eviction --
+                          # the additive-pour-after-route doctrine; a pour on
+                          # a routed net can only ADD copper, 2026-06-07).
+                          # Boxes auto-derive from each net's pads.
+                          "pour_asks": [
+                              {"net": n, "region_hint": None,
+                               "layers": ("F.Cu", "B.Cu"), "shape": "rect",
+                               "priority": 2, "provenance": "placer_ask",
+                               "evac": False}
+                              for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
+                                        "/MAIN_5V_RAW", "/USB_VBUS",
+                                        "/+5V_HOLD", "/VCC_P1", "/VCC_P2",
+                                        "/VCC_P3", "/VCC_P4")],
+                          # + the pickup stitch: SMD pads the route never
+                          # reached get stub+via into the covering flood /
+                          # GND plane at import (rung part 2 -- the floods
+                          # alone cannot reach an F.Cu pad from B.Cu).
+                          "power_pickup": True,
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
