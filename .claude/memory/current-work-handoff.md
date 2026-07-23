@@ -1,5 +1,25 @@
 # Current work handoff
 
+## SEG3 READOUT + PAD-TRUTH COURTYARDS -- 2026-07-23 (~03:00), pushed
+SEG3 verdicts: J6P|J1/J2 GONE (seats v3 validated). 24-pin full-refused on the NEW
+pads-in-bounds gate: D5 (SOT-23) 0.77mm off-board on ALL 10 variants -- ROOT-CAUSED
+as a MODEL-TRUTH defect: easyeda-class footprints draw body-only courtyards
+(D5 half-x 0.65 vs real pad reach 1.87), so every courtyard-based model under-sized
+them and movers parked pads past the edge "legally". FIXED AT THE ROOT:
+cec_pcb.local_pad_boxes (pad-rot aware) + courtyard_bbox PAD-EXTENT UNION -- every
+seat/collider/legalizer is now pad-truthful (likely also fixes FID3xJ5, same class
+-- verify + retire that 1173 sub-item). tests/test_edge_seat_rot.py general leg
+rewritten to the honest END-TO-END form (full wave-config compile -> materialize ->
+_oracle_pads_in_bounds; raw-seed_anchors probes trip the KNOWN place_edge overflow
+on synthetic configs -- instances J_SIG1/J_KVM filed under that lever). 136-suite
+battery + checklist green; golden = identical pre-existing signature.
+HUB: 4/6 = PLATEAU-KILLS (failed~togo near-total routing collapse) = the hub's #1
+blocker now; the FOLLOWUPS'd plateau root-cause probe (full-effort no-plateau route
++ placement diff vs the routed s28/s41 winners; suspect segments/locked copper
+walling regions) is the TOP HUB RESUME ITEM. SEG4 WAVES RUNNING s170-175/s60-65
+(watcher bgvuct1sc) -- first waves with truthful courtyards; expect D5 gone,
+watch H1/J6P-vs-jellybean marginals grind + any first segment-era routed board.
+
 ## SEATS-V3 ARC -- 2026-07-23 (small hours), commits through the seats-v3 batch (pushed)
 Owner directives landed: segments FUNCTION-ADJACENT ("near where their connectors
 are"), pattern ASYMMETRIC (one-way intentional insertion), segments may ROTATE to
