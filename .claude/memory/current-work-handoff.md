@@ -26,9 +26,20 @@ vendored pin-headers' stock 3D refs dropped, STEP vendoring FOLLOWUPS'd), golden
 signature unchanged. beta/README.md = index + move record; hub row PROMOTED to
 hub-standard-rev2 (the deferred 2026-07-17 call, executed under the no-confusion
 directive -- flagged veto-able). CLAUDE.md layout updated.
-(3) SEG-WAVES RUNNING on the new paths + segmented contract (24-pin s152-157, hub
-s42-47, watcher bfy1buy92): the e2e proof "the waves know the move". SUCCESS
-CRITERION: C1|H1 + J6|U10 refusal classes vanish from the ERR streams.
+(3) SEG-WAVE-1 READOUT (s152-157/s42-47, on the new beta/ paths -- the move e2e
+proof PASSED: waves resolved + compiled + graded through beta/ without a hiccup):
+**J6|U10 = 0 hits, the segment contract's target class IS dissolved.** But BOTH
+waves full-refused: 24-pin = J6P's left-sliver seat collides J1/J2 jack LANDS on
+every variant (the old BL point was measured for an M3 PAD; a 2x3 header FIELD is
+bigger -- deterministic anchor-vs-anchor, wave-unfixable, the RS3-class lesson);
+hub = the H1 M2 provision's DRAFT seat sits per-variant-marginal in the TPS2121
+satellite region (one variant refused on unrelated pairs only). SEATS v2 committed
+(interim R2 posture): all three segments on the PROVEN right flank (J6P dc ->
+(33,4.5) between J6C/J6D), left M2 H1 = the 4th support vertex (populate in
+bench/kit builds). SEG2-WAVES RUNNING s158-163/s48-53 (watcher b30ww5fo0).
+PROPER FIX FILED (FOLLOWUPS 2026-07-23): joint-legality probe re-derivation with
+SEGMENT courtyard sizes (the lesson: a seat legal for a small land is not legal
+for a bigger part) to recover a left-flank J6P + firm hub H1.
 (4) CODEX LADDER DONE (gpt-5.6-sol high, read-only): A standards audit (rank-1
 VERIFIED: 19 multiple_net_names in tester 05-banks = ELECTRICAL, FOLLOWUPS'd;
 rank-2 placeholder hierarchy; rank-3 off-sheet content), B MCP-surface audit

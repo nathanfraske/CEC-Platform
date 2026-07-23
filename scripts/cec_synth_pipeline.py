@@ -2157,20 +2157,43 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
                     perp = (W - pad_margin - pxh) if edge == "right" else (pad_margin - pxl)
                 else:
                     perp = (W - margin - hw - cx) if edge == "right" else (margin + hw - cx)
-            items.append((ref, along, coff, perp))
-        total = sum(it[1] for it in items) + gap * (len(items) - 1)
+            # rot MUST travel WITH the item (owner catch 2026-07-23, "the 24 pin
+            # connector has been shoved out of bounds"): the mouth-flip rotation is
+            # per-ITEM, but the placement loop below used the bare `rot` loop
+            # variable -- i.e. the LAST item's rotation was applied to EVERY ref on
+            # the edge. J3's geometry was computed at its flip-chosen rot while the
+            # seat carried a sibling's rot: rot-0 extents + rot-180 placement = the
+            # 63mm pad field hanging off-board left (22/26 pads out, measured).
+            items.append((ref, along, coff, perp, rot))
         edge_len = W if horiz else H
+        # EDGE-FIT (first rung of the roadmap's known place_edge overflow gap,
+        # 2026-07-23: J_SIG1/J5 measured seating 1.4-2.2mm past the far edge):
+        # when the packed total exceeds the edge, SHRINK the inter-item gap
+        # (floor 0.4mm) before packing; if it still cannot fit, say so loudly --
+        # the _oracle_pads_in_bounds pre-route gate names the residual per
+        # variant, so an overflowing edge can no longer ship silently.
+        avail = edge_len - 2 * margin
+        body = sum(it[1] for it in items)
+        gap_eff = gap
+        if len(items) > 1 and body + gap * (len(items) - 1) > avail:
+            gap_eff = max(0.4, (avail - body) / (len(items) - 1))
+            if body + gap_eff * (len(items) - 1) > avail + 0.01:
+                print(f"  [seed] edge OVERFLOW on {edge}: packed "
+                      f"{body + gap_eff * (len(items) - 1):.1f}mm > {avail:.1f}mm "
+                      f"available even at gap {gap_eff:.1f} -- last item(s) will "
+                      f"overrun; the pads-in-bounds gate will name them")
+        total = body + gap_eff * (len(items) - 1)
         cursor = max(margin, (edge_len - total) / 2.0)
         if pack_right_top and edge == "right":
             # force-lane boards (owner 2026-07-12 "just nudge the RJ-45 up"): pack the
             # right edge from the TOP so the jack sits in the corner and the column
             # below stays free for the logic parts the corridors evict.
             cursor = margin
-        for ref, along, coff, perp in items:
+        for ref, along, coff, perp, irot in items:
             center = cursor + along / 2.0
-            cursor += along + gap
+            cursor += along + gap_eff
             pa = center - coff                                   # origin so courtyard-centre at center
-            A[ref] = (pa, perp, rot) if horiz else (perp, pa, rot)
+            A[ref] = (pa, perp, irot) if horiz else (perp, pa, irot)
 
     for edge in ("top", "bottom", "left", "right"):
         place_edge(by_edge.get(edge, []), edge)
@@ -8085,6 +8108,43 @@ def _oracle_courtyard_overlaps(placed_board_path):
     return {"ok": not viol, "violations": viol[:10]}
 
 
+def _oracle_pads_in_bounds(placed_board_path, *, tol_mm=0.25):
+    """PADS-IN-BOUNDS gate (owner catch 2026-07-23: 'the 24 pin connector has been
+    shoved out of bounds' -- a wave board carried J3 with 22/26 pads OFF the outline
+    and NOTHING refused it: the courtyard gate only sees courtyard OVERLAPS and no
+    kicad DRC type names an entirely-off-board pad pre-fill). Every footprint's
+    copper-pad bbox must sit inside the Edge.Cuts bbox (+tol). The connector-overhang
+    doctrine already requires exactly this (pad band ON board, body may overhang).
+    FID* are exempt: the fiducial pass deliberately parks them off-board (x=-8) until
+    p11 seats them last -- their placement is staged, not broken."""
+    import pcbnew
+    b = pcbnew.LoadBoard(placed_board_path)
+    if b is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    bb = b.GetBoardEdgesBoundingBox()
+    x0, y0 = bb.GetX() / 1e6 - tol_mm, bb.GetY() / 1e6 - tol_mm
+    x1 = (bb.GetX() + bb.GetWidth()) / 1e6 + tol_mm
+    y1 = (bb.GetY() + bb.GetHeight()) / 1e6 + tol_mm
+    viol = []
+    for f in b.GetFootprints():
+        ref = f.GetReference()
+        if ref.startswith("FID"):
+            continue
+        n_out = 0
+        for p in f.Pads():
+            if not p.IsOnCopperLayer():
+                continue
+            pb = p.GetBoundingBox()
+            px0, py0 = pb.GetX() / 1e6, pb.GetY() / 1e6
+            px1 = (pb.GetX() + pb.GetWidth()) / 1e6
+            py1 = (pb.GetY() + pb.GetHeight()) / 1e6
+            if px0 < x0 or px1 > x1 or py0 < y0 or py1 > y1:
+                n_out += 1
+        if n_out:
+            viol.append(f"{ref} {n_out} pad(s) out of bounds")
+    return {"ok": not viol, "violations": viol[:10]}
+
+
 def _oracle_pin_escape(placed_board_path, *, boxed_pct_max=4.0, le1_pct_max=12.0,
                        max_pads=10):
     """PIN-ESCAPE gate (exploration round 2, 2026-07-08): every copper pad on a small
@@ -8613,6 +8673,12 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # in ~40s with the offending pairs named instead of burning the FR
                 # budget. craft_gates governs it like the rest of the battery.
                 if craft_gates:
+                    _pb0 = _oracle_pads_in_bounds(placed)
+                    if not _pb0.get("ok"):
+                        return _oracle_fail_dict(
+                            label, route_s=0.0,
+                            error="placement refused pre-route: pads out of bounds: %s"
+                                  % "; ".join(_pb0.get("violations", [])[:6]))
                     _cy0 = _oracle_courtyard_overlaps(placed)
                     if not _cy0.get("ok"):
                         return _oracle_fail_dict(

@@ -51,7 +51,6 @@ class TestV2Form(unittest.TestCase):
         out = mating_frame_pins(74.0, 55.0, V2, "a")
         pins = out["anchor_pins"]
         self.assertEqual(set(pins), {"J6P", "J6C", "J6D"})
-        self.assertEqual(pins["J6P"], (5.0, 30.0, 0))      # the proven BL sliver
         self.assertEqual(pins["J6D"][2], 90)               # per-segment rot honored
         self.assertEqual(list(out["mount_pos_override"]), ["H1"])
         self.assertEqual(out["mount_fp_override"],
@@ -94,6 +93,19 @@ class TestProductionContract(unittest.TestCase):
             out = mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN, side)
             self.assertEqual(set(out["anchor_pins"]), {"J6P", "J6C", "J6D"})
             self.assertEqual(list(out["mount_pos_override"]), ["H1"])
+
+    def test_pattern_asymmetric_one_way_insertion(self):
+        """Owner keying directive (2026-07-23): the segment pattern must be
+        asymmetric so the stack only assembles one way INTENTIONALLY -- the
+        180-rotated pattern (the only physically relevant mis-orientation under
+        no-flip) must land visibly far from the original."""
+        import math
+        pts = [c["dc"] for c in MEZZ_HUB_24PIN["conns"]]
+        rot = [(-x, -y) for (x, y) in pts]
+        d = min(math.hypot(a[0] - b[0], a[1] - b[1]) for a in pts for b in rot)
+        self.assertGreaterEqual(d, 8.0,
+                                f"segment pattern too symmetric ({d:.1f}mm): a "
+                                f"180-degree mis-orientation would look seatable")
 
 
 if __name__ == "__main__":
