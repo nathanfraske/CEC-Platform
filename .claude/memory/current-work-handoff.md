@@ -23,16 +23,27 @@ LANDED (all verified, tests/test_hub_in2_pours.py 7 teeth + tests.test_pourplan 
    non-plane inners (plane_layers = the SAME detector the DSN export policy uses) -- the
    freed In2 keeps edge/arc protection; golden EPS (stale signal-typed In1 plane) derives
    F/B only = golden route untouched (contract test pins this).
-PROBE LADDER (s70 recipe, /tmp/probe-hubrung-b2* in-container): A (2 layers, banked) =
-unconn 24-26/drc 27-29; B1 (3 layers only, pre-fix module state) = unconn 21/drc 23,
-FR laid 113 In2 segs; B2 (In2 floods + fixed guard + per-layer emission) RUNNING at
-~15:30 (log /tmp/probe-hubrung-b2.log). SB-08 golden re-run also RUNNING (must stay
-byte-stable kelvin F / unconn 16 / thermal 257.5 before the scripts/** commit).
-NEXT: B2 readout -> commit batch -> relaunch hub waves under the new config (the owner
-bar applies); then 24-pin flood completion (rung 2), edge residual sample (rung 3),
-discover fixture triage (4), J6C sub-cell seats (5). ALSO KILLED: 5 stale dashboard
---analyze-board jobs pinning ~12 cores for 2-4.5h on 24-pin night boards (FOLLOWUPS:
-pathological analyzer runtime on heavy fat-width boards).
+PROBE LADDER COMPLETE (s70 recipe, /tmp/probe-hubrung-b{2,3}* in-container): A (2
+layers, banked) = unconn 24-26/drc 27-29; B1 (3 layers only) = unconn 21/drc 23, FR
+laid 113 In2 segs; B2 (In2 floods + own-net-exempt guard) = pickups FIRED 3 but 2
+SHORTS -- one GND via cleared only on the pad's F.Cu cut a foreign In2 track AND a
+B.Cu track (drc dump proof) -> _via_spot_clear (all enabled copper layers) landed
+with the reproduction tooth; B3 = 2 stitches / 2 skips / ZERO shorts, unconn 24/drc
+27 (single-run FR noise band is +-3 -- machinery verdict CORRECT+SAFE, performance
+verdict belongs to the wave). SB-08 golden BYTE-STABLE (kelvin F / unconn 16 /
+thermal 257.5) -- plane-aware edge derivation protected it. COMMITS: 12bb8a6e (In2
+rung batch) + f3eef240 (via guard), both pushed.
+NOW RUNNING: HUB In2-CONFIG WAVE CHAIN, 3 rounds x 6 seeds (s108-125),
+/tmp/hub-in2-chain.sh, log /tmp/wave-hub-in2.log, task b09ky994u (~2h). Readout =
+compare vs night bests (all-time unconn 32 / winner band 32-49; the owner 3-layer
+bar: failures are machinery defects to fix, never topology excuses).
+RUNG-2 SCOPED (s213 dry stitch w/ fixed guard): fires 12 / skips 16; 20 critical-net
+SMD pads outside EVERY flood box (+5V_MAIN 7, +5VSB 6, /SENSE12V_LO 4, /SENSE12V_HI
+3 = the J3/TB branch legs) -> extend compile_rail_pour_asks coverage to those pad
+neighborhoods, then enable power_pickup on the 24-pin. THEN: edge residual sample
+(rung 3), discover fixture triage (4), J6C sub-cell seats (5). ALSO KILLED: 5 stale
+dashboard --analyze-board jobs pinning ~12 cores for 2-4.5h on 24-pin night boards
+(FOLLOWUPS: pathological analyzer runtime on heavy fat-width boards).
 
 ## NIGHT CHAIN DONE -- 2026-07-23 12:20 UTC. MORNING REPORT DELIVERED IN-CHAT. NEXT RUNGS BELOW.
 RESULTS (12 waves, s182-217 / s72-107, all reports in build/fresh-wave-loop/*/20260723T09*-12*):
