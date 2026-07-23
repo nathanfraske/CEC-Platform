@@ -33,10 +33,15 @@ with the reproduction tooth; B3 = 2 stitches / 2 skips / ZERO shorts, unconn 24/
 verdict belongs to the wave). SB-08 golden BYTE-STABLE (kelvin F / unconn 16 /
 thermal 257.5) -- plane-aware edge derivation protected it. COMMITS: 12bb8a6e (In2
 rung batch) + f3eef240 (via guard), both pushed.
-NOW RUNNING: HUB In2-CONFIG WAVE CHAIN, 3 rounds x 6 seeds (s108-125),
-/tmp/hub-in2-chain.sh, log /tmp/wave-hub-in2.log, task b09ky994u (~2h). Readout =
-compare vs night bests (all-time unconn 32 / winner band 32-49; the owner 3-layer
-bar: failures are machinery defects to fix, never topology excuses).
+CHAIN DONE (52 min, 3 rounds s108-125): **NEW ALL-TIME HUB BEST unconn 30 / drc 16**
+(s120 plain-compact, kelvin TRUE, ZERO shorting_items at full DRC, copper_edge
+collapsed 16-22 -> 7). Frontier DENSIFIED in half the night's seeds: (30,16),(33,16)x2,
+(35,14),(41,9) vs the night's (32,22)+(40,9). Board physically verified: 10 floods ON
+In2, GND plane In1-only, 152 FR signal segs on In2. PICKUPS FIRED 16-21/board (3-11
+honest skips; was 0x forever). crit [GND] = the ONE standing critical on every best ->
+the GND-side lever is next (why GND unconn ~persists: plane-island bridging / GND
+stitch density -- measure the GND unconnected items on s120 before designing anything).
+The owner 3-layer bar STANDS ENCODED: route failures = machinery defects, not topology.
 RUNG-2 SCOPED (s213 dry stitch w/ fixed guard): fires 12 / skips 16; 20 critical-net
 SMD pads outside EVERY flood box (+5V_MAIN 7, +5VSB 6, /SENSE12V_LO 4, /SENSE12V_HI
 3 = the J3/TB branch legs) -> extend compile_rail_pour_asks coverage to those pad
