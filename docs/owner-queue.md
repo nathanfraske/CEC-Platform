@@ -424,3 +424,14 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   standard (FOLLOWUPS already owes that re-freeze). Do NOT relax the fail-closed -- it kills
   a real vacuous-pass mirage. `test_route_oracle.test_gate_clean_placement_passes` stays a
   known-red until one of the two lands.
+
+- **[2026-07-23] 24-PIN RUNTIME H-GROW (74x55 -> 74x59) vs the no-growth ruling — YOUR CALL:**
+  every 24-pin wave materializes at H=59, not the static 55: the pre-existing SHUNT_GAP
+  lever ("SHUNT_GAP may grow H", cec_fresh_wave BOARD_WH note) auto-grows the height for
+  shunt-row spacing legality. It predates and has been firing through your 2026-07-23
+  shrink-only ruling ("growth needs exhausted-ideas + my sign-off"). Options: (a) sign off
+  H=59 as the 24-pin's working envelope for now; (b) direct a machinery pass to make the
+  shunt row legal at 55 (walk-pitch/cell work — the honest-but-larger effort); (c) let the
+  post-clean shrink pass reclaim it later (the documented plan of record: "the shrink pass
+  comes after a gate-clean baseline exists"). Agent default until ruled: (c) — no further
+  growth, mechanism left as-is, flagged on every readout.
