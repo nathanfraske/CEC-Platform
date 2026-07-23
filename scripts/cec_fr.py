@@ -1913,11 +1913,15 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     # with itself and the stitch fired 0x across ~40 boards.
                     # Same-net copper cannot short itself; {nc} restores the
                     # guard's actual purpose: foreign-NET copper only.)
-                    _via_probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+                    # VIA PROBE SPANS ALL COPPER LAYERS (B2 probe 2026-07-23:
+                    # a through-via cleared only on the pad's F.Cu shorted a
+                    # foreign In2 track AND a B.Cu track at the same spot --
+                    # the freed inner carries FR tracks now. Plane zones are
+                    # ignored by design: the filler's antipads handle them.)
                     if not (_tap_foreign_clear(board, pos, at, _nm(stub_w),
                                                lay_id, _nm(0.25), {nc})
-                            and _tap_foreign_clear(board, at, _via_probe, _nm(dia),
-                                                   lay_id, _nm(0.25), {nc})
+                            and _via_spot_clear(board, at, _nm(dia),
+                                                _nm(0.25), {nc})
                             and _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                         lay_id, nc, set())):
                         continue
@@ -2111,6 +2115,23 @@ def _sense_in_pad(fp, role):
         if key in val:
             return m.get(role)
     return None
+
+
+def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes):
+    """True iff a THROUGH-via of diameter dia_nm at *at* has no foreign-net
+    pad/track/via within clearance_nm on ANY enabled copper layer. A through
+    barrel exists on every layer of the stack, so a single-layer probe is a
+    hole: the B2 rung probe (2026-07-23) measured one pickup via -- cleared on
+    its pad's F.Cu only -- shorting a foreign In2 track and a B.Cu track at
+    the same spot. Plane ZONES are deliberately not tested (the guard family
+    checks pads/tracks/vias): the zone filler's antipads give a via its plane
+    clearance at fill time."""
+    probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+    for lid in board.GetEnabledLayers().CuStack():
+        if not _tap_foreign_clear(board, at, probe, dia_nm, lid,
+                                  clearance_nm, exempt_codes):
+            return False
+    return True
 
 
 def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_codes):

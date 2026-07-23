@@ -80,7 +80,8 @@ class TestPickupOwnNetExempt(unittest.TestCase):
     def _one_pad_board(self):
         import pcbnew
         b = pcbnew.BOARD()
-        ni = pcbnew.NETINFO_ITEM(b, "+5VSB")
+        b.SetCopperLayerCount(4)       # wave boards are 4-layer; a fresh BOARD
+        ni = pcbnew.NETINFO_ITEM(b, "+5VSB")   # defaults to 2 (In2 disabled)
         b.Add(ni)
         fp = pcbnew.FOOTPRINT(b)
         fp.SetPosition(pcbnew.VECTOR2I(int(5e6), int(2.5e6)))
@@ -107,6 +108,34 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                          "an isolated covered pad with clear space must be "
                          "stitched -- 0 here = the own-pad false-refusal")
         self.assertEqual(r["skipped"], 0)
+
+    def test_via_spot_probe_spans_all_layers(self):
+        # B2 short reproduction: a foreign track on In2 under the via spot.
+        # The single-layer F.Cu probe passes (the hole that shorted); the
+        # all-layer _via_spot_clear refuses.
+        import pcbnew
+        import cec_fr
+        b = self._one_pad_board()
+        led = pcbnew.NETINFO_ITEM(b, "/LED_DATA_DIN")
+        b.Add(led)
+        at = pcbnew.VECTOR2I(int(5.8e6), int(2.5e6))
+        tr = pcbnew.PCB_TRACK(b)
+        tr.SetStart(pcbnew.VECTOR2I(at.x, at.y - int(2e6)))
+        tr.SetEnd(pcbnew.VECTOR2I(at.x, at.y + int(2e6)))
+        tr.SetWidth(int(0.2e6))
+        tr.SetLayer(b.GetLayerID("In2.Cu"))
+        tr.SetNet(led)
+        b.Add(tr)
+        pad_nc = list(b.GetFootprints())[0].Pads()[0].GetNetCode()
+        probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+        f_only = cec_fr._tap_foreign_clear(b, at, probe, int(0.6e6),
+                                           b.GetLayerID("F.Cu"),
+                                           int(0.25e6), {pad_nc})
+        all_l = cec_fr._via_spot_clear(b, at, int(0.6e6), int(0.25e6),
+                                       {pad_nc})
+        self.assertTrue(f_only, "the F.Cu-only probe misses the In2 track "
+                                "(the measured B2 short)")
+        self.assertFalse(all_l, "the all-layer probe must refuse it")
 
     def test_edge_keepout_layer_derivation_contract(self):
         # The strips must cover exactly FR's routable space: the frozen golden
