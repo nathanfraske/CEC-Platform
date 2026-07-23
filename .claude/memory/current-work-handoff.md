@@ -1,5 +1,39 @@
 # Current work handoff
 
+## HUB In2 RUNG + PICKUP-GUARD ROOT CAUSE -- 2026-07-23 ~15:30 UTC, IN FLIGHT.
+OWNER DIRECTIVES (morning, in order): (a) "do we really need two inner grounds? Or can we
+make the second inner ground into a signalling layer?" -> measured answer NO/YES: the
+2026-06-14 stackup ruling ALREADY makes the hub the exception (In1 = sole GND plane, In2 =
+signal; the shipped alpha hub carries 58 In2 signal segs), but wave hubs inherited the
+cable-board both-inners-GND default since birth -- inner_power_routing was only ever
+applied to the 24-pin. (b) "do the ugly giant pours inside of that layer instead of on
+top ... If it cannot route with 3 separate routable layers, there is an issue with it
+itself and we need to improve it" -> hub pour_asks moved F+B -> ("In2.Cu",); the owner
+bar is now: 3-layer failures = machinery defects, never topology excuses.
+LANDED (all verified, tests/test_hub_in2_pours.py 7 teeth + tests.test_pourplan green):
+1. hub BOARD_PARAMS: inner_power_routing True + pour_asks -> In2 (cec_fresh_wave.py).
+2. pour_polygons() LAYERS[0] TRUNCATION fix (cec_pourplan.py): the F+B night asks poured
+   F.Cu ONLY all night (measured on s105: 10 F-only zones) -- now one dict per layer.
+3. PICKUP-GUARD FALSE-REFUSAL ROOT CAUSE (the night's #1 debug, SOLVED): the exempt set
+   was set() -> _tap_foreign_clear counted the stub's OWN pad as foreign; every candidate
+   self-collided at its start point -> 0 fires on ~40 boards. Fix {nc} in both guard
+   calls (cec_fr.py). Verified on the exact refusing board: 5/1-skip placed, 0 shorts,
+   real DRC classes byte-identical; via_dangling x4 there = stale-zone retrofit artifact.
+4. edge_keepout ROUTABLE-LAYER DERIVATION (cec_fr.py): strips now cover F/B + signal-kind
+   non-plane inners (plane_layers = the SAME detector the DSN export policy uses) -- the
+   freed In2 keeps edge/arc protection; golden EPS (stale signal-typed In1 plane) derives
+   F/B only = golden route untouched (contract test pins this).
+PROBE LADDER (s70 recipe, /tmp/probe-hubrung-b2* in-container): A (2 layers, banked) =
+unconn 24-26/drc 27-29; B1 (3 layers only, pre-fix module state) = unconn 21/drc 23,
+FR laid 113 In2 segs; B2 (In2 floods + fixed guard + per-layer emission) RUNNING at
+~15:30 (log /tmp/probe-hubrung-b2.log). SB-08 golden re-run also RUNNING (must stay
+byte-stable kelvin F / unconn 16 / thermal 257.5 before the scripts/** commit).
+NEXT: B2 readout -> commit batch -> relaunch hub waves under the new config (the owner
+bar applies); then 24-pin flood completion (rung 2), edge residual sample (rung 3),
+discover fixture triage (4), J6C sub-cell seats (5). ALSO KILLED: 5 stale dashboard
+--analyze-board jobs pinning ~12 cores for 2-4.5h on 24-pin night boards (FOLLOWUPS:
+pathological analyzer runtime on heavy fat-width boards).
+
 ## NIGHT CHAIN DONE -- 2026-07-23 12:20 UTC. MORNING REPORT DELIVERED IN-CHAT. NEXT RUNGS BELOW.
 RESULTS (12 waves, s182-217 / s72-107, all reports in build/fresh-wave-loop/*/20260723T09*-12*):
 HUB: graded 32/42 (seg era ~0-2/wave); ALL-TIME BEST unconn 32 / drc 22 (s78, a prop
