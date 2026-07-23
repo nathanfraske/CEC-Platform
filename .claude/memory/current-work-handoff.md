@@ -1,5 +1,27 @@
 # Current work handoff
 
+## NIGHT CHAIN DONE -- 2026-07-23 12:20 UTC. MORNING REPORT DELIVERED IN-CHAT. NEXT RUNGS BELOW.
+RESULTS (12 waves, s182-217 / s72-107, all reports in build/fresh-wave-loop/*/20260723T09*-12*):
+HUB: graded 32/42 (seg era ~0-2/wave); ALL-TIME BEST unconn 32 / drc 22 (s78, a prop
+variant) + a drc-9 board at unconn 40 (s72) = closest-to-clean hub ever; kelvin TRUE
+everywhere; crit [GND] on every best. 43 floor saves, ZERO over-floor kills all night
+(floors 150/170 validated; the recurring 24-pin togo-35-27 flat = a tier leg, completes
+under the floor). 24-PIN: unconn FLAT 104-114 at the new HONEST 1.5mm rail widths --
+criticals WIDENED to [+5VSB,+5V_MAIN,/SENSE12V_HI,/SENSE12V_LO,GND] (the 12V pair now
+strands at width = the truth exposed, not caused); drc 192-218 (same band as classless).
+PICKUP STITCH: fired 0x across ~40 hub boards = SYSTEMATIC FALSE-REFUSAL almost certain
+(not 40 genuinely-walled placements) -- #1 debug: _tap_foreign_clear call semantics
+(sense_codes=set()? the 10000nm degenerate via-probe segment? layer id?) vs a hand-known
+-good slot. Renders: build/wave-snaps/*/night-best-*.png (dash ACTIVITY has both).
+NEXT RUNGS (order): (1) pickup-guard debug -> GND stitch fires -> hub crit [GND] dies
+(the last hub critical); (2) 24-pin flood-pickup completion (the rung tune-up the owner
+named: J3/TB branch legs at honest widths -- measure which pins the compile_rail_pour_asks
+floods miss on s213); (3) edge residual sample (hub drc 9-27 still carries corner/window
+hits); (4) discover-suite fixture triage (filed); (5) J6C stable seat via seat-search
+sub-cell windows (also un-pins U1). STANDING: golden byte-stable (owner-gated re-freeze
+untouched); no-dimension-increases ruling in force (memory file); BGA plan awaiting
+owner funding-order ruling (owner-queue row).
+
 ## NIGHT CHAIN RUNNING -- 2026-07-23 08:54 UTC, commit a1e8bb55 pushed. MORNING REPORT OWED.
 Owner GO: "run your studies and tests on your recommendations overnight, as many waves as
 you want, report back in the morning." CHAIN: /tmp/night-chain-0723.sh in-container -- 6
