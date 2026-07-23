@@ -22,7 +22,7 @@ sys.dont_write_bytecode = True
 import cec_thermal_sources as TS                              # noqa: E402
 
 HUB_DIR = os.path.join(ROOT, "hubs", "hub-standard")
-HPWR_DIR = os.path.join(ROOT, "modules", "12vhpwr-standard")
+HPWR_DIR = os.path.join(ROOT, "beta", "12vhpwr-standard")
 
 try:
     import pcbnew                                             # noqa: F401

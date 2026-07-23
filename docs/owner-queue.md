@@ -408,3 +408,19 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   dropped in the same event. Agent-side default is now CPU-AMG for interactive-hours solves, so
   this is optional: raising `HKLM\...\GraphicsDrivers\TdrDelay` (e.g. 2->10s) gives compute
   kernels patience and stops the resets if you want the GPU path while at the machine.
+
+- **[2026-07-23] TWO GOLDEN RE-FREEZE RITUALS (CODEOWNERS-gated, from the 20-red test triage):**
+  (a) **CL03 parity golden** (`tests/golden/parity-report.json`): the live checker registry
+  legitimately grew 34 -> 42 since the freeze (new: decoupler-adjacency-k5, ecap-edge-distance,
+  fiducial-protocol, kelvin-sense-no-connector-tap, mlcc-edge-orientation,
+  no-foreign-on-high-current-pour, sense-body-clear-of-pour, via-on-pad; +6 corpus entries).
+  Ritual: `python3 scripts/cec_corpus_compile.py`, copy `build/corpus-compiled/parity.json`
+  over the golden in an owner-approved PR. Until then `test_cl03_compiler.T6ParityGolden`
+  stays a known-red (honest: enforcement growth, not rot).
+  (b) **route-oracle fixture** (`tests/golden/fixtures/route-oracle/eps-rev3-n2`): the
+  2026-07-22 injection fail-closed correctly stamps it INJECTION INCOMPLETE (4/5 SENSEC nets
+  inject no current on that routed state). Either the injection path gets completed for the
+  fixture class (thermal-injection lane) or the fixture re-freezes under the newer craft
+  standard (FOLLOWUPS already owes that re-freeze). Do NOT relax the fail-closed -- it kills
+  a real vacuous-pass mirage. `test_route_oracle.test_gate_clean_placement_passes` stays a
+  known-red until one of the two lands.

@@ -29,7 +29,7 @@ try:
 except Exception:                       # noqa: BLE001
     HAVE = False
 
-EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "modules", "eps-8pin", "eps8pin-module.kicad_pcb"))
+EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "beta", "eps-8pin", "eps8pin-module.kicad_pcb"))
 
 
 @unittest.skipUnless(HAVE, "pcbnew required (cec_cell_extract imports it)")

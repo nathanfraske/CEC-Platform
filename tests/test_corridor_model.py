@@ -776,7 +776,7 @@ class TestLayerLever(unittest.TestCase):
 
     def test_shared_bus_noop(self):
         import cec_fr, tempfile
-        p = os.path.normpath(os.path.join(HERE, "..", "modules",
+        p = os.path.normpath(os.path.join(HERE, "..", "beta",
                                           "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb"))
         if os.path.isfile(p):
             rep = cec_fr.stagger_corridor_crossings(

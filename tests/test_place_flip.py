@@ -83,8 +83,16 @@ class TestDualSideGuard(unittest.TestCase):
 
     def test_real_board_back_set_clean(self):
         import cec_synth_pipeline as sp
-        # the guard on the REAL 24-pin back set must strip nothing (construction is clean)
-        # -- if this ever strips, the chain-builder regressed.
+        # RE-SCOPED (2026-07-23 triage): the da9365a6 ONE-SIDED PREFERENCE
+        # (owner 2026-07-18/19 "try to keep it one sided if possible") keeps
+        # every cell on the front when the seated shunt columns clear >=9.0mm
+        # -- so at a roomy 100x80 the back set is legitimately EMPTY even with
+        # dual_sided forced on, and the old must-have-a-back-set premise is
+        # stale (the real board itself went single-sided, d411cafe). The
+        # invariant NOW: whatever back set the preference yields, the guard
+        # keeps J*/TB*/U1 off the back -- and on roomy geometry the preference
+        # itself holds (empty back set). The synthetic _dual_side_guard test
+        # above still exercises the stripping mechanism directly.
         import dataclasses
         try:
             cfg = sp.Config.load("atx-24pin-rev3")
@@ -95,10 +103,12 @@ class TestDualSideGuard(unittest.TestCase):
         cfg.params.update({"dual_sided": True, "mount_holes": "none",
                            "connector_overhang": "edge", "respect_antenna_keepout": False})
         cand = sp.synth_one(dataclasses.asdict(cfg), 100.0, 80.0, "dataflow", 0)
-        self.assertTrue(cand.back_refs, "dual-sided board produced no back set")
         for r in cand.back_refs:
             self.assertFalse(r.startswith(("J", "TB")), r)
         self.assertNotIn("U1", cand.back_refs)
+        self.assertFalse(
+            cand.back_refs,
+            "one-sided preference must hold at roomy geometry (columns clear)")
 
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")

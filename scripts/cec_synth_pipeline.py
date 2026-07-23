@@ -6447,7 +6447,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         adj = _adjacency(nl)
         # RESPECT THE PASS-LOCK REGISTRY (wave-5 LockViolations, correctly raised by
         # the pass-form discipline: C18/C9/D8 were locked by earlier owning passes).
-        fixed = set(anchors) | set(_bp_refs) | set(_state.locked_refs())
+        # + THE PARTITION LEVER (2026-07-23 triage, the test_placement_session
+        # hard-containment reds): p8b's full-board re-seat window ignored _bounds
+        # and moved partition-governed refs (SW1/SW2) out of their assigned
+        # region -- "EXPLICIT partition assignment WINS" is the documented
+        # guarantee, so bounded refs are never p8b-re-seated.
+        fixed = (set(anchors) | set(_bp_refs) | set(_state.locked_refs())
+                 | set(_bounds or ()))
         # measure overlaps + edge-huggers on the CURRENT P
         def _box(r):
             x, y, rot = P[r]

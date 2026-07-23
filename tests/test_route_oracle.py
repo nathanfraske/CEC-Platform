@@ -210,8 +210,8 @@ class TestPourUniformity(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")
 class TestPourUniformityBoards(unittest.TestCase):
-    ATX = os.path.join(ROOT, "modules", "atx-24pin-rev3", "24pin-module.kicad_pcb")
-    PCIE3 = os.path.join(ROOT, "modules", "pcie-8pin-3port", "pcie8pin-3port-module.kicad_pcb")
+    ATX = os.path.join(ROOT, "beta", "atx-24pin-rev3", "24pin-module.kicad_pcb")
+    PCIE3 = os.path.join(ROOT, "beta", "pcie-8pin-3port", "pcie8pin-3port-module.kicad_pcb")
 
     @unittest.skipUnless(os.path.isfile(ATX), "24-pin board required")
     def test_shared_bus_board_is_na(self):

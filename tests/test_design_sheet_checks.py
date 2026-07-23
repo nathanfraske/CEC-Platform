@@ -24,8 +24,8 @@ except ImportError:
     HAVE_PCBNEW = False
     K = None
 
-EPS = os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb")
-HPWR = os.path.join(ROOT, "modules", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
+EPS = os.path.join(ROOT, "beta", "eps-8pin", "eps8pin-module.kicad_pcb")
+HPWR = os.path.join(ROOT, "beta", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
 HUB = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb")
 
 CIDS = ("fiducial-protocol", "mlcc-edge-orientation", "ecap-edge-distance",
