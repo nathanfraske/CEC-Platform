@@ -4764,7 +4764,8 @@ def _box_clear(box, obstacles, margin):
     return True
 
 
-def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0, 180.0, 270.0),
+def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, y_range=None,
+                    rotations=(0.0, 90.0, 180.0, 270.0),
                     forbid_boxes=(), occ_boxes=(), score_points=(), margin=0.3, grid=1.5,
                     drop_antenna=False, antenna_ref=None, antenna_dir=(0.0, -1.0),
                     antenna_overhang=0.0, edge_soft=0.0):
@@ -4837,7 +4838,9 @@ def _seat_mcu_macro(offsets, comps, W, H, *, x_range=None, rotations=(0.0, 90.0,
         mhy = max(e[3] for e in _exts)
         area = (mhx - mlx) * (mhy - mly)
         ax_lo, ax_hi = x0r - mlx, x1r - mhx
-        ay_lo, ay_hi = 0.0 - mly, H - mhy
+        y0r, y1r = (0.0, H) if y_range is None else (max(0.0, y_range[0]),
+                                                     min(H, y_range[1]))
+        ay_lo, ay_hi = y0r - mly, y1r - mhy
         if ax_hi < ax_lo or ay_hi < ay_lo:
             continue                          # the macro doesn't fit the column at this rot
         y = ay_lo
@@ -5043,6 +5046,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     _spine = _bands = _paired = _sensitive = _veto = None
     _rk = _role_clr = _func_stamped = None
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
+    _intent_locked = set()      # p10 near()/order() seats -- locked so p12 never undoes them
     # DUAL-SIDED face model (lifted from the post-ladder block so the passes are side-aware):
     # _cells = per-rail sensing cells + F/B faces; _back = the full back-ref set; _tht_keep =
     # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts; _seat_snags = seat-repair residuals.
@@ -6447,13 +6451,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         adj = _adjacency(nl)
         # RESPECT THE PASS-LOCK REGISTRY (wave-5 LockViolations, correctly raised by
         # the pass-form discipline: C18/C9/D8 were locked by earlier owning passes).
-        # + THE PARTITION LEVER (2026-07-23 triage, the test_placement_session
-        # hard-containment reds): p8b's full-board re-seat window ignored _bounds
-        # and moved partition-governed refs (SW1/SW2) out of their assigned
-        # region -- "EXPLICIT partition assignment WINS" is the documented
-        # guarantee, so bounded refs are never p8b-re-seated.
-        fixed = (set(anchors) | set(_bp_refs) | set(_state.locked_refs())
-                 | set(_bounds or ()))
+        # THE PARTITION LEVER, take 2 (2026-07-23): take 1 unioned _bounds into
+        # `fixed`, which made partition-governed refs FULLY immovable -- measured
+        # on the truthful-courtyard chain collapse: U8/U9/U10 sat overlapping the
+        # button anchors with fixed=True through _bounds alone, unrepairable by
+        # any pass. The documented guarantee is containment, not immobility:
+        # bounded refs ARE re-seatable, with the seat search CLAMPED to their box
+        # (x_range/y_range below), so "explicit partition assignment WINS" holds
+        # while overlaps stay repairable.
+        fixed = set(anchors) | set(_bp_refs) | set(_state.locked_refs())
         # measure overlaps + edge-huggers on the CURRENT P
         def _box(r):
             x, y, rot = P[r]
@@ -6516,10 +6522,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # lack of space (board ~51% covered, measured) -- retry finer + tighter
             # before refusing. The last rung drops the seat margin to 0.1 (still
             # real AABB separation; courtyard DRC floor is what matters).
+            # partition clamp (take 2): a bounded ref re-seats WITHIN its box
+            _bx = _bounds.get(r) if _bounds else None
+            _xr = (_bx[0], _bx[2]) if _bx else None
+            _yr = (_bx[1], _bx[3]) if _bx else None
             placed = None
             for _g, _m in ((1.0, 0.3), (0.5, 0.2), (0.25, 0.1)):
                 placed, _rot = _seat_mcu_macro(offs, comps, W, H, forbid_boxes=env,
                                                occ_boxes=occ, score_points=nbr_pts,
+                                               x_range=_xr, y_range=_yr,
                                                grid=_g, margin=_m, edge_soft=4.0)
                 if placed:
                     break
@@ -6922,13 +6933,16 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
         nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
-        nonlocal _nets_of, _net_exempt, _restamped
+        nonlocal _nets_of, _net_exempt, _restamped, _intent_locked
         # INTENT LEVERS (owner pass 2026-07-08): applied LAST so nothing downstream undoes
         # them (the lesson every seat learned). A near()/order() intent is the USER's explicit
         # actuator -- the top RATIFIER tier -- so it may move a ref an earlier pass seated + locked
         # (e.g. order(U2,...) overriding the CAN seat); it then RE-RATIFIES that lock at the new
         # position (Fix #3: an intent is a legitimate re-lock, not a forbidden move).
-        _intent_touched = set()
+        # _intent_locked feeds this pass's locks_out (2026-07-23: p12_final_legality
+        # runs AFTER p10 now -- without the lock it relocated a near()-seated ref,
+        # measured by test_near_bites).
+        _intent_touched = _intent_locked = set()
         for _ref4, _tgt4, _gap4 in (cfg.params.get("near_intents") or ()):
             if _ref4 in P and _tgt4 in P and _ref4 in comps and _tgt4 in comps:
                 _tc4 = _courtyard_info(comps[_tgt4], P[_tgt4][2] if len(P[_tgt4]) > 2 else 0,
@@ -7172,7 +7186,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         Pass("p6_anneal", _p6_anneal, phase="P7",
              doc="anneal macro blocks to escape the greedy minimum + legalize"),
         Pass("p7_stamps", _p7_stamps, phase="P5",
-             locks_out=lambda _s: list(_func_stamped),
+             # NEVER LOCK AN OVERLAPPING SEAT (2026-07-23 truthful-courtyard chain
+             # collapse: legalize_pack parks at LEAST-overlap when nothing fits and
+             # p7 then locked those landings -- U9/U10 vs the button anchors became
+             # fixed-vs-locked pairs no repair pass may touch by design). A ref
+             # whose live courtyard overlaps another placed ref at lock time stays
+             # MOVABLE for p8b/p12; loud.
+             locks_out=lambda _s: _locks_sans_overlaps(list(_func_stamped)),
              doc="stamp cluster passives + functional/series parts, legalize the stamped set"),
         Pass("p8_evac_mop", _p8_evac_mop, phase="P7",
              doc="evacuate corridors/pours of foreign bodies + final mop-up settle"),
@@ -7183,10 +7203,46 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         Pass("p9_restamp", _p9_restamp, phase="P5",
              doc="re-stamp clusters at owners' FINAL positions (the scatter fix)"),
         Pass("p10_intents", _p10_intents, phase="P7",
+             locks_out=lambda _s: sorted(_intent_locked),
              doc="near()/order() intent levers, applied LAST so nothing undoes them"),
         Pass("p11_fiducials_last", _p11_fiducials_last, phase="P7",
              doc="seat FID1..n in the 3 most-open corners LAST (staged off-board until now)"),
+        # FINAL LEGALITY (2026-07-23, the truthful-courtyard chain collapse: every
+        # hub variant refused pre-route on SW/TH1-class overlaps that a post-p8b
+        # pass created or restored -- measured: the final P carried MODEL-VISIBLE
+        # overlaps nothing re-checked. The p8b repair machinery re-runs as the
+        # LAST placement stage on fresh live boxes, so no model-visible overlap
+        # survives to materialize; fiducials/mounts are not netlist comps and are
+        # never touched).
+        Pass("p12_final_legality", _p8b_affinity_reseat, phase="P7",
+             doc="re-run the affinity re-seat LAST: no model-visible overlap survives"),
     ]
+
+    def _locks_sans_overlaps(refs):
+        """Filter a locks_out set: a ref whose LIVE courtyard overlaps another
+        placed ref keeps its seat but stays UNLOCKED, so the repair passes
+        (p8b/p12) may still move it -- a lock certifies a GOOD seat, never a
+        least-overlap residual landing."""
+        boxes = {}
+        for r2 in (P or {}):
+            if r2 in comps:
+                rr2 = P[r2][2] if len(P[r2]) > 2 else 0.0
+                cx2, cy2, hw2, hh2 = _courtyard_info(comps[r2], rr2,
+                                                     drop_antenna=drop_antenna)
+                boxes[r2] = (P[r2][0] + cx2 - hw2, P[r2][0] + cx2 + hw2,
+                             P[r2][1] + cy2 - hh2, P[r2][1] + cy2 + hh2)
+        out, dropped = [], []
+        for r2 in refs:
+            b2 = boxes.get(r2)
+            olap = b2 is not None and any(
+                o != r2 and not (b2[1] <= boxes[o][0] or boxes[o][1] <= b2[0]
+                                 or b2[3] <= boxes[o][2] or boxes[o][3] <= b2[2])
+                for o in boxes)
+            (dropped if olap else out).append(r2)
+        if dropped:
+            print(f"  [locks] {len(dropped)} overlapping seat(s) left UNLOCKED "
+                  f"for the repair passes: {sorted(dropped)[:8]}", file=sys.stderr)
+        return out
 
     def _positions(_state):
         # the ladder observes P once relative_place has created it, else the anchor dict.
