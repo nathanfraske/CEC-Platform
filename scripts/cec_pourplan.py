@@ -303,17 +303,22 @@ class PourPlan:
         for s in self.specs:
             if not s.polygon:
                 continue
-            d = {"net": s.net, "layer": (s.layers[0] if s.layers else "F.Cu"),
-                 "polygon": [tuple(pt) for pt in s.polygon]}
-            if s.priority != _PRIORITY_DEFAULT:
-                d["priority"] = s.priority
-            if s.min_thickness != _MIN_THICKNESS_DEFAULT:
-                d["min_thickness"] = s.min_thickness
-            if s.island_removal != _ISLAND_REMOVAL_DEFAULT:
-                d["island_removal"] = s.island_removal
-            if getattr(s, "provenance", "derived") not in ("derived", None):
-                d["provenance"] = s.provenance      # the locked-net pour filter
-            out.append(d)                           # exempts rail_compiler asks
+            # ONE DICT PER LAYER (2026-07-23): the old s.layers[0] truncation
+            # silently dropped every layer past the first -- the hub's F+B power
+            # asks poured F.Cu only (measured on the night boards). Derived specs
+            # are single-layer, so their emission is byte-identical.
+            for _lay in (s.layers or ("F.Cu",)):
+                d = {"net": s.net, "layer": _lay,
+                     "polygon": [tuple(pt) for pt in s.polygon]}
+                if s.priority != _PRIORITY_DEFAULT:
+                    d["priority"] = s.priority
+                if s.min_thickness != _MIN_THICKNESS_DEFAULT:
+                    d["min_thickness"] = s.min_thickness
+                if s.island_removal != _ISLAND_REMOVAL_DEFAULT:
+                    d["island_removal"] = s.island_removal
+                if getattr(s, "provenance", "derived") not in ("derived", None):
+                    d["provenance"] = s.provenance  # the locked-net pour filter
+                out.append(d)                       # exempts rail_compiler asks
         return out
 
     def evac_boxes(self):

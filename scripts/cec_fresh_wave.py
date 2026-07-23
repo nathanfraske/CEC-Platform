@@ -328,9 +328,23 @@ BOARD_PARAMS = {
                           # the additive-pour-after-route doctrine; a pour on
                           # a routed net can only ADD copper, 2026-06-07).
                           # Boxes auto-derive from each net's pads.
+                          # POUR LAYER = In2 (owner 2026-07-23 "do the ugly
+                          # giant pours inside of that layer instead of on
+                          # top"): the power floods move OFF the outers onto
+                          # the freed In2 -- the outers keep their full signal
+                          # fabric, and since floods are post-route additive,
+                          # In2 is still EMPTY at route time = a true third
+                          # routing layer. Owner acceptance bar, verbatim: "If
+                          # it cannot route with 3 separate routable layers,
+                          # there is an issue with it itself and we need to
+                          # improve it." (The old F+B ask was ALSO measured to
+                          # pour F-only -- pour_polygons() truncated at
+                          # layers[0]; fixed same day.) In2 floods connect to
+                          # F.Cu pads via FR's own vias + the pickup stitch,
+                          # which is now load-bearing (guard debug = rung #1).
                           "pour_asks": [
                               {"net": n, "region_hint": None,
-                               "layers": ("F.Cu", "B.Cu"), "shape": "rect",
+                               "layers": ("In2.Cu",), "shape": "rect",
                                "priority": 2, "provenance": "placer_ask",
                                "evac": False}
                               for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
@@ -342,6 +356,24 @@ BOARD_PARAMS = {
                           # GND plane at import (rung part 2 -- the floods
                           # alone cannot reach an F.Cu pad from B.Cu).
                           "power_pickup": True,
+                          # ONE INNER GND, In2 = SIGNAL (owner 2026-07-23 "can
+                          # we make the second inner ground into a signalling
+                          # layer?" -- which is ALREADY the standing 2026-06-14
+                          # stackup ruling: cable boards pour both inners GND;
+                          # the Hub is the exception, one solid In1 GND plane +
+                          # In2 signal. The shipped alpha hub proves it: In1
+                          # user-named "GND", 58 signal segments routed on In2.
+                          # Wave hubs had inherited the cable-board default
+                          # since birth -- FR was down an entire empty routing
+                          # layer on the platform's most congested signal
+                          # board). No rail_alt_layer: unlike the 24-pin there
+                          # are no force trunks; In2 is simply empty and
+                          # build_board re-types it 'signal' so FR accepts it
+                          # (measured 24-pin gotcha: 'power'-kind = FR refuses
+                          # the layer). edge_keepout now derives its covered
+                          # layers from the board, so the freed In2 keeps the
+                          # edge-band + arc-corner protection.
+                          "inner_power_routing": True,
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",

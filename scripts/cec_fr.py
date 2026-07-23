@@ -1625,7 +1625,7 @@ def _fp_bbox_no_text(fp):
 
 
 def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_refs=("J", "H"),
-                 layers=("F.Cu", "B.Cu")):
+                 layers=None):
     """Route-time board-EDGE keepout (lever B, 2026-06-17). Freerouting has NO board-edge-clearance
     awareness -- the standard ExportSpecctraDSN gives it only the outline, so it routes signal tracks hard
     against Edge.Cuts (measured: ~100% of a routed CEC board's DRC is copper_edge_clearance, incl. a 67mm
@@ -1644,6 +1644,26 @@ def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_ref
     0.345. margin = rule 0.5 + half the widest carried class width (1.5mm Power
     -> 0.75) = 1.25, so even the fattest class keeps its edge >= the rule."""
     own = board if board is not None else pcbnew.LoadBoard(board_path)
+    if layers is None:
+        # ROUTABLE-LAYER DERIVATION (2026-07-23, hub In2-signal conformance): F/B always
+        # (historical behavior -- outer pours keep their own edge clamp, block_fills
+        # False) plus any enabled inner copper FR can ACTUALLY route: signal-KIND in
+        # the layer table AND not a detected plane. plane_layers is the SAME detector
+        # the DSN export policy uses to exclude planes from FR, so the strips exactly
+        # cover FR's real solution space -- a stale signal-typed In1 "GND" plane (the
+        # frozen golden EPS, the alpha hub) stays OUT and those routes are untouched,
+        # while a freed In2 (inner_power_routing; empty pre-route, floods land after)
+        # comes IN. Canonical names: GetLayerID resolves user names too, but
+        # 'PWR_RT'/'GND' aliases would confuse the hint sidecars.
+        _plane = set()
+        for _pn in plane_layers(own):
+            _pl = own.GetLayerID(_pn)
+            if _pl >= 0:
+                _plane.add(_pl)
+        layers = tuple(pcbnew.LayerName(lid) for lid in own.GetEnabledLayers().CuStack()
+                       if lid in (pcbnew.F_Cu, pcbnew.B_Cu)
+                       or (own.GetLayerType(lid) == pcbnew.LT_SIGNAL
+                           and lid not in _plane))
     bb = own.GetBoardEdgesBoundingBox()
     if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
         return []
@@ -1886,11 +1906,18 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     # laid 9 shorts; whole-stub-at-via-diameter placed 0 of 5 --
                     # the honest middle is stub at STUB width plus the via spot
                     # checked point-locally at its own diameter).
+                    # EXEMPT SET = {nc} (2026-07-23 false-refusal root cause:
+                    # _tap_foreign_clear's FOREIGN = "not in the exempt set",
+                    # and set() made the stub's OWN pad foreign -- the stub
+                    # starts at the pad center, so every candidate collided
+                    # with itself and the stitch fired 0x across ~40 boards.
+                    # Same-net copper cannot short itself; {nc} restores the
+                    # guard's actual purpose: foreign-NET copper only.)
                     _via_probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
                     if not (_tap_foreign_clear(board, pos, at, _nm(stub_w),
-                                               lay_id, _nm(0.25), set())
+                                               lay_id, _nm(0.25), {nc})
                             and _tap_foreign_clear(board, at, _via_probe, _nm(dia),
-                                                   lay_id, _nm(0.25), set())
+                                                   lay_id, _nm(0.25), {nc})
                             and _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                         lay_id, nc, set())):
                         continue
