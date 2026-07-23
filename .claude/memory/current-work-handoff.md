@@ -1,5 +1,77 @@
 # Current work handoff
 
+## HUB In2 RUNG + PICKUP-GUARD ROOT CAUSE -- 2026-07-23 ~15:30 UTC, IN FLIGHT.
+OWNER DIRECTIVES (morning, in order): (a) "do we really need two inner grounds? Or can we
+make the second inner ground into a signalling layer?" -> measured answer NO/YES: the
+2026-06-14 stackup ruling ALREADY makes the hub the exception (In1 = sole GND plane, In2 =
+signal; the shipped alpha hub carries 58 In2 signal segs), but wave hubs inherited the
+cable-board both-inners-GND default since birth -- inner_power_routing was only ever
+applied to the 24-pin. (b) "do the ugly giant pours inside of that layer instead of on
+top ... If it cannot route with 3 separate routable layers, there is an issue with it
+itself and we need to improve it" -> hub pour_asks moved F+B -> ("In2.Cu",); the owner
+bar is now: 3-layer failures = machinery defects, never topology excuses.
+LANDED (all verified, tests/test_hub_in2_pours.py 7 teeth + tests.test_pourplan green):
+1. hub BOARD_PARAMS: inner_power_routing True + pour_asks -> In2 (cec_fresh_wave.py).
+2. pour_polygons() LAYERS[0] TRUNCATION fix (cec_pourplan.py): the F+B night asks poured
+   F.Cu ONLY all night (measured on s105: 10 F-only zones) -- now one dict per layer.
+3. PICKUP-GUARD FALSE-REFUSAL ROOT CAUSE (the night's #1 debug, SOLVED): the exempt set
+   was set() -> _tap_foreign_clear counted the stub's OWN pad as foreign; every candidate
+   self-collided at its start point -> 0 fires on ~40 boards. Fix {nc} in both guard
+   calls (cec_fr.py). Verified on the exact refusing board: 5/1-skip placed, 0 shorts,
+   real DRC classes byte-identical; via_dangling x4 there = stale-zone retrofit artifact.
+4. edge_keepout ROUTABLE-LAYER DERIVATION (cec_fr.py): strips now cover F/B + signal-kind
+   non-plane inners (plane_layers = the SAME detector the DSN export policy uses) -- the
+   freed In2 keeps edge/arc protection; golden EPS (stale signal-typed In1 plane) derives
+   F/B only = golden route untouched (contract test pins this).
+PROBE LADDER COMPLETE (s70 recipe, /tmp/probe-hubrung-b{2,3}* in-container): A (2
+layers, banked) = unconn 24-26/drc 27-29; B1 (3 layers only) = unconn 21/drc 23, FR
+laid 113 In2 segs; B2 (In2 floods + own-net-exempt guard) = pickups FIRED 3 but 2
+SHORTS -- one GND via cleared only on the pad's F.Cu cut a foreign In2 track AND a
+B.Cu track (drc dump proof) -> _via_spot_clear (all enabled copper layers) landed
+with the reproduction tooth; B3 = 2 stitches / 2 skips / ZERO shorts, unconn 24/drc
+27 (single-run FR noise band is +-3 -- machinery verdict CORRECT+SAFE, performance
+verdict belongs to the wave). SB-08 golden BYTE-STABLE (kelvin F / unconn 16 /
+thermal 257.5) -- plane-aware edge derivation protected it. COMMITS: 12bb8a6e (In2
+rung batch) + f3eef240 (via guard), both pushed.
+CHAIN DONE (52 min, 3 rounds s108-125): **NEW ALL-TIME HUB BEST unconn 30 / drc 16**
+(s120 plain-compact, kelvin TRUE, ZERO shorting_items at full DRC, copper_edge
+collapsed 16-22 -> 7). Frontier DENSIFIED in half the night's seeds: (30,16),(33,16)x2,
+(35,14),(41,9) vs the night's (32,22)+(40,9). Board physically verified: 10 floods ON
+In2, GND plane In1-only, 152 FR signal segs on In2. PICKUPS FIRED 16-21/board (3-11
+honest skips; was 0x forever). crit [GND] = the ONE standing critical on every best ->
+the GND-side lever is next (why GND unconn ~persists: plane-island bridging / GND
+stitch density -- measure the GND unconnected items on s120 before designing anything).
+The owner 3-layer bar STANDS ENCODED: route failures = machinery defects, not topology.
+RUNG-2 SCOPED (s213 dry stitch w/ fixed guard): fires 12 / skips 16; 20 critical-net
+SMD pads outside EVERY flood box (+5V_MAIN 7, +5VSB 6, /SENSE12V_LO 4, /SENSE12V_HI
+3 = the J3/TB branch legs) -> extend compile_rail_pour_asks coverage to those pad
+neighborhoods, then enable power_pickup on the 24-pin. THEN: edge residual sample
+(rung 3), discover fixture triage (4), J6C sub-cell seats (5). ALSO KILLED: 5 stale
+dashboard --analyze-board jobs pinning ~12 cores for 2-4.5h on 24-pin night boards
+(FOLLOWUPS: pathological analyzer runtime on heavy fat-width boards).
+
+## NIGHT CHAIN DONE -- 2026-07-23 12:20 UTC. MORNING REPORT DELIVERED IN-CHAT. NEXT RUNGS BELOW.
+RESULTS (12 waves, s182-217 / s72-107, all reports in build/fresh-wave-loop/*/20260723T09*-12*):
+HUB: graded 32/42 (seg era ~0-2/wave); ALL-TIME BEST unconn 32 / drc 22 (s78, a prop
+variant) + a drc-9 board at unconn 40 (s72) = closest-to-clean hub ever; kelvin TRUE
+everywhere; crit [GND] on every best. 43 floor saves, ZERO over-floor kills all night
+(floors 150/170 validated; the recurring 24-pin togo-35-27 flat = a tier leg, completes
+under the floor). 24-PIN: unconn FLAT 104-114 at the new HONEST 1.5mm rail widths --
+criticals WIDENED to [+5VSB,+5V_MAIN,/SENSE12V_HI,/SENSE12V_LO,GND] (the 12V pair now
+strands at width = the truth exposed, not caused); drc 192-218 (same band as classless).
+PICKUP STITCH: fired 0x across ~40 hub boards = SYSTEMATIC FALSE-REFUSAL almost certain
+(not 40 genuinely-walled placements) -- #1 debug: _tap_foreign_clear call semantics
+(sense_codes=set()? the 10000nm degenerate via-probe segment? layer id?) vs a hand-known
+-good slot. Renders: build/wave-snaps/*/night-best-*.png (dash ACTIVITY has both).
+NEXT RUNGS (order): (1) pickup-guard debug -> GND stitch fires -> hub crit [GND] dies
+(the last hub critical); (2) 24-pin flood-pickup completion (the rung tune-up the owner
+named: J3/TB branch legs at honest widths -- measure which pins the compile_rail_pour_asks
+floods miss on s213); (3) edge residual sample (hub drc 9-27 still carries corner/window
+hits); (4) discover-suite fixture triage (filed); (5) J6C stable seat via seat-search
+sub-cell windows (also un-pins U1). STANDING: golden byte-stable (owner-gated re-freeze
+untouched); no-dimension-increases ruling in force (memory file); BGA plan awaiting
+owner funding-order ruling (owner-queue row).
+
 ## NIGHT CHAIN RUNNING -- 2026-07-23 08:54 UTC, commit a1e8bb55 pushed. MORNING REPORT OWED.
 Owner GO: "run your studies and tests on your recommendations overnight, as many waves as
 you want, report back in the morning." CHAIN: /tmp/night-chain-0723.sh in-container -- 6
