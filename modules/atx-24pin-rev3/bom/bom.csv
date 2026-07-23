@@ -15,7 +15,9 @@ J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,,,C2683360,,,,,,
 J2,1,TO-HUB-PWR,JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,,,,,,,,,
 J3,1,ATX-24 PSU,Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,
 J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,,,C319148,,,,,,
-J6,1,TO-HUB-STACK,PinHeader_2x08_P2.00mm_Vertical,,,,,,,,,
+J6P,1,TO-HUB-STACK-PWR,PinHeader_2x03_P2.54mm_Vertical,,,,,,,,,
+J6C,1,TO-HUB-STACK-COMMS,PinHeader_2x04_P2.54mm_Vertical,,,,,,,,,
+J6D,1,TO-HUB-STACK-ID,PinHeader_2x02_P2.54mm_Vertical,,,,,,,,,
 J_SIG1,1,SIG STUB 1x4 (mates db J20),HDR-TH_4P-P2.54-V-M,,,,,,,,,"Owner ruling 2026-07-08 (closes output-daughterboard study open item 5): NO sense-return option -- 1x4 only, matching the atx24-out-db J20 stub PIN-FOR-PIN (1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND). Module side is the SOCKET receiving the db 1x04 horizontal LongPin stub; vertical 1x4 2.54 land. ALIGNMENT CONTRACT: collinear with the blade row, pin1 one field-pitch (4.7mm) beyond the last blade slot -- both boards regenerate from this rule."
 Q1,1,AO3400A,SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR,AO3400A,AOS,C20917,,,,,,"PS_ON# OPEN-DRAIN drive (owner-approved 2026-07-14): wired-OR with the motherboard, can force PSU ON, can never source. 100k gate pull-down = released at reset/crash (fail-safe). Line is 5.25V max vs 30V rating; sink budget 10mA vs Vol<1mV."
 "R1,R3,R4",3,2.2kΩ,R_0402_1005Metric,,,C25879,,,,,,

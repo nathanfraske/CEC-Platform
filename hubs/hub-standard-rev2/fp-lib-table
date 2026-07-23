@@ -19,4 +19,5 @@
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Inductor_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Inductor_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Connector_PinHeader_2.00mm")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_PinHeader_2.00mm.pretty")(options "")(descr "vendored 2.00mm pin headers (mezzanine)"))
+  (lib (name "cec-Connector_PinHeader_2.54mm")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_PinHeader_2.54mm.pretty")(options "")(descr "Vendored, pinned; J6P/J6C/J6D mezz segments, docs/mezz-structural-segments-2026-07-22.md Appendix A"))
 )
