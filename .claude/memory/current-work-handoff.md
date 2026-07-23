@@ -1,5 +1,57 @@
 # Current work handoff
 
+## OWNER-CATCH FIXES + HUB COLLAPSE RECOVERY -- 2026-07-24 ~00:30. ROUND-3 CHAIN RUNNING.
+OWNER CAUGHT on the published s218: via clipping + dead mirror pours. Both measured+fixed
+(commit 613cf49c): (1) 9 same-net via stacks = synthesize_force_vias double-laying onto the
+locked rail arrays once the per-layer pour emission un-hid the In2 dicts -> 0.85mm ANY-net
+barrel ledgers in force-vias/pickups (lastmile already had one); (2) 23 unbonded B.Cu/In2
+mirror pours = the 'bonded by the through arrays' half of the mirror doctrine never existed
+-> synthesize_pour_bonds (primary layer exempt; mirrors need a same-net barrel or get <=3
+planted bond vias in an other-layer overlap; unbondable mirrors DROPPED loudly). s218
+dry-run: 28 bonded / 9 planted / 34 dropped; force-via rerun 2-at-1-spot vs full double-lay.
+CONFIRM-CHAIN READOUT: 24-pin winners unconn 73-83 (night band 104-114, -30) at s218/s229;
+polish stage works on 24-pin (graded, honestly kept-original). HUB COLLAPSED (all 9999):
+the truthful TS-1088/NTC courtyards exposed 3 stacked placement defects -- FIXED (8544408a):
+(a) partition take-1 (triage) made _bounds refs FULLY immovable (measured fixed=True via
+_bounds alone on U8/U9/U10 vs button anchors) -> TAKE 2: re-seat CLAMPED to the box
+(_seat_mcu_macro y_range param); (b) nothing re-checked legality after p10/p11 ->
+p12_final_legality = p8b re-run LAST on fresh live boxes; (c) p7 locked least-overlap
+landings (_locks_sans_overlaps filter, loud) + p10 intent seats now DECLARE locks_out
+(p12 undid a near() seat until then -- test_near_bites caught it). s126/s129/s131 3/3
+gate-clean. ALSO: thermal wall-clock budget landed (2dfc714b -- in-solve CG deadline +
+dashboard 180s fine-grid budget + 0.8 coarsen-retry; the 4h analyzer spin = 532s bounded,
+proof on s213); triage batch applied (ab4dc845: 18/20 suite reds fixed, 23 tests restored,
+2 owner-gated golden rituals filed); H=59 runtime grow SURFACED (owner-queue row, default
+(c) shrink-later); hub polish 9999 bug = the SAME collapse (placement refused pre-route ->
+polish graded 9999 -- resolves with the collapse fixes; verify on round 3).
+RUNNING: round-3 chain (hub s138-143 / 24-pin s230-235, ALL fixes + polish), task b0178rclh,
+log /tmp/round3-chain.log. READOUT = the definitive post-fix baseline for both boards.
+
+## BACKLOG SWEEP -- 2026-07-23 evening, owner GO "any further things... go ahead". IN FLIGHT.
+LANDED (commits e4f697f0 / 498f257d / c8fc3dc2, all pushed, golden byte-stable x3):
+1. LAST-MILE COMPLETER (rung 1 outgrowth; s120 autopsy: GND crit = 2 gaps <=2mm, 13/30
+   residual <=5mm): cec_fr.synthesize_lastmile -- zone-aware clustering (GetConnectedItems),
+   guarded straight/L at the net's own width, over-the-top bridge (stub+via -> empty In2/B
+   -> down), edge/arc bounds, hole-clearance seat guards, kelvin-net EXCLUDED. s120: 8
+   closed, 30->22 unconn, zero new DRC. Wired post-fill (CEC_LASTMILE) + hub AND 24-pin
+   params (rung 2: uncovered pads are scattered decoupling -> stitch+completer, NOT
+   mega-pour region extension). Teeth tests/test_lastmile.py 5.
+2. RUNG 3 = PLACEMENT, fixed both classes: legalize_pack edge inset 0.55 (numpy+seq; min
+   movable pad-edge 0.75 verified) + TS-1088/NTC_0402 pad-truth courtyards in lib.
+3. test_edge_seat_rot compile leg: raw PlacementSession(params=) drops anchor_pins (U1
+   unpinned -> v4 no-seat -> edge-park; green-by-luck pre-inset) -> _build_session.
+   DEF-cyinfo edge-park class FOLLOWUPS'd (repro: s97 dataflow unpinned).
+4. WINNER-POLISH wave stage: winner re-grades once at 16/20 (2x timeout, -polish label),
+   adopted only on better sort_key, report "polish" block. wave_polish default ON.
+5. Freed-In2 label SIG2 (hub) / PWR_RT (24-pin rail-alt).
+PROBE LADDER FINAL: hub s70 recipe A 24-26 -> B1 (3 layers) 21 -> B4 (full config)
+**unconn 19 / drc 20, ZERO shorts, kelvin TRUE = best hub grade ever**. 24-pin rung-2
+probe (s213 + pickups 14 + lastmile 17 closed) grading at last check.
+RUNNING: CONFIRM CHAIN /tmp/confirm-chain-0723.sh (2 rounds x both boards, hub s126-137 /
+24-pin s218-229, polish live) task b7ootcnnp; triage agent on the 20 discover-suite reds.
+NEXT: chain + rung-2 readouts -> fold triage fixes -> J6C sub-cell seat-search (un-pins
+U1; scoping notes below if not yet started).
+
 ## HUB In2 RUNG + PICKUP-GUARD ROOT CAUSE -- 2026-07-23 ~15:30 UTC, IN FLIGHT.
 OWNER DIRECTIVES (morning, in order): (a) "do we really need two inner grounds? Or can we
 make the second inner ground into a signalling layer?" -> measured answer NO/YES: the
