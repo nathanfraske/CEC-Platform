@@ -1,5 +1,14 @@
 # Current work handoff
 
+## GRIND CHAIN RUNNING -- 2026-07-24 01:10, owner GO "continue on the waves and implement as
+needed". 6 rounds x both boards (hub s144-179 / 24-pin s236-271, task bnwd7d7b2, log
+/tmp/grind-chain.log, ~5h). NEW LEVERS in it (commit c8684e67, from the round-3 residuals):
+24-pin logic-rail In2 asks (+3V3/+5VSB/+5V_MAIN -- the 28-item scattered-supply class) +
+lastmile_max_mm 8.0 both boards (LED daisy links 7-10mm; hub GND = ONE 2.2mm gap left).
+BASELINES to beat: hub 22/8 (s140, all-time best, crit [GND] only), 24-pin 75/86 (s230,
+drc halved from 180-218). On readout: residual autopsy again -> next levers; the I2C
+daisy class (10 items on s230) is the known next candidate if it persists.
+
 ## OWNER-CATCH FIXES + HUB COLLAPSE RECOVERY -- 2026-07-24 ~00:30. ROUND-3 CHAIN RUNNING.
 OWNER CAUGHT on the published s218: via clipping + dead mirror pours. Both measured+fixed
 (commit 613cf49c): (1) 9 same-net via stacks = synthesize_force_vias double-laying onto the
