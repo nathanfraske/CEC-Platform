@@ -1,5 +1,42 @@
 # Current work handoff
 
+## MEGA-SESSION 2026-07-22 (late): SEGMENTS LANDED + BETA MOVE + CODEX LADDER
+Commits acf03d12 (segments) + ff5d405e (beta move) + the synthesis commit, all pushed.
+(1) MEZZ SEGMENTS ON BOTH BOARDS: J6 -> J6P/J6C/J6D per the Appendix A contract,
+via two Sonnet agents on the sanctioned cec_sch/cec_sch_mcp path. Hub maps roles to
++5VSB/CAN//DETECT1 + NC stream/rsvd (the 2026-07-15 COLUMN-PAIRED map SUPERSEDED --
+its flip-invariance premise died with no-flip; supersession recorded in the mezz doc
+Appendix A, stale FOLLOWUPS conjugate-rewire entry retired). Orchestrator-independent
+verification: role tables exact + 18/18 pin MATE consistency, ERC no new error
+classes, netlist diffs J6-scoped, SPICE DC sanity clean vs banked baselines.
+INCIDENT (contained, FOLLOWUPS'd): the hub agent git-checkout'd the 24-pin agent's
+in-flight file (misdiagnosed as tool write-back); 24-pin agent self-healed; lessons:
+explicit no-git-ops clause in agent prompts + worktree isolation for parallel
+same-repo agents. NOTE KiCad annotation-heuristic quirk: letter-suffixed refs
+(J6P/J6C/J6D) print a benign "annotation errors" warning on netlist export (A/B-
+verified zero effect).
+(2) BETA PHYSICAL MOVE (owner directive): the 11-board beta lineage now lives in
+beta/<name>/ (ff5d405e). Rule: in beta/ = the latest; modules//hubs/ = alpha+history.
+60-file guarded sweep + 11 composed-path fixes + beta/-first search in all THREE
+resolvers (cec_router.find_board, cec_facts.board_catalog [side family preserved for
+corpus scoping, +beta additive], cec_synth_pipeline.Config.load). PROOFS: 11/11
+normalized-netlist identity (only path metadata differs -- the Sheetfile property
+embeds export-relative paths), zero stale refs, checklist green (clone-parity fixed:
+vendored pin-headers' stock 3D refs dropped, STEP vendoring FOLLOWUPS'd), golden
+signature unchanged. beta/README.md = index + move record; hub row PROMOTED to
+hub-standard-rev2 (the deferred 2026-07-17 call, executed under the no-confusion
+directive -- flagged veto-able). CLAUDE.md layout updated.
+(3) SEG-WAVES RUNNING on the new paths + segmented contract (24-pin s152-157, hub
+s42-47, watcher bfy1buy92): the e2e proof "the waves know the move". SUCCESS
+CRITERION: C1|H1 + J6|U10 refusal classes vanish from the ERR streams.
+(4) CODEX LADDER DONE (gpt-5.6-sol high, read-only): A standards audit (rank-1
+VERIFIED: 19 multiple_net_names in tester 05-banks = ELECTRICAL, FOLLOWUPS'd;
+rank-2 placeholder hierarchy; rank-3 off-sheet content), B MCP-surface audit
+(13-verb roadmap, transaction model, _gated() defects), C1 readability/tuning
+(9-step ladder, quantified: 84 overlaps/49 off-sheet/161 crossings on tester).
+C2 SYNTHESIS = docs/schematic-mcp-improvement-plan-2026-07-22.md + owner-queue SS1
+row (RULING NEEDED: GO/priority on its SS4 execution order). Reports build/codex-*.out.
+
 ## PROP-WAVE READOUT + MEZZ SEGMENT STUDY -- 2026-07-22 (evening)
 PROP WAVES DONE (both ~23:17 UTC). HUB: NEW BEST plain-dataflow-s41 unconn 28 /
 drc 22 / kelvin=TRUE / crit [GND] (was 36); second survivor = a PROPOSAL variant

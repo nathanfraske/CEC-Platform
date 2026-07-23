@@ -224,11 +224,17 @@ MEZZ_HUB_24PIN = {
     # docs/mezz-structural-segments-2026-07-22.md): the single 2x8 J6 + the
     # H1-H3 M3 standoff trio are RETIRED; three KEYED segments (J6P 2x3 power /
     # J6C 2x4 comms / J6D 2x2 ID, Appendix A pin maps) ARE the mounting system.
-    # Seats reuse the 2026-07-20 measured-legal datum points (J6P = the old BL
-    # left-flank sliver; J6C = old TR; J6D = old BR -- same proven ~65x30
-    # support triangle, screws deleted). rot 0 all = DRAFT, wave-iterable.
+    # SEATS v2 (2026-07-23, from the first seg-wave's measured refusals): the old
+    # BL left-flank sliver fit an M3 PAD but NOT J6P's 2x3 header FIELD -- J6P|J1/J2
+    # jack-land courtyard refusals fired on EVERY 24-pin variant (both are fixed
+    # anchors -> deterministic, wave-unfixable; the J6|U10 class the segments were
+    # built to dissolve IS measured gone). Interim R2 posture: all three segments on
+    # the PROVEN right flank (the old J6/TR/BR territory, evenly spread), and the
+    # LEFT M2 provision (H1) is the support polygon's 4th vertex -- populate it in
+    # bench/kit builds until a left-flank segment seat is properly re-derived by the
+    # joint-legality probe (FOLLOWUPS). rot 0 all = DRAFT, wave-iterable.
     "conns": [
-        {"ref": "J6P", "dc": (-32.0, 2.5), "rot": 0},   # power (left flank)
+        {"ref": "J6P", "dc": (33.0, 4.5), "rot": 0},    # power (right mid)
         {"ref": "J6C", "dc": (33.0, -10.5), "rot": 0},  # comms (right upper)
         {"ref": "J6D", "dc": (33.0, 19.5), "rot": 0},   # ID    (right lower)
     ],
