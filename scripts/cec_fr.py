@@ -1947,6 +1947,324 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     return {"pads": n_p, "vias": n_v, "stubs": n_s, "skipped": n_skip}
 
 
+def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
+                     *, drill=0.3, dia=0.6, leg_ok=None):
+    """Over-the-top closure for a dense-field gap: seat a through-via just off
+    each end (skipped when the end already spans layers -- a via/THT anchor),
+    run the bridge leg on an EMPTY non-plane layer (In2/B.Cu -- the F escape
+    fabric is exactly what refused the straight/L), straight or one L. Every
+    stub is foreign-guarded on its end's layer, every via spot all-layer
+    guarded, every bridge leg guarded on the bridge layer, and every piece
+    passes the caller's leg_ok bounds check (edge awareness). Returns the op
+    list [("trk", S, T, w, lay) | ("via", at, drill, dia)] or None."""
+    import math as _math
+    if leg_ok is None:
+        def leg_ok(_S, _T, _half):
+            return True
+
+    # existing via positions (ANY net): the foreign guard exempts same-net
+    # vias, but a seat drilled hole-to-hole against one is a hole_clearance
+    # hit regardless of net -- keep every synthesized seat 0.85mm off any barrel
+    ex_vias = [(t.GetPosition().x, t.GetPosition().y)
+               for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+
+    def _seat(end, lays, lay_b):
+        ex, ey = end
+        if lay_b in lays:
+            return (end, [])                      # via/THT/track-on-bridge: direct
+        lay_e = min(lays)
+        for off in (0.55, 0.8, 1.2):
+            for ang in (0, 90, 180, 270, 45, 135, 225, 315):
+                a = _math.radians(ang)
+                vx = int(ex + _math.cos(a) * _nm(off))
+                vy = int(ey + _math.sin(a) * _nm(off))
+                if any((vx - qx) ** 2 + (vy - qy) ** 2 < _nm(0.85) ** 2
+                       for qx, qy in ex_vias):
+                    continue
+                S = pcbnew.VECTOR2I(int(ex), int(ey))
+                V = pcbnew.VECTOR2I(vx, vy)
+                if not (leg_ok(S, V, w // 2)
+                        and leg_ok(V, V, _nm(dia) // 2)):
+                    continue
+                if not _tap_foreign_clear(board, S, V, w, lay_e,
+                                          clearance_nm, {nc}):
+                    continue
+                if not _via_spot_clear(board, V, _nm(dia), clearance_nm, {nc}):
+                    continue
+                return ((vx, vy), [("trk", S, V, w, lay_e), ("via", V)])
+        return None
+
+    for lay_b in bridge_lays:
+        sa = _seat(A, al, lay_b)
+        sb = _seat(B, bl, lay_b)
+        if sa is None or sb is None:
+            continue
+        (pa, ops_a), (pb, ops_b) = sa, sb
+        if ops_a and ops_b:                       # both seats synthesized: keep
+            if ((pa[0] - pb[0]) ** 2 + (pa[1] - pb[1]) ** 2
+                    < _nm(0.85) ** 2):            # their drills apart too
+                continue
+        S = pcbnew.VECTOR2I(int(pa[0]), int(pa[1]))
+        T = pcbnew.VECTOR2I(int(pb[0]), int(pb[1]))
+        legs = None
+        if (leg_ok(S, T, w // 2)
+                and _tap_foreign_clear(board, S, T, w, lay_b, clearance_nm, {nc})):
+            legs = [(S, T)]
+        else:
+            for C in (pcbnew.VECTOR2I(T.x, S.y), pcbnew.VECTOR2I(S.x, T.y)):
+                if (C.x, C.y) in ((S.x, S.y), (T.x, T.y)):
+                    continue
+                if (leg_ok(S, C, w // 2) and leg_ok(C, T, w // 2)
+                        and _tap_foreign_clear(board, S, C, w, lay_b, clearance_nm, {nc})
+                        and _tap_foreign_clear(board, C, T, w, lay_b,
+                                               clearance_nm, {nc})):
+                    legs = [(S, C), (C, T)]
+                    break
+        if legs is None:
+            continue
+        ops = list(ops_a) + list(ops_b)
+        for (ls_, le_) in legs:
+            ops.append(("trk", ls_, le_, w, lay_b))
+        # normalize the stub ops' width/layer tuple shape
+        out = []
+        for op in ops:
+            if op[0] == "via":
+                out.append(("via", op[1], drill, dia))
+            else:
+                out.append(op)
+        return out
+    return None
+
+
+def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40):
+    """LAST-MILE COMPLETER (2026-07-23, from the s120 residual measurement: 13 of
+    30 unconnected gaps were <=5mm same-net pad/via/track gaps FR left unclosed in
+    dense clusters -- including BOTH GND criticals, each a stranded pad sitting
+    1-2mm from a plane-connected via). Post-route ADDITIVE closure, the pour/
+    pickup doctrine: per net, cluster the copper through the REAL connectivity
+    engine (GetConnectedItems -- transitive and zone-aware, so run this only on a
+    FILLED board); for the closest anchor pair between two clusters that shares a
+    copper layer and sits <= max_mm apart, lay ONE guarded straight track -- or an
+    L (two guarded legs) when the straight is blocked -- at the net's own
+    established width (mode of its existing segments; a fat-class net gets its
+    fat width, so the track_width DRC posture matches FR's own copper). Every leg
+    is foreign-collision-guarded (_tap_foreign_clear, own-net exempt); refuses
+    loudly, never forces. Cross-layer-only gaps are counted, not attempted.
+    Returns {closed, legs, refused, far, cross_layer}."""
+    from collections import Counter, defaultdict
+    conn = board.GetConnectivity()
+    all_cu = list(board.GetEnabledLayers().CuStack())
+    # per-net item sweep -----------------------------------------------------
+    by_net = defaultdict(list)                    # nc -> [(uuid, kind, obj)]
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() > 0:
+                by_net[p.GetNetCode()].append((p.m_Uuid.AsString(), "pad", p))
+    for t in board.GetTracks():
+        if t.GetNetCode() > 0:
+            k = "via" if t.GetClass() == "PCB_VIA" else "trk"
+            by_net[t.GetNetCode()].append((t.m_Uuid.AsString(), k, t))
+    width_mode = {}
+    for nc_, items in by_net.items():
+        ws = Counter(o.GetWidth() for u, k, o in items if k == "trk")
+        width_mode[nc_] = ws.most_common(1)[0][0] if ws else _nm(min_w)
+
+    def _anchors(kind, obj):
+        """[(x, y, frozenset(layer_ids))] -- the connectable points of an item."""
+        if kind == "pad":
+            ls = frozenset(l for l in obj.GetLayerSet().CuStack() if l in all_cu)
+            p = obj.GetPosition()
+            return [(p.x, p.y, ls)]
+        if kind == "via":
+            p = obj.GetPosition()
+            return [(p.x, p.y, frozenset(all_cu))]
+        s, e = obj.GetStart(), obj.GetEnd()
+        ls = frozenset((obj.GetLayer(),))
+        return [(s.x, s.y, ls), (e.x, e.y, ls)]
+
+    # plane layers carry the solid fills -- a foreign lastmile track there would
+    # slot the plane (gnd-plane-continuity); exclude them from candidate layers
+    plane_ids = set()
+    for _pn in plane_layers(board):
+        _pl = board.GetLayerID(_pn)
+        if _pl >= 0:
+            plane_ids.add(_pl)
+
+    # EDGE AWARENESS (first s120 run: +4 copper_edge -- synthesized legs bypass
+    # the route-time strips). Every op point must sit inside the outline AABB
+    # inset by (rule 0.5 + half-width), and every leg must stay out of the
+    # rounded-corner arc boxes (the same notch class the edge strips cover).
+    _bb = board.GetBoardEdgesBoundingBox()
+    _arcs = []
+    for _dw in board.GetDrawings():
+        try:
+            if (board.GetLayerName(_dw.GetLayer()) == "Edge.Cuts"
+                    and _dw.GetShape() == pcbnew.SHAPE_T_ARC):
+                ab = _dw.GetBoundingBox()
+                _arcs.append((ab.GetLeft(), ab.GetTop(),
+                              ab.GetRight(), ab.GetBottom()))
+        except Exception:                           # noqa: BLE001
+            continue
+
+    def _lm_leg_ok(S, T, half_nm):
+        if _bb.GetWidth() <= 0 or _bb.GetHeight() <= 0:
+            return True                            # no outline -> no edge rule
+        m = _nm(0.5) + half_nm
+        for q in (S, T):
+            if not (_bb.GetLeft() + m <= q.x <= _bb.GetRight() - m
+                    and _bb.GetTop() + m <= q.y <= _bb.GetBottom() - m):
+                return False
+        for (x0, y0, x1, y1) in _arcs:
+            x0, y0, x1, y1 = x0 - m, y0 - m, x1 + m, y1 + m
+            # segment-vs-box overlap (separating axis on the AABB)
+            if max(S.x, T.x) < x0 or min(S.x, T.x) > x1 \
+                    or max(S.y, T.y) < y0 or min(S.y, T.y) > y1:
+                continue
+            dx, dy = T.x - S.x, T.y - S.y
+            if dx == 0 and dy == 0:
+                return False
+            corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+            sides = [dy * (cx - S.x) - dx * (cy - S.y) for cx, cy in corners]
+            if not (all(s > 0 for s in sides) or all(s < 0 for s in sides)):
+                return False
+        return True
+
+    # KELVIN EXCLUSION: sense nets connect ONLY through their authored taps at
+    # the shunt inner edge -- an arbitrary lastmile closure on a shared
+    # force+sense net could fake a tap through trunk copper (the exact class
+    # the kelvin gate exists to kill). Skip every kelvin-pair net.
+    kelvin_nc = set()
+    for _hi, _lo in _board_kelvin_pairs(board):
+        for _kn in (_hi, _lo):
+            _kc = board.GetNetcodeFromNetname(_kn)
+            if _kc > 0:
+                kelvin_nc.add(_kc)
+
+    n_closed = n_legs = n_ref = n_far = n_cross = 0
+    for nc_, items in by_net.items():
+        if len(items) < 2 or nc_ in kelvin_nc:
+            continue
+        # transitive clusters via the engine (uuid-keyed: SWIG re-proxies) ----
+        uu = {u: (k, o) for u, k, o in items}
+        seen, clusters = set(), []
+        for u, k, o in items:
+            if u in seen:
+                continue
+            members = [(u, k, o)]
+            seen.add(u)
+            try:
+                for ci in conn.GetConnectedItems(o):
+                    if ci.GetNetCode() != nc_:
+                        continue
+                    cu = ci.m_Uuid.AsString()
+                    if cu in uu and cu not in seen:
+                        seen.add(cu)
+                        members.append((cu, uu[cu][0], uu[cu][1]))
+            except Exception:                       # noqa: BLE001 -- engine quirk: solo cluster
+                pass
+            anc = []
+            for mu, mk, mo in members:
+                anc.extend(_anchors(mk, mo))
+            clusters.append(anc)
+        if len(clusters) < 2:
+            continue
+        # union-find over cluster indices; ALL eligible pairs ascending by
+        # distance, bounded retries per cluster pair so a refused closest
+        # anchor pair still gets its 2nd/3rd-nearest chance (v1 merged on
+        # refusal and measurably under-closed: 4 of ~13 on s120)
+        root = list(range(len(clusters)))
+
+        def _find(i):
+            while root[i] != i:
+                root[i] = root[root[i]]
+                i = root[i]
+            return i
+
+        pairs = []
+        for i in range(len(clusters)):
+            for j in range(i + 1, len(clusters)):
+                for (ax, ay, al) in clusters[i]:
+                    for (bx, by_, bl) in clusters[j]:
+                        d = ((ax - bx) ** 2 + (ay - by_) ** 2) ** 0.5 / 1e6
+                        if d <= max_mm:
+                            com = (al & bl) - plane_ids
+                            pairs.append((d, i, j, (ax, ay), (bx, by_),
+                                          com, al, bl))
+        if not pairs:
+            n_far += len(clusters) - 1
+            continue
+        pairs.sort(key=lambda p: p[0])
+        bridge_lays = sorted((l for l in all_cu
+                              if l not in plane_ids and l != pcbnew.F_Cu),
+                             reverse=True)
+        tries = {}
+        for d, i, j, A, B, com, al, bl in pairs:
+            if n_closed >= cap:
+                break
+            ri, rj = _find(i), _find(j)
+            if ri == rj:
+                continue
+            key = (min(ri, rj), max(ri, rj))
+            if tries.get(key, 0) >= 4:
+                continue
+            tries[key] = tries.get(key, 0) + 1
+            w = width_mode[nc_]
+            S = pcbnew.VECTOR2I(int(A[0]), int(A[1]))
+            T = pcbnew.VECTOR2I(int(B[0]), int(B[1]))
+            ops = None
+            # same-layer straight/L first, emptier layers before congested F
+            for lay in sorted(com, reverse=True):
+                if (_lm_leg_ok(S, T, w // 2)
+                        and _tap_foreign_clear(board, S, T, w, lay,
+                                               _nm(clearance), {nc_})):
+                    ops = [("trk", S, T, w, lay)]
+                    break
+                for C in (pcbnew.VECTOR2I(int(B[0]), int(A[1])),
+                          pcbnew.VECTOR2I(int(A[0]), int(B[1]))):
+                    if (C.x, C.y) in ((S.x, S.y), (T.x, T.y)):
+                        continue                      # axis-aligned: straight covered it
+                    if (_lm_leg_ok(S, C, w // 2) and _lm_leg_ok(C, T, w // 2)
+                            and _tap_foreign_clear(board, S, C, w, lay,
+                                                   _nm(clearance), {nc_})
+                            and _tap_foreign_clear(board, C, T, w, lay,
+                                                   _nm(clearance), {nc_})):
+                        ops = [("trk", S, C, w, lay), ("trk", C, T, w, lay)]
+                        break
+                if ops:
+                    break
+            if ops is None:
+                # over-the-top: stub+via each end, bridge on an empty layer
+                ops = _lastmile_bridge(board, A, al, B, bl, w, nc_,
+                                       bridge_lays, _nm(clearance),
+                                       leg_ok=_lm_leg_ok)
+            if ops is None:
+                n_ref += 1
+                continue
+            for op in ops:
+                if op[0] == "via":
+                    _, at, dr_, di_ = op
+                    v = pcbnew.PCB_VIA(board)
+                    v.SetPosition(at)
+                    v.SetDrill(_nm(dr_))
+                    v.SetWidth(_nm(di_))
+                    v.SetNetCode(nc_)
+                    board.Add(v)
+                else:
+                    _, ls_, le_, w_, lay_ = op
+                    tr = pcbnew.PCB_TRACK(board)
+                    tr.SetStart(ls_)
+                    tr.SetEnd(le_)
+                    tr.SetWidth(w_)
+                    tr.SetLayer(lay_)
+                    tr.SetNetCode(nc_)
+                    board.Add(tr)
+                    n_legs += 1
+            n_closed += 1
+            root[_find(j)] = _find(i)
+    return {"closed": n_closed, "legs": n_legs, "refused": n_ref,
+            "far": n_far, "cross_layer": n_cross}
+
+
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
                      clearance=0.2, kelvin_pairs=None, board=None):
     """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
@@ -3432,6 +3750,22 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         for z in board.Zones():
             z.UnFill()
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # LAST-MILE COMPLETER (2026-07-23, recipe-gated): close <=5mm same-net
+    # cluster gaps FR left unfinished (measured on the s120 best: 13 of 30
+    # residual unconn were such gaps, incl. both GND criticals). MUST run on a
+    # FILLED board -- cluster membership is zone-aware -- so it sits after the
+    # fill, and refills when it lands copper (the new legs need foreign fills
+    # to re-yield clearance around them).
+    if os.environ.get("CEC_LASTMILE", "0") == "1" and fill_zones:
+        board.BuildConnectivity()
+        lm = synthesize_lastmile(board)
+        print(f"[cec_fr] lastmile: {lm['closed']} gap(s) closed ({lm['legs']} leg(s)), "
+              f"{lm['refused']} refused, {lm['far']} far, "
+              f"{lm['cross_layer']} cross-layer", file=sys.stderr)
+        if lm["closed"]:
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.SaveBoard(out_path, board)
     if not os.path.isfile(out_path):
         raise RuntimeError(

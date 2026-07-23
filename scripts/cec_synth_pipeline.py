@@ -2317,7 +2317,8 @@ def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
     return res
 
 
-def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
+def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
+                  edge=0.55):
     """Greedy non-overlap legalization (proper detailed placement): place each movable part at
     the NEAREST FREE position to its target by an outward spiral search, so the result has ZERO
     real courtyard overlap by construction. Each part's obstacle is its TRUE courtyard -- centre
@@ -2343,7 +2344,8 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     try:
         import numpy as np
     except ImportError:
-        return _legalize_pack_seq(P, movable, cyinfo, W, H, clr=clr, step=step, bounds=bounds)
+        return _legalize_pack_seq(P, movable, cyinfo, W, H, clr=clr, step=step,
+                                  bounds=bounds, edge=edge)
     DEF = (0.0, 0.0, 1.0, 1.0)
     apx, apy, aphw, aphh = [], [], [], []
     for r in P:
@@ -2363,8 +2365,14 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     for r in order:
         cx, cy, hw, hh = cyinfo.get(r, DEF)
         tx, ty = P[r][0], P[r][1]
-        lo_x, hi_x = hw - cx, W - hw - cx
-        lo_y, hi_y = hh - cy, H - hh - cy
+        # EDGE INSET (2026-07-23, s120 forensic: 6 of 7 residual copper_edge
+        # hits were PLACED passives with pads 0.3-0.5mm off the outline -- the
+        # legal range allowed courtyards flush to the edge). Movable courtyards
+        # (pad-truth post-D5) stay >= edge inside the outline, so pads honor
+        # the 0.5 copper-edge rule by construction. Anchors/overhang parts are
+        # not movables and keep their edge seats.
+        lo_x, hi_x = hw - cx + edge, W - hw - cx - edge
+        lo_y, hi_y = hh - cy + edge, H - hh - cy - edge
         if hi_x < lo_x:
             lo_x = hi_x = W / 2 - cx
         if hi_y < lo_y:
@@ -2415,7 +2423,8 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     return residual
 
 
-def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
+def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
+                       edge=0.55):
     """The original sequential legalizer -- the no-numpy fallback + the record/replay
     reference implementation (see legalize_pack's docstring for the equivalence proof)."""
     DEF = (0.0, 0.0, 1.0, 1.0)
@@ -2439,8 +2448,10 @@ def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=No
     for r in order:
         cx, cy, hw, hh = cyinfo.get(r, DEF)
         tx, ty = P[r][0], P[r][1]                    # target ORIGIN; courtyard centre = origin+(cx,cy)
-        lo_x, hi_x = hw - cx, W - hw - cx            # origin range keeping the courtyard in-board
-        lo_y, hi_y = hh - cy, H - hh - cy
+        # origin range keeping the courtyard in-board, inset by the copper-edge
+        # margin (see legalize_pack -- the vectorized twin carries the same edit)
+        lo_x, hi_x = hw - cx + edge, W - hw - cx - edge
+        lo_y, hi_y = hh - cy + edge, H - hh - cy - edge
         if hi_x < lo_x:
             lo_x = hi_x = W / 2 - cx
         if hi_y < lo_y:
@@ -7361,6 +7372,10 @@ def _oracle_env(params=None):
             # hub power rung (2026-07-23): stitch stranded SMD power pads into
             # their covering floods/plane at import (cec_fr power pickups)
             extra["CEC_POWER_PICKUP"] = "1"
+        if params.get("lastmile"):
+            # last-mile completer (2026-07-23): close <=5mm same-net cluster
+            # gaps FR left in dense fields, post-fill (cec_fr synthesize_lastmile)
+            extra["CEC_LASTMILE"] = "1"
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling
@@ -9499,6 +9514,8 @@ def materialize(cand, cfg, out, *, logo=None):
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
                         drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
                         inner_power_routing=bool(cfg.params.get('inner_power_routing')),
+                        inner_label=("PWR_RT" if cfg.params.get('rail_alt_layer')
+                                     else "SIG2"),
                         fiducials=fids)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""

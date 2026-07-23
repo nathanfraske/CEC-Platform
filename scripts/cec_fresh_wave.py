@@ -356,6 +356,15 @@ BOARD_PARAMS = {
                           # GND plane at import (rung part 2 -- the floods
                           # alone cannot reach an F.Cu pad from B.Cu).
                           "power_pickup": True,
+                          # LAST-MILE COMPLETER (2026-07-23, from the s120
+                          # residual autopsy: 13 of 30 unconn were <=5mm
+                          # same-net gaps FR left in dense fields -- incl.
+                          # BOTH GND criticals, each a pad 1-2mm from a
+                          # plane-connected via). Guarded straight/L closure
+                          # + the over-the-top bridge (stub+via -> empty
+                          # In2/B leg -> back down); measured on s120: 8
+                          # closed, unconn 30->22, zero new DRC of any class.
+                          "lastmile": True,
                           # ONE INNER GND, In2 = SIGNAL (owner 2026-07-23 "can
                           # we make the second inner ground into a signalling
                           # layer?" -- which is ALREADY the standing 2026-06-14
@@ -518,6 +527,15 @@ BOARD_PARAMS = {
                        # build_board (the board-class stackup exception made real).
                        "inner_power_routing": True,
                        "rail_alt_layer": "In2.Cu",
+                       # RUNG 2 (2026-07-23, scoped on s213 with the fixed
+                       # guards): the 20 critical-net pads outside every rail
+                       # flood are SCATTERED logic-side decoupling/taps --
+                       # region extension would be the mega-pour anti-pattern;
+                       # the right tools are the stitch (dry-fired 12 on s213)
+                       # + the lastmile completer (kelvin nets excluded inside
+                       # it -- sense connects only through authored taps).
+                       "power_pickup": True,
+                       "lastmile": True,
                        # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to

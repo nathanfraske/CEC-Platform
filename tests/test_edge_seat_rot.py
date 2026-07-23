@@ -60,11 +60,15 @@ class TestEdgeSeatRotation(unittest.TestCase):
         # gate-guarded per variant, not re-tested here.)
         import tempfile
         import cec_fresh_wave as w
-        from cec_placement_session import PlacementSession
         for board, (W, H) in (("atx-24pin-rev3", (74.0, 55.0)),
                               ("hub-standard-rev2", (88.0, 70.0))):
-            s = PlacementSession(board, W, H, params=w._board_params(board),
-                                 strat="dataflow", seed=97)
+            # canonical constructor (2026-07-23 fix): raw
+            # PlacementSession(params=...) does NOT thread anchor_pins into
+            # pins= (the documented protocol gotcha) -- U1 ran UNPINNED here,
+            # hit the v4 no-legal-seat condition and edge-parked; the test was
+            # green only by pass-dynamics luck until the legalizer edge inset
+            # perturbed it. _build_session is what the pipeline actually runs.
+            s, _p = w._build_session(board, W, H, "plain", "dataflow", 97)
             c = s.compile()
             out = os.path.join(tempfile.gettempdir(),
                                f"edge_seat_rot_{board}.kicad_pcb")

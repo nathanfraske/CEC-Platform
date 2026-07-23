@@ -441,7 +441,7 @@ def export_netlist(dir_, base):
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
                 corner_radius=0.0, back_refs=(), inner_power_routing=False,
-                fiducials=()):
+                inner_label="PWR_RT", fiducials=()):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -526,7 +526,11 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n" + zone + g + note +
            "\n\t(embedded_fonts no)\n)\n")
     if inner_power_routing:
-        doc = doc.replace('(6 "In2.Cu" power "12V")', '(6 "In2.Cu" signal "PWR_RT")', 1)
+        # the freed inner's user label follows its role: "PWR_RT" on rail-alt
+        # boards (24-pin), "SIG2" on signal-inner boards (hub) -- cosmetic,
+        # the canonical In2.Cu is what tooling resolves
+        doc = doc.replace('(6 "In2.Cu" power "12V")',
+                          f'(6 "In2.Cu" signal "{inner_label}")', 1)
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body
