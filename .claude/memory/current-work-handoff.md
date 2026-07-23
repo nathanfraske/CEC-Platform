@@ -1,5 +1,30 @@
 # Current work handoff
 
+## BACKLOG SWEEP -- 2026-07-23 evening, owner GO "any further things... go ahead". IN FLIGHT.
+LANDED (commits e4f697f0 / 498f257d / c8fc3dc2, all pushed, golden byte-stable x3):
+1. LAST-MILE COMPLETER (rung 1 outgrowth; s120 autopsy: GND crit = 2 gaps <=2mm, 13/30
+   residual <=5mm): cec_fr.synthesize_lastmile -- zone-aware clustering (GetConnectedItems),
+   guarded straight/L at the net's own width, over-the-top bridge (stub+via -> empty In2/B
+   -> down), edge/arc bounds, hole-clearance seat guards, kelvin-net EXCLUDED. s120: 8
+   closed, 30->22 unconn, zero new DRC. Wired post-fill (CEC_LASTMILE) + hub AND 24-pin
+   params (rung 2: uncovered pads are scattered decoupling -> stitch+completer, NOT
+   mega-pour region extension). Teeth tests/test_lastmile.py 5.
+2. RUNG 3 = PLACEMENT, fixed both classes: legalize_pack edge inset 0.55 (numpy+seq; min
+   movable pad-edge 0.75 verified) + TS-1088/NTC_0402 pad-truth courtyards in lib.
+3. test_edge_seat_rot compile leg: raw PlacementSession(params=) drops anchor_pins (U1
+   unpinned -> v4 no-seat -> edge-park; green-by-luck pre-inset) -> _build_session.
+   DEF-cyinfo edge-park class FOLLOWUPS'd (repro: s97 dataflow unpinned).
+4. WINNER-POLISH wave stage: winner re-grades once at 16/20 (2x timeout, -polish label),
+   adopted only on better sort_key, report "polish" block. wave_polish default ON.
+5. Freed-In2 label SIG2 (hub) / PWR_RT (24-pin rail-alt).
+PROBE LADDER FINAL: hub s70 recipe A 24-26 -> B1 (3 layers) 21 -> B4 (full config)
+**unconn 19 / drc 20, ZERO shorts, kelvin TRUE = best hub grade ever**. 24-pin rung-2
+probe (s213 + pickups 14 + lastmile 17 closed) grading at last check.
+RUNNING: CONFIRM CHAIN /tmp/confirm-chain-0723.sh (2 rounds x both boards, hub s126-137 /
+24-pin s218-229, polish live) task b7ootcnnp; triage agent on the 20 discover-suite reds.
+NEXT: chain + rung-2 readouts -> fold triage fixes -> J6C sub-cell seat-search (un-pins
+U1; scoping notes below if not yet started).
+
 ## HUB In2 RUNG + PICKUP-GUARD ROOT CAUSE -- 2026-07-23 ~15:30 UTC, IN FLIGHT.
 OWNER DIRECTIVES (morning, in order): (a) "do we really need two inner grounds? Or can we
 make the second inner ground into a signalling layer?" -> measured answer NO/YES: the
