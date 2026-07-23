@@ -308,9 +308,16 @@ BOARD_PARAMS = {
     # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, no-flip, 2026-07-22
     # segmented form -- J6P/J6C/J6D + the one provisioned M2).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
-                          # winners finish at unconn 7-36; the seg3 kills fired
-                          # flat at togo 34-67 and the probe recovered 34 -> 7
-                          "wave_plateau_floor": 100,
+                          # RECALIBRATED 100 -> 150 (wall probe 2026-07-23):
+                          # the first fix-wave killed variants flat at togo
+                          # 104-112, and the full-effort probe routed that
+                          # exact board to unconn 17 -- FR's mid-route flat
+                          # phases reach ~110 and recover (A/B cleared both
+                          # netclasses and locked copper as causes; it is
+                          # seed-ordering phase behavior). 150 covers the
+                          # measured recoverable band (34->7, 112->17);
+                          # winners finish at unconn 7-36.
+                          "wave_plateau_floor": 150,
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
