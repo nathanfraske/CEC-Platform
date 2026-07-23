@@ -78,6 +78,38 @@ def local_pads(libid):
     return out
 
 _PADSZ_CACHE = {}
+_PADBOX_CACHE = {}
+
+
+def local_pad_boxes(libid):
+    """[(lx0, ly0, lx1, ly1)] LOCAL extent boxes of a footprint's electrical pads
+    (centroid +/- size/2, the PAD's own rotation applied). Memoized. Added
+    2026-07-23 (the D5 model-truth defect): easyeda-class footprints draw their
+    courtyard around the BODY only, so every courtyard-based placement model
+    under-sized them and movers legally-by-model parked pads past the board edge
+    (D5 SOT-23: courtyard half-x 0.65 vs real pad copper reach 1.87). courtyard_bbox
+    unions these so every consumer is pad-truthful."""
+    if libid in _PADBOX_CACHE:
+        return _PADBOX_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); out = []
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        if "np_thru_hole" in b.split("\n")[0]:
+            continue
+        num = re.match(r'\(pad "([^"]*)"', b)
+        at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', b)
+        sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if not (num and num.group(1) and at and sz):
+            continue
+        lx, ly = float(at.group(1)), float(at.group(2))
+        sx, sy = float(sz.group(1)), float(sz.group(2))
+        prot = float(at.group(3) or 0.0) % 180.0
+        if 45.0 <= prot < 135.0:                    # pad rotated ~90: axes swap
+            sx, sy = sy, sx
+        out.append((lx - sx / 2.0, ly - sy / 2.0, lx + sx / 2.0, ly + sy / 2.0))
+    _PADBOX_CACHE[libid] = out
+    return out
 
 
 def local_pad_sizes(libid):
@@ -165,6 +197,15 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
             cy = pad_hi + 1.0
         dx, dy = _rot(cx, cy, rot)
         xs += [x + dx - r, x + dx + r]; ys += [y + dy - r, y + dy + r]
+    # PAD-TRUTH UNION (2026-07-23, the D5 class): a courtyard that fails to cover
+    # the pad copper (easyeda body-only courtyards) under-sizes every placement
+    # model -- union the real pad extents so seats/colliders match what DRC and
+    # the board edge actually see. Pads are never keepout-trimmed (they ARE the
+    # band the trim preserves).
+    for (px0, py0, px1, py1) in local_pad_boxes(libid):
+        for (lx, ly) in ((px0, py0), (px1, py0), (px0, py1), (px1, py1)):
+            dx, dy = _rot(lx, ly, rot)
+            xs.append(x + dx); ys.append(y + dy)
     if not xs:
         return (x - 1, x + 1, y - 1, y + 1)
     return (min(xs), max(xs), min(ys), max(ys))

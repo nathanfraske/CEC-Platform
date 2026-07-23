@@ -49,41 +49,29 @@ class TestEdgeSeatRotation(unittest.TestCase):
         self.assertGreaterEqual(y + by[0], -0.25, "J3 pads off-board top")
         self.assertLessEqual(y + by[1], H + 0.25, "J3 pads off-board bottom")
 
-    def test_all_edge_anchors_pads_in_bounds(self):
-        # the general property under the WAVE's real pin set (BOARD_PARAMS
-        # anchor_pins pin the mezz segments; without them J6P gets role-classified
-        # onto the top edge beside J3 and trips the SEPARATE, roadmap-known
-        # place_edge no-edge-fit-check overflow -- reproduced 2026-07-23, filed in
-        # FOLLOWUPS; that gap has its own lever, this test pins the rotation leak)
+    def test_full_pipeline_compile_pads_in_bounds(self):
+        # the END-TO-END regression: a full wave-config compile (PlacementSession
+        # with the board's real _board_params -- pins, roles, tucks, movers, the
+        # lot) must materialize with every pad on the board, per the
+        # _oracle_pads_in_bounds gate itself. (A raw seed_anchors probe without
+        # the wave config packs edges the pipeline never packs and trips the
+        # roadmap-known place_edge overflow on synthetic sets -- reproduced
+        # 2026-07-23, FOLLOWUPS'd with the J_SIG1/J_KVM instances; that lever is
+        # gate-guarded per variant, not re-tested here.)
+        import tempfile
         import cec_fresh_wave as w
+        from cec_placement_session import PlacementSession
         for board, (W, H) in (("atx-24pin-rev3", (74.0, 55.0)),
                               ("hub-standard-rev2", (88.0, 70.0))):
-            cfg = csp.Config.load(board)
-            nl = csp.View(cfg).nl
-            bp = w._board_params(board)
-            pins = dict(cfg.pins or {})
-            pins.update(bp.get("anchor_pins") or {})
-            res = csp.seed_anchors(nl, W, H,
-                                   {r: c.footprint for r, c in nl.comps.items()},
-                                   pins,
-                                   overhang=cfg.params.get("connector_overhang",
-                                                           "edge"))
-            # KNOWN-OPEN (noted, not failed -- repo convention): J_SIG1's right-edge
-            # pack seats its 4-pin row ~2.2mm past the bottom edge (separate
-            # PRE-EXISTING cursor defect exposed by this new test, 2026-07-23 --
-            # FOLLOWUPS; the _oracle_pads_in_bounds gate names it per-variant at
-            # grade time, so it cannot ship silently while the lever is open).
-            known_open = {"J_SIG1"}
-            for ref, (x, y, rot) in res.items():
-                fp = nl.comps.get(ref)
-                if fp is None or ref in known_open:
-                    continue
-                (bx, by) = csp._pad_band(fp.footprint, rot)
-                self.assertTrue(
-                    x + bx[0] >= -0.25 and x + bx[1] <= W + 0.25
-                    and y + by[0] >= -0.25 and y + by[1] <= H + 0.25,
-                    f"{board} {ref}: pads out of bounds at ({x:.1f},{y:.1f},"
-                    f"{rot}) band x{bx} y{by}")
+            s = PlacementSession(board, W, H, params=w._board_params(board),
+                                 strat="dataflow", seed=97)
+            c = s.compile()
+            out = os.path.join(tempfile.gettempdir(),
+                               f"edge_seat_rot_{board}.kicad_pcb")
+            csp.materialize(c, s.cfg, out)
+            r = csp._oracle_pads_in_bounds(out)
+            self.assertTrue(r.get("ok"),
+                            f"{board}: {r.get('violations')}")
 
 
 if __name__ == "__main__":

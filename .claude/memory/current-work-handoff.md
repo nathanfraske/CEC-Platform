@@ -1,5 +1,31 @@
 # Current work handoff
 
+## SEATS-V3 ARC -- 2026-07-23 (small hours), commits through the seats-v3 batch (pushed)
+Owner directives landed: segments FUNCTION-ADJACENT ("near where their connectors
+are"), pattern ASYMMETRIC (one-way intentional insertion), segments may ROTATE to
+fill space. Plus the owner's render catch: "the 24 pin connector has been shoved
+out of bounds" -- ROOT-CAUSED as a place_edge PER-ITEM ROTATION LEAK (mouth-flip
+rot computed per item, the bare `rot` loop variable applied the LAST item's rot to
+every ref on the edge; J3 = rot-0 extents + rot-180 seat = 22/26 pads off-board,
+and NOTHING refused it). FIXED (rot travels with the item) + _oracle_pads_in_bounds
+PRE-ROUTE GATE (teeth on the real broken board; FID* exempt = staged fiducials) +
+edge-fit FIRST RUNG (gap-shrink to 0.4mm + loud "[seed] edge OVERFLOW" print; the
+full lever + J_SIG1's separate 2.2mm right-edge cursor defect stay FOLLOWUPS'd,
+gate-guarded). scripts/cec_mezz_probe.py = the COMMITTED joint-legality seat
+derivation (real segment courtyards -- the 2026-07-22 part-size lesson encoded;
+rot 0/90 search; 24-pin rail-lane hard region; function-target scoring; spread +
+asymmetry constraints; --min-spread/--asym-min knobs). SEATS v3 adopted from fresh
+post-fix substrates: J6P (22.2,-8.4)r90 / J6C (11.2,12.6)r90 / J6D (30.2,4.6)r90 --
+wide triangle, all right-of-lane on the 24-pin, PATTERN ASYMMETRY 33.7mm (contract
+tooth pins >=8), function adjacency as close as joint legality allows (the boards'
+power/CAN anatomy conflicts across sides; target distances in /tmp/mezz-probe4.json
+-> re-derive any time via the probe). H1 M2 provision unchanged (-20,14). Teeth:
+tests/test_edge_seat_rot.py (container; J3 strict + general-with-known-open
+J_SIG1) + the mating-frame asymmetry tooth; 133 container tests + checklist +
+golden green. SEG3-WAVES RUNNING s164-169/s54-59 (watcher bartepg7o) -- readout:
+expect J6P|J1/J2 refusals GONE, watch H1-vs-satellite marginals + first segment-
+era routed boards on both sides.
+
 ## MEGA-SESSION 2026-07-22 (late): SEGMENTS LANDED + BETA MOVE + CODEX LADDER
 Commits acf03d12 (segments) + ff5d405e (beta move) + the synthesis commit, all pushed.
 (1) MEZZ SEGMENTS ON BOTH BOARDS: J6 -> J6P/J6C/J6D per the Appendix A contract,
