@@ -1,5 +1,16 @@
 # Current work handoff
 
+## ALL-IN CHAIN RUNNING 2026-07-24 ~17:30 (owner GO "implement it all + more waves + new parts placed"):
+6 rounds x both boards (hub s218-253 / 24-pin s344-379, /tmp/allin-chain.log). LIVE in it:
+hub collapse GATE (mezz envelopes exempt from the bad-trigger -- compiles complete again;
+residual = genuine +12-part pressure, C1-vs-LED-ring on some seeds, wave grinds it), FULL
+slab A/B on the 24-pin (slab_pour=True: rail dicts slab-shave -- widest bonded In2 primary
+= deficit closure + unconn recovery), F-mirror delivery proof, all pour rules, plane-THT
+exclusion, NEW INGRESS PARTS placed on every variant (verified: 24-pin 127 parts, hub 120).
+READOUT vs: 24-pin unconn 103-125/drc 76-92 (the diet trade), hub pre-collapse 9-17.
+NEXT after readout: (0a) remaining cell refusal (kelvin) + C1-seat pressure if it starves
+the hub waves; (0b) slab guaranteed-CORE at materialize (the locked-width rung).
+
 ## METHOD-CHAIN VERDICT 2026-07-24 ~16:30 (the honest trade, reported in-chat):
 24-pin under the FULL pour diet (need-based + delivery-proof mirrors, ask-slabs, appendage
 prune): drc HOLDS mid-band (76-92) and the junk classes are DEAD (F mirrors 0, L3 floater
