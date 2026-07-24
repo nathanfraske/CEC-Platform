@@ -26,11 +26,11 @@ J6P?,1,TO-24PIN-STACK-PWR,PinHeader_2x03_P2.54mm_Vertical,PinHeader 2x03 2.54mm 
 J_KVM?,1,CEC_NANOKVM_AUX_5P,JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal,S5B-PH-K-S(LF)(SN),JST,C157923,,,,,,
 J_PWR?,1,PWR_IN,JST_XH_S3B-XH-A_1x03_P2.50mm_Horizontal,S3B-XH-A(LF)(SN),JST,C157928,,,,,,
 J_USB?,1,USB-C,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,,,,
-"R12,R15,R17,R21,R23",5,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,
+"R12,R15,R17,R21,R23,R33,R35,R37",8,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,"U11 OV1 divider top (PSU_5V side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage.,U5 OV1 divider top (5VSB_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage.,U7 OV1 divider top (MAIN_5V_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage."
 "R13,R_ILIM1,R_ILIM2,R_ILIM3",4,27kΩ,R_0402_1005Metric,0402WGF2702TCE,UNI-ROYAL,C25771,,,,,,"U11 ILIM strap, mirrors R_ILIM1/R_ILIM2 (~3.8A) -- F5's own 1.1A hold is the tighter element toward the wall-wart."
 R14,1,330Ω,R_0402_1005Metric,0402WGF3300TCE,UNI-ROYAL,C25104,,,,,,
 "R19,R20",2,33Ω,R_0402_1005Metric,0402WGF330JTCE,UNI-ROYAL,C25105,,,,,,
-"R2,R5,R6,R7,R8,R11,R16,R18,R22,R24,R25",11,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,
+"R2,R5,R6,R7,R8,R11,R16,R18,R22,R24,R25,R34,R36,R38",14,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,"U11 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R37.,U5 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R33.,U7 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R35."
 R26,1,34.0kOhm,R_0402_1005Metric,0402WGF3402TCE,UNI-ROYAL,C48939,,,,,,
 R27,1,10.0kOhm,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,
 R28,1,1MOhm,R_0402_1005Metric,0402WGF1004TCE,UNI-ROYAL,C26083,,,,,,
