@@ -8,7 +8,15 @@ was 32. 24-PIN: band 91-99/76-96 (round-3's 75/86 = seed outlier), **kelvin_ok F
 chain-wide** (standing since >= round 3 -- the HARD gate; sense pairs strand under honest
 widths) + 5/6 polish legs 9999'd. Thermal injection improving (2/9 nets open on the last
 best vs most-open before).
-NEXT SESSION, IN ORDER: (1) 24-PIN KELVIN-FIRST DEBUG -- why the sense pairs fail the hard
+OWNER-RATIFIED NEW DIRECTION (2026-07-24 ~06:30): SLAB POURS -- subtractive power copper,
+full spec in docs/slab-pour-design-2026-07-24.md (giant-overshoot slab per rail net,
+progressively shaved, >=125% min-cut invariant; TWO-PART: guaranteed core LOCKED at
+materialize = the early priority rung ["the pour takes priority and gets its route first"],
+overshoot floods post-route + raster shave loop, ONE real fill at the end; kelvin excluded;
+kills the whole rect-miss/dead-mirror/lace/bond class). Implement as scripts/cec_slab_pour.py,
+A/B on the 24-pin rails. This slots AHEAD of most machinery polish -- but kelvin-first debug
+still leads (a failing HARD gate outranks architecture).
+NEXT SESSION, IN ORDER: (0) SLAB-POUR build per the design doc (after/with kelvin); (1) 24-PIN KELVIN-FIRST DEBUG -- why the sense pairs fail the hard
 gate at honest widths (read cec_score kelvin gate verdicts on s246/s266, then the tap/pair
 routing); (2) 24-pin polish-9999 recurrence (likely the same refusal class; compare a failed
 polish's placed board gates); (3) blade-row realign propagation gap (FOLLOWUPS has measures:
