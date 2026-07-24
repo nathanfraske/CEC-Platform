@@ -1,39 +1,44 @@
-"Reference","Qty","Value","Footprint","MPN","Manufacturer","LCSC","LC_Stock","Chosen_Distributor","Datasheet","Validated","DNP","Notes"
-"C1,C2","2","1uF","cec-Capacitor_SMD:C_0603_1608Metric","CL10B105KA8NNNC","Samsung","C29936","","","","","",""
-"C3-C5,C8,C10-C15,C20-C23","14","100nF","cec-Capacitor_SMD:C_0402_1005Metric","CL05B104KO5NNNC","Samsung","C1525","","","","","",""
-"C6,C7,C9","3","10uF","cec-Capacitor_SMD:C_0805_2012Metric","CL21A106KAYNNNE","Samsung","C15850","","","","","",""
-"C24","1","1nF","cec-Capacitor_SMD:C_0402_1005Metric","GRM1555C1H102JA01D","Murata","C76947","","","","","",""
-"CF1-CF6","6","470nF","cec-Capacitor_SMD:C_0603_1608Metric","CL10B474KA8NNNC","Samsung","C1623","","","","","",""
-"D1,D4","2","PESD5V0S1BA","cec-Diode_SMD:D_SOD-323","PESD5V0S1BA","Nexperia","C5261083","","","","","",""
-"D2","1","SS34","cec-Diode_SMD:D_SMA","SS34","MDD","C8678","","","","","",""
-"D3","1","USBLC6-2SC6","cec-Package_TO_SOT_SMD:SOT-23-6","USBLC6-2SC6","UMW","C2687116","","","https://www.st.com/resource/en/datasheet/usblc6-2.pdf","","",""
-"D5","1","SS34","cec-Diode_SMD:D_SMA","SS34","MDD","C8678","","","","","","Fan flyback diode (anode FAN_RET, cathode FAN_12V)"
-"FB1","1","MPZ2012S601AT000","cec-Capacitor_SMD:C_0805_2012Metric","MPZ2012S601AT000","TDK","C21519","","","","","",""
-"FB2","1","0R","cec-Capacitor_SMD:C_0805_2012Metric","0805W8F0000T5E","UNI-ROYAL","C17477","","","","","",""
-"FL1","1","ACT1210L-101-2P-TL00 (DNP)","","ACT1210L-101-2P-TL00","TDK","C307643","","","","","DNP",""
-"J1","1","TO-HUB","cec:RJ45_FTP_Shielded_Horizontal","KH-RJ45-58-8P8C","Kinghelm","C2683360","","","","","",""
-"J2","1","CEC_FAN_3P (DNP)","cec-Connector_JST:JST_PH_B3B-PH-K-S_1x03_P2.00mm_Vertical","B3B-PH-K-S(LF)(SN)","JST","C131339","","","","","DNP","Fan port, DNP posture preserved; pin1 FAN_RET/pin2 FAN_12V/pin3 FAN_TACH"
-"J3","1","12V-2x6 IN","cec:CEC_12V2x6_Horizontal","2191161161","Molex","","","","","","",""
-"J4","1","12V-2x6 OUT pigtail","cec:CEC_12V2x6_Horizontal","2191161161","Molex","","","","","","",""
-"J5","1","USB-C 2.0","cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11","U262-161N-4BVC11","XKB Connectivity","C319148","","","","","",""
-"","1","Noctua NF-A4x10 FLX (reference fan, consigned)","","NF-A4x10 FLX","Noctua","","","","","","CONSIGNED","Not a placed BOM part -- external accessory mated to J2. 12V 3-pin, 0.6W/17.9dBA/4500rpm. Open item: JST PH is not the PC-fan KK-2510 standard, needs a PH-crimped lead or adapter pigtail."
-"Q1","1","AO3400A","cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR","AO3400A","AOS","C20917","","","","","","Q_FAN low-side switch, default-on (10k pullup)"
-"R1","1","2.2kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF2201TCE","UNI-ROYAL","C25879","","","","","",""
-"R2,R15,R16,R20,R21","5","10kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF1002TCE","UNI-ROYAL","C25744","","","","","","R15/R16 = fan gate/tach pullups to +3V3"
-"R5","1","47kΩ","cec-Resistor_SMD:R_0402_1005Metric","RT0402BRD0747KL","Yageo","C728561","","","","","",""
-"R6","1","10kΩ","cec-Resistor_SMD:R_0402_1005Metric","RT0402BRD0710KL","Yageo","C190095","","","","","",""
-"R7","1","100kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF1003TCE","UNI-ROYAL","C25741","","","","","",""
-"R8,R9","2","5.1kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF5101TCE","UNI-ROYAL","C25905","","","","","",""
-"R10-R13,R17","5","1kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF1001TCE","UNI-ROYAL","C11702","","","","","","R17 = fan tach series R into ESP32 IO47"
-"R14","1","100Ω","cec-Resistor_SMD:R_0402_1005Metric","RC0402JR-07100RL","YAGEO","C106233","","","","","","Fan gate series R from ESP32 IO21"
-"R22,R23","2","0R","cec-Resistor_SMD:R_0402_1005Metric","0402WGF0000TCE","UNI-ROYAL","C17168","","","","","",""
-"RFH1-RFH6,RFL1-RFL6","12","10Ω","cec-Resistor_SMD:R_0402_1005Metric","RT0402BRE0710RL","Yageo","C705642","","","","","",""
-"RS1-RS6","6","1mΩ","cec-Resistor_SMD:R_2512_6332Metric","CSS2H-2512R-1L00F","Bourns","C4175647","","","","","",""
-"SW1","1","BOOT","cec-Button_Switch_SMD:TS-1088-AR02016","TS-1088-AR02016","XKB","C720477","","","","","",""
-"SW2","1","RESET","cec-Button_Switch_SMD:TS-1088-AR02016","TS-1088-AR02016","XKB","C720477","","","","","",""
-"TH1,TH2","2","NTC 10k","cec-Resistor_SMD:NTC_0402_1005Metric","NCP15XH103F03RC","Murata Electronics","C77131","","","https://datasheet.lcsc.com/datasheet/pdf/c9e5c9a36e405340079034c7608ac4b6.pdf?productCode=C77131","","",""
-"U1","1","ESP32-S3-MINI-1-N4R2","cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout","ESP32-S3-MINI-1-N4R2","Espressif","C3013941","","","","","",""
-"U2","1","TJA1051T/3","cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm","TJA1051T/3","NXP","C38695","","","","","",""
-"U3","1","LP5907MFX-3.3","cec-Package_TO_SOT_SMD:SOT-23-5","LP5907MFX-3.3","Texas Instruments","C80670","","","","","",""
-"U4","1","REF3030","cec-Package_TO_SOT_SMD:REF3030_DBZ3","REF3030AIDBZR","Texas Instruments","C38423","","","https://www.ti.com/lit/ds/symlink/ref3030.pdf","","",""
-"U10-U15","6","INA240A3","cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm","INA240A3DR","Texas Instruments","C2060584","","","","","",""
+Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
+"C1,C2",2,1uF,C_0603_1608Metric,CL10B105KA8NNNC,Samsung,C29936,,,,,,
+C24,1,1nF,C_0402_1005Metric,GRM1555C1H102JA01D,Murata,C76947,,,,,,
+C25,1,100nF,C_0402_1005Metric,,,,,,,,,
+C26,1,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,,,,"U5 soft-start cap (~10ms output ramp, hub-proven value)."
+"C3,C4,C5,C8,C10,C11,C12,C13,C14,C15,C20,C21,C22,C23,C27",15,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,U5 IN2 (VBUS) bypass.
+"C6,C7,C9,C28",4,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,,,,U5 IN2 (VBUS) bulk (additional to the existing C9 on the same node).
+"CF1,CF2,CF3,CF4,CF5,CF6",6,470nF,C_0603_1608Metric,CL10B474KA8NNNC,Samsung,C1623,,,,,,
+"D1,D4",2,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,Nexperia,C5261083,,,,,,"H3 VBUS-side ESD clamp for standalone mode (chosen over SMF5.0A: reuses the already-qualified platform low-cap 5V clamp -- same part as D1 on this board -- IEC61000-4-2 rated, smaller SOD-323; see beta report for the SMF5.0A rejection rationale). Cathode(1)=VBUS_RAW, anode(2)=GND -- same convention as D1."
+D3,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,,,,"H3/W11 standalone-mode USB ESD suite. Hub-parity part (identical to hub-standard D6). I/O1(1,6)=USB_DP, I/O2(3,4)=USB_DM, VBUS(5)=VBUS_RAW (pre-FB1 entry bead, closest to J5 connector), GND(2)=GND."
+D5,1,SS34,D_SMA,SS34,MDD,C8678,,,,,,"Fan flyback/freewheel diode -- anode on FAN_RET, cathode on FAN_12V, clamps the fan's inductive kick when Q_FAN switches off. Reuses the platform-sourced SS34 (same part as D2's USB VBUS ORing diode on this board, LCSC C8678); task spec named 'SS14' but C8678 on this board is SS34, so the already-verified-stocked part is used for BOM consistency."
+F1,1,750mA/16V PTC,R_1206_3216Metric,1206L075/16WR,Littelfuse,C371166,,,,,,"750mA hold/1.5A trip/16V resettable PTC polyfuse, VBUS ingress defense layer 2 (spec v1.6.0 Sec 6.14)."
+FB1,1,MPZ2012S601AT000,C_0805_2012Metric,MPZ2012S601AT000,TDK,C21519,,,,,,"H3a(a) VBUS entry ferrite bead, POPULATED. 600ohm@100MHz / 2A / 0805. Owner ruling named MPZ2012S601A-class/-TD01; the verified in-stock LCSC part is the -T000 tape-and-reel suffix (C21519) -- -TD01 does not exist at LCSC, see beta report. Pin1=VBUS_RAW (J5-side, pre-bead), pin2=VBUS (existing board net, unchanged)."
+FB2,1,0R,C_0805_2012Metric,0805W8F0000T5E,UNI-ROYAL,C17477,,,,,,"H3a(b) 5VSB port-VCC entry bead POSITION. 0R jumper populated by default (0805 land also accepts an MPZ2012-family ferrite bead pad-for-pad -- populate a real bead only on EMC evidence). Pin1=VCC_RAW (J1 RJ-45 pin1 side), pin2=+5VSB (existing board rail, unchanged, relocated power-flag symbol #PWR01)."
+FL1,1,ACT1210L-101-2P-TL00 (DNP),,ACT1210L-101-2P-TL00,TDK,C307643,,,,,DNP,"H3a(c) CAN common-mode-choke, DNP by default (EMC insurance only; never series beads on individual CAN lines -- one part couples both lines through a shared core). Footprint NOT yet vendored (1210, 4-pin, TDK CAN/FlexRay CMC) -- flagged for the beta layout pass. R22/R23 (0R, populated) bridge H_IN/H_OUT and L_IN/L_OUT respectively so CAN works out of the box while FL1 is DNP; populate FL1 + DNP both bridges together if EMC evidence demands the choke."
+J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,,,,
+J2,1,CEC_FAN_3P (DNP),JST_PH_B3B-PH-K-S_1x03_P2.00mm_Vertical,B3B-PH-K-S(LF)(SN),JST,C131339,,,,,DNP,"J2 fan port (beta-lock-register J-menu item 2; fan-control leg owner-ratified 2026-07-10/11). 3-pin JST-PH B3B-PH-K-S vertical, DNP posture PRESERVED from the prior 2-pin position-only provision (enclosed-menu DNP-fan provision -- not silently flipped to populated). Pin1=FAN_RET (switched GND return, through Q_FAN low-side NMOS to GND -- default-ON, firmware drives FAN_EN LOW to turn the fan off). Pin2=FAN_12V, fed from the existing pre-shunt /SENSEP6_HI node (J3 pin6 / RS6 HI terminal / R5.1 rail-divider tap) so fan draw branches off BEFORE RS6 and never adds to any per-pin GPU-side current measurement -- UNCHANGED from the prior provision, never fed from +5VSB/OQ-2 budget. Pin3=FAN_TACH, open-collector tach pulled to +3V3 (R16) and series-R'd (R17) into a free ESP32-S3 GPIO. Reference fan: Noctua NF-A4x10 FLX (12V 3-pin, 0.6W/17.9dBA/4500rpm), CONSIGNED -- mating note: JST PH is not the PC-fan KK-2510 standard, ships with a PH-crimped lead or adapter pigtail (open item)."
+J3,1,12V-2x6 IN,CEC_12V2x6_Horizontal,2191161161,Molex,,,,,,,
+J4,1,12V-2x6 OUT pigtail,CEC_12V2x6_Horizontal,2191161161,Molex,,,,,,,
+J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connectivity,C319148,,,,,,
+Q1,1,AO3400A,SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR,AO3400A,AOS,C20917,,,,,,"Q_FAN: low-side NMOS switch for J2 fan return. Drain=FAN_RET, Source=GND, Gate=FAN_GATE (100R series R14 from ESP32 IO21/FAN_EN, 10k pullup R15 to +3V3). DEFAULT-ON (owner ruling): with 3V3 up and the GPIO not actively driving low, R15 holds the gate high and the fan runs; firmware drives FAN_EN LOW to turn the fan off. 30V/5.7A SOT-23, LCSC C20917, 853k+ in stock."
+R1,1,2.2kΩ,R_0402_1005Metric,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,
+"R10,R11,R12,R13,R17",5,1kΩ,R_0402_1005Metric,0402WGF1001TCE,UNI-ROYAL,C11702,,,,,,FAN_TACH series R into ESP32 IO47 (FAN_TACH_GPIO) -- ESD/current limiting on the tach line into the ADC-capable GPIO used as a digital input.
+R14,1,100,R_0402_1005Metric,RC0402JR-07100RL,YAGEO,C106233,,,,,,"Q_FAN gate series R, damps gate-drive ringing from ESP32 IO21 (FAN_EN) into the gate node (FAN_GATE)."
+"R2,R15,R16,R20,R21,R27",6,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,"FAN_TACH pullup to +3V3 -- the fan's tach output is open-collector, needs an external pullup to read a valid high level.,Q_FAN gate pullup, FAN_GATE node to +3V3 -- DEFAULT-ON: holds the gate high (fan running) whenever 3V3 is up and IO21/FAN_EN is not actively driven low.,U5 OV1 divider bottom (GND side) -> ~6.04V typical cutoff."
+"R22,R23",2,0Ω,R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,,,,,"H3a(c) CAN_H bypass -- REQUIRED alongside FL1: a DNP series CMC opens the CAN_H line in the netlist (DNP only affects BOM/assembly, not connectivity), so this 0R bridges FL1 pins 1(H_IN)/3(H_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R23) if FL1 is ever populated.,H3a(c) CAN_L bypass -- REQUIRED alongside FL1: bridges FL1 pins 2(L_IN)/4(L_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R22) if FL1 is ever populated."
+R24,1,10kΩ,R_0402_1005Metric,,,,,,,,,
+R26,1,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,"U5 OV1 divider top (IN1 side) -- 1% UNI-ROYAL, NOT the 0.1% Yageo R5/R6 precision line elsewhere on this board."
+R29,1,33kΩ,R_0402_1005Metric,0402WGF3302TCE,UNI-ROYAL,C25779,,,,,,U5 PR1 divider bottom (GND side) -> ~4.27V typical validity floor.
+R5,1,47kΩ,R_0402_1005Metric,RT0402BRD0747KL,Yageo,C728561,,,,,,
+R6,1,10kΩ,R_0402_1005Metric,RT0402BRD0710KL,Yageo,C190095,,,,,,
+"R7,R25,R28",3,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,,,,"U5 ILIM strap -> ~1.24A typical (I_LIM=65.2/R_kOhm^0.861).,U5 PR1 divider top (IN1 side)."
+"R8,R9",2,5.1kΩ,R_0402_1005Metric,0402WGF5101TCE,UNI-ROYAL,C25905,,,,,,
+"RFH1,RFH2,RFH3,RFH4,RFH5,RFH6,RFL1,RFL2,RFL3,RFL4,RFL5,RFL6",12,10Ω,R_0402_1005Metric,RT0402BRE0710RL,Yageo,C705642,,,,,,
+"RS1,RS2,RS3,RS4,RS5,RS6",6,1mΩ,R_2512_6332Metric,CSS2H-2512R-1L00F,Bourns,C4175647,,,,,,"OQ-11 LOCKED (spec v1.2.0, 2026-07-02; docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md): Bourns CSS2H-2512R-1L00F, 1mΩ, confirmed the only real 1mΩ Bourns part (K-1L00F does not exist)"
+SW1,1,BOOT,TS-1088-AR02016,TS-1088-AR02016,XKB,C720477,,,,,,
+SW2,1,RESET,TS-1088-AR02016,TS-1088-AR02016,XKB,C720477,,,,,,
+"TH1,TH2",2,NTC 10k,NTC_0402_1005Metric,NCP15XH103F03RC,Murata Electronics,C77131,,,,,,
+U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif,C3013941,,,,,,
+"U10,U11,U12,U13,U14,U15",6,INA240A3,SOIC-8_3.9x4.9mm_P1.27mm,INA240A3DR,Texas Instruments,C2060584,,,,,,
+U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3,NXP,C38695,,,,,,
+U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3,Texas Instruments,C80670,,,,,,
+U4,1,REF3030,REF3030_DBZ3,REF3030AIDBZR,Texas Instruments,C38423,,,,,,
+U5,1,TPS2121RUXR,RUX0012A,TPS2121RUXR,Texas Instruments,C485916,,,,,,

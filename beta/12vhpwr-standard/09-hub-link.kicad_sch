@@ -1746,24 +1746,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 170.18 113.03 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "d1fe35f8-be50-4284-a0e7-a8471ee4cc62")
-		(property "Reference" "#PWR908" (at 170.18 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 170.18 118.11 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "74bdd656-d5e2-496d-9187-81d40879af15"))
-		(instances
-			(project "12vhpwr-standard-module"
-				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR908") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 107.95 130.81 180)
@@ -1839,6 +1822,17 @@
 	(no_connect (at 123.19 99.06) (uuid "ca22e76e-560e-4557-95d3-fdd3e34be898"))
 	(no_connect (at 123.19 101.6) (uuid "e8f096bf-df3e-43d1-b8c4-ab113e893dcc"))
 	(no_connect (at 123.19 106.68) (uuid "1d2c3dc6-2734-4e32-a845-a814a4d183b5"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 170.18 113.03 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "c882d7d0-e67f-46cc-b585-f19cd7b10e69")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 170.18 113.03 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
 	(sheet_instances
 		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09"
 			(page "10")
