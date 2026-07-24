@@ -100,3 +100,36 @@ bridging two body lobes is a pathway -- stays, so pruning can never disconnect
 anything). A sub-floor corridor legitimately dies at the sliver stage instead,
 and the min-width invariant reports the split. Teeth: tests/test_slab_pour.py.
 Measured on the s266 board: 12-58 appendages pruned per (net, layer).
+
+## v2 — OVER-UNDER POURS (owner ratification, 2026-07-24 late): the pour is a routed object
+
+The shunt-only top refusal is a BANDAID (owner's word; kept as the choke-point
+safety net). The architecture: per rail, ONE continuous wide path from source
+terminals to sink terminals, existing on exactly ONE layer per segment --
+preferred layer (In2) until contested space blocks it, then a VIA-ARRAY BRIDGE
+to another layer, carry on, bridge back. The vacated layer carries NO copper
+there (the mirrored part is removed by construction, not by rule).
+
+Consequences that fall out for free: criss-cross dies (paths, not slabs);
+F.Cu copper exists only where the path must touch it (terminal fields/shunt
+pads -- the shunt neighborhoods EMERGE instead of being decreed); mirrors
+exist only as bridge overlaps (need-based by construction); vias always sit
+inside copper (they ARE the bridges); the min-width invariant is the SEARCH
+CONSTRAINT (pathfind on per-layer masks eroded by half the required width --
+every found path is provably wide enough, per layer, oz-aware via the IPC
+width per segment).
+
+Implementation mapping (synthesize_overunder_pours in cec_slab_pour):
+1. Terminals per rail from the chains (J3 pin group, shunt pads, TB group).
+2. Per-layer obstacle rasters (existing rasterize) eroded by half the
+   REQUIRED width for that net on that layer (IPC inverse, oz-aware).
+3. Multi-layer A* over (cell, layer) nodes: step cost 1, layer-change cost =
+   bridge penalty (~8 cells), layer preference bias (In2 cheapest, B mid,
+   F expensive except within terminal fields).
+4. Realize: each maximal same-layer run -> dilate by half-width -> lane
+   polygon; each transition -> via-array bridge (ledger pitch, both-layer
+   overlap for the bridge length).
+5. Lay through add_power_pours (the choke point; path-derived F segments at
+   terminals pass the shunt test naturally). Verify: min-cut re-measure +
+   the invariant report.
+A/B behind CEC_OVERUNDER=1 against the slab-shave path.
