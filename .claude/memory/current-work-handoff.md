@@ -12,7 +12,15 @@
    still refused on s266 (identify the squatter -- rerun the repro, read the REFUSED print)
    + [force-rails] RS3 snk refused vs H1/C18 and RS1 v0-2 vs J6C (rail-plan vs mezz-seat
    conflicts, separate class, surfaced in the same repro).
-STILL RUNNING overnight: 6-round wave chain (/tmp/overnight-0724.log, hub s180-215 /
+SCHEMATIC AGENT ROUND 1 DONE (worktree branch worktree-agent-ae0715ffe270dfc82, 7 commits,
+NOT pushed): all 6 beta boards implemented, 0 new ERC errors each, honest deviations flagged
+(ST pin NC-not-grounded [correct, matches U5/U7 as-built], refdes shifts, hub CP2 net-move
+required by as-built topology, eps-8pin-rev3 owner-gated skip, stale 12vhpwr BOM csv flagged).
+It correctly DECLINED the mid-task OV instruction (citation didn't exist at its merge point)
+-- RESUMED with the verifiable 8c8ca46f citation to add U5/U7(+U11) OV dividers now. ON ITS
+NEXT COMPLETION: spawn the SANITY agent (audit the worktree vs the delta doc + spec v1.6.0 +
+the OV ruling; ERC/netlist/BOM cross-check) BEFORE any merge to the pipeline branch. SPICE
+DONE (96d93157: mitigated PASSES 82-1029x; marginals filed 9c6083ae). STILL RUNNING overnight: 6-round wave chain (/tmp/overnight-0724.log, hub s180-215 /
 24-pin s278-313); Sonnet SCHEMATIC agent in worktree (module TPS2121 ingress + hub 3rd
 cascade + hub OV dividers [owner-signed]); Sonnet SPICE agent (cases A-F). ON SCHEMATIC
 AGENT LANDING: spawn the SANITY agent (audit worktree vs delta doc + spec) BEFORE merge.
