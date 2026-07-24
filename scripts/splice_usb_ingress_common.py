@@ -29,6 +29,7 @@ import cec_sch  # noqa: E402
 GRID = cec_sch.GRID
 STUB = cec_sch.STUB
 f = cec_sch.f
+u = cec_sch.u
 
 
 def gsnap(v):
@@ -82,9 +83,17 @@ def _unique_at(txt, x, y):
     symbol (Footprint/Datasheet/Description/...) is stamped with the SAME (at
     x y 0) as the symbol's own origin, so those must be excluded here rather
     than counted as ambiguity."""
+    # NOTE: this file mixes compact single-line output (cec_sch.emit_* style,
+    # "(label "X" (at ...) ...)") and verbose multi-line output (KiCad's own
+    # native save format, "(label "X"\n\t\t(at ...)\n..."), sometimes within
+    # the SAME file -- so the separator between a tag's opening and its own
+    # "(at ...)" must be whitespace-flexible (\s+), never a literal "\n\t\t".
     at_txt = f"(at {f(x)} {f(y)} "
     pat = re.compile(
-        r'(?:\(lib_id "[^"]*"\)\n\t\t|\(label "[^"]*"\n\t\t)' + re.escape(at_txt)
+        r'(?:\(lib_id "[^"]*"\)\s+'                            # symbol origin
+        r'|\(label "[^"]*"\s+'                                 # plain label
+        r'|\(hierarchical_label "[^"]*"\s+\(shape \w+\)\s+'    # hier label
+        r')' + re.escape(at_txt)
     )
     matches = list(pat.finditer(txt))
     if len(matches) == 0:
@@ -102,10 +111,11 @@ def remove_terminal_at(txt, x, y):
     'label' (info=old net name) or 'power' (info=(ref, value))."""
     idx = _unique_at(txt, x, y)
     lab_i = txt.rfind('\t(label "', 0, idx)
+    hlab_i = txt.rfind('\t(hierarchical_label "', 0, idx)
     sym_i = txt.rfind("\t(symbol\n", 0, idx)
-    start = max(lab_i, sym_i)
+    start = max(lab_i, hlab_i, sym_i)
     if start < 0:
-        raise SystemExit(f"REFUSE: no enclosing (label/(symbol found before ({x},{y})")
+        raise SystemExit(f"REFUSE: no enclosing (label/(hierarchical_label/(symbol before ({x},{y})")
     blk = carve_from_marker(txt, start)
     if not (start <= idx < start + len(blk)):
         raise SystemExit(f"REFUSE: located block does not actually contain ({x},{y})")
@@ -115,6 +125,9 @@ def remove_terminal_at(txt, x, y):
     if start == lab_i:
         m = re.match(r'\t\(label "([^"]*)"', blk)
         return new_txt, "label", (m.group(1) if m else None)
+    elif start == hlab_i:
+        m = re.match(r'\t\(hierarchical_label "([^"]*)"', blk)
+        return new_txt, "hierarchical_label", (m.group(1) if m else None)
     else:
         refm = re.search(r'\(property "Reference" "([^"]+)"', blk)
         valm = re.search(r'\(property "Value" "([^"]*)"', blk)
@@ -163,23 +176,28 @@ def remove_pin_stub(txt, pins, ref, num, ox, oy):
 
 
 def rename_label_at(txt, x, y, new_name):
-    """Change a (label "OLD" (at x y ...) ...) to (label "NEW" ...) in place,
-    anchored by its exact coordinate. Returns (new_txt, old_name)."""
+    """Change a (label "OLD" ...) or (hierarchical_label "OLD" ...) at (x, y)
+    to carry `new_name` instead, in place, preserving its tag (plain vs
+    hierarchical) and every other field (shape/effects/uuid). Anchored by its
+    exact coordinate. Returns (new_txt, old_name, tag)."""
     idx = _unique_at(txt, x, y)
-    start = txt.rfind('\t(label "', 0, idx)
-    if start < 0 or not (start <= idx):
-        raise SystemExit(f"REFUSE: no (label at ({x},{y})")
+    lab_i = txt.rfind('\t(label "', 0, idx)
+    hlab_i = txt.rfind('\t(hierarchical_label "', 0, idx)
+    start = max(lab_i, hlab_i)
+    if start < 0:
+        raise SystemExit(f"REFUSE: no (label/(hierarchical_label at ({x},{y})")
+    tag = "hierarchical_label" if start == hlab_i else "label"
     blk = carve_from_marker(txt, start)
     if not (start <= idx < start + len(blk)):
         raise SystemExit(f"REFUSE: located label block does not contain ({x},{y})")
-    m = re.match(r'\t\(label "([^"]*)"', blk)
+    m = re.match(r'\t\(' + tag + r' "([^"]*)"', blk)
     if not m:
-        raise SystemExit(f"REFUSE: block at ({x},{y}) is not a (label ...)")
+        raise SystemExit(f"REFUSE: block at ({x},{y}) is not a ({tag} ...)")
     old_name = m.group(1)
-    new_blk = blk.replace(f'(label "{old_name}"', f'(label "{new_name}"', 1)
+    new_blk = blk.replace(f'({tag} "{old_name}"', f'({tag} "{new_name}"', 1)
     if txt.count(blk) != 1:
         raise SystemExit(f"REFUSE: label block at ({x},{y}) is not uniquely matched")
-    return txt.replace(blk, new_blk, 1), old_name
+    return txt.replace(blk, new_blk, 1), old_name, tag
 
 
 def pin_pt(pins, num, ox, oy):
@@ -211,6 +229,31 @@ def wire_and_label(pins, ref, num, ox, oy, net):
     return "\n".join([
         cec_sch.emit_wire(ax, ay, bx, by),
         cec_sch.emit_label(net, bx, by, label_angle(dx, dy)),
+    ])
+
+
+def emit_hier_label(net, x, y, ang, shape="output"):
+    """A (hierarchical_label ...) -- same-sheet connectivity by name, exactly
+    like a plain (label ...), but also the half of a real sheet-pin lane (the
+    root sheet-symbol carries the matching pin + a same-named label at its own
+    level). Used where an EXISTING net on the touched sheet already rides this
+    mechanism (matching its own house style) rather than a plain label."""
+    just = "left" if ang in (0, 270) else "right"
+    return (f'\t(hierarchical_label "{net}"\n'
+            f'\t\t(shape {shape})\n'
+            f'\t\t(at {f(x)} {f(y)} {ang})\n'
+            f'\t\t(effects (font (size 1.27 1.27)) (justify {just}))\n'
+            f'\t\t(uuid "{u()}")\n'
+            f'\t)')
+
+
+def wire_and_hier_label(pins, ref, num, ox, oy, net, shape="output"):
+    ax, ay, dx, dy = pin_pt(pins, num, ox, oy)
+    bx, by = stub_end(ax, ay, dx, dy)
+    bx, by = gsnap(bx), gsnap(by)
+    return "\n".join([
+        cec_sch.emit_wire(ax, ay, bx, by),
+        emit_hier_label(net, bx, by, label_angle(dx, dy), shape),
     ])
 
 
