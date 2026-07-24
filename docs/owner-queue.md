@@ -495,3 +495,16 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     CLAUDE.md action item 6) on the 5 sensing modules + hub-standard-rev2, then the
     first-article unpowered-reverse bench gate (owner clock). Interim bench rules are in
     force and recorded in spec §2.9.
+  - **OWNER RULINGS 2026-07-24 (in-session) on the survey findings:**
+    (a) **Finding 3 SIGNED OFF**: hub OV dividers on every TPS2121 stage (U5/U7 + the new KVM
+    stage), same 47k/10k ~6.04V posture as the module package -- LUMPED into the running
+    schematic pass (forwarded to the agent same-day). Spec addendum note owed (v1.6.x) at the
+    morning consolidation.
+    (b) **Finding 1 (mains ingress) RULED -- layered posture**: (i) a testing-METHODOLOGY smoke
+    test before sensitive equipment ever connects to a DUT PSU (pre-flight with sacrificial/
+    protected instrumentation); (ii) fast-shutdown-on-detection where feasible -- the 24-pin
+    rev3's PS_ON# drive is now a DIRECT PSU-shutdown actuator for the tester (owner caveat,
+    recorded verbatim in intent: NOT guaranteed on a faulty PSU -- treat as mitigation, never
+    as the safety case); (iii) full station-safety hardware (RCD/GFCI + isolation transformer +
+    earth-bonded frame w/ M3 chassis bond) = a PRO/MAX TESTING-STATION tier feature. The
+    tester product spec carries all three layers when drafted.
