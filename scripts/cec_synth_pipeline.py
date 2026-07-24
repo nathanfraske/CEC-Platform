@@ -6558,9 +6558,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                  # ref squatting inside a sense-cell envelope refuses the whole
                  # cell's locked copper at materialize (R61 [+3V3] in the 12V
                  # cell -> kelvin FALSE chain-wide). Whichever pass parked it,
-                 # it becomes `bad` HERE and re-seats out (the forbid set below
-                 # already contains the envelopes).
-                 + _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d)))
+                 # it becomes `bad` HERE and re-seats out. GATED to boards with
+                 # COPPER cells (force_rails/blueprint_cells): on the hub the
+                 # blueprint envelopes are the MEZZ SEGMENT boxes -- no cell
+                 # copper to refuse -- and the ungated trigger mass-flagged
+                 # everything near them (the 2026-07-24 overnight collapse:
+                 # every hub variant 9999'd from re-seat storms).
+                 + (_blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                    if (cfg.params.get("force_rails")
+                        or cfg.params.get("blueprint_cells")) else []))
         def _in_corr(bx):
             l0, r0, t0, b0 = bx
             return any(not (r0 <= c[1] or c[2] <= l0 or b0 <= c[3] or c[4] <= t0)

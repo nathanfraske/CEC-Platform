@@ -541,6 +541,10 @@ BOARD_PARAMS = {
                        # it -- sense connects only through authored taps).
                        "power_pickup": True,
                        "plane_tht_exclude": True,
+                       # FULL SLAB A/B LIVE (owner GO 2026-07-24 "implement it all"):
+                       # rail dicts slab-shave too -- the widest bonded In2 primary
+                       # is the unconn-recovery + deficit-closure path
+                       "slab_pour": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
