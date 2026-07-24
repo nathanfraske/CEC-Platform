@@ -2044,6 +2044,40 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
             print(f"[cec_fr] pour bonds: DROPPED unneeded mirror {net} on {lay} "
                   "(primary carries the current at margin)", file=sys.stderr)
             continue
+        # F.CU DELIVERY PROOF (owner 2026-07-24, render verdicts: a NEEDED
+        # mirror on the signal fabric that fills as lace with a couple of vias
+        # "isn't doing anything of value" -- justification without delivery is
+        # decoration. A kept F mirror must PROVE delivery: >=60% predicted
+        # fill AND >=3 barrels in-region; else it drops and the AMPACITY
+        # DEFICIT prints loudly -- the honest escalation is widening the
+        # primary (the slab core), never decorating the top.)
+        if lay == "F.Cu" and lay != _primary.get(net):
+            _nbar = 0
+            for (vx, vy, vn) in all_vias:
+                if vn == nc_ and r[0] * 1e6 <= vx <= r[2] * 1e6 \
+                        and r[1] * 1e6 <= vy <= r[3] * 1e6:
+                    _nbar += 1
+            # re-probe at the strict threshold (the 45% gate above is the
+            # generic scrap floor; delivery demands more)
+            nx = ny = 6
+            open_ = 0
+            for i in range(nx):
+                for j in range(ny):
+                    ax = r[0] + (i + 0.5) * (r[2] - r[0]) / nx
+                    ay = r[1] + (j + 0.5) * (r[3] - r[1]) / ny
+                    at = pcbnew.VECTOR2I(int(ax * 1e6), int(ay * 1e6))
+                    probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+                    if _tap_foreign_clear(board, at, probe, _nm(0.5), lay_id,
+                                          _nm(0.25), {nc_}):
+                        open_ += 1
+            if open_ / (nx * ny) < 0.60 or _nbar < 3:
+                n_drop += 1
+                print(f"[cec_fr] pour bonds: DROPPED undeliverable F mirror "
+                      f"{net} ({open_}/{nx*ny} open, {_nbar} barrel(s)) -- "
+                      "AMPACITY DEFICIT on the primary stands; widen the "
+                      "primary (slab core), do not decorate the top",
+                      file=sys.stderr)
+                continue
         if _barrel_in(nc_, r) or (lay == _primary.get(net)
                                   and _contact_on_layer(nc_, lay_id, r)):
             n_bond += 1
