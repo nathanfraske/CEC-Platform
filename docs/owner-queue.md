@@ -435,3 +435,22 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   post-clean shrink pass reclaim it later (the documented plan of record: "the shrink pass
   comes after a gate-clean baseline exists"). Agent default until ruled: (c) — no further
   growth, mechanism left as-is, flagged on every readout.
+
+- **[2026-07-24] USB BACKFEED INTO FAULTY-PSU BULK (owner discovery, CONFIRMED by transient
+  sim) — BETA DESIGN DECISION:** with a module USB-attached and a dead/faulty PSU connected,
+  VBUS charges the PSU's 5VSB bulk through the module's ORing diode (24-pin: directly through
+  the 25mohm shunt; other modules: through the RJ45 tree into the hub's 4700uF hold-up).
+  Simulated: Ipk ~27A in all cases; Q = 0.5mC (100uF) to 22mC (4700uF tree) vs the 50uC USB
+  inrush budget; a 2ohm-faulted PSU draws ~400mC SUSTAINED -> host port eFuse trips every
+  time (or rail sag on unprotected benches). The HUB is already safe (TPS2121 mux: reverse
+  blocking + ILIM + soft-start, both stages). The MODULES' SS34 ORing diode blocks only the
+  reverse direction (PSU->USB); the forward path is unlimited. PROPOSED (quality-first):
+  propagate the hub front-end pattern -- TPS2121 (C485916, already sourced/vendored) as the
+  module USB ingress: VBUS + the module's 5VSB source as mux inputs, logic rail as output;
+  kills the class at the root (~$0.6/board; alternatives TPS2115A ~$0.5 or TPS2553 load
+  switch + keep D2). Needs your sign-off as a beta-line schematic change to every module.
+  INTERIM (no respin, do now for PSU-tester work): a powered USB hub or USB isolator between
+  the bench PC and any module when testing suspect PSUs = sacrificial per-port limiting;
+  document in the tester workflow (also: a tripped port reads as "dead module" -- worth a
+  troubleshooting note so it is not misdiagnosed). First-article bench item if adopted:
+  verify TPS2121 reverse behavior with OUT driven while both inputs dead, module topology.
