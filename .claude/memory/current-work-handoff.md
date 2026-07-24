@@ -1,5 +1,16 @@
 # Current work handoff
 
+## SMOKE TESTER PROPOSED + fix-state verified (2026-07-24 ~15:20Z, branch claude/24pin-tester-psu-usb-fault-e2i4tf)
+Owner riffed a new tester-family item: the Smoke Tester (sacrificial first-contact box, replaceable
+fuses, survives mains-on-rails). Concept RECORDED at docs/smoke-tester-concept-2026-07-24.md (key
+engineering: fuse-alone can't catch OV → per-rail crowbar fault-converter; ATO blades are 32V parts →
+hidden 5×20 HRC 250VAC backups do mains interruption; smoke theater via flameproof fusible-resistor
+witness chamber; neon hot-ground CASE-LIVE detector; pure analog, terminator-only). Census row
+PROPOSED in testers/DESIGN-SHEET.md §A (no folder until ratified); owner-queue §1 row w/ 10 decisions.
+ALSO verified the USB-leg fix rollout on pipeline-pass-2: 24-pin done (D2→2nd TPS2121 + 750mA/16V
+PTC, netlist-verified), pcie×2 + 12vhpwr done (grep), eps-8pin-rev3 + argb-standard NOT yet, SMAJ
+clamp residual open — both in FOLLOWUPS 2026-07-24; tester-standard U5 still pending (owner-held).
+
 ## 24-PIN↔PC-USB FAULT STUDY DONE (2026-07-24 ~03:00Z, branch claude/24pin-tester-psu-usb-fault-e2i4tf) — Q&A session, no board edits
 Owner asked whether a faulty PSU can trip a PC's USB OC/OV through the 24-pin (tester).
 Answered + memorialized: docs/standard-tier-review/atx24-usb-host-fault-study-2026-07-24.md
