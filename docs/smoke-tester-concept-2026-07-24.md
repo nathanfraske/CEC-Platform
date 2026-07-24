@@ -125,7 +125,8 @@ flammability/venting review — fallback is blown-flag indicators, and the name 
 on the smoke-test pun alone. (e) MOV clamp tolerances drift with absorbed events —
 covered by the cartridge doctrine, stated on the panel.
 
-## 8. Owner decisions (numbered, decision-ready)
+## 8. Owner decisions (numbered, decision-ready — refined values in §9, which supersedes
+the original 6/9 recommendations)
 
 1. Ratify the family slot (`testers/smoke-tester/`) and the PROPOSED census row.
 2. Terminator-only fence (recommended: YES — never inline).
@@ -133,9 +134,109 @@ covered by the cartridge doctrine, stated on the panel.
    fails honest mains interruption).
 4. Smoke-theater witness chamber: yes/no pending safety review (name survives either way).
 5. Earth reference form: IEC inlet (earth-only) vs earth pigtail.
-6. v1 connector scope: 24-pin only vs +EPS/PCIe ways (+$ per way; recommended 24-pin-only v1).
+6. v1 connector scope — REFINED §9.1: 24-pin core + one generic AUX adapter port; passive
+   per-family adapters as accessories.
 7. Pure-analog purity vs an optional isolated telemetry population (recommended: pure v1;
-   the ST deck owns data).
+   the ST deck owns data). Readout REFINED §9.3: needle meter option, never pixels.
 8. Compliance posture: CAT-rated claim vs professional-tool disclaimer.
-9. BOM/price target ratify ($18–25 landed / $39–59 retail class).
+9. BOM/price target — REFINED §9.4: ~$30–34 landed → $79 retail incl. the §9.5 starter kit.
 10. Bundle position: standalone SKU vs ST-bundle anchor item.
+11. (new) Ship a spare sacrifice brick in-box (recommended: YES, §9.5).
+12. (new) Consumables line + pricing ladder ratify (§9.6).
+
+## 9. Refinement pass (owner Q&A, 2026-07-24 — six questions)
+
+### 9.1 Other connections beyond the 24-pin? The physics says no — modularity says adapter port
+
+Connector census vs voltage domains: EPS, PCIe, SATA, and Molex add **zero** voltage
+domains — every rail they carry (12/5/3.3) is the same secondary-side node family the
+24-pin already exposes, and a mains-on-secondary or gross-OV fault appears on all
+connectors of that rail simultaneously. The 24-pin alone covers every distinct domain
+(12 V, 5 V, 3.3 V, 5VSB, −12 V) plus both control signals (PS_ON#, PWR_OK — and PS_ON#
+is *required* to wake the DUT, so the 24-pin is the mandatory core regardless).
+
+What the 24-pin does NOT cover is the **per-cable** fault class: mixed-vendor modular
+cables with wrong PSU-side pinouts (the classic drive-killer: 12 V on a 5 V pin at the
+device end), crimp shorts, pinched harnesses. That is a *wiring* test, not a domain
+test — served by the **AUX adapter port**: 3–4 generic fuse+window ways (12 V-expected,
+5 V-expected, 3.3 V-expected, GND-continuity) behind one keyed header, plus a family of
+**purely passive adapters** (SATA / Molex / PCIe / EPS plug → the AUX header, each
+adapter carrying its own pin mapping). A miswired cable puts 12 V on the 5 V-expected
+way → RED. Adapters are $2–4 COGS accessories (§9.6); the box never grows connectors.
+12VHPWR adapter: deferred — its real value (per-pin resistance, melt precursors) is
+metrology and belongs to the 12VHPWR module/ST deck, not a lamp box (fence).
+
+### 9.2 Super modular: the four sacrifice classes + the coordination rule
+
+Design rule: **everything that can die is a consumable in a socket; the main board is
+only allowed to carry things that survive** — and the guarantee that it survives is
+structural: *no main-board copper sits electrically upstream of a sacrifice element*,
+and the comparator/meter taps enter only through ≥1 MΩ dividers built from 300 V-rated
+resistor strings (they survive mains by impedance, not sacrifice). Creepage on the way
+copper laid out to 300 V-working class. The four consumables:
+
+| # | Consumable | Form | COGS | Death cause |
+|---|---|---|---|---|
+| 1 | ATO blade fuses | panel sockets, standard parts ON PURPOSE (hardware-store refillable — say it loudly, it's the trust story) | $0.10 | everyday events: shorts, cap dumps |
+| 2 | HRC 5×20 250 VAC ceramics | internal tool-less twist holders | $0.30–0.60 | mains-class interruption |
+| 3 | **Sacrifice brick** — ALL clamp/witness elements (per-way MOVs, fusible-resistor witnesses, ESD bits) on ONE keyed plug-in PCB | socketed 2×N header, event-date write-in flag on the brick | $3–4 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick, no diagnosing which MOV degraded) |
+| 4 | **Snout** — the 24-pin receptacle on a passthrough paddle | keyed shrouded header | $4–6 | mating-cycle wear (Mini-Fit Jr tin ≈ 30 cycles; a shop does hundreds — worn contacts are how every cheap PSU tester dies lying) |
+
+The case/panel is the platform: fuse-row pitch standardized, AUX ways use the same
+holders, one enclosure across future variants. Battery economics refinement: the PS_ON
+relay becomes a **latching (bistable) relay** — pulse coils, zero hold current, lid-open
+microswitch pulses the release coil — so the whole box runs months on 2×AA (comparator
+domain ~10 mA, powered by a held TEST action or a soft timer; neons need nothing).
+
+### 9.3 Screen? No pixels — a needle
+
+No LCD, no MCU: pixels violate the soul (firmware to fry, power dependency, compliance
+surface) and metrology is the module/ST deck's job (deliberate upsell ladder — the
+Smoke Tester is the bouncer, not the interview). The middle path that keeps the soul:
+one **moving-coil needle meter** (+ rail-select rotary), reading the *already-divided*
+node so it never sees more than a few volts regardless of what the DUT does, scale
+printed accordingly. $4–5, zero silicon, survives anything, photographs beautifully,
+and a needle slamming on a hiccuping PSU tells a story no lamp can. The second
+"readout" is paper: panel silk printed as a verdict truth-table, plus a tear-off
+**verdict card** pad (shop staples it to the customer's PSU — zero electronics, carries
+the logo, doubles as marketing).
+
+### 9.4 Target BOM and retail
+
+100-unit-class landed estimate: snout paddle $2.5 · ATO holders+fuses $2.5 · HRC
+holders+fuses $2 · sacrifice brick + socket $3.5 · comparators/refs/dividers $1.5 ·
+neons+LEDs $2 · latching relay + missile toggle + rotary + microswitch $4 · bleeders
+$2.5 · needle meter $4.5 · case/panel/print $8–10 · PCB $2 · power bits $1 →
+**≈$30–34 landed** (lamps-only drops ~$5; ~$25 path at 1k). Retail: **$79** with the
+§9.5 starter kit included (≈2.4× — between the module 2.5× and ST ~1.9× houses).
+One SKU — a de-contented $49 "Lite" was considered and rejected (self-competition,
+and the meter is the cheapest perceived-value dollar on the board). Bundle price
+inside the ST bundle is decision 10.
+
+### 9.5 Replacements in the retail pack: YES — it's the trust move
+
+The product's story is "parts in here die on purpose"; shipping without spares betrays
+it on day one. Starter kit (all in the lid): full spare blade set + extras of the small
+values, 2× spare HRC ceramics, **1× spare sacrifice brick** (+$4 COGS that buys the
+whole narrative — a day-one mains event doesn't brick the experience, and the spare
+sitting in the lid is the standing ad for buying more), and the verdict-card pad. Not
+included: spare snout (longer wear clock, its own SKU).
+
+### 9.6 Selling more replacements — event-driven, honest razor-and-blades
+
+Consumption is event-driven: a brick dies only when a bad PSU came in, so every spent
+consumable maps to a specific averted disaster — that's why nobody resents the reorder
+(the write-the-date flag on the brick reinforces it). The line: **Fuse & Flag refill
+$9** (blades + HRCs + witness flags) · **Sacrifice brick 2-pack $12–15** · **Snout $9**
+(gold-flash Pro snout option) · **AUX adapters $9–12 each / $39 family 4-pack**.
+Blade fuses stay deliberately standard/hardware-store-refillable — the attach lives in
+the brick/snout/adapters, which are ours alone; proprietary-izing the fuses would
+poison the trust story. Mechanisms: QR on the panel and on every brick → reorder page
+(brick carries a coupon code); "photo of your dead brick + the war story" → community
+wall + discount (every consumable death generates content — the marketing flywheel);
+bench/wall mount plate SKU pushes intake-counter placement, which drives per-unit
+usage; pegboard-friendly hang-card packaging for distributors; consumables carry
+retail-healthy margins. No subscription — wrong price class, nickel-and-dime optics.
+Honesty line for planning: this is a $79 accessory with $9–15 refills — a
+margin-healthy small line whose strategic job is guarding the expensive bench and the
+brand, not a business by itself.

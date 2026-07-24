@@ -7,6 +7,12 @@ engineering: fuse-alone can't catch OV → per-rail crowbar fault-converter; ATO
 hidden 5×20 HRC 250VAC backups do mains interruption; smoke theater via flameproof fusible-resistor
 witness chamber; neon hot-ground CASE-LIVE detector; pure analog, terminator-only). Census row
 PROPOSED in testers/DESIGN-SHEET.md §A (no folder until ratified); owner-queue §1 row w/ 10 decisions.
+REFINEMENT PASS (same session ~15:55Z): concept doc §9 answers the owner's six questions —
+24-pin-only core (no other connector adds a voltage domain; PS_ON# makes it mandatory anyway) +
+AUX adapter port for miswired modular cables; 4 socketed sacrifice classes (blades/HRC/BRICK/snout,
+nothing on the main board upstream of a sacrifice element); needle meter not pixels; $30-34 landed
+-> $79 retail incl. starter kit w/ spare brick; consumables ladder $9-15, event-driven flywheel.
+Decisions now 12; owner-queue row updated.
 ALSO verified the USB-leg fix rollout on pipeline-pass-2: 24-pin done (D2→2nd TPS2121 + 750mA/16V
 PTC, netlist-verified), pcie×2 + 12vhpwr done (grep), eps-8pin-rev3 + argb-standard NOT yet, SMAJ
 clamp residual open — both in FOLLOWUPS 2026-07-24; tester-standard U5 still pending (owner-held).
