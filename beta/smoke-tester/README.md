@@ -78,7 +78,7 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 | 1 | ATO blade fuses, **1 A fast, one value everywhere** | panel sockets | ~$0.10 | everyday overcurrent (shorts, cap dumps) |
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
 | 3 | **Sacrifice brick SB1** — all 8 MOVs + 8 fusible witness resistors on one keyed plug-in PCB | 2×10 socket pair | ~$3 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
-| 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle, **HMC/gold contact class** | keyed 2×13 shrouded header | ~$3.5 | interface wear + mechanical abuse (spec floor: 30 cycles std-tin / **100 cycles Mini-Fit HMC gold**, PS-5556 + PS-444850001; a shop does 1000+/yr) |
+| 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle (standard tin) | keyed 2×13 shrouded header | ~$3.1 | **mechanical damage only** (bent pins, broken latch, mangled DUT connectors) — cycle WEAR ruled functionally irrelevant at this box's duty; see the resolution note below |
 
 **Physical partitioning — what is a daughterboard and what isn't (owner Q,
 2026-07-24):** the consumables are deliberately NOT one combined sacrificial
@@ -89,18 +89,25 @@ what keeps them hardware-store-refillable (the trust story). The BRICK is the on
 true plug-in daughterboard: it groups exactly the parts that die TOGETHER in a
 single event class (a mains event degrades the MOV and opens its witness in the same
 half-cycle — undiagnosable individually without gear, so the service unit is the $3
-board). The SNOUT is the second plug-in board, separate because its clock is
-interface wear + mechanical abuse, unrelated to electrical events. CYCLE-RATING
-CORRECTION (owner catch, verified vs Molex specs 2026-07-24): standard Mini-Fit Jr
-terminals spec 30 mating cycles (PS-5556); the **High Mate Cycle family specs 100
-cycles gold** (44485 female / 5558 gold male, PS-444850001) — the snout SPECS THE
-HMC/GOLD CLASS. Spec durability is a low-level-contact-resistance floor, not
-functional death; practical life runs beyond it. Outlook: architecture unchanged —
-a busy shop (≈1,000+ matings/yr) still exceeds any Mini-Fit cycle class within
-months, and the snout also absorbs mechanical abuse (mangled DUT latches, bent
-pins) and provides calibration hygiene (worn contacts read as false rail sag) —
-but the replacement CADENCE stretches, so the snout is a wear/damage spare, not a
-routine consumable. Connector tech: keyed 0.1 in header
+board). The SNOUT is the second plug-in board — and its justification is now DAMAGE ONLY.
+CYCLE-WEAR RESOLUTION (owner bench pushback, 2026-07-24 — owner RIGHT, resolved
+with numbers): the Molex durability specs (30 cycles std PS-5556 / 100 cycles HMC
+gold PS-444850001) qualify a low-level-contact-resistance floor (+10–20 mΩ class)
+that matters at HIGH-CURRENT duty (at 6 A real-PSU use, 20 mΩ = 0.72 W of heat in
+one contact — that is what the spec protects). This box reads voltage through
+megohm dividers at ≤0.26 A: a contact would have to degrade to **2.3 Ω — 115×
+worse than spec end-of-life — before a ±5% window lamp even reaches its edge**
+(0.26 A × 2.3 Ω = the 0.6 V window half-width; a spec-dead 20 mΩ contact
+dissipates 1.4 mW here). Owner bench experience (hundreds of matings on PSU
+testers, zero issues) is exactly what this physics predicts. CONSEQUENCES:
+wear-based snout replacement is RETIRED from the consumables story and forecast;
+the HMC/gold adder is DROPPED (standard tin is correct at this duty); the snout
+survives only as a DAMAGE/SERVICE spare — bent pins from cross-insertion, broken
+latch, a mangled DUT connector chewing ours — plus a production sub-assembly
+convenience (the consigned Mini-Fit hand-solder happens on a $0.6 paddle, not the
+main board). Open decision #13: KEEP the paddle (recommended — damage repair
+without board rework, ~$1.3 delta) vs board-mount the connector directly (−$1.3,
+one less board, damage = main-board rework). Connector tech: keyed 0.1 in header
 sockets, NOT the platform TE-blade ecosystem — the module output daughterboards
 carry 18–52 A continuous (30 A blade joints earned); the brick carries ≤0.6 A
 continuous and big current only as fault transients. Pulse math for the socket: a

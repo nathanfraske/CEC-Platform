@@ -1,5 +1,13 @@
 # Current work handoff
 
+## SMOKE TESTER SNOUT-WEAR RETIRED (2026-07-25 ~00:25Z, owner pushback SUSTAINED, on pipeline-pass-2)
+Owner: 'hundreds of connections, zero issues, numbers iffy' -> tested against our error budget instead
+of re-arguing: contact must reach 2.3 OHMS (115x spec end-of-life) before a +/-5% window moves;
+durability specs protect 6A duty (0.72W/contact @20mOhm), not 0.26A megohm-divider reads (1.4mW).
+Owner experience = the predicted physics. HMC/gold adder DROPPED (std tin), snout re-justified as
+DAMAGE/SERVICE spare only, wear removed from consumables forecast, decision #13 opened (keep paddle
+[recommended, ~$1.3 damage-repair/sub-assembly] vs board-mount direct). README/BOM/board-map/queue updated.
+
 ## SMOKE TESTER BOARD-MAP + CORRECTIONS (2026-07-24 ~23:55Z, on pipeline-pass-2)
 Owner caught the Mini-Fit cycle claim: VERIFIED vs Molex — std 5556 = 30 cycles (PS-5556), HMC
 44485 female/5558 gold male = 100 cycles (PS-444850001); snout now SPECS HMC/gold, demoted to
