@@ -36,6 +36,7 @@ the beta line. The stale copies carry a `SUPERSEDED` marker.
 | ARGB Standard | `beta/argb-standard` | ESP32-S3-MINI-1 | beta, DRAFT | BETA |
 | Hub Standard | `beta/hub-standard-rev2` | ESP32-S3-WROOM-1 | rev2 schematic, layout via waves | BETA |
 | EPS 8-pin rev3 | `beta/eps-8pin-rev3` | ESP32-C6-MINI-1 | SENSEC 40A decision OWNER-GATED | BETA (gated) |
+| Smoke Tester | `beta/smoke-tester` | NONE (pure analog, by design) | sketch-stage: README spec + assets + BOM, no capture yet (owner standup 2026-07-24) | BETA + DRAFT |
 
 (`hubs/hub-standard` remains the shipped fab-ready ALPHA baseline — the hub row's
 promotion to `hub-standard-rev2` was executed 2026-07-22 with the physical move: the

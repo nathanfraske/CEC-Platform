@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="560" viewBox="0 0 980 560" font-family="monospace">
+  <rect width="980" height="560" fill="#ffffff"/>
+  <text x="20" y="28" font-size="16" font-weight="bold">SMOKE TESTER — one fused WAY, schematic sketch (12 V shown; 8 stamps of this cell)</text>
+  <text x="20" y="45" font-size="10.5" fill="#555">Values per way in README §3 table. Taps measure DOWNSTREAM of the sacrifice chain — after an event the way honestly reads dead.</text>
+
+  <!-- rail line -->
+  <text x="22" y="122" font-size="11" font-weight="bold">J snout</text>
+  <text x="22" y="136" font-size="10">12V pin</text>
+  <circle cx="80" cy="118" r="3" fill="#333"/>
+  <line x1="80" y1="118" x2="150" y2="118" stroke="#333" stroke-width="2"/>
+
+  <!-- blade fuse F -->
+  <rect x="150" y="106" width="70" height="24" fill="#fff" stroke="#c22" stroke-width="2"/>
+  <line x1="150" y1="118" x2="220" y2="118" stroke="#c22" stroke-width="1.5"/>
+  <text x="153" y="100" font-size="10.5" font-weight="bold" fill="#a11">F1  ATO 1A (F)  ①</text>
+  <line x1="220" y1="118" x2="290" y2="118" stroke="#333" stroke-width="2"/>
+
+  <!-- blown-fuse indicator across F1 -->
+  <path d="M160 130 v18 h95 v-18" stroke="#888" fill="none"/>
+  <circle cx="207" cy="148" r="5" fill="none" stroke="#888"/>
+  <text x="222" y="152" font-size="9" fill="#666">blown-fuse LED+R (lights: fuse open ∧ way live)</text>
+
+  <!-- HRC -->
+  <rect x="290" y="106" width="78" height="24" fill="#fff" stroke="#c22" stroke-width="2"/>
+  <line x1="290" y1="118" x2="368" y2="118" stroke="#c22" stroke-width="1.5"/>
+  <text x="284" y="100" font-size="10.5" font-weight="bold" fill="#a11">XF1  5×20 HRC 2A (T) 250VAC  ②</text>
+  <line x1="368" y1="118" x2="470" y2="118" stroke="#333" stroke-width="2"/>
+  <circle cx="470" cy="118" r="4" fill="#333"/>
+  <text x="452" y="105" font-size="11" font-weight="bold">WAY_12V</text>
+
+  <!-- brick branch -->
+  <line x1="470" y1="118" x2="470" y2="170" stroke="#333" stroke-width="2"/>
+  <rect x="430" y="170" width="80" height="150" fill="#fdeaea" stroke="#c22" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="436" y="186" font-size="9.5" font-weight="bold" fill="#a11">BRICK ③ (socket)</text>
+  <!-- witness resistor -->
+  <rect x="458" y="196" width="24" height="40" fill="#fff" stroke="#333"/>
+  <text x="490" y="212" font-size="10">RW1 1Ω 1W</text>
+  <text x="490" y="224" font-size="9.5">flameproof</text>
+  <text x="490" y="236" font-size="9.5">fusible (smokes)</text>
+  <line x1="470" y1="236" x2="470" y2="248" stroke="#333" stroke-width="2"/>
+  <!-- MOV -->
+  <rect x="452" y="248" width="36" height="36" fill="#fff" stroke="#333" stroke-width="2"/>
+  <line x1="452" y1="284" x2="488" y2="248" stroke="#333"/>
+  <text x="496" y="262" font-size="10">RV1 MOV S14K14</text>
+  <text x="496" y="274" font-size="9.5">(bidirectional —</text>
+  <text x="496" y="286" font-size="9.5">free reverse clamp)</text>
+  <line x1="470" y1="284" x2="470" y2="310" stroke="#333" stroke-width="2"/>
+  <line x1="455" y1="310" x2="485" y2="310" stroke="#333" stroke-width="2.5"/>
+  <line x1="460" y1="315" x2="480" y2="315" stroke="#333" stroke-width="2"/>
+  <line x1="465" y1="320" x2="475" y2="320" stroke="#333" stroke-width="2"/>
+  <text x="492" y="316" font-size="10">DUT GND</text>
+
+  <!-- bleeder branch -->
+  <line x1="560" y1="118" x2="560" y2="170" stroke="#333" stroke-width="1.5"/>
+  <rect x="548" y="170" width="24" height="44" fill="#fff" stroke="#333"/>
+  <text x="578" y="186" font-size="10">R_BL1 47Ω 10W</text>
+  <text x="578" y="198" font-size="9.5">chassis WW</text>
+  <line x1="560" y1="214" x2="560" y2="232" stroke="#333" stroke-width="1.5"/>
+  <rect x="546" y="232" width="28" height="16" fill="#fff" stroke="#333"/>
+  <text x="578" y="245" font-size="9.5">SW_LOAD (MIN LOAD)</text>
+  <line x1="560" y1="248" x2="560" y2="268" stroke="#333" stroke-width="1.5"/>
+  <line x1="546" y1="268" x2="574" y2="268" stroke="#333" stroke-width="2.5"/>
+  <line x1="551" y1="273" x2="569" y2="273" stroke="#333" stroke-width="2"/>
+
+  <!-- divider branch -->
+  <line x1="470" y1="118" x2="700" y2="118" stroke="#333" stroke-width="2"/>
+  <line x1="700" y1="118" x2="700" y2="140" stroke="#333" stroke-width="1.5"/>
+  <rect x="688" y="140" width="24" height="30" fill="#fff" stroke="#2255aa"/>
+  <rect x="688" y="176" width="24" height="30" fill="#fff" stroke="#2255aa"/>
+  <rect x="688" y="212" width="24" height="30" fill="#fff" stroke="#2255aa"/>
+  <text x="718" y="160" font-size="10">3× 301k 1206 series</text>
+  <text x="718" y="174" font-size="9.5">(each ≤110V @ 230VAC —</text>
+  <text x="718" y="186" font-size="9.5">300V-rated string; the tap</text>
+  <text x="718" y="198" font-size="9.5">survives mains BY IMPEDANCE)</text>
+  <line x1="700" y1="242" x2="700" y2="258" stroke="#333" stroke-width="1.5"/>
+  <circle cx="700" cy="258" r="3.5" fill="#333"/>
+  <text x="710" y="254" font-size="10.5" font-weight="bold">TAP (÷10.03)</text>
+  <rect x="688" y="268" width="24" height="30" fill="#fff" stroke="#2255aa"/>
+  <text x="718" y="286" font-size="10">100k</text>
+  <line x1="700" y1="298" x2="700" y2="316" stroke="#333" stroke-width="1.5"/>
+  <line x1="686" y1="316" x2="714" y2="316" stroke="#333" stroke-width="2.5"/>
+  <line x1="691" y1="321" x2="709" y2="321" stroke="#333" stroke-width="2"/>
+
+  <!-- comparators -->
+  <line x1="700" y1="258" x2="800" y2="258" stroke="#333" stroke-width="1.5"/>
+  <path d="M800 240 L850 258 L800 276 Z" fill="#fff" stroke="#2255aa" stroke-width="1.5"/>
+  <path d="M800 292 L850 310 L800 328 Z" fill="#fff" stroke="#2255aa" stroke-width="1.5"/>
+  <line x1="800" y1="310" x2="770" y2="310" stroke="#333" stroke-width="1.5"/>
+  <line x1="770" y1="310" x2="770" y2="258" stroke="#333" stroke-width="1.5"/>
+  <text x="856" y="252" font-size="9.5">&gt; 1.257V ⇒ OVER (red)</text>
+  <text x="856" y="268" font-size="9.5">window refs from</text>
+  <text x="856" y="304" font-size="9.5">&lt; 1.137V ⇒ UNDER (red)</text>
+  <text x="856" y="320" font-size="9.5">TL431 ladder (±5%)</text>
+  <text x="856" y="285" font-size="10" font-weight="bold" fill="#1a7a1a">both in ⇒ GREEN</text>
+
+  <!-- meter tap -->
+  <line x1="700" y1="258" x2="700" y2="360" stroke="#333" stroke-width="1" stroke-dasharray="4 3"/>
+  <rect x="660" y="360" width="80" height="40" fill="#fff" stroke="#333"/>
+  <text x="668" y="377" font-size="10">1P6T rotary</text>
+  <text x="668" y="391" font-size="10">→ 100µA meter</text>
+  <text x="748" y="384" font-size="9.5" fill="#555">reads only divided nodes; scale printed ×10</text>
+
+  <!-- mains event narrative -->
+  <rect x="20" y="430" width="940" height="112" fill="#fdeaea" stroke="#c22"/>
+  <text x="32" y="450" font-size="11.5" font-weight="bold" fill="#a11">MAINS-ON-THIS-RAIL EVENT, in order (≤ one half-cycle):</text>
+  <text x="32" y="468" font-size="10">1. 230VAC appears on WAY_12V → RV1 conducts hard (tens–hundreds of A through RW1's 1Ω).</text>
+  <text x="32" y="483" font-size="10">2. F1 (1A fast) opens first — but a 32VDC blade can ARC at mains → current continues through the arc.</text>
+  <text x="32" y="498" font-size="10">3. XF1 (2A time-lag, sand-filled, 250VAC/1.5kA) integrates and BREAKS the circuit — the only element rated to.</text>
+  <text x="32" y="513" font-size="10">4. RW1 opens with its designed benign puff (the safe smoke) and disconnects the spent MOV (fail-short containment).</text>
+  <text x="32" y="530" font-size="10" font-weight="bold">Aftermath: way lamp dead, blown-fuse LED lit, CASE-LIVE neon told the story. Service = 2 fuses + the $3 brick. Box lives.</text>
+</svg>

@@ -26,6 +26,15 @@ AC sense pod: PARKED (owner) — no folder until un-parked. R-bank plates:
 chassis metalwork + lug wiring, NOT a PCB (bank switching FETs/fuses live on
 the main board; only heavy wire crosses).
 
+**"Smoke Tester" — STOOD UP on the beta line (owner directive 2026-07-24; folder
+`beta/smoke-tester/`, sketch-stage):** sacrificial first-contact triage box —
+per-rail blade fuse + crowbar fault-converter (a fuse alone cannot catch
+mains-on-a-rail), blade+HRC 250 VAC coordination, neon hot-ground CASE-LIVE
+detector, relay-armed PS_ON, needle meter, pure analog, terminator-only (never
+inline). Workflow position: ahead of everything in this census (Smoke Tester →
+module/ST deck → Pro/Max). Spec of record: `beta/smoke-tester/README.md`; concept +
+decision list: `docs/smoke-tester-concept-2026-07-24.md`.
+
 ## B. Floorplan doctrine (zones, in airflow order — sketch §4 is binding)
 
 ```

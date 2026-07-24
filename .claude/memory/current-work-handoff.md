@@ -1,5 +1,16 @@
 # Current work handoff
 
+## SMOKE TESTER STOOD UP ON THIS BRANCH (2026-07-24 ~21:35Z, commit on pipeline-pass-2)
+Owner directive: BOM + sketches + a new beta module 'on the latest remote branch'. beta/smoke-tester/
+now exists at sketch-stage (tester-standard convention: README-spec first, capture later): README =
+board spec of record (per-way electrical table, blade 1A-F + HRC 2A-T 250VAC coordination, 4 socketed
+consumable classes incl. the sacrifice brick + snout, floating 9V measurement domain, neon earth
+domain, needle meter), assets/ 3 sketch SVGs, bom/ sketch BOM (31 lines, LCSC blank except C5261083 —
+no invented numbers, rollup ~$36.5@100), BETA+DRAFT markers, manifest w/ capture plan + gates (DRAFT
+drops only after the arc-coordination bench). beta/README table row, DESIGN-SHEET census, owner-queue
+row, concept doc all on this branch now. NEXT PHASE (owner-gated, concept §8 #2-#12): Phase A CAD lib
+→ Phase B capture (FOLLOWUPS 2026-07-24 has the parts list). Pure analog — no firmware tree entry ever.
+
 ## ALL-IN CHAIN RUNNING 2026-07-24 ~17:30 (owner GO "implement it all + more waves + new parts placed"):
 6 rounds x both boards (hub s218-253 / 24-pin s344-379, /tmp/allin-chain.log). LIVE in it:
 hub collapse GATE (mezz envelopes exempt from the bad-trigger -- compiles complete again;

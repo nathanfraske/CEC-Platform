@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="600" viewBox="0 0 980 600" font-family="monospace">
+  <rect width="980" height="600" fill="#ffffff"/>
+  <text x="20" y="28" font-size="16" font-weight="bold">SMOKE TESTER — controls &amp; indication sketches</text>
+
+  <!-- A: arm/fire -->
+  <rect x="20" y="45" width="460" height="240" fill="#eafbea" stroke="#1a7a1a"/>
+  <text x="32" y="65" font-size="12" font-weight="bold" fill="#1a7a1a">A. ARM / FIRE — latching relay, zero hold current</text>
+  <rect x="40" y="85" width="120" height="34" fill="#fff" stroke="#333"/>
+  <text x="48" y="99" font-size="10" font-weight="bold">SW_ARM missile-</text>
+  <text x="48" y="112" font-size="10" font-weight="bold">cover toggle</text>
+  <line x1="160" y1="102" x2="205" y2="102" stroke="#333" stroke-width="1.5"/>
+  <rect x="205" y="85" width="80" height="34" fill="#fff" stroke="#333"/>
+  <text x="212" y="99" font-size="10">RC edge</text>
+  <text x="212" y="112" font-size="10">pulse (cap)</text>
+  <line x1="285" y1="102" x2="330" y2="102" stroke="#333" stroke-width="1.5"/>
+  <rect x="330" y="80" width="130" height="70" fill="#fff" stroke="#1a7a1a" stroke-width="2"/>
+  <text x="340" y="98" font-size="11" font-weight="bold">K1 DPDT LATCHING</text>
+  <text x="340" y="112" font-size="9.5">dual coil: SET ←</text>
+  <text x="340" y="125" font-size="9.5">RESET ← lid µsw OR</text>
+  <text x="340" y="138" font-size="9.5">DISARM position</text>
+  <text x="40" y="140" font-size="9.5" fill="#1a7a1a">open fuse door ⇒ RESET pulse ⇒ released = SAFE STATE (mechanical fact, no firmware)</text>
+  <line x1="395" y1="150" x2="395" y2="178" stroke="#333" stroke-width="1.5"/>
+  <text x="250" y="176" font-size="10" font-weight="bold">pole A:</text>
+  <line x1="310" y1="172" x2="395" y2="172" stroke="#333" stroke-width="1.5"/>
+  <rect x="310" y="185" width="60" height="22" fill="#fff" stroke="#333"/>
+  <text x="318" y="200" font-size="10">100Ω</text>
+  <line x1="370" y1="196" x2="420" y2="196" stroke="#333" stroke-width="1.5"/>
+  <text x="424" y="200" font-size="10.5" font-weight="bold">→ PS_ON# (to DUT GND)</text>
+  <text x="318" y="222" font-size="9.5">PESD5V0S1BA clamp (LCSC C5261083)</text>
+  <text x="250" y="245" font-size="10" font-weight="bold">pole B:</text>
+  <text x="310" y="245" font-size="10">closes → starts the PWR_OK race timer (panel B)</text>
+  <text x="40" y="268" font-size="9.5" fill="#555">Finger → toggle → coil → contact. The user NEVER completes a circuit with DUT copper.</text>
+
+  <!-- B: PWR_OK race -->
+  <rect x="500" y="45" width="460" height="240" fill="#eaf0fd" stroke="#2255aa"/>
+  <text x="512" y="65" font-size="12" font-weight="bold" fill="#2255aa">B. PWR_OK TIMING RACE — all analog, ±coarse by design</text>
+  <text x="512" y="84" font-size="10">K1-B closes at t=0 → RC charges; taps at ~100ms and ~500ms</text>
+  <line x1="530" y1="100" x2="530" y2="190" stroke="#333" stroke-width="1.5"/>
+  <line x1="530" y1="190" x2="930" y2="190" stroke="#333" stroke-width="1.5"/>
+  <path d="M530 185 C 620 110, 760 95, 925 92" stroke="#2255aa" fill="none" stroke-width="2"/>
+  <line x1="640" y1="190" x2="640" y2="120" stroke="#888" stroke-dasharray="4 3"/>
+  <text x="628" y="205" font-size="9.5">100ms</text>
+  <line x1="800" y1="190" x2="800" y2="98" stroke="#888" stroke-dasharray="4 3"/>
+  <text x="788" y="205" font-size="9.5">500ms</text>
+  <text x="512" y="228" font-size="10">PWR_OK in (1kΩ + PESD) latches its rising edge against the two taps:</text>
+  <text x="512" y="245" font-size="10.5" font-weight="bold">before 100ms ⇒ ◉ PG EARLY (suspicious)   100–500ms ⇒ ◉ PG OK   after/never ⇒ ◉ PG LATE/NEVER</text>
+  <text x="512" y="264" font-size="9.5" fill="#555">2 comparator sections + RS latch; ATX window checked the dumb way, on purpose.</text>
+
+  <!-- C: hot ground -->
+  <rect x="20" y="305" width="460" height="180" fill="#fdf7e2" stroke="#a8830a"/>
+  <text x="32" y="325" font-size="12" font-weight="bold" fill="#8a6d00">C. HOT-GROUND NEON CHAINS — zero powered parts</text>
+  <text x="40" y="350" font-size="10.5">DUT_GND ──470k(0.5W,350V)──470k── NE-2 ── EARTH ref</text>
+  <circle cx="330" cy="368" r="9" fill="none" stroke="#a11" stroke-width="2"/>
+  <text x="348" y="372" font-size="11.5" font-weight="bold" fill="#a11">◉ CASE LIVE — DO NOT TOUCH</text>
+  <text x="40" y="398" font-size="10.5">WAY_12V ─1M┐</text>
+  <text x="40" y="412" font-size="10.5">WAY_5V  ─1M┤─── NE-2 ── EARTH ref   ◉ RAIL LIVE</text>
+  <text x="40" y="426" font-size="10.5">WAY_3V3 ─1M┤</text>
+  <text x="40" y="440" font-size="10.5">WAY_5VSB─1M┘</text>
+  <text x="40" y="462" font-size="9.5" fill="#555">Neon strikes ~90V ⇒ line potential lights it; 48–90V faults light nothing (known limit, windows still catch gross OV).</text>
+  <text x="40" y="476" font-size="9.5" fill="#555">Earth ref: rear pigtail OR earth-only IEC inlet — open decision #5.</text>
+
+  <!-- D: meter -->
+  <rect x="500" y="305" width="460" height="180" fill="#f4f4f4" stroke="#333"/>
+  <text x="512" y="325" font-size="12" font-weight="bold">D. NEEDLE METER — the only "readout", by design</text>
+  <circle cx="600" cy="400" r="48" fill="#fff" stroke="#333" stroke-width="2"/>
+  <line x1="600" y1="400" x2="632" y2="368" stroke="#a11" stroke-width="2.5"/>
+  <path d="M562 388 A 48 48 0 0 1 638 388" stroke="#333" fill="none"/>
+  <text x="560" y="466" font-size="9.5">85C1-class 100µA</text>
+  <rect x="690" y="360" width="90" height="70" fill="#fff" stroke="#333"/>
+  <text x="698" y="378" font-size="10">SW_SEL 1P6T:</text>
+  <text x="698" y="392" font-size="9.5">12V·5V·3V3·</text>
+  <text x="698" y="404" font-size="9.5">5VSB·−12V·AUX</text>
+  <text x="698" y="422" font-size="9.5">taps DIVIDED nodes</text>
+  <text x="800" y="378" font-size="9.5">Never sees &gt; a few volts,</text>
+  <text x="800" y="392" font-size="9.5">whatever the DUT does.</text>
+  <text x="800" y="406" font-size="9.5">Scale printed ×10; needle</text>
+  <text x="800" y="420" font-size="9.5">slam on a hiccuping PSU is</text>
+  <text x="800" y="434" font-size="9.5">the demo no lamp can give.</text>
+  <text x="512" y="470" font-size="9.5" fill="#555">No pixels, no MCU: numbers are the 24-pin module / ST deck's job (the product ladder).</text>
+
+  <!-- power strip -->
+  <rect x="20" y="505" width="940" height="75" fill="#fafafa" stroke="#999"/>
+  <text x="32" y="525" font-size="11" font-weight="bold">POWER (floating measurement domain): 9V PP3 → HT7550-class 5V LDO (2µA Iq) ⊕ USB-C 5V power-only, diode-OR.</text>
+  <text x="32" y="543" font-size="9.5">TEST momentary powers the comparator domain while held (multimeter economy); neons + latching relay need nothing at rest.</text>
+  <text x="32" y="558" font-size="9.5">Referenced to DUT GND; floats vs earth — indication keeps working when DUT GND rides line potential.</text>
+  <text x="32" y="573" font-size="9.5" fill="#555">Battery life: months of bench duty (≈10mA only while TEST held; zero standby).</text>
+</svg>

@@ -1,0 +1,7 @@
+"Comment","Designator","Footprint","LCSC Part #"
+"LM339","U1,U2,U3,U4","SOIC-14",""
+"TL431","VR1","SOT-23",""
+"HT7550-1","U5","SOT-89",""
+"PESD5V0S1BA","D_PS,D_PG","cec-Diode_SMD:D_SOD-323","C5261083"
+"301k 1206 1%","R_DIV strings","R_1206_3216Metric",""
+"100k 0805 1%","R_DIV bottoms","R_0805_2012Metric",""
