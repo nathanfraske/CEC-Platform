@@ -172,3 +172,12 @@ module topology and KVM topology. The datasheet's reverse-current blocking
 (0.2/1/2 A detection, 10 µs) is characterized for a live device only. Load-bearing for
 (a) host plugged into a fully dead module+PSU, (b) wall-wart into a dead hub. Until
 measured, the interim bench rules of spec §2.9 v1.6.0 stand.
+
+## Accepted variance (audit-confirmed, 2026-07-24)
+
+ST (pin 9) is left NC on every new TPS2121 stage, NOT grounded as the strap
+table above literally reads: the vendored symbol types ST as an Output pin, so
+a hard GND tie creates a real ERC ERROR (driver collision with the GND
+PWR_FLAG), and NC matches both the datasheet's stated alternative and the
+hub's as-built U5/U7 precedent. Judged sound by the independent pre-merge
+audit; recorded here so the document of record matches the boards.
