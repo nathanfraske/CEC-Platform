@@ -1,5 +1,26 @@
 # Current work handoff
 
+## MORNING STATE 2026-07-24 ~10:30 (report delivered in-chat). TOP ITEMS FOR NEXT SESSION:
+(1) HUB CHAIN COLLAPSE, ROUND 2: overnight rounds 1-6 (07:08-09:15) ALL hub variants 9999
+    -- began BEFORE the schematic merge, so the suspect set = the overnight rung batch
+    (28beb2db), #1 candidate: adding _blueprint_env_boxes to the p8b/p12 BAD TRIGGER --
+    on the hub those are the MEZZ SEGMENT envelopes (J6P/J6D/J6C), so everything near them
+    mass-flags bad -> re-seat storms -> refusals. FIX DIRECTION: the bad-trigger should
+    count only refs whose courtyard is INSIDE a cell envelope AND the envelope belongs to
+    a REFUSING-copper cell class (or: exempt mezz-segment envelopes -- they carry no cell
+    copper to refuse). Repro: any hub seed via _build_session + the courtyard/pads gates.
+    24-pin was HEALTHY same rounds (graded 90-113) -- hub-specific.
+(2) 24-PIN DRC COLLAPSING BEAUTIFULLY under the pour diet: 92->77->50->49->48 across the
+    night (was 180-218 two days ago); best (90,77) s293; kelvin STILL FALSE = the one
+    remaining refused cell (identify the squatter on the s266 repro) + the rail-plan-vs-
+    mezz-seat conflicts (RS3/RS1 vs H1/C18/J6C).
+(3) FIRST POST-MERGE COMPILES: netlists now carry the TPS2121/polyfuse parts -- the next
+    wave is the first placement contact with them (new-part seats, possible refusals;
+    label honestly, teach the placer their homes if needed).
+(4) Queue for the owner: SPICE marginals (OV response window -> clamp-vs-bench, C_SS 10ms
+    vs 125ms restate), parity+oracle golden rituals, H=59 grow, J_SIG-left, PCB pass for
+    the new parts (Update-from-Schematic + place/route rides the wave pipeline).
+
 ## OVERNIGHT RUNGS LANDED 2026-07-24 (owner in-session rulings, commits cc205e11+28beb2db):
 1. APPENDAGE PRUNE in the slab shave (body-vs-appendage; dead fingers prune, taps stay,
    corridors stay; 3 teeth tests/test_slab_pour.py; 12-58 pruned per net/layer on s266).
