@@ -1175,9 +1175,32 @@ def add_power_pours(board, pours, *, fill: bool = False):
     list of added ZONE objects. If *fill* is True, all zones are re-filled here
     (UnFill first -- re-filling in one process can segfault this KiCad-10 SWIG build).
     """
+    # SHUNT-ONLY TOP -- ENFORCED AT THE CHOKE POINT (owner rule 2026-07-24;
+    # third traced bypass: materialize landing patches, the import list, AND
+    # the router's pass-2 re-derivation each lay pours independently, so a
+    # per-caller filter can always be bypassed by the next caller. Every pour
+    # passes through THIS function: an F.Cu pour on a board with shunts is
+    # refused here unless it intersects a shunt neighborhood. No exemptions.)
+    _f_nbs = None
+    try:
+        import cec_slab_pour as _cslb3
+        _f_nbs = _cslb3.shunt_neighborhoods(board)
+    except Exception:                                  # noqa: BLE001
+        _f_nbs = []
     added = []
     for p in pours:
         net = p["net"]
+        if p.get("layer", "F.Cu") == "F.Cu" and _f_nbs:
+            _xs = [q[0] for q in p.get("polygon") or ()]
+            _ys = [q[1] for q in p.get("polygon") or ()]
+            if _xs and not any(
+                    not (max(_xs) < n[0] or n[2] < min(_xs)
+                         or max(_ys) < n[1] or n[3] < min(_ys))
+                    for n in _f_nbs):
+                print(f"[cec_fr] add_power_pours: REFUSED top pour {net} "
+                      "(shunt-only rule, choke-point enforcement)",
+                      file=sys.stderr)
+                continue
         nc = board.GetNetcodeFromNetname(net)
         if nc <= 0:
             raise KeyError(f"cec_fr.add_power_pours: net {net!r} not found on board")
