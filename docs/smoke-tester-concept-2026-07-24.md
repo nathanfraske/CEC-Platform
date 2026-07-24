@@ -324,3 +324,15 @@ exists in the census, OQ-88 carries the sense-return contact provision, and 12d
 carries the monitoring. The $600 module's remaining exposure in deck duty is DUT
 violence, and that is bounded by the three cheaper layers in front of it: smoke
 tester triage → per-slot fuses/fences (§12c) → the fixture head.
+
+**Relationship to the v1.4.0 daughterboards (owner clarifier, 2026-07-25):** same
+architectural family, different member — NOT the same board. The v1.4.0 output
+daughterboards sit on the module's OUTPUT side (blade tabs + output field, female-
+end role, pin-mapping/productization, consumer inline use; already assigned a deck
+role too — the OQ-89 retail assembly as empty-slot filler, tester-standard README
+Phase 2). The FIXTURE HEAD is the input-side sibling: essentially "the module's J3
+male input header on its own small board," DUT-facing, with the OQ-88 sense-return
+contacts POPULATED (the concept already exists as the SR1–6 DNP pads on
+atx24-out-db). Genders/roles differ so they cannot be one PCB, but they share the
+ecosystem: passive, keyed, cheap, blade/header-connected, fab-panelized together,
+and the same sense-contact provision.
