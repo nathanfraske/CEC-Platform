@@ -336,3 +336,9 @@ contacts POPULATED (the concept already exists as the SR1–6 DNP pads on
 atx24-out-db). Genders/roles differ so they cannot be one PCB, but they share the
 ecosystem: passive, keyed, cheap, blade/header-connected, fab-panelized together,
 and the same sense-contact provision.
+
+**§9.9 ruling update (owner, 2026-07-25):** the fixture head is RULED as a plain
+STRAIGHT-THROUGH connector board, resold off-the-shelf (ModDIY class) for 24-pin/EPS/
+PCIe; monitoring = per-head install baseline + ΔV/ΔI drift trend in the tester program;
+the designed-PCB-with-sense-contacts version is demoted to an upgrade rung; 12VHPWR
+keeps its designed fixture-head. Spec of record moved to testers/DESIGN-SHEET.md §A.

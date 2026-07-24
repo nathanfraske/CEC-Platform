@@ -1,5 +1,14 @@
 # Current work handoff
 
+## DUT INPUT BOARDS RULED (2026-07-25 ~02:00Z, owner, on pipeline-pass-2)
+Owner recognized the fixture head as 'just a straight-through connector' and RULED: resell
+off-the-shelf ModDIY-class straight-through boards for 24-pin/EPS/PCIe deck slots ('can just
+resell those'). Added to the tester spec: testers/DESIGN-SHEET.md sec-A block — resell posture
+w/ the OQ-86/88 ModDIY qualification caveat, per-head install BASELINE + dV/dI drift trend ->
+'replace input board slot N' firmware alarm (OQ-85), designed-head-with-OQ-88-sense-contacts
+demoted to upgrade rung, 12VHPWR excepted (hpwr-fixture-head stays designed). Desk items:
+ModDIY catalog check + sample order. FOLLOWUPS + concept 9.9 updated.
+
 ## DECK WEAR DOCTRINE CORRECTED (2026-07-25 ~01:25Z, owner objections sustained, on pipeline-pass-2)
 9.8's two weak layers retracted (concept 9.9): saver pigtails NO for 12VHPWR (re-adds a mated pair
 to the melt path, contradicts the 2.8 captive-pigtail rationale) + NO in metrology paths (unbaselined
