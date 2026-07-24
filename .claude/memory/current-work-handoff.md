@@ -16,7 +16,18 @@ overshoot floods post-route + raster shave loop, ONE real fill at the end; kelvi
 kills the whole rect-miss/dead-mirror/lace/bond class). Implement as scripts/cec_slab_pour.py,
 A/B on the 24-pin rails. This slots AHEAD of most machinery polish -- but kelvin-first debug
 still leads (a failing HARD gate outranks architecture).
-NEXT SESSION, IN ORDER: (0) SLAB-POUR build per the design doc (after/with kelvin); (1) 24-PIN KELVIN-FIRST DEBUG -- why the sense pairs fail the hard
+SLAB STATUS (2026-07-24 ~07:30): IMPLEMENTED + smoke-proven (fe942433; scripts/
+cec_slab_pour.py; 15 slabs on s266, the min-width invariant independently DETECTED the
+owner-reported severed 12V rail; golden byte-stable with zone-cleanup live). A/B BLOCKED:
+the s230 recipe now refuses pre-route -- U3/U4/U8 (the INA sense ICs) p8b-diagnose "1000+
+free cells vs parts, ~153 vs parts+corridors" = THE CELL/CORRIDOR ENV BOXES OWN THE SPACE
+THE SENSE ICS DOCTRINALLY OCCUPY, while foreign passives (R61, C7) squat inside cells and
+refuse the locked cell copper. ONE ROOT for the kelvin class: cell-envelope membership --
+sense ICs + own-cell parts must be EXEMPT inside their own envelope; foreign passives must
+be swept out (the _bp_env displacement pass misses them). Fix that -> kelvin returns AND
+the slab A/B unblocks (rerun /tmp/probe-slab-ab.py, then the A/B wave).
+NEXT SESSION, IN ORDER: (0a) CELL-ENVELOPE MEMBERSHIP FIX (the kelvin root + A/B
+unblocker, diagnostics above); (0b) slab A/B + stage-2 locked core; then (0) SLAB-POUR build per the design doc (after/with kelvin); (1) 24-PIN KELVIN-FIRST DEBUG -- why the sense pairs fail the hard
 gate at honest widths (read cec_score kelvin gate verdicts on s246/s266, then the tap/pair
 routing); (2) 24-pin polish-9999 recurrence (likely the same refusal class; compare a failed
 polish's placed board gates); (3) blade-row realign propagation gap (FOLLOWUPS has measures:
