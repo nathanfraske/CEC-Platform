@@ -454,3 +454,15 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   document in the tester workflow (also: a tripped port reads as "dead module" -- worth a
   troubleshooting note so it is not misdiagnosed). First-article bench item if adopted:
   verify TPS2121 reverse behavior with OUT driven while both inputs dead, module topology.
+  - **ILIM ruling follow-up (owner question 2026-07-24, "is ILIM specced for that / rely on it alone?"):**
+    NO single reliance -- the load-bearing mitigation is the mux's INPUT ISOLATION (back-to-back
+    FETs; the PSU bulk is simply not in the USB circuit), not the limiter. ILIM+CSS only handle
+    the module's own local caps: at the hub-proven C_SS 2.2uF (~10ms ramp), inrush ~= 50mA --
+    three orders under any port limit; spec ILIM ~1A (above ESP flash-burst ~500mA, under port
+    budgets; +-20% accuracy irrelevant to safety). DEFENSE-IN-DEPTH spec for sign-off:
+    (1) TPS2121 ingress per module (isolation = layer 1); (2) ~750mA-hold polyfuse on VBUS
+    AHEAD of the mux (~$0.03, layer 2 -- protects the host even against a failed/mis-soldered
+    mux); (3) OVP pin set (~6V IN1 cutoff) so a faulty PSU shoving a high 5VSB disconnects
+    instead of cooking the logic (free margin for the PSU-tester environment); (4) FIRST-ARTICLE
+    BENCH GATE: unpowered reverse behavior, OUT driven at 5V with both inputs dead (the blocking
+    specs assume a live device -- this is the one datasheet gap that needs measurement).
