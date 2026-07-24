@@ -466,3 +466,17 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     instead of cooking the logic (free margin for the PSU-tester environment); (4) FIRST-ARTICLE
     BENCH GATE: unpowered reverse behavior, OUT driven at 5V with both inputs dead (the blocking
     specs assume a live device -- this is the one datasheet gap that needs measurement).
+  - **KVM-path extension (owner catch 2026-07-24, "this would also cause our KVM route issues"):**
+    CONFIRMED and WORSE than the module case -- as-built, J_KVM pin 1 is a RAW +5VSB rail tap
+    (the §2.9 three-source OR is still PROPOSED = OQ-53..56 open), so: (a) a PC-USB-powered
+    NanoKVM faces the hub 4700uF + the ENTIRE module 5VSB tree (eFuse-trip class, nothing in
+    series); (b) a powered hub back-drives the PC port THROUGH the KVM (its header 5V ~= its
+    VBUS); (c) even the intended wall-wart forensic path works by back-driving U7's OUT -- the
+    exact unpowered-reverse bench-gap case. PROPOSED RESOLUTION (resolves-toward OQ-53/55):
+    third TPS2121 cascade stage -- KVM 5V as the LOWEST-priority mux INPUT (spec §2.9 order:
+    MAIN_5V > 5VSB > USB > wall-wart/KVM), + ~1A-hold polyfuse on the KVM 5V pin (defense
+    layer 2; D7 ESD on the ref pin already present). Turns the forensic path into a designed
+    input and fixes all three directions with the already-sourced part. INTERIM bench rule:
+    never connect the NanoKVM USB-C to a PC while its aux cable is on a powered hub; wall-wart
+    only for the forensic path. The first-article unpowered-reverse bench gate now covers TWO
+    load-bearing cases (module ingress + KVM path).
