@@ -1,5 +1,24 @@
 # Current work handoff
 
+## OVERNIGHT RUNGS LANDED 2026-07-24 (owner in-session rulings, commits cc205e11+28beb2db):
+1. APPENDAGE PRUNE in the slab shave (body-vs-appendage; dead fingers prune, taps stay,
+   corridors stay; 3 teeth tests/test_slab_pour.py; 12-58 pruned per net/layer on s266).
+2. NEED-BASED MIRRORS in synthesize_pour_bonds (owner: barrels don't justify a mirror --
+   IPC-2221 inverse, 1.25x current at 30C on the primary alone; unknown current = logic =
+   no mirror; doubt keeps it) + keep-by-contact PRIMARY-only + scrap threshold 0.30->0.45
+   (measured 2x predictor optimism). s275 measure: 112 dicts -> 32 kept.
+3. CELL-ENVELOPE SWEEP triggers (kelvin root, PARTIAL): p9 restamp avoids envelopes+rails;
+   p8b/p12 bad-trigger counts envelope-squatters. s266 refusals 2 -> 1. REMAINING: one cell
+   still refused on s266 (identify the squatter -- rerun the repro, read the REFUSED print)
+   + [force-rails] RS3 snk refused vs H1/C18 and RS1 v0-2 vs J6C (rail-plan vs mezz-seat
+   conflicts, separate class, surfaced in the same repro).
+STILL RUNNING overnight: 6-round wave chain (/tmp/overnight-0724.log, hub s180-215 /
+24-pin s278-313); Sonnet SCHEMATIC agent in worktree (module TPS2121 ingress + hub 3rd
+cascade + hub OV dividers [owner-signed]); Sonnet SPICE agent (cases A-F). ON SCHEMATIC
+AGENT LANDING: spawn the SANITY agent (audit worktree vs delta doc + spec) BEFORE merge.
+MORNING REPORT: waves + rungs + schematic + SPICE + sanity + the survey findings + owner
+rulings already recorded (hub OV signed; mains-ingress layered posture).
+
 ## OVERNIGHT 2026-07-24 (owner directive ~09:00): spec'd -> parallel sonnets -> waves -> MORNING REPORT OWED.
 Spec v1.6.0 (176640e0) + BOM delta doc + failure survey (c3af27d9, 6 findings: 1 mains-ingress
 station safety [tester spec owes RCD/isolation/earth-bond section], 2 OCP-defective sustained
