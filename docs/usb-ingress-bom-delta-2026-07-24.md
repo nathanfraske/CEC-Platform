@@ -197,3 +197,41 @@ platform margin rules, no owner decision needed):
    ride-through still lets the input sail past trip; the clamp holds the
    LDO input under abs-max through the event). Small SOD-323 zener class.
 Both to ride the next schematic splice pass; spec v1.6.x note owed.
+
+## ADDENDUM (datasheet-provenance audit, 2026-07-24): both retune candidates run
+## uncomfortably tight on worst-case ±1% resistor + VREF tolerance -- flagging, not
+## picking, before the schematic pass locks one in
+
+Re-verified the CORRECTION above: LP5907 6.0V is confirmed against the vendored PDF
+(§5.1, MIN -0.3/MAX 6V, no time-dimension carve-out), and 47k/11k -> 5.589V / 43k/10k ->
+5.618V both check out arithmetically (V_trip = VREF,typ x (Rt+Rb)/Rb = 1.06 x ...). Propagated:
+`docs/spice-backfeed-verify-2026-07-24.md` (Case F, Case C, Sources) and
+`docs/psu-tester-failure-survey-2026-07-24.md` (the U5/U6 and hub J_PWR rows) are now
+corrected to cite 6.0V, not 6.5V; `scripts/sim/cec_backfeed_cases.py` had a live 6.5V
+threshold constant (not just prose) -- fixed and re-run, see
+`docs/datasheet-provenance-audit-2026-07-24.md`.
+
+NOT yet done, and deliberately left for the schematic-implementation pass rather than
+decided here (this is a real design trade-off, not a datasheet fact to look up): a full
+worst-case tolerance stack on the two candidate pairs, using the TPS2121's own VREF
+band (1.01/1.06/1.10V min/typ/max, Sec 7.5) against ±1% resistors both directions --
+
+- **47k/11k**: typ 5.589V; worst-case band **5.24V - 5.90V**. The LOW end (5.24V) sits
+  *below* 5.25V (5V+5% normal-max) -- a nuisance-trip risk on a completely in-spec 5VSB
+  rail in the worst-case corner, which the original CORRECTION's back-of-envelope
+  "5.25V < trip < 6.0V" check did not catch (it only checked the typical trip point).
+- **43k/10k**: typ 5.618V; worst-case band **5.27V - 5.93V**. Clears 5.25V, but by only
+  ~0.3% -- thin, not comfortable.
+
+Both candidates leave under ~1.5% of headroom somewhere in the stack, on a divider that
+only has ~13% of span (5.25V to 6.0V) to work with in the first place at ±5%-class
+VREF accuracy. Two directions that would actually close this margin, for the
+implementing pass to choose between (neither ratified here): (a) tighten the OV1
+divider resistors to 0.1% (the platform already stocks a 0.1% Yageo line for the
+12VHPWR rail divider, R5/R6 -- same 0402 land, same idea, ~$0.01 delta) which removes
+most of the resistor-tolerance half of the stack; or (b) accept a narrower margin and
+lean on item 2 above (the output-side zener clamp) as the real backstop rather than
+expecting the OV1 trip point alone to guarantee sub-6.0V. Recorded here rather than
+silently picked, per the same "surface it, don't assume it" rule this repo applies to
+open questions generally -- this is a design decision with a real trade-off, not a
+transcription check.

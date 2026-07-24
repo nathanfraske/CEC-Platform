@@ -23,6 +23,16 @@ Boards read for ground truth (2026-07-24): `beta/atx-24pin-rev3`, `beta/eps-8pin
 `beta/hub-standard-rev2`, `beta/argb-standard` (BOMs + schematic label sweeps), plus
 CLAUDE.md board-state notes and spec v1.6.0.
 
+**Provenance re-audit (2026-07-24):** every `[R]`-tagged rating in this document (and
+several `[M]`/`[D]` ones) was checked against the actual vendored or freshly-fetched
+datasheet per `docs/agent-working-principles.md` item 11 — see
+`docs/datasheet-provenance-audit-2026-07-24.md` for the full pass. Two real errors were
+found and are corrected in place below (LP5907 abs-max mis-stated as 6.5V instead of the
+real 6.0V; TJA1051T/3 CAN bus-pin rating mis-stated as "±42V-class" instead of the real
+±58V), one derived-arithmetic figure was corrected (the 12VHPWR ESP-ADC clamp current),
+and the remaining `[R]` hedges below (CSS2H-2512 power rating, INA181 common-mode abs
+max) are now confirmed and re-tagged `[M]`.
+
 ---
 
 ## 1. External-interface inventory (as-built facts, all [M])
@@ -58,11 +68,11 @@ low rails.
 | Path | Today | Severity T/P | Proposed mitigation (cost) |
 |---|---|---|---|
 | 24-pin sensed rails → INA238 bus pins | `[R]` INA238 is an 85 V-input part — the sensor itself survives any PSU-class insult | LOW/LOW | none needed |
-| 24-pin 5VSB/MAIN → U5 TPS2121 → logic | `[M]` U5 is a 22 V part (abs max 24 V); `[M]` v1.6.0 adds a ~6.04 V OV1 cutoff at the NEW U6 stage → the logic rail disconnects. Before that pass lands: 12 V reaches the LDO (`[R]` LP5907 abs max 6.5 V) = dead logic side | was HIGH, → LOW post-v1.6.0 / LOW | already ratified; implement action item 6 |
+| 24-pin 5VSB/MAIN → U5 TPS2121 → logic | `[M]` U5 is a 22 V part (abs max 24 V); `[M]` v1.6.0 adds a ~6.04 V OV1 cutoff at the NEW U6 stage → the logic rail disconnects. Before that pass lands: 12 V reaches the LDO (`[M]` LP5907 abs max **6.0 V**, corrected 2026-07-24 — was misstated here as 6.5 V; lib/datasheets/LP5907.pdf Sec 5.1) = dead logic side. **CORRECTION (2026-07-24, datasheet-provenance audit):** the 6.0V correction also means the v1.6.0 mitigation's own 6.04V typical OV1 trip point sits AT/ABOVE the LDO's true abs-max even before any comparator response-time delay — see `docs/usb-ingress-bom-delta-2026-07-24.md`'s CORRECTION section (retune owed) and `docs/spice-backfeed-verify-2026-07-24.md` Case F | was HIGH, → **MED** post-v1.6.0 (downgraded from the original "→ LOW" 2026-07-24 — the OV1 divider retune is still owed, so the post-mitigation state is not yet a clean LOW) / LOW | already ratified; implement action item 6; retune OV1 divider before treating this as fully closed |
 | EPS/PCIe/12VHPWR logic (fed from RJ-45 VCC, not the sensed rail) | `[M]` sensed rail and logic rail are galvanically separate nets on the interposers — a cross-railed DUT cannot reach the module's own logic | LOW/LOW | none — good existing structure |
-| §6.13 front-end on EPS/PCIe (INA181A2 inputs on the sensed rail) | `[R]` INA181 common-mode abs max ≈ 26 V — survives 12→20 V-class insults, dies at a 24 V+ crowbar | MED/LOW | accept; note in tester manual (>24 V DUT rail = sensing channel sacrificial, ~$0.30 part) |
-| 12VHPWR rail divider → ESP ADC | `[D]` 47k/10k puts 24 V at 4.2 V on the pin, over `[R]` 3.6 V abs max; clamp current ≈ (4.2−3.6)/47k ≈ 13 µA — survivable leakage-class, but out of spec | MED/LOW | add 10k series R at the ADC pin (the 24-pin's R76 pattern, ~$0.001) on the next beta pass |
-| **Hub J_PWR 5VSB/MAIN inputs** | `[M]` D8/D9 SMAJ5.0A clamp TRANSIENTS; `[R]` a sustained 12 V (cross-railed 24-pin feed cable, or a faulty PSU with the tester's hub attached) sits above the TVS standoff → TVS burns out → 12 V passes; U5/U7 survive (`[M]` 22 V part) but `[M]` no OV divider found in the hub schematic label sweep or BOM (OV pins presumed GND-strapped per the datasheet's "not required" strap — VERIFY at the Sonnet pass) → 12 V reaches the +5VSB rail: `[R]` LP5907 (6.5 V), SK6812 (5.5 V), and every downstream module port get it | **HIGH**/MED | **top finding #3:** extend the v1.6.0 OV-divider posture to the hub's own U5/U7 (47k/10k per input, ≈$0.01/stage, same math as §6.14) — modules would then disconnect at their own new OV; the hub is currently the one unprotected 5VSB consumer |
+| §6.13 front-end on EPS/PCIe (INA181A2 inputs on the sensed rail) | `[M]` INA181 common-mode abs max = 26 V exactly (CONFIRMED 2026-07-24 against lib/datasheets/INA181A2IDBVR.pdf Sec 6.1: "Common-mode GND-0.3 to 26V"; the survey's original "≈26V... re-verify" hedge is resolved) — survives 12→20 V-class insults, dies at a 24 V+ crowbar | MED/LOW | accept; note in tester manual (>24 V DUT rail = sensing channel sacrificial, ~$0.30 part) |
+| 12VHPWR rail divider → ESP ADC | `[D]` 47k/10k puts 24 V at 4.2 V on the pin, over `[M]` 3.6 V abs max (ESP32-S3-MINI-1 datasheet Table 6-1, VDD33 -0.3 to 3.6V — the module datasheet states no separate ADC-specific abs-max, so this is the general pad ceiling, confirmed 2026-07-24 by fetching the real ESP32-S3-MINI-1 datasheet; previously cited from the WROOM-1 module as a same-die proxy); clamp current **CORRECTED 2026-07-24 (datasheet-provenance audit): ≈ 74 µA, not 13 µA** — the original calc used only the 47k series leg; the correct figure is the excess voltage over the divider's own Thevenin resistance (47k‖10k = 8.25k): (4.21−3.6)/8.25k ≈ 74 µA. Still leakage-class relative to what an ESP32 pad ESD/clamp structure survives, but ~5.7× higher than previously stated — survivable, out of spec | MED/LOW | add 10k series R at the ADC pin (the 24-pin's R76 pattern, ~$0.001) on the next beta pass |
+| **Hub J_PWR 5VSB/MAIN inputs** | `[M]` D8/D9 SMAJ5.0A clamp TRANSIENTS (confirmed 2026-07-24 against the real fetched datasheet, LCSC C113952: VRWM standoff 5.0V, VBR 6.40-7.00V, VC@IPP 9.2V, steady-state PM(AV) only 3.3W — a sustained fault current well exceeds this, consistent with "burns out" below); `[M]` a sustained 12 V (cross-railed 24-pin feed cable, or a faulty PSU with the tester's hub attached) sits above the TVS standoff → TVS burns out → 12 V passes; U5/U7 survive (`[M]` 22 V part) but `[M]` no OV divider found in the hub schematic label sweep or BOM (OV pins presumed GND-strapped per the datasheet's "not required" strap — VERIFY at the Sonnet pass) → 12 V reaches the +5VSB rail: `[M]` LP5907 (**6.0 V** abs max, corrected 2026-07-24 — was misstated here as 6.5 V; lib/datasheets/LP5907.pdf Sec 5.1), SK6812 (5.5 V), and every downstream module port get it | **HIGH**/MED | **top finding #3:** extend the v1.6.0 OV-divider posture to the hub's own U5/U7 (47k/10k per input, ≈$0.01/stage, same math as §6.14 — NOTE the §6.14 OV1 divider itself is under a 2026-07-24 retune correction, see `docs/usb-ingress-bom-delta-2026-07-24.md`, so mirror the corrected value here, not 47k/10k as originally written) — modules would then disconnect at their own new OV; the hub is currently the one unprotected 5VSB consumer |
 
 ### 2.2 Reverse polarity / negative voltage
 
@@ -84,8 +94,10 @@ low rails.
 
 `[M]` Design basis (§2.8/§6.3): EPS ~52 A/cable, PCIe-3 ~39 A/cable sustained worst case,
 24-pin on the 6 A/circuit ATX bar; joints ratified at ≥125% of that. `[D]` Shunt I²R at
-fault: EPS 0.5 mΩ at 150 A = 11.3 W against a `[R]` ~6 W-class CSS2H-2512 rating (verify
-exact Bourns figure) — over rating but survivable for the ms a conformant PSU takes to trip
+fault: EPS 0.5 mΩ at 150 A = 11.3 W against a `[M]` **6 W exactly** (CONFIRMED 2026-07-24
+against lib/datasheets/Bourns_CSS2H-2512.pdf: the CSS2H-2512R-L500x row — the EPS's
+0.5 mΩ shunt — is rated "0.5 mΩ / 6 W"; the survey's original "~6 W-class... verify exact
+Bourns figure" hedge is resolved) — over rating but survivable for the ms a conformant PSU takes to trip
 SCP. **The tester's defective DUT may never trip.** A sustained 100–150 A through copper and
 joints sized for 52 A×1.25 is a heat/fire path, and **nothing in a CEC interposer opens the
 circuit — there is deliberately no fuse in the measurement path.**
@@ -105,7 +117,7 @@ circuit — there is deliberately no fuse in the measurement path.**
 
 | Path | Today | Severity T/P | Proposed mitigation |
 |---|---|---|---|
-| RJ-45 GND (pin 2) opens while VCC stays | `[R]` module still grounded through its PSU harness; CAN shifts common-mode — TJA1051T/3 bus pins are rated to ±42 V-class (NXP datasheet; re-verify exact limits) and CAN is differential | LOW/LOW | none |
+| RJ-45 GND (pin 2) opens while VCC stays | `[M]` module still grounded through its PSU harness; CAN shifts common-mode — TJA1051T/3 bus pins are rated to **±58 V** (CORRECTED 2026-07-24, datasheet-provenance audit — was misstated as "±42 V-class"; confirmed against the vendored lib/datasheets/TJA1051.pdf, Table 5 "Limiting values", Vx on pins CANH/CANL = -58/+58V; no "42V" figure appears anywhere in that datasheet) and CAN is differential | LOW/LOW | none |
 | Bench PC ↔ DUT PSU ground loop through a module (USB GND vs PSU GND) | `[M]` interim rule: sacrificial hub/isolator (v1.6.0 §2.9); `[M]` post-v1.6.0 the mux isolates VBUS but **USB GND remains hard-tied to module/PSU GND** (necessarily — single-ended USB) | MED/LOW | make the USB isolator a PERMANENT tester-station fixture, not an interim rule (~$15 ADuM-class isolator dongle); it also removes hum from measurements |
 | Chassis bonding: module M3 mounts tie board GND to whatever it is bolted to; a faulty DUT PSU can energize its own chassis | `[M]` mounts are chassis-grounded by design; **nothing on-board can protect against a primary-side fault** — all CEC clamps are 5–24 V class | **CRIT**/LOW | see 2.8 — bench-level AC safety is the only real mitigation; never bolt the module to the DUT's chassis (procedure) |
 
@@ -190,9 +202,10 @@ assumed live.
    gate; listed to keep it visible: two load-bearing paths depend on an unspecified
    datasheet state. `[M]`
 7. **Measurement blind spots under fault, not damage:** 12VHPWR unidirectional INA240 clips
-   reverse (death-transient window); ESP ADC divider over-range at >13 V rails (13 µA clamp
-   current, out-of-spec but survivable `[D]`) — add the R76-pattern series R on the next
-   beta pass. `[M/D]`
+   reverse (death-transient window); ESP ADC divider over-range at >13 V rails (**≈74 µA**
+   clamp current, corrected 2026-07-24 from a mis-computed 13 µA — see the ESP ADC row in
+   §1/§2.1 above — out-of-spec but survivable `[D]`) — add the R76-pattern series R on the
+   next beta pass. `[M/D]`
 
 **Explicit non-issues (measured, no action):** PSU turn-on inrush into CEC capacitance
 (§2.3 — the boards are deliberately cap-light on sensed rails); INA238 bus pins under any

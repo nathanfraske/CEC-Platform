@@ -28,6 +28,15 @@ EFUSE_HARD_TRIP_S = 1e-3    # ... sustained this long
 EFUSE_BUDGET_C = 50e-6      # host inrush charge budget, per task spec (~10uF*5V heuristic)
 RSRC_USB = 0.12              # ohm, USB 5V incl. cable, per task spec (case A/B)
 
+# CORRECTED 2026-07-24 (datasheet-provenance audit): was 6.5V, an assumed figure that
+# crossed agent boundaries without being checked against the vendored datasheet. The real
+# LP5907 abs-max V(IN) is 6.0V (lib/datasheets/LP5907.pdf Sec 5.1: VIN -0.3 to 6V; no
+# transient/time-dimension allowance -- abs-max is abs-max). Already corrected in
+# docs/usb-ingress-bom-delta-2026-07-24.md's CORRECTION section; this was the one call
+# site that still used the wrong 6.5V figure operationally (not just in prose). See
+# docs/datasheet-provenance-audit-2026-07-24.md.
+LP5907_ABSMAX_V = 6.0
+
 
 # =========================================================================== CASE A
 def case_a(caps_uF=(100, 470, 1000, 3300), rfault=2.0, tstop=0.06):
@@ -244,12 +253,12 @@ def case_d_ii_nuisance(kvm_A=0.6, idle_A=0.15, burst_ms=200, period_ms=1000, n_c
     as the burst level (NanoKVM is not truly 'bursty' like an MCU flash write -- it is a
     small always-on Linux/RTOS SBC -- so this is a near-worst-case duty assumption, not a
     generous one)."""
-    calib = polyfuse_calib("F5_1206L110TH")
+    calib = polyfuse_calib("F5_FSMD110_16_1206R")
     period_s = period_ms / 1000.0
     tstop = n_cycles * period_s
     body = (
         TITLE
-        + polyfuse_subckt("F5_1206L110TH", "a", "b", "f5", "e_f5")
+        + polyfuse_subckt("F5_FSMD110_16_1206R", "a", "b", "f5", "e_f5")
         + f"Iload 0 a PULSE({idle_A} {kvm_A} 0 10u 10u {burst_ms}m {period_ms}m)\n"
         + "Rb b 0 1meg\n"
     )
@@ -365,10 +374,11 @@ def case_f(v_fault=12.0, t_edge_ns=(1000, 100, 10)):
     """OVP: a cross-railed 12V-on-5VSB event at the mux input. Sweep the fault EDGE RATE
     (a mis-wire/connector-mate event's real rise time is not specified anywhere -- sweep
     it to show how the exposure window depends on this unstated variable) and report the
-    peak voltage reaching OUT (-> the LP5907's input) and the duration above its 6.5V
-    abs-max, against the datasheet's own undocumented OV1 response-time assumption
-    (modeled at ov1_tau_s=2us, the same order as RCB's stated 10us class -- see
-    mux_priority_subckt docstring)."""
+    peak voltage reaching OUT (-> the LP5907's input) and the duration above its
+    LP5907_ABSMAX_V (6.0V, CORRECTED 2026-07-24 -- was 6.5V, see module docstring/that
+    constant's comment) abs-max, against the datasheet's own undocumented OV1
+    response-time assumption (modeled at ov1_tau_s=2us, the same order as RCB's stated
+    10us class -- see mux_priority_subckt docstring)."""
     rows = []
     for edge_ns in t_edge_ns:
         edge_s = edge_ns * 1e-9
@@ -388,11 +398,11 @@ def case_f(v_fault=12.0, t_edge_ns=(1000, 100, 10)):
             rows.append({"edge_ns": edge_ns, "error": err[:500]})
             continue
         vpk = float(data["v(out)"].max())
-        dur, t_first = duration_above(data, "v(out)", 6.5)
+        dur, t_first = duration_above(data, "v(out)", LP5907_ABSMAX_V)
         rows.append({
-            "edge_ns": edge_ns, "v_out_peak": vpk, "duration_above_6p5V_s": dur,
-            "first_cross_6p5V_s": t_first,
-            "lp5907_absmax_V": 6.5, "exceeds_absmax": vpk > 6.5,
+            "edge_ns": edge_ns, "v_out_peak": vpk, "duration_above_absmax_s": dur,
+            "first_cross_absmax_s": t_first,
+            "lp5907_absmax_V": LP5907_ABSMAX_V, "exceeds_absmax": vpk > LP5907_ABSMAX_V,
         })
     # sensitivity: the rows above show duration is nearly edge-rate-independent (all land
     # ~1.4-1.5us) -- it is dominated by the ASSUMED (datasheet-undocumented) OV1 response
@@ -414,8 +424,8 @@ def case_f(v_fault=12.0, t_edge_ns=(1000, 100, 10)):
         if data is None:
             tau_rows.append({"tau_s": tau_s, "error": err[:400]})
             continue
-        dur, t_first = duration_above(data, "v(out)", 6.5)
-        tau_rows.append({"tau_s": tau_s, "duration_above_6p5V_s": dur})
+        dur, t_first = duration_above(data, "v(out)", LP5907_ABSMAX_V)
+        tau_rows.append({"tau_s": tau_s, "duration_above_absmax_s": dur})
     return {"v_fault": v_fault, "ov1_response_tau_s_used_in_edge_sweep": 2e-6,
             "edge_rate_sweep": rows, "ov1_tau_sensitivity_sweep": tau_rows}
 

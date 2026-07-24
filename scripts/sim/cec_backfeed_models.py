@@ -24,14 +24,25 @@ Sources (all vendored or fetched 2026-07-24, see the report doc's Sources sectio
     blocking IRCB 0.2/1/2A min/typ/max, VRCB release 0/25/50mV, tRCB 10us (Sec 7.5, 9.3.6);
     OVx: internal VREF 1.01/1.06/1.10V min/typ/max, disconnect "immediately" on trip (9.3.5,
     no explicit numeric delay given -- modeled with an assumed few-us RC response, flagged).
-  - 1206L Series PPTC datasheet (Littelfuse, Rev 02/25/19), fetched 2026-07-24 from the
-    LCSC-hosted mirror of the part on our own BOM line (LCSC C371166 = 1206L075/16WR):
-    1206L075/16 row: Ihold 0.75A, Itrip 1.50A, Vmax 16V, Pd 0.6W, Maximum-Time-To-Trip
-    Current=8.00A/Time=0.20s, Rmin 0.090 Ohm, R1max 0.290 Ohm. 1206L110TH row (same family,
-    nearest Ihold=1.10A member, used as the F5/KVM-polyfuse curve stand-in since the
-    populated part, FUZETEC FSMD110-16-1206R, has no vendored curve but the same Ihold/Itrip
-    class per docs/usb-ingress-bom-delta-2026-07-24.md): Ihold 1.10A, Itrip 2.20A,
-    Maximum-Time-To-Trip Current=8.00A/Time=0.10s, Rmin 0.040 Ohm, R1max 0.210 Ohm.
+  - 1206L Series PPTC datasheet (Littelfuse, Rev 02/25/19), fetched 2026-07-24 and vendored
+    at lib/datasheets/Littelfuse_1206L_C371166.pdf (LCSC C371166 = 1206L075/16WR, the F1
+    part): 1206L075/16 row: Ihold 0.75A, Itrip 1.50A, Vmax 16V, Pd 0.6W, Maximum-Time-To-Trip
+    Current=8.00A/Time=0.20s, Rmin 0.090 Ohm, R1max 0.290 Ohm.
+  - CORRECTION (2026-07-24, datasheet-provenance audit): the F5/KVM polyfuse was originally
+    modeled on the Littelfuse 1206L110TH row as a stand-in (Ihold 1.10A/Itrip 2.20A/
+    MaxTimeToTrip 8.00A->0.10s/Rmin .040/R1max .210) because the populated part, FUZETEC
+    FSMD110-16-1206R (LCSC C5707763), had "no vendored curve available" at the time. That
+    part's real datasheet has since been fetched and vendored at
+    lib/datasheets/FUZETEC_FSMD110-16-1206R_C5707763.pdf (Fuzetec Product Specification
+    PQ18-01ER, rev 1, 2021-03-25): FSMD110-16-1206R row -- IH 1.10A, IT 2.20A, VMAX 16V
+    (not 8V), IMAX 100A, Pd typ 0.8W, Maximum-Time-to-Trip 8.00A -> **0.30s** (not 0.10s --
+    a 3x-larger E_thresh, see below), RMIN 0.040 Ohm, R1MAX 0.180 Ohm (not 0.210). F5 below
+    is now calibrated on the REAL part, not the stand-in; Ihold/Itrip/Rmin were already
+    correct by coincidence (same PPTC generation/class), only the trip-time anchor and
+    R1max move. This does not flip any Case D/E safety verdict -- a 3x-larger E_thresh
+    means the real part is MORE energy-tolerant (slower to nuisance-trip, slightly slower
+    as a worst-case-bound backstop) than the stand-in modeled, both directions already
+    reported as passing with margin. See docs/datasheet-provenance-audit-2026-07-24.md.
   - SS32-SS3200 datasheet (MDD, Rev 2024A5), fetched 2026-07-24 from the LCSC mirror of our
     own BOM line (LCSC C8678 = MDD SS34): VF max 0.55V @ IF=3.0A, 25C (SS32-SS35 group);
     IR max 0.5mA @ rated VR=40V, 25C (same group); VRRM=40V.
@@ -228,12 +239,19 @@ POLYFUSE_PARAMS = {
                         "MaxTimeToTrip 8.00A->0.20s, Rmin .090/R1max .290 Ohm (LCSC "
                         "C371166 mirror, Rev 02/25/19); Rcold=.150 Ohm engineering "
                         "estimate between Rmin/R1max (no separate Rtyp tabulated)."),
-    "F5_1206L110TH": (1.10, 8.00, 0.10, 0.070,
-                       "Littelfuse 1206L110TH row (nearest-Ihold family member, stand-in "
-                       "for the populated FUZETEC FSMD110-16-1206R which has no vendored "
-                       "curve; same Ihold/Itrip class per usb-ingress-bom-delta doc): "
-                       "Ihold 1.10A/Itrip 2.2A, MaxTimeToTrip 8.00A->0.10s, Rmin .040/"
-                       "R1max .210 Ohm; Rcold=.070 Ohm engineering estimate."),
+    "F5_FSMD110_16_1206R": (1.10, 8.00, 0.30, 0.070,
+                       "CORRECTED 2026-07-24 (datasheet-provenance audit): FUZETEC "
+                       "FSMD110-16-1206R real datasheet (LCSC C5707763, Fuzetec Product "
+                       "Spec PQ18-01ER rev1 2021-03-25, vendored at lib/datasheets/"
+                       "FUZETEC_FSMD110-16-1206R_C5707763.pdf) -- this is now the ACTUAL "
+                       "populated part's own curve, not a Littelfuse 1206L110TH stand-in: "
+                       "IH 1.10A/IT 2.20A/VMAX 16V, MaxTimeToTrip 8.00A->0.30s, RMIN .040/"
+                       "R1MAX .180 Ohm; Rcold=.070 Ohm engineering estimate (unchanged, "
+                       "still between the corrected Rmin/R1max bounds). Was: 1206L110TH "
+                       "stand-in, Ttest=0.10s, R1max=.210 -- see git history / "
+                       "docs/datasheet-provenance-audit-2026-07-24.md for the prior value "
+                       "and why it changed (3x smaller E_thresh, i.e. modeled as easier to "
+                       "trip than the real part)."),
 }
 
 

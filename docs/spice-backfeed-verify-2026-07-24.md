@@ -119,22 +119,35 @@ is the actually-populated part):
 | Part (row used) | Ihold | Itrip | Vmax | Max-Time-To-Trip | Rmin | R1max |
 |---|---|---|---|---|---|---|
 | **F1**: 1206L075/16 (=1206L075/16WR, C371166) | 0.75 A | 1.50 A | 16 V | 8.00 A → 0.20 s | 0.090 Ω | 0.290 Ω |
-| **F5 stand-in**: 1206L110TH | 1.10 A | 2.20 A | 8 V | 8.00 A → 0.10 s | 0.040 Ω | 0.210 Ω |
+| **F5**: FUZETEC FSMD110-16-1206R (C5707763) | 1.10 A | 2.20 A | 16 V | 8.00 A → 0.30 s | 0.040 Ω | 0.180 Ω |
 
-F1's calibration gives `E_thresh=12.8 A²s`, `τ=22.76 s`; F5's gives `E_thresh=6.4 A²s`,
-`τ=5.29 s`. **F5 caveat**: the populated part is FUZETEC FSMD110-16-1206R (C5707763, no
-vendored curve available), *not* Littelfuse; the 1206L110TH row is used as a same-class
-(1.1 A hold, 1206 package, same generation of PPTC construction) stand-in per the
-`usb-ingress-bom-delta-2026-07-24.md` document's own framing of the Littelfuse family as
-the reference curve — flagged here as an approximation, not an extraction of the actual
-FUZETEC part. Pre-trip resistance (`Rcold`) is not separately tabulated as "typical" by
-either datasheet row (only Rmin and post-trip-cooldown R1max are given); this file uses
+F1's calibration gives `E_thresh=12.8 A²s`, `τ=22.76 s`; F5's gives `E_thresh=19.2 A²s`,
+`τ=15.87 s`. **F5 CORRECTED 2026-07-24 (datasheet-provenance audit)**: this table
+originally used the Littelfuse 1206L110TH row (Ihold 1.10A/Itrip 2.20A/Vmax **8V**/
+MaxTimeToTrip 8.00A→**0.10s**/Rmin 0.040Ω/R1max **0.210Ω**) as a same-class stand-in,
+because the populated part, FUZETEC FSMD110-16-1206R (C5707763), had no vendored curve
+at the time. That part's real datasheet has since been fetched and vendored
+(`lib/datasheets/FUZETEC_FSMD110-16-1206R_C5707763.pdf`, Fuzetec Product Specification
+PQ18-01ER rev 1, 2021-03-25); the table above is now the ACTUAL part's own curve, not a
+stand-in. Ihold/Itrip/Rmin happened to already be correct (same PPTC generation/class);
+Vmax, the trip-time anchor, and R1max move. This is a **3× larger `E_thresh`** (19.2 vs
+6.4 A²s) — the real part is more energy-tolerant than the stand-in modeled, i.e. every
+number below built on the old stand-in was *conservative in the wrong direction for the
+"is this a safe backstop" question* (it under-stated how long F5 takes to trip) and
+*conservative in the right direction for the nuisance-trip question* (it over-stated trip
+propensity) — no verdict flips either way, both pass with even more margin under the
+corrected numbers (recomputed below). See
+`docs/datasheet-provenance-audit-2026-07-24.md` for the full audit.
+Pre-trip resistance (`Rcold`) is not separately tabulated as "typical" by either
+datasheet row (only Rmin and post-trip-cooldown R1max are given); this file uses
 0.150 Ω (F1) and 0.070 Ω (F5), an engineering estimate between the two bounds, clearly
 distinct from an extracted value. **Both calibrations were verified by direct simulation
 before use**: driving F1 at a constant 8 A trips the model at **t = 0.201 s** (target
-0.20 s); F5 at **t = 0.101 s** (target 0.10 s). A constant-current DC check also confirms
-the leaky-integrator design point: F1 held at exactly its own 0.75 A `Ihold` for 150
-simulated seconds reaches 99.86% of `E_thresh` and never crosses it.
+0.20 s); F5 (corrected) at **t = 0.303 s** (target 0.30 s, re-verified 2026-07-24 — was
+reported as t=0.101s/target 0.10s under the retired stand-in). A constant-current DC
+check also confirms the leaky-integrator design point: F1 held at exactly its own
+0.75 A `Ihold` for 150 simulated seconds reaches 99.86% of `E_thresh` and never crosses
+it.
 
 **TPS2121 priority power mux (every stage, C485916).** Behavioral model built directly
 from the vendored datasheet, `lib/datasheets/TPS2121RUXR.pdf` (TI SLVSEA3F): `RON = 60
@@ -307,7 +320,9 @@ nominal 5 V VBUS.
 **Verdict: PASS on both paths.** Neither the legacy diode nor the new mux lets a
 moderately-elevated PSU rail push meaningful current back toward the host; the module's
 LP5907/logic *does* see 5.5 V briefly on this path (a separate, non-backfeed concern —
-within the LP5907's 6.5V abs-max with margin, see Case F for the worse 12V case).
+within the LP5907's abs-max (**6.0V**, corrected 2026-07-24 — was misstated as 6.5V here;
+lib/datasheets/LP5907.pdf Sec 5.1) with a 0.5V margin, tighter than this section
+previously implied but still clear; see Case F for the worse 12V case).
 
 ---
 
@@ -336,7 +351,10 @@ series" characterization — and quantifies it as *worse* than the module baseli
 Nuisance-trip check (F5, representative NanoKVM draw): repo's own cited figure for the
 *original* NanoKVM this header was designed against is "~0.5-1A"
 (`docs/24pin-rev3-respin-2026-06-24.md`); modeled at 0.6 A burst / 0.15 A idle, 20% duty:
-**peak energy reaches 5.2% of the F5 trip threshold (94.8% margin), no nuisance trip.**
+**peak energy reaches 2.3% of the F5 trip threshold (97.7% margin), no nuisance trip**
+(re-run 2026-07-24 on F5's corrected real-part calibration — was reported as 5.2%/94.8%
+margin under the retired Littelfuse-stand-in calibration; the real part's 3×-larger
+`E_thresh` only widens this margin, see the Device models section above).
 
 **Verdict: PASS, same margin structure as the module case.**
 
@@ -389,7 +407,7 @@ current-limit loop):
 | Path | Bound current | Polyfuse (F1/F5) I²t response |
 |---|---|---|
 | Module (F1, 750mA-hold) | 22.0 A (`(5−0.6)/(0.150+0.05)`) | **Would still trip, in ≈26.5 ms** (closed-form from the calibrated leaky-integrator model) |
-| KVM (F5, 1.1A-hold) | 36.7 A (`(5−0.6)/(0.070+0.05)`) | **Would still trip, in ≈4.8 ms** |
+| KVM (F5, 1.1A-hold) | 36.7 A (`(5−0.6)/(0.070+0.05)`) | **Would still trip, in ≈14.3 ms** (re-run 2026-07-24 on F5's corrected real-part calibration — was reported as ≈4.8ms under the retired stand-in, which under-stated `E_thresh` 3×; bound current unchanged since it depends only on `Rcold`, not on the trip-time calibration) |
 
 **Best case** (unverified, no datasheet support either way): internal gate pull-downs
 hold both series FETs fully off even with zero bias — a common load-switch design
@@ -410,43 +428,60 @@ stake while waiting for it.
 
 12 V fault against a 47k/10k OV1 divider (6.04V typ trip), swept two ways.
 
+**CORRECTED 2026-07-24 (datasheet-provenance audit):** every "6.5V" figure in this
+section (the LP5907's assumed abs-max) is WRONG and has been corrected to **6.0V** —
+the real LP5907 abs-max V(IN) per `lib/datasheets/LP5907.pdf` Sec 5.1 is -0.3 to **6.0V**
+(no transient/time-dimension allowance stated). This is the same error already caught and
+corrected in `docs/usb-ingress-bom-delta-2026-07-24.md`'s CORRECTION section; this
+document's sim code (`scripts/sim/cec_backfeed_cases.py`, `LP5907_ABSMAX_V`) and the
+tables below did not yet reflect it and have now been re-run against the correct
+threshold. The lower threshold makes the finding slightly WORSE (crossed slightly
+earlier in the rise, so the exposure window is slightly longer) — see
+`docs/datasheet-provenance-audit-2026-07-24.md` for the full audit.
+
 **Sweep 1 — fault edge rate** (the real rise time of a mis-wire/connector-mate event is
 unstated anywhere in the design docs; swept 10-1000 ns to check sensitivity), OV1
 response modeled at an assumed 2 µs (see below):
 
-| Fault edge | V(OUT) peak | Duration above 6.5V (LP5907 abs-max) |
+| Fault edge | V(OUT) peak | Duration above 6.0V (LP5907 abs-max, corrected) |
 |---|---|---|
-| 1000 ns | 12.0 V (full fault voltage reached) | 1.43 µs |
-| 100 ns | 12.0 V | 1.51 µs |
-| 10 ns | 12.0 V | 1.54 µs |
+| 1000 ns | 12.0 V (full fault voltage reached) | 1.53 µs |
+| 100 ns | 12.0 V | 1.54 µs |
+| 10 ns | 12.0 V | 1.57 µs |
 
-The exposure duration is **essentially independent of the fault edge rate** across this
-whole range (1.43-1.54 µs) — `V(OUT)` tracks the fault almost instantaneously in every
-case (the mux's RON is tiny relative to everything else), so the edge rate is not the
-governing variable.
+(Was 1.43/1.51/1.54 µs respectively against the wrong 6.5V threshold.) The exposure
+duration is **essentially independent of the fault edge rate** across this whole range —
+`V(OUT)` tracks the fault almost instantaneously in every case (the mux's RON is tiny
+relative to everything else), so the edge rate is not the governing variable.
 
 **Sweep 2 — OV1 response-time assumption** (the real governing variable; the datasheet
 states only "turns off immediately" with no number, unlike RCB's explicit 10µs spec —
 this is a flagged modeling assumption, not an extracted value):
 
-| Assumed OV1 response τ | Duration above 6.5V |
+| Assumed OV1 response τ | Duration above 6.0V (corrected) |
 |---|---|
-| 1 µs | 0.77 µs |
-| 2 µs (used above) | 1.51 µs |
-| 5 µs | 3.71 µs |
-| 10 µs (RCB's own documented order) | 7.38 µs |
+| 1 µs | 0.81 µs |
+| 2 µs (used above) | 1.54 µs |
+| 5 µs | 3.75 µs |
+| 10 µs (RCB's own documented order) | 7.42 µs |
+
+(Was 0.77/1.51/3.71/7.38 µs respectively against the wrong 6.5V threshold.)
 
 **Verdict: MARGINAL — flagged loud, not smoothed over.** Across every response-time
 assumption tried (1-10 µs, anchored at the low end on a fast comparator and at the high
-end on RCB's own documented class), **the LP5907's 6.5V absolute-maximum input rating is
-exceeded for roughly 0.8-7.4 µs during a fast 12V cross-rail fault**, because OV1 is
-comparator-response-time-limited, not instantaneous, and the datasheet does not bound
-that response time for OV1 specifically. This is a brief, µs-class excursion — most
-silicon tolerates short abs-max excursions in practice, and the OV1 protection
-unambiguously engages and pulls the rail back down afterward (confirmed in every run: the
-mux correctly falls back to VBUS/IN2, matching the Case-mux smoke-test behavior) — but
-"most parts tolerate it in practice" is not the same as "within the datasheet's own
-spec," and no datasheet text authorizes any abs-max exposure duration. **Recommend
+end on RCB's own documented class), **the LP5907's 6.0V absolute-maximum input rating
+(corrected 2026-07-24, was misstated as 6.5V) is exceeded for roughly 0.8-7.4 µs during a
+fast 12V cross-rail fault**, because OV1 is comparator-response-time-limited, not
+instantaneous, and the datasheet does not bound that response time for OV1 specifically.
+This is a brief, µs-class excursion — most silicon tolerates short abs-max excursions in
+practice, and the OV1 protection unambiguously engages and pulls the rail back down
+afterward (confirmed in every run: the mux correctly falls back to VBUS/IN2, matching the
+Case-mux smoke-test behavior) — but "most parts tolerate it in practice" is not the same
+as "within the datasheet's own spec," and no datasheet text authorizes any abs-max
+exposure duration. Separately, note the OV1 divider's own TYPICAL trip point (6.04V) now
+sits ABOVE the corrected 6.0V abs-max even at DC/steady-state, before any response-time
+excursion is even considered — see `docs/usb-ingress-bom-delta-2026-07-24.md`'s
+CORRECTION section (retune owed) and this doc's Sources section. **Recommend
 either an OV1-side RC bypass to slow the effective response window, or accepting this as
 a documented, bounded, sub-10µs risk rather than an implicit zero.**
 
@@ -465,11 +500,11 @@ a documented, bounded, sub-10µs risk rather than an implicit zero.**
 | C | Reverse, mitigated mux | PASS (500µA leakage bound, no OV1 trip at 5.5V) |
 | D(i) | KVM unmitigated | FAILS (33.3A peak, worse than module baseline) |
 | D(ii) | KVM mitigated, inrush | PASS (same margin structure as B1) |
-| D(ii) | KVM mitigated, F5 nuisance-trip | PASS (94.8% margin) |
+| D(ii) | KVM mitigated, F5 nuisance-trip | PASS (97.7% margin, re-run 2026-07-24 on F5's corrected real-part calibration — was 94.8%) |
 | D(iii) | KVM back-drive, before | FAILS (33.6A peak, 101µC — 2× over budget even at a small receiving cap) |
 | D(iii) | KVM back-drive, after | PASS (architectural elimination, not a limiter) |
-| E | Unpowered-reverse (module + KVM) | **UNRESOLVED — bench gate, per existing owner ruling.** Worst-case paper bound: F1/F5 still trip in 5-27ms even if the mux offers zero protection unbiased. |
-| F | OVP cross-rail timing | **MARGINAL — flagged loud.** ~0.8-7.4µs LP5907 abs-max exposure depending on an unstated OV1 response-time assumption; OV1 does engage and recover in every run. |
+| E | Unpowered-reverse (module + KVM) | **UNRESOLVED — bench gate, per existing owner ruling.** Worst-case paper bound: F1/F5 still trip in 14-27ms even if the mux offers zero protection unbiased (F5 figure corrected 2026-07-24, was reported 5-27ms under a retired stand-in calibration). |
+| F | OVP cross-rail timing | **MARGINAL — flagged loud.** ~0.8-7.4µs LP5907 abs-max (corrected 2026-07-24 to the real 6.0V rating, was misstated as 6.5V) exposure depending on an unstated OV1 response-time assumption; OV1 does engage and recover in every run. |
 
 ## Loud list — marginal or failing items in the MITIGATED design (never smoothed over)
 
@@ -483,12 +518,16 @@ a documented, bounded, sub-10µs risk rather than an implicit zero.**
    before-state risk was.
 3. **Case E (unpowered reverse, both module and KVM topology)**: genuinely unresolved on
    paper. The datasheet does not specify this state in either direction. Worst-case bound
-   shows the polyfuses still provide backstop protection (5-27ms trip), but this is not a
-   substitute for the owner-ruled first-article bench measurement.
-4. **Case F (OVP cross-rail timing)**: a real, non-zero, sub-10µs LP5907 abs-max
-   exposure window exists and is bounded almost entirely by an *assumed* (not
-   datasheet-specified) OV1 comparator response time. Not a hard fail, not a clean pass —
-   flagged as a genuine open item.
+   shows the polyfuses still provide backstop protection (14-27ms trip, F5 figure
+   corrected 2026-07-24 — was reported 5-27ms under a retired stand-in calibration), but
+   this is not a substitute for the owner-ruled first-article bench measurement.
+4. **Case F (OVP cross-rail timing)**: a real, non-zero, sub-10µs LP5907 abs-max (6.0V,
+   corrected 2026-07-24 — this section originally misstated it as 6.5V, see
+   `docs/datasheet-provenance-audit-2026-07-24.md`) exposure window exists and is bounded
+   almost entirely by an *assumed* (not datasheet-specified) OV1 comparator response
+   time. Not a hard fail, not a clean pass — flagged as a genuine open item, and now
+   compounded by the OV1 divider's own typical trip point (6.04V) sitting above the
+   corrected 6.0V abs-max even before any response-time excursion.
 5. **Methodology finding, not a case per se**: the repo's own "~10ms C_SS ramp,
    hub-proven" figure (used in `docs/owner-queue.md` and spec Section 2.9) could not be
    traced to a bench-measurement document in this repo, and the TPS2121 datasheet's own
@@ -508,10 +547,25 @@ a documented, bounded, sub-10µs risk rather than an implicit zero.**
 - TPS2120/TPS2121 datasheet, Texas Instruments SLVSEA3F (Aug 2018, rev. Aug 2020),
   vendored at `lib/datasheets/TPS2121RUXR.pdf`.
 - 1206L Series PolySwitch Resettable PPTC datasheet, Littelfuse, Rev 02/25/19, fetched
-  2026-07-24 from the LCSC mirror of the repo's own F1 line (LCSC C371166):
-  `datasheet.lcsc.com/datasheet/pdf/90ef739ee6437e77b882388979caaf02.pdf`.
+  2026-07-24 from the LCSC mirror of the repo's own F1 line (LCSC C371166) and NOW
+  VENDORED at `lib/datasheets/Littelfuse_1206L_C371166.pdf` (was cited by URL only, per
+  the datasheet-provenance audit's standing rule — see
+  `docs/datasheet-provenance-audit-2026-07-24.md`).
 - SS32 THRU SS3200 Surface Mount Schottky Barrier Rectifier datasheet, MDD, Rev 2024A5,
-  fetched 2026-07-24 from the LCSC mirror of the repo's own D2 line (LCSC C8678):
-  `datasheet.lcsc.com/datasheet/pdf/dfa1ff67dea875d0135103ba9ada713a.pdf`.
+  fetched 2026-07-24 from the LCSC mirror of the repo's own D2 line (LCSC C8678) and NOW
+  VENDORED at `lib/datasheets/MDD_SS32-SS3200_C8678.pdf`.
+- FSMD1206 Series Surface Mountable PTC Resettable Fuse, Fuzetec Product Specification
+  PQ18-01ER rev 1 (2021-03-25), fetched 2026-07-24 from the LCSC mirror of the repo's own
+  F5 line (LCSC C5707763) and vendored at
+  `lib/datasheets/FUZETEC_FSMD110-16-1206R_C5707763.pdf` — the ACTUAL populated F5 part's
+  own curve, added 2026-07-24 to replace the Littelfuse 1206L110TH stand-in this document
+  originally used (see the Device models section's F5 correction note above).
+- LP5907 datasheet, Texas Instruments SNVS798Q (Apr 2012, rev. Jul 2025), vendored at
+  `lib/datasheets/LP5907.pdf`, Sec 5.1 — added as an explicit source 2026-07-24 (the
+  6.5V-vs-6.0V abs-max correction, see the Case F and Case C sections above and
+  `docs/datasheet-provenance-audit-2026-07-24.md`).
 - `docs/24pin-rev3-respin-2026-06-24.md`, NanoKVM current-draw citation (~0.5-1A, the
   original/base NanoKVM the J_KVM header was designed against).
+- `docs/datasheet-provenance-audit-2026-07-24.md` — the full parameter-by-parameter
+  re-verification pass (2026-07-24) that found and fixed the LP5907 6.5V/6.0V and F5
+  stand-in/real-part issues corrected throughout this document.
