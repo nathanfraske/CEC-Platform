@@ -1,5 +1,18 @@
 # Current work handoff
 
+## 24-PIN↔PC-USB FAULT STUDY DONE (2026-07-24 ~03:00Z, branch claude/24pin-tester-psu-usb-fault-e2i4tf) — Q&A session, no board edits
+Owner asked whether a faulty PSU can trip a PC's USB OC/OV through the 24-pin (tester).
+Answered + memorialized: docs/standard-tier-review/atx24-usb-host-fault-study-2026-07-24.md
+(branch sweep alpha/rev2/rev3-main/rev3-beta@pipeline-pass-2 + tester-standard 01/02, all
+netlist-verified). Verdict: NO OV/bulk-discharge path to the PC on any revision (ORing-diode
+orientation verified; rev3 adds TPS2121 always-on RCB, 22 V-rated inputs, H3/H3a suite);
+the REAL exposure is reverse OC — on 5VSB collapse the PC becomes the fallback source
+through D2 (unlimited leg) and trips its port OCP iff a Hub tree hangs on /+5V_SYS_PORT
+(rev2/alpha worse: direct busbar → also back-feeds PSU caps + mobo standby). NEW REAL BUG
+found in tester-standard 02-power: U5 USBLC6 flow-through miswire (shorts D+↔CC2 / D−↔CC1)
++ U5.VBUS on the 12/20 V PD rail (5.25 V part) — NOT fixed (held agent's WIP), logged in
+FOLLOWUPS 2026-07-24 + study §5; owner-queue §1 got a D2-leg back-feed-budget decision row.
+
 ## MAIN CONSOLIDATION DONE (2026-07-17 ~19:00Z) — read before pipeline work
 main = 81bb853a: session line (95 commits, FF) + claude/pipeline-consolidation (312, merge
 commit; 4 append-logs union-resolved, cec-vendor.kicad_sym auto-merge verified). CI on the
