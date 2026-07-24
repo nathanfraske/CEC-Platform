@@ -285,3 +285,42 @@ architecture (v1.4.0, ratified for pin-mapping/productization, ~$3–5/board) �
 "everything gets a daughterboard and everything gets expensive" scenario is exactly
 half-true already, adopted where it earns its keep, and stops there. Input headers
 stay board-mounted platform-wide.
+
+### 9.9 Correction to §9.8 (owner objections sustained, 2026-07-25): savers scoped WAY
+down; the real deck answer is the GENERALIZED FIXTURE HEAD
+
+Two §9.8 claims corrected:
+
+1. **Connector-saver pigtails RETRACTED for 12VHPWR and for all metrology paths.**
+   The owner's objection is exactly the platform's own §2.8 ruling: the 12VHPWR
+   module soldered its pigtail specifically to REMOVE mated pairs from the melt-prone
+   path — a saver adds one back, unmonitored, and instrumenting it would spawn a
+   manufactured line item that defeats the "dumb cheap cable" point. More generally,
+   an uninstrumented series resistance inside a metrology path contaminates DUT
+   characterization (~20–30 mΩ fresh ≈ 0.2–0.3 V at 10 A ≈ 2%-class error on 12 V)
+   unless baselined. Savers survive ONLY as a shop-optional accessory for lamp-class
+   checks (smoke-tester regime), never on 12VHPWR, never inside ST/Pro/Max metrology.
+2. **Module-as-the-wear-unit RETRACTED as doctrine.** Eating a $35 module is a poor
+   consumable; eating a $600+ Pro/Max module is absurd. Modules-as-swappable is a
+   last-resort serviceability fact, not the wear plan.
+
+**The corrected deck doctrine — generalize the family's own existing pattern:** the
+census already contains the answer in one row: `hpwr-fixture-head` = "the per-test
+wear position; replaceable by design." Generalize it: **every deck slot family gets a
+cheap passive FIXTURE HEAD** (atx24 / EPS / PCIe heads alongside the existing HPWR
+head — family-keyed small board carrying the DUT-facing connector + sense contacts,
+$3–10 class), and the measurement SENSES AT THE HEAD (the tester-12d port-end Kelvin
+pattern + the OQ-88 sense-return contacts already queued). That one move buys all
+three properties the owner demanded at once: (a) the per-DUT mating lands on a $3–10
+part, so the $35–$600+ module NEVER accumulates matings (head↔deck mating cycles
+only when a head is replaced — rare); (b) the head is INSTRUMENTED, not a blind
+added joint — the 12d live per-pin resistance map was designed precisely to see
+contact degradation at this position, so head wear is a trended, alarmed quantity
+("replace head" is a firmware message with a number behind it); (c) head contact
+drops sit outside the sense point, so DUT characterization stays honest as the head
+wears. Cost honesty: per-family heads are new small SKUs (bounded: ~3 new boards,
+shared across ST/Pro/Max decks) — but they were already half-built: the HPWR head
+exists in the census, OQ-88 carries the sense-return contact provision, and 12d
+carries the monitoring. The $600 module's remaining exposure in deck duty is DUT
+violence, and that is bounded by the three cheaper layers in front of it: smoke
+tester triage → per-slot fuses/fences (§12c) → the fixture head.
