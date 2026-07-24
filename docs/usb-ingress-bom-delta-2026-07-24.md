@@ -181,3 +181,19 @@ a hard GND tie creates a real ERC ERROR (driver collision with the GND
 PWR_FLAG), and NC matches both the datasheet's stated alternative and the
 hub's as-built U5/U7 precedent. Judged sound by the independent pre-merge
 audit; recorded here so the document of record matches the boards.
+
+## CORRECTION (datasheet-derived, 2026-07-24): OV trip point + output clamp
+
+The LP5907's ABS-MAX V_IN is **6.0V** (SNVS798Q §5.1; no transient allowance --
+abs-max carries no time dimension), not the 6.5V the failure survey and SPICE
+case F assumed. The implemented 47k/10k divider trips at 6.04V -- ABOVE the
+LDO's ceiling. Corrected work order (both self-answered from datasheets + the
+platform margin rules, no owner decision needed):
+1. RETUNE OV1 on every stage: trip ~5.6-5.7V so the order is 5.25V (5V+5%
+   normal max) < trip < 6.0V abs-max. Candidate pairs (implementing agent
+   verifies LCSC stock, prefers already-sourced values): 47k/11k -> 5.59V, or
+   43k/10k -> 5.62V. V_trip = 1.06V x (Rt+Rb)/Rb (V_REF rising, TPS2121 EC).
+2. ADD a 5.6V zener/TVS clamp on each mux OUT (the t_FSW=5us switchover
+   ride-through still lets the input sail past trip; the clamp holds the
+   LDO input under abs-max through the event). Small SOD-323 zener class.
+Both to ride the next schematic splice pass; spec v1.6.x note owed.
