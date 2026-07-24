@@ -1,5 +1,17 @@
 # Current work handoff
 
+## METHOD-CHAIN VERDICT 2026-07-24 ~16:30 (the honest trade, reported in-chat):
+24-pin under the FULL pour diet (need-based + delivery-proof mirrors, ask-slabs, appendage
+prune): drc HOLDS mid-band (76-92) and the junk classes are DEAD (F mirrors 0, L3 floater
+gone, deficit prints live) -- but unconn REGRESSED to 103-125 (was 90-99): the dropped
+copper WAS doing connectivity work, however ugly. RESOLUTION (already ratified, do NOT
+re-admit decoration): the SLAB GUARANTEED-CORE supplies that connectivity properly --
+path-shaped, bonded, invariant-checked. The per-rail AMPACITY DEFICIT prints on every
+import now name exactly where the core must widen. NEXT SESSION ORDER STANDS: (0a)
+cell-envelope membership fix [hub 9999 collapse + last refused cell + kelvin]; (0b) slab
+core at materialize + full slab A/B [now also the unconn-recovery path]; then the ladder.
+Thermal injection improving (2/9 open on the best). Kelvin still FALSE (the one cell).
+
 ## MORNING STATE 2026-07-24 ~10:30 (report delivered in-chat). TOP ITEMS FOR NEXT SESSION:
 (1) HUB CHAIN COLLAPSE, ROUND 2: overnight rounds 1-6 (07:08-09:15) ALL hub variants 9999
     -- began BEFORE the schematic merge, so the suspect set = the overnight rung batch
