@@ -2049,7 +2049,11 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
         # only if its rect intersects a shunt neighborhood, and the kept rect
         # EXPANDS to the neighborhood so the force-via arrays sit INSIDE the
         # pour (the owner's outside-the-pour barrels catch).
-        if lay == "F.Cu":
+        if lay == "F.Cu" and d.get("provenance") != "slab":
+            # slab dicts are exempt: already shunt-restricted AND shaved --
+            # the rect expand below would REPLACE the shaved polygon with the
+            # neighborhood rectangle (traced 2026-07-24, the owner's
+            # "shunt mirror did nothing" bug)
             try:
                 import cec_slab_pour as _csp2
                 _nbs = _csp2.shunt_neighborhoods(board)
@@ -4076,28 +4080,12 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         # own-net anchor (the floating-zone rule, structural), and sub-width
         # slivers; min-width invariant reported per (net, layer). The bond/scrap
         # filter is obsolete for slab dicts (anchoring is by construction).
-        # ASK-DERIVED pours ALWAYS slab-shave (owner L3-floater catch
-        # 2026-07-24: a raw placer_ask rect kept by one barrel lays its whole
-        # sparsely-connected body -- the slab shave trims it to the anchored,
-        # appendage-pruned footprint). CEC_SLAB_POUR=1 extends slabbing to ALL
-        # dicts (the full A/B); rail_compiler dicts otherwise stay rect
-        # (locked-trunk coupled).
-        if power_pours and os.environ.get("CEC_SLAB_POUR", "0") != "1":
-            _ask_d = [p for p in power_pours
-                      if p.get("provenance") == "placer_ask"]
-            if _ask_d:
-                try:
-                    import cec_slab_pour
-                    _sp2, _sr2 = cec_slab_pour.synthesize_slab_pours(board, _ask_d)
-                    power_pours = ([p for p in power_pours
-                                    if p.get("provenance") != "placer_ask"]
-                                   + _sp2)
-                    print(f"[cec_fr] ask slabs: {len(_ask_d)} ask dict(s) -> "
-                          f"{len(_sp2)} shaved slab(s)", file=sys.stderr)
-                except Exception as _ae:                 # noqa: BLE001
-                    print(f"[cec_fr] ask slabs FAILED ({_ae}) -- rects kept",
-                          file=sys.stderr)
-        if power_pours and os.environ.get("CEC_SLAB_POUR", "0") == "1":
+        # SLAB CONVERSION MOVED AFTER THE VIA STAGES (traced 2026-07-24, the
+        # owner's vias-outside-pours bug: slabs generated HERE could not anchor
+        # on force-vias/pickups that did not exist yet, so barrels landed
+        # outside the shaved polys while the bbox coverage test hid it). See
+        # the post-pickup block below; only the rect-dict filter stays early.
+        if False and power_pours and os.environ.get("CEC_SLAB_POUR", "0") == "1":
             try:
                 import cec_slab_pour
                 _sp, _srep = cec_slab_pour.synthesize_slab_pours(board, power_pours)
@@ -4141,6 +4129,32 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             if pk["vias"] or pk["skipped"]:
                 print(f"[cec_fr] power pickups: {pk['vias']} via(s) at {pk['pads']} "
                       f"stranded pad(s), {pk['skipped']} skipped (no clear slot)",
+                      file=sys.stderr)
+        # SLAB CONVERSION -- AFTER the via stages (2026-07-24 trace): the masks
+        # now anchor on every just-laid force-via/pickup barrel, so slabs COVER
+        # their barrels by construction and no via sits outside a shaved poly.
+        # placer_ask dicts always slab; CEC_SLAB_POUR=1 slabs everything.
+        if power_pours:
+            try:
+                import cec_slab_pour
+                _full = os.environ.get("CEC_SLAB_POUR", "0") == "1"
+                _conv = (power_pours if _full else
+                         [p for p in power_pours
+                          if p.get("provenance") == "placer_ask"])
+                if _conv:
+                    _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
+                    _keep_r = ([] if _full else
+                               [p for p in power_pours
+                                if p.get("provenance") != "placer_ask"])
+                    power_pours = _keep_r + _sp3
+                    _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
+                             if not v.get("min_width_ok", True)]
+                    print(f"[cec_fr] slab conversion (post-via): {len(_conv)} "
+                          f"dict(s) -> {len(_sp3)} slab(s)"
+                          + (f"; min-width OPEN on {_bad3[:4]}" if _bad3 else ""),
+                          file=sys.stderr)
+            except Exception as _se3:                    # noqa: BLE001
+                print(f"[cec_fr] slab conversion FAILED ({_se3}) -- rects kept",
                       file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
