@@ -1,32 +1,35 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-SN1,1,Mini-Fit Jr 24-ckt male vertical,PhaseA:snout-paddle,44206-class,Molex,,,consigned,,,,"CONSUMABLE #4 snout: on paddle PCB + 2x13 shrouded header pair to main board; est $3.10 incl paddle; THT hand-solder like every platform Mini-Fit"
+SN1,1,Mini-Fit Jr 24-ckt male vertical,PhaseA:snout-paddle,44206-class,Molex,,,consigned,,,,CONSUMABLE #4 snout: on paddle PCB + 2x13 shrouded header pair to main board; est $3.10 incl paddle; THT hand-solder like every platform Mini-Fit
 "F1,F2,F3,F4,F5,F6,F7,F8",8,ATO blade 1A fast,PhaseA:ATO_holder_panel,BLX-A-class holder + 1A ATO,generic,,,TBD,,,,"CONSUMABLE #1: ONE value everywhere (refill = any 1A ATO, hardware-store standard ON PURPOSE); holders est $0.25 ea, fuses $0.10; blown-fuse LED+R across each"
 "XF1,XF2,XF3,XF4,XF5,XF6,XF7,XF8",8,5x20 HRC 2A time-lag 250VAC,PhaseA:5x20_twist_holder,0215002.-class ceramic sand-filled,Littelfuse/Bel,,,TBD,,,,"CONSUMABLE #2: the mains-class interrupter (1.5kA breaking); internal tool-less twist holders est $0.25 ea, fuses $0.35; coordination 2:1 + T-vs-F vs the blades"
-SB1,1,SACRIFICE BRICK,PhaseA:brick-2x10-socket,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,"CONSUMABLE #3 (~$3 COGS): keyed plug-in PCB carrying RV1-RV8 + RW1-RW8 below; date-flag silk; 2x10 0.1in socket pair; sold as 2-pack SKU $12-15"
-"SB1:RV1,SB1:RV2,SB1:RV3",3,MOV S14K14-class 14mm,Disc_D14mm,S14K14/JVR14-class,TDK/generic,,,TBD,,,,"12V / -12V / AUX-12 ways; varistor ~22V; bidirectional = free reverse clamp; est $0.12 ea"
-"SB1:RV4,SB1:RV5,SB1:RV6",3,MOV S14K6-class 14mm,Disc_D14mm,S14K6-class,TDK/generic,,,TBD,,,,"5V / 5VSB / AUX-5 ways; est $0.10 ea"
-"SB1:RV7,SB1:RV8",2,MOV S14K4-class 14mm,Disc_D14mm,S14K4-class,TDK/generic,,,TBD,,,,"3V3 / AUX-3V3 ways; est $0.10 ea"
-"SB1:RW1..RW8",8,1R 1W flameproof fusible WW,R_Axial_Fusible,KNP/FKN-class,generic,,,TBD,,,,"the SAFE SMOKE: designed to open with a benign puff, no flame; in series with its MOV = fail-short containment; est $0.05 ea"
-J_AUX,1,AUX port 2x5 shrouded keyed,PhaseA:IDC_2x5,generic,generic,,,TBD,,,,"3 fused expected-V ways + continuity way + DUT GND; passive family adapters are separate accessory SKUs"
-"U1,U2,U3,U4",4,LM339,SOIC-14,LM339DR-class,TI/onsemi,,,TBD,,,,"16 comparator sections: 8 way-windows (16) folded w/ shared refs + PG race (2) + reverse latch; est $0.08 ea"
-VR1,1,TL431,SOT-23,TL431-class,TI/onsemi,,,TBD,,,,"2.5V ref + window ladder (1% dividers)"
-U5,1,5V LDO 2uA Iq,SOT-89,HT7550-1-class,Holtek,,,TBD,,,,"measurement-domain rail from 9V PP3; USB-C 5V diode-ORs past it"
+SB1,1,SACRIFICE BRICK,PhaseA:brick-2x10-socket,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,CONSUMABLE #3 (~$3 COGS): keyed plug-in PCB carrying RV1-RV8 + RW1-RW8 below; date-flag silk; 2x10 0.1in socket pair; sold as 2-pack SKU $12-15
+"SB1:RV1,SB1:RV2,SB1:RV3",3,MOV S14K14-class 14mm,Disc_D14mm,S14K14/JVR14-class,TDK/generic,,,TBD,,,,12V / -12V / AUX-12 ways; varistor ~22V; bidirectional = free reverse clamp; est $0.12 ea
+"SB1:RV4,SB1:RV5,SB1:RV6",3,MOV S14K6-class 14mm,Disc_D14mm,S14K6-class,TDK/generic,,,TBD,,,,5V / 5VSB / AUX-5 ways; est $0.10 ea
+"SB1:RV7,SB1:RV8",2,MOV S14K4-class 14mm,Disc_D14mm,S14K4-class,TDK/generic,,,TBD,,,,3V3 / AUX-3V3 ways; est $0.10 ea
+SB1:RW1..RW8,8,1R 1W flameproof fusible WW,R_Axial_Fusible,KNP/FKN-class,generic,,,TBD,,,,"the SAFE SMOKE: designed to open with a benign puff, no flame; in series with its MOV = fail-short containment; est $0.05 ea"
+J_AUX,1,AUX port 2x5 shrouded keyed,PhaseA:IDC_2x5,generic,generic,,,TBD,,,,3 fused expected-V ways + continuity way + DUT GND; passive family adapters are separate accessory SKUs
+"U1,U2,U3,U4",4,LM339,SOIC-14,LM339DR-class,TI/onsemi,,,TBD,,,,16 comparator sections: 8 way-windows (16) folded w/ shared refs + PG race (2) + reverse latch; est $0.08 ea
+VR1,1,TLV431 (1.24V ref),SOT-23,TLV431-class,TI/onsemi,,,TBD,,,,"1.24V absolute ref + window ladder (1% dividers); domain runs DIRECT from the supercap store (rail 2.5-5.4V), no LDO"
 K1,1,DPDT latching relay 5V dual-coil,PhaseA:relay_DPDT_latch,HFD2/005-S-L2-D-class,Hongfa,,,TBD,,,,"zero hold current (battery life); pole A = PS_ON# drive, pole B = PG race start; SET by SW_ARM RC pulse, RESET by lid uSW/DISARM"
-"D_PS,D_PG",2,PESD5V0S1BA,SOD-323,PESD5V0S1BA,Nexperia,C5261083,,LCSC,,,,"platform-standard low-cap clamp on PS_ON# / PWR_OK lines (only repo-verified LCSC line in this sketch BOM)"
-"R_DIV (strings)",1,"9x (3x301k 1206 + 100k 0805) + -12V bias string",R_1206/R_0805,1% thick film,generic,,,TBD,,,,"each top leg 3x301k in series = 300V-rated string; taps survive mains BY IMPEDANCE; est $0.30 total"
-"NE1,NE2 (+4x 470k 0.5W 350V)",2,NE-2 neon + series R,PhaseA:NE2_panel,NE-2,generic,,,TBD,,,,"earth-domain: CASE LIVE (DUT-GND vs earth) + RAIL LIVE (ways OR via 4x1M); strikes ~90V; zero power"
-M1,1,100uA moving-coil panel meter,PhaseA:meter_85C1,85C1-class,generic,,,consigned,,,,"reads DIVIDED nodes only via SW_SEL; scale printed x10; est $3.50"
-SW_SEL,1,1P6T rotary,PhaseA:rotary_1P6T,generic,generic,,,TBD,,,,"meter rail select; est $0.60"
-SW_ARM,1,missile-cover toggle,PhaseA:toggle_cover,generic,generic,,,TBD,,,,"the arm/fire UX; est $2.20"
-SW_TEST,1,momentary NO,PhaseA:pushbutton,generic,generic,,,TBD,,,,"powers comparator domain while held (multimeter economy)"
-SW_LOAD,1,DPST toggle,PhaseA:toggle,generic,generic,,,TBD,,,,"min-load bleeders in/out"
-SW_LID,1,microswitch (lid),PhaseA:microswitch,generic,generic,,,TBD,,,,"fuse door open -> K1 RESET pulse -> released PS_ON = safe state"
-R_BL1,1,47R 10W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,"12V min load ~0.26A; est $0.80"
-R_BL2,1,10R 5W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,"5V min load ~0.5A; est $0.40"
-"D1..D16 (way lamps)",16,LED grn/red 3mm,LED_D3.0mm,generic,generic,,,TBD,,,,"per-way in-window green / out red; 2mA high-efficiency"
-"D17..D24 (blown-fuse)",8,LED red 3mm + R,LED_D3.0mm,generic,generic,,,TBD,,,,"across each blade holder: lights iff fuse open AND way live"
-BT1,1,9V PP3 holder,PhaseA:PP3_holder,generic,generic,,,TBD,,,,"user-supplied battery; months of duty at ~10mA TEST-held draw"
-J_PWR,1,USB-C 5V power-only 6P,USB_C_6P,generic,generic,,,TBD,,,,"alt power for the floating domain; CC resistors for 5V-only sink; diode-OR w/ BT1"
-"PCB_MAIN,PCB_PANEL",2,"2-layer main + FR4 front panel",n/a,,JLCPCB,,,jlcpcb,,,,"panel-as-PCB: holders mount through it, silk = truth table / coroner map / QR; est $3.00 both"
-CASE1,1,case w/ lid fuse storage,n/a,,TBD,,,quote TBD,,,,"est $7.00 at qty — one of two soft lines in the rollup"
-KIT1,1,STARTER KIT,n/a,,CEC,,,own,,,,"in the lid: full spare blade set + 2x HRC + 1x SPARE BRICK + verdict-card pad; +$4.30 COGS = the trust move (concept 9.5)"
+"D_PS,D_PG",2,PESD5V0S1BA,SOD-323,PESD5V0S1BA,Nexperia,C5261083,,LCSC,,,,platform-standard low-cap clamp on PS_ON# / PWR_OK lines (only repo-verified LCSC line in this sketch BOM)
+R_DIV (strings),1,9x (3x301k 1206 + 100k 0805) + -12V bias string,R_1206/R_0805,1% thick film,generic,,,TBD,,,,each top leg 3x301k in series = 300V-rated string; taps survive mains BY IMPEDANCE; est $0.30 total
+"NE1,NE2 (+4x 470k 0.5W 350V)",2,NE-2 neon + series R,PhaseA:NE2_panel,NE-2,generic,,,TBD,,,,earth-domain: CASE LIVE (DUT-GND vs earth) + RAIL LIVE (ways OR via 4x1M); strikes ~90V; zero power
+M1,1,100uA moving-coil panel meter,PhaseA:meter_85C1,85C1-class,generic,,,consigned,,,,reads DIVIDED nodes only via SW_SEL; scale printed x10; est $3.50
+SW_SEL,1,1P6T rotary,PhaseA:rotary_1P6T,generic,generic,,,TBD,,,,meter rail select; est $0.60
+SW_ARM,1,missile-cover toggle,PhaseA:toggle_cover,generic,generic,,,TBD,,,,the arm/fire UX; est $2.20
+SW_TEST,1,momentary NO,PhaseA:pushbutton,generic,generic,,,TBD,,,,powers comparator domain while held (multimeter economy)
+SW_LOAD,1,DPST toggle,PhaseA:toggle,generic,generic,,,TBD,,,,min-load bleeders in/out
+SW_LID,1,microswitch (lid),PhaseA:microswitch,generic,generic,,,TBD,,,,fuse door open -> K1 RESET pulse -> released PS_ON = safe state
+R_BL1,1,47R 10W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,12V min load ~0.26A; est $0.80
+R_BL2,1,10R 5W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,5V min load ~0.5A; est $0.40
+D1..D16 (way lamps),16,LED grn/red 3mm,LED_D3.0mm,generic,generic,,,TBD,,,,per-way in-window green / out red; 2mA high-efficiency
+D17..D24 (blown-fuse),8,LED red 3mm + R,LED_D3.0mm,generic,generic,,,TBD,,,,across each blade holder: lights iff fuse open AND way live
+J_PWR,1,USB-C 5V power-only 6P,USB_C_6P,generic,generic,,,TBD,,,,cold-start top-up for the store (dead-DUT corner); CC resistors for 5V-only sink
+"PCB_MAIN,PCB_PANEL",2,2-layer main + FR4 front panel,n/a,,JLCPCB,,,jlcpcb,,,,"panel-as-PCB: holders mount through it, silk = truth table / coroner map / QR; est $3.00 both"
+"""C_ST1,C_ST2""",2,2.7V 5F radial supercap Ø10-12mm,PhaseA:supercap_radial_D12_P5,Eaton HV/KR-class,Eaton/Kyocera,,,consigned (LCSC carries NO supercaps - study gate 2026-07-15),,,,BATTERYLESS STORE (owner no-disposables directive 2026-07-24): 2S + balance; same cell family as the Pro/Max 2S provision = shared buy; 23J usable = ~12min held-TEST = ~16 sessions; est $1.20 ea
+"""R_BAL1,R_BAL2""",2,100k 0805,R_0805_2012Metric,1% thick film,generic,,,TBD,,,,2S balance (platform supercap-provision pattern); 23uA-class bleed
+SB1:RW_H,1,33R 2W flameproof fusible WW,R_Axial_Fusible,KNP200-class,generic,,,TBD,,,,harvest-path protection ON THE BRICK (sacrificial like everything): 5VSB/5V-way -> ORing -> RW_H -> zener -> store; mains event = ~10A -> opens; charge 0.76W in a 2W part
+"""D_H1,D_H2,D_H3""",3,SS14-class Schottky,SMA,SS14,generic,,,TBD,,,,harvest ORing: 5VSB-way / 5V-way / USB-C -> store
+Z_ST,1,5.6V 1W zener,SMA/DO-41,1SMA5919-class,generic,,,TBD,,,,crude CV clamp across the store (charge-path overvoltage + DUT-5VSB-OV guard)
+CASE1,1,case w/ lid fuse storage,n/a,,TBD,,,quote TBD,,,,est $7.00 at qty — one of two soft lines in the rollup
+KIT1,1,STARTER KIT,n/a,,CEC,,,own,,,,in the lid: full spare blade set + 2x HRC + 1x SPARE BRICK + verdict-card pad; +$4.30 COGS = the trust move (concept 9.5)

@@ -240,3 +240,18 @@ retail-healthy margins. No subscription — wrong price class, nickel-and-dime o
 Honesty line for planning: this is a $79 accessory with $9–15 refills — a
 margin-healthy small line whose strategic job is guarding the expensive bench and the
 brand, not a business by itself.
+
+### 9.7 Power revision (owner no-disposables directive, same day — supersedes every
+battery mention above: the 9 V/2×AA lines in §2/§9.2 are retired)
+
+No battery of any chemistry. A 2S supercap store (2× 2.7 V 5 F radial + balance —
+the Pro/Max supercap-provision cell pattern, shared sourcing; LCSC carries none per
+the 2026-07-15 study gate, consigned line) harvests from the DUT's own 5VSB/5V ways
+through a brick-mounted 33 Ω 2 W flameproof fusible + 5.6 V CV zener, with USB-C 5 V
+as the dead-DUT cold-start. 23 J usable ≈ 12 min held-TEST ≈ 16 sessions; <60 s
+recharge off any live rail; zero standby drain (latching relay + neons). Domain runs
+direct from the store against a TLV431 absolute ref (rail 2.5–5.4 V). Storage is
+load-bearing (the lamps must survive the DUT's collapse — the box's most important
+moment); Li-ion was considered and rejected for this duty (UN38.3 shipping, BMS,
+aging, and a fire-adjacent chemistry inside the fire-eating box). Board spec of
+record: beta/smoke-tester/README.md §2.

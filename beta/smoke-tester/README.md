@@ -36,11 +36,33 @@ See `assets/smoke-tester-block.svg`.
 
 **Domains.** (a) THE SACRIFICE PATH (DUT copper): snout → blade fuse → HRC backup →
 clamp brick → way node → bleeders/dividers. (b) THE FLOATING MEASUREMENT DOMAIN:
-comparators + lamps + meter, powered by a 9 V battery (or USB-C 5 V), referenced to
-DUT GND and floating relative to earth — it keeps indicating even when DUT GND rides
-line potential. (c) THE EARTH-NEON DOMAIN: nothing but neon bulbs and megohms
-between DUT nodes and the earth reference — zero powered electronics, strikes at
-~90 V, lights **CASE LIVE**.
+comparators + lamps + meter, powered by the **batteryless supercap store** (below),
+referenced to DUT GND and floating relative to earth — it keeps indicating even when
+DUT GND rides line potential. (c) THE EARTH-NEON DOMAIN: nothing but neon bulbs and
+megohms between DUT nodes and the earth reference — zero powered electronics, strikes
+at ~90 V, lights **CASE LIVE**.
+
+**Power — batteryless, self-charging (owner no-disposables directive, 2026-07-24):**
+no battery of any chemistry. The measurement domain runs from a **2S supercap store**
+(2× 2.7 V 5 F radials + 2× 100 kΩ balance — the same 2S-radial pattern as the Pro/Max
+supercap provision, shared sourcing) that **harvests from the DUT itself**: 5VSB-way ⊕
+5V-way through ORing Schottkys → a 33 Ω 2 W flameproof fusible (on the brick — the
+harvest tap's protection is sacrificial like everything else) → 5.6 V zener CV clamp →
+store. Every test session recharges it: a live 5VSB wakes an empty store in <60 s
+(~150 mA initial, 0.76 W in the 2 W part). USB-C 5 V (any phone brick/power bank) is
+the cold-start path for the one corner where nothing on the DUT is alive. Store math:
+2.5 F net, 5.0→2.5 V usable = 23 J ≈ **12 min of held-TEST ≈ 16 DUT sessions** per
+charge; zero standby drain (latching relay + neons need nothing at rest). The domain
+runs DIRECT from the store (no LDO): all thresholds compare against a TLV431 1.24 V
+absolute reference, so the rail may ride 2.5–5.4 V; way lamps are 2 mA high-efficiency
+red / 570 nm yellow-green (Vf ≤2.1 V) so indication holds to the bottom of the store.
+Why storage at all (vs pure harvest): the lamps and latches must survive the exact
+moment the DUT collapses or hiccups — the box's most important observation — and a
+purely harvested brain would strobe with the fault it is reporting. Why supercap (vs
+Li-ion): the energy need is tiny and refilled every use; EDLC ships with no UN38.3
+lithium compliance, has no BMS, no aging cliff, 10+ year life — and no recharge chore
+ever, because using the tool charges it. A **STORE OK** lamp (spare comparator,
+store >3.0 V while TEST held) disambiguates dead-box from dead-DUT.
 
 **The structural rule (what makes "modular" true):** *no main-board copper sits
 electrically upstream of a sacrifice element, and measurement taps enter only through
@@ -134,19 +156,20 @@ deferred to the metrology tiers (fence).
 | 8× ATO holders + installed 1 A blades | $2.60 |
 | 8× 5×20 holders + installed 2 A-T HRCs | $4.40 |
 | Sacrifice brick SB1 (8 MOV + 8 witness + PCB + socket) | $3.00 |
-| Measurement domain (4× LM339, TL431, HT7550-class LDO, divider strings, RC race) | $1.60 |
+| Measurement domain (4× LM339, TLV431 ref, divider strings, RC race — direct-from-store, no LDO) | $1.55 |
 | Lamps (16 way-LEDs + 8 blown-fuse + 2 NE-2 chains) | $1.10 |
 | K1 latching DPDT + missile toggle + rotary + microswitch + TEST/LOAD switches | $5.60 |
 | Bleeders (47 Ω 10 W + 10 Ω 5 W, chassis) | $1.20 |
 | Needle meter (85C1-class, consigned) | $3.50 |
-| Power (9 V holder, USB-C 5 V power-only, ORing) | $0.60 |
+| Power store (2S 5 F supercaps + balance + harvest ORing/zener + USB-C top-up) | $3.30 |
 | Main PCB + FR4 front panel (panel-as-PCB: silk truth-table is free with the fab) | $3.00 |
 | Case w/ lid fuse storage (quote TBD) | $7.00 |
 | Verdict pad + print | $0.50 |
 | **Starter kit** (full spare blade set + 2 HRC + **1 spare brick**) | $4.30 |
-| **Landed rollup** | **≈$36.50** |
+| **Landed rollup** | **≈$39.15** |
 
-Honest delta vs the concept §9.4 target ($30–34): this rolls up ~$36.5 at 100-qty
+Honest delta vs the concept §9.4 target ($30–34): this rolls up ~$39 at 100-qty
+(+$2.7 of that is the owner-directed batteryless store — worth every cent of story)
 with the starter kit in-box; the target recovers at 1 k qty + the case quote (the two
 soft lines). Levers if needed: meter-delete (−$3.50, hurts perceived value most per
 dollar — don't), case class (−$2–3), holder consolidation. **Retail $79** incl.
@@ -184,6 +207,9 @@ concept §8 #2–#12 (this standup executed #1).
 
 - [ ] Phase A library pass (parts list in §8) — nothing vendored yet.
 - [ ] Case + meter + holder sourcing quotes (the three consigned-class soft lines).
+- [ ] Supercap cell sourcing: LCSC carries NO supercaps (owner-verified gate, supercap
+      study 2026-07-15) — consigned/DigiKey-class line, same cells as the Pro/Max 2S
+      provision (shared buy).
 - [ ] Arc-coordination bench protocol draft (gates DRAFT-drop; safety review for the
       witness chamber rides it — concept decision #4).
 - [ ] AUX adapter pin-map table per family (SATA/Molex/PCIe/EPS) — one page, feeds

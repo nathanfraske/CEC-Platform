@@ -70,7 +70,7 @@
   <!-- MEASUREMENT DOMAIN -->
   <rect x="645" y="60" width="315" height="330" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="6 3"/>
   <text x="655" y="78" font-size="12" font-weight="bold" fill="#2255aa">FLOATING MEASUREMENT DOMAIN</text>
-  <text x="655" y="92" font-size="9.5" fill="#2255aa">9V batt (latching relay = zero hold) or USB-C 5V · rides DUT GND · floats vs earth</text>
+  <text x="655" y="92" font-size="9.5" fill="#2255aa">BATTERYLESS: 2S supercap store, self-charged off the DUT (5VSB/5V harvest) + USB-C top-up · rides DUT GND</text>
 
   <line x1="615" y1="121" x2="700" y2="121" stroke="#333" stroke-width="1.5" stroke-dasharray="4 3"/>
   <rect x="700" y="100" width="115" height="60" fill="#fff" stroke="#2255aa"/>

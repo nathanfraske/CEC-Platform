@@ -1,5 +1,12 @@
 # Current work handoff
 
+## SMOKE TESTER POWER REVISION (2026-07-24 ~22:35Z, owner no-disposables directive, on pipeline-pass-2)
+Battery deleted: 2S supercap store (Pro/Max provision cell pattern, consigned - no LCSC supercaps)
+harvested off the DUT 5VSB/5V ways (33R 2W fusible ON BRICK + 5.6V CV zener) + USB-C cold-start;
+domain direct-from-store (TLV431 1.24V absolute ref, rail 2.5-5.4V, Vf<=2.1V lamps); 23J = ~12min
+held-TEST = ~16 sessions, <60s recharge off any live rail; Li-ion rejected (UN38.3/BMS/aging).
+README S2 + both SVGs + BOM (rollup ~$39.15@100) + concept 9.7 + owner-queue all updated.
+
 ## SMOKE TESTER STOOD UP ON THIS BRANCH (2026-07-24 ~21:35Z, commit on pipeline-pass-2)
 Owner directive: BOM + sketches + a new beta module 'on the latest remote branch'. beta/smoke-tester/
 now exists at sketch-stage (tester-standard convention: README-spec first, capture later): README =

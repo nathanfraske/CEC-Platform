@@ -80,8 +80,8 @@
 
   <!-- power strip -->
   <rect x="20" y="505" width="940" height="75" fill="#fafafa" stroke="#999"/>
-  <text x="32" y="525" font-size="11" font-weight="bold">POWER (floating measurement domain): 9V PP3 → HT7550-class 5V LDO (2µA Iq) ⊕ USB-C 5V power-only, diode-OR.</text>
-  <text x="32" y="543" font-size="9.5">TEST momentary powers the comparator domain while held (multimeter economy); neons + latching relay need nothing at rest.</text>
-  <text x="32" y="558" font-size="9.5">Referenced to DUT GND; floats vs earth — indication keeps working when DUT GND rides line potential.</text>
-  <text x="32" y="573" font-size="9.5" fill="#555">Battery life: months of bench duty (≈10mA only while TEST held; zero standby).</text>
+  <text x="32" y="525" font-size="11" font-weight="bold">POWER — BATTERYLESS STORE: 5VSB-way ⊕ 5V-way → ORing → 33Ω 2W fusible (on brick) → 5.6V zener → 2S 5F supercaps (+balance) ⊕ USB-C 5V top-up.</text>
+  <text x="32" y="543" font-size="9.5">Self-charging: every live DUT refills it (&lt;60s from empty); 23J usable ≈ 12min held-TEST ≈ 16 sessions. Domain runs DIRECT from store (TLV431 1.24V absolute ref, rail 2.5–5.4V).</text>
+  <text x="32" y="558" font-size="9.5">Storage is load-bearing: lamps/latches must survive the exact moment the DUT collapses — a purely harvested brain would strobe with the fault it reports.</text>
+  <text x="32" y="573" font-size="9.5" fill="#555">No lithium (no UN38.3, no BMS, no aging cliff), no disposables, no recharge chore — using the tool charges it. STORE-OK lamp disambiguates dead-box vs dead-DUT.</text>
 </svg>
