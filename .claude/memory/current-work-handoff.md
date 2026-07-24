@@ -1,5 +1,14 @@
 # Current work handoff
 
+## ARCS RIFF RECORDED (2026-07-25 ~02:30Z, owner ask, on pipeline-pass-2)
+Concept 9.10 + owner-queue decision #14: (a) GLASS GDTs on the brick = real arc flash in the
+witness window powered by the fault's own energy AND a harder mains-class crowbar (GDT+fuse
+coordination, MOV keeps 20-90V class, +$1-2 brick); (b) momentary LAMP-TEST/SHOW button —
+~100mW contained boost strikes all gas bulbs + a flicker-flame neon tube; the show IS the
+safety self-test for the CASE-LIVE bulb (dead neon = silent safety failure). Fences: sealed
+devices only (Jacob's ladder REJECTED), HV dies with the button, never-generate-what-you-
+detect. Rec BOTH, ~$3-4 BOM, retail holds $79. Board README/BOM untouched pending nod.
+
 ## DUT INPUT BOARDS RULED (2026-07-25 ~02:00Z, owner, on pipeline-pass-2)
 Owner recognized the fixture head as 'just a straight-through connector' and RULED: resell
 off-the-shelf ModDIY-class straight-through boards for 24-pin/EPS/PCIe deck slots ('can just
@@ -26,41 +35,21 @@ per-test wear position by census; 12d port-end Kelvin immunizes metrology; 12d r
 covers the fixture path -> firmware fixture-wear alarm, OQ-85). Missing layer = $2-4
 CONNECTOR-SAVER pigtails (accessory, FOLLOWUPS 2026-07-25), not boards. Output side already
 daughterboarded by v1.4.0 where it earns its keep; input headers stay board-mounted.
+## THE POUR BYPASS FOUND AND FIXED 2026-07-24 ~23:50 (commit 733eaaee, pushed after rebase
+over the parallel Smoke Tester session): the owner's persistent top-mirror/L3 reports on
+s404/s405 were correct AND the import-side rules were all firing -- the boards' big F/In2
+rects come from lay_force_rails' MATERIALIZE-time 'landing zone' patches (direct
+add_power_pours, no filter, baked pre-route, invisible to every import rule). The
+materialize call site now applies the shunt-only rule (verified: 0 non-shunt F zones on
+the exact s405 recipe, was 8-12 on every published board). Two earlier traced bugs same
+evening: slab dicts exempted from the F-rectangularize; slab conversion moved AFTER the
+via stages (slabs anchor on their own barrels -> vias-in-pours by construction). VERIFY
+WAVE s410-415 running (/tmp/wave-bypass.log) = the FIRST boards with materialize-side +
+import-side discipline complete. NEXT: its readout (expect quiet top except shunt
+neighborhoods, path-shaped In2); then the L3 pathway-corridor scoping if In2 slabs still
+read as maze (MST-corridor restriction, designed not implemented); hub new-part seat rung
+still #1 hub blocker; kelvin cell; slab guaranteed-core.
 
-## SMOKE TESTER SNOUT-WEAR RETIRED (2026-07-25 ~00:25Z, owner pushback SUSTAINED, on pipeline-pass-2)
-Owner: 'hundreds of connections, zero issues, numbers iffy' -> tested against our error budget instead
-of re-arguing: contact must reach 2.3 OHMS (115x spec end-of-life) before a +/-5% window moves;
-durability specs protect 6A duty (0.72W/contact @20mOhm), not 0.26A megohm-divider reads (1.4mW).
-Owner experience = the predicted physics. HMC/gold adder DROPPED (std tin), snout re-justified as
-DAMAGE/SERVICE spare only, wear removed from consumables forecast, decision #13 opened (keep paddle
-[recommended, ~$1.3 damage-repair/sub-assembly] vs board-mount direct). README/BOM/board-map/queue updated.
-
-## SMOKE TESTER BOARD-MAP + CORRECTIONS (2026-07-24 ~23:55Z, on pipeline-pass-2)
-Owner caught the Mini-Fit cycle claim: VERIFIED vs Molex — std 5556 = 30 cycles (PS-5556), HMC
-44485 female/5558 gold male = 100 cycles (PS-444850001); snout now SPECS HMC/gold, demoted to
-wear/damage spare (architecture unchanged, cadence stretches). Blade format ruled: full-size
-ATO/ATC. Faceplate refined ZERO-COPPER (parts on MAIN poke through; no panel connector in the
-fault path). NEW assets/smoke-tester-board-map.svg: 4 PCB designs (main/faceplate/brick/snout),
-full connector census (J_SNOUT 2x13, J_BRICK 2x10, J_AUX 2x5, USB-C, meter lugs, earth stud,
-lid usw), one panelized fab order. Neon jewel-lens panel note added (lit neon = always bad news).
-
-## SMOKE TESTER POWER REVISION (2026-07-24 ~22:35Z, owner no-disposables directive, on pipeline-pass-2)
-Battery deleted: 2S supercap store (Pro/Max provision cell pattern, consigned - no LCSC supercaps)
-harvested off the DUT 5VSB/5V ways (33R 2W fusible ON BRICK + 5.6V CV zener) + USB-C cold-start;
-domain direct-from-store (TLV431 1.24V absolute ref, rail 2.5-5.4V, Vf<=2.1V lamps); 23J = ~12min
-held-TEST = ~16 sessions, <60s recharge off any live rail; Li-ion rejected (UN38.3/BMS/aging).
-README S2 + both SVGs + BOM (rollup ~$39.15@100) + concept 9.7 + owner-queue all updated.
-
-## SMOKE TESTER STOOD UP ON THIS BRANCH (2026-07-24 ~21:35Z, commit on pipeline-pass-2)
-Owner directive: BOM + sketches + a new beta module 'on the latest remote branch'. beta/smoke-tester/
-now exists at sketch-stage (tester-standard convention: README-spec first, capture later): README =
-board spec of record (per-way electrical table, blade 1A-F + HRC 2A-T 250VAC coordination, 4 socketed
-consumable classes incl. the sacrifice brick + snout, floating 9V measurement domain, neon earth
-domain, needle meter), assets/ 3 sketch SVGs, bom/ sketch BOM (31 lines, LCSC blank except C5261083 —
-no invented numbers, rollup ~$36.5@100), BETA+DRAFT markers, manifest w/ capture plan + gates (DRAFT
-drops only after the arc-coordination bench). beta/README table row, DESIGN-SHEET census, owner-queue
-row, concept doc all on this branch now. NEXT PHASE (owner-gated, concept §8 #2-#12): Phase A CAD lib
-→ Phase B capture (FOLLOWUPS 2026-07-24 has the parts list). Pure analog — no firmware tree entry ever.
 ## ALL-IN CHAIN READOUT 2026-07-24 21:30 (reported in-chat; THE TWO HEADLINES):
 1. HUB: ALL 36 SEEDS REFUSED (9999, all 6 rounds) -- the mezz-envelope gate fixed the
    mass-flag storms (compiles complete) but the +12-part ingress pressure refuses EVERY
