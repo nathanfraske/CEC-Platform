@@ -1,5 +1,24 @@
 # Current work handoff
 
+## SESSION CLOSE 2026-07-24 ~04:30 -- GRIND DONE: HUB AT SINGLE DIGITS. NEXT SESSION TOP-3 BELOW.
+GRIND CHAIN (6 rounds, s144-179/s236-271, ALL levers): **HUB unconn 9 / drc 13 (s165)** +
+13/5 (s145) + 12/9 (s158 = the polish stage's FIRST ADOPTION, published) + 14/8 -- four new
+bests in six waves, kelvin TRUE, criticals [GND]-only or clear. This morning's all-time best
+was 32. 24-PIN: band 91-99/76-96 (round-3's 75/86 = seed outlier), **kelvin_ok FALSE
+chain-wide** (standing since >= round 3 -- the HARD gate; sense pairs strand under honest
+widths) + 5/6 polish legs 9999'd. Thermal injection improving (2/9 nets open on the last
+best vs most-open before).
+NEXT SESSION, IN ORDER: (1) 24-PIN KELVIN-FIRST DEBUG -- why the sense pairs fail the hard
+gate at honest widths (read cec_score kelvin gate verdicts on s246/s266, then the tap/pair
+routing); (2) 24-pin polish-9999 recurrence (likely the same refusal class; compare a failed
+polish's placed board gates); (3) blade-row realign propagation gap (FOLLOWUPS has measures:
+fires -1.7mm but P ignores mutated TB anchors; delta sign audit; J_SIG-stub-left option frees
+the x0 window -- owner-queue if structural); (4) hub last mile to clean: unconn 9 residual =
+long-haul signals (KVM UART/hold-up runs) -- route-effort/congestion, maybe polish passes 20+.
+STANDING: mid-chain commits mean grind rounds 4-6 carried the pour/blade batch (scrap filter
+live -- 24-pin fills should read cleaner); owner queue holds parity+oracle golden rituals,
+H=59 grow, J_SIG-left option next.
+
 ## GRIND CHAIN RUNNING -- 2026-07-24 01:10, owner GO "continue on the waves and implement as
 needed". 6 rounds x both boards (hub s144-179 / 24-pin s236-271, task bnwd7d7b2, log
 /tmp/grind-chain.log, ~5h). NEW LEVERS in it (commit c8684e67, from the round-3 residuals):

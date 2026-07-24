@@ -1,0 +1,90 @@
+# Slab-pour architecture — subtractive power copper (owner concept, 2026-07-24)
+
+**Status: RATIFIED DIRECTION (owner, 2026-07-24 in-session), implementation queued.**
+Owner's concept, verbatim intent: *"make a pour just a giant slab, intentional
+overshoot in all directions, and progressively shave off areas of it until it fits
+and doesn't take up more space than it needs, and no cross-section on it is less
+than the min cross-section allowed for that pour."* Plus the priority ruling:
+*"this would be an early rung on the ladder — the pour takes priority and gets its
+route first before everyone else gets to encroach."*
+
+## Why (the evidence)
+
+Every pour defect caught on 2026-07-23/24 was an OUTLINE-DERIVATION failure of the
+constructive approach (small rects derived from pads/asks): the 0.4mm rect miss at
+RS1's via rows (severed In2/B rail legs), dead unbonded mirrors, 8-13% lace fills,
+bond-planting refusals. A maximal slab cannot miss anything by construction;
+material is then removed only for a MEASURED reason. Coverage becomes structural,
+ampacity becomes a closed-loop invariant instead of an aspiration.
+
+## The two-part slab (reconciling priority-first with the no-strand lesson)
+
+The 2026-06-07 measured lesson stands: an immutable pour laid before routing walls
+FR off and strands sense taps. The owner's slab is negotiable-but-floored, which
+splits cleanly:
+
+1. **GUARANTEED CORE — the early rung (priority ruling).** The pour's min-cut
+   corridor (the copper path that must survive at >=125% of worst-case cross
+   section, the platform margin policy) is laid FIRST at materialize as LOCKED
+   copper + route-time reservation (bake_hints keepout). This generalizes the
+   proven cec_force_rails locked-trunk pattern from "a trunk line" to "the
+   corridor the shave loop may never cut." Nothing encroaches it. FR plans
+   around it from move one. Kelvin windows/cell envelopes are notched OUT of the
+   core by construction (sense discipline unchanged).
+2. **OVERSHOOT — the shaved remainder.** Everything beyond the core floods AFTER
+   signals route (additive doctrine preserved), then the shave loop trims it.
+
+## The shave loop (raster-first; fill speed = architectural non-issue)
+
+- Operate on the thermal solver's raster (0.8mm grid; the same grid cec_thermal2d
+  uses). Shaving = grid morphology (erode / subtract), microseconds per round.
+- Per round: subtract contested space (foreign signals/pads + clearance), drop
+  disconnected fragments, drop sub-width slivers; then CHECK the invariant.
+- **Invariant:** every cut across the net's current path holds >=125% of the
+  required cross-section (reuse the electrothermal `_min_cut` + the field
+  solver's per-net current map). A shave that would pinch below the floor is
+  FORBIDDEN — the conflicting signal is the one that must move (named
+  escalation, ratification doctrine).
+- **Shave criteria — what "no more space than it needs" means:** does not BLOCK
+  anything that needs the space. Shave only (a) space contested by foreign
+  copper, (b) disconnected fragments, (c) slivers below the width floor.
+  Uncontested copper in empty regions STAYS (free thermal margin; the spec's
+  copper-favoring doctrine). Minimal-copper shaving would recreate lace.
+- **Current-driven shaving is gated on injection success** (the INJECTION
+  INCOMPLETE class): with an open rail circuit the current map is garbage —
+  fall back to geometric-only shaving until the circuit closes.
+- **Finalization:** convert the converged raster to outline polygons; ONE real
+  ZONE_FILLER pass on the slab zones only (the filler accepts a zone subset —
+  today's cost mostly comes from refilling every zone incl. the GND plane) as
+  the source of truth; verify (DRC + connectivity + re-measured min-cut).
+
+## Priorities and layers
+
+- Contested overlap between two rail slabs on one layer: zone priority by
+  current ranking (heavier rail wins contested space); deterministic.
+- Multi-layer slabs overlap massively -> via stitching degenerates to
+  grid-stitch wherever slabs of the same net overlap (existing derive_via_field
+  machinery + the 0.85mm barrel ledger). The whole bond-planting problem class
+  (synthesize_pour_bonds) becomes obsolete inside slab nets.
+- Kelvin/sense nets NEVER slab. Sense-cell envelopes + tap windows are hard
+  slab keepouts (existing envelope boxes).
+
+## Integration map
+
+- Keeps: the ask channel (nets/layers/evac semantics/provenance), post-route
+  additive ordering for the overshoot, the locked-copper materialize rung for
+  the core, kelvin exclusions, the 0.85 via ledger.
+- Replaces: rect derivation in compile_rail_pour_asks regions + derive_power_pours
+  geometry for slab nets; most of synthesize_pour_bonds (bonding trivial);
+  the scrap-fill predictor (useless copper is shaved by measurement instead).
+- New module: scripts/cec_slab_pour.py (slab seed, raster shave loop, min-cut
+  invariant, finalize+verify). Wire: materialize lays cores; import_ses lays
+  overshoot slabs + runs the shave loop before the final fill.
+- A/B plan: prototype on the 24-pin rails (where rect derivation kept failing);
+  one wave slab vs one wave current machinery, same seeds; grade + thermal +
+  the owner's visual pass decide adoption. Hub logic-rail floods convert second.
+
+## Non-goals
+
+Does not touch FR signal quality, placement, or the R61-in-cell kelvin refusal
+(separate threads; kelvin debug remains #1 on the 24-pin ladder).
