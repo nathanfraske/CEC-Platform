@@ -1867,9 +1867,52 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
     by_net = defaultdict(list)
     for d in pours:
         by_net[d["net"]].append(d)
-    primary = {}
-    for net, ds in by_net.items():
-        primary[net] = max(ds, key=lambda d: _area(_rect(d)))["layer"]
+
+    def _contact_on_layer(nc_, lay_id, r):
+        """Same-net copper ON the pour's own layer inside the rect -- the honest
+        keep criterion (2026-07-24, owner catch #2: the old primary-layer
+        exemption kept auto-derived floods with no on-layer presence at all)."""
+        m = _nm(0.05)
+        for fp in board.GetFootprints():
+            for p in fp.Pads():
+                if p.GetNetCode() != nc_ or lay_id not in p.GetLayerSet().CuStack():
+                    continue
+                q = p.GetPosition()
+                if r[0] * 1e6 - m <= q.x <= r[2] * 1e6 + m \
+                        and r[1] * 1e6 - m <= q.y <= r[3] * 1e6 + m:
+                    return True
+        for t in board.GetTracks():
+            if t.GetClass() == "PCB_VIA" or t.GetNetCode() != nc_ \
+                    or t.GetLayer() != lay_id:
+                continue
+            for q in (t.GetStart(), t.GetEnd()):
+                if r[0] * 1e6 - m <= q.x <= r[2] * 1e6 + m \
+                        and r[1] * 1e6 - m <= q.y <= r[3] * 1e6 + m:
+                    return True
+        return False
+
+    def _fill_viable(nc_, lay_id, r):
+        """Predicted-fill probe (owner catch #1 on s246: a 514mm2 F.Cu ask
+        filled 8% as lace through the dense top fabric -- connected, but visual
+        garbage; zones must never be REMOVED post-fill [the 2026-06-09 pcbnew
+        corruption footgun], so lace-bound floods are refused BEFORE laying).
+        Sample a grid over the rect; a point is open if a 0.5mm spot there
+        clears foreign copper on the layer. <30% open = lace -> not viable.
+        Small rects always pass (a tap-sized flood fills what it fills)."""
+        if _area(r) < 30.0:
+            return True
+        nx = ny = 6
+        open_ = 0
+        for i in range(nx):
+            for j in range(ny):
+                ax = r[0] + (i + 0.5) * (r[2] - r[0]) / nx
+                ay = r[1] + (j + 0.5) * (r[3] - r[1]) / ny
+                at = pcbnew.VECTOR2I(int(ax * 1e6), int(ay * 1e6))
+                probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+                if _tap_foreign_clear(board, at, probe, _nm(0.5), lay_id,
+                                      _nm(0.25), {nc_}):
+                    open_ += 1
+        return open_ / (nx * ny) >= 0.30
 
     def _barrel_in(nc_, r):
         m = _nm(0.05)
@@ -1883,15 +1926,22 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
         return False
 
     kept, n_bond = [], 0
-    n_plant = n_drop = 0
+    n_plant = n_drop = n_scrap = 0
     for d in pours:
         net, lay = d["net"], d.get("layer", "F.Cu")
         nc_ = nets_nc.get(net)
-        if nc_ is None or lay == primary.get(net):
+        if nc_ is None:
             kept.append(d)
             continue
+        lay_id = board.GetLayerID(lay)
         r = _rect(d)
-        if _barrel_in(nc_, r):
+        if not _fill_viable(nc_, lay_id, r):
+            n_scrap += 1
+            print(f"[cec_fr] pour bonds: DROPPED lace-bound pour {net} on {lay} "
+                  f"({r[0]:.1f},{r[1]:.1f})-({r[2]:.1f},{r[3]:.1f}) "
+                  "(<30% predicted fill)", file=sys.stderr)
+            continue
+        if _contact_on_layer(nc_, lay_id, r) or _barrel_in(nc_, r):
             n_bond += 1
             kept.append(d)
             continue
@@ -1934,10 +1984,11 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
             kept.append(d)
         else:
             n_drop += 1
-            print(f"[cec_fr] pour bonds: DROPPED unbondable mirror pour "
+            print(f"[cec_fr] pour bonds: DROPPED unbondable pour "
                   f"{net} on {lay} ({r[0]:.1f},{r[1]:.1f})-({r[2]:.1f},{r[3]:.1f})",
                   file=sys.stderr)
-    return kept, {"bonded": n_bond, "planned": n_plant, "dropped": n_drop}
+    return kept, {"bonded": n_bond, "planned": n_plant, "dropped": n_drop,
+                  "scrap": n_scrap}
 
 
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),

@@ -151,16 +151,31 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         lays = sorted({l for k in ks for l in k["layers"]})
         self.assertEqual(lays, ["B.Cu", "F.Cu"],
                          "plane/power inners must stay OUT of the strips")
-        import glob
-        wave = sorted(glob.glob(os.path.join(
-            ROOT, "build", "board-archive", "*atx-24pin*", "board.kicad_pcb")))
-        if wave:
-            ks2 = cec_fr.edge_keepout(wave[-1])
-            lays2 = sorted({l for k in ks2 for l in k["layers"]})
-            self.assertIn("In2.Cu", lays2,
-                          "a freed signal In2 must join the strips")
-            self.assertNotIn("In1.Cu", lays2,
-                             "the In1 GND plane must stay out (plane detector)")
+        # freed-In2 inclusion leg on a SYNTHETIC pre-route board (2026-07-24:
+        # the old newest-archive fixture broke honestly once the logic-rail
+        # In2 floods landed -- a routed archive's majority-flooded In2 reads
+        # as a plane, but the pipeline derives strips from the PLACED board
+        # where post-route floods do not exist yet).
+        import pcbnew
+        b = pcbnew.BOARD()
+        b.SetCopperLayerCount(4)
+        for lid, kind in ((pcbnew.In1_Cu, pcbnew.LT_POWER),
+                          (pcbnew.In2_Cu, pcbnew.LT_SIGNAL)):
+            b.SetLayerType(lid, kind)
+        for (ax, ay, bx, by) in ((0, 0, 40e6, 0), (40e6, 0, 40e6, 30e6),
+                                 (40e6, 30e6, 0, 30e6), (0, 30e6, 0, 0)):
+            sshape = pcbnew.PCB_SHAPE(b)
+            sshape.SetShape(pcbnew.SHAPE_T_SEGMENT)
+            sshape.SetStart(pcbnew.VECTOR2I(int(ax), int(ay)))
+            sshape.SetEnd(pcbnew.VECTOR2I(int(bx), int(by)))
+            sshape.SetLayer(pcbnew.Edge_Cuts)
+            b.Add(sshape)
+        ks2 = cec_fr.edge_keepout("", board=b)
+        lays2 = sorted({l for k in ks2 for l in k["layers"]})
+        self.assertIn("In2.Cu", lays2,
+                      "a freed signal In2 must join the strips")
+        self.assertNotIn("In1.Cu", lays2,
+                         "a power-kind inner must stay out")
 
     def test_old_empty_exempt_set_refuses_own_pad(self):
         # The root-cause reproduction: the guard itself, called the OLD way

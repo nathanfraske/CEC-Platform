@@ -3202,32 +3202,80 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                     cols.append(x0_ + (k + (n_lo - 1) / 2.0) * pitch_)
                     k += n_lo
                 return cols
-            def _perm_cost(order, x0_, pitch_):
-                cols = _slot_centers(order, x0_, pitch_)
-                cost = 0.0
-                for c, col in zip(order, cols):
-                    for cx, w in _clusters_of.get(c["shunt"], ()):
-                        cost += w * abs(cx - col)
-                    # STRAIGHT-THROUGH POURS (owner directive 2026-07-19: "the
-                    # order, but not positions, of the output headers can be
-                    # re-positioned for straight through pours"): each rail's
-                    # TB slot group prefers the column under its J3 PIN GROUP
-                    # centroid, so the J3->shunt->TB chain runs straight down.
-                    # Strong weight -- alignment IS the point; the daughterboard
-                    # absorbs the net-order change by architecture (§2.8: all
-                    # output pin-mapping lives inside it).
+            def _order_targets(order, pitch_):
+                """[(target_x, weight, rel_slot_center)] for a candidate order --
+                the alignment demands each group places on its slot."""
+                rels = [c - 0.0 for c in _slot_centers(order, 0.0, pitch_)]
+                out = []
+                for c, rel in zip(order, rels):
+                    # PREDECESSOR ALIGNMENT (2026-07-24, the criss-cross catch):
+                    # the chain is J3 -> shunt column -> TB slot, and each stage
+                    # aligns to its PREDECESSOR. The walk's uniform column pitch
+                    # necessarily deviates from J3's non-uniform pin groups, so
+                    # a J3-weighted row misses the REAL columns by the uniform
+                    # offset (measured -5mm on every rail). When the shunt is
+                    # seated, ITS column is the target; J3 falls to a tiebreak.
+                    _sh = c.get("shunt")
+                    if _sh and _sh in anchors:
+                        out.append((anchors[_sh][0], 5.0, rel))
+                        _jw = 0.5
+                    else:
+                        _jw = 3.0
+                    for cx, w in _clusters_of.get(_sh, ()):
+                        out.append((cx, w, rel))
                     _jxs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
                     if _jxs:
-                        cost += 3.0 * abs(sum(_jxs) / len(_jxs) - col)
+                        out.append((sum(_jxs) / len(_jxs), _jw, rel))
+                return out
+
+            def _opt_x0(order, pitch_, lo_, hi_):
+                """JOINT row-origin optimization (owner catch 2026-07-24: the rail
+                ORDER was already monotone but EVERY group sat ~5mm left of its
+                shunt column -- the row origin was J3-centered then edge-clamped,
+                displacing the whole row and kinking every descent into a diagonal
+                jog that reads as criss-cross). The optimal origin for a given
+                order is the weighted MEDIAN of (target - slot_offset), clamped
+                to the same edge budget."""
+                ts = _order_targets(order, pitch_)
+                if not ts:
+                    return max(lo_, min((lo_ + hi_) / 2.0, hi_))
+                pts = sorted((t - rel, w) for t, w, rel in ts)
+                half = sum(w for _q, w in pts) / 2.0
+                acc = 0.0
+                x0_ = pts[-1][0]
+                for q, w in pts:
+                    acc += w
+                    if acc >= half:
+                        x0_ = q
+                        break
+                return max(lo_, min(x0_, hi_))
+
+            def _perm_cost(order, x0_, pitch_):
+                # STRAIGHT-THROUGH POURS (owner directive 2026-07-19: "the
+                # order, but not positions, of the output headers can be
+                # re-positioned for straight through pours"; joint-origin
+                # rework 2026-07-24): cost at each order's OWN optimal origin,
+                # so the permutation is judged on achievable straightness. The
+                # daughterboard absorbs the net-order change by architecture
+                # (§2.8: all output pin-mapping lives inside it).
+                cost = 0.0
+                for t, w, rel in _order_targets(order, pitch_):
+                    cost += w * abs(t - (x0_ + rel))
                 return cost
             if len(shared) <= 6:
                 _pitch0 = float((params or {}).get("blade_pitch", 4.2))
                 _n_tot0 = sum(max(1, len(c["j_out_blades"])) for c in shared)
                 _span0 = (_n_tot0 - 1) * _pitch0
-                _x00 = max(_pitch0, min(anchors[jin][0] - _span0 / 2.0,
-                                        (W or 100) - _span0 - _pitch0))
-                shared = list(min(itertools.permutations(shared),
-                                  key=lambda o: _perm_cost(o, _x00, _pitch0)))
+                _stub0 = 0.0
+                if any(r.startswith("J_SIG") for r in anchors) or any(
+                        r.startswith("J_SIG") for r in nl.comps):
+                    _stub0 = _pitch0 + 3.81 + 3.81 + 1.0
+                _lo0 = _pitch0
+                _hi0 = (W or 100) - _span0 - _pitch0 - _stub0
+                shared = list(min(
+                    itertools.permutations(shared),
+                    key=lambda o: _perm_cost(o, _opt_x0(o, _pitch0, _lo0, _hi0),
+                                             _pitch0)))
             else:
                 def _cent(c):
                     xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
@@ -3252,8 +3300,11 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
             if any(r.startswith("J_SIG") for r in anchors) or any(
                     r.startswith("J_SIG") for r in nl.comps):
                 _stub_ext = pitch + 3.81 + 3.81 + 1.0
-            x0 = max(pitch, min(anchors[jin][0] - span / 2.0,
-                                (W or 100) - span - pitch - _stub_ext))
+            # JOINT ORIGIN (2026-07-24): the row lands at the chosen order's own
+            # optimal origin -- J3-center-then-clamp displaced the whole row
+            # ~5mm and kinked every descent (the owner's criss-cross catch).
+            x0 = _opt_x0(shared, pitch, pitch,
+                         (W or 100) - span - pitch - _stub_ext)
             # ANCHOR-vs-ANCHOR collision fix (exploratory finding, 2026-07-08): the row's
             # y-band can run under an edge connector (J1's courtyard swallowed the row's
             # left end -- 6 courtyard overlaps + a DETECT-pin short, invisible to the
@@ -3489,6 +3540,37 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                                pitch=float(_p.get("blade_pitch", _BLADE_PITCH_MM)),
                                gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)), H=H)
         if _shared_row:
+            # ROW REALIGN TO THE FINAL COLUMNS (owner criss-cross catch 2026-07-24:
+            # the row's ORDER was already monotone but every group sat ~5mm off
+            # its shunt column -- the row seats EARLY on J3 targets while the
+            # walk's clamped/pitch-floored columns land elsewhere; each rail's
+            # descent then kinks into a parallel diagonal jog. The order is
+            # untouched here -- ONE shared x-shift moves the whole row to the
+            # weighted-median optimum against the REAL columns; the
+            # daughterboard mirrors whatever lands, per architecture).
+            _tbx = {r: anchors[r] for r in anchors if r.startswith("TB")}
+            _resid = []
+            for c, _col in blade_cables:
+                _grp = [anchors[b][0] for b in c["j_out_blades"] if b in anchors]
+                if _grp:
+                    _resid.append(_col - sum(_grp) / len(_grp))
+            if _resid and _tbx:
+                _resid.sort()
+                _delta = _resid[len(_resid) // 2]
+                _pch0 = float(_p.get("blade_pitch", 4.7))
+                _stub2 = _pch0 + 3.81 + 3.81 + 1.0 if any(
+                    r.startswith("J_SIG") for r in anchors) else 0.0
+                _minx = min(v[0] for v in _tbx.values())
+                _maxx = max(v[0] for v in _tbx.values())
+                _delta = max(_pch0 - _minx,
+                             min(_delta, (W or 100) - _pch0 - _stub2 - _maxx))
+                if abs(_delta) > 0.5:
+                    for r in list(anchors):
+                        if r.startswith("TB") or r.startswith("J_SIG"):
+                            ax, ay, ar = anchors[r]
+                            anchors[r] = (ax + _delta, ay, ar)
+                    print(f"  [rails] blade row realigned {_delta:+.1f}mm onto "
+                          "the final shunt columns", file=sys.stderr, flush=True)
             # SIGNAL-STUB ALIGNMENT (owner 2026-07-08): the J_SIG* stub is part of the
             # daughterboard blind-mate interface -- collinear with the blade row, pad 1 one
             # field pitch beyond the last slot (the atx24-out-db J20 contract; both boards
