@@ -10,6 +10,10 @@ Conventions:
 - Owner-action items (decisions / GitHub rituals / bench tasks) go to `docs/owner-queue.md`, not here.
 - Remove an item when it's done, or when it graduates into a real task / PR / owner-queue entry.
 
+- [2026-07-24] **`cec-firmware.code-workspace` still omits the three scaffold apps** (12vhpwr-standard,
+  pcie-8pin-2port, pcie-8pin-3port) — same one-line folder entry as hub-standard's when those boards start
+  bench bring-up; left out for now to keep the ESP-IDF folder picker to actively-used apps.
+
 ## 24-pin ATX shrink — next size levers (2026-06-24, owner overnight ask)
 - [2026-06-24] **Reclaim the rev2 U1 dead space (~1270 mm², ~19% of the board) → target ~36% vs straight.** rev2
   (`modules/atx-24pin-rev2/`) is 21% smaller than straight-through (6576 vs 8342 mm²) but at its rigid-shrink floor
