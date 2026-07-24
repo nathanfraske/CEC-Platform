@@ -35,7 +35,33 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
+Spec revision reflected here: **v1.6.0 (2026-07-24), controlled baseline** — USB-BACKFEED
+PROTECTION PACKAGE (owner rulings 2026-07-24, sign-off record `docs/owner-queue.md`
+2026-07-24 rows; transient-sim-confirmed fault: with a module USB-attached and a dead/faulty
+PSU connected, VBUS back-feeds the PSU's 5VSB bulk through the module SS34 ORing diode —
+~27A peak, 0.5–22mC/event vs the 50uC USB inrush budget, ~400mC sustained on a 2Ω-faulted
+PSU = guaranteed host eFuse trip; the hub's host-USB was already safe behind its TPS2121
+stages). Ratified, BETA line only (alpha/rev2 frozen as shipped): (1) every beta Standard
+sensing module's USB-C ingress becomes a TPS2121 priority mux (C485916, the hub part) —
+5VSB source (RJ45 VCC; post-shunt 5VSB tap on the 24-pin, inserted ahead of its existing
+MAIN×5VSB mux) + VBUS in, logic rail out, D2 SS34 RETIRED; input ISOLATION is the
+load-bearing mitigation (owner ILIM ruling — never the limiter alone), ILIM 100k ≈ 1.24A
+typ (I=65.2/R^0.861; exact-1A solve 128k is outside the 18–100k recommended window), C_SS
+2.2uF (hub-proven), OV1 47k/10k ≈ 6.04V faulty-PSU cutoff; (2) 750mA-hold polyfuse on VBUS
+ahead of the mux (Littelfuse 1206L075/16WR, C371166); (3) hub J_KVM pin 1 (was a RAW +5VSB
+tap) becomes the designed LOWEST-priority input via a third TPS2121 cascade stage —
+MAIN_5V > 5VSB > USB > wall-wart/KVM, resolving-toward OQ-53/OQ-55 (consumer part half) —
+plus a 1.1A-hold polyfuse (FSMD110-16-1206R, C5707763); (4) FIRST-ARTICLE BENCH GATE:
+TPS2121 unpowered reverse behavior (OUT driven at 5V, both inputs dead — datasheet
+characterizes reverse blocking only for a live device; load-bearing for module ingress AND
+the KVM path). Interim bench rules (spec §2.9): sacrificial powered hub/isolator between
+bench PC and module whenever a suspect PSU is attached; NanoKVM wall-wart-only while its
+aux cable is on a powered hub. ARGB Standard is NOT in the class (true per-source 3-way
+diode-OR). See spec §2.9, §4, §6.14, §9, OQ-53/55, §11; per-board part/refdes plan
+`docs/usb-ingress-bom-delta-2026-07-24.md`. BOARD STATE: spec'd only — no schematic
+carries it yet (Sonnet MCP pass pending, action item 6).
+
+Prior baseline, retained for provenance: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
 SENSING-IC REVERSION: the 24-pin ATX module's four rail-sensing ICs revert from the INA228
 back to the **INA238** (LCSC C2868250, JLC-assembly-native and stocked; the INA228 is
 LCSC-unavailable, reference-only) on an explicit owner ruling (2026-07-05, supply-chain and
@@ -1059,7 +1085,10 @@ Open items (surface before acting):
    C157923; footprint JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal — changed from top-entry
    B5B-PH-K-S/C157993 per the v3.9 right-angle correction so the NanoKVM cable exits a board
    edge), FORM LOCKED v3.7 (OQ-51), symbol cec:CEC_NANOKVM_AUX_5P. Pins: 1 =
-   +5VSB (shared §2.9 rail), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
+   +5VSB (shared §2.9 rail — SUPERSEDED for beta by spec v1.6.0, 2026-07-24: pin 1
+   becomes the designed lowest-priority INPUT of a third TPS2121 cascade stage behind a
+   1.1A-hold polyfuse, inbound wall-wart/forensic only, the hub never drives it; the raw
+   tap stands only on the alpha board — see action item 6), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
    RX -> 33ohm R20 -> ESP IO12, 5 = NanoKVM 3V3 ref. NO trigger GPIO (triggers ride
    the UART in-band). The 3V3 ref is sensed UNTRUSTED/RATIOMETRIC (the user's "can't
    trust the 3v3 beyond a shadow of a doubt" call): KVM 3V3 via 47k/10k (R21/R22) ->
@@ -1222,6 +1251,18 @@ Open items (surface before acting):
    landed detail: rev3 README §2026-07-14. OPEN: spec §6.1 note (owner's pen), OQ-85
    interlock rows, first-article bench trio (gate scope / PSU pull-up survey / BAT54S
    pin-map) — owner-queue §1 RULED row.
+
+6. USB-backfeed protection package (spec v1.6.0, owner rulings 2026-07-24) — SPEC'D,
+   schematic pass PENDING (Sonnet via MCP). Every beta Standard sensing module: TPS2121
+   USB-ingress mux (C485916) replacing the D2 SS34 ORing diode + 750mA-hold VBUS polyfuse
+   (C371166) + ILIM 100k / OV1 47k/10k / PR1 100k/33k / C_SS 2.2uF straps; hub-standard-rev2:
+   third TPS2121 cascade stage (U11) making J_KVM pin 1 the lowest-priority input + 1.1A-hold
+   polyfuse F5 (C5707763). Per-board refdes/net-move plan: `docs/usb-ingress-bom-delta-
+   2026-07-24.md` (the input contract for the pass); spec §2.9/§6.14 v1.6.0 blocks are the
+   design record. ARGB excluded (per-source diode-OR). FIRST-ARTICLE BENCH GATE carried:
+   TPS2121 unpowered reverse behavior, OUT at 5V with both inputs dead (two load-bearing
+   paths). Until the boards land, the §2.9 interim bench rules apply (sacrificial powered
+   hub/isolator against suspect PSUs; NanoKVM wall-wart-only on a powered hub).
 
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch
@@ -2017,7 +2058,10 @@ Done (kept for context):
   BASE_PARTS), mirroring the 24-pin so every module is flashable: USB-C (J5, ESP
   native USB on pins 24 D+ / 23 D-), VBUS->+5VSB ORing Schottky D2 (SS34) + 10uF
   bulk C9, CC1/CC2 5.1k pulldowns R8/R9, BOOT button SW1 (GPIO0), RESET button
-  SW2 (EN). The GPIO0 isolated-label ERC warning is gone now that SW1 connects
+  SW2 (EN). [D2 SS34 SUPERSEDED for the beta line by spec v1.6.0 (2026-07-24): the
+  USB ingress becomes a TPS2121 mux + VBUS polyfuse and D2 is RETIRED (VBUS-backfeed
+  fault class); schematic pass pending — see active action item 6. Alpha boards keep
+  D2 as shipped.] The GPIO0 isolated-label ERC warning is gone now that SW1 connects
   it. Module fp-lib-tables completed (all cec-* footprint libs + cec-MountingHole)
   so footprint links resolve in ERC and the GUI.
 - Interposer-module PCB floorplans (2026-06-04, scripts/gen-module-pcb.py — the

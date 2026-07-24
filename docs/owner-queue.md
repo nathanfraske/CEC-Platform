@@ -480,3 +480,18 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     never connect the NanoKVM USB-C to a PC while its aux cable is on a powered hub; wall-wart
     only for the forensic path. The first-article unpowered-reverse bench gate now covers TWO
     load-bearing cases (module ingress + KVM path).
+  - **STATUS (2026-07-24, this row + both sub-rows): SPEC'D — spec/BOM half DONE, schematic
+    half PENDING.** The ratified package landed as controlled spec **v1.6.0** (Document
+    control summary; §2.9 hardening-block + KVM third stage; §4 aux-link row note; §6.14
+    module USB-ingress mux block incl. the ARGB per-source-diode-OR exclusion; §9 ~+$1.0/board
+    note; OQ-53/OQ-55 resolution notes per the no-silent-rewrite convention; §11 full entry;
+    Outstanding board action 7 opened) with 2026-07-24 owner-ruling provenance citing these
+    rows. Per-board part/refdes/net-move plan (real LCSC-verified parts: TPS2121 C485916
+    stock 3,473; VBUS polyfuse Littelfuse 1206L075/16WR C371166 stock 7,735; KVM polyfuse
+    FUZETEC FSMD110-16-1206R C5707763 stock 1,015 — restock watch; ILIM 100k→1.24A typ w/
+    datasheet math, OV1 47k/10k→6.04V, PR1 100k/33k→4.27V, C_SS 2.2uF C23630):
+    `docs/usb-ingress-bom-delta-2026-07-24.md`. Generated bom/*.csv untouched (regenerate
+    from schematics). REMAINING: the beta schematic implementation pass (Sonnet via MCP,
+    CLAUDE.md action item 6) on the 5 sensing modules + hub-standard-rev2, then the
+    first-article unpowered-reverse bench gate (owner clock). Interim bench rules are in
+    force and recorded in spec §2.9.
