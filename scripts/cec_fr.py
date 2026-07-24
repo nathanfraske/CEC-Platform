@@ -1928,7 +1928,10 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
                 if _tap_foreign_clear(board, at, probe, _nm(0.5), lay_id,
                                       _nm(0.25), {nc_}):
                     open_ += 1
-        return open_ / (nx * ny) >= 0.30
+        # 0.45, not 0.30 (owner catch 2026-07-24 on s275: floods the probe
+        # predicted >=30% open actually filled 11-20% -- the 0.5mm disc probe
+        # over-estimates openness ~2x vs the real filler's carving)
+        return open_ / (nx * ny) >= 0.45
 
     def _barrel_in(nc_, r):
         m = _nm(0.05)
@@ -1940,6 +1943,49 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
             if r[0] * 1e6 <= px <= r[2] * 1e6 and r[1] * 1e6 <= py <= r[3] * 1e6:
                 return True
         return False
+
+    # primary layer per net = the largest ask's layer: the ONE member allowed
+    # to keep by mere track/pad contact. MIRROR members (any other layer) need
+    # a BARREL in-region or planted bonds -- a track grazing a mirror does not
+    # bond it, and a barrel-less mirror is exactly the owner's "mirrored on top
+    # connected to nothing" class (2026-07-24).
+    _primary = {}
+    for net, ds in by_net.items():
+        _primary[net] = max(ds, key=lambda d: _area(_rect(d))).get("layer", "F.Cu")
+
+    # MIRROR NEED TEST (owner refinement 2026-07-24: "just because the mirror
+    # has barrels does not make it effective -- if a pour does not need a
+    # mirror thermally for its ampacity, remove the mirror"). IPC-2221 inverse:
+    # required width for 1.25x the net's current at a 30C rise on the PRIMARY
+    # layer alone; if the primary's practical capacity (rect narrow dimension x
+    # 0.6 fill derate) covers it, every mirror of the net drops. Conservative
+    # direction: unknown current => 0 (logic nets need no mirrors); when in
+    # doubt on a real current, the mirror STAYS (thermal safety wins).
+    _amps = {}
+    try:
+        import cec_thermal_overlay as _ov
+        _hint = os.environ.get("CEC_THERMAL_BOARD_HINT", "")
+        _cfg4 = _ov.board_thermal_config(_hint)        # -> (net_currents, ...) tuple
+        _amps = dict((_cfg4[0] if _cfg4 else None) or {})
+    except Exception:                                  # noqa: BLE001
+        _amps = {}
+
+    def _req_width_mm(amps, lay):
+        if amps <= 0:
+            return 0.0
+        outer = lay in ("F.Cu", "B.Cu")
+        k = 0.048 if outer else 0.024                  # IPC-2221 ext/int
+        oz = 2.0 if outer else 1.0                     # platform stackup
+        a_mil2 = (1.25 * amps / (k * 30.0 ** 0.44)) ** (1.0 / 0.725)
+        return a_mil2 / (1.378 * oz) * 0.0254
+
+    def _mirror_needed(net, r):
+        pr = next((_rect(x) for x in by_net[net]
+                   if x.get("layer") == _primary.get(net)), None)
+        if pr is None:
+            return True
+        cap = min(pr[2] - pr[0], pr[3] - pr[1]) * 0.6
+        return _req_width_mm(_amps.get(net, 0.0), _primary[net]) > cap
 
     kept, n_bond = [], 0
     n_plant = n_drop = n_scrap = 0
@@ -1955,9 +2001,15 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
             n_scrap += 1
             print(f"[cec_fr] pour bonds: DROPPED lace-bound pour {net} on {lay} "
                   f"({r[0]:.1f},{r[1]:.1f})-({r[2]:.1f},{r[3]:.1f}) "
-                  "(<30% predicted fill)", file=sys.stderr)
+                  "(<45% predicted fill)", file=sys.stderr)
             continue
-        if _contact_on_layer(nc_, lay_id, r) or _barrel_in(nc_, r):
+        if lay != _primary.get(net) and not _mirror_needed(net, r):
+            n_drop += 1
+            print(f"[cec_fr] pour bonds: DROPPED unneeded mirror {net} on {lay} "
+                  "(primary carries the current at margin)", file=sys.stderr)
+            continue
+        if _barrel_in(nc_, r) or (lay == _primary.get(net)
+                                  and _contact_on_layer(nc_, lay_id, r)):
             n_bond += 1
             kept.append(d)
             continue
