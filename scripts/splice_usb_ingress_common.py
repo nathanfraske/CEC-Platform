@@ -300,6 +300,36 @@ def wire_between(pins_a, ref_a, num_a, ox_a, oy_a, pins_b, ref_b, num_b, ox_b, o
     ])
 
 
+def add_hidden_properties(txt, ref, props):
+    """Back-fill new hidden BOM properties (LCSC/MPN/Manufacturer/...) onto an
+    EXISTING symbol instance that doesn't carry them yet, inserted right after
+    its own "Description" property block (matching this file's own verbose
+    per-property style, so the new lines read like every other property on
+    this part rather than cec_sch's compact one-liner). Refuses if the
+    property already exists (never silently overwrites a real value) or if
+    the symbol isn't found uniquely."""
+    _sidx, blk = find_symbol_block(txt, ref)
+    if txt.count(blk) != 1:
+        raise SystemExit(f"REFUSE: block for {ref!r} is not uniquely matched")
+    for k in props:
+        if re.search(r'\(property "' + re.escape(k) + r'" "[^"]*"', blk):
+            raise SystemExit(f"REFUSE: {ref} already carries a {k!r} property -- not overwriting")
+    at_m = re.search(r'\(at ([\-\d.]+) ([\-\d.]+) (\d+)\)', blk)
+    x, y = at_m.group(1), at_m.group(2)
+    desc_m = re.search(r'\t\t\(property "Description"[^\n]*\n(?:[^\n]*\n)*?\t\t\)\n', blk)
+    if not desc_m:
+        raise SystemExit(f"REFUSE: {ref} has no (property \"Description\" ...) block to anchor on")
+    insert_at = desc_m.end()
+    new_props = "".join(
+        f'\t\t(property "{k}" "{v}"\n\t\t\t(at {x} {y} 0)\n\t\t\t(hide yes)\n'
+        f'\t\t\t(show_name no)\n\t\t\t(do_not_autoplace no)\n\t\t\t(effects\n'
+        f'\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n'
+        for k, v in props.items()
+    )
+    new_blk = blk[:insert_at] + new_props + blk[insert_at:]
+    return txt.replace(blk, new_blk, 1)
+
+
 def get_pin_table(txt, lib_id):
     """pin_table() for a symbol already embedded in this file's own lib_symbols."""
     m = re.search(r'\(symbol "' + re.escape(lib_id) + r'"', txt)
