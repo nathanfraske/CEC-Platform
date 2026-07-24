@@ -204,6 +204,28 @@ def mask_to_polys(mask, grid, min_area_mm2=6.0):
     return out
 
 
+def shunt_neighborhoods(board, margin_mm=4.5):
+    """Boxes (x0,y0,x1,y1 mm) around every RS* shunt's pads + margin -- sized to
+    cover the outboard force-via rows (owner rule 2026-07-24: top pours exist
+    ONLY around the shunts, and they must COVER their via arrays)."""
+    out = []
+    for fp in board.GetFootprints():
+        if not fp.GetReference().startswith("RS"):
+            continue
+        x0 = y0 = 1e18
+        x1 = y1 = -1e18
+        for p in fp.Pads():
+            bb = p.GetBoundingBox()
+            x0 = min(x0, bb.GetLeft() / MM)
+            y0 = min(y0, bb.GetTop() / MM)
+            x1 = max(x1, bb.GetRight() / MM)
+            y1 = max(y1, bb.GetBottom() / MM)
+        if x1 > x0:
+            out.append((x0 - margin_mm, y0 - margin_mm,
+                        x1 + margin_mm, y1 + margin_mm))
+    return out
+
+
 def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                           min_w_mm=1.2):
     """asks: pour dicts ({net, layer, ...}) naming the slab (net, layer) pairs
@@ -224,6 +246,20 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             lay_id = board.GetLayerID(lay)
             foreign, anchors = rasterize(board, nets_nc[net], lay_id, grid,
                                          clearance_mm)
+            # TOP = SHUNT-ONLY (owner categorical rule 2026-07-24: "remove top
+            # pours unless they are around the shunts" -- F.Cu is the signal
+            # fabric; the shunt neighborhoods are the one place top copper is
+            # structural, and the boxes cover the force-via arrays so barrels
+            # never sit outside the pour).
+            if lay == "F.Cu":
+                nb = shunt_neighborhoods(board)
+                if not nb:
+                    rep[key] = {"skipped": "F.Cu shunt-only: no shunts"}
+                    continue
+                allow = np.zeros_like(foreign)
+                for (bx0, by0, bx1, by1) in nb:
+                    grid.stamp_box(allow, bx0, by0, bx1, by1)
+                foreign = foreign | ~allow
             if not anchors.any():
                 rep[key] = {"skipped": "no own-net anchors on layer"}
                 continue

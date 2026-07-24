@@ -2044,6 +2044,31 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
             print(f"[cec_fr] pour bonds: DROPPED unneeded mirror {net} on {lay} "
                   "(primary carries the current at margin)", file=sys.stderr)
             continue
+        # TOP = SHUNT-ONLY (owner categorical rule 2026-07-24: "remove top
+        # pours unless they are around the shunts"). An F.Cu dict survives
+        # only if its rect intersects a shunt neighborhood, and the kept rect
+        # EXPANDS to the neighborhood so the force-via arrays sit INSIDE the
+        # pour (the owner's outside-the-pour barrels catch).
+        if lay == "F.Cu":
+            try:
+                import cec_slab_pour as _csp2
+                _nbs = _csp2.shunt_neighborhoods(board)
+            except Exception:                          # noqa: BLE001
+                _nbs = []
+            _hit = next((nb for nb in _nbs
+                         if not (r[2] < nb[0] or nb[2] < r[0]
+                                 or r[3] < nb[1] or nb[3] < r[1])), None)
+            if _hit is None:
+                n_drop += 1
+                print(f"[cec_fr] pour bonds: DROPPED top pour {net} "
+                      "(shunt-only rule: F.Cu pours exist only around shunts)",
+                      file=sys.stderr)
+                continue
+            r = (min(r[0], _hit[0]), min(r[1], _hit[1]),
+                 max(r[2], _hit[2]), max(r[3], _hit[3]))
+            d = dict(d)
+            d["polygon"] = [(r[0], r[1]), (r[2], r[1]), (r[2], r[3]),
+                            (r[0], r[3])]
         # F.CU DELIVERY PROOF (owner 2026-07-24, render verdicts: a NEEDED
         # mirror on the signal fabric that fills as lace with a couple of vias
         # "isn't doing anything of value" -- justification without delivery is
