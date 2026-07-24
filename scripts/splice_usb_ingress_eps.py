@@ -113,8 +113,8 @@ if __name__ == "__main__":
     print("D2 removed:", d2_blk.count("uuid"), "uuid refs cleared; stub terminals:", info1, info2)
 
     # ---------- 2. insert F1 ahead of FB1 (VBUS_RAW -> F1 -> VBUS_F -> FB1) ----------
-    txt, old_lbl = sc.rename_label_at(txt, 198.12, 104.14, "VBUS_F")
-    assert old_lbl == "VBUS_RAW", old_lbl
+    txt, old_lbl, old_tag = sc.rename_label_at(txt, 198.12, 104.14, "VBUS_F")
+    assert old_lbl == "VBUS_RAW" and old_tag == "label", (old_lbl, old_tag)
     F1_X, F1_Y = sc.gsnap(250.0), sc.gsnap(30.0)
     blob = [
         cec_sch.emit_symbol("F1", "cec-vendor", "R_Small", "750mA/16V PTC", F1_X, F1_Y,
