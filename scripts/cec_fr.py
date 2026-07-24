@@ -692,6 +692,35 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
             print(f"[cec_fr] force-pour-only policy: excluded {len(force_pins)} cable-connector force "
                   f"pin(s) {sorted(force_pins)} from FR routing ({n} DSN token(s) removed) -- the "
                   f"post-route power pour is their only connection to the shunt", file=sys.stderr)
+    # PLANE-THT POLICY (owner catch 2026-07-24: FR routed a GND surface trace to
+    # the M2 mezz mount -- a plated THT that pierces to the In1 plane natively;
+    # the trace is useless copper crossing the fabric, and the class covers ANY
+    # THT pad on a plane-carrying net. The plane fill is their connection at
+    # import; SMD pads STAY routable (they need stitching/pickups). OPT-IN per
+    # board (params plane_tht_exclude -> _oracle_env): default-off keeps the
+    # frozen golden's DSN byte-identical.
+    if os.environ.get("CEC_PLANE_THT_EXCLUDE", "0") == "1":
+        _bb2 = board.GetBoardEdgesBoundingBox()
+        _ba = max(1, _bb2.GetWidth()) * max(1, _bb2.GetHeight())
+        _pnets = set()
+        for z in board.Zones():
+            if z.GetIsRuleArea() or not z.GetNetname():
+                continue
+            zb = z.GetBoundingBox()
+            if (zb.GetWidth() * zb.GetHeight()) / _ba >= 0.5:
+                _pnets.add(z.GetNetname())
+        if _pnets:
+            _tht = set()
+            for fp in board.GetFootprints():
+                for p in fp.Pads():
+                    if (p.GetNetname() in _pnets
+                            and p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD):
+                        _tht.add(f"{fp.GetReference()}-{p.GetPadName()}")
+            if _tht:
+                n = _dsn_exclude_pins(dsn_path, _tht)
+                print(f"[cec_fr] plane-THT policy: excluded {len(_tht)} THT pad(s) on "
+                      f"plane net(s) {sorted(_pnets)} ({n} DSN token(s) removed) -- "
+                      "the plane fill is their connection", file=sys.stderr)
     return dsn_path
 
 
@@ -1949,9 +1978,16 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
     # a BARREL in-region or planted bonds -- a track grazing a mirror does not
     # bond it, and a barrel-less mirror is exactly the owner's "mirrored on top
     # connected to nothing" class (2026-07-24).
+    # INNER-FIRST PRIMARY (owner 2026-07-24, "the top mirror pours are
+    # definitely causing issues"): power distribution belongs on the inner
+    # power layer per the stackup doctrine -- F.Cu is the SIGNAL fabric, so it
+    # is primary only when it is the net's ONLY layer. Preference beats area.
+    _LAYPREF = {"In2.Cu": 3, "In1.Cu": 2, "B.Cu": 1}
     _primary = {}
     for net, ds in by_net.items():
-        _primary[net] = max(ds, key=lambda d: _area(_rect(d))).get("layer", "F.Cu")
+        _primary[net] = max(
+            ds, key=lambda d: (_LAYPREF.get(d.get("layer", "F.Cu"), 0),
+                               _area(_rect(d)))).get("layer", "F.Cu")
 
     # MIRROR NEED TEST (owner refinement 2026-07-24: "just because the mirror
     # has barrels does not make it effective -- if a pour does not need a
@@ -3981,6 +4017,27 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         # own-net anchor (the floating-zone rule, structural), and sub-width
         # slivers; min-width invariant reported per (net, layer). The bond/scrap
         # filter is obsolete for slab dicts (anchoring is by construction).
+        # ASK-DERIVED pours ALWAYS slab-shave (owner L3-floater catch
+        # 2026-07-24: a raw placer_ask rect kept by one barrel lays its whole
+        # sparsely-connected body -- the slab shave trims it to the anchored,
+        # appendage-pruned footprint). CEC_SLAB_POUR=1 extends slabbing to ALL
+        # dicts (the full A/B); rail_compiler dicts otherwise stay rect
+        # (locked-trunk coupled).
+        if power_pours and os.environ.get("CEC_SLAB_POUR", "0") != "1":
+            _ask_d = [p for p in power_pours
+                      if p.get("provenance") == "placer_ask"]
+            if _ask_d:
+                try:
+                    import cec_slab_pour
+                    _sp2, _sr2 = cec_slab_pour.synthesize_slab_pours(board, _ask_d)
+                    power_pours = ([p for p in power_pours
+                                    if p.get("provenance") != "placer_ask"]
+                                   + _sp2)
+                    print(f"[cec_fr] ask slabs: {len(_ask_d)} ask dict(s) -> "
+                          f"{len(_sp2)} shaved slab(s)", file=sys.stderr)
+                except Exception as _ae:                 # noqa: BLE001
+                    print(f"[cec_fr] ask slabs FAILED ({_ae}) -- rects kept",
+                          file=sys.stderr)
         if power_pours and os.environ.get("CEC_SLAB_POUR", "0") == "1":
             try:
                 import cec_slab_pour

@@ -7564,6 +7564,10 @@ def _oracle_env(params=None):
             extra["CEC_LASTMILE"] = "1"
             if params.get("lastmile_max_mm"):
                 extra["CEC_LASTMILE_MAX_MM"] = str(float(params["lastmile_max_mm"]))
+        if params.get("plane_tht_exclude"):
+            # plane-pierced THT pads leave FR's nets (mounts, plane-net THT);
+            # the plane fill connects them (owner M2-mount catch 2026-07-24)
+            extra["CEC_PLANE_THT_EXCLUDE"] = "1"
         if params.get("slab_pour"):
             # owner-ratified subtractive pours (2026-07-24): slab + shave
             # replaces the asks' rect geometry at import (cec_slab_pour)

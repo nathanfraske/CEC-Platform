@@ -356,6 +356,7 @@ BOARD_PARAMS = {
                           # GND plane at import (rung part 2 -- the floods
                           # alone cannot reach an F.Cu pad from B.Cu).
                           "power_pickup": True,
+                          "plane_tht_exclude": True,
                           # LAST-MILE COMPLETER (2026-07-23, from the s120
                           # residual autopsy: 13 of 30 unconn were <=5mm
                           # same-net gaps FR left in dense fields -- incl.
@@ -539,6 +540,7 @@ BOARD_PARAMS = {
                        # + the lastmile completer (kelvin nets excluded inside
                        # it -- sense connects only through authored taps).
                        "power_pickup": True,
+                       "plane_tht_exclude": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
