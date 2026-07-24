@@ -1,5 +1,19 @@
 # Current work handoff
 
+## POUR WAR WON -- OWNER-CONFIRMED 2026-07-25 ~00:25: "s421, s420, s416 are all clean. Nice."
+The validated-clean baseline (judge future pour work against THIS): choke-point shunt-only
+enforcement inside add_power_pours (covers ALL THREE laying paths: materialize landing
+patches, import list, router pass-2 re-derivation -- each was a traced bypass), slab-shaved
+inners, appendage prune, need-based mirrors, F delivery-proof (superseded by choke), plane-
+THT exclusion, floating-zone cleanup. Grades on the clean boards: unconn 110-123 (kelvin
+still FALSE) -- the pour front is closed, CONNECTIVITY is the whole remaining war:
+(1) over-under pours (design v2, owner-ratified, Sonnet agent implementing -- the routed-
+object pour: single-layer path + via bridges; ALSO the unconn recovery); (2) the refused
+sense cell -> kelvin; (3) hub new-part seat pressure (all-9999 since the ingress merge);
+(4) slab guaranteed-core. LESSON BANKED (owner-taught, twice): judge only the ROUTED
+PUBLISHED artifact -- a placed board is trivially clean; renders carry analyzer lag, so
+verify code-vintage before diagnosing.
+
 ## THE POUR BYPASS FOUND AND FIXED 2026-07-24 ~23:50 (commit 733eaaee, pushed after rebase
 over the parallel Smoke Tester session): the owner's persistent top-mirror/L3 reports on
 s404/s405 were correct AND the import-side rules were all firing -- the boards' big F/In2
