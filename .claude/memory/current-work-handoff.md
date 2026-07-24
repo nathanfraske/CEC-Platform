@@ -1,5 +1,14 @@
 # Current work handoff
 
+## PLATFORM-WEAR DOCTRINE RESOLVED (2026-07-25 ~00:55Z, owner Q, on pipeline-pass-2)
+Owner asked if tester use forces every platform I/O onto daughterboards. NO (concept 9.8):
+consumer modules = wear moot by cycle count; deck duty = wear real (6-13A vs smoke box 0.26A)
+but already layered (modules ARE blade-socketed swappable fixtures; hpwr-fixture-head = the
+per-test wear position by census; 12d port-end Kelvin immunizes metrology; 12d resistance map
+covers the fixture path -> firmware fixture-wear alarm, OQ-85). Missing layer = $2-4
+CONNECTOR-SAVER pigtails (accessory, FOLLOWUPS 2026-07-25), not boards. Output side already
+daughterboarded by v1.4.0 where it earns its keep; input headers stay board-mounted.
+
 ## SMOKE TESTER SNOUT-WEAR RETIRED (2026-07-25 ~00:25Z, owner pushback SUSTAINED, on pipeline-pass-2)
 Owner: 'hundreds of connections, zero issues, numbers iffy' -> tested against our error budget instead
 of re-arguing: contact must reach 2.3 OHMS (115x spec end-of-life) before a +/-5% window moves;

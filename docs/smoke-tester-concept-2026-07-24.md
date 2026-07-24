@@ -255,3 +255,33 @@ load-bearing (the lamps must survive the DUT's collapse — the box's most impor
 moment); Li-ion was considered and rejected for this duty (UN38.3 shipping, BMS,
 aging, and a fire-adjacent chemistry inside the fire-eating box). Board spec of
 record: beta/smoke-tester/README.md §2.
+
+### 9.8 Platform-impact resolution (owner Q, 2026-07-25: "does tester use force every
+platform input/output onto a daughterboard?") — NO, three-layer answer
+
+The smoke tester's consumable-connector logic does NOT generalize backward onto the
+platform, because the wear physics splits by duty:
+
+1. **Consumer/inline modules: wear is moot by CYCLES.** An installed module sees a
+   handful of matings ever (install count), regardless of current. Nothing changes.
+2. **Tester-deck duty: wear is real** — unlike the smoke tester's 0.26 A megohm-divider
+   reads (1.4 mW at spec-death), deck paths run 6–13 A/contact where a +20 mΩ worn
+   contact = 0.7–3.4 W of heat and 0.3–1 V of drop at load. But the family ALREADY
+   carries the layered answer, designed before this question was asked: (a) modules in
+   the deck are themselves blade-socketed swappable fixtures (the module IS the deck's
+   "snout"); (b) `hpwr-fixture-head` exists in the census precisely as "the per-test
+   wear position; replaceable by design"; (c) tester 12d port-end Kelvin / dual-ended
+   metrology makes the MEASUREMENT immune to contact drift (current is Kelvin-shunt
+   native and never sees contact R at all); (d) the 12d live per-pin resistance map
+   covers the FIXTURE path as well as the DUT cable — **the tester instruments its own
+   wear** and can alarm "fixture contact drifting" in firmware, zero hardware.
+3. **The missing cheap layer is a cable, not a board: CONNECTOR-SAVER pigtails**
+   (standard aerospace/EMC-lab practice) — a $2–4 male↔female stub that absorbs 100%
+   of DUT matings on a deck fixture and gets tossed on drift; sell as a tester
+   accessory (FOLLOWUPS 2026-07-25). Zero board changes platform-wide.
+
+Bounding note: the OUTPUT side of 24-pin/EPS/PCIe is ALREADY the daughterboard
+architecture (v1.4.0, ratified for pin-mapping/productization, ~$3–5/board) — the
+"everything gets a daughterboard and everything gets expensive" scenario is exactly
+half-true already, adopted where it earns its keep, and stops there. Input headers
+stay board-mounted platform-wide.
