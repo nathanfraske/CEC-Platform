@@ -508,3 +508,15 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     as the safety case); (iii) full station-safety hardware (RCD/GFCI + isolation transformer +
     earth-bonded frame w/ M3 chassis bond) = a PRO/MAX TESTING-STATION tier feature. The
     tester product spec carries all three layers when drafted.
+  - **SPICE VERIFICATION LANDED (96d93157, docs/spice-backfeed-verify-2026-07-24.md, ngspice 44.2,
+    datasheet-fit models):** mitigated design PASSES B/C/D with 82-1029x margins; baseline confirms
+    ~27A (and NEW: a healthy 3300uF PSU alone crosses the 2.5A/1ms hard-trip -- no fault needed);
+    KVM unmitigated is WORSE (33.3A). TWO MARGINALS FOR YOUR EYE: (F) the LP5907 sees a real
+    0.8-7.4us excursion above 6.5V abs-max during a fast 12V cross-rail fault -- governed by the
+    TPS2121's UNDOCUMENTED OV response time (options: accept-with-bench-check, or a small output
+    clamp/TVS; your call at the schematic review); (E) unpowered-reverse confirmed genuinely
+    unspecified -- but the layer-2 polyfuses bound the worst case (trip 5-27ms even with ZERO mux
+    protection), so the bench gate confirms rather than carries the safety case. Methodology flag:
+    the repo's "~10ms C_SS ramp hub-proven" figure is untraceable; datasheet Table 9-1 predicts
+    ~125ms (12x gap) -- both pass as simulated, but the downstream "~50mA inrush" estimate should
+    be restated from the datasheet figure.
