@@ -342,3 +342,51 @@ STRAIGHT-THROUGH connector board, resold off-the-shelf (ModDIY class) for 24-pin
 PCIe; monitoring = per-head install baseline + ΔV/ΔI drift trend in the tester program;
 the designed-PCB-with-sense-contacts version is demoted to an upgrade rung; 12VHPWR
 keeps its designed fixture-head. Spec of record moved to testers/DESIGN-SHEET.md §A.
+
+### 9.10 Intentional arcs — the spectacle riff (owner ask 2026-07-25, PROPOSED — decision #14)
+
+Owner: the neon tubes suggest INTENTIONAL arcs inside the tester — make it a spectacle.
+The riff, engineering-honest (12 V can't arc in air; spectacle needs either fault energy
+or a contained HV source — both have legitimate versions):
+
+1. **The REAL arc, framed: glass-bodied GDTs on the brick, in the witness window.** A
+   gas-discharge tube IS a packaged spark gap — sealed, surge-rated, $0.15–0.40. Put
+   GLASS-bodied GDTs (~90–150 V sparkover) across the ways on the sacrifice brick,
+   visible through the witness window: on a mains event the GDT FIRES — a genuine
+   orange-purple arc flash in a glass tube, powered by the fault's own energy — while
+   the witness puffs and the fuses clear. And it is FUNCTIONAL, not decoration: a GDT
+   is a harder, faster crowbar than the MOV for the mains class (arc voltage ~20 V →
+   maximum fuse-clearing current; follow-current is exactly what we want and the
+   blade+HRC series pair is the required disconnect — textbook GDT+fuse coordination).
+   Coordination split: MOV keeps the 20–90 V OV class the GDT can't see; GDT takes
+   ≥~90 V/mains; both die through the shared witness. Brick +$1–2. **Every photon is
+   evidence** — the box never fakes drama at verdict time.
+2. **The always-available show that is secretly a SAFETY SELF-TEST: LAMP TEST.** Neon
+   bulbs die of old age — and a dead CASE-LIVE bulb is a silent safety failure on the
+   most safety-critical indicator in the box. Add a momentary **LAMP TEST / SHOW**
+   button: a tiny contained blocking-oscillator boost (~100 mW from the supercap
+   store, runs ONLY while held) strikes every gas bulb — both earth-domain neons, the
+   blown-fuse neons, and one **flicker-flame neon tube** (the candle-flame type: a big
+   sealed electrode plate where the glow dances chaotically — a tiny contained plasma
+   storm, the best-looking gas physics money can buy at $1–2) behind its own jewel.
+   Shops get the counter demo ("this is what a lying PSU looks like") with no bad PSU
+   required, and every press proves the safety lamps actually strike. Panel doctrine
+   gets its one carve-out, printed: "a lit neon is ALWAYS bad news — unless you are
+   holding LAMP TEST."
+3. **Fences (named and hard):** sealed devices ONLY — no open spark gaps in air ever
+   (ozone, ignition, EMI, and it IS the hazard the box exists to catch; Jacob's
+   ladder named and REJECTED). No HV reachable at any user point; the boost is
+   momentary-held, dies with the button, µA-per-bulb through megohms (same limiting
+   class as the fault-driven paths); and the **never-generate-what-you-detect rule**:
+   the instant LAMP TEST releases, the earth-domain neons are trustworthy again —
+   no latched show modes, no ambiguity.
+4. **The spectacle ladder this completes** (each tier honest): green way-cascade =
+   good news → needle slam = weirdness → neon glow/flicker = danger → GDT arc flash +
+   witness smoke = the event itself. BOM adder ≈$3–4 total (GDTs + flicker tube +
+   boost); retail holds at $79.
+
+**Decision #14 (owner):** adopt (a) glass GDTs on the brick + witness-window placement,
+(b) LAMP TEST/SHOW button + flicker tube, (c) both, or (d) neither. Recommendation:
+BOTH — (a) improves the mains-class crowbar while making the event visible, (b) turns
+the show into a recurring safety self-test; together they are the product's soul made
+visible. Board README/BOM untouched pending the nod.

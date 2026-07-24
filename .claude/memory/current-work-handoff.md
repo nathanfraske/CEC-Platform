@@ -1,5 +1,14 @@
 # Current work handoff
 
+## ARCS RIFF RECORDED (2026-07-25 ~02:30Z, owner ask, on pipeline-pass-2)
+Concept 9.10 + owner-queue decision #14: (a) GLASS GDTs on the brick = real arc flash in the
+witness window powered by the fault's own energy AND a harder mains-class crowbar (GDT+fuse
+coordination, MOV keeps 20-90V class, +$1-2 brick); (b) momentary LAMP-TEST/SHOW button —
+~100mW contained boost strikes all gas bulbs + a flicker-flame neon tube; the show IS the
+safety self-test for the CASE-LIVE bulb (dead neon = silent safety failure). Fences: sealed
+devices only (Jacob's ladder REJECTED), HV dies with the button, never-generate-what-you-
+detect. Rec BOTH, ~$3-4 BOM, retail holds $79. Board README/BOM untouched pending nod.
+
 ## DUT INPUT BOARDS RULED (2026-07-25 ~02:00Z, owner, on pipeline-pass-2)
 Owner recognized the fixture head as 'just a straight-through connector' and RULED: resell
 off-the-shelf ModDIY-class straight-through boards for 24-pin/EPS/PCIe deck slots ('can just
