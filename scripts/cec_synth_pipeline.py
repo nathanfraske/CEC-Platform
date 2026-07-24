@@ -6553,7 +6553,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # RS1 sink on every 24-pin variant) -- flag it for the affinity re-seat,
         # whose forbid env keeps the new seat outside the corridors.
         _corr = (_force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
-                 + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d)))
+                 + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d))
+                 # + CELL ENVELOPES (2026-07-24, the kelvin root catch-all): a
+                 # ref squatting inside a sense-cell envelope refuses the whole
+                 # cell's locked copper at materialize (R61 [+3V3] in the 12V
+                 # cell -> kelvin FALSE chain-wide). Whichever pass parked it,
+                 # it becomes `bad` HERE and re-seats out (the forbid set below
+                 # already contains the envelopes).
+                 + _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d)))
         def _in_corr(bx):
             l0, r0, t0, b0 = bx
             return any(not (r0 <= c[1] or c[2] <= l0 or b0 <= c[3] or c[4] <= t0)
@@ -7000,7 +7007,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _anch_boxes.append(("anchor:" + _o,
                                     _oa[0] + _ocy[0] - _ocy[2], _oa[0] + _ocy[0] + _ocy[2],
                                     _oa[1] + _ocy[1] - _ocy[3], _oa[1] + _ocy[1] + _ocy[3]))
-            _avoid = list(_pour_boxes or ()) + _corr_boxes + _anch_boxes
+            # + CELL ENVELOPES AND RAIL BOXES (2026-07-24, the kelvin root's
+            # ordering hole: p7's envelope sweep runs BEFORE this restamp, so a
+            # restamped passive could land INSIDE a sense-cell envelope with
+            # nothing re-checking -- measured: R61 [+3V3] inside the 12V cell
+            # refused the whole cell's locked copper -> kelvin_ok FALSE
+            # chain-wide. The restamp legalize now avoids them like pours.)
+            _avoid = (list(_pour_boxes or ()) + _corr_boxes + _anch_boxes
+                      + _blueprint_env_boxes(lambda d: P.get(d) or anchors.get(d))
+                      + _force_rail_boxes(lambda d: P.get(d) or anchors.get(d)))
             if _avoid:
                 _legalize_avoiding_pours(P, _restamped, _rs_cy, _avoid, W, H, clr=0.4,
                                          bounds=_bounds)

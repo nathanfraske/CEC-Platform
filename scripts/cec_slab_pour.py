@@ -140,6 +140,28 @@ def shave(foreign, anchors, grid, min_w_mm=1.2):
         fallback = True
     else:
         fallback = False
+    # DEAD-END APPENDAGE PRUNE (owner addendum 2026-07-24, render evidence:
+    # fingers hanging off the pour body reaching nothing). body = opening at
+    # the body scale; each appendage component (mask minus body) is PRUNED iff
+    # it contains NO anchor (a finger reaching a pad/via is a tap -- stays)
+    # AND touches at most ONE body region (a narrow corridor bridging two
+    # body lobes is a pathway -- stays; pruning can then never disconnect).
+    pruned = 0
+    rb = max(1, int(round(min_w_mm * 2.5 / 2.0 / grid.cell)))
+    body = ndimage.binary_opening(keep2, structure=st, iterations=rb)
+    if body.any():
+        blab, _nb = ndimage.label(body)
+        alab, na = ndimage.label(keep2 & ~body)
+        pruned = 0
+        for k in range(1, na + 1):
+            m = alab == k
+            if (m & anchors).any():
+                continue                               # goes somewhere: a tap
+            touched = set(np.unique(blab[ndimage.binary_dilation(m, st) & body]))
+            touched.discard(0)
+            if len(touched) <= 1:
+                keep2 = keep2 & ~m
+                pruned += 1
     # min-width invariant: erode by half the floor; anchor groups still meet?
     eroded = ndimage.binary_erosion(keep2, structure=st, iterations=r_cells)
     lab3, _ = ndimage.label(eroded | anchors)          # anchors themselves count
@@ -147,7 +169,8 @@ def shave(foreign, anchors, grid, min_w_mm=1.2):
     invariant_ok = len(agroups) <= 1
     return keep2, {"cells": int(keep2.sum()), "fallback": fallback,
                    "min_width_ok": bool(invariant_ok),
-                   "anchor_groups_after_erosion": len(agroups)}
+                   "anchor_groups_after_erosion": len(agroups),
+                   "appendages_pruned": pruned}
 
 
 def mask_to_polys(mask, grid, min_area_mm2=6.0):

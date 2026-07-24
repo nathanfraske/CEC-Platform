@@ -495,3 +495,28 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     CLAUDE.md action item 6) on the 5 sensing modules + hub-standard-rev2, then the
     first-article unpowered-reverse bench gate (owner clock). Interim bench rules are in
     force and recorded in spec §2.9.
+  - **OWNER RULINGS 2026-07-24 (in-session) on the survey findings:**
+    (a) **Finding 3 SIGNED OFF**: hub OV dividers on every TPS2121 stage (U5/U7 + the new KVM
+    stage), same 47k/10k ~6.04V posture as the module package -- LUMPED into the running
+    schematic pass (forwarded to the agent same-day). Spec addendum note owed (v1.6.x) at the
+    morning consolidation.
+    (b) **Finding 1 (mains ingress) RULED -- layered posture**: (i) a testing-METHODOLOGY smoke
+    test before sensitive equipment ever connects to a DUT PSU (pre-flight with sacrificial/
+    protected instrumentation); (ii) fast-shutdown-on-detection where feasible -- the 24-pin
+    rev3's PS_ON# drive is now a DIRECT PSU-shutdown actuator for the tester (owner caveat,
+    recorded verbatim in intent: NOT guaranteed on a faulty PSU -- treat as mitigation, never
+    as the safety case); (iii) full station-safety hardware (RCD/GFCI + isolation transformer +
+    earth-bonded frame w/ M3 chassis bond) = a PRO/MAX TESTING-STATION tier feature. The
+    tester product spec carries all three layers when drafted.
+  - **SPICE VERIFICATION LANDED (96d93157, docs/spice-backfeed-verify-2026-07-24.md, ngspice 44.2,
+    datasheet-fit models):** mitigated design PASSES B/C/D with 82-1029x margins; baseline confirms
+    ~27A (and NEW: a healthy 3300uF PSU alone crosses the 2.5A/1ms hard-trip -- no fault needed);
+    KVM unmitigated is WORSE (33.3A). TWO MARGINALS FOR YOUR EYE: (F) the LP5907 sees a real
+    0.8-7.4us excursion above 6.5V abs-max during a fast 12V cross-rail fault -- governed by the
+    TPS2121's UNDOCUMENTED OV response time (options: accept-with-bench-check, or a small output
+    clamp/TVS; your call at the schematic review); (E) unpowered-reverse confirmed genuinely
+    unspecified -- but the layer-2 polyfuses bound the worst case (trip 5-27ms even with ZERO mux
+    protection), so the bench gate confirms rather than carries the safety case. Methodology flag:
+    the repo's "~10ms C_SS ramp hub-proven" figure is untraceable; datasheet Table 9-1 predicts
+    ~125ms (12x gap) -- both pass as simulated, but the downstream "~50mA inrush" estimate should
+    be restated from the datasheet figure.
