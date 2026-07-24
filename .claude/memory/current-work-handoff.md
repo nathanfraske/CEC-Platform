@@ -12,7 +12,16 @@
    still refused on s266 (identify the squatter -- rerun the repro, read the REFUSED print)
    + [force-rails] RS3 snk refused vs H1/C18 and RS1 v0-2 vs J6C (rail-plan vs mezz-seat
    conflicts, separate class, surfaced in the same repro).
-SCHEMATIC AGENT ROUND 1 DONE (worktree branch worktree-agent-ae0715ffe270dfc82, 7 commits,
+SCHEMATIC PACKAGE MERGED (merge commit on the branch @ b0ff45fc's parent; audit CLEAN-TO-
+MERGE with every claim independently reproduced; ST-NC variance annotated in the delta doc;
+2 commit-headline typos noted-only). The USB-backfeed package is now COMPLETE end-to-end on
+claude/pipeline-pass-2: spec v1.6.0 + BOM delta + 6 boards' schematics (0 new ERC errors,
+netlist-asserted) + hub OV dividers (owner-signed) + SPICE verification (mitigated passes
+82-1029x; 2 marginals queued) + pre-merge audit. REMAINING for the owner: PCB placement/
+routing of the new parts rides the normal wave pipeline (netlists now carry the mux parts
+-- the OVERNIGHT CHAIN's later rounds are the FIRST compiles with them; expect new-part
+placements/possible refusals, label honestly); the queue marginals (OV response window,
+C_SS figure restate). SCHEMATIC ROUND-1 archive note: (superseded by the merge) (worktree branch worktree-agent-ae0715ffe270dfc82, 7 commits,
 NOT pushed): all 6 beta boards implemented, 0 new ERC errors each, honest deviations flagged
 (ST pin NC-not-grounded [correct, matches U5/U7 as-built], refdes shifts, hub CP2 net-move
 required by as-built topology, eps-8pin-rev3 owner-gated skip, stale 12vhpwr BOM csv flagged).
