@@ -32,7 +32,8 @@ a shrug.
 
 ## 2. Architecture — three domains, four consumables, one structural rule
 
-See `assets/smoke-tester-block.svg`.
+See `assets/smoke-tester-block.svg` (electrical) and
+`assets/smoke-tester-board-map.svg` (physical boards + connectors).
 
 **Domains.** (a) THE SACRIFICE PATH (DUT copper): snout → blade fuse → HRC backup →
 clamp brick → way node → bleeders/dividers. (b) THE FLOATING MEASUREMENT DOMAIN:
@@ -77,7 +78,7 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 | 1 | ATO blade fuses, **1 A fast, one value everywhere** | panel sockets | ~$0.10 | everyday overcurrent (shorts, cap dumps) |
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
 | 3 | **Sacrifice brick SB1** — all 8 MOVs + 8 fusible witness resistors on one keyed plug-in PCB | 2×10 socket pair | ~$3 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
-| 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle | keyed 2×13 shrouded header | ~$3 | mating-cycle wear (Mini-Fit Jr tin ≈ 30 cycles; a shop does hundreds) |
+| 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle, **HMC/gold contact class** | keyed 2×13 shrouded header | ~$3.5 | interface wear + mechanical abuse (spec floor: 30 cycles std-tin / **100 cycles Mini-Fit HMC gold**, PS-5556 + PS-444850001; a shop does 1000+/yr) |
 
 **Physical partitioning — what is a daughterboard and what isn't (owner Q,
 2026-07-24):** the consumables are deliberately NOT one combined sacrificial
@@ -89,7 +90,17 @@ true plug-in daughterboard: it groups exactly the parts that die TOGETHER in a
 single event class (a mains event degrades the MOV and opens its witness in the same
 half-cycle — undiagnosable individually without gear, so the service unit is the $3
 board). The SNOUT is the second plug-in board, separate because its clock is
-mechanical wear, unrelated to electrical events. Connector tech: keyed 0.1 in header
+interface wear + mechanical abuse, unrelated to electrical events. CYCLE-RATING
+CORRECTION (owner catch, verified vs Molex specs 2026-07-24): standard Mini-Fit Jr
+terminals spec 30 mating cycles (PS-5556); the **High Mate Cycle family specs 100
+cycles gold** (44485 female / 5558 gold male, PS-444850001) — the snout SPECS THE
+HMC/GOLD CLASS. Spec durability is a low-level-contact-resistance floor, not
+functional death; practical life runs beyond it. Outlook: architecture unchanged —
+a busy shop (≈1,000+ matings/yr) still exceeds any Mini-Fit cycle class within
+months, and the snout also absorbs mechanical abuse (mangled DUT latches, bent
+pins) and provides calibration hygiene (worn contacts read as false rail sag) —
+but the replacement CADENCE stretches, so the snout is a wear/damage spare, not a
+routine consumable. Connector tech: keyed 0.1 in header
 sockets, NOT the platform TE-blade ecosystem — the module output daughterboards
 carry 18–52 A continuous (30 A blade joints earned); the brick carries ≤0.6 A
 continuous and big current only as fault transients. Pulse math for the socket: a
@@ -98,6 +109,13 @@ continuous and big current only as fault transients. Pulse math for the socket: 
 are rare by definition, and the brick pinout doubles the GND return pins anyway
 (2×10 = 20 positions: 8 ways + 8 returns + harvest + 2 key/spare). Contact-pitting
 after repeated mains events is a first-article bench watch item, not a redesign.
+
+**Blade format (ruled at refinement): full-size ATO/ATC (19 mm)** — not Mini/ATM or
+Micro2/3. Reasons: the most universal automotive format on earth (the trust story),
+the best panel-holder availability, glove-friendly handling, standard color code
+(brown = 1 A everywhere), and panel real-estate is not the constraint. Mini would
+save ~40% panel width at the cost of fiddlier handling and thinner corner-store
+coverage.
 
 **Coordination story (why two fuses in series):** the 1 A fast blade clears every
 low-voltage event first (selectivity by rating ratio 1:2 and speed class F vs T).
@@ -150,7 +168,12 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   ("CASE LIVE") and an OR of the four positive ways through 1 MΩ each into a second
   neon ("RAIL LIVE"). Earth reference = rear earth pigtail (or earth-only IEC inlet —
   open decision #5). Strikes ~90 V; a 48–90 V fault lights nothing (known limit,
-  concept §7c — the window comparators still show gross OV).
+  concept §7c — the window comparators still show gross OV). Panel note: the neons
+  sit behind large amber jewel lenses — deliberately the most beautiful lamps on the
+  box, and a lit one is ALWAYS bad news (the good-news show is the green way-cascade
+  and the needle). Near-threshold leakage makes a neon FLICKER (relaxation behavior)
+  — eerie and diagnostic: a flickering CASE LIVE means marginal leakage, not a hard
+  fault.
 - **Needle meter:** 100 µA moving-coil panel meter + 1P6T rotary reading the
   *already-divided* node (it can never see more than a few volts, whatever the DUT
   does), scale printed ×10. No pixels, no MCU — numbers are the module/ST deck's job.
@@ -203,8 +226,11 @@ switches) is consigned-class like every Mini-Fit Jr on the platform.
 
 ## 7. Mechanical / panel
 
-Front panel is itself an FR4 PCB (holders mount through it; silk = coroner's map +
-truth table + QR to the reorder page). Fuse-row pitch standardized so AUX ways and
+Front panel is itself an FR4 PCB used as a FACEPLATE ONLY — **zero copper in the
+fault path** (refined 2026-07-24): the ATO holders, lamps, and switches mount on the
+MAIN board and protrude through faceplate apertures, so way current never crosses a
+panel interconnect and the faceplate needs no connector at all. Its job is mechanical
++ graphic: silk = coroner's map + truth table + QR to the reorder page. Fuse-row pitch standardized so AUX ways and
 future variants share the panel tooling. Lid molds the starter kit (blade set, HRCs,
 spare brick, verdict pad). Creepage: 300 V-working class (≥3.2 mm) on all way copper
 and the brick; the brick connector keying prevents reversed insertion. No mounting

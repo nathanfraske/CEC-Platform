@@ -1,5 +1,14 @@
 # Current work handoff
 
+## SMOKE TESTER BOARD-MAP + CORRECTIONS (2026-07-24 ~23:55Z, on pipeline-pass-2)
+Owner caught the Mini-Fit cycle claim: VERIFIED vs Molex — std 5556 = 30 cycles (PS-5556), HMC
+44485 female/5558 gold male = 100 cycles (PS-444850001); snout now SPECS HMC/gold, demoted to
+wear/damage spare (architecture unchanged, cadence stretches). Blade format ruled: full-size
+ATO/ATC. Faceplate refined ZERO-COPPER (parts on MAIN poke through; no panel connector in the
+fault path). NEW assets/smoke-tester-board-map.svg: 4 PCB designs (main/faceplate/brick/snout),
+full connector census (J_SNOUT 2x13, J_BRICK 2x10, J_AUX 2x5, USB-C, meter lugs, earth stud,
+lid usw), one panelized fab order. Neon jewel-lens panel note added (lit neon = always bad news).
+
 ## SMOKE TESTER POWER REVISION (2026-07-24 ~22:35Z, owner no-disposables directive, on pipeline-pass-2)
 Battery deleted: 2S supercap store (Pro/Max provision cell pattern, consigned - no LCSC supercaps)
 harvested off the DUT 5VSB/5V ways (33R 2W fusible ON BRICK + 5.6V CV zener) + USB-C cold-start;
