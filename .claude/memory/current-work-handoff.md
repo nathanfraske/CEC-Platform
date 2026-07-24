@@ -26,6 +26,20 @@ no invented numbers, rollup ~$36.5@100), BETA+DRAFT markers, manifest w/ capture
 drops only after the arc-coordination bench). beta/README table row, DESIGN-SHEET census, owner-queue
 row, concept doc all on this branch now. NEXT PHASE (owner-gated, concept §8 #2-#12): Phase A CAD lib
 → Phase B capture (FOLLOWUPS 2026-07-24 has the parts list). Pure analog — no firmware tree entry ever.
+## ALL-IN CHAIN READOUT 2026-07-24 21:30 (reported in-chat; THE TWO HEADLINES):
+1. HUB: ALL 36 SEEDS REFUSED (9999, all 6 rounds) -- the mezz-envelope gate fixed the
+   mass-flag storms (compiles complete) but the +12-part ingress pressure refuses EVERY
+   seed at the courtyard gate (C1-vs-LED-ring class measured on smokes). THE #1 NEXT RUNG:
+   hub seat machinery for the new-part era -- C1 oversize seat + ring flexibility + the
+   eviction rung extension (machinery, never dimensions, per the standing rule). Until it
+   lands the hub publishes nothing new (incumbent best 9/13 stands).
+2. 24-PIN under the FULL SLAB A/B: best 98/65; drc band improved AGAIN (58-68, was 76-92
+   pre-slab, 180-218 two days ago); unconn edged better (98 best vs 103). The slab
+   methodology is winning on both axes now. Kelvin still FALSE (the one refused cell);
+   polish legs still 9999 (same refusal class).
+NEXT SESSION ORDER: (1) HUB NEW-PART SEAT RUNG (unblocks everything hub); (2) the last
+refused sense cell (kelvin); (3) slab guaranteed-CORE at materialize (deficit closure);
+(4) polish-refusal class. New parts confirmed placed on every variant all chain.
 
 ## ALL-IN CHAIN RUNNING 2026-07-24 ~17:30 (owner GO "implement it all + more waves + new parts placed"):
 6 rounds x both boards (hub s218-253 / 24-pin s344-379, /tmp/allin-chain.log). LIVE in it:
