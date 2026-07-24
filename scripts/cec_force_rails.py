@@ -809,8 +809,11 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
         if rl["j3"]:
             xs = [q[1] for q in rl["j3"]]
             ys = [q[2] for q in rl["j3"]]
+            # +3.0 beyond the band toward the shunt (owner catch 2026-07-24: the
+            # rects stopped 0.4mm short of the shunt force-via rows -- measured
+            # 6 dangling vias at RS1, the In2/B legs severed AT the shunt)
             reg = (min(xs) - 2.2, min(ys) - 1.2,
-                   max(xs) + 2.2, max(band_y + w / 2.0, max(ys) + 1.2))
+                   max(xs) + 2.2, max(band_y + w / 2.0 + 3.0, max(ys) + 1.2))
             for ln in layers_src:
                 asks.append({"net": rl["src_net"], "region_hint": reg,
                              "layers": (ln,), "priority": 3,
@@ -821,7 +824,9 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
             _lx, _lyy, band2, _wd = sd
             txs = [q[2] for q in rl["tb"]]
             tys = [q[3] for q in rl["tb"]]
-            reg = (min(txs) - 2.2, min(band2 - w / 2.0, min(tys) - 1.2),
+            # -3.0 above the band toward the shunt (same 2026-07-24 catch: cover
+            # the shunt pad + its outboard via row so the sink flood BONDS there)
+            reg = (min(txs) - 2.2, min(band2 - w / 2.0 - 3.0, min(tys) - 1.2),
                    max(txs) + 2.2, max(tys) + 1.2)
             _mirr = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
             lset = layers_src + ((_mirr,) if mirror_bcu and _mirr not in layers_src

@@ -1748,7 +1748,7 @@ def _pt_seg_dist(px, py, ax, ay, bx, by):
 
 
 def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, dia=0.9,
-                          stub_w=1.0, clear=0.25):
+                          stub_w=1.0, clear=0.25, pours=None):
     """INNER-POUR companion (2026-07-08): each 2-pad SMD shunt pad gets *n_per_pad* through-vias
     just OUTBOARD of the pad (away from the shunt body, so the kelvin inner-edge tap window
     stays untouched) plus a same-net face STUB from the pad to each via -- the force path
@@ -1773,6 +1773,17 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
     # own placements; hole spacing is net-agnostic.
     ex_vias = [(t.GetPosition().x, t.GetPosition().y)
                for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+    # COVERAGE REQUIREMENT (owner catch 2026-07-24: 6 vias dangled at RS1 --
+    # seated where NO kept pour on another layer would receive them). When the
+    # caller passes the FILTERED pour dicts, a via spot must sit inside a
+    # same-net dict's rect or it is skipped (a barrel into nothing helps nothing).
+    _cover = defaultdict(list)
+    for p in (pours or ()):
+        poly = p.get("polygon") or ()
+        if p.get("net") and poly:
+            xs = [q[0] for q in poly]
+            ys = [q[1] for q in poly]
+            _cover[p["net"]].append((min(xs), min(ys), max(xs), max(ys)))
     n_v = n_s = n_p = 0
     for hi, lo in kelvin_pairs:
         refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
@@ -1805,6 +1816,11 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
                 if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(0.85) ** 2
                        for qx, qy in ex_vias):
                     continue          # a barrel already serves this spot -- never stack
+                if pours is not None:
+                    _ax, _ay = at.x / 1e6, at.y / 1e6
+                    if not any(b0 <= _ax <= b2 and b1 <= _ay <= b3
+                               for (b0, b1, b2, b3) in _cover.get(net, ())):
+                        continue      # no kept pour will receive this barrel
                 if not _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                board.GetLayerID(p.GetLayerName()), nc, set()):
                     continue
@@ -3858,11 +3874,7 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                 print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
-        power_pours, _pb = synthesize_pour_bonds(board, power_pours)
-        if _pb["planned"] or _pb["dropped"]:
-            print(f"[cec_fr] pour bonds: {_pb['planned']} bond via(s) planted, "
-                  f"{_pb['dropped']} unbondable mirror pour(s) dropped "
-                  f"({_pb['bonded']} already barrel-bonded)", file=sys.stderr)
+        # already filtered+bonded EARLY (before force-vias/pickups) -- lay as-is
         add_power_pours(board, power_pours, fill=False)
     if kelvin_taps:
         # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
@@ -3911,10 +3923,22 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             print("[cec_fr] kelvin taps: every pair carries LOCKED pad-contact tap copper -- "
                   "skipping re-synthesis (precision pre-FR taps already laid + protected)",
                   file=sys.stderr)
+        # POUR FILTER FIRST (owner catch 2026-07-24: force-vias and pickups
+        # consumed the UNFILTERED ask list while the bond/scrap filter ran at
+        # the lay site AFTER them -- vias seated into floods the filter then
+        # dropped = copper-less vias in the open field, measured 6 at RS1).
+        # Filter once, early; every consumer below sees only the kept pours.
+        if power_pours:
+            power_pours, _pb = synthesize_pour_bonds(board, power_pours)
+            if _pb["planned"] or _pb["dropped"] or _pb.get("scrap"):
+                print(f"[cec_fr] pour bonds: {_pb['planned']} bond via(s) planted, "
+                      f"{_pb['dropped']} unbondable + {_pb.get('scrap', 0)} lace-bound "
+                      f"pour(s) dropped ({_pb['bonded']} kept by contact/barrel)",
+                      file=sys.stderr)
         # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
         # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
         if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
-            fv = synthesize_force_vias(board)
+            fv = synthesize_force_vias(board, pours=power_pours)
             if fv["vias"]:
                 print(f"[cec_fr] force vias: {fv['vias']} via(s)/{fv['stubs']} stub(s) at "
                       f"{fv['pads']} shunt pad(s) -> In2 rail pours", file=sys.stderr)
