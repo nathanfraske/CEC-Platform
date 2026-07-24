@@ -1,5 +1,14 @@
 # Current work handoff
 
+## DECK WEAR DOCTRINE CORRECTED (2026-07-25 ~01:25Z, owner objections sustained, on pipeline-pass-2)
+9.8's two weak layers retracted (concept 9.9): saver pigtails NO for 12VHPWR (re-adds a mated pair
+to the melt path, contradicts the 2.8 captive-pigtail rationale) + NO in metrology paths (unbaselined
+20-30 mOhm = 2%-class at 10 A); module-as-wear-unit NO ($600+ Pro/Max). CORRECTED: generalized
+FIXTURE HEADS per family (hpwr-fixture-head census pattern -> atx24/eps/pcie heads, $3-10 passive
+keyed, sense-AT-the-head via 12d port-end Kelvin + OQ-88 sense contacts) = wear lands cheap AND
+instrumented (12d per-pin R trend -> firmware alarm), modules never accumulate matings. Layered
+defense for $600 modules: smoke triage -> 12c fences -> head. FOLLOWUPS entry superseded in place.
+
 ## PLATFORM-WEAR DOCTRINE RESOLVED (2026-07-25 ~00:55Z, owner Q, on pipeline-pass-2)
 Owner asked if tester use forces every platform I/O onto daughterboards. NO (concept 9.8):
 consumer modules = wear moot by cycle count; deck duty = wear real (6-13A vs smoke box 0.26A)
