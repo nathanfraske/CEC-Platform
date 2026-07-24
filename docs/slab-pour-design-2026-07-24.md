@@ -88,3 +88,15 @@ splits cleanly:
 
 Does not touch FR signal quality, placement, or the R61-in-cell kelvin refusal
 (separate threads; kelvin debug remains #1 on the 24-pin ladder).
+
+## Addendum (owner, 2026-07-24, render evidence): dead-end appendage prune
+
+"Auto-shave any parts sticking out from the main pathway or deviating from it
+without going anywhere." Formalized as body-vs-appendage decomposition: body =
+opening at the body scale (~2.5x the width floor); each appendage component
+(mask minus body) is PRUNED iff it contains NO anchor (a finger reaching a
+pad/via is a tap -- stays) AND touches at most ONE body region (a corridor
+bridging two body lobes is a pathway -- stays, so pruning can never disconnect
+anything). A sub-floor corridor legitimately dies at the sliver stage instead,
+and the min-width invariant reports the split. Teeth: tests/test_slab_pour.py.
+Measured on the s266 board: 12-58 appendages pruned per (net, layer).
