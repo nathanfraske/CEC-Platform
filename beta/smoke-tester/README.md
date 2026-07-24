@@ -79,6 +79,26 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 | 3 | **Sacrifice brick SB1** — all 8 MOVs + 8 fusible witness resistors on one keyed plug-in PCB | 2×10 socket pair | ~$3 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
 | 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle | keyed 2×13 shrouded header | ~$3 | mating-cycle wear (Mini-Fit Jr tin ≈ 30 cycles; a shop does hundreds) |
 
+**Physical partitioning — what is a daughterboard and what isn't (owner Q,
+2026-07-24):** the consumables are deliberately NOT one combined sacrificial
+daughterboard — they are partitioned by DEATH CAUSE so you never throw away good
+parts with dead ones. Blades (everyday-event clock) and HRCs (mains-event clock) are
+bare socketed fuses, not boards — keeping the blades in standard panel sockets is
+what keeps them hardware-store-refillable (the trust story). The BRICK is the one
+true plug-in daughterboard: it groups exactly the parts that die TOGETHER in a
+single event class (a mains event degrades the MOV and opens its witness in the same
+half-cycle — undiagnosable individually without gear, so the service unit is the $3
+board). The SNOUT is the second plug-in board, separate because its clock is
+mechanical wear, unrelated to electrical events. Connector tech: keyed 0.1 in header
+sockets, NOT the platform TE-blade ecosystem — the module output daughterboards
+carry 18–52 A continuous (30 A blade joints earned); the brick carries ≤0.6 A
+continuous and big current only as fault transients. Pulse math for the socket: a
+230 VAC clearing event pushes ~50–150 A through one pin pair for <10 ms ≈ 0.5 J ≈
++13 K adiabatic in a brass pin — inside a 3 A-rated pin's pulse capability, events
+are rare by definition, and the brick pinout doubles the GND return pins anyway
+(2×10 = 20 positions: 8 ways + 8 returns + harvest + 2 key/spare). Contact-pitting
+after repeated mains events is a first-article bench watch item, not a redesign.
+
 **Coordination story (why two fuses in series):** the 1 A fast blade clears every
 low-voltage event first (selectivity by rating ratio 1:2 and speed class F vs T).
 In a mains event the blade opens but can sustain an arc (it is a 32 VDC part); the
