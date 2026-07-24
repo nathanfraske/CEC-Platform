@@ -12,6 +12,10 @@ through D2 (unlimited leg) and trips its port OCP iff a Hub tree hangs on /+5V_S
 found in tester-standard 02-power: U5 USBLC6 flow-through miswire (shorts D+↔CC2 / D−↔CC1)
 + U5.VBUS on the 12/20 V PD rail (5.25 V part) — NOT fixed (held agent's WIP), logged in
 FOLLOWUPS 2026-07-24 + study §5; owner-queue §1 got a D2-leg back-feed-budget decision row.
+FOLLOW-UP ANSWERED (same session ~03:30Z): realism = bench/tester YES / installed edge-case;
+RECOMMENDED fix recorded (study §8 + owner-queue row now decision-ready): reuse hub-rev2's port
+recipe — PTC 500mA (C46640983) series in the VBUS leg + SMAJ5.0A (C113952) on VBUS_RAW — on every
+beta USB-front-end board (~$0.05/board, zero new BOM lines); splice awaits owner nod, boards untouched.
 
 ## MAIN CONSOLIDATION DONE (2026-07-17 ~19:00Z) — read before pipeline work
 main = 81bb853a: session line (95 commits, FF) + claude/pipeline-consolidation (312, merge

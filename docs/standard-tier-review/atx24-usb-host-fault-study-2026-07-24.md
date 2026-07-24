@@ -156,3 +156,49 @@ flow-through pin pairs p1, V_RM 5.25 V p2). Prior rulings honored: sense-wire st
 2026-07-14 §7/§8 (host-attached refusal), §12b dock ratification, H3/H3a suite
 (beta-splices/atx-24pin.md). This study adds the USB-port fault-coupling analysis
 neither document covered.
+
+## 8. Addendum (2026-07-24, owner follow-up): realism verdict + the recommended fix
+
+**Is it realistic?** Split by context. **Bench/tester use: yes — account for it.** USB is
+attached by definition (it is the host link), the input distribution is faulty PSUs (that
+is the product), and hiccup-mode standby collapse is a common real failure signature; the
+tester program also deliberately AC-cycles DUTs. **Installed consumer use: edge case** —
+USB is only attached during flashing/debug; keep it as the D-8 rev2 disclosure line, no
+rev2 respin. **Harm is bounded either way** (the host port's OCP is a designed, recoverable
+protection; worst hardware outcome is a hot D2 and a tripped polyfuse) — so the fix bar is
+cheap margin, not redesign.
+
+**Recommended fix (≈$0.04–0.08/board, two lands, zero firmware, zero new BOM lines):**
+extend the **beta Hub rev2 port-protection recipe** — already ratified and on its BOM as
+F1–F4 + D8/D9 — to the module USB leg:
+1. **PTC 500 mA hold, 0805** (hub line: MPN SMD0805-050-6, LCSC **C46640983**) in series
+   in the VBUS leg, between the J5 VBUS pins and FB1 (protects bead, C9, D2 and
+   everything behind them, both directions).
+2. **SMAJ5.0A** (hub line: LCSC **C113952**) on `VBUS_RAW` beside the existing D7 PESD
+   (PESD keeps the ps-class ESD role; the SMAJ takes surge/DC energy the PESD cannot).
+
+**Why this generalizes to the class** ("ones like it we have not accounted for"): the
+class is *the USB leg was the last enclosure-boundary copper without a current bound and
+DC-capable clamp we own* (RJ-45 already has the ENT mis-plug chain + hub F1–F4/D8-D9 +
+DETECT PESD). Coverage of the pair:
+
+| Fault (accounted or not) | Covered by |
+|---|---|
+| Reverse-OC back-feed on 5VSB collapse (§3) | PTC trips at 1 A — our bound acts before/instead of the PC's |
+| Module-internal +5V_SYS short → PC port dead-shorted through D2 | PTC |
+| D2 fail-short **+** PSU OV (the §1 residual double-fault) | SMAJ clamps, PTC trips = crowbar; PC protected even then |
+| Host-side OV into us (broken PD brick, 12 V "smart" A-to-C charger) | SMAJ + PTC (also shields LP5907/6 V-abs-max) |
+| Attach inrush (44 µF vs 10 µF spec) | PTC softens |
+| D2 sustained-current thermal stress (→ the fail-short above) | PTC bounds to 1 A |
+
+**Not covered (stays honest):** ground/PE fault current (isolation-only problem — bench
+guidance + self-powered deck hub, §4); the tester `02-power` U5 defect (§5, separate fix);
+and the OQ-85 firmware interlock is still worth having so the tester program reports
+"USB budget exceeded" instead of PTC-tripping mid-session.
+
+**Scope:** every beta board carrying the generated USB flash front end — atx-24pin-rev3,
+eps-8pin-rev3, pcie rev-lines, 12vhpwr beta when it opens, argb-standard (07-usb-flash).
+Schematic-only at this stage (rev3 layouts not started). BOM-pass check items: per-board
+flash-burst current vs the 500 mA hold (bump to 750 mA variant if measured over), and the
+SMAJ5.0A 5.0 V standoff vs the 5.25 V legal VBUS ceiling (leakage nuance — same nuance
+already accepted on the hub's 5 V ports, so platform-consistent).
