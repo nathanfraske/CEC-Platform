@@ -9790,6 +9790,33 @@ def materialize(cand, cfg, out, *, logo=None):
             if _fpatch:
                 try:
                     import cec_fr as _cfr2
+                    # THE BYPASS (traced 2026-07-24, the owner's persistent
+                    # top-mirror/L3-crossing reports): these patches are laid
+                    # AT MATERIALIZE, before routing -- every import-side pour
+                    # rule (shunt-only top, need-based mirrors, slab shave)
+                    # never sees them. Apply the shunt-only rule HERE: F.Cu
+                    # patches survive only intersecting a shunt neighborhood.
+                    try:
+                        import cec_slab_pour as _cslb
+                        _nbs2 = _cslb.shunt_neighborhoods(_rlb)
+                    except Exception:                       # noqa: BLE001
+                        _nbs2 = []
+                    _kept_p = []
+                    for _pp in _fpatch:
+                        if _pp.get("layer", "F.Cu") != "F.Cu" or not _nbs2:
+                            _kept_p.append(_pp)
+                            continue
+                        _xs = [q[0] for q in _pp.get("polygon") or ()]
+                        _ys = [q[1] for q in _pp.get("polygon") or ()]
+                        if _xs and any(not (max(_xs) < n[0] or n[2] < min(_xs)
+                                            or max(_ys) < n[1] or n[3] < min(_ys))
+                                       for n in _nbs2):
+                            _kept_p.append(_pp)
+                        else:
+                            print("[materialize] landing zone DROPPED (top, "
+                                  "non-shunt): %s" % _pp.get("net"),
+                                  file=sys.stderr)
+                    _fpatch = _kept_p
                     _cfr2.add_power_pours(_rlb, _fpatch, fill=True)
                     print("[materialize] landing zones: %d rectangular patch(es)"
                           % len(_fpatch), file=sys.stderr)
