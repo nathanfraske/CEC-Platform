@@ -1,5 +1,19 @@
 # Current work handoff
 
+## OVERNIGHT 2026-07-24 (owner directive ~09:00): spec'd -> parallel sonnets -> waves -> MORNING REPORT OWED.
+Spec v1.6.0 (176640e0) + BOM delta doc + failure survey (c3af27d9, 6 findings: 1 mains-ingress
+station safety [tester spec owes RCD/isolation/earth-bond section], 2 OCP-defective sustained
+overcurrent [tester must actuate on ALERT + AC breaker], 3 hub lacks OV cutoff [2 resistors/stage,
+extends the package, owner sign-off], 4 reverse-polarity harness rules, 5 hot-unplug-under-load
+interlock, 6 INA240 reverse-clip + ADC over-range blind spots). RUNNING: (a) Sonnet SCHEMATIC
+agent IN A WORKTREE (beta modules D2->TPS2121 + polyfuse + straps; hub third KVM cascade; ERC/
+netlist/BOM discipline; worktree keeps wave netlists clean -- MERGE AFTER REVIEW); (b) Sonnet
+SPICE agent -> docs/spice-backfeed-verify-2026-07-24.md (cases A-F); (c) overnight chain hub
+s180-215 / 24-pin s278-313 (/tmp/overnight-0724.log). WHEN (a) LANDS: spawn a SANITY agent
+(ERC + netlist assertions + BOM regen cross-audit of the worktree against the delta doc + spec
+§6.14/§2.9) before any merge. Morning report = waves + schematic + SPICE + sanity + the survey's
+six findings (owner decisions: hub OV extension, tester station-safety section).
+
 ## SESSION CLOSE 2026-07-24 ~04:30 -- GRIND DONE: HUB AT SINGLE DIGITS. NEXT SESSION TOP-3 BELOW.
 GRIND CHAIN (6 rounds, s144-179/s236-271, ALL levers): **HUB unconn 9 / drc 13 (s165)** +
 13/5 (s145) + 12/9 (s158 = the polish stage's FIRST ADOPTION, published) + 14/8 -- four new
