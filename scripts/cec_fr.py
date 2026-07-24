@@ -3923,11 +3923,34 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             print("[cec_fr] kelvin taps: every pair carries LOCKED pad-contact tap copper -- "
                   "skipping re-synthesis (precision pre-FR taps already laid + protected)",
                   file=sys.stderr)
+        # SLAB POURS (owner-ratified 2026-07-24, docs/slab-pour-design-2026-07-24.md,
+        # env-gated for the A/B): replace the asks' RECT geometry with shaved
+        # slabs -- maximal coverage minus contested space, fragments touching no
+        # own-net anchor (the floating-zone rule, structural), and sub-width
+        # slivers; min-width invariant reported per (net, layer). The bond/scrap
+        # filter is obsolete for slab dicts (anchoring is by construction).
+        if power_pours and os.environ.get("CEC_SLAB_POUR", "0") == "1":
+            try:
+                import cec_slab_pour
+                _sp, _srep = cec_slab_pour.synthesize_slab_pours(board, power_pours)
+                if _sp:
+                    _bad = [f"{k[0]}|{k[1]}" for k, v in _srep.items()
+                            if not v.get("min_width_ok", True)]
+                    print(f"[cec_fr] slab pours: {len(_sp)} slab(s) for "
+                          f"{len(_srep)} (net,layer) pair(s)"
+                          + (f"; min-width invariant OPEN on {_bad}" if _bad else
+                             "; min-width invariant holds"),
+                          file=sys.stderr)
+                    power_pours = _sp
+            except Exception as _se:                     # noqa: BLE001 -- fall back to rects
+                print(f"[cec_fr] slab pours FAILED ({_se}) -- rect asks kept",
+                      file=sys.stderr)
         # POUR FILTER FIRST (owner catch 2026-07-24: force-vias and pickups
         # consumed the UNFILTERED ask list while the bond/scrap filter ran at
         # the lay site AFTER them -- vias seated into floods the filter then
         # dropped = copper-less vias in the open field, measured 6 at RS1).
         # Filter once, early; every consumer below sees only the kept pours.
+        # (Slab dicts pass through it harmlessly: anchored by construction.)
         if power_pours:
             power_pours, _pb = synthesize_pour_bonds(board, power_pours)
             if _pb["planned"] or _pb["dropped"] or _pb.get("scrap"):
@@ -3981,6 +4004,15 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         raise RuntimeError(
             f"cec_fr.import_ses: SaveBoard appeared to succeed but {out_path!r} is missing"
         )
+    # FLOATING-ZONE CLEANUP (owner requirement 2026-07-24): zones connecting to
+    # no pad/via/track are pure decoration -- removed in a FRESH load->save
+    # cycle (isolating the 2026-06-09 in-process zone-removal footgun).
+    if os.environ.get("CEC_ZONE_CLEANUP", "1") == "1":
+        try:
+            import cec_slab_pour
+            cec_slab_pour.cleanup_floating_zones(out_path)
+        except Exception as _ze:                        # noqa: BLE001
+            print(f"[cec_fr] zone cleanup skipped ({_ze})", file=sys.stderr)
     return out_path
 
 

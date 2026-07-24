@@ -7549,6 +7549,10 @@ def _oracle_env(params=None):
             extra["CEC_LASTMILE"] = "1"
             if params.get("lastmile_max_mm"):
                 extra["CEC_LASTMILE_MAX_MM"] = str(float(params["lastmile_max_mm"]))
+        if params.get("slab_pour"):
+            # owner-ratified subtractive pours (2026-07-24): slab + shave
+            # replaces the asks' rect geometry at import (cec_slab_pour)
+            extra["CEC_SLAB_POUR"] = "1"
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling
