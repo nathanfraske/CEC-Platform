@@ -559,7 +559,7 @@ without touching the doctrine at all.
 island removal (`cec_fr.add_inner_gnd_fill`, `inner_gnd_fill` board param) — measured
 5510 mm² before the floods take priority, 323 mm² after.
 
-## 2026-07-25 — 12VHPWR FORCE COPPER: three ratified rules leave no legal geometry (DECISION OWED)
+## 2026-07-25 — 12VHPWR FORCE COPPER: RESOLVED same day (row kept for the record; my first diagnosis was wrong)
 
 **Measured regression** (07-19 vs today, same board/params class): SENSEP lane copper
 480.8 mm → 119.7 mm, locked segments 164 → 62, **max lane width 2.50 mm → 0.25 mm**. On a
@@ -587,10 +587,24 @@ forbids ("machinery, never millimetres"); (d) build a real path search that rout
 spoke AROUND the cell instead of straight — the only option that touches no ruling, and the
 largest piece of work.
 
-**Recommendation:** (d), with (a) as the cheap unblock if you want lanes back on the next
-wave — the pre-ruling boards laid these vias in the shunt pad and were, in your words, "just
-fine". Nothing here is fixed yet; the board currently publishes with 0.25 mm 12 V copper and
-that should not go to fab.
+**RESOLVED THE SAME DAY, NO DECISION NEEDED — and the framing above was wrong.** Owner
+pushback ("it *was* just fine, something we just did broke it all") was correct: this was a
+regression, not three rules colliding. Two defects in the 07-24 via-in-pad guard caused it,
+both fixed in `cec_force_lanes` without touching the via-in-pad ruling, the ratified cell
+packing, or the board size:
+
+1. **Phantom square pads.** The guard tested `half = max(w,h)/2` on BOTH axes, modelling every
+   pad as a square of its longest dimension. The 3.35 × 1.23 mm shunt LO pad excluded ±1.675 mm
+   in y where its true half-extent is 0.615, and the INA240's 0.60 × 1.95 mm pads excluded over
+   3× their real width. That phantom copper — not the ruling — sealed the via window. Half
+   extents now come per-axis from the pad's real bounding box (rotated pads included).
+2. **Reachability checked too late.** Sites were picked blind to the spoke and the spoke was
+   validated only after the whole field was chosen, so ONE unreachable site refused an entire
+   50 A lane. Each candidate site now proves its own spoke during the search.
+
+**Verified on the same board/seed that produced 0/6:** `force lanes: 6/6 laid`, lane copper
+**480.8 mm at 2.50 mm max width** — the exact 07-19 good-era figure (broken: 119.7 mm at
+0.25 mm), structural DRC 27 → 15. Options (a)–(d) above are all moot; nothing was relaxed.
 
 **Landed meanwhile (no ruling touched):** the refusal now names its blockers (`pad U10.5 x12,
 ...`) instead of an opaque "no clear LO via site" — it took two rounds of that message to
