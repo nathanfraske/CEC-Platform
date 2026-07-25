@@ -1,5 +1,5 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-SB1,1,SACRIFICE BRICK (sub-board),see brick/,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,CONSUMABLE #3 — see brick/bom/bom.csv (8x MOV uniform 14D220K + 5x GDT core-ways [VE-1] + 8x KNP 1R witness + KNP 33R harvest); ~$3.85 populated; starter kit ships a SPARE
+SB1,1,SACRIFICE BRICK (sub-board),see brick/,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,CONSUMABLE #3 — see brick/bom/bom.csv (8x MOV uniform 14D220K + 5x GDT core-ways [VE-1] + 8x KNP 1R witness + 2x KNP 33R harvest legs [store + instant-on domain]); ~$3.85 populated; starter kit ships a SPARE
 SN1,1,SNOUT (sub-board),see snout/,CEC-SMK-SNOUT-1,CEC,,,own assembly,,,,DAMAGE spare #4 — see snout/bom/bom.csv; Mini-Fit Jr 24-ckt male std tin on paddle; ~$3.10
 FP1,1,"FACEPLATE (sub-board, bare FR4)",see faceplate/,CEC-SMK-FACE-1,CEC,,,jlcpcb,,,,zero copper in fault path; apertures + silk truth-table + QR; no BOM (bare board)
 """XF1..XF8""",8,5x20 holder w/ cover (BLX-A),THT,XC-7 BLX-A,generic,C3131,133949,LCSC,,jlcsearch 2026-07-25,,"HRC positions, tool-less covered holders, $0.062 ea"
@@ -7,7 +7,7 @@ FP1,1,"FACEPLATE (sub-board, bare FR4)",see faceplate/,CEC-SMK-FACE-1,CEC,,,jlcp
 """FH1..FH8""",8,ATO blade fuse PCB holder/clip set,THT,BK/1A1907-06-R,Eaton Bussmann,C3207132,997,LCSC,,jlcsearch 2026-07-25,,STOCK-WATCH (997); panel-protruding via faceplate apertures; $0.42 ea — biggest holder line; consigned generic alt if depth fails
 """F_ATO1..8 (installed)""",8,ATO blade 1A fast,19mm blade,297-series 1A class,Littelfuse/any,,,consigned-bulk,,,,fuses stay hardware-store standard ON PURPOSE (any 1A ATO); LCSC carries 3A+ only (297) — buy bulk anywhere; $0.10 ea
 """U1..U6""",6,LM339DR,SOIC-14,LM339DR,TI,C7948,84928,LCSC,lib/datasheets/LM339.pdf,jlcsearch 2026-07-25,,"COUNT CORRECTED at VE audit 2026-07-25 (was 4 = 16 sections vs 21 needed): 16 way-windows + PG race(2) + PS_ON t0(1) + reverse latch(1) + STORE-OK(1) = 21 -> 6 pkgs, 3 spare; $0.09 ea"
-VR1,1,TLV431AIDBZR (1.24V ref),SOT-23,TLV431AIDBZR,TI,C56765,18113,LCSC,lib/datasheets/TLV431A.pdf,jlcsearch 2026-07-25,,absolute ref; domain runs DIRECT from store rail 2.5-5.4V
+VR1,1,TLV431AIDBZR (1.24V ref),SOT-23,TLV431AIDBZR,TI,C56765,18113,LCSC,lib/datasheets/TLV431A.pdf,jlcsearch 2026-07-25,,absolute ref; domain rail = diode-OR(harvest-direct, store), rides 2.5-5V
 """C_U1..C_U6,C_VR1""",7,100nF X7R,C_0603,,generic,C1525,,LCSC (repo-standard basic),,repo-verified line,,margin: one decoupler AT each LM339 VCC pin + TLV431 — place adjacent
 """R_LADDER (window taps)""",1,1% 0603 string set (per README §3 windows),R_0603,,generic,,,JLC basic — bind at capture,,,,margin: window ladder off TLV431; exact values compile from §3 table at capture
 """R_HYST1..16""",16,1M 0603,R_0603,,generic,,,JLC basic — bind at capture,,,,"margin: per-comparator hysteresis (clean lamp edges, no chatter)"
@@ -29,11 +29,11 @@ SW_SEL,1,1P6T rotary,panel THT,RS-06 class,generic,C41347713,722,LCSC (verify 1P
 M1,1,100uA moving-coil panel meter 85C1,panel,85C1,generic,,,consigned,,,,reads DIVIDED nodes only via SW_SEL; scale printed x10; + multiplier R + 3296W cal trim (bind)
 """R_PS(100R),R_PG(1k),race RC(1uF film+taps)""",1,signal set per ctl sketch,misc,,generic,,,JLC basic — bind at capture,,,,"PS_ON# drive 100R, PWR_OK 1k, race 1uF film + 100k/390k taps"
 """D_PS,D_PG,D_USB""",3,PESD5V0S1BA,SOD-323,PESD5V0S1BA,Nexperia,C5261083,,LCSC (platform line),,repo-verified,,"clamps: PS_ON#, PWR_OK, USB VBUS"
-"""C_ST1,C_ST2""",2,2.7V 2F radial supercap (Pro-provision cell class),THT radial P5,Eaton HV/KR-class,Eaton/Kyocera,,,consigned (LCSC carries NO supercaps — study gate 2026-07-15),,,,"VE-2 (2026-07-25): 5F->2F — 1F net, 9.4J usable = ~5min held-TEST = ~6 sessions/charge (recharge <60s off any live rail unchanged; reserve depth was comfort); EXACT Pro/Max provision cell = deepest shared buy; est $0.70 ea"
+"""C_ST1,C_ST2""",2,2.7V 2F radial supercap (Pro-provision cell class),THT radial P5,Eaton HV/KR-class,Eaton/Kyocera,,,consigned (LCSC carries NO supercaps — study gate 2026-07-15),,,,"VE-2 (2026-07-25): 5F->2F — 1F net, 5.0->2.8V = 8.6J usable = ~4.5min held-TEST = ~5 sessions/charge; instant-on OR (2026-07-25) makes the store ride-through + LAMP TEST only — first light comes from harvest-direct in ~ms (recharge-to-usable ~30s off any live rail); EXACT Pro/Max provision cell = deepest shared buy; est $0.70 ea"
 """R_BAL1,R_BAL2""",2,100k 0805,R_0805,,generic,,,JLC basic — bind at capture,,,,2S balance (platform supercap pattern)
-"""D_H1,D_H2,D_H3""",3,SS34,SMA,SS34,generic,C8678,,LCSC (platform line),,repo-verified,,harvest ORing: 5VSB-way / 5V-way / USB-C -> store
-Z_ST,1,SMAZ5V6 zener 1W,SMA,SMAZ5V6-13-F,Diodes Inc,C110526,17448,LCSC,lib/datasheets/SMAZ_series.pdf,jlcsearch 2026-07-25,,crude CV clamp across store (charge-path OV guard)
-"""C_ST_LOC,C_DOM""",2,10uF 0805 X5R,C_0805,,generic,,,JLC basic — bind at capture,,,,margin: store-node local + domain-rail bulk at the LM339 cluster
+"""D_H1,D_H2,D_H3,D_DOM,D_ST2""",5,SS34,SMA,SS34,generic,C8678,,LCSC (platform line),,repo-verified,,harvest ORing 5VSB-way/5V-way/USB-C -> common node; D_DOM = instant-on harvest-direct leg into the domain rail; D_ST2 = store leg into the domain rail (the diode-OR, 2026-07-25)
+"""Z_ST,Z_DOM""",2,SMAZ5V6 zener 1W,SMA,SMAZ5V6-13-F,Diodes Inc,C110526,17448,LCSC,lib/datasheets/SMAZ_series.pdf,jlcsearch 2026-07-25,,crude CV clamps: store node + instant-on domain leg (each behind its own brick 33R fusible; fail-short = safe direction — arc-bench watch)
+"""C_ST_LOC,C_DOM""",2,10uF 0805 X5R,C_0805,,generic,,,JLC basic — bind at capture,,,,margin: store-node local + domain-rail bulk at the LM339 cluster; C_DOM also bridges the store<->harvest OR handover
 Q_BST,1,SS8050,SOT-23,SS8050,generic,C2150,3219017,LCSC BASIC,,jlcsearch 2026-07-25,,"◆ blocking oscillator switch (LAMP TEST, held-only)"
 T_BST,1,coupled inductor / mini transformer,SMD/THT,LPR6235-class,Coilcraft-class,,,Phase A pick (no LCSC hit),,,,◆ ~1:10 boost to strike neons (~100-140V @ uA-mA); candidates at library pass
 D_BST,1,M7 (1N4007 SMA),SMA,M7,generic,C95872,3600582,LCSC BASIC,,jlcsearch 2026-07-25,,◆ boost rectifier
@@ -41,9 +41,9 @@ D_BST,1,M7 (1N4007 SMA),SMA,M7,generic,C95872,3600582,LCSC BASIC,,jlcsearch 2026
 R_BL1,1,47R 10W wirewound axial,THT D9x36,EWWR0010J47R0T9,generic,C349125,124,LCSC,,jlcsearch 2026-07-25,,STOCK-WATCH (124); 12V min load ~0.26A; SQP-family alt at capture
 R_BL2,1,10R 5W cement SQP,THT 22x9.5,SQP500JB-10R,generic,C1527341,875,LCSC,,jlcsearch 2026-07-25,,5V min load ~0.5A
 J_SNOUT,1,2x13 shrouded keyed header pair,IDC 2x13,,generic,,,JLC basic — bind at capture,,,,24 DUT lines + 2 key -> snout sub-board
-J_BRICK,1,"2x10 socket pair, keyed",0.1in 2x10,,generic,,,JLC basic — bind at capture,,,,8 ways + 8 returns + harvest + 2 key -> brick
+J_BRICK,1,"2x11 socket pair, keyed",0.1in 2x11,,generic,,,JLC basic — bind at capture,,,,8 ways + 8 returns + harvest node in + store/domain legs out + 2 key/spare -> brick
 J_AUX,1,2x5 shrouded keyed,IDC 2x5,,generic,,,JLC basic — bind at capture,,,,3 expected-V ways + continuity + GND (adapters = accessory SKUs)
-J_PWR,1,USB-C 16P,USB_C_16P,,generic,C2765186,,LCSC (platform line),,repo-verified,,cold-start top-up; 5.1k CC pulldowns below
+J_PWR,1,USB-C 16P,USB_C_16P,,generic,C2765186,,LCSC (platform line),,repo-verified,,instant-on feed + store top-up (any phone brick); 5.1k CC pulldowns below
 """R_CC1,R_CC2""",2,5.1k 0603,R_0603,0603WAF5101T5E,UNI-ROYAL,C23186,7571904,LCSC BASIC,,jlcsearch 2026-07-25,,USB-C sink advertisement
 EARTH1,1,earth stud/lug + rear pigtail,chassis,,generic,,,consigned,,,,decision #5 RULED: pigtail
 """PCB_MAIN,PCB_PANEL""",2,2-layer main + faceplate FR4,n/a,,JLCPCB,,,jlcpcb (one panelized order w/ brick+snout),,,,est $3.00 both @100

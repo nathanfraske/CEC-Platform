@@ -90,7 +90,7 @@
   <text x="856" y="252" font-size="9.5">&gt; 1.257V ⇒ OVER (red)</text>
   <text x="856" y="268" font-size="9.5">window refs from</text>
   <text x="856" y="304" font-size="9.5">&lt; 1.137V ⇒ UNDER (red)</text>
-  <text x="856" y="320" font-size="9.5">TL431 ladder (±5%)</text>
+  <text x="856" y="320" font-size="9.5">TLV431 ladder (±5%)</text>
   <text x="856" y="285" font-size="10" font-weight="bold" fill="#1a7a1a">both in ⇒ GREEN</text>
 
   <!-- meter tap -->

@@ -42,10 +42,10 @@
   <!-- BRICK -->
   <rect x="470" y="165" width="145" height="100" fill="#fff" stroke="#c22" stroke-width="2.5"/>
   <text x="480" y="185" font-size="12" font-weight="bold">SACRIFICE BRICK ③</text>
-  <text x="480" y="201" font-size="9.5">8× MOV (S14K14/K6/K4)</text>
+  <text x="480" y="201" font-size="9.5">8× MOV 22V + ◆5× GDT (core)</text>
   <text x="480" y="214" font-size="9.5">8× 1Ω flameproof</text>
-  <text x="480" y="226" font-size="9.5">   fusible WITNESS</text>
-  <text x="480" y="240" font-size="9.5">keyed 2×10 socket, ~$3</text>
+  <text x="480" y="226" font-size="9.5">   witness + 2×33Ω harvest</text>
+  <text x="480" y="240" font-size="9.5">keyed 2×11 socket, ~$3.85</text>
   <text x="480" y="256" font-size="9" fill="#a11">OV/mains → conducts hard →</text>
   <text x="480" y="266" font-size="9" fill="#a11">fuses clear, witness smokes</text>
 
@@ -70,7 +70,7 @@
   <!-- MEASUREMENT DOMAIN -->
   <rect x="645" y="60" width="315" height="330" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="6 3"/>
   <text x="655" y="78" font-size="12" font-weight="bold" fill="#2255aa">FLOATING MEASUREMENT DOMAIN</text>
-  <text x="655" y="92" font-size="9.5" fill="#2255aa">BATTERYLESS: 2S 2F supercap store, self-charged off the DUT (5VSB/5V harvest) + USB-C top-up · rides DUT GND</text>
+  <text x="655" y="92" font-size="9.5" fill="#2255aa">BATTERYLESS + INSTANT-ON: domain = diode-OR(harvest-direct, 2S 2F store) · self-charged off DUT 5VSB/5V + USB-C · rides DUT GND</text>
 
   <line x1="615" y1="121" x2="700" y2="121" stroke="#333" stroke-width="1.5" stroke-dasharray="4 3"/>
   <rect x="700" y="100" width="115" height="60" fill="#fff" stroke="#2255aa"/>
@@ -81,9 +81,9 @@
 
   <line x1="815" y1="130" x2="845" y2="130" stroke="#333" stroke-width="1.5"/>
   <rect x="845" y="100" width="105" height="60" fill="#fff" stroke="#2255aa"/>
-  <text x="853" y="118" font-size="10.5" font-weight="bold">4× LM339</text>
+  <text x="853" y="118" font-size="10.5" font-weight="bold">6× LM339</text>
   <text x="853" y="132" font-size="9.5">±5% windows vs</text>
-  <text x="853" y="144" font-size="9.5">TL431 ladder</text>
+  <text x="853" y="144" font-size="9.5">TLV431 ladder</text>
   <text x="853" y="156" font-size="9.5">+ PG timing race</text>
 
   <rect x="700" y="185" width="250" height="70" fill="#fff" stroke="#2255aa"/>
@@ -118,7 +118,7 @@
   <rect x="20" y="530" width="940" height="90" fill="#fafafa" stroke="#999"/>
   <text x="30" y="549" font-size="10.5" font-weight="bold">CONSUMABLES (all socketed; starter kit in the lid ships blades + 2 HRC + 1 spare brick):</text>
   <text x="30" y="565" font-size="9.5">① ATO blade 1A — hardware-store standard ON PURPOSE (trust story) · ② HRC 2A-T 250VAC — the only element rated to break mains</text>
-  <text x="30" y="579" font-size="9.5">③ sacrifice brick — every part that absorbs a fault, one $3 swap, date-flag silk · ④ snout — the mating-wear item (~30 cycles/tin Mini-Fit)</text>
+  <text x="30" y="579" font-size="9.5">③ sacrifice brick — every part that absorbs a fault, one $3 swap, date-flag silk · ④ snout — DAMAGE spare only (cycle wear ruled irrelevant at megohm duty)</text>
   <text x="30" y="597" font-size="9.5" fill="#555">Coordination: blade clears LV events (1A F); a mains arc rides through to the HRC (2A T, sand) which breaks it; the witness 1Ω smokes benignly</text>
   <text x="30" y="610" font-size="9.5" fill="#555">and disconnects its spent MOV. Fences: terminator-only · lamps not numbers · the bouncer, not the interview.</text>
 </svg>

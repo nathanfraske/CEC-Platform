@@ -31,8 +31,8 @@
   <!-- MAIN -->
   <rect x="215" y="90" width="330" height="420" fill="#eaf0fd" stroke="#2255aa" stroke-width="2.5"/>
   <text x="225" y="108" font-size="11" font-weight="bold" fill="#2255aa">BOARD 1 — MAIN (permanent, 2-layer)</text>
-  <text x="225" y="122" font-size="8.5">ATO + HRC holders · 4× LM339 + TLV431 · K1 latching 1-pole (HF3F-L/5)</text>
-  <text x="225" y="133" font-size="8.5">2S supercap store + harvest ORing · divider strings (300V class)</text>
+  <text x="225" y="122" font-size="8.5">ATO + HRC holders · 6× LM339 + TLV431 · K1 latching 1-pole (HF3F-L/5)</text>
+  <text x="225" y="133" font-size="8.5">2S store ⊕ harvest-direct diode-OR (instant-on) · divider strings (300V class)</text>
   <text x="225" y="144" font-size="8.5" fill="#a11">◆ LAMP-TEST boost osc (~100mW, alive only while button held)</text>
   <text x="225" y="155" font-size="8.5">creepage ≥3.2mm on all way copper · no copper upstream of a sacrifice</text>
 
@@ -42,9 +42,9 @@
   <text x="231" y="205" font-size="8.5">→ Board 4</text>
 
   <rect x="225" y="222" width="130" height="42" fill="#fff" stroke="#c22" stroke-width="1.5"/>
-  <text x="231" y="236" font-size="9.5" font-weight="bold">J_BRICK 2×10 socket</text>
+  <text x="231" y="236" font-size="9.5" font-weight="bold">J_BRICK 2×11 socket</text>
   <text x="231" y="248" font-size="8.5">8 ways + 8 returns +</text>
-  <text x="231" y="259" font-size="8.5">harvest + 2 key → Board 3</text>
+  <text x="231" y="259" font-size="8.5">harv in + 2 legs out + 2 key → Bd 3</text>
 
   <rect x="225" y="276" width="130" height="36" fill="#fff" stroke="#333" stroke-width="1.5"/>
   <text x="231" y="290" font-size="9.5" font-weight="bold">J_AUX 2×5 keyed</text>
@@ -52,7 +52,7 @@
 
   <rect x="225" y="324" width="130" height="32" fill="#fff" stroke="#333" stroke-width="1.5"/>
   <text x="231" y="337" font-size="9.5" font-weight="bold">J_PWR USB-C 5V</text>
-  <text x="231" y="348" font-size="8.5">cold-start top-up only</text>
+  <text x="231" y="348" font-size="8.5">instant-on feed + top-up</text>
 
   <rect x="225" y="368" width="130" height="30" fill="#fff" stroke="#333" stroke-width="1.5"/>
   <text x="231" y="381" font-size="9.5" font-weight="bold">METER LUGS ×2</text>
@@ -74,7 +74,7 @@
   <text x="375" y="221" font-size="8.5">clamps → bleeders /</text>
   <text x="375" y="232" font-size="8.5">÷10 dividers → windows</text>
   <text x="375" y="243" font-size="8.5">→ lamps · harvest →</text>
-  <text x="375" y="254" font-size="8.5">store (5VSB⊕5V ways)</text>
+  <text x="375" y="254" font-size="8.5">store+domain (5VSB⊕5V⊕USB)</text>
 
   <!-- BRICK -->
   <rect x="390" y="280" width="150" height="110" fill="#fdeaea" stroke="#c22" stroke-width="2.5"/>
@@ -146,19 +146,19 @@
   <text x="800" y="307" font-size="8.5">ONE 2-layer JLC order, panelized:</text>
   <text x="800" y="318" font-size="8.5">MAIN + FACEPLATE + BRICK×N + SNOUT×N</text>
   <text x="800" y="329" font-size="8.5">(consumable stock rides ~free)</text>
-  <text x="800" y="345" font-size="9" font-weight="bold">Landed ≈$42–43 @100 w/ starter kit</text>
-  <text x="800" y="357" font-size="8.5">($39.15 + ◆arcs ~$3–4; path to ~$33 @1k)</text>
+  <text x="800" y="345" font-size="9" font-weight="bold">Landed ≈$43–45 @100 w/ starter kit</text>
+  <text x="800" y="357" font-size="8.5">(post-VE 2026-07-25; path ~$34–36 @1k)</text>
   <text x="800" y="371" font-size="9" font-weight="bold">Retail $79 (holds) · one SKU</text>
   <text x="800" y="383" font-size="8.5">consigned lines: supercaps, meter, case</text>
 
   <!-- power strip summary -->
   <rect x="790" y="404" width="240" height="124" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="5 3"/>
-  <text x="800" y="421" font-size="9.5" font-weight="bold" fill="#2255aa">POWER (batteryless)</text>
-  <text x="800" y="435" font-size="8.5">5VSB⊕5V ways → 33Ω fusible (brick)</text>
-  <text x="800" y="446" font-size="8.5">→ 5.6V zener → 2S 2F supercaps</text>
-  <text x="800" y="457" font-size="8.5">⊕ USB-C 5V cold-start</text>
-  <text x="800" y="471" font-size="8.5">23J ≈ 12min TEST ≈ 16 sessions;</text>
-  <text x="800" y="482" font-size="8.5">&lt;60s refill off any live rail;</text>
+  <text x="800" y="421" font-size="9.5" font-weight="bold" fill="#2255aa">POWER (batteryless, instant-on)</text>
+  <text x="800" y="435" font-size="8.5">5VSB⊕5V⊕USB node → 2 fused legs:</text>
+  <text x="800" y="446" font-size="8.5">33Ω→store (2S 2F) ∥ 33Ω→domain</text>
+  <text x="800" y="457" font-size="8.5">domain = diode-OR: first light ~ms</text>
+  <text x="800" y="471" font-size="8.5">8.6J ≈ ~4.5min TEST ≈ ~5 sessions;</text>
+  <text x="800" y="482" font-size="8.5">store usable ~30s / full ~2min;</text>
   <text x="800" y="493" font-size="8.5">zero standby (latching relay, neons)</text>
   <text x="800" y="507" font-size="8.5" fill="#a11">◆ LAMP TEST draws ~100mW held-only</text>
   <text x="800" y="518" font-size="8.5" fill="#555">no lithium · no disposables · no chore</text>
@@ -172,7 +172,7 @@
   <!-- connector census -->
   <rect x="20" y="608" width="1010" height="48" fill="#fafafa" stroke="#999"/>
   <text x="30" y="625" font-size="10" font-weight="bold">CONNECTOR CENSUS (complete):</text>
-  <text x="30" y="640" font-size="9">J_SNOUT 2×13 keyed (snout⇄main) · J_BRICK 2×10 keyed socket (brick⇄main) · J_AUX 2×5 keyed (adapters) · J_PWR USB-C · meter lugs ×2 · earth stud · lid µswitch · DUT's own 24-pin → snout.</text>
+  <text x="30" y="640" font-size="9">J_SNOUT 2×13 keyed (snout⇄main) · J_BRICK 2×11 keyed socket (brick⇄main) · J_AUX 2×5 keyed (adapters) · J_PWR USB-C · meter lugs ×2 · earth stud · lid µswitch · DUT's own 24-pin → snout.</text>
   <text x="30" y="651" font-size="9" fill="#555">FACEPLATE: no connector. Nothing else crosses a board boundary — the whole fault path lives on MAIN + the two red plug-ins.</text>
 
   <!-- SIGN-OFF box -->

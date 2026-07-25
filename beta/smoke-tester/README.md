@@ -43,33 +43,44 @@ See `assets/smoke-tester-block.svg` (electrical) and
 
 **Domains.** (a) THE SACRIFICE PATH (DUT copper): snout → blade fuse → HRC backup →
 clamp brick → way node → bleeders/dividers. (b) THE FLOATING MEASUREMENT DOMAIN:
-comparators + lamps + meter, powered by the **batteryless supercap store** (below),
+comparators + lamps + meter, powered by the **batteryless instant-on supply**
+(harvest-direct ⊕ supercap store, below),
 referenced to DUT GND and floating relative to earth — it keeps indicating even when
 DUT GND rides line potential. (c) THE EARTH-NEON DOMAIN: nothing but neon bulbs and
 megohms between DUT nodes and the earth reference — zero powered electronics, strikes
 at ~90 V, lights **CASE LIVE**.
 
-**Power — batteryless, self-charging (owner no-disposables directive, 2026-07-24):**
-no battery of any chemistry. The measurement domain runs from a **2S supercap store**
+**Power — batteryless, self-charging, INSTANT-ON (owner no-disposables directive
+2026-07-24; harvest-direct bypass added on the owner's first-use-UX challenge,
+2026-07-25):** no battery of any chemistry — and **no charge-before-first-use
+ritual**. Harvest front end: 5VSB-way ⊕ 5V-way ⊕ USB-C 5 V through ORing Schottkys
+(D_H1..D_H3) onto one common node. Off that node hang TWO independently fused legs
+(both fusibles on the brick — the harvest tap's protection is sacrificial like
+everything else): **RW_H 33 Ω 2 W → Z_ST 5.6 V CV clamp → the 2S supercap store**
 (2× 2.7 V 2 F radials + 2× 100 kΩ balance — the EXACT Pro/Max-provision cell class,
-one shared buy; VE-2 2026-07-25, was 5 F) that **harvests from the DUT itself**: 5VSB-way ⊕
-5V-way through ORing Schottkys → a 33 Ω 2 W flameproof fusible (on the brick — the
-harvest tap's protection is sacrificial like everything else) → 5.6 V zener CV clamp →
-store. Every test session recharges it: a live 5VSB wakes an empty store in <60 s
-(~150 mA initial, 0.76 W in the 2 W part). USB-C 5 V (any phone brick/power bank) is
-the cold-start path for the one corner where nothing on the DUT is alive. Store math:
-1 F net, 5.0→2.5 V usable = 9.4 J ≈ **~5 min of held-TEST ≈ 6 DUT sessions** per
-charge (reserve depth was comfort — recharge is <60 s off any live rail); zero standby drain (latching relay + neons need nothing at rest). The domain
-runs DIRECT from the store (no LDO): all thresholds compare against a TLV431 1.24 V
-absolute reference, so the rail may ride 2.5–5.4 V; way lamps are 2 mA high-efficiency
-red / 570 nm yellow-green (Vf ≤2.1 V) so indication holds to the bottom of the store.
-Why storage at all (vs pure harvest): the lamps and latches must survive the exact
-moment the DUT collapses or hiccups — the box's most important observation — and a
-purely harvested brain would strobe with the fault it is reporting. Why supercap (vs
-Li-ion): the energy need is tiny and refilled every use; EDLC ships with no UN38.3
-lithium compliance, has no BMS, no aging cliff, 10+ year life — and no recharge chore
-ever, because using the tool charges it. A **STORE OK** lamp (spare comparator,
-store >3.0 V while TEST held) disambiguates dead-box from dead-DUT.
+one shared buy; VE-2 2026-07-25, was 5 F), and **RW_D 33 Ω 2 W → D_DOM → Z_DOM
+clamp + C_DOM → the domain rail directly**. The domain rail is the diode-OR of that
+harvest-direct leg and the store (via D_ST2): the instant ANY source is live — a DUT
+rail or a phone brick — the panel is up in ~ms (only C_DOM charges, not the farad),
+while the store fills behind RW_H in parallel (usable ~30 s, full ~2 min; ~150 mA
+initial, 0.76 W in the 2 W part). The OR hands over by itself: when the DUT sags or
+collapses, D_ST2 conducts and the lamps/latches ride straight through the exact
+event they are reporting — the load-bearing storage property, preserved and now the
+store's WHOLE job (ride-through + LAMP TEST depth), no longer the first-light path.
+Store math: 1 F net, 5.0→2.8 V usable (D_ST2's diode drop raises the old 2.5 V
+floor) = 8.6 J ≈ **~4.5 min of held-TEST ≈ ~5 DUT sessions** of reserve; zero
+standby drain (latching relay + neons need nothing at rest). No LDO anywhere: all
+thresholds compare against a TLV431 1.24 V absolute reference, so the rail may ride
+2.5–5 V; way lamps are 2 mA high-efficiency red / 570 nm yellow-green (Vf ≤2.1 V)
+so indication holds to the rail floor. First-light timeline: earth-domain neons
+0 s, always (they need no power, ever); comparator panel ~ms on any live rail or
+USB; the ONLY dark panel is store-empty AND nothing-live — which is itself a
+verdict (no 5VSB = dead standby), and the **STORE OK** lamp (spare comparator,
+store >3.0 V while TEST held) disambiguates dead-box from dead-DUT — any phone
+brick arbitrates. Why supercap (vs Li-ion): the energy need is tiny and refilled
+every use; EDLC ships with no UN38.3 lithium compliance, has no BMS, no aging
+cliff, 10+ year life — and no recharge chore ever, because using the tool charges
+it.
 
 **The structural rule (what makes "modular" true):** *no main-board copper sits
 electrically upstream of a sacrifice element, and measurement taps enter only through
@@ -83,7 +94,7 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 |---|---|---|---|---|
 | 1 | ATO blade fuses, **1 A fast, one value everywhere** | panel sockets | ~$0.10 | everyday overcurrent (shorts, cap dumps) |
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
-| 3 | **Sacrifice brick SB1** — 8 MOVs (uniform 22 V, see brick/README) + ◆8 GDTs (the visible mains crowbar) + 8 witness fusibles + harvest fusible, one keyed plug-in PCB | 2×10 socket pair | ~$4.30 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
+| 3 | **Sacrifice brick SB1** — 8 MOVs (uniform 22 V, see brick/README) + ◆5 GDTs on the core ways (VE-1; the visible mains crowbar) + 8 witness fusibles + 2 harvest fusibles (store leg + instant-on domain leg), one keyed plug-in PCB | 2×11 socket pair | ~$3.85 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
 | 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle (standard tin) | keyed 2×13 shrouded header | ~$3.1 | **mechanical damage only** (bent pins, broken latch, mangled DUT connectors) — cycle WEAR ruled functionally irrelevant at this box's duty; see the resolution note below |
 
 **Physical partitioning — what is a daughterboard and what isn't (owner Q,
@@ -120,7 +131,8 @@ continuous and big current only as fault transients. Pulse math for the socket: 
 230 VAC clearing event pushes ~50–150 A through one pin pair for <10 ms ≈ 0.5 J ≈
 +13 K adiabatic in a brass pin — inside a 3 A-rated pin's pulse capability, events
 are rare by definition, and the brick pinout doubles the GND return pins anyway
-(2×10 = 20 positions: 8 ways + 8 returns + harvest + 2 key/spare). Contact-pitting
+(2×11 = 22 positions: 8 ways + 8 returns + harvest node in + store & domain legs
+out + 2 key/spare). Contact-pitting
 after repeated mains events is a first-article bench watch item, not a redesign.
 
 **Blade format (ruled at refinement): full-size ATO/ATC (19 mm)** — not Mini/ATM or
@@ -186,7 +198,8 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   door IS the safe state.** The user's finger never touches DUT copper.
 - **◆ LAMP TEST / SHOW (decision #14, RULED 2026-07-25):** momentary button →
   contained blocking-oscillator boost (SS8050 + coupled inductor + M7, ~100 mW from
-  the store, alive ONLY while held) strikes every gas bulb + the flicker-flame tube.
+  the domain rail — store ⊕ harvest-direct, so it works on the very first plug —
+  alive ONLY while held) strikes every gas bulb + the flicker-flame tube.
   The show doubles as the safety self-test for the CASE-LIVE bulb (a dead neon is a
   silent safety failure). Fences: sealed devices only, HV dies with the button,
   never-generate-what-you-detect; panel carve-out printed: "a lit neon is ALWAYS bad
@@ -244,7 +257,8 @@ meter, missile toggle + panel switches, supercaps (study-gate 2026-07-15), Mini-
 **VE pass (owner ask, 2026-07-25) — applied without sacrificing anything load-bearing:**
 VE-1 GDTs on the 5 CORE ways only (AUX ways keep MOV+fuse coordination — the pre-#14
 signed-safe architecture; −$1.70 across installed + spare brick). VE-2 supercaps 5 F→2 F
-Pro-provision cells (−$1.00; ~6 sessions/charge, <60 s recharge unchanged). VE-3
+Pro-provision cells (−$1.00; ~6 sessions/charge — ~5 after the 2026-07-25 instant-on
+OR raised the store floor to 2.8 V; recharge-to-usable ~30 s). VE-3
 redundant NE_BF option deleted (−$0.15). Plus one CORRECTION the audit surfaced: LM339
 count was under-provisioned (16 sections vs 21 needed) → 6 packages (+$0.25). Net
 ≈ −$2.60. DECLINED as false economies (each examined): meter (perceived-value king),

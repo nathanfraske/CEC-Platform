@@ -1,5 +1,25 @@
 # Current work handoff
 
+## INSTANT-ON BYPASS APPLIED (2026-07-25 ~06:50Z, owner UX challenge, on pipeline-pass-2)
+Owner: "have to charge up the tester before I use it at all? ...any other alternative?" —
+premise was half-wrong (neons always-instant, no ritual) but the ~23s first-plug dark panel
+was real. FIX APPLIED (~$0.10, no new SKUs): harvest front end = 5VSB⊕5V⊕USB -> ONE common
+ORing node -> TWO fused legs, both fusibles on the brick: RW_H 33R -> Z_ST -> store (as
+before) ∥ NEW RW_D 33R -> D_DOM -> Z_DOM+C_DOM -> domain rail; store joins domain via D_ST2
+=> domain = diode-OR(harvest-direct, store). First light ~ms on any live rail or USB brick;
+store = ride-through + LAMP TEST only (floor 2.5->2.8V via D_ST2 drop: 8.6J ~4.5min ~5
+sessions, usable ~30s, full ~2min). J_BRICK/J_B1 2x10 -> 2x11 (harvest in + 2 legs out).
+BOM deltas: SS34 3->5 (D_DOM,D_ST2), SMAZ5V6 1->2 (Z_DOM), brick KNP33R 1->2 (RW_D) — all
+existing lines, qty/ref edits only. Files: README §2 (power para rewritten) + §2 table/§4
+LAMP-TEST/§6 VE note, bom/bom.csv (7 lines), brick/{README,bom} , block/ctl/board-map SVGs,
+concept doc §9.7 addendum. ALSO fixed VE-pass stragglers found by verification grep: brick
+README still said 8x GDT (VE-1 = 5), SVGs still said 4x LM339 / 23J~12min~16 sessions /
+$42-43 rollup / "mating-wear ~30 cycles" snout legend / TL431 typo — all now current.
+FOLLOWUPS: +1 arc-bench item (Z_ST/Z_DOM may fail-short on worst half-cycle — safe direction,
+confirm at the existing arc gate). NOT changed: TEST-held UX, STORE-OK semantics, ruled
+decisions — this is a refinement inside ruled #3 power architecture; flagged to owner as
+applied-reversible.
+
 ## VE PASS APPLIED (2026-07-25 ~04:55Z, owner ask, on pipeline-pass-2)
 Applied: VE-1 GDTs core-5-only (AUX = MOV+fuse, pre-#14 safe; -1.70), VE-2 supercaps 5F->2F
 Pro-provision cells (-1.00; ~6 sessions, <60s recharge unchanged), VE-3 NE_BF deleted (-0.15);

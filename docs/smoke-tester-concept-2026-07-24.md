@@ -256,6 +256,17 @@ moment); Li-ion was considered and rejected for this duty (UN38.3 shipping, BMS,
 aging, and a fire-adjacent chemistry inside the fire-eating box). Board spec of
 record: beta/smoke-tester/README.md §2.
 
+**2026-07-25 addendum (owner first-use-UX challenge — "do I have to charge it up
+before I use it at all?" — answer: NO, and now structurally no):** the domain rail
+became a diode-OR of a second fused harvest-direct leg (RW_D 33 Ω on the brick →
+D_DOM → Z_DOM/C_DOM) and the store (via D_ST2). First light ≈ instant (~ms) on any
+live DUT rail or USB brick — no pre-charge ritual, no first-plug dark window; the
+store's job narrows to ride-through + LAMP TEST depth. Same-day VE-2 had already
+cut the cells 5 F→2 F, so the figures in the paragraph above are superseded twice:
+current numbers are 1 F net, 5.0→2.8 V = 8.6 J ≈ ~4.5 min held-TEST ≈ ~5 sessions,
+store usable ~30 s / full ~2 min. Spec of record unchanged:
+beta/smoke-tester/README.md §2.
+
 ### 9.8 Platform-impact resolution (owner Q, 2026-07-25: "does tester use force every
 platform input/output onto a daughterboard?") — NO, three-layer answer
 
