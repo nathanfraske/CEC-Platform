@@ -3003,6 +3003,71 @@ def _dogleg_candidates(S, T):
     return out
 
 
+def _locked_pad_contact(board, pad, *, tracks=None):
+    """True iff a LOCKED same-net track ENDS on *pad* -- endpoint HitTest at the track's
+    HALF-WIDTH tolerance (an endpoint within half a track width of the pad boundary lays
+    copper overlapping the pad = electrically connected; closes the pad-edge/centerline
+    mismatch class without touching the authored geometry). This is the ONE detection the
+    blueprint-tap coverage handshake uses (owner ruling 2026-07-25, blueprint Kelvin tap
+    discipline): a stamped cell's authored tap copper is laid LOCKED at materialize, so
+    locked pad contact == "this sense input already carries its authored tap".
+
+    *tracks* optionally narrows the scan to a prefiltered track list (per-pair loops)."""
+    nn = pad.GetNetname()
+    src = tracks if tracks is not None else board.GetTracks()
+    for t in src:
+        if t.GetClass() != "PCB_TRACK" or not t.IsLocked() or t.GetNetname() != nn:
+            continue
+        tol = max(0, t.GetWidth() // 2)
+        for end in (t.GetStart(), t.GetEnd()):
+            try:
+                hit = pad.HitTest(end, tol)
+            except Exception:                       # noqa: BLE001 -- older binding: no accuracy arg
+                hit = pad.HitTest(end)
+            if hit:
+                return True
+    return False
+
+
+def _tap_leg_collider(board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_code):
+    """NAME the first item that blocks leg S->T (the refuse-loud half of canonical-or-
+    refuse): the same Collide() geometry as _tap_foreign_clear/_tap_pair_overlap_clear,
+    but returning WHAT collided ("pad U12.7 [GND]" / "track [/THRESH]" / "sense pad
+    RS3.1 [/SENSE3V3_HI]") so a refusal reports the blocking item the pour/placement
+    rung must fix. Cold path -- runs only when a leg is already known refused."""
+    seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    near_nm = _nm(0.02)
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        for p in fp.Pads():
+            nc = p.GetNetCode()
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if nc in sense_codes:
+                    if nc != own_code and p.GetEffectiveShape(layer_id).Collide(seg, near_nm):
+                        return "sense pad %s.%s [%s]" % (ref, p.GetPadName(), p.GetNetname())
+                elif p.GetEffectiveShape(layer_id).Collide(seg, clr_nm):
+                    return "pad %s.%s [%s]" % (ref, p.GetPadName(), p.GetNetname())
+            except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+    for t in board.GetTracks():
+        if t.GetNetCode() in sense_codes:
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            if layer_id not in t.GetLayerSet().CuStack():
+                continue
+        elif t.GetLayer() != layer_id:
+            continue
+        try:
+            if t.GetEffectiveShape(layer_id).Collide(seg, clr_nm):
+                kind = "via" if t.Type() == pcbnew.PCB_VIA_T else "track"
+                return "%s [%s]" % (kind, t.GetNetname())
+        except Exception:                           # noqa: BLE001
+            continue
+    return None
+
+
 def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=9.0,
                            clearance=0.2):
     """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
@@ -3036,7 +3101,27 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
     SELF-GATING: a board with no 2-pad straddle shunt, or no INA input pad on a sense net within
     max_ic_mm of the shunt (shared-bus 24-pin / filtered 12VHPWR lanes), lays nothing and is a no-op.
     Pass an already-loaded *board* (additive, in place). Returns a report dict
-    {taps, by_net: {net: ["RSn->Uk.pad", ...]}, refused: {net: [...]}}."""
+    {taps, by_net: {net: ["RSn->Uk.pad", ...]}, refused: {net: [...]}, covered: {net: [...]}}.
+
+    BLUEPRINT KELVIN TAP DISCIPLINE (owner ruling 2026-07-25, recorded at the end of
+    docs/slab-pour-design-2026-07-24.md; measured on wave s464 -- precision_route ran this
+    synthesizer on materialized boards whose stamped cells already carried their AUTHORED
+    orthogonal taps, laying+locking a straight-DIAGONAL fallback to the INA181 on top of
+    every cell):
+      * COVERED-LEG SKIP (every caller inherits -- precision, import_ses, direct): an IC
+        input pad already contacted by LOCKED same-net copper (endpoint HitTest at track
+        half-width, _locked_pad_contact) is the stamped cell's authored tap -- the leg is
+        SKIPPED and reported under 'covered', never double-laid.
+      * CANONICAL-OR-REFUSE on locked-copper pairs: a pair whose _HI/_LO nets carry ANY
+        locked track (a stamped blueprint cell, force rails, or precision-locked copper)
+        gets ONLY the textbook shape (_canonical_tap_path: perpendicular off the inner
+        edge, one 90, land on the IN pad) -- the straight-diagonal / dogleg / vbus-bridge
+        fallbacks are REMOVED for that pair; a blocked canonical REFUSES LOUDLY with the
+        blocking item NAMED (_tap_leg_collider) so the pour/placement rung fixes the real
+        conflict. No 45-degree segments, no side exits on a stamped cell.
+      * LEGACY LADDER PRESERVED where the pair's nets carry NO locked copper (the eps
+        golden path: floorplan has 0 tracks, FR output is unlocked) -- canonical ->
+        straight -> bent -> vbus bridge, byte-identical behavior."""
     from collections import defaultdict
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
@@ -3059,7 +3144,7 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
     if f_cu < 0:
         raise KeyError(f"cec_fr.synthesize_kelvin_taps: layer {layer!r} not found")
     clr_nm = _nm(clearance)
-    laid, report, refused = [], {}, {}
+    laid, report, refused, covered = [], {}, {}, {}
     pending = []                                              # decide-then-lay: guard sees no in-call taps
     for hi, lo in kelvin_pairs:
         # the shunt is the footprint straddling BOTH halves with EXACTLY 2 pads (same test as
@@ -3074,6 +3159,13 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
         # B.Cu -- keyed off the SHUNT footprint's face (the chain shares it by invariant).
         sh_fp = next((f for r, _p, f in pads_by_net.get(hi, []) if r == sh), None)
         lay_id = board.GetLayerID("B.Cu") if (sh_fp is not None and sh_fp.IsFlipped()) else f_cu
+        # LOCKED-COPPER MODE (the 2026-07-25 discipline): any locked track on this pair's
+        # nets marks stamped-cell / rails / precision territory -- covered legs are
+        # skipped, uncovered legs go canonical-or-refuse. Empty on the golden/legacy path.
+        locked_pair_tracks = [t for t in board.GetTracks()
+                              if t.GetClass() == "PCB_TRACK" and t.IsLocked()
+                              and t.GetNetname() in (hi, lo)]
+        locked_mode = bool(locked_pair_tracks)
         sh_pad = {}
         for net in (hi, lo):
             for r, p, _fp in pads_by_net.get(net, []):
@@ -3118,6 +3210,14 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             for r, p in sorted(ic_pad.items()):
                 T = p.GetPosition()
                 lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
+                # COVERED-LEG SKIP (2026-07-25 discipline): this input pad already
+                # carries LOCKED same-net tap copper (the stamped cell's authored tap
+                # or a precision pre-FR tap) -- never lay a second tap on it. The
+                # per-LEG grain (not per-pair) means a partially-covered pair still
+                # gets its missing legs handled without doubling the present ones.
+                if _locked_pad_contact(board, p, tracks=locked_pair_tracks):
+                    covered.setdefault(net, []).append(lbl + " (locked tap present)")
+                    continue
                 # CANONICAL FIRST (owner 2026-07-08): the textbook datasheet tap --
                 # perpendicular off the inner edge, straight run inward, ONE 90 toward
                 # the sense IC. Preferred over the direct diagonal whenever it guards
@@ -3134,6 +3234,29 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                            for a, b in legs):
                         pending.append((canon, nc, net, lbl + " (canonical)", lay_id))
                         continue
+                if locked_mode:
+                    # CANONICAL-OR-REFUSE (owner ruling 2026-07-25): on a pair with
+                    # locked copper (stamped cell / rails / precision) the diagonal
+                    # and dogleg fallbacks are REMOVED -- refuse LOUDLY, naming the
+                    # blocking item so the pour/placement rung fixes the real
+                    # conflict instead of this pass papering over it with bent
+                    # copper on the owner's shunt-zoom renders.
+                    if canon is None:
+                        why = ("no canonical geometry (IC not inward of the shunt "
+                               "pad's inner edge)")
+                    else:
+                        why = None
+                        for a, b in zip(canon, canon[1:]):
+                            if a == b:
+                                continue
+                            why = _tap_leg_collider(board, a, b, _nm(width), lay_id,
+                                                    clr_nm, sense_codes, nc)
+                            if why:
+                                break
+                        why = why or "canonical leg blocked (collider unresolved)"
+                    refused.setdefault(net, []).append(
+                        lbl + " CANONICAL-REFUSED: " + why)
+                    continue
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
                 if _tap_foreign_clear(board, S, T, _nm(width), lay_id, clr_nm, sense_codes):
                     pending.append(([S, T], nc, net, lbl, lay_id))
@@ -3164,7 +3287,10 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             # 0.5mm below it INSIDE the reserved tap channel -- FR is kept out of the channel,
             # so bridge the two same-net pads with a stub here (what a hand layout does). Only
             # for the LO role of a recognised part, only when both pads are on this net.
-            if role == "LO":
+            # LOCKED-COPPER pairs get NO bridge (2026-07-25 discipline: no vbus-bridge shapes
+            # on a stamped cell -- pad 8 is a high-Z tap FR routes normally, it was never
+            # excluded from the DSN, see kelvin_sense_pins).
+            if role == "LO" and not locked_mode:
                 for r, p in sorted(ic_pad.items()):
                     fp9 = ic_fp.get(r)
                     if fp9 is None or _sense_in_pad(fp9, "LO") != p.GetPadName():
@@ -3190,7 +3316,8 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             laid.append(t)
         report.setdefault(net, []).append(lbl)
     return {"taps": sum(len(v) for v in report.values()),
-            "by_net": report, "refused": refused, "segments": len(laid)}
+            "by_net": report, "refused": refused, "covered": covered,
+            "segments": len(laid)}
 
 
 def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
@@ -4153,29 +4280,33 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         _uncovered = None
         if skip_locked_taps:
             def _net_tap_covered(net):
+                # detection via _locked_pad_contact (2026-07-25): endpoint HitTest at
+                # the locked track's HALF-WIDTH, so an authored tap terminating on the
+                # pad edge (not centerline) still counts as coverage.
                 _pads = [p for fp in board.GetFootprints() for p in fp.Pads()
                          if p.GetNetname() == net
                          and "INA" in (fp.GetValue() or "").upper()]
                 if not _pads:
                     return True                  # no INA pad -> nothing owed
-                for t in board.GetTracks():
-                    if (t.GetClass() != "PCB_TRACK" or not t.IsLocked()
-                            or t.GetNetname() != net):
-                        continue
-                    for _end in (t.GetStart(), t.GetEnd()):
-                        if any(p.HitTest(_end) for p in _pads):
-                            return True
-                return False
+                return any(_locked_pad_contact(board, p) for p in _pads)
             _prs = _board_kelvin_pairs(board)
             _uncovered = [pr for pr in _prs
                           if not (_net_tap_covered(pr[0]) and _net_tap_covered(pr[1]))]
             _has_locked_taps = bool(_prs) and not _uncovered
+            if _uncovered:
+                print(f"[cec_fr] kelvin taps: {len(_uncovered)}/{len(_prs)} pair(s) "
+                      f"UNCOVERED by locked tap copper: {_uncovered}", file=sys.stderr)
         if os.environ.get("CEC_KELVIN_TAPS", "1") != "0" and not _has_locked_taps:
             kt = synthesize_kelvin_taps(
                 board, kelvin_pairs=(_uncovered if skip_locked_taps else None))
             if kt["taps"]:
                 print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
                       f"{kt['by_net']}", file=sys.stderr)
+            if kt.get("covered"):
+                print(f"[cec_fr] kelvin taps: covered legs skipped (locked tap present) "
+                      f"{kt['covered']}", file=sys.stderr)
+            if kt.get("refused"):
+                print(f"[cec_fr] kelvin taps: REFUSED {kt['refused']}", file=sys.stderr)
         elif _has_locked_taps:
             print("[cec_fr] kelvin taps: every pair carries LOCKED pad-contact tap copper -- "
                   "skipping re-synthesis (precision pre-FR taps already laid + protected)",

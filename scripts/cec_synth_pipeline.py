@@ -9140,11 +9140,21 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             prec_report["refused_pair_tier"] = tier_nets
                         except Exception as _te:         # noqa: BLE001 -- fail-safe
                             prec_report["refused_pair_tier_error"] = str(_te)[:160]
-                with cec_cell_extract.guard_kelvin_double_lay(cec_fr, _locked_bp):
-                    cand = cec_fr.route_once(route_input, routed, hints=hints, power_pours=pours,
-                                             passes=passes, opt_time=opt, seed=seed,
-                                             timeout=int(fr_timeout),
-                                             protect_nets=_protect, skip_locked_taps=_skip_taps)
+                # GUARD RETIRED (2026-07-25, blueprint Kelvin tap discipline): the
+                # guard_kelvin_double_lay NET-level wrap is superseded by the PER-LEG
+                # locked-coverage skip inside cec_fr.synthesize_kelvin_taps itself
+                # (every caller inherits it -- including cec_precision_route, which
+                # the wrap never covered and which was the measured double-lay path:
+                # wave s464 carried the synthesizer's locked straight-DIAGONAL to the
+                # INA181 on top of every authored cell tap). The wrap was also
+                # measurably WRONG on rails boards: force rails lock the sense nets,
+                # so its net-level skip dropped every pair -- including a REFUSED
+                # cell's pair, silently stranding FR-excluded INA inputs (the codex
+                # stack-audit #9 class, alive at the guard layer).
+                cand = cec_fr.route_once(route_input, routed, hints=hints, power_pours=pours,
+                                         passes=passes, opt_time=opt, seed=seed,
+                                         timeout=int(fr_timeout),
+                                         protect_nets=_protect, skip_locked_taps=_skip_taps)
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
