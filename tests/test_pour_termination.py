@@ -78,6 +78,31 @@ class SubtractRectTest(unittest.TestCase):
                                     (4.0, 4.0, 6.0, 6.0))
         self.assertEqual(out, [], "a pour that is ALL gap must produce no copper")
 
+    def test_chained_clips_never_leave_a_hole_outside_the_outline(self):
+        """The bug that made every force pour fill as a scrap.
+
+        Clip 1 (the tap gap) sits INSIDE the pour -> the result carries a hole.
+        Clip 2 (terminate-at-the-pad) then removes the whole region that hole
+        lived in. Subtracting only the exterior and carrying the hole across left
+        a zone whose hole lay outside its own outline -- malformed geometry that
+        KiCad filled with 16.6mm2 of a 170mm2 pour. Every surviving hole must lie
+        inside its own exterior.
+        """
+        gap = (4.0, 4.0, 6.0, 6.0)          # interior -> makes a hole
+        step1 = cec_fr._subtract_rect(self.RECT, gap)
+        self.assertTrue(any(hs for _e, hs in step1), "clip 1 should create a hole")
+        halfplane = (-1.0, 3.0, 11.0, 11.0)  # removes everything at/below y=3
+        for ext, holes in step1:
+            for ext2, holes2 in cec_fr._subtract_rect(ext, halfplane, holes):
+                ex0 = min(q[0] for q in ext2); ex1 = max(q[0] for q in ext2)
+                ey0 = min(q[1] for q in ext2); ey1 = max(q[1] for q in ext2)
+                for h in holes2:
+                    hx0 = min(q[0] for q in h); hx1 = max(q[0] for q in h)
+                    hy0 = min(q[1] for q in h); hy1 = max(q[1] for q in h)
+                    self.assertTrue(ex0 <= hx0 and hx1 <= ex1 and ey0 <= hy0 and hy1 <= ey1,
+                                    f"hole {h} lies outside its exterior "
+                                    f"({ex0},{ey0})-({ex1},{ey1}) -- the filler will scrap this zone")
+
     def test_gap_through_the_middle_splits_the_pour(self):
         out = cec_fr._subtract_rect(self.RECT, (4.0, -1.0, 6.0, 11.0))
         self.assertGreaterEqual(len(out), 2,

@@ -1343,8 +1343,15 @@ def shunt_pour_forbidden(board, *, prefix="RS", margin_mm=0.0):
     return out
 
 
-def _subtract_rect(poly, rect):
-    """poly (list of (x, y)) minus an axis-aligned rect -> list of polygons.
+def _subtract_rect(poly, rect, holes=()):
+    """polygon (exterior + holes) minus an axis-aligned rect -> [(ext, holes), ...].
+
+    HOLE-AWARE BY CONSTRUCTION (bug fixed 2026-07-25). Chaining two clips while
+    subtracting only the EXTERIOR and carrying the previous holes across produced
+    a zone whose hole lay OUTSIDE its own outline -- malformed geometry that
+    KiCad's filler turns into a scrap: /SENSEC1_HI came out with a correct
+    (29.84,6.30)-(44.44,17.95) outline and 16.6mm2 of fill inside ~170mm2 of it.
+    The subtraction now runs on the whole polygon, interiors included.
 
     Uses shapely when present; falls back to an exact rectangle split when the
     polygon is itself axis-aligned rectangular (which every stamped force pour
@@ -1354,10 +1361,10 @@ def _subtract_rect(poly, rect):
     xs = [q[0] for q in poly]
     ys = [q[1] for q in poly]
     if not xs or max(xs) <= x0 or min(xs) >= x1 or max(ys) <= y0 or min(ys) >= y1:
-        return [(poly, [])]                                 # no overlap: untouched
+        return [(poly, list(holes or []))]                  # no overlap: untouched
     try:
         from shapely.geometry import Polygon, box as _box
-        g = Polygon(poly).buffer(0).difference(_box(x0, y0, x1, y1))
+        g = Polygon(poly, holes or ()).buffer(0).difference(_box(x0, y0, x1, y1))
         if g.is_empty:
             return []
         parts = list(getattr(g, "geoms", [g]))
@@ -1379,8 +1386,8 @@ def _subtract_rect(poly, rect):
         pass
     # rect-minus-rect (host fallback): up to four surviving slabs
     px0, px1, py0, py1 = min(xs), max(xs), min(ys), max(ys)
-    if len({(round(q[0], 6), round(q[1], 6)) for q in poly}) != 4:
-        return [(poly, [])]                                 # not a rect: leave it
+    if holes or len({(round(q[0], 6), round(q[1], 6)) for q in poly}) != 4:
+        return [(poly, list(holes or []))]                  # holes/non-rect: leave it
     out = []
     for r in ((px0, py0, px1, min(py1, y0)),                # above the gap
               (px0, max(py0, y1), px1, py1),                # below
@@ -1461,11 +1468,10 @@ def enforce_pour_termination(board, *, refill=True):
             for _lays, rect, _ref, _rnet in mine:
                 nxt = []
                 for ext, holes in kept:
-                    res = _subtract_rect(ext, rect)
+                    res = _subtract_rect(ext, rect, holes)
                     if len(res) != 1 or res[0][0] is not ext:
                         touched = True
-                    for ext2, holes2 in res:
-                        nxt.append((ext2, holes + holes2))
+                    nxt.extend(res)
                 kept = nxt
             if not touched:
                 continue
@@ -1606,11 +1612,10 @@ def add_power_pours(board, pours, *, fill: bool = False):
                 continue
             _next = []
             for _ext, _holes in _polys:
-                _res = _subtract_rect(_ext, _grect)
+                _res = _subtract_rect(_ext, _grect, _holes)
                 if len(_res) != 1 or _res[0][0] is not _ext:
                     _clipped += 1
-                for _e2, _h2 in _res:
-                    _next.append((_e2, _holes + _h2))
+                _next.extend(_res)
             _polys = _next
         if not _polys:
             print(f"[cec_fr] add_power_pours: pour {net} dropped -- it was entirely "
