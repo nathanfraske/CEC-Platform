@@ -1202,6 +1202,20 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         for ext in (".kicad_pro", ".kicad_dru"):
             if os.path.isfile(base + ext):
                 shutil.copy(base + ext, dst[:-len(".kicad_pcb")] + ext)
+        # PUBLISH HYGIENE (2026-07-25, measured on the pass-2 winner: a
+        # zero-fill `pourplan:` zone survived to the published board --
+        # whichever stage wrote LAST is not guaranteed to have run the
+        # cleanup chain, so the published artifact runs it itself; fresh
+        # cycles, owner-review surface = the enforcement surface).
+        try:
+            import cec_slab_pour as _csp2
+            _csp2.cleanup_floating_zones(dst)
+            if _bp.get("pour_first") or _bp.get("slab_pour") \
+                    or _bp.get("overunder"):
+                _csp2.reap_nowhere_zones(dst)
+        except Exception as _ce:                            # noqa: BLE001
+            print(f"[wave] {board} publish hygiene skipped ({_ce})",
+                  flush=True)
     new_best = _new_best_thermal(best, pub_dir, _bp)
     if new_best:
         _th = best.get("thermal") or {}

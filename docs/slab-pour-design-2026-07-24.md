@@ -471,4 +471,32 @@ per-island fields, ask-layer-preference, width-infeasible space), tests/test_ove
 (fields at run boundaries only, vacated layer carries nothing, rect leaner than smear,
 F-admit clip), tests/test_pour_first.py (enumerate_winning: winning lane + attach
 manifold survive, duplicate layer dies, bridge/barrel covers survive, gang keep,
-no-path keeps manifolds; zero-cluster verdict override). 80/80 in-container.
+no-path keeps manifolds; zero-cluster verdict override incl. the real-board reaper).
+80/80 in-container.
+
+**Pass 2b/2c (same day, live-wave-measured closures):** (a) local-cells F landing (a
+mixed-native super-group skipped its landing under the strict native=={F} test; the
+union bbox would have been a blob — the landing embeds F-anchored cells near the attach
+only); (b) `_lay_attach_geom` — native attach targets the layer's ACTUAL anchored cells
+(a cluster's B-nativeness can be three via cells; its bbox edge is not copper — measured
+as +5V_MAIN's verify split); (c) neck length discipline — a contiguous sub-width run
+beyond 4.8mm is legal only as a MINORITY of its corridor (measured degenerate case: a
+9.7mm 0.8mm spine on a 10mm run passing the invariant at 20A; an absolute cap was tried
+and measurably demoted /SENSE5V_HI's working plan — the ratio rule keeps it);
+(d) 4-connected spine line-stamping into the connectivity verify (cell-center stamping
+missed sub-cell spines entirely; naive walks stamp diagonal staircases 4-conn labeling
+splits); (e) reap_nowhere_zones' pre-verdict name skip removed (the zero-cluster
+override never fired — measured: a sliver-fill `pourplan:` zone survived to the
+published winner) + PUBLISH HYGIENE in cec_fresh_wave (the published artifact runs the
+cleanup chain itself — whichever stage wrote last is not guaranteed to have).
+**Acceptance (wave s530-532, winner plain-compact-s532-polish, render
+build/wave-snaps/atx-24pin-rev3/PASS2-winner-plain-compact-s532-hex.png, worklogged):**
+planner-owned 6/9 (REGION +3V3 on In2 with 11 terminal fields; PLANNED +5V_MAIN,
+/SENSE5V_HI, /SENSE12V_LO; TRIVIAL /SENSE3V3_LO + /SENSE5VSB_LO via pre-connect),
+paths 7/9; measured on the published board: 0 zero-cluster zones, 0 zero-fill zones,
+0 orphan In2 stubs, 0 padless track clusters; +5V_MAIN (solved on B) carries no In2
+copper. Residual honest classes: +5VSB + /SENSE12V_HI no-path (the J3-belt width
+physics, both engines agree — the corridor abstraction cannot count PARALLEL gap
+cross-sections at a connector belt, the standing owner design question; force-rail
+REFUSALS of RS1/RS2 remove their pre-connect); /SENSE3V3_HI neck-rejected to a
+rect-realized fallback (large but corridor-width capsule copper, not smear).

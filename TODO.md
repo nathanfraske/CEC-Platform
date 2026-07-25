@@ -28,9 +28,14 @@ Times are UTC.
   name exemption; zero-fill zones die; orphan-via sweep (pour-live-gated). (5) SINGLE-OWNER
   WHITELIST at the freeze (`enumerate_winning`): 10 insurance dicts dropped per variant; import
   no longer resurrects patches for frozen nets; region layer = the solve's choice (ask = preference).
-  Teeth 80/80 in-container; golden in flake band (unconn 17 / thermal 1799). OPEN: acceptance wave
-  s530-532 render verdict (running); J3-belt class; ROI of a parallel-gap width model at connector
-  belts (the corridor abstraction under-counts parallel-path cross-section — noted for the owner).
+  Teeth 80/80 in-container; golden in flake band (unconn 17 / thermal 1799). ACCEPTANCE DONE:
+  wave s530-532 winner plain-compact-s532-polish — planner-owned 6/9 / paths 7/9; measured on the
+  published board 0 zero-cluster + 0 zero-fill zones, 0 orphan stubs; render PASS2-winner-*-hex.png
+  worklogged (five-class verdict in the dash entry). Pass 2b/2c closures: cell-geometry native
+  attach, neck minority-ratio rule, 4-connected spine stamping, reaper pre-verdict skip removed,
+  publish hygiene. OPEN: J3-belt class (+5VSB, /SENSE12V_HI — corridor abstraction cannot count
+  PARALLEL gap cross-sections at a connector belt; owner design question); /SENSE3V3_HI rides the
+  rect fallback (neck-rejected honestly).
 - [ ] [added 2026-07-25 05:10] **v4 TERRITORY POUR PLANNER — LANDED, 24-pin wave param ON** (owner GO,
   docs/slab-pour-design-2026-07-24.md v4). `scripts/cec_pour_plan.py`: manifolds/patches/terminal
   groups → Prim tree → obstacle-corner corridor candidates (direct/L/bounded corner Dijkstra) →

@@ -492,7 +492,11 @@ class TestNowhereReaperOnRealBoard(unittest.TestCase):
             return z
         zone(2.0, 18.0, "")                 # spans BOTH via clusters -> stays
         zone(24.0, 30.0, "")                # touches NO cluster -> reaped
-        zone(32.0, 38.0, "patch:+5V_TEST")  # 0 clusters but NAMED -> stays
+        # part 4b (owner 2026-07-25): the name exemption protects the
+        # sanctioned SINGLE-cluster judgment only -- a named zone touching
+        # NOTHING dies like any other (measured on the s510 winner)
+        zone(32.0, 38.0, "patch:+5V_TEST")  # 0 clusters, NAMED -> reaped
+        zone(4.0, 8.0, "patch:one")         # 1 cluster, NAMED -> stays
         path = os.path.join(tmp, "reaper-mini.kicad_pcb")
         # ZONE_FILLER segfaults on an in-memory CreateEmptyBoard (measured
         # in-container, 2026-07-25) -- fill on a LOADED board, the pattern
@@ -509,11 +513,14 @@ class TestNowhereReaperOnRealBoard(unittest.TestCase):
         tmp = tempfile.mkdtemp(prefix="cec_reap_test_")
         path = self._mini_board(tmp)
         n = cec_slab_pour.reap_nowhere_zones(path)
-        self.assertEqual(n, 1, "exactly the nowhere zone is reaped")
+        self.assertEqual(n, 2, "the unnamed AND the named zero-cluster "
+                               "zones are reaped")
         after = pcbnew.LoadBoard(path)
         names = sorted(z.GetZoneName() for z in after.Zones())
-        self.assertIn("patch:+5V_TEST", names,
-                      "a named patch is NEVER reaped")
+        self.assertIn("patch:one", names, "a named single-cluster patch "
+                                          "keeps the sanctioned exemption")
+        self.assertNotIn("patch:+5V_TEST", names,
+                         "zero-cluster dies regardless of name (part 4b)")
         self.assertEqual(len(names), 2)
 
 

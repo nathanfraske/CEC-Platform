@@ -1863,8 +1863,11 @@ def reap_nowhere_zones(board_path, *, cell_mm=0.8):
             name = z.GetZoneName() or ""
         except Exception:                              # noqa: BLE001
             name = ""
-        if str(name).startswith(REAP_EXEMPT_PREFIXES):
-            continue
+        # NO early name-exit here (mandate part 4b): the exemption is the
+        # VERDICT's business, and it protects the single-cluster judgment
+        # only -- an exempt-named zone touching ZERO clusters must still
+        # reach _nowhere_zone_verdict to die (measured: the early skip let
+        # a sliver-fill `pourplan:` zone with 0 cluster hits survive).
         nc = z.GetNetCode()
         if nc not in cl_cache:
             cl_cache[nc] = terminal_clusters(board, nc, grid)
