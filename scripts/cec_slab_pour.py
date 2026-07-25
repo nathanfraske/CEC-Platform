@@ -174,18 +174,33 @@ def shave(foreign, anchors, grid, min_w_mm=1.2):
                    "appendages_pruned": pruned}
 
 
-def mask_to_polys(mask, grid, min_area_mm2=6.0):
+def mask_to_polys(mask, grid, min_area_mm2=6.0, smooth=True):
     """Rectilinear exterior outlines from the mask via shapely union of cell
-    runs. Exterior-only is safe: the real filler re-subtracts fine detail."""
+    runs. Exterior-only is safe: the real filler re-subtracts fine detail.
+
+    *smooth* (owner 2026-07-24 "weirdly blocky"): the raster mask
+    OVER-carves -- rasterize() excludes any cell a foreign item merely
+    touches -- so raw outlines staircase at cell size and thin clearance
+    shadows read as random bites. The ZONE_FILLER is the precision
+    authority (it re-subtracts TRUE clearances from whatever outline it is
+    given at fill time), so closing small voids and simplifying steps in
+    the OUTLINE is safe by construction: realized copper only moves toward
+    filler truth, never into a violation, and mask-proven connectivity /
+    min-width can only gain copper, never lose it."""
     from shapely.geometry import box
     from shapely.ops import unary_union
+    from scipy import ndimage
+    m = mask
+    if smooth:
+        _st2 = ndimage.generate_binary_structure(2, 1)
+        m = ndimage.binary_closing(mask, structure=_st2, iterations=2)
     rects = []
     for j in range(grid.ny):
         i = 0
         while i < grid.nx:
-            if mask[j, i]:
+            if m[j, i]:
                 k = i
-                while k < grid.nx and mask[j, k]:
+                while k < grid.nx and m[j, k]:
                     k += 1
                 rects.append(box(grid.x0 + i * grid.cell, grid.y0 + j * grid.cell,
                                  grid.x0 + k * grid.cell,
@@ -196,6 +211,8 @@ def mask_to_polys(mask, grid, min_area_mm2=6.0):
     if not rects:
         return []
     u = unary_union(rects)
+    if smooth:
+        u = u.simplify(min(0.5, grid.cell * 0.7), preserve_topology=True)
     geoms = getattr(u, "geoms", [u])
     out = []
     for g in geoms:
@@ -348,7 +365,7 @@ def terminal_clusters(board, nc, grid):
 
 
 def route_overunder(layers, passable, anchors, clab, nclusters, *,
-                    bias_fn, bridge_cost=8.0):
+                    bias_fn, bridge_cost=8.0, turn_cost=1.75):
     """PURE-RASTER core of the over-under pathfinder (owner v2 design, step
     3): grow ONE multi-layer Steiner-ish tree connecting every terminal
     cluster 1..nclusters recorded in *clab* (a (ny,nx) int label array, 0 =
@@ -430,42 +447,51 @@ def route_overunder(layers, passable, anchors, clab, nclusters, *,
 
     bridges = []
     INF = float("inf")
+    MOVES = ((-1, 0), (1, 0), (0, -1), (0, 1))
     while remaining:
-        dist = np.full((nlay, ny, nx), INF)
+        # DIRECTION-STATE Dijkstra (owner 2026-07-24 "laid very willy-nilly":
+        # the direction-blind search wandered wherever cost ties broke, so
+        # lanes snaked. State = (layer, row, col, incoming-move); every
+        # heading change pays *turn_cost* on top of the cell bias, so lanes
+        # run straight like intentional trunks and turn only when the board
+        # makes them. dir 4 = seed/no-heading (tree cells; bridges keep the
+        # heading across the layer change).
+        dist = np.full((nlay, ny, nx, 5), INF)
         parent = {}
         heap = []
         for (r, c, li) in tree:
-            dist[li, r, c] = 0.0
-            heapq.heappush(heap, (0.0, r, c, li))
+            dist[li, r, c, 4] = 0.0
+            heapq.heappush(heap, (0.0, r, c, li, 4))
         found = None
         while heap:
-            d, r, c, li = heapq.heappop(heap)
-            if d > dist[li, r, c]:
+            d, r, c, li, di = heapq.heappop(heap)
+            if d > dist[li, r, c, di]:
                 continue                        # stale heap entry
             lay = layers[li]
             cid = int(clab[r, c])
             if cid in remaining and anchors[lay][r, c]:
-                found = (r, c, li, cid)
+                found = (r, c, li, di, cid)
                 break
-            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            for ndir, (dr, dc) in enumerate(MOVES):
                 nr, ncc = r + dr, c + dc
                 if not (0 <= nr < ny and 0 <= ncc < nx):
                     continue
                 if not passable[lay][nr, ncc]:
                     continue
-                nd = d + bias_fn(lay, nr, ncc)
-                if nd < dist[li, nr, ncc]:
-                    dist[li, nr, ncc] = nd
-                    parent[(nr, ncc, li)] = (r, c, li)
-                    heapq.heappush(heap, (nd, nr, ncc, li))
+                nd = d + bias_fn(lay, nr, ncc) + (
+                    turn_cost if di not in (ndir, 4) else 0.0)
+                if nd < dist[li, nr, ncc, ndir]:
+                    dist[li, nr, ncc, ndir] = nd
+                    parent[(nr, ncc, li, ndir)] = (r, c, li, di)
+                    heapq.heappush(heap, (nd, nr, ncc, li, ndir))
             for oli, olay in enumerate(layers):
                 if oli == li or not passable[olay][r, c]:
                     continue                    # bridge needs BOTH sides
                 nd = d + bridge_cost
-                if nd < dist[oli, r, c]:
-                    dist[oli, r, c] = nd
-                    parent[(r, c, oli)] = (r, c, li)
-                    heapq.heappush(heap, (nd, r, c, oli))
+                if nd < dist[oli, r, c, di]:
+                    dist[oli, r, c, di] = nd
+                    parent[(r, c, oli, di)] = (r, c, li, di)
+                    heapq.heappush(heap, (nd, r, c, oli, di))
         if found is None:
             cid = next(iter(remaining))
             ys, xs = np.where(clab == cid)
@@ -475,13 +501,20 @@ def route_overunder(layers, passable, anchors, clab, nclusters, *,
                 "reason": "no route from the connected tree "
                           "(eroded masks disconnect the terminals)",
             }
-        r, c, li, cid = found
-        node = (r, c, li)
-        chain = [node]
-        while node in parent and node not in tree:
+        r, c, li, di, cid = found
+        node = (r, c, li, di)
+        chain4 = [node]
+        while node in parent and (node[0], node[1], node[2]) not in tree:
             node = parent[node]
-            chain.append(node)
-        chain.reverse()
+            chain4.append(node)
+        chain4.reverse()
+        # project the direction-states back to cells; consecutive repeats
+        # (same cell re-entered under another heading) collapse so the
+        # bridge detector below sees each position once per layer visit
+        chain = []
+        for (pr, pc, pli, _pdi) in chain4:
+            if not chain or chain[-1] != (pr, pc, pli):
+                chain.append((pr, pc, pli))
         prev_li = None
         for i, (pr, pc, pli) in enumerate(chain):
             lay = layers[pli]
@@ -725,6 +758,20 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
             print(f"[cec_slab_pour] over-under: widened {net} search to "
                   f"{extra} (terminal cluster(s) {helped} anchored only "
                   f"there)", file=sys.stderr)
+        # F.Cu HARD CONSTRAINT (owner categorical rule 2026-07-24 "top
+        # pours only around the shunts" + the s427 sprawl finding: the
+        # f_prox SOFT bias let a widened net whose terminals are all
+        # F-anchored -- e.g. +5VSB's decoupling caps board-wide -- route
+        # its WHOLE lane on F.Cu). F transit cells now exist only inside
+        # shunt neighborhoods or hugging the net's own F anchors (short
+        # landing patches, ~2.4mm); any longer F run is impossible, so the
+        # search bridges to an inner/bottom layer instead. Anchors stay
+        # passable by the passable-=eroded|anchors construction above.
+        if "F.Cu" in passable:
+            passable["F.Cu"] &= (
+                ndimage.binary_dilation(anchors["F.Cu"], structure=st,
+                                        iterations=3)
+                | shunt_mask | anchors["F.Cu"])
         f_prox = None
         if "F.Cu" in anchors:
             f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
