@@ -1,5 +1,14 @@
 # Current work handoff
 
+## SIGN-OFF BOARD MAP DELIVERED (2026-07-25 ~03:00Z, on pipeline-pass-2)
+Owner loved the arcs riff ('that's the way to do it') and asked for the all-boards+connections
+diagram to consider and SIGN OFF. smoke-tester-board-map.svg REBUILT as the sign-off instrument:
+4 boards (main/faceplate/brick/snout) + accessories, full connector census, arcs additions
+flagged with diamonds (diagram assumes #14=BOTH per the rec), theater bay, power block, fab+cost
+(landed ~$42-43@100 w/ arcs, retail holds $79), spectacle-ladder rules, and an OPEN-DECISIONS
+box (#2-#5, #8-#14 with recommendations; ruled items excluded) + signature line. AWAITING OWNER
+SIGN-OFF on that decision set; README/BOM still pre-arcs until the nod lands.
+
 ## ARCS RIFF RECORDED (2026-07-25 ~02:30Z, owner ask, on pipeline-pass-2)
 Concept 9.10 + owner-queue decision #14: (a) GLASS GDTs on the brick = real arc flash in the
 witness window powered by the fault's own energy AND a harder mains-class crowbar (GDT+fuse
