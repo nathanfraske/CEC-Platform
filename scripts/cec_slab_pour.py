@@ -1432,7 +1432,7 @@ def pourfirst_conv_split(power_pours, frozen_nets, full):
     return conv, frozen, keep_rest
 
 
-REAP_EXEMPT_PREFIXES = ("patch:", "manifold:", "pourfirst:")
+REAP_EXEMPT_PREFIXES = ("patch:", "manifold:", "pourfirst:", "pourplan:")
 
 
 def _nowhere_zone_verdict(zone_name, netname, clusters_hit):

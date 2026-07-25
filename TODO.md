@@ -14,6 +14,21 @@ Times are UTC.
 
 ## Active
 
+- [ ] [added 2026-07-25 05:10] **v4 TERRITORY POUR PLANNER — LANDED, 24-pin wave param ON** (owner GO,
+  docs/slab-pour-design-2026-07-24.md v4). `scripts/cec_pour_plan.py`: manifolds/patches/terminal
+  groups → Prim tree → obstacle-corner corridor candidates (direct/L/bounded corner Dijkstra) →
+  exact-at-scale B&B layer assignment (most-constrained-first) → crossing SPLIT w/ ONE compact
+  field → geometric min-width proof + raster clearance/attach verification → per-net LOUD
+  route_overunder fallback (the Dijkstra demoted). Via-line ROOT CAUSE probed + double-ablated
+  (design doc v4 state note): 16 F-only SMD islands = mask-forced terminal attaches, mess was
+  realization smear — NOT a search bug. s464: **7/9 planned (baseline 6/9), zero mid-span fields,
+  every field terminal-labeled**; fails (+5VSB, /SENSE12V_HI) ⊂ baseline's 3 (J3-belt class, the
+  standing owner question). Teeth tests/test_pour_plan.py (8); all pour suites 46 green
+  in-container; golden untouched (flake band unconn 17 / thermal 1799). `pour_plan: True` in the
+  24-pin params; `cec_pourfirst.py --v4` standalone; artifact POURFIRST-*-s464-v4-hex.png on the
+  dash. OPEN: first full wave with the param on (fail-open protects); +5VSB//SENSE12V_HI belt
+  crossing = owner design question; capsule end-caps cosmetic (round lollipops).
+
 - [ ] [added 2026-07-25 02:45] **POUR-FIRST PLACEMENT RUNG (owner v3/v3.1 ruling) — pipeline seam landed.**
   `csp.pour_first_stage` wired into `_build_session` behind param `pour_first` (24-pin ON): anchor-only
   materialize (connectors+stamps+MCU from `Candidate.pourfirst_anchor_refs`) → one solve (v3.1

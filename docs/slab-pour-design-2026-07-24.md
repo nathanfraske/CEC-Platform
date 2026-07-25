@@ -246,6 +246,59 @@ synthesis (Steiner + current-driven sizing), OARSMT.
 rung until the critical points are perfect.** The pour state is the active development
 front; later-rung graduation waits on owner sign-off of the pour artifacts.
 
+**Via-line ROOT CAUSE (2026-07-25, probed + double-ablated on the s464 skeleton — the
+mandatory diagnosis before the v4 build):** the "13 vias in a line across x=25-57" is NOT
+a Dijkstra cost-accounting bug and NOT a B-mask defect. +3V3 has 16 terminal clusters on
+the skeleton, ALL anchored only on F.Cu (each stamped sense cell contributes FOUR separate
++3V3 SMD islands — INA238/INA181/TLV7011/RC — in a 4x4 lattice at x≈25/35/46/56 ×
+y≈22.5/27.3/31.3/40.1, + ESP32). Every F-only island mathematically requires >=1 layer
+change to reach the In2 trunk, and inter-island F transit is genuinely impassable on the
+eroded masks. The instrumented per-round audit shows the trunk stays DOWN on In2 (14-16
+In2 cells vs 1 F cell per Prim round); 17 total bridges ≈ the 16-island theoretical
+minimum (+1 for a locked-rail-blocked In2 pocket at cluster 9, mask-forced In2→B→F).
+Ablation A (F bias landing-only) = byte-identical result; ablation B (bridge_cost 8→16)
+= still 17 bridges — the layer changes are mask-forced, not cost-ratio artifacts. The
+MESS is REALIZATION smear: apply_bridge_overlap stamps 3-cell-radius disks on BOTH layers
+per bridge (17 F blobs ~5.6mm), mask_to_polys' 2-iteration closing merges them into
+blocky tiles, bridges_to_vias lays ~2 scattered vias per bridge (28 vias reading as a
+line), and nothing aligns bridge positions between Prim rounds. A latent sibling defect
+surfaced by the same probe: the ESP32 terminal's F landing blob is silently REFUSED by
+the add_power_pours shunt-only choke (outside the belt), leaving its bridge via with no
+F copper. Full probe record: build/pourprobe/ (probe1-8).
+
+**v4 implementation state (2026-07-25, LANDED — `scripts/cec_pour_plan.py`):** the
+territory planner is live behind wave param `pour_plan` / env `CEC_POUR_PLAN=1`
+(pour_first_stage planner switch; `cec_pourfirst.py --v4` standalone; teeth
+tests/test_pour_plan.py, 8). Shape as designed: terminal groups (terminal_clusters +
+manifold gang + patch cover), Prim tree, per-layer corridor candidates on the
+obstacle-corner graph (direct → one-bend → bounded corner Dijkstra), exact-at-scale
+branch-and-bound layer assignment (most-constrained-first, node-capped with loud
+bounded-exactness print), crossing SPLIT with one compact field, per-group canonical via
+spots (incidence-aware), and per-net fallback to route_overunder (loudly labeled).
+Mechanisms the s464 board FORCED into the design (all probe-measured): (a) manifold
+attach = manifold ∩ per-layer free space, component alternates (plain eroded-polygon
+nearest strands in the connector pin field); (b) manifold-polygon attach only on the
+manifold's OWN layers — off-layers attach the pin copper directly (a B corridor
+"attached" to an F/In2 manifold floats); (c) the ANCHOR-APPROACH NECK, the geometric
+twin of the raster taper: within ~3.2mm of own pads a W_NECK=0.8mm centerline is legal
+at true clearance (unguarded) — the ONLY way through the J3 THT barrel belt, whose 4.2mm
+pin gaps close completely at trunk width + raster guard; (d) square-cap track obstacles
+(rasterize's step boxes overhang a wide rail's endpoint by w/2+clearance — a 6mm locked
+rail's phantom reached 4mm past its end and flunked a geometrically-legal corridor);
+(e) landing patches + neck spines are terminal-zone copper (guaranteed-patch class:
+connectivity-stamped, raster-clearance-exempt, the filler carves truth — the 0.8mm
+raster cannot express legal copper between 0.5mm-pitch pads). VERIFICATION deviation
+(flagged, measured reason): min-width runs as EXACT shapely erosion per realized piece,
+not raster erosion — at cell 0.8 the smallest erosion radius proves 1.6mm, so every
+floor-width 1.2mm corridor would fail structurally and diagonal capsules mis-verify at
+any near-width cell size; clearance + attach-connectivity stay on the existing raster.
+**s464 acceptance: 7/9 planned (baseline 6/9 found), the 2 fails (+5VSB, /SENSE12V_HI)
+a strict subset of baseline's 3 (both the J3-belt/locked-copper class, the standing
+owner question); ZERO crossing/mid-span via fields board-wide; every via field
+terminal-labeled and compact (+3V3: 10 corridors / 2 bends / 11 terminal fields vs the
+baseline's 17 smeared bridges).** `pourplan:` joined REAP_EXEMPT_PREFIXES. Artifact:
+build/wave-snaps/atx-24pin-rev3/POURFIRST-sense-band-dataflow-s464-v4{-hex.png,.kicad_pcb}.
+
 Blueprint tap discipline (same ruling): the stamped cells' Kelvin taps must be the
 authored textbook-orthogonal set ONLY — the route-time synthesizer must recognize
 blueprint tap copper as coverage (lock + per-pair contact handshake) and never lay

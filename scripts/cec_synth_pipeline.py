@@ -10065,8 +10065,22 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                        "placer_ask"} for n, lays in sorted(_per_net.items())]
             board = pcbnew.LoadBoard(skel_path)
             collect = {}
-            lanes, vias, rep = cec_slab_pour.synthesize_overunder_pours(
-                board, asks_d, manifolds=True, collect=collect)
+            # v4 TERRITORY PLANNER (docs/slab-pour-design-2026-07-24.md v4;
+            # param "pour_plan" / CEC_POUR_PLAN=1): straight geometric
+            # corridors + exact layer assignment + compact labeled via
+            # fields, with the direction-state Dijkstra DEMOTED to per-net
+            # fallback inside plan_pours. Same (dicts, vias, report,
+            # collect) contract, so the freeze below is planner-agnostic.
+            _use_plan = (bool(cfg.params.get("pour_plan"))
+                         or os.environ.get("CEC_POUR_PLAN") == "1")
+            if _use_plan:
+                import cec_pour_plan
+                lanes, vias, rep = cec_pour_plan.plan_pours(
+                    board, asks_d, manifolds=True, collect=collect)
+            else:
+                lanes, vias, rep = cec_slab_pour.synthesize_overunder_pours(
+                    board, asks_d, manifolds=True, collect=collect)
+            report["planner"] = "territory" if _use_plan else "overunder"
             patches = cec_slab_pour.guaranteed_shunt_patches(board)
             # corridors + pour-owned pads from the SAME search (one solve,
             # three consumers -- reservation_from_search on collect)
@@ -10129,7 +10143,10 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
             report["nets"] = {
                 n: {k: v.get(k) for k in ("path_found", "segments", "bridges",
                                           "layers_used", "bottleneck",
-                                          "manifolds", "reason")
+                                          "manifolds", "reason",
+                                          # v4 territory-planner keys
+                                          "corridors", "bends", "via_fields",
+                                          "groups", "fallback", "notes")
                     if v.get(k) is not None}
                 for n, v in rep.items()}
             report.update({

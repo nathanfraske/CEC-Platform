@@ -573,6 +573,17 @@ BOARD_PARAMS = {
                        # live machinery for UN-frozen nets (and the whole
                        # board when this is off -- the A/B lever).
                        "pour_first": True,
+                       # v4 TERRITORY POUR PLANNER (owner GO 2026-07-25,
+                       # docs/slab-pour-design-2026-07-24.md v4): the
+                       # pour-first solve runs cec_pour_plan.plan_pours --
+                       # straight geometric corridors + exact layer
+                       # assignment + compact labeled via fields; the
+                       # direction-state Dijkstra is DEMOTED to loud
+                       # per-net fallback inside the planner. Acceptance
+                       # measured on the s464 skeleton 2026-07-25: 7/9
+                       # planned (over-under baseline 6/9), zero mid-span
+                       # via fields, every field at a terminal.
+                       "pour_plan": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
