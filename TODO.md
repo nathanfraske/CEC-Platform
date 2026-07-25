@@ -441,3 +441,4 @@ Times are UTC.
 - [x] [added 2026-07-24 02:10] spec/BOM/netlist double-check on the 6 ingress boards (owner ask) · done 2026-07-24 18:20
 - [ ] [added 2026-07-24 02:10] spec/BOM/netlist double-check on the 6 ingress boards (owner ask)
 - [x] [added 2026-07-25 04:45] VE pass (owner ask): applied VE-1 GDT core-5 (−$1.70), VE-2 supercap 2F Pro-cell (−$1.00), VE-3 NE_BF cleanup (−$0.15) + CORRECTION LM339 4→6 (21 sections needed, +$0.25) → rollup $45–48 → $43–45@100; declined-with-reasons set recorded (meter/flicker/dividers/derate/kit/AUX); open levers = generic ATO clips (no LCSC line, consigned hunt at sample order), toggle brand call, case engineering at RFQ · done 2026-07-25 04:55
+- [ ] [added 2026-07-25 01:30] pour-first placement rung (owner ruling): pipeline seam + placer avoid coupling; demonstrator landed (cec_pourfirst.py), 3 skeleton no-paths undiagnosed

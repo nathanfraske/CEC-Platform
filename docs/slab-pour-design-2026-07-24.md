@@ -133,3 +133,22 @@ Implementation mapping (synthesize_overunder_pours in cec_slab_pour):
    terminals pass the shunt test naturally). Verify: min-cut re-measure +
    the invariant report.
 A/B behind CEC_OVERUNDER=1 against the slab-shave path.
+
+## v3 — POUR-FIRST PLACEMENT (owner ruling 2026-07-25)
+
+"Pours are the first rung after you place the connectors and stamp the blueprints and
+the MCU. Literally get rid of all of the rest of the components besides the stamps,
+connectors, and MCU, run the pour algorithm and get it to a good state, then re-add
+all of the other components. Save the pour state for me to look at."
+
+Implementation state: `scripts/cec_pourfirst.py` = the standalone demonstrator (strip a
+variant to its anchor skeleton -> solve pours tight -> save POURFIRST-*.kicad_pcb + hex
+render to build/wave-snaps for owner review). First run on s415: 6/9 nets path_found on
+the skeleton — including /SENSE12V_LO (TB1<->RS1), provably unreachable post-route —
+25 lanes / 8 guaranteed patches / 44 bridge vias. OPEN: (a) 3 skeleton no-paths
+(+5VSB, /SENSE12V_HI, /SENSE5V_HI — same bottleneck cells with and without the
+anchor-approach taper, so the taper hypothesis is NOT their mechanism; undiagnosed);
+(b) the pipeline seam — wire this stage between anchor/blueprint/MCU seating and
+general placement, freeze pour geometry into placer avoid-boxes + route-time
+reservations (the CEC_POUR_RESERVE corridor machinery is the same compute core);
+(c) capsule-end/organic-merge aesthetics on bridge overlap disks.

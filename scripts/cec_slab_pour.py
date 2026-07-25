@@ -719,7 +719,18 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
             rc = max(1, int(round(w / (2.0 * grid.cell))))
             eroded = ndimage.binary_erosion(~foreign, structure=st,
                                             iterations=rc)
-            passable[lay] = eroded | anc
+            # ANCHOR-APPROACH TAPER (2026-07-25, from the skeleton-board
+            # pour-first runs: wide lanes could not REACH terminals seated
+            # in connector pin fields -- the gaps between foreign THT
+            # barrels are narrower than the lane width, so full-width
+            # erosion walls the terminal even on an empty board). Within a
+            # few cells of the net's OWN anchors, any non-foreign cell is
+            # passable: the pad itself is the physical width bottleneck
+            # there, and a short pad-adjacent neck is thermally fine (the
+            # current spreads at the pad; neck length is what matters).
+            approach = ndimage.binary_dilation(anc, structure=st,
+                                               iterations=4) & ~foreign
+            passable[lay] = eroded | anc | approach
             anchors[lay] = anc
             rcells[lay] = rc
             reqw[lay] = w
