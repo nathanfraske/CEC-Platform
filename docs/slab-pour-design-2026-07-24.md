@@ -250,3 +250,11 @@ Blueprint tap discipline (same ruling): the stamped cells' Kelvin taps must be t
 authored textbook-orthogonal set ONLY — the route-time synthesizer must recognize
 blueprint tap copper as coverage (lock + per-pair contact handshake) and never lay
 bent/diagonal fallbacks on a stamped cell.
+
+### Tap-form ruling (owner, 2026-07-25, on the s480 zoneless render)
+The authored cell taps are orthogonal but attach at the WRONG edges. Required form (the
+"every other board" / §6.8 textbook): each sense tap contacts its shunt pad on the INNER
+edge (facing the resistive element), runs PERPENDICULAR from that edge into the inter-pad
+gap (toward the shunt middle), then ONE 90° turn OUTWARD to the INA. The route-time
+canonical shape already says this; the cell-authored geometry must match it. Rework
+author_kelvin_taps' derivation + regenerate the blueprint templates + re-prove clearance.
