@@ -1894,7 +1894,16 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
             L = max((dx * dx + dy * dy) ** 0.5, 1)
             ux, uy = dx / L, dy / L
             step = _nm(dia + 0.35)
-            base = pcbnew.VECTOR2I(int(pos.x + ux * _nm(1.6)), int(pos.y + uy * _nm(1.6)))
+            # base clears the pad's own extent along the outboard axis
+            # (assembly-class via-in-pad ruling 2026-07-25: a fixed 1.6mm
+            # from the CENTER of a long shunt pad lands INSIDE it)
+            try:
+                _sz = p.GetSize()
+                _half_along = (abs(ux) * _sz.x + abs(uy) * _sz.y) / 2.0
+            except Exception:                          # noqa: BLE001
+                _half_along = 0
+            _bd = max(_nm(1.6), int(_half_along + _nm(dia) / 2.0 + _nm(0.1)))
+            base = pcbnew.VECTOR2I(int(pos.x + ux * _bd), int(pos.y + uy * _bd))
             perp = (-uy, ux)
             placed = 0
             for k in range(n_per_pad):
@@ -1911,6 +1920,10 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
                         continue      # no kept pour will receive this barrel
                 if not _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                board.GetLayerID(p.GetLayerName()), nc, set()):
+                    continue
+                # assembly-class via-in-pad exclusion (owner ruling
+                # 2026-07-25): any pad, own net included
+                if _via_pad_excluded(board, at, _nm(dia)) is not None:
                     continue
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(at)
@@ -2760,20 +2773,30 @@ def add_via_field(board, fields):
     (additive, like add_power_pours). The GND inner plane antipads around each foreign-net via, so no
     short. Returns the added PCB_VIA objects. Re-fill zones after calling if you poured."""
     added = []
+    skipped_pad = 0
     f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     for f in fields:
         nc = board.GetNetcodeFromNetname(f["net"])
         if nc <= 0:
             raise KeyError(f"cec_fr.add_via_field: net {f['net']!r} not found on board")
         for (x, y) in f["positions"]:
+            at = pcbnew.VECTOR2I(_nm(x), _nm(y))
+            # assembly-class via-in-pad exclusion (owner ruling 2026-07-25)
+            if _via_pad_excluded(board, at, _nm(f.get("dia", 0.6))):
+                skipped_pad += 1
+                continue
             v = pcbnew.PCB_VIA(board)
-            v.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
+            v.SetPosition(at)
             v.SetDrill(_nm(f.get("drill", 0.3)))
             v.SetWidth(_nm(f.get("dia", 0.6)))
             v.SetNetCode(nc)
             v.SetLayerPair(f_cu, b_cu)
             board.Add(v)
             added.append(v)
+    if skipped_pad:
+        print(f"[cec_fr] add_via_field: {skipped_pad} via(s) REFUSED "
+              "in-pad (assembly-class exclusion, owner ruling 2026-07-25)",
+              file=sys.stderr)
     return added
 
 
@@ -2798,6 +2821,7 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
             existing.append((p.x / MM, p.y / MM))
     f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     added = []
+    skipped_pad = 0
     for v in via_list:
         x, y = v["x_mm"], v["y_mm"]
         if any((x - qx) ** 2 + (y - qy) ** 2 < 0.85 ** 2 for (qx, qy) in existing):
@@ -2805,8 +2829,15 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         nc = board.GetNetcodeFromNetname(v["net"])
         if nc <= 0:
             continue
+        at = pcbnew.VECTOR2I(_nm(x), _nm(y))
+        # assembly-class via-in-pad exclusion (owner ruling 2026-07-25) --
+        # defense in depth: the v4 planner reseats field vias beside pads
+        # upstream, so a refusal here marks an upstream miss, loudly.
+        if _via_pad_excluded(board, at, _nm(dia)):
+            skipped_pad += 1
+            continue
         via = pcbnew.PCB_VIA(board)
-        via.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
+        via.SetPosition(at)
         via.SetDrill(_nm(drill))
         via.SetWidth(_nm(dia))
         via.SetNetCode(nc)
@@ -2814,6 +2845,10 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         board.Add(via)
         added.append(via)
         existing.append((x, y))
+    if skipped_pad:
+        print(f"[cec_fr] add_overunder_vias: {skipped_pad} via(s) REFUSED "
+              "in-pad (assembly-class exclusion, owner ruling 2026-07-25 -- "
+              "upstream should have reseated)", file=sys.stderr)
     return added
 
 
@@ -2881,6 +2916,32 @@ def _sense_in_pad(fp, role):
     return None
 
 
+def _via_pad_excluded(board, at, dia_nm):
+    """ASSEMBLY-CLASS via-in-pad exclusion (owner ruling 2026-07-25,
+    docs/slab-pour-design-2026-07-24.md "Via-in-pad ruling"): a via barrel
+    may not sit inside or overlap ANY pad's copper, REGARDLESS OF NET --
+    the foreign-only guards exempt same-net pads by construction, which is
+    exactly the measured gap (vias landed in pads on the v4 artifacts).
+    SMD pads: no center inside / no barrel overlap (solder wicking; this
+    platform uses no via-in-pad design). THT pads: no via within the
+    annulus. Both reduce to one test: the barrel circle colliding the
+    pad's effective shape on any of the pad's own copper layers (a through
+    barrel exists on every layer, so one pad layer suffices). Returns the
+    offending pad, or None when clear."""
+    circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            stack = p.GetLayerSet().CuStack()
+            if not stack:
+                continue
+            try:
+                if p.GetEffectiveShape(stack[0]).Collide(circ, 0):
+                    return p
+            except Exception:                          # noqa: BLE001
+                continue
+    return None
+
+
 def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes):
     """True iff a THROUGH-via of diameter dia_nm at *at* has no foreign-net
     pad/track/via within clearance_nm on ANY enabled copper layer. A through
@@ -2889,7 +2950,13 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes):
     its pad's F.Cu only -- shorting a foreign In2 track and a B.Cu track at
     the same spot. Plane ZONES are deliberately not tested (the guard family
     checks pads/tracks/vias): the zone filler's antipads give a via its plane
-    clearance at fill time."""
+    clearance at fill time.
+
+    ALSO enforces the net-independent assembly-class pad exclusion
+    (_via_pad_excluded, owner via-in-pad ruling 2026-07-25) so every caller
+    -- pickups, force vias, lastmile, tap doglegs -- inherits it."""
+    if _via_pad_excluded(board, at, dia_nm) is not None:
+        return False
     probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
     for lid in board.GetEnabledLayers().CuStack():
         if not _tap_foreign_clear(board, at, probe, dia_nm, lid,

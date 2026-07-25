@@ -556,6 +556,20 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     net_currents = _net_currents()
     shunt_boxes = shunt_neighborhoods(board)
     region = _box(grid.x0, grid.y0, grid.x1, grid.y1)
+    # ALL pad boxes, any net (assembly-class via-in-pad exclusion, owner
+    # ruling 2026-07-25: no via barrel in/overlapping ANY pad -- the
+    # foreign-copper guards exempt same-net pads by construction, which
+    # was the measured gap) + the inter-pad GAP strips (pour-termination
+    # ruling: the gap belongs exclusively to the Kelvin tap stubs).
+    pad_boxes = []
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            bb = p.GetBoundingBox()
+            pad_boxes.append((bb.GetLeft() / MM, bb.GetTop() / MM,
+                              bb.GetRight() / MM, bb.GetBottom() / MM))
+    gap_strips = [sh["gap"] for sh in _sp._shunt_pad_halves(board)]
+    gap_geom = (unary_union([_box(*gsp) for gsp in gap_strips])
+                if gap_strips else None)
 
     pour_dicts, via_list, report = [], [], {}
 
@@ -624,7 +638,8 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             "anchors": anchors, "reqw": reqw, "rcells": rcells,
             "groups": groups, "served": served, "delegated": delegated,
             "clab": clab, "corridors": [], "notes": [], "region": region,
-            "own_pours": own_pours, "_grid": grid,
+            "own_pours": own_pours, "_grid": grid, "pad_boxes": pad_boxes,
+            "gap_geom": gap_geom,
         }
         if len(served) <= 1:
             nets[net]["trivial"] = ("single pour-eligible terminal group "
@@ -659,6 +674,11 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 if g.f_zone is not None:
                     parts.append(g.f_zone)
             f_allow = unary_union(parts)
+            if gap_strips:
+                # pour-termination ruling: F corridors never enter the
+                # inter-pad gap (the taps' exclusive territory)
+                f_allow = f_allow.difference(
+                    unary_union([_box(*gsp) for gsp in gap_strips]))
         # anchor-approach region (own pads + reach) for the neck sub-space
         own_boxes = []
         for fp in board.GetFootprints():
@@ -828,10 +848,93 @@ def _manifold_attach_pts(g, toward, space, cap=6):
             for c in comps[:cap]]
 
 
+VIA_R = 0.45             # add_overunder_vias default barrel dia 0.9 / 2
+PAD_MARGIN = 0.05        # assembly-class standoff over the barrel radius
+
+
+def _pad_hit(pad_boxes, x, y, r):
+    """Conservative square test: does a circle (x, y, r) overlap any pad
+    bbox? (bbox superset of the pad shape -- planner-side; the exact-shape
+    authority is cec_fr._via_pad_excluded at lay time)."""
+    for (x0, y0, x1, y1) in pad_boxes:
+        if x + r >= x0 and x - r <= x1 and y + r >= y0 and y - r <= y1:
+            return True
+    return False
+
+
+def _spot_ok(st, g, pt):
+    """Via-spot validity beyond free space: (a) the assembly-class pad
+    standoff (via-in-pad ruling -- the spot's CENTER via must clear every
+    pad, own net included); (b) for a patch-covered shunt-pad group the
+    spot must sit INSIDE the (inner-edge-clipped) patch -- the outer-face
+    rule of the pour-termination ruling by construction (the patch no
+    longer exists gap-side of the pad)."""
+    if _pad_hit(st.get("pad_boxes", ()), pt[0], pt[1], VIA_R + PAD_MARGIN):
+        return False
+    if g.f_zone is not None and not g.f_zone.covers(Point(pt)):
+        return False
+    return True
+
+
+def _field_vias(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
+                ledger_mm=0.85):
+    """Via positions for ONE compact field: a line perpendicular to the
+    arrival direction (bridges_to_vias' sizing), each slot checked against
+    the barrel ledger AND the assembly-class pad exclusion; a blocked slot
+    SLIDES outward along the same line (reseat beside the pad -- the
+    ruling's 'never drop it silently'). Slide range is capped at the
+    terminal-zone reach (half_w + 0.6, the landing margin) so a via never
+    leaves the copper that embeds it. Returns ([(x, y)], reseated_count)
+    -- an empty list is the honest total failure (the caller's
+    attach-connectivity verification then fails the net)."""
+    (r, c, _lf, _lt, dx, dy) = field6[:6]
+    cx = grid.x0 + (c + 0.5) * grid.cell
+    cy = grid.y0 + (r + 0.5) * grid.cell
+    n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
+    perp = (-dy, dx)
+    # slide slots step by the LEDGER distance (a finer step would only
+    # produce ledger-dead slots); the cap is the terminal-zone reach --
+    # slid vias beyond the corridor half-width get a compact same-layer
+    # cover rect from the caller, so they always sit in copper
+    cap = half_w + 1.8
+    base = [(k - (n_v - 1) / 2.0) * pitch_mm for k in range(n_v)]
+    slots = list(base)
+    lo, hi = min(base), max(base)
+    k = 1
+    while True:
+        added_any = False
+        for s in (hi + k * ledger_mm, lo - k * ledger_mm):
+            if abs(s) <= cap + 1e-9:
+                slots.append(s)
+                added_any = True
+        if not added_any:
+            break
+        k += 1
+    slots.sort(key=abs)
+    out = []
+    reseated = 0
+    for i, s in enumerate(slots):
+        if len(out) >= n_v:
+            break
+        vx = round(cx + perp[0] * s, 3)
+        vy = round(cy + perp[1] * s, 3)
+        if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
+               for (qx, qy) in placed + out):
+            continue
+        if _pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN):
+            reseated += 1                  # blocked slot -> keep sliding
+            continue
+        out.append((vx, vy))
+    # reseated counts BLOCKED slots only when a slide actually happened
+    reseated = reseated if out else 0
+    return out, reseated
+
+
 def _endpoints_for_layer(cor, st, lay, space):
     """(pa, spot_a, alts_a, pb, spot_b, alts_b) endpoint resolution for one
     corridor on one layer -- shared by the static candidate pass and the
-    conflict re-plan so attach semantics can never drift."""
+    conflict re-plan so attach semantics can never drift. A None point =
+    every candidate spot failed the via-spot validity (_spot_ok)."""
     ga, gb = cor.ga, cor.gb
     half = st["reqw"][lay] / 2.0
 
@@ -871,8 +974,16 @@ def _endpoints_for_layer(cor, st, lay, space):
         shared = st.get("inc", {}).get(id(g), 1) > 1
         if g.spot is not None and shared:
             return g.spot, True, ()        # canonical spot, no alternates
-        return (_attach_point(g, toward, half, False,
-                              space=space)[0], shared, _ring_spots(g))
+        # via-spot validity filter (via-in-pad + pour-termination rulings):
+        # the default + every ring alternate must clear pads and, for a
+        # patch-covered shunt group, sit inside the clipped patch (outer
+        # face). All blocked -> None (no candidate on this layer).
+        cands = [_attach_point(g, toward, half, False, space=space)[0]]
+        cands += _ring_spots(g)
+        ok = [pt for pt in cands if _spot_ok(st, g, pt)]
+        if not ok:
+            return None, shared, ()
+        return ok[0], shared, tuple(ok[1:])
 
     pa, spot_a, alts_a = _endpoint(ga, Point(gb.cx, gb.cy))
     pb, spot_b, alts_b = _endpoint(gb, Point(ga.cx, ga.cy))
@@ -881,7 +992,10 @@ def _endpoints_for_layer(cor, st, lay, space):
 
 def _path_with_alternates(space, pa, alts_a, pb, alts_b):
     """Direct path, then endpoint alternates (ring spots / manifold
-    components). Returns (pts, bends) or (None, None)."""
+    components). Returns (pts, bends) or (None, None). A None endpoint
+    (every spot failed via-spot validity) is an immediate no-path."""
+    if pa is None or pb is None:
+        return None, None
     pts, bends = _find_path(space, pa, pb)
     if pts is None and alts_a:
         for spot in alts_a:
@@ -936,6 +1050,8 @@ def _make_candidates(cor, st, grid):
         pts, bends = _path_with_alternates(space, pa, alts_a, pb, alts_b)
         if pts is None:
             cor.diag[lay] = (
+                "pa-spot-padlocked" if pa is None else
+                "pb-spot-padlocked" if pb is None else
                 "pa-blocked" if not space.ok_pt(pa) else
                 "pb-blocked" if not space.ok_pt(pb) else "no-path")
             # TERMINAL TAPER (the pad is the physical bottleneck): allow the
@@ -943,7 +1059,8 @@ def _make_candidates(cor, st, grid):
             # but only for a SHORT stub (<= TAPER_MAX_MM) so no sub-width
             # run ever carries a long span.
             wt = min(w, 1.2)
-            if wt < w and ga.attach.distance(gb.attach) <= TAPER_MAX_MM:
+            if wt < w and pa is not None and pb is not None \
+                    and ga.attach.distance(gb.attach) <= TAPER_MAX_MM:
                 tsp = st.setdefault("spaces_taper", {})
                 if lay not in tsp:
                     tsp[lay] = _LayerSpace(
@@ -1162,8 +1279,13 @@ def _try_split(cor, st, nets):
             leg1_pts = _cut_line(cand["pts"], back)
             poly1 = _capsule(leg1_pts, st["reqw"][layA] / 2.0)
             b1 = poly1.buffer(0.3)
+            sp_pt = line.interpolate(back)
             if not any(b1.intersects(h)
-                       and b1.intersection(h).area > 0.01 for h in hits):
+                       and b1.intersection(h).area > 0.01 for h in hits) \
+                    and not _pad_hit(st.get("pad_boxes", ()), sp_pt.x,
+                                     sp_pt.y, VIA_R + PAD_MARGIN):
+                # crossing FIELD spot must also clear every pad (via-in-pad
+                # ruling) -- keep backing off past a pad-blocked spot
                 break
             back -= 1.0
         if leg1_pts is None or back <= 0.5:
@@ -1259,6 +1381,7 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         fields = []                         # bridge tuples + kind tag
         fielded = {}                        # id(group) -> True
         bends = 0
+        pending_land = []                   # (group, spot_pt, field_index)
         neck_corridors = 0
         for cor in st["corridors"]:
             pk = cor.pick
@@ -1307,23 +1430,80 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                         g, gpts, at_start, glay,
                         sorted(g.native)[0] if g.native else "F.Cu", grid)
                         + ("terminal",))
-                    # F LANDING PATCH: pad group + field spot. TERMINAL-ZONE
-                    # copper (guaranteed_shunt_patches' class): the pad
-                    # pitch, not the corridor width, rules there, and the
-                    # 0.8mm raster cannot express legal copper between
-                    # 0.5mm-pitch pads (measured: every dense-cell landing
-                    # flunked the cell-touch clearance check) -- so it is
-                    # connectivity-stamped but clearance-exempt; the
-                    # ZONE_FILLER carves true clearances at fill time.
-                    # Skipped when REAL patch copper already covers it.
+                    # F LANDING PATCH deferred until the field's ACTUAL via
+                    # positions exist (they may slide beside a pad under
+                    # the via-in-pad reseat and the landing must embed
+                    # them) -- built below in the via-placement pass.
                     if g.native == {"F.Cu"}:
-                        x0, y0, x1, y1 = g.bbox
                         p = gpts[0] if at_start else gpts[-1]
-                        land = _box(min(x0, p[0]) - 0.6, min(y0, p[1]) - 0.6,
-                                    max(x1, p[0]) + 0.6, max(y1, p[1]) + 0.6)
-                        if not (g.f_zone is not None
-                                and g.f_zone.covers(land)):
-                            land_polys.setdefault("F.Cu", []).append(land)
+                        pending_land.append((g, p, len(fields) - 1))
+
+        # --- via placement: assembly-class pad exclusion + slide reseat
+        # (via-in-pad ruling, owner 2026-07-25) -- placed BEFORE the
+        # landings so each landing embeds its field's ACTUAL vias ---
+        placed = list(existing_vias)
+        field_vias = []
+        via_reseated = 0
+        for f in fields:
+            half_w = max(st["reqw"].get(f[2], 1.2),
+                         st["reqw"].get(f[3], 1.2)) / 2.0
+            vs, rs = _field_vias(f, half_w, grid, st.get("pad_boxes", ()),
+                                 placed)
+            field_vias.append(vs)
+            via_reseated += rs
+            placed.extend(vs)
+            if vs and rs:
+                # a slid via can sit past the corridor half-width: a
+                # compact same-layer COVER rect (field centre + vias +
+                # 0.5) keeps every barrel embedded in copper on the
+                # non-F transitioning layer(s); the F side is the
+                # landing patch's job. Corridor-class copper: raster
+                # clearance-checked like any corridor piece.
+                fcx = grid.x0 + (f[1] + 0.5) * grid.cell
+                fcy = grid.y0 + (f[0] + 0.5) * grid.cell
+                qs = list(vs) + [(fcx, fcy)]
+                cover = _box(min(q[0] for q in qs) - 0.5,
+                             min(q[1] for q in qs) - 0.5,
+                             max(q[0] for q in qs) + 0.5,
+                             max(q[1] for q in qs) + 0.5)
+                for lay in {f[2], f[3]} - {"F.Cu"}:
+                    if lay in st["reqw"]:
+                        lay_polys.setdefault(lay, []).append(cover)
+        vias = [{"net": net, "x_mm": x, "y_mm": y}
+                for vs in field_vias for (x, y) in vs]
+        for i, vs in enumerate(field_vias):
+            if not vs:
+                st["notes"].append(
+                    "field %d (%s) placed NO via (pad exclusion + ledger "
+                    "exhausted every slot) -- attach-connectivity judges"
+                    % (i, fields[i][6]))
+        # F LANDING PATCHES (terminal-zone copper, guaranteed-patch class:
+        # connectivity-stamped, raster-clearance-exempt, the filler carves
+        # truth). Pour-termination ruling: for a patch-covered shunt-pad
+        # group the landing is CLIPPED to the (inner-edge-clipped) patch,
+        # so it can never enter the inter-pad gap; skipped entirely when
+        # the patch alone already covers pad + vias.
+        for (g, p, fi) in pending_land:
+            x0, y0, x1, y1 = g.bbox
+            qs = [p] + list(field_vias[fi])
+            raw = _box(min([x0] + [q[0] for q in qs]) - 0.6,
+                       min([y0] + [q[1] for q in qs]) - 0.6,
+                       max([x1] + [q[0] for q in qs]) + 0.6,
+                       max([y1] + [q[1] for q in qs]) + 0.6)
+            if g.f_zone is not None:
+                if g.f_zone.covers(raw):
+                    continue               # patch already provides it all
+                land = raw.intersection(g.f_zone)
+            else:
+                land = raw
+            # pour-termination ruling: NO landing copper inside a shunt
+            # inter-pad gap (measured on s464: raw landings for cell
+            # islands beside RS2 poked into its gap strip)
+            if st.get("gap_geom") is not None:
+                land = land.difference(st["gap_geom"])
+            if land.is_empty:
+                continue                   # connectivity will judge
+            land_polys.setdefault("F.Cu", []).append(land)
 
         # --- verification 1: raster clearance (the EXISTING rasterize()
         # masks are the authority; own anchors may legitimately coincide;
@@ -1467,19 +1647,22 @@ def _realize_verify(net, st, grid, existing_vias, nets):
             ra, rb = find(a), find(b)
             if ra != rb:
                 parent[ra] = rb
-        # through-barrels fuse every layer at a via cell (+1-cell tolerance)
-        for f in fields:
-            r, c = f[0], f[1]
-            tags = []
-            for lay in comp:
-                for dr in (-1, 0, 1):
-                    for dc in (-1, 0, 1):
-                        rr, cc = r + dr, c + dc
-                        if 0 <= rr < grid.ny and 0 <= cc < grid.nx and \
-                                comp[lay][rr, cc]:
-                            tags.append((lay, int(comp[lay][rr, cc])))
-            for t in tags[1:]:
-                union(tags[0], t)
+        # through-barrels fuse every layer at each ACTUAL via cell
+        # (+1-cell tolerance) -- the reseat may have slid a via off the
+        # field cell, so the fuse follows the placed positions
+        for vs in field_vias:
+            for (vx, vy) in vs:
+                r, c = _cell_of(grid, vx, vy)
+                tags = []
+                for lay in comp:
+                    for dr in (-1, 0, 1):
+                        for dc in (-1, 0, 1):
+                            rr, cc = r + dr, c + dc
+                            if 0 <= rr < grid.ny and 0 <= cc < grid.nx \
+                                    and comp[lay][rr, cc]:
+                                tags.append((lay, int(comp[lay][rr, cc])))
+                for t in tags[1:]:
+                    union(tags[0], t)
         # THT anchors fuse layers where the same cell anchors 2+ layers
         alay = list(comp)
         for i in range(len(alay)):
@@ -1535,6 +1718,12 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         for lay in all_lays:
             u = unary_union(list(lay_polys.get(lay, ()))
                             + list(land_polys.get(lay, ())))
+            if lay == "F.Cu" and st.get("gap_geom") is not None:
+                # pour-termination ruling, emit-side authority: no v4 F
+                # copper inside any shunt inter-pad gap (also trims the
+                # <=0.4mm neck-spine edge overhang the space-level
+                # exclusions cannot express)
+                u = u.difference(st["gap_geom"])
             for g in getattr(u, "geoms", [u]):
                 if g.is_empty or g.geom_type != "Polygon" or g.area < 0.4:
                     continue
@@ -1544,10 +1733,6 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                                 for (x, y) in g.exterior.coords],
                     "priority": 2, "provenance": "pourplan",
                     "name": "pourplan:%s" % net})
-        vias = _sp.bridges_to_vias([f[:6] for f in fields], st["reqw"], grid,
-                                   existing=list(existing_vias))
-        for v in vias:
-            v["net"] = net
         kinds = {}
         for f in fields:
             kinds[f[6]] = kinds.get(f[6], 0) + 1
@@ -1561,6 +1746,7 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                           "delegated": len(st["delegated"]),
                           "total": len(st["groups"])},
                "neck_corridors": neck_corridors,
+               "via_reseated": via_reseated,
                "notes": list(st["notes"])}
         st["_masks"] = masks
         st["_fields"] = fields

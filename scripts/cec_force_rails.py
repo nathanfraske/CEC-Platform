@@ -424,8 +424,14 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             if _bb_ok and not (_bx0 + 1.2 <= cx <= _bx1 - 1.2
                                and _by0 + 1.2 <= cy <= _by1 - 1.2):
                 continue
-            ok = all(not (net not in own_nets
-                          and (px - cx) ** 2 + (py - cy) ** 2 < (half + 0.45 + 0.25) ** 2)
+            # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
+            # OWN-net pads exclude too -- the own-net skip here was the
+            # measured root cause of the s464 in-pad locked array vias
+            # (RS2-1/RS2-2). Foreign pads keep the 0.25 clearance; own pads
+            # need only no-overlap (0.05). The 25-site ring reseats.
+            ok = all(not ((px - cx) ** 2 + (py - cy) ** 2
+                          < (half + 0.45 + (0.25 if net not in own_nets
+                                            else 0.05)) ** 2)
                      for ref, net, px, py, half, tht in pads)
             ok = ok and all(not (net2 not in own_nets
                                  and _seg_pt_d2(cx, cy, a1, b1, a2, b2)

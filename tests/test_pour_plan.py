@@ -23,6 +23,7 @@ import cec_pour_plan  # noqa: E402
 from cec_pour_plan import plan_pours  # noqa: E402
 from test_pour_first import _LAY, _Board, _FP, _Pad, _wall  # noqa: E402
 
+MM = 1e6
 B_CU = [_LAY["B.Cu"]]
 IN2_CU = [_LAY["In2.Cu"]]
 
@@ -227,6 +228,120 @@ class TestFallbackOnlyOnFailure(unittest.TestCase):
                         "single-cluster contract matches route_overunder")
 
 
+class TestPourTermination(unittest.TestCase):
+    """Pour-termination ruling (owner 2026-07-25): force copper stops AT
+    the shunt pad inner edge; the inter-pad gap belongs to the taps."""
+
+    def _rs_board(self, extra_fps=()):
+        # RS1: HI pad at (10,10), LO pad at (16,10), half 0.6 -> bboxes
+        # 9.4-10.6 and 15.4-16.6; gap = x 10.6..15.4
+        fps = [_FP("RS1", [_Pad("/S_HI", 1, 10.0, 10.0,
+                                layers=[_LAY["F.Cu"]], name="1"),
+                           _Pad("/S_LO", 2, 16.0, 10.0,
+                                layers=[_LAY["F.Cu"]], name="2")])]
+        fps += list(extra_fps)
+        nets = {1: "/S_HI", 2: "/S_LO"}
+        for fp in extra_fps:
+            for p in fp.Pads():
+                nets.setdefault(p.GetNetCode(), p.GetNetname())
+        return _Board(40, 20, fps, nets)
+
+    def test_patch_clips_at_pad_inner_edge_not_mid_gap(self):
+        import cec_slab_pour
+        patches = cec_slab_pour.guaranteed_shunt_patches(self._rs_board())
+        by_net = {d["net"]: d["polygon"] for d in patches}
+        hi_xs = [q[0] for q in by_net["/S_HI"]]
+        lo_xs = [q[0] for q in by_net["/S_LO"]]
+        self.assertAlmostEqual(max(hi_xs), 10.6, places=3,
+                               msg="HI inner clip = the PAD INNER EDGE "
+                                   "(mid-gap 12.85 is the retired rule)")
+        self.assertAlmostEqual(min(lo_xs), 15.4, places=3)
+        # outer/side margins keep covering the outboard via rows
+        self.assertAlmostEqual(min(hi_xs), 10.0 - 0.6 - 4.5, places=3)
+        ys = [q[1] for q in by_net["/S_HI"]]
+        self.assertAlmostEqual(min(ys), 10.0 - 0.6 - 4.5, places=3)
+        self.assertAlmostEqual(max(ys), 10.0 + 0.6 + 4.5, places=3)
+        # the gap strip helper names the taps' exclusive territory
+        halves = cec_slab_pour._shunt_pad_halves(self._rs_board())
+        self.assertEqual(len(halves), 1)
+        gx0, gy0, gx1, gy1 = halves[0]["gap"]
+        self.assertAlmostEqual(gx0, 10.6, places=3)
+        self.assertAlmostEqual(gx1, 15.4, places=3)
+
+    def test_planned_vias_stay_out_of_pads_and_gap(self):
+        # a corridor arriving from the GAP side (TB trunk at x=32) must
+        # attach the patch-covered shunt pad from the OUTER face: no via
+        # in any pad, none in the inter-pad gap.
+        tb = _FP("TB1", [_Pad("/S_HI", 1, 32.0, 8.0),
+                         _Pad("/S_HI", 1, 32.0, 11.0)])
+        board = self._rs_board(extra_fps=(tb,))
+        pours, vias, rep = plan_pours(
+            board, [{"net": "/S_HI", "layers": ("In2.Cu",)}])
+        self.assertTrue(rep["/S_HI"]["path_found"], rep["/S_HI"])
+        self.assertTrue(vias, "the F-only shunt pad needs a terminal field")
+        pad_boxes = [(9.4, 9.4, 10.6, 10.6), (15.4, 9.4, 16.6, 10.6),
+                     (31.4, 7.4, 32.6, 8.6), (31.4, 10.4, 32.6, 11.6)]
+        for v in vias:
+            x, y = v["x_mm"], v["y_mm"]
+            for (x0, y0, x1, y1) in pad_boxes:
+                self.assertFalse(x + 0.45 >= x0 and x - 0.45 <= x1 and
+                                 y + 0.45 >= y0 and y - 0.45 <= y1,
+                                 "via (%.2f,%.2f) overlaps pad box %s"
+                                 % (x, y, (x0, y0, x1, y1)))
+            self.assertFalse(10.6 < x < 15.4 and 9.4 < y < 10.6,
+                             "via (%.2f,%.2f) sits in the inter-pad gap "
+                             "(tap territory)" % (x, y))
+        # every pourplan F polygon respects the pad inner edge line: no
+        # pourplan copper in the gap strip
+        for d in pours:
+            if d.get("layer") != "F.Cu" or \
+                    not str(d.get("name", "")).startswith("pourplan:"):
+                continue
+            for (x, y) in d["polygon"]:
+                self.assertFalse(10.6 + 1e-6 < x < 15.4 - 1e-6
+                                 and 9.4 < y < 10.6,
+                                 "pourplan F copper vertex in the gap: %s"
+                                 % ((x, y),))
+
+
+class TestViaInPadReseat(unittest.TestCase):
+    """Via-in-pad ruling (owner 2026-07-25): assembly-class exclusion +
+    reseat-beside-the-pad, never a silent drop."""
+
+    def test_field_vias_slide_past_a_pad(self):
+        import cec_slab_pour
+        grid = cec_slab_pour.Grid(_Board(40, 20, [], {}), 0.8)
+        # field at ~(20,10), travel +x -> via line runs in y; a pad box
+        # sits exactly on the +y base slot -> that via must SLIDE, not drop
+        r, c = grid.iy(10.0), grid.ix(20.0)
+        cx = grid.x0 + (c + 0.5) * grid.cell
+        cy = grid.y0 + (r + 0.5) * grid.cell
+        field = (r, c, "In2.Cu", "F.Cu", 1.0, 0.0)
+        pad = (cx - 0.5, cy + 0.2, cx + 0.5, cy + 1.0)  # swallows +0.6 slot
+        vias, reseated = cec_pour_plan._field_vias(
+            field, 0.6, grid, [pad], [])
+        self.assertEqual(len(vias), 2, "count preserved: reseat, not drop")
+        self.assertGreater(reseated, 0, "the blocked slot was slid past")
+        for (x, y) in vias:
+            self.assertFalse(cec_pour_plan._pad_hit([pad], x, y,
+                                                    0.45 + 0.05),
+                             "reseated via still overlaps the pad")
+
+    def test_all_slots_blocked_is_loud_empty_never_silent(self):
+        import cec_slab_pour
+        grid = cec_slab_pour.Grid(_Board(40, 20, [], {}), 0.8)
+        r, c = grid.iy(10.0), grid.ix(20.0)
+        cx = grid.x0 + (c + 0.5) * grid.cell
+        cy = grid.y0 + (r + 0.5) * grid.cell
+        field = (r, c, "In2.Cu", "F.Cu", 1.0, 0.0)
+        pad = (cx - 3.0, cy - 3.0, cx + 3.0, cy + 3.0)  # swallows all slots
+        vias, _rs = cec_pour_plan._field_vias(field, 0.6, grid, [pad], [])
+        self.assertEqual(vias, [], "total exhaustion returns [] -- the "
+                                   "attach-connectivity verifier then "
+                                   "fails the net (loud), never a via in "
+                                   "the pad")
+
+
 class TestCollectContract(unittest.TestCase):
     def test_collect_carries_reservation_internals(self):
         nc = 1
@@ -249,6 +364,127 @@ class TestCollectContract(unittest.TestCase):
             ci["foreign"], collect["_grid"])
         self.assertTrue(reserved)
         self.assertTrue(all(c["net"] == "+5V" for c in cors))
+
+
+_IN_CONTAINER = (os.path.exists("/.dockerenv")
+                 or os.path.exists("/run/.containerenv"))
+try:
+    import pcbnew as _pcbnew_mod
+except ImportError:
+    _pcbnew_mod = None
+
+
+@unittest.skipUnless(_pcbnew_mod is not None and _IN_CONTAINER,
+                     "pcbnew + the routing container required")
+class TestViaInPadExclusionRealBoard(unittest.TestCase):
+    """cec_fr side of the via-in-pad ruling: _via_pad_excluded /
+    _via_spot_clear / add_overunder_vias on a real mini board."""
+
+    def _board(self, tmp):
+        import pcbnew
+        board = pcbnew.CreateEmptyBoard()
+        for (a, b) in (((0, 0), (40, 0)), ((40, 0), (40, 20)),
+                       ((40, 20), (0, 20)), ((0, 20), (0, 0))):
+            seg = pcbnew.PCB_SHAPE(board, pcbnew.SHAPE_T_SEGMENT)
+            seg.SetStart(pcbnew.VECTOR2I(int(a[0] * MM), int(a[1] * MM)))
+            seg.SetEnd(pcbnew.VECTOR2I(int(b[0] * MM), int(b[1] * MM)))
+            seg.SetLayer(pcbnew.Edge_Cuts)
+            board.Add(seg)
+        net = pcbnew.NETINFO_ITEM(board, "+5V_TEST")
+        board.Add(net)
+        fp = pcbnew.FOOTPRINT(board)
+        fp.SetPosition(pcbnew.VECTOR2I(int(10 * MM), int(10 * MM)))
+        pad = pcbnew.PAD(fp)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I(int(2.0 * MM), int(1.0 * MM)))
+        pad.SetPosition(pcbnew.VECTOR2I(int(10 * MM), int(10 * MM)))
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNetCode(net.GetNetCode())
+        fp.Add(pad)
+        board.Add(fp)
+        path = os.path.join(tmp, "viainpad-mini.kicad_pcb")
+        _pcbnew_mod.SaveBoard(path, board)
+        return _pcbnew_mod.LoadBoard(path), net.GetNetCode()
+
+    def test_same_net_pad_refuses_and_beside_is_clear(self):
+        import tempfile
+        import pcbnew
+        import cec_fr
+        board, nc = self._board(tempfile.mkdtemp(prefix="cec_vip_"))
+        in_pad = pcbnew.VECTOR2I(int(10 * MM), int(10 * MM))
+        beside = pcbnew.VECTOR2I(int(13 * MM), int(10 * MM))
+        self.assertIsNotNone(cec_fr._via_pad_excluded(board, in_pad,
+                                                      int(0.9 * MM)))
+        self.assertIsNone(cec_fr._via_pad_excluded(board, beside,
+                                                   int(0.9 * MM)))
+        # _via_spot_clear inherits it even with the pad's OWN net exempt
+        self.assertFalse(cec_fr._via_spot_clear(board, in_pad,
+                                                int(0.9 * MM),
+                                                int(0.3 * MM), {nc}))
+        self.assertTrue(cec_fr._via_spot_clear(board, beside,
+                                               int(0.9 * MM),
+                                               int(0.3 * MM), {nc}))
+        # add_overunder_vias refuses the in-pad spot, lays the clear one
+        added = cec_fr.add_overunder_vias(
+            board, [{"net": "+5V_TEST", "x_mm": 10.0, "y_mm": 10.0},
+                    {"net": "+5V_TEST", "x_mm": 13.0, "y_mm": 10.0}])
+        self.assertEqual(len(added), 1)
+        p = added[0].GetPosition()
+        self.assertAlmostEqual(p.x / MM, 13.0, places=2)
+
+    def test_force_vias_clear_a_long_shunt_pad(self):
+        # the s464 root cause class: a LONG shunt pad swallowed the fixed
+        # 1.6mm outboard base -> in-pad force vias. The fixed base pushes
+        # past the pad extent and _via_pad_excluded guards each spot.
+        import tempfile
+        import pcbnew
+        import cec_fr
+        board = pcbnew.CreateEmptyBoard()
+        for (a, b) in (((0, 0), (40, 0)), ((40, 0), (40, 20)),
+                       ((40, 20), (0, 20)), ((0, 20), (0, 0))):
+            seg = pcbnew.PCB_SHAPE(board, pcbnew.SHAPE_T_SEGMENT)
+            seg.SetStart(pcbnew.VECTOR2I(int(a[0] * MM), int(a[1] * MM)))
+            seg.SetEnd(pcbnew.VECTOR2I(int(b[0] * MM), int(b[1] * MM)))
+            seg.SetLayer(pcbnew.Edge_Cuts)
+            board.Add(seg)
+        n_hi = pcbnew.NETINFO_ITEM(board, "/T_HI")
+        n_lo = pcbnew.NETINFO_ITEM(board, "/T_LO")
+        board.Add(n_hi)
+        board.Add(n_lo)
+        fp = pcbnew.FOOTPRINT(board)
+        fp.SetReference("RS1")
+        fp.SetPosition(pcbnew.VECTOR2I(int(20 * MM), int(10 * MM)))
+        boxes = []
+        for (name, net, cx) in (("1", n_hi, 17.5), ("2", n_lo, 22.5)):
+            pad = pcbnew.PAD(fp)
+            pad.SetName(name)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I(int(3.4 * MM), int(1.2 * MM)))
+            pad.SetPosition(pcbnew.VECTOR2I(int(cx * MM), int(10 * MM)))
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNetCode(net.GetNetCode())
+            fp.Add(pad)
+            boxes.append((cx - 1.7, 10 - 0.6, cx + 1.7, 10 + 0.6))
+        board.Add(fp)
+        tmp = tempfile.mkdtemp(prefix="cec_fv_")
+        path = os.path.join(tmp, "fv-mini.kicad_pcb")
+        pcbnew.SaveBoard(path, board)
+        board = pcbnew.LoadBoard(path)
+        rep = cec_fr.synthesize_force_vias(
+            board, kelvin_pairs=[("/T_HI", "/T_LO")])
+        self.assertGreater(rep["vias"], 0, "vias still lay, just outboard")
+        for t in board.GetTracks():
+            if t.GetClass() != "PCB_VIA":
+                continue
+            q = t.GetPosition()
+            x, y = q.x / MM, q.y / MM
+            for (x0, y0, x1, y1) in boxes:
+                self.assertFalse(x + 0.45 > x0 and x - 0.45 < x1 and
+                                 y + 0.45 > y0 and y - 0.45 < y1,
+                                 "force via (%.2f,%.2f) overlaps pad box %s"
+                                 % (x, y, (x0, y0, x1, y1)))
 
 
 if __name__ == "__main__":

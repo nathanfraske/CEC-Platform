@@ -329,3 +329,39 @@ exclusion: NO via center inside (or overlapping) an SMD pad regardless of net (s
 wicking; this platform uses no via-in-pad design). THT pads: no via within the annulus.
 Applies to every via-laying path: bridge vias, force vias, pickups, lastmile, v4 crossing
 fields. Add to _via_spot_clear (net-independent pad test) + teeth.
+
+**Implementation state for both rulings (2026-07-25, LANDED, s464-re-proven):**
+POUR TERMINATION -- `guaranteed_shunt_patches` inner-side clip is now the PAD INNER EDGE
+exactly (mid-gap + `gap_mm` retired; outer/side margins keep 4.5mm, the outboard
+force-via-row cover the patch exists for -- judgment call, the ruling's named mechanism
+was the inner clip); new shared geometry source `cec_slab_pour._shunt_pad_halves`
+(per-RS pad halves + the inter-pad GAP strip, the taps' exclusive territory). The v4
+planner enforces the gap at three levels: F-allow minus gap strips (corridor + neck
+spaces), landing patches clipped `land - gap_geom` + `land ∩ patch` for patch-covered
+groups (the clipped patch doubles as the outer-face authority: ring spots must sit
+inside it, so corridors arriving gap-side bend around the shunt), and an emit-side
+`F.Cu - gaps` difference (trims the <=0.4mm neck-spine edge case). Measured: 2 gap
+intrusions -> 0. Width-margin attach re-verified after the clip: 7/9 planned holds
+(the locked tap stubs contact the pads, so connectivity through pad anchors stands).
+VIA-IN-PAD -- new `cec_fr._via_pad_excluded` (barrel-vs-any-pad effective-shape
+collision, net-independent; SMD overlap + THT annulus reduce to one test) wired into
+`_via_spot_clear` (pickups / lastmile / tap doglegs inherit), `add_via_field`,
+`add_overunder_vias` (loud refusals, defense-in-depth), and `synthesize_force_vias`
+(whose fixed 1.6mm-from-center outboard base landed INSIDE a long shunt pad -- base now
+clears the pad extent + each spot re-checked). MEASURED ROOT CAUSE of the s464 in-pad
+locked vias: `cec_force_rails._array_sites` skipped OWN-NET pads in its site test --
+now excludes any-net at no-overlap margin (25-site ring reseats). The v4 planner's
+spot selection filters pads (`_spot_ok`) and `_field_vias` slide-reseats blocked slots
+along the field line (ledger-stepped, capped at the terminal-zone reach, compact
+same-layer cover rect keeps slid barrels embedded; total exhaustion returns [] and the
+attach-connectivity verifier fails the net loudly -- never a silent drop, never a via
+in a pad). Fresh s464 run: NEW in-pad vias 0/97, gap intrusions 0; the 3 remaining
+hits are LEGACY LOCKED array vias baked into the historical skeleton by the pre-fix
+code (RS2-1 x2, RS2-2) -- they regenerate clean at the next wave's materialize.
+`cec_channel_route.py` also lays vias but has no callers in scripts/tests (dormant
+tool; guard omitted, noted). Teeth: tests/test_pour_plan.py (patch inner-edge
+coordinates, gap/pad-clear plan run, _field_vias slide + loud-empty, container
+_via_pad_excluded/_via_spot_clear/add_overunder_vias/synthesize_force_vias) +
+test_force_rails alt-array in-pad assertion. Owner-review artifact:
+POURFIRST-sense-band-dataflow-s464-v4-shuntband-fcu.png (FILLED termination view over
+ZONELESS pad/tap/via view, worklogged tag pour-first).

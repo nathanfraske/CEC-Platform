@@ -105,6 +105,11 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
     def clear_spot(x, y):
         """Via site must clear foreign pads + locked cell copper."""
         for ref, num, net, px, py, half in pads:
+            # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
+            # no barrel overlapping ANY pad, own net / J3 / J4 included
+            # (0.5 = via r 0.45 + 0.05 no-overlap margin)
+            if abs(px - x) < half + 0.5 and abs(py - y) < half + 0.5:
+                return False
             if ref.startswith(("J3", "J4")):
                 continue
             if abs(px - x) < 1.35 and abs(py - y) < 1.35 \

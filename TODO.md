@@ -28,6 +28,16 @@ Times are UTC.
   24-pin params; `cec_pourfirst.py --v4` standalone; artifact POURFIRST-*-s464-v4-hex.png on the
   dash. OPEN: first full wave with the param on (fail-open protects); +5VSB//SENSE12V_HI belt
   crossing = owner design question; capsule end-caps cosmetic (round lollipops).
+  **[2026-07-25 follow-up rulings LANDED + s464-re-proven (7/9 holds):** POUR TERMINATION
+  (patch inner-edge clip via `_shunt_pad_halves`, gap strips excluded from planner F space /
+  landings / emit — 2 measured intrusions -> 0) + VIA-IN-PAD assembly-class exclusion
+  (`_via_pad_excluded` in `_via_spot_clear`/`add_via_field`/`add_overunder_vias`/
+  `synthesize_force_vias` outboard-base fix + `_array_sites` own-net-skip root-cause fix +
+  planner `_spot_ok`/`_field_vias` slide-reseat). Fresh run: NEW in-pad vias 0/97, gap
+  intrusions 0; 3 LEGACY locked array vias in the historical skeleton regenerate clean at
+  next materialize. Zoneless+filled shunt-band F.Cu crop worklogged (rung-gate artifact).
+  Residual: `cec_channel_route.py` (caller-less tool) not guarded; legacy skeleton artifacts
+  keep pre-fix locked vias until re-materialized.]**
 
 - [ ] [added 2026-07-25 02:45] **POUR-FIRST PLACEMENT RUNG (owner v3/v3.1 ruling) — pipeline seam landed.**
   `csp.pour_first_stage` wired into `_build_session` behind param `pour_first` (24-pin ON): anchor-only

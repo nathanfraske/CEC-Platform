@@ -1268,19 +1268,14 @@ if __name__ == "__main__":
                      indent=1, default=str))
 
 
-def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
-    """UNCONDITIONAL per-pad F.Cu patch dicts for every RS* shunt (owner,
-    2026-07-25: RS1 measured pour-naked -- the starvation cycle: congested
-    area -> its shave comes out lace-bound -> scrap filter drops it ->
-    coverage-gated force-vias refuse -> no anchors -> unreachable -> no
-    pour, forever). Each shunt pad-net gets its half of the shunt
-    neighborhood as a patch: anchored by the pad itself BY DEFINITION (so
-    the floating-fragment rule can never drop it), inside the shunt
-    neighborhood by construction (so the F choke admits it), provenance
-    'slab' (so the bond/scrap filter and F-rectangularize exempt it).
-    HI/LO halves are clipped at the pad-group mid-gap so the two nets'
-    patches never overlap. Local COVERAGE guarantee only -- reachability
-    is the pre-FR corridor reservation's job."""
+def _shunt_pad_halves(board):
+    """Per-RS shunt pad-group geometry: [{ref, horiz, halves: [(net, gbox,
+    centre), (net, gbox, centre)], gap: (x0, y0, x1, y1)}] with gbox/gap in
+    mm. *gap* is the INTER-PAD strip between the two groups' inner edges,
+    spanning the union of their lateral extents -- the region the
+    pour-termination ruling (owner 2026-07-25) assigns EXCLUSIVELY to the
+    authored Kelvin tap stubs. Shared by guaranteed_shunt_patches (inner-
+    edge clip) and the v4 planner (F-corridor gap exclusion)."""
     out = []
     for fp in board.GetFootprints():
         if not fp.GetReference().startswith("RS"):
@@ -1292,6 +1287,7 @@ def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
                 by_net.setdefault(n, []).append(p)
         if len(by_net) != 2:
             continue
+
         def _gbox(ps):
             return (min(p.GetBoundingBox().GetLeft() for p in ps) / MM,
                     min(p.GetBoundingBox().GetTop() for p in ps) / MM,
@@ -1302,20 +1298,58 @@ def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
         ca = ((ba[0] + ba[2]) / 2, (ba[1] + ba[3]) / 2)
         cb = ((bbx[0] + bbx[2]) / 2, (bbx[1] + bbx[3]) / 2)
         horiz = abs(cb[0] - ca[0]) >= abs(cb[1] - ca[1])
-        mid = ((ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2)
-        for net, gb, cc in ((na, ba, ca), (nb, bbx, cb)):
+        if horiz:
+            left, right = (ba, bbx) if ca[0] <= cb[0] else (bbx, ba)
+            gap = (left[2], min(ba[1], bbx[1]), right[0],
+                   max(ba[3], bbx[3]))
+        else:
+            top, bot = (ba, bbx) if ca[1] <= cb[1] else (bbx, ba)
+            gap = (min(ba[0], bbx[0]), top[3], max(ba[2], bbx[2]),
+                   bot[1])
+        out.append({"ref": fp.GetReference(), "horiz": horiz,
+                    "halves": [(na, ba, ca), (nb, bbx, cb)], "gap": gap})
+    return out
+
+
+def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
+    """UNCONDITIONAL per-pad F.Cu patch dicts for every RS* shunt (owner,
+    2026-07-25: RS1 measured pour-naked -- the starvation cycle: congested
+    area -> its shave comes out lace-bound -> scrap filter drops it ->
+    coverage-gated force-vias refuse -> no anchors -> unreachable -> no
+    pour, forever). Each shunt pad-net gets its half of the shunt
+    neighborhood as a patch: anchored by the pad itself BY DEFINITION (so
+    the floating-fragment rule can never drop it), inside the shunt
+    neighborhood by construction (so the F choke admits it), provenance
+    'slab' (so the bond/scrap filter and F-rectangularize exempt it).
+
+    INNER-SIDE CLIP AT THE PAD INNER EDGE (pour-termination ruling, owner
+    2026-07-25 -- supersedes the original mid-gap clip): force copper
+    terminates AT the shunt pad and never enters the inter-pad gap, which
+    belongs exclusively to the authored Kelvin tap stubs (tap-form v5:
+    the stubs enter from the pad inner edges). *gap_mm* is retired by the
+    ruling (kept in the signature for call-site compatibility; unused).
+    Outer/side margins keep *margin_mm* -- they cover the outboard
+    force-via rows, the patch's original purpose. Local COVERAGE guarantee
+    only -- reachability is the pre-FR corridor reservation's job."""
+    del gap_mm                                         # retired (ruling)
+    out = []
+    for sh in _shunt_pad_halves(board):
+        horiz = sh["horiz"]
+        cs = [c for (_n, _g, c) in sh["halves"]]
+        mid = ((cs[0][0] + cs[1][0]) / 2, (cs[0][1] + cs[1][1]) / 2)
+        for (net, gb, cc) in sh["halves"]:
             x0, y0 = gb[0] - margin_mm, gb[1] - margin_mm
             x1, y1 = gb[2] + margin_mm, gb[3] + margin_mm
             if horiz:
                 if cc[0] < mid[0]:
-                    x1 = min(x1, mid[0] - gap_mm)
+                    x1 = min(x1, gb[2])                # inner edge, exact
                 else:
-                    x0 = max(x0, mid[0] + gap_mm)
+                    x0 = max(x0, gb[0])
             else:
                 if cc[1] < mid[1]:
-                    y1 = min(y1, mid[1] - gap_mm)
+                    y1 = min(y1, gb[3])
                 else:
-                    y0 = max(y0, mid[1] + gap_mm)
+                    y0 = max(y0, gb[1])
             out.append({"net": net, "layer": "F.Cu",
                         "polygon": [(round(x0, 3), round(y0, 3)),
                                     (round(x1, 3), round(y0, 3)),
