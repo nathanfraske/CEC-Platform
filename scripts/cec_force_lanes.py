@@ -102,26 +102,37 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         board.Add(v)
         added.append(v)
 
-    def clear_spot(x, y):
-        """Via site must clear foreign pads + locked cell copper."""
+    def spot_blocker(x, y):
+        """What blocks a via site here -- a short reason, or None if it is clear.
+
+        Returns the REASON rather than a bare False (2026-07-25): all six 12VHPWR
+        lanes were refusing with "no clear LO via site" and the message named
+        nothing, so the regression that cost the board its 2.5mm force copper
+        (lanes 0/6 laid, 12V nets left to Freerouting at 0.25mm signal width on a
+        50A path) could not be diagnosed from a wave log. A refusal that cannot
+        be read is a refusal that gets rediscovered.
+        """
         for ref, num, net, px, py, half in pads:
             # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
             # no barrel overlapping ANY pad, own net / J3 / J4 included
             # (0.5 = via r 0.45 + 0.05 no-overlap margin)
             if abs(px - x) < half + 0.5 and abs(py - y) < half + 0.5:
-                return False
+                return f"pad {ref}.{num}"
             if ref.startswith(("J3", "J4")):
                 continue
             if abs(px - x) < 1.35 and abs(py - y) < 1.35 \
                     and not net.startswith("/SENSEP") and net != "/FAN_12V":
-                return False
+                return f"foreign pad {ref}.{num} ({net})"
         for vx, vy in lock_vias:
             if (vx - x) ** 2 + (vy - y) ** 2 < 1.45 ** 2:
-                return False
+                return "locked via"
         for net, sx, sy, ex, ey, _lw in lock_segs:
             if _seg_pt_d2(x, y, sx, sy, ex, ey) < (0.45 + _lw / 2.0 + 0.25) ** 2:
-                return False
-        return True
+                return f"locked copper {net}"
+        return None
+
+    def clear_spot(x, y):
+        return spot_blocker(x, y) is None
 
     def lane_collider(plan, own_nets):
         """First foreign pad OR foreign locked copper within reach of a planned
@@ -204,19 +215,41 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         # ---- LO via field beside RS.2 (F.Cu spokes -> B.Cu)
         lane_x = rs2[0]
         sites = []
-        for dy in (1.3, 2.0, 2.7, 3.4, 4.1):
-            for dx in (-1.7, 1.7, -1.0, 1.0, 0.0):
+        blockers = {}
+        # SEARCH WINDOW WIDENED (2026-07-25 regression fix): the ladder used to
+        # stop at 4.1mm below the LO pad. Once the via-in-pad ruling excluded
+        # barrels overlapping ANY pad -- correctly -- every site inside that
+        # window could be owned by the shunt pad and its neighbours, and the lane
+        # refused outright rather than stepping outside. Refusing a 50A lane is a
+        # far worse outcome than a slightly longer spoke, so the ladder now walks
+        # out to 7.7mm and records WHY each ring failed.
+        # The field belongs anywhere on the lane's OWN descent to J4, not only in
+        # a fixed window under the pad: measured on all six 12VHPWR lanes, the
+        # window is owned by the shunt's LO pad and the INA240 packed against it
+        # for short Kelvin (both correct designs), so a fixed window can only
+        # refuse. Walk the corridor the lane already occupies.
+        _y_h = j4_gnd_y - 3.2 - 2.9 * rank - off
+        _reach = max(4.1, abs(_y_h - rs2[1]) - 1.0)
+        _ladder = [round(1.3 + 0.7 * k, 2) for k in range(int((_reach - 1.3) / 0.7) + 1)]
+        for dy in (_ladder or [1.3, 2.0, 2.7, 3.4, 4.1]):
+            for dx in (-1.7, 1.7, -1.0, 1.0, 0.0, -2.4, 2.4):
                 if len(sites) >= 4:
                     break
                 cx, cy = lane_x + dx, rs2[1] + dy
-                if clear_spot(cx, cy) and all(
+                why = spot_blocker(cx, cy)
+                if why is None and all(
                         (cx - a) ** 2 + (cy - b) ** 2 >= 1.15 ** 2 for a, b in sites):
                     sites.append((cx, cy))
+                elif why is not None:
+                    blockers[why] = blockers.get(why, 0) + 1
         if not sites:
-            report[n] = "REFUSED: no clear LO via site"
+            top = sorted(blockers.items(), key=lambda kv: -kv[1])[:3]
+            report[n] = ("REFUSED: no clear LO via site (blocked by "
+                         + ", ".join(f"{k} x{v}" for k, v in top) + ")"
+                         if top else "REFUSED: no clear LO via site")
             continue
         sy_max, sy_min = max(b for a, b in sites), min(b for a, b in sites)
-        y_h = j4_gnd_y - 3.2 - 2.9 * rank - off
+        y_h = _y_h
         xn4 = p4[0] + gap_dir
         lo_spokes = [(rs2[0], rs2[1], cx, cy, 1.0, fcu) for cx, cy in sites]
         col = lane_collider(lo_spokes, {lo})

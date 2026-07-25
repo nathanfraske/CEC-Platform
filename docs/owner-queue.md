@@ -558,3 +558,40 @@ without touching the doctrine at all.
 **Landed regardless (both doctrines benefit):** post-route In2 GND fill at priority 0 with
 island removal (`cec_fr.add_inner_gnd_fill`, `inner_gnd_fill` board param) — measured
 5510 mm² before the floods take priority, 323 mm² after.
+
+## 2026-07-25 — 12VHPWR FORCE COPPER: three ratified rules leave no legal geometry (DECISION OWED)
+
+**Measured regression** (07-19 vs today, same board/params class): SENSEP lane copper
+480.8 mm → 119.7 mm, locked segments 164 → 62, **max lane width 2.50 mm → 0.25 mm**. On a
+600 W / 50 A connector board that is a fusing hazard, not cosmetics. The 0.25 mm copper is
+not a shrunken lane — it is Freerouting routing the 12 V nets at signal width because **no
+force lane was laid at all**: `[materialize] force lanes: 0/6 laid`.
+
+**Root cause chain, each step measured:**
+1. The **via-in-pad ruling (2026-07-25)** correctly excludes barrels overlapping ANY pad.
+2. The LO via field's search window sits directly under the shunt's LO pad — which is also
+   where the **sense cell** packs the INA240 for short Kelvin. Named blockers, identical on
+   all six lanes: `pad U10.5 x12, pad RS1.2 x10, pad U10.6 x7`.
+3. Widening the search to walk the lane's own descent (landed) gets past the via site, and
+   the lane then refuses one gate later: `LO spoke vs RFL1.2 [/IN1_N]` — the spoke from the
+   shunt pad to the relocated field crosses the cell's own filter resistors.
+4. Underneath it all the placement walk is already over-constrained:
+   `[rails] 6 cols need 60mm > 41mm avail -> walk INFEASIBLE at the 9.0mm cell floor`.
+
+**Why this is an owner decision and not an agent fix:** every remaining path touches a
+ratified rule — (a) exempt the lane's OWN shunt pad from the via-in-pad ruling (via-in-pad
+is an assembly/solder-wicking concern; filled/capped vias are a normal fab option, but it is
+your ruling to relax); (b) loosen the sense cell's Kelvin packing to open a lane corridor
+(cell geometry is blueprint-ratified); (c) grow the board, which the 2026-07-23 standing rule
+forbids ("machinery, never millimetres"); (d) build a real path search that routes the LO
+spoke AROUND the cell instead of straight — the only option that touches no ruling, and the
+largest piece of work.
+
+**Recommendation:** (d), with (a) as the cheap unblock if you want lanes back on the next
+wave — the pre-ruling boards laid these vias in the shunt pad and were, in your words, "just
+fine". Nothing here is fixed yet; the board currently publishes with 0.25 mm 12 V copper and
+that should not go to fab.
+
+**Landed meanwhile (no ruling touched):** the refusal now names its blockers (`pad U10.5 x12,
+...`) instead of an opaque "no clear LO via site" — it took two rounds of that message to
+find this, and the next person should not pay that cost again.
