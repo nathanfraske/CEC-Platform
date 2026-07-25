@@ -109,9 +109,12 @@ def _leg_pad_gap(a, b, px, py, hx, hy):
 def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
     """The §6.8 Kelvin taps AUTHORED into the cell (owner, wave-15 render: taps
     must be the textbook orthogonal 90s, not the route-time guard-refusal
-    fallbacks). Four all-orthogonal paths in template coordinates, derived
-    parametrically from the measured pad geometry; every leg is clearance-
-    asserted against every foreign pad and opposite-polarity taps are
+    fallbacks; v5 TAP-FORM ruling 2026-07-25: each tap must CONTACT its shunt
+    pad on the INNER edge, run PERPENDICULAR from that edge into the inter-pad
+    gap toward the shunt middle, then ONE 90 turn OUTWARD to the INA -- "like
+    on every other board"). All-orthogonal paths in template coordinates,
+    derived parametrically from the measured pad geometry; every leg is
+    clearance-asserted against every foreign pad and opposite-polarity taps are
     cross-checked -- the generator FAILS LOUD rather than emit a colliding
     template. Returns internal_tracks entries (net_role CELL_HI/CELL_LO).
 
@@ -159,19 +162,26 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
 
     hw = TAP_W / 2.0
     # channel constants, all derived + then proven by the asserts below.
-    # Shapes (v4 -- the redesign: with the 181 ROTATED 180 both its inputs
-    # face DOWN, so each polarity approaches from its own below-lane and no
-    # leg ever crosses y=0 outside the pad gap, keeping clear of the rail
-    # plan's stub corridors (template x in ~[-7,-3] and [3,6.2] at |y|<~2.9,
-    # which v3's over-the-top LO legs measurably violated -- the laid-copper
-    # collisions at (35.5,24.8) on the s0k probe):
-    #   LO: gap drop beside the 238's column top, jog OUT at the column-top
-    #       line, down outside the column, branch into 238.IN-, continue to
-    #       the LOWER lane, west under everything, up into 181.IN-.
-    #   HI: corridor drop (own-net through its own stub zone), the under-238
-    #       lane east into 238.IN+ from below, and a short branch up into
-    #       181.IN+ from the same lane.
-    hx_o = lcol_edge - TAP_CLR - hw - 0.1                        # HI corridor drop
+    # Shapes (v5 -- the TAP-FORM ruling, owner 2026-07-25, recorded in
+    # docs/slab-pour-design-2026-07-24.md "Tap-form ruling": each tap CONTACTS
+    # its shunt pad on the INNER edge -- the edge facing the resistive element
+    # -- runs PERPENDICULAR from that edge into the inter-pad gap toward the
+    # shunt middle, then makes ONE 90 turn OUTWARD toward the bank and routes
+    # to its INA pads; the v4 pad-bottom / outside-corridor entries are
+    # retired. Both stubs enter at their pad's own centre row; they clear each
+    # other because the turn columns are UNCROSSED (x_hi < x_lo_gap, asserted
+    # at 2*hw+TAP_CLR minimum separation) -- the _check pass then re-proves
+    # every pairwise clearance on the real geometry:
+    #   HI: inner-edge stub east -> 90 DOWN the 238's between-columns channel
+    #       to the under-lane -> west branch up into 181.IN+ from below +
+    #       east branch at the under-lane up into 238.IN+ (pad 10) from below.
+    #   LO: inner-edge stub west -> 90 DOWN inside the gap to the over-column
+    #       line -> east over the 238's column top -> down the OUTER drop
+    #       (outside the right column) -> sideways into 238.IN- (pad 9) ->
+    #       continue to the LOWER lane, west under everything, up into
+    #       181.IN- from below. (The only crossing-free topology: both 181
+    #       inputs need below-approaches on the west, so the channel belongs
+    #       to HI and LO takes the outer drop its own pad overhangs.)
     b181_bot = min(v[1] - v[3] / 2 for v in geom[u181].values())
     y_bot = min(bot238, b181_bot) - TAP_CLR - hw - 0.15          # HI under-lane
     y_lo2 = y_bot - (2 * hw + TAP_CLR + 0.05)                    # LO lower lane
@@ -184,8 +194,20 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
             "no LO lane between the HI under-lane and the TLV top row"
     col_top = max(v[1] + v[3] / 2 for v in geom[u238].values())  # 238 col highest edge
     y_jog = col_top + TAP_CLR + hw                               # over-the-column line
-    x_gd = (lx_rs - g(rs, lo_rs)[2] / 2) + 0.5                   # gap drop, on the LO pad
     x_od = rcol_edge + TAP_CLR + hw + 0.075                      # outer drop column
+    # v5 inner-edge entries + the 238 between-columns channel (the HI descent)
+    hi_in_x = hx_rs + g(rs, hi_rs)[2] / 2.0      # HI pad inner edge (faces the element)
+    lo_in_x = lx_rs - g(rs, lo_rs)[2] / 2.0      # LO pad inner edge
+    _rs_pads = (g(rs, hi_rs), g(rs, lo_rs))
+    rs_bot_edge = min(v[1] - v[3] / 2 for v in _rs_pads)         # shunt pad bottom edge
+    lcol_in = max(v[0] + v[2] / 2 for v in geom[u238].values() if v[0] < 0)
+    rcol_in = min(v[0] - v[2] / 2 for v in geom[u238].values() if v[0] > 0)
+    ch_l = lcol_in + TAP_CLR + hw                # descent-centreline channel walls
+    ch_r = rcol_in - TAP_CLR - hw
+    assert ch_r - ch_l >= 2 * hw + TAP_CLR - 1e-6, \
+        "238 between-columns channel too narrow for the HI descent"
+    assert y_jog <= rs_bot_edge - TAP_CLR - hw + 1e-6, \
+        "no over-column line between the shunt pads and the 238 column top"
 
     net_of = {"CELL_HI": hi_net, "CELL_LO": lo_net,
               "CELL_DETAMP": role["CELL_DETAMP"]}
@@ -273,22 +295,44 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
     detamp = [("CELL_DETAMP", [(xo181, yo181), (xo181, y_up), (x_far2, y_up),
                                (x_far2, y_dt), (x_rise, y_dt),
                                (x_rise, ytin), (xtin, ytin)])]
+    # v5 candidate grid: the two stub TURN COLUMNS (x_hi for the HI channel
+    # descent, x_lo_gap for the LO in-gap drop) x the 181 approach-column
+    # variants. The stubs both run on the pad-centre row, so their clearance
+    # IS the column separation -- enforced here and re-proven by _check.
+    ch_mid = (ch_l + ch_r) / 2.0
+    _sep_min = 2 * hw + TAP_CLR
+    x_hi_cands = []
+    for _xh in (-0.6, -0.9, -0.3, ch_mid - 0.6):
+        _xh = min(max(_xh, ch_l), ch_r)
+        if all(abs(_xh - q) > 1e-6 for q in x_hi_cands):
+            x_hi_cands.append(_xh)
+    x_lo_cands = []
+    for _xl in (lo_in_x - 1.15, lo_in_x - 0.75, ch_r):
+        _xl = min(_xl, lo_in_x - 2 * hw)         # the stub must actually enter the gap
+        if all(abs(_xl - q) > 1e-6 for q in x_lo_cands):
+            x_lo_cands.append(_xl)
     cands = []
-    for xn in (xi181n, inn_l, inn_r):
-        for xp in (xi181p, inp_l, inp_r):
-            _lo1 = [(x_gd, ly_rs), (x_gd, y_jog), (x_od, y_jog), (x_od, y_lo2),
-                    (xn, y_lo2), (xn, yi181)]
-            if xn != xi181n:
-                _lo1 = _lo1[:-1] + [(xn, yi181), (xi181n, yi181)]
-            _hi1 = [(hx_o, hy_rs), (hx_o, y_bot), (xp, y_bot), (xp, yi181)]
-            if xp != xi181p:
-                _hi1 = _hi1[:-1] + [(xp, yi181), (xi181p, yi181)]
-            cands.append([
-                ("CELL_LO", _lo1),
-                ("CELL_LO", [(x_od, y9), (x9, y9)]),             # 238 IN- branch
-                ("CELL_HI", _hi1),                               # 181 IN+ path
-                ("CELL_HI", [(hx_o, y_bot), (x10, y_bot), (x10, y10)]),
-            ] + detamp)
+    for x_hi in x_hi_cands:
+        for x_lo_gap in x_lo_cands:
+            if x_lo_gap - x_hi < _sep_min - 1e-6:
+                continue                          # stubs share the gap row -- keep clear
+            for xn in (xi181n, inn_l, inn_r):
+                for xp in (xi181p, inp_l, inp_r):
+                    _lo1 = [(lo_in_x, ly_rs), (x_lo_gap, ly_rs), (x_lo_gap, y_jog),
+                            (x_od, y_jog), (x_od, y_lo2), (xn, y_lo2), (xn, yi181)]
+                    if xn != xi181n:
+                        _lo1 = _lo1[:-1] + [(xn, yi181), (xi181n, yi181)]
+                    _hi1 = [(hi_in_x, hy_rs), (x_hi, hy_rs), (x_hi, y_bot),
+                            (xp, y_bot), (xp, yi181)]
+                    if xp != xi181p:
+                        _hi1 = _hi1[:-1] + [(xp, yi181), (xi181p, yi181)]
+                    cands.append([
+                        ("CELL_LO", _lo1),
+                        ("CELL_LO", [(x_od, y9), (x9, y9)]),     # 238 IN- branch
+                        ("CELL_HI", _hi1),                       # 181 IN+ path
+                        ("CELL_HI", [(x_hi, y_bot), (x10, y_bot), (x10, y10)]),
+                    ] + detamp)
+    assert cands, "no stub-column pair satisfies the shared-gap separation"
     taps, _reasons = None, []
     for _ci, _cand in enumerate(cands):
         _why = _check(_cand)
@@ -306,6 +350,13 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
                            "start_rel_mm": [round(a[0], 4), round(a[1] * _ys, 4)],
                            "end_rel_mm": [round(b[0], 4), round(b[1] * _ys, 4)],
                            "width_mm": TAP_W})
+    # tap-form witness (embedded as meta['tap_form'] by _emit_one; the teeth assert
+    # the inner-edge entry against these EXACT derived edge coordinates)
+    author_kelvin_taps.form = {
+        "hi_inner_edge": [round(hi_in_x, 4), round(hy_rs * _ys, 4)],
+        "lo_inner_edge": [round(lo_in_x, 4), round(ly_rs * _ys, 4)],
+        "outward_y_sign": -_ys,                    # toward the bank in the emitted frame
+    }
     return tracks
 
 
@@ -450,6 +501,10 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
         # have-set in synthesize_ideal_internal skips authored roles only).
         "internal_tracks": (author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=side)
                             if author_taps else []),
+        # v5 tap-form witness (owner ruling 2026-07-25): the derived shunt-pad
+        # inner-edge coordinates the authored stubs start ON -- the teeth assert
+        # inner-edge entry + perpendicular-then-90-outward against these.
+        "tap_form": (getattr(author_kelvin_taps, "form", None) if author_taps else None),
         "port_tracks": [],
         "standins": [],
         "vias": [],

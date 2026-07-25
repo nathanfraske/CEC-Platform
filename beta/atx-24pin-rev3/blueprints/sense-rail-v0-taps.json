@@ -294,11 +294,24 @@
    "net_role": "CELL_LO",
    "layer": "F.Cu",
    "start_rel_mm": [
-    2.85,
+    2.35,
     0.0
    ],
    "end_rel_mm": [
-    2.85,
+    1.2,
+    0.0
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    1.2,
+    0.0
+   ],
+   "end_rel_mm": [
+    1.2,
     -3.125
    ],
    "width_mm": 0.25
@@ -307,7 +320,7 @@
    "net_role": "CELL_LO",
    "layer": "F.Cu",
    "start_rel_mm": [
-    2.85,
+    1.2,
     -3.125
    ],
    "end_rel_mm": [
@@ -372,11 +385,24 @@
    "net_role": "CELL_HI",
    "layer": "F.Cu",
    "start_rel_mm": [
-    -3.35,
+    -2.35,
     0.0
    ],
    "end_rel_mm": [
-    -3.35,
+    -0.6,
+    0.0
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -0.6,
+    0.0
+   ],
+   "end_rel_mm": [
+    -0.6,
     -6.225
    ],
    "width_mm": 0.25
@@ -385,7 +411,7 @@
    "net_role": "CELL_HI",
    "layer": "F.Cu",
    "start_rel_mm": [
-    -3.35,
+    -0.6,
     -6.225
    ],
    "end_rel_mm": [
@@ -411,7 +437,7 @@
    "net_role": "CELL_HI",
    "layer": "F.Cu",
    "start_rel_mm": [
-    -3.35,
+    -0.6,
     -6.225
    ],
    "end_rel_mm": [
@@ -512,6 +538,17 @@
    "width_mm": 0.25
   }
  ],
+ "tap_form": {
+  "hi_inner_edge": [
+   -2.35,
+   0.0
+  ],
+  "lo_inner_edge": [
+   2.35,
+   0.0
+  ],
+  "outward_y_sign": -1.0
+ },
  "port_tracks": [],
  "standins": [],
  "vias": [],

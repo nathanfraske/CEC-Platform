@@ -260,5 +260,80 @@ class CanonicalOrRefuse(unittest.TestCase):
         self.assertFalse(rep["refused"], rep)
 
 
+TAPS_TPL = os.path.normpath(os.path.join(
+    HERE, "..", "beta", "atx-24pin-rev3", "blueprints", "sense-rail-v0-taps.json"))
+
+
+@unittest.skipUnless(os.path.isfile(TAPS_TPL), "authored-taps template required")
+class AuthoredTapForm(unittest.TestCase):
+    """The v5 TAP-FORM ruling (owner 2026-07-25, docs/slab-pour-design-2026-07-24.md
+    'Tap-form ruling') on the COMMITTED template: each tap CONTACTS its shunt pad on
+    the INNER edge (the recorded tap_form witness coordinates), runs PERPENDICULAR
+    from that edge into the inter-pad gap, then its first turn is 90 OUTWARD. Pure
+    JSON -- no pcbnew needed."""
+
+    def setUp(self):
+        import json
+        with open(TAPS_TPL) as fh:
+            self.t = json.load(fh)
+        self.form = self.t.get("tap_form")
+        self.tracks = [tr for tr in self.t["internal_tracks"]
+                       if tr["net_role"] in ("CELL_HI", "CELL_LO")]
+
+    def test_witness_present(self):
+        self.assertTrue(self.form, "tap_form witness missing from the template")
+
+    def test_all_orthogonal(self):
+        for tr in self.t["internal_tracks"]:
+            (sx, sy), (ex, ey) = tr["start_rel_mm"], tr["end_rel_mm"]
+            self.assertTrue(abs(sx - ex) < 1e-6 or abs(sy - ey) < 1e-6,
+                            "diagonal authored track: %s" % tr)
+
+    def _entry_chain(self, role, edge_key, into_sign):
+        """The tap's entry: a track starting AT the recorded inner edge, horizontal
+        (perpendicular to the edge), heading INTO the gap; returns (stub, turn_x)."""
+        ex, ey = self.form[edge_key]
+        stubs = [tr for tr in self.tracks if tr["net_role"] == role
+                 and abs(tr["start_rel_mm"][0] - ex) < 1e-6
+                 and abs(tr["start_rel_mm"][1] - ey) < 1e-6]
+        self.assertEqual(len(stubs), 1,
+                         "%s must have exactly ONE inner-edge entry stub" % role)
+        stub = stubs[0]
+        self.assertAlmostEqual(stub["start_rel_mm"][1], stub["end_rel_mm"][1],
+                               msg="entry stub must be perpendicular to the inner edge")
+        dx = stub["end_rel_mm"][0] - stub["start_rel_mm"][0]
+        self.assertGreater(dx * into_sign, 0,
+                           "%s entry must run INTO the gap (toward the middle)" % role)
+        return stub
+
+    def test_hi_enters_inner_edge_then_90_outward(self):
+        stub = self._entry_chain("CELL_HI", "hi_inner_edge", +1.0)
+        self._assert_outward_turn("CELL_HI", stub)
+
+    def test_lo_enters_inner_edge_then_90_outward(self):
+        stub = self._entry_chain("CELL_LO", "lo_inner_edge", -1.0)
+        self._assert_outward_turn("CELL_LO", stub)
+
+    def _assert_outward_turn(self, role, stub):
+        tx, ty = stub["end_rel_mm"]
+        nxt = [tr for tr in self.tracks if tr["net_role"] == role
+               and abs(tr["start_rel_mm"][0] - tx) < 1e-6
+               and abs(tr["start_rel_mm"][1] - ty) < 1e-6]
+        self.assertEqual(len(nxt), 1, "%s stub must continue in ONE 90 turn" % role)
+        dy = nxt[0]["end_rel_mm"][1] - nxt[0]["start_rel_mm"][1]
+        self.assertAlmostEqual(nxt[0]["start_rel_mm"][0], nxt[0]["end_rel_mm"][0],
+                               msg="the turn leg must be vertical (a true 90)")
+        self.assertGreater(dy * self.form["outward_y_sign"], 0,
+                           "%s first turn must head OUTWARD (toward the bank)" % role)
+
+    def test_stubs_clear_each_other_in_the_shared_gap(self):
+        hi = self._entry_chain("CELL_HI", "hi_inner_edge", +1.0)
+        lo = self._entry_chain("CELL_LO", "lo_inner_edge", -1.0)
+        # same row -> clearance is the horizontal separation of the turn columns
+        gap = lo["end_rel_mm"][0] - hi["end_rel_mm"][0]
+        self.assertGreaterEqual(gap, 2 * (hi["width_mm"] / 2.0) + 0.2 - 1e-6,
+                                "the two inner-edge stubs must clear each other")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
