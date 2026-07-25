@@ -6856,6 +6856,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 for _nn, _x0, _x1, _y0, _y1 in _bpb:
                     print(f"  [p8] blueprint box: ({_x0:.1f},{_x1:.1f},{_y0:.1f},{_y1:.1f})",
                           file=sys.stderr, flush=True)
+        # POUR-FIRST AVOID BOXES (v3 rung, docs/slab-pour-design-2026-07-24.md
+        # v3): the FROZEN F.Cu pour geometry solved on the anchor-only board.
+        # Re-added components may not sit ON set-in-stone top copper -- the
+        # boxes join the SAME evac + pour-aware-legalize + p9-restamp channel
+        # the SENSEC/blueprint boxes ride. The name is prefix-tagged (never a
+        # bare net name) so the own-net eviction exemption can never bypass
+        # it: a same-net cap on frozen pour copper would still punch a
+        # clearance hole through the frozen fill with its foreign-net pad.
+        # Absent param -> no boxes -> byte-identical (golden guarantee).
+        _pfb = [("pourfirst:%s" % (b.get("net") or ""),
+                 float(b["x0"]), float(b["x1"]), float(b["y0"]), float(b["y1"]))
+                for b in (cfg.params.get("pourfirst_avoid_boxes") or ())]
+        if _pfb:
+            _pour_boxes = list(_pour_boxes) + _pfb
         # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
         _nets_of = defaultdict(set)
         for _nn, _mem in nl.nets.items():
@@ -7410,6 +7424,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     # BLUEPRINT (P4): carry each stamped cell's spec to materialize(), which lays its LOCKED
     # internal copper on the real board (placement candidates carry no copper -- like fiducials).
     cand.blueprint_stamps = _blueprint_stamps
+    # POUR-FIRST ANCHOR SET (v3 rung, docs/slab-pour-design-2026-07-24.md v3):
+    # the refs that exist at the owner's seam -- "connectors + blueprint
+    # stamps + MCU" -- recorded from the placer's OWN knowledge (connector-
+    # role anchors + mounts/fiducials + stamped-cell members + the MCU seat +
+    # owner pins), never ref-prefix guessing. All are seated/locked before
+    # general placement, so their FINAL P positions ARE the seam state.
+    _pf_set = (set(anchors_roles or ()) | set(mech_pos or ())
+               | set(_bp_refs or ()) | ({_esp} if _esp else set())
+               | set(cfg.pins or ()))
+    if not _esp:                            # pinned-MCU boards: the antenna
+        _pf_set |= {r for r, fpid in (comps or {}).items()   # seat may skip,
+                    if "esp32" in str(fpid).lower()}          # the MCU stays
+    cand.pourfirst_anchor_refs = tuple(sorted(_pf_set & set(P or ())))
     return cand
 
 
@@ -7598,6 +7625,13 @@ def _oracle_env(params=None):
             # realization is what fills the reserved corridors. A/B lever;
             # never default-on.
             extra["CEC_POUR_RESERVE"] = "1"
+        if params.get("pourfirst_state"):
+            # v3 POUR-FIRST FREEZE (owner ruling 2026-07-25): the path to the
+            # frozen pour state pour_first_stage solved on the anchor-only
+            # board -- route_once consumes its corridors/exclude_pins (over
+            # any live CEC_POUR_RESERVE re-solve) and import_ses passes its
+            # pour dicts through SET IN STONE (cec_fr._pourfirst_state).
+            extra["CEC_POURFIRST_STATE"] = str(params["pourfirst_state"])
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling
@@ -9909,6 +9943,213 @@ def materialize(cand, cfg, out, *, logo=None):
     except Exception as _e:                                  # noqa: BLE001 -- sidecar is best-effort
         _tc.warn_once("pourplan_write", "pourplan sidecar not written (%s)" % _e)
     return out
+
+
+def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
+    """POUR-FIRST PLACEMENT RUNG (owner ruling 2026-07-25, docs/slab-pour-
+    design-2026-07-24.md v3 + v3.1). Runs at the seam AFTER connector seating
+    + blueprint stamping + the MCU seat and BEFORE general placement affects
+    anything the pours care about:
+
+      1. compile the session once and MATERIALIZE the ANCHOR-ONLY board --
+         only the refs synth_one recorded at the seam (connector-role anchors
+         + mounts/fiducials + blueprint-cell members + the MCU + owner pins;
+         `Candidate.pourfirst_anchor_refs`, the session's own knowledge, not
+         ref-prefix guessing). materialize() lays the cells' LOCKED copper +
+         force rails on it -- the board truth the pours coexist with;
+      2. solve pours TIGHT on that open field: v3.1 connector manifolds
+         (stage 0) + the over-under spine search with the width-margin attach
+         rule + guaranteed shunt patches -- ONE solve;
+      3. FREEZE, three consumers: (a) the pour dicts + bridge vias +
+         reservation corridors/exclude-pins ride a JSON state file
+         (params['pourfirst_state'] -> CEC_POURFIRST_STATE via _oracle_env)
+         consumed by cec_fr.route_once (pre-FR reservation) and
+         cec_fr.import_ses (set-in-stone passthrough; no re-solve, no slab
+         fallback for frozen nets); (b) the F.Cu pour polygons become placer
+         AVOID boxes (params['pourfirst_avoid_boxes'] -> the p8/p9 evac +
+         pour-aware legalize channel) so re-added components never sit on
+         frozen top copper; (c) a POURFIRST artifact (anchor board + pours,
+         filled, + hex render) is saved for the owner's review.
+
+    Determinism: the seam refs are all seated by p2/p4b/p3crit and LOCKED (or
+    owner-pinned) BEFORE the passes the avoid boxes feed (p8+), so the
+    follow-up compile with the boxes present reproduces the identical anchor
+    state the pours were solved on.
+
+    Mutates session.cfg.params (the freeze) and sets session.pourfirst_report
+    (the per-net wave-log report: path_found / segments / bridges / layers /
+    bottleneck). Returns the report. Fail-open: an internal error records
+    report['error'] and leaves params untouched (the live pour machinery
+    still runs at route time)."""
+    import cec_fr
+    import cec_slab_pour
+    import pcbnew
+    cfg = session.cfg
+    label = label or ("pourfirst-%s-s%s" % (getattr(session, "strat", "x"),
+                                            getattr(session, "seed", 0)))
+    t0 = time.monotonic()
+    report = {"label": label, "nets": {}}
+    try:
+        with _oracle_env(cfg.params):
+            cand = session.compile()
+            keep = set(getattr(cand, "pourfirst_anchor_refs", ()) or ())
+            if not keep:
+                report["error"] = ("no pourfirst_anchor_refs on the candidate "
+                                   "-- stage skipped (live machinery stands)")
+                session.pourfirst_report = report
+                return report
+            import copy as _copy
+            skel = _copy.copy(cand)
+            skel.P = {r: p for r, p in cand.P.items() if r in keep}
+            skel.back_refs = tuple(r for r in (cand.back_refs or ())
+                                   if r in keep)
+            report["anchor_refs"] = len(skel.P)
+            wd = tempfile.mkdtemp(prefix="cec_pourfirst_")
+            skel_path = materialize(
+                skel, cfg, os.path.join(wd, "POURFIRST-%s.kicad_pcb" % label))
+            # the SAME ask channel the route consumes (materialize wrote the
+            # skeleton's pourplan sidecar: rail-compiler asks + params asks)
+            _h, asks, _r = _oracle_hints_pours(skel_path)
+            # dedupe per net (union of layer lists) -- the reservation's own
+            # rule; synthesize solves per ask ROW, and the rail compiler
+            # emits several dicts per net
+            _per_net = {}
+            for a in asks:
+                if not a.get("net"):
+                    continue
+                lays = _per_net.setdefault(a["net"], [])
+                for lay in (a.get("layers") or (a.get("layer", "F.Cu"),)):
+                    if lay not in lays:
+                        lays.append(lay)
+            asks_d = [{"net": n, "layers": tuple(lays), "provenance":
+                       "placer_ask"} for n, lays in sorted(_per_net.items())]
+            board = pcbnew.LoadBoard(skel_path)
+            collect = {}
+            lanes, vias, rep = cec_slab_pour.synthesize_overunder_pours(
+                board, asks_d, manifolds=True, collect=collect)
+            patches = cec_slab_pour.guaranteed_shunt_patches(board)
+            # corridors + pour-owned pads from the SAME search (one solve,
+            # three consumers -- reservation_from_search on collect)
+            grid = collect.get("_grid")
+            shunt_boxes = cec_slab_pour.shunt_neighborhoods(board)
+            nets_nc = {n.GetNetname(): c for c, n in
+                       board.GetNetInfo().NetsByNetcode().items()}
+            corridors, reserve_report = [], {}
+            for net, ci in sorted(collect.items()):
+                if net == "_grid" or not isinstance(ci, dict):
+                    continue
+                cors, reserved = cec_slab_pour.reservation_from_search(
+                    net, ci["ok"], ci["path_cells"], ci["bridges"],
+                    ci["rcells"], ci["foreign"], grid)
+                pins = []
+                if reserved:
+                    corridors.extend(cors)
+                    nc = nets_nc.get(net)
+                    pins = sorted({"%s-%s" % (fp.GetReference(),
+                                              p.GetPadName())
+                                   for fp in board.GetFootprints()
+                                   for p in fp.Pads()
+                                   if p.GetNetCode() == nc
+                                   and cec_slab_pour._excludable_pad(
+                                       p, shunt_boxes)})
+                reserve_report[net] = {
+                    "reserved": bool(reserved), "rects": len(cors) if reserved
+                    else 0, "bridges": len(ci.get("bridges") or ()),
+                    "exclude_pins": pins,
+                    **({} if ci["ok"] else {"no_path": True})}
+            # FREEZE the dicts: provenance 'pourfirst' (set-in-stone
+            # passthrough marker), names preserved (manifold:/patch: carry
+            # the reaper/choke exemptions; bare lanes get pourfirst:<net>)
+            frozen = []
+            for d in list(lanes) + list(patches):
+                dd = dict(d)
+                dd["provenance"] = "pourfirst"
+                dd.setdefault("name", "pourfirst:%s" % dd.get("net"))
+                frozen.append(dd)
+            state = {"schema": 1, "label": label,
+                     "skeleton": skel_path, "pours": frozen, "vias": vias,
+                     "corridors": corridors,
+                     "exclude_pins": sorted({t for v in
+                                             reserve_report.values()
+                                             for t in v["exclude_pins"]}),
+                     "reserve_report": reserve_report, "report": rep}
+            state_path = os.path.join(wd, "pourfirst-state.json")
+            with open(state_path, "w") as fh:
+                json.dump(state, fh, indent=1, sort_keys=True, default=str)
+            # THE FREEZE -- (a) route-side state, (b) placer avoid boxes
+            cfg.params["pourfirst_state"] = state_path
+            cfg.params["pourfirst_avoid_boxes"] = [
+                {"net": d.get("net"),
+                 "x0": min(q[0] for q in d["polygon"]),
+                 "y0": min(q[1] for q in d["polygon"]),
+                 "x1": max(q[0] for q in d["polygon"]),
+                 "y1": max(q[1] for q in d["polygon"])}
+                for d in frozen if d.get("layer", "F.Cu") == "F.Cu"
+                and d.get("polygon")]
+            report["nets"] = {
+                n: {k: v.get(k) for k in ("path_found", "segments", "bridges",
+                                          "layers_used", "bottleneck",
+                                          "manifolds", "reason")
+                    if v.get(k) is not None}
+                for n, v in rep.items()}
+            report.update({
+                "lanes": sum(1 for d in frozen
+                             if str(d.get("name", "")).startswith("pourfirst:")),
+                "manifolds": sum(1 for d in frozen
+                                 if str(d.get("name", "")).startswith("manifold:")),
+                "patches": sum(1 for d in frozen
+                               if str(d.get("name", "")).startswith("patch:")),
+                "bridge_vias": len(vias), "corridor_rects": len(corridors),
+                "avoid_boxes": len(cfg.params["pourfirst_avoid_boxes"]),
+                "state": state_path,
+                "path_found": sorted(n for n, v in rep.items()
+                                     if v.get("path_found")),
+                "no_path": sorted(n for n, v in rep.items()
+                                  if not v.get("path_found", True))})
+            # (c) the OWNER-REVIEW ARTIFACT: anchor board + frozen pours,
+            # filled, + hex render -- wave-snaps naming (POURFIRST-<label>)
+            if artifact and out_dir:
+                os.makedirs(out_dir, exist_ok=True)
+                if vias:
+                    cec_fr.add_overunder_vias(board, vias)
+                cec_fr.add_power_pours(board, frozen, fill=False)
+                for z in board.Zones():
+                    z.UnFill()
+                pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+                art = os.path.join(out_dir, "POURFIRST-%s.kicad_pcb" % label)
+                pcbnew.SaveBoard(art, board)
+                for ext in (".kicad_pro", ".kicad_dru"):
+                    _s = skel_path[:-len(".kicad_pcb")] + ext
+                    if os.path.isfile(_s):
+                        shutil.copy(_s, art[:-len(".kicad_pcb")] + ext)
+                report["artifact"] = art
+                try:
+                    import cec_render
+                    png = cec_render.hex_panel(
+                        art, os.path.join(out_dir,
+                                          "POURFIRST-%s-hex.png" % label))
+                    if png:
+                        report["render"] = png
+                except Exception as e:                     # noqa: BLE001
+                    report["render_error"] = "%s: %s" % (type(e).__name__, e)
+    except Exception as e:                                 # noqa: BLE001
+        report["error"] = "%s: %s" % (type(e).__name__, e)
+        print("[pourfirst] %s: STAGE FAILED (%s) -- live pour machinery "
+              "stands" % (label, report["error"]), file=sys.stderr)
+    report["wall_s"] = round(time.monotonic() - t0, 1)
+    session.pourfirst_report = report
+    if "error" not in report:
+        print("[pourfirst] %s: %d anchor ref(s); paths %d/%d (no-path: %s); "
+              "%d lane / %d manifold / %d patch dict(s), %d bridge via(s), "
+              "%d corridor rect(s), %d F-avoid box(es) [%.1fs]"
+              % (label, report.get("anchor_refs", 0),
+                 len(report.get("path_found", ())), len(report.get("nets", {})),
+                 report.get("no_path", []) or "none", report.get("lanes", 0),
+                 report.get("manifolds", 0), report.get("patches", 0),
+                 report.get("bridge_vias", 0), report.get("corridor_rects", 0),
+                 report.get("avoid_boxes", 0), report["wall_s"]),
+              file=sys.stderr)
+    return report
 
 
 def place_finalize_handoff(cand, cfg, *, ask=None, work_dir=None):

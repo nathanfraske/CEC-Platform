@@ -624,7 +624,7 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
 
 
 def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
-                        shunt_mask, clearance_mm=0.3):
+                        shunt_mask, clearance_mm=0.3, manifolds=()):
     """Shared per-net SEARCH PREP for the over-under machinery -- extracted
     2026-07-25 (pre-FR corridor reservation, docs/slab-pour-design-2026-07-24.md
     priority ruling) so `synthesize_overunder_pours` (post-route realization)
@@ -714,6 +714,69 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
         print(f"[cec_slab_pour] over-under: widened {net} search to "
               f"{extra} (terminal cluster(s) {helped} anchored only "
               f"there)", file=sys.stderr)
+    # v3.1 WIDTH-MARGIN ATTACH (owner algorithm 2026-07-25, docs/slab-pour-
+    # design-2026-07-24.md v3.1): connector MANIFOLDS -- one margin-width
+    # bus-bar pour per (connector, net) pin group, laid before any spine --
+    # become the spine's ATTACH TARGETS. A terminal cluster whose cells
+    # intersect a manifold has its anchor mask REPLACED by
+    # erode(manifold|anchors, req_w/2) restricted to that manifold component:
+    # the lane attaches only where the manifold can actually FEED the width
+    # (today's raw-pad targets sit between foreign barrels the eroded search
+    # can never reach -- the three s415 skeleton no-paths). Clusters ganged
+    # by one manifold component MERGE (the manifold copper is one solid
+    # terminal by construction). Erosion emptying a component falls back to
+    # the raw anchors, with a note in attach_notes (honest per-net report).
+    attach_notes = []
+    _man_eff_f = None                      # F manifold footprint: choke-admitted
+    if manifolds:
+        man_by_lay = {}
+        for d in manifolds:
+            if d.get("net") != net:
+                continue
+            _mlay = d.get("layer", "F.Cu")
+            if _mlay not in passable:
+                continue                       # only searched layers matter
+            _mm = man_by_lay.setdefault(
+                _mlay, np.zeros((grid.ny, grid.nx), bool))
+            _mxs = [q[0] for q in d.get("polygon") or ()]
+            _mys = [q[1] for q in d.get("polygon") or ()]
+            if _mxs:
+                grid.stamp_box(_mm, min(_mxs), min(_mys), max(_mxs), max(_mys))
+        for _mlay, _mm in man_by_lay.items():
+            eff = _mm & ~foreign[_mlay]
+            if not eff.any():
+                attach_notes.append(f"{_mlay}: manifold fully foreign-carved"
+                                    " -- raw anchors kept")
+                continue
+            # manifold copper is own-net solid laid FIRST: walkable by
+            # construction (the filler carves true clearances at fill time)
+            passable[_mlay] = passable[_mlay] | eff
+            if _mlay == "F.Cu":
+                _man_eff_f = eff if _man_eff_f is None else (_man_eff_f | eff)
+            mlab, _nman = ndimage.label(eff)
+            att = ndimage.binary_erosion(eff | anchors[_mlay], structure=st,
+                                         iterations=rcells[_mlay])
+            for _mc in range(1, _nman + 1):
+                comp = mlab == _mc
+                cids = sorted(int(v) for v in np.unique(clab[comp]) if v)
+                if not cids:
+                    continue                   # touches no terminal: inert
+                keep_id = cids[0]
+                for _cid in cids[1:]:          # gang = merge terminals
+                    clab[clab == _cid] = keep_id
+                tgt = att & comp
+                if tgt.any():
+                    cl_mask = clab == keep_id
+                    anchors[_mlay] = (anchors[_mlay] & ~cl_mask) | tgt
+                    clab[tgt & (clab == 0)] = keep_id
+                    attach_notes.append(
+                        f"{_mlay} cluster {keep_id}: anchors -> "
+                        f"{int(tgt.sum())} eroded manifold cell(s)"
+                        + (f" (merged {cids})" if len(cids) > 1 else ""))
+                else:
+                    attach_notes.append(
+                        f"{_mlay} cluster {keep_id}: manifold erosion empty "
+                        "at req width -- raw anchors kept")
     # F.Cu HARD CONSTRAINT (owner categorical rule 2026-07-24 "top
     # pours only around the shunts" + the s427 sprawl finding: the
     # f_prox SOFT bias let a widened net whose terminals are all
@@ -724,10 +787,15 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     # search bridges to an inner/bottom layer instead. Anchors stay
     # passable by the passable-=eroded|anchors construction above.
     if "F.Cu" in passable:
-        passable["F.Cu"] &= (
-            ndimage.binary_dilation(anchors["F.Cu"], structure=st,
-                                    iterations=3)
-            | shunt_mask | anchors["F.Cu"])
+        _f_allow = (ndimage.binary_dilation(anchors["F.Cu"], structure=st,
+                                            iterations=3)
+                    | shunt_mask | anchors["F.Cu"])
+        if _man_eff_f is not None:
+            # a laid F manifold is ADMITTED top copper (the add_power_pours
+            # choke admits it by name) -- transit through its own footprint
+            # is not signal-fabric sprawl; bounded by the manifold bbox
+            _f_allow = _f_allow | _man_eff_f
+        passable["F.Cu"] &= _f_allow
     f_prox = None
     if "F.Cu" in anchors:
         f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
@@ -745,10 +813,12 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
 
     return {"layers": layers, "passable": passable, "anchors": anchors,
             "foreign": foreign, "clab": clab, "nclusters": nclusters,
-            "rcells": rcells, "reqw": reqw, "bias_fn": _bias}, None
+            "rcells": rcells, "reqw": reqw, "bias_fn": _bias,
+            "attach_notes": attach_notes}, None
 
 
-def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
+def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
+                               manifolds=False, collect=None):
     """v2 OVER-UNDER POURS -- "the pour is a routed object" (owner
     ratification 2026-07-24 late; docs/slab-pour-design-2026-07-24.md, "v2"
     section). Per rail: ONE continuous path from terminal to terminal,
@@ -776,10 +846,27 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
                   "path_found", ...}} -- on path_found=False the entry ALSO
                   carries "bottleneck" (see route_overunder) and nothing is
                   laid for that net (never a partial guess, step 5).
+
+    *manifolds* (v3.1, owner algorithm 2026-07-25 -- default OFF so existing
+    import-side callers are byte-identical): stage 0 lays one margin-width
+    CONNECTOR MANIFOLD per (connector, net) pin group (connector_manifolds)
+    BEFORE any spine -- the manifold dicts lead the returned pour_dicts, and
+    the per-net search treats them as own-net anchors under the WIDTH-MARGIN
+    ATTACH rule (see _prep_overunder_net). On a no-path net the manifolds are
+    still returned (its ONLY copper besides guaranteed patches -- the v3
+    set-in-stone rule: never board-wide fallback sprawl).
+
+    *collect* (pour-first seam): pass a dict to receive per-net search
+    internals -- collect[net] = {ok, path_cells, bridges, rcells, foreign,
+    reqw} and collect["_grid"] = the Grid -- so the caller can derive the
+    pre-FR corridor reservation from the SAME solve (one solve, three
+    consumers; reservation_from_search consumes exactly these).
     """
     grid = Grid(board, cell_mm)
     nets_nc = {n.GetNetname(): c
                for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    if collect is not None:
+        collect["_grid"] = grid
 
     # net currents (the IPC required-width search constraint's input) --
     # same source cec_fr.synthesize_pour_bonds._mirror_needed reads; a net
@@ -808,6 +895,21 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
 
     pour_dicts, via_list, report = [], [], {}
 
+    # v3.1 stage 0: connector manifolds -- LAID FIRST (they lead the dict
+    # list) and handed to every net's search as attach targets.
+    man_by_net = {}
+    if manifolds:
+        _ask_nets = {a.get("net") for a in asks if a.get("net") in nets_nc}
+        for md in connector_manifolds(board, nets=_ask_nets):
+            man_by_net.setdefault(md["net"], []).append(md)
+        for _mn in sorted(man_by_net):
+            pour_dicts.extend(man_by_net[_mn])
+        if man_by_net:
+            print("[cec_slab_pour] over-under: %d connector manifold(s) for "
+                  "%d net(s) laid first (v3.1 stage 0)"
+                  % (sum(len(v) for v in man_by_net.values()), len(man_by_net)),
+                  file=sys.stderr)
+
     for a in asks:
         net = a.get("net")
         if net not in nets_nc:
@@ -818,10 +920,13 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
         prep, _why = _prep_overunder_net(
             board, net, nc, list(a.get("layers") or (a.get("layer", "F.Cu"),)),
             grid, net_currents=net_currents, shunt_mask=shunt_mask,
-            clearance_mm=clearance_mm)
+            clearance_mm=clearance_mm, manifolds=man_by_net.get(net, ()))
         if prep is None:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "reason": _why}
+            if collect is not None:
+                collect[net] = {"ok": False, "path_cells": {}, "bridges": [],
+                                "rcells": {}, "foreign": {}, "reqw": {}}
             continue
         rcells, reqw = prep["rcells"], prep["reqw"]
 
@@ -831,10 +936,17 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
         path_cells, bridges, ok, bottleneck = route_overunder(
             prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
             prep["nclusters"], bias_fn=prep["bias_fn"])
+        if collect is not None:
+            collect[net] = {"ok": ok, "path_cells": path_cells,
+                            "bridges": bridges, "rcells": prep["rcells"],
+                            "foreign": prep["foreign"], "reqw": prep["reqw"]}
 
         if not ok:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
-                           "layers_used": [], "bottleneck": bottleneck}
+                           "layers_used": [], "bottleneck": bottleneck,
+                           **({"manifolds": len(man_by_net.get(net, ())),
+                               "manifold_attach": prep.get("attach_notes")}
+                              if manifolds else {})}
             print(f"[cec_slab_pour] over-under: NO PATH for {net} -- "
                   f"bottleneck {bottleneck}", file=sys.stderr)
             continue
@@ -858,7 +970,10 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
 
         report[net] = {"path_found": True, "segments": segs,
                        "bridges": len(bridges),
-                       "layers_used": sorted(realized.keys())}
+                       "layers_used": sorted(realized.keys()),
+                       **({"manifolds": len(man_by_net.get(net, ())),
+                           "manifold_attach": prep.get("attach_notes")}
+                          if manifolds else {})}
         print(f"[cec_slab_pour] over-under: {net} -> {segs} lane segment(s) "
               f"on {sorted(realized.keys())}, {len(bridges)} bridge(s), "
               f"{len(net_vias)} via(s)", file=sys.stderr)
@@ -1054,12 +1169,9 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
                 lays.append(lay)
 
     def _excludable(fp, p):
-        if p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
-            return True                                # THT: pierces natively
-        q = p.GetPosition()
-        px, py = q.x / MM, q.y / MM
-        return any(bx0 <= px <= bx1 and by0 <= py <= by1
-                   for (bx0, by0, bx1, by1) in shunt_boxes)
+        # shared tier test (extracted 2026-07-25 so the pour-first stage
+        # computes the IDENTICAL exclusion set -- no drift)
+        return _excludable_pad(p, shunt_boxes)
 
     corridors, report = [], {}
     for net, ask_layers in per_net.items():
@@ -1209,5 +1321,197 @@ def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
                                     (round(x1, 3), round(y0, 3)),
                                     (round(x1, 3), round(y1, 3)),
                                     (round(x0, 3), round(y1, 3))],
-                        "provenance": "slab", "priority": 2})
+                        "provenance": "slab", "priority": 2,
+                        # zone-name identity (v3 nowhere-reaper exemption:
+                        # a guaranteed patch is sanctioned single-cluster
+                        # copper -- never "leads nowhere")
+                        "name": "patch:%s" % net})
     return out
+
+
+# ---------------------------------------------------------------------------
+# v3.1 -- CONNECTOR MANIFOLDS (owner algorithm 2026-07-25, docs/slab-pour-
+# design-2026-07-24.md v3.1: "combine up all similar pins on one connector
+# with a margin-width pour"). One bus-bar pour dict per (connector footprint,
+# net, layer): the pin group's bbox + margin -- guaranteed_shunt_patches'
+# construction generalized to connectors. Pad-anchored BY CONSTRUCTION (the
+# group's own pads are inside it), so the floating-fragment rule and the
+# nowhere-reaper can never drop it (name "manifold:<ref>:<net>"). Layers by
+# the pad type's natural layer: a THT group anchors every copper layer, so it
+# gets an F.Cu AND an In2.Cu manifold (the inner power layer is where the
+# spine wants to attach; the F one is the barrel-field bus bar); an SMD group
+# gets its own side only.
+# ---------------------------------------------------------------------------
+def connector_manifolds(board, nets=None, *, margin_mm=4.0,
+                        ref_prefixes=("J", "TB")):
+    """Manifold pour dicts for every (connector, net) pin group.
+
+    *nets* -- restrict to these net names (None = every non-GND net on a
+    connector). GND is always excluded (plane-carried; a GND manifold would
+    just shadow the plane). Returns dicts in add_power_pours' format with
+    provenance "slab" (the bond/scrap filter + F-rectangularize exemption
+    class) and a "name" carrying the manifold identity for the choke-point
+    admit + the nowhere-reaper exemption."""
+    fcu = board.GetLayerID("F.Cu")
+    bcu = board.GetLayerID("B.Cu")
+    out = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference() or ""
+        if not ref.startswith(tuple(ref_prefixes)):
+            continue
+        by_net = {}
+        for p in fp.Pads():
+            n = p.GetNetname()
+            if not n or n == "GND" or (nets is not None and n not in nets):
+                continue
+            by_net.setdefault(n, []).append(p)
+        for net, ps in sorted(by_net.items()):
+            x0 = min(p.GetBoundingBox().GetLeft() for p in ps) / MM - margin_mm
+            y0 = min(p.GetBoundingBox().GetTop() for p in ps) / MM - margin_mm
+            x1 = max(p.GetBoundingBox().GetRight() for p in ps) / MM + margin_mm
+            y1 = max(p.GetBoundingBox().GetBottom() for p in ps) / MM + margin_mm
+            # natural layers: >1 copper layer on any pad = THT group (barrels
+            # anchor F AND In2); single-layer = SMD group on its own side.
+            tht = any(len(set(p.GetLayerSet().CuStack())) > 1 for p in ps)
+            if tht:
+                lays = [l for l in ("F.Cu", "In2.Cu")
+                        if board.GetLayerID(l) >= 0]
+            else:
+                stack = set(ps[0].GetLayerSet().CuStack())
+                lays = ["B.Cu" if bcu in stack and fcu not in stack
+                        else "F.Cu"]
+            for lay in lays:
+                out.append({"net": net, "layer": lay,
+                            "polygon": [(round(x0, 3), round(y0, 3)),
+                                        (round(x1, 3), round(y0, 3)),
+                                        (round(x1, 3), round(y1, 3)),
+                                        (round(x0, 3), round(y1, 3))],
+                            "provenance": "slab", "priority": 2,
+                            "name": "manifold:%s:%s" % (ref, net)})
+    return out
+
+
+def _excludable_pad(p, shunt_boxes):
+    """Shared pour-owns-this-pad tier test (extracted from
+    reserve_pour_corridors so the pour-first stage computes the IDENTICAL
+    exclusion set): THT pads pierce natively to any lane layer; SMD pads are
+    pour-owned only inside a shunt neighborhood (the one place the F.Cu choke
+    admits landing copper). pcbnew-free: THT-ness by copper-layer count."""
+    if len(set(p.GetLayerSet().CuStack())) > 1:
+        return True                                    # THT: pierces natively
+    q = p.GetPosition()
+    px, py = q.x / MM, q.y / MM
+    return any(bx0 <= px <= bx1 and by0 <= py <= by1
+               for (bx0, by0, bx1, by1) in shunt_boxes)
+
+
+def pourfirst_conv_split(power_pours, frozen_nets, full):
+    """PURE decision core of import_ses' conversion site under the v3
+    POUR-FIRST freeze (set-in-stone semantics, docs/slab-pour-design-
+    2026-07-24.md v3): returns (conv, frozen, keep_rest) where
+
+      * conv   -- the dicts the conversion may still (re)solve: the usual
+        filter (everything under CEC_SLAB_POUR=1 *full*, else placer_ask
+        provenance) MINUS every frozen-stage dict AND every dict on a frozen
+        net -- a net the pour-first stage solved is NEVER re-solved, found
+        or failed;
+      * frozen -- the pass-through dicts (provenance "pourfirst"), laid
+        as-is;
+      * keep_rest -- the non-converted remainder that must survive the
+        final reassignment (frozen dicts + the non-ask dicts when not
+        *full*)."""
+    frozen = [p for p in power_pours if p.get("provenance") == "pourfirst"]
+    conv = ([p for p in power_pours if p.get("provenance") != "pourfirst"]
+            if full else
+            [p for p in power_pours if p.get("provenance") == "placer_ask"])
+    conv = [p for p in conv if p.get("net") not in set(frozen_nets or ())]
+    keep_rest = frozen + ([] if full else
+                          [p for p in power_pours
+                           if p.get("provenance") not in ("placer_ask",
+                                                          "pourfirst")])
+    return conv, frozen, keep_rest
+
+
+REAP_EXEMPT_PREFIXES = ("patch:", "manifold:", "pourfirst:")
+
+
+def _nowhere_zone_verdict(zone_name, netname, clusters_hit):
+    """PURE reaper decision (v3 defense-in-depth, owner: "the giant
+    cross-board L3 pour and leads-nowhere pours must die"): a non-GND zone
+    that connects <2 distinct same-net terminal clusters is DEAD WEIGHT --
+    unless its name marks it as a guaranteed shunt patch, a connector
+    manifold, or frozen pour-first state (sanctioned pad-anchored copper /
+    set-in-stone geometry). Returns True = reap."""
+    if not netname or netname == "GND":
+        return False
+    if str(zone_name or "").startswith(REAP_EXEMPT_PREFIXES):
+        return False
+    return int(clusters_hit) < 2
+
+
+def reap_nowhere_zones(board_path, *, cell_mm=0.8):
+    """NOWHERE-REAPER (v3 deliverable D): after the fill, remove every
+    non-GND copper zone whose FILLED area touches <2 distinct same-net
+    terminal clusters (pads/vias groups, `terminal_clusters`) -- the
+    leads-nowhere class -- unless it is a named guaranteed patch / manifold /
+    frozen pour-first dict (`_nowhere_zone_verdict`). Same fresh
+    load->remove->save discipline as cleanup_floating_zones (the 2026-06-09
+    in-process zone-removal footgun). Logs each reap with net + bbox."""
+    if pcbnew is None:
+        return 0
+    board = pcbnew.LoadBoard(board_path)
+    grid = Grid(board, cell_mm)
+    cl_cache = {}
+    doomed = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        net = z.GetNetname()
+        if not net or net == "GND":
+            continue
+        name = ""
+        try:
+            name = z.GetZoneName() or ""
+        except Exception:                              # noqa: BLE001
+            name = ""
+        if str(name).startswith(REAP_EXEMPT_PREFIXES):
+            continue
+        nc = z.GetNetCode()
+        if nc not in cl_cache:
+            cl_cache[nc] = terminal_clusters(board, nc, grid)
+        clab, ncl = cl_cache[nc]
+        hit = set()
+        if ncl:
+            lay_ids = [lid for lid in z.GetLayerSet().CuStack()]
+            ys, xs = np.where(clab > 0)
+            for y, x in zip(ys.tolist(), xs.tolist()):
+                cid = int(clab[y, x])
+                if cid in hit:
+                    continue
+                at = pcbnew.VECTOR2I(
+                    _nm(grid.x0 + (x + 0.5) * grid.cell),
+                    _nm(grid.y0 + (y + 0.5) * grid.cell))
+                for lid in lay_ids:
+                    try:
+                        if z.HitTestFilledArea(lid, at, 0):
+                            hit.add(cid)
+                            break
+                    except Exception:                  # noqa: BLE001
+                        break
+        if _nowhere_zone_verdict(name, net, len(hit)):
+            bb = z.GetBoundingBox()
+            doomed.append((z, net,
+                           (round(bb.GetLeft() / MM, 1),
+                            round(bb.GetTop() / MM, 1),
+                            round(bb.GetRight() / MM, 1),
+                            round(bb.GetBottom() / MM, 1)), len(hit)))
+    for (z, net, bbox, nhit) in doomed:
+        print(f"[cec_slab_pour] nowhere-reap: zone on {net} at {bbox} "
+              f"connects {nhit} terminal cluster(s) (<2) -- REMOVED",
+              file=sys.stderr)
+        board.Remove(z)
+    if doomed:
+        pcbnew.SaveBoard(board_path, board)
+        print(f"[cec_slab_pour] nowhere-reap: removed {len(doomed)} "
+              "leads-nowhere zone(s)", file=sys.stderr)
+    return len(doomed)

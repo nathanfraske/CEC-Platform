@@ -561,6 +561,18 @@ BOARD_PARAMS = {
                        # excluded from FR -- "the pour takes priority and
                        # gets its route first."
                        "pour_reserve": True,
+                       # POUR-FIRST PLACEMENT RUNG (owner ruling 2026-07-25,
+                       # docs/slab-pour-design-2026-07-24.md v3/v3.1): pours
+                       # are solved + SET IN STONE on the anchor-only board
+                       # (connectors + blueprint stamps + MCU) right after
+                       # seating, then everything else re-adds AROUND the
+                       # frozen state -- csp.pour_first_stage in
+                       # _build_session freezes route-side state + placer
+                       # avoid boxes + the owner-review POURFIRST artifact.
+                       # slab_pour/overunder/pour_reserve above stay the
+                       # live machinery for UN-frozen nets (and the whole
+                       # board when this is off -- the A/B lever).
+                       "pour_first": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
@@ -758,7 +770,8 @@ def _board_params(board):
     return p
 
 
-def _build_session(board, W, H, iname, strat, seed, proposal=None):
+def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
+                   pourfirst_artifact=True):
     """The variant's PlacementSession, identically for the place-only (prune) and
     full-grade phases -- factored so the two can never drift. *proposal* = a
     VALIDATED seat proposal dict (cec_wave_intents), applied instead of a named
@@ -778,6 +791,23 @@ def _build_session(board, W, H, iname, strat, seed, proposal=None):
         cec_wave_intents.apply_proposal(s, proposal)
     else:
         dict(_intents_for(board))[iname](s)
+    # POUR-FIRST RUNG (owner ruling 2026-07-25, docs/slab-pour-design-
+    # 2026-07-24.md v3/v3.1; param "pour_first"): solve + FREEZE the pours on
+    # the variant's anchor-only board BEFORE general placement/routing. Runs
+    # in BOTH the prune and grade phases (this shared builder) so the cheap
+    # place key ranks the same avoid-box placement the grade routes -- the
+    # no-drift rule this function exists for. The owner-review artifact
+    # (board + hex render into build/wave-snaps/<board>/) is written only on
+    # the grade side (pourfirst_artifact; pure output, placement-inert).
+    if _p.get("pour_first"):
+        csp.pour_first_stage(
+            s, out_dir=os.path.join(ROOT, "build", "wave-snaps", board),
+            label=f"{iname}-{strat}-s{seed}", artifact=pourfirst_artifact)
+        _rep = getattr(s, "pourfirst_report", None) or {}
+        if _rep.get("error"):
+            print(f"[wave] {board} {iname}-{strat}-s{seed}: pour-first stage "
+                  f"ERROR ({_rep['error']}) -- live pour machinery stands",
+                  flush=True)
     return s, _p
 
 
@@ -793,7 +823,8 @@ def _place_variant(board, W, H, iname, strat, seed, proposal=None):
     label = f"{iname}-{strat}-s{seed}"
     t0 = time.monotonic()
     try:
-        s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+        s, _p = _build_session(board, W, H, iname, strat, seed, proposal,
+                               pourfirst_artifact=False)
         with csp._oracle_env(s.cfg.params if s.cfg else None):
             cand = s.compile()
         key = csp._candidate_sort_key(cand)
@@ -906,6 +937,17 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     v["label"] = label
     v["placed"] = out
     v["wall_s"] = round(time.monotonic() - t0, 1)
+    # POUR-FIRST per-net report rides the verdict into the wave log/report
+    # (path_found / segments / bridges / layers / bottleneck per net)
+    _pfr = getattr(s, "pourfirst_report", None)
+    if _pfr is not None:
+        v["pourfirst"] = _pfr
+        print(f"[wave] {board} {label}: pour-first paths "
+              f"{len(_pfr.get('path_found', ()))}/{len(_pfr.get('nets', {}))} "
+              f"no-path={_pfr.get('no_path') or 'none'} "
+              f"artifact={os.path.basename(str(_pfr.get('artifact') or ''))} "
+              + (f"ERR={_pfr.get('error')}" if _pfr.get("error") else ""),
+              flush=True)
     for _ek, _ev in _env_prev.items():          # restore (audit #24)
         if _ev is None:
             os.environ.pop(_ek, None)

@@ -147,11 +147,36 @@ render to build/wave-snaps for owner review). First run on s415: 6/9 nets path_f
 the skeleton — including /SENSE12V_LO (TB1<->RS1), provably unreachable post-route —
 25 lanes / 8 guaranteed patches / 44 bridge vias. OPEN: (a) 3 skeleton no-paths
 (+5VSB, /SENSE12V_HI, /SENSE5V_HI — same bottleneck cells with and without the
-anchor-approach taper, so the taper hypothesis is NOT their mechanism; undiagnosed);
+anchor-approach taper, so the taper hypothesis is NOT their mechanism; DIAGNOSED
+2026-07-25, see the v3.1 state note below);
 (b) the pipeline seam — wire this stage between anchor/blueprint/MCU seating and
 general placement, freeze pour geometry into placer avoid-boxes + route-time
 reservations (the CEC_POUR_RESERVE corridor machinery is the same compute core);
 (c) capsule-end/organic-merge aesthetics on bridge overlap disks.
+
+**Implementation state (2026-07-25, pipeline seam LANDED — the rung is live):**
+`cec_synth_pipeline.pour_first_stage(session)` runs from `cec_fresh_wave._build_session`
+under the new per-board param `pour_first` (24-pin ON; prune and grade phases both, so the
+cheap place key ranks the same avoid-box placement the grade routes). The seam: compile →
+materialize the ANCHOR-ONLY board from the placer's own seam knowledge
+(`Candidate.pourfirst_anchor_refs` = connector-role anchors + mounts/fiducials +
+blueprint-cell members + MCU + owner pins; cells/rails/patches laid by materialize as
+board truth) → ONE solve (manifolds stage 0 + over-under + guaranteed patches, `collect=`
+returning the search internals) → FREEZE, three consumers: (1) a JSON state
+(`params['pourfirst_state']` → `CEC_POURFIRST_STATE`) consumed by `cec_fr.route_once`
+(frozen corridors + pour-owned pad exclusion — supersedes the live CEC_POUR_RESERVE
+re-solve) and `cec_fr.import_ses` (provenance-"pourfirst" dicts pass through SET IN
+STONE: excluded from the bond/scrap filter and from every re-conversion —
+`cec_slab_pour.pourfirst_conv_split` is the pure core; a frozen no-path net lays ONLY its
+manifolds + patches, loudly — the board-wide slab fallback is DELETED for frozen nets);
+(2) F.Cu pour polygons → `params['pourfirst_avoid_boxes']` → the p8/p9 evac +
+pour-aware-legalize channel ("pourfirst:"-prefixed so own-net exemption can never bypass
+them); (3) the POURFIRST artifact (anchor board + pours, filled + hex render) into
+build/wave-snaps/<board>/. Defense-in-depth: `cec_slab_pour.reap_nowhere_zones` (same
+fresh-load site as cleanup_floating_zones, active only when a pour-synthesis path is
+live) removes any filled non-GND zone touching <2 same-net terminal clusters unless
+named patch:/manifold:/pourfirst: (zone names now set from dict provenance in
+add_power_pours). Teeth: tests/test_pour_first.py (15).
 
 ## v3.1 — CONNECTOR MANIFOLDS + WIDTH-MARGIN ATTACH (owner algorithm, 2026-07-25)
 
@@ -172,3 +197,23 @@ manifold can actually feed the width -- not any bare anchor cell (today's rule).
 spine (exists). (4) via-field layer crossing = the bridge machinery (exists).
 Sequencing: manifolds become stage 0 of the pour-first rung, before spine solving;
 the pipeline agent spec inherits this.
+
+**Implementation state (2026-07-25):** LANDED — `cec_slab_pour.connector_manifolds`
+(one margin-width dict per (connector, net, natural-layer); THT groups F.Cu+In2.Cu, SMD
+their own side; name "manifold:<ref>:<net>", provenance "slab") + the width-margin
+attach in `_prep_overunder_net` (cluster anchors REPLACED by erode(manifold∪anchors,
+req_w/2) per manifold component; clusters ganged by one component MERGE; empty erosion
+falls back to raw anchors with a note), wired behind
+`synthesize_overunder_pours(manifolds=True)` — ON only for the pour-first path (+ the
+demonstrator's `--manifolds`); import-side callers byte-identical. The F choke admits
+transit through a laid F manifold's own footprint; `add_power_pours` admits F manifolds
+by name. **Thesis verdict (measured on the s415 skeleton, margin 4/6/8mm sweep): the
+manifolds do NOT flip the three no-paths — 6/9 unchanged.** Diagnosis (ablated):
++5VSB strands on a locked force-via TRIPLET at (42,23) and /SENSE12V_HI on a stamped-cell
+SMD pad (U612V1-3) — neither is a connector group, manifolds definitionally don't apply;
+/SENSE5V_HI strands on J3-6 whose manifold pocket IS attached (notes confirm anchor
+replacement) but is walled off from the tree by locked trunk copper at width on every
+searched layer — a margin the sweep cannot open. The v3.1 mechanism itself is
+teeth-proven (tests/test_pour_first.py: a walled pin connects with a manifold, not
+without); the s415 failures are a different class (locked-copper congestion at the seam,
+open design question for the owner).

@@ -14,6 +14,18 @@ Times are UTC.
 
 ## Active
 
+- [ ] [added 2026-07-25 02:45] **POUR-FIRST PLACEMENT RUNG (owner v3/v3.1 ruling) — pipeline seam landed.**
+  `csp.pour_first_stage` wired into `_build_session` behind param `pour_first` (24-pin ON): anchor-only
+  materialize (connectors+stamps+MCU from `Candidate.pourfirst_anchor_refs`) → one solve (v3.1
+  connector manifolds + width-margin attach + over-under + patches) → FREEZE (CEC_POURFIRST_STATE
+  route-side passthrough w/ NO re-solve + NO slab fallback for frozen nets; F.Cu avoid boxes into
+  p8/p9; POURFIRST artifact → build/wave-snaps). Nowhere-reaper (`reap_nowhere_zones`) at the
+  import cleanup site (pour-paths only; patch:/manifold:/pourfirst: names exempt). Teeth:
+  tests/test_pour_first.py (15; all pour suites 38 green in-container). MEASURED: manifolds do NOT
+  flip the 3 s415 skeleton no-paths (margin 4/6/8 sweep; bottlenecks = locked via triplet + cell SMD
+  pad + trunk-walled J3-6 — not the connector-group thesis; design doc v3.1 state note). OPEN: e2e
+  variant audit + owner review of the frozen-state semantics on +3V3-class logic floods.
+
 - [x] [added 2026-07-23 07:30 · done 2026-07-23 12:25] **Overnight studies + chain (owner GO)** — landed probe-first: rules carriage (drill 12→0), width-aware+arc edge keepouts, hub power rung (evac-False pour asks + power-pickup stitch), hub thermal entry (J_PWR anatomy), 24-pin Power patterns, floors 150/170. Gates: rung probes v1/v2 + width probe + golden delta measured, then commit + 6-round night chain (s182-217 / s72-107). Morning report owed.
 
 - [x] [added 2026-07-23 05:35 · done 2026-07-23 12:25] **Fix-wave readout** — 24-pin s176-181 + hub s66-71 running (watcher bfco4e0ea); commit 870ef278 pushed. Judge: first graded hub boards since s41 (plateau floor), 24-pin post-fix unconn/criticals under honest netclasses (numbers NOT comparable to seg-era rows), J6C fallback-tier grind rate, C1|U10 class rate.

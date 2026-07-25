@@ -83,6 +83,28 @@ def _shunt_gap_mm():
 SHUNT_GAP_MM = 6.5   # legacy alias; live sites call _shunt_gap_mm()
 
 
+def _pourfirst_state():
+    """FROZEN POUR-FIRST STATE (v3 pour-first placement rung, docs/slab-pour-
+    design-2026-07-24.md v3: pours solved on the anchor-only board right after
+    connectors + blueprint stamps + MCU seating, then SET IN STONE). The
+    pipeline's pour_first_stage writes a JSON sidecar and exports its path as
+    CEC_POURFIRST_STATE; route_once consumes its corridors/exclude_pins (the
+    pre-FR reservation -- one solve, three consumers) and import_ses passes
+    its pour dicts through UNCONVERTED. Returns {} when unset; an unreadable
+    state is LOUD, never silently ignored-as-empty-and-forgotten."""
+    p = os.environ.get("CEC_POURFIRST_STATE", "").strip()
+    if not p:
+        return {}
+    try:
+        import json as _json
+        with open(p) as f:
+            return _json.load(f) or {}
+    except Exception as e:                             # noqa: BLE001
+        print(f"[cec_fr] pour-first state UNREADABLE ({e}) -- {p!r} ignored, "
+              "falling back to the live pour machinery", file=sys.stderr)
+        return {}
+
+
 def _shunt_gap_on():
     """The SHUNT_GAP_MM widen is OPT-IN (CEC_SHUNT_GAP=1), DEFAULT OFF. It is a board-specific
     re-place change (owner ratification boundary: a ratified change is board-specific by default,
@@ -1190,7 +1212,13 @@ def add_power_pours(board, pours, *, fill: bool = False):
     added = []
     for p in pours:
         net = p["net"]
-        if p.get("layer", "F.Cu") == "F.Cu" and _f_nbs:
+        # v3.1 CONNECTOR MANIFOLDS are the ONE named admit through the
+        # shunt-only top rule (owner algorithm 2026-07-25: "combine up all
+        # similar pins on one connector with a margin-width pour" -- the
+        # manifold is the connector's OWN pin field + margin, pad-anchored
+        # by construction, not signal-fabric decoration).
+        _is_manifold = str(p.get("name") or "").startswith("manifold:")
+        if p.get("layer", "F.Cu") == "F.Cu" and _f_nbs and not _is_manifold:
             _xs = [q[0] for q in p.get("polygon") or ()]
             _ys = [q[1] for q in p.get("polygon") or ()]
             if _xs and not any(
@@ -1216,6 +1244,14 @@ def add_power_pours(board, pours, *, fill: bool = False):
         z.SetMinThickness(_nm(p.get("min_thickness", 0.25)))
         z.SetIslandRemovalMode(int(p.get("island_removal", 0)))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        # zone-name identity from the dict (v3 deliverable D: the nowhere-
+        # reaper + choke exemptions key on it; provenance-derived default)
+        try:
+            z.SetZoneName(str(p.get("name")
+                              or "%s:%s" % (p.get("provenance") or "pour",
+                                            net)))
+        except Exception:                              # noqa: BLE001
+            pass
         # In-place outline append (never SetOutline -- SWIG alias bug, see cec_route.py)
         o = z.Outline()
         o.NewOutline()
@@ -4171,6 +4207,27 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             except Exception as _se:                     # noqa: BLE001 -- fall back to rects
                 print(f"[cec_fr] slab pours FAILED ({_se}) -- rect asks kept",
                       file=sys.stderr)
+        # v3 POUR-FIRST FREEZE (owner ruling 2026-07-25, docs/slab-pour-
+        # design-2026-07-24.md v3): pours solved on the anchor-only board are
+        # SET IN STONE. Frozen nets' ask dicts are superseded HERE -- before
+        # the bond/scrap filter, which may DROP dicts and must never touch
+        # frozen geometry -- and the frozen dicts join AFTER the filter so
+        # the via stages (force vias, pickups) still see the frozen lanes as
+        # their targets. A frozen net is never re-solved (found or failed).
+        _pf = _pourfirst_state()
+        _pf_pours, _pf_vias, _pf_nets = [], [], set()
+        if _pf and power_pours:
+            _pf_pours = list(_pf.get("pours") or ())
+            _pf_vias = list(_pf.get("vias") or ())
+            _pf_nets = ({d.get("net") for d in _pf_pours}
+                        | set((_pf.get("report") or {}).keys()))
+            _n_pre = len(power_pours)
+            power_pours = [p for p in power_pours
+                           if p.get("net") not in _pf_nets]
+            print(f"[cec_fr] pour-first: {len(_pf_pours)} frozen dict(s) for "
+                  f"{len(_pf_nets)} net(s) pass through SET IN STONE "
+                  f"({_n_pre - len(power_pours)} live ask dict(s) superseded)",
+                  file=sys.stderr)
         # POUR FILTER FIRST (owner catch 2026-07-24: force-vias and pickups
         # consumed the UNFILTERED ask list while the bond/scrap filter ran at
         # the lay site AFTER them -- vias seated into floods the filter then
@@ -4184,6 +4241,24 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                       f"{_pb['dropped']} unbondable + {_pb.get('scrap', 0)} lace-bound "
                       f"pour(s) dropped ({_pb['bonded']} kept by contact/barrel)",
                       file=sys.stderr)
+        if _pf_pours:
+            # frozen bridge vias precede the lanes (design step 5: the vias
+            # are the copper the lanes land on; ledger inside the adder)
+            if _pf_vias:
+                _n_pfv = add_overunder_vias(board, _pf_vias)
+                print(f"[cec_fr] pour-first: {_n_pfv}/{len(_pf_vias)} frozen "
+                      "bridge via(s) laid (ledger-clear)", file=sys.stderr)
+            power_pours = list(power_pours or ()) + _pf_pours
+            for _n, _v in sorted((_pf.get("report") or {}).items()):
+                if not _v.get("path_found", True):
+                    # v3 set-in-stone: NO slab fallback for a frozen-stage
+                    # no-path net -- it lays ONLY its manifolds + guaranteed
+                    # patches (the frozen dicts), loudly, never board-wide
+                    # coverage sprawl.
+                    print(f"[cec_fr] pour-first: {_n} could not route on the "
+                          "OPEN board -- laying manifolds + guaranteed "
+                          f"patches only (bottleneck {_v.get('bottleneck')})",
+                          file=sys.stderr)
         # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
         # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
         if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
@@ -4208,17 +4283,23 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             try:
                 import cec_slab_pour
                 _full = os.environ.get("CEC_SLAB_POUR", "0") == "1"
-                _conv = (power_pours if _full else
-                         [p for p in power_pours
-                          if p.get("provenance") == "placer_ask"])
-                if _conv:
+                # v3 pour-first: the split is the PURE, teeth-tested core
+                # (cec_slab_pour.pourfirst_conv_split) -- frozen dicts and
+                # frozen NETS never enter the conversion; with no frozen
+                # state it reduces exactly to the historical filter.
+                _conv, _frozen3, _keep_r3 = cec_slab_pour.pourfirst_conv_split(
+                    power_pours, _pf_nets, _full)
+                if _conv or _frozen3:
                     # OVER-UNDER POURS (v2, owner-ratified 2026-07-24 late;
                     # docs/slab-pour-design-2026-07-24.md "v2" section: "the
                     # pour is a routed object"). A/B'd against the shave-
                     # slab realization above via CEC_OVERUNDER=1 -- never
                     # enabled by default (opt-in only; see cec_fresh_wave /
                     # cec_synth_pipeline._oracle_env's "overunder" param).
-                    if os.environ.get("CEC_OVERUNDER") == "1":
+                    # (_conv may be EMPTY under a full pour-first freeze --
+                    # then nothing converts and the frozen dicts carry.)
+                    _sp3, _sr3 = [], {}
+                    if _conv and os.environ.get("CEC_OVERUNDER") == "1":
                         _sp3, _ou_vias, _sr3 = cec_slab_pour.synthesize_overunder_pours(
                             board, _conv)
                         if _ou_vias:
@@ -4296,7 +4377,7 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                         except Exception as _re:             # noqa: BLE001
                             print(f"[cec_fr] pour-reserve ledger failed ({_re})",
                                   file=sys.stderr)
-                    else:
+                    elif _conv:
                         _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
                         _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
                                  if not v.get("min_width_ok", True)]
@@ -4309,12 +4390,21 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                     # the shunt neighborhood unconditionally -- pad-anchored
                     # by definition, choke-admitted by construction. Same-net
                     # overlap with real slabs/lanes merges harmlessly
-                    # (additive-same-net doctrine).
-                    _sp3 = list(_sp3) + cec_slab_pour.guaranteed_shunt_patches(board)
-                    _keep_r = ([] if _full else
-                               [p for p in power_pours
-                                if p.get("provenance") != "placer_ask"])
-                    power_pours = _keep_r + _sp3
+                    # (additive-same-net doctrine). Under a pour-first freeze
+                    # the frozen state already carries IDENTICAL patches
+                    # (anchor positions are frozen) -- dedupe by (net,
+                    # polygon) so the board doesn't grow twin zones.
+                    _gsp3 = cec_slab_pour.guaranteed_shunt_patches(board)
+                    if _frozen3:
+                        _fkeys = {(d.get("net"), tuple(map(tuple,
+                                                           d.get("polygon") or ())))
+                                  for d in _frozen3}
+                        _gsp3 = [d for d in _gsp3
+                                 if (d.get("net"),
+                                     tuple(map(tuple, d.get("polygon") or ())))
+                                 not in _fkeys]
+                    _sp3 = list(_sp3) + _gsp3
+                    power_pours = _keep_r3 + _sp3
             except Exception as _se3:                    # noqa: BLE001
                 print(f"[cec_fr] slab conversion FAILED ({_se3}) -- rects kept",
                       file=sys.stderr)
@@ -4363,6 +4453,15 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         try:
             import cec_slab_pour
             cec_slab_pour.cleanup_floating_zones(out_path)
+            # NOWHERE-REAPER (v3 deliverable D, defense-in-depth against the
+            # leads-nowhere pour class): active only when a pour-synthesis
+            # path is live -- frozen pour-first state, slab conversion, or
+            # over-under -- so the golden / plain-derived paths stay
+            # byte-identical. Named patches/manifolds/frozen dicts exempt.
+            if (os.environ.get("CEC_POURFIRST_STATE")
+                    or os.environ.get("CEC_SLAB_POUR") == "1"
+                    or os.environ.get("CEC_OVERUNDER") == "1"):
+                cec_slab_pour.reap_nowhere_zones(out_path)
         except Exception as _ze:                        # noqa: BLE001
             print(f"[cec_fr] zone cleanup skipped ({_ze})", file=sys.stderr)
     return out_path
@@ -4668,7 +4767,36 @@ def route_once(
         # FR-routed. The per-net report rides a pour_reserve.json sidecar
         # next to the DSN/SES so import_ses can log reserved-vs-realized.
         _reserve_pins = []
-        if power_pours and os.environ.get("CEC_POUR_RESERVE", "0") == "1":
+        _pf_route = _pourfirst_state()
+        if _pf_route:
+            # v3 POUR-FIRST: the reservation is FROZEN state -- corridors +
+            # pour-owned pads come from the ONE solve the pipeline ran on the
+            # anchor-only board (docs/slab-pour-design-2026-07-24.md v3: one
+            # solve, three consumers). Never re-solved here: the live
+            # CEC_POUR_RESERVE search below is the un-frozen path's tool.
+            try:
+                import json as _json
+                import cec_slab_pour
+                _cors = list(_pf_route.get("corridors") or ())
+                if _cors:
+                    hints = list(hints) + cec_slab_pour.corridors_to_keepouts(_cors)
+                _reserve_pins = sorted(set(_pf_route.get("exclude_pins") or ()))
+                _rrep = dict(_pf_route.get("reserve_report") or {})
+                print("[cec_fr] pour-first reservation (frozen): %d corridor "
+                      "rect(s) for %d net(s); %d pad(s) queued for FR "
+                      "exclusion" % (len(_cors),
+                                     sum(1 for v in _rrep.values()
+                                         if v.get("reserved")),
+                                     len(_reserve_pins)), file=sys.stderr)
+                with open(os.path.join(workdir, "pour_reserve.json"), "w") as _wf:
+                    _json.dump({"schema": 1, "pourfirst": True,
+                                "report": _rrep}, _wf, indent=1,
+                               sort_keys=True, default=str)
+            except Exception as _e:                            # noqa: BLE001
+                _reserve_pins = []
+                print(f"[cec_fr] pour-first reservation FAILED ({_e}) -- "
+                      "routing unreserved", file=sys.stderr)
+        elif power_pours and os.environ.get("CEC_POUR_RESERVE", "0") == "1":
             try:
                 import json as _json
                 import cec_slab_pour

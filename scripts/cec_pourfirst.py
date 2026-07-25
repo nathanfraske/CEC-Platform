@@ -27,7 +27,7 @@ def _keep_footprint(fp):
     return any(s in val for s in KEEP_VALUE_SUBSTR)
 
 
-def sparse_pour_state(board_path, out_dir):
+def sparse_pour_state(board_path, out_dir, *, manifolds=False):
     import pcbnew
     import cec_slab_pour
     import cec_fr
@@ -57,7 +57,11 @@ def sparse_pour_state(board_path, out_dir):
             for n in nets]
     print(f"[pourfirst] asks: {nets}")
 
-    lanes, vias, rep = cec_slab_pour.synthesize_overunder_pours(board, asks)
+    # --manifolds: the v3.1 connector-manifold stage 0 + width-margin attach
+    # (docs/slab-pour-design-2026-07-24.md v3.1) -- the A/B lever for the
+    # three recorded skeleton no-paths (+5VSB, /SENSE12V_HI, /SENSE5V_HI).
+    lanes, vias, rep = cec_slab_pour.synthesize_overunder_pours(
+        board, asks, manifolds=manifolds)
     patches = cec_slab_pour.guaranteed_shunt_patches(board)
     if vias:
         cec_fr.add_overunder_vias(board, vias)
@@ -93,12 +97,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("board")
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--manifolds", action="store_true",
+                    help="v3.1 connector manifolds + width-margin attach")
     a = ap.parse_args()
     out = a.out_dir or os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..",
         "build", "wave-snaps",
         os.path.basename(os.path.dirname(a.board)) or "pourfirst")
-    sparse_pour_state(a.board, os.path.normpath(out))
+    sparse_pour_state(a.board, os.path.normpath(out), manifolds=a.manifolds)
 
 
 if __name__ == "__main__":
