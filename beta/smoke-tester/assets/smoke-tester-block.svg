@@ -81,7 +81,7 @@
 
   <line x1="815" y1="130" x2="845" y2="130" stroke="#333" stroke-width="1.5"/>
   <rect x="845" y="100" width="105" height="60" fill="#fff" stroke="#2255aa"/>
-  <text x="853" y="118" font-size="10.5" font-weight="bold">6× LM339</text>
+  <text x="853" y="118" font-size="10.5" font-weight="bold">7× LM339</text>
   <text x="853" y="132" font-size="9.5">±5% windows vs</text>
   <text x="853" y="144" font-size="9.5">TLV431 ladder</text>
   <text x="853" y="156" font-size="9.5">+ PG timing race</text>
@@ -90,7 +90,7 @@
   <text x="710" y="204" font-size="10.5" font-weight="bold">LAMPS (per way grn/red) + BLOWN-FUSE</text>
   <text x="710" y="218" font-size="9.5">indicators across every blade (lights when</text>
   <text x="710" y="230" font-size="9.5">fuse open AND way live) · PG EARLY/OK/LATE</text>
-  <text x="710" y="246" font-size="9.5" fill="#555">panel silk = verdict truth-table</text>
+  <text x="710" y="246" font-size="9.5" fill="#555">panel silk = truth-table · 6-LED CHARGE VU bar (TEST)</text>
 
   <rect x="700" y="270" width="250" height="60" fill="#fff" stroke="#2255aa"/>
   <text x="710" y="289" font-size="10.5" font-weight="bold">NEEDLE METER (85C1, 100µA) + 1P6T</text>

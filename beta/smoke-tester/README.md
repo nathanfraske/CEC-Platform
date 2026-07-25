@@ -75,9 +75,9 @@ thresholds compare against a TLV431 1.24 V absolute reference, so the rail may r
 so indication holds to the rail floor. First-light timeline: earth-domain neons
 0 s, always (they need no power, ever); comparator panel ~ms on any live rail or
 USB; the ONLY dark panel is store-empty AND nothing-live — which is itself a
-verdict (no 5VSB = dead standby), and the **STORE OK** lamp (spare comparator,
-store >3.0 V while TEST held) disambiguates dead-box from dead-DUT — any phone
-brick arbitrates. Why supercap (vs Li-ion): the energy need is tiny and refilled
+verdict (no 5VSB = dead standby), and the **STORE OK** tick — now the bottom step
+of the §4 six-step CHARGE bar (store >2.9 V while TEST held) — disambiguates
+dead-box from dead-DUT; any phone brick arbitrates. Why supercap (vs Li-ion): the energy need is tiny and refilled
 every use; EDLC ships with no UN38.3 lithium compliance, has no BMS, no aging
 cliff, 10+ year life — and no recharge chore ever, because using the tool charges
 it.
@@ -222,9 +222,26 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   *already-divided* node (it can never see more than a few volts, whatever the DUT
   does), scale printed ×10. No pixels, no MCU — numbers are the module/ST deck's job.
 - **Lamps:** per-way green (in-window) / red (out), blown-fuse indicator across every
-  blade position (lights only when its fuse is open AND the way upstream is live),
-  battery-OK dot. Panel silk = the verdict truth-table; tear-off verdict-card pad
-  ships in the lid.
+  blade position (lights only when its fuse is open AND the way upstream is live).
+  Panel silk = the verdict truth-table; tear-off verdict-card pad ships in the lid.
+- **◆ CHARGE bar (owner ask, RULED 2026-07-25):** six 2 mA green 3 mm LEDs in a tight
+  5 mm-pitch vertical VU column — hold TEST with anything live (DUT rail or USB
+  brick) and watch the store fill, ~20–40 s a step, full bar ~2 min. All-analog in
+  the house pattern, zero new part types: one 7-resistor sense string across the
+  STORE node (taps at 1.24 V/V_th fractions) into six LM339 sections against the
+  TLV431 reference — bar mode falls out free (every step below the level is lit,
+  open-collector per-LED), 1 MΩ hysteresis per step so the top LED never chatters
+  at the asymptote. The string grounds through a TEST-gated SS8050 (Q_CHG), so the
+  sense path drains NOTHING at rest — the zero-standby property survives. Steps
+  ≈ 2.9 / 3.3 / 3.7 / 4.1 / 4.4 / 4.65 V ≈ wakes · 20 · 40 · 60 · 80 % · FULL of
+  usable reserve; the 2.9 V step wears the **OK** silk tick and ABSORBS the old
+  battery-OK dot (STORE-OK = the bar's bottom step). Watching a charge is
+  harvest-powered (costs the store nothing); on store-only reserve a full bar adds
+  ≤12 mA and sheds itself as the store drains — worst-case held-TEST ~4.5 →
+  ~3.5–4 min, session count untouched. Bottom step rides the LM339 common-mode
+  limit at deep-sag rails (<~2.8 V) — by then the bar honestly reads near-empty
+  anyway; exact scaling binds at capture with the window ladder. Parts: +1 LM339
+  (U7, $0.09) + 6× green LED/1k + jellybean string ≈ **$0.35**.
 
 ## 5. AUX adapter port
 

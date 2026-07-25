@@ -1,5 +1,24 @@
 # Current work handoff
 
+## CHARGE BAR ADDED (2026-07-25 ~07:15Z, owner ask, on pipeline-pass-2)
+Owner: "cool LED-charge array like a VU meter... when you press a test button... see it
+actively charging." DESIGNED + APPLIED in the house pattern (~$0.35, zero new SKUs):
+6-step vertical VU column of the existing 2mA green 3mm LED (D_CHG1..6, 5mm pitch),
+TEST-held with the rest of the domain. Sense = ONE 7-resistor string across the STORE
+node (taps at 1.24/Vth fractions) -> 6 LM339 sections vs the TLV431 1.24V ref (-in=tap,
++in=ref; open-collector per-LED = bar mode free); 1M hysteresis/step (top-LED no-chatter
+at charge asymptote); string grounds through Q_CHG (SS8050, base off TEST-gated domain
+rail) => ZERO store drain at rest. Steps ~2.9/3.3/3.7/4.1/4.4/4.65V ~= wakes/20/40/60/
+80%/FULL usable; 2.9V step = OK tick, ABSORBS the old STORE-OK/battery-OK dot. LM339
+U1..U6 -> U1..U7 (26 sections used, 2 spare). Charging-watch is harvest-powered (instant-on
+leg) = costs store nothing; store-only full bar adds <=12mA, self-shedding (held-TEST
+worst ~4.5 -> ~3.5-4min, sessions untouched). Bottom step rides LM339 CM limit below
+~2.8V rail (bar honestly near-empty there; scaling binds at capture w/ window ladder).
+Files: README §2 STORE-OK tick + §4 new CHARGE-bar bullet, bom.csv 7 line-folds (U7,
+C_U7, ladder note, R_HYST 22, D_CHG in green line, R_LED 30, Q_CHG in SS8050 line),
+block/ctl/board-map SVGs (7x LM339, VU line, ctl strip note). No new bom lines (§6 "50
+lines" claim still true). Phase A delta: none (same symbols/footprints already listed).
+
 ## INSTANT-ON BYPASS APPLIED (2026-07-25 ~06:50Z, owner UX challenge, on pipeline-pass-2)
 Owner: "have to charge up the tester before I use it at all? ...any other alternative?" —
 premise was half-wrong (neons always-instant, no ritual) but the ~23s first-plug dark panel
