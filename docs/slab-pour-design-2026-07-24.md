@@ -152,3 +152,23 @@ anchor-approach taper, so the taper hypothesis is NOT their mechanism; undiagnos
 general placement, freeze pour geometry into placer avoid-boxes + route-time
 reservations (the CEC_POUR_RESERVE corridor machinery is the same compute core);
 (c) capsule-end/organic-merge aesthetics on bridge overlap disks.
+
+## v3.1 — CONNECTOR MANIFOLDS + WIDTH-MARGIN ATTACH (owner algorithm, 2026-07-25)
+
+Owner: "combine up all similar pins on one connector with a margin-width pour, then run
+a trace from the target location to the closest part of the pour that still has the
+width margin cross section. Then it draws the pour out from that, crossing layers as
+needed with via fields."
+
+Mapping: (1) MANIFOLD stage (new): per (connector, net), gang the pin group into one
+margin-width bus-bar pour BEFORE any spine routing -- pad-anchored by construction
+(never reaped), turns today's scatter of thin per-pin anchors inside foreign barrel
+fields into ONE solid wide attach target. Likely cures the three skeleton no-paths
+(+5VSB, /SENSE12V_HI, /SENSE5V_HI): their bottleneck clusters are multi-pin connector
+groups unreachable at width as individual pads. (2) WIDTH-MARGIN ATTACH RULE (new):
+spine search targets are erode(manifold, req_w/2) cells -- attach only where the
+manifold can actually feed the width -- not any bare anchor cell (today's rule).
+(3) "draws the pour out from that" = realize_overunder's width dilation along the
+spine (exists). (4) via-field layer crossing = the bridge machinery (exists).
+Sequencing: manifolds become stage 0 of the pour-first rung, before spine solving;
+the pipeline agent spec inherits this.
