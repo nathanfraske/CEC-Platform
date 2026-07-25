@@ -9329,6 +9329,22 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             fsum = cec_constraints.foreign_on_pour_summary(routed)
             foreign_ok = (fsum.get("status") != "error"
                           and fsum.get("n_tracks", 0) == 0 and fsum.get("n_vias", 0) == 0)
+            # LAID-POUR INCURSION (owner ruling 2026-07-25: "prevent anything from
+            # ever placing inside a pour"). Measured against the pours ON THE BOARD,
+            # which is what the rule is about -- foreign_on_pour above re-derives a
+            # corridor box and reported 0 while the laid eps pours were carrying 4
+            # foreign pads, 7 tracks and 4 vias. Reported per variant; not folded
+            # into the gate yet because the placer cannot honour it (see
+            # docs/owner-queue.md) and a gate nothing can pass is a stopped line.
+            try:
+                incur = cec_constraints.laid_pour_incursion_summary(routed)
+            except Exception as _ie:                          # noqa: BLE001
+                incur = {"applicable": True, "status": "error", "error": str(_ie)[:120],
+                         "n_parts": 0, "n_tracks": 0, "n_vias": 0}
+            incursion_ok = (not incur.get("applicable")) or (
+                incur.get("status") == "ok"
+                and (incur.get("n_parts", 0) + incur.get("n_tracks", 0)
+                     + incur.get("n_vias", 0)) == 0)
 
             unconn_nets = list(m.detail.get("unconn_nets", []))
             crit, sig = _classify_unconnected(unconn_nets, rules)
@@ -9553,6 +9569,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "drc_types": dict(m.drc_types), "unconnected": m.unconnected,
                 "unconn_nets": unconn_nets, "unconn_critical": crit, "unconn_signal": sig,
                 "routing_complete": routing_complete, "unconn_finish_tol": unconn_finish_tol,
+                "incursion_ok": incursion_ok,
+                "incursion": {k: incur.get(k) for k in
+                              ("status", "n_parts", "n_tracks", "n_vias")},
                 "foreign_ok": foreign_ok, "foreign": {"status": fsum.get("status"),
                     "tracks": fsum.get("n_tracks", 0), "vias": fsum.get("n_vias", 0),
                     "pours": fsum.get("n_pours", 0)},

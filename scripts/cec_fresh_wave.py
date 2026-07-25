@@ -973,6 +973,11 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
                 # coupled pairs deterministic + locked, refused pairs solo-tiered,
                 # FR residual-only). wave_precision=False in params restores bare.
                 precision=bool(_p.get("wave_precision", True)))
+    _inc = (v.get("incursion") or {})
+    if _inc and (_inc.get("n_parts", 0) or _inc.get("n_tracks", 0) or _inc.get("n_vias", 0)):
+        print(f"[wave] {board} {label}: POUR INCURSION parts={_inc.get('n_parts')} "
+              f"tracks={_inc.get('n_tracks')} vias={_inc.get('n_vias')} "
+              f"(owner rule: nothing places inside a pour)", flush=True)
     v["label"] = label
     v["placed"] = out
     v["wall_s"] = round(time.monotonic() - t0, 1)

@@ -609,3 +609,34 @@ packing, or the board size:
 **Landed meanwhile (no ruling touched):** the refusal now names its blockers (`pad U10.5 x12,
 ...`) instead of an opaque "no clear LO via site" — it took two rounds of that message to
 find this, and the next person should not pay that cost again.
+
+## 2026-07-25 — "NOTHING PLACES INSIDE A POUR" (owner ruling): measured, not yet enforceable
+
+**The ruling:** the pour is set first and is never encroached upon; if a placement cannot work
+without a pour incursion, the POURS get redone rather than the rule bent.
+
+**What landed:** `cec_constraints.laid_pour_incursion_summary` + the
+`no-incursion-in-laid-pour` checker, measured against the pours ACTUALLY ON THE BOARD and
+including PARTS (not just tracks/vias). Every grade now reports `incursion` and the wave
+prints it. This was needed because the existing `no-foreign-on-high-current-pour` rule
+re-derives a corridor box instead of reading the laid pours: it reported `foreign=0t` on the
+eps winner while that board carried **4 foreign pads (C1, C20), 7 tracks and 4 vias** inside
+the pours.
+
+**Not folded into the gate yet, deliberately.** Nothing in the pipeline can currently satisfy
+it, and a gate no board can pass is a stopped line. The two halves that are missing:
+
+1. **Placer avoidance.** The mechanism exists (`pourfirst_avoid_boxes` +
+   `_legalize_avoiding_pours`, used by the p8/p9 passes) but is fed only by the pour-first
+   freeze. MEASURED DEAD END: enabling `pour_first` on eps produces a board with **no force
+   pours at all** — the solve finds the nets already connected, the single-owner whitelist
+   then drops every manifold, and the empty frozen state supersedes the live asks. It reported
+   `incursion=0` for the worst possible reason. Do not enable pour_first on the cable boards.
+2. **The redo loop.** The pours are derived FROM the placement (connector→shunt corridors), so
+   "pours first" needs a real two-pass: place anchors → derive pour regions → place the rest
+   avoiding them → re-derive → converge, with the owner's escalation (placement impossible ->
+   redo the pours) as the loop's exit. That is an architectural rung, not a patch.
+
+**Recommended sequence:** (a) feed the placer avoid-boxes from the PourPlan corridors rather
+than the pour-first freeze — that alone should clear the 4 foreign PADS, which are the part of
+the ruling nothing else can fix; (b) then the two-pass convergence; (c) then flip the gate on.

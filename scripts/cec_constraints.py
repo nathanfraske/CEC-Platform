@@ -2488,3 +2488,105 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
+    """Anything sitting inside a pour's OWN reserved region: parts, tracks, vias.
+
+    Owner ruling 2026-07-25: "prevent anything from ever placing inside a pour --
+    the pour is set first and should never be incurred upon."
+
+    Why this exists alongside no-foreign-on-high-current-pour: that rule measures a
+    RE-DERIVED corridor box, so it reports 0 while the pour that was actually laid
+    is being encroached. Measured on the eps winner -- `foreign=0t` in the verdict,
+    and against the laid pours: 4 foreign pads (C1, C20), 7 tracks, 4 vias. This
+    check reads the zones ON THE BOARD, which is the only geometry the rule can
+    honestly be about.
+
+    Measured against the zone OUTLINE, not its fill: the filler voids around every
+    obstacle, so "nothing inside the fill" is true by construction and says nothing
+    about whether the region was respected.
+
+    Own-net items are never incursions -- a pour must reach its own pads. The GND
+    plane is skipped by default (it is the board-wide reference, not a reserved
+    corridor).
+
+    Returns {"applicable", "status", "n_parts", "n_tracks", "n_vias", "items"}.
+    """
+    try:
+        from shapely.geometry import Polygon, box as _box, LineString
+        from shapely.ops import unary_union
+    except ImportError:
+        return {"applicable": False, "status": "na", "reason": "shapely absent",
+                "n_parts": 0, "n_tracks": 0, "n_vias": 0, "items": []}
+    board = pcbnew.LoadBoard(board_path) if isinstance(board_path, str) else board_path
+    zones = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        net = z.GetNetname() or ""
+        name = z.GetZoneName() or ""
+        if exclude_plane and (net == "GND" or name.startswith("GND Plane")):
+            continue
+        for lid in board.GetEnabledLayers().CuStack():
+            if not z.IsOnLayer(lid):
+                continue
+            o = z.Outline()
+            ps = []
+            for i in range(o.OutlineCount()):
+                oo = o.Outline(i)
+                pts = [(oo.CPoint(k).x / 1e6, oo.CPoint(k).y / 1e6)
+                       for k in range(oo.PointCount())]
+                if len(pts) >= 3:
+                    ps.append(Polygon(pts).buffer(0))
+            if ps:
+                zones.append((net, lid, name, unary_union(ps)))
+    if not zones:
+        return {"applicable": False, "status": "na", "n_parts": 0, "n_tracks": 0,
+                "n_vias": 0, "items": []}
+    items, n_parts, n_tracks, n_vias = [], 0, 0, 0
+    for net, lid, name, g in zones:
+        for fp in board.GetFootprints():
+            for pd in fp.Pads():
+                if not pd.IsOnLayer(lid) or pd.GetNetname() == net:
+                    continue
+                pb = pd.GetBoundingBox()
+                r = _box(pb.GetLeft() / 1e6, pb.GetTop() / 1e6,
+                         pb.GetRight() / 1e6, pb.GetBottom() / 1e6)
+                if g.intersects(r) and g.intersection(r).area > 0.001:
+                    n_parts += 1
+                    items.append({"kind": "pad", "pour": name,
+                                  "ref": fp.GetReference(), "net": pd.GetNetname()})
+        for t in board.GetTracks():
+            if t.GetNetname() == net:
+                continue
+            if t.GetClass() == "PCB_TRACK" and t.GetLayer() == lid:
+                s_, e_ = t.GetStart(), t.GetEnd()
+                ln = LineString([(s_.x / 1e6, s_.y / 1e6), (e_.x / 1e6, e_.y / 1e6)])
+                if g.intersects(ln):
+                    n_tracks += 1
+                    items.append({"kind": "track", "pour": name, "net": t.GetNetname()})
+            elif t.GetClass() == "PCB_VIA" and t.IsOnLayer(lid):
+                p = t.GetPosition()
+                r = _box(p.x / 1e6 - 0.45, p.y / 1e6 - 0.45,
+                         p.x / 1e6 + 0.45, p.y / 1e6 + 0.45)
+                if g.intersects(r):
+                    n_vias += 1
+                    items.append({"kind": "via", "pour": name, "net": t.GetNetname()})
+    return {"applicable": True, "status": "ok", "n_parts": n_parts,
+            "n_tracks": n_tracks, "n_vias": n_vias, "items": items[:60]}
+
+
+@checker("no-incursion-in-laid-pour")
+def _chk_laid_pour_incursion(board, path, ctx):
+    """Owner ruling 2026-07-25: nothing is ever placed inside a pour. The pour is
+    set first; a placement that cannot work without encroaching sends the POURS
+    back to be redone, never the rule bent. See laid_pour_incursion_summary."""
+    rep = laid_pour_incursion_summary(path)
+    if not rep.get("applicable"):
+        return []
+    out = []
+    for it in rep["items"]:
+        out.append("%s %s [%s] inside pour %s"
+                   % (it["kind"], it.get("ref", ""), it.get("net", ""), it["pour"]))
+    return out
