@@ -401,3 +401,23 @@ or a contained HV source — both have legitimate versions):
 BOTH — (a) improves the mains-class crowbar while making the event visible, (b) turns
 the show into a recurring safety self-test; together they are the product's soul made
 visible. Board README/BOM untouched pending the nod.
+
+### 9.11 The literal smoke, on demand — SMOKE SHOT (owner "I do want that," 2026-07-25)
+
+The founding fantasy ("bonus if the fuse literally smokes") already happens on real
+events — the brick witnesses puff behind the theater window, and that is never an
+annoyance because when a witness smokes the brick was already dead (the smoke IS the
+replace-me flag). What was missing: smoke you can SHOW someone without spending a $4
+brick. Answer = a dedicated demo branch with cap-gun economics: 12 V input → 10 A
+time-lag 5×20 HRC (0215010.MXP C142733, same family/holder as the way HRCs, fuse-first
+at the branch head) → red horn-class SMOKE momentary (held-only) → a socketed pellet =
+the SAME KNP 1 Ω 1 W flameproof witness part the brick carries (C1741442), in a
+tool-less clip behind the window. 144 W into a 1 W flameproof part = the designed puff
+in ~100 ms; the 10 A fuse carries the shot forever and only dies in the
+mains-while-pressing corner (which it breaks safely at 1.5 kA/250 VAC — the identical
+worst case the brick witnesses accept, same part). Reload = pull-and-press, ~$0.02 a
+shot, 20-bag in the kit, 50-bag refill SKU. Consumable ⑤: the only part that dies on
+purpose. Fences kept: held-only (LAMP TEST precedent), sacrifice-first branch,
+flameproof puff not flame, #4 chamber review grows to demo cadence (vent sizing,
+shots-per-minute silk), printed carve-out: "smoke is ALWAYS a real event — unless
+you're holding SMOKE." Board spec: beta/smoke-tester/README.md §2 table row 5 + §4.

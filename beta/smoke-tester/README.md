@@ -88,7 +88,8 @@ electrically upstream of a sacrifice element, and measurement taps enter only th
 by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 (≥3.2 mm) — a layout gate, recorded in §9.
 
-**The four consumables (all socketed):**
+**The consumables (all socketed) — four that die from faults, one that dies on
+purpose:**
 
 | # | Part | Where | COGS | Dies from |
 |---|---|---|---|---|
@@ -96,6 +97,7 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
 | 3 | **Sacrifice brick SB1** — 8 MOVs (uniform 22 V, see brick/README) + ◆5 GDTs on the core ways (VE-1; the visible mains crowbar) + 8 witness fusibles + 2 harvest fusibles (store leg + instant-on domain leg), one keyed plug-in PCB | 2×11 socket pair | ~$3.85 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
 | 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle (standard tin) | keyed 2×13 shrouded header | ~$3.1 | **mechanical damage only** (bent pins, broken latch, mangled DUT connectors) — cycle WEAR ruled functionally irrelevant at this box's duty; see the resolution note below |
+| 5 | **◆ SMOKE pellet** — the same brick-witness KNP 1 Ω flameproof, in a tool-less panel clip behind the theater window (§4 SMOKE SHOT) | 2-point clip | ~$0.02 | **the SMOKE button** — the only part that dies on purpose (the demo; real-event smoke still comes free from the brick witnesses) |
 
 **Physical partitioning — what is a daughterboard and what isn't (owner Q,
 2026-07-24):** the consumables are deliberately NOT one combined sacrificial
@@ -205,6 +207,25 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   never-generate-what-you-detect; panel carve-out printed: "a lit neon is ALWAYS bad
   news — unless you're holding LAMP TEST." ◆ Glass-check GDTs live on the brick (§2
   table) behind the theater-bay window.
+- **◆ SMOKE SHOT (owner "I do want that", 2026-07-25) — the literal smoke, on demand,
+  cap-gun economics:** a DEDICATED demo branch so a show never costs a brick or a
+  blade: 12 V input node → F_SMK **10 A time-lag 5×20 HRC 250 VAC** (0215010.MXP,
+  C142733 — same family/holder as the way HRCs, fuse-first at the branch head) →
+  SW_SMK chunky red horn-class momentary (held-only) → PELLET1, the SAME KNP 1 Ω 1 W
+  flameproof witness part the brick uses (C1741442), in a tool-less 2-point clip
+  behind the theater window. Physics: 12 V ÷ 1 Ω ≈ 12 A → 144 W into a 1 W
+  flameproof part = the designed puff in ~50–150 ms; the 10 A time-lag fuse carries
+  the ~1.2× shot without noticing and is ~never consumed; the needle dips under the
+  shot (free showmanship). Reload = pull the spent pellet, press in a fresh one —
+  same UX as a blade fuse, ~5 s, **~$0.02/shot** (kit ships a 20-bag; 50-bag refill
+  SKU). Pathological corner (mains on 12 V while pressing): ~230 A first loop — the
+  10 A HRC (1.5 kA breaking) clears it safely; pellet + fuse die contained, the same
+  worst case the brick witnesses already accept, same part. Fences: held-only (dies
+  with the button, LAMP TEST precedent), pellet is the sacrifice element at its own
+  branch head, flameproof puff not flame, rides the #4 chamber/venting review (which
+  now also covers demo cadence), and the printed carve-out extends: "smoke is ALWAYS
+  a real event — unless you're holding SMOKE." Needs a live 12 V (the demo runs on
+  the DUT's own power). Adder ≈ $1.
 - **PWR_OK race (all analog):** PS_ON#-assert starts a 100 ms / 500 ms two-tap RC; two
   comparator sections latch PWR_OK's rising edge against the taps → PG EARLY / PG OK
   / PG LATE-NEVER lamps (ATX spec window, coarse by design).
@@ -258,10 +279,10 @@ deferred to the metrology tiers (fence).
 
 ## 6. BOM — sourced (LCSC-primary pass, jlcsearch-verified 2026-07-25)
 
-`bom/bom.csv` is the box rollup (51 lines, margin passives/decouplers included per
+`bom/bom.csv` is the box rollup (54 lines, margin passives/decouplers included per
 active device); `brick/bom/` and `snout/bom/` carry the sub-board BOMs. Verified LCSC
 anchor lines: LM339DR **C7948** ($0.09, 84k) · TLV431AIDBZR **C56765** · 5×20 holders
-**C3131** ($0.06, 133k) · Littelfuse 215 2A-T HRC **C142716** · ATO holders Bussmann
+**C3131** ($0.06, 133k) · Littelfuse 215 HRCs **C142716** (2 A-T ways) / **C142733** (10 A-T smoke branch) · ATO holders Bussmann
 **C3207132** (watch: 997) · MOV 14D220K **C6793760** (watch: 800; 3 same-family alts
 listed) · GDT 2R090TA-5 **C48642402** (glass-body check at sample) · KNP 1 Ω witness
 **C1741442** · latching relay HF3F-L/5 **C190594** (watch: 749) · SMAZ5V6 **C110526** ·
@@ -295,7 +316,7 @@ missile-toggle generic+cover (−$1.00, brand call — owner's), case engineerin
 from the $42–43 diagram estimate: real ATO-holder pricing + the GDT-populated spare
 brick in the kit); ~$34–36 path @1k after the case quote. **Retail $79 (RULED #9)** —
 2.1× at 100-qty worst, healthy at 1k. Consumables (RULED #12): Fuse+Flag $9 · brick
-2-pack $12–15 · snout $9 · AUX adapters $9–12 / $39 4-pack.
+2-pack $12–15 · snout $9 · AUX adapters $9–12 / $39 4-pack · smoke-pellet 50-bag ~$3.
 
 ## 7. Mechanical / panel
 
@@ -339,7 +360,8 @@ concept §8 #2–#12 (this standup executed #1).
       study 2026-07-15) — consigned/DigiKey-class line, same cells as the Pro/Max 2S
       provision (shared buy).
 - [ ] Arc-coordination bench protocol draft (gates DRAFT-drop; safety review for the
-      witness chamber rides it — concept decision #4).
+      witness chamber rides it — concept decision #4 — now incl. SMOKE-SHOT demo
+      cadence: vent sizing, shots-per-minute silk).
 - [ ] AUX adapter pin-map table per family (SATA/Molex/PCIe/EPS) — one page, feeds
       both the adapter PCBs and the manual.
 - [ ] Compliance posture ruling (concept decision #8) before any listing goes live.

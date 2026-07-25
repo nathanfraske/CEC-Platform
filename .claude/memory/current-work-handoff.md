@@ -1,5 +1,27 @@
 # Current work handoff
 
+## SMOKE SHOT ADDED (2026-07-25 ~07:55Z, owner "I do want that", on pipeline-pass-2)
+Owner asked (a) why the AUX port exists (answered in chat: the borrowed-modular-cable
+killer + other-cable faults via passive $9 adapters on 3 spare fused ways; ruled revenue
+line, VE-kept) and (b) make the smoke LITERAL without annoying replacement. DESIGNED +
+APPLIED: real-event smoke stays on the brick witnesses (smoke = the replace-me flag,
+brick already dead when it fires); the DEMO gets its own branch with cap-gun economics —
+12V input node -> F_SMK 10A-T 5x20 HRC 250VAC (0215010.MXP C142733, jlcsearch-verified
+4113 stock, same 215 family + BLX-A holder XF9) fuse-first -> SW_SMK red horn-class
+momentary (12A, consigned, held-only) -> PELLET1 = the SAME KNP 1R 1W flameproof
+witness part (C1741442) in a tool-less 2-point clip behind the theater window. 12V/1R =
+144W in a 1W flameproof = designed puff ~100ms; 10A time-lag carries the 1.2x shot
+~forever; needle dips = showmanship. Mains-while-pressing: ~230A first loop -> HRC
+breaks (1.5kA/250VAC), pellet+fuse die contained (same accepted worst case as brick
+witnesses, same part). Reload = pull-and-press ~5s, ~$0.02/shot; kit +20 pellets
+(COGS $5.80->$6.10), 50-bag ~$3 refill SKU. Consumable 5 = dies on purpose (table row
+added; four-fault + one-on-purpose framing). Fences: held-only (LAMP TEST precedent),
+sacrifice-first branch, flameproof puff, #4 chamber review scope GROWS to demo cadence
+(vent sizing / shots-per-minute silk — README 9 bullet + owner-queue updated), carve-out
+silk "smoke is ALWAYS real — unless you're holding SMOKE." Clip form (push-in spring vs
+5x20-clip grip) binds at capture + sample order (FOLLOWUPS updated; 215 datasheet desk
+item now covers C142733 too). BOM = 54 lines (README 6 count updated), adder ~$1.
+
 ## CHARGE BAR COLOR SPLIT (2026-07-25 ~07:30Z, owner ruling, on pipeline-pass-2)
 Owner: "2 green, 2 yellow, 2 red." Implemented BOTTOM-UP RED->YELLOW->GREEN (fuel-gauge
 orientation: red=awake-but-thin [OK ride-through tick stays on D_CHG1], yellow=partial,

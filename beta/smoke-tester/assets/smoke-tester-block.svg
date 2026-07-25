@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="980" height="640" viewBox="0 0 980 640" font-family="monospace">
   <rect width="980" height="640" fill="#ffffff"/>
   <text x="20" y="28" font-size="17" font-weight="bold">SMOKE TESTER — block diagram (beta, sketch-stage 2026-07-24)</text>
-  <text x="20" y="46" font-size="11" fill="#555">Three domains, four socketed consumables (red ①–④). Rule: no main-board copper upstream of a sacrifice element.</text>
+  <text x="20" y="46" font-size="11" fill="#555">Three domains, 4 fault consumables (①–④) + the ⑤ SMOKE pellet (dies on purpose). Rule: no main-board copper upstream of a sacrifice element.</text>
 
   <!-- DUT -->
   <rect x="20" y="70" width="120" height="90" fill="#f4f4f4" stroke="#333" stroke-width="1.5"/>
@@ -116,9 +116,9 @@
 
   <!-- legend -->
   <rect x="20" y="530" width="940" height="90" fill="#fafafa" stroke="#999"/>
-  <text x="30" y="549" font-size="10.5" font-weight="bold">CONSUMABLES (all socketed; starter kit in the lid ships blades + 2 HRC + 1 spare brick):</text>
+  <text x="30" y="549" font-size="10.5" font-weight="bold">CONSUMABLES (all socketed; starter kit ships blades + 2 HRC + 1 spare brick + 20 smoke pellets):</text>
   <text x="30" y="565" font-size="9.5">① ATO blade 1A — hardware-store standard ON PURPOSE (trust story) · ② HRC 2A-T 250VAC — the only element rated to break mains</text>
-  <text x="30" y="579" font-size="9.5">③ sacrifice brick — every part that absorbs a fault, one $3 swap, date-flag silk · ④ snout — DAMAGE spare only (cycle wear ruled irrelevant at megohm duty)</text>
+  <text x="30" y="579" font-size="9.5">③ sacrifice brick — every part that absorbs a fault, one $3 swap, date-flag silk · ④ snout — DAMAGE spare only (wear ruled irrelevant) · ⑤ SMOKE pellet — the demo, ~$0.02/shot</text>
   <text x="30" y="597" font-size="9.5" fill="#555">Coordination: blade clears LV events (1A F); a mains arc rides through to the HRC (2A T, sand) which breaks it; the witness 1Ω smokes benignly</text>
   <text x="30" y="610" font-size="9.5" fill="#555">and disconnects its spent MOV. Fences: terminator-only · lamps not numbers · the bouncer, not the interview.</text>
 </svg>
