@@ -320,3 +320,12 @@ overhanging the pad's outer/side extents beyond clearance-necessary margin. Mech
 today: guaranteed_shunt_patches clips at MID-GAP (pad copper extends past the inner edge
 into the gap); fix = clip at the pad inner edge. Corridor landings obey the same rule:
 approach from the outer face, stop at the pad.
+
+### Via-in-pad ruling (owner, 2026-07-25, same artifacts)
+"A couple vias in pads... odd that they aren't already caught." Root cause of the gap:
+every via spot-check (_via_spot_clear, barrel ledger) guards FOREIGN-copper shorts; a via
+inside a SAME-NET pad is exempt by construction. Missing rule = the assembly-class
+exclusion: NO via center inside (or overlapping) an SMD pad regardless of net (solder
+wicking; this platform uses no via-in-pad design). THT pads: no via within the annulus.
+Applies to every via-laying path: bridge vias, force vias, pickups, lastmile, v4 crossing
+fields. Add to _via_spot_clear (net-independent pad test) + teeth.
