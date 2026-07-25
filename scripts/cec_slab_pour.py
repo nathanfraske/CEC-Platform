@@ -554,6 +554,16 @@ def apply_bridge_overlap(path_cells, bridges, grid, radius_cells=3):
     ny, nx = grid.ny, grid.nx
     r2 = radius_cells * radius_cells
     for (r, c, lay_from, lay_to, _dx, _dy) in bridges:
+        # LAYER-SET TOLERANCE (2026-07-25, the 453-crash conviction: the
+        # anchor-driven widening can add a layer MID-SEARCH, so a bridge may
+        # reference a layer absent from a mask dict built from the
+        # pre-widening set -- KeyError 'F.Cu' killed pour_first_stage on
+        # every live variant and fail-open silently reverted the whole wave
+        # to old machinery). A missing layer gets an empty mask, never a
+        # crash.
+        for _lay in (lay_from, lay_to):
+            if _lay not in path_cells:
+                path_cells[_lay] = np.zeros((ny, nx), bool)
         for dr in range(-radius_cells, radius_cells + 1):
             for dc in range(-radius_cells, radius_cells + 1):
                 if dr * dr + dc * dc > r2:

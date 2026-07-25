@@ -10191,8 +10191,11 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                     report["render_error"] = "%s: %s" % (type(e).__name__, e)
     except Exception as e:                                 # noqa: BLE001
         report["error"] = "%s: %s" % (type(e).__name__, e)
+        import traceback as _tb
+        report["traceback"] = _tb.format_exc()
         print("[pourfirst] %s: STAGE FAILED (%s) -- live pour machinery "
-              "stands" % (label, report["error"]), file=sys.stderr)
+              "stands\n%s" % (label, report["error"], report["traceback"]),
+              file=sys.stderr)
     report["wall_s"] = round(time.monotonic() - t0, 1)
     session.pourfirst_report = report
     if "error" not in report:
