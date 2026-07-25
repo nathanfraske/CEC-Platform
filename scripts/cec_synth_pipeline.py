@@ -9211,6 +9211,19 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     gnd_rep["stitch"] = stitch_rep
                 except Exception as e:                        # noqa: BLE001 -- fail-safe
                     gnd_rep = {"added": 0, "error": "%s: %s" % (type(e).__name__, e)}
+                # REFILL AFTER POST-ROUTE COPPER SURGERY (2026-07-25). Everything
+                # above -- the locked-net reconcile, the island stitch, the GND
+                # fanout's impedance vias -- mutates copper AFTER import_ses filled
+                # the pours, so the fill predates the new vias and DRC reports
+                # clearance violations that a refill makes vanish (measured on eps:
+                # 2 -> 0). The grade scores that DRC, so without this the fanout is
+                # not "DRC-neutral" as its note claims -- it is silently costing
+                # every candidate points for copper that is not there.
+                try:
+                    cec_fr.refill_zones(routed)
+                except Exception as _re:                      # noqa: BLE001
+                    print("[route] post-surgery refill skipped: %s" % _re,
+                          file=sys.stderr)
             else:
                 routed = placed
                 rules = cec_score.Rules.from_board(routed)

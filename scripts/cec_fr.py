@@ -1244,6 +1244,201 @@ def add_inner_gnd_fill(board, layer_name, *, gnd_net="GND", inset_mm=0.5):
     return z
 
 
+def shunt_tap_gaps(board, *, prefix="RS"):
+    """The inter-pad gap of every 2-terminal shunt, on the shunt pads' OWN layers.
+
+    This region belongs exclusively to the Kelvin tap stubs (owner pour-termination
+    ruling 2026-07-24: "force copper stops at the shunt pad, the gap belongs to the
+    taps"). Layer-scoped on purpose: an inner GND plane passing UNDER an SMD shunt
+    is correct and must not be clipped -- only copper sharing a layer with the pads
+    can steal the tap window.
+
+    Returns [(layer_names:set, (x0, y0, x1, y1), ref), ...] in mm.
+    """
+    gaps = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if not ref.startswith(prefix):
+            continue
+        pads = list(fp.Pads())
+        if len(pads) != 2:
+            continue
+        boxes = []
+        for pd in pads:
+            bb = pd.GetBoundingBox()
+            boxes.append((bb.GetLeft() / MM, bb.GetTop() / MM,
+                          bb.GetRight() / MM, bb.GetBottom() / MM,
+                          {pcbnew.LayerName(l) for l in pd.GetLayerSet().CuStack()}))
+        (ax0, ay0, ax1, ay1, al), (bx0, by0, bx1, by1, bl) = boxes
+        lays = al & bl
+        if not lays:
+            continue
+        if min(ax1, bx1) < max(ax0, bx0):                  # separated in x
+            gx0, gx1 = min(ax1, bx1), max(ax0, bx0)
+            gy0, gy1 = max(ay0, by0), min(ay1, by1)
+        elif min(ay1, by1) < max(ay0, by0):                # separated in y
+            gy0, gy1 = min(ay1, by1), max(ay0, by0)
+            gx0, gx1 = max(ax0, bx0), min(ax1, bx1)
+        else:
+            continue                                        # overlapping pads: no gap
+        if gx1 <= gx0 or gy1 <= gy0:
+            continue
+        gaps.append((lays, (gx0, gy0, gx1, gy1), ref))
+    return gaps
+
+
+def _subtract_rect(poly, rect):
+    """poly (list of (x, y)) minus an axis-aligned rect -> list of polygons.
+
+    Uses shapely when present; falls back to an exact rectangle split when the
+    polygon is itself axis-aligned rectangular (which every stamped force pour
+    is). Returns [poly] unchanged when the two do not overlap.
+    """
+    x0, y0, x1, y1 = rect
+    xs = [q[0] for q in poly]
+    ys = [q[1] for q in poly]
+    if not xs or max(xs) <= x0 or min(xs) >= x1 or max(ys) <= y0 or min(ys) >= y1:
+        return [(poly, [])]                                 # no overlap: untouched
+    try:
+        from shapely.geometry import Polygon, box as _box
+        g = Polygon(poly).buffer(0).difference(_box(x0, y0, x1, y1))
+        if g.is_empty:
+            return []
+        parts = list(getattr(g, "geoms", [g]))
+        out = []
+        for part in parts:
+            if part.area <= 1e-9:
+                continue
+            # HOLES ARE THE POINT (bug caught 2026-07-25): a shunt tap gap sits
+            # INSIDE the pour, so the difference is a polygon with an interior
+            # ring. Keeping only `exterior` silently restored the original shape
+            # -- the clip reported success on every zone and changed nothing.
+            ext = [(round(px, 4), round(py, 4))
+                   for px, py in list(part.exterior.coords)[:-1]]
+            holes = [[(round(px, 4), round(py, 4))
+                      for px, py in list(r.coords)[:-1]] for r in part.interiors]
+            out.append((ext, holes))
+        return out
+    except ImportError:
+        pass
+    # rect-minus-rect (host fallback): up to four surviving slabs
+    px0, px1, py0, py1 = min(xs), max(xs), min(ys), max(ys)
+    if len({(round(q[0], 6), round(q[1], 6)) for q in poly}) != 4:
+        return [(poly, [])]                                 # not a rect: leave it
+    out = []
+    for r in ((px0, py0, px1, min(py1, y0)),                # above the gap
+              (px0, max(py0, y1), px1, py1),                # below
+              (px0, max(py0, y0), min(px1, x0), min(py1, y1)),   # left
+              (max(px0, x1), max(py0, y0), px1, min(py1, y1))):  # right
+        a0, b0, a1, b1 = r
+        if a1 - a0 > 1e-6 and b1 - b0 > 1e-6:
+            out.append(([(a0, b0), (a1, b0), (a1, b1), (a0, b1)], []))
+    return out
+
+
+def refill_zones(board_path):
+    """Re-fill every zone on a saved board. Returns True if it ran.
+
+    Needed wherever copper is added AFTER import_ses filled the pours. Measured
+    2026-07-25 on eps: cec_gnd_fanout drops impedance vias into the routed board
+    post-fill, so the pours still carry the fill they had BEFORE those vias
+    existed -- the filler had no chance to void around them. DRC then reports a
+    clearance violation the board does not really have ("zone clearance 0.5mm;
+    actual 0.4542mm"), and because that DRC is what the grade scores, every
+    candidate was being penalised for phantom copper. A refill takes the same
+    board from 2 violations to 0.
+    """
+    try:
+        board = pcbnew.LoadBoard(board_path)
+        for z in board.Zones():
+            z.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        pcbnew.SaveBoard(board_path, board)
+        return True
+    except Exception as e:                                 # noqa: BLE001 -- fail-safe
+        print(f"[cec_fr] refill_zones failed on {board_path}: {e}", file=sys.stderr)
+        return False
+
+
+def enforce_pour_termination(board, *, refill=True):
+    """Clip EXISTING zones out of every same-layer shunt tap gap. Returns the count.
+
+    The input-list clip in add_power_pours is not enough, measured: the eps force
+    pours are laid at MATERIALIZE, long before the import-time pour list exists, so
+    they reach the routed board as zones and no filter that reads pour DICTS can
+    ever see them (their outlines still intruded 15.75mm2 each into RS1/RS2 with
+    the dict clip live and reporting "4 clipped"). Enforcing on the ARTIFACT is the
+    same lesson the shunt-only rule learned when it was bypassed three ways: the
+    board is the only thing every path has in common.
+
+    Layer-scoped via shunt_tap_gaps, so inner GND planes under an SMD shunt are
+    untouched. Zones reduced to nothing are removed.
+    """
+    try:
+        gaps = shunt_tap_gaps(board)
+    except Exception:                                      # noqa: BLE001
+        return 0
+    if not gaps:
+        return 0
+    changed, doomed = 0, []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        for lid in board.GetEnabledLayers().CuStack():
+            if not z.IsOnLayer(lid):
+                continue
+            lname = pcbnew.LayerName(lid)
+            mine = [g for g in gaps if lname in g[0]]
+            if not mine:
+                continue
+            outline = z.Outline()
+            kept = []
+            for i in range(outline.OutlineCount()):
+                o = outline.Outline(i)
+                kept.append(([(o.CPoint(k).x / MM, o.CPoint(k).y / MM)
+                              for k in range(o.PointCount())], []))
+            touched = False
+            for _lays, rect, _ref in mine:
+                nxt = []
+                for ext, holes in kept:
+                    res = _subtract_rect(ext, rect)
+                    if len(res) != 1 or res[0][0] is not ext:
+                        touched = True
+                    for ext2, holes2 in res:
+                        nxt.append((ext2, holes + holes2))
+                kept = nxt
+            if not touched:
+                continue
+            if not kept:
+                doomed.append(z)
+                break
+            outline.RemoveAllContours()
+            for ext, holes in kept:
+                oi = outline.NewOutline()
+                for (x, y) in ext:
+                    outline.Append(_nm(x), _nm(y))
+                for hole in holes:
+                    hi = outline.NewHole(oi)
+                    for (x, y) in hole:
+                        outline.Append(_nm(x), _nm(y), oi, hi)
+            changed += 1
+            break
+    for z in doomed:
+        board.Remove(z)
+    if (changed or doomed) and refill:
+        try:
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        except Exception as e:                             # noqa: BLE001
+            print(f"[cec_fr] pour termination: refill failed ({e})", file=sys.stderr)
+    if changed or doomed:
+        print(f"[cec_fr] pour termination: {changed} zone outline(s) clipped, "
+              f"{len(doomed)} dropped -- the shunt tap gap belongs to the taps",
+              file=sys.stderr, flush=True)
+    return changed + len(doomed)
+
+
 def add_power_pours(board, pours, *, fill: bool = False):
     """Lay additive same-net copper pours on an ALREADY-ROUTED board.
 
@@ -1285,6 +1480,20 @@ def add_power_pours(board, pours, *, fill: bool = False):
         _f_nbs = _cslb3.shunt_neighborhoods(board)
     except Exception:                                  # noqa: BLE001
         _f_nbs = []
+    # POUR TERMINATION AT THE SHUNT PAD (owner ruling 2026-07-24, implemented
+    # 2026-07-25). The ruling was recorded in docs/slab-pour-design-2026-07-24.md
+    # and never written: commit 1f803c0f added nine lines of prose and no code, so
+    # every force pour kept running straight through the shunt's inter-pad gap --
+    # measured on the eps winner as 8.16mm2 of /SENSEC1_HI, 6.82mm2 of /SENSEC2_LO
+    # and so on sitting exactly where the Kelvin taps must live. Enforced HERE for
+    # the same reason the shunt-only rule is: every laying path (materialize
+    # patches, the import list, the router's pass-2 re-derivation) funnels through
+    # this function, so a per-caller clip can always be bypassed by the next caller.
+    try:
+        _gaps = shunt_tap_gaps(board)
+    except Exception:                                  # noqa: BLE001
+        _gaps = []
+    _clipped = 0
     added = []
     for p in pours:
         net = p["net"]
@@ -1328,15 +1537,43 @@ def add_power_pours(board, pours, *, fill: bool = False):
                                             net)))
         except Exception:                              # noqa: BLE001
             pass
+        # Clip the outline out of every same-layer shunt tap gap before it becomes
+        # copper. A pour reduced to nothing is dropped (it was ALL gap).
+        _lay_name = p.get("layer", "F.Cu")
+        _polys = [(list(p["polygon"]), [])]
+        for _glays, _grect, _gref in _gaps:
+            if _lay_name not in _glays:
+                continue
+            _next = []
+            for _ext, _holes in _polys:
+                _res = _subtract_rect(_ext, _grect)
+                if len(_res) != 1 or _res[0][0] is not _ext:
+                    _clipped += 1
+                for _e2, _h2 in _res:
+                    _next.append((_e2, _holes + _h2))
+            _polys = _next
+        if not _polys:
+            print(f"[cec_fr] add_power_pours: pour {net} dropped -- it was entirely "
+                  "inside a shunt tap gap", file=sys.stderr)
+            continue
         # In-place outline append (never SetOutline -- SWIG alias bug, see cec_route.py)
         o = z.Outline()
-        o.NewOutline()
-        for (x, y) in p["polygon"]:
-            o.Append(_nm(x), _nm(y))
+        for _ext, _holes in _polys:
+            _oi = o.NewOutline()
+            for (x, y) in _ext:
+                o.Append(_nm(x), _nm(y))
+            for _hole in _holes:
+                _hi = o.NewHole(_oi)
+                for (x, y) in _hole:
+                    o.Append(_nm(x), _nm(y), _oi, _hi)
         if z.Outline().FullPointCount() < 3:
             raise RuntimeError(f"cec_fr.add_power_pours: pour on {net!r} has < 3 points")
         board.Add(z)
         added.append(z)
+    if _clipped:
+        print(f"[cec_fr] pour termination: {_clipped} pour outline(s) clipped out of "
+              f"{len(_gaps)} shunt tap gap(s) -- the gap belongs to the taps",
+              file=sys.stderr)
     if fill and added:
         for z in board.Zones():
             z.UnFill()
@@ -4724,6 +4961,14 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     # between routes becomes reference copper rather than nothing. Last thing
     # before the save so it flows around every track and pour already placed;
     # env-gated, so boards that did not opt in are byte-identical.
+    # POUR TERMINATION ON THE ARTIFACT (owner ruling 2026-07-24): zones laid by any
+    # earlier stage -- materialize landing patches above all -- are clipped out of
+    # the shunt tap gaps here, where every route path passes regardless of who laid
+    # what. See enforce_pour_termination for why the dict-level clip cannot suffice.
+    try:
+        enforce_pour_termination(board)
+    except Exception as _pe:                            # noqa: BLE001 -- fail-safe
+        print(f"[cec_fr] pour termination skipped ({_pe})", file=sys.stderr)
     _igf = (os.environ.get("CEC_INNER_GND_FILL") or "").strip()
     if _igf:
         try:
