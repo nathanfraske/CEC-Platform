@@ -430,18 +430,30 @@ def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
                          max(keep.bbox[3], g.bbox[3]))
         keep.cx = (keep.bbox[0] + keep.bbox[2]) / 2.0
         keep.cy = (keep.bbox[1] + keep.bbox[3]) / 2.0
-        # per-layer attach copper: member pieces native to the layer + the
+        # per-layer attach copper: the members' ACTUAL anchored cells on
+        # that layer (a cluster's B-nativeness may be a few via cells --
+        # its bbox edge is NOT B copper; measured: +5V_MAIN's planned B
+        # corridor landed on a bbox edge over nothing and the attach
+        # verify split in two) + manifold polys on their own layers + the
         # own-track capsules touching the merged extent (two passes cover
-        # track chains). The hollow union bbox is NEVER an attach target.
+        # track chains). A hollow bbox is NEVER an attach target.
         la = {}
         hull = keep.attach
         for lay in layers:
             parts = []
             for g in members:
-                if lay in g.native:
-                    parts.append(g.attach if g.is_manifold
-                                 and lay in g.man_layers
-                                 else _box(*g.bbox))
+                if not (lay in g.native):
+                    continue
+                if g.is_manifold and lay in g.man_layers:
+                    parts.append(g.attach)
+                    continue
+                cellpolys = [
+                    _box(grid.x0 + c * grid.cell, grid.y0 + r * grid.cell,
+                         grid.x0 + (c + 1) * grid.cell,
+                         grid.y0 + (r + 1) * grid.cell)
+                    for (r, c) in g.cells if anchors[lay][r, c]]
+                if cellpolys:
+                    parts.append(unary_union(cellpolys))
             cand_tr = list(own_tracks.get(lay, ()))
             tr_ids = {id(t) for t in cand_tr if t.intersects(hull)}
             for _pass in range(2):
@@ -1101,13 +1113,16 @@ def _endpoints_for_layer(cor, st, lay, space):
                 return pts[0], False, tuple(pts[1:])
             return (_attach_point(g, toward, half, native,
                                   space=space)[0], False, ())
-        la = (g.lay_attach or {}).get(lay) if native else None
+        la = _lay_attach_geom(st, g, lay) if native else None
         if la is not None and not la.is_empty:
-            # PRE-CONNECTED super-group (mandate part 1): attach ON the
-            # per-layer copper (member pads + connecting rails) -- the
-            # union bbox is hollow and must never be the target. Alternates
-            # walk the components (nearest first) + boundary samples of the
-            # nearest component (a long rail offers many departure points).
+            # NATIVE attach ON the layer's ACTUAL copper (anchored cells +
+            # rails + manifold polys on their own layers) -- a bbox is
+            # hollow and must never be the target (measured twice: a
+            # merged super-group's rail-spanning bbox, AND a manifold
+            # gang's multi-connector bbox whose corner sits over nothing).
+            # Alternates walk the components (nearest first) + boundary
+            # samples of the nearest one (a long rail offers many
+            # departure points).
             comps = sorted(getattr(la, "geoms", [la]),
                            key=lambda c: c.distance(toward))
             alts = []
@@ -1119,27 +1134,6 @@ def _endpoints_for_layer(cor, st, lay, space):
                 step = max(1, len(cs) // 6)
                 alts.extend(tuple(q) for q in cs[::step][:6])
             return alts[0], False, tuple(alts[1:])
-        if g.is_manifold and native:
-            # off-manifold layer: attach the pin group's own copper (THT
-            # barrels anchor every layer) -- the neck admits the approach.
-            # Alternates: bbox perimeter + the group's own CELL CENTERS
-            # (contact preserved by construction -- a manifold gang merges
-            # several pin clusters, and only its first cluster is in bbox;
-            # a far pin at the barrel-field edge may hold the only exit).
-            x0, y0, x1, y1 = g.bbox
-            xm, ym = (x0 + x1) / 2.0, (y0 + y1) / 2.0
-            alts = [(xm, y0), (xm, y1), (x0, ym), (x1, ym),
-                    (x0, y0), (x1, y0), (x0, y1), (x1, y1)]
-            cells = g.cells
-            step = max(1, len(cells) // 12)
-            gr = st.get("_grid")
-            if gr is not None:
-                for (r, c) in cells[::step][:12]:
-                    alts.append((gr.x0 + (c + 0.5) * gr.cell,
-                                 gr.y0 + (r + 0.5) * gr.cell))
-            return (tuple(nearest_points(_box(*g.bbox),
-                                         toward)[0].coords[0]),
-                    False, tuple(alts))
         if native:
             return (_attach_point(g, toward, half, True,
                                   space=space)[0], False, ())
@@ -1160,6 +1154,29 @@ def _endpoints_for_layer(cor, st, lay, space):
     pa, spot_a, alts_a = _endpoint(ga, Point(gb.cx, gb.cy))
     pb, spot_b, alts_b = _endpoint(gb, Point(ga.cx, ga.cy))
     return pa, spot_a, alts_a, pb, spot_b, alts_b
+
+
+def _lay_attach_geom(st, g, lay):
+    """Per-(group, layer) attach copper, cached on the group: the pre-
+    connect merge's rich geometry when present (member cells + rails +
+    manifold polys), else the group's OWN anchored cells on that layer.
+    None when the group anchors nothing there."""
+    la = g.lay_attach
+    if la is None:
+        la = {}
+        g.lay_attach = la
+    if lay not in la:
+        grid = st.get("_grid")
+        an = (st.get("anchors") or {}).get(lay)
+        polys = []
+        if grid is not None and an is not None:
+            polys = [
+                _box(grid.x0 + c * grid.cell, grid.y0 + r * grid.cell,
+                     grid.x0 + (c + 1) * grid.cell,
+                     grid.y0 + (r + 1) * grid.cell)
+                for (r, c) in g.cells if an[r, c]]
+        la[lay] = unary_union(polys) if polys else None
+    return la[lay]
 
 
 def _path_with_alternates(space, pa, alts_a, pb, alts_b):
@@ -1184,13 +1201,30 @@ def _path_with_alternates(space, pa, alts_a, pb, alts_b):
     return pts, bends
 
 
+NECK_MAX_MM = 4.8        # contiguous sub-width (W_NECK) run floor -- runs
+#                          under this are always acceptable collar
+#                          crossings (measured ~2-3mm at the J3/TB belts;
+#                          several per corridor are fine). Above it, the
+#                          RATIO rule judges: the neck must be a MINORITY
+#                          of its corridor (a crossing, never the corridor
+#                          itself -- measured degenerate case: an In2
+#                          "corridor" that was one 9.7mm 0.8mm spine on a
+#                          10mm run, passing the width invariant for a 20A
+#                          rail; a long J3-belt traverse on a 25mm B
+#                          corridor stays legal, and rejecting it only
+#                          demotes the net to 0.2mm FR tracks -- strictly
+#                          worse thermally).
+
+
 def _cand_from_path(cor, st, lay, pts, bends, taper, space=None):
     """Candidate from a found centerline. When the path crosses the neck
     sub-space (anchor-approach passage), the realization splits: full-width
     copper clipped to where full width is legal + a W_NECK spine along the
     whole centerline (true-clearance legal by construction of the search).
     The spine is the terminal-zone piece (raster-exempt); the main piece
-    stays raster-verified; the width invariant is then honestly W_NECK."""
+    stays raster-verified; the width invariant is then honestly W_NECK.
+    Returns None when the sub-width portion exceeds NECK_MAX_MM (the neck
+    doctrine's length bound -- the caller diags 'neck-too-long')."""
     width_eff = taper or st["reqw"][lay]
     poly = _capsule(pts, width_eff / 2.0)
     length = sum(_dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))
@@ -1200,6 +1234,12 @@ def _cand_from_path(cor, st, lay, pts, bends, taper, space=None):
     if space is not None and space.neck is not None:
         line = LineString(pts)
         if not space.free_main.covers(line):
+            out_part = line.difference(space.free_main)
+            longest = max((seg.length for seg in
+                           getattr(out_part, "geoms", [out_part])
+                           if not seg.is_empty), default=0.0)
+            if longest > max(NECK_MAX_MM, 0.5 * line.length):
+                return None
             spine = _capsule(pts, W_NECK / 2.0)
             clip = space.free_main.buffer(width_eff / 2.0 - 0.02,
                                           join_style=2)
@@ -1250,6 +1290,10 @@ def _make_candidates(cor, st, grid):
                     taper = wt
         if pts is None:
             continue
+        cand = _cand_from_path(cor, st, lay, pts, bends, taper)
+        if cand is None:
+            cor.diag[lay] = "neck-too-long"
+            continue
         cor.diag.pop(lay, None)
         # fix the canonical spot on first success (all later corridors
         # incident to the group MUST land at the same point -- the one
@@ -1258,7 +1302,7 @@ def _make_candidates(cor, st, grid):
             ga.spot = tuple(pts[0])
         if spot_b and gb.spot is None:
             gb.spot = tuple(pts[-1])
-        cor.cands.append(_cand_from_path(cor, st, lay, pts, bends, taper))
+        cor.cands.append(cand)
     cor.cands.sort(key=lambda c: LAYER_PREF[c["layer"]])
 
 
@@ -1310,12 +1354,15 @@ def _replan_blocked(cor, st, nets, grid):
                   file=sys.stderr)
         if pts is None:
             continue
+        cand = _cand_from_path(cor, st, lay, pts, bends, None,
+                               space=space2)
+        if cand is None:
+            continue                       # neck-too-long on the dodge
         if spot_a and cor.ga.spot is None:
             cor.ga.spot = tuple(pts[0])
         if spot_b and cor.gb.spot is None:
             cor.gb.spot = tuple(pts[-1])
-        cor.pick = _cand_from_path(cor, st, lay, pts, bends, None,
-                                   space=space2)
+        cor.pick = cand
         return True
     return False
 
@@ -1523,13 +1570,20 @@ def _terminal_field(g, cor_pts, at_start, lay_from, lay_to, grid):
     return (r, c, lay_from, lay_to, dx / L, dy / L)
 
 
-def _attach_connectivity(net, st, grid, masks, land_polys, field_vias):
+def _attach_connectivity(net, st, grid, masks, land_polys, field_vias,
+                         extra_lines=()):
     """Raster attach-connectivity verdict (verification 3, factored
     2026-07-25 so the region realization shares it verbatim): per layer,
     anchors | realized masks | own pours | terminal-zone landings, layers
     fused at ACTUAL via positions (+1-cell tolerance) and THT anchor cells;
     every served group must sit in ONE component. Returns (stranded_gids,
-    n_roots)."""
+    n_roots).
+
+    *extra_lines*: [(layer, pts)] CENTERLINES stamped by line-walk -- a
+    W_NECK spine is thinner than a cell, so _stamp_poly's conservative
+    cell-center containment can miss it entirely (measured: a planned
+    corridor whose neck leg vanished from the raster and split the net in
+    two). Connectivity-only over-stamp; clearance never reads these."""
     from scipy import ndimage
     stl = ndimage.generate_binary_structure(2, 1)
     own_masks = {}
@@ -1542,6 +1596,23 @@ def _attach_connectivity(net, st, grid, masks, land_polys, field_vias):
                                   np.zeros((grid.ny, grid.nx), bool))
         for p in polys:
             _stamp_poly(om, p, grid)
+    for (llay, lpts) in extra_lines:
+        om = own_masks.setdefault(llay,
+                                  np.zeros((grid.ny, grid.nx), bool))
+        last = None
+        for i in range(len(lpts) - 1):
+            (ax, ay), (bx, by) = lpts[i], lpts[i + 1]
+            n = max(1, int(_dist(lpts[i], lpts[i + 1]) / (grid.cell * 0.4)))
+            for k in range(n + 1):
+                f = k / n
+                r, c = _cell_of(grid, ax + f * (bx - ax), ay + f * (by - ay))
+                if last is not None and r != last[0] and c != last[1]:
+                    # 4-CONNECTED walk: a diagonal step stamps its elbow,
+                    # or ndimage's 4-neighborhood label splits the strand
+                    # (measured: a spine spanning two components)
+                    om[last[0], c] = True
+                om[r, c] = True
+                last = (r, c)
     comp = {}
     for lay in st["layers"]:
         base = st["anchors"][lay].copy()
@@ -1605,7 +1676,7 @@ def _attach_connectivity(net, st, grid, masks, land_polys, field_vias):
             stranded.append(g.gid)
         else:
             roots.add(gtag)
-    if os.environ.get("CEC_POUR_PLAN_DEBUG") and len(roots) > 1:
+    if os.environ.get("CEC_POUR_PLAN_DEBUG") and (stranded or len(roots) > 1):
         by_root = {}
         for g in st["served"]:
             for lay in comp:
@@ -1617,6 +1688,21 @@ def _attach_connectivity(net, st, grid, masks, land_polys, field_vias):
                     break
         print("[cec_pour_plan][dbg] %s components: %s"
               % (net, list(by_root.values())), file=sys.stderr)
+        for g in st["served"]:
+            tags = sorted({(lay, int(comp[lay][r, c])) for lay in comp
+                           for (r, c) in g.cells if comp[lay][r, c]})
+            print("[cec_pour_plan][dbg]   G%s tags=%s"
+                  % (g.gid, [(t, find(t)) for t in tags[:8]]),
+                  file=sys.stderr)
+        for src, mm in (("mask", masks), ("own", own_masks)):
+            for lay, m in mm.items():
+                vals = sorted(int(v) for v in
+                              np.unique(comp[lay][m & (comp[lay] > 0)]))
+                print("[cec_pour_plan][dbg]   %s[%s] cells=%d comps=%s "
+                      "roots=%s"
+                      % (src, lay, int(m.sum()), vals[:6],
+                         sorted({str(find((lay, v)))
+                                 for v in vals})[:6]), file=sys.stderr)
     return stranded, len(roots)
 
 
@@ -1897,7 +1983,8 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         fields = []                         # bridge tuples + kind tag
         fielded = {}                        # id(group) -> True
         bends = 0
-        pending_land = []                   # (group, spot_pt, field_index)
+        pending_land = []                   # (group, spot, field_idx, cells)
+        spine_lines = []                    # (layer, pts) -- line-stamped
         neck_corridors = 0
         for cor in st["corridors"]:
             pk = cor.pick
@@ -1907,6 +1994,7 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                 # terminal-zone (true-clearance legal by search construction)
                 lay_polys.setdefault(pk["layer"], []).append(pk["main"])
                 land_polys.setdefault(pk["layer"], []).append(pk["spine"])
+                spine_lines.append((pk["layer"], pk["pts"]))
                 width_checks.append((pk["spine"], W_NECK,
                                      "neck spine %s->%s on %s"
                                      % (cor.ga.gid, cor.gb.gid,
@@ -1950,9 +2038,25 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                     # positions exist (they may slide beside a pad under
                     # the via-in-pad reseat and the landing must embed
                     # them) -- built below in the via-placement pass.
-                    if g.native == {"F.Cu"}:
+                    # LOCAL-CELLS RULE (2026-07-25, live-wave measured: a
+                    # pre-connected super-group has MIXED natives, so the
+                    # old `native == {F}` test skipped its landing and the
+                    # attach verify split in two; and its union bbox spans
+                    # the rails, so a bbox landing would be a giant blob):
+                    # the landing embeds the group's F-anchored cells NEAR
+                    # the attach point only -- none nearby = true THT
+                    # attach, barrels fuse, no landing.
+                    if "F.Cu" in g.native:
                         p = gpts[0] if at_start else gpts[-1]
-                        pending_land.append((g, p, len(fields) - 1))
+                        fa = st["anchors"].get("F.Cu")
+                        loc = [(r, c) for (r, c) in g.cells
+                               if fa is not None and fa[r, c] and _dist(
+                                   (grid.x0 + (c + 0.5) * grid.cell,
+                                    grid.y0 + (r + 0.5) * grid.cell),
+                                   p) <= 3.2]
+                        if loc:
+                            pending_land.append((g, p, len(fields) - 1,
+                                                 loc))
 
         # --- via placement: assembly-class pad exclusion + slide reseat
         # (via-in-pad ruling, owner 2026-07-25) -- placed BEFORE the
@@ -1985,6 +2089,24 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                 for lay in {f[2], f[3]} - {"F.Cu"}:
                     if lay in st["reqw"]:
                         lay_polys.setdefault(lay, []).append(cover)
+        if os.environ.get("CEC_POUR_PLAN_DEBUG"):
+            for k, cor in enumerate(st["corridors"]):
+                pk = cor.pick
+                print("[cec_pour_plan][dbg] %s cor%d %s->%s pick=%s pts=%s"
+                      "%s%s" % (net, k, cor.ga.gid, cor.gb.gid,
+                                pk and pk["layer"],
+                                pk and [tuple(round(v, 1) for v in q)
+                                        for q in (pk["pts"][0],
+                                                  pk["pts"][-1])],
+                                " taper=%.2f" % pk["taper"]
+                                if pk and pk.get("taper") else "",
+                                " NECK" if pk and pk.get("spine") is not None
+                                else ""), file=sys.stderr)
+            for i, f in enumerate(fields):
+                print("[cec_pour_plan][dbg] %s field%d %s %s->%s at cell "
+                      "(%d,%d) vias=%d" % (net, i, f[6], f[2], f[3], f[0],
+                                           f[1], len(field_vias[i])),
+                      file=sys.stderr)
         vias = [{"net": net, "x_mm": x, "y_mm": y}
                 for vs in field_vias for (x, y) in vs]
         for i, vs in enumerate(field_vias):
@@ -1999,8 +2121,14 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         # group the landing is CLIPPED to the (inner-edge-clipped) patch,
         # so it can never enter the inter-pad gap; skipped entirely when
         # the patch alone already covers pad + vias.
-        for (g, p, fi) in pending_land:
-            x0, y0, x1, y1 = g.bbox
+        for (g, p, fi, loc) in pending_land:
+            # local F cells near the attach, never the (possibly rail-
+            # spanning) union bbox
+            half_c = grid.cell / 2.0
+            cx = [grid.x0 + (c + 0.5) * grid.cell for (_r, c) in loc]
+            cy = [grid.y0 + (r + 0.5) * grid.cell for (r, _c) in loc]
+            x0, y0 = min(cx) - half_c, min(cy) - half_c
+            x1, y1 = max(cx) + half_c, max(cy) + half_c
             qs = [p] + list(field_vias[fi])
             raw = _box(min([x0] + [q[0] for q in qs]) - 0.6,
                        min([y0] + [q[1] for q in qs]) - 0.6,
@@ -2131,7 +2259,8 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         # raster (shared helper -- the region realization proves attach
         # through the identical machinery) ---
         stranded, nroots = _attach_connectivity(net, st, grid, masks,
-                                                land_polys, field_vias)
+                                                land_polys, field_vias,
+                                                extra_lines=spine_lines)
         if stranded or nroots > 1:
             reason = ("width-margin attach failed for group(s) %s"
                       % stranded if stranded else
