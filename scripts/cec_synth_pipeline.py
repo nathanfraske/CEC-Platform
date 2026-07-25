@@ -10111,11 +10111,51 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                     else 0, "bridges": len(ci.get("bridges") or ()),
                     "exclude_pins": pins,
                     **({} if ci["ok"] else {"no_path": True})}
-            # FREEZE the dicts: provenance 'pourfirst' (set-in-stone
+            # SINGLE-OWNER WHITELIST (owner sharpening 2026-07-25, design
+            # doc "delete-by-default"): the winning solution ENUMERATES its
+            # keep-set -- solution copper + the manifold pieces it actually
+            # attaches/embeds + patches with real F use or barrels to cover.
+            # Insurance copper (unused manifold layers, patches serving
+            # nothing) is deleted AT THE FREEZE, before it ever reaches a
+            # board. cec_slab_pour.enumerate_winning is the pure core.
+            _locked_vias = [(t.GetNetname(), t.GetPosition().x / 1e6,
+                             t.GetPosition().y / 1e6)
+                            for t in board.GetTracks()
+                            if t.GetClass() == "PCB_VIA" and t.IsLocked()]
+            _man_lays_by_name = {}
+            for d in lanes:
+                _nm = str(d.get("name", ""))
+                if _nm.startswith("manifold:"):
+                    _man_lays_by_name.setdefault(_nm, []).append(
+                        d.get("layer", "F.Cu"))
+            _gang_keep = {}
+            for n, v in rep.items():
+                # a GANGED manifold (binds >=2 terminal clusters -- the
+                # connectivity proof relied on it) keeps ONE preferred
+                # layer; ungrouped manifolds survive only by real use
+                for _nm in (v.get("gang_manifolds") or {}):
+                    _ls = _man_lays_by_name.get(_nm) or []
+                    if _ls:
+                        _gang_keep[_nm] = ("In2.Cu" if "In2.Cu" in _ls
+                                           else _ls[0])
+            _no_path = [n for n, v in rep.items()
+                        if not v.get("path_found", True)]
+            kept, _dropped = cec_slab_pour.enumerate_winning(
+                list(lanes) + list(patches), vias,
+                no_path_nets=_no_path, gang_keep=_gang_keep,
+                locked_vias=_locked_vias)
+            for (_dd, _why) in _dropped:
+                print("[pourfirst] %s: WHITELIST DROP %s (%s) -- %s"
+                      % (label, _dd.get("name"), _dd.get("layer"), _why),
+                      file=sys.stderr)
+            report["whitelist_dropped"] = [
+                {"name": d.get("name"), "layer": d.get("layer"),
+                 "why": w} for (d, w) in _dropped]
+            # FREEZE the kept dicts: provenance 'pourfirst' (set-in-stone
             # passthrough marker), names preserved (manifold:/patch: carry
             # the reaper/choke exemptions; bare lanes get pourfirst:<net>)
             frozen = []
-            for d in list(lanes) + list(patches):
+            for d in kept:
                 dd = dict(d)
                 dd["provenance"] = "pourfirst"
                 dd.setdefault("name", "pourfirst:%s" % dd.get("net"))
@@ -10146,7 +10186,10 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                                           "manifolds", "reason",
                                           # v4 territory-planner keys
                                           "corridors", "bends", "via_fields",
-                                          "groups", "fallback", "notes")
+                                          "groups", "fallback", "notes",
+                                          "planner", "region_layer",
+                                          "planner_reason", "trivial",
+                                          "gang_manifolds")
                     if v.get(k) is not None}
                 for n, v in rep.items()}
             report.update({
@@ -10179,6 +10222,15 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                     _s = skel_path[:-len(".kicad_pcb")] + ext
                     if os.path.isfile(_s):
                         shutil.copy(_s, art[:-len(".kicad_pcb")] + ext)
+                # the owner-review artifact shows FINAL-POLICY state: the
+                # same zero-fill/zero-cluster/orphan-via hygiene the route
+                # applies (fresh cycles; cheap on the anchor board)
+                try:
+                    cec_slab_pour.cleanup_floating_zones(art)
+                    cec_slab_pour.reap_nowhere_zones(art)
+                except Exception as _he:               # noqa: BLE001
+                    print("[pourfirst] artifact hygiene skipped (%s)" % _he,
+                          file=sys.stderr)
                 report["artifact"] = art
                 try:
                     import cec_render

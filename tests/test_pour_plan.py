@@ -487,5 +487,156 @@ class TestViaInPadExclusionRealBoard(unittest.TestCase):
                                  % (x, y, (x0, y0, x1, y1)))
 
 
+class _Trk:
+    """Fake PCB_TRACK (pre-connect teeth)."""
+    def __init__(self, net, nc, x1, y1, x2, y2, w=1.5, lay="In2.Cu",
+                 locked=True):
+        from test_pour_first import _Pt
+        self._net, self._nc, self._w = net, nc, w
+        self._s, self._e = _Pt(x1, y1), _Pt(x2, y2)
+        self._lay, self._locked = _LAY[lay], locked
+
+    def GetClass(self):
+        return "PCB_TRACK"
+
+    def GetNetname(self):
+        return self._net
+
+    def GetNetCode(self):
+        return self._nc
+
+    def GetLayer(self):
+        return self._lay
+
+    def GetWidth(self):
+        return int(self._w * MM)
+
+    def GetStart(self):
+        return self._s
+
+    def GetEnd(self):
+        return self._e
+
+    def IsLocked(self):
+        return self._locked
+
+
+class _TrackBoard(_Board):
+    def __init__(self, W, H, fps, nets_by_code, tracks=()):
+        super().__init__(W, H, fps, nets_by_code)
+        self._trk = list(tracks)
+
+    def GetTracks(self):
+        return list(self._trk)
+
+
+class TestPreConnectedByExistingCopper(unittest.TestCase):
+    """Mandate part 1 (2026-07-25, probe-measured on live skeletons): groups
+    the board's own copper (locked force rails) already connects merge into
+    ONE planning group -- /SENSE3V3_LO's five groups were ALL pre-connected
+    and its 598mm2 s510 fallback amoeba re-solved a finished net."""
+
+    def _board(self, with_rail):
+        nc = 1
+        fps = [_FP("J1", _tht_col("+5V_MAIN", nc, 6.0, [4.0, 7.0, 10.0,
+                                                        13.0])),
+               _FP("TB1", _tht_col("+5V_MAIN", nc, 34.0, [4.0, 7.0, 10.0,
+                                                          13.0]))]
+        trk = ([_Trk("+5V_MAIN", nc, 6.0, 8.5, 34.0, 8.5)]
+               if with_rail else [])
+        return _TrackBoard(40, 20, fps, {nc: "+5V_MAIN", 2: "GND"}, trk)
+
+    def test_rail_connected_net_is_trivial_no_fallback(self):
+        calls, fb = _recorder()
+        _p, vias, rep = plan_pours(
+            self._board(True), [{"net": "+5V_MAIN", "layers": ("In2.Cu",)}],
+            fallback=fb)
+        e = rep["+5V_MAIN"]
+        self.assertTrue(e["path_found"], e)
+        self.assertTrue(e.get("trivial"),
+                        "rail-connected groups must merge to ONE planning "
+                        "group (already-present corridor): %s" % e)
+        self.assertEqual(calls, [], "no fallback for a finished net")
+        self.assertEqual(vias, [])
+
+    def test_without_the_rail_a_corridor_is_still_planned(self):
+        _p, _v, rep = plan_pours(
+            self._board(False), [{"net": "+5V_MAIN", "layers": ("In2.Cu",)}])
+        e = rep["+5V_MAIN"]
+        self.assertTrue(e["path_found"], e)
+        self.assertFalse(e.get("trivial"))
+        self.assertEqual(e["corridors"], 1)
+
+
+class TestRegionClassNets(unittest.TestCase):
+    """Mandate part 2 + single-owner 5a (2026-07-25): many-island logic
+    nets take the POWER-PLANE doctrine -- ONE clean region polygon on the
+    chosen inner/bottom layer + one compact terminal via field per island.
+    No tree, no bridges, no snake; the ask's layer is a preference, never
+    a mandate (the realized solution owns its layer)."""
+
+    def _board(self, blanket_in2=False):
+        nc = 1
+        fps = [_FP("RS1", [_Pad("/S_HI", 2, 21.0, 25.5, half=1.2,
+                                layers=[_LAY["F.Cu"]]),
+                           _Pad("/S_LO", 3, 25.0, 25.5, half=1.2,
+                                layers=[_LAY["F.Cu"]])])]
+        spots = [(18, 21), (22, 21), (26, 21), (18, 25), (26, 25),
+                 (18, 29), (22, 29), (26, 29)]
+        for i, (x, y) in enumerate(spots):
+            fps.append(_FP("C%d" % i, [_Pad("+3V3", nc, x, y, half=0.5,
+                                            layers=[_LAY["F.Cu"]])]))
+        if blanket_in2:
+            fps.append(_FP("U9", [_Pad("GND", 9, 22.0, 25.0, half=13.0,
+                                       layers=[_LAY["In2.Cu"]])]))
+        return _Board(44, 44, fps, {nc: "+3V3", 2: "/S_HI", 3: "/S_LO",
+                                    9: "GND"})
+
+    def test_region_is_one_clean_plane_with_per_island_fields(self):
+        pours, vias, rep = plan_pours(
+            self._board(), [{"net": "+3V3", "layers": ("In2.Cu",)}])
+        e = rep["+3V3"]
+        self.assertTrue(e["path_found"], e)
+        self.assertEqual(e.get("planner"), "territory-region", e)
+        self.assertEqual(e["corridors"], 0, "no tree for a region net")
+        self.assertEqual(e["via_fields"]["crossing"], 0)
+        self.assertGreaterEqual(e["via_fields"]["terminal"], 6,
+                                "one drop field per island")
+        self.assertEqual(e.get("region_layer"), "In2.Cu")
+        region = [d for d in pours if d["net"] == "+3V3"
+                  and d["layer"] == "In2.Cu"]
+        self.assertEqual(len(region), 1,
+                         "ONE deliberate region polygon, not %d pieces"
+                         % len(region))
+        self.assertTrue(vias, "islands drop through via fields")
+
+    def test_ask_layer_is_a_preference_not_a_mandate(self):
+        # In2 fully blanketed by foreign copper -> the solve OWNS the layer
+        # choice and lands on B; the In2-naming ask lays NO In2 copper.
+        pours, _v, rep = plan_pours(
+            self._board(blanket_in2=True),
+            [{"net": "+3V3", "layers": ("In2.Cu",)}])
+        e = rep["+3V3"]
+        self.assertTrue(e["path_found"], e)
+        self.assertEqual(e.get("region_layer"), "B.Cu", e)
+        self.assertFalse([d for d in pours if d["net"] == "+3V3"
+                          and d["layer"] == "In2.Cu"],
+                         "the ask named In2 but the winning solution lives "
+                         "on B -- no In2 copper may exist")
+
+
+class TestWidthInfeasibleDiag(unittest.TestCase):
+    def test_empty_free_space_is_the_honest_diag(self):
+        # one mid-board obstacle inflated by an infeasible half-width (the
+        # probe-measured In2 class: 1oz internal demands 16-46mm for the
+        # heavy rails) swallows the whole region -> free space EMPTY, and
+        # _make_candidates diags 'width-infeasible', never 'pa-blocked'
+        from shapely.geometry import box as _sbox
+        sp = cec_pour_plan._LayerSpace(
+            _sbox(0, 0, 10, 10), [_sbox(4, 4, 6, 6)], 20.0)
+        self.assertIsNone(sp._prep, "an obstacle inflated past the region "
+                                    "span must yield EMPTY free space")
+
+
 if __name__ == "__main__":
     unittest.main()

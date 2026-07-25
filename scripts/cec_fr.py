@@ -4586,16 +4586,17 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                               f"dict(s) -> {len(_sp3)} slab(s)"
                               + (f"; min-width OPEN on {_bad3[:4]}" if _bad3 else ""),
                               file=sys.stderr)
-                    # GUARANTEED SHUNT PATCHES (owner 2026-07-25, the RS1
-                    # starvation cycle): every RS* pad-net gets its half of
-                    # the shunt neighborhood unconditionally -- pad-anchored
-                    # by definition, choke-admitted by construction. Same-net
-                    # overlap with real slabs/lanes merges harmlessly
-                    # (additive-same-net doctrine). Under a pour-first freeze
-                    # the frozen state already carries IDENTICAL patches
-                    # (anchor positions are frozen) -- dedupe by (net,
-                    # polygon) so the board doesn't grow twin zones.
-                    _gsp3 = cec_slab_pour.guaranteed_shunt_patches(board)
+                    # GUARANTEED SHUNT PATCHES -- CONDITIONAL under a
+                    # pour-first freeze (single-owner ruling 2026-07-25:
+                    # the unconditional guarantee was the RS1-starvation
+                    # over-correction; the freeze's WHITELIST now owns
+                    # patch policy, and re-deriving them here would
+                    # resurrect exactly the insurance copper the whitelist
+                    # dropped). Frozen nets get NO import-side patches;
+                    # non-frozen nets keep the historical guarantee.
+                    _gsp3 = [d for d in
+                             cec_slab_pour.guaranteed_shunt_patches(board)
+                             if d.get("net") not in set(_pf_nets or ())]
                     if _frozen3:
                         _fkeys = {(d.get("net"), tuple(map(tuple,
                                                            d.get("polygon") or ())))

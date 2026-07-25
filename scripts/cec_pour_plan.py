@@ -199,10 +199,12 @@ def _geo_obstacles(board, nc, layers, clearance_mm, guard_mm):
 class _Group:
     """One terminal group: a spatial cluster of the net's own pads/vias
     (cec_slab_pour.terminal_clusters), optionally ganged under a manifold /
-    widened by a guaranteed patch."""
+    widened by a guaranteed patch / MERGED with groups the board's existing
+    own-net copper (locked force rails, pre-laid stubs, via arrays) already
+    connects (_preconnect_merge, mandate part 1 2026-07-25)."""
     __slots__ = ("gid", "cells", "bbox", "cx", "cy", "native", "attach",
                  "f_zone", "eligible", "why", "is_manifold", "merged",
-                 "spot", "man_layers")
+                 "spot", "man_layers", "lay_attach")
 
     def __init__(self, gid):
         self.gid = gid
@@ -216,6 +218,11 @@ class _Group:
         self.why = ""
         self.is_manifold = False
         self.merged = []          # gids ganged into this one
+        self.lay_attach = None    # {layer: geometry} PER-LAYER attach copper
+        #   (a merged super-group's union bbox is HOLLOW -- the nearest-bbox
+        #   point can be empty space; real attach must land on copper that
+        #   exists on THAT layer: member pad boxes native there + own-net
+        #   track capsules on that layer)
         self.man_layers = set()   # layers the manifold DICTS actually
         #   cover -- manifold-polygon attach is real copper contact ONLY
         #   there (measured on s464: a B.Cu corridor "attached" to an
@@ -232,7 +239,7 @@ def _build_groups(board, net, nc, grid, layers, anchors, man_dicts,
                   patch_dicts, shunt_boxes):
     clab, ncl = terminal_clusters(board, nc, grid)
     if ncl == 0:
-        return [], clab, "no pads/vias for net"
+        return [], clab, "no pads/vias for net", {}
     groups = {}
     for cid in range(1, ncl + 1):
         ys, xs = np.where(clab == cid)
@@ -263,11 +270,17 @@ def _build_groups(board, net, nc, grid, layers, anchors, man_dicts,
         ent["layers"].add(d.get("layer", "F.Cu"))
         p = _poly_of(d.get("polygon") or ())
         ent["poly"] = p if ent["poly"] is None else ent["poly"].union(p)
+    ganged = {}
     for name, ent in man_polys.items():
         hit = [g for g in groups.values()
                if not g.is_manifold and ent["poly"].intersects(_box(*g.bbox))]
         if not hit:
             continue
+        if len(hit) >= 2:
+            # this manifold's copper BINDS >=2 terminal clusters -- it is
+            # attach copper of the winning terminal, not insurance (the
+            # single-owner whitelist keeps one layer of it)
+            ganged[name] = len(hit)
         keep = hit[0]
         keep.is_manifold = True
         keep.attach = ent["poly"]
@@ -307,7 +320,149 @@ def _build_groups(board, net, nc, grid, layers, anchors, man_dicts,
         if not admitted:
             g.eligible = False
             g.why = "F-only SMD outside top-copper admit (FR keeps it)"
-    return sorted(groups.values(), key=lambda g: g.gid), clab, None
+    return (sorted(groups.values(), key=lambda g: g.gid), clab,
+            None, ganged)
+
+
+def _own_track_polys(board, nc, layers):
+    """Own-net PCB_TRACK capsules per layer (mm shapely) -- the board's
+    ALREADY-PRESENT corridors (locked force rails, pre-laid stubs)."""
+    out = {lay: [] for lay in layers}
+    lay_ids = {board.GetLayerID(lay): lay for lay in layers}
+    for t in board.GetTracks():
+        if t.GetClass() != "PCB_TRACK" or t.GetNetCode() != nc:
+            continue
+        lay = lay_ids.get(t.GetLayer())
+        if lay is None:
+            continue
+        w = t.GetWidth() / MM / 2.0
+        s, e = t.GetStart(), t.GetEnd()
+        out[lay].append(LineString(
+            [(s.x / MM, s.y / MM), (e.x / MM, e.y / MM)]).buffer(
+                max(w, 0.05), quad_segs=4))
+    return out
+
+
+def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
+    """MANDATE PART 1 (2026-07-25, live-probe measured): on live skeletons
+    the materialize-laid LOCKED force rails already connect most of a rail
+    net's terminal groups (+5V_MAIN {1,2,3}; /SENSE3V3_LO ALL FIVE -- the
+    598mm2 s510 amoeba re-solved a net that was already done). Same-net
+    existing copper is an ALREADY-PRESENT corridor, never an obstacle:
+    union-find the groups over the anchor rasters (which include own
+    tracks), fusing layers at multi-layer anchor cells (THT barrels/vias),
+    and MERGE groups sharing a component into one super-group whose
+    per-layer attach geometry is the member copper PLUS the connecting
+    track capsules on that layer. Corridors are then planned only for the
+    residual components. Returns the merged, re-sorted group list."""
+    from scipy import ndimage
+    stl = ndimage.generate_binary_structure(2, 1)
+    comp = {}
+    for lay in layers:
+        comp[lay], _n = ndimage.label(anchors[lay], structure=stl)
+    parent = {}
+
+    def find(x):
+        while parent.get(x, x) != x:
+            parent[x] = parent.get(parent[x], parent[x])
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    for i in range(len(layers)):
+        for j in range(i + 1, len(layers)):
+            both = anchors[layers[i]] & anchors[layers[j]]
+            ys, xs = np.where(both)
+            for y, x in zip(ys.tolist(), xs.tolist()):
+                a = (layers[i], int(comp[layers[i]][y, x]))
+                b = (layers[j], int(comp[layers[j]][y, x]))
+                if a[1] and b[1]:
+                    union(a, b)
+    # a group is ONE terminal: every raster component ANY of its cells
+    # touches (on any layer) fuses through it -- a manifold-ganged group's
+    # clusters span several components by construction, and the first-cell
+    # shortcut mis-rooted exactly those (measured: J1/TB gangs never merged
+    # across their rail)
+    for g in groups:
+        tags = []
+        for lay in layers:
+            for (r, c) in g.cells:
+                v = int(comp[lay][r, c])
+                if v:
+                    tags.append((lay, v))
+        for t in tags[1:]:
+            union(tags[0], t)
+    by_root = {}
+    for g in groups:
+        gtag = None
+        for lay in layers:
+            for (r, c) in g.cells:
+                v = int(comp[lay][r, c])
+                if v:
+                    gtag = find((lay, v))
+                    break
+            if gtag:
+                break
+        by_root.setdefault(gtag, []).append(g)
+    out = []
+    for root, members in by_root.items():
+        if root is None or len(members) == 1:
+            out.extend(members)
+            continue
+        keep = members[0]
+        for g in members[1:]:
+            keep.merged.append(g.gid)
+            keep.cells.extend(g.cells)
+            keep.native |= g.native
+            keep.man_layers |= g.man_layers
+            keep.is_manifold = keep.is_manifold or g.is_manifold
+            keep.eligible = keep.eligible or g.eligible
+            if g.f_zone is not None:
+                keep.f_zone = (g.f_zone if keep.f_zone is None
+                               else keep.f_zone.union(g.f_zone))
+            keep.attach = keep.attach.union(g.attach)
+            keep.bbox = (min(keep.bbox[0], g.bbox[0]),
+                         min(keep.bbox[1], g.bbox[1]),
+                         max(keep.bbox[2], g.bbox[2]),
+                         max(keep.bbox[3], g.bbox[3]))
+        keep.cx = (keep.bbox[0] + keep.bbox[2]) / 2.0
+        keep.cy = (keep.bbox[1] + keep.bbox[3]) / 2.0
+        # per-layer attach copper: member pieces native to the layer + the
+        # own-track capsules touching the merged extent (two passes cover
+        # track chains). The hollow union bbox is NEVER an attach target.
+        la = {}
+        hull = keep.attach
+        for lay in layers:
+            parts = []
+            for g in members:
+                if lay in g.native:
+                    parts.append(g.attach if g.is_manifold
+                                 and lay in g.man_layers
+                                 else _box(*g.bbox))
+            cand_tr = list(own_tracks.get(lay, ()))
+            tr_ids = {id(t) for t in cand_tr if t.intersects(hull)}
+            for _pass in range(2):
+                if not tr_ids:
+                    break
+                cur = unary_union([t for t in cand_tr if id(t) in tr_ids])
+                more = {id(t) for t in cand_tr
+                        if id(t) not in tr_ids and t.intersects(cur)}
+                if not more:
+                    break
+                tr_ids |= more
+            parts.extend(t for t in cand_tr if id(t) in tr_ids)
+            if parts:
+                la[lay] = unary_union(parts)
+                keep.native.add(lay)
+        keep.lay_attach = la
+        if la:
+            keep.attach = unary_union(list(la.values()))
+        out.append(keep)
+    out.sort(key=lambda g: g.gid)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -562,8 +717,15 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     # was the measured gap) + the inter-pad GAP strips (pour-termination
     # ruling: the gap belongs exclusively to the Kelvin tap stubs).
     pad_boxes = []
+    _outer_ids = {board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")}
     for fp in board.GetFootprints():
         for p in fp.Pads():
+            # the assembly-class exclusion is a SOLDER-surface rule: only
+            # pads with an OUTER copper face (SMD lands, THT annuli) repel
+            # vias; an inner-layer-only pad shape has no solder surface
+            # and a barrel through it is ordinary plane contact
+            if not (_outer_ids & set(p.GetLayerSet().CuStack())):
+                continue
             bb = p.GetBoundingBox()
             pad_boxes.append((bb.GetLeft() / MM, bb.GetTop() / MM,
                               bb.GetRight() / MM, bb.GetBottom() / MM))
@@ -613,9 +775,18 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 for lay in layers}
         rcells = {lay: max(1, int(round(reqw[lay] / (2.0 * grid.cell))))
                   for lay in layers}
-        groups, clab, why = _build_groups(
+        groups, clab, why, gang_man = _build_groups(
             board, net, nc, grid, layers, anchors,
             man_by_net.get(net, ()), patch_dicts, shunt_boxes)
+        own_tracks = _own_track_polys(board, nc, layers)
+        if not why and groups:
+            n_before = len(groups)
+            groups = _preconnect_merge(groups, layers, anchors, grid,
+                                       own_tracks)
+            if len(groups) < n_before:
+                print("[cec_pour_plan] %s: %d group(s) pre-connected by "
+                      "existing copper -> %d planning group(s)"
+                      % (net, n_before, len(groups)), file=sys.stderr)
         # own-net stage-0 copper (manifolds + guaranteed patches): part of
         # the realized state, so the connectivity verifier must see it --
         # it is the copper that carries corridor-to-pad attach inside a
@@ -639,11 +810,22 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             "groups": groups, "served": served, "delegated": delegated,
             "clab": clab, "corridors": [], "notes": [], "region": region,
             "own_pours": own_pours, "_grid": grid, "pad_boxes": pad_boxes,
-            "gap_geom": gap_geom,
+            "gap_geom": gap_geom, "gang_man": gang_man,
         }
         if len(served) <= 1:
-            nets[net]["trivial"] = ("single pour-eligible terminal group "
-                                    "(nothing to connect)")
+            nets[net]["trivial"] = (
+                "single pour-eligible terminal group (nothing to connect"
+                + (" -- existing copper pre-connects the rest)"
+                   if any(g.merged for g in served) else ")"))
+            continue
+        # REGION-CLASS (mandate part 2): many-island logic nets take the
+        # power-plane doctrine at realization time (phase D); no corridor
+        # machinery is built for them.
+        if _classify_net(nets[net]) == "region":
+            nets[net]["net_class"] = "region"
+            print("[cec_pour_plan] %s: region-class (%d served groups) -- "
+                  "power-plane doctrine" % (net, len(served)),
+                  file=sys.stderr)
             continue
         # geometric obstacle space per layer (guard = raster-safety
         # standoff: 0.75*cell + EPS clears the verifier's half-diagonal
@@ -679,7 +861,12 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 # inter-pad gap (the taps' exclusive territory)
                 f_allow = f_allow.difference(
                     unary_union([_box(*gsp) for gsp in gap_strips]))
-        # anchor-approach region (own pads + reach) for the neck sub-space
+        # anchor-approach region for the neck sub-space: own pads + own
+        # MANIFOLD polygons + own TRACK capsules (mandate part 1, probe-
+        # measured: the collar between a manifold's outer face and eroded
+        # free space sealed every wide net inside the J3/TB belts -- the
+        # neck legitimacy extends around ALL own copper, not just pads;
+        # a manifold/rail is the "pad" of its super-terminal)
         own_boxes = []
         for fp in board.GetFootprints():
             for p in fp.Pads():
@@ -689,6 +876,11 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 own_boxes.append(_box(bb.GetLeft() / MM, bb.GetTop() / MM,
                                       bb.GetRight() / MM,
                                       bb.GetBottom() / MM))
+        for d in man_by_net.get(net, ()):
+            if d.get("polygon"):
+                own_boxes.append(_poly_of(d["polygon"]))
+        for _tl in own_tracks.values():
+            own_boxes.extend(_tl)
         approach = (unary_union([b.buffer(APPROACH_MM) for b in own_boxes])
                     if own_boxes else None)
         spaces = {}
@@ -760,8 +952,16 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         st = nets.get(net)
         if st is None:
             continue
-        entry, dicts, vias = _realize_verify(net, st, grid, existing_vias,
-                                             nets)
+        if st.get("net_class") == "region":
+            entry, dicts, vias = _realize_region(net, st, grid,
+                                                 existing_vias)
+        else:
+            entry, dicts, vias = _realize_verify(net, st, grid,
+                                                 existing_vias, nets)
+        if st.get("gang_man"):
+            # ganged manifolds are attach copper of the winning terminal --
+            # the whitelist (enumerate_winning) keeps one layer of each
+            entry["gang_manifolds"] = dict(st["gang_man"])
         if entry.get("path_found"):
             for v in vias:
                 existing_vias.append((v["x_mm"], v["y_mm"]))
@@ -785,6 +985,8 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         fent = dict(fent or {})
         fent["fallback"] = "route_overunder"
         fent["planner_reason"] = entry.get("reason") or entry.get("bottleneck")
+        if st.get("gang_man"):
+            fent["gang_manifolds"] = dict(st["gang_man"])
         print("[cec_pour_plan] %s: PLANNER FAILED (%s) -- FALLBACK to "
               "route_overunder (path_found=%s)"
               % (net, fent["planner_reason"], fent.get("path_found")),
@@ -810,7 +1012,9 @@ def _say(net, entry):
     vf = entry.get("via_fields") or {}
     print("[cec_pour_plan] %s: %s -- %d corridor(s), %d bend(s), via fields "
           "terminal=%d crossing=%d, layers %s%s"
-          % (net, "planned" if entry.get("path_found") else "trivial",
+          % (net, ("region-planned on %s" % entry.get("region_layer")
+                   if entry.get("planner") == "territory-region"
+                   else "planned") if entry.get("path_found") else "trivial",
              entry.get("corridors", 0), entry.get("bends", 0),
              vf.get("terminal", 0), vf.get("crossing", 0),
              entry.get("layers_used", []),
@@ -820,11 +1024,14 @@ def _say(net, entry):
 
 
 def _default_fallback(board, ask, sub, manifolds, man_by_net):
-    """The demoted direction-state Dijkstra, one net, loudly labeled."""
+    """The demoted direction-state Dijkstra, one net, loudly labeled.
+    The net's manifolds were already laid by plan_pours' stage 0, so they
+    ride in as manifold_dicts (attach inputs ONLY, never re-laid/returned)
+    -- the fallback search keeps the v3.1 width-margin attach instead of
+    losing it (2026-07-25)."""
     dicts, vias, rep = _sp.synthesize_overunder_pours(
-        board, [dict(ask)], manifolds=False, collect=sub)
-    # the net's manifolds were already laid by plan_pours' stage 0 -- the
-    # fallback runs manifold-less so they are not duplicated
+        board, [dict(ask)], manifolds=False, collect=sub,
+        manifold_dicts=man_by_net.get(ask.get("net"), ()))
     ent = rep.get(ask.get("net")) or {}
     return dicts, vias, ent
 
@@ -848,18 +1055,9 @@ def _manifold_attach_pts(g, toward, space, cap=6):
             for c in comps[:cap]]
 
 
-VIA_R = 0.45             # add_overunder_vias default barrel dia 0.9 / 2
-PAD_MARGIN = 0.05        # assembly-class standoff over the barrel radius
-
-
-def _pad_hit(pad_boxes, x, y, r):
-    """Conservative square test: does a circle (x, y, r) overlap any pad
-    bbox? (bbox superset of the pad shape -- planner-side; the exact-shape
-    authority is cec_fr._via_pad_excluded at lay time)."""
-    for (x0, y0, x1, y1) in pad_boxes:
-        if x + r >= x0 and x - r <= x1 and y + r >= y0 and y - r <= y1:
-            return True
-    return False
+VIA_R = _sp.VIA_R        # add_overunder_vias default barrel dia 0.9 / 2
+PAD_MARGIN = _sp.PAD_MARGIN
+_pad_hit = _sp._pad_hit  # shared conservative square test (one authority)
 
 
 def _spot_ok(st, g, pt):
@@ -878,56 +1076,12 @@ def _spot_ok(st, g, pt):
 
 def _field_vias(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
                 ledger_mm=0.85):
-    """Via positions for ONE compact field: a line perpendicular to the
-    arrival direction (bridges_to_vias' sizing), each slot checked against
-    the barrel ledger AND the assembly-class pad exclusion; a blocked slot
-    SLIDES outward along the same line (reseat beside the pad -- the
-    ruling's 'never drop it silently'). Slide range is capped at the
-    terminal-zone reach (half_w + 0.6, the landing margin) so a via never
-    leaves the copper that embeds it. Returns ([(x, y)], reseated_count)
-    -- an empty list is the honest total failure (the caller's
-    attach-connectivity verification then fails the net)."""
-    (r, c, _lf, _lt, dx, dy) = field6[:6]
-    cx = grid.x0 + (c + 0.5) * grid.cell
-    cy = grid.y0 + (r + 0.5) * grid.cell
-    n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
-    perp = (-dy, dx)
-    # slide slots step by the LEDGER distance (a finer step would only
-    # produce ledger-dead slots); the cap is the terminal-zone reach --
-    # slid vias beyond the corridor half-width get a compact same-layer
-    # cover rect from the caller, so they always sit in copper
-    cap = half_w + 1.8
-    base = [(k - (n_v - 1) / 2.0) * pitch_mm for k in range(n_v)]
-    slots = list(base)
-    lo, hi = min(base), max(base)
-    k = 1
-    while True:
-        added_any = False
-        for s in (hi + k * ledger_mm, lo - k * ledger_mm):
-            if abs(s) <= cap + 1e-9:
-                slots.append(s)
-                added_any = True
-        if not added_any:
-            break
-        k += 1
-    slots.sort(key=abs)
-    out = []
-    reseated = 0
-    for i, s in enumerate(slots):
-        if len(out) >= n_v:
-            break
-        vx = round(cx + perp[0] * s, 3)
-        vy = round(cy + perp[1] * s, 3)
-        if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
-               for (qx, qy) in placed + out):
-            continue
-        if _pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN):
-            reseated += 1                  # blocked slot -> keep sliding
-            continue
-        out.append((vx, vy))
-    # reseated counts BLOCKED slots only when a slide actually happened
-    reseated = reseated if out else 0
-    return out, reseated
+    """Via positions for ONE compact field -- DELEGATES to the shared
+    cec_slab_pour.field_via_line (2026-07-25: the rect-realized fallback
+    lays fields through the identical code path, so the two via
+    disciplines can never drift). Same signature/return as always."""
+    return _sp.field_via_line(field6, half_w, grid, pad_boxes, placed,
+                              pitch_mm=pitch_mm, ledger_mm=ledger_mm)
 
 
 def _endpoints_for_layer(cor, st, lay, space):
@@ -947,6 +1101,24 @@ def _endpoints_for_layer(cor, st, lay, space):
                 return pts[0], False, tuple(pts[1:])
             return (_attach_point(g, toward, half, native,
                                   space=space)[0], False, ())
+        la = (g.lay_attach or {}).get(lay) if native else None
+        if la is not None and not la.is_empty:
+            # PRE-CONNECTED super-group (mandate part 1): attach ON the
+            # per-layer copper (member pads + connecting rails) -- the
+            # union bbox is hollow and must never be the target. Alternates
+            # walk the components (nearest first) + boundary samples of the
+            # nearest component (a long rail offers many departure points).
+            comps = sorted(getattr(la, "geoms", [la]),
+                           key=lambda c: c.distance(toward))
+            alts = []
+            for c in comps[:8]:
+                alts.append(tuple(nearest_points(c, toward)[0].coords[0]))
+            b0 = getattr(comps[0], "exterior", None)
+            if b0 is not None:
+                cs = list(b0.coords)[:-1]
+                step = max(1, len(cs) // 6)
+                alts.extend(tuple(q) for q in cs[::step][:6])
+            return alts[0], False, tuple(alts[1:])
         if g.is_manifold and native:
             # off-manifold layer: attach the pin group's own copper (THT
             # barrels anchor every layer) -- the neck admits the approach.
@@ -1044,6 +1216,13 @@ def _make_candidates(cor, st, grid):
     for lay in st["layers"]:
         space = st["spaces"][lay]
         w = st["reqw"][lay]
+        if space._prep is None:
+            # the layer's free space is EMPTY at this width (probe-measured:
+            # 1oz-internal In2 demands 16-46mm for the heavy rails -- no
+            # 74x59 board holds that corridor). Honest diag, not the
+            # misleading 'pa-blocked'.
+            cor.diag[lay] = "width-infeasible(%.1fmm)" % w
+            continue
         pa, spot_a, alts_a, pb, spot_b, alts_b = _endpoints_for_layer(
             cor, st, lay, space)
         taper = None
@@ -1344,6 +1523,343 @@ def _terminal_field(g, cor_pts, at_start, lay_from, lay_to, grid):
     return (r, c, lay_from, lay_to, dx / L, dy / L)
 
 
+def _attach_connectivity(net, st, grid, masks, land_polys, field_vias):
+    """Raster attach-connectivity verdict (verification 3, factored
+    2026-07-25 so the region realization shares it verbatim): per layer,
+    anchors | realized masks | own pours | terminal-zone landings, layers
+    fused at ACTUAL via positions (+1-cell tolerance) and THT anchor cells;
+    every served group must sit in ONE component. Returns (stranded_gids,
+    n_roots)."""
+    from scipy import ndimage
+    stl = ndimage.generate_binary_structure(2, 1)
+    own_masks = {}
+    for (olay, opoly) in st.get("own_pours", ()):
+        om = own_masks.setdefault(olay,
+                                  np.zeros((grid.ny, grid.nx), bool))
+        _stamp_poly(om, opoly, grid)
+    for lay, polys in land_polys.items():
+        om = own_masks.setdefault(lay,
+                                  np.zeros((grid.ny, grid.nx), bool))
+        for p in polys:
+            _stamp_poly(om, p, grid)
+    comp = {}
+    for lay in st["layers"]:
+        base = st["anchors"][lay].copy()
+        if lay in masks:
+            base |= masks[lay]
+        if lay in own_masks:
+            base |= own_masks[lay]
+        lab, _n = ndimage.label(base, structure=stl)
+        comp[lay] = lab
+    parent = {}
+
+    def find(x):
+        while parent.get(x, x) != x:
+            parent[x] = parent.get(parent[x], parent[x])
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+    # through-barrels fuse every layer at each ACTUAL via cell (+1-cell
+    # tolerance) -- a reseat may have slid a via off the field cell
+    for vs in field_vias:
+        for (vx, vy) in vs:
+            r, c = _cell_of(grid, vx, vy)
+            tags = []
+            for lay in comp:
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        rr, cc = r + dr, c + dc
+                        if 0 <= rr < grid.ny and 0 <= cc < grid.nx \
+                                and comp[lay][rr, cc]:
+                            tags.append((lay, int(comp[lay][rr, cc])))
+            for t in tags[1:]:
+                union(tags[0], t)
+    # THT anchors fuse layers where the same cell anchors 2+ layers
+    alay = list(comp)
+    for i in range(len(alay)):
+        for j in range(i + 1, len(alay)):
+            both = st["anchors"][alay[i]] & st["anchors"][alay[j]]
+            ys, xs = np.where(both)
+            for y, x in zip(ys.tolist(), xs.tolist()):
+                a = (alay[i], int(comp[alay[i]][y, x]))
+                b = (alay[j], int(comp[alay[j]][y, x]))
+                if a[1] and b[1]:
+                    union(a, b)
+    roots = set()
+    stranded = []
+    for g in st["served"]:
+        gtag = None
+        for lay in comp:
+            for (r, c) in g.cells:
+                v = int(comp[lay][r, c])
+                if v:
+                    gtag = find((lay, v))
+                    break
+            if gtag:
+                break
+        if gtag is None:
+            stranded.append(g.gid)
+        else:
+            roots.add(gtag)
+    if os.environ.get("CEC_POUR_PLAN_DEBUG") and len(roots) > 1:
+        by_root = {}
+        for g in st["served"]:
+            for lay in comp:
+                got = next((int(comp[lay][r, c]) for (r, c) in g.cells
+                            if comp[lay][r, c]), 0)
+                if got:
+                    by_root.setdefault(find((lay, got)),
+                                       []).append((g.gid, lay))
+                    break
+        print("[cec_pour_plan][dbg] %s components: %s"
+              % (net, list(by_root.values())), file=sys.stderr)
+    return stranded, len(roots)
+
+
+REGION_MIN_ISLANDS = 6
+
+
+def _classify_net(st):
+    """CORRIDOR vs REGION class (mandate part 2, 2026-07-25). Region-class =
+    logic distribution with many scattered SMD islands (+3V3-shaped: the
+    s510 amoeba was a 16-island TREE -- ~17 bridges is the proven minimum
+    for a tree, i.e. the WRONG SHAPE CLASS for that net). Structural test,
+    never name-based: after manifold gang + pre-connect merge, >=
+    REGION_MIN_ISLANDS served groups of which >=70% are plain F-only SMD
+    islands. Heavy few-terminal shunt/rail nets stay corridor-class."""
+    served = st["served"]
+    if len(served) < REGION_MIN_ISLANDS:
+        return "corridor"
+    islands = [g for g in served
+               if g.native == {"F.Cu"} and not g.is_manifold
+               and not g.merged]
+    if len(islands) >= max(REGION_MIN_ISLANDS,
+                           int(round(0.7 * len(served)))):
+        return "region"
+    return "corridor"
+
+
+def _realize_region(net, st, grid, existing_vias):
+    """REGION-CLASS realization (mandate part 2 + single-owner 5a): the
+    POWER-PLANE doctrine -- ONE deliberate clean polygon region on an inner/
+    bottom layer covering the islands' projection, shaved only by real
+    obstacles (existing raster masks + mask_to_polys smoothing, min-width
+    invariant kept), + ONE compact pad-aware terminal via field per island
+    dropping into it + one landing per island bonding pads to vias. No
+    tree, no bridges, no snake. The LAYER IS CHOSEN BY THE SOLVE (In2
+    preferred as bias, B on failure -- the ask's layer is a preference,
+    never a mandate); the realized solution owns exactly its layers.
+    Returns (entry, dicts, vias) -- entry.path_found False = both layers
+    failed (caller falls back, loudly)."""
+    from scipy import ndimage
+    stl = ndimage.generate_binary_structure(2, 1)
+    served = st["served"]
+    margin = 2.4
+    notes = []
+    for lay in [l for l in ("In2.Cu", "B.Cu") if l in st["layers"]]:
+        rc = max(1, int(st["rcells"][lay]))
+        if st["reqw"][lay] > 0.5 * min(grid.x1 - grid.x0,
+                                       grid.y1 - grid.y0):
+            notes.append("%s: required width %.1fmm infeasible on this "
+                         "board" % (lay, st["reqw"][lay]))
+            continue
+        # the islands' projection + margin, shaved by real obstacles
+        rect = np.zeros((grid.ny, grid.nx), bool)
+        x0 = min(g.bbox[0] for g in served) - margin
+        y0 = min(g.bbox[1] for g in served) - margin
+        x1 = max(g.bbox[2] for g in served) + margin
+        y1 = max(g.bbox[3] for g in served) + margin
+        grid.stamp_box(rect, x0, y0, x1, y1)
+        free = rect & ~st["foreign"][lay]
+        # split served: groups the plane must TOUCH (anchored on lay) vs
+        # groups needing a DROP field (no copper on lay)
+        touch, drop = [], []
+        for g in served:
+            if any(st["anchors"][lay][r, c] for (r, c) in g.cells):
+                touch.append(g)
+            else:
+                drop.append(g)
+        placed = list(existing_vias)
+        fields, f_vias, dropped_notes = [], [], []
+        for g in drop:
+            cxr = (x0 + x1) / 2.0
+            cyr = (y0 + y1) / 2.0
+            cands = [_attach_point(g, Point(cxr, cyr),
+                                   st["reqw"][lay] / 2.0, False)[0]]
+            cands += _ring_spots(g)
+            pick = None
+            for s in cands:
+                if not _spot_ok(st, g, s):
+                    continue
+                r, c = _cell_of(grid, *s)
+                if free[r, c]:
+                    pick = (s, (r, c))
+                    break
+            if pick is None:
+                dropped_notes.append(
+                    "island G%d at (%.1f,%.1f): no clear drop spot -- "
+                    "delegated to FR" % (g.gid, g.cx, g.cy))
+                continue
+            (sx, sy), (r, c) = pick
+            dx, dy = sx - g.cx, sy - g.cy
+            L = math.hypot(dx, dy) or 1.0
+            f6 = (r, c, lay, sorted(g.native)[0] if g.native else "F.Cu",
+                  dx / L, dy / L)
+            vs, rs = _field_vias(f6, max(st["reqw"][lay], 1.2) / 2.0, grid,
+                                 st.get("pad_boxes", ()), placed)
+            if not vs:
+                dropped_notes.append(
+                    "island G%d: via slots exhausted (ledger + pads) -- "
+                    "delegated to FR" % g.gid)
+                continue
+            placed.extend(vs)
+            fields.append(f6 + ("terminal",))
+            f_vias.append((g, vs))
+        if len(f_vias) + len(touch) < 2:
+            notes.append("%s: fewer than 2 attachable groups" % lay)
+            continue
+        # the region component: the free component covering the most drops
+        # + touch anchors; drops must LAND on it
+        lab, _n = ndimage.label(free, structure=stl)
+        score = {}
+        for (g, vs) in f_vias:
+            for (vx, vy) in vs:
+                r, c = _cell_of(grid, vx, vy)
+                v = int(lab[r, c])
+                if v:
+                    score[v] = score.get(v, 0) + 1
+        for g in touch:
+            seen = set()
+            for (r, c) in g.cells:
+                for dr in (-1, 0, 1):
+                    for dc in (-1, 0, 1):
+                        rr, cc = r + dr, c + dc
+                        if 0 <= rr < grid.ny and 0 <= cc < grid.nx:
+                            v = int(lab[rr, cc])
+                            if v and v not in seen:
+                                seen.add(v)
+                                score[v] = score.get(v, 0) + 2
+        if not score:
+            notes.append("%s: no free component reaches any terminal" % lay)
+            continue
+        comp_id = max(score, key=lambda k: (score[k],
+                                            int((lab == k).sum())))
+        mask = lab == comp_id
+        # every touch group must border the component; every drop's vias on it
+        bad = []
+        dil = ndimage.binary_dilation(mask, structure=stl)
+        for g in touch:
+            if not any(dil[r, c] for (r, c) in g.cells):
+                bad.append("touch group G%d off the region component"
+                           % g.gid)
+        kept_fields, kept_fv = [], []
+        for f6t, (g, vs) in zip(fields, f_vias):
+            on = [(vx, vy) for (vx, vy) in vs
+                  if mask[_cell_of(grid, vx, vy)]]
+            if not on:
+                dropped_notes.append(
+                    "island G%d: drop field off the region component -- "
+                    "delegated to FR" % g.gid)
+                continue
+            kept_fields.append(f6t)
+            kept_fv.append((g, on))
+        if bad:
+            notes.append("%s: %s" % (lay, "; ".join(bad)))
+            continue
+        if len(kept_fv) + len(touch) < 2:
+            notes.append("%s: region reaches <2 groups" % lay)
+            continue
+        # min-width invariant (shave duality): erode by the width floor;
+        # the drop cells + touch anchors must stay one component
+        seeds = np.zeros((grid.ny, grid.nx), bool)
+        for (g, vs) in kept_fv:
+            for (vx, vy) in vs:
+                r, c = _cell_of(grid, vx, vy)
+                seeds[r, c] = True
+        for g in touch:
+            for (r, c) in g.cells:
+                if dil[r, c]:
+                    seeds[r, c] = True
+        eroded = ndimage.binary_erosion(mask, structure=stl, iterations=rc)
+        lab3, _ = ndimage.label(eroded | seeds, structure=stl)
+        ag = set(int(v) for v in np.unique(lab3[seeds & (lab3 > 0)]))
+        if len(ag) > 1:
+            notes.append("%s: region pinches below the width floor "
+                         "(%d fragments after erosion)" % (lay, len(ag)))
+            continue
+        # realize: ONE clean region polygon (+ satellites the same component
+        # produced, if smoothing splits -- rare), landings, vias
+        dicts = []
+        polys = _sp.mask_to_polys(mask, grid, min_area_mm2=2.0, smooth=True)
+        for poly in polys:
+            dicts.append({"net": net, "layer": lay, "polygon": poly,
+                          "priority": 2, "provenance": "pourplan",
+                          "name": "pourplan:%s" % net})
+        if not dicts:
+            notes.append("%s: region polygonized to nothing" % lay)
+            continue
+        land_polys = {}
+        for (g, vs) in kept_fv:
+            gx0, gy0, gx1, gy1 = g.bbox
+            qs = list(vs)
+            land = _box(min([gx0] + [q[0] for q in qs]) - 0.6,
+                        min([gy0] + [q[1] for q in qs]) - 0.6,
+                        max([gx1] + [q[0] for q in qs]) + 0.6,
+                        max([gy1] + [q[1] for q in qs]) + 0.6)
+            gl = sorted(g.native)[0] if g.native else "F.Cu"
+            if g.f_zone is not None and g.f_zone.covers(land):
+                continue
+            if gl == "F.Cu" and st.get("gap_geom") is not None:
+                land = land.difference(st["gap_geom"])
+            if land.is_empty:
+                continue
+            land_polys.setdefault(gl, []).append(land)
+        masks = {lay: mask}
+        field_vias_pts = [vs for (_g, vs) in kept_fv]
+        stranded, nroots = _attach_connectivity(net, st, grid, masks,
+                                                land_polys, field_vias_pts)
+        if stranded or nroots > 1:
+            notes.append("%s: attach-connectivity failed (stranded=%s, "
+                         "%d components)" % (lay, stranded, nroots))
+            continue
+        for gl, lps in land_polys.items():
+            u = unary_union(lps)
+            if gl == "F.Cu" and st.get("gap_geom") is not None:
+                u = u.difference(st["gap_geom"])
+            for g2 in getattr(u, "geoms", [u]):
+                if g2.is_empty or g2.geom_type != "Polygon" \
+                        or g2.area < 0.4:
+                    continue
+                dicts.append({"net": net, "layer": gl,
+                              "polygon": [(round(x, 3), round(y, 3))
+                                          for (x, y) in g2.exterior.coords],
+                              "priority": 2, "provenance": "pourplan",
+                              "name": "pourplan:%s" % net})
+        vias = [{"net": net, "x_mm": x, "y_mm": y}
+                for (_g, vs) in kept_fv for (x, y) in vs]
+        st["_masks"] = masks
+        st["_fields"] = kept_fields
+        ent = {"path_found": True, "planner": "territory-region",
+               "segments": len(dicts), "bridges": len(kept_fields),
+               "layers_used": sorted({d["layer"] for d in dicts}),
+               "corridors": 0, "bends": 0,
+               "via_fields": {"terminal": len(kept_fields), "crossing": 0},
+               "groups": {"served": len(served),
+                          "delegated": len(st["delegated"]),
+                          "total": len(st["groups"])},
+               "region_layer": lay,
+               "notes": list(st["notes"]) + notes + dropped_notes}
+        return ent, dicts, vias
+    e = _fail_entry("region plan failed on every layer (%s)"
+                    % "; ".join(notes[-4:]))
+    e["planner"] = "territory-region"
+    return e, [], []
+
+
 def _realize_verify(net, st, grid, existing_vias, nets):
     """Realize the assigned corridors as polygon dicts + via fields, verify
     on the raster (clearance + min-width erosion-connectivity + width-margin
@@ -1612,102 +2128,15 @@ def _realize_verify(net, st, grid, existing_vias, nets):
                                    % (what, w_eff)), [], []
 
         # --- verification 3: connectivity + width-margin attach on the
-        # raster (mask | anchors per layer, layers fused at via-field cells
-        # and THT anchor cells; every served group in ONE component) ---
-        stl = ndimage.generate_binary_structure(2, 1)
-        own_masks = {}
-        for (olay, opoly) in st.get("own_pours", ()):
-            om = own_masks.setdefault(olay,
-                                      np.zeros((grid.ny, grid.nx), bool))
-            _stamp_poly(om, opoly, grid)
-        for lay, polys in land_polys.items():
-            om = own_masks.setdefault(lay,
-                                      np.zeros((grid.ny, grid.nx), bool))
-            for p in polys:
-                _stamp_poly(om, p, grid)
-        comp = {}
-        nlab = {}
-        for lay in st["layers"]:
-            base = st["anchors"][lay].copy()
-            if lay in masks:
-                base |= masks[lay]
-            if lay in own_masks:
-                base |= own_masks[lay]
-            lab, n = ndimage.label(base, structure=stl)
-            comp[lay], nlab[lay] = lab, n
-        parent = {}
-
-        def find(x):
-            while parent.get(x, x) != x:
-                parent[x] = parent.get(parent[x], parent[x])
-                x = parent[x]
-            return x
-
-        def union(a, b):
-            ra, rb = find(a), find(b)
-            if ra != rb:
-                parent[ra] = rb
-        # through-barrels fuse every layer at each ACTUAL via cell
-        # (+1-cell tolerance) -- the reseat may have slid a via off the
-        # field cell, so the fuse follows the placed positions
-        for vs in field_vias:
-            for (vx, vy) in vs:
-                r, c = _cell_of(grid, vx, vy)
-                tags = []
-                for lay in comp:
-                    for dr in (-1, 0, 1):
-                        for dc in (-1, 0, 1):
-                            rr, cc = r + dr, c + dc
-                            if 0 <= rr < grid.ny and 0 <= cc < grid.nx \
-                                    and comp[lay][rr, cc]:
-                                tags.append((lay, int(comp[lay][rr, cc])))
-                for t in tags[1:]:
-                    union(tags[0], t)
-        # THT anchors fuse layers where the same cell anchors 2+ layers
-        alay = list(comp)
-        for i in range(len(alay)):
-            for j in range(i + 1, len(alay)):
-                both = st["anchors"][alay[i]] & st["anchors"][alay[j]]
-                ys, xs = np.where(both)
-                for y, x in zip(ys.tolist(), xs.tolist()):
-                    a = (alay[i], int(comp[alay[i]][y, x]))
-                    b = (alay[j], int(comp[alay[j]][y, x]))
-                    if a[1] and b[1]:
-                        union(a, b)
-        roots = set()
-        stranded = []
-        for g in st["served"]:
-            gtag = None
-            for lay in comp:
-                for (r, c) in g.cells:
-                    v = int(comp[lay][r, c])
-                    if v:
-                        gtag = find((lay, v))
-                        break
-                if gtag:
-                    break
-            if gtag is None:
-                stranded.append(g.gid)
-            else:
-                roots.add(gtag)
-        if stranded or len(roots) > 1:
-            if os.environ.get("CEC_POUR_PLAN_DEBUG") and len(roots) > 1:
-                by_root = {}
-                for g in st["served"]:
-                    for lay in comp:
-                        got = next((int(comp[lay][r, c])
-                                    for (r, c) in g.cells
-                                    if comp[lay][r, c]), 0)
-                        if got:
-                            by_root.setdefault(find((lay, got)),
-                                               []).append((g.gid, lay))
-                            break
-                print("[cec_pour_plan][dbg] %s components: %s"
-                      % (net, list(by_root.values())), file=sys.stderr)
+        # raster (shared helper -- the region realization proves attach
+        # through the identical machinery) ---
+        stranded, nroots = _attach_connectivity(net, st, grid, masks,
+                                                land_polys, field_vias)
+        if stranded or nroots > 1:
             reason = ("width-margin attach failed for group(s) %s"
                       % stranded if stranded else
                       "attach-connectivity: served groups sit in %d "
-                      "disconnected components" % len(roots))
+                      "disconnected components" % nroots)
             if attempt == 0:
                 return _fail_entry(reason), [], []
             return _fail_entry(reason + " (after re-plan)"), [], []

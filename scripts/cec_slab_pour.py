@@ -365,7 +365,8 @@ def terminal_clusters(board, nc, grid):
 
 
 def route_overunder(layers, passable, anchors, clab, nclusters, *,
-                    bias_fn, bridge_cost=8.0, turn_cost=1.75):
+                    bias_fn, bridge_cost=8.0, turn_cost=1.75,
+                    chains_out=None):
     """PURE-RASTER core of the over-under pathfinder (owner v2 design, step
     3): grow ONE multi-layer Steiner-ish tree connecting every terminal
     cluster 1..nclusters recorded in *clab* (a (ny,nx) int label array, 0 =
@@ -515,6 +516,11 @@ def route_overunder(layers, passable, anchors, clab, nclusters, *,
         for (pr, pc, pli, _pdi) in chain4:
             if not chain or chain[-1] != (pr, pc, pli):
                 chain.append((pr, pc, pli))
+        if chains_out is not None:
+            # v4-grade fallback realization (rect covers per same-layer run)
+            # needs the ORDERED walks, not just the cell masks
+            chains_out.append([(r_, c_, layers[li_]) for (r_, c_, li_)
+                               in chain])
         prev_li = None
         for i, (pr, pc, pli) in enumerate(chain):
             lay = layers[pli]
@@ -631,6 +637,191 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
             placed.append((vx, vy))
             out.append({"x_mm": vx, "y_mm": vy})
     return out
+
+
+VIA_R = 0.45             # add_overunder_vias default barrel dia 0.9 / 2
+PAD_MARGIN = 0.05        # assembly-class standoff over the barrel radius
+
+
+def _pad_hit(pad_boxes, x, y, r):
+    """Conservative square test: does a circle (x, y, r) overlap any pad
+    bbox? (bbox superset of the pad shape; the exact-shape authority is
+    cec_fr._via_pad_excluded at lay time)."""
+    for (x0, y0, x1, y1) in pad_boxes:
+        if x + r >= x0 and x - r <= x1 and y + r >= y0 and y - r <= y1:
+            return True
+    return False
+
+
+def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
+                   ledger_mm=0.85):
+    """Via positions for ONE compact field: a line perpendicular to the
+    arrival direction, each slot checked against the barrel ledger AND the
+    assembly-class pad exclusion (via-in-pad ruling, owner 2026-07-25); a
+    blocked slot SLIDES outward along the same line. Shared by the v4
+    planner (cec_pour_plan._field_vias) and the rect-realized fallback
+    (realize_overunder_rects) so the two via disciplines can never drift.
+    Returns ([(x, y)], reseated_count); [] = honest total failure."""
+    (r, c, _lf, _lt, dx, dy) = field6[:6]
+    cx = grid.x0 + (c + 0.5) * grid.cell
+    cy = grid.y0 + (r + 0.5) * grid.cell
+    n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
+    perp = (-dy, dx)
+    cap = half_w + 1.8
+    base = [(k - (n_v - 1) / 2.0) * pitch_mm for k in range(n_v)]
+    slots = list(base)
+    lo, hi = min(base), max(base)
+    k = 1
+    while True:
+        added_any = False
+        for s in (hi + k * ledger_mm, lo - k * ledger_mm):
+            if abs(s) <= cap + 1e-9:
+                slots.append(s)
+                added_any = True
+        if not added_any:
+            break
+        k += 1
+    slots.sort(key=abs)
+    out = []
+    reseated = 0
+    for s in slots:
+        if len(out) >= n_v:
+            break
+        vx = round(cx + perp[0] * s, 3)
+        vy = round(cy + perp[1] * s, 3)
+        if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
+               for (qx, qy) in list(placed) + out):
+            continue
+        if _pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN):
+            reseated += 1                  # blocked slot -> keep sliding
+            continue
+        out.append((vx, vy))
+    reseated = reseated if out else 0
+    return out, reseated
+
+
+def _chain_runs(chain):
+    """Split one ordered (row, col, layer) walk into maximal same-layer runs
+    [(layer, [(r, c), ...]), ...]."""
+    runs = []
+    for (r, c, lay) in chain:
+        if runs and runs[-1][0] == lay:
+            runs[-1][1].append((r, c))
+        else:
+            runs.append((lay, [(r, c)]))
+    return runs
+
+
+def _run_polyline(cells, grid):
+    """Cell centers -> collinear-simplified mm polyline (direction-change
+    vertices only; the direction-state Dijkstra's turn tax keeps runs
+    straight, so this is a handful of points per run)."""
+    pts = [(grid.x0 + (c + 0.5) * grid.cell, grid.y0 + (r + 0.5) * grid.cell)
+           for (r, c) in cells]
+    if len(pts) <= 2:
+        return pts
+    out = [pts[0]]
+    for i in range(1, len(pts) - 1):
+        ax, ay = out[-1]
+        bx, by = pts[i]
+        cx, cy = pts[i + 1]
+        if abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax)) > 1e-9:
+            out.append(pts[i])
+    out.append(pts[-1])
+    return out
+
+
+def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
+                            existing_vias=(), f_admit=None,
+                            pitch_mm=1.2, ledger_mm=0.85):
+    """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
+    stays the search's; the copper is DRAWN geometry -- one straight capsule
+    cover per maximal same-layer run (collinear-simplified centerline at
+    that layer's required width) + ONE compact pad-aware via field per
+    genuine layer change at the run boundary, each field embedded by a
+    cover box on both transitioning layers. Replaces the dilated-cell smear
+    (3-cell bridge disks + closing -> the owner's "amorphous blobs / giant
+    via lines" on s510-class boards).
+
+    *f_admit* -- optional list of (x0, y0, x1, y1) F.Cu admit boxes (shunt
+    neighborhoods + own manifolds): F run pieces are clipped to their union
+    (the add_power_pours choke would refuse them anyway -- clipping here is
+    the same rule applied at draw time, loud via the returned notes).
+
+    Returns (polys_by_layer, via_pts, notes):
+      polys_by_layer: {layer: [[(x, y), ...], ...]} exterior coord lists
+      via_pts:        [(x, y), ...] ledger/pad-clear via positions
+      notes:          human-readable drops/reseats."""
+    from shapely.geometry import LineString, Point, box as _sbox
+    from shapely.ops import unary_union
+    lay_geoms = {}
+    notes = []
+    admit = (unary_union([_sbox(*b) for b in f_admit])
+             if f_admit else None)
+    for chain in chains:
+        for (lay, cells) in _chain_runs(chain):
+            pts = _run_polyline(cells, grid)
+            half = max(0.3, reqw.get(lay, 1.2) / 2.0)
+            if len(pts) == 1:
+                g = Point(pts[0]).buffer(half, quad_segs=4)
+            else:
+                g = LineString(pts).buffer(half, quad_segs=4)
+            if lay == "F.Cu" and admit is not None:
+                clipped = g.intersection(admit)
+                if clipped.is_empty:
+                    notes.append("F run at (%.1f,%.1f) outside the top-copper"
+                                 " admit -- dropped (choke rule, draw-time)"
+                                 % pts[0])
+                    continue
+                if clipped.area < g.area - 1e-6:
+                    notes.append("F run at (%.1f,%.1f) clipped to the "
+                                 "top-copper admit" % pts[0])
+                g = clipped
+            lay_geoms.setdefault(lay, []).append(g)
+    # ONE compact via field per bridge, pad-aware + ledgered, embedded by a
+    # cover box on both transitioning layers
+    placed = list(existing_vias)
+    via_pts = []
+    from shapely.geometry import box as _sbox2
+    for f in bridges:
+        (r, c, lf, lt) = f[:4]
+        half_w = max(reqw.get(lf, 1.2), reqw.get(lt, 1.2)) / 2.0
+        vs, rs = field_via_line(f, half_w, grid, pad_boxes, placed,
+                                pitch_mm=pitch_mm, ledger_mm=ledger_mm)
+        if not vs:
+            notes.append("bridge at cell (%d,%d) placed NO via (ledger + "
+                         "pad exclusion exhausted every slot)" % (r, c))
+            continue
+        if rs:
+            notes.append("bridge at cell (%d,%d): %d slot(s) reseated "
+                         "past pads" % (r, c, rs))
+        placed.extend(vs)
+        via_pts.extend(vs)
+        fcx = grid.x0 + (c + 0.5) * grid.cell
+        fcy = grid.y0 + (r + 0.5) * grid.cell
+        qs = list(vs) + [(fcx, fcy)]
+        cover = _sbox2(min(q[0] for q in qs) - 0.5, min(q[1] for q in qs) - 0.5,
+                       max(q[0] for q in qs) + 0.5, max(q[1] for q in qs) + 0.5)
+        for lay in {lf, lt}:
+            if lay == "F.Cu" and admit is not None \
+                    and not cover.intersects(admit):
+                continue                   # choke would refuse; vias still
+                #                            pierce -- the F side is pad-fed
+            lay_geoms.setdefault(lay, []).append(
+                cover if not (lay == "F.Cu" and admit is not None)
+                else cover.intersection(admit))
+    out = {}
+    for lay, gs in lay_geoms.items():
+        u = unary_union([g for g in gs if not g.is_empty])
+        polys = []
+        for g in getattr(u, "geoms", [u]):
+            if g.geom_type != "Polygon" or g.area < 0.4:
+                continue
+            polys.append([(round(x, 3), round(y, 3))
+                          for (x, y) in g.exterior.coords])
+        if polys:
+            out[lay] = polys
+    return out, via_pts, notes
 
 
 def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
@@ -828,7 +1019,8 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
 
 
 def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
-                               manifolds=False, collect=None):
+                               manifolds=False, collect=None,
+                               manifold_dicts=None):
     """v2 OVER-UNDER POURS -- "the pour is a routed object" (owner
     ratification 2026-07-24 late; docs/slab-pour-design-2026-07-24.md, "v2"
     section). Per rail: ONE continuous path from terminal to terminal,
@@ -907,8 +1099,16 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
 
     # v3.1 stage 0: connector manifolds -- LAID FIRST (they lead the dict
     # list) and handed to every net's search as attach targets.
+    # *manifold_dicts* (2026-07-25, planner-fallback quality): a caller that
+    # ALREADY laid the manifolds (cec_pour_plan stage 0) passes them here so
+    # the search keeps the width-margin attach WITHOUT re-laying/duplicating
+    # the dicts (they are attach inputs only, never re-returned).
     man_by_net = {}
-    if manifolds:
+    if manifold_dicts:
+        for md in manifold_dicts:
+            if md.get("net") in nets_nc:
+                man_by_net.setdefault(md["net"], []).append(md)
+    elif manifolds:
         _ask_nets = {a.get("net") for a in asks if a.get("net") in nets_nc}
         for md in connector_manifolds(board, nets=_ask_nets):
             man_by_net.setdefault(md["net"], []).append(md)
@@ -943,27 +1143,58 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         # step 3: multi-layer Steiner-ish tree over the shared prep
         # (steps 1-2 + widening + F choke + bias live in _prep_overunder_net,
         # shared verbatim with the pre-FR corridor reservation below)
+        chains = []
         path_cells, bridges, ok, bottleneck = route_overunder(
             prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
-            prep["nclusters"], bias_fn=prep["bias_fn"])
+            prep["nclusters"], bias_fn=prep["bias_fn"], chains_out=chains)
         if collect is not None:
             collect[net] = {"ok": ok, "path_cells": path_cells,
                             "bridges": bridges, "rcells": prep["rcells"],
                             "foreign": prep["foreign"], "reqw": prep["reqw"]}
 
+        _man_rep = ({"manifolds": len(man_by_net.get(net, ())),
+                     "manifold_attach": prep.get("attach_notes")}
+                    if (manifolds or manifold_dicts) else {})
         if not ok:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "bottleneck": bottleneck,
-                           **({"manifolds": len(man_by_net.get(net, ())),
-                               "manifold_attach": prep.get("attach_notes")}
-                              if manifolds else {})}
+                           **_man_rep}
             print(f"[cec_slab_pour] over-under: NO PATH for {net} -- "
                   f"bottleneck {bottleneck}", file=sys.stderr)
             continue
 
-        # step 4: realize (lanes + bridge vias)
-        apply_bridge_overlap(path_cells, bridges, grid)
-        realized = realize_overunder(path_cells, rcells, grid)
+        # step 4: realize (lanes + bridge vias). DEFAULT = the v4-grade RECT
+        # realization (mandate part 3, 2026-07-25): straight capsule covers
+        # per same-layer run + ONE compact pad-aware via field per layer
+        # change -- the dilated-cell smear (3-cell bridge disks + closing =
+        # the owner's "amorphous blobs / via lines") survives only behind
+        # CEC_OU_SMEAR=1 as the A/B escape hatch.
+        if os.environ.get("CEC_OU_SMEAR") == "1":
+            apply_bridge_overlap(path_cells, bridges, grid)
+            realized = realize_overunder(path_cells, rcells, grid)
+            net_vias = bridges_to_vias(bridges, reqw, grid,
+                                       existing=existing_vias_mm)
+        else:
+            _f_admit = [b for b in shunt_neighborhoods(board)]
+            for _md in man_by_net.get(net, ()):
+                if _md.get("layer") == "F.Cu" and _md.get("polygon"):
+                    _mxs = [q[0] for q in _md["polygon"]]
+                    _mys = [q[1] for q in _md["polygon"]]
+                    _f_admit.append((min(_mxs), min(_mys),
+                                     max(_mxs), max(_mys)))
+            _padb = []
+            for _fp in board.GetFootprints():
+                for _pd in _fp.Pads():
+                    _bb = _pd.GetBoundingBox()
+                    _padb.append((_bb.GetLeft() / MM, _bb.GetTop() / MM,
+                                  _bb.GetRight() / MM, _bb.GetBottom() / MM))
+            realized, _vpts, _rnotes = realize_overunder_rects(
+                chains, bridges, reqw, grid, pad_boxes=_padb,
+                existing_vias=existing_vias_mm, f_admit=_f_admit)
+            net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
+            for _nt in _rnotes:
+                print(f"[cec_slab_pour] over-under[{net}]: {_nt}",
+                      file=sys.stderr)
         segs = 0
         for lay, polys in realized.items():
             for poly in polys:
@@ -971,8 +1202,6 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                                    "provenance": "overunder"})
                 segs += 1
 
-        net_vias = bridges_to_vias(bridges, reqw, grid,
-                                   existing=existing_vias_mm)
         for v in net_vias:
             v["net"] = net
             existing_vias_mm.append((v["x_mm"], v["y_mm"]))
@@ -981,9 +1210,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         report[net] = {"path_found": True, "segments": segs,
                        "bridges": len(bridges),
                        "layers_used": sorted(realized.keys()),
-                       **({"manifolds": len(man_by_net.get(net, ())),
-                           "manifold_attach": prep.get("attach_notes")}
-                          if manifolds else {})}
+                       **_man_rep}
         print(f"[cec_slab_pour] over-under: {net} -> {segs} lane segment(s) "
               f"on {sorted(realized.keys())}, {len(bridges)} bridge(s), "
               f"{len(net_vias)} via(s)", file=sys.stderr)
@@ -1241,6 +1468,16 @@ def cleanup_floating_zones(board_path):
     for z in board.Zones():
         if z.GetIsRuleArea() or not z.GetNetname():
             continue
+        # ZERO-FILL zones are dead by definition (measured on the s510
+        # winner: a `pourplan:` outline whose fill was fully carved away
+        # survived as a phantom "pour connected to nothing"). Runs after
+        # the fill, so an empty area is the filler's verdict, not a race.
+        try:
+            if z.GetFilledArea() == 0:
+                doomed.append(z)
+                continue
+        except Exception:                              # noqa: BLE001
+            pass
         try:
             items = list(conn.GetConnectedItems(z))
         except Exception:                              # noqa: BLE001
@@ -1479,15 +1716,123 @@ def pourfirst_conv_split(power_pours, frozen_nets, full):
 REAP_EXEMPT_PREFIXES = ("patch:", "manifold:", "pourfirst:", "pourplan:")
 
 
+def enumerate_winning(cands, vias, *, no_path_nets=(), gang_keep=None,
+                      locked_vias=()):
+    """SINGLE-OWNER WHITELIST (owner sharpening 2026-07-25, docs/slab-pour-
+    design-2026-07-24.md: "if it finds a solution, all other pours that were
+    made in pursuit of that solution get deleted unless they are specifically
+    required bridges or required thermal second planes"). Pure enumeration --
+    a piece survives only by being NAMED in the winning set, never by evading
+    a test.
+
+    *cands*: the frozen-candidate pour dicts (winning lanes/regions/landings
+    + stage-0 manifolds + guaranteed patches; name/net/layer/polygon).
+    *vias*:  the solution's via list ([{net, x_mm, y_mm}]) -- a via field IS
+    part of the winning solution (required bridges), and copper embedding it
+    is winning copper.
+    *no_path_nets*: nets the solve could NOT route -- no winning set exists,
+    so the v3 loud rule stands for them (manifolds kept as the honest gang
+    copper FR will finish against; patches only under locked barrels).
+    *gang_keep*: {net: preferred_layer} for TRIVIAL nets whose manifold gang
+    IS the solution (single served group after ganging) -- that one manifold
+    layer is winning copper; its other-layer siblings are not.
+    *locked_vias*: [(net, x_mm, y_mm)] locked barrels on the board (force
+    arrays) -- copper covering them is required (barrel embed), the one
+    insurance class the ruling keeps.
+
+    KEEP set: (1) solution dicts (anything NOT manifold:/patch:-named);
+    (2) manifold pieces the solution touches on the SAME layer (terminal
+    attach the path lands on = winning copper) or that embed a solution/
+    locked via, or the gang_keep layer, or any manifold of a no-path net;
+    (3) patches with same-net solution F copper at the shunt or a same-net
+    solution/locked via inside them. DELETE everything else, with reasons.
+    Returns (kept, dropped) -- dropped = [(dict, reason)]."""
+    from shapely.geometry import Point, box as _sbox
+    from shapely.geometry import Polygon
+    gang_keep = dict(gang_keep or {})
+    no_path = set(no_path_nets or ())
+
+    def _poly(d):
+        try:
+            p = Polygon(d.get("polygon") or ()).buffer(0)
+            return p if not p.is_empty else None
+        except Exception:                              # noqa: BLE001
+            return None
+
+    sol_by = {}                                        # (net, layer) -> [poly]
+    for d in cands:
+        nm = str(d.get("name") or "")
+        if nm.startswith(("manifold:", "patch:")):
+            continue
+        p = _poly(d)
+        if p is not None:
+            sol_by.setdefault((d.get("net"), d.get("layer", "F.Cu")),
+                              []).append(p)
+    via_by = {}                                        # net -> [Point]
+    for v in vias or ():
+        via_by.setdefault(v.get("net"), []).append(
+            Point(v.get("x_mm", 0.0), v.get("y_mm", 0.0)))
+    for (n, x, y) in locked_vias or ():
+        via_by.setdefault(n, []).append(Point(x, y))
+
+    kept, dropped = [], []
+    for d in cands:
+        nm = str(d.get("name") or "")
+        net = d.get("net")
+        lay = d.get("layer", "F.Cu")
+        if not nm.startswith(("manifold:", "patch:")):
+            kept.append(d)                             # (1) winning copper
+            continue
+        p = _poly(d)
+        if p is None:
+            dropped.append((d, "degenerate polygon"))
+            continue
+        touches_sol = any(p.intersects(sp)
+                          for sp in sol_by.get((net, lay), ()))
+        embeds_via = any(p.covers(q) for q in via_by.get(net, ()))
+        if nm.startswith("manifold:"):
+            gk = gang_keep.get(nm, gang_keep.get(net))
+            if net in no_path:
+                kept.append(d)                         # v3 loud rule
+            elif touches_sol or embeds_via:
+                kept.append(d)                         # attach/bridge copper
+            elif gk == lay:
+                kept.append(d)                         # the gang IS part of
+                #   the winning terminal (it binds >=2 clusters the
+                #   connectivity proof relied on) -- one layer stays
+            else:
+                dropped.append((d, "manifold layer unused by the winning "
+                                   "solution"))
+            continue
+        # patch:
+        f_sol = (lay == "F.Cu" and touches_sol)
+        if f_sol or embeds_via:
+            kept.append(d)
+        else:
+            dropped.append((d, "insurance patch -- solution does not use "
+                               "%s at this shunt and no barrel needs cover"
+                            % lay))
+    return kept, dropped
+
+
 def _nowhere_zone_verdict(zone_name, netname, clusters_hit):
     """PURE reaper decision (v3 defense-in-depth, owner: "the giant
     cross-board L3 pour and leads-nowhere pours must die"): a non-GND zone
     that connects <2 distinct same-net terminal clusters is DEAD WEIGHT --
     unless its name marks it as a guaranteed shunt patch, a connector
     manifold, or frozen pour-first state (sanctioned pad-anchored copper /
-    set-in-stone geometry). Returns True = reap."""
+    set-in-stone geometry). Returns True = reap.
+
+    ZERO-CONNECTION OVERRIDE (mandate part 4b, 2026-07-25, measured on the
+    s510 winner: exempt-named `pourplan:` fragments with fill touching NO
+    terminal cluster survived both reaps -- the owner's "pours not connected
+    to anything, exist for no reason"): the name exemption protects the
+    <2-cluster JUDGMENT only (sanctioned single-cluster copper); a zone
+    touching NOTHING is dead regardless of what it is called."""
     if not netname or netname == "GND":
         return False
+    if int(clusters_hit) == 0:
+        return True
     if str(zone_name or "").startswith(REAP_EXEMPT_PREFIXES):
         return False
     return int(clusters_hit) < 2
@@ -1554,8 +1899,34 @@ def reap_nowhere_zones(board_path, *, cell_mm=0.8):
               f"connects {nhit} terminal cluster(s) (<2) -- REMOVED",
               file=sys.stderr)
         board.Remove(z)
-    if doomed:
+    # ORPHAN-VIA SWEEP (mandate part 4a, 2026-07-25): an UNLOCKED via whose
+    # barrel touches no pad, track, or filled zone serves nothing (a bridge
+    # via whose lane was dropped/reaped, a stranded field slot). Locked
+    # barrels are materialize truth (force arrays) and stay. Runs after the
+    # zone reaps on a REBUILT connectivity so a via orphaned BY a reap above
+    # is caught in the same pass.
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
+    dead_v = []
+    for t in board.GetTracks():
+        if t.GetClass() != "PCB_VIA" or t.IsLocked():
+            continue
+        try:
+            items = list(conn.GetConnectedItems(t))
+        except Exception:                              # noqa: BLE001
+            continue
+        if not any(it.GetClass() in ("PAD", "PCB_TRACK", "ZONE")
+                   for it in items):
+            dead_v.append(t)
+    for t in dead_v:
+        q = t.GetPosition()
+        print(f"[cec_slab_pour] nowhere-reap: orphan via {t.GetNetname()} at "
+              f"({q.x / MM:.1f},{q.y / MM:.1f}) touches nothing -- REMOVED",
+              file=sys.stderr)
+        board.Remove(t)
+    if doomed or dead_v:
         pcbnew.SaveBoard(board_path, board)
         print(f"[cec_slab_pour] nowhere-reap: removed {len(doomed)} "
-              "leads-nowhere zone(s)", file=sys.stderr)
-    return len(doomed)
+              f"leads-nowhere zone(s) + {len(dead_v)} orphan via(s)",
+              file=sys.stderr)
+    return len(doomed) + len(dead_v)

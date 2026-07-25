@@ -14,6 +14,23 @@ Times are UTC.
 
 ## Active
 
+- [ ] [added 2026-07-25 08:00] **POUR PASS 2 — five-part live-variant mandate LANDED** (design doc
+  "v4 pass 2" state note; probes build/pourprobe2/). (1) planner rate: `_preconnect_merge` (same-net
+  locked copper = already-present corridors; the s510 /SENSE3V3_LO 598mm² amoeba re-solved an
+  ALREADY-CONNECTED net), per-layer `lay_attach`, approach ∪= own manifolds/tracks, honest
+  `width-infeasible` diag (In2 1oz demands 16-46mm at rail currents — physics, not a corner-graph
+  bug) — planner-owned 2/9 → 5/9, path_found 5/9 → 7/9 on 6 live variants; residual +5VSB +
+  /SENSE12V_HI = J3-belt width class (both engines agree; force-rail REFUSALS remove their
+  pre-connect — owner design question stands). (2) region-class (+3V3): `_realize_region`
+  power-plane doctrine — ONE In2-else-B region + per-island pad-aware via fields + landings, no
+  tree/bridges/snake. (3) fallback realization: `realize_overunder_rects` (capsule covers per run +
+  boundary via fields; smear only behind CEC_OU_SMEAR=1). (4) hygiene: zero-cluster reap overrides
+  name exemption; zero-fill zones die; orphan-via sweep (pour-live-gated). (5) SINGLE-OWNER
+  WHITELIST at the freeze (`enumerate_winning`): 10 insurance dicts dropped per variant; import
+  no longer resurrects patches for frozen nets; region layer = the solve's choice (ask = preference).
+  Teeth 80/80 in-container; golden in flake band (unconn 17 / thermal 1799). OPEN: acceptance wave
+  s530-532 render verdict (running); J3-belt class; ROI of a parallel-gap width model at connector
+  belts (the corridor abstraction under-counts parallel-path cross-section — noted for the owner).
 - [ ] [added 2026-07-25 05:10] **v4 TERRITORY POUR PLANNER — LANDED, 24-pin wave param ON** (owner GO,
   docs/slab-pour-design-2026-07-24.md v4). `scripts/cec_pour_plan.py`: manifolds/patches/terminal
   groups → Prim tree → obstacle-corner corridor candidates (direct/L/bounded corner Dijkstra) →

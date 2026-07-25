@@ -352,13 +352,98 @@ class TestNowhereReaperVerdict(unittest.TestCase):
     def test_two_clusters_survive(self):
         self.assertFalse(_nowhere_zone_verdict("", "+5V_MAIN", 2))
 
-    def test_named_patch_manifold_pourfirst_never_reaped(self):
-        self.assertFalse(_nowhere_zone_verdict("patch:+5VSB", "+5VSB", 0))
+    def test_named_exemption_protects_single_cluster_only(self):
+        # ZERO-CONNECTION OVERRIDE (mandate part 4b, 2026-07-25, measured on
+        # the s510 winner: exempt-named `pourplan:` fragments touching NO
+        # terminal cluster survived both reaps = the owner's "pours that
+        # exist for no reason"). The name exemption protects the sanctioned
+        # SINGLE-cluster judgment only; zero-cluster dies regardless of name.
+        self.assertFalse(_nowhere_zone_verdict("patch:+5VSB", "+5VSB", 1))
         self.assertFalse(_nowhere_zone_verdict("manifold:J3:+5VSB", "+5VSB", 1))
-        self.assertFalse(_nowhere_zone_verdict("pourfirst:+3V3", "+3V3", 0))
+        self.assertFalse(_nowhere_zone_verdict("pourfirst:+3V3", "+3V3", 1))
+        self.assertTrue(_nowhere_zone_verdict("patch:+5VSB", "+5VSB", 0))
+        self.assertTrue(_nowhere_zone_verdict("manifold:J3:+5VSB", "+5VSB", 0))
+        self.assertTrue(_nowhere_zone_verdict("pourfirst:+3V3", "+3V3", 0))
+        self.assertTrue(_nowhere_zone_verdict("pourplan:+3V3", "+3V3", 0))
 
     def test_gnd_never_reaped(self):
         self.assertFalse(_nowhere_zone_verdict("", "GND", 0))
+
+
+class TestEnumerateWinning(unittest.TestCase):
+    """SINGLE-OWNER WHITELIST (owner sharpening 2026-07-25): after the
+    solve, the keep-set is ENUMERATED -- winning copper + the attach pieces
+    the path lands on + required bridges/barrel covers; every other
+    same-net pour piece dies by default."""
+
+    def _rect(self, x0, y0, x1, y1):
+        return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+    def test_winning_lane_and_its_attach_manifold_survive(self):
+        lane = {"net": "+5V", "layer": "In2.Cu", "name": "pourplan:+5V",
+                "polygon": self._rect(10, 10, 30, 12)}
+        att = {"net": "+5V", "layer": "In2.Cu", "name": "manifold:J1:+5V",
+               "polygon": self._rect(8, 8, 12, 14)}
+        dup = {"net": "+5V", "layer": "F.Cu", "name": "manifold:J1:+5V",
+               "polygon": self._rect(8, 8, 12, 14)}
+        kept, dropped = cec_slab_pour.enumerate_winning(
+            [lane, att, dup], [])
+        self.assertIn(lane, kept, "solution copper is the whitelist core")
+        self.assertIn(att, kept, "the attach piece the path lands on IS "
+                                 "winning copper")
+        self.assertIn(dup, [d for (d, _w) in dropped],
+                      "the same-footprint duplicate on a layer the solution "
+                      "does not use must die")
+
+    def test_required_bridge_cover_survives_via_embed(self):
+        man = {"net": "+5V", "layer": "B.Cu", "name": "manifold:J1:+5V",
+               "polygon": self._rect(8, 8, 12, 14)}
+        kept, dropped = cec_slab_pour.enumerate_winning(
+            [man], [{"net": "+5V", "x_mm": 10.0, "y_mm": 11.0}])
+        self.assertIn(man, kept, "a piece embedding a solution via is a "
+                                 "required bridge landing")
+
+    def test_insurance_patch_dies_barrel_cover_patch_survives(self):
+        p_dead = {"net": "/S_HI", "layer": "F.Cu", "name": "patch:/S_HI",
+                  "polygon": self._rect(40, 40, 46, 46)}
+        p_live = {"net": "/S_HI", "layer": "F.Cu", "name": "patch:/S_HI",
+                  "polygon": self._rect(10, 10, 16, 16)}
+        kept, dropped = cec_slab_pour.enumerate_winning(
+            [p_dead, p_live], [],
+            locked_vias=[("/S_HI", 12.0, 12.0)])
+        self.assertIn(p_live, kept, "locked barrels need their cover")
+        self.assertIn(p_dead, [d for (d, _w) in dropped],
+                      "an insurance patch serving no F use and no barrel "
+                      "is the owner's 'pour that goes nowhere'")
+
+    def test_patch_with_solution_f_copper_survives(self):
+        land = {"net": "/S_HI", "layer": "F.Cu", "name": "pourplan:/S_HI",
+                "polygon": self._rect(11, 11, 14, 14)}
+        patch = {"net": "/S_HI", "layer": "F.Cu", "name": "patch:/S_HI",
+                 "polygon": self._rect(10, 10, 16, 16)}
+        kept, _d = cec_slab_pour.enumerate_winning([land, patch], [])
+        self.assertIn(patch, kept)
+
+    def test_gang_keep_holds_one_layer_of_a_trivial_nets_manifolds(self):
+        m_in2 = {"net": "+5VSB", "layer": "In2.Cu",
+                 "name": "manifold:J3:+5VSB",
+                 "polygon": self._rect(8, 8, 12, 14)}
+        m_f = {"net": "+5VSB", "layer": "F.Cu", "name": "manifold:J3:+5VSB",
+               "polygon": self._rect(8, 8, 12, 14)}
+        kept, dropped = cec_slab_pour.enumerate_winning(
+            [m_in2, m_f], [], gang_keep={"+5VSB": "In2.Cu"})
+        self.assertIn(m_in2, kept, "the gang IS the trivial net's solution")
+        self.assertIn(m_f, [d for (d, _w) in dropped])
+
+    def test_no_path_net_keeps_manifolds_v3_loud_rule(self):
+        m1 = {"net": "/X", "layer": "In2.Cu", "name": "manifold:J3:/X",
+              "polygon": self._rect(8, 8, 12, 14)}
+        m2 = {"net": "/X", "layer": "F.Cu", "name": "manifold:J3:/X",
+              "polygon": self._rect(8, 8, 12, 14)}
+        kept, _d = cec_slab_pour.enumerate_winning(
+            [m1, m2], [], no_path_nets=["/X"])
+        self.assertIn(m1, kept)
+        self.assertIn(m2, kept)
 
 
 _IN_CONTAINER = (os.path.exists("/.dockerenv")

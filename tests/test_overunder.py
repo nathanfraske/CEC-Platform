@@ -183,5 +183,120 @@ class TestBridgesToVias(unittest.TestCase):
                 + (v["y_mm"] - centre["y_mm"]) ** 2, 0.85 ** 2)
 
 
+class TestRectRealization(unittest.TestCase):
+    """Mandate part 3 (2026-07-25): when route_overunder must run, its path
+    is realized as DRAWN geometry -- straight capsule covers per same-layer
+    run + ONE compact via field per genuine layer change at the run
+    boundary -- never the dilated-cell smear (3-cell bridge disks +
+    closing) that read as the owner's amorphous blobs / via lines."""
+
+    def _routed(self):
+        import numpy as np
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(30, 9)
+        layers = ["In2.Cu", "B.Cu"]
+        ny, nx = g.ny, g.nx
+        passable = {"In2.Cu": np.ones((ny, nx), bool),
+                    "B.Cu": np.ones((ny, nx), bool)}
+        passable["In2.Cu"][:, 14:17] = False           # wall -> under-pass
+        anchors = {"In2.Cu": np.zeros((ny, nx), bool),
+                   "B.Cu": np.zeros((ny, nx), bool)}
+        anchors["In2.Cu"][4, 2] = True
+        anchors["In2.Cu"][4, 27] = True
+        clab = np.zeros((ny, nx), int)
+        clab[4, 2] = 1
+        clab[4, 27] = 2
+        chains = []
+        path_cells, bridges, ok, _bn = route_overunder(
+            layers, passable, anchors, clab, 2, bias_fn=_uniform,
+            chains_out=chains)
+        self.assertTrue(ok)
+        self.assertGreaterEqual(len(bridges), 2, "out and back")
+        reqw = {"In2.Cu": 1.6, "B.Cu": 1.6}
+        polys, vias, notes = realize_overunder_rects(
+            chains, bridges, reqw, g)
+        return g, bridges, polys, vias, notes
+
+    def test_via_fields_sit_at_run_boundaries_only(self):
+        g, bridges, _polys, vias, _notes = self._routed()
+        self.assertTrue(vias)
+        bpts = [(g.x0 + (c + 0.5) * g.cell, g.y0 + (r + 0.5) * g.cell)
+                for (r, c, *_x) in bridges]
+        for (vx, vy) in vias:
+            d = min(((vx - bx) ** 2 + (vy - by) ** 2) ** 0.5
+                    for (bx, by) in bpts)
+            self.assertLessEqual(
+                d, 1.6 / 2.0 + 1.8 + 0.05,
+                "via (%.2f,%.2f) is %.2fmm from every layer change -- "
+                "fields belong AT the run boundary" % (vx, vy, d))
+
+    def test_vacated_layer_carries_no_copper_at_the_wall(self):
+        from shapely.geometry import Point, Polygon
+        g, _bridges, polys, _vias, _notes = self._routed()
+        wall_mid = Point(g.x0 + 15.5 * g.cell, g.y0 + 4.5 * g.cell)
+        for coords in polys.get("In2.Cu", ()):
+            self.assertFalse(
+                Polygon(coords).buffer(0).covers(wall_mid),
+                "In2 copper crosses the wall the path bridged around")
+        self.assertTrue(
+            any(Polygon(coords).buffer(0).covers(wall_mid)
+                for coords in polys.get("B.Cu", ())),
+            "the under-pass layer must carry the wall crossing")
+
+    def test_rect_realization_is_leaner_than_the_smear(self):
+        import numpy as np
+        from shapely.geometry import Polygon
+        from cec_slab_pour import (apply_bridge_overlap, realize_overunder,
+                                   realize_overunder_rects)
+        g = _G(30, 9)
+        layers = ["In2.Cu", "B.Cu"]
+        ny, nx = g.ny, g.nx
+        passable = {"In2.Cu": np.ones((ny, nx), bool),
+                    "B.Cu": np.ones((ny, nx), bool)}
+        passable["In2.Cu"][:, 14:17] = False
+        anchors = {"In2.Cu": np.zeros((ny, nx), bool),
+                   "B.Cu": np.zeros((ny, nx), bool)}
+        anchors["In2.Cu"][4, 2] = True
+        anchors["In2.Cu"][4, 27] = True
+        clab = np.zeros((ny, nx), int)
+        clab[4, 2] = 1
+        clab[4, 27] = 2
+        chains = []
+        path_cells, bridges, ok, _bn = route_overunder(
+            layers, passable, anchors, clab, 2, bias_fn=_uniform,
+            chains_out=chains)
+        self.assertTrue(ok)
+        reqw = {"In2.Cu": 1.6, "B.Cu": 1.6}
+        rect_polys, _v, _n = realize_overunder_rects(chains, bridges, reqw, g)
+        rect_area = sum(Polygon(c).buffer(0).area
+                        for ps in rect_polys.values() for c in ps)
+        pc = {k: m.copy() for k, m in path_cells.items()}
+        apply_bridge_overlap(pc, bridges, g)
+        smear = realize_overunder(pc, {"In2.Cu": 1, "B.Cu": 1}, g)
+        smear_area = sum(Polygon(c).buffer(0).area
+                         for ps in smear.values() for c in ps)
+        self.assertLess(rect_area, smear_area * 0.85,
+                        "rect realization (%.1fmm2) should be materially "
+                        "leaner than the smear (%.1fmm2)"
+                        % (rect_area, smear_area))
+
+    def test_f_runs_clip_to_the_admit_region(self):
+        import numpy as np
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(30, 9)
+        chains = [[(4, c, "F.Cu") for c in range(2, 28)]]
+        polys, vias, notes = realize_overunder_rects(
+            chains, [], {"F.Cu": 1.6}, g,
+            f_admit=[(0.0, 0.0, 8.0, 7.2)])   # admit only the left end
+        self.assertTrue(any("clipped to the top-copper admit" in n
+                            or "outside the top-copper admit" in n
+                            for n in notes), notes)
+        from shapely.geometry import Point, Polygon
+        right = Point(g.x0 + 26.5 * g.cell, g.y0 + 4.5 * g.cell)
+        for coords in polys.get("F.Cu", ()):
+            self.assertFalse(Polygon(coords).buffer(0).covers(right),
+                             "F copper escaped the admit clip")
+
+
 if __name__ == "__main__":
     unittest.main()

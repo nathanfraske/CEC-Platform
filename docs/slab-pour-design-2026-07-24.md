@@ -390,3 +390,85 @@ attach pieces the path lands on; the bridges the solution genuinely uses, with t
 fields; thermal mirrors PROVEN required by the need-based test) and DELETE every other
 same-net pour piece. Exploration copper, alternate-layer duplicates, insurance patches,
 unused manifold pieces: gone by default.
+
+## v4 pass 2 — implementation state (2026-07-25, LANDED; the five-part live-variant pass)
+
+Probe record: build/pourprobe2/ (probe_winner = s510 zone/stub forensics; probe_planner =
+live-skeleton endpoint/blocker analysis; probe_rate = planned-vs-fallback measurement).
+
+**Part 1 — live-variant planner rate (root causes, all probe-measured):**
+(a) `'In2.Cu': 'no-path'/'pa-blocked'` was WIDTH PHYSICS, not a corner-graph bug: 1oz
+internal In2 demands 16–46mm for the heavy rails (IPC inverse at 12–25A) — no 74x59 board
+holds that corridor; `_make_candidates` now diags it honestly as `width-infeasible(Nmm)`
+(empty free space), and heavy corridors land on 2oz B/F as the only feasible layers.
+(b) `'B.Cu': 'no-path'` at the J3/TB belts: the inflated foreign-barrel shadow extends past
+the 3.2mm own-PAD approach reach, sealing the neck pocket from eroded free space — the
+approach region now includes own MANIFOLD polygons and own TRACK capsules (a manifold/rail
+is the "pad" of its super-terminal), so the W_NECK collar crossing is legal wherever own
+copper stands. (c) THE BIG ONE — same-net locked copper: materialize's locked force rails
+already connect most rail-net terminal groups (+5V_MAIN {1,2,3}; /SENSE3V3_LO ALL FIVE —
+the 598mm² s510 amoeba re-solved a finished net). `_preconnect_merge` union-finds groups
+over the anchor rasters (own tracks included; layers fused at THT/via cells + through
+group membership — the first-cell-root shortcut measurably mis-rooted manifold gangs) and
+merges pre-connected groups into super-groups whose per-layer attach (`_Group.lay_attach`)
+is the member copper + connecting rail capsules — never the hollow union bbox. Corridors
+are planned only for residual components; a fully pre-connected net is TRIVIAL (lays
+nothing). **Measured rate on 6 live variants (before → after): planner-owned 2/9 → 5/9
+(+3V3 REGION, /SENSE5V_HI newly PLANNED, /SENSE3V3_LO + /SENSE5VSB_LO TRIVIAL), overall
+path_found 5/9 → 7/9 (/SENSE3V3_HI's fallback now finds a path — the fallback inherits
+stage-0 manifold dicts as attach inputs via `manifold_dicts=`). The 2 residual no-paths
+(+5VSB, /SENSE12V_HI) fail identically on both engines — the J3-belt width class, with
+the RS1/RS2 force-rail REFUSALS (pre-existing) removing their pre-connect; they lay
+manifolds only, loudly (v3 rule).**
+
+**Part 2 — region-class nets:** `_classify_net` (structural, never name-based: >=6 served
+groups, >=70% plain F-only SMD islands after gang+pre-connect merge) routes a net to
+`_realize_region` — the POWER-PLANE doctrine: ONE deliberate region polygon on In2-else-B
+(islands' projection + margin, shaved only by real raster obstacles, mask_to_polys
+smoothing, min-width erosion invariant kept) + ONE compact pad-aware terminal via field
+per island (shared `field_via_line`) + one landing per island, verified through the same
+`_attach_connectivity` union-find as corridors. No tree, no bridges, no snake. +3V3
+classifies region on every live variant.
+
+**Part 3 — fallback realization discipline:** `route_overunder(chains_out=)` returns the
+ordered walks; `realize_overunder_rects` draws one straight capsule cover per maximal
+same-layer run (collinear-simplified centerline at required width) + ONE compact pad-aware
+via field per genuine layer change (cover boxes embed the field on both layers; F pieces
+clip to the shunt/manifold admit at draw time, loud). DEFAULT realization for
+`synthesize_overunder_pours`; the dilated-cell smear (3-cell disks + closing = the
+owner's blobs/via-lines) survives only behind `CEC_OU_SMEAR=1`. The in-pad via refusals
+at lay time drop to zero by construction (the field placer slides).
+
+**Part 4 — orphan/floating hygiene:** (a) s510 forensics: NO orphan In2 stub epidemic
+(1 padless via board-wide); the owner's "stubs" read as fallback smear + FR tracks over
+blobs — cured by parts 1–3; a `reap_nowhere_zones` orphan-VIA sweep (unlocked barrels
+touching nothing, fresh-cycle, pour-live-gated) catches the residual class. (b) measured
+exhibit: `pourplan:` fragments with fill=0.0mm² / clusters=0 survived both reaps by name
+— `_nowhere_zone_verdict` now reaps ANY zero-cluster zone regardless of name (exemption
+protects the sanctioned single-cluster judgment only), and `cleanup_floating_zones`
+removes zero-FILL zones outright.
+
+**Part 5 — single-owner whitelist:** `cec_slab_pour.enumerate_winning` (pure, teeth-
+tested) enumerates the keep-set at the FREEZE: solution dicts; manifold pieces the
+solution touches on the same layer or that embed a solution via; GANGED manifolds
+(bind >=2 terminal clusters — the connectivity proof relies on them; `_build_groups`
+records `gang_manifolds`, one preferred layer kept); patches only with real solution-F
+use at the shunt or a solution/locked barrel to cover; no-path nets keep manifolds (v3
+loud rule). Everything else dies at the freeze with a printed reason
+(`report.whitelist_dropped`; measured: 10 insurance dicts dropped per live variant,
+frozen state 5 lanes + 11 manifolds + 7 patches vs 12/20/8 before). `import_ses` no
+longer re-derives guaranteed patches for frozen nets (the resurrection path), and the
+POURFIRST artifact runs the same hygiene chain before render. Ask layers are preferences
+throughout: the region layer is the solve's choice (teeth: an In2-blanketed board lands
+the In2-named ask on B with zero In2 copper); corridor layer assignment was already
+preference-driven. Note: the pour-first planner never CREATES thermal mirrors (each
+corridor is sized per-layer by the IPC inverse, sufficient by construction), so the
+whitelist's "required thermal second plane" class is exercised by the barrel-cover rule;
+the legacy `_mirror_needed` machinery still governs the non-frozen path.
+
+Teeth: tests/test_pour_plan.py (pre-connect trivial + corridor control, region shape +
+per-island fields, ask-layer-preference, width-infeasible space), tests/test_overunder.py
+(fields at run boundaries only, vacated layer carries nothing, rect leaner than smear,
+F-admit clip), tests/test_pour_first.py (enumerate_winning: winning lane + attach
+manifold survive, duplicate layer dies, bridge/barrel covers survive, gang keep,
+no-path keeps manifolds; zero-cluster verdict override). 80/80 in-container.
