@@ -1,5 +1,16 @@
 # Current work handoff
 
+## CHARGE BAR COLOR SPLIT (2026-07-25 ~07:30Z, owner ruling, on pipeline-pass-2)
+Owner: "2 green, 2 yellow, 2 red." Implemented BOTTOM-UP RED->YELLOW->GREEN (fuel-gauge
+orientation: red=awake-but-thin [OK ride-through tick stays on D_CHG1], yellow=partial,
+green=full sessions banked) — matches the box green-good/red-bad language; full store
+showing red at top would read as alarm. Flip = LED stuffing order only, zero circuit
+change, if owner meant audio-VU orientation. Yellow = XL-302UYD C2895472 (jlcsearch
+2026-07-25, stock 25072, $0.029 — exact diffused sibling of UGD/SURD, same 3mm land).
+BOM now 51 lines (README 6 count updated): green line 14->10 (D_CHG5/6), red 16->18
+(D_CHG1/2), new yellow line (D_CHG3/4). Per-color series-R brightness trim noted for
+capture. Files: README 4/6, bom.csv, ctl-sketch SVG.
+
 ## CHARGE BAR ADDED (2026-07-25 ~07:15Z, owner ask, on pipeline-pass-2)
 Owner: "cool LED-charge array like a VU meter... when you press a test button... see it
 actively charging." DESIGNED + APPLIED in the house pattern (~$0.35, zero new SKUs):

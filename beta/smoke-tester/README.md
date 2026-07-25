@@ -224,8 +224,11 @@ See `assets/smoke-tester-ctl-sketch.svg`.
 - **Lamps:** per-way green (in-window) / red (out), blown-fuse indicator across every
   blade position (lights only when its fuse is open AND the way upstream is live).
   Panel silk = the verdict truth-table; tear-off verdict-card pad ships in the lid.
-- **◆ CHARGE bar (owner ask, RULED 2026-07-25):** six 2 mA green 3 mm LEDs in a tight
-  5 mm-pitch vertical VU column — hold TEST with anything live (DUT rail or USB
+- **◆ CHARGE bar (owner ask, RULED 2026-07-25):** six 2 mA 3 mm LEDs in a tight
+  5 mm-pitch vertical VU column — **2 red / 2 yellow / 2 green, bottom-up** (owner
+  color ruling 2026-07-25: fuel-gauge read — red = awake but thin, yellow = partial,
+  green = full sessions banked; all XL-302 diffused family, Vf ≤2.1 V, per-color
+  series-R trim at capture if brightness wants matching) — hold TEST with anything live (DUT rail or USB
   brick) and watch the store fill, ~20–40 s a step, full bar ~2 min. All-analog in
   the house pattern, zero new part types: one 7-resistor sense string across the
   STORE node (taps at 1.24 V/V_th fractions) into six LM339 sections against the
@@ -235,13 +238,14 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   sense path drains NOTHING at rest — the zero-standby property survives. Steps
   ≈ 2.9 / 3.3 / 3.7 / 4.1 / 4.4 / 4.65 V ≈ wakes · 20 · 40 · 60 · 80 % · FULL of
   usable reserve; the 2.9 V step wears the **OK** silk tick and ABSORBS the old
-  battery-OK dot (STORE-OK = the bar's bottom step). Watching a charge is
+  battery-OK dot (STORE-OK = the bar's bottom step; a lone red lit reads honestly
+  as "awake, thin reserve — keep it plugged in"). Watching a charge is
   harvest-powered (costs the store nothing); on store-only reserve a full bar adds
   ≤12 mA and sheds itself as the store drains — worst-case held-TEST ~4.5 →
   ~3.5–4 min, session count untouched. Bottom step rides the LM339 common-mode
   limit at deep-sag rails (<~2.8 V) — by then the bar honestly reads near-empty
   anyway; exact scaling binds at capture with the window ladder. Parts: +1 LM339
-  (U7, $0.09) + 6× green LED/1k + jellybean string ≈ **$0.35**.
+  (U7, $0.09) + 2R/2Y/2G LED + 6× 1k + jellybean string ≈ **$0.35**.
 
 ## 5. AUX adapter port
 
@@ -254,14 +258,14 @@ deferred to the metrology tiers (fence).
 
 ## 6. BOM — sourced (LCSC-primary pass, jlcsearch-verified 2026-07-25)
 
-`bom/bom.csv` is the box rollup (50 lines, margin passives/decouplers included per
+`bom/bom.csv` is the box rollup (51 lines, margin passives/decouplers included per
 active device); `brick/bom/` and `snout/bom/` carry the sub-board BOMs. Verified LCSC
 anchor lines: LM339DR **C7948** ($0.09, 84k) · TLV431AIDBZR **C56765** · 5×20 holders
 **C3131** ($0.06, 133k) · Littelfuse 215 2A-T HRC **C142716** · ATO holders Bussmann
 **C3207132** (watch: 997) · MOV 14D220K **C6793760** (watch: 800; 3 same-family alts
 listed) · GDT 2R090TA-5 **C48642402** (glass-body check at sample) · KNP 1 Ω witness
 **C1741442** · latching relay HF3F-L/5 **C190594** (watch: 749) · SMAZ5V6 **C110526** ·
-301k-1206 **C873534** · 470k-2010 **C2960931** · LEDs **C2895476/C2895470** · SS8050
+301k-1206 **C873534** · 470k-2010 **C2960931** · LEDs **C2895476/C2895470/C2895472** (grn/red/yel) · SS8050
 **C2150** · M7 **C95872** · 5.1k **C23186** · 1k **C21190** · bleeders **C349125**
 (watch: 124) / **C1527341** — plus platform-verified reuse: PESD **C5261083**, SS34
 **C8678**, USB-C **C2765186**, 100nF **C1525**. Jellybean R/C marked "JLC basic — bind

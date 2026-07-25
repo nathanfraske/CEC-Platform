@@ -84,5 +84,5 @@
   <text x="32" y="543" font-size="9.5">First light ≈ instant (~ms) on any live rail or USB brick — no charge-first ritual; store fills behind it (usable ~30s, full ~2min): 8.6J ≈ ~4.5min held-TEST ≈ ~5 sessions. TLV431 1.24V ref, rail 2.5–5V.</text>
   <text x="32" y="558" font-size="9.5">Store's whole job = ride-through + LAMP TEST: the diode-OR hands over the instant the DUT collapses, so lamps/latches never strobe with the fault they report.</text>
   <text x="32" y="573" font-size="9.5" fill="#555">No lithium (no UN38.3, no BMS, no aging cliff), no disposables, no recharge chore — using the tool charges it. STORE-OK = the CHARGE bar's bottom step.</text>
-  <text x="32" y="588" font-size="9.5">◆ CHARGE bar (2026-07-25): 6× green 2mA VU column, TEST-held — 7R string on STORE node vs TLV431 ref into 6 LM339 steps (2.9…4.65V ≈ wakes…FULL), SS8050-gated = zero rest drain; ~20–40s/step.</text>
+  <text x="32" y="588" font-size="9.5">◆ CHARGE bar (2026-07-25): 2R/2Y/2G 2mA VU column bottom-up (red=thin, green=full), TEST-held — 7R string on STORE node vs TLV431 ref into 6 LM339 steps (2.9…4.65V), SS8050-gated = zero rest drain; ~20–40s/step.</text>
 </svg>
