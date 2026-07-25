@@ -1,5 +1,33 @@
 # Current work handoff
 
+## OVER-UNDER POURS v2 IMPLEMENTED (2026-07-25, Sonnet agent, on pipeline-pass-2)
+synthesize_overunder_pours landed in scripts/cec_slab_pour.py per docs/slab-pour-design-
+2026-07-24.md's "v2" section: per rail, a multi-layer A*/Dijkstra (route_overunder) grows one
+Steiner-ish tree over every terminal pad-cluster, one copper layer per segment (In2/PWR_RT
+cheapest, B.Cu mid, F.Cu expensive except at shunt neighborhoods or within 2 cells of a
+same-net F-anchored terminal), via-array bridging where the preferred layer is contested;
+free-space masks are eroded by half the IPC-2221 required width before the search runs, so
+every found path is provably wide enough and a net with no viable path reports
+path_found=False with a bottleneck hint instead of laying a partial guess. Wired into
+cec_fr.import_ses's post-via slab-conversion block behind CEC_OVERUNDER=1 (bridge vias laid
+first via add_overunder_vias, then the lanes through add_power_pours -- the same choke point
+every other pour uses); plumbed through cec_synth_pipeline._oracle_env's "overunder" param.
+Not enabled on any board (A/B opt-in only). tests/test_overunder.py: pure-raster teeth
+(straight single-layer path; blocked-middle forcing exactly 2 bridge transitions with the
+vacated layer carrying no copper in the blocked stretch; a genuinely disconnected pair
+reporting failure and laying nothing; unreachable-terminal/trivial-cluster/via-ledger
+coverage), all green. VERIFIED on the real routed s415 24-pin board (asks for /SENSE12V_LO,
+/SENSE3V3_LO, +5V_MAIN): /SENSE3V3_LO finds a clean 1-bridge path (F.Cu lane confined to the
+shunt/sense-IC terminal field, confirmed against real component coordinates); the other two
+report no-path -- an ablation (forcing the 1.2mm width floor) plus an independent union-find
+over the passable graph both confirm these are GENUINE board-congestion disconnections (one
+is a small sense resistor pad walled off by foreign copper on every searched layer), not a
+search bug -- i.e. this is the SAME "refused sense cell" / connectivity-war class the pour-war
+entry below names as the #1 remaining front, now with a concrete, reproducible instance and a
+tool that reports it honestly instead of silently laying undersized copper. Golden stays
+byte-stable (kelvin false / unconnected 16 / thermal 257.5) since CEC_OVERUNDER is unset by
+default. Landed as commits (over-under pours: routed-object realization) + (bookkeeping: sync).
+
 ## SIGN-OFF BOARD MAP DELIVERED (2026-07-25 ~03:00Z, on pipeline-pass-2)
 Owner loved the arcs riff ('that's the way to do it') and asked for the all-boards+connections
 diagram to consider and SIGN OFF. smoke-tester-board-map.svg REBUILT as the sign-off instrument:
@@ -36,14 +64,20 @@ keyed, sense-AT-the-head via 12d port-end Kelvin + OQ-88 sense contacts) = wear 
 instrumented (12d per-pin R trend -> firmware alarm), modules never accumulate matings. Layered
 defense for $600 modules: smoke triage -> 12c fences -> head. FOLLOWUPS entry superseded in place.
 
-## PLATFORM-WEAR DOCTRINE RESOLVED (2026-07-25 ~00:55Z, owner Q, on pipeline-pass-2)
-Owner asked if tester use forces every platform I/O onto daughterboards. NO (concept 9.8):
-consumer modules = wear moot by cycle count; deck duty = wear real (6-13A vs smoke box 0.26A)
-but already layered (modules ARE blade-socketed swappable fixtures; hpwr-fixture-head = the
-per-test wear position by census; 12d port-end Kelvin immunizes metrology; 12d resistance map
-covers the fixture path -> firmware fixture-wear alarm, OQ-85). Missing layer = $2-4
-CONNECTOR-SAVER pigtails (accessory, FOLLOWUPS 2026-07-25), not boards. Output side already
-daughterboarded by v1.4.0 where it earns its keep; input headers stay board-mounted.
+## POUR WAR WON -- OWNER-CONFIRMED 2026-07-25 ~00:25: "s421, s420, s416 are all clean. Nice."
+The validated-clean baseline (judge future pour work against THIS): choke-point shunt-only
+enforcement inside add_power_pours (covers ALL THREE laying paths: materialize landing
+patches, import list, router pass-2 re-derivation -- each was a traced bypass), slab-shaved
+inners, appendage prune, need-based mirrors, F delivery-proof (superseded by choke), plane-
+THT exclusion, floating-zone cleanup. Grades on the clean boards: unconn 110-123 (kelvin
+still FALSE) -- the pour front is closed, CONNECTIVITY is the whole remaining war:
+(1) over-under pours (design v2, owner-ratified, Sonnet agent implementing -- the routed-
+object pour: single-layer path + via bridges; ALSO the unconn recovery); (2) the refused
+sense cell -> kelvin; (3) hub new-part seat pressure (all-9999 since the ingress merge);
+(4) slab guaranteed-core. LESSON BANKED (owner-taught, twice): judge only the ROUTED
+PUBLISHED artifact -- a placed board is trivially clean; renders carry analyzer lag, so
+verify code-vintage before diagnosing.
+
 ## THE POUR BYPASS FOUND AND FIXED 2026-07-24 ~23:50 (commit 733eaaee, pushed after rebase
 over the parallel Smoke Tester session): the owner's persistent top-mirror/L3 reports on
 s404/s405 were correct AND the import-side rules were all firing -- the boards' big F/In2
