@@ -9300,7 +9300,7 @@
 			(uuid "57bbc6ea-6cee-4c09-9685-5e57fca90e8d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR069")
 					(unit 1)
@@ -9404,7 +9404,7 @@
 			(uuid "59998c7f-c81c-42cc-8aaf-0669181d3575")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "D1")
 					(unit 1)
@@ -9508,7 +9508,7 @@
 			(uuid "6142fc2d-3e28-4649-9818-b0c8ff57da42")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "SW_RESET")
 					(unit 1)
@@ -9585,7 +9585,7 @@
 			(uuid "612f52b5-983c-402c-be7b-cdc39238c7f9")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWRSH4")
 					(unit 1)
@@ -9659,7 +9659,7 @@
 			(uuid "9f50ca49-563b-4732-9461-c9c09a4890e9")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR17")
 					(unit 1)
@@ -9733,7 +9733,7 @@
 			(uuid "66cd378e-d94c-49c9-8473-b24d051666b7")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR42")
 					(unit 1)
@@ -9807,7 +9807,7 @@
 			(uuid "e5c09d02-1cfc-47bc-9027-9886b15a1944")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR024")
 					(unit 1)
@@ -9891,7 +9891,7 @@
 			(uuid "a2bbe333-4275-4f3a-b05b-6b9df5612086")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#FLG200")
 					(unit 1)
@@ -9993,7 +9993,7 @@
 			(uuid "7913ff67-b2a4-4913-b573-9177f59c191a")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R8")
 					(unit 1)
@@ -10067,7 +10067,7 @@
 			(uuid "c288fccf-dad0-475d-8779-534e29ce84de")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR57")
 					(unit 1)
@@ -10289,7 +10289,7 @@
 			(uuid "7965613f-98db-42ad-aa37-deba18d0662b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U1")
 					(unit 1)
@@ -10363,7 +10363,7 @@
 			(uuid "5eb10668-13a0-4124-8994-61df859571cc")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR18")
 					(unit 1)
@@ -10437,7 +10437,7 @@
 			(uuid "4d311f1b-2fa8-496b-b8e5-4525f08da004")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR54")
 					(unit 1)
@@ -10540,7 +10540,7 @@
 			(uuid "5b99d7b7-e1b9-4587-8b57-aaabb1bedb97")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "D2")
 					(unit 1)
@@ -10614,7 +10614,7 @@
 			(uuid "b1541b25-dfc2-4ba0-be65-e57cbb2b7555")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR071")
 					(unit 1)
@@ -10688,7 +10688,7 @@
 			(uuid "a744973c-0620-4d49-9809-041235a77047")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR47")
 					(unit 1)
@@ -10762,7 +10762,7 @@
 			(uuid "fa9d909c-460d-404c-8d97-314e8bd2aa1d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR060")
 					(unit 1)
@@ -10839,7 +10839,7 @@
 			(uuid "d87d580e-9f71-4ee7-bacc-63ef7bcf7e53")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWRSH3")
 					(unit 1)
@@ -10913,7 +10913,7 @@
 			(uuid "d2062567-ee7e-4b1c-8e9a-29efd87e1bf6")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR067")
 					(unit 1)
@@ -10987,7 +10987,7 @@
 			(uuid "f14e020a-1fd8-4809-8841-0b288050378f")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR064")
 					(unit 1)
@@ -11061,7 +11061,7 @@
 			(uuid "0959f30d-79b7-4465-9d3d-c1fcb1d6508a")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR46")
 					(unit 1)
@@ -11135,7 +11135,7 @@
 			(uuid "9240f248-6b59-42a2-b61f-19f4ac8f80f2")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR14")
 					(unit 1)
@@ -11237,7 +11237,7 @@
 			(uuid "57fceb5d-f356-4e69-9052-93e4ed2a718c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C2")
 					(unit 1)
@@ -11359,7 +11359,7 @@
 			(uuid "c13a0000-0000-4000-8000-0000000000d2")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C13")
 					(unit 1)
@@ -11407,7 +11407,7 @@
 		(pin "4" (uuid "d6a0000-0000-4000-8000-000000000044"))
 		(pin "5" (uuid "d6a0000-0000-4000-8000-000000000055"))
 		(pin "6" (uuid "d6a0000-0000-4000-8000-000000000066"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D6") (unit 1))))
+		(instances (project "hub-standard-rev2" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D6") (unit 1))))
 	)
 
 	(symbol
@@ -11504,7 +11504,7 @@
 			(uuid "c11a0000-0000-4000-8000-0000000000a2")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C11")
 					(unit 1)
@@ -11606,7 +11606,7 @@
 			(uuid "c12a0000-0000-4000-8000-0000000000b2")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C12")
 					(unit 1)
@@ -11680,7 +11680,7 @@
 			(uuid "fbe76235-0b3c-43ce-8bbf-a4cd0d659da4")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR84")
 					(unit 1)
@@ -11782,7 +11782,7 @@
 			(uuid "aeb59c5b-2edb-4e32-b5a3-d3483d06a722")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C5")
 					(unit 1)
@@ -11856,7 +11856,7 @@
 			(uuid "82a6eafd-6e0e-428a-83dc-e9c2dd4e8c3a")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR27")
 					(unit 1)
@@ -11958,7 +11958,7 @@
 			(uuid "4887d353-470a-4c81-8631-cb2d0d5bbb90")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C1")
 					(unit 1)
@@ -12061,7 +12061,7 @@
 			(uuid "8fe45dd7-3db0-4baf-a67a-9cb4013084be")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C3")
 					(unit 1)
@@ -12163,7 +12163,7 @@
 			(uuid "34c4c0fb-638b-4cca-a6ad-e34ece08531c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R9")
 					(unit 1)
@@ -12237,7 +12237,7 @@
 			(uuid "762865bd-c5ff-47da-a51c-2e3963de198a")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0202")
 					(unit 1)
@@ -12314,7 +12314,7 @@
 			(uuid "d298fe2b-9d04-4681-b252-74be2a5d7f5c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWRSH2")
 					(unit 1)
@@ -12388,7 +12388,7 @@
 			(uuid "557f7133-e600-483b-8e44-ed838ba9587b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR48")
 					(unit 1)
@@ -12491,7 +12491,7 @@
 			(uuid "8d77f09d-9258-4f8e-9844-4f5cbba0b617")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "D5")
 					(unit 1)
@@ -12593,7 +12593,7 @@
 			(uuid "4c7393c5-05ae-4369-aca1-32016e8da61e")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R5")
 					(unit 1)
@@ -12667,7 +12667,7 @@
 			(uuid "5b517a21-ad9c-49bf-92a2-0e85cd2c21ab")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR21")
 					(unit 1)
@@ -12743,7 +12743,7 @@
 			(uuid "e9cb6e31-d2c2-41b6-ab3f-58f377a0965c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR23")
 					(unit 1)
@@ -12845,7 +12845,7 @@
 			(uuid "b2610458-ae19-4e03-a1d5-e4f983a206ca")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C4")
 					(unit 1)
@@ -12919,7 +12919,7 @@
 			(uuid "f8581b75-d59f-4bb0-bfc6-b14aab3e6d34")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR22")
 					(unit 1)
@@ -12993,7 +12993,7 @@
 			(uuid "d53290a1-423e-4d81-a5ef-a275405c005b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR16")
 					(unit 1)
@@ -13067,7 +13067,7 @@
 			(uuid "c27d9d21-5860-40d3-9fd0-2e4dccb7d509")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR49")
 					(unit 1)
@@ -13175,7 +13175,7 @@
 			(uuid "05b01080-cfd4-4350-9ab0-173adfecae0c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL1")
 					(unit 1)
@@ -13249,7 +13249,7 @@
 			(uuid "7da245c9-29e9-48b9-8acb-c402005845ff")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0304")
 					(unit 1)
@@ -13323,7 +13323,7 @@
 			(uuid "2cdb14fa-4f89-4fcd-b0ff-6db7df1c803b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#FLG86")
 					(unit 1)
@@ -13425,7 +13425,7 @@
 			(uuid "bb4fda78-a7e7-4fda-8af7-b4ce5c40192c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C10")
 					(unit 1)
@@ -13499,7 +13499,7 @@
 			(uuid "65433e80-33ab-407e-bffb-024bf6bebfc9")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR15")
 					(unit 1)
@@ -13573,7 +13573,7 @@
 			(uuid "df47259b-0eed-4a1f-b23f-b0d99ca50f0e")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR063")
 					(unit 1)
@@ -13681,7 +13681,7 @@
 			(uuid "0bd58853-bbea-4772-b066-a8df5f5c74e3")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL2")
 					(unit 1)
@@ -13755,7 +13755,7 @@
 			(uuid "d2e93d58-cf33-4111-b537-554ef18f635b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR35")
 					(unit 1)
@@ -13902,7 +13902,7 @@
 			(uuid "98b06c4c-d5a9-4d3a-a307-9b384cce22ae")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "J_USB")
 					(unit 1)
@@ -14004,7 +14004,7 @@
 			(uuid "ea412af5-5705-4456-8663-486325d0b2cd")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R_ILIM1")
 					(unit 1)
@@ -14106,7 +14106,7 @@
 			(uuid "ed9939ff-0dce-44fe-bd8a-25e0005ba98a")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R10")
 					(unit 1)
@@ -14241,7 +14241,7 @@
 			(uuid "77396a76-a516-4bc9-8663-3175d57397b4")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U5")
 					(unit 1)
@@ -14346,7 +14346,7 @@
 			(uuid "ac3467ab-3934-4ee9-aa5e-3130fb108364")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C_bulk1")
 					(unit 1)
@@ -14448,7 +14448,7 @@
 			(uuid "73dc87d2-172b-428e-9a6a-7e91124b1a59")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R2")
 					(unit 1)
@@ -14556,7 +14556,7 @@
 			(uuid "942de84f-7000-4721-b55b-ce4909c7e6ce")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL7")
 					(unit 1)
@@ -14630,7 +14630,7 @@
 			(uuid "66eaff8e-66f7-4079-9d91-53771cdd56d8")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR59")
 					(unit 1)
@@ -14704,7 +14704,7 @@
 			(uuid "67e37417-3f8a-4164-97e7-43d217d4554d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR11")
 					(unit 1)
@@ -14778,7 +14778,7 @@
 			(uuid "2db095a7-e2dc-4d1c-8338-148f5a526f66")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR062")
 					(unit 1)
@@ -14852,7 +14852,7 @@
 			(uuid "10a6a04c-866b-4574-8c4a-db44055e8519")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR50")
 					(unit 1)
@@ -14929,7 +14929,7 @@
 			(uuid "a3cc0e72-d5bb-4cf7-bb06-298e884ae573")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWRSH1")
 					(unit 1)
@@ -15003,7 +15003,7 @@
 			(uuid "4b966a09-7a63-4b39-be04-413f153dd7c4")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0303")
 					(unit 1)
@@ -15077,7 +15077,7 @@
 			(uuid "906b2d55-3507-403b-8d15-79408e267234")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR068")
 					(unit 1)
@@ -15151,7 +15151,7 @@
 			(uuid "c74d61ae-57c3-4fdc-9605-936ae3378fe9")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR19")
 					(unit 1)
@@ -15225,7 +15225,7 @@
 			(uuid "985db702-2ee3-4a85-90ac-f07b7389ff91")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#FLG85")
 					(unit 1)
@@ -15299,7 +15299,7 @@
 			(uuid "9e073e7c-ec1f-4369-8852-a7cde02eb156")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR044")
 					(unit 1)
@@ -15373,7 +15373,7 @@
 			(uuid "d31b5ed2-713d-48c1-a108-f0470837c967")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR070")
 					(unit 1)
@@ -15447,7 +15447,7 @@
 			(uuid "e44306e0-c87f-47e5-a01f-39eabc2f7c9e")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR34")
 					(unit 1)
@@ -15521,7 +15521,7 @@
 			(uuid "e7f68dce-05b8-4a78-a52a-838ea1cd8a1b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR28")
 					(unit 1)
@@ -15595,7 +15595,7 @@
 			(uuid "346904fe-f772-4ba6-a8d1-4dd1125e8010")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR12")
 					(unit 1)
@@ -15722,7 +15722,7 @@
 			(uuid "7626e7c9-98de-4dcf-a94c-982fb4417036")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "J2")
 					(unit 1)
@@ -15797,7 +15797,7 @@
 			(uuid "c2e3ca37-c67b-4f76-af57-39cafd2da647")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR036")
 					(unit 1)
@@ -15901,7 +15901,7 @@
 			(uuid "83364d41-ec67-493f-94b4-7e861bdaa4ea")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "SW_BOOT")
 					(unit 1)
@@ -16004,7 +16004,7 @@
 			(uuid "fd7e743c-3454-4c09-86cc-0adf6d8e0a72")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C8")
 					(unit 1)
@@ -16106,7 +16106,7 @@
 			(uuid "d5d2db57-041e-436e-8316-704856ce9638")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R4")
 					(unit 1)
@@ -16180,7 +16180,7 @@
 			(uuid "547f79ba-dc80-45fb-a44b-eaf42f98e7a5")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR56")
 					(unit 1)
@@ -16254,7 +16254,7 @@
 			(uuid "9513b908-3183-45e4-811b-48e634f05130")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR55")
 					(unit 1)
@@ -16374,7 +16374,7 @@
 			(uuid "c449108f-1d65-494d-be9e-19d6dc4bda34")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U2")
 					(unit 1)
@@ -16448,7 +16448,7 @@
 			(uuid "742a8bf1-d929-4dd2-88e2-4c1cfdbf8d53")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR20")
 					(unit 1)
@@ -16523,7 +16523,7 @@
 			(uuid "7553dae5-2f40-428a-9072-5b08083ab4be")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR40")
 					(unit 1)
@@ -16625,7 +16625,7 @@
 			(uuid "f38a433d-f56d-481d-84bf-ff528da31af6")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C7")
 					(unit 1)
@@ -16727,7 +16727,7 @@
 			(uuid "fd05aa51-f626-4911-b615-8bdc20cbc910")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C6")
 					(unit 1)
@@ -16802,7 +16802,7 @@
 			(uuid "1fd5a8c5-705e-42c3-8d84-03abe18bc97d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR061")
 					(unit 1)
@@ -16876,7 +16876,7 @@
 			(uuid "15355d9f-2130-4c5e-ba05-80f3ba72ed26")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0302")
 					(unit 1)
@@ -16950,7 +16950,7 @@
 			(uuid "4c226fa7-a901-41c5-bc5f-9309a3155349")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR32")
 					(unit 1)
@@ -17058,7 +17058,7 @@
 			(uuid "1de74c81-cb1e-492a-8e9a-b3e043dc12fe")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL6")
 					(unit 1)
@@ -17161,7 +17161,7 @@
 			(uuid "57765b92-1765-439f-886a-d1c951e4ef90")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "D3")
 					(unit 1)
@@ -17263,7 +17263,7 @@
 			(uuid "dd71b713-751f-4a1a-9113-dc2c1fb1c613")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R6")
 					(unit 1)
@@ -17337,7 +17337,7 @@
 			(uuid "294faff7-73d9-4663-89ad-da8376f60c27")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR52")
 					(unit 1)
@@ -17445,7 +17445,7 @@
 			(uuid "ee669910-b4a9-4a14-92d5-8ec6fe08f568")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL5")
 					(unit 1)
@@ -17553,7 +17553,7 @@
 			(uuid "83bff1a6-9aff-4558-8df6-a7b9832a7088")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL4")
 					(unit 1)
@@ -17680,7 +17680,7 @@
 			(uuid "172afb32-a2b3-4359-bc7b-f3aeea5f8518")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "J3")
 					(unit 1)
@@ -17754,7 +17754,7 @@
 			(uuid "f4296cdc-82c3-41b8-a0b7-2db3b6adb548")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR26")
 					(unit 1)
@@ -17828,7 +17828,7 @@
 			(uuid "7942c21d-b27b-47cf-8a5c-d5cc2b6a1871")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#FLG201")
 					(unit 1)
@@ -17902,7 +17902,7 @@
 			(uuid "2b400b8c-a9b1-44d3-82be-508f923dc1d5")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#FLG202")
 					(unit 1)
@@ -17976,7 +17976,7 @@
 			(uuid "2f28b1c0-6dec-4896-9a53-8a4ceaa003da")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR43")
 					(unit 1)
@@ -18050,7 +18050,7 @@
 			(uuid "2c8b8466-5718-4d2c-a20e-5eca4a386546")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR065")
 					(unit 1)
@@ -18124,7 +18124,7 @@
 			(uuid "58b87ebd-ad4d-4959-9f75-9f03046dc7f7")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0301")
 					(unit 1)
@@ -18198,7 +18198,7 @@
 			(uuid "8025f809-e2f4-4827-80b6-78960b88baad")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR31")
 					(unit 1)
@@ -18300,7 +18300,7 @@
 			(uuid "975352ef-cc2e-4506-9ee2-fb5795e1bf40")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C9")
 					(unit 1)
@@ -18427,7 +18427,7 @@
 			(uuid "8bad3248-8c60-443b-9246-30d205540708")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "J4")
 					(unit 1)
@@ -18529,7 +18529,7 @@
 			(uuid "1769d7d1-a1ec-4272-b431-687095cdb3cb")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R3")
 					(unit 1)
@@ -18603,7 +18603,7 @@
 			(uuid "fa97eaa6-b547-4ab2-8d00-b82b8dc07553")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR51")
 					(unit 1)
@@ -18677,7 +18677,7 @@
 			(uuid "6c087f8f-a5e2-4174-804b-0323e0c66868")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR41")
 					(unit 1)
@@ -18751,7 +18751,7 @@
 			(uuid "adf975c8-725b-4dbe-8edd-1ec622f22b9d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR87")
 					(unit 1)
@@ -18853,7 +18853,7 @@
 			(uuid "d177ecc0-598e-4d0b-8589-1439f27f5864")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "C_SS1")
 					(unit 1)
@@ -18958,7 +18958,7 @@
 			(uuid "6a7522d8-e1e0-4cfa-ab0a-b1aa620318cd")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U4")
 					(unit 1)
@@ -19032,7 +19032,7 @@
 			(uuid "266a4db7-ed94-4ac1-9b64-50c818d8bec8")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR58")
 					(unit 1)
@@ -19134,7 +19134,7 @@
 			(uuid "ac6f6185-ad9e-4f64-aa0e-5ae03da7535c")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R7")
 					(unit 1)
@@ -19236,7 +19236,7 @@
 			(uuid "5a1d9178-6196-4a9b-acd2-b62d89e3da82")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R13")
 					(unit 1)
@@ -19310,7 +19310,7 @@
 			(uuid "43b32257-93e7-4019-bd6d-a1f6ece126be")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR39")
 					(unit 1)
@@ -19384,7 +19384,7 @@
 			(uuid "aa21486a-5225-4b49-abd1-704c3c29bf2e")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR29")
 					(unit 1)
@@ -19492,7 +19492,7 @@
 			(uuid "ea6bfc37-d961-4b91-942e-65edd20db01b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL3")
 					(unit 1)
@@ -19594,7 +19594,7 @@
 			(uuid "2a7a508b-58b2-452c-9be2-107d4995e68d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R11")
 					(unit 1)
@@ -19668,7 +19668,7 @@
 			(uuid "b1e76e45-10e6-440c-84da-46c1cce4b936")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR53")
 					(unit 1)
@@ -19770,7 +19770,7 @@
 			(uuid "4fe0f732-6cd4-40aa-96b7-aa527b57821b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "R12")
 					(unit 1)
@@ -19881,7 +19881,7 @@
 			(uuid "2f106acc-da98-4183-9d80-2aa8d909111b")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U3")
 					(unit 1)
@@ -20007,7 +20007,7 @@
 			(uuid "5d76c469-7bd1-438f-89fc-620d85304957")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "J5")
 					(unit 1)
@@ -20110,7 +20110,7 @@
 			(uuid "fbe33ef5-06b7-48f4-a2eb-0cdf16c8986d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "D4")
 					(unit 1)
@@ -20184,7 +20184,7 @@
 			(uuid "b6234729-d989-4649-9cad-19d002cd0dc0")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR13")
 					(unit 1)
@@ -20258,7 +20258,7 @@
 			(uuid "616609e7-b6fe-45f1-b60f-fe2f6b636d94")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR45")
 					(unit 1)
@@ -20332,7 +20332,7 @@
 			(uuid "b0e51b97-e307-4d40-8137-64d8f7ed8ac8")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR33")
 					(unit 1)
@@ -20406,7 +20406,7 @@
 			(uuid "faecfc9a-f33d-4515-bf3a-6af24e4fbf0d")
 		)
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR0201")
 					(unit 1)
@@ -20458,7 +20458,7 @@
 		(pin "4" (uuid "7583283f-d1fb-44ad-84eb-1c438ea7b79f"))
 		(pin "5" (uuid "6028504a-4dd1-479d-9589-e0b4a79180b2"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "U6") (unit 1))
 			)
 		)
@@ -20504,7 +20504,7 @@
 		(pin "1" (uuid "db42e765-c1af-4eac-89f5-de8f3d15b778"))
 		(pin "2" (uuid "adca9528-a00a-421f-89cf-24b0cc07cc13"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R14") (unit 1))
 			)
 		)
@@ -20550,7 +20550,7 @@
 		(pin "1" (uuid "b90f0bd1-78ea-4fe3-9859-b0256e3f187a"))
 		(pin "2" (uuid "cf9798f9-d036-499c-b811-381563e92fc0"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C14") (unit 1))
 			)
 		)
@@ -20588,7 +20588,7 @@
 		(property "Value" "+5VSB" (at 134.62 369.57 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7cd1eec8-3f0c-4dc9-bf51-18cb864c6b88"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0305") (unit 1))
 			)
 		)
@@ -20606,7 +20606,7 @@
 		(property "Value" "+5VSB" (at 80.01 335.28 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6bb36fc1-a479-43b7-815d-27c1ac87c087"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0306") (unit 1))
 			)
 		)
@@ -20624,7 +20624,7 @@
 		(property "Value" "GND" (at 134.62 354.33 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "14f00058-07ae-457e-aab6-21cc3148bdbc"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0307") (unit 1))
 			)
 		)
@@ -20642,7 +20642,7 @@
 		(property "Value" "GND" (at 80.01 346.71 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "dddf14a9-6474-40d1-878e-4e2e6fd6b9c3"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0308") (unit 1))
 			)
 		)
@@ -20703,7 +20703,7 @@
 		(pin "11" (uuid "3bad038d-cde1-48d1-a5ac-3aae6400fe07"))
 		(pin "12" (uuid "8610dac2-e53d-47df-b301-fbc09be65dd0"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "U7") (unit 1))
 			)
 		)
@@ -20749,7 +20749,7 @@
 		(pin "1" (uuid "a864193a-b95f-49c2-b82d-3b32f4fff4de"))
 		(pin "2" (uuid "140495a1-6351-4091-bebc-bcbcd8d3f31d"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R_ILIM2") (unit 1))
 			)
 		)
@@ -20795,7 +20795,7 @@
 		(pin "1" (uuid "3c94b2c6-3b88-4a0b-a7e3-e64845791c8f"))
 		(pin "2" (uuid "87ad126b-bbfa-4aff-9a71-2e1c669da80a"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C_SS2") (unit 1))
 			)
 		)
@@ -20841,7 +20841,7 @@
 		(pin "1" (uuid "6d0b539f-2ef0-4918-8956-1634064dda3f"))
 		(pin "2" (uuid "ecc7da44-e52c-429a-9648-4d6642c7e701"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C15") (unit 1))
 			)
 		)
@@ -20887,7 +20887,7 @@
 		(pin "1" (uuid "661e1917-766c-4140-83cd-6ee185e34b71"))
 		(pin "2" (uuid "df99ddd9-12c3-4938-97b5-12ba613142d8"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R15") (unit 1))
 			)
 		)
@@ -20933,7 +20933,7 @@
 		(pin "1" (uuid "04f52e68-7116-48ca-9476-d619bd324d4c"))
 		(pin "2" (uuid "176e6310-f304-47a6-8fab-8a20204631cb"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R16") (unit 1))
 			)
 		)
@@ -20979,7 +20979,7 @@
 		(pin "1" (uuid "9cdc86a7-4c66-4f8b-ba5b-2f2fb01214b6"))
 		(pin "2" (uuid "549b9628-de02-4310-8991-5c6546da506d"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R17") (unit 1))
 			)
 		)
@@ -21025,7 +21025,7 @@
 		(pin "1" (uuid "6f95c3a1-9d88-40cf-b01c-4fb5f1f650e2"))
 		(pin "2" (uuid "f6011f44-ecdb-40fa-bbe6-da7fcdfb550f"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R18") (unit 1))
 			)
 		)
@@ -21109,7 +21109,7 @@
 		(property "Value" "+5VSB" (at 140.97 358.14 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "36f40e42-c64e-4a10-a550-75e2e62f1692"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0309") (unit 1))
 			)
 		)
@@ -21127,7 +21127,7 @@
 		(property "Value" "+5VSB" (at 180.34 368.3 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "ace85d02-bf66-4e87-814e-980c4ac9cdaf"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0311") (unit 1))
 			)
 		)
@@ -21145,7 +21145,7 @@
 		(property "Value" "GND" (at 97.79 393.7 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "379dfaf0-f3a3-48b1-992f-8faa2169c895"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0312") (unit 1))
 			)
 		)
@@ -21164,7 +21164,7 @@
 		(property "Value" "GND" (at 140.97 393.7 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "cb5a9113-f950-427f-adcf-d555524002bc"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0314") (unit 1))
 			)
 		)
@@ -21182,7 +21182,7 @@
 		(property "Value" "GND" (at 149.86 381 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "b5e34e47-58fd-4d74-b731-65f8023f6895"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0315") (unit 1))
 			)
 		)
@@ -21200,7 +21200,7 @@
 		(property "Value" "GND" (at 165.1 379.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "628a2d0c-a2e5-47c3-9ec5-f78c87e697d4"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0316") (unit 1))
 			)
 		)
@@ -21218,7 +21218,7 @@
 		(property "Value" "GND" (at 180.34 379.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "af7a3a3b-fd37-4a6c-9c62-476a162bdacf"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0317") (unit 1))
 			)
 		)
@@ -21236,7 +21236,7 @@
 		(property "Value" "GND" (at 214.63 379.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "62244f2f-00e2-4c77-9196-950004177ee2"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0318") (unit 1))
 			)
 		)
@@ -21254,7 +21254,7 @@
 		(property "Value" "GND" (at 250.19 379.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "862e12fe-42c8-4b7c-9457-aaa5032c167f"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0319") (unit 1))
 			)
 		)
@@ -21282,7 +21282,7 @@
 		(property "Value" "PWR_FLAG" (at 270.51 363.22 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9100b04f-3448-4d3a-8baf-bdfcfe31d5cd"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG0203") (unit 1))
 			)
 		)
@@ -21301,7 +21301,7 @@
 		(property "Value" "PWR_FLAG" (at 289.56 363.22 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "de4f7b33-3751-4d36-aeb7-88c0454b2d2b"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG0204") (unit 1))
 			)
 		)
@@ -21352,7 +21352,7 @@
 		(pin "4" (uuid "24fc4f30-a553-40db-b079-5ec61e1677b6"))
 		(pin "5" (uuid "9d2e10f3-afc1-4375-acb8-e607f6947614"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J_KVM") (unit 1))
 			)
 		)
@@ -21398,7 +21398,7 @@
 		(pin "1" (uuid "abd0e9b9-b110-4e98-a3b1-d5af9c830736"))
 		(pin "2" (uuid "89a528ed-6da3-4891-831a-56ccab10fe64"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R19") (unit 1))
 			)
 		)
@@ -21444,7 +21444,7 @@
 		(pin "1" (uuid "b32bf55c-34d0-4c99-aa32-bdcec421cef4"))
 		(pin "2" (uuid "2b3ee88f-1d3a-43f3-9420-ecfe162e4596"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R20") (unit 1))
 			)
 		)
@@ -21490,7 +21490,7 @@
 		(pin "1" (uuid "be42b17d-0ee2-4716-bcbc-b169a1249d7b"))
 		(pin "2" (uuid "7eb48d5f-cdf7-4dae-9110-fd0079a8baad"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R21") (unit 1))
 			)
 		)
@@ -21536,7 +21536,7 @@
 		(pin "1" (uuid "fe7fb7f6-50e9-4ab9-ad8c-ccd78f31cb31"))
 		(pin "2" (uuid "bac1d4ea-bbe2-4b60-8aa3-050e1117c9ba"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R22") (unit 1))
 			)
 		)
@@ -21582,7 +21582,7 @@
 		(pin "1" (uuid "27642469-dbe9-4358-a0fb-319de2f04e6c"))
 		(pin "2" (uuid "8222312f-1da6-4ee7-8413-75deb2497f81"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R23") (unit 1))
 			)
 		)
@@ -21628,7 +21628,7 @@
 		(pin "1" (uuid "63a6b51a-6c8b-4680-a830-9d081d3d9a55"))
 		(pin "2" (uuid "db9370b3-e0e4-43f6-8d73-524a292ec3f6"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R24") (unit 1))
 			)
 		)
@@ -21674,7 +21674,7 @@
 		(pin "1" (uuid "c5c7517c-a05a-4318-844c-d2afcdfecb9c"))
 		(pin "2" (uuid "239dfe5e-2066-40e0-bb1f-95c8d86cab00"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D7") (unit 1))
 			)
 		)
@@ -21754,7 +21754,7 @@
 		(property "Value" "+3V3" (at 407.67 364.49 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "ea5ee0eb-dc6e-43e4-9d62-d498f462f6f8"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9002") (unit 1))
 			)
 		)
@@ -21772,7 +21772,7 @@
 		(property "Value" "GND" (at 336.55 378.46 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "98e21ef4-e36c-41de-9e9a-0fa998392133"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9003") (unit 1))
 			)
 		)
@@ -21790,7 +21790,7 @@
 		(property "Value" "GND" (at 383.54 386.08 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "06f90b0a-a406-4db4-8176-02112321f59c"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9004") (unit 1))
 			)
 		)
@@ -21808,7 +21808,7 @@
 		(property "Value" "GND" (at 407.67 386.08 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6ba39a61-368c-4523-b995-eca6d6b721d8"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9005") (unit 1))
 			)
 		)
@@ -21826,7 +21826,7 @@
 		(property "Value" "GND" (at 339.09 375.92 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "3b393f19-d4fb-4071-8d0e-411c081b1dcb"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9006") (unit 1))
 			)
 		)
@@ -21872,7 +21872,7 @@
 		(pin "1" (uuid "b58fd369-217d-496d-9cc0-b8524ba34a63"))
 		(pin "2" (uuid "1ae82bea-919b-406a-94ee-bf3d2f924226"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "TH1") (unit 1))
 			)
 		)
@@ -21918,7 +21918,7 @@
 		(pin "1" (uuid "41be0de1-6d71-49ce-ae02-1d37ba31d6d2"))
 		(pin "2" (uuid "aea5aa79-960e-4b29-95c2-0c37a2051579"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R25") (unit 1))
 			)
 		)
@@ -21964,7 +21964,7 @@
 		(pin "1" (uuid "c4cec627-b5d9-4802-85c1-46c4b7c5555a"))
 		(pin "2" (uuid "411dee69-7626-45de-b1f1-3829a551094e"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C16") (unit 1))
 			)
 		)
@@ -22000,7 +22000,7 @@
 		(property "Value" "+3V3" (at 316.5 342.9 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "fcced96c-f3f4-4d9e-bd7f-b887237a815d"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9007") (unit 1))
 			)
 		)
@@ -22018,7 +22018,7 @@
 		(property "Value" "GND" (at 309.88 365.76 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8a3de19e-83be-4b73-9767-250cb29ab671"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9008") (unit 1))
 			)
 		)
@@ -22036,7 +22036,7 @@
 		(property "Value" "GND" (at 323.85 360.68 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6e228f59-96ea-47ab-b5fe-6995dd686b81"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9009") (unit 1))
 			)
 		)
@@ -22063,7 +22063,7 @@
 		(pin "2" (uuid "522f53b2-0c93-4b16-9fce-ea683e5985d5"))
 		(pin "3" (uuid "ad9c4967-e779-4702-8ff4-920fb41a04af"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J_PWR") (unit 1))
 			)
 		)
@@ -22100,7 +22100,7 @@
 		(pin "1" (uuid "3bcfd5e9-9f5d-46a3-a61a-1b7a1889a3d2"))
 		(pin "2" (uuid "075ae6e4-4d47-47b3-936a-e74d93b01a11"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R26") (unit 1))
 			)
 		)
@@ -22133,7 +22133,7 @@
 		(pin "1" (uuid "6b6f6489-7c60-47e6-ae92-ce3bb64f526e"))
 		(pin "2" (uuid "d21b0b47-4375-4c63-a532-17401a325977"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R27") (unit 1))
 			)
 		)
@@ -22166,7 +22166,7 @@
 		(pin "1" (uuid "005300a7-6a74-4e1d-bbc4-08620f5607c0"))
 		(pin "2" (uuid "c17c6c77-a5d4-4c5c-983e-391429d505db"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R28") (unit 1))
 			)
 		)
@@ -22202,7 +22202,7 @@
 		(pin "4" (uuid "5ca8a87c-b57b-463a-8680-a153943716fa"))
 		(pin "5" (uuid "a274e4a3-6c45-4f2d-bf78-ceefb1479ccd"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "U8") (unit 1))
 			)
 		)
@@ -22247,7 +22247,7 @@
 		(pin "1" (uuid "760c0258-af92-4433-a78c-8ea37413dabd"))
 		(pin "2" (uuid "c5437973-d7ab-4feb-a556-bde53d394496"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C17") (unit 1))
 			)
 		)
@@ -22280,7 +22280,7 @@
 		(pin "1" (uuid "da25309d-eb76-49c2-a5d8-f8e65ce119dc"))
 		(pin "2" (uuid "4f9ca27b-73d5-4f9a-9fe7-b01c9155b546"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "RJ_HOLD") (unit 1))
 			)
 		)
@@ -22314,7 +22314,7 @@
 		(pin "1" (uuid "4c59e8e7-2faa-4f28-8232-b7c851bb93c1"))
 		(pin "2" (uuid "fc880cbd-9876-42d8-8c0a-1c6c5642217f"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "RJ_BUCK") (unit 1))
 			)
 		)
@@ -22351,7 +22351,7 @@
 		(pin "4" (uuid "71374d0d-7f22-413f-a616-fc8799fad2e6"))
 		(pin "5" (uuid "042be1b5-ee72-4e33-a8b5-27a953608f15"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "U9") (unit 1))
 			)
 		)
@@ -22394,7 +22394,7 @@
 		(pin "1" (uuid "29986346-b81a-4a43-87c1-15a581aea947"))
 		(pin "2" (uuid "340a8693-6ca7-48d0-9873-5b74288090dd"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R31") (unit 1))
 			)
 		)
@@ -22428,7 +22428,7 @@
 		(pin "1" (uuid "092652cf-5c28-4a69-9418-bfcf816f1fc2"))
 		(pin "2" (uuid "add82aab-706e-4368-94b3-2a3423716b3c"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R32") (unit 1))
 			)
 		)
@@ -22462,7 +22462,7 @@
 		(pin "1" (uuid "4eda48fe-8925-42c9-a240-077be77011b1"))
 		(pin "2" (uuid "7b6cc932-aa53-4246-884a-2812bd96e3b6"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R29") (unit 1))
 			)
 		)
@@ -22500,7 +22500,7 @@
 		(pin "5" (uuid "b794a2c1-c53f-45f3-9c53-7a6454f59834"))
 		(pin "6" (uuid "f1b7b407-8e12-428b-a158-fb6236df71c3"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "U10") (unit 1))
 			)
 		)
@@ -22544,7 +22544,7 @@
 		(pin "1" (uuid "7d1bb762-fcd4-4ff5-92db-cf87be3fb12d"))
 		(pin "2" (uuid "543cd02e-68d6-44d6-9a16-9c800662475f"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R30") (unit 1))
 			)
 		)
@@ -22578,7 +22578,7 @@
 		(pin "1" (uuid "03af45d8-6822-4082-bd26-f2447bfc82bf"))
 		(pin "2" (uuid "fe622d03-e7f7-40a6-ae18-10e79477a5cf"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "L2") (unit 1))
 			)
 		)
@@ -22604,7 +22604,7 @@
 		(property "Value" "PWR_FLAG" (at 466.09 416.56 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "2d318d3a-88a9-439f-b925-e08b611c23d5"))
 		(instances
-			(project "hub-standard"
+			(project "hub-standard-rev2"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG_LDOIN") (unit 1))
 			)
 		)

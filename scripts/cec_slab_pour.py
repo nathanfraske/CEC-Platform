@@ -691,6 +691,40 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
             rcells[lay] = rc
             reqw[lay] = w
 
+        # ANCHOR-DRIVEN LAYER WIDENING (2026-07-24, the implementation-agent's
+        # flag 1 materialized on the first live 24-pin wave: rail-compiler
+        # SENSE asks carry In2-only layers, but the shunt/INA SMD terminals
+        # live on F.Cu -> route_overunder refused with "terminal has no
+        # anchor on any searched layer"). A terminal cluster anchored on NO
+        # searched layer but anchored on an outer layer pulls that layer
+        # into the search set. F.Cu LEGALITY is unaffected: the realized
+        # lane still goes through add_power_pours' shunt-only F choke at lay
+        # time -- and a widened net's F anchors are shunt/INA pads, i.e.
+        # inside the shunt neighborhoods that choke admits.
+        for extra in ("F.Cu", "B.Cu"):
+            if extra in passable or board.GetLayerID(extra) < 0:
+                continue
+            uncov = [k for k in range(1, nclusters + 1)
+                     if not any((anchors[lay] & (clab == k)).any()
+                                for lay in layers)]
+            if not uncov:
+                break
+            foreign, anc = rasterize(board, nc, board.GetLayerID(extra),
+                                     grid, clearance_mm)
+            helped = [k for k in uncov if (anc & (clab == k)).any()]
+            if not helped:
+                continue
+            w = req_width_mm(amps, extra) if amps > 0 else 1.2
+            rc = max(1, int(round(w / (2.0 * grid.cell))))
+            layers.append(extra)
+            passable[extra] = ndimage.binary_erosion(
+                ~foreign, structure=st, iterations=rc) | anc
+            anchors[extra] = anc
+            rcells[extra] = rc
+            reqw[extra] = w
+            print(f"[cec_slab_pour] over-under: widened {net} search to "
+                  f"{extra} (terminal cluster(s) {helped} anchored only "
+                  f"there)", file=sys.stderr)
         f_prox = None
         if "F.Cu" in anchors:
             f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
