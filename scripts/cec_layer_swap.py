@@ -94,9 +94,10 @@ def _inner_gnd_plane_layer():
         return gnd_inners[-1]
     # name fallback
     try:
-        lid = b.GetLayerID("12V")
-        if lid is not None and lid >= 0 and lid not in (F, B):
-            return lid
+        for _nm in ("GND2", "12V"):        # GND2 = the honest name (2026-07-25);
+            lid = b.GetLayerID(_nm)        # "12V" = the stale pre-rename label
+            if lid is not None and lid >= 0 and lid not in (F, B):
+                return lid
     except Exception:
         pass
     return None

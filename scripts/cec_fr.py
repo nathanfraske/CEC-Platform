@@ -1287,6 +1287,62 @@ def shunt_tap_gaps(board, *, prefix="RS"):
     return gaps
 
 
+def shunt_pour_forbidden(board, *, prefix="RS", margin_mm=0.0):
+    """Every region a pour must NOT occupy around a shunt, as clip rects.
+
+    Two rules, both from the 2026-07-24 pour-termination ruling:
+
+      * THE TAP GAP is off limits to everybody (net=None) -- it belongs to the
+        Kelvin stubs;
+      * A FORCE POUR TERMINATES AT ITS OWN PAD (net=<terminal net>): everything
+        beyond that pad's INNER edge, along the shunt axis, is forbidden to that
+        net. Without this the gap clip alone just hollows a doughnut -- measured
+        on eps, /SENSEC1_HI stopped at nothing: its pad ends at y 17.95 and the
+        pour ran to y 28.38, straight past the gap AND past the LO pad, wrapping
+        the shunt it is supposed to terminate at. Clipping at the inner edge is
+        what "stops at the shunt pad" actually means.
+
+    Returns [(layers:set, (x0, y0, x1, y1), ref, net_or_None), ...] in mm.
+    """
+    out = [(lays, rect, ref, None) for lays, rect, ref in shunt_tap_gaps(board, prefix=prefix)]
+    bb = board.GetBoardEdgesBoundingBox()
+    BX0, BY0 = bb.GetLeft() / MM - 10.0, bb.GetTop() / MM - 10.0
+    BX1, BY1 = bb.GetRight() / MM + 10.0, bb.GetBottom() / MM + 10.0
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if not ref.startswith(prefix):
+            continue
+        pads = list(fp.Pads())
+        if len(pads) != 2:
+            continue
+        info = []
+        for pd in pads:
+            bx = pd.GetBoundingBox()
+            info.append((pd.GetNetname(),
+                         bx.GetLeft() / MM, bx.GetTop() / MM,
+                         bx.GetRight() / MM, bx.GetBottom() / MM,
+                         {pcbnew.LayerName(l) for l in pd.GetLayerSet().CuStack()}))
+        (n1, ax0, ay0, ax1, ay1, al), (n2, bx0, by0, bx1, by1, bl) = info
+        lays = al & bl
+        if not lays or not n1 or not n2 or n1 == n2:
+            continue
+        if min(ax1, bx1) < max(ax0, bx0):                  # x-separated
+            if ax1 <= bx0:                                  # pad A is the left one
+                out.append((lays, (ax1 + margin_mm, BY0, BX1, BY1), ref, n1))
+                out.append((lays, (BX0, BY0, bx0 - margin_mm, BY1), ref, n2))
+            else:
+                out.append((lays, (BX0, BY0, ax0 - margin_mm, BY1), ref, n1))
+                out.append((lays, (bx1 + margin_mm, BY0, BX1, BY1), ref, n2))
+        elif min(ay1, by1) < max(ay0, by0):                # y-separated
+            if ay1 <= by0:                                  # pad A is the upper one
+                out.append((lays, (BX0, ay1 + margin_mm, BX1, BY1), ref, n1))
+                out.append((lays, (BX0, BY0, BX1, by0 - margin_mm), ref, n2))
+            else:
+                out.append((lays, (BX0, BY0, BX1, ay0 - margin_mm), ref, n1))
+                out.append((lays, (BX0, by1 + margin_mm, BX1, BY1), ref, n2))
+    return out
+
+
 def _subtract_rect(poly, rect):
     """poly (list of (x, y)) minus an axis-aligned rect -> list of polygons.
 
@@ -1375,7 +1431,7 @@ def enforce_pour_termination(board, *, refill=True):
     untouched. Zones reduced to nothing are removed.
     """
     try:
-        gaps = shunt_tap_gaps(board)
+        gaps = shunt_pour_forbidden(board)
     except Exception:                                      # noqa: BLE001
         return 0
     if not gaps:
@@ -1388,7 +1444,11 @@ def enforce_pour_termination(board, *, refill=True):
             if not z.IsOnLayer(lid):
                 continue
             lname = pcbnew.LayerName(lid)
-            mine = [g for g in gaps if lname in g[0]]
+            _zn = z.GetNetname() or ""
+            # a rect with net=None binds every net (the tap gap); a rect with a
+            # net binds only that net (its own terminate-at-the-pad half-plane)
+            mine = [g for g in gaps
+                    if lname in g[0] and (g[3] is None or g[3] == _zn)]
             if not mine:
                 continue
             outline = z.Outline()
@@ -1398,7 +1458,7 @@ def enforce_pour_termination(board, *, refill=True):
                 kept.append(([(o.CPoint(k).x / MM, o.CPoint(k).y / MM)
                               for k in range(o.PointCount())], []))
             touched = False
-            for _lays, rect, _ref in mine:
+            for _lays, rect, _ref, _rnet in mine:
                 nxt = []
                 for ext, holes in kept:
                     res = _subtract_rect(ext, rect)
@@ -1490,7 +1550,7 @@ def add_power_pours(board, pours, *, fill: bool = False):
     # patches, the import list, the router's pass-2 re-derivation) funnels through
     # this function, so a per-caller clip can always be bypassed by the next caller.
     try:
-        _gaps = shunt_tap_gaps(board)
+        _gaps = shunt_pour_forbidden(board)
     except Exception:                                  # noqa: BLE001
         _gaps = []
     _clipped = 0
@@ -1541,8 +1601,8 @@ def add_power_pours(board, pours, *, fill: bool = False):
         # copper. A pour reduced to nothing is dropped (it was ALL gap).
         _lay_name = p.get("layer", "F.Cu")
         _polys = [(list(p["polygon"]), [])]
-        for _glays, _grect, _gref in _gaps:
-            if _lay_name not in _glays:
+        for _glays, _grect, _gref, _gnet in _gaps:
+            if _lay_name not in _glays or (_gnet is not None and _gnet != net):
                 continue
             _next = []
             for _ext, _holes in _polys:

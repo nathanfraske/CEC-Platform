@@ -529,8 +529,16 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         # the freed inner's user label follows its role: "PWR_RT" on rail-alt
         # boards (24-pin), "SIG2" on signal-inner boards (hub) -- cosmetic,
         # the canonical In2.Cu is what tooling resolves
-        doc = doc.replace('(6 "In2.Cu" power "12V")',
-                          f'(6 "In2.Cu" signal "{inner_label}")', 1)
+        # STACKUP LABEL HONESTY (owner ask 2026-07-25): the shared table now
+        # ships In2 as the cable-board GND PLANE ("GND2", type power). On the
+        # inner-ROUTING boards (24-pin rail-alt / hub signal inner) it becomes a
+        # routable signal layer instead. Both spellings are accepted so a board
+        # generated before the rename still converts.
+        for _stale in ('(6 "In2.Cu" power "GND2")', '(6 "In2.Cu" power "12V")'):
+            if _stale in doc:
+                doc = doc.replace(_stale,
+                                  f'(6 "In2.Cu" signal "{inner_label}")', 1)
+                break
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body

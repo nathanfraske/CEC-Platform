@@ -7728,6 +7728,55 @@ def _load_pourplan_sidecar(board_path, rules):
         return None
 
 
+def _net_pad_extents(board_path, *, layer="F.Cu"):
+    """Per-net bbox of the pads a pour must reach, in mm.
+
+    Used to extend a corridor keepout to the pour's real extent (see
+    _oracle_hints_pours). Clipped by the shunt terminate-at-the-pad rule, so the
+    reservation never claims the tap gap or the far side of a shunt.
+    """
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    lid = board.GetLayerID(layer)
+    out = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            if lid >= 0 and not pd.IsOnLayer(lid):
+                continue
+            net = pd.GetNetname()
+            if not net:
+                continue
+            bb = pd.GetBoundingBox()
+            x0, y0 = bb.GetLeft() / 1e6, bb.GetTop() / 1e6
+            x1, y1 = bb.GetRight() / 1e6, bb.GetBottom() / 1e6
+            cur = out.get(net)
+            out[net] = (min(cur[0], x0), min(cur[1], y0),
+                        max(cur[2], x1), max(cur[3], y1)) if cur else (x0, y0, x1, y1)
+    # never reserve past a shunt pad: clip each net's extent by its own
+    # terminate-at-the-pad half-plane (the same rule the pour itself obeys)
+    try:
+        import cec_fr
+        for lays, rect, _ref, rnet in cec_fr.shunt_pour_forbidden(board):
+            if rnet is None or layer not in lays or rnet not in out:
+                continue
+            x0, y0, x1, y1 = out[rnet]
+            fx0, fy0, fx1, fy1 = rect
+            if fx0 <= x0 and fx1 >= x1:                 # forbidden spans in x -> clip y
+                if fy0 <= y0 < fy1 < y1:
+                    y0 = fy1
+                elif y0 < fy0 < y1 <= fy1:
+                    y1 = fy0
+            elif fy0 <= y0 and fy1 >= y1:               # spans in y -> clip x
+                if fx0 <= x0 < fx1 < x1:
+                    x0 = fx1
+                elif x0 < fx0 < x1 <= fx1:
+                    x1 = fx0
+            out[rnet] = (x0, y0, x1, y1)
+    except Exception:                                   # noqa: BLE001 -- best effort
+        pass
+    return out
+
+
 def _oracle_hints_pours(board_path):
     """Derive the gate-clean recipe's keepout HINTS + power POURS for a placement board, honouring the
     recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules).
@@ -7756,7 +7805,36 @@ def _oracle_hints_pours(board_path):
     # crossings -- measured); F.Cu-only when CEC_CORRIDOR_FCU_ONLY=1 so foreign escapes B.Cu under the pour.
     fcu_only = os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1"
     try:
-        hints += plan.keepout_hints(layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
+        _corr = plan.keepout_hints(layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
+        # RESERVE WHAT WILL ACTUALLY BE POURED (2026-07-25, owner: "FR is just
+        # routing directly through all of the pours"). The corridor keepout and
+        # the pour are meant to be two views of ONE plan, and they ARE identical
+        # at derivation -- measured, both (29.8,6.3)-(44.4,15.2) for /SENSEC1_HI.
+        # But later stages EXTEND the pour to reach its pads (the shunt row, the
+        # connector field): the laid /SENSEC1_LO ran to y 39.80 while its
+        # reservation stopped at 36.2, and Freerouting -- correctly -- routed the
+        # USB pair 14mm through the strip nobody reserved. Extending each corridor
+        # to its own net's pad field restores the invariant: what gets poured is
+        # what was reserved. Still F.Cu-only under CEC_CORRIDOR_FCU_ONLY, so
+        # foreign nets keep their B.Cu/inner escape.
+        try:
+            _pads = _net_pad_extents(board_path)
+            for _h in _corr:
+                _nm = (_h.get("name") or "")
+                if not _nm.startswith("corr_"):
+                    continue
+                _net = _nm[len("corr_"):]
+                _ext = _pads.get(_net) or _pads.get("/" + _net)
+                if not _ext:
+                    continue
+                _h["x0"] = min(_h["x0"], _ext[0])
+                _h["y0"] = min(_h["y0"], _ext[1])
+                _h["x1"] = max(_h["x1"], _ext[2])
+                _h["y1"] = max(_h["y1"], _ext[3])
+        except Exception as e:                                   # noqa: BLE001
+            _tc.warn_once("oracle_corridor_extend",
+                          "corridor pad-extent extension skipped (%s)" % e)
+        hints += _corr
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
     # LOGO ROUTING KEEPOUT (owner 2026-07-15): the front copper art must see no
@@ -9130,7 +9208,19 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 if precision:
                     import cec_precision_route
                     prec = os.path.join(work_dir, "precision.kicad_pcb")
-                    prec_report = cec_precision_route.precision_route(placed, prec, verbose=verbose)
+                    # RESERVED CORRIDORS AS OBSTACLES FOR THE PRE-FR PAIRS
+                    # (2026-07-25): the pairs are laid + LOCKED before FR, so a
+                    # pair that ignores a pour corridor puts locked copper where
+                    # the pour must go and no keepout can undo it. Feed it the
+                    # same corr_* rects FR gets; a pair with no clear candidate
+                    # refuses and FR routes it, honouring the keepout.
+                    _avoid = tuple((h["x0"], h["y0"], h["x1"], h["y1"],
+                                    (h.get("name") or "corridor"))
+                                   for h in hints
+                                   if str(h.get("name") or "").startswith("corr_")
+                                   and "F.Cu" in (h.get("layers") or ("F.Cu",)))
+                    prec_report = cec_precision_route.precision_route(
+                        placed, prec, verbose=verbose, avoid=_avoid)
                     route_input = prec
                     _protect = sorted(set(_protect) | set(prec_report.get("locked_nets", [])))
                     _skip_taps = True  # taps laid+locked pre-FR; import_ses must not re-lay them
@@ -9148,7 +9238,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             cec_staged_fr.route_tiered(
                                 prec, prec2, tiers=[tier_nets], include_residual=False,
                                 pre_locked_nets=set(_protect), passes=passes, opt=opt,
-                                seed=seed, timeout=int(fr_timeout), verbose=verbose)
+                                seed=seed, timeout=int(fr_timeout), verbose=verbose,
+                                hints=[h for h in hints
+                                       if str(h.get("name") or "").startswith("corr_")])
                             route_input = prec2
                             _protect = sorted(set(_protect) | set(tier_nets))
                             prec_report["refused_pair_tier"] = tier_nets

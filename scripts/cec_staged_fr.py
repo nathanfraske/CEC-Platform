@@ -131,7 +131,7 @@ def default_tiers(board_path):
 
 
 def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=None,
-                 timeout=900, verbose=True, pre_locked_nets=(), skip_locked_taps=False,
+                 timeout=900, verbose=True, pre_locked_nets=(), hints=(), skip_locked_taps=False,
                  include_residual=True):
     """The tiered ladder. tiers = list of net-name lists; a final residual pass over
     everything else is implicit. Returns a report dict (per-tier stats + total wall).
@@ -178,6 +178,14 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
                 _all_locked = {tr.GetNetname() for tr in pcbnew.LoadBoard(cur).GetTracks()
                                if tr.IsLocked()}
                 _ko = cec_fr.locked_copper_keepouts(cur, only_nets=_all_locked - set(tier))
+                # RESERVED POUR CORRIDORS travel with the tier (2026-07-25). A pair
+                # the precision router REFUSES lands here, and this route LOCKS its
+                # result -- so without the corridors the tier lays locked copper
+                # straight through the pours, which is exactly what "FR is routing
+                # through all of the pours" turned out to be: the eps USB pair,
+                # refused upstream, arrived as 31 locked segments crossing
+                # /SENSEC1_LO and /SENSEC2_LO. The main route already gets these.
+                _ko = list(_ko) + list(hints or ())
                 if _ko:
                     export_src = os.path.join(work, f"t{i}-hinted.kicad_pcb")
                     cec_fr.bake_hints(cur, export_src, keepouts=_ko)

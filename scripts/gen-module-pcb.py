@@ -203,7 +203,7 @@ def parse_netlist(path):
 LAYERS = """\t(layers
 \t\t(0 "F.Cu" signal)
 \t\t(4 "In1.Cu" signal "GND")
-\t\t(6 "In2.Cu" power "12V")
+\t\t(6 "In2.Cu" power "GND2")
 \t\t(2 "B.Cu" signal)
 \t\t(9 "F.Adhes" user "F.Adhesive")
 \t\t(11 "B.Adhes" user "B.Adhesive")
