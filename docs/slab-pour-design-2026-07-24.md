@@ -365,3 +365,18 @@ _via_pad_excluded/_via_spot_clear/add_overunder_vias/synthesize_force_vias) +
 test_force_rails alt-array in-pad assertion. Owner-review artifact:
 POURFIRST-sense-band-dataflow-s464-v4-shuntband-fcu.png (FILLED termination view over
 ZONELESS pad/tap/via view, worklogged tag pour-first).
+
+### Single-owner ruling (owner, 2026-07-25, on s510-class winners)
+"Why did it make that bottom blob when it routed just fine on the bottom layers... why
+does the top have a pour that goes nowhere if it already has a pour and route on the
+bottom that works just fine?" THE PRINCIPLE: one net, one OWNING layer per segment —
+copper is laid only where the winning solution actually runs; no layer gets "just in
+case" copper. Mechanisms convicted: (a) ask layers treated as MANDATES (In2 laid even
+when the search solved on B) — an ask's layer is a PREFERENCE; the realized solution
+owns its layers; (b) guaranteed shunt patches UNCONDITIONAL (starvation over-correction)
+— a patch exists only when the net's solution uses F at the shunt or Kelvin/thermal need
+demands it; reachability is now the pour-first solve's job, not insurance copper's;
+(c) no post-solve redundancy reap: any same-net pour piece that is not load-bearing for
+the realized connectivity AND not thermally needed (the need-based mirror test) is
+REMOVED. The v4 acceptance inherits this: zero non-load-bearing same-net pour copper on
+a live winner.
