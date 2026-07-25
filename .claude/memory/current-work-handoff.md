@@ -1,5 +1,14 @@
 # Current work handoff
 
+## VE PASS APPLIED (2026-07-25 ~04:55Z, owner ask, on pipeline-pass-2)
+Applied: VE-1 GDTs core-5-only (AUX = MOV+fuse, pre-#14 safe; -1.70), VE-2 supercaps 5F->2F
+Pro-provision cells (-1.00; ~6 sessions, <60s recharge unchanged), VE-3 NE_BF deleted (-0.15);
+CORRECTION: LM339 was under-counted 16-vs-21 sections -> U1..U6 (+0.25). Rollup $45-48 -> $43-45
+@100, ~$34-36 @1k. Declined false economies recorded in README 6 (meter/flicker/divider-margin/
+bleeder-derate/HRC/kit-spare/AUX-DNP). Open levers: generic ATO clips (NO LCSC line — consigned
+hunt at sample order, biggest remaining -2.0-2.4), toggle brand call (-1.00), case engineering
+at RFQ (-2-3).
+
 ## PHASE A INTAKE VERIFIED (2026-07-25 ~04:15Z): lib measured — reuse set confirmed (Mini-Fit
 5569-24A1 = snout part exists w/ 3D; SOT-23/SMA/SOD-323/USB-C/R-C-LED smd); GAPS: SOIC-14 fp,
 R_2010, LED-3mm-THT, all specialty fps, and ZERO symbols for comparator/fuse/neon/varistor/GDT/

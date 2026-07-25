@@ -79,9 +79,9 @@
   <!-- BRICK -->
   <rect x="390" y="280" width="150" height="110" fill="#fdeaea" stroke="#c22" stroke-width="2.5"/>
   <text x="398" y="296" font-size="10" font-weight="bold" fill="#a11">BOARD 3 — SACRIFICE BRICK</text>
-  <text x="398" y="309" font-size="8.5">plug-in consumable ③ ~$4.30</text>
+  <text x="398" y="309" font-size="8.5">plug-in consumable ③ ~$3.85</text>
   <text x="398" y="321" font-size="8.5">8× MOV uniform 14D220K</text>
-  <text x="398" y="333" font-size="8.5" fill="#a11">◆ glass GDTs (~90–150V) —</text>
+  <text x="398" y="333" font-size="8.5" fill="#a11">◆ 5× glass GDTs, core ways —</text>
   <text x="398" y="344" font-size="8.5" fill="#a11">  the visible mains crowbar</text>
   <text x="398" y="356" font-size="8.5">8× 1Ω flameproof witness</text>
   <text x="398" y="368" font-size="8.5">+ 33Ω 2W harvest fusible</text>
@@ -155,7 +155,7 @@
   <rect x="790" y="404" width="240" height="124" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="5 3"/>
   <text x="800" y="421" font-size="9.5" font-weight="bold" fill="#2255aa">POWER (batteryless)</text>
   <text x="800" y="435" font-size="8.5">5VSB⊕5V ways → 33Ω fusible (brick)</text>
-  <text x="800" y="446" font-size="8.5">→ 5.6V zener → 2S 5F supercaps</text>
+  <text x="800" y="446" font-size="8.5">→ 5.6V zener → 2S 2F supercaps</text>
   <text x="800" y="457" font-size="8.5">⊕ USB-C 5V cold-start</text>
   <text x="800" y="471" font-size="8.5">23J ≈ 12min TEST ≈ 16 sessions;</text>
   <text x="800" y="482" font-size="8.5">&lt;60s refill off any live rail;</text>

@@ -51,15 +51,15 @@ at ~90 V, lights **CASE LIVE**.
 
 **Power — batteryless, self-charging (owner no-disposables directive, 2026-07-24):**
 no battery of any chemistry. The measurement domain runs from a **2S supercap store**
-(2× 2.7 V 5 F radials + 2× 100 kΩ balance — the same 2S-radial pattern as the Pro/Max
-supercap provision, shared sourcing) that **harvests from the DUT itself**: 5VSB-way ⊕
+(2× 2.7 V 2 F radials + 2× 100 kΩ balance — the EXACT Pro/Max-provision cell class,
+one shared buy; VE-2 2026-07-25, was 5 F) that **harvests from the DUT itself**: 5VSB-way ⊕
 5V-way through ORing Schottkys → a 33 Ω 2 W flameproof fusible (on the brick — the
 harvest tap's protection is sacrificial like everything else) → 5.6 V zener CV clamp →
 store. Every test session recharges it: a live 5VSB wakes an empty store in <60 s
 (~150 mA initial, 0.76 W in the 2 W part). USB-C 5 V (any phone brick/power bank) is
 the cold-start path for the one corner where nothing on the DUT is alive. Store math:
-2.5 F net, 5.0→2.5 V usable = 23 J ≈ **12 min of held-TEST ≈ 16 DUT sessions** per
-charge; zero standby drain (latching relay + neons need nothing at rest). The domain
+1 F net, 5.0→2.5 V usable = 9.4 J ≈ **~5 min of held-TEST ≈ 6 DUT sessions** per
+charge (reserve depth was comfort — recharge is <60 s off any live rail); zero standby drain (latching relay + neons need nothing at rest). The domain
 runs DIRECT from the store (no LDO): all thresholds compare against a TLV431 1.24 V
 absolute reference, so the rail may ride 2.5–5.4 V; way lamps are 2 mA high-efficiency
 red / 570 nm yellow-green (Vf ≤2.1 V) so indication holds to the bottom of the store.
@@ -241,9 +241,24 @@ meter, missile toggle + panel switches, supercaps (study-gate 2026-07-15), Mini-
 (Phase A pick). Datasheets vendored to `lib/datasheets/`: LM339, TLV431A, SMAZ series
 (Littelfuse 215/297 + Hongfa fetch-blocked 403/404 — FOLLOWUPS).
 
-**Landed rollup at verified prices: ≈$45–48 @100 with the starter kit** (honest drift
+**VE pass (owner ask, 2026-07-25) — applied without sacrificing anything load-bearing:**
+VE-1 GDTs on the 5 CORE ways only (AUX ways keep MOV+fuse coordination — the pre-#14
+signed-safe architecture; −$1.70 across installed + spare brick). VE-2 supercaps 5 F→2 F
+Pro-provision cells (−$1.00; ~6 sessions/charge, <60 s recharge unchanged). VE-3
+redundant NE_BF option deleted (−$0.15). Plus one CORRECTION the audit surfaced: LM339
+count was under-provisioned (16 sections vs 21 needed) → 6 packages (+$0.25). Net
+≈ −$2.60. DECLINED as false economies (each examined): meter (perceived-value king),
+flicker tube (#14 soul), 3-resistor divider strings (surge margin IS the product),
+10 W bleeder→5 W (61% dissipation vs the ~50% derate doctrine), HRC class, kit spare
+brick, AUX subsystem DNP (kills adapter attach on v1 — it is a revenue line). OPEN
+LEVERS, not BOM edits: generic ATO clip pairs (−$2.0–2.4 — NO LCSC line exists, 3
+searches; consigned hunt rides the sample order, Bussmann stands until proven),
+missile-toggle generic+cover (−$1.00, brand call — owner's), case engineering at quote
+(−$2–3: faceplate-as-structural-top, printed lid insert — folded into the case RFQ).
+
+**Landed rollup at verified prices, post-VE: ≈$43–45 @100 with the starter kit** (honest drift
 from the $42–43 diagram estimate: real ATO-holder pricing + the GDT-populated spare
-brick in the kit); ~$36–38 path @1k after the case quote. **Retail $79 (RULED #9)** —
+brick in the kit); ~$34–36 path @1k after the case quote. **Retail $79 (RULED #9)** —
 2.1× at 100-qty worst, healthy at 1k. Consumables (RULED #12): Fuse+Flag $9 · brick
 2-pack $12–15 · snout $9 · AUX adapters $9–12 / $39 4-pack.
 
