@@ -4087,9 +4087,16 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             if _doomed:
                 print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
-    if power_pours:
-        # already filtered+bonded EARLY (before force-vias/pickups) -- lay as-is
-        add_power_pours(board, power_pours, fill=False)
+    # POUR LAY MOVED (2026-07-24 trace #2, the owner's "fixes did not land"
+    # class): pours are laid ONCE at the single post-conversion site just
+    # before fix_annular below. The lay that used to sit HERE ran before the
+    # bond/scrap filter (its "already filtered EARLY" comment was stale -- the
+    # only synthesize_pour_bonds call sits AFTER this point) and before the
+    # slab/over-under conversion, so raw RECTS landed on the board while the
+    # converted slab dicts were reassigned into power_pours and then consumed
+    # by NOTHING (measured on the published s416: every non-GND zone verts=4 =
+    # rect; zero slabs ever reached copper despite the conversion printing
+    # success). Filter -> via stages -> conversion -> lay is the real order.
     if kelvin_taps:
         # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
         # window derive_power_pours leaves open. ADDITIVE same-net (after the route) -> never strands
@@ -4222,12 +4229,12 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                             print(f"[cec_fr] over-under: {_n_ouv}/{len(_ou_vias)} "
                                   "bridge via(s) laid (ledger-clear)",
                                   file=sys.stderr)
-                        if _sp3:
-                            # lay through add_power_pours -- the SAME choke
-                            # point every other pour goes through (the
-                            # shunt-only F.Cu rule applies identically to an
-                            # over-under F lane; design doc step 5).
-                            add_power_pours(board, _sp3, fill=False)
+                        # lanes flow into power_pours below and are laid at
+                        # the SINGLE lay site (through add_power_pours -- the
+                        # same choke point every pour goes through; the
+                        # shunt-only F.Cu rule applies identically to an
+                        # over-under F lane). Bridge vias above stay laid
+                        # in-branch so vias precede lanes (design step 5).
                         _nopath = [n for n, v in _sr3.items()
                                   if not v.get("path_found", True)]
                         print(f"[cec_fr] over-under conversion (post-via): "
@@ -4235,6 +4242,21 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                               f"for {len(_sr3)} net(s)"
                               + (f"; NO PATH for {_nopath}" if _nopath else ""),
                               file=sys.stderr)
+                        if _nopath:
+                            # PER-NET SLAB FALLBACK: a no-path net (e.g. two
+                            # genuinely disconnected clusters, s415's
+                            # /SENSE12V_LO) still deserves coverage on what
+                            # copper it HAS -- slab-shave just its dicts so
+                            # both fragments get anchored pour, and the gap
+                            # stays honestly visible to DRC/lastmile.
+                            _fb = [p for p in _conv if p.get("net") in set(_nopath)]
+                            if _fb:
+                                _spf, _srf = cec_slab_pour.synthesize_slab_pours(
+                                    board, _fb)
+                                _sp3 = list(_sp3) + list(_spf)
+                                print(f"[cec_fr] over-under: slab fallback laid "
+                                      f"{len(_spf)} slab(s) for {len(_fb)} "
+                                      f"no-path dict(s)", file=sys.stderr)
                     else:
                         _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
                         _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
@@ -4250,6 +4272,14 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             except Exception as _se3:                    # noqa: BLE001
                 print(f"[cec_fr] slab conversion FAILED ({_se3}) -- rects kept",
                       file=sys.stderr)
+    # SINGLE LAY SITE (2026-07-24): every pour dict -- filtered rects, slab
+    # polys, over-under lanes, or the raw list when kelvin_taps=False skipped
+    # the filter/conversion stages -- lands on the board HERE, exactly once,
+    # through add_power_pours (the choke point that owns the shunt-only F.Cu
+    # rule). Conversion failure keeps rects in power_pours, so the fallback
+    # lay is this same line.
+    if power_pours:
+        add_power_pours(board, power_pours, fill=False)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:

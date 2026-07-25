@@ -545,6 +545,14 @@ BOARD_PARAMS = {
                        # rail dicts slab-shave too -- the widest bonded In2 primary
                        # is the unconn-recovery + deficit-closure path
                        "slab_pour": True,
+                       # OVER-UNDER POURS (owner GO 2026-07-24 "Yes, let's do
+                       # it"): v2 routed-object pours -- single-layer lanes +
+                       # via bridges at snags, vacated layer carries nothing
+                       # (docs/slab-pour-design-2026-07-24.md v2). With
+                       # slab_pour=True above, CEC_OVERUNDER takes precedence
+                       # in import_ses' conversion branch; slab shave stays
+                       # the fallback when over-under finds no path.
+                       "overunder": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
