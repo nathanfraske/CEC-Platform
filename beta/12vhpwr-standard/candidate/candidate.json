@@ -1,0 +1,50 @@
+{
+ "board": "12vhpwr-standard",
+ "commit": "9b963b41",
+ "grade": {
+  "diffpair_ok": true,
+  "drc": 41,
+  "foreign": {
+   "pours": 0,
+   "status": "na",
+   "tracks": 0,
+   "vias": 0
+  },
+  "gate": false,
+  "kelvin_ok": false,
+  "rails": null,
+  "thermal_ok": true,
+  "unconn_critical": [
+   "/FAN_12V",
+   "GND"
+  ],
+  "unconnected": 32
+ },
+ "label": "prop-snagfix-compact-s0",
+ "reason": "first candidate",
+ "routed": true,
+ "schema": 1,
+ "sort_key": [
+  1,
+  1,
+  2,
+  0,
+  32,
+  41,
+  1000000.0
+ ],
+ "source": "build/fresh-wave-loop/12vhpwr-standard/20260719T0147-prop-snagfix-compact-s0.kicad_pcb",
+ "thermal": {
+  "ambient": 50.0,
+  "backend": "cpu",
+  "cooling": "production: metal case (TIM on RS shunts + M3 mounts)",
+  "dT": 22.14,
+  "gate_dt": 30.0,
+  "grid_mm": 0.8,
+  "max_T": 72.14,
+  "ok": true,
+  "provenance": "coarse (0.8mm > 0.4mm gate grid)"
+ },
+ "updated": "2026-07-25T16:53:06",
+ "wave_out_root": "build/fresh-wave-loop"
+}

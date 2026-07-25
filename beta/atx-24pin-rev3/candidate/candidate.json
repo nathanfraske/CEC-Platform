@@ -1,0 +1,72 @@
+{
+ "board": "atx-24pin-rev3",
+ "commit": "9b963b41",
+ "grade": {
+  "diffpair_ok": true,
+  "drc": 86,
+  "foreign": {
+   "pours": 16,
+   "status": "ok",
+   "tracks": 3,
+   "vias": 2
+  },
+  "gate": false,
+  "kelvin_ok": false,
+  "rails": {
+   "board": "band-core-mid-compact-s390.kicad_pcb",
+   "laid": 3,
+   "refused": {
+    "RS1": "REFUSED: src v0 J6C [/CAN_H_BUS] at (50.7,14.4) vs plan (53.2,12.3)-(53.2,23.3); v1 J6C [unconnected-(J6C-Pin_4-Pad4)] at (50.7,11.8) vs plan (53.2,12.3)-(53.2,12.3); v2 J6C [/CAN_H_BUS] at (50.7,14.4) vs plan (53.2,12.3)-(53.2,23.3)"
+   },
+   "schema": 1,
+   "total": 4
+  },
+  "thermal_ok": false,
+  "unconn_critical": [
+   "+5VSB",
+   "+5V_MAIN",
+   "/SENSE12V_HI",
+   "/SENSE12V_LO",
+   "GND"
+  ],
+  "unconnected": 114
+ },
+ "label": "band-core-mid-compact-s390",
+ "reason": "carries more of the current schematic (100% vs 89% of 123 parts)",
+ "routed": true,
+ "schema": 1,
+ "schematic_match": 1.0,
+ "schematic_parts": 123,
+ "sort_key": [
+  1,
+  2,
+  5,
+  5,
+  114,
+  86,
+  1000000.0
+ ],
+ "source": "build/fresh-wave-loop/atx-24pin-rev3/20260724T2309-band-core-mid-compact-s390.kicad_pcb",
+ "thermal": {
+  "ambient": 50.0,
+  "backend": "cpu",
+  "cooling": "still-air (no case)",
+  "dT": 118.59,
+  "error": "INJECTION INCOMPLETE: 4/9 configured net(s) injected no current (+5VSB, /SENSE12V_HI, /SENSE5VSB_LO, /SENSE5V_HI) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "gate_dt": 30.0,
+  "grid_mm": 0.8,
+  "max_T": 168.59,
+  "nets_dropped": {
+   "+5VSB": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/SENSE12V_HI": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/SENSE5VSB_LO": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/SENSE5V_HI": "src/sink on disconnected copper islands (open circuit -- no current injected)"
+  },
+  "nets_injected": 5,
+  "nets_requested": 9,
+  "ok": false,
+  "provenance": "coarse (0.8mm > 0.4mm gate grid)"
+ },
+ "updated": "2026-07-25T17:26:58",
+ "wave_out_root": "build/fresh-wave-loop"
+}

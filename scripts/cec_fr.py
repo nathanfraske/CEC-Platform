@@ -1175,6 +1175,75 @@ def run_freerouting(
 # ---------------------------------------------------------------------------
 # add_power_pours -- additive same-net pours, laid AFTER routing
 # ---------------------------------------------------------------------------
+def add_inner_gnd_fill(board, layer_name, *, gnd_net="GND", inset_mm=0.5):
+    """Pour GND into the leftover space of a SIGNAL inner layer, stitched.
+
+    The other half of the 2026-07-25 power-layer ruling. Once rails move to the
+    outers, the hub's In2 is signal tracks and empty space -- and empty space on
+    the layer directly under the components is worth more as reference copper
+    than as nothing: it gives the B.Cu signals below a continuous return path
+    instead of the rail-to-rail plane splits they used to cross.
+
+    Three properties make this safe rather than decorative:
+
+      * LOWEST PRIORITY (0) -- any real pour on the same layer, including a
+        policy-exception rail region, fills first and this flows around it;
+      * ISLAND REMOVAL ALWAYS -- a fill fragment with no connection to the net is
+        deleted by the filler itself, so this cannot manufacture the exact defect
+        the reapers exist to remove (floating copper doing nothing);
+      * it runs POST-ROUTE, so it never competes with Freerouting for the layer
+        (a pre-route plane would have been detected as a plane and excluded the
+        layer from routing entirely -- the measured gotcha behind In2's freeing).
+
+    Stitching needs no new machinery on the hub: 66 GND vias + 48 GND through-hole
+    pads already pierce In2 across 47% of its 10mm cells, and island removal drops
+    whatever they do not reach.
+    """
+    lid = board.GetLayerID(layer_name)
+    if lid < 0:
+        return None
+    net = board.FindNet(gnd_net)
+    if net is None:
+        return None
+    # IDEMPOTENT (measured 2026-07-25: import_ses runs twice in one grade -- the
+    # staged-FR tier route and the main route -- which added a SECOND gndfill
+    # zone, the 0.0mm2 phantom in the census). One fill per layer, ever.
+    _tag = f"gndfill:{layer_name}"
+    for _z in board.Zones():
+        if _z.GetZoneName() == _tag:
+            return _z
+    bb = board.GetBoardEdgesBoundingBox()
+    if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
+        return None
+    ins = int(inset_mm * MM)
+    x0, y0 = bb.GetLeft() + ins, bb.GetTop() + ins
+    x1, y1 = bb.GetRight() - ins, bb.GetBottom() - ins
+    if x1 <= x0 or y1 <= y0:
+        return None
+    z = pcbnew.ZONE(board)
+    z.SetLayer(lid)
+    z.SetNet(net)
+    z.SetZoneName(f"gndfill:{layer_name}")
+    z.SetAssignedPriority(0)
+    z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+    o = z.Outline()                      # in-place append (never SetOutline)
+    o.NewOutline()
+    for (px, py) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        o.Append(int(px), int(py))
+    if z.Outline().FullPointCount() < 3:
+        return None
+    board.Add(z)
+    try:
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    except Exception as e:                                 # noqa: BLE001
+        print(f"[cec_fr] inner GND fill: filler failed ({e})", file=sys.stderr)
+        return None
+    area = z.GetFilledArea() / 1e12
+    print(f"[cec_fr] inner GND fill: {layer_name} poured {area:.0f}mm2 "
+          f"(priority 0, islands removed)", file=sys.stderr, flush=True)
+    return z
+
+
 def add_power_pours(board, pours, *, fill: bool = False):
     """Lay additive same-net copper pours on an ALREADY-ROUTED board.
 
@@ -4650,6 +4719,17 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             for z in board.Zones():
                 z.UnFill()
             pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # INNER GND FILL (owner ruling 2026-07-25, the companion to the power-layer
+    # policy): on a board whose second inner is the SIGNAL layer, the space left
+    # between routes becomes reference copper rather than nothing. Last thing
+    # before the save so it flows around every track and pour already placed;
+    # env-gated, so boards that did not opt in are byte-identical.
+    _igf = (os.environ.get("CEC_INNER_GND_FILL") or "").strip()
+    if _igf:
+        try:
+            add_inner_gnd_fill(board, _igf)
+        except Exception as _ge:                        # noqa: BLE001 -- fail-safe
+            print(f"[cec_fr] inner GND fill skipped ({_ge})", file=sys.stderr)
     pcbnew.SaveBoard(out_path, board)
     if not os.path.isfile(out_path):
         raise RuntimeError(

@@ -521,3 +521,40 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
     the repo's "~10ms C_SS ramp hub-proven" figure is untraceable; datasheet Table 9-1 predicts
     ~125ms (12x gap) -- both pass as simulated, but the downstream "~50mA inrush" estimate should
     be restated from the datasheet figure.
+
+## 2026-07-25 — HUB INNER-LAYER DOCTRINE: two owner rulings conflict (DECISION OWED)
+
+**The conflict.** 2026-07-23 (recorded verbatim on `hub-standard-rev2.pour_asks` in
+`scripts/cec_fresh_wave.py`): *"do the ugly giant pours inside of that layer instead of on
+top"* — power floods belong on the freed In2, because post-route additive floods do not
+consume routing space, so In2 is empty at route time and still serves as a third routing
+layer. 2026-06-14 stackup ruling: the hub's second inner is a **SIGNAL** layer. A 2026-07-25
+in-session discussion (owner asked for industry practice, then approved moving rails to the
+2 oz outers) was **BACKED OUT UNAPPLIED** once the 07-23 ruling surfaced — the agent should
+have surfaced it before recommending. Nothing about the hub's rail layers has changed.
+
+**Measured cost of the current (07-23) doctrine**, on a fresh routed hub
+(`build/hubfix/doctrine-routed.kicad_pcb`, seed 260, post-SWIG-fix):
+- B.Cu carries 125 segments / 790 mm of signal.
+- **19 of them (15%) cross ≥2 different In2 nets** — a reference-split crossing each.
+- **127 mm (16%) of B.Cu length runs over In2 void** — no reference copper beneath at all.
+- In2 rail floods: `/VCC_P1` 4434 mm², `GND` 323 mm², everything else ≤41 mm².
+- No dead zones (the 07-25 hygiene reapers work: the previously-measured 0 mm² `/PSU_5V`
+  and floating `/+5V_HOLD` are gone).
+
+**Separate defect, independent of the doctrine (recommend fixing either way):** `/VCC_P1`
+alone occupies **4434 mm² — 72% of the 88×70 board** — for a per-port RJ-45 VCC feed of
+~0.5 A, which IPC-2152 satisfies with a fraction of a millimetre of width. That is the
+"giant amorphous blob" class from the 24-pin review, on the hub, and it is what squeezed the
+new In2 GND fill down to 323 mm². Flood extent should follow the net's ampacity + reach, not
+the leftover area.
+
+**Options:** (a) KEEP 07-23 (floods on In2) and let the GND fill take whatever the floods
+leave — the 15%/16% reference numbers stand; (b) rails to the 2 oz outers, In2 = signal +
+stitched GND fill (mechanism is landed and inert: set `power_pour_layers` on the board);
+(c) keep floods on In2 but size them to ampacity, which likely fixes most of the 15%/16%
+without touching the doctrine at all.
+
+**Landed regardless (both doctrines benefit):** post-route In2 GND fill at priority 0 with
+island removal (`cec_fr.add_inner_gnd_fill`, `inner_gnd_fill` board param) — measured
+5510 mm² before the floods take priority, 323 mm² after.

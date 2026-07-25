@@ -73,6 +73,66 @@ from cec_slab_pour import (
 MM = 1e6
 LAYERS_ALL = ("F.Cu", "In2.Cu", "B.Cu")
 LAYER_PREF = {"In2.Cu": 0.0, "B.Cu": 0.4, "F.Cu": 0.8}   # In2 preferred for power
+
+# BOARD-CLASS POWER-LAYER POLICY (owner ruling 2026-07-25). The In2-first bias
+# above is correct for a board whose second inner IS a power-routing layer (the
+# 24-pin: `rail_alt_layer: In2.Cu`). It is WRONG for a board whose second inner
+# is the SIGNAL escape layer -- the hub, where the 2026-06-14 stackup ruling
+# already says In2 is signal, and where the planner was measured filling it with
+# ten rail pours (two of them dead) while 132 signal tracks fought for the same
+# copper.
+#
+# The engineering case, on the hub's own numbers: its 5VSB trunk is ~2.5A over
+# ~60mm, which on a 2oz OUTER at 2mm wide is ~7mohm / 18mV / 45mW -- power does
+# not need inner-layer real estate, while routing genuinely is the scarce
+# resource (120 parts on 88x70 with four RJ-45 jacks and a mezzanine). Rails on
+# the outers also keep B.Cu signals referenced to continuous copper instead of
+# crossing rail-to-rail plane splits, which is the part that matters for the
+# unintentional-radiator posture.
+#
+# CEC_POWER_POUR_LAYERS (set from the `power_pour_layers` board param via
+# _oracle_env) names the preference order. UNSET = the historical In2-first
+# behaviour, byte-identical -- every existing board keeps exactly what it had.
+_LAYER_ORDER_DEFAULT = ("In2.Cu", "B.Cu", "F.Cu")
+# Region realization historically considered only In2/B; the default keeps that.
+_REGION_ORDER_DEFAULT = ("In2.Cu", "B.Cu")
+
+
+def power_layer_order(default=_LAYER_ORDER_DEFAULT):
+    """Preferred layer order for POWER copper, most-preferred first."""
+    raw = (os.environ.get("CEC_POWER_POUR_LAYERS") or "").strip()
+    if not raw:
+        return tuple(default)
+    order = tuple(x.strip() for x in raw.split(",") if x.strip() in LAYERS_ALL)
+    return order or tuple(default)
+
+
+def region_layer_order():
+    """Layer order for region-class realization (the logic-rail plane)."""
+    raw = (os.environ.get("CEC_POWER_POUR_LAYERS") or "").strip()
+    if not raw:
+        return _REGION_ORDER_DEFAULT
+    return power_layer_order()
+
+
+def layer_pref():
+    """Per-layer cost bias, derived from the active policy order."""
+    order = power_layer_order()
+    pref = {lay: 0.4 * i for i, lay in enumerate(order)}
+    # A layer the policy does not name is allowed but never preferred.
+    for lay in LAYERS_ALL:
+        pref.setdefault(lay, 0.4 * len(order))
+    return pref
+
+
+def demoted_layers():
+    """Layers the policy pushes BELOW the historical default (for loud
+    reporting when the solve lands on one anyway -- the sanctioned exception)."""
+    order = power_layer_order()
+    if order == _LAYER_ORDER_DEFAULT:
+        return frozenset()
+    # anything the policy ranks last is the exception layer
+    return frozenset(order[-1:]) if len(order) > 1 else frozenset()
 VIA_FIELD_COST = 3.0
 BEND_COST = 0.5
 LEN_COST = 0.02                                          # per mm
@@ -1308,7 +1368,8 @@ def _make_candidates(cor, st, grid):
         if spot_b and gb.spot is None:
             gb.spot = tuple(pts[-1])
         cor.cands.append(cand)
-    cor.cands.sort(key=lambda c: LAYER_PREF[c["layer"]])
+    _pref = layer_pref()
+    cor.cands.sort(key=lambda c: _pref[c["layer"]])
 
 
 def _assigned_foreign(nets, net, lay):
@@ -1419,8 +1480,10 @@ def _assign_layers(nets, order):
                 return True
         return False
 
+    _LP = layer_pref()
+
     def _cand_cost(cor, cand, fielded):
-        cost = (LAYER_PREF[cand["layer"]] + BEND_COST * cand["bends"]
+        cost = (_LP[cand["layer"]] + BEND_COST * cand["bends"]
                 + LEN_COST * cand["length"])
         for g in (cor.ga, cor.gb):
             if _field_needed(g, cand["layer"]) and id(g) not in fielded:
@@ -1751,7 +1814,7 @@ def _realize_region(net, st, grid, existing_vias):
     served = st["served"]
     margin = 2.4
     notes = []
-    for lay in [l for l in ("In2.Cu", "B.Cu") if l in st["layers"]]:
+    for lay in [l for l in region_layer_order() if l in st["layers"]]:
         rc = max(1, int(st["rcells"][lay]))
         if st["reqw"][lay] > 0.5 * min(grid.x1 - grid.x0,
                                        grid.y1 - grid.y0):
@@ -1944,6 +2007,19 @@ def _realize_region(net, st, grid, existing_vias):
                           "total": len(st["groups"])},
                "region_layer": lay,
                "notes": list(st["notes"]) + notes + dropped_notes}
+        # SANCTIONED-EXCEPTION REPORT (owner ruling 2026-07-25): on a board whose
+        # policy demotes an inner layer, landing power copper there anyway is
+        # allowed but must never be silent -- it means the preferred outers could
+        # not carry this rail, which is exactly the evidence the ruling wants to
+        # see. Every earlier layer in the order failed with a reason in `notes`.
+        if lay in demoted_layers():
+            ent["policy_exception"] = lay
+            print("[cec_pour_plan] %s: region landed on the DEMOTED layer %s -- "
+                  "the preferred layer(s) %s could not carry it (%s)"
+                  % (net, lay, ", ".join(l for l in region_layer_order()
+                                         if l != lay),
+                     "; ".join(notes[-2:]) or "no reason recorded"),
+                  file=sys.stderr, flush=True)
         return ent, dicts, vias
     e = _fail_entry("region plan failed on every layer (%s)"
                     % "; ".join(notes[-4:]))

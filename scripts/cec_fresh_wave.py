@@ -388,6 +388,22 @@ BOARD_PARAMS = {
                           # layers from the board, so the freed In2 keeps the
                           # edge-band + arc-corner protection.
                           "inner_power_routing": True,
+                          # POWER-LAYER DOCTRINE: HELD (2026-07-25). A move of
+                          # the rail floods to the 2oz outers was prepared and
+                          # then BACKED OUT unapplied: it contradicts the owner
+                          # ruling of 2026-07-23 recorded on pour_asks below
+                          # ("do the ugly giant pours inside of that layer
+                          # instead of on top"), whose reasoning still holds --
+                          # post-route additive floods do not consume routing
+                          # space, so In2 serves as a true third routing layer
+                          # AND as flood real estate. The mechanism exists
+                          # (power_pour_layers -> CEC_POWER_POUR_LAYERS, see
+                          # cec_pour_plan.power_layer_order) and is one line
+                          # away if the owner rules the other way; the measured
+                          # cost of the current doctrine is in the owner queue.
+                          # ...and the space the rails vacate becomes reference
+                          # copper for the B.Cu signals below it, not nothing.
+                          "inner_gnd_fill": "In2.Cu",
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
@@ -993,6 +1009,208 @@ def _prev_best_key(pub_dir):
         return None
 
 
+CANDIDATE_DIR = "candidate"
+CANDIDATE_META = "candidate.json"
+_CANDIDATE_README = """# `candidate/` — the current best routed board for this module
+
+ONE board file, kept current by the wave (owner directive 2026-07-25: "the current
+best should be placed into a candidate folder per board and kept current with only
+one board ideally so we have a reference").
+
+`<board>-candidate.kicad_pcb` (+ its `.kicad_pro` / `.kicad_dru` sidecars) is a COPY
+of the best board the wave has ever published for this module, with `candidate.json`
+recording where it came from and how it graded. Open it to see the real current
+state of the layout without digging through `build/fresh-wave-*/`.
+
+RULES the wave enforces on every publish:
+  * SCHEMATIC FRESHNESS outranks score: a winner carrying more of the CURRENT
+    netlist replaces the reference even on a worse score, and a staler board never
+    replaces a fresher one (`schematic_match` in `candidate.json` records it) --
+    a board that grades well but predates a schematic change is the worse reference;
+  * otherwise it replaces this file only when the new winner BEATS the recorded
+    `sort_key` (lower is better -- the same ranking the wave itself uses);
+  * a routed winner always beats a placement-only one, and a placement-only winner
+    NEVER overwrites a routed reference;
+  * exactly one `.kicad_pcb` lives here -- stale board files are pruned.
+
+This is a REFERENCE, not the board of record: it is machine-written, so never hand-edit
+it (edits are silently overwritten by the next better wave). The authoritative
+schematic + the module's own project files stay in the parent directory.
+"""
+
+
+def _board_refs(pcb_path):
+    """Footprint reference set of a board, or None if it cannot be read."""
+    try:
+        import pcbnew
+    except ImportError:                                    # host-side tests
+        return None
+    try:
+        b = pcbnew.LoadBoard(str(pcb_path))
+        return {fp.GetReference() for fp in b.GetFootprints()}
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def _netlist_refs(board):
+    """Reference set the CURRENT schematic expects, or None if unavailable.
+
+    Goes through `_ensure_netlist_path`, NOT `cfg.net` directly: most boards
+    carry no committed .net file, so the direct read returned None for every
+    board and silently reduced the freshness rule to a no-op (measured -- every
+    board reported `schematic=0%`). `_ensure_netlist_path` exports it once from
+    the schematic, which is what makes "current" mean current.
+    """
+    try:
+        cfg = csp.Config.load(board)
+        net = ""
+        try:
+            net = csp._ensure_netlist_path(cfg) or ""
+        except Exception:                                  # noqa: BLE001
+            net = getattr(cfg, "net", "") or ""
+        if not (net and os.path.isfile(net)):
+            return None
+        refs = set(csp.Netlist.from_file(net).comps)
+        return refs or None
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def _schematic_match(pcb_path, want_refs):
+    """How much of the current schematic this board actually carries (0..1).
+
+    The reason this is a RULE and not a nicety: "best by sort_key" can be a board
+    that predates a schematic change. Measured 2026-07-25 -- the 12VHPWR winner
+    with the best score was routed 07-19, before the USB-ingress parts landed in
+    the schematic, so a purely score-ranked reference would show a board missing
+    U5/F1 entirely while claiming to be current. A reference that is numerically
+    better but electrically out of date is the worse reference.
+    """
+    if not want_refs:
+        return None
+    have = _board_refs(pcb_path)
+    if have is None:
+        return None
+    return len(want_refs & have) / float(len(want_refs))
+
+
+def _candidate_update(board, published_pcb, best, *, out_root=None):
+    """Keep `beta/<board>/candidate/` pointing at the CURRENT BEST board.
+
+    Called at the publish site with the already-hygiene-cleaned artifact, so the
+    reference carries exactly what the owner would review. Fail-safe by
+    construction: any problem here prints and returns, never breaks a wave.
+    """
+    try:
+        board_dir = os.path.join(ROOT, "beta", board)
+        if not os.path.isdir(board_dir):
+            return None                        # never invent a board directory
+        if not (published_pcb and os.path.isfile(str(published_pcb))):
+            return None
+        cdir = os.path.join(board_dir, CANDIDATE_DIR)
+        os.makedirs(cdir, exist_ok=True)
+        meta_path = os.path.join(cdir, CANDIDATE_META)
+        dst_pcb = os.path.join(cdir, f"{board}-candidate.kicad_pcb")
+
+        routed_now = bool(best.get("routed") and os.path.isfile(str(best.get("routed"))))
+        key_now = tuple(best.get("sort_key") or (9,))
+        prev = {}
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path) as fh:
+                    prev = json.load(fh) or {}
+            except Exception:                              # noqa: BLE001
+                prev = {}
+        have = os.path.isfile(dst_pcb)
+        prev_routed = bool(prev.get("routed"))
+        prev_key = tuple(prev.get("sort_key") or (9,))
+
+        # SCHEMATIC FRESHNESS outranks score (see _schematic_match): a reference
+        # that is missing parts the schematic now has is stale no matter how well
+        # it graded. Both sides are measured against TODAY's netlist, so this
+        # compares like with like; when the netlist or pcbnew is unavailable the
+        # term drops out entirely and the score rules stand unchanged.
+        want = _netlist_refs(board)
+        fresh_now = _schematic_match(published_pcb, want)
+        fresh_prev = _schematic_match(dst_pcb, want) if os.path.isfile(dst_pcb) else None
+        fresher = staler = False
+        if fresh_now is not None and fresh_prev is not None:
+            fresher = fresh_now > fresh_prev + 1e-9
+            staler = fresh_now < fresh_prev - 1e-9
+
+        if not have:
+            why = "first candidate"
+        elif fresher:
+            why = (f"carries more of the current schematic "
+                   f"({fresh_now:.0%} vs {fresh_prev:.0%} of {len(want)} parts)")
+        elif staler:
+            print(f"[wave] {board} candidate: kept (this winner carries only "
+                  f"{fresh_now:.0%} of the current schematic vs the reference's "
+                  f"{fresh_prev:.0%} -- a staler board never replaces a fresher one)",
+                  flush=True)
+            return None
+        elif routed_now and not prev_routed:
+            why = "routed beats placement-only"
+        elif prev_routed and not routed_now:
+            # A placement-only winner must never clobber real copper.
+            print(f"[wave] {board} candidate: kept (routed reference beats a "
+                  f"placement-only winner)", flush=True)
+            return None
+        elif key_now < prev_key:
+            why = f"sort_key {list(key_now)} < {list(prev_key)}"
+        else:
+            print(f"[wave] {board} candidate: kept (incumbent {list(prev_key)} "
+                  f"<= this wave's {list(key_now)})", flush=True)
+            return None
+
+        import shutil
+        shutil.copy(str(published_pcb), dst_pcb)
+        src_base = str(published_pcb)[:-len(".kicad_pcb")]
+        for ext in (".kicad_pro", ".kicad_dru"):
+            if os.path.isfile(src_base + ext):
+                shutil.copy(src_base + ext, dst_pcb[:-len(".kicad_pcb")] + ext)
+        # ONE board file (owner: "only one board ideally"): drop anything stale.
+        for stale in glob.glob(os.path.join(cdir, "*.kicad_pcb")):
+            if os.path.abspath(stale) != os.path.abspath(dst_pcb):
+                os.remove(stale)
+        readme = os.path.join(cdir, "README.md")
+        if not os.path.isfile(readme):
+            with open(readme, "w") as fh:
+                fh.write(_CANDIDATE_README)
+        meta = {
+            "schema": 1,
+            "board": board,
+            "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "reason": why,
+            "routed": routed_now,
+            "source": os.path.relpath(str(published_pcb), ROOT),
+            "wave_out_root": (os.path.relpath(str(out_root), ROOT) if out_root else None),
+            "label": best.get("label"),
+            "sort_key": list(key_now),
+            "schematic_match": (round(fresh_now, 4) if fresh_now is not None else None),
+            "schematic_parts": (len(want) if want else None),
+            "grade": {k: best.get(k) for k in
+                      ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
+                       "unconn_critical", "foreign", "thermal_ok", "rails")},
+            "thermal": best.get("thermal"),
+        }
+        try:                                               # provenance, best-effort
+            meta["commit"] = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, check=False,
+                capture_output=True, text=True).stdout.strip() or None
+        except Exception:                                  # noqa: BLE001
+            meta["commit"] = None
+        with open(meta_path, "w") as fh:
+            json.dump(meta, fh, indent=1, sort_keys=True, default=str)
+        print(f"[wave] {board} candidate: UPDATED ({why}) -> "
+              f"{os.path.relpath(dst_pcb, ROOT)}", flush=True)
+        return dst_pcb
+    except Exception as e:                                 # noqa: BLE001 -- fail-safe
+        print(f"[wave] {board} candidate update skipped ({type(e).__name__}: {e})",
+              flush=True)
+        return None
+
+
 def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
     """NEW-BEST THERMAL (owner design call 2026-07-17: 'thermal fires on every wave
     that produces a new best'). The per-candidate lazy skip stands (the solve costs
@@ -1217,6 +1435,13 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
             print(f"[wave] {board} publish hygiene skipped ({_ce})",
                   flush=True)
     new_best = _new_best_thermal(best, pub_dir, _bp)
+    # CURRENT-BEST REFERENCE (owner directive 2026-07-25): mirror the published
+    # winner into beta/<board>/candidate/ so every module has ONE stable, current
+    # board to open -- the reason beta/ looked stale was that every routed
+    # artifact lived only under build/. Runs after the hygiene chain and after
+    # the thermal stamp, so the reference carries the reviewed artifact + its grade.
+    _candidate_update(board, dst if (src and os.path.isfile(str(src))) else None,
+                      best, out_root=out_root)
     if new_best:
         _th = best.get("thermal") or {}
         print(f"[wave] {board} NEW BEST -> thermal: ok={_th.get('ok')} "

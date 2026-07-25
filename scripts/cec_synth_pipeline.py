@@ -7627,6 +7627,20 @@ def _oracle_env(params=None):
             extra["CEC_LASTMILE"] = "1"
             if params.get("lastmile_max_mm"):
                 extra["CEC_LASTMILE_MAX_MM"] = str(float(params["lastmile_max_mm"]))
+        if params.get("power_pour_layers"):
+            # BOARD-CLASS POWER-LAYER POLICY (owner ruling 2026-07-25): the
+            # preference ORDER for power copper, most-preferred first. Set it on
+            # a board whose second inner is the SIGNAL escape layer (the hub) so
+            # rails take the 2oz outers and In2 stays for routing; unset keeps
+            # the historical In2-first bias for boards whose inner IS a
+            # power-routing layer (the 24-pin's rail_alt_layer). See
+            # cec_pour_plan.power_layer_order for the engineering basis.
+            extra["CEC_POWER_POUR_LAYERS"] = ",".join(params["power_pour_layers"])
+        if params.get("inner_gnd_fill"):
+            # INNER GND FILL (owner ruling 2026-07-25): pour GND into the
+            # leftover space of the named SIGNAL inner layer, post-route, at
+            # lowest priority with island removal (cec_fr.add_inner_gnd_fill).
+            extra["CEC_INNER_GND_FILL"] = str(params["inner_gnd_fill"])
         if params.get("plane_tht_exclude"):
             # plane-pierced THT pads leave FR's nets (mounts, plane-net THT);
             # the plane fill connects them (owner M2-mount catch 2026-07-24)
