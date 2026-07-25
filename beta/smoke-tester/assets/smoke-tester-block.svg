@@ -104,7 +104,7 @@
   <text x="655" y="454" font-size="9.5">lid-open µswitch / DISARM → K1 RESET  (open door = safe)</text>
   <text x="655" y="468" font-size="9.5">K1-A: PS_ON# → GND via 100Ω + PESD (finger never meets DUT)</text>
   <text x="655" y="482" font-size="9.5">PG race t0 = the PS_ON# node itself (spare LM339)</text>
-  <text x="655" y="499" font-size="9.5">TEST momentary powers comparator domain (multimeter economy)</text>
+  <text x="655" y="499" font-size="9.5">TEST powers domain (economy) — OR any POP auto-wakes it (#15 Q_AUTO)</text>
 
   <!-- EARTH DOMAIN -->
   <rect x="20" y="405" width="605" height="105" fill="#fdf7e2" stroke="#a8830a" stroke-dasharray="6 3"/>

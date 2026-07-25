@@ -1,5 +1,26 @@
 # Current work handoff
 
+## #15 AFTERMATH SHOW — RULED AS AMENDED + APPLIED (2026-07-25 ~09:40Z, pipeline-pass-2)
+Owner nodded #15 with an AUTOMATIC directive ("clunky to hold TEST after"). Applied the
+clean form — POP WAKES THE WHOLE PANEL, not just the show: the blown-fuse condition is
+a passive always-alive across-blade signal (fuse-open ∧ way-live); 5 BF nodes diode-OR
+(D_AW1..5) into Q_AUTO (SS8050 #3) which PARALLELS the TEST switch -> whole comparator
+domain wakes on any pop (all lamps + charge bar), show enable (event ∧ awake, D_EN1/2
+OR'd w/ LAMP TEST button) runs flame tube + NE_EVT relaxation blinker (boost -> 4.7M ->
+470n/250V -> NE-2 ~1-2Hz) while the condition lives. DUT-harvest-powered BY
+CONSTRUCTION (blown∧live guarantees a live way -> instant-on leg); harvest-dead corner
+= store carries ~min then sleeps, BF LED + blackened blade hold the verdict passively.
+Condition clears -> box sleeps: ZERO-STANDBY PRESERVED EXACTLY (wake signal requires a
+live way). FENCE #14 AMENDED owner-authorized: "HV dies with the button" -> "HV = LAMP-
+TEST-held ∨ live-event-awake, NEVER with fuse door open" (lid µswitch that disarms K1
+also kills boost enable). HONEST BOUNDARY recorded: auto path triggers on POPS only;
+rails-weird-no-pop verdicts still need the held-TEST read. ~$0.50 all-in. BOM: NE line
+2->3 (NE_EVT), 1N4148 line 2->9 (D_AW1..5 + D_EN1/2), SS8050 2->3 (Q_AUTO), C_BST line
+3->5 (R_EVT/C_EVT) — no new lines, 54 stands. Files: README §4 (new bullet + LAMP-TEST
+fence line), bom 4 folds, block SVG TEST-semantics line, ctl-sketch strip (+632h), concept
+amendment para, owner-queue #15 pending->RULED. NEXT: Phase A library (add NE_EVT = same
+NE-2 part; no new pulls), capture blockers still none owner-side.
+
 ## AFTERMATH-SHOW PROPOSAL + MAINS-COST AUTOPSY (2026-07-25 ~09:15Z, pipeline-pass-2)
 Owner asked (a) any way to get the arc/neon show on STANDARD failures, (b) cheaper
 mains handling since incursion is super rare. RECORDED concept §9.15 + owner-queue;

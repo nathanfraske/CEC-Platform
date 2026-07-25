@@ -534,3 +534,17 @@ covered BLX-A holders → bare solder clips (−$0.25) — declined under the qu
 doctrine (covered, finger-safe, tool-less service on the mains-rated tier). VERDICT:
 the mains tier is already at its honest floor, ~half of it is double-booked as the
 show, and the real money was the AUX descope (−$3.5–4). Recommendation: no change.
+
+**#15 RULED AS AMENDED (owner, same day: "I like it… I would like it to be kind of
+automatic… clunky to have to hold TEST after"):** the owner is right, and the clean
+automatic form is better than auto-firing just the show — **the pop wakes the whole
+panel.** The blown-fuse condition is already a passive, always-alive across-blade
+signal (exists only when fuse-open ∧ way-live): diode-OR the five BF nodes (D_AW1..5)
+into Q_AUTO, which parallels the TEST switch. Any pop → the entire comparator domain
+wakes (all lamps, charge bar) AND the show enable fires the flame tube + NE_EVT
+blinker — no button, powered by the DUT's own harvest by construction. Condition
+clears (PSU off / fuse swapped) → box sleeps; zero-standby preserved exactly. Fence
+#14 amended owner-authorized: HV = LAMP-TEST-held ∨ live-event-awake, never with the
+fuse door open (lid µswitch kills the boost). Honest boundary: auto triggers on POPS;
+non-pop red verdicts still ride the held-TEST read. Cost ≈ $0.50 all-in (NE_EVT +
+blinker RC + Q_AUTO + 7 small diodes). APPLIED to README §4 + BOM same day.

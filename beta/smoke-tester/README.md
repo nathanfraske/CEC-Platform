@@ -242,7 +242,8 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   the domain rail — store ⊕ harvest-direct, so it works on the very first plug —
   alive ONLY while held) strikes every gas bulb + the flicker-flame tube.
   The show doubles as the safety self-test for the CASE-LIVE bulb (a dead neon is a
-  silent safety failure). Fences: sealed devices only, HV dies with the button,
+  silent safety failure). Fences: sealed devices only, HV only while held OR while
+  a live event condition holds the panel awake (#15 amendment, 2026-07-25),
   never-generate-what-you-detect; panel carve-out printed: "a lit neon is ALWAYS bad
   news — unless you're holding LAMP TEST." ◆ Glass-check GDTs live on the brick (§2
   table) behind the theater-bay window.
@@ -266,6 +267,28 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   now also covers demo cadence), and the printed carve-out extends: "smoke is ALWAYS
   a real event — unless you're holding SMOKE." Needs a live 12 V (the demo runs on
   the DUT's own power). Adder ≈ $1.
+- **◆ AFTERMATH SHOW (#15 RULED AS AMENDED, 2026-07-25 — automatic):** when a blade
+  pops, the box tells you ITSELF. The blown-fuse condition (a passive across-blade
+  signal, live only when fuse-open ∧ way-live) diode-ORs (D_AW1..5) into **Q_AUTO**,
+  which parallels the TEST switch — the whole comparator domain WAKES on any pop:
+  every lamp lights, and the show enable (event ∧ domain-awake, diode-OR'd with the
+  LAMP TEST button via D_EN1/2) runs the flicker-flame tube + a dedicated **EVENT
+  neon relaxation blinker** (boost → 4.7 MΩ → 470 nF 250 V → NE_EVT, ~1–2 Hz) for as
+  long as the condition lives. No button, no ritual: pop → panel wakes → flame
+  dances → blinker blinks → dead way lamp + BF LED + the blackened clear blade name
+  the way. Power is the DUT's own harvest BY CONSTRUCTION (blown ∧ live guarantees a
+  live way feeding the instant-on leg); in the corner where harvest is truly dead
+  the store carries ~minutes of panel, then the passive BF LED + blown blade still
+  hold the verdict. Kill the PSU or swap the fuse → the condition clears → the box
+  sleeps again: zero-standby is preserved EXACTLY, because the wake signal
+  physically requires a live way. **FENCE #14 AMENDED (owner-authorized with this
+  ruling):** "HV dies with the button" becomes **"HV exists only while LAMP TEST is
+  held OR while a live event condition holds the panel awake — and never with the
+  fuse door open"** (the same lid microswitch that disarms K1 kills the boost
+  enable). The fence's purpose — no HV during service, no HV without cause — is
+  intact. Honest boundary: the AUTO path triggers on POPS (the passive signal);
+  rails-weird-but-nothing-popped verdicts still show on an ordinary held-TEST read.
+  Adds: NE_EVT + blinker RC + Q_AUTO + 7 small-signal diodes ≈ **$0.50 all-in**.
 - **PWR_OK race (all analog):** PS_ON#-assert starts a 100 ms / 500 ms two-tap RC; two
   comparator sections latch PWR_OK's rising edge against the taps → PG EARLY / PG OK
   / PG LATE-NEVER lamps (ATX spec window, coarse by design).
