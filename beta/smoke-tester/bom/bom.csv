@@ -1,35 +1,51 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-SN1,1,Mini-Fit Jr 24-ckt male vertical (standard tin),PhaseA:snout-paddle,44206-class,Molex,,,consigned,,,,"DAMAGE/SERVICE spare (cycle wear ruled functionally irrelevant at this duty — owner bench + 2.3-ohm/115x-spec-death math, README §2; HMC/gold adder dropped) on paddle PCB + 2x13 shrouded header pair; est $3.10 incl paddle; open decision #13 = keep paddle vs board-mount direct"
-"F1,F2,F3,F4,F5,F6,F7,F8",8,ATO blade 1A fast,PhaseA:ATO_holder_panel,BLX-A-class holder + 1A ATO,generic,,,TBD,,,,"CONSUMABLE #1: ONE value everywhere (refill = any 1A ATO, hardware-store standard ON PURPOSE); holders est $0.25 ea, fuses $0.10; blown-fuse LED+R across each"
-"XF1,XF2,XF3,XF4,XF5,XF6,XF7,XF8",8,5x20 HRC 2A time-lag 250VAC,PhaseA:5x20_twist_holder,0215002.-class ceramic sand-filled,Littelfuse/Bel,,,TBD,,,,"CONSUMABLE #2: the mains-class interrupter (1.5kA breaking); internal tool-less twist holders est $0.25 ea, fuses $0.35; coordination 2:1 + T-vs-F vs the blades"
-SB1,1,SACRIFICE BRICK,PhaseA:brick-2x10-socket,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,CONSUMABLE #3 (~$3 COGS): keyed plug-in PCB carrying RV1-RV8 + RW1-RW8 below; date-flag silk; 2x10 0.1in socket pair; sold as 2-pack SKU $12-15
-"SB1:RV1,SB1:RV2,SB1:RV3",3,MOV S14K14-class 14mm,Disc_D14mm,S14K14/JVR14-class,TDK/generic,,,TBD,,,,12V / -12V / AUX-12 ways; varistor ~22V; bidirectional = free reverse clamp; est $0.12 ea
-"SB1:RV4,SB1:RV5,SB1:RV6",3,MOV S14K6-class 14mm,Disc_D14mm,S14K6-class,TDK/generic,,,TBD,,,,5V / 5VSB / AUX-5 ways; est $0.10 ea
-"SB1:RV7,SB1:RV8",2,MOV S14K4-class 14mm,Disc_D14mm,S14K4-class,TDK/generic,,,TBD,,,,3V3 / AUX-3V3 ways; est $0.10 ea
-SB1:RW1..RW8,8,1R 1W flameproof fusible WW,R_Axial_Fusible,KNP/FKN-class,generic,,,TBD,,,,"the SAFE SMOKE: designed to open with a benign puff, no flame; in series with its MOV = fail-short containment; est $0.05 ea"
-J_AUX,1,AUX port 2x5 shrouded keyed,PhaseA:IDC_2x5,generic,generic,,,TBD,,,,3 fused expected-V ways + continuity way + DUT GND; passive family adapters are separate accessory SKUs
-"U1,U2,U3,U4",4,LM339,SOIC-14,LM339DR-class,TI/onsemi,,,TBD,,,,16 comparator sections: 8 way-windows (16) folded w/ shared refs + PG race (2) + reverse latch; est $0.08 ea
-VR1,1,TLV431 (1.24V ref),SOT-23,TLV431-class,TI/onsemi,,,TBD,,,,"1.24V absolute ref + window ladder (1% dividers); domain runs DIRECT from the supercap store (rail 2.5-5.4V), no LDO"
-K1,1,DPDT latching relay 5V dual-coil,PhaseA:relay_DPDT_latch,HFD2/005-S-L2-D-class,Hongfa,,,TBD,,,,"zero hold current (battery life); pole A = PS_ON# drive, pole B = PG race start; SET by SW_ARM RC pulse, RESET by lid uSW/DISARM"
-"D_PS,D_PG",2,PESD5V0S1BA,SOD-323,PESD5V0S1BA,Nexperia,C5261083,,LCSC,,,,platform-standard low-cap clamp on PS_ON# / PWR_OK lines (only repo-verified LCSC line in this sketch BOM)
-R_DIV (strings),1,9x (3x301k 1206 + 100k 0805) + -12V bias string,R_1206/R_0805,1% thick film,generic,,,TBD,,,,each top leg 3x301k in series = 300V-rated string; taps survive mains BY IMPEDANCE; est $0.30 total
-"NE1,NE2 (+4x 470k 0.5W 350V)",2,NE-2 neon + series R,PhaseA:NE2_panel,NE-2,generic,,,TBD,,,,earth-domain: CASE LIVE (DUT-GND vs earth) + RAIL LIVE (ways OR via 4x1M); strikes ~90V; zero power
-M1,1,100uA moving-coil panel meter,PhaseA:meter_85C1,85C1-class,generic,,,consigned,,,,reads DIVIDED nodes only via SW_SEL; scale printed x10; est $3.50
-SW_SEL,1,1P6T rotary,PhaseA:rotary_1P6T,generic,generic,,,TBD,,,,meter rail select; est $0.60
-SW_ARM,1,missile-cover toggle,PhaseA:toggle_cover,generic,generic,,,TBD,,,,the arm/fire UX; est $2.20
-SW_TEST,1,momentary NO,PhaseA:pushbutton,generic,generic,,,TBD,,,,powers comparator domain while held (multimeter economy)
-SW_LOAD,1,DPST toggle,PhaseA:toggle,generic,generic,,,TBD,,,,min-load bleeders in/out
-SW_LID,1,microswitch (lid),PhaseA:microswitch,generic,generic,,,TBD,,,,fuse door open -> K1 RESET pulse -> released PS_ON = safe state
-R_BL1,1,47R 10W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,12V min load ~0.26A; est $0.80
-R_BL2,1,10R 5W wirewound chassis,PhaseA:chassis_WW,generic,generic,,,TBD,,,,5V min load ~0.5A; est $0.40
-D1..D16 (way lamps),16,LED grn/red 3mm,LED_D3.0mm,generic,generic,,,TBD,,,,per-way in-window green / out red; 2mA high-efficiency
-D17..D24 (blown-fuse),8,LED red 3mm + R,LED_D3.0mm,generic,generic,,,TBD,,,,across each blade holder: lights iff fuse open AND way live
-J_PWR,1,USB-C 5V power-only 6P,USB_C_6P,generic,generic,,,TBD,,,,cold-start top-up for the store (dead-DUT corner); CC resistors for 5V-only sink
-"PCB_MAIN,PCB_PANEL",2,2-layer main + FR4 front panel,n/a,,JLCPCB,,,jlcpcb,,,,"panel-as-PCB: holders mount through it, silk = truth table / coroner map / QR; est $3.00 both"
-"""C_ST1,C_ST2""",2,2.7V 5F radial supercap Ø10-12mm,PhaseA:supercap_radial_D12_P5,Eaton HV/KR-class,Eaton/Kyocera,,,consigned (LCSC carries NO supercaps - study gate 2026-07-15),,,,BATTERYLESS STORE (owner no-disposables directive 2026-07-24): 2S + balance; same cell family as the Pro/Max 2S provision = shared buy; 23J usable = ~12min held-TEST = ~16 sessions; est $1.20 ea
-"""R_BAL1,R_BAL2""",2,100k 0805,R_0805_2012Metric,1% thick film,generic,,,TBD,,,,2S balance (platform supercap-provision pattern); 23uA-class bleed
-SB1:RW_H,1,33R 2W flameproof fusible WW,R_Axial_Fusible,KNP200-class,generic,,,TBD,,,,harvest-path protection ON THE BRICK (sacrificial like everything): 5VSB/5V-way -> ORing -> RW_H -> zener -> store; mains event = ~10A -> opens; charge 0.76W in a 2W part
-"""D_H1,D_H2,D_H3""",3,SS14-class Schottky,SMA,SS14,generic,,,TBD,,,,harvest ORing: 5VSB-way / 5V-way / USB-C -> store
-Z_ST,1,5.6V 1W zener,SMA/DO-41,1SMA5919-class,generic,,,TBD,,,,crude CV clamp across the store (charge-path overvoltage + DUT-5VSB-OV guard)
-CASE1,1,case w/ lid fuse storage,n/a,,TBD,,,quote TBD,,,,est $7.00 at qty — one of two soft lines in the rollup
-KIT1,1,STARTER KIT,n/a,,CEC,,,own,,,,in the lid: full spare blade set + 2x HRC + 1x SPARE BRICK + verdict-card pad; +$4.30 COGS = the trust move (concept 9.5)
+SB1,1,SACRIFICE BRICK (sub-board),see brick/,CEC-SMK-BRICK-1,CEC,,,own assembly,,,,CONSUMABLE #3 — see brick/bom/bom.csv (8x MOV uniform 14D220K + 8x glass-check GDT 2R090T + 8x KNP 1R witness + KNP 33R harvest); ~$4.30 populated; starter kit ships a SPARE
+SN1,1,SNOUT (sub-board),see snout/,CEC-SMK-SNOUT-1,CEC,,,own assembly,,,,DAMAGE spare #4 — see snout/bom/bom.csv; Mini-Fit Jr 24-ckt male std tin on paddle; ~$3.10
+FP1,1,"FACEPLATE (sub-board, bare FR4)",see faceplate/,CEC-SMK-FACE-1,CEC,,,jlcpcb,,,,zero copper in fault path; apertures + silk truth-table + QR; no BOM (bare board)
+"""XF1..XF8""",8,5x20 holder w/ cover (BLX-A),THT,XC-7 BLX-A,generic,C3131,133949,LCSC,,jlcsearch 2026-07-25,,"HRC positions, tool-less covered holders, $0.062 ea"
+"""F_HRC1..8 (installed)""",8,5x20 ceramic sand-filled 2A TIME-LAG 250VAC,5x20,0215002.MXP,Littelfuse,C142716,2420,LCSC,littelfuse 215 series (fetch 403 — FOLLOWUPS),jlcsearch 2026-07-25,,the mains-class interrupter (1.5kA); coordination 2:1 T-vs-F vs blades; $0.106 ea
+"""FH1..FH8""",8,ATO blade fuse PCB holder/clip set,THT,BK/1A1907-06-R,Eaton Bussmann,C3207132,997,LCSC,,jlcsearch 2026-07-25,,STOCK-WATCH (997); panel-protruding via faceplate apertures; $0.42 ea — biggest holder line; consigned generic alt if depth fails
+"""F_ATO1..8 (installed)""",8,ATO blade 1A fast,19mm blade,297-series 1A class,Littelfuse/any,,,consigned-bulk,,,,fuses stay hardware-store standard ON PURPOSE (any 1A ATO); LCSC carries 3A+ only (297) — buy bulk anywhere; $0.10 ea
+"""U1,U2,U3,U4""",4,LM339DR,SOIC-14,LM339DR,TI,C7948,84928,LCSC,lib/datasheets/LM339.pdf,jlcsearch 2026-07-25,,16 comparator sections: 8 way-windows(16) shared-ref folded + PG race(2) + PS_ON t0 watch(1) + reverse latch(1) + STORE-OK(1); $0.09 ea
+VR1,1,TLV431AIDBZR (1.24V ref),SOT-23,TLV431AIDBZR,TI,C56765,18113,LCSC,lib/datasheets/TLV431A.pdf,jlcsearch 2026-07-25,,absolute ref; domain runs DIRECT from store rail 2.5-5.4V
+"""C_U1..C_U4,C_VR1""",5,100nF X7R,C_0603,,generic,C1525,,LCSC (repo-standard basic),,repo-verified line,,margin: one decoupler AT each LM339 VCC pin + TLV431 — place adjacent
+"""R_LADDER (window taps)""",1,1% 0603 string set (per README §3 windows),R_0603,,generic,,,JLC basic — bind at capture,,,,margin: window ladder off TLV431; exact values compile from §3 table at capture
+"""R_HYST1..16""",16,1M 0603,R_0603,,generic,,,JLC basic — bind at capture,,,,"margin: per-comparator hysteresis (clean lamp edges, no chatter)"
+"""R_DIV top strings""",27,301k 1206 1% (3x series per node x9),R_1206,RV1206FR-07301KL,Yageo-class,C873534,4150,LCSC,,jlcsearch 2026-07-25,,300V-rated string by construction (each sees <=110V @230VAC); taps survive mains BY IMPEDANCE
+"""R_DIV bottoms x9 + -12V bias (15k/100k)""",11,100k / 15k 0603 1%,R_0603,,generic,,,JLC basic — bind at capture,,,,divider bottoms + the -12V level-shift string per §3
+"""D_G1..D_G8""",8,LED 3mm yellow-green 570nm 2mA,LED_D3.0mm,XL-302UGD,XINGLIGHT,C2895476,278458,LCSC,,jlcsearch 2026-07-25,,way-OK lamps; Vf<=2.1V holds to store-bottom 2.5V; $0.022
+"""D_R1..D_R8,D_BF1..D_BF8""",16,LED 3mm red,LED_D3.0mm,XL-302SURD,XINGLIGHT,C2895470,233156,LCSC,,jlcsearch 2026-07-25,,"way-FAULT + blown-fuse indicators (blown = across blade, lights iff open AND way live)"
+"""R_LED1..24""",24,1k 0603,R_0603,0603WAF1001T5E,UNI-ROYAL,C21190,15873089,LCSC BASIC,,jlcsearch 2026-07-25,,LED series (2mA class at store rail)
+"""NE1,NE2,NE_BF (+8x 470k)""",3,NE-2 neon bulb + series 470k 2010 chains,THT/2010,NE-2 + FRC2010J474,generic/Yageo-class,C2960931 (Rs only),7773,neons CONSIGNED; Rs LCSC,,jlcsearch 2026-07-25 (Rs),,CASE-LIVE + RAIL-LIVE + blown-neon option; NE-2 bulbs not on LCSC — consigned set; 2x470k series per chain
+NT1,1,flicker-flame neon tube,THT specialty,candle-flame neon,specialty,,,consigned,,,,◆ the show tube behind its jewel; LAMP-TEST-driven only; ~$1.50-2.50
+K1,1,HF3F-L/5-1HL1T latching relay 5V 1-pole,DIP,HF3F-L/5-1HL1T,Hongfa,C190594,749,LCSC,hongfa PDF 404 — FOLLOWUPS,jlcsearch 2026-07-25,,STOCK-WATCH (749). SIMPLIFICATION RULED AT SOURCING: 1-pole latching (DPDT dropped) — PG race t0 now taken from the PS_ON# node itself via a spare LM339 section (more truthful than a relay pole); zero hold current stands
+"""D_K1,D_K2""",2,1N4148WS-class steering,SOD-323,,generic,,,JLC basic — bind at capture,,,,"relay coil pulse steering (SET via ARM RC, RESET via lid uSW/DISARM)"
+"""C_K1,C_K2""",2,100uF 16V electro (coil pulse),radial/SMD,,generic,,,JLC basic — bind at capture,,,,margin: RC edge pulse energy for each coil
+SW_ARM,1,missile-cover toggle,panel THT,,generic,,,consigned,,,,the arm/fire UX; ~$2.20
+SW_TEST,1,panel momentary NO,panel THT,,generic,,,consigned,,,,powers comparator domain while held (PCB tactile C720477 = fallback if panel part slips)
+SW_LOAD,1,DPST toggle,panel THT,,generic,,,consigned,,,,min-load bleeders in/out
+SW_LID,1,microswitch,THT lever,,generic,,,consigned,,,,door open -> K1 RESET pulse -> disarmed
+SW_SEL,1,1P6T rotary,panel THT,RS-06 class,generic,C41347713,722,LCSC (verify 1P6T config at capture),,jlcsearch 2026-07-25,,meter rail select; $0.95; config-check flagged
+M1,1,100uA moving-coil panel meter 85C1,panel,85C1,generic,,,consigned,,,,reads DIVIDED nodes only via SW_SEL; scale printed x10; + multiplier R + 3296W cal trim (bind)
+"""R_PS(100R),R_PG(1k),race RC(1uF film+taps)""",1,signal set per ctl sketch,misc,,generic,,,JLC basic — bind at capture,,,,"PS_ON# drive 100R, PWR_OK 1k, race 1uF film + 100k/390k taps"
+"""D_PS,D_PG,D_USB""",3,PESD5V0S1BA,SOD-323,PESD5V0S1BA,Nexperia,C5261083,,LCSC (platform line),,repo-verified,,"clamps: PS_ON#, PWR_OK, USB VBUS"
+"""C_ST1,C_ST2""",2,2.7V 5F radial supercap Ø10-12,THT radial P5,Eaton HV/KR-class,Eaton/Kyocera,,,consigned (LCSC carries NO supercaps — study gate 2026-07-15),,,,BATTERYLESS STORE 2S; same cell family as Pro/Max provision = shared buy; ~$1.20 ea
+"""R_BAL1,R_BAL2""",2,100k 0805,R_0805,,generic,,,JLC basic — bind at capture,,,,2S balance (platform supercap pattern)
+"""D_H1,D_H2,D_H3""",3,SS34,SMA,SS34,generic,C8678,,LCSC (platform line),,repo-verified,,harvest ORing: 5VSB-way / 5V-way / USB-C -> store
+Z_ST,1,SMAZ5V6 zener 1W,SMA,SMAZ5V6-13-F,Diodes Inc,C110526,17448,LCSC,lib/datasheets/SMAZ_series.pdf,jlcsearch 2026-07-25,,crude CV clamp across store (charge-path OV guard)
+"""C_ST_LOC,C_DOM""",2,10uF 0805 X5R,C_0805,,generic,,,JLC basic — bind at capture,,,,margin: store-node local + domain-rail bulk at the LM339 cluster
+Q_BST,1,SS8050,SOT-23,SS8050,generic,C2150,3219017,LCSC BASIC,,jlcsearch 2026-07-25,,"◆ blocking oscillator switch (LAMP TEST, held-only)"
+T_BST,1,coupled inductor / mini transformer,SMD/THT,LPR6235-class,Coilcraft-class,,,Phase A pick (no LCSC hit),,,,◆ ~1:10 boost to strike neons (~100-140V @ uA-mA); candidates at library pass
+D_BST,1,M7 (1N4007 SMA),SMA,M7,generic,C95872,3600582,LCSC BASIC,,jlcsearch 2026-07-25,,◆ boost rectifier
+"""C_BST,R_BST1,R_BST2""",3,HV reservoir 100nF 250V + base network,0805/0603,,generic,,,JLC basic — bind at capture,,,,◆ margin: boost output reservoir + base drive/bleed
+R_BL1,1,47R 10W wirewound axial,THT D9x36,EWWR0010J47R0T9,generic,C349125,124,LCSC,,jlcsearch 2026-07-25,,STOCK-WATCH (124); 12V min load ~0.26A; SQP-family alt at capture
+R_BL2,1,10R 5W cement SQP,THT 22x9.5,SQP500JB-10R,generic,C1527341,875,LCSC,,jlcsearch 2026-07-25,,5V min load ~0.5A
+J_SNOUT,1,2x13 shrouded keyed header pair,IDC 2x13,,generic,,,JLC basic — bind at capture,,,,24 DUT lines + 2 key -> snout sub-board
+J_BRICK,1,"2x10 socket pair, keyed",0.1in 2x10,,generic,,,JLC basic — bind at capture,,,,8 ways + 8 returns + harvest + 2 key -> brick
+J_AUX,1,2x5 shrouded keyed,IDC 2x5,,generic,,,JLC basic — bind at capture,,,,3 expected-V ways + continuity + GND (adapters = accessory SKUs)
+J_PWR,1,USB-C 16P,USB_C_16P,,generic,C2765186,,LCSC (platform line),,repo-verified,,cold-start top-up; 5.1k CC pulldowns below
+"""R_CC1,R_CC2""",2,5.1k 0603,R_0603,0603WAF5101T5E,UNI-ROYAL,C23186,7571904,LCSC BASIC,,jlcsearch 2026-07-25,,USB-C sink advertisement
+EARTH1,1,earth stud/lug + rear pigtail,chassis,,generic,,,consigned,,,,decision #5 RULED: pigtail
+"""PCB_MAIN,PCB_PANEL""",2,2-layer main + faceplate FR4,n/a,,JLCPCB,,,jlcpcb (one panelized order w/ brick+snout),,,,est $3.00 both @100
+CASE1,1,case w/ lid kit storage,n/a,,TBD,,,quote TBD,,,,est $7.00 — soft line
+KIT1,1,STARTER KIT,n/a,,CEC,,,own,,,,RULED #11: blades full set + 2x HRC (C142716) + 1x SPARE BRICK (GDT-populated) + verdict pad; ~$5.80 COGS

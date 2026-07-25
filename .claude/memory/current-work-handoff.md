@@ -1,5 +1,18 @@
 # Current work handoff
 
+## SIGN-OFF EXECUTED + BOM SOURCED + SUB-BOARDS STOOD UP (2026-07-25 ~03:55Z, on pipeline-pass-2)
+Owner: 'approve on all counts' + BOM/sub-folders/LCSC-primary/datasheets/margin-passives directives.
+DONE: decisions #2,3,5,8,9,11,12,13,14 RULED (#4 pending safety review, #10 open) — README/map
+flipped; LCSC sourcing via jlcsearch 2 batches (LM339 C7948, TLV431 C56765, HRC C142716, ATO holder
+C3207132, MOV UNIFORM 14D220K C6793760 [low-V discs unavailable -> 6-25V band detect-only, recorded],
+GDT 2R090TA-5 C48642402 [glass-body check at sample], witness KNP C1741442, relay HF3F-L C190594 ->
+K1 SIMPLIFIED 1-pole, PG-race t0 from PS_ON# node; + basics + platform reuse); top BOM 50 lines w/
+margin/decoups; brick/ snout/ faceplate/ folders (own KiCad projects at Phase B, generator+lib =
+the shared layer — no literal sheet inheritance); datasheets vendored LM339/TLV431A/SMAZ, 3 blocked
+(FOLLOWUPS); stock watches logged. Rollup honest: ~$45-48@100 w/ kit, ~$36-38@1k, retail $79 holds.
+NEXT: Phase A CAD library -> Phase B capture -> arc bench (gates DRAFT-drop). #10 + consigned buys +
+safety review = owner desk.
+
 ## OVER-UNDER POURS v2 IMPLEMENTED (2026-07-25, Sonnet agent, on pipeline-pass-2)
 synthesize_overunder_pours landed in scripts/cec_slab_pour.py per docs/slab-pour-design-
 2026-07-24.md's "v2" section: per rail, a multi-layer A*/Dijkstra (route_overunder) grows one

@@ -1,9 +1,15 @@
 # Smoke Tester — sacrificial first-contact PSU triage box (beta line)
 
-**Status: DRAFT, sketch-stage — no schematic capture yet** (the `tester-standard`
-convention: folder + design basis first, gated capture as its own phase). Stood up on
-the beta line by owner directive 2026-07-24 ("make a new beta module… put all the
-design spec in there"), which executes decision #1 of the concept doc's list. Design
+**Status: DRAFT, sketch-stage, SIGNED OFF — sourced, capture next** (the
+`tester-standard` convention: folder + design basis first, gated capture as its own
+phase). Stood up 2026-07-24 (decision #1); **OWNER SIGN-OFF 2026-07-25 ("I approve of
+your recommendations on all counts")**: decisions #2 terminator fence, #3 blade+HRC
+coordination, #5 earth pigtail, #9 $79 retail, #11 spare brick in-box, #12 consumables
+ladder, #13 keep snout paddle, **#14 arcs BOTH** (GDTs + LAMP TEST) = RULED; #4 smoke
+chamber = adopted pending the flammability/venting review; #8 = pro-tool disclaimer
+posture v1; **#10 bundle position remains OPEN** (no recommendation was offered).
+BOM = LCSC-primary sourcing pass done 2026-07-25 (jlcsearch-verified, §6). Sub-boards
+live in their own folders: `brick/`, `snout/`, `faceplate/` (§8 structure). Design
 basis of record: `docs/smoke-tester-concept-2026-07-24.md` (§1–§9) + this README (the
 board-level spec). Sketches: `assets/` (block diagram, per-way schematic sketch,
 control/indication sketch). BOM: `bom/bom.csv` (+ JLC-format skeleton). Zero firmware
@@ -77,7 +83,7 @@ by coordination, never by luck. Way copper is laid out to 300 V-working creepage
 |---|---|---|---|---|
 | 1 | ATO blade fuses, **1 A fast, one value everywhere** | panel sockets | ~$0.10 | everyday overcurrent (shorts, cap dumps) |
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
-| 3 | **Sacrifice brick SB1** — all 8 MOVs + 8 fusible witness resistors on one keyed plug-in PCB | 2×10 socket pair | ~$3 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
+| 3 | **Sacrifice brick SB1** — 8 MOVs (uniform 22 V, see brick/README) + ◆8 GDTs (the visible mains crowbar) + 8 witness fusibles + harvest fusible, one keyed plug-in PCB | 2×10 socket pair | ~$4.30 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
 | 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle (standard tin) | keyed 2×13 shrouded header | ~$3.1 | **mechanical damage only** (bent pins, broken latch, mangled DUT connectors) — cycle WEAR ruled functionally irrelevant at this box's duty; see the resolution note below |
 
 **Physical partitioning — what is a daughterboard and what isn't (owner Q,
@@ -149,6 +155,13 @@ way honestly reads dead).
 | AUX-12 / AUX-5 / AUX-3V3 | 1 A F | 2 A T | as their rail | 1 Ω | as their rail | as their rail |
 | AUX-GND (continuity) | — | — | — | — | 1 kΩ 350 V series → LED | lamp: "GND IS NOT GROUND" if any voltage present |
 
+**MOV column SUPERSEDED at sourcing (2026-07-25):** the brick populates a UNIFORM
+14D220K (22 V) disc on every way — LCSC carries no low-voltage 14D discs in depth,
+and one value = one brick pattern. Consequence recorded honestly: the 6–25 V OV band
+on minor rails is DETECT-ONLY (windows lamp red); crowbar action begins where the
+22 V MOV conducts, and the ◆GDT (~90 V sparkover) + fuses take the mains class. −12 V
+shares the same bidirectional disc. Full brick detail: `brick/README.md`.
+
 Divider top legs are 3 × 301 kΩ 1206 in series (voltage sharing — each sees ≤110 V at
 230 VAC on the way; 1206 rated 200 V, string rated 600 V). Mains math sanity: 230 VAC
 onto a way drives the MOV into conduction at tens–hundreds of amps → both fuses clear
@@ -163,12 +176,23 @@ that 1 A blades never see >0.6 A legitimate.
 
 See `assets/smoke-tester-ctl-sketch.svg`.
 
-- **Arm/fire:** missile-cover toggle → RC pulse → SET coil of K1, a **dual-coil
-  latching DPDT relay** (zero hold current — months on one 9 V). Pole A closes
-  PS_ON# → GND through 100 Ω with a PESD5V0S1BA clamp (platform part, LCSC C5261083).
-  Lid-open microswitch or DISARM pulses the RESET coil: **an open fuse door IS the
-  safe state.** The user's finger never touches DUT copper.
-- **PWR_OK race (all analog):** K1 pole B starts a 100 ms / 500 ms two-tap RC; two
+- **Arm/fire:** missile-cover toggle → RC pulse → SET coil of K1, a **latching relay**
+  (zero hold current — the store never drains at rest). SIMPLIFIED AT SOURCING
+  (2026-07-25): K1 = Hongfa **HF3F-L/5 single-pole latching** (C190594) — the DPDT's
+  pole B is retired because the PG-race t=0 is taken from the **PS_ON# node itself**
+  (a spare LM339 section watches the line cross low — more truthful than a relay
+  pole). The contact closes PS_ON# → GND through 100 Ω with a PESD5V0S1BA clamp
+  (C5261083). Lid-open microswitch or DISARM pulses the RESET coil: **an open fuse
+  door IS the safe state.** The user's finger never touches DUT copper.
+- **◆ LAMP TEST / SHOW (decision #14, RULED 2026-07-25):** momentary button →
+  contained blocking-oscillator boost (SS8050 + coupled inductor + M7, ~100 mW from
+  the store, alive ONLY while held) strikes every gas bulb + the flicker-flame tube.
+  The show doubles as the safety self-test for the CASE-LIVE bulb (a dead neon is a
+  silent safety failure). Fences: sealed devices only, HV dies with the button,
+  never-generate-what-you-detect; panel carve-out printed: "a lit neon is ALWAYS bad
+  news — unless you're holding LAMP TEST." ◆ Glass-check GDTs live on the brick (§2
+  table) behind the theater-bay window.
+- **PWR_OK race (all analog):** PS_ON#-assert starts a 100 ms / 500 ms two-tap RC; two
   comparator sections latch PWR_OK's rising edge against the taps → PG EARLY / PG OK
   / PG LATE-NEVER lamps (ATX spec window, coarse by design).
 - **Hot-ground:** NE-2 neon chains through 2×470 kΩ 0.5 W each: DUT-GND ↔ EARTH
@@ -198,38 +222,30 @@ miswired modular cable puts 12 V on the 5 V-expected way → RED. Adapters are
 accessory SKUs (concept §9.6); the box never grows connectors. 12VHPWR adapter
 deferred to the metrology tiers (fence).
 
-## 6. BOM rollup (sketch-stage, 100-qty estimates — `bom/bom.csv` is the line list)
+## 6. BOM — sourced (LCSC-primary pass, jlcsearch-verified 2026-07-25)
 
-| Block | Est |
-|---|---|
-| Snout paddle (Mini-Fit Jr 24-ckt male, consigned + paddle PCB + header pair) | $3.10 |
-| 8× ATO holders + installed 1 A blades | $2.60 |
-| 8× 5×20 holders + installed 2 A-T HRCs | $4.40 |
-| Sacrifice brick SB1 (8 MOV + 8 witness + PCB + socket) | $3.00 |
-| Measurement domain (4× LM339, TLV431 ref, divider strings, RC race — direct-from-store, no LDO) | $1.55 |
-| Lamps (16 way-LEDs + 8 blown-fuse + 2 NE-2 chains) | $1.10 |
-| K1 latching DPDT + missile toggle + rotary + microswitch + TEST/LOAD switches | $5.60 |
-| Bleeders (47 Ω 10 W + 10 Ω 5 W, chassis) | $1.20 |
-| Needle meter (85C1-class, consigned) | $3.50 |
-| Power store (2S 5 F supercaps + balance + harvest ORing/zener + USB-C top-up) | $3.30 |
-| Main PCB + FR4 front panel (panel-as-PCB: silk truth-table is free with the fab) | $3.00 |
-| Case w/ lid fuse storage (quote TBD) | $7.00 |
-| Verdict pad + print | $0.50 |
-| **Starter kit** (full spare blade set + 2 HRC + **1 spare brick**) | $4.30 |
-| **Landed rollup** | **≈$39.15** |
+`bom/bom.csv` is the box rollup (50 lines, margin passives/decouplers included per
+active device); `brick/bom/` and `snout/bom/` carry the sub-board BOMs. Verified LCSC
+anchor lines: LM339DR **C7948** ($0.09, 84k) · TLV431AIDBZR **C56765** · 5×20 holders
+**C3131** ($0.06, 133k) · Littelfuse 215 2A-T HRC **C142716** · ATO holders Bussmann
+**C3207132** (watch: 997) · MOV 14D220K **C6793760** (watch: 800; 3 same-family alts
+listed) · GDT 2R090TA-5 **C48642402** (glass-body check at sample) · KNP 1 Ω witness
+**C1741442** · latching relay HF3F-L/5 **C190594** (watch: 749) · SMAZ5V6 **C110526** ·
+301k-1206 **C873534** · 470k-2010 **C2960931** · LEDs **C2895476/C2895470** · SS8050
+**C2150** · M7 **C95872** · 5.1k **C23186** · 1k **C21190** · bleeders **C349125**
+(watch: 124) / **C1527341** — plus platform-verified reuse: PESD **C5261083**, SS34
+**C8678**, USB-C **C2765186**, 100nF **C1525**. Jellybean R/C marked "JLC basic — bind
+at capture." CONSIGNED SET (no honest LCSC line): NE-2 neons, flicker-flame tube, 85C1
+meter, missile toggle + panel switches, supercaps (study-gate 2026-07-15), Mini-Fit Jr
+24-ckt, case, 1 A ATO fuse bulk (hardware-store on purpose), boost coupled inductor
+(Phase A pick). Datasheets vendored to `lib/datasheets/`: LM339, TLV431A, SMAZ series
+(Littelfuse 215/297 + Hongfa fetch-blocked 403/404 — FOLLOWUPS).
 
-Honest delta vs the concept §9.4 target ($30–34): this rolls up ~$39 at 100-qty
-(+$2.7 of that is the owner-directed batteryless store — worth every cent of story)
-with the starter kit in-box; the target recovers at 1 k qty + the case quote (the two
-soft lines). Levers if needed: meter-delete (−$3.50, hurts perceived value most per
-dollar — don't), case class (−$2–3), holder consolidation. **Retail $79** incl.
-starter kit (concept §9.4, one SKU, no Lite). Consumables ladder: refill $9 / brick
-2-pack $12–15 / snout $9 / adapters $9–12 or $39 4-pack (concept §9.6).
-
-LCSC discipline: only platform-verified numbers appear in `bom/bom.csv` (today:
-PESD5V0S1BA C5261083); every other line is deliberately LCSC-blank pending the
-sourcing pass — no invented part numbers. Heavy THT (snout connector, meter, holders,
-switches) is consigned-class like every Mini-Fit Jr on the platform.
+**Landed rollup at verified prices: ≈$45–48 @100 with the starter kit** (honest drift
+from the $42–43 diagram estimate: real ATO-holder pricing + the GDT-populated spare
+brick in the kit); ~$36–38 path @1k after the case quote. **Retail $79 (RULED #9)** —
+2.1× at 100-qty worst, healthy at 1k. Consumables (RULED #12): Fuse+Flag $9 · brick
+2-pack $12–15 · snout $9 · AUX adapters $9–12 / $39 4-pack.
 
 ## 7. Mechanical / panel
 
@@ -244,6 +260,15 @@ and the brick; the brick connector keying prevents reversed insertion. No mounti
 of anything conductive reachable from outside; fuse door interlock per §4.
 
 ## 8. Capture plan (next phase, ST-tester pattern)
+
+**Folder/inheritance structure (owner Q, 2026-07-25):** each physical PCB gets its
+OWN folder and, at Phase B, its own KiCad project — `./` (main), `brick/`, `snout/`,
+`faceplate/` — because KiCad is one-project-per-board; there is no literal schematic
+inheritance across projects. The SHARED layer is (a) the generator
+(`gen_smoke_tester.py`, Phase B) emitting all four from one source — the way cell is
+8 stamps of one pattern, the brick is its mirror — and (b) the platform lib via
+`${KIPRJMOD}` depth-3 paths (`beta/output-daughterboards/*` precedent). All four
+panelize into ONE fab order.
 
 Phase A: promote/pull the CAD library (ATO holder, 5×20 holder, NE-2, 85C1 meter,
 latching relay, MOV discs, missile toggle — none vendored today) into `cec-tester`
