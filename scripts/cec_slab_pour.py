@@ -1468,6 +1468,31 @@ def cleanup_floating_zones(board_path):
     if pcbnew is None:
         return 0
     board = pcbnew.LoadBoard(board_path)
+    # MAKE THE EVIDENCE REAL BEFORE JUDGING ON IT (regression fix 2026-07-25).
+    # The zero-fill rule below reads an empty area as "the filler carved this
+    # away, it is a phantom" -- and the original comment asserted the cleanup
+    # "runs after the fill, so an empty area is the filler's verdict, not a
+    # race". That assumption was FALSE and cost real copper: on the cable boards
+    # (eps/pcie/12vhpwr) the board's own GND planes arrive here UNFILLED, so the
+    # rule deleted them outright. Measured on eps-8pin: In1 and In2 both lost
+    # their plane (7021mm2 each) and structural DRC went 2 -> 23, with FR then
+    # routing 165 signal tracks across what should have been solid ground.
+    # Filling here makes the verdict honest -- a phantom still fills to zero and
+    # still dies, a real plane fills and lives -- and it leaves the artifact with
+    # its pours actually filled, which is what a reviewable board looks like.
+    # NOTE this is deliberately NOT a name-based exemption: the owner overturned
+    # name-skipping for the zero-cluster rule on 2026-07-25, and the fix must not
+    # smuggle it back in through the fill rule.
+    filled_now = False
+    try:
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        filled_now = True
+        if hasattr(board, "BuildConnectivity"):
+            board.BuildConnectivity()          # connectivity must see the fill
+    except Exception as e:                                 # noqa: BLE001
+        print(f"[cec_slab_pour] zone cleanup: fill failed ({e}) -- zero-fill "
+              "rule DISABLED for this pass (never delete on unmeasured "
+              "evidence)", file=sys.stderr)
     conn = board.GetConnectivity()
     doomed = []
     for z in board.Zones():
@@ -1475,10 +1500,10 @@ def cleanup_floating_zones(board_path):
             continue
         # ZERO-FILL zones are dead by definition (measured on the s510
         # winner: a `pourplan:` outline whose fill was fully carved away
-        # survived as a phantom "pour connected to nothing"). Runs after
-        # the fill, so an empty area is the filler's verdict, not a race.
+        # survived as a phantom "pour connected to nothing") -- but ONLY once a
+        # fill has actually run in this cycle, per the note above.
         try:
-            if z.GetFilledArea() == 0:
+            if filled_now and z.GetFilledArea() == 0:
                 doomed.append(z)
                 continue
         except Exception:                              # noqa: BLE001
@@ -1492,10 +1517,13 @@ def cleanup_floating_zones(board_path):
             doomed.append(z)
     for z in doomed:
         board.Remove(z)
-    if doomed:
+    # Save when anything changed -- including a fill with no removals, so the
+    # artifact carries its filled copper instead of empty outlines.
+    if doomed or filled_now:
         pcbnew.SaveBoard(board_path, board)
-        print(f"[cec_slab_pour] zone cleanup: removed {len(doomed)} floating "
-              "zone(s)", file=sys.stderr)
+        if doomed:
+            print(f"[cec_slab_pour] zone cleanup: removed {len(doomed)} floating "
+                  "zone(s)", file=sys.stderr)
     return len(doomed)
 
 
