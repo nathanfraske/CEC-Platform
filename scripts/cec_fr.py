@@ -4265,6 +4265,13 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                               f"dict(s) -> {len(_sp3)} slab(s)"
                               + (f"; min-width OPEN on {_bad3[:4]}" if _bad3 else ""),
                               file=sys.stderr)
+                    # GUARANTEED SHUNT PATCHES (owner 2026-07-25, the RS1
+                    # starvation cycle): every RS* pad-net gets its half of
+                    # the shunt neighborhood unconditionally -- pad-anchored
+                    # by definition, choke-admitted by construction. Same-net
+                    # overlap with real slabs/lanes merges harmlessly
+                    # (additive-same-net doctrine).
+                    _sp3 = list(_sp3) + cec_slab_pour.guaranteed_shunt_patches(board)
                     _keep_r = ([] if _full else
                                [p for p in power_pours
                                 if p.get("provenance") != "placer_ask"])

@@ -874,3 +874,60 @@ if __name__ == "__main__":
     print(json.dumps({"pours": len(pours),
                       "report": {f"{k[0]}|{k[1]}": v for k, v in rep.items()}},
                      indent=1, default=str))
+
+
+def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
+    """UNCONDITIONAL per-pad F.Cu patch dicts for every RS* shunt (owner,
+    2026-07-25: RS1 measured pour-naked -- the starvation cycle: congested
+    area -> its shave comes out lace-bound -> scrap filter drops it ->
+    coverage-gated force-vias refuse -> no anchors -> unreachable -> no
+    pour, forever). Each shunt pad-net gets its half of the shunt
+    neighborhood as a patch: anchored by the pad itself BY DEFINITION (so
+    the floating-fragment rule can never drop it), inside the shunt
+    neighborhood by construction (so the F choke admits it), provenance
+    'slab' (so the bond/scrap filter and F-rectangularize exempt it).
+    HI/LO halves are clipped at the pad-group mid-gap so the two nets'
+    patches never overlap. Local COVERAGE guarantee only -- reachability
+    is the pre-FR corridor reservation's job."""
+    out = []
+    for fp in board.GetFootprints():
+        if not fp.GetReference().startswith("RS"):
+            continue
+        by_net = {}
+        for p in fp.Pads():
+            n = p.GetNetname()
+            if n and n != "GND":
+                by_net.setdefault(n, []).append(p)
+        if len(by_net) != 2:
+            continue
+        def _gbox(ps):
+            return (min(p.GetBoundingBox().GetLeft() for p in ps) / MM,
+                    min(p.GetBoundingBox().GetTop() for p in ps) / MM,
+                    max(p.GetBoundingBox().GetRight() for p in ps) / MM,
+                    max(p.GetBoundingBox().GetBottom() for p in ps) / MM)
+        (na, pa), (nb, pb) = by_net.items()
+        ba, bbx = _gbox(pa), _gbox(pb)
+        ca = ((ba[0] + ba[2]) / 2, (ba[1] + ba[3]) / 2)
+        cb = ((bbx[0] + bbx[2]) / 2, (bbx[1] + bbx[3]) / 2)
+        horiz = abs(cb[0] - ca[0]) >= abs(cb[1] - ca[1])
+        mid = ((ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2)
+        for net, gb, cc in ((na, ba, ca), (nb, bbx, cb)):
+            x0, y0 = gb[0] - margin_mm, gb[1] - margin_mm
+            x1, y1 = gb[2] + margin_mm, gb[3] + margin_mm
+            if horiz:
+                if cc[0] < mid[0]:
+                    x1 = min(x1, mid[0] - gap_mm)
+                else:
+                    x0 = max(x0, mid[0] + gap_mm)
+            else:
+                if cc[1] < mid[1]:
+                    y1 = min(y1, mid[1] - gap_mm)
+                else:
+                    y0 = max(y0, mid[1] + gap_mm)
+            out.append({"net": net, "layer": "F.Cu",
+                        "polygon": [(round(x0, 3), round(y0, 3)),
+                                    (round(x1, 3), round(y0, 3)),
+                                    (round(x1, 3), round(y1, 3)),
+                                    (round(x0, 3), round(y1, 3))],
+                        "provenance": "slab", "priority": 2})
+    return out
