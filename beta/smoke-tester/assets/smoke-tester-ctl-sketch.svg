@@ -69,7 +69,7 @@
   <rect x="690" y="360" width="90" height="70" fill="#fff" stroke="#333"/>
   <text x="698" y="378" font-size="10">SW_SEL 1P6T:</text>
   <text x="698" y="392" font-size="9.5">12V·5V·3V3·</text>
-  <text x="698" y="404" font-size="9.5">5VSB·−12V·AUX</text>
+  <text x="698" y="404" font-size="9.5">5VSB·−12V·STORE</text>
   <text x="698" y="422" font-size="9.5">taps DIVIDED nodes</text>
   <text x="800" y="378" font-size="9.5">Never sees &gt; a few volts,</text>
   <text x="800" y="392" font-size="9.5">whatever the DUT does.</text>

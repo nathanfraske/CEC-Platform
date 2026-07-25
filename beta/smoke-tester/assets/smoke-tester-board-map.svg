@@ -31,7 +31,7 @@
   <!-- MAIN -->
   <rect x="215" y="90" width="330" height="420" fill="#eaf0fd" stroke="#2255aa" stroke-width="2.5"/>
   <text x="225" y="108" font-size="11" font-weight="bold" fill="#2255aa">BOARD 1 — MAIN (permanent, 2-layer)</text>
-  <text x="225" y="122" font-size="8.5">ATO + HRC holders · 7× LM339 + TLV431 · K1 latching 1-pole (HF3F-L/5)</text>
+  <text x="225" y="122" font-size="8.5">ATO + HRC holders · 6× LM339 + TLV431 · K1 latching 1-pole (HF3F-L/5)</text>
   <text x="225" y="133" font-size="8.5">2S store ⊕ harvest-direct diode-OR (instant-on) · divider strings (300V class)</text>
   <text x="225" y="144" font-size="8.5" fill="#a11">◆ LAMP-TEST boost osc (~100mW, alive only while button held)</text>
   <text x="225" y="155" font-size="8.5">creepage ≥3.2mm on all way copper · no copper upstream of a sacrifice</text>
@@ -42,13 +42,13 @@
   <text x="231" y="205" font-size="8.5">→ Board 4</text>
 
   <rect x="225" y="222" width="130" height="42" fill="#fff" stroke="#c22" stroke-width="1.5"/>
-  <text x="231" y="236" font-size="9.5" font-weight="bold">J_BRICK 2×11 socket</text>
-  <text x="231" y="248" font-size="8.5">8 ways + 8 returns +</text>
+  <text x="231" y="236" font-size="9.5" font-weight="bold">J_BRICK 2×8 socket</text>
+  <text x="231" y="248" font-size="8.5">5 ways + 5 returns +</text>
   <text x="231" y="259" font-size="8.5">harv in + 2 legs out + 2 key → Bd 3</text>
 
   <rect x="225" y="276" width="130" height="36" fill="#fff" stroke="#333" stroke-width="1.5"/>
-  <text x="231" y="290" font-size="9.5" font-weight="bold">J_AUX 2×5 keyed</text>
-  <text x="231" y="302" font-size="8.5">3 expected-V ways + cont + GND</text>
+  <text x="231" y="290" font-size="9.5" font-weight="bold">PELLET CLIP (KF141V 2P)</text>
+  <text x="231" y="302" font-size="8.5">SMOKE-SHOT bay, behind window</text>
 
   <rect x="225" y="324" width="130" height="32" fill="#fff" stroke="#333" stroke-width="1.5"/>
   <text x="231" y="337" font-size="9.5" font-weight="bold">J_PWR USB-C 5V</text>
@@ -67,7 +67,7 @@
   <text x="231" y="476" font-size="8.5">door open → K1 RESET</text>
 
   <!-- per-way chain mini-flow inside main -->
-  <text x="375" y="176" font-size="8.5" fill="#555">per way (×8):</text>
+  <text x="375" y="176" font-size="8.5" fill="#555">per way (×5):</text>
   <text x="375" y="188" font-size="8.5">snout → BLADE 1A-F</text>
   <text x="375" y="199" font-size="8.5">→ HRC 2A-T 250VAC</text>
   <text x="375" y="210" font-size="8.5">→ way node → brick</text>
@@ -80,7 +80,7 @@
   <rect x="390" y="280" width="150" height="110" fill="#fdeaea" stroke="#c22" stroke-width="2.5"/>
   <text x="398" y="296" font-size="10" font-weight="bold" fill="#a11">BOARD 3 — SACRIFICE BRICK</text>
   <text x="398" y="309" font-size="8.5">plug-in consumable ③ ~$3.85</text>
-  <text x="398" y="321" font-size="8.5">8× MOV uniform 14D220K</text>
+  <text x="398" y="321" font-size="8.5">5× MOV uniform 14D220K</text>
   <text x="398" y="333" font-size="8.5" fill="#a11">◆ 5× glass GDTs, core ways —</text>
   <text x="398" y="344" font-size="8.5" fill="#a11">  the visible mains crowbar</text>
   <text x="398" y="356" font-size="8.5">8× 1Ω flameproof witness</text>
@@ -127,18 +127,18 @@
   <!-- ACCESSORIES column -->
   <rect x="790" y="58" width="240" height="200" fill="#f4fff4" stroke="#1a7a1a" stroke-width="1.5"/>
   <text x="800" y="76" font-size="10.5" font-weight="bold" fill="#1a7a1a">EXTERNAL ACCESSORIES</text>
-  <text x="800" y="92" font-size="9">AUX adapters (passive, keyed,</text>
-  <text x="800" y="104" font-size="9">own pin map each) → J_AUX:</text>
-  <text x="800" y="118" font-size="9">· SATA · Molex · PCIe 6+2 · EPS 4+4</text>
-  <text x="800" y="132" font-size="8.5" fill="#555">$9–12 each / $39 4-pack; the box</text>
-  <text x="800" y="143" font-size="8.5" fill="#555">never grows connectors</text>
+  <text x="800" y="92" font-size="9">Smoke-pellet refills 50-bag ~$3;</text>
+  <text x="800" y="104" font-size="9">blades/HRCs = hardware-store std.</text>
+  <text x="800" y="118" font-size="9">AUX adapters DESCOPED 2026-07-25</text>
+  <text x="800" y="132" font-size="8.5" fill="#555">(cable pinouts = DMM / deck job;</text>
+  <text x="800" y="143" font-size="8.5" fill="#555">box never grows connectors)</text>
   <text x="800" y="161" font-size="9">Consumable SKUs: Fuse+Flag $9 ·</text>
   <text x="800" y="173" font-size="9">brick 2-pk $12–15 · snout $9</text>
   <text x="800" y="189" font-size="8.5" fill="#555">(deck straight-through input boards</text>
   <text x="800" y="200" font-size="8.5" fill="#555">= ST-tester spec, separate product —</text>
   <text x="800" y="211" font-size="8.5" fill="#555">testers/DESIGN-SHEET.md §A)</text>
-  <text x="800" y="227" font-size="9">12VHPWR: NO adapter (fence) —</text>
-  <text x="800" y="239" font-size="9">metrology tiers own that connector</text>
+  <text x="800" y="227" font-size="9">12VHPWR + per-cable metrology:</text>
+  <text x="800" y="239" font-size="9">the deck tiers own those (fence)</text>
 
   <!-- FAB -->
   <rect x="790" y="274" width="240" height="116" fill="#fafafa" stroke="#999"/>
@@ -146,8 +146,8 @@
   <text x="800" y="307" font-size="8.5">ONE 2-layer JLC order, panelized:</text>
   <text x="800" y="318" font-size="8.5">MAIN + FACEPLATE + BRICK×N + SNOUT×N</text>
   <text x="800" y="329" font-size="8.5">(consumable stock rides ~free)</text>
-  <text x="800" y="345" font-size="9" font-weight="bold">Landed ≈$43–45 @100 w/ starter kit</text>
-  <text x="800" y="357" font-size="8.5">(post-VE 2026-07-25; path ~$34–36 @1k)</text>
+  <text x="800" y="345" font-size="9" font-weight="bold">Landed ≈$39–41 @100 w/ starter kit</text>
+  <text x="800" y="357" font-size="8.5">(post-VE + AUX descope; ~$31–33 @1k)</text>
   <text x="800" y="371" font-size="9" font-weight="bold">Retail $79 (holds) · one SKU</text>
   <text x="800" y="383" font-size="8.5">consigned lines: supercaps, meter, case</text>
 
@@ -172,7 +172,7 @@
   <!-- connector census -->
   <rect x="20" y="608" width="1010" height="48" fill="#fafafa" stroke="#999"/>
   <text x="30" y="625" font-size="10" font-weight="bold">CONNECTOR CENSUS (complete):</text>
-  <text x="30" y="640" font-size="9">J_SNOUT 2×13 keyed (snout⇄main) · J_BRICK 2×11 keyed socket (brick⇄main) · J_AUX 2×5 keyed (adapters) · J_PWR USB-C · meter lugs ×2 · earth stud · lid µswitch · DUT's own 24-pin → snout.</text>
+  <text x="30" y="640" font-size="9">J_SNOUT 2×13 keyed (snout⇄main) · J_BRICK 2×8 keyed socket (brick⇄main) · J_PWR USB-C · meter lugs ×2 · earth stud · lid µswitch · DUT's own 24-pin → snout.</text>
   <text x="30" y="651" font-size="9" fill="#555">FACEPLATE: no connector. Nothing else crosses a board boundary — the whole fault path lives on MAIN + the two red plug-ins.</text>
 
   <!-- SIGN-OFF box -->

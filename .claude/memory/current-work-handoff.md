@@ -1,5 +1,29 @@
 # Current work handoff
 
+## AUX DESCOPED + BOTH-GRIDS ANSWERED + OTS PELLET CLIP (2026-07-25 ~08:25Z, pipeline-pass-2)
+THREE owner turns folded into one pass. (1) AUX DESCOPE — owner caught my contradiction
+(early ruling was 24-pin-only; my AUX defense used a safety story that proves too much)
+and ruled cable checking = DMM/deck job. SUSTAINED + APPLIED: port + 3 AUX ways +
+continuity way + adapter SKUs fully removed; my framing retracted ON RECORD (README §5
+tombstone + concept §9.12). Bought back ~$3.5-4: rollup $43-45 -> ~$39-41@100 /
+~$31-33@1k; ways 8->5 (way counts rippled through §3 table/SVGs/brick), brick 2x11->2x8
+(RV/RW 8->5), LM339 U1..U7->U1..U6 (ledger: 10 windows + race2 + t0 + reverse + bar6 =
+20/24, 4 spare), holders FH/XF/F_* 8->5(+smoke XF6), R_DIV 27->18/11->8, R_HYST 16,
+LEDs 7G/12R, R_LED 21. KEPT: meter position 6 re-pointed AUX->STORE (numeric store V on
+demand — upgrade). Re-adding ways later = generator parameter (cheap to reverse). VE
+"declined AUX-DNP" superseded (premise died). bom still 54 lines (J_AUX out, PELLET/CLIP
+split in). (2) BOTH-GRIDS (mid-turn owner Q): 120 vs 230+ VAC input PSUs — NO variant,
+no switch: tester touches only DC outputs; fuse CURRENTS key on tester's own draw
+(input-agnostic); all mains-facing parts specced at 230VAC/325Vpk worst case which
+contains 120V (250VAC HRCs, 300V-working dividers + >=3.2mm creepage, 90V strikes fire
+from 170Vpk). Named honestly: ~380-400VDC PFC-bus ingress (no zero crossings, harder
+than AC) -> bounded by fault impedance + DUT input fuse/bulk; NEW explicit arc-bench
+DC-ingress row (README §9 + §3 both-grids note + concept §9.13). (3) SMOKE pellet clip
+= OTS KF141V-2.54-2P C475114 (button-release spring terminal, bare-hand reload; grip on
+0.7mm lead at sample; WJ250B-3.5-2P C8454 fallback 21k stock). NEXT: Phase A library
+pass still green (J_AUX/2x5 dropped from pulls; KF141V added); capture blockers
+unchanged (none owner-side).
+
 ## SMOKE SHOT ADDED (2026-07-25 ~07:55Z, owner "I do want that", on pipeline-pass-2)
 Owner asked (a) why the AUX port exists (answered in chat: the borrowed-modular-cable
 killer + other-cable faults via passive $9 adapters on 3 spare fused ways; ruled revenue

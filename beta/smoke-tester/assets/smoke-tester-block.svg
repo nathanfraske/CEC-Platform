@@ -36,16 +36,16 @@
 
   <line x1="515" y1="121" x2="540" y2="121" stroke="#333" stroke-width="2"/>
   <circle cx="546" cy="121" r="4" fill="#333"/>
-  <text x="536" y="112" font-size="10" font-weight="bold">WAY NODE ×8</text>
+  <text x="536" y="112" font-size="10" font-weight="bold">WAY NODE ×5</text>
   <line x1="546" y1="125" x2="546" y2="165" stroke="#333" stroke-width="2"/>
 
   <!-- BRICK -->
   <rect x="470" y="165" width="145" height="100" fill="#fff" stroke="#c22" stroke-width="2.5"/>
   <text x="480" y="185" font-size="12" font-weight="bold">SACRIFICE BRICK ③</text>
-  <text x="480" y="201" font-size="9.5">8× MOV 22V + ◆5× GDT (core)</text>
-  <text x="480" y="214" font-size="9.5">8× 1Ω flameproof</text>
+  <text x="480" y="201" font-size="9.5">5× MOV 22V + ◆5× GDT</text>
+  <text x="480" y="214" font-size="9.5">5× 1Ω flameproof</text>
   <text x="480" y="226" font-size="9.5">   witness + 2×33Ω harvest</text>
-  <text x="480" y="240" font-size="9.5">keyed 2×11 socket, ~$3.85</text>
+  <text x="480" y="240" font-size="9.5">keyed 2×8 socket, ~$3.50</text>
   <text x="480" y="256" font-size="9" fill="#a11">OV/mains → conducts hard →</text>
   <text x="480" y="266" font-size="9" fill="#a11">fuses clear, witness smokes</text>
 
@@ -58,14 +58,14 @@
   <line x1="470" y1="214" x2="440" y2="214" stroke="#333" stroke-width="1.5"/>
 
   <!-- ways fanout note -->
-  <text x="310" y="290" font-size="10" fill="#333">Ways: 12V · 5V · 3V3 · 5VSB · −12V  +  AUX-12 · AUX-5 · AUX-3V3 (fused)  +  AUX-GND (1kΩ 350V continuity lamp)</text>
+  <text x="310" y="290" font-size="10" fill="#333">Ways: 12V · 5V · 3V3 · 5VSB · −12V (5 core — AUX ways + port DESCOPED 2026-07-25: cable pinouts = DMM / deck job)</text>
   <text x="310" y="306" font-size="10" fill="#333">Signals (no fuse, high-Z): PS_ON# ← relay·100Ω·PESD    PWR_OK → 1kΩ·PESD → race</text>
 
   <!-- AUX -->
   <rect x="310" y="325" width="300" height="52" fill="#fff" stroke="#333"/>
-  <text x="320" y="344" font-size="11" font-weight="bold">AUX ADAPTER PORT (keyed 2×5)</text>
-  <text x="320" y="358" font-size="9.5">passive SATA/Molex/PCIe/EPS adapters map pins → expected-V ways;</text>
-  <text x="320" y="370" font-size="9.5">miswired modular cable ⇒ 12V lands on 5V-way ⇒ RED. Accessory SKUs.</text>
+  <text x="320" y="344" font-size="11" font-weight="bold">◆ SMOKE SHOT (held-only demo)</text>
+  <text x="320" y="358" font-size="9.5">12V → 10A-T HRC → horn button → KNP 1Ω pellet (KF141V clip) = 144W puff;</text>
+  <text x="320" y="370" font-size="9.5">~$0.02/shot, reloads like a blade fuse. (AUX adapter port DESCOPED 2026-07-25.)</text>
 
   <!-- MEASUREMENT DOMAIN -->
   <rect x="645" y="60" width="315" height="330" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="6 3"/>
@@ -81,7 +81,7 @@
 
   <line x1="815" y1="130" x2="845" y2="130" stroke="#333" stroke-width="1.5"/>
   <rect x="845" y="100" width="105" height="60" fill="#fff" stroke="#2255aa"/>
-  <text x="853" y="118" font-size="10.5" font-weight="bold">7× LM339</text>
+  <text x="853" y="118" font-size="10.5" font-weight="bold">6× LM339</text>
   <text x="853" y="132" font-size="9.5">±5% windows vs</text>
   <text x="853" y="144" font-size="9.5">TLV431 ladder</text>
   <text x="853" y="156" font-size="9.5">+ PG timing race</text>

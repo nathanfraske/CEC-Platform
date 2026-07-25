@@ -421,3 +421,29 @@ purpose. Fences kept: held-only (LAMP TEST precedent), sacrifice-first branch,
 flameproof puff not flame, #4 chamber review grows to demo cadence (vent sizing,
 shots-per-minute silk), printed carve-out: "smoke is ALWAYS a real event — unless
 you're holding SMOKE." Board spec: beta/smoke-tester/README.md §2 table row 5 + §4.
+
+### 9.12 AUX adapter port — DESCOPED (owner scope objection SUSTAINED, 2026-07-25)
+
+The owner caught a real inconsistency: the original refinement ruled 24-pin-only
+scope, and the agent's later defense of the AUX port ("borrowed modular cables kill
+drives — invisible until it kills") proves too much — by that logic the box would
+need a port for every cable on the PSU. Ruling: checking other cables is a quick DMM
+pinout job (or the metrology deck's — per-cable checking already lives there,
+testers/DESIGN-SHEET.md §A), NOT this box's mission. AUX subsystem removed entirely
+(port, 3 AUX ways, continuity way, adapter accessory SKUs; §9.1/§9.6 adapter text +
+decision #6's port half are superseded); the safety framing is retracted on the
+record. −$3.5–4 BOM (rollup ≈$39–41 @100), brick 2×8, LM339 back to 6 packages,
+meter position 6 re-pointed to the supercap STORE. A standalone cable-pinout checker
+remains a possible separate tiny product, someday, not this box.
+
+### 9.13 Both grids, one box (owner Q, 2026-07-25)
+
+120 VAC and 230+ VAC input PSUs need no variants and no switch: the tester touches
+only DC outputs (identical either way); fuse CURRENT ratings key on the tester's own
+input-agnostic draw; and every mains-facing element was specced at the 230 VAC /
+325 Vpk worst case, which contains 120 V as the milder instance (250 VAC-class HRCs,
+300 V-working dividers + creepage, 90 V strike points that fire from 170 Vpk up).
+One distinct corner named honestly: the PSU's primary PFC bus (~380–400 VDC, no
+zero-crossings) — real-world it arrives through the fault's own impedance, bounded
+by the DUT's input fuse + bulk energy; proven at the arc bench (explicit DC-ingress
+row). Spec: beta/smoke-tester/README.md §3 both-grids note.

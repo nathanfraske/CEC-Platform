@@ -26,15 +26,16 @@ a shrug.
 
 - **Does:** connector-domain triage of an unknown/suspect ATX PSU: 5VSB sanity,
   rails-quiet-before-PS_ON, rails-in-window after, PWR_OK presence + coarse timing,
-  −12 V presence, hot-ground ("CASE LIVE") detection, modular-cable pinout check via
-  the AUX adapter port. Survives mains-on-any-output by design; repair = consumables.
+  −12 V presence, hot-ground ("CASE LIVE") detection. Survives mains-on-any-output
+  by design; repair = consumables.
 - **Never:** metrology (±5 %-class lamp windows only), load testing beyond min-load
   bleeders, ripple, OCP hunts, data links, MCUs, inline operation. It TERMINATES the
   DUT — nothing of ours ever sits downstream of it. Green lights here earn the DUT
   its interview with the 24-pin module / ST deck; that is the whole product ladder.
 - 24-pin only, deliberately: no other PSU connector adds a voltage domain (EPS/PCIe/
   SATA/Molex are the same secondary nodes), and PS_ON# lives on the 24-pin, which
-  makes it the mandatory core. Per-cable wiring faults are the AUX port's job (§5).
+  makes it the mandatory core. Per-cable wiring faults are a DMM / metrology-deck
+  job, NOT this box's (owner re-ruling 2026-07-25 — AUX port DESCOPED, §5).
 
 ## 2. Architecture — three domains, four consumables, one structural rule
 
@@ -95,7 +96,7 @@ purpose:**
 |---|---|---|---|---|
 | 1 | ATO blade fuses, **1 A fast, one value everywhere** | panel sockets | ~$0.10 | everyday overcurrent (shorts, cap dumps) |
 | 2 | HRC 5×20 ceramic sand-filled, **2 A time-lag, 250 VAC, 1.5 kA breaking** | internal twist holders | ~$0.35 | mains-class interruption (what a 32 V blade cannot break without arcing) |
-| 3 | **Sacrifice brick SB1** — 8 MOVs (uniform 22 V, see brick/README) + ◆5 GDTs on the core ways (VE-1; the visible mains crowbar) + 8 witness fusibles + 2 harvest fusibles (store leg + instant-on domain leg), one keyed plug-in PCB | 2×11 socket pair | ~$3.85 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
+| 3 | **Sacrifice brick SB1** — 5 MOVs (uniform 22 V, see brick/README) + ◆5 GDTs (VE-1; the visible mains crowbar) + 5 witness fusibles + 2 harvest fusibles (store leg + instant-on domain leg), one keyed plug-in PCB | 2×8 socket pair | ~$3.50 | any OV/mains event (doctrine: mains event ⇒ fuses AND brick) |
 | 4 | **Snout SN1** — the 24-pin male header on a passthrough paddle (standard tin) | keyed 2×13 shrouded header | ~$3.1 | **mechanical damage only** (bent pins, broken latch, mangled DUT connectors) — cycle WEAR ruled functionally irrelevant at this box's duty; see the resolution note below |
 | 5 | **◆ SMOKE pellet** — the same brick-witness KNP 1 Ω flameproof, in a tool-less panel clip behind the theater window (§4 SMOKE SHOT) | 2-point clip | ~$0.02 | **the SMOKE button** — the only part that dies on purpose (the demo; real-event smoke still comes free from the brick witnesses) |
 
@@ -133,7 +134,7 @@ continuous and big current only as fault transients. Pulse math for the socket: 
 230 VAC clearing event pushes ~50–150 A through one pin pair for <10 ms ≈ 0.5 J ≈
 +13 K adiabatic in a brass pin — inside a 3 A-rated pin's pulse capability, events
 are rare by definition, and the brick pinout doubles the GND return pins anyway
-(2×11 = 22 positions: 8 ways + 8 returns + harvest node in + store & domain legs
+(2×8 = 16 positions: 5 ways + 5 returns + harvest node in + store & domain legs
 out + 2 key/spare). Contact-pitting
 after repeated mains events is a first-article bench watch item, not a redesign.
 
@@ -154,9 +155,9 @@ disconnects the spent MOV so a failed-short varistor cannot latch the way.
 
 ## 3. Per-way electrical spec
 
-See `assets/smoke-tester-way-sketch.svg`. Eight fused ways (5 core + 3 AUX) + one
-resistive continuity way. All windows ±5 % nominal, LM339 comparator pairs against a
-TL431-derived ladder; taps measure DOWNSTREAM of the sacrifice chain (post-event a
+See `assets/smoke-tester-way-sketch.svg`. Five fused ways (core only — the 3 AUX
+ways + continuity way were DESCOPED with the AUX port, owner ruling 2026-07-25, §5).
+All windows ±5 % nominal, LM339 comparator pairs against a TLV431-derived ladder; taps measure DOWNSTREAM of the sacrifice chain (post-event a
 way honestly reads dead).
 
 | Way | Blade | HRC | MOV (brick) | Witness | Divider (to DUT GND) | Window at node |
@@ -166,8 +167,6 @@ way honestly reads dead).
 | 3.3 V | 1 A F | 2 A T | S14K4-class | 1 Ω 1 W fusible | 903 k / 100 k | 0.313–0.346 V |
 | 5VSB | 1 A F | 2 A T | S14K6-class | 1 Ω 1 W fusible | 903 k / 100 k | 0.474–0.524 V |
 | −12 V | 1 A F | 2 A T | S14K14-class (MOVs are bidirectional = free reverse clamp) | 1 Ω 1 W fusible | 100 k to +2.5 V bias / 15 k / 903 k string | level-shifted window, healthy/absent/OV separable |
-| AUX-12 / AUX-5 / AUX-3V3 | 1 A F | 2 A T | as their rail | 1 Ω | as their rail | as their rail |
-| AUX-GND (continuity) | — | — | — | — | 1 kΩ 350 V series → LED | lamp: "GND IS NOT GROUND" if any voltage present |
 
 **MOV column SUPERSEDED at sourcing (2026-07-25):** the brick populates a UNIFORM
 14D220K (22 V) disc on every way — LCSC carries no low-voltage 14D discs in depth,
@@ -185,6 +184,21 @@ in ≤ a half-cycle, witness opens, comparator node never exceeds ~2.4 V through
 Min-load bleeders (switchable, "MIN LOAD" DPST): 47 Ω 10 W on 12 V (~0.26 A) + 10 Ω
 5 W on 5 V (~0.5 A) — enough for group-regulated antiques to regulate, small enough
 that 1 A blades never see >0.6 A legitimate.
+
+**Both grids, one box (owner Q, 2026-07-25):** the tester touches only the DUT's DC
+outputs, so whether the PSU eats 120 VAC or 230+ VAC changes NOTHING in normal
+operation — the secondary rails are the same 12/5/3.3 V either way, and the fuse
+CURRENT ratings key on the tester's own draw (bleeders + microamp taps), which is
+input-agnostic. Input voltage matters only for the mains-on-a-rail FAULT class, and
+every mains-facing element is specced at the 230 VAC / 325 Vpk worst case, which
+covers 120 V automatically as the milder instance: 250 VAC-class HRC interrupters
+(ways + smoke branch), 300 V-working divider strings + ≥3.2 mm creepage, and strike
+points (GDT/neon ~90 V) that fire from 120's 170 Vpk just as well. Same fuses, both
+grids, no switch, no variant. The one distinct ingress is the PSU's PRIMARY PFC BUS
+(~380–400 VDC, no zero-crossings — harder to break than AC): in the real fault it
+arrives through the failure's own impedance and is bounded by the DUT's input fuse +
+bulk-cap energy; the arc bench carries an explicit DC-ingress row (§9) to prove the
+HRC/GDT chain there rather than hand-wave it.
 
 ## 4. Controls and indication
 
@@ -212,8 +226,9 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   blade: 12 V input node → F_SMK **10 A time-lag 5×20 HRC 250 VAC** (0215010.MXP,
   C142733 — same family/holder as the way HRCs, fuse-first at the branch head) →
   SW_SMK chunky red horn-class momentary (held-only) → PELLET1, the SAME KNP 1 Ω 1 W
-  flameproof witness part the brick uses (C1741442), in a tool-less 2-point clip
-  behind the theater window. Physics: 12 V ÷ 1 Ω ≈ 12 A → 144 W into a 1 W
+  flameproof witness part the brick uses (C1741442), in an OFF-THE-SHELF
+  button-release spring terminal (KF141V-2.54-2P, C475114 — press, slot, done;
+  owner easy-slot ask 2026-07-25) behind the theater window. Physics: 12 V ÷ 1 Ω ≈ 12 A → 144 W into a 1 W
   flameproof part = the designed puff in ~50–150 ms; the 10 A time-lag fuse carries
   the ~1.2× shot without noticing and is ~never consumed; the needle dips under the
   shot (free showmanship). Reload = pull the spent pellet, press in a fresh one —
@@ -242,6 +257,9 @@ See `assets/smoke-tester-ctl-sketch.svg`.
 - **Needle meter:** 100 µA moving-coil panel meter + 1P6T rotary reading the
   *already-divided* node (it can never see more than a few volts, whatever the DUT
   does), scale printed ×10. No pixels, no MCU — numbers are the module/ST deck's job.
+  Positions: 12 V · 5 V · 3.3 V · 5VSB · −12 V · **STORE** (the sixth position
+  re-pointed from AUX to the supercap store at the descope — numeric store voltage
+  on demand).
 - **Lamps:** per-way green (in-window) / red (out), blown-fuse indicator across every
   blade position (lights only when its fuse is open AND the way upstream is live).
   Panel silk = the verdict truth-table; tear-off verdict-card pad ships in the lid.
@@ -268,14 +286,23 @@ See `assets/smoke-tester-ctl-sketch.svg`.
   anyway; exact scaling binds at capture with the window ladder. Parts: +1 LM339
   (U7, $0.09) + 2R/2Y/2G LED + 6× 1k + jellybean string ≈ **$0.35**.
 
-## 5. AUX adapter port
+## 5. AUX adapter port — DESCOPED (owner ruling, 2026-07-25)
 
-One keyed 2×5 shrouded header exposing the 3 AUX fused ways + the continuity way +
-DUT GND. Passive per-family adapters (SATA / Molex / PCIe / EPS plug → header, each
-carrying its own pin map) put the *expected* voltage on the matching way — a
-miswired modular cable puts 12 V on the 5 V-expected way → RED. Adapters are
-accessory SKUs (concept §9.6); the box never grows connectors. 12VHPWR adapter
-deferred to the metrology tiers (fence).
+REMOVED from the box. The port + 3 AUX fused ways + continuity way + the adapter
+accessory SKUs are out: the owner sustained the scope objection — checking OTHER
+cables (SATA/Molex/PCIe/EPS, incl. the borrowed-modular-cable pinout case) is a DMM
+job or the metrology deck's (the deck already owns per-cable checking by ruling,
+testers/DESIGN-SHEET.md §A), and a port-per-cable completeness argument proves too
+much — the original 24-pin-only scope ruling stands. The agent's earlier
+"safety-necessity" framing of this port is RETRACTED on the record (it was an
+accessory/revenue feature; the VE pass's declined "AUX DNP" is superseded with it).
+Bought back: 3 ways' worth of blade holders/blades/HRCs/MOVs/witnesses/windows + the
+2×5 header ≈ **−$3.5–4 BOM**, a simpler panel, brick shrinks 2×11 → 2×8, 6
+comparator sections freed (LM339 back to 6 packages, 4 spare). Kept: the meter
+selector's 6th position now reads the SUPERCAP STORE instead of AUX. If a standalone
+cable-pinout checker is ever wanted, it is its own tiny product, not this box.
+Re-adding ways later is a generator parameter (the way cell is a stamp), so this is
+cheap to reverse.
 
 ## 6. BOM — sourced (LCSC-primary pass, jlcsearch-verified 2026-07-25)
 
@@ -297,8 +324,9 @@ meter, missile toggle + panel switches, supercaps (study-gate 2026-07-15), Mini-
 (Littelfuse 215/297 + Hongfa fetch-blocked 403/404 — FOLLOWUPS).
 
 **VE pass (owner ask, 2026-07-25) — applied without sacrificing anything load-bearing:**
-VE-1 GDTs on the 5 CORE ways only (AUX ways keep MOV+fuse coordination — the pre-#14
-signed-safe architecture; −$1.70 across installed + spare brick). VE-2 supercaps 5 F→2 F
+VE-1 GDTs on the 5 CORE ways only (AUX ways kept MOV+fuse coordination — the pre-#14
+signed-safe architecture; those ways since DESCOPED entirely 2026-07-25, §5;
+−$1.70 across installed + spare brick). VE-2 supercaps 5 F→2 F
 Pro-provision cells (−$1.00; ~6 sessions/charge — ~5 after the 2026-07-25 instant-on
 OR raised the store floor to 2.8 V; recharge-to-usable ~30 s). VE-3
 redundant NE_BF option deleted (−$0.15). Plus one CORRECTION the audit surfaced: LM339
@@ -306,17 +334,17 @@ count was under-provisioned (16 sections vs 21 needed) → 6 packages (+$0.25). 
 ≈ −$2.60. DECLINED as false economies (each examined): meter (perceived-value king),
 flicker tube (#14 soul), 3-resistor divider strings (surge margin IS the product),
 10 W bleeder→5 W (61% dissipation vs the ~50% derate doctrine), HRC class, kit spare
-brick, AUX subsystem DNP (kills adapter attach on v1 — it is a revenue line). OPEN
+brick, AUX subsystem DNP — since SUPERSEDED: owner descoped AUX entirely 2026-07-25, §5. OPEN
 LEVERS, not BOM edits: generic ATO clip pairs (−$2.0–2.4 — NO LCSC line exists, 3
 searches; consigned hunt rides the sample order, Bussmann stands until proven),
 missile-toggle generic+cover (−$1.00, brand call — owner's), case engineering at quote
 (−$2–3: faceplate-as-structural-top, printed lid insert — folded into the case RFQ).
 
-**Landed rollup at verified prices, post-VE: ≈$43–45 @100 with the starter kit** (honest drift
-from the $42–43 diagram estimate: real ATO-holder pricing + the GDT-populated spare
-brick in the kit); ~$34–36 path @1k after the case quote. **Retail $79 (RULED #9)** —
+**Landed rollup at verified prices, post-VE + AUX descope: ≈$39–41 @100 with the
+starter kit** (descope −$3.5–4: three ways of holders/fuses/clamps/windows + the 2×5
+header; recount at capture); ~$31–33 path @1k after the case quote. **Retail $79 (RULED #9)** —
 2.1× at 100-qty worst, healthy at 1k. Consumables (RULED #12): Fuse+Flag $9 · brick
-2-pack $12–15 · snout $9 · AUX adapters $9–12 / $39 4-pack · smoke-pellet 50-bag ~$3.
+2-pack $12–15 · snout $9 · smoke-pellet 50-bag ~$3 (AUX adapter SKUs descoped, §5).
 
 ## 7. Mechanical / panel
 
@@ -324,8 +352,8 @@ Front panel is itself an FR4 PCB used as a FACEPLATE ONLY — **zero copper in t
 fault path** (refined 2026-07-24): the ATO holders, lamps, and switches mount on the
 MAIN board and protrude through faceplate apertures, so way current never crosses a
 panel interconnect and the faceplate needs no connector at all. Its job is mechanical
-+ graphic: silk = coroner's map + truth table + QR to the reorder page. Fuse-row pitch standardized so AUX ways and
-future variants share the panel tooling. Lid molds the starter kit (blade set, HRCs,
++ graphic: silk = coroner's map + truth table + QR to the reorder page. Fuse-row pitch standardized so future
+variants share the panel tooling. Lid molds the starter kit (blade set, HRCs,
 spare brick, verdict pad). Creepage: 300 V-working class (≥3.2 mm) on all way copper
 and the brick; the brick connector keying prevents reversed insertion. No mounting
 of anything conductive reachable from outside; fuse door interlock per §4.
@@ -361,8 +389,10 @@ concept §8 #2–#12 (this standup executed #1).
       provision (shared buy).
 - [ ] Arc-coordination bench protocol draft (gates DRAFT-drop; safety review for the
       witness chamber rides it — concept decision #4 — now incl. SMOKE-SHOT demo
-      cadence: vent sizing, shots-per-minute silk).
-- [ ] AUX adapter pin-map table per family (SATA/Molex/PCIe/EPS) — one page, feeds
-      both the adapter PCBs and the manual.
+      cadence: vent sizing, shots-per-minute silk). Rows now also incl. worst-case DC
+      ingress (~400 VDC PFC-bus through representative fault impedance, no
+      zero-crossings — proves HRC/GDT breaking beyond the AC rating; §3 both-grids
+      note).
+- [~] AUX adapter pin-map table — OBSOLETE (AUX descoped 2026-07-25, §5).
 - [ ] Compliance posture ruling (concept decision #8) before any listing goes live.
 - [ ] Panel truth-table copy + verdict-card layout (marketing-adjacent, owner voice).
