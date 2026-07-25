@@ -816,8 +816,20 @@ def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
             label=f"{iname}-{strat}-s{seed}", artifact=pourfirst_artifact)
         _rep = getattr(s, "pourfirst_report", None) or {}
         if _rep.get("error"):
+            # FAIL-CLOSED on the grade side (owner ruling 2026-07-25: "none
+            # of this is going to even be a shippable candidate ever until
+            # [the new pour pipeline] is here" -- a variant whose pour stage
+            # ERRORED must never become a publishable winner on the old
+            # machinery via a silent revert). Prune side stays fail-open
+            # (ranking only). CEC_POURFIRST_SOFT=1 = debug escape hatch.
+            if pourfirst_artifact and os.environ.get(
+                    "CEC_POURFIRST_SOFT") != "1":
+                raise RuntimeError(
+                    f"pour-first stage ERROR on {iname}-{strat}-s{seed}: "
+                    f"{_rep['error']} (fail-closed: the pour pipeline is "
+                    f"load-bearing; no old-machinery candidates)")
             print(f"[wave] {board} {iname}-{strat}-s{seed}: pour-first stage "
-                  f"ERROR ({_rep['error']}) -- live pour machinery stands",
+                  f"ERROR ({_rep['error']}) -- prune-side rank only",
                   flush=True)
     return s, _p
 
