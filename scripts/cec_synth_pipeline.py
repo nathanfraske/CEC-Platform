@@ -7578,6 +7578,15 @@ def _oracle_env(params=None):
             # owner-ratified subtractive pours (2026-07-24): slab + shave
             # replaces the asks' rect geometry at import (cec_slab_pour)
             extra["CEC_SLAB_POUR"] = "1"
+        if params.get("overunder"):
+            # v2 OVER-UNDER POURS (owner-ratified 2026-07-24 late,
+            # docs/slab-pour-design-2026-07-24.md "v2" section): "the pour
+            # is a routed object" -- a multi-layer pathfind + via-array
+            # bridges realization, A/B'd against slab_pour above at the
+            # SAME post-via conversion site (cec_fr.import_ses); mutually
+            # exclusive in effect (CEC_OVERUNDER wins the branch when set,
+            # see import_ses) but both flags may be set together harmlessly.
+            extra["CEC_OVERUNDER"] = "1"
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling

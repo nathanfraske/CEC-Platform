@@ -2741,6 +2741,46 @@ def add_via_field(board, fields):
     return added
 
 
+def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
+    """Lay the v2 over-under pour bridge vias (cec_slab_pour.
+    synthesize_overunder_pours' via_list) as real same-net through vias --
+    additive, same pattern as add_power_pours/add_via_field. Always a
+    through via (F.Cu<->B.Cu): on this platform's 4-layer stackup that
+    barrel makes electrical contact with same-net copper on In1/In2 too
+    wherever it passes through it, matching add_via_field's own convention
+    (no blind/buried vias are used anywhere on this platform).
+
+    Re-checks the 0.85mm any-net barrel ledger against the board's CURRENT
+    via set (defense in depth -- synthesize_overunder_pours already
+    ledger-filters at generation time against this same board object, so
+    this is a second, cheap pass, not the first one). Each *via_list* entry
+    is {"net", "x_mm", "y_mm"}. Returns the added PCB_VIA objects."""
+    existing = []
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_VIA":
+            p = t.GetPosition()
+            existing.append((p.x / MM, p.y / MM))
+    f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    added = []
+    for v in via_list:
+        x, y = v["x_mm"], v["y_mm"]
+        if any((x - qx) ** 2 + (y - qy) ** 2 < 0.85 ** 2 for (qx, qy) in existing):
+            continue
+        nc = board.GetNetcodeFromNetname(v["net"])
+        if nc <= 0:
+            continue
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
+        via.SetDrill(_nm(drill))
+        via.SetWidth(_nm(dia))
+        via.SetNetCode(nc)
+        via.SetLayerPair(f_cu, b_cu)
+        board.Add(via)
+        added.append(via)
+        existing.append((x, y))
+    return added
+
+
 # ---------------------------------------------------------------------------
 # synthesize_kelvin_taps -- the GENERATIVE four-wire Kelvin inner-leg tap (§6.8)
 # ---------------------------------------------------------------------------
@@ -4165,17 +4205,48 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                          [p for p in power_pours
                           if p.get("provenance") == "placer_ask"])
                 if _conv:
-                    _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
+                    # OVER-UNDER POURS (v2, owner-ratified 2026-07-24 late;
+                    # docs/slab-pour-design-2026-07-24.md "v2" section: "the
+                    # pour is a routed object"). A/B'd against the shave-
+                    # slab realization above via CEC_OVERUNDER=1 -- never
+                    # enabled by default (opt-in only; see cec_fresh_wave /
+                    # cec_synth_pipeline._oracle_env's "overunder" param).
+                    if os.environ.get("CEC_OVERUNDER") == "1":
+                        _sp3, _ou_vias, _sr3 = cec_slab_pour.synthesize_overunder_pours(
+                            board, _conv)
+                        if _ou_vias:
+                            # via_list laid BEFORE the lane dicts, per the
+                            # design's step 5 ordering (the bridges are the
+                            # copper the lanes will land on top of).
+                            _n_ouv = add_overunder_vias(board, _ou_vias)
+                            print(f"[cec_fr] over-under: {_n_ouv}/{len(_ou_vias)} "
+                                  "bridge via(s) laid (ledger-clear)",
+                                  file=sys.stderr)
+                        if _sp3:
+                            # lay through add_power_pours -- the SAME choke
+                            # point every other pour goes through (the
+                            # shunt-only F.Cu rule applies identically to an
+                            # over-under F lane; design doc step 5).
+                            add_power_pours(board, _sp3, fill=False)
+                        _nopath = [n for n, v in _sr3.items()
+                                  if not v.get("path_found", True)]
+                        print(f"[cec_fr] over-under conversion (post-via): "
+                              f"{len(_conv)} dict(s) -> {len(_sp3)} lane(s) "
+                              f"for {len(_sr3)} net(s)"
+                              + (f"; NO PATH for {_nopath}" if _nopath else ""),
+                              file=sys.stderr)
+                    else:
+                        _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
+                        _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
+                                 if not v.get("min_width_ok", True)]
+                        print(f"[cec_fr] slab conversion (post-via): {len(_conv)} "
+                              f"dict(s) -> {len(_sp3)} slab(s)"
+                              + (f"; min-width OPEN on {_bad3[:4]}" if _bad3 else ""),
+                              file=sys.stderr)
                     _keep_r = ([] if _full else
                                [p for p in power_pours
                                 if p.get("provenance") != "placer_ask"])
                     power_pours = _keep_r + _sp3
-                    _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
-                             if not v.get("min_width_ok", True)]
-                    print(f"[cec_fr] slab conversion (post-via): {len(_conv)} "
-                          f"dict(s) -> {len(_sp3)} slab(s)"
-                          + (f"; min-width OPEN on {_bad3[:4]}" if _bad3 else ""),
-                          file=sys.stderr)
             except Exception as _se3:                    # noqa: BLE001
                 print(f"[cec_fr] slab conversion FAILED ({_se3}) -- rects kept",
                       file=sys.stderr)

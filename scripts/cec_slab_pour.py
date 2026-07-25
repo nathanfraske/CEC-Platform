@@ -22,6 +22,7 @@
 #
 # Fill speed is architectural: the loop runs on numpy/scipy morphology
 # (microseconds), the real filler runs ONCE on the final outlines.
+import heapq
 import os
 import sys
 
@@ -270,6 +271,477 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                             "priority": int(a.get("priority", 2)),
                             "provenance": "slab"})
     return out, rep
+
+
+# ---------------------------------------------------------------------------
+# v2 -- OVER-UNDER POURS (owner ratification 2026-07-24 late; design of
+# record: docs/slab-pour-design-2026-07-24.md, "v2" section). "the pour is a
+# routed object": per rail, ONE continuous path from source terminals to sink
+# terminals, existing on exactly ONE layer per segment -- a preferred layer
+# until contested space blocks it, then a via-array BRIDGE to another layer,
+# carrying on; the vacated layer carries NO copper there (removed by
+# construction, never by rule). The min-width requirement is the SEARCH
+# CONSTRAINT, not a post-hoc check: every layer's free-space mask is eroded
+# by half that net's IPC-required width before the pathfind runs, so any
+# path the search finds is provably wide enough (erosion-connectivity
+# duality, the same trick `shave()`'s min-width invariant uses above).
+#
+# A/B'd behind CEC_OVERUNDER=1 in cec_fr.import_ses against the shave-slab
+# path (synthesize_slab_pours, above) -- never default-on.
+# ---------------------------------------------------------------------------
+def req_width_mm(amps, layer):
+    """Required copper width (mm) for *amps* at a 30C rise, layer-oz-aware.
+
+    Ported VERBATIM from cec_fr.synthesize_pour_bonds's nested
+    `_req_width_mm` closure (IPC-2221 trace-width inverse; k=0.048 ext /
+    0.024 int, 2oz outer / 1oz inner is this platform's LOCKED stackup --
+    see CLAUDE.md's board-class stackup doctrine). *amps* is the RAW net
+    current -- the 1.25x margin is applied INSIDE this formula, matching
+    the source exactly; do not apply it again at the call site. Replicated
+    rather than imported: the source is a closure nested inside
+    synthesize_pour_bonds, not a module-level name (datasheet/provenance
+    rule, docs/agent-working-principles.md item 11: this constant already
+    has a traced source -- the validated cec_fr implementation -- so it is
+    copied, not re-derived)."""
+    if amps <= 0:
+        return 0.0
+    outer = layer in ("F.Cu", "B.Cu")
+    k = 0.048 if outer else 0.024                  # IPC-2221 ext/int
+    oz = 2.0 if outer else 1.0                     # platform stackup
+    a_mil2 = (1.25 * amps / (k * 30.0 ** 0.44)) ** (1.0 / 0.725)
+    return a_mil2 / (1.378 * oz) * 0.0254
+
+
+def terminal_clusters(board, nc, grid):
+    """Step 1 (owner v2 design): the net's own pads/vias, clustered
+    spatially via scipy.ndimage.label on the union anchor raster.
+
+    THT pads/vias anchor every copper layer; SMD anchor only their own
+    side. No separate THT/SMD branch is needed here: a plain union of every
+    footprint pad + via of this net over the WHOLE board (ignoring layer)
+    already gives exactly that shape once combined with the per-layer
+    `rasterize()` anchors used downstream (a THT pad's bounding box is
+    stamped once, and every per-layer anchor mask independently rediscovers
+    it via `CuStack()` containment; an SMD pad likewise appears in this
+    union AND in exactly one per-layer anchor mask).
+
+    Returns (clab, nclusters): clab is a (grid.ny, grid.nx) int label array
+    (0 = no terminal there); cluster ids are 1..nclusters."""
+    from scipy import ndimage
+    mask = np.zeros((grid.ny, grid.nx), bool)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() != nc:
+                continue
+            bb = p.GetBoundingBox()
+            grid.stamp_box(mask, bb.GetLeft() / MM, bb.GetTop() / MM,
+                           bb.GetRight() / MM, bb.GetBottom() / MM)
+    for t in board.GetTracks():
+        if t.GetClass() != "PCB_VIA" or t.GetNetCode() != nc:
+            continue
+        r = t.GetWidth(t.TopLayer()) / MM / 2.0
+        q = t.GetPosition()
+        grid.stamp_box(mask, q.x / MM - r, q.y / MM - r,
+                       q.x / MM + r, q.y / MM + r)
+    clab, n = ndimage.label(mask)
+    return clab, n
+
+
+def route_overunder(layers, passable, anchors, clab, nclusters, *,
+                    bias_fn, bridge_cost=8.0):
+    """PURE-RASTER core of the over-under pathfinder (owner v2 design, step
+    3): grow ONE multi-layer Steiner-ish tree connecting every terminal
+    cluster 1..nclusters recorded in *clab* (a (ny,nx) int label array, 0 =
+    no terminal).
+
+    *layers* is an ordered list of layer-name keys into *passable* and
+    *anchors* (each a {layer: (ny,nx) bool ndarray} dict): *passable[lay]*
+    is the eroded-free mask UNIONED with *anchors[lay]* (own-net copper
+    always counts as walkable, matching the `shave()` min-width-invariant
+    pattern above -- a real pad needs no erosion margin, only the NEW
+    copper connecting it does); *anchors[lay]* is real per-net copper on
+    that layer. *bias_fn(lay, row, col) -> float* is the cost charged to
+    ENTER that cell on that layer (>=1.0 is the unbiased floor -- 1.0 =
+    'step cost 1' in the design doc). *bridge_cost* is the flat same-cell
+    layer-change cost, legal only where BOTH layers are *passable* there
+    (a via can only land in copper the search already proved wide enough
+    on both sides).
+
+    Grows the tree with a Prim-style nearest-terminal expansion: each round
+    is ONE multi-source Dijkstra seeded at zero cost from every cell
+    already in the tree, so previously-found path cells are reused for
+    free -- the owner's 'reusing already-found path cells at zero cost' --
+    stopping at the first popped node that is an anchor cell of an
+    unconnected cluster. Dijkstra's pop order guarantees that is the
+    globally NEAREST unconnected terminal from the current tree, the
+    standard shortest-paths approximation to a Steiner tree.
+
+    Returns (path_cells, bridges, ok, bottleneck):
+      path_cells: {layer: (ny,nx) bool} -- cells the realized tree touches
+                  on that layer. {} on failure (NEVER a partial guess).
+      bridges:    [(row, col, from_layer, to_layer, dir_dx, dir_dy)] --
+                  dir_dx/dir_dy is a unit vector estimating the path's
+                  local travel direction AT the transition (nearest
+                  spatially-distinct chain cells before/after it), used to
+                  lay the bridge's via LINE perpendicular to travel.
+      ok:         False iff some terminal cluster could never be reached
+                  (an already-searched-empty cluster, or a hop that
+                  exhausts the graph) -- the honest 'no path exists' case.
+      bottleneck: None when ok; else a dict naming the stranded cluster
+                  (id + representative row/col) and why.
+    """
+    ny, nx = clab.shape
+    lidx = {lay: i for i, lay in enumerate(layers)}
+    nlay = len(layers)
+    cluster_ids = sorted(int(v) for v in np.unique(clab) if v)
+    if len(cluster_ids) <= 1:
+        return {}, [], True, None              # nothing to connect
+
+    # reachability pre-check: a cluster with NO anchor cell on any searched
+    # layer can never be reached by construction -- fail fast and name it,
+    # rather than burn a Dijkstra pass discovering the same thing.
+    reachable = set()
+    for lay in layers:
+        ys, xs = np.where(anchors[lay])
+        for y, x in zip(ys.tolist(), xs.tolist()):
+            cid = int(clab[y, x])
+            if cid:
+                reachable.add(cid)
+    unreachable = [c for c in cluster_ids if c not in reachable]
+    if unreachable:
+        cid = unreachable[0]
+        ys, xs = np.where(clab == cid)
+        return {}, [], False, {
+            "cluster": cid, "row": int(round(ys.mean())),
+            "col": int(round(xs.mean())),
+            "reason": "terminal has no anchor on any searched layer",
+        }
+
+    seed = cluster_ids[0]
+    remaining = set(cluster_ids[1:])
+    tree = set()                                # {(row, col, layer_idx)}
+    path_cells = {lay: np.zeros((ny, nx), bool) for lay in layers}
+    for lay in layers:
+        li = lidx[lay]
+        ys, xs = np.where(anchors[lay] & (clab == seed))
+        for y, x in zip(ys.tolist(), xs.tolist()):
+            tree.add((y, x, li))
+            path_cells[lay][y, x] = True
+
+    bridges = []
+    INF = float("inf")
+    while remaining:
+        dist = np.full((nlay, ny, nx), INF)
+        parent = {}
+        heap = []
+        for (r, c, li) in tree:
+            dist[li, r, c] = 0.0
+            heapq.heappush(heap, (0.0, r, c, li))
+        found = None
+        while heap:
+            d, r, c, li = heapq.heappop(heap)
+            if d > dist[li, r, c]:
+                continue                        # stale heap entry
+            lay = layers[li]
+            cid = int(clab[r, c])
+            if cid in remaining and anchors[lay][r, c]:
+                found = (r, c, li, cid)
+                break
+            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nr, ncc = r + dr, c + dc
+                if not (0 <= nr < ny and 0 <= ncc < nx):
+                    continue
+                if not passable[lay][nr, ncc]:
+                    continue
+                nd = d + bias_fn(lay, nr, ncc)
+                if nd < dist[li, nr, ncc]:
+                    dist[li, nr, ncc] = nd
+                    parent[(nr, ncc, li)] = (r, c, li)
+                    heapq.heappush(heap, (nd, nr, ncc, li))
+            for oli, olay in enumerate(layers):
+                if oli == li or not passable[olay][r, c]:
+                    continue                    # bridge needs BOTH sides
+                nd = d + bridge_cost
+                if nd < dist[oli, r, c]:
+                    dist[oli, r, c] = nd
+                    parent[(r, c, oli)] = (r, c, li)
+                    heapq.heappush(heap, (nd, r, c, oli))
+        if found is None:
+            cid = next(iter(remaining))
+            ys, xs = np.where(clab == cid)
+            return {}, [], False, {
+                "cluster": cid, "row": int(round(ys.mean())),
+                "col": int(round(xs.mean())),
+                "reason": "no route from the connected tree "
+                          "(eroded masks disconnect the terminals)",
+            }
+        r, c, li, cid = found
+        node = (r, c, li)
+        chain = [node]
+        while node in parent and node not in tree:
+            node = parent[node]
+            chain.append(node)
+        chain.reverse()
+        prev_li = None
+        for i, (pr, pc, pli) in enumerate(chain):
+            lay = layers[pli]
+            tree.add((pr, pc, pli))
+            path_cells[lay][pr, pc] = True
+            if prev_li is not None and prev_li != pli:
+                # BRIDGE: same-cell layer change. Estimate local travel
+                # direction from the nearest spatially-DISTINCT chain cells
+                # either side (a bridge move keeps row/col fixed, so the
+                # immediate neighbours in the chain are useless for this).
+                before = next((chain[j] for j in range(i - 1, -1, -1)
+                              if (chain[j][0], chain[j][1]) != (pr, pc)), None)
+                after = next((chain[j] for j in range(i + 1, len(chain))
+                             if (chain[j][0], chain[j][1]) != (pr, pc)), None)
+                if before is not None and after is not None:
+                    dx, dy = after[1] - before[1], after[0] - before[0]
+                elif after is not None:
+                    dx, dy = after[1] - pc, after[0] - pr
+                elif before is not None:
+                    dx, dy = pc - before[1], pr - before[0]
+                else:
+                    dx, dy = 1.0, 0.0
+                dn = (dx * dx + dy * dy) ** 0.5 or 1.0
+                bridges.append((pr, pc, layers[prev_li], lay,
+                               dx / dn, dy / dn))
+            prev_li = pli
+        remaining.discard(cid)
+    return path_cells, bridges, True, None
+
+
+def apply_bridge_overlap(path_cells, bridges, grid, radius_cells=3):
+    """~3-cell-radius overlap on BOTH transitioning layers around each
+    bridge point (owner v2 design step 4: 'both layers' dilated disks
+    overlapping for ~3 cells'), so after dilation the two lane polygons
+    overlap there and the via array sits embedded in copper on both layers
+    rather than at a bare edge. Mutates *path_cells* in place."""
+    ny, nx = grid.ny, grid.nx
+    r2 = radius_cells * radius_cells
+    for (r, c, lay_from, lay_to, _dx, _dy) in bridges:
+        for dr in range(-radius_cells, radius_cells + 1):
+            for dc in range(-radius_cells, radius_cells + 1):
+                if dr * dr + dc * dc > r2:
+                    continue
+                rr, cc = r + dr, c + dc
+                if 0 <= rr < ny and 0 <= cc < nx:
+                    path_cells[lay_from][rr, cc] = True
+                    path_cells[lay_to][rr, cc] = True
+
+
+def realize_overunder(path_cells, layer_rcells, grid, *, min_area_mm2=0.5):
+    """Dilate each layer's accumulated path mask by its OWN half-width (in
+    cells) and polygonize -- 'maximal same-layer runs' realized as lane
+    polygons. Dilating the union of a layer's runs equals the union of
+    dilating each run separately (dilation distributes over union for a
+    fixed structuring element), so accumulating per-layer and dilating once
+    is the identical result without tracking each run as a separate object.
+
+    *min_area_mm2* is deliberately far below `mask_to_polys`'s 6.0mm2 slab
+    default: over-under lanes are purpose-built narrow paths, not maximal
+    slabs, and a short bridge patch can legitimately be under 6mm2.
+
+    Returns {layer: [poly, ...]} (only layers that produced >=1 polygon)."""
+    from scipy import ndimage
+    st = ndimage.generate_binary_structure(2, 1)
+    out = {}
+    for lay, m in path_cells.items():
+        if not m.any():
+            continue
+        dil = ndimage.binary_dilation(
+            m, structure=st, iterations=max(1, layer_rcells.get(lay, 1)))
+        polys = mask_to_polys(dil, grid, min_area_mm2=min_area_mm2)
+        if polys:
+            out[lay] = polys
+    return out
+
+
+def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
+                    existing=()):
+    """A via-array LINE across each bridge, perpendicular to the path's
+    local travel direction, spaced *pitch_mm* apart and spanning the WIDER
+    of the two transitioning layers' required widths ('via positions on the
+    transition line at 1.2mm pitch', owner v2 design step 4).
+
+    Skips any spot within *ledger_mm* of an entry in *existing* (mm tuples)
+    OR of a spot this call already placed for an earlier bridge (the 0.85mm
+    any-net barrel ledger, applied cumulatively). *req_w* maps a layer name
+    to its required width in mm (missing entries fall back to the 1.2mm
+    floor). Returns [{'x_mm':, 'y_mm':}] -- the caller stamps 'net'."""
+    placed = list(existing)
+    out = []
+    for (r, c, lay_from, lay_to, dx, dy) in bridges:
+        half_w = max(req_w.get(lay_from, 1.2), req_w.get(lay_to, 1.2)) / 2.0
+        cx = grid.x0 + (c + 0.5) * grid.cell
+        cy = grid.y0 + (r + 0.5) * grid.cell
+        n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
+        perp = (-dy, dx)                        # rotate travel dir by 90
+        for k in range(n_v):
+            off = (k - (n_v - 1) / 2.0) * pitch_mm
+            vx = round(cx + perp[0] * off, 3)
+            vy = round(cy + perp[1] * off, 3)
+            if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
+                  for (qx, qy) in placed):
+                continue
+            placed.append((vx, vy))
+            out.append({"x_mm": vx, "y_mm": vy})
+    return out
+
+
+def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
+    """v2 OVER-UNDER POURS -- "the pour is a routed object" (owner
+    ratification 2026-07-24 late; docs/slab-pour-design-2026-07-24.md, "v2"
+    section). Per rail: ONE continuous path from terminal to terminal,
+    existing on exactly one layer per segment (preferred layer until
+    contested space blocks it, then a via-array bridge to another layer,
+    carrying on); the vacated layer carries NO copper there.
+
+    *asks*: pour-ask dicts ({"net": ..., "layers": (...)}) -- the SAME ask
+    channel `synthesize_slab_pours` reads; this is an alternate REALIZATION
+    of the same asks (A/B'd behind CEC_OVERUNDER=1 in cec_fr.import_ses),
+    not a new request format. Layers searched per net = the ask's own
+    `layers` (or `layer`, default "F.Cu") UNIONED with {"In2.Cu", "B.Cu"}
+    (always considered regardless of what the ask names) -- an ask that
+    wants an F.Cu-anchored terminal (e.g. an SMD shunt pad) reachable MUST
+    include "F.Cu" in its own `layers`, matching the ask-channel contract
+    (this function does not silently widen an ask's own layer list beyond
+    that fixed pair).
+
+    Returns (pour_dicts, via_list, report):
+      pour_dicts: [{"net", "layer", "polygon", "provenance": "overunder"}]
+      via_list:   [{"net", "x_mm", "y_mm"}, ...] bridge vias, ledger-clear
+                  against the board's existing vias AND every other via
+                  already synthesized in this same call (any-net ledger).
+      report:     {net: {"segments", "bridges", "layers_used",
+                  "path_found", ...}} -- on path_found=False the entry ALSO
+                  carries "bottleneck" (see route_overunder) and nothing is
+                  laid for that net (never a partial guess, step 5).
+    """
+    from scipy import ndimage
+    st = ndimage.generate_binary_structure(2, 1)
+
+    grid = Grid(board, cell_mm)
+    nets_nc = {n.GetNetname(): c
+               for c, n in board.GetNetInfo().NetsByNetcode().items()}
+
+    # net currents (the IPC required-width search constraint's input) --
+    # same source cec_fr.synthesize_pour_bonds._mirror_needed reads; a net
+    # absent from the config (or a board with none) falls back to the
+    # 1.2mm practical floor (task-specified default).
+    net_currents = {}
+    try:
+        import cec_thermal_overlay as _ov
+        _cfg = _ov.board_thermal_config(os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
+        net_currents = dict((_cfg[0] if _cfg else None) or {})
+    except Exception:                                  # noqa: BLE001
+        net_currents = {}
+
+    # shunt neighborhoods, once (the F.Cu bias input -- design step 3's
+    # "free inside shunt neighborhoods")
+    shunt_mask = np.zeros((grid.ny, grid.nx), bool)
+    for (x0, y0, x1, y1) in shunt_neighborhoods(board):
+        grid.stamp_box(shunt_mask, x0, y0, x1, y1)
+
+    # existing board vias, once -- the 0.85mm any-net barrel ledger seed
+    existing_vias_mm = []
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_VIA":
+            p = t.GetPosition()
+            existing_vias_mm.append((p.x / MM, p.y / MM))
+
+    pour_dicts, via_list, report = [], [], {}
+
+    for a in asks:
+        net = a.get("net")
+        if net not in nets_nc:
+            report[net] = {"path_found": False, "segments": 0, "bridges": 0,
+                           "layers_used": [], "reason": "net not on board"}
+            continue
+        nc = nets_nc[net]
+        layers = list(dict.fromkeys(
+            list(a.get("layers") or (a.get("layer", "F.Cu"),))
+            + ["In2.Cu", "B.Cu"]))
+        layers = [lay for lay in layers if board.GetLayerID(lay) >= 0]
+        if not layers:
+            report[net] = {"path_found": False, "segments": 0, "bridges": 0,
+                           "layers_used": [], "reason": "no valid layer"}
+            continue
+
+        # step 1: terminal groups
+        clab, nclusters = terminal_clusters(board, nc, grid)
+        if nclusters == 0:
+            report[net] = {"path_found": False, "segments": 0, "bridges": 0,
+                           "layers_used": [], "reason": "no pads/vias for net"}
+            continue
+
+        # step 2: per-layer eroded/passable masks + required width
+        amps = net_currents.get(net, 0.0)
+        passable, anchors, rcells, reqw = {}, {}, {}, {}
+        for lay in layers:
+            lay_id = board.GetLayerID(lay)
+            foreign, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
+            w = req_width_mm(amps, lay) if amps > 0 else 1.2
+            rc = max(1, int(round(w / (2.0 * grid.cell))))
+            eroded = ndimage.binary_erosion(~foreign, structure=st,
+                                            iterations=rc)
+            passable[lay] = eroded | anc
+            anchors[lay] = anc
+            rcells[lay] = rc
+            reqw[lay] = w
+
+        f_prox = None
+        if "F.Cu" in anchors:
+            f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
+                                             iterations=2)
+
+        def _bias(lay, r, c, _shunt=shunt_mask, _fprox=f_prox):
+            # per-layer bias (design step 3): In2 +0, B.Cu +0.15/step,
+            # F.Cu +0.6/step EXCEPT free inside a shunt neighborhood or
+            # within 2 cells of this net's own F-anchored terminal.
+            if lay == "F.Cu":
+                if _shunt[r, c] or (_fprox is not None and _fprox[r, c]):
+                    return 1.0
+                return 1.6
+            return 1.0 + (0.0 if lay == "In2.Cu" else 0.15)
+
+        # step 3: multi-layer Steiner-ish tree
+        path_cells, bridges, ok, bottleneck = route_overunder(
+            layers, passable, anchors, clab, nclusters, bias_fn=_bias)
+
+        if not ok:
+            report[net] = {"path_found": False, "segments": 0, "bridges": 0,
+                           "layers_used": [], "bottleneck": bottleneck}
+            print(f"[cec_slab_pour] over-under: NO PATH for {net} -- "
+                  f"bottleneck {bottleneck}", file=sys.stderr)
+            continue
+
+        # step 4: realize (lanes + bridge vias)
+        apply_bridge_overlap(path_cells, bridges, grid)
+        realized = realize_overunder(path_cells, rcells, grid)
+        segs = 0
+        for lay, polys in realized.items():
+            for poly in polys:
+                pour_dicts.append({"net": net, "layer": lay, "polygon": poly,
+                                   "provenance": "overunder"})
+                segs += 1
+
+        net_vias = bridges_to_vias(bridges, reqw, grid,
+                                   existing=existing_vias_mm)
+        for v in net_vias:
+            v["net"] = net
+            existing_vias_mm.append((v["x_mm"], v["y_mm"]))
+        via_list.extend(net_vias)
+
+        report[net] = {"path_found": True, "segments": segs,
+                       "bridges": len(bridges),
+                       "layers_used": sorted(realized.keys())}
+        print(f"[cec_slab_pour] over-under: {net} -> {segs} lane segment(s) "
+              f"on {sorted(realized.keys())}, {len(bridges)} bridge(s), "
+              f"{len(net_vias)} via(s)", file=sys.stderr)
+
+    return pour_dicts, via_list, report
 
 
 def cleanup_floating_zones(board_path):
