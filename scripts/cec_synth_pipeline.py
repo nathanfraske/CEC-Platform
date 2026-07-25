@@ -6975,6 +6975,36 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 if _sp is not None:
                     P[_c2] = (_sp[0], _sp[1], 0.0)
             _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4, bounds=_bounds)
+        # POUR-FIRST FINAL SETTLE (v3 rung): the box-aware mop above is gated
+        # on seated_inas -- EMPTY on blueprint-owned boards (the 24-pin), so
+        # frozen-F-box offenders survived it (measured: 28 movable refs inside
+        # frozen boxes on s470). Minimal-motion repair: ONLY the refs sitting
+        # inside a pourfirst box move, settled against the FULL box set (pour
+        # + corridor + blueprint + pourfirst) so they exit into genuinely
+        # clear space. The honest residual prints loudly -- p8b/p12 are not
+        # box-aware yet (named follow-up), so a re-parked ref is visible in
+        # every wave log rather than silently shipped.
+        if _pfb:
+            def _in_pfb(r):
+                return any(b[1] <= P[r][0] <= b[2] and b[3] <= P[r][1] <= b[4]
+                           for b in _pfb)
+            _off3 = [r for r in P if r in comps and r not in _pour_fixed
+                     and r not in _locked and r not in (_can_seated or ())
+                     and not r.startswith(("J", "H", "TB", "FID"))
+                     and _in_pfb(r)]
+            if _off3:
+                _cy3 = {r: ((macro or {}).get(r)
+                            or _courtyard_info(comps[r],
+                                               P[r][2] if len(P[r]) > 2 else 0,
+                                               drop_antenna=drop_antenna))
+                        for r in P if r in comps}
+                _legalize_avoiding_pours(P, _off3, _cy3, _pour_boxes, W, H,
+                                         clr=0.4, bounds=_bounds)
+                _still3 = sorted(r for r in _off3 if _in_pfb(r))
+                print(f"  [p8] pour-first avoid: settled {len(_off3)} ref(s) "
+                      f"off frozen F copper; {len(_still3)} still inside"
+                      + (f": {_still3[:8]}" if _still3 else ""),
+                      file=sys.stderr)
 
     # ============================================================ P5: rigid-cluster re-stamp
     def _p9_restamp(_state):

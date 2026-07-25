@@ -171,8 +171,13 @@ STONE: excluded from the bond/scrap filter and from every re-conversion —
 manifolds + patches, loudly — the board-wide slab fallback is DELETED for frozen nets);
 (2) F.Cu pour polygons → `params['pourfirst_avoid_boxes']` → the p8/p9 evac +
 pour-aware-legalize channel ("pourfirst:"-prefixed so own-net exemption can never bypass
-them); (3) the POURFIRST artifact (anchor board + pours, filled + hex render) into
-build/wave-snaps/<board>/. Defense-in-depth: `cec_slab_pour.reap_nowhere_zones` (same
+them) + a dedicated p8 final settle for boxed offenders (loud residual print); MEASURED
+OPEN TENSION (s470): ~28 jellybeans still end on frozen-F bboxes — the frozen F state
+(J3-field manifolds + 4mm margin, the wide +5V_MAIN F pour) covers more area than a
+74x59 board can evacuate, so the legalizer least-overlap-parks back in, and p8b/p12 are
+not box-aware. Owner call needed: shrink the F manifold class / accept parts-on-bbox
+(fill carves true clearances) / make p8b box-aware; (3) the POURFIRST artifact (anchor
+board + pours, filled + hex render) into build/wave-snaps/<board>/. Defense-in-depth: `cec_slab_pour.reap_nowhere_zones` (same
 fresh-load site as cleanup_floating_zones, active only when a pour-synthesis path is
 live) removes any filled non-GND zone touching <2 same-net terminal clusters unless
 named patch:/manifold:/pourfirst: (zone names now set from dict provenance in

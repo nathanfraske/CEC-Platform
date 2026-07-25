@@ -4245,7 +4245,7 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             # frozen bridge vias precede the lanes (design step 5: the vias
             # are the copper the lanes land on; ledger inside the adder)
             if _pf_vias:
-                _n_pfv = add_overunder_vias(board, _pf_vias)
+                _n_pfv = len(add_overunder_vias(board, _pf_vias) or ())
                 print(f"[cec_fr] pour-first: {_n_pfv}/{len(_pf_vias)} frozen "
                       "bridge via(s) laid (ledger-clear)", file=sys.stderr)
             power_pours = list(power_pours or ()) + _pf_pours
@@ -4306,7 +4306,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                             # via_list laid BEFORE the lane dicts, per the
                             # design's step 5 ordering (the bridges are the
                             # copper the lanes will land on top of).
-                            _n_ouv = add_overunder_vias(board, _ou_vias)
+                            # len(): the adder returns the PCB_VIA objects
+                            # (pre-existing print showed the SWIG list).
+                            _n_ouv = len(add_overunder_vias(board, _ou_vias)
+                                         or ())
                             print(f"[cec_fr] over-under: {_n_ouv}/{len(_ou_vias)} "
                                   "bridge via(s) laid (ledger-clear)",
                                   file=sys.stderr)

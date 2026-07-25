@@ -479,6 +479,12 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                 if _collide(_chk, {net}) is None:
                     _patch_pours.append({"net": net, "layer": _lname,
                                          "priority": 3,
+                                         # patch-class zone name (v3 nowhere-
+                                         # reaper exemption: a landing zone is
+                                         # sanctioned per-terminal copper --
+                                         # single-cluster BY DESIGN, never
+                                         # "leads nowhere")
+                                         "name": "patch:%s" % net,
                                          "polygon": [(_r0x, _r0y), (_r1x, _r0y),
                                                      (_r1x, _r1y), (_r0x, _r1y)]})
         for (cx, cy) in sites:
