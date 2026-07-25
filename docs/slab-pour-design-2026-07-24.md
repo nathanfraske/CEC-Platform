@@ -311,3 +311,12 @@ edge (facing the resistive element), runs PERPENDICULAR from that edge into the 
 gap (toward the shunt middle), then ONE 90° turn OUTWARD to the INA. The route-time
 canonical shape already says this; the cell-authored geometry must match it. Rework
 author_kelvin_taps' derivation + regenerate the blueprint templates + re-prove clearance.
+
+### Pour-termination ruling (owner, 2026-07-25, on the v4 agent's active artifacts)
+"The pours go past the shunt's pads." Force-net pour copper (patches, manifolds, v4
+corridors) must TERMINATE AT the shunt pad: clipped at the pad's INNER edge — never
+entering the inter-pad gap, which belongs exclusively to the Kelvin tap stubs — and not
+overhanging the pad's outer/side extents beyond clearance-necessary margin. Mechanism
+today: guaranteed_shunt_patches clips at MID-GAP (pad copper extends past the inner edge
+into the gap); fix = clip at the pad inner edge. Corridor landings obey the same rule:
+approach from the outer face, stop at the pad.
