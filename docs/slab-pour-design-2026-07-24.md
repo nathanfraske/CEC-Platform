@@ -380,3 +380,13 @@ demands it; reachability is now the pour-first solve's job, not insurance copper
 the realized connectivity AND not thermally needed (the need-based mirror test) is
 REMOVED. The v4 acceptance inherits this: zero non-load-bearing same-net pour copper on
 a live winner.
+
+### Single-owner sharpening (owner, 2026-07-25): DELETE-BY-DEFAULT / WHITELIST
+"If it finds a solution, all of the pours that were made in pursuit of that solution get
+deleted unless they are specifically REQUIRED BRIDGES or REQUIRED THERMAL SECOND PLANES."
+Implementation posture: whitelist enumeration, not blacklist testing — after the solve,
+enumerate the winning set (the solution's own copper per owning layer, incl. the terminal
+attach pieces the path lands on; the bridges the solution genuinely uses, with their via
+fields; thermal mirrors PROVEN required by the need-based test) and DELETE every other
+same-net pour piece. Exploration copper, alternate-layer duplicates, insurance patches,
+unused manifold pieces: gone by default.
