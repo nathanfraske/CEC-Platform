@@ -1,49 +1,19 @@
 # Current work handoff
 
-## SIGN-OFF BOARD MAP DELIVERED (2026-07-25 ~03:00Z, on pipeline-pass-2)
-Owner loved the arcs riff ('that's the way to do it') and asked for the all-boards+connections
-diagram to consider and SIGN OFF. smoke-tester-board-map.svg REBUILT as the sign-off instrument:
-4 boards (main/faceplate/brick/snout) + accessories, full connector census, arcs additions
-flagged with diamonds (diagram assumes #14=BOTH per the rec), theater bay, power block, fab+cost
-(landed ~$42-43@100 w/ arcs, retail holds $79), spectacle-ladder rules, and an OPEN-DECISIONS
-box (#2-#5, #8-#14 with recommendations; ruled items excluded) + signature line. AWAITING OWNER
-SIGN-OFF on that decision set; README/BOM still pre-arcs until the nod lands.
+## POUR WAR WON -- OWNER-CONFIRMED 2026-07-25 ~00:25: "s421, s420, s416 are all clean. Nice."
+The validated-clean baseline (judge future pour work against THIS): choke-point shunt-only
+enforcement inside add_power_pours (covers ALL THREE laying paths: materialize landing
+patches, import list, router pass-2 re-derivation -- each was a traced bypass), slab-shaved
+inners, appendage prune, need-based mirrors, F delivery-proof (superseded by choke), plane-
+THT exclusion, floating-zone cleanup. Grades on the clean boards: unconn 110-123 (kelvin
+still FALSE) -- the pour front is closed, CONNECTIVITY is the whole remaining war:
+(1) over-under pours (design v2, owner-ratified, Sonnet agent implementing -- the routed-
+object pour: single-layer path + via bridges; ALSO the unconn recovery); (2) the refused
+sense cell -> kelvin; (3) hub new-part seat pressure (all-9999 since the ingress merge);
+(4) slab guaranteed-core. LESSON BANKED (owner-taught, twice): judge only the ROUTED
+PUBLISHED artifact -- a placed board is trivially clean; renders carry analyzer lag, so
+verify code-vintage before diagnosing.
 
-## ARCS RIFF RECORDED (2026-07-25 ~02:30Z, owner ask, on pipeline-pass-2)
-Concept 9.10 + owner-queue decision #14: (a) GLASS GDTs on the brick = real arc flash in the
-witness window powered by the fault's own energy AND a harder mains-class crowbar (GDT+fuse
-coordination, MOV keeps 20-90V class, +$1-2 brick); (b) momentary LAMP-TEST/SHOW button —
-~100mW contained boost strikes all gas bulbs + a flicker-flame neon tube; the show IS the
-safety self-test for the CASE-LIVE bulb (dead neon = silent safety failure). Fences: sealed
-devices only (Jacob's ladder REJECTED), HV dies with the button, never-generate-what-you-
-detect. Rec BOTH, ~$3-4 BOM, retail holds $79. Board README/BOM untouched pending nod.
-
-## DUT INPUT BOARDS RULED (2026-07-25 ~02:00Z, owner, on pipeline-pass-2)
-Owner recognized the fixture head as 'just a straight-through connector' and RULED: resell
-off-the-shelf ModDIY-class straight-through boards for 24-pin/EPS/PCIe deck slots ('can just
-resell those'). Added to the tester spec: testers/DESIGN-SHEET.md sec-A block — resell posture
-w/ the OQ-86/88 ModDIY qualification caveat, per-head install BASELINE + dV/dI drift trend ->
-'replace input board slot N' firmware alarm (OQ-85), designed-head-with-OQ-88-sense-contacts
-demoted to upgrade rung, 12VHPWR excepted (hpwr-fixture-head stays designed). Desk items:
-ModDIY catalog check + sample order. FOLLOWUPS + concept 9.9 updated.
-
-## DECK WEAR DOCTRINE CORRECTED (2026-07-25 ~01:25Z, owner objections sustained, on pipeline-pass-2)
-9.8's two weak layers retracted (concept 9.9): saver pigtails NO for 12VHPWR (re-adds a mated pair
-to the melt path, contradicts the 2.8 captive-pigtail rationale) + NO in metrology paths (unbaselined
-20-30 mOhm = 2%-class at 10 A); module-as-wear-unit NO ($600+ Pro/Max). CORRECTED: generalized
-FIXTURE HEADS per family (hpwr-fixture-head census pattern -> atx24/eps/pcie heads, $3-10 passive
-keyed, sense-AT-the-head via 12d port-end Kelvin + OQ-88 sense contacts) = wear lands cheap AND
-instrumented (12d per-pin R trend -> firmware alarm), modules never accumulate matings. Layered
-defense for $600 modules: smoke triage -> 12c fences -> head. FOLLOWUPS entry superseded in place.
-
-## PLATFORM-WEAR DOCTRINE RESOLVED (2026-07-25 ~00:55Z, owner Q, on pipeline-pass-2)
-Owner asked if tester use forces every platform I/O onto daughterboards. NO (concept 9.8):
-consumer modules = wear moot by cycle count; deck duty = wear real (6-13A vs smoke box 0.26A)
-but already layered (modules ARE blade-socketed swappable fixtures; hpwr-fixture-head = the
-per-test wear position by census; 12d port-end Kelvin immunizes metrology; 12d resistance map
-covers the fixture path -> firmware fixture-wear alarm, OQ-85). Missing layer = $2-4
-CONNECTOR-SAVER pigtails (accessory, FOLLOWUPS 2026-07-25), not boards. Output side already
-daughterboarded by v1.4.0 where it earns its keep; input headers stay board-mounted.
 ## THE POUR BYPASS FOUND AND FIXED 2026-07-24 ~23:50 (commit 733eaaee, pushed after rebase
 over the parallel Smoke Tester session): the owner's persistent top-mirror/L3 reports on
 s404/s405 were correct AND the import-side rules were all firing -- the boards' big F/In2
