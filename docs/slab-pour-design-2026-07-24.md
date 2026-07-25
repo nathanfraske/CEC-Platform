@@ -222,3 +222,31 @@ searched layer — a margin the sweep cannot open. The v3.1 mechanism itself is
 teeth-proven (tests/test_pour_first.py: a walled pin connects with a manifold, not
 without); the s415 failures are a different class (locked-copper congestion at the seam,
 open design question for the owner).
+
+## v4 — TERRITORY PLANNING (owner GO 2026-07-25; supersedes cell-raster pathfinding as primary)
+
+Owner verdict on the raster over-under output: "a bit of a mess... random vias across the
+center in a line... blocky and all over the place... clearly regressing." Diagnosis on the
+s464 pour state: the via line = 13 +3V3 vias x=25-57mm, a degenerate layer-weave a sane
+cost model would never pick over near-empty B.Cu (B-mask/cost defect, to be root-caused in
+the v4 build). Structural root: cell-level pathfinding produces connectivity, never design
+intent.
+
+v4 = the designer's method, algorithmic: keep MANIFOLDS (v3.1, proven); connect them with
+STRAIGHT GEOMETRIC CORRIDORS — trapezoid/L fat polygons manifold-to-manifold at required
+width on the obstacle-corner graph (OARSMT-style sparse geometry, not cells); resolve
+overlaps by LAYER ASSIGNMENT as a small discrete problem (N rails x 3 layers, exact at
+this scale); a genuine crossing = ONE compact via field at the defined crossing point.
+The cell raster is DEMOTED to legality verification (clearance + min-width proof); the
+direction-state Dijkstra survives only as fallback for corridors the planner cannot place.
+Prior art anchors: PowerSynth (corridor-level power-module synthesis), IC P/G-grid
+synthesis (Steiner + current-driven sizing), OARSMT.
+
+**RUNG GATE (owner ruling, 2026-07-25): the pipeline does NOT advance past the pour-first
+rung until the critical points are perfect.** The pour state is the active development
+front; later-rung graduation waits on owner sign-off of the pour artifacts.
+
+Blueprint tap discipline (same ruling): the stamped cells' Kelvin taps must be the
+authored textbook-orthogonal set ONLY — the route-time synthesizer must recognize
+blueprint tap copper as coverage (lock + per-pair contact handshake) and never lay
+bent/diagonal fallbacks on a stamped cell.
