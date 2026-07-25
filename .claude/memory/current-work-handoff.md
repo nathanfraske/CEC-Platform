@@ -1,5 +1,12 @@
 # Current work handoff
 
+## PHASE A INTAKE VERIFIED (2026-07-25 ~04:15Z): lib measured — reuse set confirmed (Mini-Fit
+5569-24A1 = snout part exists w/ 3D; SOT-23/SMA/SOD-323/USB-C/R-C-LED smd); GAPS: SOIC-14 fp,
+R_2010, LED-3mm-THT, all specialty fps, and ZERO symbols for comparator/fuse/neon/varistor/GDT/
+relay/meter/supercap. Agent-pullable set = every LCSC line (easyeda2kicad brings 3D free).
+OWNER INPUTS listed in FOLLOWUPS 2026-07-25 (specialty SKU picks, 5 desk datasheets, sample
+order, #10). Phase A is GREEN to run — LCSC set does not wait on picks.
+
 ## SIGN-OFF EXECUTED + BOM SOURCED + SUB-BOARDS STOOD UP (2026-07-25 ~03:55Z, on pipeline-pass-2)
 Owner: 'approve on all counts' + BOM/sub-folders/LCSC-primary/datasheets/margin-passives directives.
 DONE: decisions #2,3,5,8,9,11,12,13,14 RULED (#4 pending safety review, #10 open) — README/map
