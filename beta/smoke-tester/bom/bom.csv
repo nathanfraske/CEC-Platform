@@ -28,7 +28,7 @@ K1,1,HF3F-L/5-1HL1T latching relay 5V 1-pole,DIP,HF3F-L/5-1HL1T,Hongfa,C190594,7
 """C_K1,C_K2""",2,100uF 16V electro (coil pulse),radial/SMD,,generic,,,JLC basic — bind at capture,,,,margin: RC edge pulse energy for each coil
 SW_ARM,1,missile-cover toggle,panel THT,,generic,,,consigned,,,,the arm/fire UX; ~$2.20
 SW_TEST,1,panel momentary NO,panel THT,,generic,,,consigned,,,,powers comparator domain while held (PCB tactile C720477 = fallback if panel part slips)
-SW_LOAD,1,DPST toggle,panel THT,,generic,,,consigned,,,,min-load bleeders in/out
+SW_LOAD,1,DPST toggle,panel THT,,generic,,,consigned,,,,min-load bleeders in/out; FIRST-CONTACT RULE on silk: OFF until first green (§3 — keeps 32VDC blades out of any DC-incursion breaking role)
 SW_LID,1,microswitch,THT lever,,generic,,,consigned,,,,door open -> K1 RESET pulse -> disarmed
 SW_SEL,1,1P6T rotary,panel THT,RS-06 class,generic,C41347713,722,LCSC (verify 1P6T config at capture),,jlcsearch 2026-07-25,,meter rail select; $0.95; config-check flagged
 M1,1,100uA moving-coil panel meter 85C1,panel,85C1,generic,,,consigned,,,,reads DIVIDED nodes only via SW_SEL; scale printed x10; + multiplier R + 3296W cal trim (bind)

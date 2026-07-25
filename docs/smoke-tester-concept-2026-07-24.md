@@ -447,3 +447,41 @@ One distinct corner named honestly: the PSU's primary PFC bus (~380–400 VDC, n
 zero-crossings) — real-world it arrives through the fault's own impedance, bounded
 by the DUT's input fuse + bulk energy; proven at the arc bench (explicit DC-ingress
 row). Spec: beta/smoke-tester/README.md §3 both-grids note.
+
+### 9.14 How realistic is an incursion, and how the box handles the DC one (owner Q, 2026-07-25)
+
+Realism ladder, most→least common in the sketchy-PSU population (adverse selection —
+this box exists precisely because its clientele is the tail):
+
+1. **Leakage / tracking (kΩ–MΩ path, µA–mA): REALISTIC and the dominant case.**
+   Counterfeit non-Y "Y-caps" failing short-ish, moisture/condensation, conductive
+   dust, carbon tracks from a prior surge, rodent damage. Presents as the chassis or
+   a rail FLOATING toward mains potential — can't push current, but shocks humans
+   and kills logic. The box handles it perfectly and undramatically TODAY: the ~90 V
+   neons strike at zero current (CASE LIVE / RAIL LIVE), windows read wrong, no fuse
+   even blows. This case is the CASE-LIVE neon's entire reason to exist, and it is
+   the one that actually hurts people.
+2. **Arcing / intermittent partial breakdown (tens–hundreds of Ω): plausible.**
+   Energy bounded per flash; MOV/GDT clamp it, the witness puffs, fuses clear on the
+   follow-through. The arc bench's 230 VAC row is this case's proof.
+3. **Hard AC-mains connection to an output: rare but real** — the melted garbage
+   PSU, the flood survivor. Designed case: 250 VAC sand-filled HRC breaks it; blade
+   arc rides through to the HRC by intent (the founding coordination story).
+4. **Stiff 400 VDC bulk-rail connection: the rarest**, requiring catastrophic
+   multi-point transformer failure — and physics bounds it: the bulk is a 30–45 J
+   capacitor bank behind the PSU's own input fuse, so the event is a
+   tens-of-milliseconds droop-to-dead dump, never a continuous 400 V source.
+
+Handling for case 4 (spec'd in README §3): the designed WITNESS-FIRST sequence — GDT
+strikes and hogs current, the 1 Ω witness opens sub-ms and disconnects the clamp
+leg, the way then floats behind megohm dividers (individually inside their voltage
+ratings at 400 V) with neons/windows indicating — so no 32 VDC blade or 250 VAC HRC
+is ever asked to break 400 VDC, PROVIDED min-load is out of circuit: hence the new
+**FIRST-CONTACT RULE (MIN LOAD off until first green)** on silk + truth-table. With
+MIN LOAD engaged the event is still dump-energy-bounded (blade arcs for the droop
+duration, HRC + sand backstop). Both cases are explicit arc-bench DC rows. The
+10×38 gPV solar-fuse upgrade (1000 VDC breaking, ~+$15–20, much larger board) was
+evaluated and REJECTED as disproportionate. Bottom line: the case that is actually
+common (leakage → hot chassis) is handled silently and perfectly; the case that is
+theatrical (mains arc) is the designed show; the case that is rarest (stiff bulk
+DC) is sequence-handled and bench-proven, not fuse-rated away.

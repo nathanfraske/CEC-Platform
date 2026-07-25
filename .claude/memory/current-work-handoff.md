@@ -1,5 +1,24 @@
 # Current work handoff
 
+## DC-INCURSION REALISM + WITNESS-FIRST SEQUENCE (2026-07-25 ~08:50Z, pipeline-pass-2)
+Owner: "any way to also handle 400VDC bulk incursion? is mains/bulk incursion even
+realistic?" ANSWERED + SPEC'D (README §3 DC-handling block, concept §9.14 realism
+ladder, owner-queue row): (1) REALISM: leakage/tracking (uA-mA, counterfeit Y-caps /
+moisture / carbon tracks) = the DOMINANT real case -> handled TODAY silently by the 90V
+neons (CASE LIVE's whole job); arcing partial breakdown = plausible, clamp+witness
+handle; hard AC mains = rare but real, the designed 250VAC HRC case; stiff 400VDC =
+RAREST and physically a 30-45J cap dump (390-560uF @ 400V behind the PSU's own input
+fuse), tens of ms, never a continuous source. (2) HANDLING: designed WITNESS-FIRST
+sequence — GDT strikes (20V arc, hogs MOV current) -> 1R witness opens sub-ms ->
+clamp leg DISCONNECTS -> way floats behind 900k dividers (301k x3 = 133V/element at
+400V, inside 200V rating) -> neons+windows indicate; with MIN LOAD off, NO path asks a
+32VDC blade / 250VAC HRC to break 400VDC. NEW FIRST-CONTACT RULE: MIN LOAD OFF until
+first green (silk + truth-table card + SW_LOAD bom note) — closes the bleeder path
+during the riskiest window; engaged-load case still dump-energy-bounded (blade arcs
+for the droop, HRC+sand backstop). Bench: DC-ingress rows BOTH ways (min-load out +
+engaged) + witness-first sequence verify (§9 bullet extended). gPV 10x38 solar fuses
+(1000VDC, +$15-20) evaluated + REJECTED disproportionate — recorded visibly.
+
 ## AUX DESCOPED + BOTH-GRIDS ANSWERED + OTS PELLET CLIP (2026-07-25 ~08:25Z, pipeline-pass-2)
 THREE owner turns folded into one pass. (1) AUX DESCOPE — owner caught my contradiction
 (early ruling was 24-pin-only; my AUX defense used a safety story that proves too much)

@@ -183,7 +183,13 @@ in ≤ a half-cycle, witness opens, comparator node never exceeds ~2.4 V through
 
 Min-load bleeders (switchable, "MIN LOAD" DPST): 47 Ω 10 W on 12 V (~0.26 A) + 10 Ω
 5 W on 5 V (~0.5 A) — enough for group-regulated antiques to regulate, small enough
-that 1 A blades never see >0.6 A legitimate.
+that 1 A blades never see >0.6 A legitimate. **FIRST-CONTACT RULE (owner Q
+follow-through, 2026-07-25): MIN LOAD stays OFF for first contact — throw it only
+after the first green read.** With the bleeders out of circuit, the only conduction
+paths during the riskiest window are the self-disconnecting clamp legs (witness
+opens in sub-ms) and the megohm dividers — a DC incursion then has NO low-impedance
+path that would force the 32 VDC-class blades into a breaking role at 400 V. Panel
+silk + the truth-table card carry the rule.
 
 **Both grids, one box (owner Q, 2026-07-25):** the tester touches only the DUT's DC
 outputs, so whether the PSU eats 120 VAC or 230+ VAC changes NOTHING in normal
@@ -199,6 +205,25 @@ grids, no switch, no variant. The one distinct ingress is the PSU's PRIMARY PFC 
 arrives through the failure's own impedance and is bounded by the DUT's input fuse +
 bulk-cap energy; the arc bench carries an explicit DC-ingress row (§9) to prove the
 HRC/GDT chain there rather than hand-wave it.
+
+**DC-incursion handling — the designed sequence (owner Q, 2026-07-25).** A stiff,
+continuous 400 V source is not a physical PSU presentation: the bulk rail is a
+CAPACITOR BANK (~390–560 µF at ~400 V ≈ 30–45 J) behind the PSU's own input fuse —
+a hard primary-to-secondary breakdown delivers a tens-of-milliseconds droop-to-dead
+dump, not a lab supply. The box's designed response ORDER exploits that: (1) GDT
+strikes (arc ~20 V) and hogs the current off the MOV; (2) the 1 Ω witness — the
+lowest-value, fastest element in the chain — opens in sub-ms at dump currents and
+DISCONNECTS the clamp leg; (3) the way then floats at fault potential behind ≥900 kΩ
+dividers (3×301k 1206 = 133 V/element at 400 V, inside their 200 V rating, 59 mW
+each) while neons + red windows scream — with MIN LOAD off (first-contact rule
+below) there is NO path left that asks a 32 VDC blade or 250 VAC HRC to break DC at
+400 V. If MIN LOAD was engaged when the DUT let go, the event is still bounded by
+the dump energy (blade arcs for the tens-of-ms droop, HRC + sand as backstop) — the
+bench DC row proves both cases. UPGRADE PATH EVALUATED AND REJECTED: 10×38 gPV
+solar fuses (1000 VDC breaking, the cheap high-DC commodity) on every way ≈ +$15–20
+and a much larger board — disproportionate for a corner that physics already bounds
+and the sequence already handles; recorded so the decision is visible (realism
+ladder: concept §9.14).
 
 ## 4. Controls and indication
 
@@ -392,7 +417,9 @@ concept §8 #2–#12 (this standup executed #1).
       cadence: vent sizing, shots-per-minute silk). Rows now also incl. worst-case DC
       ingress (~400 VDC PFC-bus through representative fault impedance, no
       zero-crossings — proves HRC/GDT breaking beyond the AC rating; §3 both-grids
-      note).
+      note) + the witness-first disconnection sequence (clamp leg opens before any
+      blade/HRC carries the DC event; repeat with MIN LOAD engaged = the bounded
+      worst case).
 - [~] AUX adapter pin-map table — OBSOLETE (AUX descoped 2026-07-25, §5).
 - [ ] Compliance posture ruling (concept decision #8) before any listing goes live.
 - [ ] Panel truth-table copy + verdict-card layout (marketing-adjacent, owner voice).
