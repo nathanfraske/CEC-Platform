@@ -1,0 +1,22 @@
+[Unit]
+# CEC work dashboard (scripts/cec_dashboard.py) -- the owner's verification surface:
+# wave rows, board renders, the worklog/commit ACTIVITY feed. Port 8090 is FIXED
+# (never incremented -- the owner keeps the tab open; see the dashboard-fixed-port
+# memory), so a stale instance must be killed rather than side-stepped.
+Description=CEC work dashboard (board renders + wave rows + activity feed on :8090)
+Documentation=https://github.com/nathanfraske/CEC-Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nathan
+# docker group: dashboard panels shell out to container tooling for some views.
+Group=docker
+WorkingDirectory=/home/nathan/CEC-Platform
+ExecStart=/usr/bin/python3 /home/nathan/CEC-Platform/scripts/cec_dashboard.py --port 8090
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -33,6 +33,11 @@ try:
 except ImportError:                                    # host-side import for tests
     pcbnew = None
 
+# SWIG REGISTRY PIN -- see scripts/cec_swig_guard.py (hub all-9999 root cause).
+if pcbnew is not None:
+    import cec_swig_guard as _swig_guard
+    _swig_guard.pin()
+
 MM = 1e6
 
 

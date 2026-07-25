@@ -60,6 +60,13 @@ import contextlib as _cl
 with _cl.redirect_stderr(open(os.devnull, "w")):
     import pcbnew
 
+# SWIG REGISTRY PIN (2026-07-25): keeps pcbnew's type table from being torn down
+# mid-run -- the root cause of the hub's all-9999 wall, where LoadBoard began
+# returning bare SwigPyObjects and every variant died in bake_hints. See
+# scripts/cec_swig_guard.py for the measurement chain.
+import cec_swig_guard as _swig_guard                     # noqa: E402
+_swig_guard.pin()
+
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
 
@@ -4779,6 +4786,12 @@ class Candidate:
     params: dict          # the FR params used (passes / opt_time / threads)
     ok: bool              # True if a routed board was produced
     err: str | None = None
+    # STAGE ERRORS CARRY TRACEBACKS (2026-07-25, hub blindness): route_once used to
+    # report only str(exc), so every hub variant read as the opaque one-liner
+    # "route failed: 'SwigPyObject' object has no attribute 'GetLayerID'" with no
+    # file:line -- the same class the pour stage fixed in 1d9bd5c3. err now carries
+    # the failing frame inline (survives the wave's grep) and trace the full text.
+    trace: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -5087,13 +5100,29 @@ def route_once(
         )
 
     except Exception as exc:
+        import traceback as _tb
+        _trace = _tb.format_exc()
+        # Innermost OUR-code frame (skip library frames) -> compact file:line the
+        # wave log keeps on the ERR line.
+        _where = ""
+        try:
+            for _fr in reversed(_tb.extract_tb(sys.exc_info()[2])):
+                if os.sep + "scripts" + os.sep in _fr.filename or _fr.filename.endswith(".py"):
+                    _where = " at %s:%d in %s" % (os.path.basename(_fr.filename),
+                                                  _fr.lineno, _fr.name)
+                    break
+        except Exception:                                   # noqa: BLE001
+            pass
+        print("[cec_fr] route_once FAILED: %s%s\n%s" % (exc, _where, _trace),
+              file=sys.stderr)
         return Candidate(
             board="",
             ses=os.path.join(workdir, "board.ses") if workdir else "",
             seed=seed,
             params=params,
             ok=False,
-            err=str(exc),
+            err="%s%s" % (exc, _where),
+            trace=_trace,
         )
     finally:
         if _own_wd:

@@ -37,6 +37,10 @@ import os, sys, math, shutil, json
 
 import pcbnew
 
+# SWIG REGISTRY PIN -- see scripts/cec_swig_guard.py (hub all-9999 root cause).
+import cec_swig_guard as _swig_guard                     # noqa: E402
+_swig_guard.pin()
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)

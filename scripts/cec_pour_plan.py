@@ -54,6 +54,11 @@ try:
 except ImportError:                                    # host-side tests
     pcbnew = None
 
+# SWIG REGISTRY PIN -- see scripts/cec_swig_guard.py (hub all-9999 root cause).
+if pcbnew is not None:
+    import cec_swig_guard as _swig_guard
+    _swig_guard.pin()
+
 import cec_slab_pour as _sp
 from cec_slab_pour import (
     Grid,
