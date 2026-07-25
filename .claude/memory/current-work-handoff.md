@@ -1,5 +1,82 @@
 # Current work handoff
 
+## SIGN-OFF EXECUTED + BOM SOURCED + SUB-BOARDS STOOD UP (2026-07-25 ~03:55Z, on pipeline-pass-2)
+Owner: 'approve on all counts' + BOM/sub-folders/LCSC-primary/datasheets/margin-passives directives.
+DONE: decisions #2,3,5,8,9,11,12,13,14 RULED (#4 pending safety review, #10 open) — README/map
+flipped; LCSC sourcing via jlcsearch 2 batches (LM339 C7948, TLV431 C56765, HRC C142716, ATO holder
+C3207132, MOV UNIFORM 14D220K C6793760 [low-V discs unavailable -> 6-25V band detect-only, recorded],
+GDT 2R090TA-5 C48642402 [glass-body check at sample], witness KNP C1741442, relay HF3F-L C190594 ->
+K1 SIMPLIFIED 1-pole, PG-race t0 from PS_ON# node; + basics + platform reuse); top BOM 50 lines w/
+margin/decoups; brick/ snout/ faceplate/ folders (own KiCad projects at Phase B, generator+lib =
+the shared layer — no literal sheet inheritance); datasheets vendored LM339/TLV431A/SMAZ, 3 blocked
+(FOLLOWUPS); stock watches logged. Rollup honest: ~$45-48@100 w/ kit, ~$36-38@1k, retail $79 holds.
+NEXT: Phase A CAD library -> Phase B capture -> arc bench (gates DRAFT-drop). #10 + consigned buys +
+safety review = owner desk.
+
+## OVER-UNDER POURS v2 IMPLEMENTED (2026-07-25, Sonnet agent, on pipeline-pass-2)
+synthesize_overunder_pours landed in scripts/cec_slab_pour.py per docs/slab-pour-design-
+2026-07-24.md's "v2" section: per rail, a multi-layer A*/Dijkstra (route_overunder) grows one
+Steiner-ish tree over every terminal pad-cluster, one copper layer per segment (In2/PWR_RT
+cheapest, B.Cu mid, F.Cu expensive except at shunt neighborhoods or within 2 cells of a
+same-net F-anchored terminal), via-array bridging where the preferred layer is contested;
+free-space masks are eroded by half the IPC-2221 required width before the search runs, so
+every found path is provably wide enough and a net with no viable path reports
+path_found=False with a bottleneck hint instead of laying a partial guess. Wired into
+cec_fr.import_ses's post-via slab-conversion block behind CEC_OVERUNDER=1 (bridge vias laid
+first via add_overunder_vias, then the lanes through add_power_pours -- the same choke point
+every other pour uses); plumbed through cec_synth_pipeline._oracle_env's "overunder" param.
+Not enabled on any board (A/B opt-in only). tests/test_overunder.py: pure-raster teeth
+(straight single-layer path; blocked-middle forcing exactly 2 bridge transitions with the
+vacated layer carrying no copper in the blocked stretch; a genuinely disconnected pair
+reporting failure and laying nothing; unreachable-terminal/trivial-cluster/via-ledger
+coverage), all green. VERIFIED on the real routed s415 24-pin board (asks for /SENSE12V_LO,
+/SENSE3V3_LO, +5V_MAIN): /SENSE3V3_LO finds a clean 1-bridge path (F.Cu lane confined to the
+shunt/sense-IC terminal field, confirmed against real component coordinates); the other two
+report no-path -- an ablation (forcing the 1.2mm width floor) plus an independent union-find
+over the passable graph both confirm these are GENUINE board-congestion disconnections (one
+is a small sense resistor pad walled off by foreign copper on every searched layer), not a
+search bug -- i.e. this is the SAME "refused sense cell" / connectivity-war class the pour-war
+entry below names as the #1 remaining front, now with a concrete, reproducible instance and a
+tool that reports it honestly instead of silently laying undersized copper. Golden stays
+byte-stable (kelvin false / unconnected 16 / thermal 257.5) since CEC_OVERUNDER is unset by
+default. Landed as commits (over-under pours: routed-object realization) + (bookkeeping: sync).
+
+## SIGN-OFF BOARD MAP DELIVERED (2026-07-25 ~03:00Z, on pipeline-pass-2)
+Owner loved the arcs riff ('that's the way to do it') and asked for the all-boards+connections
+diagram to consider and SIGN OFF. smoke-tester-board-map.svg REBUILT as the sign-off instrument:
+4 boards (main/faceplate/brick/snout) + accessories, full connector census, arcs additions
+flagged with diamonds (diagram assumes #14=BOTH per the rec), theater bay, power block, fab+cost
+(landed ~$42-43@100 w/ arcs, retail holds $79), spectacle-ladder rules, and an OPEN-DECISIONS
+box (#2-#5, #8-#14 with recommendations; ruled items excluded) + signature line. AWAITING OWNER
+SIGN-OFF on that decision set; README/BOM still pre-arcs until the nod lands.
+
+## ARCS RIFF RECORDED (2026-07-25 ~02:30Z, owner ask, on pipeline-pass-2)
+Concept 9.10 + owner-queue decision #14: (a) GLASS GDTs on the brick = real arc flash in the
+witness window powered by the fault's own energy AND a harder mains-class crowbar (GDT+fuse
+coordination, MOV keeps 20-90V class, +$1-2 brick); (b) momentary LAMP-TEST/SHOW button —
+~100mW contained boost strikes all gas bulbs + a flicker-flame neon tube; the show IS the
+safety self-test for the CASE-LIVE bulb (dead neon = silent safety failure). Fences: sealed
+devices only (Jacob's ladder REJECTED), HV dies with the button, never-generate-what-you-
+detect. Rec BOTH, ~$3-4 BOM, retail holds $79. Board README/BOM untouched pending nod.
+
+## DUT INPUT BOARDS RULED (2026-07-25 ~02:00Z, owner, on pipeline-pass-2)
+Owner recognized the fixture head as 'just a straight-through connector' and RULED: resell
+off-the-shelf ModDIY-class straight-through boards for 24-pin/EPS/PCIe deck slots ('can just
+resell those'). Added to the tester spec: testers/DESIGN-SHEET.md sec-A block — resell posture
+w/ the OQ-86/88 ModDIY qualification caveat, per-head install BASELINE + dV/dI drift trend ->
+'replace input board slot N' firmware alarm (OQ-85), designed-head-with-OQ-88-sense-contacts
+demoted to upgrade rung, 12VHPWR excepted (hpwr-fixture-head stays designed). Desk items:
+ModDIY catalog check + sample order. FOLLOWUPS + concept 9.9 updated.
+
+## DECK WEAR DOCTRINE CORRECTED (2026-07-25 ~01:25Z, owner objections sustained, on pipeline-pass-2)
+9.8's two weak layers retracted (concept 9.9): saver pigtails NO for 12VHPWR (re-adds a mated pair
+to the melt path, contradicts the 2.8 captive-pigtail rationale) + NO in metrology paths (unbaselined
+20-30 mOhm = 2%-class at 10 A); module-as-wear-unit NO ($600+ Pro/Max). CORRECTED: generalized
+FIXTURE HEADS per family (hpwr-fixture-head census pattern -> atx24/eps/pcie heads, $3-10 passive
+keyed, sense-AT-the-head via 12d port-end Kelvin + OQ-88 sense contacts) = wear lands cheap AND
+instrumented (12d per-pin R trend -> firmware alarm), modules never accumulate matings. Layered
+defense for $600 modules: smoke triage -> 12c fences -> head. FOLLOWUPS entry superseded in place.
+
 ## POUR WAR WON -- OWNER-CONFIRMED 2026-07-25 ~00:25: "s421, s420, s416 are all clean. Nice."
 The validated-clean baseline (judge future pour work against THIS): choke-point shunt-only
 enforcement inside add_power_pours (covers ALL THREE laying paths: materialize landing
