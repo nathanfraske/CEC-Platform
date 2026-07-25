@@ -4257,6 +4257,45 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                                 print(f"[cec_fr] over-under: slab fallback laid "
                                       f"{len(_spf)} slab(s) for {len(_fb)} "
                                       f"no-path dict(s)", file=sys.stderr)
+                        # PRE-FR RESERVATION LEDGER (CEC_POUR_RESERVE):
+                        # route_once drops the reservation report next to the
+                        # DSN/SES it exported; log reserved-vs-realized per
+                        # net and persist the merged view next to the routed
+                        # board (<out>.pour-reserve.json) for the wave /
+                        # postmortem readout. Absent sidecar (gate off, or a
+                        # direct import_ses caller) = silent no-op.
+                        try:
+                            import json as _json
+                            _rsc = os.path.join(
+                                os.path.dirname(os.path.abspath(ses_path)),
+                                "pour_reserve.json")
+                            if os.path.isfile(_rsc):
+                                with open(_rsc) as _rf:
+                                    _rsv = (_json.load(_rf) or {}).get("report", {})
+                                for _n in sorted(set(_rsv) | set(_sr3)):
+                                    _r0, _r1 = _rsv.get(_n, {}), _sr3.get(_n, {})
+                                    print("[cec_fr] pour-reserve: %s reserved=%s"
+                                          " (%s rect(s)) -> realized path_found=%s"
+                                          % (_n, _r0.get("reserved"),
+                                             _r0.get("rects", 0),
+                                             _r1.get("path_found")),
+                                          file=sys.stderr)
+                                _rsj = (out_path[:-len(".kicad_pcb")]
+                                        if out_path.endswith(".kicad_pcb")
+                                        else out_path) + ".pour-reserve.json"
+                                with open(_rsj, "w") as _wf:
+                                    _json.dump(
+                                        {"schema": 1, "reserved": _rsv,
+                                         "realized": {
+                                             k: {"path_found": v.get("path_found"),
+                                                 "layers_used": v.get("layers_used"),
+                                                 "bottleneck": v.get("bottleneck")}
+                                             for k, v in _sr3.items()}},
+                                        _wf, indent=1, sort_keys=True,
+                                        default=str)
+                        except Exception as _re:             # noqa: BLE001
+                            print(f"[cec_fr] pour-reserve ledger failed ({_re})",
+                                  file=sys.stderr)
                     else:
                         _sp3, _sr3 = cec_slab_pour.synthesize_slab_pours(board, _conv)
                         _bad3 = [f"{k[0]}|{k[1]}" for k, v in _sr3.items()
@@ -4611,6 +4650,52 @@ def route_once(
                              _mc[0]["x_mm"], _mc[0]["y_mm"]), flush=True)
             except Exception:                                  # noqa: BLE001
                 pass
+        # PRE-FR POUR-CORRIDOR RESERVATION (owner priority ruling 2026-07-24,
+        # docs/slab-pour-design-2026-07-24.md: "the pour takes priority and
+        # gets its route first"; wired 2026-07-25 -- the reachability half of
+        # the RS1 starvation cycle). CEC_POUR_RESERVE=1 gates it, DEFAULT OFF
+        # (golden safety). Each pour ask's over-under corridor is computed on
+        # the PRE-ROUTE board (cec_slab_pour.reserve_pour_corridors -- the
+        # SAME machinery as the import-time realization, but foreign = the
+        # board's existing copper only: locked rails, pads, pre-laid taps --
+        # no FR tracks yet) and baked below as keepout rule areas on its own
+        # layers, so FR routes signals AROUND it and the post-route
+        # realization finds the corridor still clear by construction. The
+        # ask set mirrors import_ses' conversion filter (placer_ask dicts;
+        # everything under CEC_SLAB_POUR=1). Pads the reserved pour OWNS are
+        # excluded from FR after DSN export below (_dsn_exclude_pins
+        # pattern); a no-path net excludes nothing and stays fully
+        # FR-routed. The per-net report rides a pour_reserve.json sidecar
+        # next to the DSN/SES so import_ses can log reserved-vs-realized.
+        _reserve_pins = []
+        if power_pours and os.environ.get("CEC_POUR_RESERVE", "0") == "1":
+            try:
+                import json as _json
+                import cec_slab_pour
+                _full_conv = os.environ.get("CEC_SLAB_POUR", "0") == "1"
+                _rasks = [p for p in power_pours
+                          if _full_conv or p.get("provenance") == "placer_ask"]
+                if _rasks:
+                    _res = cec_slab_pour.reserve_pour_corridors(
+                        pcbnew.LoadBoard(board_path), _rasks)
+                    _cors = _res.get("corridors") or []
+                    if _cors:
+                        hints = list(hints) + cec_slab_pour.corridors_to_keepouts(_cors)
+                    _reserve_pins = sorted({t for v in _res.get("report", {}).values()
+                                            for t in v.get("exclude_pins", ())})
+                    _nres = sorted(n for n, v in _res.get("report", {}).items()
+                                   if v.get("reserved"))
+                    print("[cec_fr] pour-corridor reservation: %d corridor rect(s) "
+                          "for %d/%d net(s) %s; %d pad(s) queued for FR exclusion"
+                          % (len(_cors), len(_nres), len(_res.get("report", {})),
+                             _nres, len(_reserve_pins)), file=sys.stderr)
+                    with open(os.path.join(workdir, "pour_reserve.json"), "w") as _wf:
+                        _json.dump({"schema": 1, "report": _res.get("report", {})},
+                                   _wf, indent=1, sort_keys=True, default=str)
+            except Exception as _e:                            # noqa: BLE001
+                _reserve_pins = []
+                print(f"[cec_fr] pour-corridor reservation FAILED ({_e}) -- "
+                      "routing unreserved", file=sys.stderr)
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 
@@ -4633,6 +4718,16 @@ def route_once(
             except Exception as _e:                            # noqa: BLE001
                 print("[cec_fr] owned-net exclusion failed (%s) -- reconcile backstops"
                       % _e, flush=True)
+        # PRE-FR RESERVATION pad exclusion (CEC_POUR_RESERVE, computed above):
+        # the reserved pour owns these pads' connectivity -- without this, FR
+        # still tries to CONNECT them by some other path AROUND the corridor
+        # keepouts (wasteful detours through the signal fabric). The pads
+        # keep their real net on the board; only the DSN forgets them.
+        if _reserve_pins:
+            _nrx = _dsn_exclude_pins(dsn_path, _reserve_pins)
+            print("[cec_fr] pour-reserve: excluded %d pour-owned pad(s) from "
+                  "FR routing (%d DSN token(s) removed)"
+                  % (len(_reserve_pins), _nrx), file=sys.stderr)
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
         fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)

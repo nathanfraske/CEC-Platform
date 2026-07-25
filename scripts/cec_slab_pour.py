@@ -623,6 +623,131 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
     return out
 
 
+def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
+                        shunt_mask, clearance_mm=0.3):
+    """Shared per-net SEARCH PREP for the over-under machinery -- extracted
+    2026-07-25 (pre-FR corridor reservation, docs/slab-pour-design-2026-07-24.md
+    priority ruling) so `synthesize_overunder_pours` (post-route realization)
+    and `reserve_pour_corridors` (pre-route reservation) run the IDENTICAL
+    terminal-cluster + eroded-mask + bias construction: reserved corridors must
+    predict realized lanes, so the two may never drift.
+
+    *ask_layers* is the ask's OWN layer list (before the fixed In2/B union --
+    applied here, matching the ask-channel contract documented on
+    `synthesize_overunder_pours`). Returns ``(prep, None)`` on success --
+    prep = {layers, passable, anchors, foreign, clab, nclusters, rcells,
+    reqw, bias_fn} (foreign = the raw rasterize() masks incl. clearance,
+    kept for the reservation's corridor-carve) -- or ``(None, reason_str)``
+    on the two honest no-search cases ("no valid layer" / "no pads/vias for
+    net"), byte-identical to the report reasons the realization always used."""
+    from scipy import ndimage
+    st = ndimage.generate_binary_structure(2, 1)
+    layers = list(dict.fromkeys(list(ask_layers) + ["In2.Cu", "B.Cu"]))
+    layers = [lay for lay in layers if board.GetLayerID(lay) >= 0]
+    if not layers:
+        return None, "no valid layer"
+
+    # step 1: terminal groups
+    clab, nclusters = terminal_clusters(board, nc, grid)
+    if nclusters == 0:
+        return None, "no pads/vias for net"
+
+    # step 2: per-layer eroded/passable masks + required width
+    amps = net_currents.get(net, 0.0)
+    passable, anchors, rcells, reqw, foreign = {}, {}, {}, {}, {}
+    for lay in layers:
+        lay_id = board.GetLayerID(lay)
+        fmask, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
+        w = req_width_mm(amps, lay) if amps > 0 else 1.2
+        rc = max(1, int(round(w / (2.0 * grid.cell))))
+        eroded = ndimage.binary_erosion(~fmask, structure=st,
+                                        iterations=rc)
+        # ANCHOR-APPROACH TAPER (2026-07-25, from the skeleton-board
+        # pour-first runs: wide lanes could not REACH terminals seated
+        # in connector pin fields -- the gaps between foreign THT
+        # barrels are narrower than the lane width, so full-width
+        # erosion walls the terminal even on an empty board). Within a
+        # few cells of the net's OWN anchors, any non-foreign cell is
+        # passable: the pad itself is the physical width bottleneck
+        # there, and a short pad-adjacent neck is thermally fine (the
+        # current spreads at the pad; neck length is what matters).
+        approach = ndimage.binary_dilation(anc, structure=st,
+                                           iterations=4) & ~fmask
+        passable[lay] = eroded | anc | approach
+        anchors[lay] = anc
+        rcells[lay] = rc
+        reqw[lay] = w
+        foreign[lay] = fmask
+
+    # ANCHOR-DRIVEN LAYER WIDENING (2026-07-24, the implementation-agent's
+    # flag 1 materialized on the first live 24-pin wave: rail-compiler
+    # SENSE asks carry In2-only layers, but the shunt/INA SMD terminals
+    # live on F.Cu -> route_overunder refused with "terminal has no
+    # anchor on any searched layer"). A terminal cluster anchored on NO
+    # searched layer but anchored on an outer layer pulls that layer
+    # into the search set. F.Cu LEGALITY is unaffected: the realized
+    # lane still goes through add_power_pours' shunt-only F choke at lay
+    # time -- and a widened net's F anchors are shunt/INA pads, i.e.
+    # inside the shunt neighborhoods that choke admits.
+    for extra in ("F.Cu", "B.Cu"):
+        if extra in passable or board.GetLayerID(extra) < 0:
+            continue
+        uncov = [k for k in range(1, nclusters + 1)
+                 if not any((anchors[lay] & (clab == k)).any()
+                            for lay in layers)]
+        if not uncov:
+            break
+        fmask, anc = rasterize(board, nc, board.GetLayerID(extra),
+                               grid, clearance_mm)
+        helped = [k for k in uncov if (anc & (clab == k)).any()]
+        if not helped:
+            continue
+        w = req_width_mm(amps, extra) if amps > 0 else 1.2
+        rc = max(1, int(round(w / (2.0 * grid.cell))))
+        layers.append(extra)
+        passable[extra] = ndimage.binary_erosion(
+            ~fmask, structure=st, iterations=rc) | anc
+        anchors[extra] = anc
+        rcells[extra] = rc
+        reqw[extra] = w
+        foreign[extra] = fmask
+        print(f"[cec_slab_pour] over-under: widened {net} search to "
+              f"{extra} (terminal cluster(s) {helped} anchored only "
+              f"there)", file=sys.stderr)
+    # F.Cu HARD CONSTRAINT (owner categorical rule 2026-07-24 "top
+    # pours only around the shunts" + the s427 sprawl finding: the
+    # f_prox SOFT bias let a widened net whose terminals are all
+    # F-anchored -- e.g. +5VSB's decoupling caps board-wide -- route
+    # its WHOLE lane on F.Cu). F transit cells now exist only inside
+    # shunt neighborhoods or hugging the net's own F anchors (short
+    # landing patches, ~2.4mm); any longer F run is impossible, so the
+    # search bridges to an inner/bottom layer instead. Anchors stay
+    # passable by the passable-=eroded|anchors construction above.
+    if "F.Cu" in passable:
+        passable["F.Cu"] &= (
+            ndimage.binary_dilation(anchors["F.Cu"], structure=st,
+                                    iterations=3)
+            | shunt_mask | anchors["F.Cu"])
+    f_prox = None
+    if "F.Cu" in anchors:
+        f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
+                                         iterations=2)
+
+    def _bias(lay, r, c, _shunt=shunt_mask, _fprox=f_prox):
+        # per-layer bias (design step 3): In2 +0, B.Cu +0.15/step,
+        # F.Cu +0.6/step EXCEPT free inside a shunt neighborhood or
+        # within 2 cells of this net's own F-anchored terminal.
+        if lay == "F.Cu":
+            if _shunt[r, c] or (_fprox is not None and _fprox[r, c]):
+                return 1.0
+            return 1.6
+        return 1.0 + (0.0 if lay == "In2.Cu" else 0.15)
+
+    return {"layers": layers, "passable": passable, "anchors": anchors,
+            "foreign": foreign, "clab": clab, "nclusters": nclusters,
+            "rcells": rcells, "reqw": reqw, "bias_fn": _bias}, None
+
+
 def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
     """v2 OVER-UNDER POURS -- "the pour is a routed object" (owner
     ratification 2026-07-24 late; docs/slab-pour-design-2026-07-24.md, "v2"
@@ -652,9 +777,6 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
                   carries "bottleneck" (see route_overunder) and nothing is
                   laid for that net (never a partial guess, step 5).
     """
-    from scipy import ndimage
-    st = ndimage.generate_binary_structure(2, 1)
-
     grid = Grid(board, cell_mm)
     nets_nc = {n.GetNetname(): c
                for c, n in board.GetNetInfo().NetsByNetcode().items()}
@@ -693,114 +815,22 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
                            "layers_used": [], "reason": "net not on board"}
             continue
         nc = nets_nc[net]
-        layers = list(dict.fromkeys(
-            list(a.get("layers") or (a.get("layer", "F.Cu"),))
-            + ["In2.Cu", "B.Cu"]))
-        layers = [lay for lay in layers if board.GetLayerID(lay) >= 0]
-        if not layers:
+        prep, _why = _prep_overunder_net(
+            board, net, nc, list(a.get("layers") or (a.get("layer", "F.Cu"),)),
+            grid, net_currents=net_currents, shunt_mask=shunt_mask,
+            clearance_mm=clearance_mm)
+        if prep is None:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
-                           "layers_used": [], "reason": "no valid layer"}
+                           "layers_used": [], "reason": _why}
             continue
+        rcells, reqw = prep["rcells"], prep["reqw"]
 
-        # step 1: terminal groups
-        clab, nclusters = terminal_clusters(board, nc, grid)
-        if nclusters == 0:
-            report[net] = {"path_found": False, "segments": 0, "bridges": 0,
-                           "layers_used": [], "reason": "no pads/vias for net"}
-            continue
-
-        # step 2: per-layer eroded/passable masks + required width
-        amps = net_currents.get(net, 0.0)
-        passable, anchors, rcells, reqw = {}, {}, {}, {}
-        for lay in layers:
-            lay_id = board.GetLayerID(lay)
-            foreign, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
-            w = req_width_mm(amps, lay) if amps > 0 else 1.2
-            rc = max(1, int(round(w / (2.0 * grid.cell))))
-            eroded = ndimage.binary_erosion(~foreign, structure=st,
-                                            iterations=rc)
-            # ANCHOR-APPROACH TAPER (2026-07-25, from the skeleton-board
-            # pour-first runs: wide lanes could not REACH terminals seated
-            # in connector pin fields -- the gaps between foreign THT
-            # barrels are narrower than the lane width, so full-width
-            # erosion walls the terminal even on an empty board). Within a
-            # few cells of the net's OWN anchors, any non-foreign cell is
-            # passable: the pad itself is the physical width bottleneck
-            # there, and a short pad-adjacent neck is thermally fine (the
-            # current spreads at the pad; neck length is what matters).
-            approach = ndimage.binary_dilation(anc, structure=st,
-                                               iterations=4) & ~foreign
-            passable[lay] = eroded | anc | approach
-            anchors[lay] = anc
-            rcells[lay] = rc
-            reqw[lay] = w
-
-        # ANCHOR-DRIVEN LAYER WIDENING (2026-07-24, the implementation-agent's
-        # flag 1 materialized on the first live 24-pin wave: rail-compiler
-        # SENSE asks carry In2-only layers, but the shunt/INA SMD terminals
-        # live on F.Cu -> route_overunder refused with "terminal has no
-        # anchor on any searched layer"). A terminal cluster anchored on NO
-        # searched layer but anchored on an outer layer pulls that layer
-        # into the search set. F.Cu LEGALITY is unaffected: the realized
-        # lane still goes through add_power_pours' shunt-only F choke at lay
-        # time -- and a widened net's F anchors are shunt/INA pads, i.e.
-        # inside the shunt neighborhoods that choke admits.
-        for extra in ("F.Cu", "B.Cu"):
-            if extra in passable or board.GetLayerID(extra) < 0:
-                continue
-            uncov = [k for k in range(1, nclusters + 1)
-                     if not any((anchors[lay] & (clab == k)).any()
-                                for lay in layers)]
-            if not uncov:
-                break
-            foreign, anc = rasterize(board, nc, board.GetLayerID(extra),
-                                     grid, clearance_mm)
-            helped = [k for k in uncov if (anc & (clab == k)).any()]
-            if not helped:
-                continue
-            w = req_width_mm(amps, extra) if amps > 0 else 1.2
-            rc = max(1, int(round(w / (2.0 * grid.cell))))
-            layers.append(extra)
-            passable[extra] = ndimage.binary_erosion(
-                ~foreign, structure=st, iterations=rc) | anc
-            anchors[extra] = anc
-            rcells[extra] = rc
-            reqw[extra] = w
-            print(f"[cec_slab_pour] over-under: widened {net} search to "
-                  f"{extra} (terminal cluster(s) {helped} anchored only "
-                  f"there)", file=sys.stderr)
-        # F.Cu HARD CONSTRAINT (owner categorical rule 2026-07-24 "top
-        # pours only around the shunts" + the s427 sprawl finding: the
-        # f_prox SOFT bias let a widened net whose terminals are all
-        # F-anchored -- e.g. +5VSB's decoupling caps board-wide -- route
-        # its WHOLE lane on F.Cu). F transit cells now exist only inside
-        # shunt neighborhoods or hugging the net's own F anchors (short
-        # landing patches, ~2.4mm); any longer F run is impossible, so the
-        # search bridges to an inner/bottom layer instead. Anchors stay
-        # passable by the passable-=eroded|anchors construction above.
-        if "F.Cu" in passable:
-            passable["F.Cu"] &= (
-                ndimage.binary_dilation(anchors["F.Cu"], structure=st,
-                                        iterations=3)
-                | shunt_mask | anchors["F.Cu"])
-        f_prox = None
-        if "F.Cu" in anchors:
-            f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
-                                             iterations=2)
-
-        def _bias(lay, r, c, _shunt=shunt_mask, _fprox=f_prox):
-            # per-layer bias (design step 3): In2 +0, B.Cu +0.15/step,
-            # F.Cu +0.6/step EXCEPT free inside a shunt neighborhood or
-            # within 2 cells of this net's own F-anchored terminal.
-            if lay == "F.Cu":
-                if _shunt[r, c] or (_fprox is not None and _fprox[r, c]):
-                    return 1.0
-                return 1.6
-            return 1.0 + (0.0 if lay == "In2.Cu" else 0.15)
-
-        # step 3: multi-layer Steiner-ish tree
+        # step 3: multi-layer Steiner-ish tree over the shared prep
+        # (steps 1-2 + widening + F choke + bias live in _prep_overunder_net,
+        # shared verbatim with the pre-FR corridor reservation below)
         path_cells, bridges, ok, bottleneck = route_overunder(
-            layers, passable, anchors, clab, nclusters, bias_fn=_bias)
+            prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
+            prep["nclusters"], bias_fn=prep["bias_fn"])
 
         if not ok:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
@@ -834,6 +864,245 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
               f"{len(net_vias)} via(s)", file=sys.stderr)
 
     return pour_dicts, via_list, report
+
+
+# ---------------------------------------------------------------------------
+# PRE-FR POUR-CORRIDOR RESERVATION (owner priority ruling, docs/slab-pour-
+# design-2026-07-24.md: "the pour takes priority and gets its route first
+# before everyone else gets to encroach"; realized 2026-07-25 as the
+# REACHABILITY half of the RS1 starvation-cycle fix -- guaranteed_shunt_
+# patches above is the coverage half). The over-under solver used to run
+# only POST-route: by then FR has filled the board and a congested net's
+# terminal clusters can be GENUINELY disconnected on every layer (measured:
+# /SENSE12V_LO, TB1<->RS1, proven by union-find over the passable graph).
+# Here the SAME search runs on the PRE-ROUTE board -- foreign masks see only
+# existing copper (locked force rails, pads, pre-laid taps; no FR tracks
+# yet) -- and each found corridor is handed back as keepout rects so FR
+# routes signals AROUND it; the post-route realization then finds the
+# corridor still clear by construction. Gated CEC_POUR_RESERVE=1 at the
+# cec_fr.route_once wire-up; never default-on (golden safety).
+# ---------------------------------------------------------------------------
+def _mask_rects(mask, grid):
+    """EXACT rectangle cover of a boolean mask (mm coords): per-row runs
+    merged across consecutive rows with an identical span. Straight corridor
+    legs collapse to ONE rect each (turn_cost keeps lanes straight); corners,
+    bridge disks and foreign-bite fragments contribute a handful more.
+    Exactness matters BOTH ways: a rect never overshoots the mask (a keepout
+    must not swallow a foreign pad or its clearance halo) and the union
+    covers every cell (no unreserved sliver inside the corridor for a signal
+    to squeeze into). Returns [(x0, y0, x1, y1), ...]."""
+    ny, nx = mask.shape
+    open_runs = {}                       # (i0, i1) -> first row j it appeared
+    out = []
+    for j in range(ny + 1):
+        runs = set()
+        if j < ny:
+            row = mask[j]
+            i = 0
+            while i < nx:
+                if row[i]:
+                    k = i
+                    while k < nx and row[k]:
+                        k += 1
+                    runs.add((i, k))
+                    i = k
+                else:
+                    i += 1
+        for span in [s for s in open_runs if s not in runs]:
+            i0, i1 = span
+            j0 = open_runs.pop(span)
+            out.append((grid.x0 + i0 * grid.cell, grid.y0 + j0 * grid.cell,
+                        grid.x0 + i1 * grid.cell, grid.y0 + j * grid.cell))
+        for span in runs:
+            open_runs.setdefault(span, j)
+    return out
+
+
+def corridor_masks(path_cells, bridges, rcells, foreign, grid, *,
+                   margin_cells=1):
+    """PURE raster half of the reservation: per-layer corridor masks from one
+    net's over-under search result. Each layer's path is dilated by that
+    layer's OWN half-width in cells (the same *rcells* the search eroded by
+    -- erosion-connectivity duality: that ring is provably foreign-free for
+    eroded path cells) PLUS *margin_cells* of clearance buffer (so an FR
+    track hugging the keepout boundary has its clearance shadow eat only the
+    buffer ring, never the lane itself), then the layer's raw *foreign* mask
+    (rasterize() output, already clearance-padded) is SUBTRACTED -- the
+    margin ring and any anchor-walked stretch (own pads beside foreign pads
+    at a connector carry no erosion guarantee, incl. the anchor-approach
+    taper cells) can therefore never swallow a foreign pad or its halo,
+    which would wall FR off from copper it MUST still reach. Bridge overlap
+    disks are applied first (on a copy) so the via-array landing areas are
+    reserved on both transitioning layers. Returns {layer: mask}, non-empty
+    layers only."""
+    from scipy import ndimage
+    st = ndimage.generate_binary_structure(2, 1)
+    pc = {lay: m.copy() for lay, m in path_cells.items()}
+    apply_bridge_overlap(pc, bridges, grid)
+    out = {}
+    for lay, m in pc.items():
+        if not m.any():
+            continue
+        dil = ndimage.binary_dilation(
+            m, structure=st,
+            iterations=max(1, int(rcells.get(lay, 1)) + int(margin_cells)))
+        f = foreign.get(lay)
+        if f is not None:
+            dil = dil & ~f
+        if dil.any():
+            out[lay] = dil
+    return out
+
+
+def reservation_from_search(net, ok, path_cells, bridges, rcells, foreign,
+                            grid, *, margin_cells=1):
+    """PURE post-search half of `reserve_pour_corridors`: corridor rect dicts
+    from one net's search outcome. Returns (corridors, reserved):
+
+      * ok=False (no path)         -> ([], False)  -- a no-path net reserves
+        NOTHING and must stay fully FR-routed (the caller excludes no pads);
+      * path_cells empty (a single terminal cluster: trivially connected)
+        -> ([], False) -- nothing to reserve, FR keeps the net;
+      * else -> one dict per covering rect {net, layer, x0, y0, x1, y1,
+        polygon} (polygon = the rect's 4 corners, for consumers that want
+        outline form), reserved=True iff at least one rect survived the
+        foreign carve."""
+    if not ok or not path_cells or not any(m.any()
+                                           for m in path_cells.values()):
+        return [], False
+    cors = []
+    for lay, m in corridor_masks(path_cells, bridges, rcells, foreign, grid,
+                                 margin_cells=margin_cells).items():
+        for (x0, y0, x1, y1) in _mask_rects(m, grid):
+            cors.append({"net": net, "layer": lay,
+                         "x0": round(x0, 3), "y0": round(y0, 3),
+                         "x1": round(x1, 3), "y1": round(y1, 3),
+                         "polygon": [(round(x0, 3), round(y0, 3)),
+                                     (round(x1, 3), round(y0, 3)),
+                                     (round(x1, 3), round(y1, 3)),
+                                     (round(x0, 3), round(y1, 3))]})
+    return cors, bool(cors)
+
+
+def corridors_to_keepouts(corridors):
+    """bake_hints-ready keepout dicts from `reserve_pour_corridors` corridor
+    rects, on each rect's OWN layer only. block_fills=False -- the reserved
+    corridor exists exactly so the SAME-NET pour can fill it solid (the
+    _vital_keepouts_from_rules precedent). Vias stay BLOCKED (bake_hints
+    default): a foreign via inside the lane would antipad a hole through it
+    at fill time -- the pinch class the reservation exists to prevent."""
+    out = []
+    for i, c in enumerate(corridors):
+        net_tag = str(c.get("net", "net")).strip("/").replace("/", "_")
+        out.append({"name": "pourres_%s_%d" % (net_tag, i),
+                    "x0": c["x0"], "y0": c["y0"],
+                    "x1": c["x1"], "y1": c["y1"],
+                    "layers": (c["layer"],),
+                    "block_fills": False})
+    return out
+
+
+def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
+    """Compute + return the pre-FR corridor reservation for *asks* (the SAME
+    pour-ask dicts the import-side conversion consumes: {"net",
+    "layer"/"layers", ...}), running the IDENTICAL terminal-cluster +
+    eroded-mask + direction-state Dijkstra machinery as
+    `synthesize_overunder_pours` (shared `_prep_overunder_net` +
+    `route_overunder`) -- but on the PRE-ROUTE board, where foreign masks
+    see only existing copper. Asks are DEDUPED per net (union of their layer
+    lists): the rail compiler emits several region dicts per net, and one
+    corridor per net is the reservation unit.
+
+    Returns {"corridors": [rect dicts, see reservation_from_search],
+             "report": {net: {"reserved", "rects"/"reason"/"bottleneck",
+                              "layers", "bridges", "exclude_pins"}}}.
+
+    exclude_pins -- the "<ref>-<pad>" DSN tokens whose connectivity the
+    reserved pour OWNS, for the _dsn_exclude_pins pattern. CONSERVATIVE
+    tiers, deliberately NOT every pad of the net: (a) THT pads (they pierce
+    natively to any lane layer -- an In2/B corridor through the cluster
+    bonds them at fill); (b) SMD pads inside a shunt neighborhood (the one
+    place the add_power_pours F.Cu choke ADMITS landing copper). Other SMD
+    pads (scattered logic-side decoupling) stay FR-routed: their over-under
+    F landing patches would be REFUSED at the choke, so handing their
+    connectivity to the pour would strand them. A net whose search found NO
+    path excludes nothing at all."""
+    grid = Grid(board, cell_mm)
+    nets_nc = {n.GetNetname(): c
+               for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    net_currents = {}
+    try:
+        import cec_thermal_overlay as _ov
+        _cfg = _ov.board_thermal_config(
+            os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
+        net_currents = dict((_cfg[0] if _cfg else None) or {})
+    except Exception:                                  # noqa: BLE001
+        net_currents = {}
+    shunt_boxes = shunt_neighborhoods(board)
+    shunt_mask = np.zeros((grid.ny, grid.nx), bool)
+    for (x0, y0, x1, y1) in shunt_boxes:
+        grid.stamp_box(shunt_mask, x0, y0, x1, y1)
+
+    per_net = {}
+    for a in asks:
+        net = a.get("net")
+        if not net:
+            continue
+        lays = per_net.setdefault(net, [])
+        for lay in (a.get("layers") or (a.get("layer", "F.Cu"),)):
+            if lay not in lays:
+                lays.append(lay)
+
+    def _excludable(fp, p):
+        if p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            return True                                # THT: pierces natively
+        q = p.GetPosition()
+        px, py = q.x / MM, q.y / MM
+        return any(bx0 <= px <= bx1 and by0 <= py <= by1
+                   for (bx0, by0, bx1, by1) in shunt_boxes)
+
+    corridors, report = [], {}
+    for net, ask_layers in per_net.items():
+        if net not in nets_nc:
+            report[net] = {"reserved": False, "reason": "net not on board",
+                           "exclude_pins": []}
+            continue
+        nc = nets_nc[net]
+        prep, _why = _prep_overunder_net(board, net, nc, ask_layers, grid,
+                                         net_currents=net_currents,
+                                         shunt_mask=shunt_mask,
+                                         clearance_mm=clearance_mm)
+        if prep is None:
+            report[net] = {"reserved": False, "reason": _why,
+                           "exclude_pins": []}
+            continue
+        path_cells, bridges, ok, bottleneck = route_overunder(
+            prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
+            prep["nclusters"], bias_fn=prep["bias_fn"])
+        cors, reserved = reservation_from_search(
+            net, ok, path_cells, bridges, prep["rcells"], prep["foreign"],
+            grid)
+        if not reserved:
+            report[net] = {"reserved": False, "exclude_pins": [],
+                           **({"bottleneck": bottleneck} if not ok else
+                              {"reason": "single terminal cluster "
+                                         "(nothing to connect)"})}
+            print(f"[cec_slab_pour] pour-reserve: nothing reserved for {net}"
+                  + (f" -- NO PATH, stays fully FR-routed ({bottleneck})"
+                     if not ok else " -- single terminal cluster"),
+                  file=sys.stderr)
+            continue
+        corridors.extend(cors)
+        pins = sorted({f"{fp.GetReference()}-{p.GetPadName()}"
+                       for fp in board.GetFootprints() for p in fp.Pads()
+                       if p.GetNetCode() == nc and _excludable(fp, p)})
+        lays = sorted({c["layer"] for c in cors})
+        report[net] = {"reserved": True, "rects": len(cors), "layers": lays,
+                       "bridges": len(bridges), "exclude_pins": pins}
+        print(f"[cec_slab_pour] pour-reserve: {net} -> {len(cors)} corridor "
+              f"rect(s) on {lays}, {len(bridges)} bridge(s), {len(pins)} "
+              f"pour-owned pad(s) to exclude from FR", file=sys.stderr)
+    return {"corridors": corridors, "report": report}
 
 
 def cleanup_floating_zones(board_path):

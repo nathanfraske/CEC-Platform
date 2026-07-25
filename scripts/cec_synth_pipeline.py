@@ -7587,6 +7587,17 @@ def _oracle_env(params=None):
             # exclusive in effect (CEC_OVERUNDER wins the branch when set,
             # see import_ses) but both flags may be set together harmlessly.
             extra["CEC_OVERUNDER"] = "1"
+        if params.get("pour_reserve"):
+            # PRE-FR POUR-CORRIDOR RESERVATION (owner priority ruling
+            # 2026-07-24, docs/slab-pour-design-2026-07-24.md: "the pour
+            # takes priority and gets its route first"): each pour ask's
+            # over-under corridor is computed on the PRE-ROUTE board and
+            # baked as keepout rule areas, its pour-owned pads excluded
+            # from FR (cec_fr.route_once + cec_slab_pour.reserve_pour_
+            # corridors). Pairs with overunder above -- the import-time
+            # realization is what fills the reserved corridors. A/B lever;
+            # never default-on.
+            extra["CEC_POUR_RESERVE"] = "1"
         if params.get("thermal_board_hint"):
             # board_thermal_config keys on basename; wave variants don't carry the
             # board name -> export the hint so the per-board currents/stackup/cooling
