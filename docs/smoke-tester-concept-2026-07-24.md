@@ -485,3 +485,52 @@ evaluated and REJECTED as disproportionate. Bottom line: the case that is actual
 common (leakage → hot chassis) is handled silently and perfectly; the case that is
 theatrical (mains arc) is the designed show; the case that is rarest (stiff bulk
 DC) is sequence-handled and bench-proven, not fuse-rated away.
+
+### 9.15 Show for the STANDARD kill + mains-tier cost autopsy (owner Qs, 2026-07-25)
+
+**A. The gap is real:** today's spectacle ladder reserves all the drama for the rare
+events. A standard LV failure (short / cap dump / overload — the event the box eats
+WEEKLY) blows a 1 A blade and lights one red LED. 12 V-class events physically cannot
+strike a 90 V neon, fire a GDT, make a 22 V MOV conduct, or puff a witness — so the
+common kill is silent. PHYSICS FENCE kept honest: a REAL arc only comes from real
+fault energy (µA of boost makes a faint glow, not the 5 kA flash) — arcs stay
+reserved for genuine mains events; faking them is out.
+
+**PROPOSED — the "AFTERMATH SHOW" (~$0.35–0.40, pending owner nod; touches the #14
+held-only fence DETAIL but preserves the fence itself):** when any event latch is set
+(blown-fuse condition on any way ∨ any red-window latch ∨ reverse latch) AND TEST is
+held, the existing LAMP-TEST boost is ALSO enabled (diode-OR of the button with the
+latch signal, gated so HV still exists ONLY while a human holds TEST) into: (a) the
+flicker-flame tube — it dances while you read the verdict ("the box is digesting");
+and (b) ONE added EVENT neon wired as a classic RELAXATION BLINKER (boost → 4.7 MΩ →
+470 nF/250 V → NE-2 ≈ 1–2 Hz flash at µA average) in the theater bay. So the standard
+kill's ritual becomes: pop → hold TEST → dead way lamp + BF LED + dead needle + the
+flame tube dancing + a blinking neon + the visibly blackened clear-window blade. New
+parts: 1× NE-2 (consigned ~$0.10) + HV R/C (~$0.10) + enable diodes (~$0.05); the
+flame tube, boost, and jewels already exist. FENCES: HV dies with the button
+(held-only preserved — the latch alone never powers the boost); sealed devices only;
+never-generate-what-you-detect intact — the earth-domain CASE-LIVE/RAIL-LIVE neons
+stay zero-powered pure detectors, physically separate lamps from the show bay; "a lit
+neon is ALWAYS bad news" still true (an event IS bad news). Decision: #15 (this
+section) — nod turns it into README §4 + BOM lines.
+
+**B. Mains-tier cost autopsy ("can we solve it cheaper, since it's super rare?"):**
+what mains handling actually costs today, all-in ≈ **$2.3–2.5/box**: interrupter tier
+6× HRC ($0.64) + 6 covered holders ($0.37) + 2 kit spares ($0.21) ≈ $1.2; clamp tier
+5× GDT ($0.85) + 5× MOV (~$0.20) + 5× witness ($0.05) ≈ $1.1; creepage + 300 V
+divider strings ≈ free (layout + parts already needed for measurement). Alternatives
+EXAMINED AND REJECTED, each for a load-bearing reason: (1) delete the HRC tier and
+bet on the witness-first race — loser scenario is a 32 VDC blade arcing at 325 Vpk
+inside an unrated plastic ATO holder = a fire path inside the fire-eating box; the
+founding #3 coordination ruling stands. (2) ONE shared HRC in the common GND return
+(−$0.7) — interrupts everything at once, killing all indication mid-event (observing
+the event is the box's #1 job) and floating the box after clearing. (3) Series
+fusible-resistor ways instead of fuses — 0.26 A of legitimate bleeder current through
+enough resistance to matter at mains = ~7 % measurement error, breaks the ±5 %
+windows. (4) PCB-trace fuses — free but unserviceable, carbon-tracks FR4, violates
+the hardware-store-refillable trust story. (5) MOV-only (drop the GDTs, −$0.85) —
+loses crowbar hardness AND the show (contradicts question A). The one live lever:
+covered BLX-A holders → bare solder clips (−$0.25) — declined under the quality
+doctrine (covered, finger-safe, tool-less service on the mains-rated tier). VERDICT:
+the mains tier is already at its honest floor, ~half of it is double-booked as the
+show, and the real money was the AUX descope (−$3.5–4). Recommendation: no change.

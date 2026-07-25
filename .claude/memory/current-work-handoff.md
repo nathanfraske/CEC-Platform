@@ -1,5 +1,27 @@
 # Current work handoff
 
+## AFTERMATH-SHOW PROPOSAL + MAINS-COST AUTOPSY (2026-07-25 ~09:15Z, pipeline-pass-2)
+Owner asked (a) any way to get the arc/neon show on STANDARD failures, (b) cheaper
+mains handling since incursion is super rare. RECORDED concept §9.15 + owner-queue;
+NO spec/BOM change yet — (a) is PROPOSED pending nod (touches a #14 fence detail):
+**AFTERMATH SHOW ~$0.35-0.40** = event-latch (blown-fuse ∨ red-window ∨ reverse) AND
+held-TEST diode-OR-enables the existing LAMP-TEST boost -> flicker-flame tube dances +
+ONE new EVENT neon as relaxation blinker (boost -> 4.7M -> 470n/250V -> NE-2, 1-2Hz).
+Standard-kill ritual becomes: pop -> hold TEST -> dead lamp + BF LED + flame dancing +
+blinking neon + blackened clear blade. FENCES INTACT: HV only while held (latch alone
+never powers boost), earth-domain neons stay zero-powered pure detectors (separate
+lamps), no fake arcs (real arc needs real fault energy — µA boost = glow only; arcs
+stay honest to mains events). Physics note recorded: 12V events CANNOT strike 90V
+devices — that's why the common kill was silent. (b) autopsy: mains tier all-in
+~$2.3-2.5 (interrupters ~$1.2 incl kit spares, clamps ~$1.1 of which GDT-show $0.85);
+5 alternatives REJECTED w/ reasons (HRC-delete = 32V blade arcing at 325V in unrated
+ATO holder; shared GND-return HRC = kills indication mid-event + floats box; series
+fusible-R = 7% measurement error; PCB trace fuse = unserviceable/trust; MOV-only =
+loses crowbar + show); one live lever declined (bare clips -$0.25 vs quality
+doctrine). RECOMMENDATION: no change — floor reached; real money was AUX (-$3.5-4).
+NEXT: owner nod on #15 -> README §4 bullet + BOM lines (NE_EVT + HV R/C + enable
+diodes); Phase A unchanged.
+
 ## DC-INCURSION REALISM + WITNESS-FIRST SEQUENCE (2026-07-25 ~08:50Z, pipeline-pass-2)
 Owner: "any way to also handle 400VDC bulk incursion? is mains/bulk incursion even
 realistic?" ANSWERED + SPEC'D (README §3 DC-handling block, concept §9.14 realism
