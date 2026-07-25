@@ -54,14 +54,32 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
     fcu, bcu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     nets = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
-    pads = []                                     # (ref, num, net, x, y, half)
+    pads = []                                     # (ref, num, net, x, y, half, hx, hy)
     for fp in board.GetFootprints():
         ref = fp.GetReference()
         for p_ in fp.Pads():
             pos = p_.GetPosition()
             sz = p_.GetSize()
-            half = max(sz.x, sz.y) / (2.0 * MM)   # true half-extent (guard = DRC, not 2mm-pad guess)
-            pads.append((ref, p_.GetNumber(), p_.GetNetname(), pos.x / MM, pos.y / MM, half))
+            half = max(sz.x, sz.y) / (2.0 * MM)   # legacy scalar reach (lane_collider)
+            # PER-AXIS HALF EXTENTS (regression fix 2026-07-25). The via-in-pad
+            # guard added on 07-24 tested `half` -- max(w,h)/2 -- on BOTH axes,
+            # i.e. it modelled every pad as a SQUARE of its longest dimension.
+            # A 1.5x0.6mm SOIC pad then excluded a 1.5x1.5 box and the 2512 shunt
+            # pad excluded ~2.1mm in x where the real pad half is 0.75. That
+            # phantom copper sealed the LO via window on all six 12VHPWR lanes,
+            # so `force lanes: 0/6 laid` and the board's 2.5mm 12V force copper
+            # was replaced by 0.25mm Freerouting signal traces on a 50A path.
+            # Taken from the pad's real bounding box, so rotated pads are honest
+            # too (GetSize is in the pad's own axes).
+            try:
+                bb_ = p_.GetBoundingBox()
+                hx = bb_.GetWidth() / (2.0 * MM)
+                hy = bb_.GetHeight() / (2.0 * MM)
+            except Exception:                              # noqa: BLE001
+                hx = sz.x / (2.0 * MM)
+                hy = sz.y / (2.0 * MM)
+            pads.append((ref, p_.GetNumber(), p_.GetNetname(), pos.x / MM, pos.y / MM,
+                         half, hx, hy))
 
     lock_vias, lock_segs = [], []
     for t in board.GetTracks():
@@ -112,11 +130,13 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         50A path) could not be diagnosed from a wave log. A refusal that cannot
         be read is a refusal that gets rediscovered.
         """
-        for ref, num, net, px, py, half in pads:
+        for ref, num, net, px, py, half, hx, hy in pads:
             # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
             # no barrel overlapping ANY pad, own net / J3 / J4 included
-            # (0.5 = via r 0.45 + 0.05 no-overlap margin)
-            if abs(px - x) < half + 0.5 and abs(py - y) < half + 0.5:
+            # (0.5 = via r 0.45 + 0.05 no-overlap margin). Per-AXIS extents --
+            # the ruling bans a barrel touching pad copper, not a square
+            # circumscribing it (see the pads[] note above).
+            if abs(px - x) < hx + 0.5 and abs(py - y) < hy + 0.5:
                 return f"pad {ref}.{num}"
             if ref.startswith(("J3", "J4")):
                 continue
@@ -142,7 +162,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         stack-audit 2026-07-19 #2 (the collider was blind to them)."""
         from cec_force_rails import _seg_seg_d2
         for (x1, y1, x2, y2, w, _ly) in plan:
-            for ref, num, net, px, py, half in pads:
+            for ref, num, net, px, py, half, hx, hy in pads:
                 if ref.startswith(("J3", "J4", "FID")) or net in own_nets:
                     continue
                 reach = (w / 2.0 + half + 0.25) ** 2
@@ -158,18 +178,18 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                     return "locked via at (%.1f,%.1f)" % (vx, vy)
         return None
 
-    j3_gnd = sorted(y for r, n, net, x, y, h_ in pads if r == "J3" and net == "GND")
-    j4_gnd = sorted(y for r, n, net, x, y, h_ in pads if r == "J4" and net == "GND")
+    j3_gnd = sorted(y for r, n, net, x, y, h_, hx_, hy_ in pads if r == "J3" and net == "GND")
+    j4_gnd = sorted(y for r, n, net, x, y, h_, hx_, hy_ in pads if r == "J4" and net == "GND")
     j3_gnd_y = j3_gnd[0] if j3_gnd else None
     j4_gnd_y = j4_gnd[0] if j4_gnd else None
 
     report = {}
     for n in range(1, 7):
         hi, lo = hi_net(n, nets), f"/SENSEP{n}_LO"
-        rs1 = next(((x, y) for r, pn, net, x, y, h_ in pads if r == f"RS{n}" and net == hi), None)
-        rs2 = next(((x, y) for r, pn, net, x, y, h_ in pads if r == f"RS{n}" and net == lo), None)
-        j3p = [(x, y) for r, pn, net, x, y, h_ in pads if r == "J3" and net == hi]
-        j4p = [(x, y) for r, pn, net, x, y, h_ in pads if r == "J4" and net == lo]
+        rs1 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == hi), None)
+        rs2 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == lo), None)
+        j3p = [(x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == "J3" and net == hi]
+        j4p = [(x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == "J4" and net == lo]
         if not (rs1 and rs2 and j3p and j4p and j3_gnd_y and j4_gnd_y):
             report[n] = "MISSING PADS"
             continue
@@ -239,7 +259,19 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                 why = spot_blocker(cx, cy)
                 if why is None and all(
                         (cx - a) ** 2 + (cy - b) ** 2 >= 1.15 ** 2 for a, b in sites):
-                    sites.append((cx, cy))
+                    # REACHABILITY IS PART OF LEGALITY (2026-07-25): the spoke
+                    # from RS.2 to this site used to be checked only AFTER the
+                    # whole field was picked, so ONE unreachable site refused the
+                    # entire 50A lane -- measured as `LO spoke vs RFL{n}.2` on all
+                    # six 12VHPWR lanes once the field was pushed past the filter
+                    # resistors. A site the spoke cannot reach is not a site.
+                    _sp = [(rs2[0], rs2[1], cx, cy, 1.0, fcu)]
+                    _c = lane_collider(_sp, {lo})
+                    if _c is None:
+                        sites.append((cx, cy))
+                    else:
+                        blockers["spoke vs " + _c.split(" at ")[0]] = \
+                            blockers.get("spoke vs " + _c.split(" at ")[0], 0) + 1
                 elif why is not None:
                     blockers[why] = blockers.get(why, 0) + 1
         if not sites:
@@ -274,7 +306,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         _vy0 = min(hi_plan[-1][1], hi_plan[-1][3])
         _vy1 = max(hi_plan[-1][1], hi_plan[-1][3])
         _lane_refs = ("J3", "J4", f"RS{n}", f"RFH{n}", f"RFL{n}", f"CF{n}", "FID")
-        _extra = [(r_, pn_, px_, py_, h_) for r_, pn_, net_, px_, py_, h_ in pads
+        _extra = [(r_, pn_, px_, py_, h_) for r_, pn_, net_, px_, py_, h_, hx_, hy_ in pads
                   if net_ == hi and not r_.startswith(_lane_refs)
                   and abs(px_ - _vx) > 0.8]
         for r_, pn_, px_, py_, h_ in sorted(_extra, key=lambda q: abs(q[2] - _vx)):
