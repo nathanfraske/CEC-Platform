@@ -32,9 +32,14 @@ import os
 import sys
 
 # matplotlib headless before any pyplot import
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:                   # viz-only dep: the SOLVE path
+    matplotlib = None                         # (_solve_thermal) must never die
+    plt = None                                # on a matplotlib-less container;
+                                              # render entry points check plt.
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -1055,6 +1060,8 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
                    ambient=50.0, grid_mm=0.4, h_eff=15.0, gate_dt=30.0,
                    gate_J=100.0, src_sink_override=None):
     """Solve + render the composite overlay PNG. Returns the ThermalResult."""
+    if plt is None:
+        raise RuntimeError("matplotlib unavailable -- overlay render needs it (solve path is unaffected)")
     import pcbnew
     from matplotlib.patches import Polygon as MplPoly
     from matplotlib.collections import PatchCollection, LineCollection
@@ -1218,6 +1225,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     composite (grey copper + a semi-transparent heatmap over ALL layers at once). Keyed by the board's REAL
     layer names (F.Cu / GND / 12V / B.Cu -> F_Cu/GND/12V/B_Cu) so they line up with the dashboard's layer
     checkboxes. Returns a summary dict."""
+    if plt is None:
+        raise RuntimeError("matplotlib unavailable -- overlay render needs it (solve path is unaffected)")
     import pcbnew
     from matplotlib.collections import LineCollection
     os.makedirs(out_dir, exist_ok=True)

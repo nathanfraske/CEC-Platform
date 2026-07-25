@@ -553,6 +553,14 @@ BOARD_PARAMS = {
                        # in import_ses' conversion branch; slab shave stays
                        # the fallback when over-under finds no path.
                        "overunder": True,
+                       # PRE-FR CORRIDOR RESERVATION A/B (agent-landed
+                       # 2026-07-25, e2e-proven: 5/9 nets reserved ~1.6s,
+                       # realized 5/5 s416 / 4/5 s435, no completion
+                       # collapse, DRC even improved on s435): corridors
+                       # baked as DSN keepouts pre-route, pour-owned pads
+                       # excluded from FR -- "the pour takes priority and
+                       # gets its route first."
+                       "pour_reserve": True,
                        "lastmile": True,
                        # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
                        # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
