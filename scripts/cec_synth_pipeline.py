@@ -10627,8 +10627,63 @@ _SPEC_NET_CURRENTS = {
     "pcie-8pin-3port": {"/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5},
     # 12VHPWR is per-PIN sensing: 600W/6 pins = 8.33A balanced, 9.2A at the
     # connector's own per-pin rating (§6.1 / the routing plan's design basis).
+    # Cross-check: 6 x 9.2 = 55.2A against 600W/12V = 50A sustained -- the per-pin
+    # rating carries the rail with ~10% headroom, as it should.
     "12vhpwr-standard": {"/SENSEP": 9.2, "+3V3": 0.25, "+5VSB": 0.5},
+    # eps-8pin-rev3 shares the eps design basis; its SENSEC current decision is
+    # owner-gated (lineage frozen), so it inherits rather than diverges.
+    "eps-8pin-rev3": {"/SENSEC": 52.0, "+3V3": 0.25, "+5VSB": 0.5},
+    # The Hub carries no cable rails -- it is fed 5VSB in bulk and distributes it
+    # per port over RJ-45 VCC. Sources: the shared 5VSB rail is ~2.5A (§2.5 /
+    # OQ-2's cap), each port's VCC carries ONE module's draw (LED-dominated,
+    # ~0.4A full-white, firmware-capped) against a 1.5A connector rating (§2.1),
+    # and +3V3 is the LP5907's 250mA ceiling.
+    "hub-standard-rev2": {
+        "+5VSB": 2.5, "/5VSB_RAW": 2.5, "/MAIN_5V": 2.5, "/PSU_5V": 2.5,
+        "/+5V_HOLD": 2.5, "/USB_VBUS": 0.5, "/VCC_P": 0.5, "+3V3": 0.25,
+        # EXPLICIT GND, because summing this board's rails DOUBLE COUNTS: +5VSB,
+        # /5VSB_RAW, /PSU_5V, /MAIN_5V and /+5V_HOLD are stages of ONE rail behind
+        # the TPS2121 cascade, and only one source is ever live (§2.9 priority
+        # mux). The return is the board's total draw = the ~2.5A shared 5VSB rail
+        # (§2.5), which already includes the per-port VCC distribution.
+        "GND": 2.5,
+    },
+    # argb-standard is deliberately ABSENT: its LED-strip current basis is not in
+    # the spec, and inventing one is what this table exists to stop.
 }
+
+
+def spec_gnd_current(board, board_nets):
+    """GND return = the sum of the board's DISTINCT rails, from the same table.
+
+    Derived, never guessed (the old model gave GND `cable_current_A` on every
+    board regardless of what the board carries). _HI and _LO are one rail in
+    series through the shunt, so they are counted once.
+
+    Worked results: 24-pin 20+20+12+3 = 55A; eps 2 cables x 52 = 104A; pcie-3
+    3 x 39 = 117A; 12vhpwr 6 pins x 9.2 = 55.2A (= 600W/12V + headroom).
+    Consequence worth noting on the 24-pin: at 55A over its four ratified GND
+    joints that is 13.75A/joint, 17.2A at the 125% margin against 18.32A of
+    capacity -- which RETIRES the "GND x4 at 18.0A = 127% hairline" the
+    2026-07-06 re-ratification surfaced, because that hairline came from the
+    higher per-pin rail figures the owner's 20A ceiling supersedes.
+    """
+    tbl = _SPEC_NET_CURRENTS.get(str(board or ""), {})
+    if not tbl:
+        return None
+    if "GND" in tbl:
+        return tbl["GND"]          # boards whose rails are stages of one supply
+    rails = {}
+    for n in board_nets:
+        base = n
+        for suf in ("_HI", "_LO"):
+            if base.endswith(suf):
+                base = base[: -len(suf)]
+        amps = spec_net_current(board, n)
+        if amps is None or amps < 1.0:            # logic rails are not the return path
+            continue
+        rails[base] = max(rails.get(base, 0.0), amps)
+    return round(sum(rails.values()), 2) if rails else None
 
 
 def spec_net_current(board, net):
@@ -10673,7 +10728,8 @@ def _net_currents(cfg, board_nets):
         elif "3V3" in n:
             out[n] = cfg.params.get("rail_3v3_A", 0.8)
         elif n.rsplit("/", 1)[-1] == "GND":
-            out[n] = i_cable                                  # return current (distributed in plane)
+            _g = spec_gnd_current(_board, board_nets)
+            out[n] = _g if _g is not None else i_cable        # derived return, else the old default
         else:
             out[n] = 0.0
     return out

@@ -127,3 +127,51 @@ class SpecNetCurrentTest(unittest.TestCase):
     def test_untabled_board_falls_through(self):
         self.assertIsNone(self.csp.spec_net_current("hub-standard-rev2", "/SENSE3V3_HI"))
         self.assertIsNone(self.csp.spec_net_current("atx-24pin-rev3", "/CAN_H"))
+
+
+class SpecGndCurrentTest(unittest.TestCase):
+    """GND return is DERIVED from the board's own rails, not a global default."""
+
+    def setUp(self):
+        import cec_synth_pipeline as csp
+        self.csp = csp
+
+    def _nets(self, *rails):
+        out = ["GND"]
+        for r in rails:
+            out += [r + "_HI", r + "_LO"]
+        return out
+
+    def test_24pin_sums_its_distinct_rails(self):
+        g = self.csp.spec_gnd_current("atx-24pin-rev3",
+                                      self._nets("/SENSE3V3", "/SENSE5V",
+                                                 "/SENSE12V", "/SENSE5VSB"))
+        self.assertEqual(g, 55.0, "20 + 20 + 12 + 3, each rail counted once")
+
+    def test_hi_and_lo_are_one_rail(self):
+        """They are in series through the shunt -- counting both doubles it."""
+        g = self.csp.spec_gnd_current("atx-24pin-rev3", ["/SENSE12V_HI", "/SENSE12V_LO"])
+        self.assertEqual(g, 12.0)
+
+    def test_cable_boards_scale_with_cable_count(self):
+        c = self.csp
+        self.assertEqual(c.spec_gnd_current("eps-8pin", self._nets("/SENSEC1", "/SENSEC2")), 104.0)
+        self.assertEqual(c.spec_gnd_current("pcie-8pin-3port",
+                                            self._nets("/SENSEC1", "/SENSEC2", "/SENSEC3")), 117.0)
+
+    def test_12vhpwr_matches_its_power_budget(self):
+        g = self.csp.spec_gnd_current("12vhpwr-standard",
+                                      self._nets(*["/SENSEP%d" % i for i in range(1, 7)]))
+        self.assertAlmostEqual(g, 55.2, places=1)
+        self.assertGreater(g, 600.0 / 12.0, "must cover 600W/12V = 50A sustained")
+
+    def test_hub_does_not_double_count_one_muxed_rail(self):
+        """+5VSB / 5VSB_RAW / PSU_5V / MAIN_5V / +5V_HOLD are stages of ONE
+        supply behind the TPS2121 cascade -- only one source is ever live."""
+        g = self.csp.spec_gnd_current("hub-standard-rev2",
+                                      ["+5VSB", "/5VSB_RAW", "/PSU_5V", "/MAIN_5V",
+                                       "/+5V_HOLD", "/VCC_P1", "GND"])
+        self.assertEqual(g, 2.5)
+
+    def test_untabled_board_returns_none(self):
+        self.assertIsNone(self.csp.spec_gnd_current("argb-standard", ["GND"]))
