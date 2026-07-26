@@ -198,6 +198,15 @@ def _emit_rectilinear(poly):
     # than silently shipping a fragment -- a split pour is a connectivity change,
     # which this rule has no business making.
     if getattr(out, "geom_type", "") != "Polygon":
+        # A split is only acceptable when it shaves SLIVERS: if one piece still
+        # carries essentially the whole pour, take it and lose the crumbs. If the
+        # shape genuinely breaks in two, keep the original -- turning one pour
+        # into two is a connectivity change this rule has no business making.
+        # (Measured: the 24-pin's last residual, pourplan:/SENSE5V_HI on B.Cu,
+        # 163mm2 with 9 diagonal edges, splits when gridded.)
+        parts = sorted(getattr(out, "geoms", []), key=lambda g: -g.area)
+        if parts and parts[0].area >= 0.95 * out.area:
+            return parts[0]
         return poly
     return out
 
