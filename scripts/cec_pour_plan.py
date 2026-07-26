@@ -171,8 +171,35 @@ def _capsule(pts, half_w):
     Manhattan path these settings give an exactly rectilinear polygon; a genuinely
     diagonal path still yields a diagonal capsule, which is honest -- the shape
     then reports the PATH's geometry instead of hiding it behind rounding."""
+    # NOTE: search geometry, deliberately NOT rectilinearised. Shrinking a
+    # candidate here changes which corridors pass their own width/legality
+    # checks -- measured: it silently pushed a planned corridor into the region
+    # branch and broke the corner-graph test. Manhattan-isation happens at
+    # REALIZATION (see _emit_rectilinear), where it cannot move a decision.
     return LineString(pts).buffer(half_w, cap_style=3, join_style=2,
                                   mitre_limit=4.0)
+
+
+def _emit_rectilinear(poly):
+    """Final pour copper is Manhattan (owner 2026-07-25). Applied to the EMITTED
+    polygon only, inner-approximated so copper can only shrink -- never into
+    space the path was routed around."""
+    try:
+        ext = list(poly.exterior.coords)
+    except Exception:                                      # noqa: BLE001
+        return poly
+    diag = any(abs(b[0] - a[0]) > 1e-6 and abs(b[1] - a[1]) > 1e-6
+               for a, b in zip(ext, ext[1:]))
+    if not diag:
+        return poly
+    out = _sp.rectilinear_inner(poly)
+    # The emit site takes ONE polygon. If the inner approximation SPLIT the shape
+    # (a diagonal neck can pinch off at the grid step), keep the original rather
+    # than silently shipping a fragment -- a split pour is a connectivity change,
+    # which this rule has no business making.
+    if getattr(out, "geom_type", "") != "Polygon":
+        return poly
+    return out
 
 
 def _stamp_poly(mask, poly, grid):
@@ -1999,6 +2026,7 @@ def _realize_region(net, st, grid, existing_vias):
                 if g2.is_empty or g2.geom_type != "Polygon" \
                         or g2.area < 0.4:
                     continue
+                g2 = _emit_rectilinear(g2)
                 dicts.append({"net": net, "layer": gl,
                               "polygon": [(round(x, 3), round(y, 3))
                                           for (x, y) in g2.exterior.coords],
@@ -2377,6 +2405,7 @@ def _realize_verify(net, st, grid, existing_vias, nets):
             for g in getattr(u, "geoms", [u]):
                 if g.is_empty or g.geom_type != "Polygon" or g.area < 0.4:
                     continue
+                g = _emit_rectilinear(g)
                 dicts.append({
                     "net": net, "layer": lay,
                     "polygon": [(round(x, 3), round(y, 3))

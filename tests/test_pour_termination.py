@@ -232,3 +232,49 @@ class RectilinearPourTest(unittest.TestCase):
         self.assertEqual(min(x for x, _ in out), 0)
         self.assertEqual(max(x for x, _ in out), 2)
         self.assertEqual(max(y for _, y in out), 2)
+
+
+class ViaFieldShapeTest(unittest.TestCase):
+    """A layer change is ONE compact via array, not a fence (owner 2026-07-25:
+    "concentrate them at one via array spot... instead of going ham on them").
+    Measured before the fix: 22 vias in a row spanning 1.6..37.0mm -- half the
+    board -- because the field was sized as a single line across the corridor's
+    full ampacity-driven width."""
+
+    class G:
+        x0 = y0 = 0.0
+        cell = 0.5
+
+    def _field(self, half_w):
+        import cec_slab_pour as sp
+        # arrival direction +x -> the old code laid the fence along y
+        field6 = (20, 20, "In2.Cu", "B.Cu", 1.0, 0.0)
+        return sp.field_via_line(field6, half_w, self.G, [], [])
+
+    def test_wide_corridor_does_not_become_a_fence(self):
+        vias, _ = self._field(9.0)           # 18mm-wide corridor
+        self.assertGreater(len(vias), 4, "a wide corridor still needs its barrels")
+        span_y = max(v[1] for v in vias) - min(v[1] for v in vias)
+        span_x = max(v[0] for v in vias) - min(v[0] for v in vias)
+        self.assertLess(span_y, 2.0 * 9.0 * 0.75,
+                        f"via field still spans the corridor width ({span_y:.1f}mm) -- "
+                        "that is the fence, not an array")
+        self.assertGreater(span_x, 0.0,
+                           "an array must use both axes; a single row is the old fence")
+
+    def test_barrel_count_is_preserved(self):
+        """The count is ampacity -- the ruling changed the ARRANGEMENT only."""
+        import cec_slab_pour as sp
+        for half_w in (1.5, 4.0, 9.0):
+            vias, _ = self._field(half_w)
+            expect = max(1, int(round((2.0 * half_w) / 1.2)) + 1)
+            self.assertEqual(len(vias), expect,
+                             f"half_w={half_w}: {len(vias)} barrels, expected {expect} "
+                             "-- the array must carry the same current as the fence did")
+
+    def test_aspect_is_roughly_square(self):
+        vias, _ = self._field(6.0)
+        span_x = max(v[0] for v in vias) - min(v[0] for v in vias)
+        span_y = max(v[1] for v in vias) - min(v[1] for v in vias)
+        self.assertLessEqual(max(span_x, span_y) / max(0.1, min(span_x, span_y)), 3.0,
+                             f"array aspect {span_x:.1f}x{span_y:.1f} is a line, not an array")

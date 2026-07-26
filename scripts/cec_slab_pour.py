@@ -24,6 +24,7 @@
 # (microseconds), the real filler runs ONCE on the final outlines.
 import heapq
 import os
+import math
 import sys
 
 import numpy as np
@@ -694,10 +695,72 @@ def _pad_hit(pad_boxes, x, y, r):
     return False
 
 
+def rectilinear_inner(poly, step=0.5, min_keep=0.02, max_pts=160):
+    """Largest axis-aligned (Manhattan) approximation CONTAINED IN *poly*.
+
+    Owner 2026-07-25: pours must not be diagonal blobs. A capsule around a
+    genuinely diagonal path is diagonal no matter how its caps are joined, so the
+    shape is re-expressed as grid-aligned boxes -- and deliberately as an INNER
+    approximation: copper may only shrink, never grow into space the path was
+    routed around. The cost is bounded by *step* on diagonal edges only; runs that
+    were already Manhattan come back unchanged.
+    """
+    try:
+        from shapely.geometry import box as _b
+        from shapely.ops import unary_union
+    except ImportError:
+        return poly
+    if poly.is_empty:
+        return poly
+    x0, y0, x1, y1 = poly.bounds
+    nx = max(1, int(math.ceil((x1 - x0) / step)))
+    ny = max(1, int(math.ceil((y1 - y0) / step)))
+    if nx * ny > 40000:                       # keep it bounded; leave huge shapes alone
+        return poly
+    keep = []
+    for j in range(ny):
+        cy0 = y0 + j * step
+        cy1 = min(y1, cy0 + step)
+        run0 = None
+        for i in range(nx + 1):
+            inside = False
+            if i < nx:
+                cx0 = x0 + i * step
+                cx1 = min(x1, cx0 + step)
+                inside = poly.contains(_b(cx0, cy0, cx1, cy1))
+            if inside and run0 is None:
+                run0 = x0 + i * step
+            elif not inside and run0 is not None:
+                keep.append(_b(run0, cy0, x0 + i * step, cy1))
+                run0 = None
+    if not keep:
+        return poly                            # nothing survives: keep the original
+    out = unary_union(keep)
+    if out.is_empty or out.area < poly.area * min_keep:
+        return poly
+    # VERTEX BUDGET (2026-07-25): a staircase can carry hundreds of points, and
+    # these polygons ride into the DSN as keepouts -- an oversized DSN made
+    # Freerouting die with "Network.read_net_scope: unexpected end of file".
+    # Too complex to express cheaply -> keep the original shape and say so, which
+    # is honest: a diagonal that survives is one the geometry could not simplify.
+    try:
+        npts = sum(len(g.exterior.coords) for g in getattr(out, "geoms", [out]))
+    except Exception:                                      # noqa: BLE001
+        return poly
+    if npts > max_pts:
+        if step < 1.0:                       # one coarser attempt before giving up
+            return rectilinear_inner(poly, step=step * 2.0, min_keep=min_keep,
+                                     max_pts=max_pts)
+        return poly
+    return out
+
+
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
                    ledger_mm=0.85):
-    """Via positions for ONE compact field: a line perpendicular to the
-    arrival direction, each slot checked against the barrel ledger AND the
+    """Via positions for ONE compact field: a roughly square ARRAY centred on
+    the transition (owner ruling 2026-07-25 -- a layer change is one via array,
+    not a fence across the corridor), each slot checked against the barrel
+    ledger AND the
     assembly-class pad exclusion (via-in-pad ruling, owner 2026-07-25); a
     blocked slot SLIDES outward along the same line. Shared by the v4
     planner (cec_pour_plan._field_vias) and the rect-realized fallback
@@ -708,28 +771,48 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
     cy = grid.y0 + (r + 0.5) * grid.cell
     n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
     perp = (-dy, dx)
-    cap = half_w + 1.8
-    base = [(k - (n_v - 1) / 2.0) * pitch_mm for k in range(n_v)]
-    slots = list(base)
-    lo, hi = min(base), max(base)
+
+    # ONE COMPACT ARRAY, NOT A FULL-WIDTH LINE (owner ruling 2026-07-25: "it
+    # should concentrate them at one via array spot to do a layer change...
+    # instead of going ham on them"). The barrel COUNT is ampacity -- it stays
+    # exactly as computed -- but the ARRANGEMENT was a single row spanning the
+    # corridor's whole width, so an ampacity-driven rail corridor produced the
+    # measured 22-via row spanning 1.6..37.0mm on /SENSE3V3_HI: half the board.
+    # The same barrels now pack into a roughly square array centred on the
+    # transition, laid perp-major so it still presents its widest face to the
+    # arriving copper. Electrically identical (same barrels, same pitch),
+    # geometrically a via array instead of a fence.
+    n_cols = max(1, int(round(n_v ** 0.5)))
+    n_rows = max(1, -(-n_v // n_cols))                 # ceil
+    slots = []                                          # (perp_offset, along_offset)
+    for j in range(n_rows):
+        a = (j - (n_rows - 1) / 2.0) * pitch_mm
+        for i in range(n_cols):
+            slots.append(((i - (n_cols - 1) / 2.0) * pitch_mm, a))
+    slots.sort(key=lambda t: (abs(t[1]), abs(t[0])))
+    # spare ring for blocked slots: widen the array a little, never into a fence
+    extra_cap = max(pitch_mm, min(2.5 * pitch_mm, half_w))
     k = 1
-    while True:
-        added_any = False
-        for s in (hi + k * ledger_mm, lo - k * ledger_mm):
-            if abs(s) <= cap + 1e-9:
-                slots.append(s)
-                added_any = True
-        if not added_any:
+    while len(slots) < n_v * 3:
+        ring = []
+        for j in range(-n_rows, n_rows + 1):
+            for i in range(-n_cols - k, n_cols + k + 1):
+                px, ay = i * pitch_mm, j * pitch_mm
+                if abs(px) <= (n_cols / 2.0) * pitch_mm + k * extra_cap:
+                    ring.append((px, ay))
+        if not ring:
             break
+        slots.extend(ring)
         k += 1
-    slots.sort(key=abs)
+        if k > 3:
+            break
     out = []
     reseated = 0
-    for s in slots:
+    for (sp, sa) in slots:
         if len(out) >= n_v:
             break
-        vx = round(cx + perp[0] * s, 3)
-        vy = round(cy + perp[1] * s, 3)
+        vx = round(cx + perp[0] * sp + dx * sa, 3)
+        vy = round(cy + perp[1] * sp + dy * sa, 3)
         if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
                for (qx, qy) in list(placed) + out):
             continue
@@ -814,6 +897,9 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
             else:
                 g = LineString(pts).buffer(half, cap_style=3, join_style=2,
                                            mitre_limit=4.0)
+                if any(abs(b[0] - a[0]) > 1e-6 and abs(b[1] - a[1]) > 1e-6
+                       for a, b in zip(pts, pts[1:])):
+                    g = rectilinear_inner(g)      # diagonal run -> Manhattan copper
             if lay == "F.Cu" and admit is not None:
                 clipped = g.intersection(admit)
                 if clipped.is_empty:
