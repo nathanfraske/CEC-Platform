@@ -467,7 +467,7 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         # gap that parked jellybeans "legally" onto the real courtyard).
         x, y = m[0], m[1]
         mfp = (m[2] if len(m) > 2 and m[2] else
-               "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via")
+               "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via")
         fps.append(place(mfp, f"H{i}", x, y, 0,
                          padnet, code_of, gnd_all=True))
     for i, (x, y) in enumerate(fiducials, 1):

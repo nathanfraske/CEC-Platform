@@ -75,7 +75,7 @@ SKUS = {
 }
 
 # --------------------------------------------------------------- footprints
-MOUNT = "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
+MOUNT = "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via"
 LIB = dict(
     ESP="cec-RF_Module:ESP32-C6-MINI-1",
     CAN="cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",

@@ -1799,7 +1799,18 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     return ((x0 + x1) / 2.0, (y0 + y1) / 2.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
 
 
-_MOUNT_FP = "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
+# PLATFORM MOUNT LAND = M2 (owner ruling 2026-07-26: "replace the M3 mounts with
+# M2 mounts, and keep them in the corners"). Measured saving per mount: pad
+# 6.40 -> 4.40mm dia, drill 3.20 -> 2.20, so the seated footprint drops from
+# ~32.2 to ~15.2mm2 -- 53% -- and every corner gains 1mm of radial clearance on
+# boards the owner reads as "very compact-able". No size assumption follows the
+# change: cec_pcb's courtyard parser reads the footprint's own circle, and
+# cec_fr._fp_bbox_no_text excludes the value text either way (both mention M3
+# only in their explanatory comments). A board that needs the bigger land sets
+# params["mount_fp"]; per-ref overrides still go through mount_fp_override.
+_MOUNT_FP_M2 = "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via"
+_MOUNT_FP_M3 = "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
+_MOUNT_FP = _MOUNT_FP_M2
 _FID_FP = "cec-Fiducial:Fiducial_1mm_Mask2mm"
 _POWER_NET = re.compile(r"(^|/)(GND|\+?3V3|\+?5VSB|\+?5V|VBUS|VCC|\+?12V)$", re.I)
 
@@ -2011,11 +2022,11 @@ def place_mechanical(W, H, params):
     are NOT in the netlist. e = edge inset. These become fixed obstacles for the placer (keep parts
     off the screw heads / fiducial windows) and are emitted at materialize time."""
     pos, fp = {}, {}
-    e = 3.5   # edge inset of the mount CENTER. NOTE: bumping this to clear the M3-pad edge-clearance DRC
-    #           (pad radius ~3.2mm vs 0.5mm rule) collides H3 with the left-edge cable corridor and aborts
-    #           the placer worker -- the proper fix is to cohere parts around inset mounts, not just move
-    #           the mount (FOLLOWUPS 2026-06-26). 3.5 keeps the placer stable; mount edge-clearance is a
-    #           cosmetic finishing DRC the GUI clears.
+    e = 3.5   # edge inset of the mount CENTER. Under the old M3 land this was a KNOWN
+    #           edge-clearance DRC (pad radius 3.2 + the 0.5 rule wants 3.7 > 3.5), documented
+    #           as cosmetic-and-cleared-in-the-GUI because raising it collided H3 with the
+    #           left-edge cable corridor (FOLLOWUPS 2026-06-26). The M2 land retires that for
+    #           free: 2.2 + 0.5 = 2.7mm needed, so 3.5 now clears the rule with 0.8mm to spare.
     # MV2: a per-board mount-position INPUT (board-frame-relative coords derived from the reference
     # oracle, or a spec line) overrides the generic pattern -- mounts are board-specific inputs, not
     # a rule. Clamped in-board so a slightly different sweep size can't push a screw off the edge.
@@ -2024,7 +2035,13 @@ def place_mechanical(W, H, params):
         pts = [(min(W - e, max(e, float(x))), min(H - e, max(e, float(y))))
                for _r, (x, y) in sorted(override.items())]
     else:
-        m = params.get("mount_holes", "3_2logic_1conn")
+        # CORNERS ARE THE DEFAULT (owner ruling 2026-07-26: "keep them in the
+        # corners ideally"). Affordable now that the land is M2: four M2 corners
+        # cost 4 x 15.2 = 61mm2 of board against the 3 x 32.2 = 97mm2 the old
+        # three-M3 pattern spent, so this is MORE mounting in LESS area. Boards
+        # that genuinely cannot host a conn-side corner set mount_holes back to
+        # "3_2logic_1conn"; "none" (12VHPWR) is untouched.
+        m = params.get("mount_holes", "4_corner")
         if m in ("none", "0"):                          # owner may not use chassis mounts at all
             pts = []
         elif m == "4_corner":
@@ -2033,12 +2050,13 @@ def place_mechanical(W, H, params):
             pts = [(e, e), (W - e, H - e)]
         else:                                           # 3: 2 logic-side (right) + 1 conn-side (left)
             pts = [(W - e, e), (W - e, H - e), (e, H / 2)]
-    # per-ref mount-land override (mating_frame_pins v2 "mount_fp" -- e.g. the
-    # R2-provisioned M2 land, 2026-07-22); default stays the platform M3.
+    # per-ref mount-land override (mating_frame_pins v2 "mount_fp"); the platform
+    # default is now the M2 land (owner ruling 2026-07-26, see _MOUNT_FP).
     fpov = params.get("mount_fp_override") or {}
+    _mfp = params.get("mount_fp") or _MOUNT_FP
     for i, (x, y) in enumerate(pts, 1):
         pos[f"H{i}"] = (x, y, 0.0)
-        fp[f"H{i}"] = fpov.get(f"H{i}", _MOUNT_FP)
+        fp[f"H{i}"] = fpov.get(f"H{i}", _mfp)
     f = params.get("fiducials", "3")
     if f and f != "none":
         nf = int(f) if str(f).isdigit() else 3
@@ -5211,6 +5229,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # two mounts into the rail band rows (measured). They stay pinned;
         # conflicts surface via colliders/DRC, never silent relocation.
         _mount_pinned = set(cfg.params.get("mount_pos_override") or ())
+        # CORNERS ARE A REQUIREMENT, NOT A PREFERENCE (owner ruling 2026-07-26:
+        # "keep them in the corners"). A deterministic pattern names exact
+        # positions, so its mounts are pinned like override mounts are -- measured
+        # otherwise: eps kept its two left corners and had the right pair packed
+        # away to (77.7,6.2) and (85.0,25.7), which is not a corner mount. A mount
+        # that cannot hold its corner now surfaces as a collider/DRC conflict,
+        # exactly as the note above intends, instead of relocating silently.
+        if str(cfg.params.get("mount_holes", "4_corner")) in ("4_corner", "2_diag"):
+            _mount_pinned |= {r for r in mech_pos if r.startswith("H")}
+            # NOTE: the occupied-corner DROP lives at the pre-route gate, not here.
+            # Judging it at this point evicted two perfectly good corners on
+            # pcie-3port, because the anchors this pass can see are only the ones
+            # seated SO FAR -- the conflict (J5 on eps) does not exist yet.
         anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
                      for r in anchors if r in comps}
         legalize_pack(anchors, [r for r in mech_pos if r in anchors
@@ -8592,6 +8623,43 @@ def _oracle_kelvin_reach(placed_board_path, *, max_mm=9.0):
     return {"ok": not viol, "violations": viol[:10]}
 
 
+def _drop_conflicting_mounts(board_path, cy_report):
+    """Remove mounting holes that lose their corner to a real part, in place.
+
+    Only MOUNTS are droppable, and only when the other side of the overlap is a
+    genuine component: a mount is mechanically relocatable-or-omittable, a seated
+    connector is not. Returns the refs dropped (empty = nothing to do, caller
+    refuses as before)."""
+    import re as _re
+    import pcbnew
+    refs = set()
+    for v in cy_report.get("violations", []) or []:
+        # NOT \S+ : the violations read "Footprint H4|Footprint J5" with no space
+        # around the pipe, so \S+ captured "H4|Footprint" and matched no ref.
+        hits = _re.findall(r"Footprint ([A-Za-z0-9_.\-]+)", str(v))
+        if len(hits) < 2:
+            continue
+        mounts = [h for h in hits if h.startswith("H")]
+        others = [h for h in hits if not h.startswith("H")]
+        if mounts and others:                       # mount vs part -> the mount yields
+            refs.update(mounts)
+    if not refs:
+        return []
+    try:
+        b = pcbnew.LoadBoard(board_path)
+        gone = []
+        for fp in list(b.GetFootprints()):
+            if fp.GetReference() in refs and "Mounting" in fp.GetFPIDAsString():
+                b.Remove(fp)
+                gone.append(fp.GetReference())
+        if gone:
+            pcbnew.SaveBoard(board_path, b)
+        return sorted(gone)
+    except Exception as e:                                 # noqa: BLE001 -- fail-safe
+        print("  [mount] drop failed (%s)" % e, file=sys.stderr)
+        return []
+
+
 def _oracle_courtyard_overlaps(placed_board_path):
     """HARD courtyard gate (owner lever pass, 2026-07-08): ANY courtyard overlap on the
     placed board fails -- the class that let J1 crash the sense row was visible to DRC
@@ -9191,6 +9259,23 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             error="placement refused pre-route: pads out of bounds: %s"
                                   % "; ".join(_pb0.get("violations", [])[:6]))
                     _cy0 = _oracle_courtyard_overlaps(placed)
+                    if not _cy0.get("ok"):
+                        # AN OCCUPIED CORNER DROPS ITS MOUNT, IT DOES NOT SINK THE
+                        # BOARD (owner ruling 2026-07-26 "keep them in the corners
+                        # ideally"). Measured on eps: the bottom-right corner is
+                        # where J5, the USB-C receptacle, seats -- pinning four
+                        # corners refused the whole placement over one screw. The
+                        # earlier drop pass cannot see this: J5 seats AFTER the
+                        # mounts, so the conflict only exists here, on the final
+                        # placement. Three corners still resist rotation and the
+                        # cable cantilever; a relocated mid-edge screw does not.
+                        _dropped = _drop_conflicting_mounts(placed, _cy0)
+                        if _dropped:
+                            print("  [mount] dropped %s -- corner occupied (%s)"
+                                  % (", ".join(_dropped),
+                                     "; ".join(_cy0.get("violations", [])[:2])),
+                                  file=sys.stderr, flush=True)
+                            _cy0 = _oracle_courtyard_overlaps(placed)
                     if not _cy0.get("ok"):
                         return _oracle_fail_dict(
                             label, route_s=0.0,
