@@ -153,6 +153,13 @@ def audit(board_path):
     # ~1.2mm pitch, so only a LONG span counts as the defect (measured: the
     # regression was 22 vias over 37mm; a healthy array row is 6 over 6mm).
     for (coord, net, axis), vs in byline.items():
+        # GND STITCHING IS NOT THE DEFECT. A row of ground vias along an edge or
+        # between planes is what a designer draws on purpose (cec_gnd_fanout does
+        # exactly that); the owner's complaint was a POUR's layer-change fence --
+        # measured as 22 vias of /SENSE3V3_HI over 37mm. Flagging GND rows made
+        # three healthy boards look defective on the first overnight round.
+        if net == "GND":
+            continue
         span = round(max(vs) - min(vs), 1) if len(vs) > 1 else 0.0
         if len(vs) >= 6 and span >= 8.0:
             rep["via_rows"].append({"axis": axis, "at": coord, "net": net,

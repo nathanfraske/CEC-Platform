@@ -748,9 +748,15 @@ def rectilinear_inner(poly, step=0.5, min_keep=0.02, max_pts=160):
     except Exception:                                      # noqa: BLE001
         return poly
     if npts > max_pts:
-        if step < 1.0:                       # one coarser attempt before giving up
-            return rectilinear_inner(poly, step=step * 2.0, min_keep=min_keep,
-                                     max_pts=max_pts)
+        # COARSEN BEFORE SURRENDERING (2026-07-26): one doubling was not enough --
+        # the 24-pin's big B.Cu rail regions still blew the budget at 1.0mm and
+        # fell back to their original DIAGONAL shape, which is exactly what the
+        # owner is looking at. A 2mm staircase on a power pour is a fine shape; a
+        # diagonal blob is not. Ladder 0.5 -> 1.0 -> 2.0, then keep the original
+        # and let the audit report the residual honestly.
+        if step < 2.0:
+            return rectilinear_inner(poly, step=min(2.0, step * 2.0),
+                                     min_keep=min_keep, max_pts=max_pts)
         return poly
     return out
 
