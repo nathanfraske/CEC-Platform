@@ -692,3 +692,18 @@ current edit that outgrows its blades fails the suite instead of shipping.
 
 **Still open:** boards outside the table (hub, argb, eps-rev3) fall through to the substring
 heuristics, and `GND` still takes `cable_current_A` on every board.
+
+## 2026-07-26 — PCIe-3port seat conflict: diagnosed, blocked on the anchor_pins frame
+
+That board has published only placement-only skeletons for days. Cause is exact: the third
+cable's sense cell seats at x≈87.5 and the RJ-45's default seat spans x 82.9–101.7 /
+y 11.6–28.6, so **U32 (a SOT-23-5) lands entirely inside J1** — `courtyard overlaps J1|U32`
+on every variant and every seed, before routing.
+
+Geometrically there is room: U32's row ends at y 24.1 and the board is 44.1 tall, so a jack
+seat at y 31–35 clears it while keeping the right-edge overhang the cable needs, with no
+dimension change. **That fix was tried and reverted**: `anchor_pins` does not place in the
+frame the measurement assumed — every trial (y = 31, 32, 33, 34.5) failed earlier with
+`J1 1 pad(s) out of bounds`, where the unpinned board passes that same check. The
+anchor_pins coordinate convention needs establishing before pinning any connector this way;
+until then the board stays as it is rather than trading one refusal for an earlier one.

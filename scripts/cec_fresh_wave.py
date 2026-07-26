@@ -301,6 +301,15 @@ BOARD_WH = {
 # same-side-per-rail sensing constraint (mechanism pending -- the wave is GATED on the
 # shared-bus per-rail corridor package, see TODO).
 BOARD_PARAMS = {
+    # PCIe 3-PORT SEAT CONFLICT -- diagnosed, NOT fixed (2026-07-26). Why that
+    # board publishes only placement-only skeletons: the third cable's cell seats
+    # at x~87.5 while the RJ-45's default seat spans x 82.9-101.7 / y 11.6-28.6,
+    # so U32 (SOT-23-5) lands ENTIRELY inside the jack -- "courtyard overlaps
+    # J1|U32" on every variant and seed. The obvious fix (pin the jack below the
+    # cell row, y 31-35, which is geometrically clear) was TRIED and REVERTED:
+    # anchor_pins does not place in the frame this measurement assumed, and every
+    # trial failed EARLIER with "J1 1 pad(s) out of bounds". Left as-is rather
+    # than traded for a worse failure; the anchor_pins frame needs checking first.
     # HUB REV2 (2026-07-15): connector-first, no force lanes (no shunt corridors on a
     # hub) -- the MCU/fan seats stay dormant by their force_lanes gate; hub-specific
     # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
