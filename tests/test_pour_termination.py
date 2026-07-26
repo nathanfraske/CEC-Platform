@@ -342,11 +342,19 @@ class ViaCountTest(unittest.TestCase):
         self.assertEqual(sp.vias_for_current(0.25), 2,
                          "+3V3 is LDO-bounded at 250mA: one barrel plus a spare")
 
-    def test_spec_anchor_atx_circuit(self):
+    def test_spec_anchor_atx_circuit_vs_rail(self):
+        """The 6A bar is PER CIRCUIT; the RAIL is what crosses a layer.
+
+        Owner correction 2026-07-26: "we have two blades, because I have seen
+        much more amperage than that." The re-ratified joint counts agree --
+        atx24 carries 3V3 x2 joints at 18.32A each (2026-07-06, TE 63969-1 at
+        22.9A/125%), so the 3.3V rail sits well above one joint, ~18A for three
+        ATX circuits, not the 6A I first sized it at."""
         import cec_slab_pour as sp
-        # spec 2.8: the 24-pin anchors on the 6A/circuit ATX bar
         self.assertEqual(sp.vias_for_current(6.0), 5,
-                         "6A at the 125% margin over a 2A barrel = 4, plus a spare")
+                         "ONE 6A circuit: 4 barrels plus a spare")
+        self.assertGreaterEqual(sp.vias_for_current(18.0), 12,
+                                "the ~18A 3.3V RAIL needs a real field, not a circuit's worth")
 
     def test_margin_policy_is_applied(self):
         """spec 2.8: continuous rating >= 125% of sustained worst case."""

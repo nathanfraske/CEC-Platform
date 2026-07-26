@@ -649,8 +649,13 @@ assigns any net matching `"3V3"` a flat **0.8 A**. That figure matches **neither
 
 * the module's own **+3V3 logic rail** is bounded by its source — the **LP5907 LDO, 250 mA
   maximum per the TI datasheet** (spec Hub regulator row). 0.8 A is **3.2× the ceiling**.
-* a **24-pin ATX 3.3 V circuit** anchors on the **6 A/circuit ATX bar** (spec §2.8, owner
-  2026-07-04, where 3.3 V also carries one ratified blade joint). 0.8 A is **7.5× too small**.
+* the **24-pin ATX 3.3 V RAIL** is ~**18 A** — three ATX 3.3 V circuits against the
+  **6 A/circuit** bar (spec §2.8). The 6 A figure is PER CIRCUIT, not the rail: the
+  2026-07-06 re-ratification (TE 63969-1, 22.9 A at 125% = 18.32 A/joint) gives atx24 ten
+  joints with **3V3 ×2**, and two blades only make sense above one joint's 18.32 A. (My
+  first pass mis-read the per-circuit figure as the rail — owner correction 2026-07-26:
+  "we have two blades, because I have seen much more amperage than that.") 0.8 A is
+  **~22× too small** for that rail.
 
 The same function routes every `_HI`/`_LO` net to `cable_current_A` (default 40 A) regardless
 of which rail it belongs to, so a 24-pin `/SENSE3V3_HI` — a 6 A-class circuit — is modelled at

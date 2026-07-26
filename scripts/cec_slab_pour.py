@@ -780,8 +780,15 @@ def rectilinear_inner(poly, step=0.5, min_keep=0.02, max_pts=160):
 #
 # The CURRENT must come from the design basis, never a code default. For this
 # platform the spec anchors are:
-#   * 24-pin power rails -- the 6A/circuit ATX bar (§2.8); 3.3V carries ONE
-#     ratified blade joint there, i.e. a ~6A class circuit, not a 20A rail.
+#   * 24-pin power rails -- the 6A/circuit ATX bar is PER CIRCUIT, not the rail
+#     total (owner correction 2026-07-26: "we have two blades, because I have
+#     seen much more amperage than that"). The RAIL is what crosses a layer, and
+#     the ratified joint counts say so: the 2026-07-06 re-ratification on the TE
+#     63969-1 (22.9A at 125% = 18.32A/joint) gives atx24 TEN joints with
+#     3V3 x2 -- two blades, so 3.3V sustained worst case exceeds one joint's
+#     18.32A. Three ATX 3.3V circuits x the 6A bar ~= 18A is the working rail
+#     figure, consistent with two blades and with real PSUs' 20-24A 3.3V rating.
+#     My first pass read the per-circuit 6A as the rail and undersized it.
 #   * the module's OWN +3V3 logic rail -- bounded by its source, the LP5907 LDO
 #     at 250mA maximum per the TI datasheet (spec Hub regulator row). 0.25A.
 #     This is the net in the owner's 29-via screenshot: worst case a quarter of
@@ -801,7 +808,8 @@ def vias_for_current(amps, *, redundancy=1):
 
     Worked against the spec anchors:
       +3V3 logic rail   0.25A (LDO ceiling)  -> 1.25*0.25/2   = 1 -> 2 with spare
-      24-pin ATX circuit 6A   (6A/circuit)   -> 1.25*6/2      = 4 -> 5 with spare
+      24-pin 3.3V RAIL  ~18A (3 circuits)    -> 1.25*18/2     = 12 -> the cap
+      one 24-pin circuit  6A  (the ATX bar)   -> 1.25*6/2      = 4 -> 5 with spare
       EPS cable         52A                  -> capped at the field cap, and a
                                                 52A crossing wants a planned
                                                 transition, not a via field.
