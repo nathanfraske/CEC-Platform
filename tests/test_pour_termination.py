@@ -262,15 +262,18 @@ class ViaFieldShapeTest(unittest.TestCase):
         self.assertGreater(span_x, 0.0,
                            "an array must use both axes; a single row is the old fence")
 
-    def test_barrel_count_is_preserved(self):
-        """The count is ampacity -- the ruling changed the ARRANGEMENT only."""
+    def test_count_is_current_derived_not_width_derived(self):
+        """SUPERSEDED BELIEF, corrected 2026-07-26. This test used to assert the
+        width-derived count was preserved exactly, on my claim that "the count is
+        ampacity". It was not -- it was the corridor WIDTH, which is wide for
+        reach and min-width reasons too, and it handed +3V3 (0.8A, one barrel of
+        need) a 29-via block. The count now comes from current where the caller
+        knows it, and is capped otherwise."""
         import cec_slab_pour as sp
-        for half_w in (1.5, 4.0, 9.0):
-            vias, _ = self._field(half_w)
-            expect = max(1, int(round((2.0 * half_w) / 1.2)) + 1)
-            self.assertEqual(len(vias), expect,
-                             f"half_w={half_w}: {len(vias)} barrels, expected {expect} "
-                             "-- the array must carry the same current as the fence did")
+        vias, _ = self._field(9.0)                       # an 18mm-wide corridor
+        self.assertLessEqual(len(vias), sp.FIELD_VIA_CAP,
+                             f"{len(vias)} barrels is the perforation again")
+        self.assertGreaterEqual(len(vias), 2, "a layer change needs a spare barrel")
 
     def test_aspect_is_roughly_square(self):
         vias, _ = self._field(6.0)
@@ -278,3 +281,101 @@ class ViaFieldShapeTest(unittest.TestCase):
         span_y = max(v[1] for v in vias) - min(v[1] for v in vias)
         self.assertLessEqual(max(span_x, span_y) / max(0.1, min(span_x, span_y)), 3.0,
                              f"array aspect {span_x:.1f}x{span_y:.1f} is a line, not an array")
+
+
+class LSimplifyTest(unittest.TestCase):
+    """A run's copper is one or two straight legs, not a stair (owner 2026-07-26:
+    the pours "are still diagonal" -- Manhattan EDGES were not enough while the
+    PATH still walked a diagonal as steps)."""
+
+    def _free(self, n=10):
+        return [[True] * n for _ in range(n)]
+
+    def test_staircase_becomes_an_L(self):
+        import cec_slab_pour as sp
+        stair = [(0, 0), (0, 1), (1, 1), (1, 2), (2, 2), (2, 3), (3, 3)]
+        out = sp._l_simplify(stair, self._free(), None)
+        turns = sum(1 for a, b, c in zip(out, out[1:], out[2:])
+                    if (b[0] - a[0], b[1] - a[1]) != (c[0] - b[0], c[1] - b[1]))
+        self.assertLessEqual(turns, 1, f"an L has at most one turn, got {turns}: {out}")
+        self.assertEqual(out[0], stair[0])
+        self.assertEqual(out[-1], stair[-1])
+
+    def test_blocked_L_keeps_the_original_walk(self):
+        import cec_slab_pour as sp
+        free = self._free()
+        for c in range(10):            # wall across row 0 and column 0 corners
+            free[0][c] = False
+        for r in range(10):
+            free[r][0] = False
+        stair = [(1, 1), (1, 2), (2, 2), (2, 3), (3, 3)]
+        free[1][3] = False             # block one L corner
+        free[3][1] = False             # block the other
+        out = sp._l_simplify(stair, free, None)
+        self.assertEqual(out, stair,
+                         "with both L corners blocked the search's own walk must stand")
+
+    def test_straight_run_is_untouched(self):
+        import cec_slab_pour as sp
+        run = [(2, 0), (2, 1), (2, 2), (2, 3)]
+        self.assertEqual(sp._l_simplify(run, self._free(), None), run)
+
+    def test_no_mask_is_a_noop(self):
+        import cec_slab_pour as sp
+        stair = [(0, 0), (0, 1), (1, 1), (1, 2)]
+        self.assertEqual(sp._l_simplify(stair, None, None), stair)
+
+
+class ViaCountTest(unittest.TestCase):
+    """A field carries its net's CURRENT across a layer change, sized from the
+    DESIGN BASIS (owner 2026-07-26: "don't just say it gives some amperage
+    without checking it against design spec... plan for worst case").
+
+    The screenshot that prompted this was +3V3 with ~29 barrels. That net's
+    worst case is bounded by its source -- the LP5907 LDO at 250mA maximum per
+    the TI datasheet (spec Hub regulator row) -- so it needs one barrel and a
+    spare. The count had come from the corridor's WIDTH.
+    """
+
+    def test_spec_anchor_logic_rail(self):
+        import cec_slab_pour as sp
+        self.assertEqual(sp.vias_for_current(0.25), 2,
+                         "+3V3 is LDO-bounded at 250mA: one barrel plus a spare")
+
+    def test_spec_anchor_atx_circuit(self):
+        import cec_slab_pour as sp
+        # spec 2.8: the 24-pin anchors on the 6A/circuit ATX bar
+        self.assertEqual(sp.vias_for_current(6.0), 5,
+                         "6A at the 125% margin over a 2A barrel = 4, plus a spare")
+
+    def test_margin_policy_is_applied(self):
+        """spec 2.8: continuous rating >= 125% of sustained worst case."""
+        import cec_slab_pour as sp
+        self.assertEqual(sp.vias_for_current(3.2), 3)
+        self.assertGreater(sp.vias_for_current(8.0), sp.vias_for_current(4.0))
+
+    def test_a_field_never_becomes_a_perforation(self):
+        import cec_slab_pour as sp
+        self.assertLessEqual(sp.vias_for_current(52.0), sp.FIELD_VIA_CAP,
+                             "an EPS-class crossing wants a planned transition, "
+                             "not an unbounded via block")
+
+    def test_width_heuristic_is_capped(self):
+        import cec_slab_pour as sp
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 0.5
+        vias, _ = sp.field_via_line((20, 20, "In2.Cu", "B.Cu", 1.0, 0.0), 9.0, G, [], [])
+        self.assertLessEqual(len(vias), sp.FIELD_VIA_CAP,
+                             f"{len(vias)} barrels from a width heuristic is the 29-via block")
+
+    def test_explicit_count_wins(self):
+        import cec_slab_pour as sp
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 0.5
+        vias, _ = sp.field_via_line((20, 20, "In2.Cu", "B.Cu", 1.0, 0.0), 9.0, G, [], [],
+                                    n_needed=2)
+        self.assertEqual(len(vias), 2)

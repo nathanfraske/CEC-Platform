@@ -667,7 +667,9 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
         half_w = max(req_w.get(lay_from, 1.2), req_w.get(lay_to, 1.2)) / 2.0
         cx = grid.x0 + (c + 0.5) * grid.cell
         cy = grid.y0 + (r + 0.5) * grid.cell
-        n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
+        # sized by current where the caller knows it, else the width heuristic,
+        # capped -- a layer change is a field, not a perforation (owner 2026-07-26)
+        n_v = min(FIELD_VIA_CAP, max(1, int(round((2.0 * half_w) / pitch_mm)) + 1))
         perp = (-dy, dx)                        # rotate travel dir by 90
         for k in range(n_v):
             off = (k - (n_v - 1) / 2.0) * pitch_mm
@@ -761,8 +763,58 @@ def rectilinear_inner(poly, step=0.5, min_keep=0.02, max_pts=160):
     return out
 
 
+# VIA AMPACITY, WITH ITS BASIS STATED (owner 2026-07-26: "don't just say it gives
+# some amperage without checking it against design spec... plan for worst case").
+#
+#   VIA_AMPS -- 0.5mm drill / 0.9mm pad carries ~2A at a 10C rise. That is the
+#   platform's own figure from the 12VHPWR routing plan (CLAUDE.md), and it is
+#   DELIBERATELY CONSERVATIVE against the spec's electrothermal convention, which
+#   gates at <=30C rise: the same barrel carries materially more at the gate
+#   temperature, so sizing at the 10C figure spends copper to buy margin.
+#
+#   MARGIN -- the spec's own connector rule, applied here for consistency:
+#   "continuous rating >= 125% of sustained worst case at <=30C rise" (§2.8,
+#   ratified 2026-07-04). Worst case is the SUSTAINED figure; per the same
+#   ruling transients stay transients and are never folded into a continuous
+#   rating.
+#
+# The CURRENT must come from the design basis, never a code default. For this
+# platform the spec anchors are:
+#   * 24-pin power rails -- the 6A/circuit ATX bar (§2.8); 3.3V carries ONE
+#     ratified blade joint there, i.e. a ~6A class circuit, not a 20A rail.
+#   * the module's OWN +3V3 logic rail -- bounded by its source, the LP5907 LDO
+#     at 250mA maximum per the TI datasheet (spec Hub regulator row). 0.25A.
+#     This is the net in the owner's 29-via screenshot: worst case a quarter of
+#     an amp, sized as if it were a power bus.
+#   * EPS ~13A/pin -> ~52A/cable, PCIe ~39A/cable, 12VHPWR per-pin (§2.8).
+# NOTE (surfaced, not silently patched): cec_synth_pipeline._net_currents gives
+# any net matching "3V3" a flat 0.8A default, which matches NEITHER anchor -- it
+# is 3.2x the LDO ceiling for the logic rail and 7.5x too small for a 6A ATX
+# circuit. Sizing anything from that default is guesswork; see docs/owner-queue.md.
+VIA_AMPS = 2.0              # 0.5/0.9mm barrel @ 10C rise (platform figure)
+MARGIN = 1.25               # spec §2.8 continuous-rating policy
+FIELD_VIA_CAP = 12          # a layer change, not a perforation
+
+
+def vias_for_current(amps, *, redundancy=1):
+    """Barrels to carry *amps* SUSTAINED at the spec's 125% margin, plus a spare.
+
+    Worked against the spec anchors:
+      +3V3 logic rail   0.25A (LDO ceiling)  -> 1.25*0.25/2   = 1 -> 2 with spare
+      24-pin ATX circuit 6A   (6A/circuit)   -> 1.25*6/2      = 4 -> 5 with spare
+      EPS cable         52A                  -> capped at the field cap, and a
+                                                52A crossing wants a planned
+                                                transition, not a via field.
+    """
+    import math as _m
+    if not amps or amps <= 0:
+        return 2
+    need = int(_m.ceil((MARGIN * float(amps)) / VIA_AMPS)) + redundancy
+    return max(2, min(FIELD_VIA_CAP, need))
+
+
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
-                   ledger_mm=0.85):
+                   ledger_mm=0.85, n_needed=None):
     """Via positions for ONE compact field: a roughly square ARRAY centred on
     the transition (owner ruling 2026-07-25 -- a layer change is one via array,
     not a fence across the corridor), each slot checked against the barrel
@@ -775,7 +827,14 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
     (r, c, _lf, _lt, dx, dy) = field6[:6]
     cx = grid.x0 + (c + 0.5) * grid.cell
     cy = grid.y0 + (r + 0.5) * grid.cell
-    n_v = max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)
+    # SIZED BY CURRENT, NOT BY CORRIDOR WIDTH (owner 2026-07-26: "does 3v3 really
+    # need this massive of a via array? That's a bit ridiculous"). It did not: this
+    # formula gave +3V3 -- a 0.8A rail needing ONE barrel -- a 29-via block, because
+    # a corridor is wide for ampacity, reach and min-width reasons that have nothing
+    # to do with how much copper must cross a layer change. A caller that knows the
+    # net's current passes n_needed; otherwise the heuristic stands but is capped.
+    n_v = (int(n_needed) if n_needed
+           else min(FIELD_VIA_CAP, max(1, int(round((2.0 * half_w) / pitch_mm)) + 1)))
     perp = (-dy, dx)
 
     # ONE COMPACT ARRAY, NOT A FULL-WIDTH LINE (owner ruling 2026-07-25: "it
@@ -861,8 +920,43 @@ def _run_polyline(cells, grid):
     return out
 
 
+def _l_simplify(cells, free, grid):
+    """Turn a staircase run into an L when the L is legal (owner 2026-07-26:
+    the pours "are still diagonal" -- Manhattan EDGES were not enough while the
+    PATH still walks a diagonal as steps).
+
+    A run's copper should be one or two straight legs, not a stair. Both L
+    variants between the run's endpoints are tested cell-by-cell against the
+    same free mask the search used; the first legal one wins, otherwise the
+    original walk is kept. Never widens the search's own freedom -- it only
+    straightens inside space the search already proved free."""
+    if free is None or len(cells) < 3:
+        return cells
+    (r0, c0), (r1, c1) = cells[0], cells[-1]
+    if r0 == r1 or c0 == c1:
+        return cells                                    # already straight
+    for corner in ((r0, c1), (r1, c0)):
+        leg = []
+        rr, cc = corner
+        for c in range(min(c0, cc), max(c0, cc) + 1):
+            leg.append((r0 if rr == r0 else r1, c))
+        for r in range(min(r0, r1), max(r0, r1) + 1):
+            leg.append((r, cc))
+        try:
+            if all(free[r][c] for (r, c) in leg):
+                seen, out = set(), []
+                for rc in leg:
+                    if rc not in seen:
+                        seen.add(rc)
+                        out.append(rc)
+                return out
+        except (IndexError, TypeError):
+            continue
+    return cells
+
+
 def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
-                            existing_vias=(), f_admit=None,
+                            existing_vias=(), f_admit=None, free_masks=None,
                             pitch_mm=1.2, ledger_mm=0.85):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
     stays the search's; the copper is DRAWN geometry -- one straight capsule
@@ -890,6 +984,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
              if f_admit else None)
     for chain in chains:
         for (lay, cells) in _chain_runs(chain):
+            cells = _l_simplify(cells, (free_masks or {}).get(lay), grid)
             pts = _run_polyline(cells, grid)
             half = max(0.3, reqw.get(lay, 1.2) / 2.0)
             # SQUARE CAPS / MITRED JOINS, same reason as cec_pour_plan._capsule
@@ -1330,7 +1425,8 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                                   _bb.GetRight() / MM, _bb.GetBottom() / MM))
             realized, _vpts, _rnotes = realize_overunder_rects(
                 chains, bridges, reqw, grid, pad_boxes=_padb,
-                existing_vias=existing_vias_mm, f_admit=_f_admit)
+                existing_vias=existing_vias_mm, f_admit=_f_admit,
+                free_masks=prep.get("free") or prep.get("passable"))
             net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
             for _nt in _rnotes:
                 print(f"[cec_slab_pour] over-under[{net}]: {_nt}",

@@ -640,3 +640,29 @@ it, and a gate no board can pass is a stopped line. The two halves that are miss
 **Recommended sequence:** (a) feed the placer avoid-boxes from the PourPlan corridors rather
 than the pour-first freeze — that alone should clear the 4 foreign PADS, which are the part of
 the ruling nothing else can fix; (b) then the two-pass convergence; (c) then flip the gate on.
+
+## 2026-07-26 — NET-CURRENT MODEL DOES NOT MATCH THE DESIGN BASIS (decision owed)
+
+Surfaced while sizing via fields (owner: "don't just say it gives some amperage without
+checking it against design spec... plan for worst case"). `cec_synth_pipeline._net_currents`
+assigns any net matching `"3V3"` a flat **0.8 A**. That figure matches **neither** spec anchor:
+
+* the module's own **+3V3 logic rail** is bounded by its source — the **LP5907 LDO, 250 mA
+  maximum per the TI datasheet** (spec Hub regulator row). 0.8 A is **3.2× the ceiling**.
+* a **24-pin ATX 3.3 V circuit** anchors on the **6 A/circuit ATX bar** (spec §2.8, owner
+  2026-07-04, where 3.3 V also carries one ratified blade joint). 0.8 A is **7.5× too small**.
+
+The same function routes every `_HI`/`_LO` net to `cable_current_A` (default 40 A) regardless
+of which rail it belongs to, so a 24-pin `/SENSE3V3_HI` — a 6 A-class circuit — is modelled at
+40 A while `+3V3` is modelled at 0.8 A.
+
+Anything sized from these numbers is guesswork: pour widths (IPC inverse), via counts, the
+electrothermal injection, and the ampacity-deficit prints all consume them. Via sizing now
+takes the spec's own margin policy (§2.8: continuous rating ≥125% of sustained worst case at
+≤30 °C rise) applied to a stated per-net current, but the per-net current itself still comes
+from this model.
+
+**Owed:** a per-board net-current table grounded in the spec anchors (6 A/circuit for 24-pin
+rails, LDO ceilings for logic rails, ~13 A/pin → 52 A/cable EPS, ~39 A/cable PCIe, per-pin
+12VHPWR), replacing the substring-matched defaults. Until then, treat every current-derived
+number on the 24-pin as unverified.
