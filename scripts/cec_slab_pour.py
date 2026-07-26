@@ -179,6 +179,29 @@ def shave(foreign, anchors, grid, min_w_mm=1.2):
                    "appendages_pruned": pruned}
 
 
+def _drop_collinear(pts, tol=1e-6):
+    """Remove vertices that lie on the segment between their neighbours.
+
+    Shape-preserving by construction (unlike simplify(), which moves the outline
+    and turns a staircase into a diagonal). Purely fewer points."""
+    if len(pts) < 4:
+        return pts
+    closed = pts[0] == pts[-1]
+    ring = pts[:-1] if closed else list(pts)
+    out = []
+    n = len(ring)
+    for i in range(n):
+        x0, y0 = ring[i - 1]
+        x1, y1 = ring[i]
+        x2, y2 = ring[(i + 1) % n]
+        cross = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
+        if abs(cross) > tol:
+            out.append((x1, y1))
+    if len(out) < 3:
+        return pts
+    return out + [out[0]] if closed else out
+
+
 def mask_to_polys(mask, grid, min_area_mm2=6.0, smooth=True):
     """Rectilinear exterior outlines from the mask via shapely union of cell
     runs. Exterior-only is safe: the real filler re-subtracts fine detail.
@@ -197,8 +220,18 @@ def mask_to_polys(mask, grid, min_area_mm2=6.0, smooth=True):
     from scipy import ndimage
     m = mask
     if smooth:
+        # SMOOTH ON THE MASK, NEVER ON THE POLYGON (owner 2026-07-25: "diagonal
+        # blobs that don't make sense"). The union of cell-runs below is exactly
+        # rectilinear; the Douglas-Peucker simplify that used to follow it cut
+        # corners and MANUFACTURED the diagonals -- measured on the 24-pin winner
+        # as 77 diagonal edges across the pourfirst zones and 64 across pourplan,
+        # while every hand-shaped producer (manifold:, patch:) sat at 0. Closing
+        # then opening removes the one-cell bites and spurs that made the raw
+        # raster read as "weirdly blocky" (the 07-24 complaint this smoothing was
+        # added for) and leaves every edge axis-aligned.
         _st2 = ndimage.generate_binary_structure(2, 1)
         m = ndimage.binary_closing(mask, structure=_st2, iterations=2)
+        m = ndimage.binary_opening(m, structure=_st2, iterations=1)
     rects = []
     for j in range(grid.ny):
         i = 0
@@ -216,14 +249,17 @@ def mask_to_polys(mask, grid, min_area_mm2=6.0, smooth=True):
     if not rects:
         return []
     u = unary_union(rects)
+    # NO polygon-level simplify: it is the diagonal source (see above). Collinear
+    # vertices are dropped instead -- identical geometry, fewer points.
     if smooth:
-        u = u.simplify(min(0.5, grid.cell * 0.7), preserve_topology=True)
+        u = u.buffer(0)
     geoms = getattr(u, "geoms", [u])
     out = []
     for g in geoms:
         if g.area < min_area_mm2:
             continue
-        out.append([(round(x, 3), round(y, 3)) for x, y in g.exterior.coords])
+        _pts = [(round(x, 3), round(y, 3)) for x, y in g.exterior.coords]
+        out.append(_drop_collinear(_pts))
     return out
 
 
@@ -767,10 +803,17 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         for (lay, cells) in _chain_runs(chain):
             pts = _run_polyline(cells, grid)
             half = max(0.3, reqw.get(lay, 1.2) / 2.0)
+            # SQUARE CAPS / MITRED JOINS, same reason as cec_pour_plan._capsule
+            # (owner 2026-07-25 "diagonal blobs"): a round buffer facets every
+            # corner and end into short diagonals. A Manhattan run now yields an
+            # exactly rectilinear capsule; a diagonal run still reads diagonal,
+            # which is the path telling the truth rather than rounding hiding it.
             if len(pts) == 1:
-                g = Point(pts[0]).buffer(half, quad_segs=4)
+                g = Point(pts[0]).buffer(half, cap_style=3, join_style=2,
+                                         mitre_limit=4.0)
             else:
-                g = LineString(pts).buffer(half, quad_segs=4)
+                g = LineString(pts).buffer(half, cap_style=3, join_style=2,
+                                           mitre_limit=4.0)
             if lay == "F.Cu" and admit is not None:
                 clipped = g.intersection(admit)
                 if clipped.is_empty:

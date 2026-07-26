@@ -161,7 +161,18 @@ def _poly_of(points):
 
 
 def _capsule(pts, half_w):
-    return LineString(pts).buffer(half_w, quad_segs=4)
+    """Corridor copper around a path.
+
+    SQUARE CAPS, MITRED JOINS (owner 2026-07-25: "diagonal blobs that don't make
+    sense"). The old round buffer (quad_segs=4) faceted every corner and every
+    end into short diagonal segments, which is where the 24-pin's diagonal pour
+    edges came from -- 79 across the pourfirst zones, 86 across pourplan, while
+    every rectangle-shaped producer (manifold:, patch:) measured 0. With a
+    Manhattan path these settings give an exactly rectilinear polygon; a genuinely
+    diagonal path still yields a diagonal capsule, which is honest -- the shape
+    then reports the PATH's geometry instead of hiding it behind rounding."""
+    return LineString(pts).buffer(half_w, cap_style=3, join_style=2,
+                                  mitre_limit=4.0)
 
 
 def _stamp_poly(mask, poly, grid):

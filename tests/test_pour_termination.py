@@ -184,3 +184,51 @@ class ShuntGapGeometryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RectilinearPourTest(unittest.TestCase):
+    """Pour outlines are Manhattan (owner 2026-07-25: "diagonal blobs that don't
+    make sense"). mask_to_polys builds a rectilinear union of cell runs; the
+    Douglas-Peucker simplify that used to follow it cut corners and manufactured
+    the diagonals -- 77 of them across the 24-pin's pourfirst zones."""
+
+    def _diag(self, pts, tol=1e-6):
+        n = len(pts)
+        d = 0
+        for i in range(n - 1):
+            x0, y0 = pts[i]
+            x1, y1 = pts[i + 1]
+            if abs(x1 - x0) > tol and abs(y1 - y0) > tol:
+                d += 1
+        return d
+
+    def test_masks_render_rectilinear(self):
+        try:
+            import numpy as np
+            import cec_slab_pour as sp
+        except ImportError:
+            self.skipTest("numpy/cec_slab_pour unavailable")
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 0.5
+            nx = ny = 40
+        # a staircase-ish blob: the shape Douglas-Peucker used to diagonalise
+        m = np.zeros((G.ny, G.nx), bool)
+        for j in range(G.ny):
+            m[j, : max(1, min(G.nx, 4 + j))] = True
+        polys = sp.mask_to_polys(m, G, min_area_mm2=0.1)
+        self.assertTrue(polys, "the mask should produce at least one polygon")
+        for p in polys:
+            self.assertEqual(self._diag(p), 0,
+                             f"pour outline has diagonal edge(s): {p[:8]}... "
+                             "-- smoothing must happen on the MASK, never on the polygon")
+
+    def test_drop_collinear_preserves_shape(self):
+        import cec_slab_pour as sp
+        square = [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (0, 2), (0, 0)]
+        out = sp._drop_collinear(square)
+        self.assertLess(len(out), len(square), "collinear points should be dropped")
+        self.assertEqual(min(x for x, _ in out), 0)
+        self.assertEqual(max(x for x, _ in out), 2)
+        self.assertEqual(max(y for _, y in out), 2)
