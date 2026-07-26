@@ -86,3 +86,44 @@ class PowerLayerPolicyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SpecNetCurrentTest(unittest.TestCase):
+    """Design-basis currents come from the spec, not from substring defaults
+    (owner 2026-07-26: "check the actual design spec and plan for worst case
+    not just pulling some random number")."""
+
+    def setUp(self):
+        import cec_synth_pipeline as csp
+        self.csp = csp
+
+    def test_atx_rails_match_the_ratified_joint_counts(self):
+        """6A/circuit x circuits, cross-checked against the 2026-07-06 joints
+        (TE 63969-1, 18.32A each): 12V x1, 5V x2, 3V3 x2, 5VSB x1."""
+        f = self.csp.spec_net_current
+        # owner ruling 2026-07-26: "the most we're going to see is like 20A on
+        # 3v3 and 5V" -- the real ceiling, not the theoretical per-pin bar
+        self.assertEqual(f("atx-24pin-rev3", "/SENSE3V3_HI"), 20.0)
+        self.assertEqual(f("atx-24pin-rev3", "/SENSE5V_LO"), 20.0)
+        self.assertEqual(f("atx-24pin-rev3", "/SENSE12V_HI"), 12.0)
+        for net, joints in (("/SENSE3V3_HI", 2), ("/SENSE5V_HI", 2), ("/SENSE12V_HI", 1)):
+            amps = f("atx-24pin-rev3", net)
+            self.assertLessEqual(amps * 1.25, joints * 18.32 + 0.01,
+                                 f"{net}: {amps}A at 125% exceeds its {joints} ratified joint(s)")
+
+    def test_logic_rail_is_bounded_by_its_source_not_the_bus(self):
+        """+3V3 is LDO-fed (LP5907, 250mA max) -- it must NOT inherit the rail."""
+        f = self.csp.spec_net_current
+        self.assertEqual(f("atx-24pin-rev3", "+3V3"), 0.25)
+        self.assertNotEqual(f("atx-24pin-rev3", "+3V3"),
+                            f("atx-24pin-rev3", "/SENSE3V3_HI"))
+
+    def test_cable_boards_keep_the_owner_per_cable_basis(self):
+        f = self.csp.spec_net_current
+        self.assertEqual(f("eps-8pin", "/SENSEC1_HI"), 52.0)      # ~13A/pin x4
+        self.assertEqual(f("pcie-8pin-2port", "/SENSEC2_LO"), 39.0)  # 3x12V pins
+        self.assertEqual(f("12vhpwr-standard", "/SENSEP4_HI"), 9.2)  # per-pin rating
+
+    def test_untabled_board_falls_through(self):
+        self.assertIsNone(self.csp.spec_net_current("hub-standard-rev2", "/SENSE3V3_HI"))
+        self.assertIsNone(self.csp.spec_net_current("atx-24pin-rev3", "/CAN_H"))

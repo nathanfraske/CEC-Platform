@@ -641,7 +641,7 @@ it, and a gate no board can pass is a stopped line. The two halves that are miss
 than the pour-first freeze — that alone should clear the 4 foreign PADS, which are the part of
 the ruling nothing else can fix; (b) then the two-pass convergence; (c) then flip the gate on.
 
-## 2026-07-26 — NET-CURRENT MODEL DOES NOT MATCH THE DESIGN BASIS (decision owed)
+## 2026-07-26 — NET-CURRENT MODEL: RESOLVED for the tabled boards (owner basis applied)
 
 Surfaced while sizing via fields (owner: "don't just say it gives some amperage without
 checking it against design spec... plan for worst case"). `cec_synth_pipeline._net_currents`
@@ -671,3 +671,24 @@ from this model.
 rails, LDO ceilings for logic rails, ~13 A/pin → 52 A/cable EPS, ~39 A/cable PCIe, per-pin
 12VHPWR), replacing the substring-matched defaults. Until then, treat every current-derived
 number on the 24-pin as unverified.
+
+**RESOLVED 2026-07-26** for the four tabled boards. `_SPEC_NET_CURRENTS` in
+`cec_synth_pipeline` now carries a per-board, per-net design-basis table consulted ahead of
+the substring heuristics, every figure sourced:
+
+* **24-pin 3.3 V and 5 V = 20 A** — owner ruling 2026-07-26 ("the most we're going to see is
+  like 20 A on 3v3 and 5V, and with margin we should be good"). This is the REAL ceiling and
+  supersedes per-pin arithmetic: J3 physically carries 4× 3.3 V, 5× 5 V, 2× 12 V circuits
+  (counted from the netlist), but no PSU sources the full 6 A bar on every pin at once. The
+  agent's first pass derived 5 V as 5×6 = 30 A, which needs 37.5 A at the 125 % margin and
+  EXCEEDS its two ratified joints (36.6 A) — a teeth test caught the contradiction.
+* 24-pin 12 V = 12 A (2 circuits × the 6 A bar; 15 A at margin vs one joint's 18.32 A).
+* 24-pin 5VSB = 3 A (ATX standby is a 2.5–3 A rail, not a 6 A circuit).
+* logic rails bounded by their SOURCE: `+3V3` = 0.25 A (LP5907 LDO ceiling), `+5VSB` = 0.5 A.
+* cable boards keep the owner per-cable basis: EPS 52 A, PCIe 39 A, 12VHPWR 9.2 A per pin.
+
+Teeth assert each rail against its RATIFIED JOINT COUNT at the 125 % margin, so a future
+current edit that outgrows its blades fails the suite instead of shipping.
+
+**Still open:** boards outside the table (hub, argb, eps-rev3) fall through to the substring
+heuristics, and `GND` still takes `cable_current_A` on every board.

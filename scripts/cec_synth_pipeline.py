@@ -10578,15 +10578,85 @@ def _picard_dt(I, cross_mm2, ambient, external):
     return dt0 * (1.0 + ALPHA_CU * (ambient - 20.0)) / (1.0 - coeff)
 
 
+# SPEC-GROUNDED DESIGN-BASIS CURRENTS (owner ruling 2026-07-26: "check the actual
+# design spec and plan for worst case not just pulling some random number").
+#
+# Every figure below is SUSTAINED worst case with its source named. The spec's own
+# design rule applies: transients stay transients and are never folded into a
+# continuous rating (§2.8, owner 2026-07-04).
+#
+# 24-pin ATX rails -- the 6A/circuit ATX bar (§2.8) times the circuit count the
+# connector actually carries, cross-checked against the RATIFIED BLADE JOINTS from
+# the 2026-07-06 re-ratification (TE 63969-1, 22.9A at 125% margin = 18.32A per
+# joint): atx24 ten joints as 12V x1, 5V x2, 3V3 x2, 5VSB x1, GND x4. A rail with
+# two joints must sit above one joint's 18.32A, which is the cross-check that
+# caught the first pass sizing 3.3V as a single 6A circuit (owner: "we have two
+# blades, because I have seen much more amperage than that").
+#
+# OWNER RULING 2026-07-26 sets the 3.3V and 5V basis: "the most we're going to
+# see is like 20A on 3v3 and 5V, and with margin we should be good." That is the
+# REAL-WORLD ceiling and it supersedes the per-pin arithmetic: J3 physically
+# carries 4x 3.3V, 5x 5V and 2x 12V circuits (counted from the netlist, not
+# assumed), but no PSU sources the full 6A bar on every pin at once, so 4x6=24
+# and 5x6=30 are theoretical maxima the rails never reach. The joint cross-check
+# passes comfortably on the owner's figure where it was a hairline on mine:
+#
+#   3.3V  20A (owner)  -> 25.0A at margin vs 2 joints x 18.32 = 36.6A   OK
+#   5V    20A (owner)  -> 25.0A at margin vs 2 joints x 18.32 = 36.6A   OK
+#   12V   2 circuits x 6A = 12A -> 15.0A at margin vs 1 joint = 18.3A   OK
+#   5VSB  1 circuit; ATX standby is a 2.5-3A rail, not a 6A circuit -> 3A
+#
+# (My first pass derived 5V as 5x6 = 30A, which needs 37.5A at margin and
+# EXCEEDS its two ratified joints -- the test caught it before the owner ruling
+# landed. Sizing from a theoretical bar rather than the real ceiling is what
+# produced that contradiction.)
+#
+# Module-local logic rails are bounded by their SOURCE, not by a bus figure:
+#   +3V3   the LP5907 LDO, 250mA maximum per the TI datasheet (spec Hub row)
+#   +5VSB  the module's own standby draw; the LED budget dominates (~0.4A/board
+#          full-white, capped in firmware per OQ-2) -> 0.5A
+_SPEC_NET_CURRENTS = {
+    "atx-24pin-rev3": {
+        "/SENSE3V3": 20.0, "/SENSE5V": 20.0, "/SENSE12V": 12.0, "/SENSE5VSB": 3.0,
+        "+5V_MAIN": 20.0, "+3V3": 0.25, "+5VSB": 0.5,
+    },
+    # EPS/PCIe cable rails keep the owner's per-cable design basis (§2.8):
+    # EPS ~13A/pin continuous -> ~52A/cable; PCIe ~13A/pin over 3x12V -> ~39A/cable.
+    "eps-8pin": {"/SENSEC": 52.0, "+3V3": 0.25, "+5VSB": 0.5},
+    "pcie-8pin-2port": {"/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5},
+    "pcie-8pin-3port": {"/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5},
+    # 12VHPWR is per-PIN sensing: 600W/6 pins = 8.33A balanced, 9.2A at the
+    # connector's own per-pin rating (§6.1 / the routing plan's design basis).
+    "12vhpwr-standard": {"/SENSEP": 9.2, "+3V3": 0.25, "+5VSB": 0.5},
+}
+
+
+def spec_net_current(board, net):
+    """Design-basis sustained current for *net* on *board*, or None if untabled.
+
+    Longest-prefix match so /SENSE3V3_HI and /SENSE3V3_LO both resolve to the
+    3.3V rail while +3V3 (the LDO-fed logic rail) stays separate."""
+    tbl = _SPEC_NET_CURRENTS.get(str(board or ""), {})
+    best = None
+    for pat, amps in tbl.items():
+        if net == pat or net.startswith(pat):
+            if best is None or len(pat) > len(best[0]):
+                best = (pat, amps)
+    return best[1] if best else None
+
+
 def _net_currents(cfg, board_nets):
     """Per-net design current (A): cfg.params['net_currents'] overrides; else a role model
     (cable 12V sense/force nets carry the cable current, rails their rail current, signals ~0)."""
     user = cfg.params.get("net_currents", {})
+    _board = getattr(cfg, "board", None) or getattr(cfg, "name", "")
     i_cable = cfg.params.get("cable_current_A", 40.0)        # EPS/PCIe per-cable (spec §6.4 region)
     out = {}
     for n in board_nets:
         if n in user:
             out[n] = user[n]
+        elif spec_net_current(_board, n) is not None:
+            out[n] = spec_net_current(_board, n)          # design basis wins over heuristics
         elif "-12V" in n:
             # NEGATIVE rail: the bare substring test below ("12V" in n) used to
             # capture "-12V"/"/-12V" and assign it the full CABLE current -- a
