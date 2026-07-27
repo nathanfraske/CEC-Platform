@@ -771,3 +771,26 @@ STILL OPEN, unchanged by this work: the 24-pin's 69-72 pad incursions are a stru
 IC. That needs the pour-REDO loop -- carving the patch reservation at PLAN time around the
 sense IC's required seat. Carving it after placement would only redefine the region to match
 reality and make the metric meaningless, which is why it was not done as a quick fix.
+
+## 2026-07-26 — DECISION NEEDED: the candidate reference is stale because pour quality is not ranked
+
+The per-board `candidate/` folders are the reference you open. After today's pour fixes the
+24-pin's stored candidate is STILL the pre-fix board (`band-core-mid-compact-s390`): +3V3
+poured, /SENSE3V3_HI on three layers, 6 zones, 974mm2 -- i.e. it still shows every defect
+reported today, even though the pipeline no longer produces them.
+
+Promotion ranks on the routing sort_key alone, and unconnected sorts FIRST:
+
+| | stored (s390) | new (s1000) |
+|---|---|---|
+| pour overlaps (p/t/v) | 370/111/171 | 72/71/21 |
+| long diagonals | 17 | 5 |
+| stray vias | 14 | 0 |
+| DRC | 86 | 26 |
+| unconnected | 114 | 127 |
+
+So a board that is 5x worse on pour overlap, 3x on diagonals and 3x on DRC keeps the slot on
+an 11% unconnected edge. Nothing was silently re-ranked -- what "best" means is your call.
+Options: (a) add pour-quality terms to the sort key, (b) keep routing-first but refuse to
+promote a candidate that regresses pour metrics, (c) leave as-is and read candidates as
+"best routed", judging pour quality only from wave winners.

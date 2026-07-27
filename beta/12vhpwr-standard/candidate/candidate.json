@@ -1,9 +1,9 @@
 {
  "board": "12vhpwr-standard",
- "commit": "9b963b41",
+ "commit": "d3ffd3ff",
  "grade": {
   "diffpair_ok": true,
-  "drc": 41,
+  "drc": 16,
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -15,36 +15,41 @@
   "rails": null,
   "thermal_ok": true,
   "unconn_critical": [
-   "/FAN_12V",
    "GND"
   ],
-  "unconnected": 32
+  "unconnected": 47
  },
- "label": "prop-snagfix-compact-s0",
- "reason": "first candidate",
+ "label": "plain-compact-s721",
+ "reason": "sort_key [1, 1, 1, 0, 47, 16, 1000000.0] < [1, 2, 2, 0, 39, 24, 1000000.0]",
  "routed": true,
  "schema": 1,
+ "schematic_match": 0.9902,
+ "schematic_parts": 102,
  "sort_key": [
   1,
   1,
-  2,
+  1,
   0,
-  32,
-  41,
+  47,
+  16,
   1000000.0
  ],
- "source": "build/fresh-wave-loop/12vhpwr-standard/20260719T0147-prop-snagfix-compact-s0.kicad_pcb",
+ "source": "build/fresh-wave-pours/12vhpwr-standard/20260725T1941-plain-compact-s721.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
-  "backend": "cpu",
+  "backend": "auto",
   "cooling": "production: metal case (TIM on RS shunts + M3 mounts)",
-  "dT": 22.14,
+  "dT": 19.58,
   "gate_dt": 30.0,
-  "grid_mm": 0.8,
-  "max_T": 72.14,
-  "ok": true,
-  "provenance": "coarse (0.8mm > 0.4mm gate grid)"
+  "grid_mm": 0.4,
+  "max_T": 69.58,
+  "nets_absent": [
+   "/SENSEP6_HI"
+  ],
+  "nets_injected": 13,
+  "nets_requested": 14,
+  "ok": true
  },
- "updated": "2026-07-25T16:53:06",
- "wave_out_root": "build/fresh-wave-loop"
+ "updated": "2026-07-25T19:42:54",
+ "wave_out_root": "build/fresh-wave-pours"
 }

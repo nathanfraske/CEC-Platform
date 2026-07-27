@@ -1,0 +1,56 @@
+{
+ "board": "pcie-8pin-2port",
+ "commit": "124bda53",
+ "grade": {
+  "diffpair_ok": true,
+  "drc": 9,
+  "foreign": {
+   "pours": 4,
+   "status": "ok",
+   "tracks": 0,
+   "vias": 0
+  },
+  "gate": false,
+  "kelvin_ok": true,
+  "rails": null,
+  "thermal_ok": false,
+  "unconn_critical": [
+   "GND"
+  ],
+  "unconnected": 9
+ },
+ "label": "periph-right-compact-s809",
+ "reason": "sort_key [1, 0, 1, 0, 9, 9, 1000000.0] < [1, 0, 1, 0, 21, 5, 1000000.0]",
+ "routed": true,
+ "schema": 1,
+ "schematic_match": 0.9474,
+ "schematic_parts": 76,
+ "sort_key": [
+  1,
+  0,
+  1,
+  0,
+  9,
+  9,
+  1000000.0
+ ],
+ "source": "build/fresh-wave-night/pcie-8pin-2port/20260726T0721-periph-right-compact-s809.kicad_pcb",
+ "thermal": {
+  "ambient": 50.0,
+  "backend": "auto",
+  "cooling": "still-air (no case)",
+  "dT": 457.35,
+  "error": "INJECTION INCOMPLETE: 1/5 configured net(s) injected no current (/SENSEC2_LO) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "gate_dt": 30.0,
+  "grid_mm": 0.4,
+  "max_T": 507.35,
+  "nets_dropped": {
+   "/SENSEC2_LO": "src/sink on disconnected copper islands (open circuit -- no current injected)"
+  },
+  "nets_injected": 4,
+  "nets_requested": 5,
+  "ok": false
+ },
+ "updated": "2026-07-26T07:23:21",
+ "wave_out_root": "build/fresh-wave-night"
+}
