@@ -1989,7 +1989,8 @@ REAP_EXEMPT_PREFIXES = ("patch:", "manifold:", "pourfirst:", "pourplan:")
 
 
 def enumerate_winning(cands, vias, *, no_path_nets=(), gang_keep=None,
-                      locked_vias=()):
+                      locked_vias=(), pads=(), min_layers=None,
+                      net_amps=None):
     """SINGLE-OWNER WHITELIST (owner sharpening 2026-07-25, docs/slab-pour-
     design-2026-07-24.md: "if it finds a solution, all other pours that were
     made in pursuit of that solution get deleted unless they are specifically
@@ -2084,7 +2085,307 @@ def enumerate_winning(cands, vias, *, no_path_nets=(), gang_keep=None,
             dropped.append((d, "insurance patch -- solution does not use "
                                "%s at this shunt and no barrel needs cover"
                             % lay))
+    kept, _redundant = drop_redundant_layers(
+        kept, pads=pads, vias=list(vias or ()) +
+        [{"net": n, "x_mm": x, "y_mm": y} for (n, x, y) in (locked_vias or ())],
+        min_layers=min_layers, net_amps=net_amps)
+    dropped.extend(_redundant)
     return kept, dropped
+
+
+def _conn_set(poly, pts, layer=None):
+    """Connection points a polygon actually covers ON ITS OWN LAYER."""
+    return frozenset((round(x, 1), round(y, 1)) for (x, y, lay) in pts
+                     if (lay is None or layer is None or lay == layer)
+                     and poly.covers(_shp_point(x, y)))
+
+
+def _shp_point(x, y):
+    from shapely.geometry import Point
+    return Point(x, y)
+
+
+def layers_for_current(amps, width_mm, *, inner=True, dt_c=30.0, oz=1.0):
+    """How many parallel layers one net genuinely needs -- IPC-2221:
+    I = k * dT^0.44 * A^0.725  (A in mil^2, k=0.024 internal / 0.048 external).
+
+    This is the AMPACITY GUARD for drop_redundant_layers. Parallel copper laid
+    for current has the SAME connection set as its twin (that is what parallel
+    means), so the subset test would delete it as a duplicate without a real
+    number to stop it. dT 30C is the platform gate (spec 6.6); oz is the
+    finished copper weight of the layer class.
+    """
+    if not amps or amps <= 0 or not width_mm or width_mm <= 0:
+        return 1
+    a_mm2 = float(width_mm) * 0.0347 * float(oz)          # 1oz = 34.7um
+    a_mil2 = a_mm2 * 1550.0
+    k = 0.024 if inner else 0.048
+    per_layer = k * (float(dt_c) ** 0.44) * (a_mil2 ** 0.725)
+    if per_layer <= 0:
+        return 1
+    import math
+    return max(1, int(math.ceil(float(amps) / per_layer)))
+
+
+def drop_redundant_layers(kept, *, pads=(), vias=(), min_layers=None,
+                          net_amps=None):
+    """SINGLE-OWNER, APPLIED TO SOLUTION COPPER TOO (owner 2026-07-26: "it is
+    already gathered and good on the top layer -- why is it ALSO on the bottom
+    layer?").
+
+    enumerate_winning's own rules could never answer that. Solution lanes were
+    kept UNCONDITIONALLY on every layer, and the manifold `embeds_via` test is
+    satisfied on every layer a through-barrel passes, so an exact functional
+    copy of a zone (same pads, same barrels, different layer) always looked
+    load-bearing. Measured on the 24-pin s963 winner: /SENSE3V3_HI held SIX
+    zones over THREE layers, 1869mm2 for one 20A rail -- including an In2 copy
+    of the J3 manifold with byte-identical pads and barrels, and an In2 lane
+    touching no pad at all.
+
+    The test here is deliberately the CONSERVATIVE one: a zone is redundant
+    only when its whole connection set is a subset of ONE other kept same-net
+    zone. Subset-of-the-union would be unsound -- points spread across several
+    zones are not mutually connected the way one contiguous piece connects
+    them -- so this can never sever a bridge to save copper.
+
+    *min_layers*: {net: n} where current genuinely needs n parallel layers;
+    that many are kept before redundancy applies (the ampacity guard, so this
+    never trades a thermal requirement for tidiness).
+    """
+    from shapely.geometry import Polygon
+    min_layers = dict(min_layers or {})
+    # Pads are LAYER-AWARE: an SMD pad exists on exactly one copper layer, so
+    # an inner zone passing over it connects nothing. Modelling pads as bare
+    # points made an In2 copy look like it owned an F.Cu terminal -- which
+    # would have deleted the only zone actually touching the pad.
+    pts_by_net = {}                                        # net -> [(x,y,lay)]
+    _pad_only = {}
+    for _p in pads or ():
+        n, x, y = _p[0], _p[1], _p[2]
+        lay = _p[3] if len(_p) > 3 else None                # None = all layers
+        pts_by_net.setdefault(n, []).append((x, y, lay))
+        _pad_only.setdefault(n, set()).add((x, y, lay))
+    for v in vias or ():
+        pts_by_net.setdefault(v.get("net"), []).append(
+            (v.get("x_mm", 0.0), v.get("y_mm", 0.0), None))
+
+    by_net = {}
+    for i, d in enumerate(kept):
+        by_net.setdefault(d.get("net"), []).append(i)
+
+    drop_idx, reasons = set(), {}
+    for net, idxs in by_net.items():
+        if len(idxs) < 2:
+            continue
+        pts = pts_by_net.get(net) or []
+        if not pts:
+            continue
+        info = []
+        for i in idxs:
+            d = kept[i]
+            try:
+                p = Polygon(d.get("polygon") or ()).buffer(0)
+            except Exception:                              # noqa: BLE001
+                continue
+            if p.is_empty:
+                continue
+            _lay = d.get("layer", "F.Cu")
+            cs = _conn_set(p, pts, _lay)
+            _pp = [(q[1], q[2]) for q in (pads or ())
+                   if q[0] == net and (len(q) < 4 or q[3] is None
+                                       or q[3] == _lay)]
+            npads = sum(1 for (x, y) in _pp
+                        if (round(x, 1), round(y, 1)) in cs)
+            info.append((i, d, cs, npads, p.area))
+        # Own the net from the strongest piece down: real terminals first,
+        # then connection count, then area. A layer only survives past the
+        # ampacity floor by contributing a connection nothing else provides.
+        # Real terminals first, then OUTER layers (IPC k 0.048 vs 0.024 --
+        # an outer layer carries ~2x the same slab), then connection count,
+        # then area. Ranking by area alone let a larger inner copy outrank
+        # the outer zone and evict it.
+        info.sort(key=lambda t: (
+            -t[3],
+            0 if t[1].get("layer", "F.Cu") in ("F.Cu", "B.Cu") else 1,
+            -len(t[2]), -t[4]))
+        # AMPACITY FLOOR, judged against the OWNER's layer class. An external
+        # layer carries ~2x an internal one for the same slab (IPC-2221 k
+        # 0.048 vs 0.024), so a rail already gathered on F.Cu often needs no
+        # second layer at all -- which is why the 24-pin's 20A 3V3 had two
+        # copies it could not justify.
+        if net in min_layers:
+            floor = max(1, int(min_layers[net]))
+        else:
+            _o = info[0]
+            _lay = _o[1].get("layer", "F.Cu")
+            try:
+                _b = _o[1].get("polygon") or ()
+                _w = min(max(q[0] for q in _b) - min(q[0] for q in _b),
+                         max(q[1] for q in _b) - min(q[1] for q in _b))
+            except Exception:                              # noqa: BLE001
+                _w = 0.0
+            floor = layers_for_current(
+                (net_amps or {}).get(net, 0.0), _w,
+                inner=_lay not in ("F.Cu", "B.Cu"))
+        accepted = []
+        for (i, d, cs, npads, area) in info:
+            if len(accepted) < floor or not cs:
+                accepted.append((i, d, cs))
+                continue
+            host = next((hd for (_hi, hd, hcs) in accepted if cs <= hcs), None)
+            if host is not None:
+                drop_idx.add(i)
+                reasons[i] = ("redundant layer -- every connection (%d) is "
+                              "already made by %s on %s"
+                              % (len(cs), host.get("name"),
+                                 host.get("layer", "F.Cu")))
+            else:
+                accepted.append((i, d, cs))
+    out = [d for i, d in enumerate(kept) if i not in drop_idx]
+    dropped = [(kept[i], reasons[i]) for i in sorted(drop_idx)]
+    out, par = _drop_parallel_bridges(out, pts_by_net, min_layers, net_amps,
+                                      _pad_pts=_pad_only)
+    return out, dropped + par
+
+
+def _net_graph_connected(zones, pts):
+    """All of a net's terminals in ONE component, given these zones.
+
+    Zones join through a shared via barrel (any two layers a barrel passes) or
+    by overlapping on the same layer. A pad is a terminal held by any zone that
+    covers it on the pad's own layer.
+    """
+    from shapely.geometry import Polygon
+    polys = []
+    for d in zones:
+        try:
+            g = Polygon(d.get("polygon") or ()).buffer(0)
+        except Exception:                                  # noqa: BLE001
+            continue
+        if not g.is_empty:
+            polys.append((d.get("layer", "F.Cu"), g))
+    if not polys:
+        return False
+    parent = list(range(len(polys)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for i in range(len(polys)):
+        for j in range(i + 1, len(polys)):
+            li, gi = polys[i]
+            lj, gj = polys[j]
+            if li == lj:
+                if gi.intersects(gj):
+                    union(i, j)
+                continue
+            for (x, y, lay) in pts:                        # barrel: all layers
+                if lay is None and gi.covers(_shp_point(x, y)) \
+                        and gj.covers(_shp_point(x, y)):
+                    union(i, j)
+                    break
+    terms = set()
+    comps = set()
+    for (x, y, lay) in pts:
+        for i, (li, gi) in enumerate(polys):
+            if (lay is None or lay == li) and gi.covers(_shp_point(x, y)):
+                terms.add((round(x, 1), round(y, 1)))
+                comps.add(find(i))
+                break
+    return bool(terms) and len(comps) <= 1
+
+
+def _drop_parallel_bridges(kept, pts_by_net, min_layers, net_amps,
+                           _pad_pts=None):
+    """PARALLEL BRIDGES (owner 2026-07-26, the second half of "why is it ALSO
+    on the bottom layer?").
+
+    Two lanes of one net on different layers can each cover a barrel the other
+    does not, so neither is a subset of the other and the conservative pass
+    keeps both -- measured on the 24-pin s963 winner, where /SENSE3V3_HI kept a
+    1564mm2 In2 lane AND a 618mm2 B.Cu lane doing the same job.
+
+    Deciding this needs a CONNECTIVITY PROOF, not a set comparison: drop a lane
+    only when the net's terminals provably remain in one component without it,
+    and the ampacity floor still holds. That is sound where subset-of-the-union
+    was not.
+    """
+    _pad_pts = {k: set(v) for k, v in (_pad_pts or {}).items()}
+    by_net = {}
+    for i, d in enumerate(kept):
+        by_net.setdefault(d.get("net"), []).append(i)
+    drop, reasons = set(), {}
+    for net, idxs in by_net.items():
+        if len(idxs) < 2:
+            continue
+        pts = pts_by_net.get(net) or []
+        if not pts:
+            continue
+        live = list(idxs)
+        if not _net_graph_connected([kept[i] for i in live], pts):
+            continue                                       # already broken --
+            #   never "tidy" a net whose proof does not hold to begin with
+        floor = max(1, int(min_layers.get(net, 1))) if net in min_layers else 1
+        if net not in min_layers and (net_amps or {}).get(net):
+            widths = []
+            for i in live:
+                b = kept[i].get("polygon") or ()
+                if b:
+                    widths.append(min(max(q[0] for q in b) - min(q[0] for q in b),
+                                      max(q[1] for q in b) - min(q[1] for q in b)))
+            lay = kept[live[0]].get("layer", "F.Cu")
+            floor = layers_for_current(net_amps[net], max(widths) if widths else 0.0,
+                                       inner=lay not in ("F.Cu", "B.Cu"))
+        # WHICH copy dies matters as much as that one does. Try the weakest
+        # owner first: copper holding no real terminal, then inner layers
+        # (IPC k 0.024 vs 0.048 -- an outer layer carries ~2x), then the
+        # smaller piece. Without this the pass dropped the F.Cu manifold
+        # holding J3's pads and kept an inner lane, which is electrically
+        # legal through THT barrels but is the wrong owner on both counts.
+        _pads_only = [(x, y, lay) for (x, y, lay) in pts
+                      if (x, y, lay) in _pad_pts.get(net, ())]
+
+        def _holds_pad(i):
+            from shapely.geometry import Polygon
+            try:
+                g = Polygon(kept[i].get("polygon") or ()).buffer(0)
+            except Exception:                              # noqa: BLE001
+                return False
+            lay = kept[i].get("layer", "F.Cu")
+            return any((pl is None or pl == lay) and g.covers(_shp_point(px, py))
+                       for (px, py, pl) in _pads_only)
+
+        def _area(i):
+            from shapely.geometry import Polygon
+            try:
+                return Polygon(kept[i].get("polygon") or ()).buffer(0).area
+            except Exception:                              # noqa: BLE001
+                return 0.0
+
+        order = sorted(live, key=lambda i: (
+            1 if _holds_pad(i) else 0,
+            1 if kept[i].get("layer", "F.Cu") in ("F.Cu", "B.Cu") else 0,
+            _area(i)))
+        for i in order:
+            rest = [j for j in live if j != i]
+            if len({kept[j].get("layer", "F.Cu") for j in rest}) < floor:
+                continue                                   # ampacity floor
+            if len(rest) >= 1 and _net_graph_connected([kept[j] for j in rest], pts):
+                live = rest
+                drop.add(i)
+                reasons[i] = ("parallel bridge -- the net's terminals stay in "
+                              "one component without this %s lane"
+                              % kept[i].get("layer", "F.Cu"))
+    out = [d for i, d in enumerate(kept) if i not in drop]
+    return out, [(kept[i], reasons[i]) for i in sorted(drop)]
 
 
 def _nowhere_zone_verdict(zone_name, netname, clusters_hit):

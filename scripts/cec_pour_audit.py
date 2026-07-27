@@ -9,8 +9,13 @@ checked the same way instead of by ad-hoc scripts:
                     against the zone OUTLINE, not the fill -- the filler voids
                     around obstacles, so "nothing inside the fill" is true by
                     construction and proves nothing.
-  * SHAPE        -- diagonal (non-Manhattan) outline edges per producer. Every
-                    diagonal today came from a smoothing step, never the design.
+  * SHAPE        -- diagonal (non-Manhattan) edges in the FILL, not the outline.
+                    Measuring outlines reported diagonal=0 on 24 straight wave
+                    winners while the owner was looking at obvious diagonal
+                    blobs: the outlines ARE rectilinearised, so that number was
+                    true and meaningless. Only LONG (>=1mm) diagonals count --
+                    every filler emits short arc chords approximating clearance
+                    around pads (measured: 20422 sub-mm vs 13 real ones).
   * VIA ROWS     -- >=6 vias of one net strung along a line: the "fence" a layer
                     change must not become (it belongs in one compact array).
   * SHUNT GAP    -- copper inside a shunt's inter-pad tap gap, and force pours
@@ -60,6 +65,35 @@ def _zone_polys(z, lid, filled=False):
     return out
 
 
+def _fill_pts(z, lid):
+    """Filled-polygon vertex rings -- the copper that actually renders."""
+    try:
+        src = z.GetFilledPolysList(lid)
+    except Exception:                                      # noqa: BLE001
+        return []
+    out = []
+    for i in range(src.OutlineCount()):
+        o = src.Outline(i)
+        pts = [(o.CPoint(k).x / 1e6, o.CPoint(k).y / 1e6)
+               for k in range(o.PointCount())]
+        if len(pts) >= 3:
+            out.append(pts)
+    return out
+
+
+def _long_diag_edges(pts, tol=1e-6, min_len=1.0):
+    """Diagonal edges long enough to BE a shape rather than an arc chord."""
+    import math
+    n = len(pts)
+    c = 0
+    for i in range(n):
+        a, b_ = pts[i], pts[(i + 1) % n]
+        dx, dy = abs(b_[0] - a[0]), abs(b_[1] - a[1])
+        if dx > tol and dy > tol and math.hypot(dx, dy) >= min_len:
+            c += 1
+    return c
+
+
 def _diag_edges(pts, tol=1e-6):
     n = len(pts)
     return sum(1 for i in range(n - 1)
@@ -76,7 +110,7 @@ def audit(board_path):
 
     zones = []                                             # (net, lid, name, outline_u, fill_area)
     prod = collections.defaultdict(lambda: {"zones": 0, "verts": 0, "diagonal": 0,
-                                            "area": 0.0})
+                                            "fill_diagonal": 0, "area": 0.0})
     for z in b.Zones():
         if z.GetIsRuleArea():
             continue
@@ -96,6 +130,9 @@ def audit(board_path):
             for _g, pts in polys:
                 p["verts"] += len(pts)
                 p["diagonal"] += _diag_edges(pts)
+            # THE ONE THAT RENDERS: fill geometry, long edges only.
+            for pts in _fill_pts(z, lid):
+                p["fill_diagonal"] += _long_diag_edges(pts)
             zones.append((net, lid, name, unary_union([g for g, _ in polys]), fill))
         if fill <= 0.0:
             rep["dead_zones"].append({"name": name, "net": net, "reason": "zero fill"})
@@ -186,7 +223,7 @@ def audit(board_path):
 
 def summarise(rep):
     inc = rep["incursion"]
-    diag = sum(p["diagonal"] for p in rep["producers"].values())
+    diag = sum(p.get("fill_diagonal", 0) for p in rep["producers"].values())
     rows = rep["via_rows"]
     worst = rows[0] if rows else None
     return ("%-58s incursion(p/t/v)=%d/%d/%d  diagonal=%d  via_rows=%d%s  "
@@ -218,9 +255,9 @@ def main():
         print(summarise(rep), flush=True)
         if not a.quiet:
             for k, v in rep["producers"].items():
-                if v["diagonal"]:
-                    print("      %-14s %d diagonal edge(s) over %d zone(s)"
-                          % (k, v["diagonal"], v["zones"]))
+                if v.get("fill_diagonal"):
+                    print("      %-14s %d LONG diagonal fill edge(s) over %d zone(s)"
+                          % (k, v["fill_diagonal"], v["zones"]))
             for it in rep["incursion"]["items"][:5]:
                 print("      %s" % it)
             for r in rep["via_rows"][:3]:

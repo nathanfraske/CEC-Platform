@@ -7866,6 +7866,36 @@ def _oracle_hints_pours(board_path):
             _tc.warn_once("oracle_corridor_extend",
                           "corridor pad-extent extension skipped (%s)" % e)
         hints += _corr
+        # INNER-LAYER POUR REGIONS WERE NEVER RESERVED (owner 2026-07-26: the
+        # L3 pour "hitting a bunch of other random vias up to traces", and the
+        # "blocky diagonals"). The corridor keepout above is hardcoded to the
+        # OUTER pair, so every inner pour region was open ground -- measured on
+        # the 24-pin s963 winner: all 13 long diagonal fill edges sit exactly
+        # 0.60mm (= the clearance) from a foreign 45-degree track, and 9 of the
+        # 13 are on In2.Cu. The pour outlines are already 100% Manhattan; what
+        # renders as a diagonal blob is the filler correctly carving around
+        # traces that should never have been inside the reservation. Reserve
+        # what will be poured, on the layer it is poured on.
+        if os.environ.get("CEC_INNER_POUR_KEEPOUT", "1") == "1":
+            try:
+                _seen = set()
+                for _p in plan.pour_polygons():
+                    _lay = _p.get("layer", "F.Cu")
+                    if _lay in ("F.Cu", "B.Cu") or not _p.get("polygon"):
+                        continue
+                    _k = (_p.get("net"), _lay)
+                    if _k in _seen:
+                        continue
+                    _seen.add(_k)
+                    _xs = [q[0] for q in _p["polygon"]]
+                    _ys = [q[1] for q in _p["polygon"]]
+                    hints.append({"name": "corrin_%s_%s" % (_p.get("net"), _lay),
+                                  "x0": min(_xs), "y0": min(_ys),
+                                  "x1": max(_xs), "y1": max(_ys),
+                                  "layers": (_lay,)})
+            except Exception as e:                               # noqa: BLE001
+                _tc.warn_once("oracle_inner_pour_keepout",
+                              "inner pour keepout skipped (%s)" % e)
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
     # LOGO ROUTING KEEPOUT (owner 2026-07-15): the front copper art must see no
@@ -10363,10 +10393,22 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                                            else _ls[0])
             _no_path = [n for n, v in rep.items()
                         if not v.get("path_found", True)]
+            # Real terminals + spec currents so the single-owner pass can
+            # tell a redundant layer copy from parallel ampacity copper.
+            _pads_xy = [(pd.GetNetname(), pd.GetPosition().x / 1e6,
+                         pd.GetPosition().y / 1e6)
+                        for fp in board.GetFootprints() for pd in fp.Pads()]
+            _amps = {}
+            for _n in {d.get("net") for d in (list(lanes) + list(patches))}:
+                if not _n:
+                    continue
+                _a = spec_net_current(cfg.board, _n)
+                if _a:
+                    _amps[_n] = _a
             kept, _dropped = cec_slab_pour.enumerate_winning(
                 list(lanes) + list(patches), vias,
                 no_path_nets=_no_path, gang_keep=_gang_keep,
-                locked_vias=_locked_vias)
+                locked_vias=_locked_vias, pads=_pads_xy, net_amps=_amps)
             for (_dd, _why) in _dropped:
                 print("[pourfirst] %s: WHITELIST DROP %s (%s) -- %s"
                       % (label, _dd.get("name"), _dd.get("layer"), _why),
