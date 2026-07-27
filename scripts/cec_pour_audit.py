@@ -20,6 +20,11 @@ checked the same way instead of by ad-hoc scripts:
                     change must not become (it belongs in one compact array).
   * SHUNT GAP    -- copper inside a shunt's inter-pad tap gap, and force pours
                     running past their own pad (the pour-termination ruling).
+  * VIA SCATTER  -- barrels of one net sitting OUTSIDE its layer-change arrays.
+                    A layer change belongs in one compact array; measured on the
+                    24-pin s963 winner, /SENSE3V3_HI had two proper 12-via
+                    arrays plus four stragglers of 1/2/2/5 over 21mm -- the
+                    owner's "random vias ... up to traces".
   * DEAD ZONES   -- zero-fill or zero-contact pours.
 
 Usage:
@@ -203,6 +208,43 @@ def audit(board_path):
                                     "n": len(vs), "span": span})
     rep["via_rows"].sort(key=lambda r: -r["n"])
 
+    # ---- via scatter: barrels outside a net's real layer-change arrays
+    import math as _m
+    scatter = []
+    per_net = collections.defaultdict(list)
+    for t in b.GetTracks():
+        if t.GetClass() != "PCB_VIA" or t.GetNetname() == "GND":
+            continue
+        p_ = t.GetPosition()
+        per_net[t.GetNetname()].append((p_.x / 1e6, p_.y / 1e6))
+    # POURED NETS ONLY. A net routed as tracks legitimately scatters vias as it
+    # changes layers; the array rule is about a POUR's layer change. Counting
+    # every net made +3V3's 33 ordinary routing vias read as 33 defects.
+    _poured = {n for (n, _l, _nm, _g, _f) in zones}
+    for net, pts in per_net.items():
+        if len(pts) < 4 or net not in _poured:
+            continue
+        unseen = list(range(len(pts)))
+        groups = []
+        while unseen:                                      # single linkage @2mm
+            seed = unseen.pop(0)
+            grp, frontier = [seed], [seed]
+            while frontier:
+                i = frontier.pop()
+                for j in list(unseen):
+                    if _m.dist(pts[i], pts[j]) <= 2.0:
+                        unseen.remove(j)
+                        grp.append(j)
+                        frontier.append(j)
+            groups.append(grp)
+        sizes = sorted((len(g) for g in groups), reverse=True)
+        stray = sum(n for n in sizes if n < 4)             # not an array
+        if stray:
+            scatter.append({"net": net, "vias": len(pts), "groups": len(groups),
+                            "sizes": sizes[:6], "strays": stray})
+    scatter.sort(key=lambda r: -r["strays"])
+    rep["via_scatter"] = scatter
+
     # ---- shunt gap + terminate-at-the-pad
     try:
         import cec_fr
@@ -226,12 +268,14 @@ def summarise(rep):
     diag = sum(p.get("fill_diagonal", 0) for p in rep["producers"].values())
     rows = rep["via_rows"]
     worst = rows[0] if rows else None
+    stray = sum(r["strays"] for r in rep.get("via_scatter", ()))
     return ("%-58s incursion(p/t/v)=%d/%d/%d  diagonal=%d  via_rows=%d%s  "
-            "gap_intrusions=%d  dead=%d"
+            "stray_vias=%d  gap_intrusions=%d  dead=%d"
             % (os.path.basename(rep["board"])[:58], inc["parts"], inc["tracks"],
                inc["vias"], diag, len(rows),
                (" (worst %dx over %.0fmm)" % (worst["n"], worst["span"])) if worst else "",
-               len(rep["shunt"].get("intrusions", [])), len(rep["dead_zones"])))
+               stray, len(rep["shunt"].get("intrusions", [])),
+               len(rep["dead_zones"])))
 
 
 def main():
@@ -260,6 +304,9 @@ def main():
                           % (k, v["fill_diagonal"], v["zones"]))
             for it in rep["incursion"]["items"][:5]:
                 print("      %s" % it)
+            for r in rep.get("via_scatter", [])[:3]:
+                print("      via scatter: %s %d vias in %d groups %s -> %d stray"
+                      % (r["net"], r["vias"], r["groups"], r["sizes"], r["strays"]))
             for r in rep["via_rows"][:3]:
                 print("      via row: %d vias on %s=%.1f over %.1fmm [%s]"
                       % (r["n"], r["axis"], r["at"], r["span"], r["net"]))
