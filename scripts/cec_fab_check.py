@@ -160,6 +160,19 @@ def artifact_scan(board_path, r):
             continue
         net = z.GetNetname()
         nm = z.GetZoneName() or "?"
+        # ISLAND CHECK IS SKIPPED WHERE KICAD ALREADY GUARANTEES IT. Island
+        # removal mode 0 = ALWAYS REMOVE: the filler drops every fill fragment
+        # not connected to the net, so anything surviving IS connected and a
+        # geometric re-derivation here can only produce FALSE POSITIVES. It did:
+        # a proximity test over vias/pads read 16 "islands" on the 24-pin,
+        # including a 149mm2 fragment, and nearly sent a good repair back as a
+        # regression. Zones on mode 1 (never) or 2 (below area) are still
+        # checked -- there the guarantee does not hold.
+        _island_guarded = False
+        try:
+            _island_guarded = (z.GetIslandRemovalMode() == 0)
+        except Exception:                                  # noqa: BLE001
+            pass
         for lid in b.GetEnabledLayers().CuStack():
             if not z.IsOnLayer(lid):
                 continue
@@ -212,7 +225,7 @@ def artifact_scan(board_path, r):
                                                         (e_.x / 1e6, e_.y / 1e6)])):
                                 touched = True
                                 break
-                if not touched and g.area > 0.05:
+                if not touched and g.area > 0.05 and not _island_guarded:
                     out["islands"].append(
                         {"zone": nm, "net": net, "layer": pcbnew.LayerName(lid),
                          "area_mm2": round(g.area, 3),
