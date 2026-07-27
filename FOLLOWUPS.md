@@ -1243,3 +1243,11 @@ Conventions:
   the exclusion from the whole inflated footprint bbox to the PAD areas alone, so a connector
   keeps its escape but the strip still blocks pass-through routing. Not attempted this session
   — it changes routing behaviour and needs validating across several rounds.
+- [2026-07-27] CORRECTION to the edge-clearance row above: the proposed fix was TRIED AND
+  REVERTED. Narrowing the edge keepout's connector exclusion from the footprint bbox to the
+  PAD extents reserves 366.9mm2 vs 356.4mm2 — only 3% more — because a connector's pad field
+  is nearly as wide as its body. It cannot account for 8 violations, so it does not do what
+  it was written for and was not worth the code + env flag. Where the leak actually is stays
+  OPEN. Next probe: plot the offending track paths (/CAN_TX B.Cu, /5VSB_SENSE F.Cu) against
+  the emitted strip rects, to see whether they run through a connector window, past a padless
+  edge part, or whether the strips simply are not covering those layers.
