@@ -1227,3 +1227,9 @@ Conventions:
   So only the 24-pin reserves pours before placement; elsewhere the pour is drawn over the
   parts and nothing was "placed inside" anything. The audit now labels those rows `pour_over`
   and reports them as informational. ONLY the 24-pin's number is a defect count.
+- [2026-07-26] via-scatter metric cannot distinguish an ORPHAN barrel from a legitimate
+  track-joins-the-pour stitch. First non-zero reading of the chain was atx-24pin round 4:
+  +5VSB, 7 vias in groups [4,1,1,1] -> 3 "stray". On a net carrying both a pour and routed
+  tracks, a lone via where a track drops into the pour is correct. The metric earns its keep
+  on the large case (49 strays pre-fix, real) but small counts should not be chased. Sharpen
+  by checking whether the via terminates a track of the same net.
