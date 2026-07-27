@@ -883,13 +883,35 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     # margin routes as a track. IPC-2221: 0.25mm of 1oz outer carries ~1.3A, so
     # the floor is set where a pour starts to buy something real.
     _pour_floor = float(os.environ.get("CEC_POUR_MIN_AMPS", "1.5"))
-    _thin = [n for n in ask_nets
-             if 0.0 < (net_currents.get(n) or 0.0) < _pour_floor]
+
+    def _amps_of(n):
+        """The LARGER of the thermal overlay and the spec table.
+
+        Two reasons it is a max, not a preference. (1) The overlay carries only
+        the 9 heavy rails -- +3V3 is absent from it, so keying the gate on the
+        overlay alone left it INERT for the very net that motivated it
+        (measured). (2) The two sources DISAGREE where both have a value:
+        /SENSE5V_HI reads 25A in the overlay against the spec table's 20A
+        (the owner's 2026-07-26 ceiling), and +5VSB reads 5.0 vs 0.5. Skipping
+        a rail's copper on the smaller of two disagreeing numbers is the one
+        failure that is not recoverable later, so the gate takes the max and
+        the drift is an owner item rather than a silent pick.
+        """
+        a = float(net_currents.get(n) or 0.0)
+        try:
+            import cec_synth_pipeline as _csp
+            b = float(_csp.spec_net_current(
+                os.environ.get("CEC_THERMAL_BOARD_HINT", ""), n) or 0.0)
+        except Exception:                                  # noqa: BLE001
+            b = 0.0
+        return max(a, b)
+
+    _thin = [n for n in ask_nets if 0.0 < _amps_of(n) < _pour_floor]
     for _n in _thin:
         ask_nets.remove(_n)
         _e = _fail_entry(
             "no pour: %.2fA is below the %.2fA pour floor -- a track carries "
-            "it (CEC_POUR_MIN_AMPS)" % (net_currents.get(_n) or 0.0, _pour_floor))
+            "it (CEC_POUR_MIN_AMPS)" % (_amps_of(_n), _pour_floor))
         # NOT a failure: a deliberate skip must not read as no-path, or the v3
         # loud rule answers it with exactly the insurance copper this removes.
         _e["skipped"] = True

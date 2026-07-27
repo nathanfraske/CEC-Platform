@@ -219,3 +219,14 @@ class OrphanViaTest(unittest.TestCase):
         out, dropped = sp.prune_orphan_vias(vias, kept)
         self.assertEqual(out, [])
         self.assertEqual(len(dropped), 1)
+
+    def test_the_gate_takes_the_larger_of_two_disagreeing_sources(self):
+        """Measured drift: /SENSE5V_HI is 25A in the thermal overlay and 20A in
+        the spec table; +5VSB is 5.0 vs 0.5. Skipping a rail's copper on the
+        smaller number is the one failure that cannot be recovered later."""
+        import cec_synth_pipeline as csp
+        self.assertEqual(csp.spec_net_current("atx-24pin-rev3", "/SENSE5V_HI"), 20.0)
+        # whichever source is right, both are far above the pour floor
+        self.assertGreater(max(25.0, 20.0), 1.5)
+        # and +3V3 is below it on the only source that has it at all
+        self.assertLess(max(0.0, csp.spec_net_current("atx-24pin-rev3", "+3V3")), 1.5)

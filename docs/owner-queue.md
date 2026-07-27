@@ -707,3 +707,25 @@ frame the measurement assumed — every trial (y = 31, 32, 33, 34.5) failed earl
 `J1 1 pad(s) out of bounds`, where the unpinned board passes that same check. The
 anchor_pins coordinate convention needs establishing before pinning any connector this way;
 until then the board stays as it is rather than trading one refusal for an earlier one.
+
+## 2026-07-26 — DECISION NEEDED: two current tables disagree on the 24-pin rails
+
+Found while wiring the pour-eligibility gate (a rail a track carries should not get a
+plane). Two sources feed current-dependent decisions and they do not agree:
+
+| net | `cec_thermal_overlay` | `spec_net_current` |
+|---|---|---|
+| `/SENSE5V_HI` | **25.0 A** | **20.0 A** |
+| `+5VSB` | **5.0 A** | **0.5 A** |
+| `/SENSE5V_LO` | absent | 20.0 A |
+| `+3V3` | absent | 0.25 A |
+
+The spec table encodes your 2026-07-26 ruling ("the most we're going to see is like 20A on
+3v3 and 5V"); the overlay's 25 A predates it. The `+5VSB` gap is larger and may not be drift
+at all — 0.5 A reads like the module's own standby draw while 5.0 A reads like the
+pass-through rail, i.e. two different quantities sharing a name.
+
+Nothing was silently reconciled. The pour gate takes the **larger** of the two, so a rail can
+never lose copper to the smaller of two disagreeing numbers. But the two tables also feed
+THERMAL gates, where max() is not automatically the right rule, so this needs your call:
+which table is authoritative per quantity, and is `+5VSB` one net or two?
