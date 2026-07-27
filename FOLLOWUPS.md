@@ -1233,3 +1233,13 @@ Conventions:
   tracks, a lone via where a track drops into the pour is correct. The metric earns its keep
   on the large case (49 strays pre-fix, real) but small counts should not be chased. Sharpen
   by checking whether the via terminates a track of the same net.
+- [2026-07-27] EDGE-CLEARANCE root cause on the hub (recurs by round: 9/3/0/6 hits). The
+  route-time edge keepout (cec_fr.edge_keepout, margin 1.25mm = rule 0.5 + half the widest
+  1.5mm class) is correct, but it EXCLUDES the inflated bounding boxes of edge-resident
+  footprints (J*/H*) so connector pads stay routable — and FR routes ordinary signals THROUGH
+  those windows to reach the edge. Measured offenders on the s2009 winner: /CAN_TX on B.Cu,
+  /5VSB_SENSE on F.Cu, at 0.3882mm against our 0.5mm rule. NOTE these are HOUSE-RULE only:
+  JLCPCB needs 0.20mm, so they are fab-safe (cec_fab_check reads FAB OK). Fix to try: narrow
+  the exclusion from the whole inflated footprint bbox to the PAD areas alone, so a connector
+  keeps its escape but the strip still blocks pass-through routing. Not attempted this session
+  — it changes routing behaviour and needs validating across several rounds.
