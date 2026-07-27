@@ -8,7 +8,7 @@ set -u
 OUT=build/fresh-wave-hub
 mkdir -p build/hub-night "$OUT"
 B=hub-standard-rev2
-SEED=${SEED:-2000}
+SEED=${SEED:-3000}
 ROUNDS=${ROUNDS:-10}
 for ROUND in $(seq 1 $ROUNDS); do
   echo "########## HUB ROUND $ROUND (seeds $SEED,$((SEED+1))) $(date '+%H:%M') ##########"
