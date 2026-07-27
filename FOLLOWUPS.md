@@ -1211,3 +1211,12 @@ Conventions:
 - [2026-07-25] SWIG capsule dropper still unidentified — the pin (scripts/cec_swig_guard.py) makes the hub failure unreachable, but WHO tears down `swig_runtime_data4.type_pointer_capsule` mid-route is unknown. Observation is self-defeating (a watcher holding the capsule to compare identity IS a pin, so the run completes). Needs a non-strong-reference observer if a related symptom ever reappears; not worth chasing while the pin holds.
 - [2026-07-25] `/etc/systemd/system/cec-backup.timer:9` has `Persistent=true` followed by an inline comment — systemd fails to parse the boolean and IGNORES it ("Failed to parse boolean value"), so the backup timer will NOT catch up a run missed while the box was off. One-line fix: move the comment to its own line. Found incidentally via systemd-analyze verify while installing the dashboard unit.
 - [2026-07-25] Committed beta PCBs are stale relative to what the waves route (measured): 12vhpwr beta PCB = the 2026-06-05 hand-routed proto (moved into beta/ on 07-22, now also carrying the hand-placed ingress parts); atx-24pin-rev3 committed = 73 parts/28 tracks vs its wave board's 127 parts/618 tracks; eps/pcie2/pcie3/eps-rev3 committed = placement-only, 0 tracks; hub-standard-rev2 + argb have no committed PCB at all. Wave boards are synthesized from the schematic netlist, so they pick up new parts (hub wave carries all 8 ingress refs with no committed PCB to inherit from). Owner decision owed: whether wave winners get promoted back into beta/ as the board of record, and what beta/12vhpwr-standard's alpha-era copper should be.
+- [2026-07-26] 24-pin incursion still 127 pads / 103 tracks / 173 vias on the s963 winner
+  even after inner-layer pour reservation — the placer still seats parts inside laid pours
+  (`pourplan:+3V3` holds U11, RS2, U612V1 pads). The inner-layer keepout fixes the ROUTER
+  half; the PLACER half (pour-avoidance + redo loop, owner 2026-07-25 "nothing places
+  inside a pour") is still the open architectural rung. Resume: docs/owner-queue.md.
+- [2026-07-26] `pourplan:+3V3` on In2 (391mm2) survives single-owner as its net's owner but
+  is the last producer still emitting long diagonal fill edges (5 of 13). Worth checking
+  whether +3V3 (LDO-fed, 0.25A) needs an inner region at all, or whether it should be a
+  thin route — a 391mm2 inner slab for a quarter-amp logic rail looks unjustified.
