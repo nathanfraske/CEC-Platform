@@ -1,9 +1,9 @@
 {
  "board": "hub-standard-rev2",
- "commit": "9b963b41",
+ "commit": "3956a248",
  "grade": {
   "diffpair_ok": true,
-  "drc": 10,
+  "drc": 5,
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -14,13 +14,11 @@
   "kelvin_ok": true,
   "rails": null,
   "thermal_ok": false,
-  "unconn_critical": [
-   "GND"
-  ],
-  "unconnected": 32
+  "unconn_critical": [],
+  "unconnected": 16
  },
- "label": "plain-dataflow-s272",
- "reason": "carries more of the current schematic (100% vs 90% of 115 parts)",
+ "label": "plain-compact-s3000",
+ "reason": "sort_key [1, 0, 0, 0, 16, 5, 1000000.0] < [1, 0, 1, 0, 32, 10, 1000000.0]",
  "routed": true,
  "schema": 1,
  "schematic_match": 1.0,
@@ -28,36 +26,35 @@
  "sort_key": [
   1,
   0,
-  1,
   0,
-  32,
-  10,
+  0,
+  16,
+  5,
   1000000.0
  ],
- "source": "build/fresh-wave-hubfix/hub-standard-rev2/20260725T1709-plain-dataflow-s272.kicad_pcb",
+ "source": "build/fresh-wave-hub/hub-standard-rev2/20260727T1554-plain-compact-s3000.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
   "backend": "auto",
   "cooling": "still-air (no case)",
-  "dT": 4.43,
-  "error": "INJECTION INCOMPLETE: 8/11 configured net(s) injected no current (+5VSB, /5VSB_RAW, /PSU_5V, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4, GND) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "dT": 7.25,
+  "error": "INJECTION INCOMPLETE: 7/11 configured net(s) injected no current (+5VSB, /PSU_5V, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
   "gate_dt": 30.0,
   "grid_mm": 0.4,
-  "max_T": 54.43,
+  "max_T": 57.25,
   "nets_dropped": {
    "+5VSB": "no src/sink terminals on copper",
-   "/5VSB_RAW": "src/sink on disconnected copper islands (open circuit -- no current injected)",
    "/PSU_5V": "no src/sink terminals on copper",
+   "/USB_VBUS": "src/sink on disconnected copper islands (open circuit -- no current injected)",
    "/VCC_P1": "no src/sink terminals on copper",
    "/VCC_P2": "no src/sink terminals on copper",
    "/VCC_P3": "no src/sink terminals on copper",
-   "/VCC_P4": "no src/sink terminals on copper",
-   "GND": "src/sink on disconnected copper islands (open circuit -- no current injected)"
+   "/VCC_P4": "no src/sink terminals on copper"
   },
-  "nets_injected": 3,
+  "nets_injected": 4,
   "nets_requested": 11,
   "ok": false
  },
- "updated": "2026-07-25T17:27:02",
- "wave_out_root": "build/fresh-wave-hubfix"
+ "updated": "2026-07-27T15:55:45",
+ "wave_out_root": "build/fresh-wave-hub"
 }
