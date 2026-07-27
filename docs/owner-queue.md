@@ -842,6 +842,19 @@ itself and we need to improve it." The hub has F.Cu + SIG2 + B.Cu routable with 
 GND plane, and 76 closures find no room. That is a board-level issue -- placement density or
 the layer budget -- not a router-effort issue, so more waves will not close it.
 
+WHERE the congestion is (measured, so this is actionable rather than "the board is dense"):
+23 of the 32 gaps sit in TWO clusters.
+
+  * n=13 at x 45.7-65.7 / y 39.4-66.0 -- the south-centre band, mixed signals
+    (GND x3, /EN, /TEMP_HUB, /MAIN_5V_SENSE, /LED_DATA).
+  * n=10 in a 5 x 8mm box at x 23.4-28.5 / y 60.9-69.0 -- and the nets name it:
+    /PSU_5V x3, /PSU_5V_KVM x2, /U11_OV1, GND x2, /AUX_UART_RX. That is the
+    USB-BACKFEED INGRESS CLUSTER (U11's TPS2121 third cascade stage + the KVM
+    priority path, spec v1.6.0). Ten unroutable gaps in 40mm2.
+
+So the single densest failure is the newest circuit on the board. That is the first place to
+buy room, and it is a much smaller change than a stackup.
+
 RECOMMENDED next move (needs your call, since it is a design change): relieve congestion
 rather than re-roll seeds. Options in rough order of cost: (a) revisit the placement
 constraints that pack the power/ingress cluster, (b) give the hub a 6-layer stackup, (c)
