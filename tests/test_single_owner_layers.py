@@ -230,3 +230,18 @@ class OrphanViaTest(unittest.TestCase):
         self.assertGreater(max(25.0, 20.0), 1.5)
         # and +3V3 is below it on the only source that has it at all
         self.assertLess(max(0.0, csp.spec_net_current("atx-24pin-rev3", "+3V3")), 1.5)
+
+    def test_the_floor_skips_additive_distribution_floods(self):
+        """A pour floor is about AMPACITY. Where floods are post-route additive
+        they also carry CONNECTIVITY (power_pickup stitches pads into them), so
+        gating one strands pads -- measured on the hub, gating /USB_VBUS at 0.5A
+        left J_USB's four VBUS pads unable to reach C10/D6."""
+        asks = [{"net": "/USB_VBUS", "evac": False},
+                {"net": "+3V3", "evac": True}]
+        additive = {a.get("net") for a in asks if a.get("evac") is False}
+        floor = 1.5
+        amps = {"/USB_VBUS": 0.5, "+3V3": 0.25}
+        thin = [n for n in ("/USB_VBUS", "+3V3")
+                if n not in additive and 0.0 < amps[n] < floor]
+        self.assertEqual(thin, ["+3V3"],
+                         "only the non-additive rail may lose its pour")

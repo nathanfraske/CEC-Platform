@@ -906,7 +906,17 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             b = 0.0
         return max(a, b)
 
-    _thin = [n for n in ask_nets if 0.0 < _amps_of(n) < _pour_floor]
+    # NOT WHERE THE POUR IS THE NET'S DISTRIBUTION MECHANISM (2026-07-27).
+    # The floor exists to stop a low-current rail claiming a territory REGION on
+    # a pour-first board (+3V3's 391mm2 In2 slab). Where floods are post-route
+    # ADDITIVE they also carry CONNECTIVITY -- that is why power_pickup stitches
+    # pads into their covering flood -- so gating one strands pads. Measured on
+    # the hub: gating /USB_VBUS at 0.5A left J_USB's four VBUS pads unable to
+    # reach C10/D6, eight of the board's sixteen remaining gaps. An ask with
+    # evac False is an additive flood; leave it alone.
+    _additive = {a.get("net") for a in asks if a.get("evac") is False}
+    _thin = [n for n in ask_nets
+             if n not in _additive and 0.0 < _amps_of(n) < _pour_floor]
     for _n in _thin:
         ask_nets.remove(_n)
         _e = _fail_entry(
