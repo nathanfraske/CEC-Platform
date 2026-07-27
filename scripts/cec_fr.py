@@ -4265,6 +4265,44 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
 # ---------------------------------------------------------------------------
 # normalize_via_annular -- fix Freerouting's thin-annular vias
 # ---------------------------------------------------------------------------
+def normalize_track_width(board, *, tol_mm: float = 0.005) -> int:
+    """Snap tracks that land a hair UNDER the board minimum width back onto it.
+
+    Freerouting works on its own grid and the DSN/SES round-trip can return a
+    track a fraction of a micron short: measured on the hub candidate, 5 of
+    ~1900 tracks came back at 0.1998mm against a 0.2000mm minimum -- stubs as
+    short as 12um, on /MAIN_5V_RAW and /USB_VBUS. Every one is a `track_width`
+    DRC ERROR, so a 0.2um rounding artifact is a hard fab-gate blocker that no
+    amount of reseeding clears.
+
+    Only tracks already within *tol_mm* of the minimum are touched, and only
+    upward to exactly the minimum: at 0.2um the change cannot create a
+    clearance violation, while a blanket widen would (the same trap
+    normalize_via_annular documents for via enlargement). A track genuinely
+    thinner than the tolerance is left alone -- that is a real design fault and
+    must stay visible. Returns the number of tracks repaired.
+    """
+    import pcbnew
+    try:
+        min_w = board.GetDesignSettings().m_TrackMinWidth / MM
+    except Exception:                                      # noqa: BLE001
+        return 0
+    if min_w <= 0:
+        return 0
+    fixed = 0
+    for t in board.GetTracks():
+        if t.GetClass() != "PCB_TRACK":
+            continue
+        try:
+            w = t.GetWidth() / MM
+        except Exception:                                  # noqa: BLE001
+            continue
+        if w < min_w and (min_w - w) <= tol_mm:
+            t.SetWidth(int(round(min_w * MM)))
+            fixed += 1
+    return fixed
+
+
 def normalize_via_annular(board, *, min_annular: float = 0.10,
                           target_annular: float = 0.12, min_drill: float = 0.30) -> int:
     """Repair vias whose annular ring is below *min_annular* (mm).
@@ -4998,6 +5036,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         add_power_pours(board, power_pours, fill=False)
     if fix_annular:
         normalize_via_annular(board)
+        _nw = normalize_track_width(board)
+        if _nw:
+            print("[fr] normalized %d sub-minimum track width(s)" % _nw,
+                  file=sys.stderr)
     if fill_zones:
         # UnFill first: re-filling an already-filled multi-layer zone in one process can
         # segfault this KiCad-10 SWIG build (see cec_route.py fill()).
