@@ -1220,3 +1220,12 @@ Conventions:
   is the last producer still emitting long diagonal fill edges (5 of 13). Worth checking
   whether +3V3 (LDO-fed, 0.25A) needs an inner region at all, or whether it should be a
   thin route — a 391mm2 inner slab for a quarter-amp logic rail looks unjustified.
+- [2026-07-26] METRIC QUESTION, unresolved: is the cable boards' incursion count real? Their
+  residual is 100% `uniform_stamp` (pcie-2port: 21 pads, identical across two seeds — C21,
+  C41, C44, C6, C7, J_IN1, J_IN2, SW2, U2), NOT the `patch`/Kelvin case the 24-pin has.
+  `uniform_stamp` is a PourPlan pass and `PourPlan.from_board()` reads an ALREADY-PLACED
+  board, so if those regions are derived post-placement then nothing was "placed inside a
+  pour" — the pour was drawn over the parts, and the audit over-reports (same class of error
+  as the outline-vs-fill bug fixed today). Resolve by checking whether the cable boards run
+  the pour-first skeleton path (cec_pourfirst.py drops footprints first) or plan off the
+  placed board. Do NOT scope eviction work on these numbers until that is settled.
