@@ -1251,3 +1251,14 @@ Conventions:
   OPEN. Next probe: plot the offending track paths (/CAN_TX B.Cu, /5VSB_SENSE F.Cu) against
   the emitted strip rects, to see whether they run through a connector window, past a padless
   edge part, or whether the strips simply are not covering those layers.
+- [2026-07-27] HUB POWER-FLOOD ALLOCATION LOOKS BROKEN, and it is not the pour-eligibility
+  gate. Latest winner (s2018) vs the incumbent (s272), In2 flood areas:
+  /MAIN_5V_RAW 87 -> 4504mm2 (~73% of an 88x70 board, for a 2.5A rail), +5VSB 478 -> 13mm2,
+  /PSU_5V 238 -> ABSENT, /USB_VBUS 15 -> absent. Only /USB_VBUS is explained: at 0.5A it is
+  correctly below the 1.5A pour floor and routes as a track. The other three are NOT gated
+  (+5VSB and /PSU_5V read 3.0A, /MAIN_5V_RAW 2.5A) so something in territory allocation is
+  letting one net claim the whole inner layer and starve its siblings -- the same shape as the
+  owner's 2026-07-12 "massive pour for a net that won't take that much power". Next probe:
+  dump the per-net region asks and the planner's allocation on one hub run, and compare the
+  claimed area against each rail's spec current. NOTE this is separate from (and was masked
+  by) the inner-keepout regression fixed today.
