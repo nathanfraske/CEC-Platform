@@ -1280,8 +1280,10 @@ Conventions:
   same shape as the owner's 2026-07-12 massive-pour complaint. Probe: dump the slab region
   competition in cec_slab_pour.synthesize_slab_pours for one hub run and see what makes one
   ask absorb the free area instead of each taking a share proportional to its current.
-- [2026-07-27] /USB_VBUS has NO slab zone on the hub even after the pour-floor scoping fix
-  (s3006 carries slab:+5VSB, /5VSB_RAW, /MAIN_5V_RAW, /PSU_5V, /VCC_P1-4 -- no /USB_VBUS).
-  The incumbent s272 HAD it at 14.6mm2. Separate from the allocation defect above and still
-  unexplained; it strands J_USB's four VBUS pads (8 of the board's unconnected items). Check
-  whether /USB_VBUS is still in the hub's generated ask list at all.
+- [2026-07-27] /USB_VBUS's missing slab is NOT a separate defect -- it is the SAME
+  winner-takes-all allocation. The hub asks for 10 slabs (+5VSB, /5VSB_RAW, /PSU_5V,
+  /MAIN_5V_RAW, /USB_VBUS, /+5V_HOLD, /VCC_P1-4) and s3006 produced 8: the two missing are
+  /USB_VBUS and /+5V_HOLD, the TAIL of the list. Asks are processed heaviest-first, one rail
+  absorbs ~4300mm2, and the lightest asks arrive with no free area left -- /USB_VBUS at 0.5A
+  starves every time, stranding J_USB's four VBUS pads. ONE fix (proportional allocation)
+  closes both rows.
