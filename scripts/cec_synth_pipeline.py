@@ -10409,6 +10409,16 @@ def pour_first_stage(session, *, out_dir=None, label=None, artifact=True):
                 list(lanes) + list(patches), vias,
                 no_path_nets=_no_path, gang_keep=_gang_keep,
                 locked_vias=_locked_vias, pads=_pads_xy, net_amps=_amps)
+            # A via that existed only to feed a zone we just dropped is now a
+            # barrel to nowhere -- exactly the "random vias" the owner sees, and
+            # a defect this pass would otherwise CREATE while removing copper.
+            vias, _orphan_vias = cec_slab_pour.prune_orphan_vias(
+                vias, kept, locked_vias=_locked_vias)
+            if _orphan_vias:
+                print("[pourfirst] %s: pruned %d via(s) orphaned by the "
+                      "single-owner pass" % (label, len(_orphan_vias)),
+                      file=sys.stderr)
+                report["orphan_vias"] = len(_orphan_vias)
             for (_dd, _why) in _dropped:
                 print("[pourfirst] %s: WHITELIST DROP %s (%s) -- %s"
                       % (label, _dd.get("name"), _dd.get("layer"), _why),

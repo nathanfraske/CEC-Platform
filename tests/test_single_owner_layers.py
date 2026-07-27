@@ -183,3 +183,39 @@ class PourEligibilityTest(unittest.TestCase):
         e["path_found"] = True
         no_path = [n for n, v in {"+3V3": e}.items() if not v.get("path_found", True)]
         self.assertEqual(no_path, [])
+
+
+class OrphanViaTest(unittest.TestCase):
+    """Removing a layer strands the barrels that fed it -- the tidy-up must not
+    CREATE the "random vias" defect while removing copper."""
+
+    def test_a_via_feeding_only_a_dropped_layer_is_pruned(self):
+        kept = [z("f", "/N", "F.Cu", rect(0, 0, 20, 10))]
+        vias = [{"net": "/N", "x_mm": 10.0, "y_mm": 5.0}]
+        out, dropped = sp.prune_orphan_vias(vias, kept)
+        self.assertEqual(out, [], "one layer of copper cannot need a barrel")
+        self.assertEqual(len(dropped), 1)
+
+    def test_a_via_joining_two_kept_layers_survives(self):
+        kept = [z("f", "/N", "F.Cu", rect(0, 0, 20, 10)),
+                z("i", "/N", "In2.Cu", rect(0, 0, 20, 10))]
+        vias = [{"net": "/N", "x_mm": 10.0, "y_mm": 5.0}]
+        out, dropped = sp.prune_orphan_vias(vias, kept)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(dropped, [])
+
+    def test_locked_barrels_are_never_pruned(self):
+        """Force-array barrels are PLACED copper, not inferred."""
+        kept = [z("f", "/N", "F.Cu", rect(0, 0, 20, 10))]
+        vias = [{"net": "/N", "x_mm": 10.0, "y_mm": 5.0}]
+        out, _ = sp.prune_orphan_vias(vias, kept,
+                                      locked_vias=[("/N", 10.0, 5.0)])
+        self.assertEqual(len(out), 1)
+
+    def test_a_via_outside_every_kept_zone_is_pruned(self):
+        kept = [z("f", "/N", "F.Cu", rect(0, 0, 20, 10)),
+                z("i", "/N", "In2.Cu", rect(0, 0, 20, 10))]
+        vias = [{"net": "/N", "x_mm": 50.0, "y_mm": 50.0}]
+        out, dropped = sp.prune_orphan_vias(vias, kept)
+        self.assertEqual(out, [])
+        self.assertEqual(len(dropped), 1)

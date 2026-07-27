@@ -2105,6 +2105,43 @@ def _shp_point(x, y):
     return Point(x, y)
 
 
+def prune_orphan_vias(vias, kept, *, locked_vias=()):
+    """Drop barrels the single-owner pass just orphaned.
+
+    Removing a redundant layer STRANDS the vias that only existed to feed it --
+    a barrel to nowhere, which is precisely the "random vias" complaint and a
+    defect the tidy-up would otherwise create. A via survives if it still joins
+    kept copper on two or more layers, or if it is locked (force-array barrels
+    are placed copper, never inferred).
+
+    Returns (kept_vias, dropped_vias).
+    """
+    from shapely.geometry import Polygon
+    locked = {(round(x, 1), round(y, 1)) for (_n, x, y) in (locked_vias or ())}
+    by_net = {}
+    for d in kept or ():
+        try:
+            g = Polygon(d.get("polygon") or ()).buffer(0)
+        except Exception:                                  # noqa: BLE001
+            continue
+        if not g.is_empty:
+            by_net.setdefault(d.get("net"), []).append(
+                (d.get("layer", "F.Cu"), g))
+    out, dropped = [], []
+    for v in vias or ():
+        x, y = v.get("x_mm", 0.0), v.get("y_mm", 0.0)
+        if (round(x, 1), round(y, 1)) in locked:
+            out.append(v)
+            continue
+        pt = _shp_point(x, y)
+        lays = {lay for (lay, g) in by_net.get(v.get("net"), ()) if g.covers(pt)}
+        if len(lays) >= 2:
+            out.append(v)
+        else:
+            dropped.append(v)
+    return out, dropped
+
+
 def layers_for_current(amps, width_mm, *, inner=True, dt_c=30.0, oz=1.0):
     """How many parallel layers one net genuinely needs -- IPC-2221:
     I = k * dT^0.44 * A^0.725  (A in mil^2, k=0.024 internal / 0.048 external).
