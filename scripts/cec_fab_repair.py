@@ -160,8 +160,40 @@ def repair_zones(board, *, sliver_mm=0.10, do_priority=True, do_island=True):
     return {"min_thickness": n_thick, "island_mode": n_isl, "priority": n_pri}
 
 
+def repair_starved_thermal(board, *, fill_prefixes=("gndfill:",)):
+    """R6: stop a SUPPLEMENTARY leftover fill from claiming pads it cannot serve.
+
+    Measured on the hub: every `starved_thermal` error is a THT GND pad getting
+    one spoke instead of two (or a spoke into an isolated island) from
+    `gndfill:In2.Cu` -- the leftover-space GND fill on the SIGNAL inner layer.
+    Those pads are NOT poorly connected: In1.Cu is a solid GND plane and a THT
+    barrel pierces it. The supplementary fill is simply claiming pads it has no
+    room to give proper thermal spokes to.
+
+    So the fill is switched to pad connection NONE: it stays as fill copper
+    joined through the stitching vias, and stops forming starved spokes. Applied
+    ONLY to zones whose name marks them as this kind of fill -- never to a
+    board's real plane, where removing pad connection WOULD strand pads.
+    """
+    n = 0
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        nm = z.GetZoneName() or ""
+        if not nm.startswith(fill_prefixes):
+            continue
+        try:
+            import pcbnew
+            if z.GetPadConnection() != pcbnew.ZONE_CONNECTION_NONE:
+                z.SetPadConnection(pcbnew.ZONE_CONNECTION_NONE)
+                n += 1
+        except Exception:                                  # noqa: BLE001
+            continue
+    return n
+
+
 def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
-           do_island=True):
+           do_island=True, do_starved=True):
     """ONE board load, with removals strictly LAST.
 
     Two SWIG constraints on this KiCad-10 build drive the ordering, both
@@ -184,6 +216,7 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
     rep["track_width"] = cec_fr.normalize_track_width(b)
     rep.update(repair_zones(b, sliver_mm=sliver_mm, do_priority=do_priority,
                             do_island=do_island))
+    rep["starved"] = repair_starved_thermal(b) if do_starved else 0
     if apply:
         for z in b.Zones():
             z.UnFill()
@@ -203,6 +236,7 @@ def main():
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--no-priority", action="store_true")
     ap.add_argument("--no-island", action="store_true")
+    ap.add_argument("--no-starved", action="store_true")
     ap.add_argument("--json", default="")
     a = ap.parse_args()
     out = []
@@ -211,12 +245,13 @@ def main():
             print("MISSING %s" % bp)
             continue
         r = repair(bp, sliver_mm=a.sliver, apply=a.apply,
-                   do_priority=not a.no_priority, do_island=not a.no_island)
+                   do_priority=not a.no_priority, do_island=not a.no_island,
+                   do_starved=not a.no_starved)
         out.append(r)
         print("%-46s tracks=%-3d backtracks=%-3d min_thick=%-3d islands=%-3d "
-              "priority=%-3d %s"
+              "priority=%-3d starved=%-3d %s"
               % (os.path.basename(bp)[:46], r["track_width"], r["backtracks"],
-                 r["min_thickness"], r["island_mode"], r["priority"],
+                 r["min_thickness"], r["island_mode"], r["priority"], r.get("starved", 0),
                  "APPLIED" if r["applied"] else "(dry run)"), flush=True)
     if a.json:
         with open(a.json, "w") as fh:
