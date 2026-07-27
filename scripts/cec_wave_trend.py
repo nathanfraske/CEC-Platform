@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Consolidate a wave chain's audit lines into a per-board trend.
 
+NOTE the filename pattern is deliberately loose: the audit prints names through
+%-58s, so a long label arrives TRUNCATED mid-extension ("...-s994-polish.ki").
+Anchoring on `.kicad_pcb` silently dropped exactly those rows -- pcie read n=3
+when four rounds had landed, and the one missing row was the only one that
+disagreed with the others.
+
 A chain emits one audit line per winner per round; read individually they say
 nothing about whether a fix HOLDS ACROSS SEEDS, which is the only question a
 multi-round chain exists to answer. This groups them by board and shows the
@@ -13,7 +19,8 @@ import re
 import sys
 
 ROW = re.compile(
-    r"^(?P<f>\S+\.kicad_pcb)\s+incursion\(p/t/v\)=(?P<p>\d+)/(?P<t>\d+)/(?P<v>\d+)\s+"
+    r"^(?P<f>\S+)\s+(?P<tag>incursion|pour_over)"
+    r"\(p/t/v\)=(?P<p>\d+)/(?P<t>\d+)/(?P<v>\d+)\s+"
     r"diagonal=(?P<d>\d+)\s+via_rows=(?P<vr>\d+).*?stray_vias=(?P<sv>\d+)\s+"
     r"gap_intrusions=(?P<gi>\d+)\s+dead=(?P<dz>\d+)")
 
@@ -33,8 +40,10 @@ def main(path):
         cur = board_of(line, cur)
         m = ROW.match(line.strip())
         if m:
-            rows[cur].append({k: int(m.group(k))
-                              for k in ("p", "t", "v", "d", "vr", "sv", "gi", "dz")})
+            r = {k: int(m.group(k))
+                 for k in ("p", "t", "v", "d", "vr", "sv", "gi", "dz")}
+            r["tag"] = m.group("tag")
+            rows[cur].append(r)
     if not rows:
         print("no audit rows yet")
         return 0
@@ -49,9 +58,12 @@ def main(path):
             vs = [r[k] for r in rs]
             return "%d" % vs[0] if len(set(vs)) == 1 else "%d-%d" % (min(vs), max(vs))
 
-        print("%-18s %-3d %-11s %-11s %-11s %-7s %-7s %-5s %s"
+        # Only a pour-first board's overlap count is a DEFECT count; elsewhere
+        # the pour is drawn over already-placed parts (see cec_pour_audit).
+        tag = "" if all(r["tag"] == "incursion" for r in rs) else "  (pour_over)"
+        print("%-18s %-3d %-11s %-11s %-11s %-7s %-7s %-5s %s%s"
               % (b[:18], len(rs), rng("p"), rng("t"), rng("v"), rng("d"),
-                 rng("sv"), rng("gi"), rng("dz")))
+                 rng("sv"), rng("gi"), rng("dz"), tag))
     return 0
 
 
