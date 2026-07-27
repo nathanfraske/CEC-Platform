@@ -873,6 +873,28 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             pour_dicts.extend(man_by_net[_mn])
     patch_dicts = guaranteed_shunt_patches(board)
 
+    # POUR ELIGIBILITY (owner 2026-07-26: "is it on the wrong netclass?" for the
+    # L3 slab crossing the rightmost shunt). It was not a netclass problem --
+    # net_currents only ORDERED the asks, it never decided whether a net earns a
+    # region at all, so +3V3 (LDO-fed, 0.25A per the spec table) drew a 391mm2
+    # In2 slab spanning x 22.9-60.5 / y 18.9-34.9: across the shunt row, over
+    # RS1, swallowing U11 / RS2 / U612V1 pads, and the last producer still
+    # emitting long diagonal fill edges. A rail a plain track carries with
+    # margin routes as a track. IPC-2221: 0.25mm of 1oz outer carries ~1.3A, so
+    # the floor is set where a pour starts to buy something real.
+    _pour_floor = float(os.environ.get("CEC_POUR_MIN_AMPS", "1.5"))
+    _thin = [n for n in ask_nets
+             if 0.0 < (net_currents.get(n) or 0.0) < _pour_floor]
+    for _n in _thin:
+        ask_nets.remove(_n)
+        _e = _fail_entry(
+            "no pour: %.2fA is below the %.2fA pour floor -- a track carries "
+            "it (CEC_POUR_MIN_AMPS)" % (net_currents.get(_n) or 0.0, _pour_floor))
+        # NOT a failure: a deliberate skip must not read as no-path, or the v3
+        # loud rule answers it with exactly the insurance copper this removes.
+        _e["skipped"] = True
+        _e["path_found"] = True
+        report[_n] = _e
     # net order: heavier rails first (they claim In2 first), then name
     order = sorted(ask_nets,
                    key=lambda n: (-(net_currents.get(n) or 0.0), n))

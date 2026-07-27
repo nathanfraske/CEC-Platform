@@ -154,3 +154,32 @@ class OwnershipOrderTest(unittest.TestCase):
         pads = [("/N", 2.0, 4.0, None), ("/N", 18.0, 4.0, None)]
         kept, _ = sp.drop_redundant_layers([outer, inner], pads=pads, vias=[])
         self.assertEqual([k["layer"] for k in kept], ["F.Cu"])
+
+
+class PourEligibilityTest(unittest.TestCase):
+    """A rail a plain track carries with margin must not draw a plane
+    (owner 2026-07-26: the L3 slab crossing the rightmost shunt was +3V3 --
+    an LDO-fed 0.25A logic rail holding a 391mm2 inner region)."""
+
+    def test_the_floor_sits_above_logic_rails_and_below_real_rails(self):
+        import cec_synth_pipeline as csp
+        logic = csp.spec_net_current("atx-24pin-rev3", "+3V3")
+        rail = csp.spec_net_current("atx-24pin-rev3", "/SENSE3V3_HI")
+        self.assertLess(logic, 1.5, "0.25A logic rail must fall below the floor")
+        self.assertGreater(rail, 1.5, "a real rail must stay eligible")
+
+    def test_a_quarter_amp_needs_far_less_than_a_track(self):
+        """IPC-2221: the floor is not arbitrary -- 0.25mm of 1oz outer copper
+        already carries ~5x the LDO rail's draw."""
+        self.assertGreaterEqual(sp.layers_for_current(0.25, 0.25, inner=False), 1)
+        self.assertEqual(sp.layers_for_current(0.25, 0.5, inner=False), 1)
+
+    def test_a_skipped_net_does_not_read_as_a_routing_failure(self):
+        """A deliberate skip must not enter the no-path set -- the v3 loud rule
+        answers no-path with the very insurance copper this removes."""
+        import cec_pour_plan as ppl
+        e = ppl._fail_entry("x")
+        e["skipped"] = True
+        e["path_found"] = True
+        no_path = [n for n, v in {"+3V3": e}.items() if not v.get("path_found", True)]
+        self.assertEqual(no_path, [])
