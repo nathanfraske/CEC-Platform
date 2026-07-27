@@ -729,3 +729,24 @@ Nothing was silently reconciled. The pour gate takes the **larger** of the two, 
 never lose copper to the smaller of two disagreeing numbers. But the two tables also feed
 THERMAL gates, where max() is not automatically the right rule, so this needs your call:
 which table is authoritative per quantity, and is `+5VSB` one net or two?
+
+## 2026-07-26 — incursion decomposed: it is THREE problems, not one
+
+The 24-pin's "incursion 127/103/173" has been quoted as a single number. Measured by kind
+and layer on the s963 winner it splits into three items with different owners:
+
+| kind | layer | n | owner |
+|---|---|---|---|
+| pad | F.Cu | 102 | PLACER — parts seated inside laid pours |
+| via | In2 / B.Cu / F.Cu | 93 / 47 / 33 | ROUTER — inner reservation just landed, expect movement |
+| track | F.Cu / In2 | 92 / 11 | ROUTER — same |
+
+By producer, the biggest pad group is **`patch` (69)** — the guaranteed shunt patches. Those
+sit exactly where the Kelvin rule REQUIRES the sense IC to be, hard against the shunt's inner
+edge. So most of the placer-side number is not a part that wandered into a pour; it is the
+"placements literally cannot work without a pour incursion" case you named on 2026-07-25,
+where the answer is to redo the POUR (leave the tap window), not evict the part.
+
+That matters for sequencing: an eviction-only fix would fight the Kelvin gate and lose. The
+work is a pour-redo loop, and it should be scoped against these three numbers separately so
+progress is visible instead of averaged into one figure.
