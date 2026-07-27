@@ -7876,7 +7876,19 @@ def _oracle_hints_pours(board_path):
         # renders as a diagonal blob is the filler correctly carving around
         # traces that should never have been inside the reservation. Reserve
         # what will be poured, on the layer it is poured on.
-        if os.environ.get("CEC_INNER_POUR_KEEPOUT", "1") == "1":
+        # NOT ON A BOARD WHOSE INNER LAYER IS A ROUTING LAYER (regression fix,
+        # 2026-07-27). Reserving inner pour regions is right for a POUR-FIRST
+        # board, where the pour really is there when the router runs. It is
+        # WRONG for a board whose inner floods are post-route ADDITIVE: the hub
+        # declares inner_gnd_fill and asks for In2-only pours with evac False,
+        # and its power rung depends on In2 being EMPTY at route time -- "a true
+        # third routing layer" (owner, 2026-07-23). Reserving it took that layer
+        # away and the hub went from 32 unconnected to a 46-60 band across ten
+        # seeds. A board that declares an inner GND fill is telling us that
+        # layer is for ROUTING, filled afterwards.
+        _inner_is_routing = bool(os.environ.get("CEC_INNER_GND_FILL"))
+        if (os.environ.get("CEC_INNER_POUR_KEEPOUT", "1") == "1"
+                and not _inner_is_routing):
             try:
                 _seen = set()
                 for _p in plan.pour_polygons():
