@@ -1,0 +1,38 @@
+#!/bin/bash
+# HUB FAB PUSH (owner 2026-07-27: "focus on just the Hub and get that fab ready").
+# The hub is routing-hard -- winners historically land at unconn 7-36 and the
+# candidate sits at 32 with 5 severity-error track_width. Fab-ready needs ZERO
+# unconnected and zero severity-error DRC, so this runs at HIGH effort (passes 40 /
+# opt 60 vs the 16/20 default) over many seeds rather than many cheap rounds.
+set -u
+OUT=build/fresh-wave-hub
+mkdir -p build/hub-night "$OUT"
+B=hub-standard-rev2
+SEED=${SEED:-2000}
+ROUNDS=${ROUNDS:-10}
+for ROUND in $(seq 1 $ROUNDS); do
+  echo "########## HUB ROUND $ROUND (seeds $SEED,$((SEED+1))) $(date '+%H:%M') ##########"
+  python3 scripts/cec_fresh_wave.py --boards "$B" --seeds "$SEED,$((SEED+1))" \
+      --passes 40 --opt 60 --out "$OUT" --work /tmp/wave-hub 2>&1 \
+    | grep -E '\[wave\]|pour termination|force lanes|POUR INCURSION|candidate:'
+  W=$(ls -t "$OUT/$B"/*.kicad_pcb 2>/dev/null | head -1)
+  if [ -n "$W" ]; then
+    echo "----- ROUND $ROUND AUDIT -----"
+    python3 scripts/cec_pour_audit.py "$W" --quiet 2>&1 | grep -v Debug:
+    # THE FAB GATE: zero unconnected + zero severity-error DRC.
+    kicad-cli pcb drc --severity-error --format json -o /tmp/hubgate.json "$W" >/dev/null 2>&1
+    python3 - "$W" <<'PY'
+import json, sys, collections
+d = json.load(open('/tmp/hubgate.json'))
+v = d.get("violations") or []
+u = d.get("unconnected_items") or []
+print("FABGATE %-46s unconnected=%-4d drc_error=%-3d %s"
+      % (sys.argv[1].split('/')[-1][:46], len(u), len(v),
+         "*** FAB READY ***" if not u and not v else
+         "|".join("%s:%d" % kv for kv in
+                  collections.Counter(x.get("type") for x in v).most_common(4))))
+PY
+  fi
+  SEED=$((SEED+2))
+done
+echo "########## HUB CHAIN DONE $(date '+%H:%M') ##########"
