@@ -829,9 +829,10 @@ Where the hub stands after this session:
     **FAB OK** -- fab_drc 0, slivers 0, islands 0, 3 non-blocking acid traps. Repairs run
     automatically at every wave publish now.
   * CONNECTIVITY: **WALL**, and it is not a seed problem. Two independent attempts:
-      - RESAMPLE at high effort (passes 40 / opt 60, ~2.5x default): round 1 = 46
-        unconnected, round 2 = 60, against the incumbent candidate's 32. Regenerating the
-        board is a lottery the incumbent already won over hundreds of prior runs.
+      - RESAMPLE at high effort (passes 40 / opt 60, ~2.5x default), TEN ROUNDS COMPLETE:
+        46, 60, 48, 57, 49, 52, 49, 55, 265 (a failed placement), 53. BEST OF CHAIN = 46,
+        against the incumbent candidate's 32. Ten seeds, not one came close. Regenerating
+        the board is a lottery the incumbent already won over hundreds of prior runs.
       - POLISH the incumbent: `synthesize_lastmile` at max_mm 8 / cap 120 attempted 76
         closures and closed **ZERO** -- every one refused by the foreign-collision guard.
         The gaps are not distance gaps or missing vias; there is no clear path for them.
