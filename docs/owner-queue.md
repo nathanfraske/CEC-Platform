@@ -820,7 +820,25 @@ ALSO FIXED, and worth knowing: the candidate/ directories carry NO .kicad_dru, s
 there sees 5 violations where the same board with its rules has 20. The hub fab gate now
 REFUSES to grade a board with no .kicad_dru beside it rather than reporting a clean pass.
 
-## 2026-07-27 — hub fab push: DRC side solved, connectivity is a board-level wall
+## 2026-07-27 — RETRACTED: the hub's "board-level wall" was MY OWN REGRESSION
+
+**Do not act on the analysis below. The design decision it asks you for is withdrawn.**
+
+The wall was an inner-layer pour keepout I added on 2026-07-26. It reserves inner pour
+regions from the router -- correct on a pour-first board (it removed the 24-pin's In2
+diagonals) but WRONG on the hub, whose floods are post-route additive and whose power rung
+depends on In2 being empty at route time, "a true third routing layer" (your words,
+2026-07-23). I handed the router two layers instead of three.
+
+Every piece of evidence in the analysis below was produced AFTER that change: the ten seeds
+at 46-60, the 76/76 lastmile refusals, the ingress-cluster localization. With the keepout
+scoped correctly, the FIRST seed routed to **16 unconnected with fab_drc 0 -- FAB OK**. That
+is half the incumbent's 32 and the best this board has ever produced (historical band 7-36).
+
+No placement change is needed. The original text is kept below unedited, per the
+no-silent-rewrite rule, as the record of how the wrong conclusion was reached.
+
+## 2026-07-27 — [SUPERSEDED, see retraction above] hub fab push: DRC side solved, connectivity is a board-level wall
 
 Where the hub stands after this session:
 
