@@ -1448,6 +1448,25 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         except Exception as _ce:                            # noqa: BLE001
             print(f"[wave] {board} publish hygiene skipped ({_ce})",
                   flush=True)
+    # FAB REPAIR (owner 2026-07-27: "wire it in so that those things are actually
+    # fixed instead of just acting as a gate with no teeth"). Runs on the
+    # PUBLISHED artifact, after the hygiene chain, so the candidate reference and
+    # anything sent to a fab house carry the repaired copper. Only the
+    # deterministic, connectivity-safe repairs: sub-minimum track widths snapped
+    # to the floor, duplicate/backtrack segments removed, zone priorities
+    # deconflicted. Fail-safe -- a repair problem must never lose a routed board.
+    if os.environ.get("CEC_FAB_REPAIR", "1") == "1" and src \
+            and os.path.isfile(str(dst)):
+        try:
+            import cec_fab_repair
+            _fr = cec_fab_repair.repair(str(dst), apply=True)
+            if _fr.get("track_width") or _fr.get("backtracks") or _fr.get("priority"):
+                print("[wave] %s fab repair: %d width, %d backtrack, %d priority"
+                      % (board, _fr["track_width"], _fr["backtracks"],
+                         _fr["priority"]), flush=True)
+        except Exception as _fe:                            # noqa: BLE001
+            print(f"[wave] {board} fab repair skipped ({type(_fe).__name__}: {_fe})",
+                  flush=True)
     new_best = _new_best_thermal(best, pub_dir, _bp)
     # CURRENT-BEST REFERENCE (owner directive 2026-07-25): mirror the published
     # winner into beta/<board>/candidate/ so every module has ONE stable, current

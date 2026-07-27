@@ -38,6 +38,16 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# SWIG REGISTRY PIN -- see scripts/cec_swig_guard.py. Without it, a repeated
+# LoadBoard in one process starts returning a bare SwigPyObject instead of a
+# BOARD (the hub all-9999 root cause), and every attribute access dies.
+try:
+    import pcbnew as _pcbnew
+    import cec_swig_guard as _swig_guard
+    _swig_guard.pin()
+except Exception:                                          # noqa: BLE001
+    pass
+
 # --------------------------------------------------------------------------
 # FAB PROFILES -- a vendor's stated capability, NOT our design intent.
 # JLCPCB standard process (the repo's fab -- BOM outputs are *-jlcpcb.csv).

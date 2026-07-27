@@ -18,6 +18,10 @@ for ROUND in $(seq 1 $ROUNDS); do
   W=$(ls -t "$OUT/$B"/*.kicad_pcb 2>/dev/null | head -1)
   if [ -n "$W" ]; then
     echo "----- ROUND $ROUND AUDIT -----"
+    # FAB PROFILE CHECK: vendor capability, not our intent rules (see
+    # scripts/cec_fab_check.py -- our DRC checks the board against its own
+    # .kicad_pro/.kicad_dru, which on these boards set min_clearance 0.0).
+    python3 scripts/cec_fab_check.py "$W" --quiet 2>&1 | grep -v Debug:
     python3 scripts/cec_pour_audit.py "$W" --quiet 2>&1 | grep -v Debug:
     # THE FAB GATE: zero unconnected + zero severity-error DRC.
     # The .kicad_dru MUST travel with the board. Measured 2026-07-27: the
