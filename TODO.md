@@ -533,4 +533,5 @@ Times are UTC.
 - [x] [added 2026-07-26 19:54] single-owner across solution copper (the 3-layer /SENSE3V3_HI) · done 2026-07-26 19:54
 - [x] [added 2026-07-26 19:54] reserve inner-layer pour regions from the router (the In2 diagonals) · done 2026-07-26 19:54
 - [x] [added 2026-07-26 19:54] audit measures FILL diagonals, not outlines (diagonal=0 was meaningless) · done 2026-07-26 19:54
-- [ ] [added 2026-07-26 19:54] validate the three pour fixes on a live wave chain (seeds 980+)
+- [x] [added 2026-07-26 19:54] validate the three pour fixes on a live wave chain (seeds 980+) · done 2026-07-26 04:10
+- [x] [added 2026-07-26 23:09] wave chain validated the 5 pour fixes over 6 rounds x 4 boards · done 2026-07-26 23:09

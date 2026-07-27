@@ -750,3 +750,24 @@ where the answer is to redo the POUR (leave the tap window), not evict the part.
 That matters for sequencing: an eviction-only fix would fight the Kelvin gate and lose. The
 work is a pour-redo loop, and it should be scoped against these three numbers separately so
 progress is visible instead of averaged into one figure.
+
+## 2026-07-26 — pour-fix validation: 6 rounds x 4 boards, seeds 990-1001
+
+| board | n | pads | tracks | vias | diag | stray | gap | dead |
+|---|---|---|---|---|---|---|---|---|
+| eps-8pin | 6 | 2-6 | 0-9 | 1-5 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| pcie-8pin-2port | 6 | 9-21 | 2-9 | 5-12 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| 12vhpwr-standard | 6 | 0 | 0 | 0 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| atx-24pin-rev3 | 6 | 69-72 | 53-78 | 13-32 | 3-5 | 0-5 | 0 | 0 | REAL |
+
+Verified on ALL SIX 24-pin winners, not one sample: `+3V3` never pours (the 391mm2 In2 slab
+across the shunt row is gone) and `/SENSE3V3_HI` never touches In2 -- 2-3 zones at
+~350-415mm2 on F.Cu+B.Cu, against six zones on three layers at 1869mm2 before. EPS
+connectivity held (unconn 24 vs a 21-24 pre-fix band) with kelvin_ok intact, so reclaiming
+~3900mm2 of copper cost nothing.
+
+STILL OPEN, unchanged by this work: the 24-pin's 69-72 pad incursions are a structural floor
+(five seeds, no movement), ~69 of them `patch` pads where the Kelvin rule requires the sense
+IC. That needs the pour-REDO loop -- carving the patch reservation at PLAN time around the
+sense IC's required seat. Carving it after placement would only redefine the region to match
+reality and make the metric meaningless, which is why it was not done as a quick fix.
