@@ -9,6 +9,16 @@ checked the same way instead of by ad-hoc scripts:
                     against the zone OUTLINE, not the fill -- the filler voids
                     around obstacles, so "nothing inside the fill" is true by
                     construction and proves nothing.
+
+                    ONLY MEANINGFUL ON A POUR-FIRST BOARD. The rule is about
+                    copper RESERVED BEFORE placement; where the plan is derived
+                    from an already-placed board the pour is drawn over the
+                    parts and nothing was "placed inside" anything. Measured:
+                    pcie-8pin-2port has ZERO pour-first snapshots and its whole
+                    residual (21 pads, identical across seeds) is `uniform_stamp`
+                    over ordinary caps/connectors/a button -- reported as
+                    pour_over, not as a defect. The 24-pin does run pour-first
+                    (973 snapshots), so its count is real.
   * SHAPE        -- diagonal (non-Manhattan) edges in the FILL, not the outline.
                     Measuring outlines reported diagonal=0 on 24 straight wave
                     winners while the owner was looking at obvious diagonal
@@ -179,8 +189,25 @@ def audit(board_path):
                 if g.intersects(_box(p_.x / 1e6 - 0.45, p_.y / 1e6 - 0.45,
                                      p_.x / 1e6 + 0.45, p_.y / 1e6 + 0.45)):
                     n_vias += 1
+    # A board ran pour-first iff it carries frozen pour-first geometry. Without
+    # that, its pours were planned around parts already on the board and the
+    # overlap is not an incursion -- reporting it as one invents defects.
+    # Detect by PRODUCER, not by the presence of one name: the single-owner
+    # pass can drop every `pourfirst:`-named zone (its manifold usually wins
+    # ownership), which made a name check call the 24-pin pour_over. The freeze
+    # producers are pourfirst/patch/manifold/pourplan; `uniform_stamp` is the
+    # plan-off-a-placed-board flow. Measured: 24-pin = patch/manifold/pourplan,
+    # eps + pcie = uniform_stamp only.
+    _RESERVED = ("pourfirst:", "patch:", "manifold:", "pourplan:")
+    pourfirst_board = any(str(nm).startswith(_RESERVED)
+                          for (_n, _l, nm, _g, _f) in zones)
+    rep["pourfirst"] = pourfirst_board
     rep["incursion"] = {"parts": n_parts, "tracks": n_tracks, "vias": n_vias,
-                        "items": items[:20]}
+                        "reserved": pourfirst_board, "items": items[:20]}
+    if not pourfirst_board:
+        rep["incursion"]["note"] = ("pour_over: this board does not reserve "
+                                    "pours before placement -- counts are "
+                                    "informational, not defects")
 
     # ---- via rows (a layer change must be an array, not a fence)
     byline = collections.defaultdict(list)
@@ -269,10 +296,11 @@ def summarise(rep):
     rows = rep["via_rows"]
     worst = rows[0] if rows else None
     stray = sum(r["strays"] for r in rep.get("via_scatter", ()))
-    return ("%-58s incursion(p/t/v)=%d/%d/%d  diagonal=%d  via_rows=%d%s  "
+    tag = "incursion" if rep.get("pourfirst") else "pour_over"
+    return ("%-58s %s(p/t/v)=%d/%d/%d  diagonal=%d  via_rows=%d%s  "
             "stray_vias=%d  gap_intrusions=%d  dead=%d"
-            % (os.path.basename(rep["board"])[:58], inc["parts"], inc["tracks"],
-               inc["vias"], diag, len(rows),
+            % (os.path.basename(rep["board"])[:58], tag, inc["parts"],
+               inc["tracks"], inc["vias"], diag, len(rows),
                (" (worst %dx over %.0fmm)" % (worst["n"], worst["span"])) if worst else "",
                stray, len(rep["shunt"].get("intrusions", [])),
                len(rep["dead_zones"])))
