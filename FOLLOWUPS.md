@@ -1262,3 +1262,12 @@ Conventions:
   dump the per-net region asks and the planner's allocation on one hub run, and compare the
   claimed area against each rail's spec current. NOTE this is separate from (and was masked
   by) the inner-keepout regression fixed today.
+- [2026-07-27] CORRECTION: I attributed 8 of the hub's 16 gaps (J_USB's VBUS pads) to my
+  pour-eligibility floor gating /USB_VBUS at 0.5A. That was WRONG. After scoping the floor to
+  skip additive floods, the flood is STILL absent (measured on s3004: /USB_VBUS 0.0mm2,
+  /PSU_5V 0.0mm2, +5VSB 12.4mm2, /MAIN_5V_RAW 4324.9mm2). The hub's asks all carry
+  evac: False, so the floor never gated them. The real cause is the FLOOD ALLOCATION item
+  above -- one rail claiming the whole inner layer and starving its siblings -- and that is
+  what strands the VBUS pads. The floor scoping is still correct on its own merits (an
+  additive flood carries connectivity, so it should never be gated for ampacity) but it is
+  NOT the fix for these gaps. Treat the allocation probe as the live thread.
