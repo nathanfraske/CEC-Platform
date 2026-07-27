@@ -861,3 +861,30 @@ rather than re-roll seeds. Options in rough order of cost: (a) revisit the place
 constraints that pack the power/ingress cluster, (b) give the hub a 6-layer stackup, (c)
 accept a documented residual and hand-finish the last gaps in the GUI. The wave chain keeps
 running meanwhile, but on this evidence it is buying little.
+
+## 2026-07-27 — 24-pin: J3's PADS ARE ON THE BOARD EDGE (fab-blocking, placement fix)
+
+Running the fab-house profile over the CURRENT-code 24-pin winner (s1000) leaves 13 findings,
+and 12 of them are one fault: **J3 pins 1-8 (PTH pads, /SENSE3V3_HI, /SENSE5V_HI, GND,
+/ATX_PWROK) sit at 0.0000mm copper-to-edge.** JLCPCB needs 0.20mm. As drawn, the routing bit
+cuts through the connector's own pads at depanelization -- the board cannot be built.
+
+Cause is placement, not copper: J3 is seated with edge OVERHANG (correct by doctrine -- the
+cable must seat without fouling the board) but has gone far enough that the PADS crossed the
+cut line, not just the body. No copper repair can fix this; the part needs seating ~0.3mm+
+inboard so its pads clear the edge while the shroud still overhangs.
+
+CONTEXT WORTH NOTING: today's pour work already fixed most of this board's fabricability.
+Stale candidate (s390) vs current-code winner (s1000), both after fab repair:
+
+| | s390 (the stored reference) | s1000 (current pipeline) |
+|---|---|---|
+| fab DRC | 55 | 13 |
+| slivers | 19 | 0 |
+| acid traps | 14 | 0 |
+| clearance @70um | 8 | 0 |
+
+So the 70um copper-to-copper and the sliver field are ALREADY GONE from what the pipeline
+produces now -- they survive only in the stored candidate, which the ranking keeps because it
+has better unconnected (114 vs 127). That is the same stale-reference problem raised on
+2026-07-26: the reference you open is not what the pipeline builds.
