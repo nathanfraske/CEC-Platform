@@ -535,3 +535,8 @@ Times are UTC.
 - [x] [added 2026-07-26 19:54] audit measures FILL diagonals, not outlines (diagonal=0 was meaningless) · done 2026-07-26 19:54
 - [x] [added 2026-07-26 19:54] validate the three pour fixes on a live wave chain (seeds 980+) · done 2026-07-26 04:10
 - [x] [added 2026-07-26 23:09] wave chain validated the 5 pour fixes over 6 rounds x 4 boards · done 2026-07-26 23:09
+- [x] [added 2026-07-27 03:06] hub: clear the fab DRC gate (Power-width rule lag, 20 -> 0) · done 2026-07-27 03:06
+- [x] [added 2026-07-27 03:06] fab-house capability checker (cec_fab_check) across all boards · done 2026-07-27 03:06
+- [x] [added 2026-07-27 03:06] fab REPAIR wired into every wave publish (4 classes, R4 withdrawn) · done 2026-07-27 03:06
+- [ ] [added 2026-07-27 03:06] hub connectivity wall: ingress-cluster placement relief (OWNER decision, owner-queue)
+- [ ] [added 2026-07-27 03:06] edge-keepout connector windows let signals reach the edge (FOLLOWUPS)
