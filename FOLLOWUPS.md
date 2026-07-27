@@ -1271,3 +1271,17 @@ Conventions:
   what strands the VBUS pads. The floor scoping is still correct on its own merits (an
   additive flood carries connectivity, so it should never be gated for ampacity) but it is
   NOT the fix for these gaps. Treat the allocation probe as the live thread.
+- [2026-07-27] HUB FLOOD ALLOCATION IS WINNER-TAKES-ALL — confirmed across seeds, and it is
+  the live defect. One rail always claims ~4300mm2 of In2 and the rest get scraps; WHICH rail
+  wins varies by seed. Measured: s3004 /MAIN_5V_RAW 4324.9 while /PSU_5V had no slab at all;
+  s3006 /PSU_5V 4296.8 while /MAIN_5V_RAW fell to 8.3 and +5VSB got 93.5. So /PSU_5V's earlier
+  "disappearance" was it LOSING the lottery, not a permanent fault, and the rails are not
+  being sized against their design-basis currents at all (all four are 2.0-3.0A). This is the
+  same shape as the owner's 2026-07-12 massive-pour complaint. Probe: dump the slab region
+  competition in cec_slab_pour.synthesize_slab_pours for one hub run and see what makes one
+  ask absorb the free area instead of each taking a share proportional to its current.
+- [2026-07-27] /USB_VBUS has NO slab zone on the hub even after the pour-floor scoping fix
+  (s3006 carries slab:+5VSB, /5VSB_RAW, /MAIN_5V_RAW, /PSU_5V, /VCC_P1-4 -- no /USB_VBUS).
+  The incumbent s272 HAD it at 14.6mm2. Separate from the allocation defect above and still
+  unexplained; it strands J_USB's four VBUS pads (8 of the board's unconnected items). Check
+  whether /USB_VBUS is still in the hub's generated ask list at all.
