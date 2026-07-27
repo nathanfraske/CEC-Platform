@@ -819,3 +819,31 @@ widened instead.
 ALSO FIXED, and worth knowing: the candidate/ directories carry NO .kicad_dru, so DRC run
 there sees 5 violations where the same board with its rules has 20. The hub fab gate now
 REFUSES to grade a board with no .kicad_dru beside it rather than reporting a clean pass.
+
+## 2026-07-27 — hub fab push: DRC side solved, connectivity is a board-level wall
+
+Where the hub stands after this session:
+
+  * FAB SIDE: **SOLVED**. Severity-error DRC 20 -> 0 (the `Power min width` rule lag,
+    ratify row above), and against a JLCPCB capability profile the repaired board reads
+    **FAB OK** -- fab_drc 0, slivers 0, islands 0, 3 non-blocking acid traps. Repairs run
+    automatically at every wave publish now.
+  * CONNECTIVITY: **WALL**, and it is not a seed problem. Two independent attempts:
+      - RESAMPLE at high effort (passes 40 / opt 60, ~2.5x default): round 1 = 46
+        unconnected, round 2 = 60, against the incumbent candidate's 32. Regenerating the
+        board is a lottery the incumbent already won over hundreds of prior runs.
+      - POLISH the incumbent: `synthesize_lastmile` at max_mm 8 / cap 120 attempted 76
+        closures and closed **ZERO** -- every one refused by the foreign-collision guard.
+        The gaps are not distance gaps or missing vias; there is no clear path for them.
+
+Both results point the same way, and they meet YOUR OWN acceptance bar for this board
+(2026-07-23): "If it cannot route with 3 separate routable layers, there is an issue with it
+itself and we need to improve it." The hub has F.Cu + SIG2 + B.Cu routable with In1 a solid
+GND plane, and 76 closures find no room. That is a board-level issue -- placement density or
+the layer budget -- not a router-effort issue, so more waves will not close it.
+
+RECOMMENDED next move (needs your call, since it is a design change): relieve congestion
+rather than re-roll seeds. Options in rough order of cost: (a) revisit the placement
+constraints that pack the power/ingress cluster, (b) give the hub a 6-layer stackup, (c)
+accept a documented residual and hand-finish the last gaps in the GUI. The wave chain keeps
+running meanwhile, but on this evidence it is buying little.
