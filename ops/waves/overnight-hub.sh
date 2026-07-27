@@ -20,6 +20,16 @@ for ROUND in $(seq 1 $ROUNDS); do
     echo "----- ROUND $ROUND AUDIT -----"
     python3 scripts/cec_pour_audit.py "$W" --quiet 2>&1 | grep -v Debug:
     # THE FAB GATE: zero unconnected + zero severity-error DRC.
+    # The .kicad_dru MUST travel with the board. Measured 2026-07-27: the
+    # candidate dir carries no .kicad_dru, so DRC there saw 5 violations while
+    # the same board with its rules has 20 -- the 15 extra are 'Power min width'
+    # (0.5mm) hits on /USB_VBUS, /PSU_5V, +5VSB, /MAIN_5V_RAW. A gate that
+    # cannot see the rules would have called this board fab-ready.
+    cp -f "beta/$B/$B.kicad_dru" "${W%.kicad_pcb}.kicad_dru" 2>/dev/null
+    if [ ! -f "${W%.kicad_pcb}.kicad_dru" ]; then
+      echo "FABGATE ABORT: no .kicad_dru beside $W -- refusing to grade blind"
+      continue
+    fi
     kicad-cli pcb drc --severity-error --format json -o /tmp/hubgate.json "$W" >/dev/null 2>&1
     python3 - "$W" <<'PY'
 import json, sys, collections

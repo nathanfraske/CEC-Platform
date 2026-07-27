@@ -794,3 +794,28 @@ an 11% unconnected edge. Nothing was silently re-ranked -- what "best" means is 
 Options: (a) add pour-quality terms to the sort key, (b) keep routing-first but refuse to
 promote a candidate that regresses pour metrics, (c) leave as-is and read candidates as
 "best routed", judging pour quality only from wave winners.
+
+## 2026-07-27 — FYI/ratify: hub DRU exemption for the flooded power rails
+
+Getting the hub to a fab gate, its only severity-error DRC was 20 `track_width` hits against
+`Power min width` (0.5mm) on +5VSB, /PSU_5V, /MAIN_5V_RAW, /USB_VBUS at 0.3-0.4mm actual.
+
+This is a RULE LAG, not a design fault. The hub power rung (2026-07-23, your "do the ugly
+giant pours inside of that layer") made those rails post-route additive In2 slabs, but the
+blanket width rule was never updated to match, so it now flags the thin pickup stubs the
+flood backs. EPS already carries the identical exemption for /SENSEC*, documented in its own
+DRU for the same reason.
+
+Ampacity was checked BEFORE relaxing anything, and holds without even counting the floods:
+IPC-2221 puts 0.3mm of 1oz outer copper at ~1.55A, and /USB_VBUS -- the thinnest-flooded and
+worst-flagged net -- is fused at 1.1A hold by F5. Measured floods on the s272 candidate:
++5VSB 478mm2, /PSU_5V 238mm2, /MAIN_5V_RAW 87mm2, /USB_VBUS 15mm2. The floor still applies to
+every other Power-class net, where a track IS the only conductor.
+
+Result: hub severity-error DRC 20 -> 0. Flagging rather than burying it because it is a
+design-rule edit on a fab-bound board; say the word if you want the floor kept and the tracks
+widened instead.
+
+ALSO FIXED, and worth knowing: the candidate/ directories carry NO .kicad_dru, so DRC run
+there sees 5 violations where the same board with its rules has 20. The hub fab gate now
+REFUSES to grade a board with no .kicad_dru beside it rather than reporting a clean pass.

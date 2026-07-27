@@ -24,9 +24,24 @@
 # /+5V_HOLD (raise to >=0.5mm). Clear these in the GUI routing/pour pass; do
 # NOT raise the floor to hide the trunk -- pour the trunk instead.
 
+# NO width floor on the FLOODED power rails (+5VSB / PSU_5V / MAIN_5V_RAW /
+# USB_VBUS). Same reasoning as the EPS DRU's /SENSEC* exemption: these rails are
+# carried by post-route additive In2 slabs (the 2026-07-23 hub power rung), and a
+# TRACK floor false-flags the thin pickup stubs the flood backs. The rung landed
+# without this rule being updated to match, so the board read 20 track_width
+# ERRORS that are not ampacity faults -- measured floods on the s272 candidate:
+# +5VSB 478mm2, /PSU_5V 238mm2, /MAIN_5V_RAW 87mm2, /USB_VBUS 15mm2 on In2.
+# Ampacity holds without even counting the flood: IPC-2221 puts 0.3mm of 1oz
+# outer copper at ~1.55A, and /USB_VBUS -- the thinnest-flooded and worst-flagged
+# net -- is fused at 1.1A hold by F5. The floor still applies to any other
+# Power-class net, where a track IS the only conductor.
 (rule "Power min width"
 	(constraint track_width (min 0.5mm))
-	(condition "A.NetClass == 'Power'"))
+	(condition "A.NetClass == 'Power'
+	            && A.NetName != '+5VSB'
+	            && A.NetName != '/PSU_5V'
+	            && A.NetName != '/MAIN_5V_RAW'
+	            && A.NetName != '/USB_VBUS'"))
 
 # USB 2.0 Full-Speed pair (ESP32-S3 native USB, GPIO19/20 <-> USB-C J6).
 # FS (12 Mbps) is impedance-tolerant, so on THIS (Standard) board ~90ohm diff
