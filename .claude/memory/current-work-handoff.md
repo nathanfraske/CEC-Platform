@@ -1,5 +1,25 @@
 # Current work handoff
 
+## 12VHPWR DB v2 — PER-LANE INTERFACE (owner correction, 2026-07-25 ~11:30Z)
+Owner corrected the study's 2-position 12V bus: per-pin separation IS the module
+(series identity input-pin-i -> shunt-i -> output-wire-i; one shunt reads both
+connectors' pin-i contacts — bussing anywhere on our boards re-divides output currents
+unmeasured). RETRACTED on record (study §3 marked superseded, §8 governs, owner-queue
+amended). v2 INTERFACE both DBs: 6 INDIVIDUAL 12V lane joints (TE 63969 blade = 190%
+of the 12A sustained-hog case, or M3 bolt = 330%; lean BLADES for lanes) + ONE fatty
+M4 GND bolt (REDCUBE-class 85A = 170% @50A aggregate; GND is honestly a bus — no GND
+shunts; the bolt doubles as the DB's structural mount) + narrow 1x4 RA sideband stub
+(1.27mm if narrower wanted). REORDER UNLOCK (owner insight, the big layout win): DB
+copper owns the lane<->connector-pin ORDER MAPPING at both ends -> main-board lanes
+become straight parallel bars in packing order (shunt row aligned, no fan-out crossing
+corridor — the thing that sized routing share of the 6mm pitch); pairs with 6L/POFV
+for the production rev; keying checker extends to ASSERT each DB's lane map.
+Input-variant honesty: native + 2x8p = 1:1 pin<->lane; 3x8p = 9->6 documented mapping
+(per-LANE preserved, per-input-pin attribution only where counts match). RULING ROW
+still the formal gate (locked §2.8) but the design is now owner-shaped — one-word nod
+adopts. NEXT on nod: spec §2.8 amendment (study §6 draft), new OQ rows (bolted-joint
+qual + input-DB SKU set + lane-map keying assertion), beta board work.
+
 ## 12VHPWR BOLTED-DB STUDY (2026-07-25 ~11:10Z, pipeline-pass-2) — PENDING OWNER RULING
 Owner Q: put the 12VHPWR output pigtail on a daughterboard (no new connector — soldered
 cable, fatter blades or bolt-down) + make the INPUT bolt-down and modular (PSUs vary).
