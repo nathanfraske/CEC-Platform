@@ -150,3 +150,44 @@ connector pinout (a wrong-order DB must be a build error, not a field surprise).
 mapping is variant-defined and documented on the DB silk (per-LANE measurement is
 preserved; per-INPUT-PIN attribution is only 1:1 where counts match). Sideband
 strapping per variant unchanged from §2.
+
+## 9. How narrow — the compaction budget (owner: "compaction above all else," 2026-07-25)
+
+**Width (across the lanes) — the hard floor is the lane field itself:**
+
+| Element | Constraint | Number |
+|---|---|---|
+| Blade lane pitch | TE 63969 receptacle ~3.7 mm across-thickness → **4.2 mm pitch floor** (MEASURED in the daughterboard iteration-7 work; rides the SAME ≤4.0 mm-depth OQ-86 sample gate already open) | 6 × 4.2 = 25.2 mm |
+| Shunt cross-check | 2512 across = 3.2 mm + ~1 mm pour gap ≈ 4.2–4.5 mm | consistent; 4.5 mm safe → 27 mm |
+| Bolts-per-lane alternative | M3 pad zones ≈ 7–8 mm pitch → ~45–48 mm field | **REJECTED for compaction — blades win the lanes** |
+| GND fatty + edges | M4 zone at the board END (not beside the field) + 2×2 mm edge margins | +4–5 mm |
+
+**Width ≈ 30–33 mm.** Sub-30 is blocked by physics we've already ratified: six lanes
+can't pitch tighter than the blade row / shunt width, and double-rowing (3+3 dual-side)
+is fenced off by the enclosed-product thermal strategy (§6.6 puts TIM on the shunts —
+the power face must stay flat against the case).
+
+**Length (along the lanes):** IN blade row ~9 mm → lane run + shunt (6.4 mm) + Kelvin
+windows + NTCs ~16 mm → OUT blade row ~9 mm; the INA240 row + RC filters move BESIDE
+the span (in-pad POFV sense vias → inner signal layer → INA row: zero length adder —
+the 6-layer thread pays off exactly here); control end-cap (ESP32-S3-MINI 15.4×20.5 +
+LDO + CAN + USB-C + FTP RJ45 + DETECT/ESD + buttons) ~38–42 mm at this width.
+**Length ≈ 75–85 mm.**
+
+**Bottom line: ~30–33 mm × ~75–85 mm ≈ 2,300–2,700 mm², vs today's 58×80 =
+4,640 mm² — a 42–50 % area cut**, as a straight cable-inline stick whose width matches
+its own daughterboards (out-DB = 12V-2x6 body ~18 mm + blade row 25.2 → ~28–30 mm; the
+whole stack is one ~30 mm-wide brick). The reorder freedom (§8) is load-bearing for
+this: lanes run 1..6 in geometric order with zero crossing corridor; the DBs unscramble.
+
+**Two further length levers, costs named:** (1) DNP the USB-C flash front end on the
+production rev (−~8 mm; F7 single-point CAN firmware update already exists platform-wide;
+keep pads DNP for bring-up honesty); (2) back-side SIGNAL passives only (filters/RC,
+−~5 mm; power stays single-sided per the thermal fence — this is the honest ceiling of
+the earlier one-vs-two-sided musing on THIS board). Both are owner calls, not defaults.
+
+**The gate before any of it is real:** the electrothermal FEM at the 12 A sustained-hog
+case on the narrow board (same toolchain that validated the current board at 600 W) —
+half the area concentrates the same watts; the TIM-to-case model + per-lane multi-layer
+copper (~0.7 mm²/lane on 6L) should carry it, but the FEM rules, not this arithmetic.
+That run + the OQ-86 receptacle-depth sample are the two gates on the 30 mm stick.
