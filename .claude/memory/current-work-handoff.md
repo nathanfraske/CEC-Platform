@@ -1,5 +1,24 @@
 # Current work handoff
 
+## MERGED-ALWAYS AUDIT (2026-07-25 ~13:45Z) — owner questioning the J6 mated pair itself
+Owner (post-dead-bug): maybe NO detachable inter-board connector is needed at all —
+bench mode = longer USB cable, module distance = longer RJ-45s. AUDIT DELIVERED
+(FOLLOWUPS recorded): both owner-dismissed cases agreed dissolved. ADDED: (a) locked
+power architecture ALREADY makes the 24-pin mandatory beside every Hub (it is the
+Hub's 5VSB/MAIN_5V source §2.7/§2.9 — separated Hub was always power-orphaned);
+(b) merged frees a port (4 jacks all-external vs 3+1) + deletes the JST cable pair
+(naturally resolves §2.9(c) J1+J_5V consolidation) + 24-pin's own RJ-45 jack becomes
+DNP-able on the merged SKU; (c) SOLDERED standard pin-header join beats any mated pair
+(~$0.2, zero mated pairs on the CAN/power link — minimal-mated-pairs doctrine to its
+limit). ONE REAL COST: cross-tier upgrade (merged 24-pin can't migrate to a future Hub
+Pro) — MITIGATED: the 24-pin PCB remains a distinct platform BOARD; merging is a
+SKU/populate decision (same board serves Standard-stack now, Pro-stack later).
+RESIDUAL use case for owner to consciously discard: display-placement freedom (Hub
+mounted visibly away from the ATX cable run). RULING NEEDED (locked): cabled default
+is the LOCKED baseline, mezzanine the approved alternative (K1/OQ-77) — merged-as-THE-
+Standard-product inverts that = spec revision on owner's pen. Gate: J6 pin-map
+contradiction first regardless.
+
 ## MEZZANINE DEAD-BUG CONFIG (2026-07-25 ~13:15Z) — supersedes the rejected tile
 Owner rejected coplanar tile (XY minimization IS the mezzanine's point). NEW
 RECOMMENDATION: FLIP THE HUB parts-down in the stack — both boards' tall parts share
