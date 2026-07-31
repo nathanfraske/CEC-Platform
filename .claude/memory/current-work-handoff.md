@@ -1,5 +1,21 @@
 # Current work handoff
 
+## MEZZANINE FINAL FORM — J6-ONLY (owner ruling, 2026-07-25 ~14:20Z)
+Owner closed the thread: "just make the dupont mezzanines we have now the only
+connection, not some weird RJ-45." FINAL ARCHITECTURE: dead-bug stack (Hub parts-down,
+talls share one ~14.5mm gap, ~17.5mm total, MINI-E lights fire up through 7 board
+holes) + standoffs + THE EXISTING J6 2.54 Dupont-class mezzanine header as the ONLY
+electrical connection (CAN + DETECT + 5VSB + MAIN_5V + GND per reconciled map).
+Detachable (Pro upgrade = unplug/re-stack). RJ-45 jack + JST feeds STAY POPULATED on
+the 24-pin (locked cabled-default interfaces for the separated-module config; mezz
+just doesn't use them). Prior turns' solder idea and RJ-45-patch idea both retracted
+(agent over-shoots, marked in FOLLOWUPS). CONSEQUENCES: K1/B4 J6 pin-map contradiction
+gate BACK + now load-bearing (primary connection of a shipping SKU) + gains a per-pin
+current check (2.54 ~3A/pin: 5VSB trunk ~2.5A + MAIN_5V want 2-3 pins each + GND
+returns — verify the reconciled map covers it); stacking header spans the gap (tall
+half = module-side hardware, Hub carries low receptacle). Remaining OQ-77: dead-bug
+orientation ruling, standoff pattern, jack-face case window, header SKU items.
+
 ## MEZZANINE = STANDOFF STACK, NO J6 (owner correction, 2026-07-25 ~14:05Z)
 Agent misread corrected on record ("why are we soldering it in? That's not what I
 said"): owner meant NO dedicated inter-board connector at all. ARCHITECTURE: dead-bug
