@@ -1,5 +1,21 @@
 # Current work handoff
 
+## 12VHPWR COMPACTION BUDGET (2026-07-25 ~11:55Z) — study §9
+Owner: "how narrow? compaction above all else." ANSWER (arithmetic from measured
+platform constants, FEM-gated): **~30-33mm wide x 75-85mm long ≈ 42-50% area cut**
+(vs 58x80 today), a cable-inline stick matching its own ~30mm DBs. Width floor = the
+lane field: 6 x 4.2mm blade pitch (MEASURED, iteration-7 daughterboard work; rides the
+open OQ-86 receptacle-depth sample gate) + GND M4 at the END; sub-30 blocked by
+ratified physics (blade/shunt pitch; 3+3 dual-side fenced by TIM-on-shunts §6.6).
+Bolts-per-lane REJECTED for compaction (7-8mm pitch → 45-48mm field) — blades carry
+the lanes, the one bolt is GND. Length: INA240 row + filters move BESIDE the lane span
+via in-pad POFV sense vias -> inner layer (the 6L thread pays off exactly here, zero
+length adder); control end-cap ~40mm. LEVERS (owner calls): USB-C DNP on production
+rev (-8mm; F7 CAN single-point update exists; pads stay DNP) + backside SIGNAL-only
+passives (-5mm; power single-sided per thermal fence). GATES: electrothermal FEM at
+the 12A hog on the narrow board (toolchain exists) + OQ-86 sample. All in study §9;
+ruling row unchanged (one-word adopt covers v2+§9 direction).
+
 ## 12VHPWR DB v2 — PER-LANE INTERFACE (owner correction, 2026-07-25 ~11:30Z)
 Owner corrected the study's 2-position 12V bus: per-pin separation IS the module
 (series identity input-pin-i -> shunt-i -> output-wire-i; one shunt reads both
