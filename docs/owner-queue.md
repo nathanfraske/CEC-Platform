@@ -906,3 +906,5 @@ So the 70um copper-to-copper and the sliver field are ALREADY GONE from what the
 produces now -- they survive only in the stored candidate, which the ranking keeps because it
 has better unconnected (114 vs 127). That is the same stale-reference problem raised on
 2026-07-26: the reference you open is not what the pipeline builds.
+
+- [2026-07-25] **PENDING OWNER RULING — 12VHPWR bolted daughterboards (LOCKED §2.8 carve-out revisit, owner-initiated):** study at `docs/standard-tier-review/hpwr-daughterboard-study-2026-07-25.md` — output DB carries the captive soldered pigtail (zero added mated 12VHPWR pairs), input becomes swappable DBs (native 12V-2x6 default / 2×-3× PCIe-8-pin variants w/ honest S1-S4 strapping / lug), inter-board = BOLTED bus joints (M4 ~170% margin @50A vs blades 3/pol 137%; both pass policy), +$1.5-2.5/module, first-article torque/contact-R/thermal gates. RECOMMEND ADOPT bolted, beta line only. Spec §2.8 amendment text drafted in the study §6 — owner's pen flips the lock.
