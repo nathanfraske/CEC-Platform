@@ -1,5 +1,22 @@
 # Current work handoff
 
+## MEZZANINE HEIGHT FIX OPTIONS (2026-07-25 ~12:50Z) — OQ-77 mechanical, owner pick pending
+Owner: mezz stack = 14+mm B2B connector on Hub UNDERSIDE + RJ45 height -> 28+mm total;
+standalone Hub inherits the hanging connector; LEDs must shine either way. DIAGNOSIS:
+vertical stacking pays 3 taxes (24-pin talls under Hub shadow [Mini-Fit ~9.6-12mm ->
+14mm gap] + 2x1.6 boards + RJ45 ~13.5). FIXES (FOLLOWUPS recorded): (A) RECOMMEND
+COPLANAR TILE — edge-link the pair in one plane (RA header pair / rigid bridge, J6 map
++ MAIN_5V/5VSB), total height ~15.1mm (RJ45-driven, nothing stacks), no tall B2B part
+anywhere, standalone Hub untouched, LEDs up in every config, footprint grows XY
+(86x61.75 -> wider tile; shroud/tray real estate is flat anyway). (B) if Z-stack must
+stay: polarity swap (tall male header + standoffs = MODULE-side mezz-SKU hardware; Hub
+underside = 1.5-3.5mm SMT receptacle only -> standalone ~15mm) + offset-shadow
+floorplan (Hub overhangs the module's LOW region only -> gap 5-8mm -> stack ~22-23mm).
+(C) pogo/flat-pads = zero Hub underside, spring-contact-aging caveat. RJ45 13.5mm =
+irreducible in all configs (locked, jacks needed for the other 3 ports even in mezz).
+Rule B(i) regardless — costless insurance. GATE unchanged: K1 J6 pin-map contradiction
+resolves before socket design.
+
 ## 12VHPWR §10 — DUAL-ROW UNFENCED + USB-C RULING (2026-07-25 ~12:20Z)
 Owner: (a) double-row allowed — MAIN product ramp = fan blowing DOWN on a heatsink on
 the shunts (fan elevated DNP-menu -> primary; my §9 TIM-face fence scoped away for this
