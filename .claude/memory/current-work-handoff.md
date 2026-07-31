@@ -1,5 +1,15 @@
 # Current work handoff
 
+## MODULAR-DESKTOP VISION RIFF (2026-07-25 ~14:50Z, idea record only)
+Owner riffed a Framework-style fully-modular desktop (zero internal wiring, whole-part
+docking, workstation variant on a bought board). Riff delivered + FOLLOWUPS idea line
+recorded (no action; revisit post-beta). Key frames: server-chassis discipline w/
+consumer UX; WRAP-don't-modify (cable-delete interposer carriers around commodity
+board/PSU/GPU — no vendor permission needed, avoids Project-Christine failure); CEC =
+the nervous system (per-rail metrology + CAN bus = the everything-else wiring); blade/
+bolt/keying/FEM craft = the enabling tech already in-house; 12VO tailwind; MPX power-
+through-edge precedent; hard corners = GPU power blind-mate + panel/USB tolerance zoo.
+
 ## MEZZANINE FINAL FORM — J6-ONLY (owner ruling, 2026-07-25 ~14:20Z)
 Owner closed the thread: "just make the dupont mezzanines we have now the only
 connection, not some weird RJ-45." FINAL ARCHITECTURE: dead-bug stack (Hub parts-down,
