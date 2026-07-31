@@ -51,11 +51,10 @@ transients-as-transients rule.
 | Bolted M4 clamped pad (REDCUBE class) | ~85 A | 1 | 85 A | **170 %** ✓ |
 | Bolted 2× M3 clamped pad (cheap rung) | ~40–50 A ea (bench-gate) | 2 | 80–100 A | ~160–200 % ✓ (gated) |
 
-Both forms clear the bar. **Recommendation: bolted** at this current class — fewer
-joints (2 power positions vs 6 blades + stub), higher margin, immune to insertion-cycle
-relaxation, and the "high engagement force is a feature" ruling extends to its logical
-maximum: a torqued fastener cannot mis-seat. Blades remain the documented fallback if
-tool-less service is ever ruled to outrank margin here.
+Both forms clear the bar. **[SUPERSEDED same day for the 12 V side — see §8: the
+2-position bus form is RETRACTED (it would gang the six lanes and destroy per-pin
+observability, the module's whole point); the interface is per-lane. GND-side bolting
+and the fastener rungs stand.]**
 
 ## 4. Fastener rungs (same laddering as the blade ratification)
 
@@ -93,9 +92,10 @@ Sideband S1–S4 + any sense lines: the 24-pin's 1×4 RA blind-mate header prece
 connector-daughterboard architecture in BOLTED form: swappable passive INPUT
 daughterboard (native 12V-2x6 header default; 2×/3× PCIe-8-pin and lug variants, each
 strapping S1–S4 to its honest wattage class) and OUTPUT daughterboard carrying the
-captive soldered pigtail — zero added mated 12VHPWR-class pairs, inter-board joints are
-torqued bolted bus positions at ≥125 % margin (first-article torque/contact-R/thermal
-gates). The 2026-07-03 contact-degradation rationale is preserved (no new spring/mated
+captive soldered pigtail — zero added mated 12VHPWR-class pairs, inter-board interface preserves
+PER-LANE separation: six individual 12 V lane joints + one bolted GND bus position +
+a narrow sideband stub (§8 v2 form), every joint ≥125 % margin (first-article
+torque/contact-R/thermal gates). The 2026-07-03 contact-degradation rationale is preserved (no new spring/mated
 pair in the path)."* New OQ: bolted-joint qualification protocol + input-DB variant SKU
 set. Applies to the beta line; alpha/proto boards frozen as shipped.
 
@@ -106,3 +106,47 @@ the fourth daughterboard family instead of the exception), converts the highest-
 cable in the ecosystem into a field-swappable assembly, makes the input honestly
 modular across PSU generations WITH correct sideband advertisement, and does it all
 without adding a single mated pair to the melt path.
+
+## 8. OWNER CORRECTION → v2 interface (2026-07-25, same day — this section governs)
+
+**Owner: "we need to keep per-pin separate, that is the whole point. So we need 6
+blades or 6 bolts or something, and one fatty ground bolt, and the sense pins can be
+whatever — as narrow as possible. The nice thing this lets us do is re-order however
+we want to compact the board."**
+
+Correct, and §3's 2-position 12 V bus is RETRACTED on the record: the module's thesis
+is the SERIES IDENTITY of each lane — input pin *i* → shunt *i* → output wire *i* —
+so one shunt reads the current through BOTH connectors' pin-*i* contacts. Bussing the
+12 V side anywhere on our boards breaks that identity and re-divides the output-side
+currents unmeasured. GND is already a bus on the as-built board (no GND-side shunts),
+so the single fat GND joint is architecturally honest.
+
+**v2 interface (both DBs, same pattern):**
+
+| Position | Count | Options (both pass policy) | Per-joint basis | Margin |
+|---|---|---|---|---|
+| 12 V lanes | **6, individually isolated** | TE 63969-1 blade **or** M3 bolted pad | 8.33 A nominal / **12 A sustained-hog** (the alarm-but-carry FEM case) | blade 22.9 A = **190 %** of hog · M3 ≈ 40 A = 330 % |
+| GND bus | **1 "fatty"** | M4 bolted (REDCUBE-class ~85 A) — doubles as the DB's structural mount | 50 A aggregate | **170 %** (all-blade alt: 3× = 137 %) |
+| Sideband S1–S4 | 1 stub | 1×4 RA blind-mate (24-pin precedent; 1.27 mm pitch if narrower is wanted) | signal | — |
+
+Lean: **blades for the six lanes** (ratified family, tool-less, 190 % at the hog case,
+keying-checker machinery already exists) + **the one M4 GND bolt** carrying both the
+return and the mechanical retention (torque spec on silk). All-bolt (6× M3 + M4)
+remains the uniform-hardware alternative if the owner prefers one fastener system.
+
+**The reorder unlock (owner's point, and it is the big layout win):** with per-lane
+joints at both DB interfaces, the DAUGHTERBOARD copper owns the lane↔connector-pin
+ORDER MAPPING. The main board no longer fans from the input header's physical pin
+order to the pigtail's — its six lanes run as STRAIGHT PARALLEL BARS in whatever
+geometric order packs best (shunt row aligned, Kelvin windows uniform, no crossing
+corridor), and each DB unscrambles to its connector's true pin order in short, thick,
+crossing-tolerant copper. Kills the fan-out corridor that sized the current 6 mm lane
+pitch's routing share; combines directly with the 6-layer/via-in-pad thread for the
+production rev. The keying checker extends to ASSERT each DB's lane map against the
+connector pinout (a wrong-order DB must be a build error, not a field surprise).
+
+**Input-variant honesty under per-lane:** native 12V-2x6 DB = perfect 1:1 pin↔lane.
+2× PCIe-8-pin = 6 12 V pins → 6 lanes, still 1:1. 3× 8-pin = 9 pins → 6 lanes: the
+mapping is variant-defined and documented on the DB silk (per-LANE measurement is
+preserved; per-INPUT-PIN attribution is only 1:1 where counts match). Sideband
+strapping per variant unchanged from §2.
