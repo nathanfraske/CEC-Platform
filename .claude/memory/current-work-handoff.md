@@ -1,5 +1,30 @@
 # Current work handoff
 
+## VIA-IN-PAD RESEARCH + BRANCH SURVEY (2026-07-25 ~10:20Z, pipeline-pass-2)
+Owner asked for branch state + whether JLCPCB via-in-pad (free/cheap?) would help.
+RESEARCHED (jlcpcb.com capabilities + news, 2026-07): POFV resin-filled copper-capped
+via-in-pad = FREE + default on 6-20 LAYER (+ free ENIG; 6-layer proto promos ~$2 small
+/ ~$35 <=100x100 + coupons); 4-LAYER = still a charged add-on (no public price, quote
+tool; historically ~$25-35/order); filled+capped drill window 0.15-0.55mm (netclass
+0.5mm power drills FIT; production 'enlarge vias' answer becomes 'more 0.5s in-pad');
+copper-paste-filled variant for thermal pads. VERDICT recorded in FOLLOWUPS w/ owner
+hook: significantly helps EXACTLY the open OQ-10 (bundled-shunt vertical transition —
+in-pad filled-via fields at the 0.5mR shunt pads become the cheap default candidate,
+10-18 barrels/pad, kills the 12VHPWR-FEM J-concentration class + assembly wicking) and
+OQ-12 stackup, and the timing is IDEAL: EPS/PCIe-2/PCIe-3 are placement-complete with
+ZERO copper routed (W6 pending) so a 6-layer+POFV decision is nearly free NOW; 12VHPWR
+production rev same benefit (0.6/0.3 via residual). NOT relevant: hub/24-pin (routed),
+smoke tester + output daughterboards (2-layer THT). Caveats: 6-layer = OQ-12 stackup
+re-rule + FEM re-run (toolchain exists); promos are proto-scale, re-quote at volume.
+NO spec change made (assessment turn) — owner hook at W6 kickoff / OQ-10.
+BRANCH SURVEY delivered in chat: smoke-tester chain (9 owner rulings applied today) +
+routing agent: pour-first rung landed (CEC_POUR_RESERVE, A/B live on 24-pin wave),
+v3.1 connector manifolds MEASURED-INSUFFICIENT on s415 (3 no-paths persist, different
+class: locked-copper seam congestion — owner design Q), v4 territory planning GO
+(corridors + layer assignment + compact crossing via fields; raster demoted to
+legality), RUNG GATE active (no advancement until pour artifacts owner-signed), open
+tension: ~28 jellybeans on frozen-F bboxes (owner call listed in design doc).
+
 ## #15 AFTERMATH SHOW — RULED AS AMENDED + APPLIED (2026-07-25 ~09:40Z, pipeline-pass-2)
 Owner nodded #15 with an AUTOMATIC directive ("clunky to hold TEST after"). Applied the
 clean form — POP WAKES THE WHOLE PANEL, not just the show: the blown-fuse condition is

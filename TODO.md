@@ -540,3 +540,4 @@ Times are UTC.
 - [x] [added 2026-07-27 03:06] fab REPAIR wired into every wave publish (4 classes, R4 withdrawn) · done 2026-07-27 03:06
 - [ ] [added 2026-07-27 03:06] hub connectivity wall: ingress-cluster placement relief (OWNER decision, owner-queue)
 - [ ] [added 2026-07-27 03:06] edge-keepout connector windows let signals reach the edge (FOLLOWUPS)
+- [x] [added 2026-07-25 10:20] Branch survey + JLCPCB via-in-pad research (owner ask): branch state summarized (smoke chain + routing agent's pour-first rung / v3.1 manifolds measured-not-sufficient / v4 territory GO / rung gate / 28-jellybean tension); POFV = FREE 6-20 layer (+free ENIG, proto promos), charged on 4-layer, 0.15-0.55mm drills; verdict = significantly helps exactly OQ-10/OQ-12/W6 (EPS/PCIe unrouted = decision nearly free now) + 12VHPWR production rev; irrelevant to hub/smoke/daughterboards; recorded in FOLLOWUPS w/ owner hook · done 2026-07-25 10:20
