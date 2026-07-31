@@ -1,5 +1,19 @@
 # Current work handoff
 
+## 6L COMPACTION ASSESSMENT (2026-07-25 ~10:45Z, pipeline-pass-2)
+Owner musing: 6-layer would compact ALL boards, leaving only componentry + 1/2-sided as
+bounds. SHARPENED (chat + FOLLOWUPS): agree routing stops binding, but per-board the
+REAL residual bounds are (1) connector bodies/perimeter (Mini-Fit/RJ45/12V-2x6/blade
+fields layer-independent), (2) thermal density — FEM gates push back on compaction
+(same W in less area), (3) creepage (smoke tester EXEMPT from 6L logic entirely —
+2-layer + human-factors panel stands), (4) enclosed modules single-sided BY THERMAL
+DESIGN (TIM-to-case bottom face, spec 6.6) — dual-sided = Hub-class lever only. ENT
+PolarFire hub FCVG484 = the board where 6L+free-POFV is ~REQUIRED (BGA fanout).
+Estimated honest gains: cable boards maybe 15-25% area (pitch + via-in-pad escapes),
+hub modest (jack perimeter), 24-pin modest (connector-dominated). PROPOSED (not run):
+MEASURED EPS 6L compaction study w/ existing placer+FEM at W6 kickoff -> rule OQ-12
+stackup + board set on numbers. No spec change (musing turn); FOLLOWUPS hook extended.
+
 ## VIA-IN-PAD RESEARCH + BRANCH SURVEY (2026-07-25 ~10:20Z, pipeline-pass-2)
 Owner asked for branch state + whether JLCPCB via-in-pad (free/cheap?) would help.
 RESEARCHED (jlcpcb.com capabilities + news, 2026-07): POFV resin-filled copper-capped
