@@ -1,5 +1,22 @@
 # Current work handoff
 
+## 12VHPWR §10 — DUAL-ROW UNFENCED + USB-C RULING (2026-07-25 ~12:20Z)
+Owner: (a) double-row allowed — MAIN product ramp = fan blowing DOWN on a heatsink on
+the shunts (fan elevated DNP-menu -> primary; my §9 TIM-face fence scoped away for this
+module); concern = heat to the bottom row. ANSWERED w/ numbers (study §10): loads are
+mW-class (shunt 69mW bal / 144mW hog; whole board 2-4W) -> copper-filled POFV via
+fields under bottom shunts conduct board-through at ~2K/W-per-field = ~0.3K rise; bottom
+row cools INTO the top heatsink. Provisions: NTC-per-face DNP pad (OQ-88 pattern),
+heatsink-clears-blade-rows (OQ-87). HONEST GEOMETRY: double-row halves the lane field
+(3x4.2=12.6 -> board ~18-20mm) but control end-cap is width-bound (ESP 15.4 / RJ45 16
+single-file) -> stretches: ~19x100-110 = 2.0-2.2k mm2 vs single-row 30x75-85 = 2.3-2.7k
+-> AREA FLAT, win = cable-like FORM. Costs: double-side reflow + FEM forced-convection
+extension + 3+3 THT blade rows. OWNER FORM CHOICE OPEN: 30mm paddle (cheapest) vs 19mm
+stick (+cost, best form). (b) USB-C STAYS; 16P->6P = NO, fails owner's own no-sacrifice
+test: 6P class is power-only (no D+/D- pins exist), port's job IS ESP native-USB
+flash/CDC; no data class below 16P (12P = one-orientation data trap, rejected); delta
+16P vs 6P ~1-2mm/$0.05 = noise. -8mm USB DNP lever retired. owner-queue row amended.
+
 ## 12VHPWR COMPACTION BUDGET (2026-07-25 ~11:55Z) — study §9
 Owner: "how narrow? compaction above all else." ANSWER (arithmetic from measured
 platform constants, FEM-gated): **~30-33mm wide x 75-85mm long ≈ 42-50% area cut**

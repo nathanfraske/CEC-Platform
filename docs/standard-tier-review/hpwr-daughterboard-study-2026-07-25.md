@@ -191,3 +191,48 @@ case on the narrow board (same toolchain that validated the current board at 600
 half the area concentrates the same watts; the TIM-to-case model + per-lane multi-layer
 copper (~0.7 mm²/lane on 6L) should carry it, but the FEM rules, not this arithmetic.
 That run + the OQ-86 receptacle-depth sample are the two gates on the 30 mm stick.
+
+## 10. Double-row + the fan cooling model + USB-C ruling (owner, 2026-07-25)
+
+**Owner: double-row IS on the table — "my main product ramp is a fan design directly
+blowing down on a heatsink on the shunts, or at least blowing down on the board; my
+concern would be heat transfer to the bottom." Also: USB-C STAYS (no DNP); the only
+acceptable change is 16-pin → simplified 6-pin "if we can with no sacrifices."**
+
+§9's dual-side fence is hereby SCOPED: it derived from the §6.6 TIM-baseplate strategy,
+but the owner's stated MAIN ramp for this module is top-down forced air + heatsink
+(which already lives in the §6.1 cooling menu — the fan option is elevated from DNP to
+primary, recorded as product direction). Under that model the fence doesn't bind, and
+the bottom-row heat question has a quantitative answer:
+
+**Bottom-row heat path — the numbers are comfortable.** The parts are mW-class, not
+W-class: a shunt dissipates I²R = 69 mW balanced / 144 mW at the 12 A hog; the whole
+board (6 shunts + lane copper losses at 600 W) runs ~2–4 W. A copper-filled POFV via
+field (the thermal variant from the JLC research — this is exactly its use case) under
+each bottom shunt conducts through the 1.6 mm board at ~2 K/W for a ~30-via field →
+**~0.3 K rise board-through at the hog case**. Bottom lanes stitch into the same
+vertical copper. Practically: the bottom row cools INTO the top heatsink through the
+board, arriving a fraction of a kelvin behind the top row. Provision: one NTC per face
+(TH provision pad on the bottom row, OQ-88 DNP pattern); heatsink footprint must clear
+the end blade rows (OQ-87 mechanical note).
+
+**What double-row actually buys — form, not area (honest):** lane field width halves
+(3 × 4.2 = 12.6 mm + GND + edges → **~18–20 mm board width**, the DBs overhang slightly
+at the 12V-2x6 body's ~18 mm), but the control end-cap is width-bound (ESP module
+15.4 mm, RJ45 16 mm single-file at that width) so it STRETCHES: total ≈ 18–20 ×
+100–110 mm ≈ 2,000–2,200 mm² vs the single-row stick's 30–33 × 75–85 ≈ 2,300–2,700 mm².
+**Area is roughly flat; the win is a truly cable-like ~19 mm form factor.** Costs:
+double-side reflow assembly (JLC standard-tier, real adder), the forced-convection
+extension to the FEM cooling model (small toolchain task), and both-face blade rows at
+the DB interfaces (3+3, THT selective-solder). Owner picks: **30 mm paddle (simplest,
+cheapest assembly)** vs **19 mm cable-stick (best form, ~equal area, +assembly cost)** —
+both pass the same gates.
+
+**USB-C 16P → 6P: NO — it fails the owner's own "no sacrifices" test.** The 6-pin
+USB-C class is power-only by definition (2×VBUS, 2×GND, CC1, CC2 — **no D+/D− pins
+exist in that package**), and this port's entire job is the ESP32's native-USB
+flash/debug/CDC path. Dropping data kills the port's reason to exist. There is no
+data-capable class below the 16-pin (16P IS the minimal USB 2.0 subset; 12P variants
+carry one-orientation data = a flip-the-plug-and-it-dies trap, rejected). The platform
+16P (C2765186) stays: the compaction delta vs 6P is ~1–2 mm and ~$0.05 — noise.
+USB-C remains in the §9 length budget; the −8 mm DNP lever is retired per the owner.
