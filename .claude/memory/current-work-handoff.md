@@ -1,5 +1,23 @@
 # Current work handoff
 
+## 12VHPWR BOLTED-DB STUDY (2026-07-25 ~11:10Z, pipeline-pass-2) — PENDING OWNER RULING
+Owner Q: put the 12VHPWR output pigtail on a daughterboard (no new connector — soldered
+cable, fatter blades or bolt-down) + make the INPUT bolt-down and modular (PSUs vary).
+STUDY WRITTEN (docs/standard-tier-review/hpwr-daughterboard-study-2026-07-25.md), NOT
+applied — §2.8 v1.4.0 LOCKS the 12VHPWR exclusion (captive pigtail on main), so this is
+a proposed amendment on the owner-queue (new dated row at file end). Essence: the §2.8
+rationale (never add a mated 12VHPWR-class pair) SURVIVES — pigtail solders to the DB,
+added joint is BOLTED bus class (no wear mechanism); margin M4 REDCUBE-class 1/polarity
+= 170% @50A vs ratified TE-blade 3/polarity = 137% (both pass 125% policy) -> recommend
+BOLTED. Input = swappable passive DBs on same bolt pattern: native 12V-2x6 (default),
+2x/3x PCIe-8pin (native old-PSU cables, DB straps S1-S4 to the HONEST wattage class —
+kills the adapter-squid lie), M4-lug bench variant. Honest notes: bolted joints sit
+outside per-pin measurement (mitigate by joint class + NTC watch + DNP TH provision);
+mechanical/keying rides OQ-87/keying-checker; +$1.5-2.5/module; fastener rungs = cheap
+screw+standoff (bench-gated) / REDCUBE comparator / blade fallback. NEXT: owner ruling
+-> if ADOPT, spec §2.8 amendment (study §6 has draft text), new OQ rows, beta-line
+board work.
+
 ## 6L COMPACTION ASSESSMENT (2026-07-25 ~10:45Z, pipeline-pass-2)
 Owner musing: 6-layer would compact ALL boards, leaving only componentry + 1/2-sided as
 bounds. SHARPENED (chat + FOLLOWUPS): agree routing stops binding, but per-board the
