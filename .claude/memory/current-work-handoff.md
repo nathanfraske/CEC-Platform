@@ -1,5 +1,21 @@
 # Current work handoff
 
+## MEZZANINE = STANDOFF STACK, NO J6 (owner correction, 2026-07-25 ~14:05Z)
+Agent misread corrected on record ("why are we soldering it in? That's not what I
+said"): owner meant NO dedicated inter-board connector at all. ARCHITECTURE: dead-bug
+stack joined by STANDOFFS ONLY (shared M3 pattern); electrical = the standard LOCKED
+interfaces as stubby cables looping at the stack edge — short RJ-45 patch (24-pin jack
+-> Hub port; §2.7 VCC-NC rule exists for exactly this) + JST 5VSB/MAIN_5V jumpers (the
+locked power path). DELETES: J6 entirely -> the K1 J6 pin-map contradiction gate goes
+MOOT (B4 hygiene row closable as obsolete-by-architecture pending owner confirm); the
+mezz board-variant; the 14mm B2B part; the solder idea. KEEPS: full module doctrine
+(any 24-pin + any Hub; Pro upgrade = re-stack), ~17.5mm height (jacks drove the gap
+anyway). TRADE: 24-pin still consumes a port (3+1). SKU collapses to a HARDWARE KIT
+(standoffs + 2 stubby cables, ~$2-3). REMAINING OQ-77: standoff pattern, dead-bug
+orientation ruling (parts-down Hub + MINI-E through-board lights), jack-face
+clearance/case window, stubby-cable SKU items. FOLLOWUPS corrected (solder entry
+marked retracted-misread).
+
 ## MERGED-ALWAYS AUDIT (2026-07-25 ~13:45Z) — owner questioning the J6 mated pair itself
 Owner (post-dead-bug): maybe NO detachable inter-board connector is needed at all —
 bench mode = longer USB cable, module distance = longer RJ-45s. AUDIT DELIVERED
