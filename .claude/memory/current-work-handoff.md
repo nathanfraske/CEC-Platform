@@ -1,5 +1,22 @@
 # Current work handoff
 
+## MEZZANINE DEAD-BUG CONFIG (2026-07-25 ~13:15Z) — supersedes the rejected tile
+Owner rejected coplanar tile (XY minimization IS the mezzanine's point). NEW
+RECOMMENDATION: FLIP THE HUB parts-down in the stack — both boards' tall parts share
+ONE gap (RJ45 13.5 down + Mini-Fit 10-12 up, interleaved via offset plan) -> stack
+1.6 + ~14.5 + 1.6 = ~17.5-18mm TOTAL at unchanged XY (was 28-30). Jacks exit sideways
+mid-stack. The 14mm J6 B2B part still exists but spans ALREADY-PAID height inside the
+gap = zero height adder; polarity swap stands (tall half = module-side SKU hardware).
+LIGHTS: SK6812 MINI-E = THE reverse-mount through-board LED (keyboard-RGB trick,
+already the spec'd part) — fires UP through 7 free holes, light exits the clean
+solder-less back = the new top face. PROPOSED OWNER RULING: unify Hub as natively
+parts-down in BOTH configs (one build; standalone = same board on standoffs ~15mm,
+LEDs through-board, flat branded face). Refinement to ~15-16: jacks overhang the
+module outline (gap set by Mini-Fit interleave); low-profile jack nudge. Details for
+design pass: GPIO0 side/through access, case window at jack faces, MINI vs MINI-E
+symbol-name alignment (2026-06-05 audit flag). Gate unchanged: K1 J6 pin-map
+contradiction first. FOLLOWUPS updated (tile marked owner-rejected).
+
 ## MEZZANINE HEIGHT FIX OPTIONS (2026-07-25 ~12:50Z) — OQ-77 mechanical, owner pick pending
 Owner: mezz stack = 14+mm B2B connector on Hub UNDERSIDE + RJ45 height -> 28+mm total;
 standalone Hub inherits the hanging connector; LEDs must shine either way. DIAGNOSIS:
