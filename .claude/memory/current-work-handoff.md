@@ -1,5 +1,19 @@
 # Current work handoff
 
+## MODULAR-DESKTOP RIFF 2 — COMPUTE CARTRIDGE (2026-07-25 ~15:10Z, idea record only)
+Owner: "CPU or RAM upgrade without seeing boards?" ANSWER: DDR reach physics (mm-class
+CPU<->RAM) forbids RAM-alone docking -> the natural sealed grain = CPU+VRM+RAM in ONE
+shelled cartridge; the interfaces that tolerate connectors (PCIe/USB/display/power)
+are exactly what exits at the blind-mate dock. Base on PICMG COM-HPC (OPEN standard,
+public carrier design guide — the no-NDA zone; modules buyable from industrial vendors
+w/ long support: Client type = HX 16-core class, Server type = Xeon-W/EPYC embedded =
+the workstation grain). We build shell + dock + carrier, never the module (wrap-don't-
+modify again). RAM inside: cartridge-swap grain, or tool-less CAMM2 'glovebox' hatch
+(one visible module, never a motherboard), or CXL memory cartridges later. Precedents:
+NUC Compute Element (proven, dead), Framework 16 GPU bay (shipping consumer blind-mate
+cartridge), COM ecosystem (30 years industrial). FOLLOWUPS line recorded, rides the
+post-beta vision entry.
+
 ## MODULAR-DESKTOP VISION RIFF (2026-07-25 ~14:50Z, idea record only)
 Owner riffed a Framework-style fully-modular desktop (zero internal wiring, whole-part
 docking, workstation variant on a bought board). Riff delivered + FOLLOWUPS idea line
