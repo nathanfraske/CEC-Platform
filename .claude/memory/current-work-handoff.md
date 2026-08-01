@@ -1,5 +1,224 @@
 # Current work handoff
 
+## MODULAR-DESKTOP RIFF 2 — COMPUTE CARTRIDGE (2026-07-25 ~15:10Z, idea record only)
+Owner: "CPU or RAM upgrade without seeing boards?" ANSWER: DDR reach physics (mm-class
+CPU<->RAM) forbids RAM-alone docking -> the natural sealed grain = CPU+VRM+RAM in ONE
+shelled cartridge; the interfaces that tolerate connectors (PCIe/USB/display/power)
+are exactly what exits at the blind-mate dock. Base on PICMG COM-HPC (OPEN standard,
+public carrier design guide — the no-NDA zone; modules buyable from industrial vendors
+w/ long support: Client type = HX 16-core class, Server type = Xeon-W/EPYC embedded =
+the workstation grain). We build shell + dock + carrier, never the module (wrap-don't-
+modify again). RAM inside: cartridge-swap grain, or tool-less CAMM2 'glovebox' hatch
+(one visible module, never a motherboard), or CXL memory cartridges later. Precedents:
+NUC Compute Element (proven, dead), Framework 16 GPU bay (shipping consumer blind-mate
+cartridge), COM ecosystem (30 years industrial). FOLLOWUPS line recorded, rides the
+post-beta vision entry.
+
+## MODULAR-DESKTOP VISION RIFF (2026-07-25 ~14:50Z, idea record only)
+Owner riffed a Framework-style fully-modular desktop (zero internal wiring, whole-part
+docking, workstation variant on a bought board). Riff delivered + FOLLOWUPS idea line
+recorded (no action; revisit post-beta). Key frames: server-chassis discipline w/
+consumer UX; WRAP-don't-modify (cable-delete interposer carriers around commodity
+board/PSU/GPU — no vendor permission needed, avoids Project-Christine failure); CEC =
+the nervous system (per-rail metrology + CAN bus = the everything-else wiring); blade/
+bolt/keying/FEM craft = the enabling tech already in-house; 12VO tailwind; MPX power-
+through-edge precedent; hard corners = GPU power blind-mate + panel/USB tolerance zoo.
+
+## MEZZANINE FINAL FORM — J6-ONLY (owner ruling, 2026-07-25 ~14:20Z)
+Owner closed the thread: "just make the dupont mezzanines we have now the only
+connection, not some weird RJ-45." FINAL ARCHITECTURE: dead-bug stack (Hub parts-down,
+talls share one ~14.5mm gap, ~17.5mm total, MINI-E lights fire up through 7 board
+holes) + standoffs + THE EXISTING J6 2.54 Dupont-class mezzanine header as the ONLY
+electrical connection (CAN + DETECT + 5VSB + MAIN_5V + GND per reconciled map).
+Detachable (Pro upgrade = unplug/re-stack). RJ-45 jack + JST feeds STAY POPULATED on
+the 24-pin (locked cabled-default interfaces for the separated-module config; mezz
+just doesn't use them). Prior turns' solder idea and RJ-45-patch idea both retracted
+(agent over-shoots, marked in FOLLOWUPS). CONSEQUENCES: K1/B4 J6 pin-map contradiction
+gate BACK + now load-bearing (primary connection of a shipping SKU) + gains a per-pin
+current check (2.54 ~3A/pin: 5VSB trunk ~2.5A + MAIN_5V want 2-3 pins each + GND
+returns — verify the reconciled map covers it); stacking header spans the gap (tall
+half = module-side hardware, Hub carries low receptacle). Remaining OQ-77: dead-bug
+orientation ruling, standoff pattern, jack-face case window, header SKU items.
+
+## MEZZANINE = STANDOFF STACK, NO J6 (owner correction, 2026-07-25 ~14:05Z)
+Agent misread corrected on record ("why are we soldering it in? That's not what I
+said"): owner meant NO dedicated inter-board connector at all. ARCHITECTURE: dead-bug
+stack joined by STANDOFFS ONLY (shared M3 pattern); electrical = the standard LOCKED
+interfaces as stubby cables looping at the stack edge — short RJ-45 patch (24-pin jack
+-> Hub port; §2.7 VCC-NC rule exists for exactly this) + JST 5VSB/MAIN_5V jumpers (the
+locked power path). DELETES: J6 entirely -> the K1 J6 pin-map contradiction gate goes
+MOOT (B4 hygiene row closable as obsolete-by-architecture pending owner confirm); the
+mezz board-variant; the 14mm B2B part; the solder idea. KEEPS: full module doctrine
+(any 24-pin + any Hub; Pro upgrade = re-stack), ~17.5mm height (jacks drove the gap
+anyway). TRADE: 24-pin still consumes a port (3+1). SKU collapses to a HARDWARE KIT
+(standoffs + 2 stubby cables, ~$2-3). REMAINING OQ-77: standoff pattern, dead-bug
+orientation ruling (parts-down Hub + MINI-E through-board lights), jack-face
+clearance/case window, stubby-cable SKU items. FOLLOWUPS corrected (solder entry
+marked retracted-misread).
+
+## MERGED-ALWAYS AUDIT (2026-07-25 ~13:45Z) — owner questioning the J6 mated pair itself
+Owner (post-dead-bug): maybe NO detachable inter-board connector is needed at all —
+bench mode = longer USB cable, module distance = longer RJ-45s. AUDIT DELIVERED
+(FOLLOWUPS recorded): both owner-dismissed cases agreed dissolved. ADDED: (a) locked
+power architecture ALREADY makes the 24-pin mandatory beside every Hub (it is the
+Hub's 5VSB/MAIN_5V source §2.7/§2.9 — separated Hub was always power-orphaned);
+(b) merged frees a port (4 jacks all-external vs 3+1) + deletes the JST cable pair
+(naturally resolves §2.9(c) J1+J_5V consolidation) + 24-pin's own RJ-45 jack becomes
+DNP-able on the merged SKU; (c) SOLDERED standard pin-header join beats any mated pair
+(~$0.2, zero mated pairs on the CAN/power link — minimal-mated-pairs doctrine to its
+limit). ONE REAL COST: cross-tier upgrade (merged 24-pin can't migrate to a future Hub
+Pro) — MITIGATED: the 24-pin PCB remains a distinct platform BOARD; merging is a
+SKU/populate decision (same board serves Standard-stack now, Pro-stack later).
+RESIDUAL use case for owner to consciously discard: display-placement freedom (Hub
+mounted visibly away from the ATX cable run). RULING NEEDED (locked): cabled default
+is the LOCKED baseline, mezzanine the approved alternative (K1/OQ-77) — merged-as-THE-
+Standard-product inverts that = spec revision on owner's pen. Gate: J6 pin-map
+contradiction first regardless.
+
+## MEZZANINE DEAD-BUG CONFIG (2026-07-25 ~13:15Z) — supersedes the rejected tile
+Owner rejected coplanar tile (XY minimization IS the mezzanine's point). NEW
+RECOMMENDATION: FLIP THE HUB parts-down in the stack — both boards' tall parts share
+ONE gap (RJ45 13.5 down + Mini-Fit 10-12 up, interleaved via offset plan) -> stack
+1.6 + ~14.5 + 1.6 = ~17.5-18mm TOTAL at unchanged XY (was 28-30). Jacks exit sideways
+mid-stack. The 14mm J6 B2B part still exists but spans ALREADY-PAID height inside the
+gap = zero height adder; polarity swap stands (tall half = module-side SKU hardware).
+LIGHTS: SK6812 MINI-E = THE reverse-mount through-board LED (keyboard-RGB trick,
+already the spec'd part) — fires UP through 7 free holes, light exits the clean
+solder-less back = the new top face. PROPOSED OWNER RULING: unify Hub as natively
+parts-down in BOTH configs (one build; standalone = same board on standoffs ~15mm,
+LEDs through-board, flat branded face). Refinement to ~15-16: jacks overhang the
+module outline (gap set by Mini-Fit interleave); low-profile jack nudge. Details for
+design pass: GPIO0 side/through access, case window at jack faces, MINI vs MINI-E
+symbol-name alignment (2026-06-05 audit flag). Gate unchanged: K1 J6 pin-map
+contradiction first. FOLLOWUPS updated (tile marked owner-rejected).
+
+## MEZZANINE HEIGHT FIX OPTIONS (2026-07-25 ~12:50Z) — OQ-77 mechanical, owner pick pending
+Owner: mezz stack = 14+mm B2B connector on Hub UNDERSIDE + RJ45 height -> 28+mm total;
+standalone Hub inherits the hanging connector; LEDs must shine either way. DIAGNOSIS:
+vertical stacking pays 3 taxes (24-pin talls under Hub shadow [Mini-Fit ~9.6-12mm ->
+14mm gap] + 2x1.6 boards + RJ45 ~13.5). FIXES (FOLLOWUPS recorded): (A) RECOMMEND
+COPLANAR TILE — edge-link the pair in one plane (RA header pair / rigid bridge, J6 map
++ MAIN_5V/5VSB), total height ~15.1mm (RJ45-driven, nothing stacks), no tall B2B part
+anywhere, standalone Hub untouched, LEDs up in every config, footprint grows XY
+(86x61.75 -> wider tile; shroud/tray real estate is flat anyway). (B) if Z-stack must
+stay: polarity swap (tall male header + standoffs = MODULE-side mezz-SKU hardware; Hub
+underside = 1.5-3.5mm SMT receptacle only -> standalone ~15mm) + offset-shadow
+floorplan (Hub overhangs the module's LOW region only -> gap 5-8mm -> stack ~22-23mm).
+(C) pogo/flat-pads = zero Hub underside, spring-contact-aging caveat. RJ45 13.5mm =
+irreducible in all configs (locked, jacks needed for the other 3 ports even in mezz).
+Rule B(i) regardless — costless insurance. GATE unchanged: K1 J6 pin-map contradiction
+resolves before socket design.
+
+## 12VHPWR §10 — DUAL-ROW UNFENCED + USB-C RULING (2026-07-25 ~12:20Z)
+Owner: (a) double-row allowed — MAIN product ramp = fan blowing DOWN on a heatsink on
+the shunts (fan elevated DNP-menu -> primary; my §9 TIM-face fence scoped away for this
+module); concern = heat to the bottom row. ANSWERED w/ numbers (study §10): loads are
+mW-class (shunt 69mW bal / 144mW hog; whole board 2-4W) -> copper-filled POFV via
+fields under bottom shunts conduct board-through at ~2K/W-per-field = ~0.3K rise; bottom
+row cools INTO the top heatsink. Provisions: NTC-per-face DNP pad (OQ-88 pattern),
+heatsink-clears-blade-rows (OQ-87). HONEST GEOMETRY: double-row halves the lane field
+(3x4.2=12.6 -> board ~18-20mm) but control end-cap is width-bound (ESP 15.4 / RJ45 16
+single-file) -> stretches: ~19x100-110 = 2.0-2.2k mm2 vs single-row 30x75-85 = 2.3-2.7k
+-> AREA FLAT, win = cable-like FORM. Costs: double-side reflow + FEM forced-convection
+extension + 3+3 THT blade rows. OWNER FORM CHOICE OPEN: 30mm paddle (cheapest) vs 19mm
+stick (+cost, best form). (b) USB-C STAYS; 16P->6P = NO, fails owner's own no-sacrifice
+test: 6P class is power-only (no D+/D- pins exist), port's job IS ESP native-USB
+flash/CDC; no data class below 16P (12P = one-orientation data trap, rejected); delta
+16P vs 6P ~1-2mm/$0.05 = noise. -8mm USB DNP lever retired. owner-queue row amended.
+
+## 12VHPWR COMPACTION BUDGET (2026-07-25 ~11:55Z) — study §9
+Owner: "how narrow? compaction above all else." ANSWER (arithmetic from measured
+platform constants, FEM-gated): **~30-33mm wide x 75-85mm long ≈ 42-50% area cut**
+(vs 58x80 today), a cable-inline stick matching its own ~30mm DBs. Width floor = the
+lane field: 6 x 4.2mm blade pitch (MEASURED, iteration-7 daughterboard work; rides the
+open OQ-86 receptacle-depth sample gate) + GND M4 at the END; sub-30 blocked by
+ratified physics (blade/shunt pitch; 3+3 dual-side fenced by TIM-on-shunts §6.6).
+Bolts-per-lane REJECTED for compaction (7-8mm pitch → 45-48mm field) — blades carry
+the lanes, the one bolt is GND. Length: INA240 row + filters move BESIDE the lane span
+via in-pad POFV sense vias -> inner layer (the 6L thread pays off exactly here, zero
+length adder); control end-cap ~40mm. LEVERS (owner calls): USB-C DNP on production
+rev (-8mm; F7 CAN single-point update exists; pads stay DNP) + backside SIGNAL-only
+passives (-5mm; power single-sided per thermal fence). GATES: electrothermal FEM at
+the 12A hog on the narrow board (toolchain exists) + OQ-86 sample. All in study §9;
+ruling row unchanged (one-word adopt covers v2+§9 direction).
+
+## 12VHPWR DB v2 — PER-LANE INTERFACE (owner correction, 2026-07-25 ~11:30Z)
+Owner corrected the study's 2-position 12V bus: per-pin separation IS the module
+(series identity input-pin-i -> shunt-i -> output-wire-i; one shunt reads both
+connectors' pin-i contacts — bussing anywhere on our boards re-divides output currents
+unmeasured). RETRACTED on record (study §3 marked superseded, §8 governs, owner-queue
+amended). v2 INTERFACE both DBs: 6 INDIVIDUAL 12V lane joints (TE 63969 blade = 190%
+of the 12A sustained-hog case, or M3 bolt = 330%; lean BLADES for lanes) + ONE fatty
+M4 GND bolt (REDCUBE-class 85A = 170% @50A aggregate; GND is honestly a bus — no GND
+shunts; the bolt doubles as the DB's structural mount) + narrow 1x4 RA sideband stub
+(1.27mm if narrower wanted). REORDER UNLOCK (owner insight, the big layout win): DB
+copper owns the lane<->connector-pin ORDER MAPPING at both ends -> main-board lanes
+become straight parallel bars in packing order (shunt row aligned, no fan-out crossing
+corridor — the thing that sized routing share of the 6mm pitch); pairs with 6L/POFV
+for the production rev; keying checker extends to ASSERT each DB's lane map.
+Input-variant honesty: native + 2x8p = 1:1 pin<->lane; 3x8p = 9->6 documented mapping
+(per-LANE preserved, per-input-pin attribution only where counts match). RULING ROW
+still the formal gate (locked §2.8) but the design is now owner-shaped — one-word nod
+adopts. NEXT on nod: spec §2.8 amendment (study §6 draft), new OQ rows (bolted-joint
+qual + input-DB SKU set + lane-map keying assertion), beta board work.
+
+## 12VHPWR BOLTED-DB STUDY (2026-07-25 ~11:10Z, pipeline-pass-2) — PENDING OWNER RULING
+Owner Q: put the 12VHPWR output pigtail on a daughterboard (no new connector — soldered
+cable, fatter blades or bolt-down) + make the INPUT bolt-down and modular (PSUs vary).
+STUDY WRITTEN (docs/standard-tier-review/hpwr-daughterboard-study-2026-07-25.md), NOT
+applied — §2.8 v1.4.0 LOCKS the 12VHPWR exclusion (captive pigtail on main), so this is
+a proposed amendment on the owner-queue (new dated row at file end). Essence: the §2.8
+rationale (never add a mated 12VHPWR-class pair) SURVIVES — pigtail solders to the DB,
+added joint is BOLTED bus class (no wear mechanism); margin M4 REDCUBE-class 1/polarity
+= 170% @50A vs ratified TE-blade 3/polarity = 137% (both pass 125% policy) -> recommend
+BOLTED. Input = swappable passive DBs on same bolt pattern: native 12V-2x6 (default),
+2x/3x PCIe-8pin (native old-PSU cables, DB straps S1-S4 to the HONEST wattage class —
+kills the adapter-squid lie), M4-lug bench variant. Honest notes: bolted joints sit
+outside per-pin measurement (mitigate by joint class + NTC watch + DNP TH provision);
+mechanical/keying rides OQ-87/keying-checker; +$1.5-2.5/module; fastener rungs = cheap
+screw+standoff (bench-gated) / REDCUBE comparator / blade fallback. NEXT: owner ruling
+-> if ADOPT, spec §2.8 amendment (study §6 has draft text), new OQ rows, beta-line
+board work.
+
+## 6L COMPACTION ASSESSMENT (2026-07-25 ~10:45Z, pipeline-pass-2)
+Owner musing: 6-layer would compact ALL boards, leaving only componentry + 1/2-sided as
+bounds. SHARPENED (chat + FOLLOWUPS): agree routing stops binding, but per-board the
+REAL residual bounds are (1) connector bodies/perimeter (Mini-Fit/RJ45/12V-2x6/blade
+fields layer-independent), (2) thermal density — FEM gates push back on compaction
+(same W in less area), (3) creepage (smoke tester EXEMPT from 6L logic entirely —
+2-layer + human-factors panel stands), (4) enclosed modules single-sided BY THERMAL
+DESIGN (TIM-to-case bottom face, spec 6.6) — dual-sided = Hub-class lever only. ENT
+PolarFire hub FCVG484 = the board where 6L+free-POFV is ~REQUIRED (BGA fanout).
+Estimated honest gains: cable boards maybe 15-25% area (pitch + via-in-pad escapes),
+hub modest (jack perimeter), 24-pin modest (connector-dominated). PROPOSED (not run):
+MEASURED EPS 6L compaction study w/ existing placer+FEM at W6 kickoff -> rule OQ-12
+stackup + board set on numbers. No spec change (musing turn); FOLLOWUPS hook extended.
+
+## VIA-IN-PAD RESEARCH + BRANCH SURVEY (2026-07-25 ~10:20Z, pipeline-pass-2)
+Owner asked for branch state + whether JLCPCB via-in-pad (free/cheap?) would help.
+RESEARCHED (jlcpcb.com capabilities + news, 2026-07): POFV resin-filled copper-capped
+via-in-pad = FREE + default on 6-20 LAYER (+ free ENIG; 6-layer proto promos ~$2 small
+/ ~$35 <=100x100 + coupons); 4-LAYER = still a charged add-on (no public price, quote
+tool; historically ~$25-35/order); filled+capped drill window 0.15-0.55mm (netclass
+0.5mm power drills FIT; production 'enlarge vias' answer becomes 'more 0.5s in-pad');
+copper-paste-filled variant for thermal pads. VERDICT recorded in FOLLOWUPS w/ owner
+hook: significantly helps EXACTLY the open OQ-10 (bundled-shunt vertical transition —
+in-pad filled-via fields at the 0.5mR shunt pads become the cheap default candidate,
+10-18 barrels/pad, kills the 12VHPWR-FEM J-concentration class + assembly wicking) and
+OQ-12 stackup, and the timing is IDEAL: EPS/PCIe-2/PCIe-3 are placement-complete with
+ZERO copper routed (W6 pending) so a 6-layer+POFV decision is nearly free NOW; 12VHPWR
+production rev same benefit (0.6/0.3 via residual). NOT relevant: hub/24-pin (routed),
+smoke tester + output daughterboards (2-layer THT). Caveats: 6-layer = OQ-12 stackup
+re-rule + FEM re-run (toolchain exists); promos are proto-scale, re-quote at volume.
+NO spec change made (assessment turn) — owner hook at W6 kickoff / OQ-10.
+BRANCH SURVEY delivered in chat: smoke-tester chain (9 owner rulings applied today) +
+routing agent: pour-first rung landed (CEC_POUR_RESERVE, A/B live on 24-pin wave),
+v3.1 connector manifolds MEASURED-INSUFFICIENT on s415 (3 no-paths persist, different
+class: locked-copper seam congestion — owner design Q), v4 territory planning GO
+(corridors + layer assignment + compact crossing via fields; raster demoted to
+legality), RUNG GATE active (no advancement until pour artifacts owner-signed), open
+tension: ~28 jellybeans on frozen-F bboxes (owner call listed in design doc).
+
 ## #15 AFTERMATH SHOW — RULED AS AMENDED + APPLIED (2026-07-25 ~09:40Z, pipeline-pass-2)
 Owner nodded #15 with an AUTOMATIC directive ("clunky to hold TEST after"). Applied the
 clean form — POP WAKES THE WHOLE PANEL, not just the show: the blown-fuse condition is
