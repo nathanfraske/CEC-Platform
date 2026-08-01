@@ -908,3 +908,42 @@ has better unconnected (114 vs 127). That is the same stale-reference problem ra
 2026-07-26: the reference you open is not what the pipeline builds.
 
 - [2026-07-25] **PENDING OWNER RULING — 12VHPWR bolted daughterboards (LOCKED §2.8 carve-out revisit, owner-initiated):** study at `docs/standard-tier-review/hpwr-daughterboard-study-2026-07-25.md` — output DB carries the captive soldered pigtail (zero added mated 12VHPWR pairs), input becomes swappable DBs (native 12V-2x6 default / 2×-3× PCIe-8-pin variants w/ honest S1-S4 strapping / lug). INTERFACE v2 (owner correction 2026-07-25, study §8 governs): PER-LANE separation preserved — 6 individual 12V lane joints (blade 190% or M3 330% of the 12A hog case) + ONE fatty M4 GND bolt (170% @50A, doubles as the mount) + narrow 1x4 sideband stub; the 2-position 12V bus form is RETRACTED (would gang lanes = destroy per-pin observability). REORDER UNLOCK recorded: DB copper owns lane<->pin order mapping both ends -> main board lanes = straight parallel bars, fan-out corridor deleted (compaction lever, pairs w/ 6L/POFV). +$1.5-2.5/module, first-article torque/contact-R/thermal gates + keying-checker lane-map assertion. RECOMMEND ADOPT (lean: 6 blades + 1 M4), beta line only. §10 ADDENDUM (owner, same day): dual-row UNFENCED — owner's MAIN ramp = top-down fan + heatsink on the shunts (fan elevated from DNP-menu to primary product direction; §6.6 TIM fence doesn't bind this module); bottom-row heat = copper-filled POFV via fields -> top heatsink (~2K/W field, ~0.3K board-through at the mW-class shunt loads); form choice OPEN for owner: 30mm single-row paddle (cheapest) vs ~19mm double-row cable-stick (~equal area, +double-side assembly + FEM fan-model extension). USB-C RULED: stays, 16P stands — 6P class is power-only (no D+/D- pins exist), would kill the flash/CDC port function = fails owner's no-sacrifice test; 16P is the minimal data-capable class, delta vs 6P ~1-2mm/$0.05. Spec §2.8 amendment text drafted in the study §6 — owner's pen flips the lock.
+
+## 2026-08-01 — consolidation onto main: PR #70 open, needs your review
+
+**PR #70** (`claude/pipeline-pass-2` → `main`) carries the 297-commit pipeline-pass-2 line:
+pour correctness, the fabricability check + repair, and the hub work. `origin/main` is merged
+in, the 13 commits another session pushed to the branch on 07-31/08-01 are merged in, no
+conflicts outstanding, and **no CODEOWNERS-protected path is touched** — so it needs an
+ordinary review, not a code-owner review.
+
+**It cannot be merged by an agent.** Branch protection reports `REVIEW_REQUIRED`, and RB-04
+consent-integrity says agents must not authenticate as the owner. That is the gate working as
+designed; the merge is yours.
+
+**CI is red, and it is red on main too.** The `kicad` check fails on
+`test_corridor_model.test_phase2_default_placement_is_legal` — verified failing on
+`origin/main` itself (residual 1 != 0), and main's KiCad checks have been failing since
+2026-07-17. Honest caveat: the residual is 2 on this branch vs 1 on main, so the branch
+nudges a pre-existing failure slightly worse without causing it.
+
+### The other branches
+| branch | vs main | disposition |
+|---|---|---|
+| `claude/freerouting-pipeline-status-yoli0z` | +6 | **already contained** in PR #70 — nothing to do |
+| `claude/housekeeping-ring-buffers` | +1 | open **PR #69** — merge via its own PR |
+| `claude/enterprise-trust-addendum` | +10 | open **PR #64** |
+| `claude/rev3-hier-revisions` | +4 | open **PR #63** |
+| `claude/sch-tooling-unify` | +2 | open **PR #62** |
+| `claude/24pin-tester-psu-usb-fault-e2i4tf` | +4 | no PR — Smoke Tester concept + USB-fix rollout; wants one |
+| `claude/seat-bindings` | +3 | no PR — policy/Decision-9 closure; wants one |
+| `infra/route-notifications` | +2 | no PR — routing-run ping channel |
+| `claude/pcb-candidates` | +1 | no PR — superseded by the live `candidate/` dirs |
+| `ops/agent-handoff` | +1842 | **DO NOT MERGE** |
+
+**`ops/agent-handoff` is not repo work.** It is the session-end hook's lane (handoff +
+memory snapshots). `main` is not an ancestor of it, and a merge would delete **4,720,168
+lines across 2,013 files**. It stays separate by design.
+
+I did not fold the four PR'd branches into PR #70: doing so would route their content around
+the review each already has open. Say the word if you would rather have one merge.
