@@ -14,9 +14,8 @@
 #   * ANY failure (server down/loading, HTTP error, timeout, bad JSON) -> falls back to
 #     cec_router.default_manager. A route NEVER breaks because the LLM is unavailable.
 #   * the LLM CANNOT widen the safety envelope: route() only accepts when the best candidate already
-#     has gates_pass (kelvin_ok + diffpair_ok), and we additionally downgrade an `accept` to `repair`
-#     if the best candidate is not gate-passing. The hard gates + the independent DRC own correctness;
-#     the LLM only chooses among already-safe outcomes (accept finishing-residual vs repair vs escalate).
+#     has gates_pass. That value includes the configured Kelvin, differential-pair, DRC, and
+#     unconnected-ratline gates. We additionally downgrade an `accept` to `repair` if it is false.
 #
 #   from cec_judge_local import make_manager, available
 #   route(board, spec, manager=make_manager(spec))     # if available() else the deterministic default
@@ -152,10 +151,11 @@ SYSTEM = (
     "platform. You are shown the scored Freerouting candidates for ONE region (best first) and must "
     "choose exactly ONE action.\n"
     "HARD RULES:\n"
-    "1. `kelvin_ok` and `diffpair_ok` are HARD SAFETY GATES. NEVER choose `accept` unless the best "
-    "candidate has gates_pass=true (both gates true).\n"
-    "2. When gates_pass=true, a small residual `drc` and a couple of `unconnected` are normally "
-    "finishing/cosmetic (silk, a decorative logo keepout, a shield-tab tie) -- prefer `accept`.\n"
+    "1. NEVER choose `accept` unless the best candidate has gates_pass=true. This is the complete "
+    "independent scorer contract, including configured Kelvin, differential-pair, DRC, and "
+    "unconnected-ratline gates.\n"
+    "2. Never waive a failed gate as finishing or cosmetic. Such findings require correction or an "
+    "explicit disposition outside automatic route acceptance.\n"
     "3. If a hard gate is false (the sense pair or USB diff pair is not fully routed), choose "
     "`repair` -- the loop will bump Freerouting effort and re-route.\n"
     "4. If repairs have already run for several iterations with no improvement in drc/unconnected, "
@@ -532,14 +532,12 @@ def swarm_judge(contexts, *, max_workers=8, timeout=None):
 # needs a true majority AND a gate-passing candidate; disagreement falls to the safer action).
 MANAGER_LENSES = [
     ("safety", "You are the SAFETY lens of a routing MANAGER panel. Judge ONLY the hard safety gates: "
-               "choose `accept` IFF the best candidate has gates_pass=true (kelvin_ok AND diffpair_ok). "
-               "If either is false (the shunt-sense pair or USB diff pair is not fully routed), choose "
-               "`repair`. Never weigh cosmetics. Reply JSON {action,reason} (reason < 25 words)."),
-    ("finishing", "You are the FINISHING lens of a routing MANAGER panel. Assume the hard gates are "
-                  "judged elsewhere. Decide whether the residual drc/unconnected is FINISHING/cosmetic "
-                  "(a decorative LOGO touching only GND, the RJ-45 shield tabs SH1/SH2, or a "
-                  "same-footprint false short) versus a REAL fault. If gates_pass=true and the residual "
-                  "is finishing-only, `accept`; if a real fault remains, `repair`. JSON {action,reason}."),
+               "choose `accept` IFF the best candidate has gates_pass=true. This includes every "
+               "configured DRC and unconnected-ratline gate. If false, choose `repair`. Never weigh "
+               "cosmetics. Reply JSON {action,reason} (reason < 25 words)."),
+    ("finishing", "You are the FINISHING lens of a routing MANAGER panel. A finishing diagnosis is "
+                  "advisory only. Choose `accept` only when gates_pass=true. If gates_pass=false, "
+                  "choose `repair`; do not waive the failed gate. JSON {action,reason}."),
     ("progress", "You are the PROGRESS lens of a routing MANAGER panel. Judge the trajectory across "
                  "iterations: if drc/unconnected are improving, `repair` (keep going); if they have "
                  "STALLED for two or more iterations with no improvement, `escalate` (structural re-plan); "
@@ -738,17 +736,18 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None, ef
 
 DISPATCH_LENSES = [
     ("safety", "You are the SAFETY lens of a candidate-judge SWARM tier. `accept` IFF the best candidate "
-               "has gates_pass=true (kelvin_ok AND diffpair_ok); else `request_more` (route harder). "
+               "has gates_pass=true, including all configured DRC and ratline gates; else "
+               "`request_more` (route harder). "
                "Reply JSON {action,reason}."),
-    ("finishing", "You are the FINISHING lens. If gates_pass=true and the residual drc is finishing-only "
-                  "per the gate_note (LOGO-on-GND, shield tabs, same-footprint false short), `accept`; if "
-                  "a real fault remains, `request_more`. JSON {action,reason}."),
+    ("finishing", "You are the FINISHING lens. A finishing diagnosis cannot waive gates_pass. "
+                  "Choose `accept` only when gates_pass=true; otherwise choose `request_more`. "
+                  "JSON {action,reason}."),
     ("structural", "You are the STRUCTURAL lens. Choose `escalate` (defer UP a tier for a re-plan) ONLY "
                    "when more Freerouting passes won't help: the best candidate has a REAL fault between "
                    "two DIFFERENT functional nets (a genuine short/clearance per the gate_note -- NOT a "
                    "finishing LOGO/shield/same-footprint item), OR drc/unconnected have NOT improved "
                    "across the prior `history` rounds (stalled). Otherwise `request_more` (still improving) "
-                   "or `accept` (gates pass + finishing-only). Budget-exhaustion is handled by the loop, "
+                   "or `accept` only when gates_pass=true. Budget-exhaustion is handled by the loop, "
                    "not you -- escalate on the MERITS. JSON {action,reason}."),
 ]
 DISPATCH_SCHEMA = {
@@ -1031,10 +1030,9 @@ CORPUS_FIT_SYSTEM = (
     "WHAT THE DATA MEANS: A DecisionLog has `final` (gates_pass, kelvin_ok, diffpair_ok, drc, "
     "unconnected, tracks, vias, length, objective, and `reasons` naming what blocked) and an ordered "
     "trajectory of per-iteration entries (chosen-candidate metrics + verdict action/tier/reason + the "
-    "Freerouting effort fr={passes,opt_time} and rip-up count K). kelvin_ok and diffpair_ok are HARD "
-    "SAFETY GATES (shunt Kelvin sense pairs + USB diff pair fully routed); gates_pass = both true (and "
-    "drc==0 when that run required it). drc is RESIDUAL structural DRC -- a few items are usually "
-    "finishing/cosmetic (a decorative LOGO keepout on GND, the RJ-45 SH1/SH2 shield-tab tie). objective "
+    "Freerouting effort fr={passes,opt_time} and rip-up count K). gates_pass is the complete configured "
+    "contract: Kelvin topology, differential pairs, DRC, and unconnected-ratline completion. A failed "
+    "gate cannot be waived as finishing or cosmetic by this reviewer. objective "
     "is a ranking score, LOWER is better, only for gate-passing candidates. `repair` bumps Freerouting "
     "effort; `escalate` after a Kmax stall is the SANCTIONED structural re-plan (repair x N then "
     "escalate-on-stall is COHERENT).\n\n"

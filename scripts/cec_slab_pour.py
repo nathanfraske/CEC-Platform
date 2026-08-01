@@ -28,6 +28,7 @@ import math
 import sys
 
 import numpy as np
+import cec_fab_profile as fab
 
 try:
     import pcbnew
@@ -40,6 +41,16 @@ if pcbnew is not None:
     _swig_guard.pin()
 
 MM = 1e6
+
+
+class SlabAllocationError(RuntimeError):
+    """A requested slab set could not satisfy its hard geometric contract."""
+
+    def __init__(self, failures, report):
+        self.failures = tuple(failures)
+        self.report = report
+        super().__init__("slab allocation failed closed for %s"
+                         % ", ".join("%s/%s" % key for key in self.failures))
 
 
 def _nm(mm):
@@ -287,22 +298,29 @@ def shunt_neighborhoods(board, margin_mm=4.5):
 
 
 def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
-                          min_w_mm=1.2):
+                          min_w_mm=1.2, strict=True):
     """asks: pour dicts ({net, layer, ...}) naming the slab (net, layer) pairs
     -- the ask CHANNEL is kept; the rect geometry is replaced by the slab.
-    Returns (pour_dicts, per-net report)."""
+    Returns (pour_dicts, per-net report). By default any requested rail with
+    missing anchors/current or a failed minimum-width invariant raises
+    SlabAllocationError. ``strict=False`` is diagnostic-only and returns the
+    tentative geometry plus the marked report."""
     grid = Grid(board, cell_mm)
     nets_nc = {n.GetNetname(): c
                for c, n in board.GetNetInfo().NetsByNetcode().items()}
     seen = set()
-    out, rep = [], {}
+    out, rep, prepared = [], {}, []
     for a in asks:
         net = a.get("net")
         for lay in (a.get("layers") or (a.get("layer", "F.Cu"),)):
             key = (net, lay)
-            if key in seen or net not in nets_nc:
+            if key in seen:
                 continue
             seen.add(key)
+            if net not in nets_nc:
+                rep[key] = {"skipped": "requested net is absent from the board",
+                            "allocation_failed_closed": True}
+                continue
             lay_id = board.GetLayerID(lay)
             foreign, anchors = rasterize(board, nets_nc[net], lay_id, grid,
                                          clearance_mm)
@@ -325,11 +343,252 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 continue
             mask, r = shave(foreign, anchors, grid, min_w_mm)
             rep[key] = r
-            for poly in mask_to_polys(mask, grid):
-                out.append({"net": net, "layer": lay, "polygon": poly,
-                            "priority": int(a.get("priority", 2)),
-                            "provenance": "slab"})
+            prepared.append({"key": key, "net": net, "layer": lay,
+                             "ask": a, "foreign": foreign,
+                             "anchors": anchors, "mask": mask})
+
+    # A zone filler resolves equal-priority overlapping outlines by allowing one
+    # net to own the contested copper. The old implementation handed every
+    # additive Hub rail almost the whole inner layer, so ask/order or fill order
+    # selected a roughly 4300 mm2 winner while tail rails received no zone. Do
+    # the ownership solve before polygons exist. Disjoint candidate groups keep
+    # their historical maximal slabs; overlapping groups use a weighted,
+    # anchor-seeded flood whose service rate is proportional to the verified
+    # sustained design current.
+    by_layer = {}
+    for p in prepared:
+        by_layer.setdefault(p["layer"], []).append(p)
+    for lay in sorted(by_layer):
+        layer_plans = sorted(by_layer[lay], key=lambda p: p["net"])
+        for group in _overlap_groups(layer_plans):
+            if len(group) == 1:
+                # Closing/smoothing may grow an outline into a nearby net's
+                # non-overlapping candidate. Preserve exact raster ownership
+                # whenever more than one rail uses the layer.
+                _emit_slab_plan(out, rep, group[0], group[0]["mask"], grid,
+                                smooth=(len(layer_plans) == 1))
+                continue
+            weights, missing = _slab_design_currents(group)
+            if missing:
+                why = ("overlapping slab allocation requires a verified "
+                       "design-basis current; missing %s" % ", ".join(missing))
+                for p in group:
+                    rep[p["key"]].update({"skipped": why,
+                                           "allocation_failed_closed": True})
+                print("[cec_slab_pour] %s %s" % (lay, why),
+                      file=sys.stderr, flush=True)
+                continue
+            masks, alloc = weighted_fair_masks(
+                [p["mask"] for p in group],
+                [p["anchors"] for p in group], weights,
+                names=[p["net"] for p in group])
+            for p, owned, amps, ar in zip(group, masks, weights, alloc):
+                # Re-run the same width/prune invariant with every other
+                # allocation cell treated as contested. This cannot introduce
+                # overlap and catches a fair-share strip that became too thin.
+                final, final_rep = shave(~owned, p["anchors"], grid, min_w_mm)
+                final &= owned
+                final_rep.update({
+                    "allocation": "weighted_fair_v1",
+                    "design_current_A": float(amps),
+                    "target_cells": ar["target_cells"],
+                    "allocated_cells_before_shave": ar["allocated_cells"],
+                    "allocation_share": ar["share"],
+                })
+                rep[p["key"]].update(final_rep)
+                _emit_slab_plan(out, rep, p, final, grid, smooth=False)
+    failures = []
+    for key, row in rep.items():
+        reason = None
+        if row.get("allocation_failed_closed"):
+            reason = row.get("skipped") or "allocation failed"
+        elif row.get("skipped"):
+            reason = row["skipped"]
+        elif row.get("min_width_ok") is False:
+            reason = ("minimum-width invariant failed with %s anchor group(s)"
+                      % row.get("anchor_groups_after_erosion"))
+        if reason:
+            row["allocation_failed_closed"] = True
+            row["failure_reason"] = reason
+            failures.append(key)
+    if failures and strict:
+        raise SlabAllocationError(sorted(failures), rep)
     return out, rep
+
+
+def _emit_slab_plan(out, rep, plan, mask, grid, *, smooth=True):
+    """Emit one prepared slab without allowing outline smoothing to overlap a
+    neighbour's allocated territory."""
+    polys = mask_to_polys(mask, grid, smooth=smooth)
+    rep[plan["key"]]["emitted_polygons"] = len(polys)
+    for poly in polys:
+        out.append({"net": plan["net"], "layer": plan["layer"],
+                    "polygon": poly,
+                    "priority": int(plan["ask"].get("priority", 2)),
+                    "provenance": "slab"})
+
+
+def _overlap_groups(plans):
+    """Connected components of plans whose candidate copper overlaps."""
+    left = set(range(len(plans)))
+    groups = []
+    while left:
+        todo = [left.pop()]
+        group = []
+        while todo:
+            i = todo.pop()
+            group.append(plans[i])
+            hit = [j for j in left
+                   if np.logical_and(plans[i]["mask"],
+                                     plans[j]["mask"]).any()]
+            for j in hit:
+                left.remove(j)
+                todo.append(j)
+        groups.append(sorted(group, key=lambda p: p["net"]))
+    return groups
+
+
+def _slab_design_currents(plans):
+    """Resolve sustained currents without inventing a fallback value.
+
+    An ask may carry ``design_current_A`` explicitly. Otherwise the board's
+    thermal adapter is the authority, using CEC_THERMAL_BOARD_HINT set by the
+    synthesis pipeline. A missing or non-positive value is returned as missing
+    so an overlapping allocation fails closed instead of silently becoming an
+    equal-share guess.
+    """
+    cfg_currents = {}
+    try:
+        import cec_thermal_overlay as _ov
+        hint = os.environ.get("CEC_THERMAL_BOARD_HINT", "")
+        cfg = _ov.board_thermal_config(hint)
+        cfg_currents = dict((cfg[0] if cfg else None) or {})
+    except Exception:                                  # noqa: BLE001
+        cfg_currents = {}
+    values, missing = [], []
+    for p in plans:
+        raw = p["ask"].get("design_current_A")
+        if raw is None:
+            raw = cfg_currents.get(p["net"])
+        try:
+            val = float(raw)
+        except (TypeError, ValueError):
+            val = 0.0
+        if not math.isfinite(val) or val <= 0:
+            missing.append(p["net"])
+        values.append(val)
+    return values, missing
+
+
+def weighted_fair_masks(candidates, anchors, weights, *, names=None):
+    """Partition overlapping boolean masks with current-weighted quotas.
+
+    Each net may own only cells reachable from its same-net anchors inside its
+    already verified candidate mask. A multi-source graph distance ranks those
+    cells. The allocator then fills explicit ampere-weighted quotas from the
+    nearest cells globally, rather than allowing a centrally placed first net
+    to wall off the rest. The result is deterministic and disjoint. It is not a
+    copper-sizing model: the required-width and anchor-connectivity checks run
+    again after this territory allocation.
+    """
+    if not candidates or not (len(candidates) == len(anchors) == len(weights)):
+        raise ValueError("candidate, anchor, and weight lists must be non-empty and equal")
+    shape = candidates[0].shape
+    if any(m.shape != shape for m in list(candidates) + list(anchors)):
+        raise ValueError("all allocation masks must have the same shape")
+    vals = [float(v) for v in weights]
+    if any(not math.isfinite(v) or v <= 0 for v in vals):
+        raise ValueError("allocation weights must be finite and positive")
+    from collections import deque
+    labels = list(names or [str(i) for i in range(len(candidates))])
+    order = sorted(range(len(candidates)), key=lambda i: labels[i])
+    owner = np.full(shape, -1, dtype=np.int16)
+    allocated = [0 for _ in candidates]
+    ny, nx = shape
+
+    # Same-net anchors are mandatory ownership. If two nets claim one raster
+    # anchor cell, the input copper already collides and allocation must stop.
+    for i in order:
+        seed = anchors[i] & candidates[i]
+        collision = seed & (owner >= 0) & (owner != i)
+        if collision.any():
+            raise ValueError("overlapping anchors between slab nets")
+        new = seed & (owner < 0)
+        owner[new] = i
+        allocated[i] += int(new.sum())
+    union_cells = int(np.logical_or.reduce(candidates).sum())
+
+    # Mandatory anchor cells are paid first. Divide every remaining cell by
+    # the current ratios using largest-remainder rounding, so capacities sum
+    # exactly to the allocatable union and no rail disappears at the tail.
+    remaining = max(0, union_cells - sum(allocated))
+    raw_extra = [remaining * v / sum(vals) for v in vals]
+    extra = [int(math.floor(v)) for v in raw_extra]
+    for i in sorted(range(len(vals)),
+                    key=lambda q: (-(raw_extra[q] - extra[q]), labels[q]))[
+                        :remaining - sum(extra)]:
+        extra[i] += 1
+    quotas = [allocated[i] + extra[i] for i in range(len(vals))]
+
+    # Independent obstacle-aware graph distance from every net's own anchors.
+    # All proposals enter one heap. Distance dominates; name/coordinate ties
+    # make the result byte-stable and independent of ask order.
+    distances = [None for _ in candidates]
+    proposals = []
+    unreachable = np.iinfo(np.int32).max
+    for i in order:
+        dist = np.full(shape, unreachable, dtype=np.int32)
+        q = deque()
+        for r, c in np.argwhere(anchors[i] & candidates[i]):
+            r, c = int(r), int(c)
+            dist[r, c] = 0
+            q.append((r, c))
+        while q:
+            r, c = q.popleft()
+            nd = int(dist[r, c]) + 1
+            for dr, dc in ((-1, 0), (0, -1), (0, 1), (1, 0)):
+                rr, cc = r + dr, c + dc
+                if (0 <= rr < ny and 0 <= cc < nx
+                        and candidates[i][rr, cc] and nd < dist[rr, cc]):
+                    dist[rr, cc] = nd
+                    q.append((rr, cc))
+        distances[i] = dist
+        for r, c in np.argwhere(dist < unreachable):
+            if owner[r, c] < 0:
+                heapq.heappush(proposals,
+                               (int(dist[r, c]), labels[i], int(r), int(c), i))
+
+    while proposals:
+        _dist, _name, r, c, i = heapq.heappop(proposals)
+        if owner[r, c] >= 0 or allocated[i] >= quotas[i]:
+            continue
+        owner[r, c] = i
+        allocated[i] += 1
+
+    # A constrained mask can be smaller than its quota. Assign any remaining
+    # reachable cell to the eligible rail with the greatest quota deficit,
+    # then the shortest anchor distance. This is the only source of a reported
+    # share deviation and represents geometry, not input/fill order.
+    union = np.logical_or.reduce(candidates)
+    for r, c in np.argwhere(union & (owner < 0)):
+        r, c = int(r), int(c)
+        eligible = [i for i in order if distances[i][r, c] < unreachable]
+        if not eligible:
+            continue
+        i = min(eligible, key=lambda q: (
+            -(quotas[q] - allocated[q]), distances[q][r, c],
+            allocated[q] / vals[q], labels[q]))
+        owner[r, c] = i
+        allocated[i] += 1
+
+    masks = [owner == i for i in range(len(candidates))]
+    total_weight = sum(vals)
+    report = [{
+        "target_cells": union_cells * vals[i] / total_weight,
+        "allocated_cells": allocated[i],
+        "share": (allocated[i] / union_cells if union_cells else 0.0),
+    } for i in range(len(candidates))]
+    return masks, report
 
 
 # ---------------------------------------------------------------------------
@@ -348,7 +607,7 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
 # A/B'd behind CEC_OVERUNDER=1 in cec_fr.import_ses against the shave-slab
 # path (synthesize_slab_pours, above) -- never default-on.
 # ---------------------------------------------------------------------------
-def req_width_mm(amps, layer):
+def req_width_mm(amps, layer, *, board=None, profile_name=None):
     """Required copper width (mm) for *amps* at a 30C rise, layer-oz-aware.
 
     Ported VERBATIM from cec_fr.synthesize_pour_bonds's nested
@@ -362,13 +621,22 @@ def req_width_mm(amps, layer):
     rule, docs/agent-working-principles.md item 11: this constant already
     has a traced source -- the validated cec_fr implementation -- so it is
     copied, not re-derived)."""
-    if amps <= 0:
-        return 0.0
-    outer = layer in ("F.Cu", "B.Cu")
-    k = 0.048 if outer else 0.024                  # IPC-2221 ext/int
-    oz = 2.0 if outer else 1.0                     # platform stackup
-    a_mil2 = (1.25 * amps / (k * 30.0 ** 0.44)) ** (1.0 / 0.725)
-    return a_mil2 / (1.378 * oz) * 0.0254
+    if profile_name is None and board is not None:
+        profile_name = fab.board_profile_name(board)
+    if profile_name is None:
+        profile_name = (os.environ.get("CEC_FAB_PROFILE") or
+                        fab.profile_for_board_hint(
+                            os.environ.get("CEC_THERMAL_BOARD_HINT", "")))
+    if profile_name:
+        return fab.ipc2221_required_width_mm(
+            amps, layer, profile_name=profile_name)
+
+    # Back-compatible four-layer baseline. These are the old function's
+    # explicit 2 oz outer and 1 oz inner thicknesses, expressed in mm so the
+    # same centralized equation is used in both paths.
+    copper_mm = fab.OZ_COPPER_MM * (2.0 if layer in ("F.Cu", "B.Cu") else 1.0)
+    return fab.ipc2221_required_width_mm(
+        amps, layer, copper_mm=copper_mm)
 
 
 def terminal_clusters(board, nc, grid):
@@ -822,7 +1090,7 @@ def vias_for_current(amps, *, redundancy=1):
 
 
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
-                   ledger_mm=0.85, n_needed=None):
+                   ledger_mm=0.85, n_needed=None, pad_allow=None):
     """Via positions for ONE compact field: a roughly square ARRAY centred on
     the transition (owner ruling 2026-07-25 -- a layer change is one via array,
     not a fence across the corridor), each slot checked against the barrel
@@ -889,7 +1157,8 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
         if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
                for (qx, qy) in list(placed) + out):
             continue
-        if _pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN):
+        if (_pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN)
+                and not (pad_allow and pad_allow(vx, vy))):
             reseated += 1                  # blocked slot -> keep sliding
             continue
         out.append((vx, vy))
@@ -965,7 +1234,7 @@ def _l_simplify(cells, free, grid):
 
 def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                             existing_vias=(), f_admit=None, free_masks=None,
-                            pitch_mm=1.2, ledger_mm=0.85):
+                            pitch_mm=1.2, ledger_mm=0.85, pad_allow=None):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
     stays the search's; the copper is DRAWN geometry -- one straight capsule
     cover per maximal same-layer run (collinear-simplified centerline at
@@ -1030,7 +1299,8 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         (r, c, lf, lt) = f[:4]
         half_w = max(reqw.get(lf, 1.2), reqw.get(lt, 1.2)) / 2.0
         vs, rs = field_via_line(f, half_w, grid, pad_boxes, placed,
-                                pitch_mm=pitch_mm, ledger_mm=ledger_mm)
+                                pitch_mm=pitch_mm, ledger_mm=ledger_mm,
+                                pad_allow=pad_allow)
         if not vs:
             notes.append("bridge at cell (%d,%d) placed NO via (ledger + "
                          "pad exclusion exhausted every slot)" % (r, c))
@@ -1076,7 +1346,7 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     terminal-cluster + eroded-mask + bias construction: reserved corridors must
     predict realized lanes, so the two may never drift.
 
-    *ask_layers* is the ask's OWN layer list (before the fixed In2/B union --
+    *ask_layers* is the ask's OWN layer list (before the power/fallback union --
     applied here, matching the ask-channel contract documented on
     `synthesize_overunder_pours`). Returns ``(prep, None)`` on success --
     prep = {layers, passable, anchors, foreign, clab, nclusters, rcells,
@@ -1086,8 +1356,17 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     net"), byte-identical to the report reasons the realization always used."""
     from scipy import ndimage
     st = ndimage.generate_binary_structure(2, 1)
-    layers = list(dict.fromkeys(list(ask_layers) + ["In2.Cu", "B.Cu"]))
-    layers = [lay for lay in layers if board.GetLayerID(lay) >= 0]
+    raw_policy = [x.strip() for x in
+                  os.environ.get("CEC_POWER_POUR_LAYERS", "").split(",")
+                  if x.strip() in fab.COPPER_LAYERS]
+    profile_name = fab.active_profile_name(
+        board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
+    fallbacks = (raw_policy or
+                 (["In3.Cu", "B.Cu", "In2.Cu"] if profile_name
+                  else ["In2.Cu", "B.Cu"]))
+    layers = list(dict.fromkeys(list(ask_layers) + list(fallbacks)))
+    enabled = set(fab.enabled_copper_layers(board))
+    layers = [lay for lay in layers if lay in enabled]
     if not layers:
         return None, "no valid layer"
 
@@ -1102,7 +1381,7 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     for lay in layers:
         lay_id = board.GetLayerID(lay)
         fmask, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
-        w = req_width_mm(amps, lay) if amps > 0 else 1.2
+        w = req_width_mm(amps, lay, board=board) if amps > 0 else 1.2
         rc = max(1, int(round(w / (2.0 * grid.cell))))
         eroded = ndimage.binary_erosion(~fmask, structure=st,
                                         iterations=rc)
@@ -1134,7 +1413,7 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     # time -- and a widened net's F anchors are shunt/INA pads, i.e.
     # inside the shunt neighborhoods that choke admits.
     for extra in ("F.Cu", "B.Cu"):
-        if extra in passable or board.GetLayerID(extra) < 0:
+        if extra in passable or extra not in enabled:
             continue
         uncov = [k for k in range(1, nclusters + 1)
                  if not any((anchors[lay] & (clab == k)).any()
@@ -1146,7 +1425,7 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
         helped = [k for k in uncov if (anc & (clab == k)).any()]
         if not helped:
             continue
-        w = req_width_mm(amps, extra) if amps > 0 else 1.2
+        w = req_width_mm(amps, extra, board=board) if amps > 0 else 1.2
         rc = max(1, int(round(w / (2.0 * grid.cell))))
         layers.append(extra)
         passable[extra] = ndimage.binary_erosion(
@@ -1245,15 +1524,19 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
         f_prox = ndimage.binary_dilation(anchors["F.Cu"], structure=st,
                                          iterations=2)
 
-    def _bias(lay, r, c, _shunt=shunt_mask, _fprox=f_prox):
-        # per-layer bias (design step 3): In2 +0, B.Cu +0.15/step,
+    preferred_power = fallbacks[0]
+
+    def _bias(lay, r, c, _shunt=shunt_mask, _fprox=f_prox,
+              _preferred=preferred_power):
+        # per-layer bias (design step 3): preferred power layer +0, other
+        # non-top layers +0.15/step,
         # F.Cu +0.6/step EXCEPT free inside a shunt neighborhood or
         # within 2 cells of this net's own F-anchored terminal.
         if lay == "F.Cu":
             if _shunt[r, c] or (_fprox is not None and _fprox[r, c]):
                 return 1.0
             return 1.6
-        return 1.0 + (0.0 if lay == "In2.Cu" else 0.15)
+        return 1.0 + (0.0 if lay == _preferred else 0.15)
 
     return {"layers": layers, "passable": passable, "anchors": anchors,
             "foreign": foreign, "clab": clab, "nclusters": nclusters,
@@ -1275,8 +1558,8 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     channel `synthesize_slab_pours` reads; this is an alternate REALIZATION
     of the same asks (A/B'd behind CEC_OVERUNDER=1 in cec_fr.import_ses),
     not a new request format. Layers searched per net = the ask's own
-    `layers` (or `layer`, default "F.Cu") UNIONED with {"In2.Cu", "B.Cu"}
-    (always considered regardless of what the ask names) -- an ask that
+    `layers` (or `layer`, default "F.Cu") UNIONED with the active board
+    profile's power and fallback routing layers -- an ask that
     wants an F.Cu-anchored terminal (e.g. an SMD shunt pad) reachable MUST
     include "F.Cu" in its own `layers`, matching the ask-channel contract
     (this function does not silently widen an ask's own layer list beyond
@@ -1431,10 +1714,18 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                     _bb = _pd.GetBoundingBox()
                     _padb.append((_bb.GetLeft() / MM, _bb.GetTop() / MM,
                                   _bb.GetRight() / MM, _bb.GetBottom() / MM))
+            def _pofv_pad_allow(_x, _y, _nc=nc):
+                if pcbnew is None:
+                    return False
+                _at = pcbnew.VECTOR2I(_nm(_x), _nm(_y))
+                _blocking, _allowed = fab.via_at_pad_conflicts(
+                    board, _at, _nm(0.9), _nm(0.5), _nc)
+                return _blocking is None and bool(_allowed)
             realized, _vpts, _rnotes = realize_overunder_rects(
                 chains, bridges, reqw, grid, pad_boxes=_padb,
                 existing_vias=existing_vias_mm, f_admit=_f_admit,
-                free_masks=prep.get("free") or prep.get("passable"))
+                free_masks=prep.get("free") or prep.get("passable"),
+                pad_allow=_pofv_pad_allow)
             net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
             for _nt in _rnotes:
                 print(f"[cec_slab_pour] over-under[{net}]: {_nt}",
@@ -1927,8 +2218,11 @@ def connector_manifolds(board, nets=None, *, margin_mm=4.0,
             # anchor F AND In2); single-layer = SMD group on its own side.
             tht = any(len(set(p.GetLayerSet().CuStack())) > 1 for p in ps)
             if tht:
-                lays = [l for l in ("F.Cu", "In2.Cu")
-                        if board.GetLayerID(l) >= 0]
+                profile_name = fab.active_profile_name(
+                    board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
+                power = "In3.Cu" if profile_name else "In2.Cu"
+                enabled = set(fab.enabled_copper_layers(board))
+                lays = [l for l in ("F.Cu", power) if l in enabled]
             else:
                 stack = set(ps[0].GetLayerSet().CuStack())
                 lays = ["B.Cu" if bcu in stack and fcu not in stack

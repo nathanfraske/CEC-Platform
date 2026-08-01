@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# Hub In2 rung teeth (owner directives 2026-07-23: "can we make the second
-# inner ground into a signalling layer?" + "do the ugly giant pours inside of
-# that layer instead of on top"). Three fixes under test:
-#   1. hub BOARD_PARAMS conformance: inner_power_routing on (In1 = the sole
-#      GND plane, In2 re-typed signal = a true third routable layer) and every
-#      power pour ask moved to In2 (evac=False stays -- post-route additive).
+# Hub inner-layer rung teeth. The 2026-08-01 six-layer decision supersedes the
+# earlier four-layer In2 pour rule: In2 remains a signal-routing layer, In3 is
+# the power-pour layer, and In1/In4 are ground planes. Three fixes under test:
+#   1. hub BOARD_PARAMS conformance: inner routing enabled and every power pour
+#      ask on In3 (evac=False stays, so the pour remains post-route additive).
 #   2. pour_polygons() per-layer emission: the old s.layers[0] truncation
 #      silently dropped every layer past the first (measured: the hub's F+B
 #      asks poured F.Cu ONLY on all 12 night waves).
@@ -34,13 +33,13 @@ class TestHubParamsConformance(unittest.TestCase):
                         "hub must free In2 (2026-06-14 stackup ruling: one "
                         "inner GND plane, In2 = signal)")
 
-    def test_pour_asks_live_on_in2(self):
+    def test_pour_asks_live_on_in3(self):
         asks = self.p.get("pour_asks") or []
         self.assertGreaterEqual(len(asks), 10)
         for a in asks:
-            self.assertEqual(tuple(a["layers"]), ("In2.Cu",),
-                             f"pour ask {a['net']} must live on In2 (owner "
-                             "2026-07-23: pours inside the layer, not on top)")
+            self.assertEqual(tuple(a["layers"]), ("In3.Cu",),
+                             f"pour ask {a['net']} must live on the approved "
+                             "six-layer In3 power layer")
             self.assertFalse(a.get("evac", True),
                              "hub asks stay post-route additive (no eviction)")
 

@@ -57,8 +57,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 # ---------------------------------------------------------------------------
 import contextlib as _cl
 
-with _cl.redirect_stderr(open(os.devnull, "w")):
-    import pcbnew
+with open(os.devnull, "w") as _pcbnew_stderr:
+    with _cl.redirect_stderr(_pcbnew_stderr):
+        import pcbnew
 
 # SWIG REGISTRY PIN (2026-07-25): keeps pcbnew's type table from being torn down
 # mid-run -- the root cause of the hub's all-9999 wall, where LoadBoard began
@@ -66,6 +67,7 @@ with _cl.redirect_stderr(open(os.devnull, "w")):
 # scripts/cec_swig_guard.py for the measurement chain.
 import cec_swig_guard as _swig_guard                     # noqa: E402
 _swig_guard.pin()
+import cec_fab_profile as _fab                           # noqa: E402
 
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
@@ -150,16 +152,17 @@ _TMP = tempfile.gettempdir()
 def _fr_engine(jar, version=None):
     """The argv prefix that launches Freerouting *version*.
 
-    1.7.0 (and any release whose min_java the PATH `java` satisfies) runs `java -jar`.
+    1.7.0 (and any release whose minimum Java is satisfied) runs `java -jar`.
     2.2.4 is compiled for Java 25 (class-file 69); when the PATH java is older, fall back
     to the hash-pinned official jpackage APP-IMAGE launcher (bundled JRE 25, Linux only).
     """
     v = version or FR_VERSION
     rel = FR_RELEASES.get(v) or {}
     need = int(rel.get("min_java", 17))
-    have = _java_major()
+    java = _java_executable()
+    have = _java_major(java)
     if have >= need:
-        return ["java", "-jar", jar]
+        return [java, "-jar", jar]
     if rel.get("appimage_launcher") and sys.platform.startswith("linux"):
         return [ensure_appimage(v)]
     raise RuntimeError(
@@ -262,7 +265,7 @@ FR_RELEASES = {
     # pre-kill contract). Patch: scripts/patches/freerouting-1.7.0-cec2.patch
     # (cumulative over v1.7.0); rebuild per ops/README-fr-fork.md.
     "1.7.0-cec2": {
-        "jar_sha256": "de01c829eab9406a1df6d1ad713a3334f138e77c122a61d2ba5a8364b8f904c2",
+        "jar_sha256": "149cebd88169be77f5ddc7e1d50284451204f10c088e5d7380859ab0395b7ce5",
         "min_java": 17,
         "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec2.jar",
                         "build/fr-fork/freerouting-1.7.0-cec2.jar"),
@@ -330,10 +333,48 @@ def _verify_pin(path, expected, what):
         )
 
 
-def _java_major():
-    """Major version of the `java` on PATH, or 0 when absent/unparsable."""
+def _java_executable():
+    """Resolve the Java runtime used by both wrappers and direct API calls."""
+    override = os.environ.get("CEC_JAVA")
+    if override:
+        return override
+    on_path = shutil.which("java")
+    if on_path:
+        return on_path
+    java_home = os.environ.get("JAVA_HOME")
+    if java_home:
+        candidate = os.path.join(
+            java_home, "bin", "java.exe" if os.name == "nt" else "java")
+        if os.path.isfile(candidate):
+            return candidate
+
+    import glob as _glob
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    exe = "java.exe" if os.name == "nt" else "java"
+    patterns = [
+        os.path.join(repo, "build", "fr-fork", "jdk-dist", "**", "bin", exe),
+    ]
+    if os.name == "nt":
+        for root in filter(None, (os.environ.get("ProgramFiles"),
+                                  os.environ.get("ProgramFiles(x86)"))):
+            patterns.extend((
+                os.path.join(root, "Eclipse Adoptium", "**", "bin", exe),
+                os.path.join(root, "Java", "**", "bin", exe),
+                os.path.join(root, "Microsoft", "jdk*", "bin", exe),
+                os.path.join(root, "Zulu", "**", "bin", exe),
+            ))
+    candidates = sorted({path for pattern in patterns
+                         for path in _glob.glob(pattern, recursive=True)
+                         if os.path.isfile(path)}, reverse=True)
+    return candidates[0] if candidates else "java"
+
+
+def _java_major(executable=None):
+    """Major version of the selected Java executable, or 0 if unusable."""
+    java = executable or _java_executable()
     try:
-        r = subprocess.run(["java", "-version"], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([java, "-version"], capture_output=True, text=True,
+                           timeout=30)
         out = r.stderr + r.stdout
         import re as _re
         m = _re.search(r'version "(\d+)', out)
@@ -481,7 +522,8 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     import re
     if not layer_names:
         return []
-    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    with open(dsn_path, "r", encoding="utf-8", errors="replace") as handle:
+        text = handle.read()
     done = []
     for name in layer_names:
         pat = re.compile(r"(\(layer\s+" + re.escape(name) + r"\s*\(\s*type\s+)signal(\s*\))")
@@ -489,7 +531,8 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
         if n:
             done.append(name)
     if done:
-        open(dsn_path, "w", encoding="utf-8").write(text)
+        with open(dsn_path, "w", encoding="utf-8") as handle:
+            handle.write(text)
     return done
 
 
@@ -634,7 +677,8 @@ def _dsn_exclude_pins(dsn_path: str, pins) -> int:
     import re
     if not pins:
         return 0
-    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    with open(dsn_path, "r", encoding="utf-8", errors="replace") as f:
+        text = f.read()
     removed = 0
     for tok in pins:
         # whole-token match: not preceded/followed by a word char or '-' (so 'U10-10' != inside 'U10-100')
@@ -646,7 +690,8 @@ def _dsn_exclude_pins(dsn_path: str, pins) -> int:
         text = re.sub(r"[ \t]{2,}", " ", text)
         text = re.sub(r"\(pins +", "(pins ", text)
         text = re.sub(r" +\)", ")", text)
-        open(dsn_path, "w", encoding="utf-8").write(text)
+        with open(dsn_path, "w", encoding="utf-8") as f:
+            f.write(text)
     return removed
 
 
@@ -2301,7 +2346,7 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
                     continue
                 # assembly-class via-in-pad exclusion (owner ruling
                 # 2026-07-25): any pad, own net included
-                if _via_pad_excluded(board, at, _nm(dia)) is not None:
+                if _via_pad_excluded(board, at, _nm(dia), _nm(drill), nc) is not None:
                     continue
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(at)
@@ -2432,7 +2477,7 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
     # definitely causing issues"): power distribution belongs on the inner
     # power layer per the stackup doctrine -- F.Cu is the SIGNAL fabric, so it
     # is primary only when it is the net's ONLY layer. Preference beats area.
-    _LAYPREF = {"In2.Cu": 3, "In1.Cu": 2, "B.Cu": 1}
+    _LAYPREF = {"In3.Cu": 4, "In2.Cu": 3, "B.Cu": 1}
     _primary = {}
     for net, ds in by_net.items():
         _primary[net] = max(
@@ -2448,22 +2493,26 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
     # direction: unknown current => 0 (logic nets need no mirrors); when in
     # doubt on a real current, the mirror STAYS (thermal safety wins).
     _amps = {}
+    _hint = os.environ.get("CEC_THERMAL_BOARD_HINT", "")
     try:
         import cec_thermal_overlay as _ov
-        _hint = os.environ.get("CEC_THERMAL_BOARD_HINT", "")
         _cfg4 = _ov.board_thermal_config(_hint)        # -> (net_currents, ...) tuple
         _amps = dict((_cfg4[0] if _cfg4 else None) or {})
     except Exception:                                  # noqa: BLE001
         _amps = {}
 
+    _profile_name = (_fab.board_profile_name(board) or
+                     os.environ.get("CEC_FAB_PROFILE") or
+                     _fab.profile_for_board_hint(_hint))
+
     def _req_width_mm(amps, lay):
-        if amps <= 0:
-            return 0.0
-        outer = lay in ("F.Cu", "B.Cu")
-        k = 0.048 if outer else 0.024                  # IPC-2221 ext/int
-        oz = 2.0 if outer else 1.0                     # platform stackup
-        a_mil2 = (1.25 * amps / (k * 30.0 ** 0.44)) ** (1.0 / 0.725)
-        return a_mil2 / (1.378 * oz) * 0.0254
+        if _profile_name:
+            return _fab.ipc2221_required_width_mm(
+                amps, lay, profile_name=_profile_name)
+        copper_mm = _fab.OZ_COPPER_MM * (
+            2.0 if lay in ("F.Cu", "B.Cu") else 1.0)
+        return _fab.ipc2221_required_width_mm(
+            amps, lay, copper_mm=copper_mm)
 
     def _mirror_needed(net, r):
         pr = next((_rect(x) for x in by_net[net]
@@ -2584,7 +2633,9 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
                 if any((at.x - vx) ** 2 + (at.y - vy) ** 2 < _nm(0.85) ** 2
                        for vx, vy, _vn in all_vias):
                     continue
-                if not _via_spot_clear(board, at, _nm(dia), _nm(clearance), {nc_}):
+                if not _via_spot_clear(board, at, _nm(dia), _nm(clearance),
+                                       {nc_}, drill_nm=_nm(drill),
+                                       net_code=nc_):
                     continue
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(at)
@@ -2717,7 +2768,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     if not (_tap_foreign_clear(board, pos, at, _nm(stub_w),
                                                lay_id, _nm(0.25), {nc})
                             and _via_spot_clear(board, at, _nm(dia),
-                                                _nm(0.25), {nc})
+                                                _nm(0.25), {nc},
+                                                drill_nm=_nm(drill),
+                                                net_code=nc)
                             and _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
                                                         lay_id, nc, set())):
                         continue
@@ -2786,7 +2839,9 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                 if not _tap_foreign_clear(board, S, V, w, lay_e,
                                           clearance_nm, {nc}):
                     continue
-                if not _via_spot_clear(board, V, _nm(dia), clearance_nm, {nc}):
+                if not _via_spot_clear(board, V, _nm(dia), clearance_nm,
+                                       {nc}, drill_nm=_nm(drill),
+                                       net_code=nc):
                     continue
                 return ((vx, vy), [("trk", S, V, w, lay_e), ("via", V)])
         return None
@@ -3079,7 +3134,7 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
         kelvin_pairs = _board_kelvin_pairs(board)
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
-    all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
+    all_pads = []                          # (net, x, y, half_extent_mm)
     segs = []                              # (net, ax, ay, bx, by, halfwidth) -- every track
     ex_vias = []                           # (x, y, radius) -- existing vias
     for t in board.GetTracks():
@@ -3101,7 +3156,8 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
         for p in fp.Pads():
             padcount[ref] += 1
             pos = p.GetPosition(); sz = p.GetSize()
-            all_pads.append((pos.x / MM, pos.y / MM, max(sz.x, sz.y) / MM / 2.0))
+            all_pads.append((p.GetNetname(), pos.x / MM, pos.y / MM,
+                             max(sz.x, sz.y) / MM / 2.0))
             if p.GetNetname():
                 pads_by_net[p.GetNetname()].append((ref, p))
 
@@ -3128,8 +3184,16 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
                     if len(pos) >= per_net:
                         break
                     x, y = x0 + ix * pitch, y0 + iy * pitch
-                    if any(math.hypot(x - px, y - py) < pr + keepout + vr for (px, py, pr) in all_pads):
-                        continue           # too close to a pad
+                    at = pcbnew.VECTOR2I(_nm(x), _nm(y))
+                    nc = board.GetNetcodeFromNetname(net)
+                    blocking, _allowed = _fab.via_at_pad_conflicts(
+                        board, at, _nm(dia), _nm(drill), nc)
+                    if blocking is not None:
+                        continue           # short, THT overlap, or unqualified via-in-pad
+                    if any(pnet != net and
+                           math.hypot(x - px, y - py) < pr + keepout + vr
+                           for (pnet, px, py, pr) in all_pads):
+                        continue           # foreign pad clearance, beyond collision
                     if any(snet != net and _pt_seg_dist(x, y, ax, ay, bx, by) < hw + clearance + vr
                            for (snet, ax, ay, bx, by, hw) in segs):
                         continue           # too close to a FOREIGN-net track
@@ -3160,7 +3224,8 @@ def add_via_field(board, fields):
         for (x, y) in f["positions"]:
             at = pcbnew.VECTOR2I(_nm(x), _nm(y))
             # assembly-class via-in-pad exclusion (owner ruling 2026-07-25)
-            if _via_pad_excluded(board, at, _nm(f.get("dia", 0.6))):
+            if _via_pad_excluded(board, at, _nm(f.get("dia", 0.6)),
+                                 _nm(f.get("drill", 0.3)), nc):
                 skipped_pad += 1
                 continue
             v = pcbnew.PCB_VIA(board)
@@ -3211,7 +3276,7 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         # assembly-class via-in-pad exclusion (owner ruling 2026-07-25) --
         # defense in depth: the v4 planner reseats field vias beside pads
         # upstream, so a refusal here marks an upstream miss, loudly.
-        if _via_pad_excluded(board, at, _nm(dia)):
+        if _via_pad_excluded(board, at, _nm(dia), _nm(drill), nc):
             skipped_pad += 1
             continue
         via = pcbnew.PCB_VIA(board)
@@ -3294,18 +3359,20 @@ def _sense_in_pad(fp, role):
     return None
 
 
-def _via_pad_excluded(board, at, dia_nm):
-    """ASSEMBLY-CLASS via-in-pad exclusion (owner ruling 2026-07-25,
-    docs/slab-pour-design-2026-07-24.md "Via-in-pad ruling"): a via barrel
-    may not sit inside or overlap ANY pad's copper, REGARDLESS OF NET --
-    the foreign-only guards exempt same-net pads by construction, which is
-    exactly the measured gap (vias landed in pads on the v4 artifacts).
-    SMD pads: no center inside / no barrel overlap (solder wicking; this
-    platform uses no via-in-pad design). THT pads: no via within the
-    annulus. Both reduce to one test: the barrel circle colliding the
-    pad's effective shape on any of the pad's own copper layers (a through
-    barrel exists on every layer, so one pad layer suffices). Returns the
-    offending pad, or None when clear."""
+def _via_pad_excluded(board, at, dia_nm, drill_nm=None, net_code=None):
+    """Return the pad blocking an intended through via, or None when clear.
+
+    Legacy boards retain the blanket no-via-on-pad rule. A board whose own
+    properties declare an approved POFV profile may use a same-net via inside
+    an SMD land only when the centralized fabrication check verifies drill,
+    annular ring, and full-land containment. Different-net and THT overlaps
+    always remain blocked. Omitting drill/net intentionally preserves the old
+    fail-closed behavior for callers that cannot prove the intended via.
+    """
+    if drill_nm is not None and net_code is not None:
+        blocking, _allowed = _fab.via_at_pad_conflicts(
+            board, at, dia_nm, drill_nm, net_code)
+        return blocking
     circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
     for fp in board.GetFootprints():
         for p in fp.Pads():
@@ -3320,7 +3387,8 @@ def _via_pad_excluded(board, at, dia_nm):
     return None
 
 
-def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes):
+def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
+                    drill_nm=None, net_code=None):
     """True iff a THROUGH-via of diameter dia_nm at *at* has no foreign-net
     pad/track/via within clearance_nm on ANY enabled copper layer. A through
     barrel exists on every layer of the stack, so a single-layer probe is a
@@ -3333,7 +3401,7 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes):
     ALSO enforces the net-independent assembly-class pad exclusion
     (_via_pad_excluded, owner via-in-pad ruling 2026-07-25) so every caller
     -- pickups, force vias, lastmile, tap doglegs -- inherits it."""
-    if _via_pad_excluded(board, at, dia_nm) is not None:
+    if _via_pad_excluded(board, at, dia_nm, drill_nm, net_code) is not None:
         return False
     probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
     for lid in board.GetEnabledLayers().CuStack():
@@ -4411,7 +4479,8 @@ def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float 
         bb = t.GetBoundingBox()
         box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
         if t.Type() == pcbnew.PCB_VIA_T:
-            lays = ("F.Cu", "B.Cu")
+            lays = tuple(board.GetLayerName(lid)
+                         for lid in t.GetLayerSet().CuStack())
         else:
             lays = (board.GetLayerName(t.GetLayer()),)
         for ly in lays:
@@ -4503,7 +4572,9 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
             continue
         bb = t.GetBoundingBox()
         box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
-        lays = (("F.Cu", "B.Cu") if t.Type() == pcbnew.PCB_VIA_T
+        lays = (tuple(board.GetLayerName(lid)
+                      for lid in t.GetLayerSet().CuStack())
+                if t.Type() == pcbnew.PCB_VIA_T
                 else (board.GetLayerName(t.GetLayer()),))
         for ly in lays:
             locked_boxes.setdefault(n, {}).setdefault(ly, []).append(box)
@@ -5024,8 +5095,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                     _sp3 = list(_sp3) + _gsp3
                     power_pours = _keep_r3 + _sp3
             except Exception as _se3:                    # noqa: BLE001
-                print(f"[cec_fr] slab conversion FAILED ({_se3}) -- rects kept",
-                      file=sys.stderr)
+                # A raw-rectangle fallback resurrects overlapping, order-owned
+                # copper. Refuse the candidate so the caller can re-place or
+                # change reviewed geometry instead of routing an invalid pour.
+                raise RuntimeError("slab conversion failed closed: %s" % _se3) from _se3
     # SINGLE LAY SITE (2026-07-24): every pour dict -- filtered rects, slab
     # polys, over-under lanes, or the raw list when kelvin_taps=False skipped
     # the filter/conversion stages -- lands on the board HERE, exactly once,

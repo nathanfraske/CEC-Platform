@@ -11,7 +11,7 @@
 #   1. the drop MECHANISM (_solve_net_electrical -> None on disconnected src/sink),
 #   2. the ACCOUNTING classification in the _oracle_thermal stamp:
 #      dropped (on-board, no path)  -> ok=False, INJECTION INCOMPLETE, named nets;
-#      absent  (not on this board)  -> advisory only (the alpha /FAN_12V contract);
+#      absent  (not on this board)  -> ok=False because configured heat was omitted;
 #      clean                        -> accounting fields ride the stamp, verdict
 #                                      unchanged.
 import os
@@ -83,7 +83,7 @@ class _FakeRes:
 
 
 class TestStampClassification(unittest.TestCase):
-    """_oracle_thermal folds the accounting into the stamp and fails on dropped nets."""
+    """_oracle_thermal fails when any configured current was not injected."""
 
     def _stamp(self, res):
         import cec_synth_pipeline as csp
@@ -113,13 +113,13 @@ class TestStampClassification(unittest.TestCase):
         self.assertEqual(st["nets_requested"], 2)
         self.assertEqual(st["nets_injected"], 1)
 
-    def test_absent_net_is_advisory_only(self):
-        # the alpha /FAN_12V contract: configured-but-unpopulated nets never fail
+    def test_absent_requested_net_fails(self):
         st = self._stamp(_FakeRes(20.0,
                                   requested={"/FAN_12V": 8.33, "GND": 50.0},
                                   absent={"/FAN_12V": "no copper/pads on this board"}))
-        self.assertTrue(st["ok"], "absent nets are advisory, not a failure")
-        self.assertNotIn("error", st)
+        self.assertFalse(st["ok"], "an absent requested net omits configured heat")
+        self.assertIn("INJECTION INCOMPLETE", st.get("error", ""))
+        self.assertIn("/FAN_12V", st.get("error", ""))
         self.assertIn("/FAN_12V", st.get("nets_absent", []))
         self.assertEqual(st["nets_injected"], 1)
 

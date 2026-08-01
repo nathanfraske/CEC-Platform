@@ -81,6 +81,16 @@ def _sha(obj):
                                      separators=(",", ":")).encode()).hexdigest()
 
 
+def _load_json(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _read_text(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
 # ------------------------------------------------------------------ corpus --
 def load_zone(corpus_root, zone):
     """All entries in a zone, each tagged with `_zone` and `_file`. Sorted by
@@ -89,7 +99,7 @@ def load_zone(corpus_root, zone):
     for path in sorted(glob.glob(os.path.join(corpus_root, zone, "**", "*.json"),
                                  recursive=True)):
         try:
-            data = json.load(open(path, encoding="utf-8"))
+            data = _load_json(path)
         except Exception as e:                                # noqa: BLE001
             raise SystemExit("corpus parse error %s: %s" % (path, e))
         rows = data if isinstance(data, list) else [data]
@@ -151,7 +161,7 @@ def fixture_latch(entry):
     results = os.path.join(OUT_ROOT, "..", "corpus-fixture-results.json")
     if os.path.isfile(results):
         try:
-            rec = json.load(open(results)).get(entry["id"])
+            rec = _load_json(results).get(entry["id"])
             if rec and rec.get("status") != "pass":
                 return False, "fixture result is %r" % rec.get("status")
         except Exception:                                     # noqa: BLE001
@@ -164,7 +174,7 @@ def extract_registry(constraints_py=CONSTRAINTS_PY):
     """AST-extract the hand-maintained REGISTRY literals from
     cec_constraints.py (R8: the compiler never imports it -- pcbnew chain).
     Returns rows of the literal kwargs of each C(...) call."""
-    tree = ast.parse(open(constraints_py, encoding="utf-8").read())
+    tree = ast.parse(_read_text(constraints_py))
     rows = []
     for node in ast.walk(tree):
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
@@ -425,7 +435,7 @@ def compile_corpus(corpus_root=CORPUS_ROOT, out_root=OUT_ROOT,
     for b in boards:
         bn, slot = b["name"], artifacts[b["name"]]
         committed_dru = (glob.glob(os.path.join(b["dir"], "*.kicad_dru")) or [None])[0]
-        hand = open(committed_dru, encoding="utf-8").read().rstrip() \
+        hand = _read_text(committed_dru).rstrip() \
             if committed_dru else "(version 1)"
         gen = "\n".join([GEN_BEGIN,
                          "# manifest: corpus %s compiler %s (%d blocking rule(s))"
@@ -479,7 +489,7 @@ def load_board_artifacts(board_name, out_root=OUT_ROOT):
                  "checker_bindings", "notes"):
         path = os.path.join(bdir, name + ".json")
         try:
-            out[name] = json.load(open(path))
+            out[name] = _load_json(path)
         except Exception:                                     # noqa: BLE001
             out[name] = []
     return out
@@ -490,7 +500,7 @@ def evaluate_param_deltas(out_root=OUT_ROOT):
     delta -- surfaced, never silently ignored, never an error (staging has no
     authority to conflict). -> [{entry_id, key, staging_value, active_value}]"""
     try:
-        rows = json.load(open(os.path.join(out_root, "params.json")))
+        rows = _load_json(os.path.join(out_root, "params.json"))
     except Exception:                                         # noqa: BLE001
         return []
     deltas = []
@@ -519,7 +529,7 @@ def validate_artifacts(out_root=OUT_ROOT, corpus_root=CORPUS_ROOT):
         if os.path.basename(path) in ("manifest.json", "parity.json", "pushdown.json"):
             continue
         try:
-            rows = json.load(open(path))
+            rows = _load_json(path)
         except Exception:                                     # noqa: BLE001
             continue
         for row in rows if isinstance(rows, list) else []:
@@ -533,12 +543,13 @@ def validate_artifacts(out_root=OUT_ROOT, corpus_root=CORPUS_ROOT):
                 errs.append("%s: gate artifact cites promoted entry %s without signoff"
                             % (os.path.relpath(path, out_root), e["id"]))
     for path in sorted(glob.glob(os.path.join(out_root, "*", "assembled.kicad_dru"))):
-        for line in open(path, encoding="utf-8"):
-            if line.startswith("# corpus: ") and " gate" in line:
-                eid = line.split()[2]
-                if eid not in promoted:
-                    errs.append("%s: gate dru rule cites non-promoted %s"
-                                % (os.path.relpath(path, out_root), eid))
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("# corpus: ") and " gate" in line:
+                    eid = line.split()[2]
+                    if eid not in promoted:
+                        errs.append("%s: gate dru rule cites non-promoted %s"
+                                    % (os.path.relpath(path, out_root), eid))
     return errs
 
 
@@ -550,7 +561,7 @@ def scan_generated_sections(repo_root=ROOT, out_root=OUT_ROOT):
     for path in sorted(glob.glob(os.path.join(repo_root, "beta", "*", "*.kicad_dru"))
                        + glob.glob(os.path.join(repo_root, "hubs", "*", "*.kicad_dru"))
                        + glob.glob(os.path.join(repo_root, "modules", "*", "*.kicad_dru"))):
-        text = open(path, encoding="utf-8").read()
+        text = _read_text(path)
         if GEN_BEGIN not in text:
             continue
         committed = text[text.index(GEN_BEGIN):text.index(GEN_END) + len(GEN_END)] \
@@ -561,7 +572,7 @@ def scan_generated_sections(repo_root=ROOT, out_root=OUT_ROOT):
             errs.append("%s: generated section but no compiled output for %s "
                         "(run the compiler)" % (path, board))
             continue
-        atext = open(asm, encoding="utf-8").read()
+        atext = _read_text(asm)
         current = atext[atext.index(GEN_BEGIN):atext.index(GEN_END) + len(GEN_END)]
         if committed.strip() != current.strip():
             errs.append("%s: committed generated section DRIFTED from compiled output "
@@ -577,11 +588,11 @@ def write_generated_section(board_name, out_root=OUT_ROOT):
     if not b:
         raise SystemExit("unknown board %s" % board_name)
     asm = os.path.join(out_root, board_name, "assembled.kicad_dru")
-    atext = open(asm, encoding="utf-8").read()
+    atext = _read_text(asm)
     section = atext[atext.index(GEN_BEGIN):atext.index(GEN_END) + len(GEN_END)]
     dru = (glob.glob(os.path.join(b["dir"], "*.kicad_dru"))
            or [os.path.join(b["dir"], board_name + ".kicad_dru")])[0]
-    text = open(dru, encoding="utf-8").read().rstrip() if os.path.isfile(dru) \
+    text = _read_text(dru).rstrip() if os.path.isfile(dru) \
         else "(version 1)"
     if GEN_BEGIN in text:
         text = (text[:text.index(GEN_BEGIN)].rstrip()
@@ -589,7 +600,8 @@ def write_generated_section(board_name, out_root=OUT_ROOT):
                 + text[text.index(GEN_END) + len(GEN_END):])
     else:
         text = text + "\n\n" + section + "\n"
-    open(dru, "w", encoding="utf-8").write(text)
+    with open(dru, "w", encoding="utf-8") as f:
+        f.write(text)
     return dru
 
 
@@ -612,7 +624,8 @@ def validate_fixtures(corpus_root=CORPUS_ROOT):
                             "note": "fixture runner binds at first promotion"}
     path = os.path.join(OUT_ROOT, "..", "corpus-fixture-results.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    json.dump(results, open(path, "w"), indent=1, sort_keys=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=1, sort_keys=True)
     print("fixtures: %d promoted-with-block, %d failure(s)"
           % (len(results), len(failures)))
     return failures
@@ -648,12 +661,12 @@ def main(argv=None):
         return 1 if errs else 0
     if a.cmd == "parity":
         compile_corpus()
-        print(json.dumps(json.load(open(os.path.join(OUT_ROOT, "parity.json"))),
+        print(json.dumps(_load_json(os.path.join(OUT_ROOT, "parity.json")),
                          indent=1, sort_keys=True))
         return 0
     if a.cmd == "pushdown":
         compile_corpus()
-        rows = json.load(open(os.path.join(OUT_ROOT, "pushdown.json")))
+        rows = _load_json(os.path.join(OUT_ROOT, "pushdown.json"))
         from collections import Counter
         print("pushdown rows: %d  by horizon: %s" %
               (len(rows), dict(Counter(r["horizon"] for r in rows))))

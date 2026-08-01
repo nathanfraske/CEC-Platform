@@ -37,6 +37,7 @@ from dataclasses import dataclass, field, asdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_fr
+import cec_fab_profile as cec_fab
 import cec_score
 import cec_pcb as cp
 import cec_toolchain as _tc   # toolchain presence helpers (R-05)
@@ -156,11 +157,11 @@ class DecisionLog:
             mani = cec_ledger.manifest()
         except Exception:
             mani = None
-        json.dump({"final": self.final, "manifest": mani, "entries": self.entries},
-                  open(path, "w"), indent=2)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"final": self.final, "manifest": mani, "entries": self.entries},
+                      f, indent=2)
         print(f"WROTE {os.path.relpath(path, ROOT) if path.startswith(ROOT) else path}")
         archive_log(self, (self.final or {}).get("board", "board"))
-        return path
         return path
 
 
@@ -461,14 +462,29 @@ def targeted_repair(board_path, *, tier="worker"):
     'place_nudge' (shift the congested part). Returns the edit dict (+ 'tier','why','locus') or None.
     The WORKER tier owns rip-ups (track-level); a part nudge is escalated to the MANAGER tier (a part
     move is the more consequential call). Pass tier='worker' to get only rip-ups, 'manager' for nudges."""
-    out = os.path.join(tempfile.gettempdir(), "cec_tr_%d.json" % os.getpid())
+    fd, out = tempfile.mkstemp(prefix="cec_tr_", suffix=".json")
+    os.close(fd)
     import subprocess
-    subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, board_path],
-                   capture_output=True)
     try:
-        viols = json.load(open(out)).get("violations", [])
-    except Exception:
+        cli = _tc.kicad_cli()
+        if not cli:
+            return None
+        proc = subprocess.run([cli, "pcb", "drc", "--format", "json", "-o", out,
+                               board_path], capture_output=True, text=True, timeout=300)
+        if proc.returncode:
+            return None
+        with open(out, encoding="utf-8") as f:
+            report = json.load(f)
+        if not isinstance(report, dict) or not isinstance(report.get("violations"), list):
+            return None
+        viols = report["violations"]
+    except Exception:                                      # noqa: BLE001
         return None
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
     for v in viols:
         if v.get("type") not in _REAL_DRC:
             continue
@@ -882,7 +898,9 @@ def write_once(out, *, force=False):
     routed copper, refuse unless force. Returns out."""
     if os.path.exists(out) and not force:
         import re
-        if re.search(r"\n\s*\((?:segment|via)\b", open(out).read()):
+        with open(out, encoding="utf-8", errors="replace") as f:
+            already_routed = bool(re.search(r"\n\s*\((?:segment|via)\b", f.read()))
+        if already_routed:
             raise RuntimeError(f"write_once: {out} already routed; pass force=True to overwrite")
     return out
 
@@ -906,13 +924,19 @@ def independent_drc(final, rules, *, weights=None):
     try:
         import cec_constraints
         vop = cec_constraints.via_on_pad_summary(final)
-        verdict["via_on_pad"] = {"same_net": vop["same"], "diff_net": vop["diff"], "vias": vop["n_vias"]}
+        verdict["via_on_pad"] = {"same_net": vop["same"],
+                                 "diff_net": vop["diff"],
+                                 "allowed_pofv": vop.get("allowed_pofv", 0),
+                                 "vias": vop["n_vias"]}
         if vop["same"] or vop["diff"]:
             verdict["gates_pass"] = False
             reasons.append("via-on-pad: %d SAME-net (via-in-pad, needs tent/fill), %d DIFF-net (short) "
                            "-- KiCad DRC does not flag these" % (vop["same"], vop["diff"]))
             verdict["via_on_pad"]["same_detail"] = vop["same_detail"][:8]
             verdict["via_on_pad"]["diff_detail"] = vop["diff_detail"][:8]
+        if vop.get("allowed_pofv"):
+            verdict["via_on_pad"]["allowed_pofv_detail"] = \
+                vop.get("allowed_pofv_detail", [])[:8]
     except Exception as _e:                              # noqa: BLE001
         # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
         verdict["via_on_pad"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
@@ -978,6 +1002,52 @@ def independent_drc(final, rules, *, weights=None):
                            % (len(bad), "; ".join(b.get("where", "")[:70] for b in bad[:3])))
     except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
         verdict["kelvin_sense_drc"] = "error: %s: %s" % (type(_e).__name__, _e)
+
+    # Fabrication and mating contracts are independent of KiCad's electrical
+    # DRC. Fold the hard deterministic checkers into the final verdict so an
+    # otherwise clean route cannot ship on the wrong stackup, via type, or
+    # misregistered Hub/24-pin mezzanine field.
+    try:
+        import cec_constraints
+        contract_checks = {}
+        for cid in ("high-current-stackup-2oz", "hub-stackup-6layer",
+                    "through-vias-only", "mezzanine-segment-contract"):
+            fn = cec_constraints.CHECKERS[cid]
+            state, detail = fn(pcbnew.LoadBoard(final), final, {})
+            contract_checks[cid] = {"state": state, "detail": detail}
+            if state is False:
+                verdict["gates_pass"] = False
+                reasons.append("%s: %s" % (cid, detail))
+        verdict["fabrication_contracts"] = contract_checks
+    except Exception as _e:                              # noqa: BLE001
+        verdict["fabrication_contracts"] = {
+            "error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("fabrication/mating contract gate crashed (fail-closed): %s: %s" %
+                       (type(_e).__name__, _e))
+
+    # ACTUAL LAID-POUR INCURSION gate. The older foreign-on-pour checker derives
+    # expected corridor rectangles; this one reads the zone outlines that are
+    # really on the routed board. Dedicated profile plane layers are excluded.
+    try:
+        import cec_constraints
+        inc = cec_constraints.laid_pour_incursion_summary(final)
+        verdict["laid_pour_incursion"] = {
+            key: inc.get(key) for key in
+            ("applicable", "status", "n_parts", "n_tracks", "n_vias")}
+        n_inc = (int(inc.get("n_parts", 0)) + int(inc.get("n_tracks", 0))
+                 + int(inc.get("n_vias", 0)))
+        if inc.get("status") == "error" or n_inc:
+            verdict["gates_pass"] = False
+            reasons.append("actual laid-pour incursion: status=%s pads=%s tracks=%s vias=%s"
+                           % (inc.get("status"), inc.get("n_parts"),
+                              inc.get("n_tracks"), inc.get("n_vias")))
+    except Exception as _e:                              # noqa: BLE001
+        verdict["laid_pour_incursion"] = {
+            "error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("actual laid-pour incursion gate crashed (fail-closed): %s: %s"
+                       % (type(_e).__name__, _e))
     return verdict
 
 
@@ -1306,14 +1376,13 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     # night produces perfectly routed WRONG boards. Named reasons; CEC_SKIP_INTAKE=1 overrides
     # (lazy import: cec_constraints pulls cec_dispatch, which imports this module).
     if os.environ.get("CEC_SKIP_INTAKE") != "1":
-        gate = None
         try:
             import cec_constraints
             gate = cec_constraints.intake_gate(board0)
         except Exception as e:
-            if verbose:
-                print(f"[route] intake gate unavailable ({type(e).__name__}: {e}) -- proceeding")
-        if gate is not None and not gate["ok"]:
+            raise RuntimeError("route intake gate failed closed: %s: %s"
+                               % (type(e).__name__, e)) from e
+        if not gate["ok"]:
             for r in gate["reasons"]:
                 print(f"[route] INTAKE REFUSAL: {r}")
             try:
@@ -1345,6 +1414,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 shutil.copy(s, rboard[:-len(".kicad_pcb")] + ext)
         state = RegionState(region, rboard, spec.seeds)
         history = []
+        g_best = None
         K = 0
         it = 0
         while True:
@@ -1352,7 +1422,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             outd = os.path.join(work_dir, f"{region.name}_it{it}")
             os.makedirs(outd, exist_ok=True)
             base = {"passes": state.fr["passes"], "opt_time": state.fr["opt_time"],
-                    "threads": state.fr.get("threads", 1)}
+                    "threads": state.fr.get("threads", 1),
+                    "timeout": state.fr.get("timeout", 600)}
             sl = list(state.seeds)
             # opt-spread: Freerouting 1.7.0 is deterministic (no seed), so identical params give
             # identical candidates. Spread the optimization TIME across the parallel seeds (floor
@@ -1604,8 +1675,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                      f"foreign_on_pour={(verdict.get('foreign_on_pour') or {}).get('tracks', 0)}t"
                      f"+{(verdict.get('foreign_on_pour') or {}).get('vias', 0)}v"),
             cited_reasons=verdict.get("reasons", []),
-            claim={"asserts": (f"routed board {'meets' if gp else 'misses'} the hard gates "
-                               f"(kelvin+diffpair+absolute-pour-keepout) at finishing-only DRC"),
+            claim={"asserts": (f"routed board {'meets' if gp else 'misses'} the complete route "
+                               f"contract (configured topology, DRC, ratline, and pour gates)"),
                    "kelvin_ok": verdict.get("kelvin_ok"), "diffpair_ok": verdict.get("diffpair_ok"),
                    "drc": verdict.get("drc"), "unconnected": verdict.get("unconnected"),
                    "foreign_on_pour": verdict.get("foreign_on_pour")},
@@ -1643,7 +1714,8 @@ def find_board(board):
 
 
 def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, threads=1,
-               kmax=2, max_iters=4, max_workers=None, opt_spread=0):
+               kmax=2, max_iters=4, max_workers=None, opt_spread=0,
+               fr_timeout=600):
     """Build a single-region Spec for a board (the small-/single-board path: one region,
     all nets, vital-area keep-outs derived from the 12V nets). The larger multi-region path
     is driven by populating spec.regions/contracts (e.g. from an Opus planner sub-agent)."""
@@ -1678,7 +1750,8 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
         _hints += cec_fr.edge_keepout(board_path)
     spec.regions = [Region(name="all", nets=[],
                            hints=_hints,
-                           fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
+                           fr_params={"passes": passes, "opt_time": opt_time,
+                                      "threads": threads, "timeout": fr_timeout})]
     # High-current nets get a real copper POUR laid AFTER each FR route (additive same-net,
     # so it can't strand the Kelvin sense that shares the net). Auto-derived from geometry --
     # the bbox of each cable net's THT connector + shunt pads -- so it's general across the
@@ -1794,9 +1867,12 @@ def _lay_path(board, net, pts, layer_id, width_nm):
 
 
 def _route_blocked_net(board, net_name, *, width_mm=0.25, clear_mm=0.25):
-    """v1 single-net router: straight, then the two L-bends, F.Cu first then
-    B.Cu, then F->via->B with the layer change at the corner. Clearance-scanned;
-    full DRC settles it. Returns the move used or None."""
+    """Small deterministic repair router over every profile-authorized layer.
+
+    Plane layers are excluded. Layer changes always use an ordinary plated
+    through via from F.Cu to B.Cu, even when the two trace segments are inner
+    layers. JLCPCB blind and buried vias are deliberately never emitted.
+    """
     import pcbnew
     net = board.FindNet(net_name)
     pads = _net_pads_xy(board, net_name)
@@ -1804,9 +1880,15 @@ def _route_blocked_net(board, net_name, *, width_mm=0.25, clear_mm=0.25):
         return None
     (ax, ay), (bx, by) = pads[0], pads[1]
     w, c = pcbnew.FromMM(width_mm), pcbnew.FromMM(clear_mm)
+    route_names = cec_fab.routing_layers(
+        board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
+    route_layers = [(board.GetLayerID(name), name) for name in route_names]
+    route_layers = [(lid, name) for lid, name in route_layers if lid >= 0]
+    if not route_layers:
+        return None, []
     F, B = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     cands = []
-    for lid, lname in ((F, "F.Cu"), (B, "B.Cu")):
+    for lid, lname in route_layers:
         cands.append(([(ax, ay), (bx, by)], lid, lname, None))
         cands.append(([(ax, ay), (bx, ay), (bx, by)], lid, lname, None))
         cands.append(([(ax, ay), (ax, by), (bx, by)], lid, lname, None))
@@ -1824,24 +1906,39 @@ def _route_blocked_net(board, net_name, *, width_mm=0.25, clear_mm=0.25):
                     xx = ax + sgn * d
                     pts = [(ax, ay), (xx, ay), (xx, by), (bx, by)]
                 cands.append((pts, lid, lname, None))
-    # via move: first half on F, second on B, corner = via site
-    for corner in (((bx, ay)), ((ax, by))):
-        cands.append(("VIA", corner, None, None))
+    # Via moves try every ordered trace-layer pair. The barrel itself remains
+    # full-depth F.Cu to B.Cu, which connects every intervening copper layer.
+    for corner in ((bx, ay), (ax, by)):
+        for lid_a, name_a in route_layers:
+            for lid_b, name_b in route_layers:
+                if lid_a != lid_b:
+                    cands.append(("VIA", corner, (lid_a, name_a),
+                                  (lid_b, name_b)))
     for cand in cands:
         if cand[0] == "VIA":
             corner = cand[1]
-            if (_path_is_clear(board, [(ax, ay), corner], F, net.GetNetCode(), c)
-                    and _path_is_clear(board, [corner, (bx, by)], B, net.GetNetCode(), c)):
-                laid = _lay_path(board, net, [(ax, ay), corner], F, w)
-                laid += _lay_path(board, net, [corner, (bx, by)], B, w)
+            lid_a, name_a = cand[2]
+            lid_b, name_b = cand[3]
+            at = pcbnew.VECTOR2I(int(corner[0]), int(corner[1]))
+            blocking, _allowed = cec_fab.via_at_pad_conflicts(
+                board, at, pcbnew.FromMM(0.8), pcbnew.FromMM(0.4),
+                net.GetNetCode())
+            if (blocking is None
+                    and _path_is_clear(board, [(ax, ay), corner], lid_a,
+                                       net.GetNetCode(), c)
+                    and _path_is_clear(board, [corner, (bx, by)], lid_b,
+                                       net.GetNetCode(), c)):
+                laid = _lay_path(board, net, [(ax, ay), corner], lid_a, w)
+                laid += _lay_path(board, net, [corner, (bx, by)], lid_b, w)
                 v = pcbnew.PCB_VIA(board)
-                v.SetPosition(pcbnew.VECTOR2I(int(corner[0]), int(corner[1])))
+                v.SetPosition(at)
                 v.SetDrill(pcbnew.FromMM(0.4))
                 v.SetWidth(pcbnew.FromMM(0.8))
+                v.SetLayerPair(F, B)
                 v.SetNet(net)
                 board.Add(v)
                 laid.append(v)
-                return "via_insertion", laid
+                return "via_insertion_%s_to_%s" % (name_a, name_b), laid
         else:
             pts, lid, lname, _ = cand
             if _path_is_clear(board, pts, lid, net.GetNetCode(), c):
@@ -1947,9 +2044,18 @@ def gr02_repair_battery(board_path, out_path, *, blocked_net=None,
             return r
     # ---- move 2: LAYER SWAP the obstacles (operates on the shifted state --
     # legal copper either way; full DRC remains the judge) -------------------
-    F, B = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    _route_ids = [board.GetLayerID(name) for name in
+                  cec_fab.routing_layers(
+                      board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", ""))]
+    _route_ids = [lid for lid in _route_ids if lid >= 0]
     for t in obstacles:
-        t.SetLayer(B if t.GetLayer() == F else F)
+        if len(_route_ids) < 2:
+            continue
+        try:
+            _idx = _route_ids.index(t.GetLayer())
+        except ValueError:
+            _idx = -1
+        t.SetLayer(_route_ids[(_idx + 1) % len(_route_ids)])
         moves_tried.append({"move": "layer_swap", "net": t.GetNetname()})
     if obstacles:
         r = _attempt("layer_swap+")

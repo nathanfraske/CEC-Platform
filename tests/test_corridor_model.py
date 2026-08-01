@@ -23,7 +23,12 @@ except Exception:
 
 # LEGACY fixture: the pre-beta committed board this suite's geometry assertions encode
 # (the live beta/eps-8pin is the beta TB-blade board; see tests/fixtures/.../README.md).
-EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb"))
+EPS_DIR = os.path.normpath(os.path.join(
+    HERE, "..", "tests", "fixtures", "eps-8pin-legacy"))
+EPS_PCB = os.path.join(EPS_DIR, "eps8pin-module.kicad_pcb")
+EPS_CURRENT_DIR = os.path.normpath(os.path.join(
+    HERE, "..", "beta", "eps-8pin-rev3"))
+EPS_CURRENT_PCB = os.path.join(EPS_CURRENT_DIR, "eps-8pin-rev3.kicad_pcb")
 
 
 # --------------------------------------------------------------------------- pure geometry
@@ -358,8 +363,8 @@ def _have_kicad_cli():
     return shutil.which("kicad-cli") is not None
 
 
-@unittest.skipUnless(HAVE_PCBNEW and _have_kicad_cli() and os.path.isfile(EPS_PCB),
-                     "pcbnew + kicad-cli + the eps-8pin board required")
+@unittest.skipUnless(HAVE_PCBNEW and _have_kicad_cli() and os.path.isfile(EPS_CURRENT_PCB),
+                     "pcbnew + kicad-cli + the current BETA eps-8pin board required")
 class TestPlacerCorridorEps(unittest.TestCase):
     """Phase 2 FORMS the per-cable corridors (spine seed: align J_OUT under J_IN, shunt on the cable
     axis at rot270), so build_corridor_model reports formed bands and corridor_cross is MEANINGFUL on
@@ -368,7 +373,7 @@ class TestPlacerCorridorEps(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cfg = sp.Config.load(os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy")))
+        cls.cfg = sp.Config.load(EPS_CURRENT_DIR)
         cls.cd = {k: getattr(cls.cfg, k) for k in ("board", "profile", "pins", "params",
                                                    "dir", "sch", "net", "pcb", "bom_csv")}
 
@@ -397,6 +402,8 @@ class TestPlacerCorridorEps(unittest.TestCase):
                                     seeds=(0, 3), max_workers=1)
         self.assertEqual(cands[0].residual, 0,
                          "best candidate must be DRC-legal (residual 0) with overhang default")
+        self.assertEqual(set(cands[0].mechanical_drops), {"H2", "H4"})
+        self.assertTrue({"H1", "H3"}.issubset(cands[0].P))
 
     def test_synth_one_process_deterministic(self):
         # the sorted-iteration fix: corridor_cross is stable for a given (strat, seed)

@@ -6,6 +6,7 @@
 # display), and pcbnew is checked via KiCad's bundled python (route.ps1 finds it).
 # Fails fast with an install hint per missing piece. See docs/self-hosted-router.md.
 $ErrorActionPreference = "Continue"
+$repo = Split-Path -Parent $PSScriptRoot
 $fail = $false
 function Note($name, $msg) { "{0,-22} {1}" -f $name, $msg | Write-Host }
 function Bad($name, $msg)  { Write-Host ("MISSING  {0,-13} {1}" -f $name, $msg) -ForegroundColor Red; $script:fail = $true }
@@ -59,9 +60,18 @@ if (-not $kicadcli) { $g = Get-Command kicad-cli -EA SilentlyContinue; if ($g) {
 if ($kicadcli) { Note "kicad-cli" ("OK (" + ((& $kicadcli version 2>$null) | Select-Object -First 1) + ")") }
 else { Bad "kicad-cli" "install KiCad 10 (provides kicad-cli.exe)" }
 
-# --- java (PATH or common roots) ---
+# --- java (PATH, repository runtime, or common roots) ---
 $java = (Get-Command java -EA SilentlyContinue)
 if (-not $java -and $env:JAVA_HOME) { $j = Join-Path $env:JAVA_HOME "bin\java.exe"; if (Test-Path $j) { $java = @{ Source = $j } } }
+if (-not $java) {
+  $localJdkRoot = Join-Path $repo "build\fr-fork\jdk-dist"
+  if (Test-Path $localJdkRoot) {
+    $hit = Get-ChildItem -Path $localJdkRoot -Recurse -Filter java.exe -EA SilentlyContinue |
+           Where-Object { (Split-Path -Leaf (Split-Path -Parent $_.FullName)) -eq "bin" } |
+           Sort-Object FullName -Descending | Select-Object -First 1
+    if ($hit) { $java = @{ Source = $hit.FullName } }
+  }
+}
 if (-not $java) {
   foreach ($r in @("$env:ProgramFiles\Eclipse Adoptium","$env:ProgramFiles\Java","$env:ProgramFiles\Microsoft")) {
     $hit = Get-ChildItem -Path $r -Recurse -Filter java.exe -EA SilentlyContinue | Select-Object -First 1
@@ -72,19 +82,27 @@ if ($java) {
   $line = (& $java.Source -version 2>&1) | Select-Object -First 1
   $maj  = [regex]::Match($line, 'version "(\d+)').Groups[1].Value
   if ([int]("0$maj") -ge 17) { Note "java" "OK ($line)" }
-  else { Bad "java" "found $line -- Freerouting needs java 17+ (21 recommended)" }
+  else { Bad "java" "found $line; Freerouting needs java 17+" }
 } else {
-  Bad "java" "install a JRE 21 (Adoptium Temurin) and/or set `$env:JAVA_HOME"
+  Bad "java" "install a JRE 17+ (Adoptium Temurin) and/or set `$env:JAVA_HOME"
 }
 
 # --- xvfb: NOT needed on Windows ---
 Note "xvfb" "n/a on Windows (Java uses the native display; run the runner in an interactive desktop session)"
 
-# --- Freerouting jar (informational) ---
-$jar = $env:CEC_FREEROUTING_JAR
-if ($jar -and (Test-Path $jar)) { Note "freerouting jar" "OK (`$env:CEC_FREEROUTING_JAR)" }
-elseif (Test-Path (Join-Path $env:USERPROFILE ".cache\cec\freerouting-1.7.0.jar")) { Note "freerouting jar" "OK (cached)" }
-else { Note "freerouting jar" "not cached -- cec_fr.ensure_jar() downloads the pinned v1.7.0 on first route" }
+# --- Freerouting cec2 jar (required; conventional paths are hash-verified) ---
+if ($py) {
+  $jarProbe = "import os,sys; sys.path.insert(0, os.path.join(r'$repo','scripts')); import cec_fr; print(cec_fr.ensure_jar())"
+  $jarPath = (& $py -c $jarProbe 2>$null | Select-Object -Last 1)
+  if ($LASTEXITCODE -eq 0 -and $jarPath -and (Test-Path $jarPath)) {
+    $mode = if ($env:CEC_FREEROUTING_JAR) { "explicit override" } else { "hash verified" }
+    Note "freerouting jar" "OK ($mode, $jarPath)"
+  } else {
+    Bad "freerouting jar" "missing or hash mismatch; rebuild cec2 using ops/README-fr-fork.md"
+  }
+} else {
+  Bad "freerouting jar" "cannot verify without KiCad python"
+}
 
 Write-Host ""
 if ($fail) {

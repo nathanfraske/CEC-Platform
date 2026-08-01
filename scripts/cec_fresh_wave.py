@@ -33,6 +33,7 @@ sys.path.insert(0, HERE)
 ROOT = os.path.dirname(HERE)
 
 import cec_synth_pipeline as csp                       # noqa: E402
+import cec_mezz_contract as mezz                       # noqa: E402
 from cec_placement_session import PlacementSession     # noqa: E402
 try:
     import cec_worklog                                 # dashboard activity feed (best-effort)
@@ -146,8 +147,9 @@ def mating_frame_pins(W, H, contract, side):
     segment-list form (structural segmented mezz, owner GO 2026-07-22,
     docs/mezz-structural-segments-2026-07-22.md):
       {"conns": [{"ref": .., "dc": (dx, dy), "rot": deg}, ...],
-       "mount_dc": ((dx, dy), ...),     # optional (R2 provision); () = R1 pure
+       "mount_dc": ((dx, dy), ...),     # required fitted lug for this contract
        "mount_fp": "lib:footprint",     # optional per-contract mount land (e.g. M2)
+       "mount_net": "GND",              # optional electrical role for every mount land
        "sides": {name: {"mount_refs": (..), "mirror_x": bool}}}
     OR the legacy single-connector form:
       {"conn_dc": (dx, dy), "conn_rot": deg,
@@ -235,17 +237,24 @@ MEZZ_HUB_24PIN = {
     # the measured W-grow lever is in docs/owner-queue.md). Pattern asymmetry
     # 33.1mm (>=8 tooth), pairwise spread >=10 with the H1 M2 provision as the
     # 4th support vertex. Probe report /tmp/mezz-probe5-sp9.json (container).
-    "conns": [
-        {"ref": "J6P", "dc": (31.2, -1.2), "rot": 0},    # power (right column mid)
-        {"ref": "J6C", "dc": (11.2, -12.2), "rot": 90},  # comms (top strip, U2-adjacent)
-        {"ref": "J6D", "dc": (30.2, -11.2), "rot": 0},   # ID    (right column top)
-    ],
-    # R2 PROVISION: ONE DNP-able M2 land so the bench peel/shake gate is a
-    # population decision, never a respin. DRAFT seat (bottom-center-left,
+    "conns": [{"ref": s["ref"], "dc": s["dc"], "rot": s["rot"]}
+              for s in mezz.SEGMENTS],
+    # FITTED GROUND LUG: ONE populated M2 land. The production contract
+    # requires conductive hardware at this shared seat. The seat is
+    # bottom-center-left,
     # between the rail band and the TB row start); the pre-route courtyard
     # gate names any collision per-variant -- probe/wave is the arbiter.
-    "mount_dc": ((-20.0, 14.0),),
-    "mount_fp": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+    "mount_dc": (mezz.GROUND_LUG["dc"],),
+    "mount_fp": mezz.GROUND_LUG["footprint"],
+    # This is an electrical part of the mating contract.  A populated metal M2
+    # fastener bonds the coincident plated lands on both boards as an inter-board
+    # ground lug.  It supplements the GND pins in J6P/J6C/J6D; it is not a
+    # substitute for those current-return paths.
+    "mount_net": mezz.GROUND_LUG["net"],
+    "mount_function": mezz.GROUND_LUG["function"],
+    "mount_electrical_role": mezz.GROUND_LUG["electrical_role"],
+    "mount_population": mezz.GROUND_LUG["population"],
+    "mount_contact": mezz.GROUND_LUG["contact"],
     "sides": {"atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False},
               "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": False}},
 }
@@ -337,23 +346,14 @@ BOARD_PARAMS = {
                           # the additive-pour-after-route doctrine; a pour on
                           # a routed net can only ADD copper, 2026-06-07).
                           # Boxes auto-derive from each net's pads.
-                          # POUR LAYER = In2 (owner 2026-07-23 "do the ugly
-                          # giant pours inside of that layer instead of on
-                          # top"): the power floods move OFF the outers onto
-                          # the freed In2 -- the outers keep their full signal
-                          # fabric, and since floods are post-route additive,
-                          # In2 is still EMPTY at route time = a true third
-                          # routing layer. Owner acceptance bar, verbatim: "If
-                          # it cannot route with 3 separate routable layers,
-                          # there is an issue with it itself and we need to
-                          # improve it." (The old F+B ask was ALSO measured to
-                          # pour F-only -- pour_polygons() truncated at
-                          # layers[0]; fixed same day.) In2 floods connect to
-                          # F.Cu pads via FR's own vias + the pickup stitch,
-                          # which is now load-bearing (guard debug = rung #1).
+                          # SIX-LAYER POWER LAYER: In3 is the dedicated power
+                          # routing and pour layer. F/In2/B remain available to
+                          # the signal router, while In1/In4 remain solid GND.
+                          # SMD pads connect through qualified through POFV or
+                          # ordinary through-via pickups.
                           "pour_asks": [
                               {"net": n, "region_hint": None,
-                               "layers": ("In2.Cu",), "shape": "rect",
+                               "layers": ("In3.Cu",), "shape": "rect",
                                "priority": 2, "provenance": "placer_ask",
                                "evac": False}
                               for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
@@ -379,40 +379,10 @@ BOARD_PARAMS = {
                           # strand, 4x DL6-DOUT items) -- just past the 5mm
                           # default reach; GND is down to ONE 2.2mm gap.
                           "lastmile_max_mm": 8.0,
-                          # ONE INNER GND, In2 = SIGNAL (owner 2026-07-23 "can
-                          # we make the second inner ground into a signalling
-                          # layer?" -- which is ALREADY the standing 2026-06-14
-                          # stackup ruling: cable boards pour both inners GND;
-                          # the Hub is the exception, one solid In1 GND plane +
-                          # In2 signal. The shipped alpha hub proves it: In1
-                          # user-named "GND", 58 signal segments routed on In2.
-                          # Wave hubs had inherited the cable-board default
-                          # since birth -- FR was down an entire empty routing
-                          # layer on the platform's most congested signal
-                          # board). No rail_alt_layer: unlike the 24-pin there
-                          # are no force trunks; In2 is simply empty and
-                          # build_board re-types it 'signal' so FR accepts it
-                          # (measured 24-pin gotcha: 'power'-kind = FR refuses
-                          # the layer). edge_keepout now derives its covered
-                          # layers from the board, so the freed In2 keeps the
-                          # edge-band + arc-corner protection.
+                          # In2 remains a real signal layer in the approved
+                          # six-layer profile. The legacy flag stays enabled for
+                          # compatibility with four-layer seed boards only.
                           "inner_power_routing": True,
-                          # POWER-LAYER DOCTRINE: HELD (2026-07-25). A move of
-                          # the rail floods to the 2oz outers was prepared and
-                          # then BACKED OUT unapplied: it contradicts the owner
-                          # ruling of 2026-07-23 recorded on pour_asks below
-                          # ("do the ugly giant pours inside of that layer
-                          # instead of on top"), whose reasoning still holds --
-                          # post-route additive floods do not consume routing
-                          # space, so In2 serves as a true third routing layer
-                          # AND as flood real estate. The mechanism exists
-                          # (power_pour_layers -> CEC_POWER_POUR_LAYERS, see
-                          # cec_pour_plan.power_layer_order) and is one line
-                          # away if the owner rules the other way; the measured
-                          # cost of the current doctrine is in the owner queue.
-                          # ...and the space the rails vacate becomes reference
-                          # copper for the B.Cu signals below it, not nothing.
-                          "inner_gnd_fill": "In2.Cu",
                           **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
                           "mount_holes": "corners", "connector_overhang": "edge",
@@ -556,7 +526,7 @@ BOARD_PARAMS = {
                        # SMD shunt stubs. inner_power_routing frees In2 in
                        # build_board (the board-class stackup exception made real).
                        "inner_power_routing": True,
-                       "rail_alt_layer": "In2.Cu",
+                       "rail_alt_layer": "In3.Cu",
                        # RUNG 2 (2026-07-23, scoped on s213 with the fixed
                        # guards): the 20 critical-net pads outside every rail
                        # flood are SCATTERED logic-side decoupling/taps --
@@ -619,7 +589,7 @@ BOARD_PARAMS = {
                        # post-route only (evac False).
                        "pour_asks": [
                            {"net": n, "region_hint": None,
-                            "layers": ("In2.Cu",), "shape": "rect",
+                            "layers": ("In3.Cu",), "shape": "rect",
                             "priority": 2, "provenance": "placer_ask",
                             "evac": False}
                            for n in ("+3V3", "+5VSB", "+5V_MAIN")],
@@ -635,6 +605,23 @@ BOARD_PARAMS = {
                        # effort (16/20) blows the 600s budget. 8/10 completes in ~2-4 min.
                        "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
 }
+
+# Approved 2026-08-01 six-layer fabrication policy. The Hub keeps 1 oz
+# outers; every high-current module uses 2 oz outers. Both profiles reserve
+# In1/In4 as ground, route signals on F/In2/B, and place power copper on In3.
+for _board_name in ("eps-8pin", "pcie-8pin-2port", "pcie-8pin-3port",
+                    "12vhpwr-standard", "atx-24pin-rev3"):
+    _p = BOARD_PARAMS.setdefault(_board_name, {})
+    _p["stackup_profile"] = "jlcpcb_6l_pofv_high_current"
+    _p["power_pour_layers"] = ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu")
+    _p["thermal_board_hint"] = _board_name
+
+BOARD_PARAMS["hub-standard-rev2"]["stackup_profile"] = \
+    "jlcpcb_6l_pofv_signal"
+BOARD_PARAMS["hub-standard-rev2"]["power_pour_layers"] = \
+    ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu")
+BOARD_PARAMS["hub-standard-rev2"]["thermal_board_hint"] = \
+    "hub-standard-rev2"
 
 # The six refined sensing cells (owner ladder ruling 2026-07-11): rigid blueprint
 # stamps anchored on the placer's own lane seats (RS{n}), inheriting each seat's
@@ -792,7 +779,8 @@ def _board_params(board):
               os.path.join(ROOT, "beta", board, "board-manifest.json"))
     if os.path.isfile(mf):
         try:
-            pd = (json.load(open(mf)) or {}).get("placement_directives") or {}
+            with open(mf, encoding="utf-8") as f:
+                pd = (json.load(f) or {}).get("placement_directives") or {}
             p.update({k: v for k, v in pd.items()
                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
         except Exception:                                  # noqa: BLE001
@@ -973,7 +961,7 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
                 fr_timeout=(2 * int(_p.get("wave_fr_timeout", 900)) if polish
                             else int(_p.get("wave_fr_timeout", 900))),
                 seed=seed,              # pin FR seed: wave-to-wave comparability
-                unconn_finish_tol=2,
+                unconn_finish_tol=0,
                 # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
                 # gate-clean candidate (all other terms green) -- a published best
                 # always has a REAL solve behind it.

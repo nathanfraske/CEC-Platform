@@ -16,6 +16,7 @@
 #   python3 scripts/gen-module-pcb.py    (reads each board's exported .net)
 # Verify: kicad-cli pcb render / drc
 import os, re, sys, uuid
+import cec_fab_profile as fab
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -182,7 +183,8 @@ def fp_path(nick, name):
     raise SystemExit(f"unknown footprint lib nickname: {nick}")
 
 def parse_netlist(path):
-    s = open(path).read()
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        s = handle.read()
     comps, vals, nets = {}, {}, {}
     for m in re.finditer(r"\(comp\b", s):
         b = carve(s, m.start())
@@ -225,7 +227,13 @@ LAYERS = """\t(layers
 \t\t(33 "B.Fab" user)
 \t)"""
 
-def stackup():
+def layers(profile_name=None):
+    return fab.layers_text(profile_name) if profile_name else LAYERS
+
+
+def stackup(profile_name=None):
+    if profile_name:
+        return fab.stackup_text(profile_name)
     # MATTE-BLACK ENIG is the PLATFORM spec (CLAUDE.md Hub v1.1 decisions; owner
     # 2026-07-15: winner renders must show the black finish) -- fresh boards are
     # born black so every render matches the real product.
@@ -247,7 +255,8 @@ def stackup():
 
 def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, val=None):
     nick, name = libid.split(":")
-    s = open(fp_path(nick, name)).read()
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        s = handle.read()
     s = s.replace(f'(footprint "{name}"', f'(footprint "{libid}"', 1)
     for k in ("version", "generator", "generator_version"):
         s = re.sub(rf'\n\s*\({k} [^\n]*\)', "", s, count=1)
@@ -351,7 +360,9 @@ def build(dir_, base, n, kind):
     # existing .kicad_pcb carries any track or via, refuse to overwrite unless
     # --force is passed. Protects the routed 12vhpwr-standard from a no-arg run.
     if os.path.exists(out) and "--force" not in sys.argv:
-        if re.search(r"\n\s*\((?:segment|via)\b", open(out).read()):
+        with open(out, encoding="utf-8", errors="replace") as f:
+            already_routed = bool(re.search(r"\n\s*\((?:segment|via)\b", f.read()))
+        if already_routed:
             print(f"  SKIP {os.path.relpath(out, ROOT)}: already routed (tracks/vias present); "
                   f"pass --force to overwrite", file=sys.stderr)
             return
@@ -381,20 +392,29 @@ def build(dir_, base, n, kind):
     for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
         e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
                  f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
-    note = (f'\t(gr_text "CEC {base}  4L 2oz/1oz" (at {ff(logo[0])} {ff(H - 4)} 0) '
+    profile_name = "jlcpcb_6l_pofv_high_current"
+    vendor_stackup = fab.get_profile(profile_name)["vendor_stackup"]
+    note = (f'\t(gr_text "CEC {base}  6L {vendor_stackup}" (at {ff(logo[0])} {ff(H - 4)} 0) '
             f'(layer "B.SilkS") (uuid "{U()}") '
             f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))')
     netdecl = '\t(net 0 "")\n' + "\n".join(f'\t(net {code_of[x]} "{x}")' for x in names)
-    zones = (gnd_planes(code_of["GND"], W, H) + "\n") if (kind == "cable" and "GND" in code_of) else ""
+    zones = (gnd_planes(code_of["GND"], W, H,
+                        layers='"In1.Cu" "In4.Cu"') + "\n") \
+        if (kind == "cable" and "GND" in code_of) else ""
+    properties = "\n".join(
+        '\t(property "%s" "%s")' % (key, value)
+        for key, value in fab.board_properties(profile_name).items())
     doc = ("(kicad_pcb\n\t(version 20260206)\n\t(generator \"cec-gen-module-pcb\")\n"
            "\t(generator_version \"10.0\")\n"
            "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n"
-           "\t(paper \"A4\")\n" + LAYERS + "\n\t(setup\n" + stackup() +
+           "\t(paper \"A4\")\n" + layers(profile_name) + "\n\t(setup\n" + stackup(profile_name) +
            "\n\t\t(pad_to_mask_clearance 0)\n"
-           "\t\t(allow_soldermask_bridges_in_footprints no)\n\t)\n"
+           "\t\t(allow_soldermask_bridges_in_footprints no)\n"
+           + fab.via_protection_text(profile_name) + "\n\t)\n"
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n"
-           + zones + note + "\n\t(embedded_fonts no)\n)\n")
-    open(out, "w").write(doc)
+           + zones + note + "\n" + properties + "\n\t(embedded_fonts no)\n)\n")
+    with open(out, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(doc)
     print(f"{os.path.relpath(out, ROOT)}  N={n} footprints={len(fps)} board={W:.0f}x{H:.0f}mm")
 
 # Optional CLI filter: `gen-module-pcb.py eps-8pin` builds only that board. With

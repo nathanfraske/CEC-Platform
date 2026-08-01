@@ -82,10 +82,13 @@ else
   tail -n 6 "$aptlog" >&2 2>/dev/null || true
 fi
 
-# cec-schematic MCP server dependency (ephemeral env; --ignore-installed
-# works around the debian PyJWT RECORD conflict)
-if ! python3 -c "import mcp" >/dev/null 2>&1; then
-  pip install --quiet --ignore-installed PyJWT mcp || true
+# cec-schematic MCP server dependency.  The server imports
+# mcp.server.fastmcp, which was removed by the incompatible 2.x SDK API.
+# Keep Starlette inside the range accepted by the FastAPI version used by the
+# platform tooling as well.  --ignore-installed works around the Debian PyJWT
+# RECORD conflict in ephemeral runners.
+if ! python3 -c "from mcp.server.fastmcp import FastMCP" >/dev/null 2>&1; then
+  pip install --quiet --ignore-installed PyJWT 'mcp>=1.29,<2' 'starlette<0.48'
 fi
 
 exit 0

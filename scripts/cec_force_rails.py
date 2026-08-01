@@ -34,6 +34,7 @@
 # the v2 levers if the gate asks]. All copper LOCKED (exports as fix -> FR
 # protect, same contract as lanes/cells).
 import math
+import cec_fab_profile as cec_fab
 
 MM = 1e6
 
@@ -417,6 +418,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         edge (>=1.2mm), prior vias, and *pending* same-rail array sites."""
         sites = []
         occupied = list(laid_vias) + [q for arr in pending for q in arr]
+        intended_net = sorted(own_nets)[0] if own_nets else ""
+        intended_code = board.GetNetcodeFromNetname(intended_net)
         for dx, dy in _ARR_OFF:
             if len(sites) >= n:
                 break
@@ -424,15 +427,19 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             if _bb_ok and not (_bx0 + 1.2 <= cx <= _bx1 - 1.2
                                and _by0 + 1.2 <= cy <= _by1 - 1.2):
                 continue
-            # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
-            # OWN-net pads exclude too -- the own-net skip here was the
-            # measured root cause of the s464 in-pad locked array vias
-            # (RS2-1/RS2-2). Foreign pads keep the 0.25 clearance; own pads
-            # need only no-overlap (0.05). The 25-site ring reseats.
-            ok = all(not ((px - cx) ** 2 + (py - cy) ** 2
-                          < (half + 0.45 + (0.25 if net not in own_nets
-                                            else 0.05)) ** 2)
-                     for ref, net, px, py, half, tht in pads)
+            # Through POFV may land inside a same-net SMD pad only when the
+            # board declares the approved profile and the complete 0.9/0.5mm
+            # land passes the central fabrication check. Legacy boards, THT
+            # pads, and every foreign-net overlap remain excluded. Foreign
+            # pads also retain the 0.25mm copper clearance beyond collision.
+            at = pcbnew.VECTOR2I(int(cx * MM), int(cy * MM))
+            blocking, _allowed = cec_fab.via_at_pad_conflicts(
+                board, at, int(0.9 * MM), int(0.5 * MM), intended_code)
+            ok = blocking is None
+            ok = ok and all(not (net not in own_nets
+                                 and (px - cx) ** 2 + (py - cy) ** 2
+                                 < (half + 0.45 + 0.25) ** 2)
+                            for ref, net, px, py, half, tht in pads)
             ok = ok and all(not (net2 not in own_nets
                                  and _seg_pt_d2(cx, cy, a1, b1, a2, b2)
                                  < (w2 / 2 + 0.45 + 0.25) ** 2)

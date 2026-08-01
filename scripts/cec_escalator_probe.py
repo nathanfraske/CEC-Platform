@@ -46,7 +46,8 @@ def main():
               os.path.join(ROOT, "beta", args.board, "board-manifest.json"))
     P = {}
     if os.path.isfile(mf):
-        pd = (json.load(open(mf)) or {}).get("placement_directives") or {}
+        with open(mf, encoding="utf-8") as f:
+            pd = (json.load(f) or {}).get("placement_directives") or {}
         P = {k: v for k, v in pd.items()
              if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))}
 
@@ -56,7 +57,7 @@ def main():
     slug = args.round.lower().replace(" ", "-").replace(":", "")
     placed = os.path.join(out_dir, f"{slug}.kicad_pcb")
     v = s.grade(out=placed, keep=True, passes=args.passes, opt=args.opt,
-                fr_timeout=args.fr_timeout, seed=args.fr_seed, unconn_finish_tol=2)
+                fr_timeout=args.fr_timeout, seed=args.fr_seed, unconn_finish_tol=0)
 
     th = v.get("thermal") or {}
     detail = (f"gate={v.get('gate')} kelvin={v.get('kelvin_ok')} drc={v.get('drc')} "

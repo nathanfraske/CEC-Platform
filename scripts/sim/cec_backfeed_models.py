@@ -49,6 +49,7 @@ Sources (all vendored or fetched 2026-07-24, see the report doc's Sources sectio
 """
 import os
 import re
+import shutil
 import subprocess
 
 import numpy as np
@@ -69,8 +70,29 @@ TITLE = "* cec_backfeed_verify deck (see docs/spice-backfeed-verify-2026-07-24.m
 
 DOCKER_CONTAINER = os.environ.get("CEC_ROUTING_CONTAINER", "docker-routing-1")
 
+
+def _ngspice_runner():
+    """Return (mode, executable) for a batch-safe local or Docker runner."""
+    override = os.environ.get("CEC_NGSPICE")
+    if override:
+        return "local", override
+    if os.name == "nt":
+        console = shutil.which("ngspice_con.exe")
+        if console:
+            return "local", console
+        # Never select the GUI ngspice.exe on Windows.
+    else:
+        local = shutil.which("ngspice")
+        if local:
+            return "local", local
+    docker = shutil.which("docker")
+    if docker:
+        return "docker", docker
+    name = "ngspice_con.exe" if os.name == "nt" else "ngspice"
+    raise RuntimeError("no batch ngspice runner found; set CEC_NGSPICE to %s" % name)
+
 # --------------------------------------------------------------------------- runner
-def run_ngspice(cir_text, name):
+def run_ngspice(cir_text, name, *, runner=None):
     """Write a deck to build/spice_scratch/<name>.cir (visible in the container at
     /workspace/build/spice_scratch/<name>.cir, since docker-routing-1 mounts the repo
     root at /workspace) and run it via `docker exec ... ngspice -b`. Returns
@@ -82,10 +104,17 @@ def run_ngspice(cir_text, name):
         f.write(cir_text)
     rel = os.path.relpath(path, REPO_ROOT)
     container_path = "/workspace/" + rel.replace(os.sep, "/")
-    r = subprocess.run(
-        ["docker", "exec", DOCKER_CONTAINER, "ngspice", "-b", container_path],
-        capture_output=True, text=True, timeout=180,
-    )
+    mode, exe = runner or _ngspice_runner()
+    cmd = ([exe, "-b", path] if mode == "local" else
+           [exe, "exec", DOCKER_CONTAINER, "ngspice", "-b", container_path])
+    kw = {"capture_output": True, "text": True, "timeout": 180}
+    if mode == "local" and os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+        kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+    r = subprocess.run(cmd, **kw)
+    if r.returncode != 0:
+        detail = (r.stderr or r.stdout or "no diagnostic").strip()
+        raise RuntimeError("ngspice runner exited %d: %s" %
+                           (r.returncode, detail[-800:]))
     return parse_measures(r.stdout), r.stdout, r.stderr
 
 
@@ -110,22 +139,31 @@ def run_ngspice_tran(cir_body, vectors, name, *, tstep, tstop, extra_control="",
     'v(out)'). Returns (data, stdout, stderr) where data is a dict {'time': arr, vec: arr,
     ...} (vector names lowercased, as ngspice reports them)."""
     datafile = f"{name}.data"
-    data_container_path = "/workspace/" + os.path.relpath(
-        os.path.join(SCRATCH, datafile), REPO_ROOT).replace(os.sep, "/")
+    data_path = os.path.join(SCRATCH, datafile)
+    try:
+        os.unlink(data_path)
+    except OSError:
+        pass
+    runner = _ngspice_runner()
+    if runner[0] == "local":
+        data_target = os.path.abspath(data_path).replace(os.sep, "/")
+    else:
+        data_target = "/workspace/" + os.path.relpath(
+            data_path, REPO_ROOT).replace(os.sep, "/")
     vec_list = " ".join(vectors)
     uic_flag = " UIC" if uic else ""
     cir = (
         cir_body
         + f".tran {tstep} {tstop}{uic_flag}\n"
         + ".control\nrun\n"
-        + f"wrdata {data_container_path} {vec_list}\n"
+        + f'wrdata "{data_target}" {vec_list}\n'
         + extra_control
         + "\n.endc\n.end\n"
     )
-    meas, out, err = run_ngspice(cir, name)
-    data_path = os.path.join(SCRATCH, datafile)
+    meas, out, err = run_ngspice(cir, name, runner=runner)
     if not os.path.exists(data_path):
-        return None, out, err
+        detail = (err or out or "no transient data file").strip()
+        raise RuntimeError("ngspice produced no transient data: %s" % detail[-800:])
     raw = np.loadtxt(data_path)
     # wrdata emits: time v0 v0-dup time v1 v1-dup time v2 ... (each vector re-prints time
     # as a real-valued column pair for complex-vector compatibility) -- take col0 as time,
@@ -152,7 +190,10 @@ def charge_coulombs(data, vec, t_end=None):
     if t_end is not None:
         mask = t <= t_end
         t, i = t[mask], i[mask]
-    return float(np.trapz(i, t))
+    trapezoid = getattr(np, "trapezoid", None)
+    if trapezoid is None:                              # NumPy < 2.0 compatibility
+        trapezoid = np.trapz
+    return float(trapezoid(i, t))
 
 
 def duration_above(data, vec, thresh):

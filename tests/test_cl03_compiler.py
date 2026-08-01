@@ -17,6 +17,21 @@ import cec_facts as F                                         # noqa: E402
 import cec_synth_pipeline as S                                # noqa: E402
 
 
+def _write_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+def _read_json(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _read_json_lines(path):
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f]
+
+
 def _mini_corpus(tmp, *, promoted_entry=None):
     """A tiny corpus tree: one structured staging entry (+ optionally one
     promoted entry) -- the synthetic substrate for latch/parity/param tests."""
@@ -29,10 +44,10 @@ def _mini_corpus(tmp, *, promoted_entry=None):
         "status": "proposed",
         "compile": {"targets": [{"type": "param", "params": {"key": "test.param.k"}}]},
     }]
-    json.dump(staging, open(os.path.join(tmp, "staging", "general", "t.json"), "w"))
+    _write_json(os.path.join(tmp, "staging", "general", "t.json"), staging)
     if promoted_entry:
-        json.dump([promoted_entry],
-                  open(os.path.join(tmp, "promoted", "general", "p.json"), "w"))
+        _write_json(os.path.join(tmp, "promoted", "general", "p.json"),
+                    [promoted_entry])
     return tmp
 
 
@@ -78,8 +93,18 @@ class T2Determinism(unittest.TestCase):
         try:
             CC.compile_corpus(out_root=t1)
             CC.compile_corpus(out_root=t2)
-            r = subprocess.run(["diff", "-r", t1, t2], capture_output=True, text=True)
-            self.assertEqual(r.returncode, 0, "compiler output drifted:\n" + r.stdout[:800])
+            def snapshot(root):
+                files = {}
+                for directory, _subdirs, names in os.walk(root):
+                    for name in sorted(names):
+                        path = os.path.join(directory, name)
+                        rel = os.path.relpath(path, root).replace("\\", "/")
+                        with open(path, "rb") as handle:
+                            files[rel] = handle.read()
+                return files
+
+            self.assertEqual(snapshot(t1), snapshot(t2),
+                             "compiler output drifted between identical inputs")
         finally:
             shutil.rmtree(t1), shutil.rmtree(t2)
 
@@ -106,7 +131,9 @@ class T3FixtureLatch(unittest.TestCase):
             m = CC.compile_corpus(corpus_root=tmp, out_root=out)
             self.assertEqual(m["refusals"], [])
             self.assertGreaterEqual(m["counts"]["blocking"], 1)
-            asm = open(os.path.join(out, "hub-standard", "assembled.kicad_dru")).read()
+            with open(os.path.join(out, "hub-standard", "assembled.kicad_dru"),
+                      encoding="utf-8") as f:
+                asm = f.read()
             self.assertIn("# corpus: test.rule.gate", asm)
             self.assertIn(CC.GEN_BEGIN, asm)
         finally:
@@ -165,12 +192,12 @@ class T5ParamsPrecedence(unittest.TestCase):
         try:
             self.assertEqual(F.compiled_param("k", 0.5, root=empty), 0.5)
             # state 2: promoted only -> compiled value
-            json.dump([{"key": "k", "binding": "gate", "value": 0.7}],
-                      open(os.path.join(empty, "params.json"), "w"))
+            _write_json(os.path.join(empty, "params.json"),
+                        [{"key": "k", "binding": "gate", "value": 0.7}])
             self.assertEqual(F.compiled_param("k", 0.5, root=empty), 0.7)
             # state 3: staging row NEVER overrides (advisory binding)
-            json.dump([{"key": "k", "binding": "advisory", "value": 0.9}],
-                      open(os.path.join(empty, "params.json"), "w"))
+            _write_json(os.path.join(empty, "params.json"),
+                        [{"key": "k", "binding": "advisory", "value": 0.9}])
             self.assertEqual(F.compiled_param("k", 0.5, root=empty), 0.5)
         finally:
             shutil.rmtree(empty)
@@ -178,9 +205,9 @@ class T5ParamsPrecedence(unittest.TestCase):
     def test_staging_delta_is_advisory_not_error(self):
         out = tempfile.mkdtemp()
         try:
-            json.dump([{"key": "thermal.k_ipc.external", "binding": "advisory",
-                        "value": 0.5, "entry_id": "x"}],
-                      open(os.path.join(out, "params.json"), "w"))
+            _write_json(os.path.join(out, "params.json"),
+                        [{"key": "thermal.k_ipc.external", "binding": "advisory",
+                          "value": 0.5, "entry_id": "x"}])
             deltas = CC.evaluate_param_deltas(out_root=out)
             self.assertEqual(len(deltas), 1)
             self.assertIn("staging proposes", deltas[0]["msg"])
@@ -193,11 +220,11 @@ class T5ParamsPrecedence(unittest.TestCase):
 class T6ParityGolden(unittest.TestCase):
     def test_parity_matches_committed_golden(self):
         CC.compile_corpus()
-        got = json.load(open(os.path.join(CC.OUT_ROOT, "parity.json")))
+        got = _read_json(os.path.join(CC.OUT_ROOT, "parity.json"))
         golden_path = os.path.join(ROOT, "tests", "golden", "parity-report.json")
         if not os.path.exists(golden_path):
             self.skipTest("golden not frozen yet (freeze step in this PR)")
-        want = json.load(open(golden_path))
+        want = _read_json(golden_path)
         self.assertEqual(got["counts"], want["counts"],
                          "parity counts drifted -- an enforcement-source change; "
                          "re-freeze rides an owner-approved PR")
@@ -223,12 +250,10 @@ class T7AdvSidecar(unittest.TestCase):
             self.assertTrue(side["sha256"])
             # the sidecar reconstructs per-entry counts (rel is repo-root-relative,
             # like counter()'s decisions/ tree)
-            lines = [json.loads(l) for l in
-                     open(os.path.join(runs, side["rel"]))]
+            lines = _read_json_lines(os.path.join(runs, side["rel"]))
             self.assertEqual(sorted(l["entry_id"] for l in lines), ["e1", "e2"])
             # and the main ledger line carries the hash
-            led = [json.loads(l) for l in
-                   open(os.path.join(runs, "runs", "ledger.jsonl"))]
+            led = _read_json_lines(os.path.join(runs, "runs", "ledger.jsonl"))
             adv_lines = [l for l in led if l.get("mode") == "adv-fires"]
             self.assertEqual(adv_lines[-1]["extra"]["adv_fires_sha256"], side["sha256"])
         finally:
@@ -244,8 +269,9 @@ class T8LintBothHalves(unittest.TestCase):
         out = tempfile.mkdtemp()
         try:
             os.makedirs(os.path.join(out, "eps-8pin"))
-            json.dump([{"entry_id": "not-promoted", "binding": "gate", "type": "scorer_limit"}],
-                      open(os.path.join(out, "eps-8pin", "scorer_limits.json"), "w"))
+            _write_json(os.path.join(out, "eps-8pin", "scorer_limits.json"),
+                        [{"entry_id": "not-promoted", "binding": "gate",
+                          "type": "scorer_limit"}])
             errs = CC.validate_artifacts(out_root=out)
             self.assertTrue(any("non-promoted" in e for e in errs), errs)
         finally:
@@ -257,12 +283,15 @@ class T8LintBothHalves(unittest.TestCase):
         try:
             bdir = os.path.join(repo, "modules", "fake-board")
             os.makedirs(bdir)
-            open(os.path.join(bdir, "fake-board.kicad_dru"), "w").write(
-                "(version 1)\n\n%s\n# corpus: old stale gate\n%s\n"
-                % (CC.GEN_BEGIN, CC.GEN_END))
+            with open(os.path.join(bdir, "fake-board.kicad_dru"), "w",
+                      encoding="utf-8") as f:
+                f.write("(version 1)\n\n%s\n# corpus: old stale gate\n%s\n"
+                        % (CC.GEN_BEGIN, CC.GEN_END))
             os.makedirs(os.path.join(out, "fake-board"))
-            open(os.path.join(out, "fake-board", "assembled.kicad_dru"), "w").write(
-                "(version 1)\n\n%s\n# manifest: x\n%s\n" % (CC.GEN_BEGIN, CC.GEN_END))
+            with open(os.path.join(out, "fake-board", "assembled.kicad_dru"), "w",
+                      encoding="utf-8") as f:
+                f.write("(version 1)\n\n%s\n# manifest: x\n%s\n"
+                        % (CC.GEN_BEGIN, CC.GEN_END))
             errs = CC.scan_generated_sections(repo_root=repo, out_root=out)
             self.assertTrue(any("DRIFTED" in e for e in errs), errs)
         finally:

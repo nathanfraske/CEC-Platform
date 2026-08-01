@@ -39,6 +39,7 @@ import argparse
 
 import numpy as np
 import pcbnew
+import cec_fab_profile as fab
 
 # pcbnew is a wxWidgets debug build: a wxASSERT pops a BLOCKING modal dialog on Windows (and aborts
 # headless/background/container runs). We guard our own pcbnew calls, but disable wx asserts too so a
@@ -61,15 +62,47 @@ TIE_G = 1.0e4              # virtual pad-terminal tie conductance (S): low-R but
 def _cu_layers(b):
     """Enabled copper layers as (layer_id, name, is_outer), in stack order."""
     out = []
-    for l in b.GetEnabledLayers().Seq():
+    for l in b.GetEnabledLayers().CuStack():
         if pcbnew.IsCopperLayer(l):
-            name = b.GetLayerName(l)
+            name = pcbnew.LayerName(l)
             out.append((l, name, name in ("F.Cu", "B.Cu")))
     return out
 
 
-def _layer_thickness_m(is_outer, oz_outer, oz_inner):
+def _layer_thickness_m(name, is_outer, oz_outer, oz_inner,
+                       copper_mm_by_layer=None):
+    if copper_mm_by_layer is not None:
+        try:
+            return float(copper_mm_by_layer[name]) * 1e-3
+        except KeyError as exc:
+            raise ValueError("missing copper thickness for %s" % name) from exc
     return (oz_outer if is_outer else oz_inner) * CU_OZ_M
+
+
+def _layer_z_mm(layers, copper_mm_by_layer, dielectric_mm):
+    """Copper-center coordinates for exact-profile via segment lengths."""
+    if copper_mm_by_layer is None or dielectric_mm is None:
+        return None
+    z = {}
+    cursor = 0.0
+    prev = None
+    board_names = [name for _lid, name, _outer in layers]
+    order = (list(fab.COPPER_LAYERS)
+             if set(fab.COPPER_LAYERS).issubset(copper_mm_by_layer)
+             else board_names)
+    for name in order:
+        thick = float(copper_mm_by_layer[name])
+        if prev is None:
+            cursor = thick / 2.0
+        else:
+            pair = (prev, name)
+            if pair not in dielectric_mm:
+                raise ValueError("missing dielectric thickness for %s to %s" % pair)
+            cursor += (float(copper_mm_by_layer[prev]) / 2.0
+                       + float(dielectric_mm[pair]) + thick / 2.0)
+        z[name] = cursor
+        prev = name
+    return z
 
 
 def _terminals(b, net, src_refs=None, sink_refs=None):
@@ -244,8 +277,9 @@ def _pcg(matvec, b, diag, fixed, tol=1e-9, maxit=6000):
     return x, math.sqrt(max(rel, 0.0))
 
 
-def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4e-3,
-              src_refs=None, sink_refs=None):
+def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0,
+              via_sep_m=0.4e-3, copper_mm_by_layer=None,
+              dielectric_mm=None, src_refs=None, sink_refs=None):
     """DC field solve for one high-current force net. Returns a dict (ir_drop_V, j_max_A_mm2,
     j_p995_A_mm2, eff_cross_mm2, n_nodes, n_lat_edges, n_vias, layers) or None if unresolvable.
     src_refs/sink_refs: optional terminal override (see _terminals), default = old J*/RS* rule."""
@@ -287,8 +321,9 @@ def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4
     ea, eb, eg, et = [], [], [], []                # lateral+via edges: from,to,conductance,thickness(0=via)
 
     # lateral edges (right + down neighbour) per layer, sheet conductance g = t/rho (per square)
-    for (li, _, outer) in lset:
-        t_m = _layer_thickness_m(outer, oz_outer, oz_inner)
+    for (li, name, outer) in lset:
+        t_m = _layer_thickness_m(
+            name, outer, oz_outer, oz_inner, copper_mm_by_layer)
         g = t_m / RHO_CU
         idl = nid[li]
         a = idl[:-1, :]; b2 = idl[1:, :]           # horizontal neighbours
@@ -302,6 +337,8 @@ def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4
 
     # via edges: link the via's cell across consecutive copper layers it spans (barrel conductance)
     order = [li for (li, _, _) in lset]
+    name_by_id = {li: name for li, name, _outer in lset}
+    z_mm = _layer_z_mm(layers, copper_mm_by_layer, dielectric_mm)
     n_vias = 0
     for t in b.GetTracks():
         if t.GetNetname() != net or t.Type() != pcbnew.PCB_VIA_T:
@@ -311,9 +348,25 @@ def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4
         if not (0 <= ix < nx and 0 <= iy < ny):
             continue
         d = t.GetDrillValue() / 1e6 / 1000.0       # mm -> m
-        g_via = (math.pi * d * VIA_PLATING_M) / (RHO_CU * via_sep_m) if d > 0 else TIE_G
-        present = [li for li in order if nid[li][ix, iy] >= 0]
+        try:
+            via_layers = set(t.GetLayerSet().CuStack())
+        except Exception:
+            via_layers = set(order)
+        present = [li for li in order
+                   if li in via_layers and nid[li][ix, iy] >= 0]
         for li_a, li_b in zip(present, present[1:]):
+            if d <= 0:
+                g_via = TIE_G
+            elif z_mm is None:
+                g_via = ((math.pi * d * VIA_PLATING_M)
+                         / (RHO_CU * via_sep_m))
+            else:
+                sep_m = abs(z_mm[name_by_id[li_b]]
+                            - z_mm[name_by_id[li_a]]) * 1e-3
+                if sep_m <= 0:
+                    raise ValueError("non-positive via segment length")
+                g_via = ((math.pi * d * VIA_PLATING_M)
+                         / (RHO_CU * sep_m))
             ea.append(np.array([nid[li_a][ix, iy]])); eb.append(np.array([nid[li_b][ix, iy]]))
             eg.append(np.array([g_via])); et.append(np.array([0.0]))   # 0 thickness => excluded from J
             n_vias += 1
@@ -373,15 +426,49 @@ def solve_net(b, net, I, layers, h, *, oz_outer=2.0, oz_inner=1.0, via_sep_m=0.4
         "j_p995_A_mm2": round(float(np.percentile(J, 99.5)), 1),
         "eff_cross_mm2": round(I / max(float(np.percentile(J, 99.5)), 1e-6), 4),
         "n_nodes": int(n), "n_lat_edges": int(lat.sum()), "n_vias": n_vias,
-        "layers": [name for (_, name, _) in lset], "I": round(I, 1), "grid_mm": h,
+        "layers": [name for (_, name, _) in lset],
+        "copper_thickness_mm": {
+            name: round(_layer_thickness_m(
+                name, outer, oz_outer, oz_inner,
+                copper_mm_by_layer) * 1000.0, 7)
+            for _li, name, outer in lset
+        },
+        "I": round(I, 1), "grid_mm": h,
     }
 
 
-def solve(board_path, *, currents=None, h=0.4, oz_outer=2.0, oz_inner=1.0, verbose=False):
+def solve(board_path, *, currents=None, h=0.4, oz_outer=None, oz_inner=None,
+          profile_name=None, verbose=False):
     """Solve every poured, non-GND high-current force net on a routed board. `currents` maps
     net -> design amps (else a name-based default). Returns {net: result|None}."""
     b = pcbnew.LoadBoard(board_path)
     layers = _cu_layers(b)
+    profile_name = (profile_name or fab.board_profile_name(b) or
+                    os.environ.get("CEC_FAB_PROFILE") or
+                    fab.profile_for_board_hint(
+                        os.environ.get("CEC_THERMAL_BOARD_HINT") or board_path))
+    copper_by_layer = None
+    dielectric_by_pair = None
+    if profile_name:
+        copper_by_layer = {
+            name: fab.copper_thickness_mm(profile_name, name)
+            for name in fab.COPPER_LAYERS
+        }
+        dielectric_by_pair = fab.dielectric_mm(profile_name)
+    if oz_outer is None:
+        oz_outer = 2.0
+    if oz_inner is None:
+        oz_inner = 1.0
+    if currents is None and profile_name:
+        try:
+            import cec_thermal_overlay as thermal_inputs
+            currents = thermal_inputs.board_thermal_config(board_path)[0]
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(
+                "approved-profile DCIR solve requires verified design currents") from exc
+        if not currents:
+            raise ValueError(
+                "approved-profile DCIR solve has no verified design currents")
     names = sorted({ni.GetNetname() for ni in b.GetNetInfo().NetsByNetcode().values() if ni.GetNetname()})
     poured = {z.GetNetname() for z in b.Zones()}
 
@@ -409,7 +496,10 @@ def solve(board_path, *, currents=None, h=0.4, oz_outer=2.0, oz_inner=1.0, verbo
         if I <= 0:
             continue
         try:
-            res = solve_net(b, net, I, layers, h, oz_outer=oz_outer, oz_inner=oz_inner)
+            res = solve_net(
+                b, net, I, layers, h, oz_outer=oz_outer,
+                oz_inner=oz_inner, copper_mm_by_layer=copper_by_layer,
+                dielectric_mm=dielectric_by_pair)
         except Exception as e:
             res = None
             if verbose:
@@ -430,11 +520,17 @@ def _main(argv=None):
     ap.add_argument("board", nargs="?",
                     default=os.path.join(ROOT, "modules", "atx-24pin-rev2", "24pin-module.kicad_pcb"))
     ap.add_argument("--h", type=float, default=0.4, help="grid pitch (mm); finer = slower, more faithful necking")
-    ap.add_argument("--oz-outer", type=float, default=2.0, help="outer-layer copper weight (oz)")
-    ap.add_argument("--oz-inner", type=float, default=1.0, help="inner-layer copper weight (oz)")
+    ap.add_argument("--oz-outer", type=float, default=None,
+                    help="legacy outer copper weight override (profile metadata wins)")
+    ap.add_argument("--oz-inner", type=float, default=None,
+                    help="legacy inner copper weight override (profile metadata wins)")
     a = ap.parse_args(argv)
-    print(f"DC IR-drop solve: {os.path.relpath(a.board, ROOT)}  (grid {a.h} mm, "
-          f"{a.oz_outer}oz outer / {a.oz_inner}oz inner)")
+    _hint_profile = fab.profile_for_board_hint(a.board)
+    _basis = (_hint_profile or
+              "%soz outer / %soz inner" % (a.oz_outer or 2.0,
+                                             a.oz_inner or 1.0))
+    print(f"DC IR-drop solve: {os.path.relpath(a.board, ROOT)}  "
+          f"(grid {a.h} mm, {_basis})")
     res = solve(a.board, h=a.h, oz_outer=a.oz_outer, oz_inner=a.oz_inner, verbose=True)
     n_ok = sum(1 for v in res.values() if v)
     print(f"\nsolved {n_ok}/{len(res)} poured high-current nets")

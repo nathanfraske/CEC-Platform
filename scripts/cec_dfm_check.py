@@ -62,14 +62,21 @@ def _native_drc(board_path):
         bp = os.path.join(work, "board.kicad_pcb")
         shutil.copy(board_path, bp)
         # a sibling <board>.kicad_dru is auto-loaded by kicad-cli for that board
-        open(os.path.join(work, "board.kicad_dru"), "w").write(_DFM_DRU)
+        with open(os.path.join(work, "board.kicad_dru"), "w", encoding="utf-8") as rules_file:
+            rules_file.write(_DFM_DRU)
         out = os.path.join(work, "drc.json")
-        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
-                        "--refill-zones", "--units", "mm", "-o", out, bp],
-                       capture_output=True, text=True, timeout=240)
+        proc = subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                               "--refill-zones", "--units", "mm", "-o", out, bp],
+                              capture_output=True, text=True, timeout=240)
+        if proc.returncode != 0:
+            raise RuntimeError("kicad-cli DFM DRC failed with exit %d: %s"
+                               % (proc.returncode, (proc.stderr or proc.stdout or "")[-500:]))
         if not os.path.exists(out):
-            return []
-        d = json.load(open(out))
+            raise RuntimeError("kicad-cli DFM DRC produced no JSON report")
+        with open(out, encoding="utf-8") as report_file:
+            d = json.load(report_file)
+        if not isinstance(d, dict) or not isinstance(d.get("violations"), list):
+            raise RuntimeError("kicad-cli DFM DRC report has an invalid schema")
         rows = []
         for v in d.get("violations", []):
             if v.get("type") not in DFM_TYPES:
@@ -95,10 +102,16 @@ def _acid_traps(board_path):
     pcbnew boards in one interpreter collide -- the SWIG footgun the battery hits holding a board)."""
     p = subprocess.run([sys.executable, os.path.abspath(__file__), "--acid-only", board_path],
                        capture_output=True, text=True, timeout=180)
+    if p.returncode != 0:
+        raise RuntimeError("acid-trap subprocess failed with exit %d: %s"
+                           % (p.returncode, (p.stderr or p.stdout or "")[-500:]))
     try:
-        return json.loads(p.stdout)
-    except (ValueError, json.JSONDecodeError):
-        return []
+        result = json.loads(p.stdout)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("acid-trap subprocess returned invalid JSON") from exc
+    if not isinstance(result, list):
+        raise RuntimeError("acid-trap subprocess report has an invalid schema")
+    return result
 
 
 def _acid_traps_inproc(board_path):

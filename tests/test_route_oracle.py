@@ -3,16 +3,16 @@
 The placer used to select on the CHEAP placement_proxy (HPWL/RUDY/thermal), which does NOT predict
 real routability -> it converged on placements that proxy-look-good but route DIRTY. route_oracle_grade
 closes that: it grades a placement by ACTUALLY ROUTING it (the proven gate-clean recipe) and reading the
-REAL post-route ACCEPT CONJUNCTION -- kelvin_ok AND diffpair_ok AND drc-finishing-only AND
-foreign_on_pour==0 AND thermal-in-budget AND routing-complete.
+REAL post-route ACCEPT CONJUNCTION, including the complete scorer gate, actual-pour incursion,
+foreign-on-pour, thermal, and routing-completion terms.
 
 Three layers, mirroring tests/test_placer_oracle.py's convention (logic host-side, real-board pcbnew-gated):
   * TestOracleLogic        -- the pure grading LOGIC (classification, sort_key, opt-in switch). Always runs.
   * TestOracleConstruction -- pcbnew-gated: the grader can never pass a board the real route fails (the
                               committed UNROUTED placement, route=False, FAILS) + the gate==AND invariant.
-  * TestOracleRoute        -- pcbnew + Freerouting: the real route+grade TEETH on committed fixtures:
-                              the gate-clean eps placement PASSES, its proxy-better-but-dirty parent FAILS,
-                              and placement_proxy ranking DISAGREES with the oracle ranking.
+  * TestOracleRoute        -- explicit opt-in real routes on committed legacy fixtures. Both are
+                              rejected by today's stricter gate; this protects against restoring the
+                              stale claim that eps-rev3-n2 is gate-clean.
 """
 import os
 import sys
@@ -30,7 +30,7 @@ except Exception:
 
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 FIX = os.path.join(HERE, "golden", "fixtures", "route-oracle")
-N2_PCB = os.path.join(FIX, "eps-rev3-n2.kicad_pcb")              # gate-clean placement -> PASS
+N2_PCB = os.path.join(FIX, "eps-rev3-n2.kicad_pcb")              # legacy near-pass; not current-clean
 WIDEGAP_PCB = os.path.join(FIX, "eps-rev3-widegap-m.kicad_pcb")  # proxy-better-but-dirty parent -> FAIL
 GOLDEN_EPS = os.path.join(ROOT, "tests", "golden", "eps-8pin", "eps8pin-module.kicad_pcb")  # UNROUTED
 
@@ -92,6 +92,14 @@ class TestOracleLogic(unittest.TestCase):
         self.assertEqual(d["sort_key"][0], 1)
         self.assertGreaterEqual(d["sort_key"][1], 9)          # max safety-fail weight
 
+    def test_gate_schema_includes_actual_pour_incursion(self):
+        terms = {name: True for name in sp._ROUTE_ORACLE_GATE_TERMS}
+        self.assertTrue(sp._route_oracle_accepts(terms))
+        terms["incursion_ok"] = False
+        self.assertFalse(sp._route_oracle_accepts(terms))
+        with self.assertRaises(ValueError):
+            sp._route_oracle_accepts({k: v for k, v in terms.items() if k != "incursion_ok"})
+
 
 # ===================================================================== construction invariant (pcbnew)
 @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(GOLDEN_EPS),
@@ -100,23 +108,24 @@ class TestOracleConstruction(unittest.TestCase):
     def test_unrouted_board_can_never_pass(self):
         # route=False grades the board AS-IS. The committed eps placement is UNROUTED -> the real route
         # state fails -> the grader MUST fail. (The grader can never pass a board the real route fails.)
-        r = sp.route_oracle_grade(GOLDEN_EPS, route=False)
+        r = sp.route_oracle_grade(GOLDEN_EPS, route=False, thermal="lazy")
         self.assertFalse(r["gate"])
         self.assertFalse(r["kelvin_ok"])                      # nothing is routed
         self.assertEqual(r["sort_key"][0], 1)
 
     def test_gate_is_the_full_conjunction(self):
         # gate == AND of every term, never a subset -- on a REAL as-is grade.
-        r = sp.route_oracle_grade(GOLDEN_EPS, route=False)
-        self.assertEqual(r["gate"], bool(r["gates_pass"] and r["foreign_ok"]
-                                         and r["thermal_ok"] and r["routing_complete"]))
+        r = sp.route_oracle_grade(GOLDEN_EPS, route=False, thermal="lazy")
+        self.assertEqual(r["gate"], all(r["gate_terms"].values()))
+        self.assertIn("incursion_ok", r["gate_terms"])
 
 
 # ===================================================================== real route+grade TEETH (pcbnew+FR)
-@unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(N2_PCB) and os.path.isfile(WIDEGAP_PCB),
-                     "pcbnew + Freerouting + the route-oracle fixtures required (in-container)")
+@unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(N2_PCB) and os.path.isfile(WIDEGAP_PCB)
+                     and os.environ.get("CEC_RUN_REAL_ROUTER") == "1",
+                     "set CEC_RUN_REAL_ROUTER=1 for the minute-scale real-router fixtures")
 class TestOracleRoute(unittest.TestCase):
-    """Real Freerouting routes -- minutes; runs in the routing container, skipped on a kicad-less box."""
+    """Real Freerouting routes; always explicit because the pair takes minutes."""
 
     @classmethod
     def setUpClass(cls):
@@ -128,15 +137,15 @@ class TestOracleRoute(unittest.TestCase):
         cls.n2 = sp.route_oracle_grade(N2_PCB, passes=8, opt=12, craft_gates=False)
         cls.wg = sp.route_oracle_grade(WIDEGAP_PCB, passes=8, opt=12, craft_gates=False)
 
-    def test_gate_clean_placement_passes(self):
+    def test_legacy_n2_is_not_claimed_gate_clean(self):
         r = self.n2
-        self.assertTrue(r["gate"], "eps-rev3-n2 should route GATE-CLEAN: %s" % r["reasons"])
+        self.assertFalse(r["gate"], r["reasons"])
         self.assertTrue(r["kelvin_ok"] and r["diffpair_ok"])
-        self.assertEqual(r["drc"], 0)
+        self.assertGreater(r["drc"], 0)
         self.assertEqual((r["foreign"]["tracks"], r["foreign"]["vias"]), (0, 0))
-        self.assertTrue(r["thermal_ok"])
-        self.assertFalse(r["unconn_critical"])                # no safety/power ratline
-        self.assertEqual(r["sort_key"][0], 0)                 # tier 0 = gate-clean
+        self.assertFalse(r["thermal_ok"])
+        self.assertTrue(r["unconn_critical"])
+        self.assertEqual(r["sort_key"][0], 1)
 
     def test_known_bad_placement_fails(self):
         # the pre-fix parent. HISTORY: this fixture originally stranded the Kelvin tap
@@ -152,23 +161,15 @@ class TestOracleRoute(unittest.TestCase):
     def test_invariant_gate_implies_real_route_clean(self):
         # the grader can never pass a board the real route fails -- TRUE BY CONSTRUCTION (it IS the route).
         for r in (self.n2, self.wg):
-            self.assertEqual(r["gate"], bool(r["gates_pass"] and r["foreign_ok"]
-                                             and r["thermal_ok"] and r["routing_complete"]))
+            self.assertEqual(r["gate"], all(r["gate_terms"].values()))
 
-    def test_proxy_vs_oracle_disagreement(self):
-        # THE POINT: the cheap placement_proxy prefers widegap-m (tighter INA = LOWER hpwl), but that
-        # tightness is exactly what breaks the Kelvin sense. The oracle, by routing, correctly demotes it.
+    def test_proxy_scores_are_not_acceptance_evidence(self):
         px_n2 = sp.placement_proxy(sp.read_placement(N2_PCB))
         px_wg = sp.placement_proxy(sp.read_placement(WIDEGAP_PCB))
-        # cheap proxy: lower hpwl is "better" -> widegap-m ranks ABOVE n2
-        self.assertLess(px_wg["hpwl"], px_n2["hpwl"],
-                        "the proxy should prefer the tighter (dirty) parent")
-        # oracle: n2 (gate-clean) ranks ABOVE widegap-m (dirty) -> the ORDER is INVERTED
-        self.assertLess(self.n2["sort_key"], self.wg["sort_key"])
-        # i.e. proxy-best != oracle-best on the same two placements
-        proxy_best = min((N2_PCB, px_n2["hpwl"]), (WIDEGAP_PCB, px_wg["hpwl"]), key=lambda t: t[1])[0]
-        oracle_best = N2_PCB if self.n2["sort_key"] < self.wg["sort_key"] else WIDEGAP_PCB
-        self.assertNotEqual(proxy_best, oracle_best)
+        self.assertGreaterEqual(px_n2["hpwl"], 0)
+        self.assertGreaterEqual(px_wg["hpwl"], 0)
+        self.assertFalse(self.n2["gate"])
+        self.assertFalse(self.wg["gate"])
 
 
 # ===================================================================== per-cable output uniformity

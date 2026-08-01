@@ -44,6 +44,31 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_thermal2d as t2  # noqa: E402
+import cec_fab_profile as fab  # noqa: E402
+
+
+def board_fab_profile(board_path, board_hint=None):
+    """Return the declared profile, falling back to approved board-family policy.
+
+    Saved-board metadata wins.  The name fallback is needed while evaluating a
+    not-yet-materialized placement candidate, whose temporary filename has no
+    board properties until the generator writes it.
+    """
+    hint = board_hint or os.environ.get("CEC_THERMAL_BOARD_HINT") or board_path
+    if board_path and os.path.isfile(board_path):
+        try:
+            import pcbnew
+            declared = fab.board_profile_name(pcbnew.LoadBoard(board_path))
+            if declared:
+                return declared
+        except Exception:  # noqa: BLE001
+            pass
+    return fab.profile_for_board_hint(hint)
+
+
+def board_dielectric_config(board_path, board_hint=None):
+    profile = board_fab_profile(board_path, board_hint=board_hint)
+    return fab.dielectric_mm(profile) if profile else None
 
 
 # Default BALANCED EPS currents (see module docstring): per-cable 12V ~14.6 A,
@@ -71,7 +96,7 @@ def default_currents(board):
     return nc
 
 
-def board_thermal_config(board_path):
+def board_thermal_config(board_path, board_hint=None):
     """Per-board thermal inputs the generic auto-overlay can't infer from the netlist alone. Returns
     (net_currents, stackup_oz, src_sink_override, cooling), any of which may be None to fall back to the
     generic default (default_currents + default cable-board stackup + auto J_IN/J_OUT src/sink + still-air
@@ -96,7 +121,10 @@ def board_thermal_config(board_path):
     # solve ran configless -> the impossible dT~0 the mirage guard trips on. Callers
     # that KNOW the board (the wave's _oracle_env exports it from board params) set the
     # hint; the basename stays the fallback for committed boards.
-    name = (os.environ.get("CEC_THERMAL_BOARD_HINT") or os.path.basename(board_path)).lower()
+    name = (board_hint or os.environ.get("CEC_THERMAL_BOARD_HINT")
+            or os.path.basename(board_path)).lower()
+    profile_name = board_fab_profile(board_path, board_hint=board_hint)
+    profile_stackup = fab.stackup_oz(profile_name) if profile_name else None
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         for n in range(1, 7):
@@ -113,7 +141,7 @@ def board_thermal_config(board_path):
         ov["GND"] = {"refs_src": ["J4"], "refs_sink": ["J3"]}
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
                    "label": "production: metal case (TIM on RS shunts + M3 mounts)"}
-        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, cooling
+        return nc, profile_stackup, ov, cooling
     if "atx-24pin" in name or "atx24" in name:
         # 24-PIN PRODUCTION COOLING (owner ruling 2026-07-20: "24 pin ideally
         # doesn't need anything besides a plastic case for the first prod runs
@@ -145,7 +173,7 @@ def board_thermal_config(board_path):
             ov[hi] = {"refs_src": ["J3"], "refs_sink": [rs]}
             ov[lo] = {"refs_src": [rs], "refs_sink": tb_all}
         ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
-        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+        return nc, profile_stackup, ov, None
     if "hub-standard" in name or "hub" in name.split("-")[0:1]:
         # HUB ENTRY (2026-07-23, closes the FOLLOWUPS 2026-07-22 gap that made
         # every hub new-best stamp read dT=0 "INJECTION INCOMPLETE"): the hub
@@ -181,8 +209,8 @@ def board_thermal_config(board_path):
             "GND": {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
                     "refs_sink": ["J_PWR"]},
         }
-        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
-    return None, None, None, None
+        return nc, profile_stackup, ov, None
+    return None, profile_stackup, None, None
 
 
 def _edge_segments(board):
@@ -250,7 +278,7 @@ def _prepare_filled(board_path):
 
 def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
                    grid_mm=0.3, h_eff=15.0, src_sink_override=None,
-                   time_budget_s=None):
+                   time_budget_s=None, backend="auto", board_hint=None):
     """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
     render_thermal_detail). Reads the per-board config, pours+fills the candidate, applies
     the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
@@ -258,7 +286,10 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
     Factored out so the per-layer raster and the full-detail copper map solve ONCE and share
     the exact same field (no double solve, no drift between the two views)."""
     import pcbnew
-    cfg_nc, cfg_stack, cfg_ov, cfg_cool = board_thermal_config(board_path)   # read BEFORE _prepare_filled renames
+    cfg_nc, cfg_stack, cfg_ov, cfg_cool = board_thermal_config(
+        board_path, board_hint=board_hint)   # read BEFORE _prepare_filled renames
+    dielectric = board_dielectric_config(board_path, board_hint=board_hint)
+    profile_name = board_fab_profile(board_path, board_hint=board_hint)
     board_path = _prepare_filled(board_path)             # candidates ship unfilled -> pour + fill first
     if currents is None:
         currents = cfg_nc if cfg_nc is not None else default_currents(board_path)
@@ -288,6 +319,10 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
         board_path, stackup_oz=stackup, net_currents=currents,
         ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
         src_sink_override=src_sink_override, time_budget_s=time_budget_s,
+        dielectric_mm=dielectric,
+        backend=backend,
+        gnd_inner_layers=(("In1.Cu", "In4.Cu") if profile_name else
+                          ("In1.Cu", "In2.Cu")),
         **cool_kw)
     return res, board_path, cool_label
 
@@ -1066,13 +1101,9 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
     from matplotlib.patches import Polygon as MplPoly
     from matplotlib.collections import PatchCollection, LineCollection
 
-    board_path = _prepare_filled(board_path)                 # candidates ship unfilled -> pour + fill first
-    if currents is None:
-        currents = default_currents(board_path)
-
-    res = t2.solve_board_thermal(
-        board_path, stackup_oz=stackup, net_currents=currents,
-        ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
+    res, board_path, _cool_label = _solve_thermal(
+        board_path, currents=currents, stackup=stackup, ambient=ambient,
+        grid_mm=grid_mm, h_eff=h_eff,
         src_sink_override=src_sink_override)
 
     board = pcbnew.LoadBoard(board_path)
@@ -1086,7 +1117,9 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
 
     # ---- background: filled copper (grey), drawn low alpha so the heat reads
     cu = _copper_patches(board, t2.STD_CU_LAYERS)
-    shade = {"F.Cu": "#3a4750", "B.Cu": "#2b343b", "In1.Cu": "#333d44", "In2.Cu": "#333d44"}
+    shade = {"F.Cu": "#3a4750", "B.Cu": "#2b343b",
+             "In1.Cu": "#333d44", "In2.Cu": "#333d44",
+             "In3.Cu": "#333d44", "In4.Cu": "#333d44"}
     for std, polys in cu.items():
         patches = [MplPoly(p, closed=True) for p in polys]
         if patches:

@@ -1,5 +1,10 @@
 # Mezzanine mounting rework — structural connector segments (owner riff, 2026-07-22)
 
+> Status update, 2026-08-01: the segmented J6P/J6C/J6D scheme is selected with
+> one fitted, conductive M2 ground-lug fastener at H1. The optional and DNP-able
+> wording below is historical. The controlling decision is
+> `docs/decisions/owner-session-2026-08-01.md`.
+
 _Owner asks (2026-07-22): (a) "lower the mounts to M2s… place them in the 4 corners… 4 mirrored
 on the 24-pin"; (b) "better idea… more compact stability that doesn't involve 4 massive screw
 holes at inopportune or asymmetric ugly places?"; (c) "split the mezzanine into 2 or 3 segments

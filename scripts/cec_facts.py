@@ -92,12 +92,14 @@ def board_facts(board):
     wave-3 CL-23 extension. Degrades to empty sets when files are absent."""
     nets, refs, libids = set(), [], []
     if board.get("pcb") and os.path.isfile(board["pcb"]):
-        text = open(board["pcb"], encoding="utf-8", errors="replace").read()
+        with open(board["pcb"], encoding="utf-8", errors="replace") as f:
+            text = f.read()
         nets |= {n for n in _NET_PCB.findall(text) if n}
         libids = sorted(set(_FP.findall(text)))
         refs = sorted(set(_REF.findall(text)))
     elif board.get("sch") and os.path.isfile(board["sch"]):
-        text = open(board["sch"], encoding="utf-8", errors="replace").read()
+        with open(board["sch"], encoding="utf-8", errors="replace") as f:
+            text = f.read()
         libids = sorted(set(_SCH_LIBID.findall(text)))
         refs = sorted(set(_REF.findall(text)))
     # board-manifest net ALIASES (owner ruling #11, 2026-06-10): a fixed-in-
@@ -109,7 +111,8 @@ def board_facts(board):
     fab_target = None
     if os.path.isfile(mpath):
         try:
-            manifest = json.load(open(mpath))
+            with open(mpath, encoding="utf-8") as f:
+                manifest = json.load(f)
             aliases = manifest.get("net_aliases", {})
             nets |= {a for a, real in aliases.items()
                      if any(_net_match(real, n) or real == n for n in nets)}
@@ -250,7 +253,8 @@ def compiled_param(key, default=None, *, root=None):
     a staging delta is an advisory fire, not an override."""
     path = os.path.join(root or COMPILED_ROOT, "params.json")
     try:
-        rows = json.load(open(path))
+        with open(path, encoding="utf-8") as f:
+            rows = json.load(f)
     except Exception:                                            # noqa: BLE001
         return default
     for row in rows if isinstance(rows, list) else []:
@@ -279,7 +283,8 @@ def corpus_briefing(board, *, max_chars=24000, root=None):
     rules, seen = [], set()
     for f in sorted(_glob.glob(os.path.join(rootd, "corpus", "staging", "*", "*.json"))):
         try:
-            d = json.load(open(f))
+            with open(f, encoding="utf-8") as src:
+                d = json.load(src)
         except Exception:                                        # noqa: BLE001
             continue
         for e in (d if isinstance(d, list) else d.get("entries", [])):
@@ -307,7 +312,8 @@ def corpus_briefing(board, *, max_chars=24000, root=None):
         p = os.path.join(comp, fn)
         if os.path.isfile(p):
             try:
-                body = open(p).read().strip()
+                with open(p, encoding="utf-8") as src:
+                    body = src.read().strip()
                 if body and body not in ("{}", "[]"):
                     parts.append("")
                     parts.append(label + ":")

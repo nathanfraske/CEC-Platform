@@ -121,8 +121,15 @@ C_NAT = 1.40            # natural-convection coeff [W/m^2 K^1.25] (both faces lu
 
 # Standard KiCad copper layer ids we map roles onto (rename-proof).
 F_CU, B_CU = 0, 2
-IN1_CU, IN2_CU = 4, 6
-STD_CU_LAYERS = {F_CU: "F.Cu", B_CU: "B.Cu", IN1_CU: "In1.Cu", IN2_CU: "In2.Cu"}
+IN1_CU, IN2_CU, IN3_CU, IN4_CU = 4, 6, 8, 10
+STD_CU_LAYERS = {
+    F_CU: "F.Cu",
+    B_CU: "B.Cu",
+    IN1_CU: "In1.Cu",
+    IN2_CU: "In2.Cu",
+    IN3_CU: "In3.Cu",
+    IN4_CU: "In4.Cu",
+}
 
 # Default EPS 4-layer stackup: dielectric core thicknesses [m] BETWEEN the
 # copper layers, in physical stack order F.Cu - In1.Cu - In2.Cu - B.Cu.
@@ -132,26 +139,37 @@ DEFAULT_DIELECTRIC_MM = {
     ("In1.Cu", "In2.Cu"): 1.065,
     ("In2.Cu", "B.Cu"): 0.20,
 }
-# physical top-to-bottom copper order
-STACK_ORDER = ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"]
+# Physical top-to-bottom copper order.  Four-layer callers remain supported:
+# _layer_z_centers filters out layers with zero or absent copper weight.
+STACK_ORDER = ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"]
+
+
+def _active_stack_order(stackup_oz):
+    return [std for std in STACK_ORDER
+            if float(stackup_oz.get(std, 0.0)) > 0.0]
 
 
 def _layer_z_centers(stackup_oz, dielectric_mm=None):
     """Return dict std_layer -> z of the copper layer's CENTER [m], top=0 growing
     down. Used so a via segment length L = |z_a - z_b| is the true center-to-center
     layer spacing (dielectric core + the two half-copper thicknesses)."""
+    exact_dielectrics = dielectric_mm is not None
     if dielectric_mm is None:
         dielectric_mm = DEFAULT_DIELECTRIC_MM
+    active_order = _active_stack_order(stackup_oz)
     z = {}
     cursor = 0.0
     prev = None
-    for std in STACK_ORDER:
+    for std in active_order:
         oz = stackup_oz.get(std, 0.0)
         t_cu = max(oz, 0.0) * OZ_M           # copper thickness [m]
         if prev is None:
             cursor += t_cu / 2.0
         else:
-            d = dielectric_mm.get((prev, std), 0.2) * 1e-3
+            pair = (prev, std)
+            if exact_dielectrics and pair not in dielectric_mm:
+                raise ValueError("missing dielectric thickness for %s to %s" % pair)
+            d = dielectric_mm.get(pair, 0.2) * 1e-3
             prev_oz = stackup_oz.get(prev, 0.0)
             cursor += prev_oz * OZ_M / 2.0 + d + t_cu / 2.0
         z[std] = cursor
@@ -1524,7 +1542,8 @@ def solve_board_thermal(board_path,
                         time_budget_s=None):
     """2.5D electro-thermal solve on a real board.
 
-    stackup_oz:   dict std-layer -> oz copper (default F/B=1, In1/In2=0.5).
+    stackup_oz:   dict std-layer -> oz-equivalent copper thickness (default
+        F/B=1, In1/In2=0.5). Six-layer profiles include In3/In4.
     net_currents: dict net -> total current [A].
     t_plating_um: via/PTH barrel plating thickness [um] (IPC class-2 ~25).
     dielectric_mm: optional dict (std_a,std_b)->core thickness mm for via segment
@@ -1958,7 +1977,8 @@ def solve_board_thermal(board_path,
         nets_absent=dict(nets_absent),
         copper_mask=copper_any,
         layer_copper_mask=layer_copper_mask,
-        meta={"stackup_oz": stackup_oz, "h_eff": h_eff,
+        meta={"stackup_oz": stackup_oz, "dielectric_mm": dielectric_mm,
+              "h_eff": h_eff,
               "gnd_inner_layers": list(gnd_inner_layers),
               "inner_3v3_layer": inner_3v3_layer,
               "t_plating_um": t_plating_um, "nonlinear": nonlinear,
@@ -2149,13 +2169,14 @@ def run_self_tests():
     # mesh: a tiny 2x2-cell column of copper on all 4 layers, one through via.
     g = Grid(0, 0, 2.0, 2.0, 0.5)
     cell = _rect_mask(g, 0.5, 0.5, 1.5, 1.5)
-    nlm = {"V": {s: cell.copy() for s in STACK_ORDER}}
+    active4 = _active_stack_order(stk4)
+    nlm = {"V": {s: cell.copy() for s in active4}}
     ys, xs = np.where(cell)
     cx, cy = int(xs[0]), int(ys[0])
     c = g.idx(cx, cy)
     # current F-> B through the via column
     src = [("F.Cu", c)]; sink = [("B.Cu", c)]
-    vbn = {"V": {c: [{"drill_mm": 0.3, "span": list(STACK_ORDER)}]}}
+    vbn = {"V": {c: [{"drill_mm": 0.3, "span": list(active4)}]}}
     _, _, _, _, sols = _synthetic_solve(
         nlm, stk4, {"V": 1.0}, g, {"V": (src, sink)}, 50.0, 15.0,
         vertical_by_net=vbn, t_plating_um=25.0, nonlinear=False)
@@ -2393,8 +2414,11 @@ def run_self_tests():
             "maxJ_A_per_mm2": round(max(rH.per_net_maxJ.values()) if rH.per_net_maxJ else 0, 1),
             "pass": tH}
     else:
-        tH = True
-        results["H_via_barrel_hotspot"] = {"skipped": "board missing", "pass": True}
+        tH = False
+        results["H_via_barrel_hotspot"] = {
+            "skipped": "required board build/via-test/eps-via-bottleneck.kicad_pcb missing",
+            "pass": False,
+        }
     PASS &= tH
 
     # ============== TEST I: mounting-hole chassis heat-sink ===================
@@ -2455,8 +2479,11 @@ def run_self_tests():
             "joule_on_W": round(rOn.meta["copper_joule_W"], 3),
             "one_signed_rise": bool(rose), "pass": tJ}
     else:
-        tJ = True
-        results["J_rho_T_picard"] = {"skipped": "board missing", "pass": True}
+        tJ = False
+        results["J_rho_T_picard"] = {
+            "skipped": "required board build/via-test/eps-via-bottleneck.kicad_pcb missing",
+            "pass": False,
+        }
     PASS &= tJ
 
     # ============== TEST K: shunt I^2R discrete heat source ===================
@@ -2493,7 +2520,11 @@ def run_self_tests():
         gpu = False
     results["backend"] = {"cupy_available": gpu, "solver": "scipy (cg+jacobi / spsolve)"}
 
-    results["ALL_PASS"] = PASS
+    results["COMPLETE"] = not any(
+        isinstance(value, dict) and value.get("skipped")
+        for value in results.values()
+    )
+    results["ALL_PASS"] = bool(PASS and results["COMPLETE"])
 
     def _clean(o):
         if isinstance(o, dict):
@@ -2507,12 +2538,30 @@ def run_self_tests():
     return bool(PASS), results
 
 
-if __name__ == "__main__":
-    if "--board" in sys.argv:
-        bp = sys.argv[sys.argv.index("--board") + 1]
-        nonlin = "--linear" not in sys.argv
-        r = solve_board_thermal(bp, verbose=True, nonlinear=nonlin)
-        print(r.summary())
-    else:
+def main(argv=None):
+    """Command-line entry point. Expensive self-tests are always explicit."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Run the CEC 2.5D electro-thermal solver or its validation suite.")
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument("--board", metavar="PCB",
+                        help="solve one KiCad .kicad_pcb file")
+    action.add_argument("--self-test", action="store_true",
+                        help="run the complete A-K validation suite")
+    parser.add_argument("--linear", action="store_true",
+                        help="disable nonlinear convection/radiation for --board")
+    args = parser.parse_args(argv)
+
+    if args.self_test:
         ok, _ = run_self_tests()
-        sys.exit(0 if ok else 1)
+        return 0 if ok else 1
+
+    result = solve_board_thermal(args.board, verbose=True,
+                                 nonlinear=not args.linear)
+    print(result.summary())
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

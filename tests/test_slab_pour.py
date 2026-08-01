@@ -16,7 +16,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-from cec_slab_pour import Grid, shave                  # noqa: E402
+from cec_slab_pour import Grid, shave, weighted_fair_masks  # noqa: E402
 
 
 class _G(Grid):
@@ -78,6 +78,56 @@ class TestShave(unittest.TestCase):
         self.assertTrue(mask[10, 10])
         self.assertFalse(mask[10, 30], "anchor-less component must drop "
                                        "(the floating-zone rule, structural)")
+
+
+class TestWeightedSlabAllocation(unittest.TestCase):
+    def _fixture(self):
+        shape = (24, 90)
+        candidates = [np.ones(shape, bool) for _ in range(3)]
+        anchors = [np.zeros(shape, bool) for _ in range(3)]
+        seeds = ((4, 4), (12, 45), (19, 84))
+        for i, (r, c) in enumerate(seeds):
+            anchors[i][r, c] = True
+            # A real raster marks the other nets' pads foreign. Mirror that
+            # condition so mandatory anchor ownership cannot overlap.
+            for j in range(3):
+                if j != i:
+                    candidates[j][r, c] = False
+        return candidates, anchors
+
+    def test_partition_is_disjoint_and_current_proportional(self):
+        candidates, anchors = self._fixture()
+        masks, report = weighted_fair_masks(
+            candidates, anchors, [3.0, 2.0, 1.0], names=["A", "B", "C"])
+        self.assertFalse(any(np.logical_and(masks[i], masks[j]).any()
+                             for i in range(3) for j in range(i + 1, 3)))
+        union = np.logical_or.reduce(masks)
+        self.assertGreater(union.mean(), 0.98)
+        counts = np.array([m.sum() for m in masks], dtype=float)
+        shares = counts / counts.sum()
+        np.testing.assert_allclose(shares, [0.5, 1.0 / 3.0, 1.0 / 6.0],
+                                   atol=0.03)
+        self.assertTrue(all(r["allocated_cells"] > 0 for r in report))
+
+    def test_result_is_input_order_invariant_by_name(self):
+        candidates, anchors = self._fixture()
+        names = ["A", "B", "C"]
+        weights = [3.0, 2.0, 1.0]
+        masks1, _ = weighted_fair_masks(candidates, anchors, weights,
+                                        names=names)
+        perm = [2, 0, 1]
+        masks2, _ = weighted_fair_masks(
+            [candidates[i] for i in perm], [anchors[i] for i in perm],
+            [weights[i] for i in perm], names=[names[i] for i in perm])
+        by_name_1 = dict(zip(names, masks1))
+        by_name_2 = dict(zip([names[i] for i in perm], masks2))
+        for name in names:
+            np.testing.assert_array_equal(by_name_1[name], by_name_2[name])
+
+    def test_non_positive_current_is_rejected(self):
+        candidates, anchors = self._fixture()
+        with self.assertRaises(ValueError):
+            weighted_fair_masks(candidates, anchors, [3.0, 0.0, 1.0])
 
 
 if __name__ == "__main__":

@@ -30,16 +30,46 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 
+import cec_toolchain
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
+
+def _ngspice_executable():
+    """Select a batch-safe ngspice executable.
+
+    The official Windows bundle ships both ``ngspice.exe`` (GUI) and
+    ``ngspice_con.exe`` (console).  Resolving the generic name on Windows can
+    therefore open one GUI window per deck.  An explicit override always wins;
+    otherwise prefer the console build when it is available.
+    """
+    override = os.environ.get("CEC_NGSPICE")
+    if override:
+        return override
+    if os.name == "nt":
+        console = shutil.which("ngspice_con.exe")
+        if console:
+            return console
+        # Never fall back to ngspice.exe on Windows.  That executable is the
+        # GUI frontend in the official bundle and one invocation per deck can
+        # leave a stack of persistent "Parse" windows.  Keeping the console
+        # name here makes a missing installation fail normally instead.
+        return "ngspice_con.exe"
+    return shutil.which("ngspice") or "ngspice"
+
+
+NGSPICE = _ngspice_executable()
+
 # ---------------------------------------------------------------- netlist
 def parse_netlist(path):
-    s = open(path, encoding="utf-8", errors="replace").read()
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        s = handle.read()
     comps = {}
     for m in re.finditer(r'\(comp\s*\(ref "([^"]+)"\)\s*\(value "([^"]*)"', s):
         comps[m.group(1)] = m.group(2)
@@ -49,6 +79,34 @@ def parse_netlist(path):
         nodes = re.findall(r'\(ref "([^"]+)"\)\s*\(pin "([^"]+)"\)', b)
         nets[m.group(1)] = nodes
     return comps, nets
+
+
+def _project_netlist(board_dir):
+    """Export and parse the KiCad project root, never a hierarchy leaf."""
+    sch = cec_toolchain.find_root_sch(board_dir)
+    if not sch:
+        raise RuntimeError("no root .kicad_sch found in %s" % board_dir)
+    cli = cec_toolchain.require_kicad_cli("SPICE netlist export")
+    fd, netf = tempfile.mkstemp(prefix="cec_spice_", suffix=".net")
+    os.close(fd)
+    os.unlink(netf)
+    try:
+        run = subprocess.run(
+            [cli, "sch", "export", "netlist", "-o", netf, sch],
+            capture_output=True, text=True, timeout=120)
+        if run.returncode != 0:
+            detail = (run.stderr or run.stdout or "no export diagnostic").strip()
+            raise RuntimeError(
+                "KiCad netlist export exited %d for %s: %s" %
+                (run.returncode, sch, detail[-800:]))
+        if not os.path.isfile(netf) or os.path.getsize(netf) == 0:
+            raise RuntimeError("KiCad netlist export produced no data for %s" % sch)
+        return sch, *parse_netlist(netf)
+    finally:
+        try:
+            os.unlink(netf)
+        except OSError:
+            pass
 
 
 def _r_ohms(val):
@@ -194,13 +252,14 @@ def build_deck(comps, nets, *, state=None, sources=(), loads_scale=1.0):
             if matched is None:
                 d.notes.append(f"{ref} ({val}): unmodeled IC -> all pins hi-Z")
                 continue
-            for mdl in matched:
+            for mdl_idx, mdl in enumerate(matched):
                 if mdl[0] == "supply":
                     _, pin, ma = mdl
-                    d.add(f"R{idx}_{ref}_ld {N(ref, pin)} 0 {max(1.0, 3300.0 / (ma * loads_scale + 1e-9))}")
+                    d.add(f"R{idx}_{ref}_ld{mdl_idx} {N(ref, pin)} 0 "
+                          f"{max(1.0, 3300.0 / (ma * loads_scale + 1e-9))}")
                 elif mdl[0] == "ldo":
                     _, pin_in, pin_out, vout, drop = mdl
-                    d.add(f"B{idx}_{ref} {N(ref, pin_out)} 0 "
+                    d.add(f"B{idx}_{ref}_{mdl_idx} {N(ref, pin_out)} 0 "
                           f"V = max(0, min({vout}, V({N(ref, pin_in)}) - {drop}))")
         # connectors / switches / everything else: open by default
 
@@ -226,28 +285,39 @@ def run_deck(d, probes):
     with tempfile.NamedTemporaryFile("w", suffix=".cir", delete=False) as f:
         f.write(cir)
         path = f.name
-    r = subprocess.run(["ngspice", "-b", path], capture_output=True, text=True, timeout=120)
-    out = {}
-    for m in re.finditer(r"^([a-z0-9_#\(\)vi\.]+) = ([\-\d.e+]+)", r.stdout, re.M | re.I):
-        out[m.group(1).lower()] = float(m.group(2))
-    os.unlink(path)
-    return out, r.stdout, r.stderr
+    try:
+        run_options = {}
+        if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+            run_options["creationflags"] = subprocess.CREATE_NO_WINDOW
+        r = subprocess.run([NGSPICE, "-b", path], capture_output=True, text=True,
+                           timeout=120, **run_options)
+        if r.returncode != 0:
+            detail = (r.stderr or r.stdout or "no simulator diagnostics").strip()
+            raise RuntimeError(f"ngspice exited {r.returncode}: {detail}")
+        out = {}
+        for m in re.finditer(r"^([a-z0-9_#\(\)vi\.]+) = ([\-\d.e+]+)",
+                             r.stdout, re.M | re.I):
+            out[m.group(1).lower()] = float(m.group(2))
+        if (probes or any(line.startswith("Vsrc") for line in d.lines)) and not out:
+            raise RuntimeError(
+                "ngspice exited successfully but returned no requested values")
+        return out, r.stdout, r.stderr
+    finally:
+        os.unlink(path)
 
 
 def sanity(board_dir, *, short_amps=0.8, json_out=False):
     board_dir = board_dir.rstrip("/")
-    sch = [f for f in os.listdir(board_dir) if f.endswith(".kicad_sch")]
-    sch = os.path.join(board_dir, sorted(sch, key=len)[0])
-    netf = tempfile.mkstemp(suffix=".net")[1]
-    subprocess.run(["kicad-cli", "sch", "export", "netlist", "-o", netf, sch],
-                   capture_output=True, timeout=120)
-    comps, nets = parse_netlist(netf)
+    sch, comps, nets = _project_netlist(board_dir)
     findings, info = [], []
 
     rails = {n: v for n, v in
              (("+5VSB", 5.0), ("/MAIN_5V_RAW", 5.0), ("/MAIN_5V", 5.0),
               ("/USB_VBUS", 5.0), ("/VBUS", 5.0), ("+5V_SYS", 5.0),
               ("/5VSB_RAW", 5.0)) if n in nets}
+    if not rails:
+        raise RuntimeError(
+            "root schematic %s exported no recognized source rails" % sch)
     rail_names = [n for n in nets if re.match(r"^\+?(3V3|5V|5VSB|12V)", n.lstrip("/+"))]
 
     for src_net, volts in rails.items():
@@ -311,12 +381,7 @@ def sanity(board_dir, *, short_amps=0.8, json_out=False):
 def path_impedance(board_dir, ref_a, pin_a, ref_b, pin_b):
     """Teeth primitive: DC impedance between two component pins (drive 1V, read I)."""
     board_dir = board_dir.rstrip("/")
-    sch = [f for f in os.listdir(board_dir) if f.endswith(".kicad_sch")]
-    sch = os.path.join(board_dir, sorted(sch, key=len)[0])
-    netf = tempfile.mkstemp(suffix=".net")[1]
-    subprocess.run(["kicad-cli", "sch", "export", "netlist", "-o", netf, sch],
-                   capture_output=True, timeout=120)
-    comps, nets = parse_netlist(netf)
+    _sch, comps, nets = _project_netlist(board_dir)
     net_a = next((n for n, nodes in nets.items() if (ref_a, pin_a) in nodes), None)
     net_b = next((n for n, nodes in nets.items() if (ref_b, pin_b) in nodes), None)
     if net_a is None or net_b is None:
@@ -332,19 +397,20 @@ def path_impedance(board_dir, ref_a, pin_a, ref_b, pin_b):
     return None, f"high-Z ({net_a} -> {net_b} = {vb:.4f}V)"
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--board", required=True)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--path", nargs=4, metavar=("REF_A", "PIN_A", "REF_B", "PIN_B"),
                     help="pin-to-pin impedance probe (teeth primitive)")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     if a.path:
         z, msg = path_impedance(a.board, *a.path)
         print(msg)
-        return
-    sanity(a.board, json_out=a.json)
+        return 0
+    report = sanity(a.board, json_out=a.json)
+    return 1 if report["findings"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

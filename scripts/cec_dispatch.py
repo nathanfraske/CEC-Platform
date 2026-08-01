@@ -48,10 +48,9 @@ import cec_toolchain as _tc   # noqa: E402  -- toolchain presence helpers (R-05)
 # and the parity rule "MUST match cec_route.verify" lived only on the cec_score copy).
 _COSMETIC = cec_score.COSMETIC_DRC_TYPES
 # ---- FINISHING vs REAL classification of a structural DRC locus -------------------------------
-# Some non-cosmetic DRC hits are FINISHING items owned by the placement pass (not routing faults),
-# OR known headless kicad-cli FALSE artifacts (present headless, absent in the GUI). The loop and
-# the judges treat these as acceptable-with-a-note. Three documented classes (CLAUDE.md + verified
-# on these boards 2026-06-07):
+# This classification is retained for diagnostics and constraint-specific reporting. It is never
+# an automatic acceptance waiver. A candidate must satisfy its complete independent gates_pass
+# contract. Three historically documented classes are:
 #   1. a short / mask-bridge between two pads of the SAME footprint -> a known headless FALSE
 #      artifact. Verified on the TS-1088 buttons: the two pads sit 3.13mm apart edge-to-edge, so a
 #      copper/mask short is geometrically impossible; kicad-cli reports it headless (it flips
@@ -80,8 +79,7 @@ def _within_footprint_short(where):
 
 
 def _locus_is_finishing(lc):
-    """Classify ONE structural DRC locus: True = finishing or known-false (acceptable-with-a-note),
-    False = a real routing/placement fault."""
+    """Classify one DRC locus for diagnostics, never for automatic acceptance."""
     w = lc["where"]
     wu = w.upper()
     if lc["type"] in ("shorting_items", "solder_mask_bridge") and _within_footprint_short(w):
@@ -248,20 +246,16 @@ def render(board, png):
         return None
     subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png, board], capture_output=True)
     return png if os.path.isfile(png) else None
-    return png if os.path.isfile(png) else None
 
 
 # ============================================================ the protocol
 GATE_NOTE = (
-    "HARD SAFETY GATES (must hold to accept): kelvin_ok AND diffpair_ok. "
-    "drc==0 is ideal. FINISHING / known-false residual is acceptable-with-a-note (owned by the "
-    "placement pass, not routing): (a) the decorative B.Cu LOGO polygon touching ONLY GND / <no "
-    "net>; (b) the RJ-45 shield tabs SH1/SH2 tied to GND; (c) a short / mask-bridge between two "
-    "pads of the SAME footprint (e.g. 'Pad 1 ... of SW1' AND 'Pad 2 ... of SW1') -- a KNOWN "
-    "headless kicad-cli false artifact, geometrically impossible (the pads are mm apart), absent "
-    "in the GUI. NOT acceptable (REAL faults): the LOGO polygon bridging a FUNCTIONAL net "
-    "(/I2C_SCL, /THRESH, /USB_*, +3V3, ...); a clearance/short between two DIFFERENT real "
-    "nets/footprints; or unrouted ratlines on a functional net. Prefer fewer vias / shorter length."
+    "HARD ACCEPTANCE GATE (must hold to accept): gates_pass. This includes kelvin_ok, "
+    "diffpair_ok, and every configured DRC and unconnected-ratline completion gate. "
+    "No finishing or known-false residual may be waived by the routing dispatcher. Such findings "
+    "must be corrected or explicitly dispositioned outside automatic route acceptance. An owner "
+    "disposition does not alter this automatic gate. Among candidates that pass, prefer fewer vias "
+    "and shorter length."
 )
 
 
@@ -329,6 +323,17 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
                 # but the fallback is RECORDED -- the tier's stated intent must not be lost.
                 log[-1]["note"] = f"seed fallback: verdict seed {v.seed!r} not in candidates; using best"
                 best = cands[0]
+            if not best.gates_pass:
+                # A model or deterministic tier is advisory. It cannot waive the complete scorer
+                # contract, which includes the configured DRC and unconnected-ratline gates in
+                # addition to Kelvin and differential-pair topology. Escalate rather than return a
+                # route that the independent scorer rejected.
+                prior_note = log[-1].get("note")
+                rejection = "accept rejected because selected candidate gates_pass=false"
+                log[-1]["note"] = f"{prior_note}; {rejection}" if prior_note else rejection
+                ti += 1
+                b = budget
+                continue
             return best, log
         if v.action == "request_more" and b > 0:
             params = {**params, **(v.params or {})}
@@ -345,22 +350,17 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
 
 # ---- deterministic default tiers (headless, NO LLM -- so the loop is testable) ----
 def _is_finishing_only(types, loci):
-    """True if EVERY structural DRC locus is finishing or a known headless false artifact -- i.e.
-    nothing is a real routing/placement short. Per-locus via _locus_is_finishing(), so a LOGO
-    polygon bridging a FUNCTIONAL net correctly reads REAL while a same-footprint pad short reads
-    false-acceptable."""
+    """Diagnostic-only classification; this result never overrides gates_pass."""
     if not types:
         return True
     return all(_locus_is_finishing(lc) for lc in loci)
 
 
 def det_haiku(ctx):
-    """Deterministic stand-in for the Haiku tier: accept if a candidate passes the hard gates and
-    its DRC is finishing-only; else request_more ONCE with more optimization; else escalate."""
+    """Accept only a candidate that passes the complete independent scorer contract."""
     best = ctx.candidates[0] if ctx.candidates else None
-    if best and best["kelvin_ok"] and best["diffpair_ok"] and \
-       (best["drc"] == 0 or _is_finishing_only(best["drc_types"], best["drc_loci"])):
-        return Verdict("accept", seed=best["seed"], reason="gates pass; DRC clean or finishing-only")
+    if best and best["gates_pass"]:
+        return Verdict("accept", seed=best["seed"], reason="complete gates_pass contract satisfied")
     if ctx.budget_left > 0:
         opt = ctx.history[-1]["params"]["opt_time"] if ctx.history else 12
         return Verdict("request_more", params={"opt_time": int(opt * 1.6)},
@@ -370,10 +370,10 @@ det_haiku.tier_name = "haiku"
 
 
 def det_escalate(ctx):
-    """Deterministic Sonnet/Opus stand-in: best-effort accept-if-gates, else give up to human."""
+    """Deterministic Sonnet/Opus stand-in: accept only the complete scorer gate."""
     best = ctx.candidates[0] if ctx.candidates else None
-    if best and best["kelvin_ok"] and best["diffpair_ok"]:
-        return Verdict("accept", seed=best["seed"], reason="gates pass; accepting best-so-far")
+    if best and best["gates_pass"]:
+        return Verdict("accept", seed=best["seed"], reason="complete gates_pass contract satisfied")
     return Verdict("escalate", reason="no gate-passing candidate; defer to human")
 det_escalate.tier_name = "sonnet"
 

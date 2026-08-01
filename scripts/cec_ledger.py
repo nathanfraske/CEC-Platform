@@ -93,9 +93,10 @@ def _kicad_pin():
     """The pinned KiCad series from versions.env (the format pin, independent of any
     locally installed kicad-cli)."""
     try:
-        for ln in open(os.path.join(ROOT, "versions.env")):
-            if "KICAD_SERIES" in ln and ":=" in ln:
-                return ln.split(":=")[1].rstrip('}"\n ')
+        with open(os.path.join(ROOT, "versions.env"), encoding="utf-8") as f:
+            for ln in f:
+                if "KICAD_SERIES" in ln and ":=" in ln:
+                    return ln.split(":=")[1].rstrip('}"\n ')
     except OSError:
         pass
     return None
@@ -153,7 +154,8 @@ def input_hashes(*, netlist=None, board=None):
             for fn in sorted(filenames):
                 p = os.path.join(dirpath, fn)
                 h.update(os.path.relpath(p, czones).encode())
-                h.update(open(p, "rb").read())
+                with open(p, "rb") as f:
+                    h.update(f.read())
         out["constraint_corpus_sha256"] = h.hexdigest()
     legacy = os.path.join(ROOT, "scripts", "constraints", "corpus-extracted.json")
     if os.path.isfile(legacy):
@@ -206,7 +208,8 @@ def corpus_state(live_rules=None):
     lr = None
     try:
         if isinstance(live_rules, str) and os.path.isfile(live_rules):
-            lr = json.load(open(live_rules))
+            with open(live_rules, encoding="utf-8") as f:
+                lr = json.load(f)
         elif isinstance(live_rules, dict):
             lr = live_rules
     except Exception:                                          # noqa: BLE001
@@ -441,13 +444,14 @@ def read_decisions():
     if not os.path.isfile(p):
         return []
     out = []
-    for ln in open(p):
-        ln = ln.strip()
-        if ln:
-            try:
-                out.append(json.loads(ln))
-            except json.JSONDecodeError:
-                print("[cec_ledger] WARNING: skipping malformed decision line", file=sys.stderr)
+    with open(p, encoding="utf-8") as f:
+        for ln in f:
+            ln = ln.strip()
+            if ln:
+                try:
+                    out.append(json.loads(ln))
+                except json.JSONDecodeError:
+                    print("[cec_ledger] WARNING: skipping malformed decision line", file=sys.stderr)
     return out
 
 

@@ -82,7 +82,8 @@ def _netclasses(pcb_path):
     if not os.path.isfile(pro):
         return {}
     try:
-        d = json.load(open(pro))
+        with open(pro, encoding="utf-8") as project_file:
+            d = json.load(project_file)
     except Exception:                                    # noqa: BLE001
         return {}
     ns = (d.get("net_settings") or {})

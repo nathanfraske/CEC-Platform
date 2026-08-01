@@ -9,10 +9,12 @@
 #       bash -lc 'cd /workspace && python3 -m unittest tests.test_cl25_checks -v'
 #
 # Host-runnable subset (regex/parsing units): runs anywhere.
+import json
 import os
 import re
 import sys
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -130,10 +132,35 @@ class TestCheckPack(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (run in the routing container)")
 class TestIntakeGate(unittest.TestCase):
-    def test_eps_admits(self):
+    def test_draft_marker_does_not_waive_live_erc(self):
         g = K.intake_gate(EPS)
-        self.assertTrue(g["ok"], g["reasons"])
-        self.assertEqual(g["results"]["erc"][0], "N/A")  # DRAFT board: ERC skipped
+        self.assertFalse(g["ok"], g["reasons"])
+        self.assertEqual(g["results"]["erc"][0], "FAIL")
+        self.assertTrue(any("erc [hard]" in reason for reason in g["reasons"]))
+
+    def test_erc_tool_failure_refuses(self):
+        with mock.patch.object(K, "_erc_errors",
+                               side_effect=RuntimeError("synthetic tool failure")):
+            g = K.intake_gate(EPS)
+        self.assertFalse(g["ok"])
+        self.assertEqual(g["results"]["erc"][0], "ERROR")
+        self.assertTrue(any("synthetic tool failure" in reason for reason in g["reasons"]))
+
+    def test_drc_nonzero_exit_is_not_cached_as_clean(self):
+        proc = mock.Mock(returncode=2, stderr="synthetic DRC failure", stdout="")
+        with mock.patch.object(K.cec_toolchain, "kicad_cli",
+                               return_value="fake-kicad-cli"), \
+                mock.patch.object(K.subprocess, "run", return_value=proc):
+            with self.assertRaisesRegex(RuntimeError, "exited 2"):
+                K._drc_json(EPS, {})
+
+    def test_empty_drc_output_is_not_cached_as_clean(self):
+        proc = mock.Mock(returncode=0, stderr="", stdout="")
+        with mock.patch.object(K.cec_toolchain, "kicad_cli",
+                               return_value="fake-kicad-cli"), \
+                mock.patch.object(K.subprocess, "run", return_value=proc):
+            with self.assertRaises((json.JSONDecodeError, ValueError)):
+                K._drc_json(EPS, {})
 
     def test_refusal_carries_named_reasons(self):
         """A board failing the schematic-side subset is refused WITH named reasons

@@ -1,5 +1,11 @@
 # Mezzanine stack: Hub-on-24-pin integrated unit — design draft (2026-06-24)
 
+> Superseded mechanical and connector record: the single 2x8 connector and four
+> M3 standoffs below were replaced by the segmented J6P/J6C/J6D contract and one
+> fitted M2 ground lug. See `docs/decisions/owner-session-2026-08-01.md` and
+> `docs/mezz-structural-segments-2026-07-22.md`. The older text remains for
+> provenance.
+
 PROPOSAL: an OPTIONAL configuration where the Hub Standard physically stacks on the 24-pin ATX module via a
 vertical board-to-board connector, sharing grounds through metal mount standoffs. Eliminates the inter-board
 RJ-45 cable + the 2-pin 5VSB cable; yields a compact integrated "Hub+24-pin" unit. Same LOGICAL interface

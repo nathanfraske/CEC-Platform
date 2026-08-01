@@ -27,11 +27,23 @@ import math
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 
-NGSPICE = os.environ.get("CEC_NGSPICE", "ngspice")
+def _ngspice_executable():
+    override = os.environ.get("CEC_NGSPICE")
+    if override:
+        return override
+    if os.name == "nt":
+        # The official Windows ngspice.exe is the GUI frontend. Batch tools
+        # must use the console binary or fail to launch it explicitly.
+        return shutil.which("ngspice_con.exe") or "ngspice_con.exe"
+    return shutil.which("ngspice") or "ngspice"
+
+
+NGSPICE = _ngspice_executable()
 
 # sec6.13 cells on the 24-pin rev3 (spec sec6.4 shunts; INA181A2 = gain 50 platform pick,
 # deliberately kept on 5VSB per the G-pass gain-math ruling)
@@ -69,13 +81,22 @@ def _run(cir):
         fh.write(cir)
         path = fh.name
     try:
-        out = subprocess.run([NGSPICE, "-b", path], capture_output=True, text=True,
-                             timeout=30).stdout
+        kw = {"capture_output": True, "text": True, "timeout": 30}
+        if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+            kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+        run = subprocess.run([NGSPICE, "-b", path], **kw)
+        if run.returncode != 0:
+            detail = (run.stderr or run.stdout or "no diagnostic").strip()
+            raise RuntimeError("ngspice exited %d: %s" %
+                               (run.returncode, detail[-600:]))
+        out = run.stdout
     finally:
         os.unlink(path)
     vals = {}
     for m in re.finditer(r"v\((\w+)\)\s*=\s*([-\d.eE+]+)", out):
         vals[m.group(1)] = float(m.group(2))
+    if not vals:
+        raise RuntimeError("ngspice exited successfully but returned no requested values")
     return vals
 
 

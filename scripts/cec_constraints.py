@@ -31,6 +31,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import cec_dispatch   # noqa: E402  -- _locus_is_finishing, _bracket_nets (drc_types moved to cec_score, R-02)
 import cec_score      # noqa: E402  -- _derive_pairs (Kelvin _HI/_LO, diff _P/_N)
+import cec_fab_profile as cec_fab  # noqa: E402 -- declared stackup/POFV authority
+import cec_mezz_contract as cec_mezz  # noqa: E402 -- shared segmented mating contract
+import cec_toolchain  # noqa: E402 -- cross-platform KiCad executable resolution
 
 
 # ===========================================================================
@@ -91,10 +94,31 @@ REGISTRY = [
       category="high-current", severity="hard", checkable="partial", directive="none",
       rule="EPS/PCIe per-cable 0.5mOhm; 12VHPWR per-pin 1mOhm; 24-pin 2mOhm rails / 25mOhm 5VSB.",
       source="spec §6.4 (LOCKED)", status="ratified"),
-    C(id="high-current-stackup-2oz", title="4-layer, 2oz outer, 12V on outers",
-      category="high-current", severity="hard", checkable="no", directive="none",
-      rule="High-current modules: 4-layer, 2oz outer copper, 12V on outers, GND on inners.",
-      source="spec §6.7", status="ratified"),
+    C(id="high-current-stackup-2oz", title="Approved 6-layer high-current stackup",
+      category="high-current", severity="hard", checkable="yes", directive="none",
+      rule="High-current modules use JLC06162H-3313: six layers, 70um outer and "
+           "15.2um inner copper, with In1/In4 ground and In3 power routing.",
+      source="owner approval 2026-08-01; JLCPCB JLC06162H-3313 selector",
+      status="ratified"),
+    C(id="hub-stackup-6layer", title="Approved 6-layer Hub stackup",
+      category="high-current", severity="hard", checkable="yes", directive="none",
+      rule="Hub boards use JLC06161H-3313: six layers, 35um outer and "
+           "15.2um inner copper, with In1/In4 ground, In2 signal, and In3 power routing.",
+      source="owner approval 2026-08-01; JLCPCB JLC06161H-3313 selector",
+      status="ratified"),
+    C(id="through-vias-only", title="Approved profiles use through vias only",
+      category="high-current", severity="hard", checkable="yes", directive="none",
+      rule="Boards using the approved JLCPCB six-layer profiles may use ordinary plated "
+           "through vias, including qualified POFV. Blind, buried, and microvias are not emitted.",
+      source="JLCPCB PCB capabilities table, verified 2026-08-01",
+      status="ratified"),
+    C(id="mezzanine-segment-contract",
+      title="Hub and 24-pin segmented mezzanine fields mate exactly",
+      category="mechanical", severity="hard", checkable="yes", directive="pin",
+      rule="J6P/J6C/J6D use the ratified 2.54mm segmented pin maps and shared-frame "
+           "coordinates. H1 is the coincident plated M2 GND lug on both boards.",
+      source="owner ruling 2026-08-01; structural segmented mezzanine contract",
+      status="ratified"),
     C(id="high-current-pour-integrity", title="No same-layer trace cuts the high-current pour",
       category="high-current", severity="hard", checkable="yes", directive="keepout",
       rule="A foreign-net trace on the SAME layer as a 12V/_HI/_LO pour must not pass through it -- the "
@@ -121,6 +145,13 @@ REGISTRY = [
            "board when either lets foreign copper land on the pour.",
       source="owner directive 2026-06-27 (absolute pour keepout); measured eps-rev3 68-track/13-via",
       status="ratified", params={"sample_pts": 11}),
+    C(id="no-incursion-in-laid-pour",
+      title="Actual laid pour outline is reserved from foreign copper and pads",
+      category="high-current", severity="hard", checkable="yes", directive="keepout",
+      rule="On a routing layer, no foreign pad, track copper, or via copper may overlap the "
+           "outline of a laid non-plane pour. Dedicated GND and PWR plane-role layers are excluded.",
+      source="owner ruling 2026-07-25; repaired and gated 2026-08-01",
+      status="ratified"),
     C(id="min-pour-cross-section", title="High-current pour cross-section adequate (DC field solve)",
       category="high-current", severity="advisory", checkable="yes", directive="keepout",
       rule="Each poured high-current net's BOTTLENECK copper cross-section -- from the cec_dcir 2.5D DC "
@@ -132,7 +163,7 @@ REGISTRY = [
            "min-width on the carved high-current netclass) is the follow-up, once a bench measurement "
            "calibrates the dt_ipc k / shunt_rth placeholders (docs/local-compute-exploration.md Thrust B).",
       source="docs/local-compute-exploration.md Thrust B; scripts/cec_dcir.py; physics_gates J_max=100",
-      status="proposed", params={"j_max_A_mm2": 100.0, "grid_mm": 0.4, "oz_outer": 2.0, "oz_inner": 1.0}),
+      status="proposed", params={"j_max_A_mm2": 100.0, "grid_mm": 0.4}),
     C(id="kelvin-sense-from-inner-pad", title="Kelvin sense tapped from the shunt inner edge",
       category="high-current", severity="strong", checkable="yes", directive="inner_tap",
       rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
@@ -275,11 +306,13 @@ REGISTRY = [
       rule="The decorative B.Cu LOGO polygon is a routing keepout (or GND-assigned): no functional-net "
            "copper may short to it. (LOGO-vs-GND only is finishing-acceptable.)",
       source="discovered by the route loop 2026-06-07; verified", status="ratified"),
-    C(id="via-on-pad", title="No via copper overlapping a pad (via-in-pad / short)",
+    C(id="via-on-pad", title="Via-on-pad is shorted or explicitly POFV-qualified",
       category="finishing", severity="hard", checkable="yes", directive="none",
       rule="A via whose copper (drill + annular ring) overlaps a PAD's copper on a shared copper layer "
-           "is a fault KiCad DRC does NOT flag by default. SAME-net overlap = via-in-pad: the open barrel "
-           "wicks solder, so it needs tenting / plugging / POFV fill and is generally not allowed unhandled "
+           "is a fault KiCad DRC does NOT flag by default. SAME-net overlap is permitted only when the board "
+           "declares an approved POFV fabrication profile, the via is through-board, its dimensions are in "
+           "the vendor window, and the complete via land is contained by the SMD pad. Otherwise the barrel "
+           "can wick solder and remains a failure. "
            "-- the layer-swap / B.Cu-mirror finishing stages drop 1-6 of these (a via punched dead-centre "
            "into a decoupling-cap or sense pad to reach B.Cu). DIFF-net overlap = a hard short. Reported "
            "per overlap with ref/pad/net/coords; route()'s independent verdict folds it into gates_pass so "
@@ -479,7 +512,8 @@ def _param(cid, key, default):
     try:
         import json as _json
         import cec_facts
-        rows = _json.load(open(os.path.join(cec_facts.COMPILED_ROOT, "params.json")))
+        with open(os.path.join(cec_facts.COMPILED_ROOT, "params.json"), encoding="utf-8") as source:
+            rows = _json.load(source)
         for row in rows if isinstance(rows, list) else []:
             if (row.get("binding") == "gate"
                     and (row.get("params") or {}).get("registry_param") == [cid, key]):
@@ -543,12 +577,29 @@ def _drc_json(path, ctx):
     key = "_drc_json::" + path
     if key in ctx:
         return ctx[key]
-    out = os.path.join(tempfile.gettempdir(), "cec_cons_drc_%d.json" % os.getpid())
-    subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, path], capture_output=True)
+    cli = cec_toolchain.kicad_cli()
+    if not cli:
+        raise RuntimeError("kicad-cli unavailable")
+    fd, out = tempfile.mkstemp(prefix="cec_cons_drc_", suffix=".json")
+    os.close(fd)
     try:
-        j = json.load(open(out))
-    except Exception:
-        j = {}
+        proc = subprocess.run([cli, "pcb", "drc", "--format", "json",
+                               "-o", out, path], capture_output=True, text=True,
+                              timeout=300)
+        if proc.returncode:
+            raise RuntimeError("kicad-cli DRC exited %d: %s"
+                               % (proc.returncode, (proc.stderr or proc.stdout).strip()[:500]))
+        with open(out, encoding="utf-8") as f:
+            j = json.load(f)
+        if (not isinstance(j, dict)
+                or not isinstance(j.get("violations"), list)
+                or not isinstance(j.get("unconnected_items"), list)):
+            raise ValueError("kicad-cli DRC JSON lacks violations/unconnected_items lists")
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
     ctx[key] = j
     return j
 
@@ -573,7 +624,8 @@ def _dcir_solve(path, ctx):
     """Run the cec_dcir 2.5D DC IR-drop / current-density field solve ONCE per board, cached on ctx
     (shaped like _drc_json so a future second consumer shares it). Returns {net: result|None}, or None
     if the solver / numpy is unavailable -- FALLBACK-SAFE so the checker N/A-s out rather than ERRORing
-    on a box without numpy. Params (grid pitch, oz weights) come from the min-pour-cross-section entry."""
+    on a box without numpy. The board's fabrication profile supplies exact copper and dielectric
+    thicknesses; only the grid pitch comes from the constraint entry."""
     key = "_dcir::" + path
     if key in ctx:
         return ctx[key]
@@ -583,13 +635,269 @@ def _dcir_solve(path, ctx):
         res = cec_dcir.solve(
             path,
             h=_param("min-pour-cross-section", "grid_mm", 0.4),
-            oz_outer=_param("min-pour-cross-section", "oz_outer", 2.0),
-            oz_inner=_param("min-pour-cross-section", "oz_inner", 1.0),
         )
     except Exception:
         res = None
     ctx[key] = res
     return res
+
+
+# -- fabrication profile / stackup -------------------------------------------
+def _balanced_sexp(text, marker):
+    """Return the balanced s-expression beginning at *marker*, or empty."""
+    start = text.find(marker)
+    if start < 0:
+        return ""
+    depth = 0
+    quoted = False
+    escaped = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                quoted = False
+            continue
+        if ch == '"':
+            quoted = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return ""
+
+
+def _fab_profile_errors(board, path, expected):
+    profile = cec_fab.get_profile(expected)
+    errors = []
+    declared = cec_fab.board_profile_name(board)
+    if declared != expected:
+        errors.append("CEC_FAB_PROFILE=%r, expected %r" % (declared, expected))
+    try:
+        props = {str(k): str(v) for k, v in
+                 board.GetProperties().asdict().items()}
+    except Exception:                                  # noqa: BLE001
+        props = {}
+    required_props = cec_fab.board_properties(expected)
+    for key, want in required_props.items():
+        if props.get(key) != want:
+            errors.append("%s=%r, expected %r" % (key, props.get(key), want))
+
+    enabled = cec_fab.enabled_copper_layers(board)
+    if enabled != cec_fab.COPPER_LAYERS:
+        errors.append("enabled copper layers %s, expected %s" %
+                      (enabled, cec_fab.COPPER_LAYERS))
+    role_map = dict(zip(cec_fab.COPPER_LAYERS, profile["roles"]))
+    for layer in cec_fab.COPPER_LAYERS:
+        lid = board.GetLayerID(layer)
+        if lid < 0:
+            continue
+        want_power_kind = role_map[layer] == "GND"
+        is_power_kind = int(board.GetLayerType(lid)) == 1
+        if want_power_kind != is_power_kind:
+            errors.append("%s layer kind is %s, expected %s" %
+                          (layer, "power" if is_power_kind else "signal",
+                           "power" if want_power_kind else "signal"))
+
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            board_text = fh.read()
+        stack = _balanced_sexp(board_text, "(stackup")
+    except OSError as exc:
+        return errors + ["cannot read stackup: %s" % exc]
+    if not stack:
+        return errors + ["board setup has no stackup section"]
+    if profile.get("pofv"):
+        for feature in ("capping", "filling"):
+            if not re.search(r'\(%s\s+yes\)' % feature, board_text):
+                errors.append("POFV board setup does not enable %s" % feature)
+    copper_rows = re.findall(
+        r'\(layer\s+"(F\.Cu|In[1-4]\.Cu|B\.Cu)"\s+'
+        r'\(type\s+"copper"\)\s+\(thickness\s+([0-9.eE+-]+)\)', stack)
+    copper = {name: float(value) for name, value in copper_rows}
+    for layer in cec_fab.COPPER_LAYERS:
+        want = cec_fab.copper_thickness_mm(expected, layer)
+        got = copper.get(layer)
+        if got is None or abs(got - want) > 1e-6:
+            errors.append("%s copper thickness %rmm, expected %.4fmm" %
+                          (layer, got, want))
+    dielectric_rows = re.findall(
+        r'\(layer\s+"dielectric\s+\d+"\s+\(type\s+"(prepreg|core)"\)\s+'
+        r'\(thickness\s+([0-9.eE+-]+)\)\s+\(material\s+"([^"]+)"\)', stack)
+    got_dielectrics = [(kind, float(thick), material)
+                       for kind, thick, material in dielectric_rows]
+    want_dielectrics = [(kind, float(thick), material)
+                        for kind, thick, material, _er in profile["dielectrics"]]
+    if len(got_dielectrics) != len(want_dielectrics):
+        errors.append("dielectric layer count %d, expected %d" %
+                      (len(got_dielectrics), len(want_dielectrics)))
+    else:
+        for idx, (got, want) in enumerate(zip(got_dielectrics,
+                                              want_dielectrics), 1):
+            if (got[0] != want[0] or got[2] != want[2]
+                    or abs(got[1] - want[1]) > 1e-6):
+                errors.append("dielectric %d %r, expected %r" %
+                              (idx, got, want))
+    return errors
+
+
+def _check_expected_fab_profile(board, path, expected):
+    errors = _fab_profile_errors(board, path, expected)
+    if errors:
+        return False, "; ".join(errors[:8]) + (
+            " (+%d more)" % (len(errors) - 8) if len(errors) > 8 else "")
+    p = cec_fab.get_profile(expected)
+    return True, "%s exact six-layer profile and buildup verified" % p["vendor_stackup"]
+
+
+@checker("high-current-stackup-2oz")
+def _chk_high_current_stackup(board, path, ctx):
+    expected = cec_fab.profile_for_board_hint(path)
+    declared = cec_fab.board_profile_name(board)
+    target = "jlcpcb_6l_pofv_high_current"
+    if expected != target and declared != target:
+        return None, "not an approved high-current board family"
+    return _check_expected_fab_profile(board, path, target)
+
+
+@checker("hub-stackup-6layer")
+def _chk_hub_stackup(board, path, ctx):
+    expected = cec_fab.profile_for_board_hint(path)
+    declared = cec_fab.board_profile_name(board)
+    target = "jlcpcb_6l_pofv_signal"
+    if expected != target and declared != target:
+        return None, "not a Hub board"
+    return _check_expected_fab_profile(board, path, target)
+
+
+@checker("through-vias-only")
+def _chk_through_vias_only(board, path, ctx):
+    profile = cec_fab.board_profile_name(board)
+    expected = cec_fab.profile_for_board_hint(path)
+    if profile not in cec_fab.PROFILES and expected not in cec_fab.PROFILES:
+        return None, "no approved six-layer fabrication profile"
+    bad = []
+    for via in (t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T):
+        try:
+            if int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH):
+                q = via.GetPosition()
+                bad.append("%s@(%.2f,%.2f)" %
+                           (via.GetNetname() or "<no net>", _mm(q.x), _mm(q.y)))
+        except Exception as exc:                        # noqa: BLE001
+            return False, "cannot verify via type: %s" % exc
+    if bad:
+        return False, "%d blind/buried/microvia(s): %s%s" % (
+            len(bad), ", ".join(bad[:8]),
+            " (+%d)" % (len(bad) - 8) if len(bad) > 8 else "")
+    return True, "all vias are plated through-board (%d checked)" % sum(
+        1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+
+
+_MEZZ_SEGMENTS = {
+    s["ref"]: ((s["dc"][0], s["dc"][1], s["rot"]),
+               dict(s["pin_roles"]), s["footprint_token"])
+    for s in cec_mezz.SEGMENTS
+}
+
+
+def _mezz_net_role(net):
+    n = (net or "").upper().replace("~", "")
+    if not n or "UNCONNECTED-" in n:
+        return "NC"
+    if n.rsplit("/", 1)[-1] == "GND":
+        return "GND"
+    if "CAN_H" in n:
+        return "CAN_H"
+    if "CAN_L" in n:
+        return "CAN_L"
+    if "DETECT" in n:
+        return "DETECT"
+    if "5V" in n:
+        return "5V"
+    return n
+
+
+@checker("mezzanine-segment-contract")
+def _chk_mezzanine_segment_contract(board, path, ctx):
+    """Validate both halves against one center-relative mating definition.
+
+    A per-board shared-frame check is sufficient: if each board has the same
+    segment offsets, rotations, and role-normalized pin map, translating their
+    board centers makes all three connector fields and H1 coincident.
+    """
+    by_ref = {fp.GetReference(): fp for fp in board.GetFootprints()}
+    present = set(_MEZZ_SEGMENTS) & set(by_ref)
+    target_path = any(s in os.path.normpath(path).lower()
+                      for s in ("atx-24pin-rev3", "hub-standard-rev2"))
+    if not present and not target_path:
+        return None, "not a segmented Hub/24-pin mezzanine board"
+    errors = []
+    missing = sorted(set(_MEZZ_SEGMENTS) - set(by_ref))
+    if missing:
+        errors.append("missing segment(s) %s" % ",".join(missing))
+    x0, y0, x1, y1 = _edge_bbox(board)
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    tol = 0.05
+    for ref, (seat, pin_roles, fp_token) in _MEZZ_SEGMENTS.items():
+        fp = by_ref.get(ref)
+        if fp is None:
+            continue
+        pos = fp.GetPosition()
+        got = (_mm(pos.x), _mm(pos.y), float(fp.GetOrientationDegrees()) % 360.0)
+        want = (cx + seat[0], cy + seat[1], seat[2] % 360.0)
+        if (abs(got[0] - want[0]) > tol or abs(got[1] - want[1]) > tol
+                or abs(((got[2] - want[2] + 180.0) % 360.0) - 180.0) > 0.01):
+            errors.append("%s seat (%.2f,%.2f,%.1f), expected (%.2f,%.2f,%.1f)" %
+                          ((ref,) + got + want))
+        if fp_token not in fp.GetFPIDAsString().upper():
+            errors.append("%s footprint %s, expected %s" %
+                          (ref, fp.GetFPIDAsString(), fp_token))
+        got_roles = {int(p.GetNumber()): _mezz_net_role(p.GetNetname())
+                     for p in fp.Pads() if str(p.GetNumber()).isdigit()}
+        if got_roles != pin_roles:
+            errors.append("%s pin roles %r, expected %r" %
+                          (ref, got_roles, pin_roles))
+
+    lug = by_ref.get("H1")
+    if lug is None:
+        errors.append("missing shared H1 M2 ground lug")
+    else:
+        pos = lug.GetPosition()
+        want = (cx + cec_mezz.GROUND_LUG["dc"][0],
+                cy + cec_mezz.GROUND_LUG["dc"][1])
+        if abs(_mm(pos.x) - want[0]) > tol or abs(_mm(pos.y) - want[1]) > tol:
+            errors.append("H1 seat (%.2f,%.2f), expected (%.2f,%.2f)" %
+                          (_mm(pos.x), _mm(pos.y), want[0], want[1]))
+        if cec_mezz.GROUND_LUG["footprint"].split(":", 1)[-1].upper() \
+                not in lug.GetFPIDAsString().upper():
+            errors.append("H1 is not the plated M2 Pad_Via footprint")
+        pads = list(lug.Pads())
+        if not pads or any(_mezz_net_role(p.GetNetname()) != "GND" for p in pads):
+            errors.append("H1 pad set is not entirely GND")
+        enabled_cu = list(board.GetEnabledLayers().CuStack())
+        if not pads or any(p.GetDrillSize().x <= 0
+                           or not all(p.GetLayerSet().Contains(layer)
+                                      for layer in enabled_cu)
+                           for p in pads):
+            errors.append("H1 is not plated through-board copper")
+        center = max(pads, key=lambda p: p.GetDrillSize().x, default=None)
+        if (center is None
+                or abs(_mm(center.GetDrillSize().x) - cec_mezz.GROUND_LUG["drill_mm"]) > 0.01
+                or abs(_mm(center.GetSize().x) - cec_mezz.GROUND_LUG["land_mm"]) > 0.01):
+            errors.append("H1 lacks the specified 2.2mm M2 hole / 4.4mm lug land")
+        if (center is None or not center.GetLayerSet().Contains(pcbnew.F_Mask)
+                or not center.GetLayerSet().Contains(pcbnew.B_Mask)):
+            errors.append("H1 lug land is not exposed on both outer faces")
+
+    if errors:
+        return False, "; ".join(errors[:8]) + (
+            " (+%d more)" % (len(errors) - 8) if len(errors) > 8 else "")
+    return True, "J6P/J6C/J6D seats and pin roles match; H1 is a coincident plated GND lug"
 
 
 # -- checkers ----------------------------------------------------------------
@@ -693,13 +1001,13 @@ def _via_radius_nm(via):
 
 
 def _via_pad_overlaps(board):
-    """Geometry core: (same_net, diff_net), each a list of overlap records
+    """Geometry core: (same_net, diff_net, allowed_pofv), each a list of records
     {ref,pad,pad_net,via_net,x,y}. A record is emitted when a via's outer-copper
     circle overlaps a pad's copper on a shared copper layer; the two classes differ
     only in whether the via and pad nets match (SAME = via-in-pad, DIFF = short)."""
     vias = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
     pads = [(fp.GetReference(), pad) for fp in board.GetFootprints() for pad in fp.Pads()]
-    same, diff = [], []
+    same, diff, allowed = [], [], []
     for via in vias:
         vpos = via.GetPosition()
         vr = _via_radius_nm(via)
@@ -726,8 +1034,21 @@ def _via_pad_overlaps(board):
             pnet = pad.GetNetname()
             rec = {"ref": ref, "pad": pad.GetPadName(), "pad_net": pnet, "via_net": vnet,
                    "x": round(_mm(vpos.x), 3), "y": round(_mm(vpos.y), 3)}
-            (same if vnet == pnet else diff).append(rec)
-    return same, diff
+            if vnet != pnet:
+                diff.append(rec)
+                continue
+            try:
+                drill_nm = int(via.GetDrillValue())
+                through = int(via.GetViaType()) == int(pcbnew.VIATYPE_THROUGH)
+            except Exception:                         # noqa: BLE001
+                drill_nm, through = 0, False
+            ok, why = cec_fab.via_pad_decision(
+                board, pad, vpos, vr * 2, drill_nm, via.GetNetCode())
+            if not through:
+                ok, why = False, "POFV profile permits through vias only"
+            rec["reason"] = why
+            (allowed if ok else same).append(rec)
+    return same, diff, allowed
 
 
 def via_on_pad_summary(board_path):
@@ -737,9 +1058,10 @@ def via_on_pad_summary(board_path):
     a verdict must never break on the checker."""
     board = pcbnew.LoadBoard(board_path)
     n_vias = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
-    same, diff = _via_pad_overlaps(board)
+    same, diff, allowed = _via_pad_overlaps(board)
     return {"same": len(same), "diff": len(diff), "n_vias": n_vias,
-            "same_detail": same, "diff_detail": diff}
+            "allowed_pofv": len(allowed), "same_detail": same,
+            "diff_detail": diff, "allowed_pofv_detail": allowed}
 
 
 def _fmt_vop(r):
@@ -750,10 +1072,11 @@ def _fmt_vop(r):
 def _chk_via_on_pad(board, path, ctx):
     if not any(t.Type() == pcbnew.PCB_VIA_T for t in board.GetTracks()):
         return None, "no vias on this board (floorplan or fully-planar route)"
-    same, diff = _via_pad_overlaps(board)
+    same, diff, allowed = _via_pad_overlaps(board)
     nv = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
     if not same and not diff:
-        return True, "no via copper overlaps a pad (%d vias checked)" % nv
+        return True, ("no unqualified via copper overlaps a pad (%d vias checked, "
+                      "%d qualified POFV overlap(s))" % (nv, len(allowed)))
     msgs, payload = [], []
     if same:
         msgs.append("%d SAME-net via-in-pad (tent/fill required): %s%s"
@@ -1992,7 +2315,8 @@ def _netclass_rules(board_path):
     if not pro:
         return None
     try:
-        ns = json.load(open(pro)).get("net_settings", {})
+        with open(pro, encoding="utf-8") as f:
+            ns = json.load(f).get("net_settings", {})
     except Exception:
         return None
     classes = {}
@@ -2135,7 +2459,8 @@ def _sch_refs(sch_path):
     board-only refs dropped."""
     refs = set()
     try:
-        text = _strip_lib_symbols(open(sch_path, encoding="utf-8", errors="replace").read())
+        with open(sch_path, encoding="utf-8", errors="replace") as f:
+            text = _strip_lib_symbols(f.read())
     except OSError:
         return refs
     for r in _SCH_REF_RE.findall(text):
@@ -2181,25 +2506,36 @@ _BENIGN_ERC_TYPES = ("lib_symbol_mismatch", "unconnected_wire_endpoint")
 
 def _erc_errors(sch_path):
     """Run a live ERC (kicad-cli) and return the count of severity-ERROR violations
-    excluding the documented-benign types (the R-03 CI posture: errors gate, warnings
-    are the documented noise). None = kicad-cli unavailable (degrade, R-05 posture)."""
-    import shutil
-    if not shutil.which("kicad-cli"):
-        return None
-    out = os.path.join(tempfile.gettempdir(), "cec_intake_erc_%d.json" % os.getpid())
-    subprocess.run(["kicad-cli", "sch", "erc", "--format", "json", "-o", out, sch_path],
-                   capture_output=True)
+    excluding the documented-benign types. Missing tools, nonzero exits, and invalid
+    output raise so the intake caller can refuse the board explicitly."""
+    cli = cec_toolchain.kicad_cli()
+    if not cli:
+        raise RuntimeError("kicad-cli unavailable")
+    fd, out = tempfile.mkstemp(prefix="cec_intake_erc_", suffix=".json")
+    os.close(fd)
     try:
-        j = json.load(open(out))
-    except Exception:
-        return None
+        proc = subprocess.run([cli, "sch", "erc", "--format", "json",
+                               "-o", out, sch_path], capture_output=True, text=True,
+                              timeout=300)
+        if proc.returncode:
+            raise RuntimeError("kicad-cli ERC exited %d: %s"
+                               % (proc.returncode, (proc.stderr or proc.stdout).strip()[:500]))
+        with open(out, encoding="utf-8") as f:
+            j = json.load(f)
+        if not isinstance(j, dict):
+            raise ValueError("kicad-cli ERC JSON is not an object")
+        sheets = j.get("sheets", []) or [j]
+        if (not isinstance(sheets, list)
+                or any(not isinstance(sh, dict)
+                       or not isinstance(sh.get("violations", []), list)
+                       for sh in sheets)):
+            raise ValueError("kicad-cli ERC JSON lacks valid violations lists")
     finally:
         try:
             os.unlink(out)
         except OSError:
             pass
     n = 0
-    sheets = j.get("sheets", []) or [j]
     for sh in sheets:
         for v in sh.get("violations", []):
             if v.get("severity") == "error" and v.get("type") not in _BENIGN_ERC_TYPES:
@@ -2220,33 +2556,44 @@ def intake_gate(board_path, ctx=None):
         fn = CHECKERS.get(cid)
         c = by_id.get(cid)
         if not fn or not c:
+            detail = "required intake checker is missing from the registry or implementation"
+            results[cid] = ("ERROR", detail)
+            reasons.append("%s [hard]: %s" % (cid, detail))
             continue
         try:
             res = fn(board, board_path, ctx)
             ok, detail = res[0], res[1]
         except Exception as e:
             ok, detail = None, "%s: %s" % (type(e).__name__, e)
+            status = "ERROR"
+            results[cid] = (status, detail)
+            reasons.append("%s [%s]: %s" % (cid, c.severity, detail))
+            continue
         status = "N/A" if ok is None else ("PASS" if ok else "FAIL")
         results[cid] = (status, detail)
         if ok is False:
             reasons.append("%s [%s]: %s" % (cid, c.severity, detail))
-    # ERC freshness (live; degrades when kicad-cli is absent -- R-05 posture).
-    # DRAFT boards skip ERC by repo convention (the cec_synth_pipeline is_draft rule).
+    # ERC freshness is a hard intake requirement. A DRAFT marker changes release
+    # status, not electrical evidence, so it does not waive ERC.
     sch = ctx.get("sch") or _project_file(board_path, ".kicad_sch")
-    if os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(board_path)), "DRAFT")):
-        results["erc"] = ("N/A", "DRAFT board: ERC skipped by repo convention")
-    elif sch:
-        n = _erc_errors(sch)
-        if n is None:
-            results["erc"] = ("N/A", "kicad-cli unavailable (degraded; not a refusal)")
-        elif n > 0:
-            results["erc"] = ("FAIL", "%d ERROR-severity ERC violation(s)" % n)
-            reasons.append("erc [hard]: %d ERROR-severity violation(s) on %s"
-                           % (n, os.path.basename(sch)))
+    if sch:
+        try:
+            n = _erc_errors(sch)
+        except Exception as e:
+            detail = "%s: %s" % (type(e).__name__, e)
+            results["erc"] = ("ERROR", detail)
+            reasons.append("erc [hard]: %s" % detail)
         else:
-            results["erc"] = ("PASS", "0 ERROR-severity violations")
+            if n > 0:
+                results["erc"] = ("FAIL", "%d ERROR-severity ERC violation(s)" % n)
+                reasons.append("erc [hard]: %d ERROR-severity violation(s) on %s"
+                               % (n, os.path.basename(sch)))
+            else:
+                results["erc"] = ("PASS", "0 ERROR-severity violations")
     else:
-        results["erc"] = ("N/A", "no sibling .kicad_sch")
+        results["erc"] = ("ERROR", "no sibling .kicad_sch")
+        reasons.append("erc [hard]: no sibling .kicad_sch for %s"
+                       % os.path.basename(board_path))
     # CL-03 R4: the ADVISORY set is REPORTED here, never gated on -- the intake
     # refusal logic above sees gate-class checks only. Informational summary of
     # the compiled advisory artifacts applicable to this board (empty when the
@@ -2291,10 +2638,17 @@ def intake_gate(board_path, ctx=None):
 CU_OZ_MM = 0.0348   # copper thickness per oz, mm (= cec_dcir.CU_OZ_M / cec_synth_pipeline.CU_OZ_MM)
 
 
-def _net_cu_thickness_mm(layers, oz_outer, oz_inner):
+def _net_cu_thickness_mm(layers, oz_outer, oz_inner,
+                         copper_thickness_mm=None):
     """Total copper thickness (mm) a net's copper occupies, summed over the layers it is on
     (F.Cu/B.Cu = oz_outer, inner = oz_inner). The required min width = required_cross / this."""
-    t = sum((oz_outer if ln in ("F.Cu", "B.Cu") else oz_inner) * CU_OZ_MM for ln in layers)
+    if copper_thickness_mm:
+        missing = [ln for ln in layers if ln not in copper_thickness_mm]
+        if missing:
+            raise ValueError("missing modeled copper thickness: %s" % missing)
+        t = sum(float(copper_thickness_mm[ln]) for ln in layers)
+    else:
+        t = sum((oz_outer if ln in ("F.Cu", "B.Cu") else oz_inner) * CU_OZ_MM for ln in layers)
     return t or (oz_outer * CU_OZ_MM)
 
 
@@ -2319,7 +2673,9 @@ def derive_cross_section_dru(board_path, *, j_max=None, oz_outer=2.0, oz_inner=1
         if not r or r["j_p995_A_mm2"] <= j_max:
             continue
         need_cross = r["I"] / j_max
-        need_w = round(need_cross / _net_cu_thickness_mm(r["layers"], oz_outer, oz_inner), 3)
+        need_w = round(need_cross / _net_cu_thickness_mm(
+            r["layers"], oz_outer, oz_inner,
+            r.get("copper_thickness_mm")), 3)
         if net in sense:
             checker.append(net)
             notes.append("%s SHARED force+sense -> CHECKER-enforced (need cross %.3f mm^2; a DRC width "
@@ -2342,7 +2698,11 @@ def ratify_cross_section(board_path, *, write=False, j_max=None, oz_outer=2.0, o
     dru = (board_path[:-len(".kicad_pcb")] if board_path.endswith(".kicad_pcb") else board_path) + ".kicad_dru"
     written = 0
     if write and d["rules"]:
-        existing = open(dru).read() if os.path.exists(dru) else "(version 1)\n"
+        if os.path.exists(dru):
+            with open(dru, encoding="utf-8") as f:
+                existing = f.read()
+        else:
+            existing = "(version 1)\n"
         blocks = ["", "# ENFORCE-LEG (ratify_cross_section): physics-required cross-section on a force-only",
                   "# high-current net, from the cec_dcir DC field solve (j_max=%g A/mm^2)." % d["j_max"]]
         for name, constraint, cond in d["rules"]:
@@ -2351,7 +2711,8 @@ def ratify_cross_section(board_path, *, write=False, j_max=None, oz_outer=2.0, o
             blocks.append('(rule "%s"\n\t(constraint %s)\n\t(condition "%s"))' % (name, constraint, cond))
             written += 1
         if written:
-            open(dru, "w").write(existing.rstrip() + "\n" + "\n".join(blocks) + "\n")
+            with open(dru, "w", encoding="utf-8") as f:
+                f.write(existing.rstrip() + "\n" + "\n".join(blocks) + "\n")
     return {**d, "dru": dru, "written": written}
 
 
@@ -2486,10 +2847,6 @@ def main(argv=None):
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
     """Anything sitting inside a pour's OWN reserved region: parts, tracks, vias.
 
@@ -2513,13 +2870,17 @@ def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
 
     Returns {"applicable", "status", "n_parts", "n_tracks", "n_vias", "items"}.
     """
-    try:
-        from shapely.geometry import Polygon, box as _box, LineString
-        from shapely.ops import unary_union
-    except ImportError:
-        return {"applicable": False, "status": "na", "reason": "shapely absent",
-                "n_parts": 0, "n_tracks": 0, "n_vias": 0, "items": []}
     board = pcbnew.LoadBoard(board_path) if isinstance(board_path, str) else board_path
+    plane_role_layers = set()
+    if exclude_plane:
+        declared_profile = cec_fab.board_profile_name(board)
+        if declared_profile:
+            roles = dict(zip(cec_fab.COPPER_LAYERS,
+                             cec_fab.get_profile(declared_profile)["roles"]))
+            # Exact plane roles only. SIG/PWR outer layers remain eligible because they carry
+            # segmented routing pours, while dedicated GND and PWR layers are board planes.
+            plane_role_layers = {layer for layer, role in roles.items()
+                                 if role in ("GND", "PWR")}
     zones = []
     for z in board.Zones():
         if z.GetIsRuleArea():
@@ -2531,29 +2892,22 @@ def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
         for lid in board.GetEnabledLayers().CuStack():
             if not z.IsOnLayer(lid):
                 continue
-            o = z.Outline()
-            ps = []
-            for i in range(o.OutlineCount()):
-                oo = o.Outline(i)
-                pts = [(oo.CPoint(k).x / 1e6, oo.CPoint(k).y / 1e6)
-                       for k in range(oo.PointCount())]
-                if len(pts) >= 3:
-                    ps.append(Polygon(pts).buffer(0))
-            if ps:
-                zones.append((net, lid, name, unary_union(ps)))
+            canonical_layer = cec_fab.COPPER_LAYER_IDS.get(int(lid), board.GetLayerName(lid))
+            if exclude_plane and canonical_layer in plane_role_layers:
+                continue
+            outline = z.Outline()
+            if outline.OutlineCount() > 0:
+                zones.append((net, lid, name, outline))
     if not zones:
         return {"applicable": False, "status": "na", "n_parts": 0, "n_tracks": 0,
                 "n_vias": 0, "items": []}
     items, n_parts, n_tracks, n_vias = [], 0, 0, 0
-    for net, lid, name, g in zones:
+    for net, lid, name, outline in zones:
         for fp in board.GetFootprints():
             for pd in fp.Pads():
                 if not pd.IsOnLayer(lid) or pd.GetNetname() == net:
                     continue
-                pb = pd.GetBoundingBox()
-                r = _box(pb.GetLeft() / 1e6, pb.GetTop() / 1e6,
-                         pb.GetRight() / 1e6, pb.GetBottom() / 1e6)
-                if g.intersects(r) and g.intersection(r).area > 0.001:
+                if outline.Collide(pd.GetEffectiveShape(lid), 0):
                     n_parts += 1
                     items.append({"kind": "pad", "pour": name,
                                   "ref": fp.GetReference(), "net": pd.GetNetname()})
@@ -2561,16 +2915,15 @@ def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
             if t.GetNetname() == net:
                 continue
             if t.GetClass() == "PCB_TRACK" and t.GetLayer() == lid:
-                s_, e_ = t.GetStart(), t.GetEnd()
-                ln = LineString([(s_.x / 1e6, s_.y / 1e6), (e_.x / 1e6, e_.y / 1e6)])
-                if g.intersects(ln):
+                # Use KiCad's actual copper shape, including the real track width. The previous
+                # centerline-only test missed a wide track whose edge cut into the reserved pour.
+                if outline.Collide(t.GetEffectiveShape(lid), 0):
                     n_tracks += 1
                     items.append({"kind": "track", "pour": name, "net": t.GetNetname()})
             elif t.GetClass() == "PCB_VIA" and t.IsOnLayer(lid):
-                p = t.GetPosition()
-                r = _box(p.x / 1e6 - 0.45, p.y / 1e6 - 0.45,
-                         p.x / 1e6 + 0.45, p.y / 1e6 + 0.45)
-                if g.intersects(r):
+                # GetEffectiveShape reads the actual layer-specific via diameter. Do not assume a
+                # fixed 0.9 mm via when POFV profiles deliberately use other dimensions.
+                if outline.Collide(t.GetEffectiveShape(lid), 0):
                     n_vias += 1
                     items.append({"kind": "via", "pour": name, "net": t.GetNetname()})
     return {"applicable": True, "status": "ok", "n_parts": n_parts,
@@ -2590,3 +2943,7 @@ def _chk_laid_pour_incursion(board, path, ctx):
         out.append("%s %s [%s] inside pour %s"
                    % (it["kind"], it.get("ref", ""), it.get("net", ""), it["pour"]))
     return out
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1587,10 +1587,10 @@
   }
  ],
  "counts": {
-  "corpus_only": 317,
-  "matched": 20,
-  "registry": 34,
-  "registry_orphan": 14,
+  "corpus_only": 323,
+  "matched": 24,
+  "registry": 46,
+  "registry_orphan": 22,
   "tombstones": 0
  },
  "matched": [
@@ -1646,6 +1646,14 @@
    "entry": "esp32-antenna-keepout-wireless-vs-wired",
    "linked": false,
    "registry": "esp-antenna-keepout",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "k4.fiducial.protocol",
+   "linked": false,
+   "registry": "fiducial-protocol",
    "status": "proposed",
    "tier": "tokens",
    "zone": "staging"
@@ -1715,6 +1723,14 @@
    "zone": "staging"
   },
   {
+   "entry": "k1.mlcc.edge-orientation",
+   "linked": false,
+   "registry": "mlcc-edge-orientation",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
    "entry": "m3-mount-clear-of-connectors",
    "linked": false,
    "registry": "mount-holes-present-clear",
@@ -1723,9 +1739,25 @@
    "zone": "staging"
   },
   {
+   "entry": "high-current-path-inline-no-bypass",
+   "linked": false,
+   "registry": "no-foreign-on-high-current-pour",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
    "entry": "rj45-link-connector",
    "linked": false,
    "registry": "rj45-link-pinmap",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "sense-ic-thermal-separation-from-pour",
+   "linked": false,
+   "registry": "sense-body-clear-of-pour",
    "status": "proposed",
    "tier": "tokens",
    "zone": "staging"

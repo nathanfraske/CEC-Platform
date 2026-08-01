@@ -208,21 +208,25 @@ class TestAltLayer(unittest.TestCase):
         vias = [t for t in b.GetTracks() if t.GetClass() == "PCB_VIA"]
         self.assertTrue(alt_segs, "no inner-layer rail copper laid")
         self.assertTrue(all(t.IsLocked() for t in alt_segs + vias))
-        # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
-        # NO array via overlaps ANY pad, own net included (_array_sites'
-        # own-net skip was the measured s464 in-pad root cause)
-        pads = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6,
-                 max(p.GetSize().x, p.GetSize().y) / 2e6)
-                for fp in b.GetFootprints() for p in fp.Pads()]
+        # This legacy fixture has no declared POFV profile, so no array via
+        # may overlap a pad.  Ask KiCad about the real pad shape instead of
+        # approximating a rectangular pad by its longest half-dimension.
+        # That old approximation falsely called a measured 0.15 mm edge gap
+        # an overlap on the 2.0 x 1.2 mm shunt land.
+        pads = [p for fp in b.GetFootprints() for p in fp.Pads()]
         for t in vias:
             q = t.GetPosition()
-            vx, vy = q.x / 1e6, q.y / 1e6
-            for (px, py, half) in pads:
-                self.assertGreaterEqual(
-                    ((vx - px) ** 2 + (vy - py) ** 2) ** 0.5,
-                    half + 0.45,
-                    "array via (%.2f,%.2f) overlaps the pad at (%.2f,%.2f)"
-                    % (vx, vy, px, py))
+            # KiCad 10 requires the layer argument for PCB_VIA.GetWidth().
+            via_shape = pcbnew.SHAPE_CIRCLE(
+                q, t.GetWidth(t.TopLayer()) // 2)
+            for p in pads:
+                copper_layers = p.GetLayerSet().CuStack()
+                self.assertTrue(copper_layers)
+                self.assertFalse(
+                    p.GetEffectiveShape(copper_layers[0]).Collide(via_shape, 0),
+                    "array via (%.2f,%.2f) overlaps %s.%s"
+                    % (q.x / 1e6, q.y / 1e6,
+                       p.GetParentFootprint().GetReference(), p.GetPadName()))
 
     def test_alt_passes_under_smd_foreign_on_band(self):
         # the same foreign position that rail-fatally REFUSED the face-mode

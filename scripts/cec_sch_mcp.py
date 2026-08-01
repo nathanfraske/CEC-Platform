@@ -12,8 +12,8 @@ gate catches; see cec_sch_layout's guard comments.)
 
 Run:      python3 scripts/cec_sch_mcp.py          (stdio transport)
 Register: .mcp.json  ->  "cec-schematic"
-Provision: pip install --ignore-installed PyJWT mcp   (ephemeral envs;
-           setup-kicad-cli.sh carries this)
+Provision: pip install --ignore-installed PyJWT 'mcp>=1.29,<2' 'starlette<0.48'
+           (ephemeral envs; setup-kicad-cli.sh carries this)
 """
 import os
 import re
@@ -26,6 +26,7 @@ sys.path.insert(0, HERE)
 
 import cec_sch_layout as L          # noqa: E402
 import cec_sch_gates as GATES       # noqa: E402  round-4 checker/mutator toolkit
+import cec_toolchain as TC           # noqa: E402
 from mcp.server.fastmcp import FastMCP   # noqa: E402
 
 mcp = FastMCP("cec-schematic")
@@ -34,15 +35,19 @@ mcp = FastMCP("cec-schematic")
 # ---------------------------------------------------------------------- gate
 def _netlist_groups(sch_path):
     """{frozenset((ref,pin),...): net_name} via kicad-cli; None on failure."""
-    with tempfile.NamedTemporaryFile(suffix=".net", delete=False) as f:
-        out = f.name
+    fd, out = tempfile.mkstemp(prefix="cec_sch_mcp_", suffix=".net")
+    os.close(fd)
+    os.unlink(out)
     try:
-        r = subprocess.run(["kicad-cli", "sch", "export", "netlist",
+        r = subprocess.run([TC.require_kicad_cli("schematic MCP netlist export"),
+                            "sch", "export", "netlist",
                             "-o", out, sch_path],
-                           capture_output=True, text=True)
-        if r.returncode != 0 or not os.path.getsize(out):
+                           capture_output=True, text=True, timeout=120)
+        if (r.returncode != 0 or not os.path.isfile(out)
+                or not os.path.getsize(out)):
             return None
-        txt = open(out).read()
+        with open(out, encoding="utf-8", errors="replace") as fh:
+            txt = fh.read()
         groups = {}
         for m in re.finditer(r'\(net\s+\(code', txt):
             d, i = 0, m.start()
@@ -63,16 +68,56 @@ def _netlist_groups(sch_path):
                 groups[mem] = nm.group(1) if nm else "?"
         return groups
     finally:
-        os.unlink(out)
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+
+
+def _project_sheets(root):
+    """Every existing sheet reachable from a project root, including root."""
+    todo, seen = [os.path.abspath(root)], set()
+    while todo:
+        path = todo.pop()
+        if path in seen or not os.path.isfile(path):
+            continue
+        seen.add(path)
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+        todo.extend(GATES._sheet_children(text, os.path.dirname(path)))
+    return sorted(seen)
+
+
+def _restore_files(snapshot):
+    for path, data in snapshot.items():
+        with open(path, "wb") as fh:
+            fh.write(data)
 
 
 def _gated(sch, fn):
     """Run mutator fn() on sch with the identity gate + byte rollback."""
-    before_bytes = open(sch, "rb").read()
+    snapshot = {}
+    for path in _project_sheets(sch):
+        with open(path, "rb") as fh:
+            snapshot[path] = fh.read()
     before = _netlist_groups(sch)
     if before is None:
         return {"ok": False, "error": "baseline netlist export failed"}
-    result = fn()
+    try:
+        result = fn()
+    except Exception as exc:                         # mutator exceptions are transactional
+        _restore_files(snapshot)
+        return {"ok": False, "rolled_back": True,
+                "error": "mutator raised %s: %s; project sheets restored" %
+                         (type(exc).__name__, exc)}
+    refused = (result is False or
+               (isinstance(result, dict)
+                and (result.get("ok") is False or result.get("applied") is False)))
+    if refused:
+        _restore_files(snapshot)
+        return {"ok": False, "rolled_back": True,
+                "error": "mutator reported that it did not apply; project sheets restored",
+                "op_result": result}
     after = _netlist_groups(sch)
     missing = extra = renamed = -1
     if after is not None:
@@ -81,7 +126,7 @@ def _gated(sch, fn):
         renamed = sum(1 for k in set(before) & set(after)
                       if before[k] != after[k])
     if after is None or missing or extra or renamed:
-        open(sch, "wb").write(before_bytes)
+        _restore_files(snapshot)
         return {"ok": False, "rolled_back": True,
                 "error": f"netlist identity broke (missing={missing} "
                          f"extra={extra} renamed={renamed}) -- file restored",
@@ -232,17 +277,46 @@ def render(sch_path: str, out_dir: str, tiles: str = "3x4",
 def verify_identity(sch_path: str, baseline_git_rev: str = "HEAD") -> dict:
     """Compare the working file's netlist connectivity groups against a git
     revision of the same file (name-aware)."""
-    rel = os.path.relpath(sch_path)
-    r = subprocess.run(["git", "show", f"{baseline_git_rev}:{rel}"],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return {"ok": False, "error": r.stderr[:200]}
-    with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
-                                     delete=False) as f:
-        f.write(r.stdout)
-        base = f.name
+    root_probe = subprocess.run(
+        ["git", "-C", os.path.dirname(os.path.abspath(sch_path)),
+         "rev-parse", "--show-toplevel"], capture_output=True, text=True,
+        timeout=30)
+    if root_probe.returncode != 0:
+        return {"ok": False, "error": root_probe.stderr[:200]}
+    repo = root_probe.stdout.strip()
+    root_rel = os.path.relpath(os.path.abspath(sch_path), repo).replace(os.sep, "/")
+
+    def git_blob(rel):
+        r = subprocess.run(["git", "-C", repo, "show",
+                            "%s:%s" % (baseline_git_rev, rel)],
+                           capture_output=True, timeout=60)
+        if r.returncode != 0:
+            msg = r.stderr.decode("utf-8", errors="replace")[:300]
+            raise RuntimeError("cannot read baseline sheet %s: %s" % (rel, msg))
+        if r.stdout is None:
+            raise RuntimeError("git returned no bytes for baseline sheet %s" % rel)
+        return r.stdout
+
     try:
-        a, b = _netlist_groups(base), _netlist_groups(sch_path)
+        with tempfile.TemporaryDirectory(prefix="cec_sch_baseline_") as td:
+            todo, written = [root_rel], set()
+            while todo:
+                rel = todo.pop()
+                if rel in written:
+                    continue
+                blob = git_blob(rel)
+                text = blob.decode("utf-8")
+                dst = os.path.join(td, *rel.split("/"))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                with open(dst, "wb") as fh:
+                    fh.write(blob)
+                written.add(rel)
+                own = os.path.dirname(rel)
+                for child in GATES._sheet_children(text, own):
+                    child_rel = os.path.normpath(child).replace(os.sep, "/")
+                    todo.append(child_rel)
+            base = os.path.join(td, *root_rel.split("/"))
+            a, b = _netlist_groups(base), _netlist_groups(sch_path)
         if a is None or b is None:
             return {"ok": False, "error": "netlist export failed"}
         renamed = [(a[k], b[k]) for k in set(a) & set(b) if a[k] != b[k]]
@@ -251,8 +325,8 @@ def verify_identity(sch_path: str, baseline_git_rev: str = "HEAD") -> dict:
                 "missing": len(set(a) - set(b)),
                 "extra": len(set(b) - set(a)),
                 "renamed": renamed[:10]}
-    finally:
-        os.unlink(base)
+    except Exception as exc:
+        return {"ok": False, "error": "%s: %s" % (type(exc).__name__, exc)}
 
 
 @mcp.tool()

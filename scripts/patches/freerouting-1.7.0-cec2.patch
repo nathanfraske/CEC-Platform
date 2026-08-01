@@ -255,7 +255,7 @@ index 0cc198b..5a4b054 100644
  
    private StartupOptions() {
      if (!Arrays.stream(supported_languages).anyMatch(current_locale.getLanguage()::equals)) {
-@@ -156,6 +160,32 @@ public class StartupOptions {
+@@ -156,5 +160,31 @@ public class StartupOptions {
            } else if (p_args.length > i + 1 && p_args[i + 1].startsWith("ko")) {
              current_locale = Locale.KOREAN;
            }
@@ -287,4 +287,51 @@ index 0cc198b..5a4b054 100644
 +          }
          } else if (p_args[i].startsWith("-s")) {
            session_file_option = true;
-         } else if (p_args[i].startsWith("-im")) {
+diff --git a/build.gradle b/build.gradle
+index e79089e..cd1caf5 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -58,20 +58,12 @@ dependencies {
+ }
+ 
+ 
+-Date buildTimeAndDate = new Date()
+-ext {
+-    buildDate = new java.text.SimpleDateFormat('yyyy-MM-dd').format(buildTimeAndDate)
+-    buildTime = new java.text.SimpleDateFormat('HH:mm:ss.SSSZ').format(buildTimeAndDate)
+-}
+-
+ jar {
++    preserveFileTimestamps = false
++    reproducibleFileOrder = true
+     manifest {
+         attributes(
+           'Automatic-Module-Name': 'app.freerouting',
+-          'Built-By': System.properties['user.name'],
+-          'Created-By': System.properties['java.version'] + " (" + System.properties['java.vendor'] + " " + System.properties['java.vm.version'] + ")",
+-          'Build-Date': project.buildDate,
+-          'Build-Time': project.buildTime,
+           'Build-Revision': versioning.info.commit,
+           'Specification-Title': project.name,
+           'Specification-Version': project.version,
+@@ -83,6 +75,9 @@ jar {
+ 
+ task executableJar(type: Jar) {
+     classifier = 'executable'
++
++    preserveFileTimestamps = false
++    reproducibleFileOrder = true
+ 	
+ 	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+ 
+@@ -94,10 +89,6 @@ task executableJar(type: Jar) {
+ 
+         attributes(
+                 'Automatic-Module-Name': 'app.freerouting',
+-                'Built-By': System.properties['user.name'],
+-                'Created-By': System.properties['java.version'] + " (" + System.properties['java.vendor'] + " " + System.properties['java.vm.version'] + ")",
+-                'Build-Date': project.buildDate,
+-                'Build-Time': project.buildTime,
+                 'Build-Revision': versioning.info.commit,
+                 'Specification-Title': project.name,
+                 'Specification-Version': project.version,

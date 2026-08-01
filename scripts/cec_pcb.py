@@ -48,6 +48,7 @@ place         = _gmp.place
 parse_netlist = _gmp.parse_netlist
 gnd_planes    = _gmp.gnd_planes
 stackup       = _gmp.stackup
+layers        = _gmp.layers
 LAYERS        = _gmp.LAYERS
 ff            = _gmp.ff
 U             = _gmp.U
@@ -66,7 +67,9 @@ def local_pads(libid):
     if libid in _PADS_CACHE:
         return _PADS_CACHE[libid]
     nick, name = libid.split(":")
-    t = open(fp_path(nick, name)).read(); out = {}
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        t = handle.read()
+    out = {}
     for m in re.finditer(r'\(pad ', t):
         b = carve(t, m.start())
         num = re.match(r'\(pad "([^"]*)"', b); at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', b)
@@ -92,7 +95,9 @@ def local_pad_boxes(libid):
     if libid in _PADBOX_CACHE:
         return _PADBOX_CACHE[libid]
     nick, name = libid.split(":")
-    t = open(fp_path(nick, name)).read(); out = []
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        t = handle.read()
+    out = []
     for m in re.finditer(r'\(pad ', t):
         b = carve(t, m.start())
         if "np_thru_hole" in b.split("\n")[0]:
@@ -119,7 +124,9 @@ def local_pad_sizes(libid):
     if libid in _PADSZ_CACHE:
         return _PADSZ_CACHE[libid]
     nick, name = libid.split(":")
-    t = open(fp_path(nick, name)).read(); out = {}
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        t = handle.read()
+    out = {}
     for m in re.finditer(r'\(pad ', t):
         b = carve(t, m.start())
         num = re.match(r'\(pad "([^"]*)"', b); sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
@@ -153,7 +160,8 @@ def _crtyd_local(libid):
     if libid in _CRTYD_CACHE:
         return _CRTYD_CACHE[libid]
     nick, name = libid.split(":")
-    t = open(fp_path(nick, name)).read()
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        t = handle.read()
     pys = [ly for (_lx, ly) in local_pads(libid).values()]
     pad_lo, pad_hi = (min(pys), max(pys)) if pys else (-1e9, 1e9)
     pts = []
@@ -408,11 +416,16 @@ def netclass(name, track, via_d, via_dr, priority, *, clr=0.2, dpw=0.2, dpg=0.25
 def write_netclasses(pro_path, classes, patterns):
     """Merge net_settings (classes + [(netclass, pattern)...]) into a .kicad_pro,
     preserving any other keys KiCad manages."""
-    pro = json.load(open(pro_path)) if os.path.exists(pro_path) and os.path.getsize(pro_path) else {}
+    if os.path.exists(pro_path) and os.path.getsize(pro_path):
+        with open(pro_path, encoding="utf-8") as fh:
+            pro = json.load(fh)
+    else:
+        pro = {}
     pro["net_settings"] = {"classes": classes, "meta": {"version": 4}, "net_colors": None,
                            "netclass_assignments": None,
                            "netclass_patterns": [{"netclass": nc, "pattern": p} for nc, p in patterns]}
-    json.dump(pro, open(pro_path, "w"), indent=2)
+    with open(pro_path, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(pro, fh, indent=2)
     print(f"WROTE {os.path.relpath(pro_path, ROOT)}  ({len(classes)} classes, {len(patterns)} patterns)")
 
 def write_dru(dru_path, rules, header=""):
@@ -428,7 +441,8 @@ def write_dru(dru_path, rules, header=""):
         else:
             body.append(str(r[0] if isinstance(r, (tuple, list)) else r))
         body.append("")
-    open(dru_path, "w").write("\n".join(body).rstrip() + "\n")
+    with open(dru_path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(body).rstrip() + "\n")
     print(f"WROTE {os.path.relpath(dru_path, ROOT)}")
 
 # ============================================================ board build
@@ -441,12 +455,14 @@ def export_netlist(dir_, base):
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
                 corner_radius=0.0, back_refs=(), inner_power_routing=False,
-                inner_label="PWR_RT", fiducials=()):
+                inner_label="PWR_RT", fiducials=(), stackup_profile=None):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
-    if os.path.exists(out) and re.search(r"\n\s*\((?:segment|via)\b", open(out).read()):
-        if force_argv and "--force" not in sys.argv:
+    if os.path.exists(out):
+        with open(out, encoding="utf-8", errors="replace") as fh:
+            already_routed = bool(re.search(r"\n\s*\((?:segment|via)\b", fh.read()))
+        if already_routed and force_argv and "--force" not in sys.argv:
             print(f"  SKIP {os.path.relpath(out, ROOT)}: already routed; pass --force"); return False
     comps, vals, nets = parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
@@ -503,14 +519,23 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         for (sx, sy), (mx, my), (ex, ey) in arcs:
             e.append(f'\t(gr_arc (start {ff(sx)} {ff(sy)}) (mid {ff(mx)} {ff(my)}) (end {ff(ex)} {ff(ey)}) '
                      f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
-    note = note or f'\t(gr_text "CEC {os.path.basename(out)[:-10]}  4L 2oz/1oz" ' \
+    import cec_fab_profile as _fab
+    if stackup_profile:
+        _vendor_stackup = _fab.get_profile(stackup_profile)["vendor_stackup"]
+        _stack_note = "6L %s" % _vendor_stackup
+    else:
+        _stack_note = "4L 2oz/1oz"
+    note = note or f'\t(gr_text "CEC {os.path.basename(out)[:-10]}  {_stack_note}" ' \
                    f'(at {ff(logo[0] if logo else W/2)} {ff(H-3)} 0) (layer "B.SilkS") (uuid "{U()}") ' \
                    f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))'
     netdecl = '\t(net 0 "")\n' + "\n".join(f'\t(net {code_of[x]} "{x}")' for x in names)
     # inner_power_routing (the 24-pin/Hub stackup exception, CLAUDE.md): ONE inner GND
     # plane (In1) + In2 left EMPTY as a rail-routing layer (12V/5V/3V3/5VSB route around
     # each other) -- cable boards keep both inners GND.
-    _zl = '"In1.Cu"' if inner_power_routing else '"In1.Cu" "In2.Cu"'
+    if stackup_profile:
+        _zl = '"In1.Cu" "In4.Cu"'
+    else:
+        _zl = '"In1.Cu"' if inner_power_routing else '"In1.Cu" "In2.Cu"'
     zone = (gnd_planes(code_of["GND"], W, H, layers=_zl) + "\n") if (zones and "GND" in code_of) else ""
     if inner_power_routing:
         # In2's declared KIND drives KiCad's DSN (type ...) export: 'power' makes
@@ -519,13 +544,20 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         # layer on this stackup class, not a plane.
         doc_kind_fix = True
     g = (guides_str + "\n") if guides_str else ""
+    _properties = ""
+    if stackup_profile:
+        _properties = "\n".join(
+            '\t(property "%s" "%s")' % (key, value)
+            for key, value in _fab.board_properties(stackup_profile).items()) + "\n"
     doc = (f"(kicad_pcb\n\t(version 20260206)\n\t(generator \"{gen}\")\n\t(generator_version \"10.0\")\n"
-           "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n" + LAYERS +
-           "\n\t(setup\n" + stackup() + "\n\t\t(pad_to_mask_clearance 0)\n"
-           "\t\t(allow_soldermask_bridges_in_footprints no)\n\t)\n"
+           "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n" + layers(stackup_profile) +
+           "\n\t(setup\n" + stackup(stackup_profile) + "\n\t\t(pad_to_mask_clearance 0)\n"
+           "\t\t(allow_soldermask_bridges_in_footprints no)\n"
+           + ((_fab.via_protection_text(stackup_profile) + "\n")
+              if stackup_profile else "") + "\t)\n"
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n" + zone + g + note +
-           "\n\t(embedded_fonts no)\n)\n")
-    if inner_power_routing:
+           "\n" + _properties + "\t(embedded_fonts no)\n)\n")
+    if inner_power_routing and not stackup_profile:
         # the freed inner's user label follows its role: "PWR_RT" on rail-alt
         # boards (24-pin), "SIG2" on signal-inner boards (hub) -- cosmetic,
         # the canonical In2.Cu is what tooling resolves
@@ -542,6 +574,7 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body
-    open(out, "w").write(doc)
+    with open(out, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(doc)
     print(f"WROTE {os.path.relpath(out, ROOT)}  board={W}x{H:.0f}mm  parts={len(fps)}")
     return True

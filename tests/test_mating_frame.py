@@ -33,6 +33,11 @@ V2 = {
               {"ref": "J6D", "dc": (33.0, 19.5), "rot": 90}],
     "mount_dc": ((-20.0, 14.0),),
     "mount_fp": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+    "mount_net": "GND",
+    "mount_function": "inter-board-ground-lug",
+    "mount_electrical_role": "supplemental-ground-bond",
+    "mount_population": "fit",
+    "mount_contact": "conductive-fastener-on-exposed-copper",
     "sides": {"a": {"mount_refs": ("H1",), "mirror_x": False},
               "b": {"mount_refs": ("H1",), "mirror_x": False}},
 }
@@ -86,9 +91,17 @@ class TestProductionContract(unittest.TestCase):
         self.assertIn("conns", MEZZ_HUB_24PIN)
         refs = [c["ref"] for c in MEZZ_HUB_24PIN["conns"]]
         self.assertEqual(refs, ["J6P", "J6C", "J6D"])
-        # R2 provision: exactly one DNP-able M2 land
+        # Exactly one populated M2 inter-board ground lug.
         self.assertEqual(len(MEZZ_HUB_24PIN["mount_dc"]), 1)
         self.assertIn("M2", MEZZ_HUB_24PIN["mount_fp"])
+        self.assertEqual(MEZZ_HUB_24PIN["mount_net"], "GND")
+        self.assertEqual(MEZZ_HUB_24PIN["mount_function"],
+                         "inter-board-ground-lug")
+        self.assertEqual(MEZZ_HUB_24PIN["mount_electrical_role"],
+                         "supplemental-ground-bond")
+        self.assertEqual(MEZZ_HUB_24PIN["mount_population"], "fit")
+        self.assertEqual(MEZZ_HUB_24PIN["mount_contact"],
+                         "conductive-fastener-on-exposed-copper")
         for side in ("atx-24pin-rev3", "hub-standard-rev2"):
             out = mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN, side)
             self.assertEqual(set(out["anchor_pins"]), {"J6P", "J6C", "J6D"})

@@ -208,7 +208,11 @@ checks a `CecOptions` flag that defaults to stock behavior).
 
 - **Patch (cumulative over v1.7.0, replaces applying cec1 separately):**
   `scripts/patches/freerouting-1.7.0-cec2.patch`
-- **Jar sha256:** `de01c829eab9406a1df6d1ad713a3334f138e77c122a61d2ba5a8364b8f904c2`
+- **Jar sha256:** `149cebd88169be77f5ddc7e1d50284451204f10c088e5d7380859ab0395b7ce5`
+  The cec2 patch removes the upstream build-user and build-clock manifest
+  fields, disables file timestamps, and enables reproducible entry order. Two
+  full `executableJar --rerun-tasks` builds on 2026-08-01 produced this same
+  complete-JAR digest.
   (durable copies: `/mnt/e/toolchain/fr-fork/` + `build/fr-fork/`)
 - **cec_fr wiring:** `-noecho` + `-progress` default ON where supported
   (`CEC_FR_NOECHO=0` reverts the echo for A/Bs); `-maxstall` opt-in via

@@ -60,6 +60,28 @@ class AgentRouteEdges(unittest.TestCase):
         self.assertEqual(best.seed, 0)
         self.assertIn("seed fallback", log[0].get("note", ""))
 
+    def test_tier_cannot_accept_candidate_that_fails_complete_gate(self):
+        """A tier verdict is advisory and cannot waive DRC or ratline completion gates."""
+        t0 = _tier([d.Verdict("accept", seed=0, reason="waive the residual")])
+        t1 = _tier([d.Verdict("escalate", reason="human review")])
+        cands = [_cm(0, gates_pass=False, drc=1, unconnected=2)]
+        best, log = d.agent_route("x.kicad_pcb", tiers=[t0, t1], budget=1,
+                                  request_fn=lambda p, s: list(cands), verbose=False)
+        self.assertIsNone(best)
+        self.assertEqual(len(log), 2)
+        self.assertIn("gates_pass=false", log[0].get("note", ""))
+
+    def test_default_tiers_require_complete_gate(self):
+        ctx = d.JudgeContext(
+            board="x.kicad_pcb",
+            candidates=[d.asdict(_cm(0, gates_pass=False, drc=1))],
+            budget_left=0,
+            tier="test",
+            history=[],
+        )
+        self.assertEqual(d.det_haiku(ctx).action, "escalate")
+        self.assertEqual(d.det_escalate(ctx).action, "escalate")
+
     def test_budget_coerced_escalate_is_recorded(self):
         """R-08 branch 3: request_more with budget 0 is coerced to escalate AND the log says
         the tier asked for more -- the stated intent survives."""

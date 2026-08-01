@@ -60,6 +60,7 @@ if pcbnew is not None:
     _swig_guard.pin()
 
 import cec_slab_pour as _sp
+import cec_fab_profile as _fab
 from cec_slab_pour import (
     Grid,
     connector_manifolds,
@@ -71,8 +72,9 @@ from cec_slab_pour import (
 )
 
 MM = 1e6
-LAYERS_ALL = ("F.Cu", "In2.Cu", "B.Cu")
-LAYER_PREF = {"In2.Cu": 0.0, "B.Cu": 0.4, "F.Cu": 0.8}   # In2 preferred for power
+LAYERS_ALL = ("F.Cu", "In2.Cu", "In3.Cu", "B.Cu")
+LAYER_PREF = {"In2.Cu": 0.0, "B.Cu": 0.4, "F.Cu": 0.8,
+              "In3.Cu": 1.2}   # legacy default; profile policy prefers In3
 
 # BOARD-CLASS POWER-LAYER POLICY (owner ruling 2026-07-25). The In2-first bias
 # above is correct for a board whose second inner IS a power-routing layer (the
@@ -101,6 +103,8 @@ _REGION_ORDER_DEFAULT = ("In2.Cu", "B.Cu")
 def power_layer_order(default=_LAYER_ORDER_DEFAULT):
     """Preferred layer order for POWER copper, most-preferred first."""
     raw = (os.environ.get("CEC_POWER_POUR_LAYERS") or "").strip()
+    if not raw and os.environ.get("CEC_FAB_PROFILE") in _fab.PROFILES:
+        return ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu")
     if not raw:
         return tuple(default)
     order = tuple(x.strip() for x in raw.split(",") if x.strip() in LAYERS_ALL)
@@ -110,6 +114,8 @@ def power_layer_order(default=_LAYER_ORDER_DEFAULT):
 def region_layer_order():
     """Layer order for region-class realization (the logic-rail plane)."""
     raw = (os.environ.get("CEC_POWER_POUR_LAYERS") or "").strip()
+    if not raw and os.environ.get("CEC_FAB_PROFILE") in _fab.PROFILES:
+        return power_layer_order()
     if not raw:
         return _REGION_ORDER_DEFAULT
     return power_layer_order()
@@ -118,10 +124,10 @@ def region_layer_order():
 def layer_pref():
     """Per-layer cost bias, derived from the active policy order."""
     order = power_layer_order()
-    pref = {lay: 0.4 * i for i, lay in enumerate(order)}
+    pref = {lay: round(0.4 * i, 10) for i, lay in enumerate(order)}
     # A layer the policy does not name is allowed but never preferred.
     for lay in LAYERS_ALL:
-        pref.setdefault(lay, 0.4 * len(order))
+        pref.setdefault(lay, round(0.4 * len(order), 10))
     return pref
 
 
@@ -939,7 +945,8 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     nets = {}
     for net in order:
         nc = nets_nc[net]
-        layers = [l for l in LAYERS_ALL if board.GetLayerID(l) >= 0]
+        enabled = set(_fab.enabled_copper_layers(board))
+        layers = [l for l in LAYERS_ALL if l in enabled]
         if not layers:
             report[net] = _fail_entry("no valid layer")
             continue
@@ -949,7 +956,7 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                               clearance_mm)
             foreign[lay], anchors[lay] = f, an
         amps = net_currents.get(net, 0.0)
-        reqw = {lay: (req_width_mm(amps, lay) if amps > 0 else 1.2)
+        reqw = {lay: (req_width_mm(amps, lay, board=board) if amps > 0 else 1.2)
                 for lay in layers}
         rcells = {lay: max(1, int(round(reqw[lay] / (2.0 * grid.cell))))
                   for lay in layers}
@@ -988,6 +995,7 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             "groups": groups, "served": served, "delegated": delegated,
             "clab": clab, "corridors": [], "notes": [], "region": region,
             "own_pours": own_pours, "_grid": grid, "pad_boxes": pad_boxes,
+            "board": board,
             "gap_geom": gap_geom, "gang_man": gang_man,
         }
         if len(served) <= 1:
@@ -1245,21 +1253,38 @@ def _spot_ok(st, g, pt):
     spot must sit INSIDE the (inner-edge-clipped) patch -- the outer-face
     rule of the pour-termination ruling by construction (the patch no
     longer exists gap-side of the pad)."""
-    if _pad_hit(st.get("pad_boxes", ()), pt[0], pt[1], VIA_R + PAD_MARGIN):
+    if (_pad_hit(st.get("pad_boxes", ()), pt[0], pt[1], VIA_R + PAD_MARGIN)
+            and not _pofv_spot_allowed(st, pt)):
         return False
     if g.f_zone is not None and not g.f_zone.covers(Point(pt)):
         return False
     return True
 
 
+def _pofv_spot_allowed(st, pt):
+    """True only when a conservative pad hit is an explicitly qualified
+    same-net POFV placement on the board's declared fabrication profile."""
+    board = st.get("board")
+    nc = st.get("nc")
+    if board is None or nc is None or pcbnew is None:
+        return False
+    at = pcbnew.VECTOR2I(int(round(pt[0] * MM)), int(round(pt[1] * MM)))
+    blocking, allowed = _fab.via_at_pad_conflicts(
+        board, at, int(round(2.0 * VIA_R * MM)), int(round(0.5 * MM)), nc)
+    return blocking is None and bool(allowed)
+
+
 def _field_vias(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
-                ledger_mm=0.85):
+                ledger_mm=0.85, st=None):
     """Via positions for ONE compact field -- DELEGATES to the shared
     cec_slab_pour.field_via_line (2026-07-25: the rect-realized fallback
     lays fields through the identical code path, so the two via
     disciplines can never drift). Same signature/return as always."""
+    allow = ((lambda x, y: _pofv_spot_allowed(st, (x, y)))
+             if st is not None else None)
     return _sp.field_via_line(field6, half_w, grid, pad_boxes, placed,
-                              pitch_mm=pitch_mm, ledger_mm=ledger_mm)
+                              pitch_mm=pitch_mm, ledger_mm=ledger_mm,
+                              pad_allow=allow)
 
 
 def _endpoints_for_layer(cor, st, lay, space):
@@ -1677,8 +1702,9 @@ def _try_split(cor, st, nets):
             sp_pt = line.interpolate(back)
             if not any(b1.intersects(h)
                        and b1.intersection(h).area > 0.01 for h in hits) \
-                    and not _pad_hit(st.get("pad_boxes", ()), sp_pt.x,
-                                     sp_pt.y, VIA_R + PAD_MARGIN):
+                    and (not _pad_hit(st.get("pad_boxes", ()), sp_pt.x,
+                                      sp_pt.y, VIA_R + PAD_MARGIN)
+                         or _pofv_spot_allowed(st, (sp_pt.x, sp_pt.y))):
                 # crossing FIELD spot must also clear every pad (via-in-pad
                 # ruling) -- keep backing off past a pad-blocked spot
                 break
@@ -1965,7 +1991,7 @@ def _realize_region(net, st, grid, existing_vias):
             f6 = (r, c, lay, sorted(g.native)[0] if g.native else "F.Cu",
                   dx / L, dy / L)
             vs, rs = _field_vias(f6, max(st["reqw"][lay], 1.2) / 2.0, grid,
-                                 st.get("pad_boxes", ()), placed)
+                                 st.get("pad_boxes", ()), placed, st=st)
             if not vs:
                 dropped_notes.append(
                     "island G%d: via slots exhausted (ledger + pads) -- "
@@ -2251,7 +2277,7 @@ def _realize_verify(net, st, grid, existing_vias, nets):
             half_w = max(st["reqw"].get(f[2], 1.2),
                          st["reqw"].get(f[3], 1.2)) / 2.0
             vs, rs = _field_vias(f, half_w, grid, st.get("pad_boxes", ()),
-                                 placed)
+                                 placed, st=st)
             field_vias.append(vs)
             via_reseated += rs
             placed.extend(vs)

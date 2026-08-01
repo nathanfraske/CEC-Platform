@@ -120,6 +120,8 @@ class Rules:
     # high-current nets (for cu12v metric)
     require_drc_zero: bool = True
     # whether gates require structural DRC == 0
+    require_unconnected_zero: bool = True
+    # whether gates require every routed net to have zero remaining ratlines
 
     @classmethod
     def from_board(cls, board_path: str) -> "Rules":
@@ -183,7 +185,7 @@ class Metrics:
     diffpair_ok: bool    # HARD GATE: all diff pairs routed
     cu12v: float         # routed copper length on the 12V/high-current nets, mm
     balance: float       # F.Cu vs B.Cu copper balance [0,1] (1 = perfectly balanced)
-    gates_pass: bool     # kelvin_ok AND diffpair_ok AND (drc==0 if require_drc_zero)
+    gates_pass: bool     # pair gates AND configured DRC/unconnected completion gates
     detail: dict         # per-net breakdown, gate reasons, raw counts — decision log
     # Structural-violation breakdown from the SAME DRC run (R-02: callers must not re-run
     # DRC to get these -- cec_dispatch._drc_types used to be a second full DRC per board).
@@ -853,8 +855,11 @@ def score(
         kelvin_reasons = list(kelvin_reasons) + topo_reasons
 
     drc_gate_ok = (drc_count == 0) if rules.require_drc_zero else True
+    unconnected_gate_ok = ((unconn_count == 0)
+                           if rules.require_unconnected_zero else True)
 
-    gates_pass = kelvin_ok and diffpair_ok and drc_gate_ok
+    gates_pass = (kelvin_ok and diffpair_ok and drc_gate_ok
+                  and unconnected_gate_ok)
 
     # ---- detail dict ----
     detail: dict = {
@@ -877,6 +882,8 @@ def score(
         "drc_struct_count": drc_count,
         "drc_gate_ok":     drc_gate_ok,
         "require_drc_zero": rules.require_drc_zero,
+        "unconnected_gate_ok": unconnected_gate_ok,
+        "require_unconnected_zero": rules.require_unconnected_zero,
         "nets_12v":        nets_12v,
         "cu12v_mm":        round(cu12v, 4),
         "net_plane_mm":    {k: round(v, 3) for k, v in m.get("net_plane_mm", {}).items()},
@@ -929,6 +936,12 @@ def gate(m: "Metrics", rules: "Rules | None" = None) -> tuple[bool, list[str]]:
     if not d.get("drc_gate_ok", True):
         reasons.append(
             f"structural DRC = {m.drc} (require 0 because require_drc_zero=True)"
+        )
+
+    if not d.get("unconnected_gate_ok", True):
+        reasons.append(
+            f"unconnected ratlines = {m.unconnected} "
+            "(require 0 because require_unconnected_zero=True)"
         )
 
     return m.gates_pass, reasons

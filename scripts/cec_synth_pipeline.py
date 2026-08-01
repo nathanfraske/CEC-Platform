@@ -7,9 +7,11 @@
 # ============================================================================
 # This realizes the full run_pipeline(cfg) control flow:
 #
-#   Config+requirements -> ERC+BOM gate -> triage(arm optional) -> geometric floor
-#   -> place+proxy(consent) -> feasibility/size oracle -> ROUTE SWARM -> physics FEA
+#   Config+requirements -> ERC+BOM gate -> triage(arm optional) -> fixed-outline
+#   placement -> optional ROUTE SWARM -> physics FEA
 #   -> full cascade -> gates+checks+DRC -> human sign-off -> build+freeze log.
+# The separate --sweep mode explores board sizes. A normal --run does not claim
+# to optimize outline dimensions.
 #
 # POSTURE = CAUTIOUS: at every failure/uncertainty we call resolve() -- the escalation
 # ladder worker -> manager -> frontier -> human -- and any doubt escalates rather than
@@ -169,7 +171,7 @@ class Netlist:
 
     @classmethod
     def from_file(cls, path):
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             root = parse_sexpr(fh.read())
         comps = {}
         comp_root = _first(root, "components") or []
@@ -373,22 +375,33 @@ class View:
 
     def _export_netlist(self):
         if not self.sch:
-            return Netlist(comps={}, nets={})
-        # DEGRADE (R-05): on a KiCad-less box, cascade stages that only need the netlist
-        # (CONFORMANCE etc.) still run against an empty netlist instead of a traceback.
-        if not _tc.have_kicad_cli():
-            _tc.warn_once("synth_netlist",
-                          "kicad-cli absent -- netlist-derived stages degrade to empty. "
-                          + _tc.KICAD_CLI_HINT)
-            return Netlist(comps={}, nets={})
-        out = os.path.join(tempfile.gettempdir(), f"cec_synth_{os.getpid()}.net")
-        subprocess.run([_tc.kicad_cli(), "sch", "export", "netlist", "-o", out, self.sch],
-                       capture_output=True)
-        return Netlist.from_file(out) if os.path.isfile(out) else Netlist(comps={}, nets={})
+            raise FileNotFoundError("netlist export requires a root schematic")
+        cli = _tc.require_kicad_cli("netlist export")
+        fd, out = tempfile.mkstemp(prefix="cec_synth_netlist_", suffix=".net")
+        os.close(fd)
+        os.unlink(out)  # a failed exporter must not leave a parseable stale file
+        try:
+            r = subprocess.run(
+                [cli, "sch", "export", "netlist", "-o", out, self.sch],
+                capture_output=True, text=True, timeout=120)
+            if r.returncode != 0 or not os.path.isfile(out) or not os.path.getsize(out):
+                detail = (r.stderr or r.stdout or "no netlist was written").strip()
+                raise RuntimeError("netlist export failed (exit %s): %s" %
+                                   (r.returncode, detail[-500:]))
+            return Netlist.from_file(out)
+        finally:
+            try:
+                os.unlink(out)
+            except OSError:
+                pass
 
     @property
     def metrics(self):
-        if self._metrics is None and _HAVE_SCORE and self.board and os.path.isfile(self.board):
+        if not _HAVE_SCORE:
+            raise RuntimeError("cec_score is unavailable; route gates cannot be evaluated")
+        if not self.board or not os.path.isfile(self.board):
+            raise FileNotFoundError("metrics require an existing PCB")
+        if self._metrics is None:
             # R-02: feed the View's single DRC run into score() (drc_json=) so metrics and
             # drc() consumers share ONE kicad-cli DRC instead of two runs of the same check.
             self.drc()
@@ -400,12 +413,14 @@ class View:
             if self.board and os.path.isfile(self.board):
                 self._drc, self._drc_path = _run_drc(self.board, keep_json=True)
             else:
-                self._drc = {}
+                raise FileNotFoundError("DRC requires an existing PCB")
         return self._drc
 
     def erc(self):
         if self._erc is None:
-            self._erc = _run_erc(self.sch) if self.sch else {}
+            if not self.sch or not os.path.isfile(self.sch):
+                raise FileNotFoundError("ERC requires an existing root schematic")
+            self._erc = _run_erc(self.sch)
         return self._erc
 
 
@@ -414,12 +429,24 @@ def _run_drc(board, keep_json=False):
     # mkstemp: unique per CALL (getpid-keyed names collide under in-process concurrency, R-02)
     fd, out = tempfile.mkstemp(prefix="cec_synth_drc_", suffix=".json")
     os.close(fd)
-    subprocess.run([cli, "pcb", "drc", "--exit-code-violations",
-                    "--format", "json", "-o", out, board], capture_output=True)
+    r = subprocess.run([cli, "pcb", "drc", "--exit-code-violations",
+                        "--format", "json", "-o", out, board],
+                       capture_output=True, text=True, timeout=180)
     try:
-        d = json.load(open(out))
+        if r.returncode not in (0, 5):
+            detail = (r.stderr or r.stdout or "no diagnostic").strip()
+            raise RuntimeError("KiCad DRC failed (exit %s): %s" %
+                               (r.returncode, detail[-500:]))
+        with open(out, encoding="utf-8") as fh:
+            d = json.load(fh)
+        if not isinstance(d, dict) or "violations" not in d or "unconnected_items" not in d:
+            raise RuntimeError("KiCad DRC returned incomplete JSON")
     except Exception:
-        d = {}
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+        raise
     if keep_json:                               # caller reuses the JSON (View.metrics, R-02)
         return d, (out if os.path.isfile(out) else None)
     try:
@@ -433,12 +460,29 @@ def _run_erc(sch):
     cli = _tc.require_kicad_cli("ERC")          # FAIL FAST with the install hint (R-05)
     fd, out = tempfile.mkstemp(prefix="cec_synth_erc_", suffix=".json")  # per-call unique (R-02)
     os.close(fd)
-    subprocess.run([cli, "sch", "erc", "--exit-code-violations",
-                    "--format", "json", "-o", out, sch], capture_output=True)
+    r = subprocess.run([cli, "sch", "erc", "--exit-code-violations",
+                        "--format", "json", "-o", out, sch],
+                       capture_output=True, text=True, timeout=180)
     try:
-        return json.load(open(out))
-    except Exception:
-        return {}
+        if r.returncode not in (0, 5):
+            detail = (r.stderr or r.stdout or "no diagnostic").strip()
+            raise RuntimeError("KiCad ERC failed (exit %s): %s" %
+                               (r.returncode, detail[-500:]))
+        with open(out, encoding="utf-8") as fh:
+            d = json.load(fh)
+        sheets_ok = (isinstance(d, dict) and isinstance(d.get("sheets"), list)
+                     and all(isinstance(s, dict)
+                             and isinstance(s.get("violations"), list)
+                             for s in d["sheets"]))
+        flat_ok = isinstance(d, dict) and isinstance(d.get("violations"), list)
+        if not (sheets_ok or flat_ok):
+            raise RuntimeError("KiCad ERC returned incomplete JSON")
+        return d
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
 
 
 def _struct_drc(drc):
@@ -461,8 +505,6 @@ def _r_value_ohms(value):
 
 # ============================================================ STAGE: ERC_BOM
 def chk_erc_clean(view):
-    if view.cfg.is_draft:
-        return []                                # DRAFT boards skip ERC by repo convention
     erc = view.erc()
     real = []
     for sheet in erc.get("sheets", []):
@@ -741,14 +783,17 @@ def chk_dfm_drc(view):
 def chk_netclass_geometry(view):
     """CL-25: per-net via/track geometry vs the .kicad_pro netclass minima -- the post-route
     enforcement Freerouting cannot provide (it provably ignores netclass widths). Delegates
-    to the cec_constraints stable-ID checker; degrades to no-flag when pcbnew is absent."""
+    to the cec_constraints stable-ID checker. An unavailable or broken checker blocks
+    release because missing geometry evidence is not a clean result."""
     try:
         import pcbnew
         import cec_constraints as K
         board = pcbnew.LoadBoard(view.board)
         ok, detail = K.CHECKERS["netclass-geometry-conformance"](board, view.board, {})[:2]
-    except Exception:
-        return []                                # R-05 posture: degrade, never crash the stage
+    except Exception as exc:
+        return [Flag("netclass geometry not evaluable", view.board, 1.0, Kind.DFM,
+                     {"exception": repr(exc),
+                      "check_id": "netclass-geometry-conformance"})]
     if ok is False:
         return [Flag("netclass geometry under minima", view.board, 0.95, Kind.DFM,
                      {"detail": detail, "check_id": "netclass-geometry-conformance"})]
@@ -1186,12 +1231,16 @@ class Action:
 def worker_rung(flag, cfg):
     """Tier-0 deterministic auto-fix for the mechanical, unambiguous cases."""
     if flag.kind == Kind.ROUTE and flag.name.startswith(("structural DRC", "unrouted")):
-        # the offending nets are re-routable -> hand the route loop a re-route action
+        # This is an action request, not proof of a changed board. The caller must
+        # keep the flag blocking until a router executes the request and a fresh
+        # score proves it gone.
         return Action(resolved=True, fixes=[flag.name], rung="worker",
-                      note="re-route the offending nets")
+                      note="re-route required; unresolved until fresh validation")
     if flag.kind == Kind.BOM and flag.conf < 0.5:
-        # a documented/known-open sourcing gap (OQ-11 shunt, THT connectors): accept + track
-        return Action(resolved=True, rung="worker", note="known-open sourcing gap (tracked)")
+        # A known sourcing gap is useful context, but it is not an automatic
+        # release waiver. Only an explicit owner decision may accept it.
+        return Action(resolved=False, rung="worker",
+                      note="known-open sourcing gap requires owner disposition")
     return Action(resolved=False, rung="worker")
 
 
@@ -2534,6 +2583,46 @@ def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0, back_refs=()):
                     ax[3] <= bx[2] - clr or bx[3] <= ax[2] - clr):
                 n += 1
     return n
+
+
+def _drop_optional_corner_mount_conflicts(P, comps, *, protected=(),
+                                          drop_antenna=False, back_refs=()):
+    """Drop optional H<n> corner mounts whose courtyard overlaps a real part.
+
+    Explicit position overrides are alignment datums, including the mezzanine
+    H1 ground lug, and are never droppable. This is the placement-model half of
+    the same occupied-corner policy enforced again on the materialized board by
+    _drop_conflicting_mounts.
+    """
+    import cec_pcb
+
+    protected = set(protected or ())
+    back = set(back_refs or ())
+    refs = [ref for ref in P if ref in comps]
+    boxes = {
+        ref: cec_pcb.courtyard_bbox(
+            comps[ref], *P[ref], drop_keepout=drop_antenna)
+        for ref in refs
+    }
+    drops = set()
+    for mount in refs:
+        if not re.fullmatch(r"H\d+", mount) or mount in protected:
+            continue
+        box = boxes[mount]
+        face = "B" if mount in back else "F"
+        for other in refs:
+            if other == mount or re.fullmatch(r"H\d+", other):
+                continue
+            if ("B" if other in back else "F") != face:
+                continue
+            obox = boxes[other]
+            if not (box[1] <= obox[0] or obox[1] <= box[0]
+                    or box[3] <= obox[2] or obox[3] <= box[2]):
+                drops.add(mount)
+                break
+    for ref in drops:
+        P.pop(ref, None)
+    return tuple(sorted(drops))
 
 
 def _ov_area(A, B, clr=0.0):
@@ -4185,7 +4274,9 @@ def _pad_is_tht(libid):
     try:
         import cec_pcb
         nick, name = str(libid).split(":")
-        s = open(cec_pcb.fp_path(nick, name)).read()
+        with open(cec_pcb.fp_path(nick, name), encoding="utf-8",
+                  errors="replace") as handle:
+            s = handle.read()
         for m in re.finditer(r'\(pad\s+"([^"]*)"\s+(\w+)', s):
             out[m.group(1)] = (m.group(2) == "thru_hole")
     except Exception:                                    # noqa: BLE001
@@ -4213,7 +4304,9 @@ def _tht_pads_local(libid):
     out = []
     try:
         nick, name = str(libid).split(":")
-        t = open(cec_pcb.fp_path(nick, name)).read()
+        with open(cec_pcb.fp_path(nick, name), encoding="utf-8",
+                  errors="replace") as handle:
+            t = handle.read()
         for m in re.finditer(r'\(pad ', t):
             b = cec_pcb.carve(t, m.start())
             head = b.split("\n")[0]
@@ -5007,6 +5100,7 @@ class Candidate:
                                                  # gate); {} = not adjudicated. Set by adjudicate_candidates.
     blueprint_stamps: list = field(default_factory=list)  # P4 (S3): stamped-cell specs; materialize()
                                                           # lays their LOCKED internal copper on the board.
+    mechanical_drops: tuple = ()  # optional occupied-corner mounts omitted before materialization
 
 
 def _dual_side_guard(back, anchors_roles, comps):
@@ -7433,6 +7527,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     ladder.run(state=ladder)
 
     # ============================================================ SCORING + RETURN (post-ladder)
+    _mechanical_drops = ()
+    if str(cfg.params.get("mount_holes", "4_corner")) in ("4_corner", "2_diag"):
+        _mechanical_drops = _drop_optional_corner_mount_conflicts(
+            P, comps,
+            protected=set(cfg.params.get("mount_pos_override") or ()),
+            drop_antenna=drop_antenna, back_refs=(_back or ()))
+        if _mechanical_drops:
+            print("  [mount] occupied optional corner(s) omitted: %s" %
+                  ", ".join(_mechanical_drops), file=sys.stderr)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna,   # honest DRC-accurate residual
                           back_refs=(_back or ()))               # face-aware: cross-face != overlap
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
@@ -7485,6 +7588,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     # BLUEPRINT (P4): carry each stamped cell's spec to materialize(), which lays its LOCKED
     # internal copper on the real board (placement candidates carry no copper -- like fiducials).
     cand.blueprint_stamps = _blueprint_stamps
+    cand.mechanical_drops = _mechanical_drops
     # POUR-FIRST ANCHOR SET (v3 rung, docs/slab-pour-design-2026-07-24.md v3):
     # the refs that exist at the owner's seam -- "connectors + blueprint
     # stamps + MCU" -- recorded from the placer's OWN knowledge (connector-
@@ -7605,8 +7709,8 @@ def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
 # route_oracle_grade closes it: grade a placement by ACTUALLY ROUTING it (the SAME proven gate-clean
 # recipe the committed gate-clean routes use) and reading the REAL post-route FULL ACCEPT CONJUNCTION:
 #
-#     kelvin_ok  AND  diffpair_ok  AND  drc-finishing-only  AND  foreign_on_pour==0  AND  thermal-in-budget
-#     AND  routing-complete (no safety/power ratline left; only the documented finishing residual)
+#     complete scorer gate  AND  foreign_on_pour==0  AND  laid_pour_incursion==0
+#     AND  thermal-in-budget  AND  routing-complete (zero ratlines)
 #
 # NEVER a subset: kelvin_ok+drc alone is a DOCUMENTED FALSE SUMMIT (passes at max_T ~181-300 C). The
 # grader can never pass a board the real route fails -- TRUE BY CONSTRUCTION, because it IS the real route.
@@ -7644,6 +7748,8 @@ def _oracle_env(params=None):
     (the strict no-parts-in-pours architecture, per board)."""
     extra = {}
     if params:
+        if params.get("stackup_profile"):
+            extra["CEC_FAB_PROFILE"] = str(params["stackup_profile"])
         if params.get("shunt_gap_mm"):
             extra["CEC_SHUNT_GAP_MM"] = str(params["shunt_gap_mm"])
         if params.get("pour_lanes"):
@@ -7914,7 +8020,8 @@ def _oracle_hints_pours(board_path):
     # tracks/vias -- net-less copper under a routed track is a short by definition.
     try:
         import re as _re
-        _bt = open(board_path).read()
+        with open(board_path, encoding="utf-8", errors="replace") as _bf:
+            _bt = _bf.read()
         _lm = _re.search(r'\(property "Reference" "LOGO1"', _bt)
         if _lm:
             _li = _bt.rindex("(footprint", 0, _lm.start())
@@ -7953,9 +8060,8 @@ def _oracle_hints_pours(board_path):
 
 def _classify_unconnected(unconn_nets, rules):
     """Split the routed board's unconnected NET names into (critical, signal). A critical ratline -- a
-    Kelvin/diff-pair safety net, a 12V/high-current net, or GND -- is a HARD route failure. A signal-net
-    ratline is the documented finishing residual (commit 515cae7 closed the EPS /GPIO0 hop with the
-    cec_route toolkit AFTER Freerouting squeezed its F.Cu escape shut), tolerated up to unconn_finish_tol."""
+    Kelvin/diff-pair safety net, a 12V/high-current net, or GND -- is classified separately for repair
+    priority. Every ratline, including a signal-net ratline, blocks release."""
     safety = {n for pr in (rules.kelvin_pairs or []) for n in pr}
     safety |= {n for pr in (rules.diff_pairs or []) for n in pr}
     power = set(rules.nets_12v or [])
@@ -8489,11 +8595,13 @@ def _oracle_silk_score(routed_board_path, *, per_fp_max=1.0):
     if board is None:
         return {"ok": False, "score_per_fp": None, "violations": ["board unloadable"]}
     nfp = max(1, len(list(board.GetFootprints())))
-    out = tempfile.mkstemp(suffix=".json")[1]
+    out_fd, out = tempfile.mkstemp(suffix=".json")
+    os.close(out_fd)
     try:
         subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
                         "-o", out, routed_board_path], capture_output=True, timeout=300)
-        d = _json.load(open(out))
+        with open(out, encoding="utf-8") as report_file:
+            d = _json.load(report_file)
     except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
         return {"ok": False, "score_per_fp": None, "violations": ["drc error: %s" % e]}
     finally:
@@ -8709,11 +8817,19 @@ def _oracle_courtyard_overlaps(placed_board_path):
     import json as _json
     import subprocess
     import tempfile
-    out = tempfile.mkstemp(suffix=".json")[1]
+    fd, out = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
     try:
-        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out,
-                        placed_board_path], capture_output=True, timeout=300)
-        d = _json.load(open(out))
+        proc = subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out,
+                               placed_board_path], capture_output=True, text=True,
+                              timeout=300)
+        if proc.returncode:
+            raise RuntimeError("kicad-cli DRC exited %d: %s"
+                               % (proc.returncode, (proc.stderr or proc.stdout).strip()[:500]))
+        with open(out, encoding="utf-8") as f:
+            d = _json.load(f)
+        if not isinstance(d, dict) or not isinstance(d.get("violations"), list):
+            raise ValueError("kicad-cli DRC JSON lacks a violations list")
     except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
         return {"ok": False, "violations": ["drc error: %s" % e]}
     finally:
@@ -8888,9 +9004,13 @@ def _oracle_courtyard_edge(placed_board_path, *, min_mm=0.8):
         with open(os.path.join(work, "board.kicad_dru"), "w") as fh:
             fh.write(dru)
         out = os.path.join(work, "drc.json")
-        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
-                        "-o", out, bp], capture_output=True, timeout=300)
-        d = _json.load(open(out))
+        proc = subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                              "-o", out, bp], capture_output=True, timeout=300)
+        if proc.returncode != 0:
+            raise RuntimeError("kicad-cli exited %d: %s"
+                               % (proc.returncode, (proc.stderr or proc.stdout or b"")[-500:]))
+        with open(out, encoding="utf-8") as report_file:
+            d = _json.load(report_file)
     except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
         return {"ok": False, "violations": ["edge-gate drc error: %s" % e]}
     finally:
@@ -9192,14 +9312,17 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
         inj["nets_dropped"] = {n: dropped[n] for n in sorted(dropped)}
     if absent:
         inj["nets_absent"] = sorted(absent)
-    if dropped:
+    if dropped or absent:
+        omitted = sorted(set(dropped) | set(absent))
         return {"ok": False, "max_T": round(float(res.max_T), 2),
                 "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
                 "gate_dt": gate_dt, "cooling": label, **inj,
                 "error": "INJECTION INCOMPLETE: %d/%d configured net(s) injected no "
-                         "current (%s) -- their Joule heat is EXCLUDED from dT, a pass "
-                         "would be vacuous (close the rail circuits first)"
-                         % (len(dropped), len(req), ", ".join(sorted(dropped)))}
+                         "current (%s). Requested nets that are absent or electrically open "
+                         "exclude their Joule heat from dT, so a pass would be vacuous. Remove "
+                         "a genuinely inapplicable net from the board-specific scenario, or close "
+                         "the rail circuit."
+                         % (len(omitted), len(req), ", ".join(omitted))}
     if dT <= 0.05:
         return {"ok": False, "max_T": round(float(res.max_T), 2),
                 "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
@@ -9221,8 +9344,29 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
             "gate_dt": gate_dt, "cooling": label, **inj}
 
 
+_ROUTE_ORACLE_GATE_TERMS = (
+    "gates_pass", "foreign_ok", "incursion_ok", "routing_complete", "sense_side_ok",
+    "decouple_ok", "pairs_ok", "bodies_in_pours_ok", "comparator_ok", "kelvin_reach_ok",
+    "courtyards_ok", "circuit_ok", "stranded_ok", "pin_escape_ok", "courtyard_edge_ok",
+    "fiducials_ok", "tht_backside_ok", "pour_uniform_ok", "thermal_ok", "rails_ok",
+)
+
+
+def _route_oracle_accepts(terms):
+    """Evaluate the complete route-oracle contract and reject schema drift."""
+    expected = set(_ROUTE_ORACLE_GATE_TERMS)
+    actual = set(terms)
+    if actual != expected:
+        raise ValueError("route-oracle gate term mismatch: missing=%s extra=%s"
+                         % (sorted(expected - actual), sorted(actual - expected)))
+    non_bool = sorted(name for name, value in terms.items() if type(value) is not bool)
+    if non_bool:
+        raise TypeError("route-oracle gate terms must be bool: %s" % non_bool)
+    return all(terms[name] for name in _ROUTE_ORACLE_GATE_TERMS)
+
+
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
-                       gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
+                       gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=0,
                        route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600,
                        craft_gates=True, thermal="always", protect_nets=(), precision=False):
     """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
@@ -9233,12 +9377,13 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                          routed board; False -> grade the input board AS-IS (it is already routed).
 
     The verdict is the conjunction -- ALL must hold (never a subset; kelvin_ok+drc is a false summit):
-      * gates_pass        = kelvin_ok AND diffpair_ok AND drc-finishing-only (cec_score, structural drc==0)
+      * gates_pass        = the complete configured cec_score topology, DRC, and ratline contract
       * foreign_ok        = cec_constraints.foreign_on_pour_summary (status ok, 0 foreign track/via; run
                             with CEC_SHUNT_GAP=1 -- status 'error' FAILS, 'na' is a clean N/A on shared-bus)
+      * incursion_ok      = no foreign pad, track copper, or via copper inside an actual laid pour outline
       * thermal_ok        = the 2.5D field solve dT <= gate_dt (FAIL-CLOSED on solver error)
-      * routing_complete  = no unconnected ratline on a safety/power net, and <= unconn_finish_tol signal
-                            ratlines (the documented cec_route finishing residual). unconn_finish_tol=0 = strict.
+      * routing_complete  = zero unconnected ratlines. The legacy unconn_finish_tol argument is retained
+                            for call compatibility but cannot waive this release gate.
 
     Returns a dict carrying gate (bool), the per-term verdicts, the raw metrics, and `sort_key` -- the
     sortable selection key (lower = better): gate-clean candidates rank first (tie-break thermal margin /
@@ -9451,7 +9596,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
             # ---- 3. grade: the full conjunction ----
             m = cec_score.score(routed, rules=rules)
-            gates_pass = bool(m.gates_pass)                  # kelvin_ok AND diffpair_ok AND drc==0
+            gates_pass = bool(m.gates_pass)  # complete configured topology, DRC, and ratline contract
 
             fsum = cec_constraints.foreign_on_pour_summary(routed)
             foreign_ok = (fsum.get("status") != "error"
@@ -9460,9 +9605,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # ever placing inside a pour"). Measured against the pours ON THE BOARD,
             # which is what the rule is about -- foreign_on_pour above re-derives a
             # corridor box and reported 0 while the laid eps pours were carrying 4
-            # foreign pads, 7 tracks and 4 vias. Reported per variant; not folded
-            # into the gate yet because the placer cannot honour it (see
-            # docs/owner-queue.md) and a gate nothing can pass is a stopped line.
+            # foreign pads, 7 tracks and 4 vias. This is a hard gate. If the placer
+            # cannot honor it, the candidate must fail and the pour or placement must
+            # be changed. Automatic acceptance cannot bend the rule.
             try:
                 incur = cec_constraints.laid_pour_incursion_summary(routed)
             except Exception as _ie:                          # noqa: BLE001
@@ -9475,7 +9620,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
             unconn_nets = list(m.detail.get("unconn_nets", []))
             crit, sig = _classify_unconnected(unconn_nets, rules)
-            routing_complete = (len(crit) == 0) and (m.unconnected <= unconn_finish_tol)
+            routing_complete = (m.unconnected == 0)
 
             try:
                 sside = _oracle_sense_side(routed)
@@ -9595,12 +9740,20 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # thermal mirage. An already-failing candidate skips the solve (its gate is
             # False either way; dT was only ever its LAST tie-break). A gate=True can
             # NEVER be produced without a real thermal pass (thermal-gate-required).
-            others_ok = bool(gates_pass and foreign_ok and routing_complete
-                             and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
-                             and comparator_ok and kelvin_reach_ok and courtyards_ok
-                             and circuit_ok and stranded_ok and pin_escape_ok
-                             and courtyard_edge_ok and fiducials_ok and tht_backside_ok
-                             and pour_uniform_ok)
+            prethermal_gate_terms = {
+                "gates_pass": bool(gates_pass), "foreign_ok": bool(foreign_ok),
+                "incursion_ok": bool(incursion_ok),
+                "routing_complete": bool(routing_complete),
+                "sense_side_ok": bool(sense_side_ok), "decouple_ok": bool(decouple_ok),
+                "pairs_ok": bool(pairs_ok), "bodies_in_pours_ok": bool(bodies_ok),
+                "comparator_ok": bool(comparator_ok), "kelvin_reach_ok": bool(kelvin_reach_ok),
+                "courtyards_ok": bool(courtyards_ok), "circuit_ok": bool(circuit_ok),
+                "stranded_ok": bool(stranded_ok), "pin_escape_ok": bool(pin_escape_ok),
+                "courtyard_edge_ok": bool(courtyard_edge_ok),
+                "fiducials_ok": bool(fiducials_ok), "tht_backside_ok": bool(tht_backside_ok),
+                "pour_uniform_ok": bool(pour_uniform_ok),
+            }
+            others_ok = all(prethermal_gate_terms.values())
             if thermal == "lazy" and not others_ok:
                 therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
                          "gate_dt": gate_dt,
@@ -9659,7 +9812,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             rails_refused = ((int(rails.get("total", 0)) - int(rails.get("laid", 0)))
                              if rails else 0)
 
-            gate = bool(others_ok and thermal_ok and rails_ok)
+            gate_terms = {**prethermal_gate_terms, "thermal_ok": bool(thermal_ok),
+                          "rails_ok": bool(rails_ok)}
+            gate = _route_oracle_accepts(gate_terms)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             # refused rails fold into the SAFETY term (not a new tuple slot: key
@@ -9692,10 +9847,13 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "gate": gate, "label": label, "route_s": route_s, "routed": routed,
                 "passes": passes, "opt": opt, "seed": seed,
                 "gates_pass": gates_pass, "kelvin_ok": bool(m.kelvin_ok),
-                "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "drc_finishing_only": (m.drc == 0),
+                "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc,
+                "drc_clean": (m.drc == 0),
+                "drc_finishing_only": (m.drc == 0),  # compatibility alias; no waiver is implied
                 "drc_types": dict(m.drc_types), "unconnected": m.unconnected,
                 "unconn_nets": unconn_nets, "unconn_critical": crit, "unconn_signal": sig,
-                "routing_complete": routing_complete, "unconn_finish_tol": unconn_finish_tol,
+                "routing_complete": routing_complete, "unconn_finish_tol": 0,
+                "requested_unconn_finish_tol": unconn_finish_tol,
                 "incursion_ok": incursion_ok,
                 "incursion": {k: incur.get(k) for k in
                               ("status", "n_parts", "n_tracks", "n_vias")},
@@ -9721,14 +9879,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "fiducials_ok": fiducials_ok, "fiducials": fq,
                 "tht_backside_ok": tht_backside_ok, "tht_backside": tb,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
-                "rails_ok": rails_ok, "rails": rails,
+                "rails_ok": rails_ok, "rails": rails, "gate_terms": gate_terms,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
                                            sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
                                            cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq,
-                                           tb_g=tb, puni=puni),
+                                           tb_g=tb, puni=puni, incur=incur),
             }
             if not rails_ok and rails:
                 res["reasons"].append(
@@ -9751,6 +9909,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 def _oracle_fail_dict(label, *, route_s=None, error=""):
     """A worst-rank failing verdict for a route that could not even produce a board."""
     return {"gate": False, "label": label, "route_s": route_s, "routed": None,
+            "gate_terms": {name: False for name in _ROUTE_ORACLE_GATE_TERMS},
             "error": error, "gates_pass": False, "kelvin_ok": False, "diffpair_ok": False,
             "drc": 9999, "drc_finishing_only": False, "unconnected": 9999, "unconn_critical": [],
             "unconn_signal": [], "routing_complete": False, "foreign_ok": False,
@@ -9762,7 +9921,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
                     cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None,
-                    fq_g=None, tb_g=None, puni=None):
+                    fq_g=None, tb_g=None, puni=None, incur=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -9774,6 +9933,13 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not foreign_ok:
         r.append(f"foreign_on_pour status={fsum.get('status')} "
                  f"tracks={fsum.get('n_tracks')} vias={fsum.get('n_vias')} (must be 0/0)")
+    if incur is not None and (incur.get("status") != "ok"
+                              or int(incur.get("n_parts", 0))
+                              + int(incur.get("n_tracks", 0))
+                              + int(incur.get("n_vias", 0)) > 0):
+        r.append("laid-pour incursion status=%s pads=%s tracks=%s vias=%s (must be ok/0/0/0)"
+                 % (incur.get("status"), incur.get("n_parts"), incur.get("n_tracks"),
+                    incur.get("n_vias")))
     if not thermal_ok:
         if therm.get("skipped"):
             r.append("thermal SKIPPED (lazy: other gate terms already failed)")
@@ -9817,8 +9983,8 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not routing_complete:
         if crit:
             r.append(f"unconnected on safety/power nets: {crit}")
-        if len(sig) > tol or m.unconnected > tol:
-            r.append(f"{m.unconnected} unconnected ratline(s) > finishing tol {tol}: signal={sig}")
+        if sig or m.unconnected:
+            r.append(f"{m.unconnected} unconnected ratline(s); release tolerance is 0: signal={sig}")
     return r
 
 
@@ -10020,12 +10186,14 @@ def materialize(cand, cfg, out, *, logo=None):
         _pros = sorted(_glob.glob(os.path.join(_bdir, "*.kicad_pro")), key=len)
         _outpro = out[:-len(".kicad_pcb")] + ".kicad_pro"
         if _pros:
-            _donor = _json.load(open(_pros[0]))
+            with open(_pros[0], encoding="utf-8") as _src:
+                _donor = _json.load(_src)
             # CREATE the sidecar when absent (owner 2026-07-15 width fix, part 2:
             # materialize alone never wrote a .kicad_pro, so the guard below
             # silently no-opped and the DSN export saw no classes at all).
             if os.path.isfile(_outpro):
-                _mine = _json.load(open(_outpro))
+                with open(_outpro, encoding="utf-8") as _src:
+                    _mine = _json.load(_src)
             else:
                 _mine = {"meta": {"filename": os.path.basename(_outpro), "version": 3}}
             _dns = _donor.get("net_settings") or {}
@@ -10057,7 +10225,8 @@ def materialize(cand, cfg, out, *, logo=None):
             if _drules:
                 _mine.setdefault("board", {}).setdefault(
                     "design_settings", {})["rules"] = _drules
-            open(_outpro, "w").write(_json.dumps(_mine, indent=2))
+            with open(_outpro, "w", encoding="utf-8") as _dst:
+                _dst.write(_json.dumps(_mine, indent=2))
         for _dru in _glob.glob(os.path.join(_bdir, "*.kicad_dru")):
             _shutil.copy(_dru, out[:-len(".kicad_pcb")] + ".kicad_dru")
             break
@@ -10077,7 +10246,8 @@ def materialize(cand, cfg, out, *, logo=None):
                         inner_power_routing=bool(cfg.params.get('inner_power_routing')),
                         inner_label=("PWR_RT" if cfg.params.get('rail_alt_layer')
                                      else "SIG2"),
-                        fiducials=fids)
+                        fiducials=fids,
+                        stackup_profile=cfg.params.get("stackup_profile"))
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
@@ -11283,15 +11453,27 @@ def field_electrothermal_solve(board_path, cfg, *, grid_mm=None, backend="auto")
     pour neck at ~2635 A/mm^2 / 858C that the analytic reports as 83 A/mm^2 / 181C. Returns a result
     shaped for physics_gates (nets dict + max_T/max_dT), with the raw field result on .field. Needs the
     cec_thermal2d deps (shapely + scipy/pyamg; optional cupy for the GPU backend on the 5090)."""
-    import cec_thermal2d as t2d
+    import cec_thermal_overlay as tov
     import pcbnew
     from types import SimpleNamespace
     amb = float(cfg.params.get("ambient_C", 50.0))
     grid = grid_mm if grid_mm is not None else float(cfg.params.get("thermal_grid_mm", 0.15))
     b = pcbnew.LoadBoard(board_path)
-    board_nets = sorted({t.GetNetname() for t in b.GetTracks() if t.GetNetname()})
-    ncur = _net_currents(cfg, board_nets)
-    fr = t2d.solve_board_thermal(board_path, net_currents=ncur, grid_mm=grid, ambient=amb, backend=backend)
+    board_nets = sorted({n for n in (
+        [t.GetNetname() for t in b.GetTracks()]
+        + [z.GetNetname() for z in b.Zones()]
+        + [p.GetNetname() for fp in b.GetFootprints() for p in fp.Pads()]) if n})
+    configured, _stackup, _src_sink, _cooling = tov.board_thermal_config(
+        board_path, board_hint=getattr(cfg, "board", None))
+    explicit = cfg.params.get("net_currents")
+    currents = (dict(explicit) if explicit else
+                (None if configured is not None else _net_currents(cfg, board_nets)))
+    fr, solved_board, cooling = tov._solve_thermal(
+        board_path, currents=currents, ambient=amb, grid_mm=grid,
+        h_eff=float(cfg.params.get("thermal_h_eff_W_m2K", 15.0)),
+        time_budget_s=cfg.params.get("thermal_time_budget_s"),
+        backend=backend, board_hint=getattr(cfg, "board", None))
+    ncur = dict(fr.nets_requested)
     nets = {}                                                 # per-net maxT/maxJ already capture the via +
     for net, mt in fr.per_net_maxT.items():                   # neck hotspots (the field couples via barrels)
         I = ncur.get(net, 0.0)
@@ -11300,7 +11482,8 @@ def field_electrothermal_solve(board_path, cfg, *, grid_mm=None, backend="auto")
         nets[net] = {"T": mt, "dT": mt - amb, "I": I, "J": fr.per_net_maxJ.get(net, 0.0),
                      "cross_mm2": 0.0, "poured": True}
     return SimpleNamespace(max_T=fr.max_T, max_dT=fr.max_T - amb, ambient=amb, grid_mm=grid,
-                           nets=nets, vias=[], shunts=[], calibration="uncalibrated", field=fr)
+                           nets=nets, vias=[], shunts=[], calibration="uncalibrated", field=fr,
+                           cooling=cooling, solved_board=solved_board)
 
 
 def physics(board_path, cfg, armed=()):
@@ -11308,17 +11491,43 @@ def physics(board_path, cfg, armed=()):
     (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags).
     CEC_THERMAL_FIELD=1 (or cfg.params['thermal_field']) selects the HIGH-FIDELITY field solve
     (field_electrothermal_solve / cec_thermal2d) instead of the lumped analytic -- the field tier is
-    what catches the local shredded-neck / via-fusing hotspots. Falls back to the analytic on any field-
-    solver error (deps absent, etc.) so the gate never silently skips."""
+    what catches the local shredded-neck / via-fusing hotspots. A field-solver error falls back to the
+    analytic model for diagnostic continuity, but adds a blocking flag. Incomplete current injection is
+    also a blocking result, never a cool-looking pass."""
     res = None
+    field_error = None
     if os.environ.get("CEC_THERMAL_FIELD") == "1" or cfg.params.get("thermal_field"):
         try:
             res = field_electrothermal_solve(board_path, cfg)
-        except Exception:                                     # noqa: BLE001 -- analytic fallback, never skip
+        except Exception as exc:                              # noqa: BLE001 -- diagnostic fallback plus hard flag
+            field_error = "%s: %s" % (type(exc).__name__, exc)
             res = None
     if res is None:
         res = electrothermal_solve(board_path, cfg)
     flags = physics_gates(res, cfg)
+    if field_error is not None:
+        flags.append(Flag("thermal field solver unavailable", board_path, 1.0,
+                          Kind.MEASURE,
+                          {"error": field_error, "fallback": "analytic",
+                           "calibration": getattr(res, "calibration", "uncalibrated")}))
+    field = getattr(res, "field", None)
+    if field is not None:
+        dropped = dict(getattr(field, "nets_dropped", {}) or {})
+        absent = dict(getattr(field, "nets_absent", {}) or {})
+        requested = dict(getattr(field, "nets_requested", {}) or {})
+        if dropped or absent:
+            flags.append(Flag("thermal current injection incomplete", board_path, 1.0,
+                              Kind.MEASURE,
+                              {"nets_dropped": dropped,
+                               "nets_absent": absent,
+                               "nets_requested": requested,
+                               "cooling": getattr(res, "cooling", "unknown"),
+                               "calibration": getattr(res, "calibration", "uncalibrated")}))
+        elif not requested:
+            flags.append(Flag("thermal field has no requested current", board_path, 1.0,
+                              Kind.MEASURE,
+                              {"cooling": getattr(res, "cooling", "unknown"),
+                               "calibration": getattr(res, "calibration", "uncalibrated")}))
     return res, flags
 
 
@@ -11353,8 +11562,8 @@ def human_signoff(board, cfg, flags, *, ask=None):
     human present is NOT a release). Returns True iff signed off.
     CL-03 R4: the blocking count filters binding==gate -- an advisory flag can
     NEVER feed it (it is still SHOWN to an interactive human, labeled ADV)."""
-    blocking = [f for f in flags if f.conf >= 0.5
-                and getattr(f, "binding", "gate") == "gate"]
+    blocking = [f for f in flags
+                if getattr(f, "binding", "gate") == "gate"]
     if ask is not None:
         act = ask(f"cert-grade sign-off: {len(flags)} residual flag(s), {len(blocking)} blocking. "
                   f"Release?", {"flags": [str(f) for f in flags]}, cfg)
@@ -11386,19 +11595,30 @@ def freeze_build(cfg, board, log, out_dir):
         if os.path.isfile(s):
             shutil.copy(s, rel[:-len(".kicad_pcb")] + ext)
     logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
-    json.dump(log, open(logp, "w"), indent=2, default=str)
+    with open(logp, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(log, fh, indent=2, default=str)
     _archive_corpus(log, cfg.board, kind="synth-freeze")
     return {"board": rel, "log": logp, "frozen": True}
 
 
 # ============================================================ run_pipeline (the top-level driver)
-def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=None,
-                 verbose=True, max_loops=2):
-    """The top-level pipeline (pseudocode run_pipeline) on an EXISTING board -- the synth place/size
-    -oracle is DEFERRED (placer TODO), so this threads: ERC+BOM gate -> triage -> [use the existing/
-    old-design board, optional route_swarm] -> physics+cascade loop (resolve on failure) -> human
-    sign-off -> build+freeze. POSTURE CAUTIOUS: unresolved flags block the release. Returns a result
-    dict (status RELEASED / sign-off withheld / failed) with the frozen decision log."""
+def run_pipeline(cfg, *, board=None, place=None, route=False, ask=None,
+                 tiers=None, out_dir=None, verbose=True, max_loops=2,
+                 placement_strategies=STRATEGIES, placement_seeds=(0, 1),
+                 placement_workers=None):
+    """Run the release pipeline with optional fixed-outline placement and routing.
+
+    With no explicit *board*, placement is enabled by default and materializes the
+    best deterministic candidate at the current board outline. Supplying *board*
+    selects validation-only mode unless ``place=True`` is explicit. The separate
+    size sweep remains separate and is not implied here. Unresolved placement,
+    routing, physics, ERC, DRC, or sign-off findings block release.
+    """
+    if place is None:
+        place = board is None
+    out_dir = out_dir or os.path.join(tempfile.gettempdir(),
+                                      f"cec_release_{cfg.board}")
+    os.makedirs(out_dir, exist_ok=True)
     log = {"board": cfg.board, "profile": cfg.profile, "params": dict(cfg.params), "stages": []}
 
     def rec(stage, **kw):
@@ -11409,9 +11629,10 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
 
     # 1. ERC + BOM gate (loop until clean or unresolvable)
     view = View(cfg)
-    gate_flags = run_stage(ERC_BOM, view)
-    ok, _ = resolve_each(gate_flags, cfg, ask=ask, tiers=tiers)
-    rec("erc_bom_gate", n_flags=len(gate_flags), resolved=ok)
+    initial_flags = gate_flags(run_stage(ERC_BOM, view))
+    ok, _ = resolve_each(initial_flags, cfg, ask=ask, tiers=tiers)
+    preflight_residual = [] if ok else list(initial_flags)
+    rec("erc_bom_gate", n_flags=len(initial_flags), resolved=ok)
     if not ok and ask is None:
         rec("relax_or_fail", reason="unresolved netlist/BOM flags (headless)")
 
@@ -11419,21 +11640,46 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
     armed = triage_arm(cfg)
     rec("triage", armed=[a.name for a in armed])
 
-    # 3. place / size oracle DEFERRED -> use the existing (old-design) board; optionally route
+    # 3. Fixed-outline placement, or an explicit existing-board validation path.
     routed = board or cfg.pcb
+    placement_residual = []
+    if place:
+        if not routed or not os.path.isfile(routed):
+            raise RuntimeError("automatic placement requires an existing board outline")
+        source_placement = read_placement(routed)
+        candidates = place_candidates(
+            cfg, source_placement.W, source_placement.H,
+            strategies=tuple(placement_strategies),
+            seeds=tuple(placement_seeds), max_workers=placement_workers)
+        if not candidates:
+            raise RuntimeError("automatic placement produced no candidates")
+        best = candidates[0]
+        placed_path = os.path.join(out_dir, f"{cfg.board}-placed.kicad_pcb")
+        routed = materialize(best, cfg, placed_path)
+        rec("place_size", status="PLACED_FIXED_OUTLINE",
+            board=os.path.basename(routed), strategy=best.strat,
+            seed=best.seed, residual=best.residual,
+            W=source_placement.W, H=source_placement.H)
+        if best.residual:
+            placement_residual.append(Flag(
+                "placement residual", routed, 1.0, Kind.PLACE,
+                {"residual": best.residual, "strategy": best.strat,
+                 "seed": best.seed}))
+    else:
+        rec("place_size", status="EXISTING_BOARD_INPUT",
+            board=os.path.basename(routed) if routed else None)
     if route:
         routed, _rlog = route_swarm(cfg, board=routed, verbose=verbose)
         rec("route_swarm", board=os.path.basename(routed) if routed else None)
-    else:
-        rec("place_size", status="DEFERRED (placer TODO) -> existing board",
-            board=os.path.basename(routed) if routed else None)
 
-    # 4. physics + full cascade, re-route/re-place on failure (bounded).
+    # 4. physics + full cascade. A proposed re-route/re-place is not a repair:
+    #    this invocation keeps the original flag blocking until a changed board
+    #    is supplied and every gate is rerun.
     #    CL-03 R4: the loop, resolve ladder, and sign-off see GATE flags only --
     #    advisory fires are recorded (shadow evidence) and shown, never driving
     #    escalation, never blocking, never feeding the residual.
     rview = View(cfg, board=routed)
-    residual, adv_fires = [], []
+    cascade_residual, adv_fires = [], []
     for it in range(max_loops):
         all_flags = run_full_cascade(rview, armed=armed)    # 6 stages + armed + ADV
         adv_fires = [f for f in all_flags
@@ -11443,14 +11689,21 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
         rec("physics_cascade", iteration=it, n_flags=len(flags),
             n_advisory=len(adv_fires), gates_pass=(m.gates_pass if m else None))
         if not flags:
-            residual = []
+            cascade_residual = []
             break
         assert_no_advisory(flags, "run_pipeline cascade loop")
         okc, acts = resolve_each(flags, cfg, ask=ask, tiers=tiers)
-        residual = [f for (f, a) in acts if not a.resolved]
+        cascade_residual = [
+            f for (f, a) in acts
+            if not a.resolved or bool(a.fixes) or bool(a.re_place)
+        ]
         actionable = any(a.re_place or a.fixes for _, a in acts)
+        if actionable and cascade_residual:
+            rec("repair_required", iteration=it,
+                reason="action plan has not changed or revalidated the board")
+            break
         if okc or not actionable:
-            break                                            # all resolved, or nothing to re-try
+            break                                            # all proven resolved, or no executor action
 
     # 4b. ADV fires -> the per-run ledger sidecar (CL-03 R4: per-fire capture
     #     from day one -- PC-01, capture cannot be retroactive; AM-06 sharding).
@@ -11465,14 +11718,13 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
             rec("adv_ledger_degraded", error=repr(exc))
 
     # 5. sign-off (human_signoff itself ALSO filters binding -- belt+suspenders)
+    residual = preflight_residual + placement_residual + cascade_residual
     assert_no_advisory(residual, "human_signoff residual")
     signed = human_signoff(routed, cfg, residual, ask=ask)
     rec("signoff", signed=signed, residual=len(residual), advisory=len(adv_fires))
 
     # 6. ALWAYS freeze the decision log + the board (release if signed, else the withheld board for
     #    review) so the run is never void -- the verdict + log are the deliverable either way.
-    out_dir = out_dir or os.path.join(tempfile.gettempdir(), f"cec_release_{cfg.board}")
-    os.makedirs(out_dir, exist_ok=True)
     logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
     # SB-01: the frozen log carries the determinism manifest (self-describing log).
     try:
@@ -11480,7 +11732,8 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
         log["manifest"] = cec_ledger.manifest()
     except Exception:
         pass
-    json.dump(log, open(logp, "w"), indent=2, default=str)
+    with open(logp, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(log, fh, indent=2, default=str)
     _archive_corpus(log, cfg.board, kind="synth")
     tag = "release" if signed else "withheld"
     out_board = ""
@@ -11546,7 +11799,8 @@ def run_sweep(cfg, sizes, *, strategies=STRATEGIES, seeds=(0, 1), max_workers=No
               f"residual={best.residual} HPWL={best.proxy['hpwl']}")
     report["elapsed_s"] = round(time.time() - t0, 1)
     rp = os.path.join(out_dir, "synth-report.json")
-    json.dump(report, open(rp, "w"), indent=2, default=str)
+    with open(rp, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump(report, fh, indent=2, default=str)
     print(f"  WROTE {os.path.relpath(rp, ROOT)} ({report['elapsed_s']}s)")
     return report
 
@@ -11591,12 +11845,19 @@ def main(argv=None):
     ap.add_argument("--max-workers", type=int, default=0, help="parallel candidate workers (0=auto=min(cands,CPUs))")
     ap.add_argument("--out", default=None, help="output dir for the sweep (default build/synth/<board>)")
     ap.add_argument("--run", action="store_true", help="RUN the full pipeline end-to-end (run_pipeline)")
-    ap.add_argument("--routed-board", default=None, help="a routed .kicad_pcb to run the pipeline on")
+    ap.add_argument("--routed-board", default=None,
+                    help="validate this board and skip automatic placement unless --replace-placement is set")
+    ap.add_argument("--replace-placement", action="store_true",
+                    help="run automatic fixed-outline placement even with --routed-board")
     ap.add_argument("--route", action="store_true", help="route the board via the swarm before physics/cascade")
     a = ap.parse_args(argv)
 
     cfg = Config.load(a.board, profile=a.profile)
-    answers = json.load(open(a.answers)) if (a.answers and os.path.isfile(a.answers)) else None
+    if a.answers and os.path.isfile(a.answers):
+        with open(a.answers, encoding="utf-8") as f:
+            answers = json.load(f)
+    else:
+        answers = None
     elicit_requirements(cfg, answers)                # Stage 1: record design inputs (headless-safe)
 
     # ---- SYNTH SWEEP (the runner-side headless compute) ----
@@ -11622,16 +11883,21 @@ def main(argv=None):
         print("=" * 72)
         out_dir = a.out if (a.out and os.path.isabs(a.out)) else (
             os.path.join(ROOT, a.out) if a.out else None)
-        result = run_pipeline(cfg, board=a.routed_board, route=a.route, out_dir=out_dir)
+        result = run_pipeline(
+            cfg, board=a.routed_board,
+            place=(True if a.replace_placement else None), route=a.route,
+            out_dir=out_dir,
+            placement_strategies=tuple(s for s in a.strategies.split(",") if s),
+            placement_seeds=tuple(int(s) for s in a.seeds.split(",")
+                                  if s.strip() != ""),
+            placement_workers=(a.max_workers or None))
         print(f"\n  === pipeline result: {result['status']} ===")
         if result.get("board"):
             print(f"  release board: {result['board']}")
             print(f"  frozen log:    {result['log']}")
         if result.get("residual"):
             print(f"  residual flags: {result['residual']}")
-        # A COMPLETED run (RELEASED or sign-off withheld) is a SUCCESS -- the verdict + frozen log
-        # are the deliverable (same posture as cec_router). Reserve non-zero for a real failure.
-        return 0
+        return 0 if result["status"] == "RELEASED" else 2
     print("=" * 72)
     print(f"  cec_synth_pipeline -- cascade backbone on {cfg.board} (profile={cfg.profile})")
     print("=" * 72)

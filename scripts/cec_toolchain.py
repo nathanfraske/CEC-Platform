@@ -21,6 +21,8 @@
 #     render helpers and the cascade's netlist export, so the non-routing
 #     stages still run on a toolless box (the cec_synth_pipeline header promise).
 # ============================================================================
+import glob
+import os
 import shutil
 import sys
 
@@ -37,7 +39,20 @@ def kicad_cli():
     """Path to kicad-cli, or None. Resolved once and cached."""
     global _cli_cache
     if _cli_cache is _UNSET:
-        _cli_cache = shutil.which("kicad-cli")
+        override = os.environ.get("CEC_KICAD_CLI")
+        if override:
+            _cli_cache = override if os.path.isfile(override) else None
+        else:
+            _cli_cache = shutil.which("kicad-cli")
+        if _cli_cache is None and os.name == "nt":
+            roots = [os.environ.get("ProgramFiles"),
+                     os.environ.get("ProgramFiles(x86)")]
+            candidates = []
+            for root in (r for r in roots if r):
+                candidates.extend(glob.glob(
+                    os.path.join(root, "KiCad", "*", "bin", "kicad-cli.exe")))
+            if candidates:
+                _cli_cache = sorted(candidates, reverse=True)[0]
     return _cli_cache
 
 
