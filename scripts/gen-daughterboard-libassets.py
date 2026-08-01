@@ -4,7 +4,7 @@
 #
 # ============================================================================
 #  gen-daughterboard-libassets -- new library footprints/symbol for the
-#  §2.8 v1.4.0 output-daughterboard projects (modules/output-daughterboards/*).
+#  §2.8 v1.4.0 output-daughterboard projects (beta/output-daughterboards/*).
 # ============================================================================
 # These are the pieces NOT already vendored by the earlier library-intake pass
 # (which landed TE_63849-1_FASTON_Tab / Keystone_3557-2 / Keystone_3586 --

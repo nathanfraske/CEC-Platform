@@ -1,8 +1,8 @@
 # 24-pin ATX module -- BETA-1 splice (J6 reconciliation + RS4 Kelvin + H3/H3a suite)
 
-Scope: `modules/atx-24pin-rev3/24pin-module.kicad_sch` (+ its BOM), plus
+Scope: `beta/atx-24pin-rev3/24pin-module.kicad_sch` (+ its BOM), plus
 `docs/mezzanine-stack-design-2026-06-24.md` (the J6 pinout table, per the K1 gate's own
-instructions) and `modules/atx-24pin-rev3/board-manifest.json`/`README.md`. `atx-24pin/`
+instructions) and `beta/atx-24pin-rev3/board-manifest.json`/`README.md`. `atx-24pin/`
 (shipped alpha) and `atx-24pin-rev2/` untouched. PCB untouched -- still byte-identical to
 `atx-24pin-rev2`'s fully-placed/routed layout, which predates every change below (no mux, no
 mezzanine header, no C6, no H3 suite, no Kelvin RS4). Layout starts fresh from this schematic.
@@ -162,7 +162,7 @@ scaffold-era README (which still described a "not yet implemented" 2026-06-24 st
   One clear fix already applied (moved the "OUTPUT FORM" note off RS4's Value text, -3 pairs from
   an initial +17). Residual is schematic-readability only -- no copper/DRC impact, and this
   board's PCB gets a from-scratch layout pass regardless (per the module's own current state).
-- **BOM regenerated**: `modules/atx-24pin-rev3/bom/bom.csv` (65 rows), confirms `FL1` correctly
+- **BOM regenerated**: `beta/atx-24pin-rev3/bom/bom.csv` (65 rows), confirms `FL1` correctly
   flagged DNP, all new refs present with footprints/values.
 
 ## Known residue (not fixed this pass, flagged)

@@ -28,7 +28,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-EPS = os.path.join(ROOT, "modules", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
+EPS = os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
 HUB = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb")
 
 try:

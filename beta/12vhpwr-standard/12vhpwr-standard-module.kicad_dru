@@ -1,0 +1,35 @@
+(version 1)
+
+# CEC 12VHPWR Standard module -- custom design rules (auto-loaded by KiCad;
+# the fresh-wave materialize carriage copies this next to every variant so
+# rule-loaded DRC sees the same floors -- 2026-07-19, closes the "trace width
+# not in the running cycle" gap for this board: classes rode the .kicad_pro
+# but NO dru floors existed, so FR-thin power passed DRC silently).
+
+(rule "Power min width"
+	(constraint track_width (min 0.5mm))
+	(condition "A.NetClass == 'Power'"))
+
+# NO width floor on /SENSEP* (Power12V): the six per-pin 12V lanes are laid as
+# LOCKED copper by cec_force_lanes at their designed widths (2.5mm lanes necking
+# to 0.95mm through the J3/J4 GND barrel gaps -- the v7 geometry), and the
+# Kelvin sense taps + the lane HI taps share these same nets as deliberate
+# 0.25-0.8mm stubs. A netclass floor cannot distinguish the designed thin
+# segments from router-thin defects; lane integrity is owned by the force-lane
+# refusals + the electrothermal gate, and making FR itself lay class widths is
+# the cec3 fork item of record.
+
+(rule "Sense fab floor"
+	(constraint track_width (min 0.2mm))
+	(condition "A.NetClass == 'Sense'"))
+
+(rule "Signal fab floor"
+	(constraint track_width (min 0.2mm))
+	(condition "A.NetClass == 'Signal' || A.NetClass == 'Default'"))
+
+# Current-carrying via floor on the 12V lanes (production note: the proto's
+# 0.6/0.3 F<->B transition vias are below the 0.9/0.5 netclass spec -- enlarge
+# at the production rev; this floor makes a NEW undersized via visible).
+(rule "Power12V via floor"
+	(constraint via_diameter (min 0.6mm))
+	(condition "A.NetClass == 'Power12V'"))

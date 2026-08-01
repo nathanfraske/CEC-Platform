@@ -138,6 +138,21 @@ provision() {
     printf '%s  warn%s vendored broker not found at %s -- skipping\n' "$c_ylw" "$c_rst" "$vendored"
   fi
 
+  step "6b/6  Deploy + start the cec-dashboard systemd unit (owner verification surface on :8090)"
+  # Same WSL-ephemeral reasoning as the broker: the dashboard used to be started by
+  # hand from an agent session, so every WSL restart silently took it down (measured
+  # 2026-07-25). The unit runs straight out of the repo checkout -- nothing to deploy.
+  dash_unit="$REPO_ROOT/ops/cec-dashboard.service"
+  if [ -f "$dash_unit" ]; then
+    SUDO cp "$dash_unit" /etc/systemd/system/
+    SUDO systemctl daemon-reload
+    SUDO systemctl enable --now cec-dashboard >/dev/null 2>&1 || true
+    SUDO systemctl restart cec-dashboard
+    ok "cec-dashboard enabled (autostarts with WSL, http://localhost:8090)"
+  else
+    printf '%s  warn%s dashboard unit not found at %s -- skipping\n' "$c_ylw" "$c_rst" "$dash_unit"
+  fi
+
   step "bot git auth (from the survives-WSL secrets file, if present)"
   # shellcheck disable=SC1091
   . "$REPO_ROOT/ops/secrets/load-secrets.sh" 2>/dev/null || true

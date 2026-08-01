@@ -295,6 +295,51 @@ REGISTRY = [
       rule="Three fiducials (board-only, excl-BOM).", source="as-built", status="proposed",
       params={"min_count": 3}),
 
+    # ---- assembly/DFM protocols (STANDARD-DESIGN-SHEET §K, 2026-07-17) -----------------
+    # The K-protocol mechanization set (sheet §J.6). All ADVISORY + proposed: the sheet's
+    # numbers are tagged [wb] and the owner has not ratified the mechanized thresholds;
+    # these AUDIT and report, they do not gate. Corpus rows:
+    # corpus/staging/general/design-sheet-k-protocols.json.
+    C(id="fiducial-protocol", title="Fiducial protocol: 3x, asymmetric, edge margin, clear zone",
+      category="assembly-dfm", severity="advisory", checkable="yes", directive="none",
+      rule="Given fiducials are placed (presence is fiducials-present's gate), the GLOBAL set per "
+           "assembled side is exactly 3, placed ASYMMETRICALLY (the set must not map onto itself "
+           "under 180-degree rotation about the board centre -- symmetry leaves a vision "
+           "ambiguity), each >= edge_min_mm from every board edge and with no foreign pad inside "
+           "clear_mm (copper/silk clear zone). N/A on a board with no fiducials yet.",
+      source="STANDARD-DESIGN-SHEET §K.4 [wb] + IPC-7351B/JLC (I.11/I.17); 12VHPWR precedent "
+             "measured 2026-07-17: asymmetry PASSES, min edge margin 2.9mm vs the 5.0 target",
+      status="proposed", params={"count": 3, "edge_min_mm": 5.0, "clear_mm": 3.0,
+                                 "sym_tol_mm": 1.0}),
+    C(id="mlcc-edge-orientation", title="MLCC near a board edge lies parallel to it",
+      category="assembly-dfm", severity="strong", checkable="yes", directive="none",
+      rule="An MLCC (C* on an 0402/0603/0805 land) whose courtyard comes within edge_band_mm of a "
+           "board edge must orient its LONG axis PARALLEL to that edge (depanel/handling flex "
+           "cracks the terminations of a perpendicular part; the K.1 rule also keeps them >= 1mm "
+           "in). N/A when no MLCC sits in the band.",
+      source="STANDARD-DESIGN-SHEET §K.1 + MLCC flex-crack vendor guidance (I.15); RATIFIED "
+             "2026-07-19 (owner GO after fleet calibration: zero alpha false-positives, all "
+             "N/A; caught a real fresh-wave defect C22-perpendicular-at-edge)",
+      status="ratified", params={"edge_band_mm": 1.0}),
+    C(id="ecap-edge-distance", title="Large SMD electrolytic clear of board edges",
+      category="assembly-dfm", severity="strong", checkable="yes", directive="none",
+      rule="A large SMD aluminum-electrolytic can (>= min_uf uF, or a CP_Elec-class land) sits "
+           ">= edge_min_mm from every board edge (base-weld flex + V-cut rule; the vent/enclosure "
+           "and reflow rules are BOM/enclosure-side, sheet §K.8). N/A when the board carries none.",
+      source="STANDARD-DESIGN-SHEET §K.8 + SMD e-cap vendor reflow/lifetime guidance (I.16); "
+             "hub-standard C1 measured 12.05mm 2026-07-17 (passes); RATIFIED 2026-07-19 "
+             "(owner GO after fleet calibration: only e-cap board PASSES, rest N/A)",
+      status="ratified", params={"edge_min_mm": 5.0, "min_uf": 470.0}),
+    C(id="decoupler-adjacency-k5", title="Decoupling loop length vs the K.5 target (audit)",
+      category="assembly-dfm", severity="advisory", checkable="yes", directive="adjacent",
+      rule="AUDIT of the K.5 geometry target: every 100nF-class decoupler's power pad sits within "
+           "target_mm (pad-to-pad) of its IC power pin. Distinct from decoupling-cap-owner (the "
+           "ratified as-built 3.5mm ownership gate): this reports the gap to the sheet's tighter "
+           "protocol target so beta layouts can close it; it never blocks.",
+      source="STANDARD-DESIGN-SHEET §K.5 [wb] + Ott ch.11 / Bogatin PDN loop-inductance basis "
+             "(I.2-class); as-built calibration remains decoupling-cap-owner's 3.5mm",
+      status="proposed", params={"target_mm": 1.5}),
+
     # ---- schematic / BOM conformance ---------------------------------------------------
     C(id="detect-resistor-code", title="DETECT code resistor per §2.3",
       category="conformance", severity="hard", checkable="yes", directive="none",
@@ -1469,6 +1514,151 @@ def _chk_fid(board, path, ctx):
     return True, "%d fiducials present" % len(fids)
 
 
+@checker("fiducial-protocol")
+def _chk_fid_protocol(board, path, ctx):
+    want = _param("fiducial-protocol", "count", 3)
+    edge_min = _param("fiducial-protocol", "edge_min_mm", 5.0)
+    clear = _param("fiducial-protocol", "clear_mm", 3.0)
+    tol = _param("fiducial-protocol", "sym_tol_mm", 1.0)
+    fids = [fp for fp in board.GetFootprints()
+            if fp.GetReference().upper().startswith("FID") and not fp.IsFlipped()]
+    if not fids:
+        return None, "no fiducials placed (presence is fiducials-present's gate)"
+    fails = []
+    if len(fids) != want:
+        fails.append("count %d != %d (three corners, never four)" % (len(fids), want))
+    L, T, R, B = _edge_bbox(board)
+    cx, cy = (L + R) / 2.0, (T + B) / 2.0
+    pts = [(_mm(fp.GetPosition().x), _mm(fp.GetPosition().y)) for fp in fids]
+    # 180-degree vision ambiguity: the set maps onto itself under rotation about centre
+    rot = [(2 * cx - x, 2 * cy - y) for (x, y) in pts]
+    if all(any(math.hypot(rx - x, ry - y) <= tol for (x, y) in pts) for (rx, ry) in rot):
+        fails.append("fiducial set is 180-degree symmetric about the board centre "
+                     "(vision ambiguity) within %.1fmm" % tol)
+    for fp, (x, y) in zip(fids, pts):
+        m = min(x - L, R - x, y - T, B - y)
+        if m < edge_min:
+            fails.append("%s %.1fmm from an edge (< %.1f)" % (fp.GetReference(), m, edge_min))
+        near = min((_min_pad_dist_mm(fp, o) for o in board.GetFootprints()
+                    if o is not fp and list(o.Pads()) and not o.GetReference().upper().startswith("FID")),
+                   default=1e9)
+        if near < clear:
+            fails.append("%s clear zone %.1fmm (< %.1f)" % (fp.GetReference(), near, clear))
+    if fails:
+        return False, "fiducial protocol (§K.4): " + "; ".join(fails[:6])
+    return True, "%d fiducials, asymmetric, edge >= %.1fmm, clear >= %.1fmm" % (
+        len(fids), edge_min, clear)
+
+
+_MLCC_LANDS = ("_0402_1005", "_0603_1608", "_0805_2012")
+
+
+@checker("mlcc-edge-orientation")
+def _chk_mlcc_edge(board, path, ctx):
+    band = _param("mlcc-edge-orientation", "edge_band_mm", 1.0)
+    L, T, R, B = _edge_bbox(board)
+    in_band, bad = [], []
+    for fp in board.GetFootprints():
+        if not fp.GetReference().upper().startswith("C"):
+            continue
+        if not any(s in fp.GetFPIDAsString() for s in _MLCC_LANDS):
+            continue
+        pads = list(fp.Pads())
+        if len(pads) != 2:
+            continue
+        xs = [_mm(p.GetPosition().x) for p in pads]
+        ys = [_mm(p.GetPosition().y) for p in pads]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        margins = {"L": x0 - L, "R": R - x1, "T": y0 - T, "B": B - y1}
+        edge, m = min(margins.items(), key=lambda kv: kv[1])
+        if m > band:
+            continue
+        if m < -2.0:
+            continue        # parked off-board mid-layout -- courtyard/edge DRC's business, not K.1's
+        in_band.append(fp.GetReference())
+        axis_vertical = abs(y1 - y0) > abs(x1 - x0)
+        edge_vertical = edge in ("L", "R")
+        if axis_vertical != edge_vertical:
+            bad.append("%s perpendicular to the %s edge at %.2fmm" % (fp.GetReference(), edge, m))
+    if not in_band:
+        return None, "no 2-pad MLCC within %.1fmm of a board edge" % band
+    if bad:
+        return False, "MLCC long axis must parallel a near edge (§K.1 flex-crack): " + "; ".join(bad[:6])
+    return True, "%d MLCC(s) in the %.1fmm edge band, all parallel" % (len(in_band), band)
+
+
+@checker("ecap-edge-distance")
+def _chk_ecap_edge(board, path, ctx):
+    edge_min = _param("ecap-edge-distance", "edge_min_mm", 5.0)
+    min_uf = _param("ecap-edge-distance", "min_uf", 470.0)
+
+    def _is_big_ecap(fp):
+        if "CP_Elec" in fp.GetFPIDAsString():
+            return True
+        m = re.match(r"([\d.]+)\s*[uµ]F", _val(fp))
+        return bool(m) and float(m.group(1)) >= min_uf
+
+    caps = [fp for fp in board.GetFootprints()
+            if fp.GetReference().upper().startswith("C") and _is_big_ecap(fp)]
+    if not caps:
+        return None, "no large SMD electrolytic on this board"
+    L, T, R, B = _edge_bbox(board)
+    bad = []
+    for fp in caps:
+        x, y = _mm(fp.GetPosition().x), _mm(fp.GetPosition().y)
+        m = min(x - L, R - x, y - T, B - y)
+        if m < edge_min:
+            bad.append("%s (%s) %.1fmm from an edge (< %.1f)" % (
+                fp.GetReference(), _val(fp), m, edge_min))
+    if bad:
+        return False, "large e-cap edge rule (§K.8): " + "; ".join(bad)
+    return True, "%d large e-cap(s) all >= %.1fmm from every edge" % (len(caps), edge_min)
+
+
+@checker("decoupler-adjacency-k5")
+def _chk_decap_k5(board, path, ctx):
+    target = _param("decoupler-adjacency-k5", "target_mm", 1.5)
+    POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
+    by_net = _pads_by_net(board)
+    ic_pad_by_net = collections.defaultdict(list)
+    for n, lst in by_net.items():
+        if any(p in n.upper() for p in POWER):
+            for r, pad, fp in lst:
+                if r.startswith("U"):
+                    ic_pad_by_net[n].append((pad, r))
+    if not ic_pad_by_net:
+        return None, "no IC power pads resolved"
+    worst, over = [], []
+    for fp in board.GetFootprints():
+        r = fp.GetReference()
+        if not r.startswith("C"):
+            continue
+        val = _val(fp).lower().replace("µ", "u")
+        if not (("n" in val and "u" not in val) or "0.1u" in val):
+            continue
+        best, owner = 1e9, None
+        for cpad in fp.Pads():
+            for ipad, iref in ic_pad_by_net.get(cpad.GetNetname(), []):
+                a, b = cpad.GetPosition(), ipad.GetPosition()
+                dd = math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
+                if dd < best:
+                    best, owner = dd, iref
+        if owner is None or best > 1e8:
+            continue
+        worst.append(best)
+        if best > target:
+            over.append((r, best, owner))
+    if not worst:
+        return None, "no decoupler-to-IC loop resolved"
+    if over:
+        over.sort(key=lambda t: -t[1])
+        return (False, "K.5 audit: %d/%d decoupler(s) beyond the %.1fmm pad-to-pad target "
+                "(as-built gate stays decoupling-cap-owner @3.5): %s"
+                % (len(over), len(worst), target,
+                   ", ".join("%s %.1fmm (%s)" % o for o in over[:8])))
+    return True, "all %d decoupler loops within the %.1fmm K.5 target" % (len(worst), target)
+
+
 @checker("rj45-link-pinmap")
 def _chk_rj45(board, path, ctx):
     rj = [fp for fp in board.GetFootprints() if _is(fp, "RJ45")]
@@ -2298,3 +2488,105 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
+    """Anything sitting inside a pour's OWN reserved region: parts, tracks, vias.
+
+    Owner ruling 2026-07-25: "prevent anything from ever placing inside a pour --
+    the pour is set first and should never be incurred upon."
+
+    Why this exists alongside no-foreign-on-high-current-pour: that rule measures a
+    RE-DERIVED corridor box, so it reports 0 while the pour that was actually laid
+    is being encroached. Measured on the eps winner -- `foreign=0t` in the verdict,
+    and against the laid pours: 4 foreign pads (C1, C20), 7 tracks, 4 vias. This
+    check reads the zones ON THE BOARD, which is the only geometry the rule can
+    honestly be about.
+
+    Measured against the zone OUTLINE, not its fill: the filler voids around every
+    obstacle, so "nothing inside the fill" is true by construction and says nothing
+    about whether the region was respected.
+
+    Own-net items are never incursions -- a pour must reach its own pads. The GND
+    plane is skipped by default (it is the board-wide reference, not a reserved
+    corridor).
+
+    Returns {"applicable", "status", "n_parts", "n_tracks", "n_vias", "items"}.
+    """
+    try:
+        from shapely.geometry import Polygon, box as _box, LineString
+        from shapely.ops import unary_union
+    except ImportError:
+        return {"applicable": False, "status": "na", "reason": "shapely absent",
+                "n_parts": 0, "n_tracks": 0, "n_vias": 0, "items": []}
+    board = pcbnew.LoadBoard(board_path) if isinstance(board_path, str) else board_path
+    zones = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        net = z.GetNetname() or ""
+        name = z.GetZoneName() or ""
+        if exclude_plane and (net == "GND" or name.startswith("GND Plane")):
+            continue
+        for lid in board.GetEnabledLayers().CuStack():
+            if not z.IsOnLayer(lid):
+                continue
+            o = z.Outline()
+            ps = []
+            for i in range(o.OutlineCount()):
+                oo = o.Outline(i)
+                pts = [(oo.CPoint(k).x / 1e6, oo.CPoint(k).y / 1e6)
+                       for k in range(oo.PointCount())]
+                if len(pts) >= 3:
+                    ps.append(Polygon(pts).buffer(0))
+            if ps:
+                zones.append((net, lid, name, unary_union(ps)))
+    if not zones:
+        return {"applicable": False, "status": "na", "n_parts": 0, "n_tracks": 0,
+                "n_vias": 0, "items": []}
+    items, n_parts, n_tracks, n_vias = [], 0, 0, 0
+    for net, lid, name, g in zones:
+        for fp in board.GetFootprints():
+            for pd in fp.Pads():
+                if not pd.IsOnLayer(lid) or pd.GetNetname() == net:
+                    continue
+                pb = pd.GetBoundingBox()
+                r = _box(pb.GetLeft() / 1e6, pb.GetTop() / 1e6,
+                         pb.GetRight() / 1e6, pb.GetBottom() / 1e6)
+                if g.intersects(r) and g.intersection(r).area > 0.001:
+                    n_parts += 1
+                    items.append({"kind": "pad", "pour": name,
+                                  "ref": fp.GetReference(), "net": pd.GetNetname()})
+        for t in board.GetTracks():
+            if t.GetNetname() == net:
+                continue
+            if t.GetClass() == "PCB_TRACK" and t.GetLayer() == lid:
+                s_, e_ = t.GetStart(), t.GetEnd()
+                ln = LineString([(s_.x / 1e6, s_.y / 1e6), (e_.x / 1e6, e_.y / 1e6)])
+                if g.intersects(ln):
+                    n_tracks += 1
+                    items.append({"kind": "track", "pour": name, "net": t.GetNetname()})
+            elif t.GetClass() == "PCB_VIA" and t.IsOnLayer(lid):
+                p = t.GetPosition()
+                r = _box(p.x / 1e6 - 0.45, p.y / 1e6 - 0.45,
+                         p.x / 1e6 + 0.45, p.y / 1e6 + 0.45)
+                if g.intersects(r):
+                    n_vias += 1
+                    items.append({"kind": "via", "pour": name, "net": t.GetNetname()})
+    return {"applicable": True, "status": "ok", "n_parts": n_parts,
+            "n_tracks": n_tracks, "n_vias": n_vias, "items": items[:60]}
+
+
+@checker("no-incursion-in-laid-pour")
+def _chk_laid_pour_incursion(board, path, ctx):
+    """Owner ruling 2026-07-25: nothing is ever placed inside a pour. The pour is
+    set first; a placement that cannot work without encroaching sends the POURS
+    back to be redone, never the rule bent. See laid_pour_incursion_summary."""
+    rep = laid_pour_incursion_summary(path)
+    if not rep.get("applicable"):
+        return []
+    out = []
+    for it in rep["items"]:
+        out.append("%s %s [%s] inside pour %s"
+                   % (it["kind"], it.get("ref", ""), it.get("net", ""), it["pour"]))
+    return out

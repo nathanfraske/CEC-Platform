@@ -37,6 +37,10 @@ import os, sys, math, shutil, json
 
 import pcbnew
 
+# SWIG REGISTRY PIN -- see scripts/cec_swig_guard.py (hub all-9999 root cause).
+import cec_swig_guard as _swig_guard                     # noqa: E402
+_swig_guard.pin()
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
@@ -196,6 +200,40 @@ def _seg_cross(a, b, c, d):
     return (ccw(a, c, d) * ccw(b, c, d) < 0) and (ccw(a, b, c) * ccw(a, b, d) < 0)
 
 
+def _seg_seg_dist(a, b, c, d):
+    """Min distance between segments ab and cd (mm coords)."""
+    if _seg_cross(a, b, c, d):
+        return 0.0
+    def pt_seg(p, s, e):
+        vx, vy = e[0] - s[0], e[1] - s[1]
+        L2 = vx * vx + vy * vy
+        if L2 <= 1e-12:
+            return math.hypot(p[0] - s[0], p[1] - s[1])
+        t = max(0.0, min(1.0, ((p[0] - s[0]) * vx + (p[1] - s[1]) * vy) / L2))
+        return math.hypot(p[0] - (s[0] + t * vx), p[1] - (s[1] + t * vy))
+    return min(pt_seg(a, c, d), pt_seg(b, c, d), pt_seg(c, a, b), pt_seg(d, a, b))
+
+
+def _pair_min_clear(p_pts, n_pts, mid_p, mid_n, width, gap):
+    """True iff no P segment runs illegally close to any N segment. The foreign guard
+    exempts BOTH pair nets (own={pc,nc}) and _polys_no_cross only catches strict
+    CROSSINGS, so partner-track OVERLAP was unguarded -- measured live on the Hub
+    chain 2026-07-19: 3-19 locked-vs-locked /CAN_H x /CAN_L collisions on EVERY
+    route ("the locked lay overlaps ITSELF"). Floors: the coupled MIDDLE pair
+    (indices mid_p/mid_n) is constructed at exactly width+gap -> allow it with a
+    2% tolerance; every other segment combination must keep >= width + gap/2
+    centerline (an escape dipping inside half the pair gap is always wrong
+    geometry; legitimate outside-approaches keep >= gap)."""
+    floor_mid = width + gap - 0.02
+    floor_other = width + 0.5 * gap
+    for i, (a, b) in enumerate(zip(p_pts, p_pts[1:])):
+        for j, (c, d) in enumerate(zip(n_pts, n_pts[1:])):
+            need = floor_mid if (i == mid_p and j == mid_n) else floor_other
+            if _seg_seg_dist(a, b, c, d) < need:
+                return False
+    return True
+
+
 def _polys_no_cross(p_pts, n_pts):
     """True iff the two members never CROSS each other. The foreign guard (cec_fr._tap_foreign_clear)
     deliberately excludes the pair's own two nets (they are MEANT to run adjacent), so P-vs-N
@@ -271,7 +309,25 @@ def _lay(board, net_code, pts, width_nm, layer_id):
     return laid
 
 
-def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=False):
+def _crosses_avoid(pts, avoid, width):
+    """Does this polyline (at *width*) enter any reserved rect? Returns the rect ref."""
+    if not avoid:
+        return None
+    hw = width / 2.0
+    for (x0, y0, x1, y1, ref) in avoid:
+        ax0, ay0, ax1, ay1 = x0 - hw, y0 - hw, x1 + hw, y1 + hw
+        for (px, py), (qx, qy) in zip(pts, pts[1:]):
+            # segment-vs-AABB: sample-free slab test on the segment's own bbox first
+            if max(px, qx) < ax0 or min(px, qx) > ax1 or max(py, qy) < ay0 or min(py, qy) > ay1:
+                continue
+            # a segment whose bbox overlaps the rect either ends inside it or
+            # crosses an edge; both are entries for our purposes
+            return ref
+    return None
+
+
+def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=False,
+                       avoid=()):
     """Route ONE coupled pair on *board* (in place): a short per-endpoint ESCAPE (a modest fan of
     angles, plan §4 R3 '(B)-lite') off each pad into clear space, then a COUPLED MIDDLE RUN at the
     netclass width/gap between the source-side and dest-side escapes. Every segment is guarded with
@@ -284,6 +340,7 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
     Zdiff is reported BOTH ways (owner ask): 'zdiff_nominal' from the netclass width/gap and
     'zdiff_measured' from the actually-laid geometry, vs 'ztarget'. On refusal returns
     {'name','p','n','refused'} so the manifest handoff is clean."""
+    _corridor_rejects = set()
     p_net, n_net = pair["p"], pair["n"]
     width, gap = pair["width"], pair["gap"]
     p_ends = _endpoints(_pads_on_net(board, p_net))
@@ -368,6 +425,23 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
             n_pts = eN0 + [Nle] + list(reversed(eN1))[1:]
             if not _polys_no_cross(p_pts, n_pts):
                 continue
+            if not _pair_min_clear(p_pts, n_pts, len(eP0) - 1, len(eN0) - 1,
+                                   width, gap):
+                continue                          # partner overlap/graze -> next candidate
+            # RESERVED POUR CORRIDORS ARE OBSTACLES (2026-07-25). This router runs
+            # on the "UNCONTENDED" placement and locks what it lays, and its
+            # docstring says reservations are "the PourPlan keepout HINTS ...
+            # passed to FR" -- true for FR, and exactly why the pairs themselves
+            # cut straight through them: measured on eps, the USB pair laid 14mm
+            # of LOCKED copper across /SENSEC1_LO's corridor before FR ever saw
+            # the board, and the pour was then poured around it. A candidate that
+            # enters a corridor is rejected here; if every candidate does, the
+            # pair REFUSES (its own discipline) and FR routes it instead --
+            # honouring the keepout, which is the outcome we want.
+            _av = _crosses_avoid(p_pts, avoid, width) or _crosses_avoid(n_pts, avoid, width)
+            if _av:
+                _corridor_rejects.add(_av)
+                continue
             laid = _lay(board, pc, p_pts, width_nm, lay_id)
             laid += _lay(board, nc, n_pts, width_nm, lay_id)
             zd_nom = cec_impedance.zdiff_edge_coupled(width, gap)
@@ -388,16 +462,21 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                     "zdiff_measured": (round(zd_meas, 1) if zd_meas is not None else None),
                     "ztarget": pair.get("ztarget"), "segments": len(laid),
                     "length_mm": run_len, "coupled_len_mm": coupled_len}
-    return {"name": pair["name"], "p": p_net, "n": n_net, "refused":
-            "no clear coupled corridor at exact %sR geometry (escape+middle guard refused); "
-            "hand off to cec_staged_fr tier-fallback" % (clearance if clearance is not None else 0.2)}
+    _why = ("no clear coupled corridor at exact %sR geometry (escape+middle guard refused); "
+            "hand off to cec_staged_fr tier-fallback"
+            % (clearance if clearance is not None else 0.2))
+    if _corridor_rejects:
+        _why += (" -- every candidate entered a RESERVED POUR CORRIDOR (%s); FR will route "
+                 "this pair instead, honouring the keepout"
+                 % ", ".join(sorted(_corridor_rejects)))
+    return {"name": pair["name"], "p": p_net, "n": n_net, "refused": _why}
 
 
 # ---------------------------------------------------------------------------
 # the precision ladder
 # ---------------------------------------------------------------------------
 def precision_route(placed_board, out_board, *, kelvin_width=0.25, verbose=True,
-                    do_kelvin=True, do_pairs=True):
+                    do_kelvin=True, do_pairs=True, avoid=()):
     """Run the PRE-FR precision ladder (R2 kelvin + R3 coupled pairs) on the UNCONTENDED
     placement *placed_board*, LOCK every track laid, and save to *out_board*.
 
@@ -422,9 +501,12 @@ def precision_route(placed_board, out_board, *, kelvin_width=0.25, verbose=True,
 
     # ---- R3 COUPLED PAIRS (deterministic, guarded, refuse-not-force) ----
     routed_pairs, refused_pairs = [], []
+    if verbose and avoid:
+        print("[precision] R3 pairs: %d reserved pour corridor(s) treated as obstacles"
+              % len(avoid), file=sys.stderr)
     if do_pairs:
         for pair in derive_coupled_pairs(placed_board, board=board):
-            rep = route_coupled_pair(board, pair, verbose=verbose)
+            rep = route_coupled_pair(board, pair, verbose=verbose, avoid=avoid)
             if rep.get("refused"):
                 refused_pairs.append(rep)
                 if verbose:

@@ -32,10 +32,10 @@ tooling that checks them.
 | Hub Enterprise | [`hubs/hub-enterprise`](hubs/hub-enterprise) | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | [`hubs/hub-mission-critical`](hubs/hub-mission-critical) | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
 | 24-pin ATX module | [`modules/atx-24pin`](modules/atx-24pin) (+ [`atx-24pin-rev2`](modules/atx-24pin-rev2), the current line) | Standard | per module spec | – | – | $35 |
-| EPS 8-pin module | [`modules/eps-8pin`](modules/eps-8pin) | Standard | per module spec | – | – | $32 |
-| PCIe 8-pin 2-port | [`modules/pcie-8pin-2port`](modules/pcie-8pin-2port) | Standard | per module spec | – | – | $38 |
-| PCIe 8-pin 3-port | [`modules/pcie-8pin-3port`](modules/pcie-8pin-3port) | Standard | per module spec | – | – | ~$42 |
-| 12VHPWR Standard module | [`modules/12vhpwr-standard`](modules/12vhpwr-standard) | Standard | per module spec | – | – | $49 |
+| EPS 8-pin module | [`beta/eps-8pin`](beta/eps-8pin) | Standard | per module spec | – | – | $32 |
+| PCIe 8-pin 2-port | [`beta/pcie-8pin-2port`](beta/pcie-8pin-2port) | Standard | per module spec | – | – | $38 |
+| PCIe 8-pin 3-port | [`beta/pcie-8pin-3port`](beta/pcie-8pin-3port) | Standard | per module spec | – | – | ~$42 |
+| 12VHPWR Standard module | [`beta/12vhpwr-standard`](beta/12vhpwr-standard) | Standard | per module spec | – | – | $49 |
 | 12VHPWR Pro module (lead) | [`modules/12vhpwr-pro`](modules/12vhpwr-pro) | Pro | ESP32-P4 | – | – | $98–$99 |
 
 Enterprise and Mission Critical are specified at platform-summary level only

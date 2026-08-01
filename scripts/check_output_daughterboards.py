@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# Verification harness for modules/output-daughterboards/{atx24,eps,pcie}-out-db
+# Verification harness for beta/output-daughterboards/{atx24,eps,pcie}-out-db
 # (spec Sec.2.8 v1.4.0 output-connector daughterboards). Checks, per family:
 #   - ERC clean (error severity)
 #   - DRC clean (error severity)

@@ -1,0 +1,5 @@
+Work-in-progress draft. scripts/check-all.sh (and CI) skip ERC/DRC for this
+board while this marker exists. Delete it to enforce ERC/DRC once the design is
+ready. smoke-tester is SKETCH-STAGE: no .kicad_sch yet (tester-standard
+convention — README + assets + BOM are the design basis; capture is Phase A/B
+per README §8; DRAFT drops only after the arc-coordination bench).

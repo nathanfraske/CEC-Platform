@@ -1108,7 +1108,7 @@ if __name__ == "__main__":
     BOARDS = [
         ("/tmp/fr-test/b_routed.kicad_pcb", "routed"),
         ("/tmp/fr-test/b.kicad_pcb",         "unrouted"),
-        ("/home/user/CEC-Platform/modules/eps-8pin/eps8pin-module.kicad_pcb",
+        ("/home/user/CEC-Platform/beta/eps-8pin/eps8pin-module.kicad_pcb",
          "floorplan"),
     ]
 

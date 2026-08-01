@@ -37,7 +37,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-BOARD = "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"
+BOARD = "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"
 BLUEPRINT = "build/cell-refine/hpwr-RS4-b7/refined-template.json"
 OUT_DIR = "build/cell-refine/stamped"
 THIN_MM = 0.5                                     # port-net copper below this = cell-owned

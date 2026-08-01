@@ -1,0 +1,4 @@
+Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
+J_DUT,1,"Mini-Fit Jr 24-ckt male vertical, std tin",Molex 44206-class 24p,44206-class,Molex,,,consigned (platform Mini-Fit posture — no LCSC line by design),,,,the DUT mating point; ~$1.80
+J_S1,1,"2x13 shrouded header pair, keyed",THT 2x13,,generic,,,JLC basic — bind at capture,,,,mates J_SNOUT on MAIN; 24 lines + 2 key; ~$0.70/pair
+PCB_S,1,snout paddle 2-layer,n/a,,JLCPCB,,,jlcpcb (panel w/ MAIN),,,,~$0.60

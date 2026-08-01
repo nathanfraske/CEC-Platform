@@ -32,7 +32,7 @@ def measure(board_path):
 
 def main():
     label = sys.argv[1] if len(sys.argv) > 1 else "eval"
-    P = json.load(open("modules/atx-24pin-rev3/board-manifest.json"))["placement_directives"]
+    P = json.load(open("beta/atx-24pin-rev3/board-manifest.json"))["placement_directives"]
     P = {k: v for k, v in P.items()
          if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))}
     rows = []

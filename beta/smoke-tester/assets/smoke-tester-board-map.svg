@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="800" viewBox="0 0 1050 800" font-family="monospace">
+  <rect width="1050" height="800" fill="#ffffff"/>
+  <text x="20" y="26" font-size="16" font-weight="bold">SMOKE TESTER — sign-off board map (2026-07-25)</text>
+  <text x="20" y="43" font-size="10" fill="#555">4 PCB designs (2 permanent, 2 plug-in) + external accessories · one panelized 2-layer fab order · diagram assumes decision #14 = BOTH (GDTs + LAMP TEST), flagged ◆</text>
+
+  <!-- enclosure -->
+  <rect x="20" y="58" width="740" height="470" fill="none" stroke="#333" stroke-width="2" rx="8"/>
+  <text x="30" y="75" font-size="9.5" fill="#555">ENCLOSURE — lid molds the starter kit (blade set + 2 HRC + spare brick + verdict pad); lid-open µswitch → K1 RESET (open door = disarmed)</text>
+
+  <!-- FACEPLATE -->
+  <rect x="40" y="90" width="150" height="420" fill="#f0ead8" stroke="#8a6d00" stroke-width="2"/>
+  <text x="50" y="108" font-size="11" font-weight="bold">BOARD 2 — FACEPLATE</text>
+  <text x="50" y="122" font-size="9">FR4, ZERO copper in the</text>
+  <text x="50" y="133" font-size="9">fault path · NO connector</text>
+  <text x="50" y="150" font-size="9" font-weight="bold">apertures for:</text>
+  <text x="50" y="164" font-size="9">· 8 ATO blade holders</text>
+  <text x="50" y="176" font-size="9">· 16 way lamps + 8 blown</text>
+  <text x="50" y="188" font-size="9">· CASE-LIVE + RAIL-LIVE</text>
+  <text x="50" y="200" font-size="9">  neon jewels (amber)</text>
+  <text x="50" y="212" font-size="9" fill="#a11">◆ flicker-flame tube jewel</text>
+  <text x="50" y="224" font-size="9" fill="#a11">◆ LAMP TEST / SHOW button</text>
+  <text x="50" y="236" font-size="9">· needle meter cutout</text>
+  <text x="50" y="248" font-size="9">· ARM (missile cover)</text>
+  <text x="50" y="260" font-size="9">· TEST · MIN-LOAD · rotary</text>
+  <text x="50" y="278" font-size="9" fill="#555">silk = verdict truth-table</text>
+  <text x="50" y="290" font-size="9" fill="#555">+ coroner's map + QR</text>
+  <text x="50" y="308" font-size="9" fill="#555">parts mount on MAIN and</text>
+  <text x="50" y="320" font-size="9" fill="#555">poke through — way current</text>
+  <text x="50" y="332" font-size="9" fill="#555">never crosses a panel joint</text>
+
+  <!-- MAIN -->
+  <rect x="215" y="90" width="330" height="420" fill="#eaf0fd" stroke="#2255aa" stroke-width="2.5"/>
+  <text x="225" y="108" font-size="11" font-weight="bold" fill="#2255aa">BOARD 1 — MAIN (permanent, 2-layer)</text>
+  <text x="225" y="122" font-size="8.5">ATO + HRC holders · 6× LM339 + TLV431 · K1 latching 1-pole (HF3F-L/5)</text>
+  <text x="225" y="133" font-size="8.5">2S store ⊕ harvest-direct diode-OR (instant-on) · divider strings (300V class)</text>
+  <text x="225" y="144" font-size="8.5" fill="#a11">◆ LAMP-TEST boost osc (~100mW, alive only while button held)</text>
+  <text x="225" y="155" font-size="8.5">creepage ≥3.2mm on all way copper · no copper upstream of a sacrifice</text>
+
+  <rect x="225" y="168" width="130" height="42" fill="#fff" stroke="#c22" stroke-width="1.5"/>
+  <text x="231" y="182" font-size="9.5" font-weight="bold">J_SNOUT 2×13 keyed</text>
+  <text x="231" y="194" font-size="8.5">24 DUT lines + 2 key</text>
+  <text x="231" y="205" font-size="8.5">→ Board 4</text>
+
+  <rect x="225" y="222" width="130" height="42" fill="#fff" stroke="#c22" stroke-width="1.5"/>
+  <text x="231" y="236" font-size="9.5" font-weight="bold">J_BRICK 2×8 socket</text>
+  <text x="231" y="248" font-size="8.5">5 ways + 5 returns +</text>
+  <text x="231" y="259" font-size="8.5">harv in + 2 legs out + 2 key → Bd 3</text>
+
+  <rect x="225" y="276" width="130" height="36" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="231" y="290" font-size="9.5" font-weight="bold">PELLET CLIP (KF141V 2P)</text>
+  <text x="231" y="302" font-size="8.5">SMOKE-SHOT bay, behind window</text>
+
+  <rect x="225" y="324" width="130" height="32" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="231" y="337" font-size="9.5" font-weight="bold">J_PWR USB-C 5V</text>
+  <text x="231" y="348" font-size="8.5">instant-on feed + top-up</text>
+
+  <rect x="225" y="368" width="130" height="30" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="231" y="381" font-size="9.5" font-weight="bold">METER LUGS ×2</text>
+  <text x="231" y="392" font-size="8.5">wire → 85C1 (panel cutout)</text>
+
+  <rect x="225" y="410" width="130" height="30" fill="#fff" stroke="#a8830a" stroke-width="1.5"/>
+  <text x="231" y="423" font-size="9.5" font-weight="bold">EARTH STUD / LUG</text>
+  <text x="231" y="434" font-size="8.5">rear pigtail (decision #5)</text>
+
+  <rect x="225" y="452" width="130" height="30" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="231" y="465" font-size="9.5" font-weight="bold">LID µSWITCH 2-wire</text>
+  <text x="231" y="476" font-size="8.5">door open → K1 RESET</text>
+
+  <!-- per-way chain mini-flow inside main -->
+  <text x="375" y="176" font-size="8.5" fill="#555">per way (×5):</text>
+  <text x="375" y="188" font-size="8.5">snout → BLADE 1A-F</text>
+  <text x="375" y="199" font-size="8.5">→ HRC 2A-T 250VAC</text>
+  <text x="375" y="210" font-size="8.5">→ way node → brick</text>
+  <text x="375" y="221" font-size="8.5">clamps → bleeders /</text>
+  <text x="375" y="232" font-size="8.5">÷10 dividers → windows</text>
+  <text x="375" y="243" font-size="8.5">→ lamps · harvest →</text>
+  <text x="375" y="254" font-size="8.5">store+domain (5VSB⊕5V⊕USB)</text>
+
+  <!-- BRICK -->
+  <rect x="390" y="280" width="150" height="110" fill="#fdeaea" stroke="#c22" stroke-width="2.5"/>
+  <text x="398" y="296" font-size="10" font-weight="bold" fill="#a11">BOARD 3 — SACRIFICE BRICK</text>
+  <text x="398" y="309" font-size="8.5">plug-in consumable ③ ~$3.85</text>
+  <text x="398" y="321" font-size="8.5">5× MOV uniform 14D220K</text>
+  <text x="398" y="333" font-size="8.5" fill="#a11">◆ 5× glass GDTs, core ways —</text>
+  <text x="398" y="344" font-size="8.5" fill="#a11">  the visible mains crowbar</text>
+  <text x="398" y="356" font-size="8.5">8× 1Ω flameproof witness</text>
+  <text x="398" y="368" font-size="8.5">+ 33Ω 2W harvest fusible</text>
+  <text x="398" y="380" font-size="8.5">keyed · date-flag silk</text>
+  <line x1="355" y1="243" x2="390" y2="300" stroke="#c22" stroke-width="2"/>
+
+  <!-- SNOUT -->
+  <rect x="390" y="120" width="150" height="86" fill="#fdeaea" stroke="#c22" stroke-width="2.5"/>
+  <text x="398" y="136" font-size="10" font-weight="bold" fill="#a11">BOARD 4 — SNOUT</text>
+  <text x="398" y="149" font-size="8.5">plug-in DAMAGE spare ④ ~$3.1</text>
+  <text x="398" y="161" font-size="8.5">Mini-Fit Jr 24-ckt male,</text>
+  <text x="398" y="173" font-size="8.5">std tin (wear ruled moot</text>
+  <text x="398" y="185" font-size="8.5">at this duty — 2.3Ω math)</text>
+  <text x="398" y="199" font-size="8.5" fill="#8a6d00">#13 RULED: keep paddle</text>
+  <text x="398" y="210" font-size="8.5" fill="#8a6d00">(owner sign-off 2026-07-25)</text>
+  <line x1="355" y1="189" x2="390" y2="163" stroke="#c22" stroke-width="2"/>
+
+  <!-- DUT entry -->
+  <line x1="540" y1="150" x2="640" y2="150" stroke="#333" stroke-width="3"/>
+  <rect x="640" y="128" width="90" height="44" fill="#f4f4f4" stroke="#333"/>
+  <text x="648" y="146" font-size="9.5" font-weight="bold">DUT 24-pin</text>
+  <text x="648" y="158" font-size="8.5">(front recess)</text>
+
+  <!-- THEATER BAY -->
+  <rect x="560" y="280" width="170" height="110" fill="#fff8f0" stroke="#a11" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="568" y="296" font-size="9.5" font-weight="bold" fill="#a11">THEATER BAY (window)</text>
+  <text x="568" y="309" font-size="8.5">polycarbonate over the brick:</text>
+  <text x="568" y="321" font-size="8.5">· witness smoke (benign puff)</text>
+  <text x="568" y="333" font-size="8.5" fill="#a11">◆ GDT arc flash — a real arc,</text>
+  <text x="568" y="344" font-size="8.5" fill="#a11">  fault-powered, in sealed glass</text>
+  <text x="568" y="358" font-size="8.5" fill="#555">every photon is evidence —</text>
+  <text x="568" y="369" font-size="8.5" fill="#555">no faked drama at verdict time</text>
+
+  <!-- lid service -->
+  <rect x="560" y="410" width="170" height="90" fill="#fff" stroke="#2255aa" stroke-dasharray="4 3"/>
+  <text x="568" y="426" font-size="9" font-weight="bold" fill="#2255aa">INSIDE-LID SERVICE</text>
+  <text x="568" y="439" font-size="8.5">8× HRC twist caps</text>
+  <text x="568" y="451" font-size="8.5">brick bay (keyed socket)</text>
+  <text x="568" y="463" font-size="8.5">starter kit storage</text>
+  <text x="568" y="477" font-size="8.5" fill="#555">door open ⇒ K1 RESET ⇒</text>
+  <text x="568" y="488" font-size="8.5" fill="#555">disarmed, mechanically</text>
+
+  <!-- ACCESSORIES column -->
+  <rect x="790" y="58" width="240" height="200" fill="#f4fff4" stroke="#1a7a1a" stroke-width="1.5"/>
+  <text x="800" y="76" font-size="10.5" font-weight="bold" fill="#1a7a1a">EXTERNAL ACCESSORIES</text>
+  <text x="800" y="92" font-size="9">Smoke-pellet refills 50-bag ~$3;</text>
+  <text x="800" y="104" font-size="9">blades/HRCs = hardware-store std.</text>
+  <text x="800" y="118" font-size="9">AUX adapters DESCOPED 2026-07-25</text>
+  <text x="800" y="132" font-size="8.5" fill="#555">(cable pinouts = DMM / deck job;</text>
+  <text x="800" y="143" font-size="8.5" fill="#555">box never grows connectors)</text>
+  <text x="800" y="161" font-size="9">Consumable SKUs: Fuse+Flag $9 ·</text>
+  <text x="800" y="173" font-size="9">brick 2-pk $12–15 · snout $9</text>
+  <text x="800" y="189" font-size="8.5" fill="#555">(deck straight-through input boards</text>
+  <text x="800" y="200" font-size="8.5" fill="#555">= ST-tester spec, separate product —</text>
+  <text x="800" y="211" font-size="8.5" fill="#555">testers/DESIGN-SHEET.md §A)</text>
+  <text x="800" y="227" font-size="9">12VHPWR + per-cable metrology:</text>
+  <text x="800" y="239" font-size="9">the deck tiers own those (fence)</text>
+
+  <!-- FAB -->
+  <rect x="790" y="274" width="240" height="116" fill="#fafafa" stroke="#999"/>
+  <text x="800" y="292" font-size="10" font-weight="bold">FAB + COST</text>
+  <text x="800" y="307" font-size="8.5">ONE 2-layer JLC order, panelized:</text>
+  <text x="800" y="318" font-size="8.5">MAIN + FACEPLATE + BRICK×N + SNOUT×N</text>
+  <text x="800" y="329" font-size="8.5">(consumable stock rides ~free)</text>
+  <text x="800" y="345" font-size="9" font-weight="bold">Landed ≈$39–41 @100 w/ starter kit</text>
+  <text x="800" y="357" font-size="8.5">(post-VE + AUX descope; ~$31–33 @1k)</text>
+  <text x="800" y="371" font-size="9" font-weight="bold">Retail $79 (holds) · one SKU</text>
+  <text x="800" y="383" font-size="8.5">consigned lines: supercaps, meter, case</text>
+
+  <!-- power strip summary -->
+  <rect x="790" y="404" width="240" height="124" fill="#eaf0fd" stroke="#2255aa" stroke-dasharray="5 3"/>
+  <text x="800" y="421" font-size="9.5" font-weight="bold" fill="#2255aa">POWER (batteryless, instant-on)</text>
+  <text x="800" y="435" font-size="8.5">5VSB⊕5V⊕USB node → 2 fused legs:</text>
+  <text x="800" y="446" font-size="8.5">33Ω→store (2S 2F) ∥ 33Ω→domain</text>
+  <text x="800" y="457" font-size="8.5">domain = diode-OR: first light ~ms</text>
+  <text x="800" y="471" font-size="8.5">8.6J ≈ ~4.5min TEST ≈ ~5 sessions;</text>
+  <text x="800" y="482" font-size="8.5">store usable ~30s / full ~2min;</text>
+  <text x="800" y="493" font-size="8.5">zero standby (latching relay, neons)</text>
+  <text x="800" y="507" font-size="8.5" fill="#a11">◆ LAMP TEST draws ~100mW held-only</text>
+  <text x="800" y="518" font-size="8.5" fill="#555">6-LED CHARGE VU (TEST) · no Li · no chore</text>
+
+  <!-- spectacle ladder -->
+  <rect x="20" y="545" width="1010" height="52" fill="#fdf7e2" stroke="#a8830a"/>
+  <text x="30" y="563" font-size="10" font-weight="bold" fill="#8a6d00">THE SPECTACLE LADDER (every tier honest):</text>
+  <text x="30" y="580" font-size="9.5">green way-cascade = good news → needle slam = weirdness → neon glow / near-threshold flicker = danger → ◆ GDT arc flash + witness smoke = the event itself.</text>
+  <text x="30" y="592" font-size="9" fill="#555">Rules: sealed devices only (no open arcs, ever — Jacob's ladder REJECTED) · HV dies with the button · never generate what you detect · "a lit neon is ALWAYS bad news — unless you're holding LAMP TEST" (printed).</text>
+
+  <!-- connector census -->
+  <rect x="20" y="608" width="1010" height="48" fill="#fafafa" stroke="#999"/>
+  <text x="30" y="625" font-size="10" font-weight="bold">CONNECTOR CENSUS (complete):</text>
+  <text x="30" y="640" font-size="9">J_SNOUT 2×13 keyed (snout⇄main) · J_BRICK 2×8 keyed socket (brick⇄main) · J_PWR USB-C · meter lugs ×2 · earth stud · lid µswitch · DUT's own 24-pin → snout.</text>
+  <text x="30" y="651" font-size="9" fill="#555">FACEPLATE: no connector. Nothing else crosses a board boundary — the whole fault path lives on MAIN + the two red plug-ins.</text>
+
+  <!-- SIGN-OFF box -->
+  <rect x="20" y="668" width="1010" height="118" fill="#fff" stroke="#1a7a1a" stroke-width="2"/>
+  <text x="32" y="687" font-size="11" font-weight="bold" fill="#1a7a1a">DECISIONS — SIGNED OFF 2026-07-25 ("I approve of your recommendations on all counts"): #2,3,5,8,9,11,12,13,14 RULED · #4 adopted pending safety review · #10 OPEN (no rec offered):</text>
+  <text x="32" y="704" font-size="9">#2 terminator-only fence (rec YES) · #3 blade+HRC coordination (rec YES; arc bench + film gates DRAFT-drop) · #4 witness/smoke chamber — pending flammability/venting review (name survives either way)</text>
+  <text x="32" y="718" font-size="9">#5 earth reference form: rear pigtail (rec) vs earth-only IEC inlet · #8 compliance posture: pro-tool disclaimer (rec for v1) vs CAT-rated claim · #9 price ratify: $79 retail incl. starter kit, ≈$42–43 landed @100</text>
+  <text x="32" y="732" font-size="9">#10 bundle position: standalone SKU vs ST-bundle anchor · #11 spare brick in-box (rec YES) · #12 consumables ladder ($9/$12–15/$9/adapters $9–12) · #13 snout: keep paddle (rec) vs board-mount direct</text>
+  <text x="32" y="746" font-size="9" font-weight="bold" fill="#a11">#14 ARCS (this diagram assumes BOTH, rec): (a) glass GDTs on brick + theater-bay placement (+$1–2, better mains crowbar) · (b) LAMP TEST/SHOW button + flicker tube (+$2, doubles as CASE-LIVE bulb self-test)</text>
+  <text x="32" y="763" font-size="9" fill="#555">After sign-off: Phase A CAD library (ATO/HRC holders, NE-2, flicker tube, GDT, meter, latching relay, MOV, missile toggle) → Phase B capture (01-ways/02-controls/03-indication/04-power) → arc-coordination bench w/ film → DRAFT drops.</text>
+  <text x="880" y="779" font-size="9" fill="#1a7a1a">signed: owner 2026-07-25</text>
+</svg>

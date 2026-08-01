@@ -1,0 +1,556 @@
+{
+ "meta": {
+  "board": "atx-24pin-rev3",
+  "generator": "gen_24pin_sense_cell v0",
+  "role_rail": "5V",
+  "bank_side": "right",
+  "doctrine": "parts pack perpendicular to the pad axis; both pad-axis approaches stay free for the force-rail face stubs + via arrays (the v3-keystone rule)"
+ },
+ "anchor": {
+  "ref": "RS2",
+  "footprint": "cec-Resistor_SMD:R_2512_6332Metric",
+  "value": "2m\u03a9",
+  "flipped": false
+ },
+ "parts": {
+  "RS2": {
+   "offset_mm": [
+    0.0,
+    0.0
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Resistor_SMD:R_2512_6332Metric",
+   "value": "2m\u03a9"
+  },
+  "U11": {
+   "offset_mm": [
+    0.0,
+    -4.6
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
+   "value": "INA238"
+  },
+  "U65V1": {
+   "offset_mm": [
+    -5.6,
+    -4.4
+   ],
+   "rot_delta": 180.0,
+   "flipped": false,
+   "footprint": "cec-Package_TO_SOT_SMD:SOT-23-6",
+   "value": "INA181A2IDBVR"
+  },
+  "U75V1": {
+   "offset_mm": [
+    9.4,
+    -5.0
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Package_TO_SOT_SMD:SOT-23-5",
+   "value": "TLV7011DBVR"
+  }
+ },
+ "net_roles": {
+  "CELL_HI": "/SENSE5V_HI",
+  "CELL_LO": "+5V_MAIN",
+  "CELL_DET": "/DET5V",
+  "CELL_DETAMP": "/DETAMP5V",
+  "GND": "GND",
+  "+3V3": "+3V3",
+  "/I2C_SDA": "/I2C_SDA",
+  "/I2C_SCL": "/I2C_SCL",
+  "/THRESH": "/THRESH"
+ },
+ "ports": {
+  "+3V3": {
+   "net": "+3V3",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "2",
+     "rel_mm": [
+      -2.2,
+      -5.1
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "6",
+     "rel_mm": [
+      2.2,
+      -3.6
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "6",
+     "rel_mm": [
+      -6.7375,
+      -3.45
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "5",
+     "rel_mm": [
+      10.5375,
+      -5.95
+     ]
+    }
+   ]
+  },
+  "CELL_LO": {
+   "net": "+5V_MAIN",
+   "pads": [
+    {
+     "ref": "RS2",
+     "pad": "2",
+     "rel_mm": [
+      2.9625,
+      0.0
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "8",
+     "rel_mm": [
+      2.2,
+      -4.6
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "9",
+     "rel_mm": [
+      2.2,
+      -5.1
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "4",
+     "rel_mm": [
+      -6.7375,
+      -5.35
+     ]
+    }
+   ]
+  },
+  "CELL_DET": {
+   "net": "/DET5V",
+   "pads": [
+    {
+     "ref": "U75V1",
+     "pad": "1",
+     "rel_mm": [
+      8.2625,
+      -5.95
+     ]
+    }
+   ]
+  },
+  "/I2C_SCL": {
+   "net": "/I2C_SCL",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "5",
+     "rel_mm": [
+      -2.2,
+      -3.6
+     ]
+    }
+   ]
+  },
+  "/I2C_SDA": {
+   "net": "/I2C_SDA",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "4",
+     "rel_mm": [
+      -2.2,
+      -4.1
+     ]
+    }
+   ]
+  },
+  "CELL_HI": {
+   "net": "/SENSE5V_HI",
+   "pads": [
+    {
+     "ref": "RS2",
+     "pad": "1",
+     "rel_mm": [
+      -2.9625,
+      0.0
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "10",
+     "rel_mm": [
+      2.2,
+      -5.6
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "3",
+     "rel_mm": [
+      -4.4625,
+      -5.35
+     ]
+    }
+   ]
+  },
+  "/THRESH": {
+   "net": "/THRESH",
+   "pads": [
+    {
+     "ref": "U75V1",
+     "pad": "4",
+     "rel_mm": [
+      10.5375,
+      -4.05
+     ]
+    }
+   ]
+  },
+  "GND": {
+   "net": "GND",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "1",
+     "rel_mm": [
+      -2.2,
+      -5.6
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "7",
+     "rel_mm": [
+      2.2,
+      -4.1
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "2",
+     "rel_mm": [
+      -4.4625,
+      -4.4
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "5",
+     "rel_mm": [
+      -6.7375,
+      -4.4
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "2",
+     "rel_mm": [
+      8.2625,
+      -5.0
+     ]
+    }
+   ]
+  }
+ },
+ "internal_pads": {
+  "CELL_DETAMP": {
+   "pads": [
+    {
+     "ref": "U65V1",
+     "pad": "1",
+     "rel_mm": [
+      -4.4625,
+      -3.45
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "3",
+     "rel_mm": [
+      8.2625,
+      -4.05
+     ]
+    }
+   ]
+  }
+ },
+ "internal_tracks": [
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    2.35,
+    0.0
+   ],
+   "end_rel_mm": [
+    1.2,
+    0.0
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    1.2,
+    0.0
+   ],
+   "end_rel_mm": [
+    1.2,
+    -3.125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    1.2,
+    -3.125
+   ],
+   "end_rel_mm": [
+    3.325,
+    -3.125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -3.125
+   ],
+   "end_rel_mm": [
+    3.325,
+    -6.725
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -6.725
+   ],
+   "end_rel_mm": [
+    -6.7375,
+    -6.725
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -6.7375,
+    -6.725
+   ],
+   "end_rel_mm": [
+    -6.7375,
+    -5.35
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_LO",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    3.325,
+    -5.1
+   ],
+   "end_rel_mm": [
+    2.2,
+    -5.1
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -2.35,
+    0.0
+   ],
+   "end_rel_mm": [
+    -0.6,
+    0.0
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -0.6,
+    0.0
+   ],
+   "end_rel_mm": [
+    -0.6,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -0.6,
+    -6.225
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -6.225
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -5.35
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -0.6,
+    -6.225
+   ],
+   "end_rel_mm": [
+    2.2,
+    -6.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_HI",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    2.2,
+    -6.225
+   ],
+   "end_rel_mm": [
+    2.2,
+    -5.6
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -3.45
+   ],
+   "end_rel_mm": [
+    -4.4625,
+    -2.4125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -4.4625,
+    -2.4125
+   ],
+   "end_rel_mm": [
+    -7.825,
+    -2.4125
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -7.825,
+    -2.4125
+   ],
+   "end_rel_mm": [
+    -7.825,
+    -7.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    -7.825,
+    -7.225
+   ],
+   "end_rel_mm": [
+    5.5625,
+    -7.225
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    5.5625,
+    -7.225
+   ],
+   "end_rel_mm": [
+    5.5625,
+    -4.05
+   ],
+   "width_mm": 0.25
+  },
+  {
+   "net_role": "CELL_DETAMP",
+   "layer": "F.Cu",
+   "start_rel_mm": [
+    5.5625,
+    -4.05
+   ],
+   "end_rel_mm": [
+    8.2625,
+    -4.05
+   ],
+   "width_mm": 0.25
+  }
+ ],
+ "tap_form": {
+  "hi_inner_edge": [
+   -2.35,
+   0.0
+  ],
+  "lo_inner_edge": [
+   2.35,
+   0.0
+  ],
+  "outward_y_sign": -1.0
+ },
+ "port_tracks": [],
+ "standins": [],
+ "vias": [],
+ "gnd_vias": []
+}

@@ -32,9 +32,14 @@ import os
 import sys
 
 # matplotlib headless before any pyplot import
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:                   # viz-only dep: the SOLVE path
+    matplotlib = None                         # (_solve_thermal) must never die
+    plt = None                                # on a matplotlib-less container;
+                                              # render entry points check plt.
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -85,7 +90,13 @@ def board_thermal_config(board_path):
     Conservative-TIM / mount-only / still-air bounds are reachable via the CEC_THERMAL_* env knobs in
     render_per_layer. Scoped to 12VHPWR only -- the EPS/PCIe cable boards keep still-air pending owner
     sign-off on whether they share the same enclosure model (FOLLOWUPS)."""
-    name = os.path.basename(board_path).lower()
+    # CEC_THERMAL_BOARD_HINT (2026-07-19, closes the FOLLOWUPS 2026-07-11 keying gap):
+    # wave variants (plain-dataflow-s1.kicad_pcb) and renamed dashboard archives never
+    # carry the board name in their basename, so this config silently missed and the
+    # solve ran configless -> the impossible dT~0 the mirage guard trips on. Callers
+    # that KNOW the board (the wave's _oracle_env exports it from board params) set the
+    # hint; the basename stays the fallback for committed boards.
+    name = (os.environ.get("CEC_THERMAL_BOARD_HINT") or os.path.basename(board_path)).lower()
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         for n in range(1, 7):
@@ -103,6 +114,74 @@ def board_thermal_config(board_path):
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
                    "label": "production: metal case (TIM on RS shunts + M3 mounts)"}
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, cooling
+    if "atx-24pin" in name or "atx24" in name:
+        # 24-PIN PRODUCTION COOLING (owner ruling 2026-07-20: "24 pin ideally
+        # doesn't need anything besides a plastic case for the first prod runs
+        # with some vent holes"): a vented plastic enclosure is thermally
+        # ~still-air -- no TIM path, no chassis coupling -- so the still-air
+        # solve IS the production posture (mild vent convection is margin, not
+        # modeled). cooling=None keeps the still-air default; this entry
+        # supplies the rail currents + the board-class stackup (one inner GND
+        # plane + one inner power-routing layer, 2oz outers) so the solve
+        # stops running configless. Rail currents = the owner connector bars
+        # (spec §6.4-adjacent, the force-rails RAIL_AMPS table).
+        nc = {"/SENSE12V_HI": 12.0, "/SENSE12V_LO": 12.0,
+              "/SENSE5V_HI": 25.0, "+5V_MAIN": 25.0,
+              "/SENSE3V3_HI": 20.0, "/SENSE3V3_LO": 20.0,
+              "+5VSB": 5.0, "/SENSE5VSB_LO": 5.0,
+              "GND": 62.0}
+        ov = {}
+        # Sink = the WHOLE TB blade row, not TB1 (2026-07-22, found by the injection
+        # accounting): the wave's straight-through pass chooses the TB net order PER
+        # CANDIDATE, so a rail's blade is not always TB1 -- pad lookups are net-scoped,
+        # so listing every TB ref is safe (only same-net blades match). GND previously
+        # had NO override at all -> fell to the J_IN/J_OUT default (absent on this
+        # board) -> the 62A return path never injected on ANY 24-pin solve.
+        tb_all = ["TB%d" % i for i in range(1, 11)]
+        for hi, lo, rs in (("/SENSE12V_HI", "/SENSE12V_LO", "RS1"),
+                           ("/SENSE5V_HI", "+5V_MAIN", "RS2"),
+                           ("/SENSE3V3_HI", "/SENSE3V3_LO", "RS3"),
+                           ("+5VSB", "/SENSE5VSB_LO", "RS4")):
+            ov[hi] = {"refs_src": ["J3"], "refs_sink": [rs]}
+            ov[lo] = {"refs_src": [rs], "refs_sink": tb_all}
+        ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+    if "hub-standard" in name or "hub" in name.split("-")[0:1]:
+        # HUB ENTRY (2026-07-23, closes the FOLLOWUPS 2026-07-22 gap that made
+        # every hub new-best stamp read dT=0 "INJECTION INCOMPLETE"): the hub
+        # has no J_IN/J_OUT or *_HI cable anatomy, so the generic defaults
+        # never injected anything. Currents = the §2.5/OQ-2 basis: the 5VSB
+        # trunk carries ~3A worst case (4 ports x ~0.5A + the hub's own LEDs +
+        # MCU under the firmware cap) J1 -> mux -> star; each port VCC branch
+        # ~0.5A; MAIN_5V feed ~2A (J_5V -> U7 mux); USB VBUS ~0.5A. GND = the
+        # ~3A aggregate return to the power-in. Stackup = the board-class
+        # ruling (2026-06-14): ONE inner GND plane + one inner SIGNAL layer,
+        # 1oz inners, 2oz outers. cooling=None (still-air conservative): the
+        # enclosed Hub case model (RGB shine-through, §4) is an owner rung --
+        # still-air is the honest bound until then.
+        nc = {"+5VSB": 3.0, "/5VSB_RAW": 3.0, "/PSU_5V": 3.0,
+              "/MAIN_5V_RAW": 2.0, "/+5V_HOLD": 1.0, "/USB_VBUS": 0.5,
+              "/VCC_P1": 0.5, "/VCC_P2": 0.5, "/VCC_P3": 0.5, "/VCC_P4": 0.5,
+              "GND": 3.0}
+        # rev2 anatomy: the A4 consolidation makes J_PWR the ONE 3-pin power-in
+        # (MAIN_5V / GND / 5VSB) -- there is no J1/J_5V on this board (measured
+        # 2026-07-23; the first entry draft used the alpha names and every net
+        # dropped "no src/sink terminals").
+        ov = {
+            "/5VSB_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
+            "/PSU_5V": {"refs_src": ["U5"], "refs_sink": ["U7"]},
+            "/MAIN_5V_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
+            "+5VSB": {"refs_src": ["U7"], "refs_sink": ["J2", "J3", "J4", "J5"]},
+            "/+5V_HOLD": {"refs_src": ["D1"], "refs_sink": ["U3"]},
+            "/USB_VBUS": {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
+            "/VCC_P1": {"refs_src": ["U7"], "refs_sink": ["J2"]},
+            "/VCC_P2": {"refs_src": ["U7"], "refs_sink": ["J3"]},
+            "/VCC_P3": {"refs_src": ["U7"], "refs_sink": ["J4"]},
+            "/VCC_P4": {"refs_src": ["U7"], "refs_sink": ["J5"]},
+            "GND": {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
+                    "refs_sink": ["J_PWR"]},
+        }
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0, "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
     return None, None, None, None
 
 
@@ -170,7 +249,8 @@ def _prepare_filled(board_path):
 
 
 def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
-                   grid_mm=0.3, h_eff=15.0, src_sink_override=None):
+                   grid_mm=0.3, h_eff=15.0, src_sink_override=None,
+                   time_budget_s=None):
     """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
     render_thermal_detail). Reads the per-board config, pours+fills the candidate, applies
     the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
@@ -207,7 +287,8 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
     res = t2.solve_board_thermal(
         board_path, stackup_oz=stackup, net_currents=currents,
         ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
-        src_sink_override=src_sink_override, **cool_kw)
+        src_sink_override=src_sink_override, time_budget_s=time_budget_s,
+        **cool_kw)
     return res, board_path, cool_label
 
 
@@ -979,6 +1060,8 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
                    ambient=50.0, grid_mm=0.4, h_eff=15.0, gate_dt=30.0,
                    gate_J=100.0, src_sink_override=None):
     """Solve + render the composite overlay PNG. Returns the ThermalResult."""
+    if plt is None:
+        raise RuntimeError("matplotlib unavailable -- overlay render needs it (solve path is unaffected)")
     import pcbnew
     from matplotlib.patches import Polygon as MplPoly
     from matplotlib.collections import PatchCollection, LineCollection
@@ -1142,6 +1225,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     composite (grey copper + a semi-transparent heatmap over ALL layers at once). Keyed by the board's REAL
     layer names (F.Cu / GND / 12V / B.Cu -> F_Cu/GND/12V/B_Cu) so they line up with the dashboard's layer
     checkboxes. Returns a summary dict."""
+    if plt is None:
+        raise RuntimeError("matplotlib unavailable -- overlay render needs it (solve path is unaffected)")
     import pcbnew
     from matplotlib.collections import LineCollection
     os.makedirs(out_dir, exist_ok=True)

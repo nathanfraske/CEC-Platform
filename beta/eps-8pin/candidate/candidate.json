@@ -1,0 +1,58 @@
+{
+ "board": "eps-8pin",
+ "commit": "fd8018f5",
+ "grade": {
+  "diffpair_ok": true,
+  "drc": 2,
+  "foreign": {
+   "pours": 4,
+   "status": "ok",
+   "tracks": 0,
+   "vias": 0
+  },
+  "gate": false,
+  "kelvin_ok": true,
+  "rails": null,
+  "thermal_ok": false,
+  "unconn_critical": [
+   "GND"
+  ],
+  "unconnected": 14
+ },
+ "label": "periph-right-dataflow-s992-polish",
+ "reason": "sort_key [1, 0, 1, 0, 14, 2, 1000000.0] < [1, 0, 1, 0, 15, 2, 1000000.0]",
+ "routed": true,
+ "schema": 1,
+ "schematic_match": 0.9861,
+ "schematic_parts": 72,
+ "sort_key": [
+  1,
+  0,
+  1,
+  0,
+  14,
+  2,
+  1000000.0
+ ],
+ "source": "build/fresh-wave-night/eps-8pin/20260727T0132-periph-right-dataflow-s992-polish.kicad_pcb",
+ "thermal": {
+  "ambient": 50.0,
+  "backend": "auto",
+  "cooling": "still-air (no case)",
+  "dT": 216.27,
+  "error": "INJECTION INCOMPLETE: 3/5 configured net(s) injected no current (/SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "gate_dt": 30.0,
+  "grid_mm": 0.4,
+  "max_T": 266.27,
+  "nets_dropped": {
+   "/SENSEC1_HI": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/SENSEC1_LO": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/SENSEC2_HI": "src/sink on disconnected copper islands (open circuit -- no current injected)"
+  },
+  "nets_injected": 2,
+  "nets_requested": 5,
+  "ok": false
+ },
+ "updated": "2026-07-27T01:33:16",
+ "wave_out_root": "build/fresh-wave-night"
+}

@@ -4,7 +4,7 @@
 hardware add including the optional PESD clamps ("I approve the add, and you may as well clamp
 them"), and ruled the assert-with-host-attached policy: **self-test must NOT assert PS_ON# with
 a host attached unless the user explicitly overrides — the override puts responsibility on the
-user** (interlock 8 below). Landed on `modules/atx-24pin-rev3` via
+user** (interlock 8 below). Landed on `beta/atx-24pin-rev3` via
 `scripts/splice_24pin_atxctl.py` (2026-07-14): ERC delta = only the documented-benign
 Unspecified-pin warning class (+7), no new errors; netlist diff verified node-for-node against
 the §2 design (69 untouched nets byte-identical; 8 new nets; MCU IO2/IO3/IO4/IO5 landed);
@@ -30,7 +30,7 @@ verified — not quoted from docs).
 PSU's possibly-weak internal PS_ON# pull-up is not disturbed, no divider, no ADC channel
 consumed. −12V (J3.14) is a pure pass-through. **No drive capability on anything.**
 
-**Beta (`modules/atx-24pin-rev3`, the board any change lands on):** the read taps did NOT
+**Beta (`beta/atx-24pin-rev3`, the board any change lands on):** the read taps did NOT
 carry over. All three signals are bare pass-throughs to the daughterboard signal stub:
 `/ATX_PSON` = J3.16 → J_SIG1.2, `/ATX_PWROK` = J3.8 → J_SIG1.3, `/ATX_NEG12V` = J3.14 →
 J_SIG1.1 (plus C22/C23 reservoir caps, ≥25 V rated per their Note). MCU is ESP32-C6-MINI-1-N4

@@ -4,7 +4,7 @@
 #
 # ============================================================================
 #  gen-12vhpwr-beta -- round-4 Wave 3b hierarchical converter for
-#  modules/12vhpwr-standard (a SPECIFIC board, not a parametric family --
+#  beta/12vhpwr-standard (a SPECIFIC board, not a parametric family --
 #  unlike gen-module-beta.py's cable-i2c family, this board has a fixed
 #  6-channel INA240 sensing front end + a hand-maintained, hand-spliced
 #  schematic; 85 refs / 87 netlist groups, CI-gated, routed PCB).
@@ -66,7 +66,7 @@ import cec_sch_gates as G     # noqa: E402
 import cec_pcb_reconcile as R  # noqa: E402
 
 BOARD = "12vhpwr-standard"
-BOARD_DIR = os.path.join(ROOT, "modules", BOARD)
+BOARD_DIR = os.path.join(ROOT, "beta", BOARD)
 FLAT_SCH = os.path.join(BOARD_DIR, "12vhpwr-standard-module.kicad_sch")
 PROJECT_NAME = "12vhpwr-standard-module"
 

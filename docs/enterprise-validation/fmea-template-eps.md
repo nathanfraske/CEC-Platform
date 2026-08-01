@@ -1,7 +1,7 @@
 # FMEA — EPS 8-pin module (`fmea-template-eps`)
 
 Instantiated from `fmea-template-common.md`. Family: EPS 8-pin per-cable
-interposer (modules/eps-8pin, rev2 current), 2 cables populated. Sensing:
+interposer (beta/eps-8pin, rev2 current), 2 cables populated. Sensing:
 INA238 per cable + the ENT §6.13-class transient-detection front-end.
 Qualitative FMEA only — FMEDA deferred per the common template's depth ruling.
 
@@ -42,6 +42,6 @@ fault-injection evidence (all `TBD`).
   in-path element on pins 4/5, not yet added to this worksheet pending that
   network's BOM landing.
 - Shunt MPN (CSS2H-2512R-L500F) is not yet written into
-  `modules/eps-8pin/bom/*.csv` per the OQ-11 sheet's own checklist — this
+  `beta/eps-8pin/bom/*.csv` per the OQ-11 sheet's own checklist — this
   worksheet's in-path element table is ahead of the BOM; reconcile at the next
   BOM-sourcing pass.

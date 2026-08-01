@@ -2,7 +2,7 @@ import sys, math
 sys.path.insert(0,"scripts")
 import pcbnew, cec_fr
 MM=1e6
-SRC="modules/pcie-8pin-3port/pcie8pin-3port-module.kicad_pcb"
+SRC="beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_pcb"
 DST="build/pcie3-rev2/pcie3-rev2.kicad_pcb"
 INA238=["U10","U11","U12"]; INA181=["U20","U21","U22"]; TLV=["U30","U31","U32"]; SHUNT=["RS1","RS2","RS3"]
 BACK=0.9; DX181=3.83; DY181=-1.2; DX30=4.1; DY30=3.0

@@ -1,0 +1,20 @@
+{
+ "_doc": "Smoke Tester (beta/smoke-tester) manifest. SKETCH-STAGE: no schematic/PCB exists yet; this folder was stood up on the beta line by owner directive 2026-07-24 executing decision #1 of docs/smoke-tester-concept-2026-07-24.md. README.md is the board-level design spec of record (per-way values, coordination scheme, consumable classes); assets/ carries the block + way + control sketches; bom/bom.csv is the sketch BOM (LCSC deliberately blank except platform-verified lines - no invented part numbers). Zero firmware by design. Pure analog: no MCU ever.",
+ "fab_target": {
+  "vendor": "jlcpcb",
+  "service_tier": null,
+  "_note": "main PCB + FR4 front-panel-as-PCB; heavy THT (snout, holders, meter, switches) consigned/hand like every platform Mini-Fit"
+ },
+ "net_aliases": {},
+ "capture_plan": {
+  "phase_a": "CAD library: ATO holder, 5x20 twist holder, NE-2, 85C1 meter, DPDT latching relay, 14mm MOV disc, missile toggle - none vendored today (cec-smoke or cec-tester lib)",
+  "phase_b": "sheets 01-ways (8x way cell + brick socket), 02-controls, 03-indication, 04-power; way cell is 8 stamps of one pattern - a generator earns its keep",
+  "gates": "ERC 0; netlist vs README sec.3 table; DESIGN-SHEET sec.F; DRAFT drops only after the arc-coordination bench (230VAC into a way, blade->HRC->witness on film)"
+ },
+ "placement_directives": {
+  "_doc": "sketch-stage placeholders; ratify at layout",
+  "creepage_class": "300V-working (>=3.2mm) on all way copper and the brick",
+  "sacrifice_rule": "no main-board copper electrically upstream of a sacrifice element; measurement taps enter through >=900k of 300V-rated series R",
+  "panel": "front panel is an FR4 PCB; fuse-row pitch standardized; lid molds the starter kit"
+ }
+}

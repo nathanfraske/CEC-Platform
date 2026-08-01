@@ -30,7 +30,7 @@ RJ-45 cable + the 2-pin 5VSB cable; yields a compact integrated "Hub+24-pin" uni
 > off-by-one GND pin per flank, absorbed into a 3rd +5V_SYS pin at position 3 instead of
 > 15). See the reconciliation table in `docs/standard-tier-review/beta-splices/
 > atx-24pin.md` §J6 for the full pin-by-pin evidence trail. The table below is now the
-> AS-BUILT, single source of truth — matches `modules/atx-24pin-rev3/24pin-module.kicad_sch`
+> AS-BUILT, single source of truth — matches `beta/atx-24pin-rev3/24pin-module.kicad_sch`
 > (J6) and `hubs/hub-rev2/hub-rev2.kicad_sch` (J_MEZZ) exactly, verified via both schematics'
 > exported netlists.
 

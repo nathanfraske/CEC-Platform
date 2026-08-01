@@ -1,0 +1,298 @@
+{
+ "meta": {
+  "board": "atx-24pin-rev3",
+  "generator": "gen_24pin_sense_cell v0",
+  "role_rail": "5V",
+  "bank_side": "left",
+  "doctrine": "parts pack perpendicular to the pad axis; both pad-axis approaches stay free for the force-rail face stubs + via arrays (the v3-keystone rule)"
+ },
+ "anchor": {
+  "ref": "RS2",
+  "footprint": "cec-Resistor_SMD:R_2512_6332Metric",
+  "value": "2m\u03a9",
+  "flipped": false
+ },
+ "parts": {
+  "RS2": {
+   "offset_mm": [
+    0.0,
+    -0.0
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Resistor_SMD:R_2512_6332Metric",
+   "value": "2m\u03a9"
+  },
+  "U11": {
+   "offset_mm": [
+    0.0,
+    4.6
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
+   "value": "INA238"
+  },
+  "U65V1": {
+   "offset_mm": [
+    -5.6,
+    4.4
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Package_TO_SOT_SMD:SOT-23-6",
+   "value": "INA181A2IDBVR"
+  },
+  "U75V1": {
+   "offset_mm": [
+    -5.6,
+    8.2
+   ],
+   "rot_delta": 0.0,
+   "flipped": false,
+   "footprint": "cec-Package_TO_SOT_SMD:SOT-23-5",
+   "value": "TLV7011DBVR"
+  }
+ },
+ "net_roles": {
+  "CELL_HI": "/SENSE5V_HI",
+  "CELL_LO": "+5V_MAIN",
+  "CELL_DET": "/DET5V",
+  "CELL_DETAMP": "/DETAMP5V",
+  "GND": "GND",
+  "+3V3": "+3V3",
+  "/I2C_SDA": "/I2C_SDA",
+  "/I2C_SCL": "/I2C_SCL",
+  "/THRESH": "/THRESH"
+ },
+ "ports": {
+  "+3V3": {
+   "net": "+3V3",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "2",
+     "rel_mm": [
+      -2.2,
+      4.1
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "6",
+     "rel_mm": [
+      2.2,
+      5.6
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "6",
+     "rel_mm": [
+      -4.4625,
+      3.45
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "5",
+     "rel_mm": [
+      -4.4625,
+      7.25
+     ]
+    }
+   ]
+  },
+  "CELL_LO": {
+   "net": "+5V_MAIN",
+   "pads": [
+    {
+     "ref": "RS2",
+     "pad": "2",
+     "rel_mm": [
+      2.9625,
+      0.0
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "8",
+     "rel_mm": [
+      2.2,
+      4.6
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "9",
+     "rel_mm": [
+      2.2,
+      4.1
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "4",
+     "rel_mm": [
+      -4.4625,
+      5.35
+     ]
+    }
+   ]
+  },
+  "CELL_DET": {
+   "net": "/DET5V",
+   "pads": [
+    {
+     "ref": "U75V1",
+     "pad": "1",
+     "rel_mm": [
+      -6.7375,
+      7.25
+     ]
+    }
+   ]
+  },
+  "/I2C_SCL": {
+   "net": "/I2C_SCL",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "5",
+     "rel_mm": [
+      -2.2,
+      5.6
+     ]
+    }
+   ]
+  },
+  "/I2C_SDA": {
+   "net": "/I2C_SDA",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "4",
+     "rel_mm": [
+      -2.2,
+      5.1
+     ]
+    }
+   ]
+  },
+  "CELL_HI": {
+   "net": "/SENSE5V_HI",
+   "pads": [
+    {
+     "ref": "RS2",
+     "pad": "1",
+     "rel_mm": [
+      -2.9625,
+      0.0
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "10",
+     "rel_mm": [
+      2.2,
+      3.6
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "3",
+     "rel_mm": [
+      -6.7375,
+      5.35
+     ]
+    }
+   ]
+  },
+  "/THRESH": {
+   "net": "/THRESH",
+   "pads": [
+    {
+     "ref": "U75V1",
+     "pad": "4",
+     "rel_mm": [
+      -4.4625,
+      9.15
+     ]
+    }
+   ]
+  },
+  "GND": {
+   "net": "GND",
+   "pads": [
+    {
+     "ref": "U11",
+     "pad": "1",
+     "rel_mm": [
+      -2.2,
+      3.6
+     ]
+    },
+    {
+     "ref": "U11",
+     "pad": "7",
+     "rel_mm": [
+      2.2,
+      5.1
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "2",
+     "rel_mm": [
+      -6.7375,
+      4.4
+     ]
+    },
+    {
+     "ref": "U65V1",
+     "pad": "5",
+     "rel_mm": [
+      -4.4625,
+      4.4
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "2",
+     "rel_mm": [
+      -6.7375,
+      8.2
+     ]
+    }
+   ]
+  }
+ },
+ "internal_pads": {
+  "CELL_DETAMP": {
+   "pads": [
+    {
+     "ref": "U65V1",
+     "pad": "1",
+     "rel_mm": [
+      -6.7375,
+      3.45
+     ]
+    },
+    {
+     "ref": "U75V1",
+     "pad": "3",
+     "rel_mm": [
+      -6.7375,
+      9.15
+     ]
+    }
+   ]
+  }
+ },
+ "internal_tracks": [],
+ "tap_form": null,
+ "port_tracks": [],
+ "standins": [],
+ "vias": [],
+ "gnd_vias": []
+}

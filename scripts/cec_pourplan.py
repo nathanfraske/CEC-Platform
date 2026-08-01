@@ -110,6 +110,11 @@ class PourSpec:
     min_thickness: float = _MIN_THICKNESS_DEFAULT
     island_removal: int = _ISLAND_REMOVAL_DEFAULT
     provenance: str = "derived"        # "derived" | "placer_ask" | "router_ask" | "human"
+    evac: bool = True                  # False = post-route COPPER ONLY (2026-07-23 hub star
+                                       #   rung): the pour is laid additively after FR but the
+                                       #   placement-side evacuator/bodies-gate ignore it -- for
+                                       #   wide low-current floods (the hub +5VSB star) whose
+                                       #   auto box would otherwise evict half the jellybeans.
     frozen: bool = False               # human-ratified geometry the loop may not mutate
     polygon: tuple = ()                # ((x,y),...) compiled geometry (rect corners today)
 
@@ -298,15 +303,22 @@ class PourPlan:
         for s in self.specs:
             if not s.polygon:
                 continue
-            d = {"net": s.net, "layer": (s.layers[0] if s.layers else "F.Cu"),
-                 "polygon": [tuple(pt) for pt in s.polygon]}
-            if s.priority != _PRIORITY_DEFAULT:
-                d["priority"] = s.priority
-            if s.min_thickness != _MIN_THICKNESS_DEFAULT:
-                d["min_thickness"] = s.min_thickness
-            if s.island_removal != _ISLAND_REMOVAL_DEFAULT:
-                d["island_removal"] = s.island_removal
-            out.append(d)
+            # ONE DICT PER LAYER (2026-07-23): the old s.layers[0] truncation
+            # silently dropped every layer past the first -- the hub's F+B power
+            # asks poured F.Cu only (measured on the night boards). Derived specs
+            # are single-layer, so their emission is byte-identical.
+            for _lay in (s.layers or ("F.Cu",)):
+                d = {"net": s.net, "layer": _lay,
+                     "polygon": [tuple(pt) for pt in s.polygon]}
+                if s.priority != _PRIORITY_DEFAULT:
+                    d["priority"] = s.priority
+                if s.min_thickness != _MIN_THICKNESS_DEFAULT:
+                    d["min_thickness"] = s.min_thickness
+                if s.island_removal != _ISLAND_REMOVAL_DEFAULT:
+                    d["island_removal"] = s.island_removal
+                if getattr(s, "provenance", "derived") not in ("derived", None):
+                    d["provenance"] = s.provenance  # the locked-net pour filter
+                out.append(d)                       # exempts rail_compiler asks
         return out
 
     def evac_boxes(self):
@@ -314,6 +326,8 @@ class PourPlan:
         (byte-identical to the old `_pour_boxes_unified` output)."""
         out = []
         for s in self.specs:
+            if not getattr(s, "evac", True):
+                continue                     # post-route-copper-only ask (see PourSpec.evac)
             r = s.rect()
             if r is not None:
                 out.append((s.net, r[0], r[1], r[2], r[3]))
@@ -752,6 +766,7 @@ def _ask_spec(ask, prepared, bbox, margin):
                     shape=ask.get("shape", "lane"), region=(x0, y0, x1, y1),
                     priority=int(ask.get("priority", _PRIORITY_DEFAULT)),
                     provenance=ask.get("provenance", "placer_ask"),
+                    evac=bool(ask.get("evac", True)),
                     polygon=((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
 
 
@@ -774,5 +789,6 @@ def _spec_from_dict(d):
                     min_thickness=float(d.get("min_thickness", _MIN_THICKNESS_DEFAULT)),
                     island_removal=int(d.get("island_removal", _ISLAND_REMOVAL_DEFAULT)),
                     provenance=d.get("provenance", "derived"),
+                    evac=bool(d.get("evac", True)),
                     frozen=bool(d.get("frozen", False)),
                     polygon=tuple(tuple(pt) for pt in d.get("polygon", ())))

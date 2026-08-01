@@ -25,7 +25,7 @@ gm = importlib.import_module("gen-modules")
 import cec_sch
 
 ROOT = os.path.dirname(HERE)
-OUT = f"{ROOT}/modules/atx-24pin-rev3/24pin-module.kicad_sch"
+OUT = f"{ROOT}/beta/atx-24pin-rev3/24pin-module.kicad_sch"
 BASE = "24pin-module"
 
 parts, nets = gm.build("atx-24pin")          # C6 base + 4x INA228 + flash + CAN + LDO + RJ-45 + poke-ack

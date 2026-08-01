@@ -31,6 +31,7 @@ SIZE = {
     "USB_C_Receptacle_XKB_U262-16XN-4BVC11": (9.0, 11.0),
     "Panasonic_EVQPUJ_EVQPUA": (4.0, 3.5), "TestPoint_Pad_D1.5mm": (2.5, 2.5),
     "Fiducial_1mm_Mask2mm": (2.0, 2.0), "MountingHole_3.2mm_M3_Pad_Via": (7.0, 7.0),
+    "MountingHole_2.2mm_M2_Pad_Via": (5.0, 5.0),
     "CEC_Logo_Copper": (10.0, 10.0),
 }
 def box(x, y, rot, fp):

@@ -21,6 +21,7 @@ The variant set is deliberately structure-first (the 2026-06-30 placer-feasibili
 finding: partitions/intents move the needle, absolute-coord jitter does not).
 """
 import argparse
+import glob
 import json
 import os
 import subprocess
@@ -78,9 +79,12 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
     detail = (f"gate={v.get('gate')} kelvin={v.get('kelvin_ok')} diff={v.get('diffpair_ok')} "
               f"drc={v.get('drc')} unconn={v.get('unconnected')} "
               f"foreign={(v.get('foreign') or {}).get('tracks')}t dT={th.get('dT')} "
-              f"({v.get('route_s')}s route)")
+              f"({v.get('route_s')}s route)"
+              # the 9999-with-no-reason class (owner, 2026-07-20): a refused/failed
+              # variant's error was in the dict but never displayed anywhere
+              + (f" ERR={str(v.get('error'))[:140]}" if v.get("error") else ""))
     _wlog(f"{star}{board} {label}", tag="wave", detail=detail,
-          image=(png if png and os.path.isfile(png) else None))
+          image=_snap_into_repo(png, board))
     if best and dual:
         pngb = os.path.join(work_root, board, f"{label}-bottom.png")
         try:
@@ -90,9 +94,32 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
                 _stamp_back_face(pngb)
                 _wlog(f"{board} {label} — BACK FACE (mirrored view)", tag="wave",
                       detail="bottom view: left/right appear MIRRORED vs the top view. " + detail,
-                      image=pngb)
+                      image=_snap_into_repo(pngb, board))
         except Exception:                              # noqa: BLE001
             pass
+
+
+def _snap_into_repo(png, board):
+    """Worklog images must live INSIDE the repo -- the host dashboard serves
+    /artifact paths repo-relative, and a work_root outside the repo (the night
+    chains' container /tmp) produced ../tmp/... paths the dash 404s ('image
+    failed to load', owner report 2026-07-19). Copy the snapshot into
+    build/wave-snaps/<board>/ and return that path; a repo-internal png passes
+    through unchanged."""
+    if not (png and os.path.isfile(png)):
+        return None
+    ap = os.path.abspath(png)
+    if ap.startswith(ROOT + os.sep):
+        return png
+    try:
+        import shutil
+        dst_dir = os.path.join(ROOT, "build", "wave-snaps", board)
+        os.makedirs(dst_dir, exist_ok=True)
+        dst = os.path.join(dst_dir, os.path.basename(png))
+        shutil.copy(ap, dst)
+        return dst
+    except Exception:                                  # noqa: BLE001
+        return None
 
 
 def _stamp_back_face(png):
@@ -110,24 +137,158 @@ def _stamp_back_face(png):
     except Exception:                                  # noqa: BLE001
         pass
 
+def mating_frame_pins(W, H, contract, side):
+    """SHARED MATING FRAME derivation (owner 2026-07-20: mezzanine first, but
+    "that derivation methodology can also be used for all of the daughterboards
+    and the eventual psu tester pipeline" -- keep it general). Boards stack
+    CENTER-ALIGNED (maximal overlap, zero offset); the contract declares, in
+    SHARED coordinates (offsets from the common center), EITHER the v2
+    segment-list form (structural segmented mezz, owner GO 2026-07-22,
+    docs/mezz-structural-segments-2026-07-22.md):
+      {"conns": [{"ref": .., "dc": (dx, dy), "rot": deg}, ...],
+       "mount_dc": ((dx, dy), ...),     # optional (R2 provision); () = R1 pure
+       "mount_fp": "lib:footprint",     # optional per-contract mount land (e.g. M2)
+       "sides": {name: {"mount_refs": (..), "mirror_x": bool}}}
+    OR the legacy single-connector form:
+      {"conn_dc": (dx, dy), "conn_rot": deg,
+       "rect_dc": (x0, y0, x1, y1),     # the standoff datum rectangle
+       "sides": {name: {"conn_ref": .., "mount_refs": (..), "mirror_x": bool}}}
+    A side with mirror_x=True flips to mate (its x offsets negate). Returns
+    {"anchor_pins": .., "mount_pos_override": .., ["mount_fp_override": ..]}
+    for that side -- feed into BOARD_PARAMS. One declaration, every mating
+    side derived; the mating refs are alignment DATUM (exempt from
+    nudge/anneal by the pipeline). MATE INVARIANT (the property that matters):
+    for any two sides, every mating ref's position differs by ONE constant
+    translation -- guaranteed by construction since both sides add the same
+    (dx, dy) to their own centers."""
+    sd = contract["sides"][side]
+    m = -1.0 if sd.get("mirror_x") else 1.0
+    cx, cy = W / 2.0, H / 2.0
+    if "conns" in contract:                       # v2: N structural segments
+        pins = {c["ref"]: (cx + m * c["dc"][0], cy + c["dc"][1],
+                           c.get("rot", 0))
+                for c in contract["conns"]}
+    else:                                         # legacy single connector
+        dx, dy = contract["conn_dc"]
+        pins = {sd["conn_ref"]: (cx + m * dx, cy + dy,
+                                 contract.get("conn_rot", 0))}
+    # standoffs: an explicit "mount_dc" POINT LIST (possibly EMPTY -- the R1
+    # structural-segment form carries stability in the segments themselves; a
+    # single point = the R2 provisioned DNP-able land) or the legacy "rect_dc"
+    # 4-corner rectangle.
+    if "mount_dc" in contract:
+        pts = [(cx + m * mx, cy + my) for (mx, my) in contract["mount_dc"]]
+    elif "rect_dc" in contract:
+        x0, y0, x1, y1 = contract["rect_dc"]
+        pts = [(cx + m * mx, cy + my)
+               for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))]
+    else:
+        pts = []
+    mounts = {}
+    for ref, (px, py) in zip(sd.get("mount_refs", ()), sorted(pts)):
+        mounts[ref] = (px, py)
+    out = {"anchor_pins": pins, "mount_pos_override": mounts}
+    if mounts and contract.get("mount_fp"):
+        out["mount_fp_override"] = {r: contract["mount_fp"] for r in mounts}
+    return out
+
+
+# THE HUB-ON-24PIN MEZZANINE CONTRACT (the 2026-06-24 stack doc §4, finalized
+# 2026-07-20). NO-FLIP convention (owner ruling 2026-07-20: "the Hub will just
+# sit over top normally, not flip -- the flip will cause too much heat issues
+# and case design issues"): both boards component-side UP, the Hub's socket
+# mounted on its UNDERSIDE, so NO shared-frame x-mirror on either side. The
+# 2026-06-24 doc's board-flip convention (+ its MIRROR-GOTCHA framing) is
+# SUPERSEDED; the J6/J_MEZZ mated pin map must be RE-VERIFIED under the
+# bottom-mounted-socket convention (FOLLOWUPS). Connector left-flank vertical
+# (the shared point must be free on BOTH unmirrored boards; the Hub side of
+# this spot is probe-verified clear), standoff datum 66x25 -- DRAFT values,
+# wave-iterable.
+# conn geometry: the 2x8's 14mm pad field extends along LOCAL +y from the
+# anchor (measured); rot 180 points it -y, so the anchor sits at the field's
+# BOTTOM -- dc y +17.5 centers the barrels on the y-31..45 strip (between the
+# standoffs, clear of the sink bands' x-range). The 24-pin overlap zone
+# belongs to J1/J2, which are DNP in the stacked variant (doc §5 XOR).
+# MEASURED RE-DERIVATION (2026-07-20, owner: mounts "not going to fit as is...
+# middle of the board"; "drop the top right mount [on the hub] if that is
+# tripping you up"): joint point-legality over BOTH probe boards (anchors:
+# jacks/headers/TB/fiducials, 3.2mm M3 clearance, stack offset (+7,+3.5)) shows
+# TL is impossible (the 24-pin's OWN left jacks J1/J2) while TR is legal on both
+# (24-pin blocker was only the movable FID2; hub spot sits 3+mm below its jack
+# row) -- so the 3 standoffs are BL/BR/TR, spread 65x30. J6 moves to the RIGHT
+# flank between TR and BR (left flank now hosts the 24-pin jack column; the old
+# left-flank spot rammed the hub's C1 zone). Probe = the arbiter: rails 4/4 +
+# no-overlap on both boards gate any future change to these numbers.
+MEZZ_HUB_24PIN = {
+    # STRUCTURAL SEGMENTED MEZZ (owner GO 2026-07-22, R1 + the R2 provision --
+    # docs/mezz-structural-segments-2026-07-22.md): the single 2x8 J6 + the
+    # H1-H3 M3 standoff trio are RETIRED; three KEYED segments (J6P 2x3 power /
+    # J6C 2x4 comms / J6D 2x2 ID, Appendix A pin maps) ARE the mounting system.
+    # SEATS v4 (2026-07-23, seg4 forensic -- scripts/cec_mezz_probe.py with the
+    # SHUNT-ROW WALK BAND as a hard region + MULTI-SUBSTRATE stability tiers +
+    # seg-vs-seg legality): v3's J6C sat inside the rail walk's blocker band and
+    # walled the column walk at x~39, crushing the pitch 12->5.38/8.0 (the
+    # INA|shunt courtyard-refusal class). v4: J6P + J6D on the right column
+    # (STABLE across 3 substrates/side), J6C top strip near its U2/comms target
+    # (the ONE fallback-tier member: the 74x55 frame provably cannot host a
+    # third stable seat -- per-seed conflicts are named by the pre-route gates;
+    # the measured W-grow lever is in docs/owner-queue.md). Pattern asymmetry
+    # 33.1mm (>=8 tooth), pairwise spread >=10 with the H1 M2 provision as the
+    # 4th support vertex. Probe report /tmp/mezz-probe5-sp9.json (container).
+    "conns": [
+        {"ref": "J6P", "dc": (31.2, -1.2), "rot": 0},    # power (right column mid)
+        {"ref": "J6C", "dc": (11.2, -12.2), "rot": 90},  # comms (top strip, U2-adjacent)
+        {"ref": "J6D", "dc": (30.2, -11.2), "rot": 0},   # ID    (right column top)
+    ],
+    # R2 PROVISION: ONE DNP-able M2 land so the bench peel/shake gate is a
+    # population decision, never a respin. DRAFT seat (bottom-center-left,
+    # between the rail band and the TB row start); the pre-route courtyard
+    # gate names any collision per-variant -- probe/wave is the arbiter.
+    "mount_dc": ((-20.0, 14.0),),
+    "mount_fp": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via",
+    "sides": {"atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False},
+              "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": False}},
+}
+
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
 # (the shrink pass comes after a gate-clean baseline exists; SHUNT_GAP may grow H).
 BOARD_WH = {
     # HUB REV2 (owner directive 2026-07-15: "get the Hub down properly ... start from
     # just the connectors and go from there"): proto-V1 is ~120x95-class; the 4-jack
     # row (~4x16mm + gaps) floors one edge at ~70mm. Aggressive seed; refusals teach.
-    "hub-standard-rev2": (88.0, 62.0),
+    # H 62->70 (MEASURED SIZE WEDGE, 2026-07-20): with every deliberate macro seated
+    # (4-jack row, WROOM cluster ~48x41, LED ring, bottom J_KVM/J_USB, mezz J6+datum)
+    # the 21x17mm C1 hold-up cap measured ZERO free cells at every stage -- the board
+    # was genuinely full, every hub variant refused. 8mm of height is the cap's row.
+    "hub-standard-rev2": (88.0, 70.0),
     "eps-8pin": (96.0, 37.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
     # owner 2026-07-08 "way too large -- tone it down": geometry floor is J3 (~63mm) and
     # the blade row + signal stub (~59mm); dual-sided chains + no mounts + full overhang
     # make 70x55 the aggressive seed (the shrink pass walks further once gate-clean).
-    "atx-24pin-rev3": (70.0, 55.0),
+    # SINGLE-SIDED AT 70x55 (owner ruling 2026-07-19: "size up is the last lever in
+    # the ladder for a reason -- just let it try"): the one-probe residual 35 at this
+    # size (16 at 76x60/80x62) is the PIPELINE'S problem to grind down, not a board
+    # grow; the wave's strategy/seed/intent variance + p8b + proposal chaining are
+    # the levers. Size-up only after the search levers are exhausted.
+    # W 70->74 (2026-07-19 late, the lever EARNED -- rungs exhausted with named
+    # numbers): after the jack tuck + per-column drop + outlier/live-span bands
+    # + handedness + stub clamps, the four-rail wedge chain still measures
+    # J1 field 14.4 + stub 2.45 + 3x11.85 pitch + cell bank 9.4 + array 3.05 +
+    # J6 field 17.4 = 82.2mm > 70, every remaining assignment 0.03-0.6mm short
+    # (probe series s0d..s0u). W74 clears the chain with 3.2mm spare. The
+    # 12vhpwr 62x62->62x66 measured-capacity precedent applies.
+    "atx-24pin-rev3": (74.0, 55.0),
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
-    "12vhpwr-standard": (62.0, 62.0),  # ALPHA-DOCTRINE floorplan (owner Option-A ruling 2026-07-12: lanes left-of-center at lane_center, ESP/CAN/RJ-45 logic column right -- centered lanes + the 16.1mm ESP measured impossible at W=60). Prior: (owner 2026-07-11: cells board-centered,
+    # H 62->66 (2026-07-19, MEASURED capacity limit): at 62x62 the last jellybean
+    # (D2, 7x3.5 SMA diode) has 2248 part-free cells but ZERO corridor-free ones --
+    # the corridor/cell reservations own every hole, so it parks overlapping (the
+    # owner-flagged overlap class). +4mm height = the smallest admit; still -13%
+    # area vs the 58x80 hand board; the shrink pass walks it back after gate-clean.
+    "12vhpwr-standard": (62.0, 66.0),  # ALPHA-DOCTRINE floorplan (owner Option-A ruling 2026-07-12: lanes left-of-center at lane_center, ESP/CAN/RJ-45 logic column right -- centered lanes + the 16.1mm ESP measured impossible at W=60). Prior: (owner 2026-07-11: cells board-centered,
     # RJ45/USB movable): 6 lanes at 6.8 = 43.5mm span leaves no flank for the
     # 16x21 ESP on W60 -- it seats ABOVE the lane field beside J3. Geometry:
     # J3 y0-9 / ESP+periph band / lanes centered / J4 band. Still -20% area vs
@@ -140,12 +301,121 @@ BOARD_WH = {
 # same-side-per-rail sensing constraint (mechanism pending -- the wave is GATED on the
 # shared-bus per-rail corridor package, see TODO).
 BOARD_PARAMS = {
+    # PCIe 3-PORT SEAT CONFLICT -- diagnosed, NOT fixed (2026-07-26). Why that
+    # board publishes only placement-only skeletons: the third cable's cell seats
+    # at x~87.5 while the RJ-45's default seat spans x 82.9-101.7 / y 11.6-28.6,
+    # so U32 (SOT-23-5) lands ENTIRELY inside the jack -- "courtyard overlaps
+    # J1|U32" on every variant and seed. The obvious fix (pin the jack below the
+    # cell row, y 31-35, which is geometrically clear) was TRIED and REVERTED:
+    # anchor_pins does not place in the frame this measurement assumed, and every
+    # trial failed EARLIER with "J1 1 pad(s) out of bounds". Left as-is rather
+    # than traded for a worse failure; the anchor_pins frame needs checking first.
     # HUB REV2 (2026-07-15): connector-first, no force lanes (no shunt corridors on a
     # hub) -- the MCU/fan seats stay dormant by their force_lanes gate; hub-specific
     # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
-    # J6 mezzanine is DNP but its LAND places like any part; its position becomes the
-    # stack ALIGNMENT CONTRACT with the 24-pin once a layout freezes (FOLLOWUPS).
-    "hub-standard-rev2": {"mount_holes": "corners", "connector_overhang": "edge",
+    # Mezz segments are DNP but their LANDS place like any part; positions are the
+    # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, no-flip, 2026-07-22
+    # segmented form -- J6P/J6C/J6D + the one provisioned M2).
+    "hub-standard-rev2": {"wave_fr_timeout": 1500,
+                          # RECALIBRATED 100 -> 150 (wall probe 2026-07-23):
+                          # the first fix-wave killed variants flat at togo
+                          # 104-112, and the full-effort probe routed that
+                          # exact board to unconn 17 -- FR's mid-route flat
+                          # phases reach ~110 and recover (A/B cleared both
+                          # netclasses and locked copper as causes; it is
+                          # seed-ordering phase behavior). 150 covers the
+                          # measured recoverable band (34->7, 112->17);
+                          # winners finish at unconn 7-36.
+                          "wave_plateau_floor": 150,
+                          # HUB POWER RUNG (2026-07-23, owner "power is a rung
+                          # there... tune that rung up"): the hub is the ONE
+                          # board with no pour machinery -- FR was handed the
+                          # whole 51-connection power tree raw, and the wall
+                          # probe's residual unconn was exactly these nets +
+                          # GND. Post-route ADDITIVE floods per power net
+                          # (evac=False: copper-only, no placement eviction --
+                          # the additive-pour-after-route doctrine; a pour on
+                          # a routed net can only ADD copper, 2026-06-07).
+                          # Boxes auto-derive from each net's pads.
+                          # POUR LAYER = In2 (owner 2026-07-23 "do the ugly
+                          # giant pours inside of that layer instead of on
+                          # top"): the power floods move OFF the outers onto
+                          # the freed In2 -- the outers keep their full signal
+                          # fabric, and since floods are post-route additive,
+                          # In2 is still EMPTY at route time = a true third
+                          # routing layer. Owner acceptance bar, verbatim: "If
+                          # it cannot route with 3 separate routable layers,
+                          # there is an issue with it itself and we need to
+                          # improve it." (The old F+B ask was ALSO measured to
+                          # pour F-only -- pour_polygons() truncated at
+                          # layers[0]; fixed same day.) In2 floods connect to
+                          # F.Cu pads via FR's own vias + the pickup stitch,
+                          # which is now load-bearing (guard debug = rung #1).
+                          "pour_asks": [
+                              {"net": n, "region_hint": None,
+                               "layers": ("In2.Cu",), "shape": "rect",
+                               "priority": 2, "provenance": "placer_ask",
+                               "evac": False}
+                              for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
+                                        "/MAIN_5V_RAW", "/USB_VBUS",
+                                        "/+5V_HOLD", "/VCC_P1", "/VCC_P2",
+                                        "/VCC_P3", "/VCC_P4")],
+                          # + the pickup stitch: SMD pads the route never
+                          # reached get stub+via into the covering flood /
+                          # GND plane at import (rung part 2 -- the floods
+                          # alone cannot reach an F.Cu pad from B.Cu).
+                          "power_pickup": True,
+                          "plane_tht_exclude": True,
+                          # LAST-MILE COMPLETER (2026-07-23, from the s120
+                          # residual autopsy: 13 of 30 unconn were <=5mm
+                          # same-net gaps FR left in dense fields -- incl.
+                          # BOTH GND criticals, each a pad 1-2mm from a
+                          # plane-connected via). Guarded straight/L closure
+                          # + the over-the-top bridge (stub+via -> empty
+                          # In2/B leg -> back down); measured on s120: 8
+                          # closed, unconn 30->22, zero new DRC of any class.
+                          "lastmile": True,
+                          # LED-chain daisy links measure 7-10mm (s140's top
+                          # strand, 4x DL6-DOUT items) -- just past the 5mm
+                          # default reach; GND is down to ONE 2.2mm gap.
+                          "lastmile_max_mm": 8.0,
+                          # ONE INNER GND, In2 = SIGNAL (owner 2026-07-23 "can
+                          # we make the second inner ground into a signalling
+                          # layer?" -- which is ALREADY the standing 2026-06-14
+                          # stackup ruling: cable boards pour both inners GND;
+                          # the Hub is the exception, one solid In1 GND plane +
+                          # In2 signal. The shipped alpha hub proves it: In1
+                          # user-named "GND", 58 signal segments routed on In2.
+                          # Wave hubs had inherited the cable-board default
+                          # since birth -- FR was down an entire empty routing
+                          # layer on the platform's most congested signal
+                          # board). No rail_alt_layer: unlike the 24-pin there
+                          # are no force trunks; In2 is simply empty and
+                          # build_board re-types it 'signal' so FR accepts it
+                          # (measured 24-pin gotcha: 'power'-kind = FR refuses
+                          # the layer). edge_keepout now derives its covered
+                          # layers from the board, so the freed In2 keeps the
+                          # edge-band + arc-corner protection.
+                          "inner_power_routing": True,
+                          # POWER-LAYER DOCTRINE: HELD (2026-07-25). A move of
+                          # the rail floods to the 2oz outers was prepared and
+                          # then BACKED OUT unapplied: it contradicts the owner
+                          # ruling of 2026-07-23 recorded on pour_asks below
+                          # ("do the ugly giant pours inside of that layer
+                          # instead of on top"), whose reasoning still holds --
+                          # post-route additive floods do not consume routing
+                          # space, so In2 serves as a true third routing layer
+                          # AND as flood real estate. The mechanism exists
+                          # (power_pour_layers -> CEC_POWER_POUR_LAYERS, see
+                          # cec_pour_plan.power_layer_order) and is one line
+                          # away if the owner rules the other way; the measured
+                          # cost of the current doctrine is in the owner queue.
+                          # ...and the space the rails vacate becomes reference
+                          # copper for the B.Cu signals below it, not nothing.
+                          "inner_gnd_fill": "In2.Cu",
+                          **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
+                                              "hub-standard-rev2"),
+                          "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
                           # 21.5mm allowance = keepout-drawing depth (27.75) minus the
@@ -162,8 +432,10 @@ BOARD_PARAMS = {
                                            "J2": "host", "J3": "host",
                                            "J4": "host", "J5": "host",
                                            "J_KVM": "host",
-                                           # board-to-board, interior -- never an edge
-                                           "J6": "free"},
+                                           # board-to-board mezz segments, interior --
+                                           # never an edge (2026-07-22 segmented split)
+                                           "J6P": "free", "J6C": "free",
+                                           "J6D": "free"},
                           # owner catch on wave-1 snapshots (2026-07-15): jacks were
                           # seated on the RIGHT (the host-role default edge) -- the
                           # 4-jack row belongs on the long TOP edge like the proto;
@@ -224,13 +496,136 @@ BOARD_PARAMS = {
     # blocks (internal copper laid + LOCKED at materialize; ideal_internal False
     # keeps the B7 refined routing -- textbook taps + GND vias + mitre).
     # blueprint_cells is injected below (needs the lane loop).
-    "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
+    "atx-24pin-rev3": {
+                       # MEZZANINE ALIGNMENT CONTRACT (owner 2026-07-20 "they
+                       # need to be cross-coordinated"; SEGMENTED 2026-07-22):
+                       # the Hub stacks on the 24-pin CENTER-ALIGNED, NO-FLIP;
+                       # the shared frame = MEZZ_HUB_24PIN's three structural
+                       # segments (v4: J6P/J6D right column, J6C top strip)
+                       # + one provisioned M2. NOTE the frame math uses
+                       # the STATIC BOARD_WH (74x55); a runtime H-grow (e.g.
+                       # SHUNT_GAP -> 59) only biases the stack's centering
+                       # over the 24-pin, never the mate (constant-translation
+                       # invariant, test_mating_frame).
+                       **mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN,
+                                           "atx-24pin-rev3"),
+                       # U1 (ESP macro) HARD PIN (2026-07-23, seats-v4 verify):
+                       # under v4 the p3crit mcu-cluster + p8b ladder find NO
+                       # legal U1 seat ("free cells=0") and leave it overlapping
+                       # H1/cell parts -- yet the measured seg-era home
+                       # (66.0,41.4,rot-90; right column below J6P, above the TB
+                       # row) is STILL legal under v4 and was chosen IDENTICALLY
+                       # by all three strat families (placement diversity already
+                       # zero). Pin = the honest encoding of the measured
+                       # optimum, J2-precedent; unpin when the seat search learns
+                       # sub-cell windows (p5/p6 audit lever).
+                       "anchor_pins": {**mating_frame_pins(
+                           74.0, 55.0, MEZZ_HUB_24PIN,
+                           "atx-24pin-rev3")["anchor_pins"],
+                           "U1": (66.0, 41.4, -90)},
+                       "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
                        # physical antenna section just rides at an edge like any body extent.
                        "respect_antenna_keepout": False,
-                       # owner GO 2026-07-08: alternate rail chains F/B (same-side-per-rail)
-                       "dual_sided": True,
+                       # SINGLE-SIDED (owner 2026-07-19: "make it single sided" --
+                       # supersedes the 2026-07-08 F/B alternation GO). Going single-
+                       # sided also removes the dual-sided y-stagger repair, which is
+                       # exactly the interplay that broke the straight-through centroid
+                       # shunt columns (v3-a, measured residual 3->22 then reverted).
+                       "dual_sided": False,
+                       # ZONE CREATOR (owner GO 2026-07-19): per-rail force trunks
+                       # (cec_force_rails -- J3 group -> straddle shunt -> TBs) laid
+                       # locked at materialize; refusals teach the placer.
+                       "force_rails": True,
+                       # B.Cu trunk mirror (owner 2026-07-19: single-sided
+                       # assembly leaves the bottom free -- twin the In2
+                       # trunks there, bonded by the through arrays/barrels)
+                       "rail_mirror_bcu": True,
+                       # FR headroom under parallel-chain contention (filed
+                       # 2026-07-20: 900s sentinel-timed-out a loaded route)
+                       "wave_fr_timeout": 1500,
+                       # winner band 146-158 unconn vs true collapse flat at
+                       # 190-230 (attribution matrix 2026-07-20) -- 170 splits
+                       "wave_plateau_floor": 170,
+                       # LAYER-CROSSING RAILS (owner 2026-07-19: "it should be able
+                       # to cross layers with via arrays ... keep one INNER layer
+                       # as GND, use the other for power routing"): In1 = the solid
+                       # GND plane, In2 = the rail alt layer -- bands/sinks on In2
+                       # direct into the J3/TB THT barrels, via arrays only at the
+                       # SMD shunt stubs. inner_power_routing frees In2 in
+                       # build_board (the board-class stackup exception made real).
+                       "inner_power_routing": True,
+                       "rail_alt_layer": "In2.Cu",
+                       # RUNG 2 (2026-07-23, scoped on s213 with the fixed
+                       # guards): the 20 critical-net pads outside every rail
+                       # flood are SCATTERED logic-side decoupling/taps --
+                       # region extension would be the mega-pour anti-pattern;
+                       # the right tools are the stitch (dry-fired 12 on s213)
+                       # + the lastmile completer (kelvin nets excluded inside
+                       # it -- sense connects only through authored taps).
+                       "power_pickup": True,
+                       "plane_tht_exclude": True,
+                       # FULL SLAB A/B LIVE (owner GO 2026-07-24 "implement it all"):
+                       # rail dicts slab-shave too -- the widest bonded In2 primary
+                       # is the unconn-recovery + deficit-closure path
+                       "slab_pour": True,
+                       # OVER-UNDER POURS (owner GO 2026-07-24 "Yes, let's do
+                       # it"): v2 routed-object pours -- single-layer lanes +
+                       # via bridges at snags, vacated layer carries nothing
+                       # (docs/slab-pour-design-2026-07-24.md v2). With
+                       # slab_pour=True above, CEC_OVERUNDER takes precedence
+                       # in import_ses' conversion branch; slab shave stays
+                       # the fallback when over-under finds no path.
+                       "overunder": True,
+                       # PRE-FR CORRIDOR RESERVATION A/B (agent-landed
+                       # 2026-07-25, e2e-proven: 5/9 nets reserved ~1.6s,
+                       # realized 5/5 s416 / 4/5 s435, no completion
+                       # collapse, DRC even improved on s435): corridors
+                       # baked as DSN keepouts pre-route, pour-owned pads
+                       # excluded from FR -- "the pour takes priority and
+                       # gets its route first."
+                       "pour_reserve": True,
+                       # POUR-FIRST PLACEMENT RUNG (owner ruling 2026-07-25,
+                       # docs/slab-pour-design-2026-07-24.md v3/v3.1): pours
+                       # are solved + SET IN STONE on the anchor-only board
+                       # (connectors + blueprint stamps + MCU) right after
+                       # seating, then everything else re-adds AROUND the
+                       # frozen state -- csp.pour_first_stage in
+                       # _build_session freezes route-side state + placer
+                       # avoid boxes + the owner-review POURFIRST artifact.
+                       # slab_pour/overunder/pour_reserve above stay the
+                       # live machinery for UN-frozen nets (and the whole
+                       # board when this is off -- the A/B lever).
+                       "pour_first": True,
+                       # v4 TERRITORY POUR PLANNER (owner GO 2026-07-25,
+                       # docs/slab-pour-design-2026-07-24.md v4): the
+                       # pour-first solve runs cec_pour_plan.plan_pours --
+                       # straight geometric corridors + exact layer
+                       # assignment + compact labeled via fields; the
+                       # direction-state Dijkstra is DEMOTED to loud
+                       # per-net fallback inside the planner. Acceptance
+                       # measured on the s464 skeleton 2026-07-25: 7/9
+                       # planned (over-under baseline 6/9), zero mid-span
+                       # via fields, every field at a terminal.
+                       "pour_plan": True,
+                       "lastmile": True,
+                       # LOGIC-RAIL FLOODS (2026-07-24, from the s230 residual:
+                       # +3V3 alone = 20 unconn items, +5VSB/+5V_MAIN 4+4 --
+                       # scattered logic-side supply pads with NO flood for the
+                       # stitch to bond into; the rail compiler only floods the
+                       # J3/TB/trunk regions. The hub pattern: additive In2
+                       # asks, regions auto-derived from each net's pads,
+                       # post-route only (evac False).
+                       "pour_asks": [
+                           {"net": n, "region_hint": None,
+                            "layers": ("In2.Cu",), "shape": "rect",
+                            "priority": 2, "provenance": "placer_ask",
+                            "evac": False}
+                           for n in ("+3V3", "+5VSB", "+5V_MAIN")],
+                       # LED-chain-class gaps sit at 7-10mm (measured s140/s120:
+                       # DL* daisy links just past the 5mm default)
+                       "lastmile_max_mm": 8.0,
                        # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to
@@ -245,7 +640,7 @@ BOARD_PARAMS = {
 # stamps anchored on the placer's own lane seats (RS{n}), inheriting each seat's
 # rotation; cable_index drives the per-lane net map; ideal_internal False keeps
 # the B7 refined copper verbatim.
-_SENSE_LANE_BP = "modules/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+_SENSE_LANE_BP = "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
 try:
     import json as _json
     with open(os.path.join(ROOT, _SENSE_LANE_BP)) as _f:
@@ -265,6 +660,52 @@ def _lane_net_map(n):
         m["/SENSEP{n}_HI"] = "/FAN_12V"
     return m
 
+
+# 24-PIN SENSE-CELL STAMPS (owner ask 2026-07-19 "it needs to stamp out the
+# INA238 and INA181 blueprint" -- the rung had NEVER fired on this board): one
+# v0 template (scripts/gen_24pin_sense_cell.py -- RS + INA238 + INA181A2 +
+# TLV7011, parts packed PERPENDICULAR to the pad axis so both pad-axis
+# approaches stay free for the force-rail stubs/arrays, the v3-keystone rule),
+# four stamps anchored at the blade-row shunt seats. ideal_internal synthesizes
+# the one internal net (DETAMP: 181-out -> 7011-in); kelvin copper stays the
+# precision tap pass's job. Bypass/threshold passives keep auto_cluster
+# ownership (they cluster to these stamped positions).
+_SENSE_RAIL_BP_24 = os.path.join(ROOT, "beta", "atx-24pin-rev3",
+                                 "blueprints", "sense-rail-v0.json")
+_SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "beta", "atx-24pin-rev3",
+                                      "blueprints", "sense-rail-v0-left.json")
+_SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "beta", "atx-24pin-rev3",
+                                      "blueprints", "sense-rail-v0-taps.json")
+_BP_RAILS_24 = {
+    "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
+            {"CELL_HI": "/SENSE12V_HI", "CELL_LO": "/SENSE12V_LO",
+             "CELL_DET": "/DET12V", "CELL_DETAMP": "/DETAMP12V"}),
+    "RS2": ({"RS2": "RS2", "U11": "U11", "U65V1": "U65V1", "U75V1": "U75V1"},
+            {"CELL_HI": "/SENSE5V_HI", "CELL_LO": "+5V_MAIN",
+             "CELL_DET": "/DET5V", "CELL_DETAMP": "/DETAMP5V"}),
+    "RS3": ({"RS2": "RS3", "U11": "U12", "U65V1": "U63V31", "U75V1": "U73V31"},
+            {"CELL_HI": "/SENSE3V3_HI", "CELL_LO": "/SENSE3V3_LO",
+             "CELL_DET": "/DET3V3", "CELL_DETAMP": "/DETAMP3V3"}),
+    "RS4": ({"RS2": "RS4", "U11": "U13", "U65V1": "U65VSB1", "U75V1": "U75VSB1"},
+            {"CELL_HI": "+5VSB", "CELL_LO": "/SENSE5VSB_LO",
+             "CELL_DET": "/DET5VSB", "CELL_DETAMP": "/DETAMP5VSB"}),
+}
+BOARD_PARAMS["atx-24pin-rev3"]["blueprint_cells"] = [
+    # PER-RAIL BANK HANDEDNESS (owner render pass 2026-07-19, the J1/J6
+    # wedge): the bank lands board-RIGHT of the column at the 270 seats, so
+    # the rightmost rails take the MIRRORED bank-left template (parts-only
+    # for now) while RS3 -- whose left flank is J1 -- keeps the bank-right
+    # v0 with the authored Kelvin-90 taps.
+    # UNIFORM bank-right AUTHORED cells (owner render report 2026-07-19
+    # evening: the route-time fallback taps were diagonal/wraparound spaghetti
+    # -- the textbook-90 authored cell is now stampable because the
+    # TLV-BESIDE redesign dropped its deep reach ~9.75 -> ~7.9, inside the
+    # 11.9 walk pitch; the per-pair coverage guard then skips route-time
+    # synthesis for these pairs). Mixed handedness still faces two banks in
+    # one pitch -- uniform-right + the J1 tuck stands.
+    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": True,
+     "ref_map": rm, "net_map": nm}
+    for rs, (rm, nm) in _BP_RAILS_24.items()]
 
 BOARD_PARAMS["12vhpwr-standard"]["blueprint_cells"] = [
     {"template": _SENSE_LANE_BP, "anchor_ref": f"RS{n}", "net_map": _lane_net_map(n),
@@ -345,7 +786,10 @@ def _board_params(board):
     """The BOARD_PARAMS + board-manifest placement_directives merge (shared by the serial
     and parallel candidate paths)."""
     p = dict(BOARD_PARAMS.get(board) or {})
-    mf = os.path.join(ROOT, "modules", board, "board-manifest.json")
+    mf = next((m for m in (os.path.join(ROOT, r, board, "board-manifest.json")
+                           for r in ("beta", "modules", "hubs"))
+               if os.path.isfile(m)),
+              os.path.join(ROOT, "beta", board, "board-manifest.json"))
     if os.path.isfile(mf):
         try:
             pd = (json.load(open(mf)) or {}).get("placement_directives") or {}
@@ -353,25 +797,21 @@ def _board_params(board):
                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
         except Exception:                                  # noqa: BLE001
             pass
+    # thermal config resolves by BOARD NAME, not the variant filename (wave variants
+    # are plain-<strat>-s<seed>.kicad_pcb -> basename keying missed, the solve ran
+    # configless and the new-best stamp mirage-FAILED dT~0 on its first live target,
+    # 2026-07-19). Set HERE so BOTH the parent (_new_best_thermal) and the spawn
+    # workers (_build_session -> grade -> _oracle_env) export CEC_THERMAL_BOARD_HINT.
+    p.setdefault("thermal_board_hint", board)
     return p
 
 
-def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None):
-    """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
-    it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
-    not fork-safe, the cec_fr.generate_batch precedent). *proposal* = a VALIDATED seat
-    proposal dict (cec_wave_intents) -- applied instead of a named hand intent; its
-    role_keepouts merge into params (the params-level lever)."""
-    label = f"{iname}-{strat}-s{seed}"
-    t0 = time.monotonic()
-    # The wave is the consumer that WANTS the fork's real seed-diversity axis
-    # (R-01); everything else stays stock-order unless it opts in (see cec_fr
-    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14).
-    os.environ["CEC_FR_SEED_AXIS"] = "1"
-    # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
-    # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
-    # JVM, grade it failed, spend the wall-clock on live candidates instead.
-    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
+def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
+                   pourfirst_artifact=True):
+    """The variant's PlacementSession, identically for the place-only (prune) and
+    full-grade phases -- factored so the two can never drift. *proposal* = a
+    VALIDATED seat proposal dict (cec_wave_intents), applied instead of a named
+    hand intent; its role_keepouts merge into params (the params-level lever)."""
     _p = _board_params(board)
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)
@@ -387,11 +827,151 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
         cec_wave_intents.apply_proposal(s, proposal)
     else:
         dict(_intents_for(board))[iname](s)
+    # POUR-FIRST RUNG (owner ruling 2026-07-25, docs/slab-pour-design-
+    # 2026-07-24.md v3/v3.1; param "pour_first"): solve + FREEZE the pours on
+    # the variant's anchor-only board BEFORE general placement/routing. Runs
+    # in BOTH the prune and grade phases (this shared builder) so the cheap
+    # place key ranks the same avoid-box placement the grade routes -- the
+    # no-drift rule this function exists for. The owner-review artifact
+    # (board + hex render into build/wave-snaps/<board>/) is written only on
+    # the grade side (pourfirst_artifact; pure output, placement-inert).
+    if _p.get("pour_first"):
+        csp.pour_first_stage(
+            s, out_dir=os.path.join(ROOT, "build", "wave-snaps", board),
+            label=f"{iname}-{strat}-s{seed}", artifact=pourfirst_artifact)
+        _rep = getattr(s, "pourfirst_report", None) or {}
+        if _rep.get("error"):
+            # FAIL-CLOSED on the grade side (owner ruling 2026-07-25: "none
+            # of this is going to even be a shippable candidate ever until
+            # [the new pour pipeline] is here" -- a variant whose pour stage
+            # ERRORED must never become a publishable winner on the old
+            # machinery via a silent revert). Prune side stays fail-open
+            # (ranking only). CEC_POURFIRST_SOFT=1 = debug escape hatch.
+            if pourfirst_artifact and os.environ.get(
+                    "CEC_POURFIRST_SOFT") != "1":
+                raise RuntimeError(
+                    f"pour-first stage ERROR on {iname}-{strat}-s{seed}: "
+                    f"{_rep['error']} (fail-closed: the pour pipeline is "
+                    f"load-bearing; no old-machinery candidates)")
+            print(f"[wave] {board} {iname}-{strat}-s{seed}: pour-first stage "
+                  f"ERROR ({_rep['error']}) -- prune-side rank only",
+                  flush=True)
+    return s, _p
+
+
+def _place_variant(board, W, H, iname, strat, seed, proposal=None):
+    """PRUNE PHASE 1 (roadmap throughput lever 1, owner GO 2026-07-17): compile the
+    PLACEMENT only (seconds) and return the cheap production key -- the same
+    csp._candidate_sort_key place_candidates ranks by (residual, corridor-aware,
+    corridor, proxy). NO route, NO oracle: this exists so the wave can spend its
+    FR minutes on the variants whose placements earn it. Errors return an
+    error row -- the caller treats those FAIL-OPEN (never silently pruned on an
+    infrastructure error; ranking-fidelity is the cost being managed, roadmap
+    false-summit caveat)."""
+    label = f"{iname}-{strat}-s{seed}"
+    t0 = time.monotonic()
+    try:
+        s, _p = _build_session(board, W, H, iname, strat, seed, proposal,
+                               pourfirst_artifact=False)
+        with csp._oracle_env(s.cfg.params if s.cfg else None):
+            cand = s.compile()
+        key = csp._candidate_sort_key(cand)
+        return {"label": label, "iname": iname, "strat": strat, "seed": seed,
+                "place_key": [float(k) for k in key],
+                "residual": cand.residual, "corridor_cross": cand.corridor_cross,
+                "place_wall_s": round(time.monotonic() - t0, 1)}
+    except Exception as e:                                  # noqa: BLE001 -- fail-open
+        return {"label": label, "iname": iname, "strat": strat, "seed": seed,
+                "place_key": None, "error": "%s: %s" % (type(e).__name__, e),
+                "place_wall_s": round(time.monotonic() - t0, 1)}
+
+
+def _prune_variants(variants, placed_rows, k):
+    """The prune DECISION (pure -- unit-tested): keep the top-*k* variants by their
+    cheap place_key; a variant whose placement phase ERRORED stays in the route set
+    (fail-open). Returns (route_variants, pruned_rows). k<=0 or fewer variants than
+    k -> everything routes (byte-identical legacy wave).
+
+    INTENT-CLASS FLOOR (first live firing, work14 2026-07-19): the raw top-K pruned
+    ALL 12 seat-proposal variants and routed only the 4 plains -- the cheap key does
+    not predict routability (the documented false-summit), and the pruned class is
+    exactly the one that has been WINNING waves since 2026-07-14 (wave-3 winner = a
+    seat proposal). Every intent class (v[0]) therefore keeps its best-by-key variant
+    IN ADDITION to the top-K, so a proposal class can never be silently eliminated
+    before it ever routes. CEC_WAVE_PRUNE_CLASS_FLOOR=0 restores the raw top-K."""
+    if k <= 0 or len(variants) <= k:
+        return list(variants), []
+    by_label = {r["label"]: r for r in placed_rows}
+
+    def _label(v):
+        return f"{v[0]}-{v[1]}-s{v[2]}"
+
+    keyed, erred = [], []
+    for v in variants:
+        row = by_label.get(_label(v))
+        if row is None or row.get("place_key") is None:
+            erred.append(v)                                  # fail-open: route it
+        else:
+            keyed.append((tuple(row["place_key"]), _label(v), v))
+    keyed.sort(key=lambda t: (t[0], t[1]))
+    keep = keyed[:max(0, k - len(erred))] if len(erred) < k else []
+    if os.environ.get("CEC_WAVE_PRUNE_CLASS_FLOOR", "1") != "0":
+        kept_classes = {v[0] for _key, _lbl, v in keep} | {v[0] for v in erred}
+        for _key, _lbl, v in keyed:                          # sorted: first hit = class best
+            if v[0] not in kept_classes:
+                keep.append((_key, _lbl, v))
+                kept_classes.add(v[0])
+    route = [v for _key, _lbl, v in keep] + erred
+    kept_labels = {_label(v) for v in route}
+    pruned = [dict(by_label[_label(v)], pruned=True) for v in variants
+              if _label(v) not in kept_labels]
+    return route, pruned
+
+
+def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None,
+                   polish=False):
+    """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
+    it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
+    not fork-safe, the cec_fr.generate_batch precedent).
+
+    polish=True (the winner-polish stage, 2026-07-23): the effort args are taken
+    VERBATIM (wave_passes/wave_opt board params normally override them -- a polish
+    at 16/20 must not be silently clamped back to the wave's 8/10), the FR timeout
+    doubles, and the label gets a -polish suffix so its work files never clobber
+    the original grade."""
+    label = f"{iname}-{strat}-s{seed}" + ("-polish" if polish else "")
+    t0 = time.monotonic()
+    # The wave is the consumer that WANTS the fork's real seed-diversity axis
+    # (R-01); everything else stays stock-order unless it opts in (see cec_fr
+    # run_freerouting CEC_FR_SEED_AXIS note, 2026-07-14). RESTORED after the
+    # grade (codex stack-audit 2026-07-19 #24: the unrestored process-global
+    # leaked the wave-only axis + plateau-kill into any later same-process
+    # route, e.g. a golden run).
+    _env_prev = {k: os.environ.get(k) for k in ("CEC_FR_SEED_AXIS",
+                                                "CEC_FR_PLATEAU_KILL",
+                                                "CEC_FR_PLATEAU_FLOOR")}
+    os.environ["CEC_FR_SEED_AXIS"] = "1"
+    # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
+    # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
+    # JVM, grade it failed, spend the wall-clock on live candidates instead.
+    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
+    s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+    # PLATEAU FLOOR (probe 2026-07-23: a togo-34 hub "plateau" recovered to
+    # unconn 7 with the kill off -- the flat streak fires on FR's normal
+    # terminal-grind/rip-up phases, discarding boards in the winner band). A
+    # plateau at togo <= floor finishes and grades; above it the kill stands
+    # (true collapses sit flat at 190+). Per-board: hub winners live at 7-36,
+    # 24-pin winners 146-158 vs collapse 190-230 -> wave_plateau_floor.
+    os.environ.setdefault("CEC_FR_PLATEAU_FLOOR",
+                          str(int(_p.get("wave_plateau_floor", 100))))
     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
     v = s.grade(out=out, keep=True,
-                passes=int(_p.get("wave_passes", passes)),
-                opt=int(_p.get("wave_opt", opt)),
-                fr_timeout=int(_p.get("wave_fr_timeout", 900)),
+                passes=(int(passes) if polish
+                        else int(_p.get("wave_passes", passes))),
+                opt=(int(opt) if polish
+                     else int(_p.get("wave_opt", opt))),
+                fr_timeout=(2 * int(_p.get("wave_fr_timeout", 900)) if polish
+                            else int(_p.get("wave_fr_timeout", 900))),
                 seed=seed,              # pin FR seed: wave-to-wave comparability
                 unconn_finish_tol=2,
                 # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
@@ -402,10 +982,298 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
                 # coupled pairs deterministic + locked, refused pairs solo-tiered,
                 # FR residual-only). wave_precision=False in params restores bare.
                 precision=bool(_p.get("wave_precision", True)))
+    _inc = (v.get("incursion") or {})
+    if _inc and (_inc.get("n_parts", 0) or _inc.get("n_tracks", 0) or _inc.get("n_vias", 0)):
+        print(f"[wave] {board} {label}: POUR INCURSION parts={_inc.get('n_parts')} "
+              f"tracks={_inc.get('n_tracks')} vias={_inc.get('n_vias')} "
+              f"(owner rule: nothing places inside a pour)", flush=True)
     v["label"] = label
     v["placed"] = out
     v["wall_s"] = round(time.monotonic() - t0, 1)
+    # POUR-FIRST per-net report rides the verdict into the wave log/report
+    # (path_found / segments / bridges / layers / bottleneck per net)
+    _pfr = getattr(s, "pourfirst_report", None)
+    if _pfr is not None:
+        v["pourfirst"] = _pfr
+        print(f"[wave] {board} {label}: pour-first paths "
+              f"{len(_pfr.get('path_found', ()))}/{len(_pfr.get('nets', {}))} "
+              f"no-path={_pfr.get('no_path') or 'none'} "
+              f"artifact={os.path.basename(str(_pfr.get('artifact') or ''))} "
+              + (f"ERR={_pfr.get('error')}" if _pfr.get("error") else ""),
+              flush=True)
+    for _ek, _ev in _env_prev.items():          # restore (audit #24)
+        if _ev is None:
+            os.environ.pop(_ek, None)
+        else:
+            os.environ[_ek] = _ev
     return v
+
+
+def _prev_best_key(pub_dir):
+    """Sort_key of the board's INCUMBENT best: the latest previously-published
+    wave-report in *pub_dir* (chained waves share out_root). None = no incumbent."""
+    try:
+        reports = sorted(glob.glob(os.path.join(pub_dir, "*-wave-report.json")))
+        if not reports:
+            return None
+        with open(reports[-1]) as fh:
+            k = ((json.load(fh).get("best") or {}).get("sort_key"))
+        return tuple(k) if k else None
+    except Exception:                                   # noqa: BLE001 -- fail-safe
+        return None
+
+
+CANDIDATE_DIR = "candidate"
+CANDIDATE_META = "candidate.json"
+_CANDIDATE_README = """# `candidate/` — the current best routed board for this module
+
+ONE board file, kept current by the wave (owner directive 2026-07-25: "the current
+best should be placed into a candidate folder per board and kept current with only
+one board ideally so we have a reference").
+
+`<board>-candidate.kicad_pcb` (+ its `.kicad_pro` / `.kicad_dru` sidecars) is a COPY
+of the best board the wave has ever published for this module, with `candidate.json`
+recording where it came from and how it graded. Open it to see the real current
+state of the layout without digging through `build/fresh-wave-*/`.
+
+RULES the wave enforces on every publish:
+  * SCHEMATIC FRESHNESS outranks score: a winner carrying more of the CURRENT
+    netlist replaces the reference even on a worse score, and a staler board never
+    replaces a fresher one (`schematic_match` in `candidate.json` records it) --
+    a board that grades well but predates a schematic change is the worse reference;
+  * otherwise it replaces this file only when the new winner BEATS the recorded
+    `sort_key` (lower is better -- the same ranking the wave itself uses);
+  * a routed winner always beats a placement-only one, and a placement-only winner
+    NEVER overwrites a routed reference;
+  * exactly one `.kicad_pcb` lives here -- stale board files are pruned.
+
+This is a REFERENCE, not the board of record: it is machine-written, so never hand-edit
+it (edits are silently overwritten by the next better wave). The authoritative
+schematic + the module's own project files stay in the parent directory.
+"""
+
+
+def _board_refs(pcb_path):
+    """Footprint reference set of a board, or None if it cannot be read."""
+    try:
+        import pcbnew
+    except ImportError:                                    # host-side tests
+        return None
+    try:
+        b = pcbnew.LoadBoard(str(pcb_path))
+        return {fp.GetReference() for fp in b.GetFootprints()}
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def _netlist_refs(board):
+    """Reference set the CURRENT schematic expects, or None if unavailable.
+
+    Goes through `_ensure_netlist_path`, NOT `cfg.net` directly: most boards
+    carry no committed .net file, so the direct read returned None for every
+    board and silently reduced the freshness rule to a no-op (measured -- every
+    board reported `schematic=0%`). `_ensure_netlist_path` exports it once from
+    the schematic, which is what makes "current" mean current.
+    """
+    try:
+        cfg = csp.Config.load(board)
+        net = ""
+        try:
+            net = csp._ensure_netlist_path(cfg) or ""
+        except Exception:                                  # noqa: BLE001
+            net = getattr(cfg, "net", "") or ""
+        if not (net and os.path.isfile(net)):
+            return None
+        refs = set(csp.Netlist.from_file(net).comps)
+        return refs or None
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def _schematic_match(pcb_path, want_refs):
+    """How much of the current schematic this board actually carries (0..1).
+
+    The reason this is a RULE and not a nicety: "best by sort_key" can be a board
+    that predates a schematic change. Measured 2026-07-25 -- the 12VHPWR winner
+    with the best score was routed 07-19, before the USB-ingress parts landed in
+    the schematic, so a purely score-ranked reference would show a board missing
+    U5/F1 entirely while claiming to be current. A reference that is numerically
+    better but electrically out of date is the worse reference.
+    """
+    if not want_refs:
+        return None
+    have = _board_refs(pcb_path)
+    if have is None:
+        return None
+    return len(want_refs & have) / float(len(want_refs))
+
+
+def _candidate_update(board, published_pcb, best, *, out_root=None):
+    """Keep `beta/<board>/candidate/` pointing at the CURRENT BEST board.
+
+    Called at the publish site with the already-hygiene-cleaned artifact, so the
+    reference carries exactly what the owner would review. Fail-safe by
+    construction: any problem here prints and returns, never breaks a wave.
+    """
+    try:
+        board_dir = os.path.join(ROOT, "beta", board)
+        if not os.path.isdir(board_dir):
+            return None                        # never invent a board directory
+        if not (published_pcb and os.path.isfile(str(published_pcb))):
+            return None
+        cdir = os.path.join(board_dir, CANDIDATE_DIR)
+        os.makedirs(cdir, exist_ok=True)
+        meta_path = os.path.join(cdir, CANDIDATE_META)
+        dst_pcb = os.path.join(cdir, f"{board}-candidate.kicad_pcb")
+
+        routed_now = bool(best.get("routed") and os.path.isfile(str(best.get("routed"))))
+        key_now = tuple(best.get("sort_key") or (9,))
+        prev = {}
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path) as fh:
+                    prev = json.load(fh) or {}
+            except Exception:                              # noqa: BLE001
+                prev = {}
+        have = os.path.isfile(dst_pcb)
+        prev_routed = bool(prev.get("routed"))
+        prev_key = tuple(prev.get("sort_key") or (9,))
+
+        # SCHEMATIC FRESHNESS outranks score (see _schematic_match): a reference
+        # that is missing parts the schematic now has is stale no matter how well
+        # it graded. Both sides are measured against TODAY's netlist, so this
+        # compares like with like; when the netlist or pcbnew is unavailable the
+        # term drops out entirely and the score rules stand unchanged.
+        want = _netlist_refs(board)
+        fresh_now = _schematic_match(published_pcb, want)
+        fresh_prev = _schematic_match(dst_pcb, want) if os.path.isfile(dst_pcb) else None
+        fresher = staler = False
+        if fresh_now is not None and fresh_prev is not None:
+            fresher = fresh_now > fresh_prev + 1e-9
+            staler = fresh_now < fresh_prev - 1e-9
+
+        if not have:
+            why = "first candidate"
+        elif fresher:
+            why = (f"carries more of the current schematic "
+                   f"({fresh_now:.0%} vs {fresh_prev:.0%} of {len(want)} parts)")
+        elif staler:
+            print(f"[wave] {board} candidate: kept (this winner carries only "
+                  f"{fresh_now:.0%} of the current schematic vs the reference's "
+                  f"{fresh_prev:.0%} -- a staler board never replaces a fresher one)",
+                  flush=True)
+            return None
+        elif routed_now and not prev_routed:
+            why = "routed beats placement-only"
+        elif prev_routed and not routed_now:
+            # A placement-only winner must never clobber real copper.
+            print(f"[wave] {board} candidate: kept (routed reference beats a "
+                  f"placement-only winner)", flush=True)
+            return None
+        elif key_now < prev_key:
+            why = f"sort_key {list(key_now)} < {list(prev_key)}"
+        else:
+            print(f"[wave] {board} candidate: kept (incumbent {list(prev_key)} "
+                  f"<= this wave's {list(key_now)})", flush=True)
+            return None
+
+        import shutil
+        shutil.copy(str(published_pcb), dst_pcb)
+        src_base = str(published_pcb)[:-len(".kicad_pcb")]
+        for ext in (".kicad_pro", ".kicad_dru"):
+            if os.path.isfile(src_base + ext):
+                shutil.copy(src_base + ext, dst_pcb[:-len(".kicad_pcb")] + ext)
+        # ONE board file (owner: "only one board ideally"): drop anything stale.
+        for stale in glob.glob(os.path.join(cdir, "*.kicad_pcb")):
+            if os.path.abspath(stale) != os.path.abspath(dst_pcb):
+                os.remove(stale)
+        readme = os.path.join(cdir, "README.md")
+        if not os.path.isfile(readme):
+            with open(readme, "w") as fh:
+                fh.write(_CANDIDATE_README)
+        meta = {
+            "schema": 1,
+            "board": board,
+            "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "reason": why,
+            "routed": routed_now,
+            "source": os.path.relpath(str(published_pcb), ROOT),
+            "wave_out_root": (os.path.relpath(str(out_root), ROOT) if out_root else None),
+            "label": best.get("label"),
+            "sort_key": list(key_now),
+            "schematic_match": (round(fresh_now, 4) if fresh_now is not None else None),
+            "schematic_parts": (len(want) if want else None),
+            "grade": {k: best.get(k) for k in
+                      ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
+                       "unconn_critical", "foreign", "thermal_ok", "rails")},
+            "thermal": best.get("thermal"),
+        }
+        try:                                               # provenance, best-effort
+            meta["commit"] = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, check=False,
+                capture_output=True, text=True).stdout.strip() or None
+        except Exception:                                  # noqa: BLE001
+            meta["commit"] = None
+        with open(meta_path, "w") as fh:
+            json.dump(meta, fh, indent=1, sort_keys=True, default=str)
+        print(f"[wave] {board} candidate: UPDATED ({why}) -> "
+              f"{os.path.relpath(dst_pcb, ROOT)}", flush=True)
+        return dst_pcb
+    except Exception as e:                                 # noqa: BLE001 -- fail-safe
+        print(f"[wave] {board} candidate update skipped ({type(e).__name__}: {e})",
+              flush=True)
+        return None
+
+
+def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
+    """NEW-BEST THERMAL (owner design call 2026-07-17: 'thermal fires on every wave
+    that produces a new best'). The per-candidate lazy skip stands (the solve costs
+    5-17s GPU / ~97s CPU-AMG, measured -- too much x N variants), but no fresh
+    candidate reaches gate-clean today, so the lazy path never fired and every
+    published best carried dT=None (the roadmap's silent-skip finding). This stamp
+    closes that: a wave whose winner BEATS the board's incumbent (or has none)
+    runs the SAME fail-closed, mirage-guarded, double-solve-confirmed oracle term
+    the gate uses (_oracle_thermal, route_oracle_grade's default 50C/30C/0.4mm),
+    under the same recipe env, on the PUBLISHED routed board. A thermal FAIL
+    publishes LOUD in the verdict/report/print -- never silently dropped; the
+    sort_key is NOT retroactively rewritten (grading already happened; this is
+    the publish-time evidence behind the claim). Returns the new-best flag."""
+    prev = _prev_best_key(pub_dir)
+    new_best = prev is None or tuple(best.get("sort_key") or (9,)) < prev
+    th = best.get("thermal") or {}
+    routed = best.get("routed")
+    if not new_best or th.get("dT") is not None:
+        return new_best
+    if not (routed and os.path.isfile(str(routed))):
+        best["thermal"] = {"ok": False, "dT": None, "max_T": None,
+                           "note": "new best has no routed board -- thermal not solvable"}
+        return new_best
+    # COARSE-ON-CPU knob (owner ask 2026-07-18): CEC_WAVE_THERMAL_GRID_MM coarsens the
+    # wave stamp's grid (0.4 = the gate default; 0.8 ~= 4x fewer cells, which also lands
+    # the solve under the GPU auto-engage floor -> fast CPU-AMG); pair with
+    # CEC_THERMAL_BACKEND=cpu to pin the backend. PROVENANCE: grid_mm + backend are
+    # stamped into the result so a coarse CPU number is never read as the 0.4 mm gate
+    # figure (a coarse grid under-resolves thin necks -> optimistic dT; the mirage
+    # guard + double-solve confirm still apply, but gate-grade thermal stays 0.4).
+    grid_mm = float(os.environ.get("CEC_WAVE_THERMAL_GRID_MM", "0.4"))
+    solve = solve or (lambda p: csp._oracle_thermal(p, ambient=50.0, gate_dt=30.0,
+                                                    grid_mm=grid_mm))
+    env = env or csp._oracle_env
+    try:
+        with env(board_params):
+            therm = solve(str(routed))
+    except Exception as e:                              # noqa: BLE001 -- FAIL-CLOSED
+        therm = {"ok": False, "dT": None, "max_T": None, "gate_dt": 30.0,
+                 "error": "%s: %s" % (type(e).__name__, e)}
+    if isinstance(therm, dict):
+        therm.setdefault("grid_mm", grid_mm)
+        _be = os.environ.get("CEC_THERMAL_BACKEND", "").strip().lower()
+        therm.setdefault("backend", _be or "auto")
+        if grid_mm > 0.4:
+            therm.setdefault("provenance", "coarse (%.1fmm > 0.4mm gate grid)" % grid_mm)
+    best["thermal"] = therm
+    best["thermal_ok"] = bool(therm.get("ok"))
+    return new_best
 
 
 def _wave_workers():
@@ -432,7 +1300,7 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                  f"passes {passes}/opt {opt}, workers {workers}")
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
-    _bp = _board_params(board)
+    _bp = _board_params(board)      # carries thermal_board_hint (set in _board_params)
     variants = [(iname, strat, seed, None) for iname, _fn in _intents_for(board)
                 for strat in ("dataflow", "compact") for seed in seeds]
     # SEAT PROPOSALS (owner GO 2026-07-08): validated intents from the previous wave's
@@ -447,6 +1315,36 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         except Exception as e:                              # noqa: BLE001 -- fail-safe
             print(f"[wave] {board}: proposals unavailable ({e})", flush=True)
 
+    # PRUNE -> ADJUDICATE (roadmap throughput lever 1, owner GO 2026-07-17): compile
+    # ALL variants' placements cheaply first (seconds each), FR-route only the top-K
+    # by the production cheap key (csp._candidate_sort_key -- the same ranking
+    # place_candidates/adjudicate_candidates already use). The FR route is 71-95% of
+    # candidate cost (roadmap profile), so K=4 on the recent 16-32-variant grids is
+    # the ~8x saving. Fidelity cost is managed, not hidden: pruned variants are
+    # RECORDED in the wave report with their placement keys (no silent caps), a
+    # placement-phase ERROR routes anyway (fail-open), and CEC_WAVE_PRUNE=0 restores
+    # the route-everything wave byte-identically.
+    pruned_rows = []
+    prune_k = int(os.environ.get("CEC_WAVE_PRUNE", "4"))
+    if prune_k > 0 and len(variants) > prune_k:
+        _t0p = time.monotonic()
+        if workers <= 1:
+            placed_rows = [_place_variant(board, W, H, i, st, sd, prop)
+                           for i, st, sd, prop in variants]
+        else:
+            import concurrent.futures as _cf
+            import multiprocessing as _mp
+            _ctx = _mp.get_context("spawn")                    # pcbnew is NOT fork-safe
+            with _cf.ProcessPoolExecutor(max_workers=workers, mp_context=_ctx) as _pool:
+                placed_rows = list(_pool.map(
+                    _place_variant,
+                    *zip(*[(board, W, H, i, st, sd, prop) for i, st, sd, prop in variants])))
+        variants, pruned_rows = _prune_variants(variants, placed_rows, prune_k)
+        print(f"[wave] {board} prune: routing {len(variants)}/{len(placed_rows)} "
+              f"variant(s) by cheap placement key ({len(pruned_rows)} pruned, recorded "
+              f"in the report; CEC_WAVE_PRUNE=0 routes all) "
+              f"[{round(time.monotonic() - _t0p, 1)}s]", flush=True)
+
     def _consume(v):
         _was_best = (not results or
                      tuple(v.get("sort_key") or (9,)) <
@@ -458,7 +1356,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
               f"kelvin={v.get('kelvin_ok')} unconn={v.get('unconnected')} "
               f"foreign={v.get('foreign',{}).get('tracks')}t "
               f"dT={((v.get('thermal') or {}).get('dT'))} "
-              f"({v.get('wall_s')}s)", flush=True)
+              f"({v.get('wall_s')}s)"
+              + (f" ERR={str(v.get('error'))[:140]}" if v.get("error") else ""),
+              flush=True)
 
     if workers <= 1:
         for iname, strat, seed, prop in variants:
@@ -487,6 +1387,39 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         return None
     results.sort(key=lambda v: tuple(v.get("sort_key") or (9,)))
     best = results[0]
+    # WINNER POLISH (2026-07-23): re-grade the winning variant once at HIGH FR
+    # effort before publishing -- probes at 16/20 consistently land 21-26 unconn
+    # where wave-effort bests land 30+ (the s70/s120 ladder). One extra route
+    # per wave, winner-only; adopted only when it actually sorts better.
+    polish_info = None
+    if _bp.get("wave_polish", True) and best.get("unconnected") is not None:
+        _mt = [t for t in variants
+               if f"{t[0]}-{t[1]}-s{t[2]}" == best.get("label")]
+        if _mt:
+            _pi, _ps, _pseed, _pprop = _mt[0]
+            try:
+                pv = _grade_variant(board, W, H, _pi, _ps, _pseed,
+                                    int(_bp.get("polish_passes", 16)),
+                                    int(_bp.get("polish_opt", 20)),
+                                    work_root, proposal=_pprop, polish=True)
+                polish_info = {"label": pv.get("label"),
+                               "unconnected": pv.get("unconnected"),
+                               "drc": pv.get("drc"),
+                               "sort_key": pv.get("sort_key"),
+                               "adopted": False}
+                if tuple(pv.get("sort_key") or (9,)) \
+                        < tuple(best.get("sort_key") or (9,)):
+                    polish_info["adopted"] = True
+                    results.insert(0, pv)
+                    best = pv
+                print(f"[wave] {board} polish: unconn "
+                      f"{polish_info['unconnected']} drc {polish_info['drc']} "
+                      f"({'ADOPTED' if polish_info['adopted'] else 'kept original'})",
+                      flush=True)
+            except Exception as e:                              # noqa: BLE001
+                polish_info = {"error": f"{type(e).__name__}: {e}"}
+                print(f"[wave] {board} polish ERROR {polish_info['error']}",
+                      flush=True)
     # publish ONLY the winner (routed board if the route produced one, else the placement)
     pub_dir = os.path.join(out_root, board)
     os.makedirs(pub_dir, exist_ok=True)
@@ -501,13 +1434,68 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         for ext in (".kicad_pro", ".kicad_dru"):
             if os.path.isfile(base + ext):
                 shutil.copy(base + ext, dst[:-len(".kicad_pcb")] + ext)
+        # PUBLISH HYGIENE (2026-07-25, measured on the pass-2 winner: a
+        # zero-fill `pourplan:` zone survived to the published board --
+        # whichever stage wrote LAST is not guaranteed to have run the
+        # cleanup chain, so the published artifact runs it itself; fresh
+        # cycles, owner-review surface = the enforcement surface).
+        try:
+            import cec_slab_pour as _csp2
+            _csp2.cleanup_floating_zones(dst)
+            if _bp.get("pour_first") or _bp.get("slab_pour") \
+                    or _bp.get("overunder"):
+                _csp2.reap_nowhere_zones(dst)
+        except Exception as _ce:                            # noqa: BLE001
+            print(f"[wave] {board} publish hygiene skipped ({_ce})",
+                  flush=True)
+    # FAB REPAIR (owner 2026-07-27: "wire it in so that those things are actually
+    # fixed instead of just acting as a gate with no teeth"). Runs on the
+    # PUBLISHED artifact, after the hygiene chain, so the candidate reference and
+    # anything sent to a fab house carry the repaired copper. Only the
+    # deterministic, connectivity-safe repairs: sub-minimum track widths snapped
+    # to the floor, duplicate/backtrack segments removed, zone priorities
+    # deconflicted. Fail-safe -- a repair problem must never lose a routed board.
+    if os.environ.get("CEC_FAB_REPAIR", "1") == "1" and src \
+            and os.path.isfile(str(dst)):
+        try:
+            import cec_fab_repair
+            _fr = cec_fab_repair.repair(str(dst), apply=True)
+            if _fr.get("track_width") or _fr.get("backtracks") or _fr.get("priority"):
+                print("[wave] %s fab repair: %d width, %d backtrack, %d priority"
+                      % (board, _fr["track_width"], _fr["backtracks"],
+                         _fr["priority"]), flush=True)
+        except Exception as _fe:                            # noqa: BLE001
+            print(f"[wave] {board} fab repair skipped ({type(_fe).__name__}: {_fe})",
+                  flush=True)
+    new_best = _new_best_thermal(best, pub_dir, _bp)
+    # CURRENT-BEST REFERENCE (owner directive 2026-07-25): mirror the published
+    # winner into beta/<board>/candidate/ so every module has ONE stable, current
+    # board to open -- the reason beta/ looked stale was that every routed
+    # artifact lived only under build/. Runs after the hygiene chain and after
+    # the thermal stamp, so the reference carries the reviewed artifact + its grade.
+    _candidate_update(board, dst if (src and os.path.isfile(str(src))) else None,
+                      best, out_root=out_root)
+    if new_best:
+        _th = best.get("thermal") or {}
+        print(f"[wave] {board} NEW BEST -> thermal: ok={_th.get('ok')} "
+              f"dT={_th.get('dT')} "
+              f"({_th.get('error') or _th.get('note') or _th.get('cooling')})",
+              flush=True)
     report = {"board": board, "ts": ts, "W": W, "H": H, "passes": passes, "opt": opt,
               "published": os.path.relpath(dst, ROOT) if src else None,
+              "new_best": new_best,
+              "polish": polish_info,
+              "prune": {"k": prune_k, "routed": len(results),
+                        "pruned": len(pruned_rows)} if pruned_rows else None,
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
-                        "unconn_critical", "foreign", "thermal_ok", "sort_key", "reasons")},
-              "ranking": [{"label": v["label"], "gate": v.get("gate"),
-                           "sort_key": v.get("sort_key")} for v in results]}
+                        "unconn_critical", "foreign", "thermal_ok", "thermal", "rails",
+                        "sort_key", "reasons")},
+              "ranking": ([{"label": v["label"], "gate": v.get("gate"),
+                            "sort_key": v.get("sort_key")} for v in results]
+                          + [{"label": r["label"], "pruned": True,
+                              "place_key": r.get("place_key"),
+                              "error": r.get("error")} for r in pruned_rows])}
     with open(os.path.join(pub_dir, f"{ts}-wave-report.json"), "w") as fh:
         json.dump(report, fh, indent=2, default=str)
     print(f"[wave] {board} BEST={best['label']} gate={best.get('gate')} -> {dst}", flush=True)

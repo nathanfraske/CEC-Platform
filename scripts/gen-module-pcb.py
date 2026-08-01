@@ -203,7 +203,7 @@ def parse_netlist(path):
 LAYERS = """\t(layers
 \t\t(0 "F.Cu" signal)
 \t\t(4 "In1.Cu" signal "GND")
-\t\t(6 "In2.Cu" power "12V")
+\t\t(6 "In2.Cu" power "GND2")
 \t\t(2 "B.Cu" signal)
 \t\t(9 "F.Adhes" user "F.Adhesive")
 \t\t(11 "B.Adhes" user "B.Adhesive")
@@ -372,7 +372,7 @@ def build(dir_, base, n, kind):
         if lib: fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref)))
         else: print(f"  WARN no footprint for {ref} in {base}", file=sys.stderr)
     for i, (x, y) in enumerate(mounts, 1):
-        fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via",
+        fps.append(place("cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via",
                          f"H{i}", x, y, 0, padnet, code_of, gnd_all=True))
     fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=True))
 

@@ -14,14 +14,18 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 | # | Decision | Blocks | Recorded |
 |---|---|---|---|
+| — | **SCHEMATIC MCP + DRAFTING IMPROVEMENT BACKLOG (2026-07-22, three codex audits reconciled)**: docs/schematic-mcp-improvement-plan-2026-07-22.md — B's 13-verb semantic roadmap (P0 atomic replace_components + verify_restricted_diff + pin_net_map; transaction-model prerequisite + _gated() defects to fix regardless), C1's 9-step readability/tuning ladder (atomic pipeline, orient_power_glyphs, body-aware normalize_fields, wrap/fit + bounds gates — calibrated per the charter, teeth plans included), A's structural queue (tester real-hierarchy, sheet-bounds; the rank-1 multiple_net_names electrical finding already FOLLOWUPS'd + verified). RULING: GO/priority on the §4 execution order (or slices). Full reports build/codex-*.out. | agent autonomy on schematic edits; prettier generated sheets | docs/schematic-mcp-improvement-plan-2026-07-22.md |
+| — | **MEZZ MOUNTING SCHEME — STRUCTURAL SEGMENTED MEZZ (2026-07-22)**: owner riff ("split the mezzanine into 2-3 segments and have the stability derive from that") engineered in docs/mezz-structural-segments-2026-07-22.md. RECOMMENDED R1: split J6 into three KEYED THT segments (J6P 2x3 power / J6C 2x4 comms / J6D 2x2 ID, from the netlist-verified 16-pin map) that ARE the mounts — zero screws, same ~65x30 support triangle, >20x static retention margin, keying free via distinct sizes; deletes H1-H3 + shrinks the J6 field (both MEASURED refusal classes: C1|H1 + J6|U10 fired on the 2026-07-22 prop wave); disperses the 16-net right-flank funnel named in the routing-hardness attribution. R2 fallback = same + ONE provisioned M2 (DNP-able land, no respin). M2-at-4-corners answered: M2 size fine, corners physics-blocked (all four 24-pin edges owned — J3/TB/jacks/J6). ONE bench gate: peel/shake on a mated sample. RULING NEEDED: R1 vs R2-provisioned vs keep-screws; on GO the implementation is ~1 session (segment split absorbs the owed no-flip pin-map re-verification). | next mezz/placement wave on the new contract; the owed pin-map re-verify | docs/mezz-structural-segments-2026-07-22.md |
+| — | **BGA-READINESS FUNDING ORDER (2026-07-23, owner: "multi-BGA boards coming up, something's gotta give")**: plan in docs/pipeline-solver-roadmap.md §BGA-READINESS. Recommended A+B: a deterministic BGA fanout/escape GENERATOR (locked copper pre-FR, the authored-cell pattern generalized) + escape-aware placement terms; C = router re-evaluation (FR-2.x fork surgery / IPC-API / commercial benchmark) trails A/B; D = 6-layer stackup+DRU authoring prereq (blind/buried via class = spec-level ruling). RULING: fund A+B now vs a different order; name the first target board (hub-pro P4? ENT PolarFire capture board?). | ENT ~2026-08 customer clock; hub-pro/P4 boards | docs/pipeline-solver-roadmap.md §BGA-READINESS |
 | — | **STANDARD-TIER DEMAND + ALPHA/BETA LINE (owner, 2026-07-03)**: real purchase demand for the Standard tier NOW; ENT presents to the prospective customer **~2026-08 (one month)** — this puts a REAL CLOCK on the f1 dev-kit + TC-silicon order (demo rig lead times must fit inside the month; order soon or the demo slips). Consumer revision convention RATIFIED: existing validated prototypes = ALPHA line (all Standard modules + Hub have working prototypes, concept 100% validated); owner-approved refinements = BETA line, cleanly denoted (Rev field / README / fab naming) — recorded in CLAUDE.md. Standard-tier refinement fan-out COMPLETE (6 reports + synthesis, docs/standard-tier-review/): **the deduped 11-item OWNER DECISION LIST is in SYNTHESIS-beta-plan.md §3** (D-1 kit/cable SKUs, D-2 SKU collapse [PCIe one-board / EPS-1], D-3 mezzanine consumer scope + J6 pinout contradiction, D-4 §6.13/OQ-57 ROI, D-5 24-pin rev3a-vs-full [CRITICAL PATH], D-6 hub items incl. OQ-2, D-7 12VHPWR production bar + pigtail spec, D-8 rev2 erratum consumer disclosure, D-9 pegless-keyed search, D-10 market pull, D-11 USB-C footprint fix [Hub CI red today]); the no-decision hygiene wave W1-W8 proceeds under the beta flag. | beta-line kickoff (awaits owner approval of the refinement plan); demo-rig order clock | CLAUDE.md alpha/beta paragraph; docs/standard-tier-review/ |
-| — | **D-5a RULED (owner, 2026-07-04): CONNECTOR DAUGHTERBOARD** for 24-pin/PCIe/EPS output — main board carries an inter-board connector to a stood-up PASSIVE daughterboard (thick copper, no components, does all output pin-mapping so main-board pours are freed from the connector pin field); populated as a MODDIY vertical PCB-mount header OR a soldered pigtail; **sellable daughterboard+extension-cable assembly** (soldered at the through-holes w/ strain relief) = the productized bundle that closes the remaining female-out issues (the 2026-07-03 "order-system bundle" lean in hardware form); chassis provides strain relief (designed in). 12VHPWR unchanged (captive pigtail). KILL-CHECK CLEARED (study landed 2026-07-04): real connectors exist at every family's bar — EPS ~65A/cable target = 3 contacts/polarity, PCIe ~49A = 2, 24-pin easy, on Amphenol PwrBlade / Molex Ten60Power / Hirose MCN51 (PwrBlade+Ten60 rated 30A/contact AT 30°C rise = the repo's own gate condition); study recommends PER-CABLE daughterboards (shared-housing mutual-heating derating, fault isolation, sellable-assembly fit). COST (§8) + GEOMETRY (§8.5) PASSES LANDED — owner right twice ($5 ceiling AND "40/80mm slots are massive"): commodity card-edge ELIMINATED by the footprint gate (~2.4–2.5 A/mm of slot at any pitch vs 3.7–7.2 needed; the §8.4 math was already dual-readout); premium blades $13–26/module (MCN51 OBSOLETE). §8.6 SOURCING PASS (owner-directed) REVISED THE PICKS: **EPS+PCIe = Würth REDCUBE WP-THRBU 74650094 rated terminals** (85A VERIFIED, $2.86@100, in stock; 2/cable + signal stub; ~$12–19/module) — **the load-bearing M3-joint bench item DIES** (→ incoming QC + torque control); **24-pin = pursue HPCE vertical** (~$7–10, one part = power+signals, tool-less, gate CLEARS at real pitch ~7.1A/mm; 2 UNVERIFIEDs: beams/position + right-size SKU supply — orderable-now SKU reads ~144A vs 190A need; hard-gold fingers) w/ REDCUBE 6-point committed fallback; generic M3 demoted to cost-down-after-bench ($2.5–5, bench-gated). HONEST COST: verified-ampacity = $12–19/module vs the ~$5 ceiling — owner picks the trade side per family. §8.8–§8.10 (owner-led catalog work) FINAL LADDER: **HEADLINE = all-Keystone/TE TOOL-LESS BLADE config** — universal 30A clips on the main board (SMT 3586 LCSC C238113 / THT 3557-2 C352820) + TE FASTON .250" tabs on the daughterboard (63849-1 C86469, $0.04) = **$2.7–4.6/module, RATED, tool-less, the ONLY end-to-end JLC-native path** (8197 screw alt = LCSC OOS today; REDCUBE = not carried, DigiKey proto rung; §8.8 blade-kill corrected — was TE-7A-receptacle-bound, Keystone universal clips are 30A). **OWNER SIGN-OFF (2026-07-04): the LCSC blade-config part arc is RATIFIED, conditional only on physical fit ("as long as the tabs and whatnot fit together"); MATING-FORCE gate DISMISSED by owner ruling — high insertion force is a FEATURE (part is not meant to be constantly swapped; mis-seat/pull-out absolutely unwanted). IMPLEMENTATION COMPLETE (2026-07-05): spec v1.4.0 applied; parts vendored+datasheeted; blade interface on all 4 main-board schematics (Rev BETA-2, modeled-delta proven); output-daughterboard projects built + DRC/ERC-clean w/ distinct keying (modules/output-daughterboards/). TAB FORM FINAL (2026-07-05, third form, owner sketch — full chain in blade-fit-check-2026-07-04.md addenda 2-3): **TE 63951-1** (RIGHT-ANGLE FASTON .250, LCSC C591344, in stock, $0.099-0.164/u; in-plane L per TE dwg C=63951) mounted legs-VERTICAL through the standing board's face — blade points STRAIGHT DOWN at a 2.54-8.89mm face standoff and the assembly VERTICAL-DROPS into the main-board 3586 clips' top-entry jaws (clip slot rotated perpendicular to the wall line, centreline 5.72mm off the front face). Board FLOATS 8.4-11mm clear (the tab reaches, not the board; top edge uniform 21.97mm above main board; full 7.16mm jaw engagement). Boards (iteration-4 COMPACT two-band per owner, 2026-07-06 — tabs packed below the pinout at the derived 7.10mm pitch floor: pcie 7.1 / eps 7.6 / atx24 8.4 routing-lattice-aligned): **atx24 72.8x21.4 / eps 43.0x20.0 / pcie 26.3x20.0mm** — the honest compact heights are ~20-21.4mm (the owner-requested number; the ≤15mm cap was owner-relaxed for this form; the 15mm-tall long-sliver iteration-3 variant is retained in git history if height ever outranks length again). Keying survives on pitch differentiation alone at the packed floor (proof margins ≥1.5× the 0.5mm tolerance; teeth re-verified: sabotaged 7.2mm eps pitch correctly fails). Clip row-fit asserted: body gaps 4.58/3.78/3.28mm, pad gaps 1.80/1.00/0.50mm. Float now uniform 12.41mm (leg row 4.34mm above each bottom edge, tip 11.41mm below edge level). Gates re-verified by coordinator (ERC 0, DRC 0/0 severity-error, checker 110 OKs incl. new orientation/uniform-height/clip-fit assertions, keying re-proved w/ teeth, net maps/joint counts 9/6/4 unchanged). Two earlier forms retired: 63849-1 side-entry + the 63951-1 flat-blade mis-model (its 0.27mm hang-shortfall concern is OBSOLETE — the floating-drop geometry never engages the board edge). Pricing notes stand: 63849-1 "$0.04" was stale ($0.0795@100); 63951-1 as above.** REMAINING OWNER ITEMS: (a) SAMPLE ORDER (clips 3586/3557-2 + the NEW flat tabs **63951-1 / LCSC C591344**, ~$20) for the physical FIT CHECK (his stated condition) — the check verifies the FINAL vertical-drop form: (i) the **15.75mm blade-tip chain-dimension reading** from TE dwg C=63951 (flagged by the rework as read-two-ways; a mm either way shifts the float heights), (ii) top-entry drop into the rotated 3586 jaws at the paper margins above, (iii) the 0.84mm-tolerance tab-thickness edge case from the original fit memo + the confirm-soak/contact-R trend (still recommended engineering, no longer sign-off gates); (b) chassis strain-relief numbers (pull/flex) for the enclosure design; (c) procurement: clip stock depth (LCSC 533 < one 900–1,200-clip run) or JLC-library admission before a production run; (d) optional: HPCE samples ($9.15×25, 24-pin tool-less premium) + MODDIY samples (vertical-header population option) — the vertical female headers EXIST (24p/EPS/PCIe 4.2mm, SKU CO261/MIATX-PCB ~$2) but are provenance-UNVERIFIED DIY-category (no MPN/datasheet — same class the prior hunt disqualified under quality-first): prototype-OK per §8.6, sellable BOM needs bench qualification; (e) **ITERATION-6/7 — RULED (owner, 2026-07-06) + IMPLEMENTED same day**: owner ratified the addendum-6 recommendation ("Sure, show me the pitch and everything on the boards", with the orientation requirement that the receptacle's two PCB holes align with the blade's own holes — PROVEN from the rev-E drawing views, checker-asserted). Main-board mate = **TE 63969-1 FASTON .250 PCB receptacle** (vertical top entry, 22.9A @30°C-rise, designed for our 6.35×0.81 blade — thickness at design centre, killing the old #1 thickness fit item; 63968-1 LIF = same-land fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth ~$0.30). The 3522 alternative was studied and is DEAD on fit (closed 6.4mm fuse window vs our 6.27–6.43 blade, −0.16 worst; the fuse-blade-format RA tab that would fix it does not exist — Hunt A empty; sourcing was never the issue, LCSC C3204022); Keystone 3557/3586 retired to vendored fallbacks. Joint counts re-ratified at 22.9A/125% (18.32A/joint): **24pin 10 / eps 12 / pcie-2 12 / pcie-3 18** (atx24 GND ×4 = 18.0A = 127% hairline, surfaced and accepted). Boards REGENERATED at pitches 4.2/4.7/5.2 → **atx24 61.0×21.4 / eps 28.5×20.0 / pcie 31.0×20.0mm**; TB swaps + adds landed on all four main-board schematics (netlist-verified; ERC unchanged); gates green (checker 113 OKs incl. orientation assertions). REMAINING SAMPLE ITEMS fold into the (a) sample order, which should now include **63969-1 + 63968-1** with the 63951-1 tabs: (i) the receptacle's UN-DIMENSIONED across-thickness depth (est 3.4–3.7mm; **>4.0mm ⇒ atx24 falls back to 6.3 pitch**) — the new #1 fit item; (ii) detent-hole engagement at the 12.41mm float (retention may be friction-only); (iii) gang insertion force at 10–18 joints (≤26/44N spec max per joint; LIF halves); (iv) the 15.75mm tip-reach chain dim as before. Full record: blade-fit-check-2026-07-04.md addenda 6–7. ITERATION-8 EXPLORATION (owner-directed, 2026-07-06, addendum 8): hunted higher-ampacity/smaller mates across FASTON-world, stamped-receptacle specialists (Zierick 20A THT/25A SMT — both lose net), bigger-blade class (dead: rating doesn't transfer to a half-width blade; no .375 PCB receptacle/tab exists), and housed b2b power re-priced (PwrBlade+-class 30-48A would erase ALL bare-part sample items but stands at $13-26/module, 3-6x the band; mPOWER 18A dead) — VERDICT: STAND PAT, the 63969-1 is the THT stamped-vertical class ceiling AND the tightest floor; no owner action beyond the standing sample list. ITERATION-9 TAB-SIDE STUDY (owner-directed, 2026-07-06, addendum 9; receptacle frozen): straight/SMT tab classes killed in-architecture; the RA table's one live variant = TE 928814-1 (blade 4.3mm shorter -> stack −4.1mm; detent hole lands IN the engagement zone = possible real retention; caveats: ~0.7mm near-wall corner, 0.75–0.85 blade band, loose-piece/DigiKey-only) — RECOMMENDED ADD ~20 pcs to the (a) sample order; PCB-EDGE-FINGER option worked with real numbers (stack ~19mm = −13, −22 tabs/system) but thickness band 0.785–0.835 is UNPASSABLE at catalog fab classes + off-label contact metallurgy -> recorded as the compaction ENDGAME needing a funded bench program AND an owner ruling reversing 'the tab does the reaching, not the board'. Beta line stands pat on 63951-1. ITERATION-10 EDGE-FINGER DEEP-DIVE (owner-directed, 2026-07-06, addendum 10): every addendum-9 kill-condition attacked with verified sources + the repo solver — (i) NEW kill-weight finding addendum 9 missed: fingers force the receptacle 90° from the ratified orientation and its 7.49mm width sets an ~8.0mm row pitch → boards ~91/46/46mm (+50% length) against a real −11.5mm stack win (tops ~22.4/20.9); (ii) thickness 0.785–0.835 band UNPASSABLE at every published class (JLC + PCBWay both ±0.1 at 0.8mm, verified 2026-07-06; the full TE Style-A/B/C SKU table swallows NO standard PCB class; sort-to-band incoming QC at 25–50% EST yield = the only catalog unlock); (iii) conduction PASSES the repo dt_ipc solver (2oz×2 = 5.0°C, 4oz×2 = 1.6°C at the 18.32A policy joint — the interface, not copper, is the gate: 0.34W/joint at spec 1mΩ vs 3.4W worn at 10mΩ); (iv) hard gold at 0.8mm = PCBWay only (30–50µin, but bevel needs ≥1.2mm — soft loss, our tab is square-sheared); JLC fingers = ENIG flash (<10 insertions) though it CAN bevel 0.8 and needs a ≥50mm finger edge (eps/pcie panelize 2-up); (v) THE 4OZ ANSWER: JLC has NO 4oz tier (2-layer outer menu 1/2/2.5/3.5/4.5oz; 4-layer capped 2oz), PCBWay heavy-copper 2-layer 4oz orderable; real $/board is quote-gated from this sandbox — 2-minute owner QUOTE RECIPE in §I.5; net cost ≈ neutral-to-positive (tab+assembly saving $1.3–3.8/board vs EST fab adder $1–11). RECOMMENDATION: DO NOT ADOPT for beta; NO posture re-ruling needed today — OPTIONAL: add the two ~$30–60 COUPONS (§I.7 spec: JLC 0.8 ENIG+goldfinger + PCBWay 4oz hard-gold; thickness-ladder fingers × NPTH-detent variants) to the (a) sample order; they return the delivered-thickness distribution + real invoices, and the posture reversal activates only if they clear the sort-yield + contact bench. FEM/BLADE-INTERCONNECT AUDIT (owner-directed, 2026-07-06, docs/standard-tier-review/blade-interconnect-thermal-2026-07-06.md): the suite now models the blade/receptacle JOINT first-class (TE 63951-1 brass + 63969-1 + <=1mOhm contact, Rth CALIBRATED to TE's own 22.9A/30C-rise rating datum, worn-10mOhm scenario + gate teeth; anchor tests 15/15) — every nominal joint PASSES the 30C policy (worst atx24 GND 18.6C @18A = exactly the ratified 127% hairline; model and margin arithmetic agree). TWO BOARD FINDINGS, owner action needed: **(F1) atx24-out-db DEFECT — the four In2 bus lanes (0.3mm x 1oz) carry the full rail aggregates and are fusing-class** (field-proven: +5V 384mV @30A = 11.5W in one lane, J~2874 A/mm2; +3V3 loses 9% of the rail; 2.5D solve runs away) → REGEN REQUIRED (per-rail pour bands a la eps/pcie or a widened 2oz-outer corridor) before any fab of this board; (F2) eps/pcie daughterboards at the 52/39A worst-case basis dissipate ~1.2-2.8W on ~11cm2 → modeled still-air/no-sink dT 217/117C vs the 30C policy (unmodelled sinks are large; dT~I², half current = ~54-71C) → owner picks: heavier inner copper / area / verified sink / envelope statement — gate on the OQ-86 THERMAL SOAK, which now has model numbers to check against (17.3A -> ~17C, 18.3A -> ~19C, 22.9A -> ~30C, several-mOhm contact = the worn signature). A standing false-pessimism was also fixed (the -12V rail read as a 40A cable net). Ruling: SYNTHESIS-beta-plan.md §3 D-5a; study: docs/standard-tier-review/output-daughterboard-study-2026-07-04.md. | §2.8 revision draft; D-5a BOM-freeze gate; enclosure/chassis design | SYNTHESIS-beta-plan.md D-5a (2026-07-04) |
+| — | **D-5a RULED (owner, 2026-07-04): CONNECTOR DAUGHTERBOARD** for 24-pin/PCIe/EPS output — main board carries an inter-board connector to a stood-up PASSIVE daughterboard (thick copper, no components, does all output pin-mapping so main-board pours are freed from the connector pin field); populated as a MODDIY vertical PCB-mount header OR a soldered pigtail; **sellable daughterboard+extension-cable assembly** (soldered at the through-holes w/ strain relief) = the productized bundle that closes the remaining female-out issues (the 2026-07-03 "order-system bundle" lean in hardware form); chassis provides strain relief (designed in). 12VHPWR unchanged (captive pigtail). KILL-CHECK CLEARED (study landed 2026-07-04): real connectors exist at every family's bar — EPS ~65A/cable target = 3 contacts/polarity, PCIe ~49A = 2, 24-pin easy, on Amphenol PwrBlade / Molex Ten60Power / Hirose MCN51 (PwrBlade+Ten60 rated 30A/contact AT 30°C rise = the repo's own gate condition); study recommends PER-CABLE daughterboards (shared-housing mutual-heating derating, fault isolation, sellable-assembly fit). COST (§8) + GEOMETRY (§8.5) PASSES LANDED — owner right twice ($5 ceiling AND "40/80mm slots are massive"): commodity card-edge ELIMINATED by the footprint gate (~2.4–2.5 A/mm of slot at any pitch vs 3.7–7.2 needed; the §8.4 math was already dual-readout); premium blades $13–26/module (MCN51 OBSOLETE). §8.6 SOURCING PASS (owner-directed) REVISED THE PICKS: **EPS+PCIe = Würth REDCUBE WP-THRBU 74650094 rated terminals** (85A VERIFIED, $2.86@100, in stock; 2/cable + signal stub; ~$12–19/module) — **the load-bearing M3-joint bench item DIES** (→ incoming QC + torque control); **24-pin = pursue HPCE vertical** (~$7–10, one part = power+signals, tool-less, gate CLEARS at real pitch ~7.1A/mm; 2 UNVERIFIEDs: beams/position + right-size SKU supply — orderable-now SKU reads ~144A vs 190A need; hard-gold fingers) w/ REDCUBE 6-point committed fallback; generic M3 demoted to cost-down-after-bench ($2.5–5, bench-gated). HONEST COST: verified-ampacity = $12–19/module vs the ~$5 ceiling — owner picks the trade side per family. §8.8–§8.10 (owner-led catalog work) FINAL LADDER: **HEADLINE = all-Keystone/TE TOOL-LESS BLADE config** — universal 30A clips on the main board (SMT 3586 LCSC C238113 / THT 3557-2 C352820) + TE FASTON .250" tabs on the daughterboard (63849-1 C86469, $0.04) = **$2.7–4.6/module, RATED, tool-less, the ONLY end-to-end JLC-native path** (8197 screw alt = LCSC OOS today; REDCUBE = not carried, DigiKey proto rung; §8.8 blade-kill corrected — was TE-7A-receptacle-bound, Keystone universal clips are 30A). **OWNER SIGN-OFF (2026-07-04): the LCSC blade-config part arc is RATIFIED, conditional only on physical fit ("as long as the tabs and whatnot fit together"); MATING-FORCE gate DISMISSED by owner ruling — high insertion force is a FEATURE (part is not meant to be constantly swapped; mis-seat/pull-out absolutely unwanted). IMPLEMENTATION COMPLETE (2026-07-05): spec v1.4.0 applied; parts vendored+datasheeted; blade interface on all 4 main-board schematics (Rev BETA-2, modeled-delta proven); output-daughterboard projects built + DRC/ERC-clean w/ distinct keying (beta/output-daughterboards/). TAB FORM FINAL (2026-07-05, third form, owner sketch — full chain in blade-fit-check-2026-07-04.md addenda 2-3): **TE 63951-1** (RIGHT-ANGLE FASTON .250, LCSC C591344, in stock, $0.099-0.164/u; in-plane L per TE dwg C=63951) mounted legs-VERTICAL through the standing board's face — blade points STRAIGHT DOWN at a 2.54-8.89mm face standoff and the assembly VERTICAL-DROPS into the main-board 3586 clips' top-entry jaws (clip slot rotated perpendicular to the wall line, centreline 5.72mm off the front face). Board FLOATS 8.4-11mm clear (the tab reaches, not the board; top edge uniform 21.97mm above main board; full 7.16mm jaw engagement). Boards (iteration-4 COMPACT two-band per owner, 2026-07-06 — tabs packed below the pinout at the derived 7.10mm pitch floor: pcie 7.1 / eps 7.6 / atx24 8.4 routing-lattice-aligned): **atx24 72.8x21.4 / eps 43.0x20.0 / pcie 26.3x20.0mm** — the honest compact heights are ~20-21.4mm (the owner-requested number; the ≤15mm cap was owner-relaxed for this form; the 15mm-tall long-sliver iteration-3 variant is retained in git history if height ever outranks length again). Keying survives on pitch differentiation alone at the packed floor (proof margins ≥1.5× the 0.5mm tolerance; teeth re-verified: sabotaged 7.2mm eps pitch correctly fails). Clip row-fit asserted: body gaps 4.58/3.78/3.28mm, pad gaps 1.80/1.00/0.50mm. Float now uniform 12.41mm (leg row 4.34mm above each bottom edge, tip 11.41mm below edge level). Gates re-verified by coordinator (ERC 0, DRC 0/0 severity-error, checker 110 OKs incl. new orientation/uniform-height/clip-fit assertions, keying re-proved w/ teeth, net maps/joint counts 9/6/4 unchanged). Two earlier forms retired: 63849-1 side-entry + the 63951-1 flat-blade mis-model (its 0.27mm hang-shortfall concern is OBSOLETE — the floating-drop geometry never engages the board edge). Pricing notes stand: 63849-1 "$0.04" was stale ($0.0795@100); 63951-1 as above.** REMAINING OWNER ITEMS: (a) SAMPLE ORDER (clips 3586/3557-2 + the NEW flat tabs **63951-1 / LCSC C591344**, ~$20) for the physical FIT CHECK (his stated condition) — the check verifies the FINAL vertical-drop form: (i) the **15.75mm blade-tip chain-dimension reading** from TE dwg C=63951 (flagged by the rework as read-two-ways; a mm either way shifts the float heights), (ii) top-entry drop into the rotated 3586 jaws at the paper margins above, (iii) the 0.84mm-tolerance tab-thickness edge case from the original fit memo + the confirm-soak/contact-R trend (still recommended engineering, no longer sign-off gates); (b) chassis strain-relief numbers (pull/flex) for the enclosure design; (c) procurement: clip stock depth (LCSC 533 < one 900–1,200-clip run) or JLC-library admission before a production run; (d) optional: HPCE samples ($9.15×25, 24-pin tool-less premium) + MODDIY samples (vertical-header population option) — the vertical female headers EXIST (24p/EPS/PCIe 4.2mm, SKU CO261/MIATX-PCB ~$2) but are provenance-UNVERIFIED DIY-category (no MPN/datasheet — same class the prior hunt disqualified under quality-first): prototype-OK per §8.6, sellable BOM needs bench qualification; (e) **ITERATION-6/7 — RULED (owner, 2026-07-06) + IMPLEMENTED same day**: owner ratified the addendum-6 recommendation ("Sure, show me the pitch and everything on the boards", with the orientation requirement that the receptacle's two PCB holes align with the blade's own holes — PROVEN from the rev-E drawing views, checker-asserted). Main-board mate = **TE 63969-1 FASTON .250 PCB receptacle** (vertical top entry, 22.9A @30°C-rise, designed for our 6.35×0.81 blade — thickness at design centre, killing the old #1 thickness fit item; 63968-1 LIF = same-land fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth ~$0.30). The 3522 alternative was studied and is DEAD on fit (closed 6.4mm fuse window vs our 6.27–6.43 blade, −0.16 worst; the fuse-blade-format RA tab that would fix it does not exist — Hunt A empty; sourcing was never the issue, LCSC C3204022); Keystone 3557/3586 retired to vendored fallbacks. Joint counts re-ratified at 22.9A/125% (18.32A/joint): **24pin 10 / eps 12 / pcie-2 12 / pcie-3 18** (atx24 GND ×4 = 18.0A = 127% hairline, surfaced and accepted). Boards REGENERATED at pitches 4.2/4.7/5.2 → **atx24 61.0×21.4 / eps 28.5×20.0 / pcie 31.0×20.0mm**; TB swaps + adds landed on all four main-board schematics (netlist-verified; ERC unchanged); gates green (checker 113 OKs incl. orientation assertions). REMAINING SAMPLE ITEMS fold into the (a) sample order, which should now include **63969-1 + 63968-1** with the 63951-1 tabs: (i) the receptacle's UN-DIMENSIONED across-thickness depth (est 3.4–3.7mm; **>4.0mm ⇒ atx24 falls back to 6.3 pitch**) — the new #1 fit item; (ii) detent-hole engagement at the 12.41mm float (retention may be friction-only); (iii) gang insertion force at 10–18 joints (≤26/44N spec max per joint; LIF halves); (iv) the 15.75mm tip-reach chain dim as before. Full record: blade-fit-check-2026-07-04.md addenda 6–7. ITERATION-8 EXPLORATION (owner-directed, 2026-07-06, addendum 8): hunted higher-ampacity/smaller mates across FASTON-world, stamped-receptacle specialists (Zierick 20A THT/25A SMT — both lose net), bigger-blade class (dead: rating doesn't transfer to a half-width blade; no .375 PCB receptacle/tab exists), and housed b2b power re-priced (PwrBlade+-class 30-48A would erase ALL bare-part sample items but stands at $13-26/module, 3-6x the band; mPOWER 18A dead) — VERDICT: STAND PAT, the 63969-1 is the THT stamped-vertical class ceiling AND the tightest floor; no owner action beyond the standing sample list. ITERATION-9 TAB-SIDE STUDY (owner-directed, 2026-07-06, addendum 9; receptacle frozen): straight/SMT tab classes killed in-architecture; the RA table's one live variant = TE 928814-1 (blade 4.3mm shorter -> stack −4.1mm; detent hole lands IN the engagement zone = possible real retention; caveats: ~0.7mm near-wall corner, 0.75–0.85 blade band, loose-piece/DigiKey-only) — RECOMMENDED ADD ~20 pcs to the (a) sample order; PCB-EDGE-FINGER option worked with real numbers (stack ~19mm = −13, −22 tabs/system) but thickness band 0.785–0.835 is UNPASSABLE at catalog fab classes + off-label contact metallurgy -> recorded as the compaction ENDGAME needing a funded bench program AND an owner ruling reversing 'the tab does the reaching, not the board'. Beta line stands pat on 63951-1. ITERATION-10 EDGE-FINGER DEEP-DIVE (owner-directed, 2026-07-06, addendum 10): every addendum-9 kill-condition attacked with verified sources + the repo solver — (i) NEW kill-weight finding addendum 9 missed: fingers force the receptacle 90° from the ratified orientation and its 7.49mm width sets an ~8.0mm row pitch → boards ~91/46/46mm (+50% length) against a real −11.5mm stack win (tops ~22.4/20.9); (ii) thickness 0.785–0.835 band UNPASSABLE at every published class (JLC + PCBWay both ±0.1 at 0.8mm, verified 2026-07-06; the full TE Style-A/B/C SKU table swallows NO standard PCB class; sort-to-band incoming QC at 25–50% EST yield = the only catalog unlock); (iii) conduction PASSES the repo dt_ipc solver (2oz×2 = 5.0°C, 4oz×2 = 1.6°C at the 18.32A policy joint — the interface, not copper, is the gate: 0.34W/joint at spec 1mΩ vs 3.4W worn at 10mΩ); (iv) hard gold at 0.8mm = PCBWay only (30–50µin, but bevel needs ≥1.2mm — soft loss, our tab is square-sheared); JLC fingers = ENIG flash (<10 insertions) though it CAN bevel 0.8 and needs a ≥50mm finger edge (eps/pcie panelize 2-up); (v) THE 4OZ ANSWER: JLC has NO 4oz tier (2-layer outer menu 1/2/2.5/3.5/4.5oz; 4-layer capped 2oz), PCBWay heavy-copper 2-layer 4oz orderable; real $/board is quote-gated from this sandbox — 2-minute owner QUOTE RECIPE in §I.5; net cost ≈ neutral-to-positive (tab+assembly saving $1.3–3.8/board vs EST fab adder $1–11). RECOMMENDATION: DO NOT ADOPT for beta; NO posture re-ruling needed today — OPTIONAL: add the two ~$30–60 COUPONS (§I.7 spec: JLC 0.8 ENIG+goldfinger + PCBWay 4oz hard-gold; thickness-ladder fingers × NPTH-detent variants) to the (a) sample order; they return the delivered-thickness distribution + real invoices, and the posture reversal activates only if they clear the sort-yield + contact bench. FEM/BLADE-INTERCONNECT AUDIT (owner-directed, 2026-07-06, docs/standard-tier-review/blade-interconnect-thermal-2026-07-06.md): the suite now models the blade/receptacle JOINT first-class (TE 63951-1 brass + 63969-1 + <=1mOhm contact, Rth CALIBRATED to TE's own 22.9A/30C-rise rating datum, worn-10mOhm scenario + gate teeth; anchor tests 15/15) — every nominal joint PASSES the 30C policy (worst atx24 GND 18.6C @18A = exactly the ratified 127% hairline; model and margin arithmetic agree). TWO BOARD FINDINGS, owner action needed: **(F1) atx24-out-db DEFECT — the four In2 bus lanes (0.3mm x 1oz) carry the full rail aggregates and are fusing-class** (field-proven: +5V 384mV @30A = 11.5W in one lane, J~2874 A/mm2; +3V3 loses 9% of the rail; 2.5D solve runs away) → REGEN REQUIRED (per-rail pour bands a la eps/pcie or a widened 2oz-outer corridor) before any fab of this board; (F2) eps/pcie daughterboards at the 52/39A worst-case basis dissipate ~1.2-2.8W on ~11cm2 → modeled still-air/no-sink dT 217/117C vs the 30C policy (unmodelled sinks are large; dT~I², half current = ~54-71C) → owner picks: heavier inner copper / area / verified sink / envelope statement — gate on the OQ-86 THERMAL SOAK, which now has model numbers to check against (17.3A -> ~17C, 18.3A -> ~19C, 22.9A -> ~30C, several-mOhm contact = the worn signature). A standing false-pessimism was also fixed (the -12V rail read as a 40A cable net). Ruling: SYNTHESIS-beta-plan.md §3 D-5a; study: docs/standard-tier-review/output-daughterboard-study-2026-07-04.md. | §2.8 revision draft; D-5a BOM-freeze gate; enclosure/chassis design | SYNTHESIS-beta-plan.md D-5a (2026-07-04) |
 | — | **24-pin sensing: INA238 RULED (owner, 2026-07-05)** — owner picked the INA238 swap on supply/assembly-flow grounds ("more work to order on Digikey... and consign it or solder it myself, whereas they have tons of stock for the INA238AIDGSR at $2.0991 per 1 and 1.7855 for 10"): LCSC C2868250 live ladder verified ($1.3891@100/$1.2591@1k), JLC-native, drop-in same VSSOP-10 land, accuracy gain-bound-equivalent; energy reporting → firmware integration of the §6.10 stream (OQ-13 scope unchanged). APPLICATION IN FLIGHT: spec v1.5.0 (§6.1 LOCKED edit under ruling) + 24pin-rev3 4-symbol swap + BOM + CLAUDE.md sync + pricing addendum-2 (Complete System re-anchors $259/$279/$299, 24-pin retail ~$89-99). RESIDUAL OWNER ITEM: INA238 stock 680 at LCSC vs ~850-900 needed for a full-system 100-run (24pin 4 + EPS 2 + PCIe 2-3 per system) — the beta-lock register hedge-buy stands; restock-watch or split-source before the first run. Prior decision-row detail (DigiKey option set) retained in git history. | 24-pin beta BOM lock; Complete System Bundle price points | owner ruling 2026-07-05; pricing study + addenda |
 | — | **HOST DATA PATH (ruled 2026-07-06): AllMyStuff = the consumer; two owner actions**: (a) **VID/PID acquisition** — pid.codes registration fits the CERN-OHL-S posture (free, one PID per product; needs the hardware to be open-licensed, which it is) — needed before the USB identity freezes into firmware; (b) **AllMyStuff telemetry pane** — the app today has device INVENTORY only (no telemetry ingestion anywhere in its README/ARCHITECTURE/next-milestones, measured 2026-07-06); the "just show it there" plan assumes a telemetry view lands on their side — coordinate with mrjeeves (scope: read our HID sensor collections via commodity hidapi/iio, self-describing, no CEC-specific protocol needed if the HID+CDC composite contract is adopted). Contract recommendation + PR #50 reconcile note: FOLLOWUPS 2026-07-06 entry. | firmware USB identity freeze; SB-07/OQ-85 contracts | FOLLOWUPS 2026-07-06 |
 | — | **NANOKVM PRO/PCIe INTEGRATION (exploration 2026-07-06, docs/nanokvm-pro-carrier-exploration-2026-07-06.md): NO full carrier board — but three owner items surfaced**: (a) **PICK THE PRODUCT**: "NanoKVM Pro" (AX630C ARM, GbE, 4K45, Desk/ATX forms only) and "NanoKVM-PCIe" (older/cheaper SG2002 RISC-V) are DIFFERENT products, not one in two forms — the pick drives everything; (b) **HEADER REALITY CHECK**: the ATX Pro exposes NO external UART/power header (internal solder pads only per Sipeed docs) and the PCIe product's aux header is community-documented 4-pin (G/V/T/R, no confirmed 3V3 ref) — J_KVM/OQ-51 was designed against the ORIGINAL NanoKVM's 5-pin header; physically verify the chosen unit's pinout before any connector/adapter commits; the recommended MINIMAL hardware = a small breakout/adapter (not a carrier) that makes the link a repeatable connector AND enforces powering the KVM from CEC's shared rail (KVM-on-PC-USB silently breaks the §2.9 forensic-recovery guarantee); (c) **POWER BUDGET FINDING**: Pro measures ~3W (0.6A@5V) ≈ 3× what §2.9/OQ-2's shared-rail budget assumed — fold into the OQ-2 cap decision. Also: WiFi optional/removable on both lines (no-radiator posture = a purchasing choice; never mount the KVM inside the Hub enclosure); no PS_ON#/PWR_OK conflict (kit interposes the front-panel header, CEC senses the PSU side — intentional redundancy per Concierge); SoC discrepancy (AX630C vs an old RK3588 memory note) to reconcile before any BOM. | J_KVM adapter/cable SKU definition; OQ-2 budget; §2.9 forensic guarantee | exploration doc 2026-07-06 **PART II (ENT bundles, same doc, 2026-07-06): owner suspicion CONFIRMED — the PolarFire already covers it; NO carrier, and specifically no carrier-with-SE** (an SE beside a black-box SoC attests only itself — a CEC-branded carrier implying trust it cannot deliver is worse than the honest posture). Stock Pro = NOT trust-grade (AX630C silicon has secure boot/TrustZone but no evidence Sipeed uses it; CVE-2026-32296 hit the Pro line; Tailscale PREINSTALLED on the device that watches the screen; no 802.1X/VLAN/mTLS). LAN9370 cannot gate it (4×100BASE-T1/chip, all 8 ports consumed by module links, wrong PHY class). RECOMMENDED AUGUST COMPOSITE: (a) stock WiFi-ABSENT unit OUTSIDE the trust boundary, ingested as untrusted claims over the built J_KVM UART (the addendum's existing OS-vantage pattern) + (d2) endgame slide = capture-only absorption into the PolarFire (HDMI-RX ~$10-25 → fabric → signed keyframes into the Merkle log; no Linux, no network, NO HID path — an IP-KVM inside the boundary is a standing HID-injection path into the monitored host; ENT-AIR-compatible; "the witness sees the screen with its own eyes"); CEC-KVM decision box narrows to the interactive-console product question. ONE PRE-AUGUST OWNER-ADJACENT ITEM: the Libero pin-planner feasibility check (MSS USB ball map + HDMI-RX pin/IOG budget) so the endgame slide is "verified feasible" — needs the Libero license (already queued). **PART III (trusted-zone requirements plan, same doc): OWNER DECISION FRAME** — the "like any other module" bar = a 14-row cited checklist (per-unit eFuse key, signed FW + anti-rollback, pin-7 µs-window heartbeat, untrust-state-machine enrollment, zero own egress, intake ritual...). PICK BY INPUT SET: (i) visual evidence only → d2 hub absorption (deviceless, already in-zone); (ii) + trusted 1080p interactive console → **PATH B: CEC-KVM as a native ESP32-P4 module — feasible BY CONSTRUCTION** (inherits every checklist row verbatim; LT6911 HDMI→CSI → P4 hw H.264 1080p30/4K stills signed on-device over T1; HID = separately-attested opt-in w/ hub-signed session grants + hash-chained reports; BOM ~$25-45; COLLAPSES the OQ-75 decision box — no Linux, the PSIRT blocker dissolves; August one-slide win: "the KVM is just another module"); (iii) 4K-class capture + NPU screen classifier → **PATH C (Part IV): CEC carrier + MaixCAM2 gold-finger core module, P4-fronted — DISPLACES PATH A ENTIRELY** (the core module is SoC+DDR only per Sipeed's wiki: WiFi/eMMC/USB all live on the base board → radio VERIFIABLY ABSENT by construction on our carrier + CEC owns boot media/reset → verify-then-release-reset measurement outside the SoC; Axera OTP demotes to optional hardening; carrier P4 fires the full-class µs pin-7 heartbeat — the hub cannot distinguish B from C at the trust layer). ~$55-95 + module ($30-60 est, UNPUBLISHED — intake gap w/ gold-finger pinout + no-hidden-boot-flash confirmation). **RULED (owner, 2026-07-06): PATH C for the enterprise** — "we do C and just stand up the carrier, should be pretty simple." COO/§889 CONTINGENCY also ruled: if customers object to the Chinese silicon, an ALL-AMERICAN version with supply control ships as a SEPARATE SKU (not designed now — recorded as the contingency; Path B-class US-silicon variant is the natural basis). Carrier schematic design DISPATCHED (ENT module conventions: P4 trust endpoint + M.2 M-KEY socket + LT6911 bridge + gated network + DETECT/heartbeat). Remaining intake (unchanged): module price/supply terms + eMMC-less SKU question (Sipeed contact), ROM boot-order bench, M.2 mechanical spec. **PART IV-A (2026-07-06, owner-uploaded 378C/379C schematics read in full — Path C engineering risk DROPPED materially):** gold-finger = standard M.2 M-KEY 75-pos (commodity socket ~$1-2, screw-down); reset + 1.8V boot straps finger-accessible → verify-then-release-reset CONFIRMED workable; module is RADIO-FREE (WiFi = AIC8800D on the base board; carrier rule: leave the on-die EPHY MDI unmagnetized = network absence verifiable unpowered); power = ONE 5V rail, all sequencing on-module (carrier holds reset ≥100ms; STANDBY can cut compute while the P4 endpoint keeps the heartbeat); ONE SURPRISE: 32GB eMMC lives ON the module (wiki wrong) — model survives stronger via strap-selected SD/USB ROM boot from carrier-owned storage, eMMC demoted to measured scratch. REMAINING OWNER/INTAKE ITEMS: module standalone price/supply terms (#1, Sipeed contact), the possible eMMC-less SKU (same contact), ROM USB-vs-SD boot-order bench check, M.2 keying/length from the full download pack. Full analysis: exploration doc Parts III-IV-A. |
 | — | **24-PIN ATX CONTROL-SIGNAL INTERACTION — RULED (owner, 2026-07-14, same day): APPROVED incl. the PESD clamps; host-attached policy = REFUSE unless explicit user override (responsibility transfers to the user). IMPLEMENTED on atx-24pin-rev3 same day (splice_24pin_atxctl.py; ERC/netlist/BOM verified — see the study's Status block). REMAINING OWNER-ADJACENT: (a) spec §6.1 note + drive-policy text (owner's pen, drafted in the study §5 row 7); (b) OQ-85 contract rows (interlocks 1–8) when the firmware-contracts bucket opens; (c) first-article bench: drive-gate power-up scope + PSU-zoo PS_ON# pull-up survey + BAT54S C545549 pin-map confirm.** Original decision text (for provenance): approve adding to **atx-24pin-rev3** (beta only, schematic-only, layout not started, ≈$0.30/board): (a) restore the alpha's PWR_OK + PS_ON# read buffers (74LVC1G17 pattern, netmap §4 — they did NOT carry into rev3, all three signals are bare J3→J_SIG1 pass-throughs today, netlist-verified); (b) NEW PS_ON# open-drain drive (AO3400A reuse + 100k gate pull-down fail-safe) so the Hub can command PSU-on over CAN — host-off PSU self-test (rails vs ±5% via the existing INA238s + PWR_OK 100–500ms timing) and §6.14 standalone/bench PSU control; (c) NEW −12V ADC divider (+3V3↔−12V, 15k/100k + clamp; healthy/off/absent all separable in-window). SCOPE HONESTY is part of the decision: PS_ON# assert = PSU-on, NOT OS boot (chipset stays S5; boot needs the front-panel PWRBTN# domain the ask excludes, or BIOS wake sources). Interlock set (two-phase CAN arm+fire, hold watchdog, release-on-CAN-loss, line-integrity check, state telemetry) goes into the OQ-85 firmware contract. Margin table + full circuit values: docs/standard-tier-review/atx24-sense-wire-interaction-study-2026-07-14.md. Sub-calls: optional PESD clamps on PS_ON#/PWR_OK (+$0.04); assert-with-host-attached default policy. | rev3 schematic pass; OQ-85 contract rows; spec §6.1 note + drive-policy OQ | study doc 2026-07-14 |
 | — | **PSU-TESTER: TIER STRUCTURE RULED (owner, 2026-07-14 same day): Pro + Max tiers ONLY, no Standard tester now ("Standard is not the shop spec anyway"; the 850W base config shelves as a possible future Standard if demand shows). Pro = the full proper suite incl. the transient engine (1600W hybrid + fast channel): package landed $1,365–2,015 → list $3,495 tester-only / $3,995 w/ modules (2.0–2.9×). Max = ALL of it properly to Max-module level (+HF digitizer for SPEC-GRADE ripple + per-cable spectral, +2nd fast channel, +OVP sourcing stage, +phase-controlled AC-interrupter for absolute hold-up, Pro/Max module set): landed $2,010–3,150 → list $5,995–6,995 (2.2–3.0×; ~half Chroma-entry). Numbers + fences: study §6 addendum. STILL GATING: OQ-1 shop interviews + OQ-10 competitive buy/quote (now validating TWO price points); transient-channel bench gate (OQ-3); Max module-line dependency (EPS/PCIe Pro bounded-not-built, Max modules spec-PROPOSED).** Prior go/no-go framing (provenance): verdict = the sub-$10k gap claim is **substantially TRUE with nuance** — shops can improvise a load stack for $750–5k (Kunkin KP184s / Rigol-Siglent) but nothing turnkey ATX-connector-native exists at any Western price (SunMoon SM-268/8800 served the niche, no Western channel/no ATX 3.x; transient-capable starts ~$13k Chroma-class). Recommended shape: **hybrid load** (resistive bulk 70–80% of heat + ~300–400W linear-FET vernier + ONE gated fast channel for the ATX 3.1 excursion profile 200/180/160/120% @ 100µs–100ms, 5A/µs), CEC modules inline as instrumentation, tester = a CAN module, PS_ON#/PWR_OK automation rides the just-landed 24-pin rev3 block. BOM class $650–1,600; **target $1,995–2,495 base / $2,995–3,495 w/ transient+1600W**; thermal is the product (1600W ≈ 141 CFM, 3–4U space heater). Honesty fences: no OVP/OTP source-side tests, ripple = indicator only, absolute hold-up needs an AC-interrupter accessory. **DECIDE: pursue at all? If yes, the doc's OQ-1 first (shop interviews to validate market size at the price point — the #1 risk) + the competitive buy/quote check (OQ-2) before any hardware.** 13 decision-ready OQs in doc §5. | new-product go/no-go; no board/spec impact until ruled | exploration doc 2026-07-14 |
 | — | **SUPERCAP UPS — Pro/Max/ENT hold-up (study 2026-07-15 + owner steering same day):** RE-SIZED (owner, same night: "even 30s is overkill; 5-10s, LCSC-native"): TARGET = 5-10s hold → **Pro bank 0.4-0.8F / Max bank 1-2F** (FPGA sheds at the fail interrupt per its §6.11 power gate — worst-case persist = MCU+flash, ~0.4W/1W). SHAPE = 2S of small LCSC-NATIVE 2.7V radial cells (0.8-1.6F Pro / 2-4F Max per cell) + 2 balance Rs, est $1-2.50/board, Ø8-10mm cans — beats the Eaton packs on size+cost+flow (they are DigiKey=consigned, the INA228-class flow problem). GATE CLOSED (owner checked: LCSC carries NO supercaps). FINAL: **DNP provision, owner hand-solders this run** — Pro/Max boards land a 2S radial THT pattern (2× Ø10mm @5.0mm pitch, covers the 2.7V radial families incl. Eaton HV) + POPULATED support Rs (charge-limit + 2×100k balance; harmless with cells absent, 23µA bleed). Cells bought wherever (Eaton b1/b2 = the priced picks). Applies at the Pro/Max board build-outs (Hub Pro is a skeleton today); Standard unchanged; ENT d-vs-e still gated on its persist-load bench. Superseded framing: **Pro = b2** (Eaton PHV-5R4H255-R 2.5F/5.4V/80mΩ, ~half b1 footprint, 8.5mm-class height, derated at 4.65V on a 5.4V pack, ~31s hold = ~2000× flush budget; PRICE RFQ = the gate; Kyocera SCMS22C255 alt ~$3.73) / **Max = b1** (Eaton PHB-5R0H505-R 5F/5.0V, $4.76@100 confirmed, ~62s — the doubled energy maps to Max data-heavy persist dumps). Same circuit both (1 charge R + existing Schottky; no manager IC). ENT = d-vs-e pending persist-load bench; Standard unchanged. Prior framing: **Pro/Max = NO manager IC** — 1× low-ESR 5.4V dual-cell module (or 2S discrete + passive balance; 2.5V/cell from the 5V rail = inherently derated) dropped into TODAY'S diode-LDO topology + one charge-limit R; ~12s/farad usable (~$2-5, zero ICs) — vastly exceeds the flush need. Manager IC = ENT ONLY (LTC3350, telemetry + boost for the witness load). Owner "battery on ENT" reference NOT FOUND in docs (eMMC pin noise only) — reconcile if a coin-cell provision exists elsewhere; roles differ regardless (coin cell = clock/tamper years at µA; supercap = the 0.5-3W persist burst). Prior study framing (superseded at Pro/Max): **2S2P of four 2.7V EDLC cells on TPS61094** (LCSC C3034939, the only LCSC-stocked manager; ~$8-27/board) for tens-of-seconds-to-minutes of persist ride; **ENT = Seeed-literal 4S stack on LTC3350** (I²C stack-health telemetry feeds the witness attestation; ~$15-38/board); **Standard = no change** (keep the DNP ladder hedge; measured 16-26ms electrolytic + ≤15ms flush contract suffices). Reality anchor: Seeed's real product (4×7F/2.7V series, LTC3350) benches 37s idle/18s load on a CM4 — tens of seconds, not minutes. Derated hold: Standard-class load 92-459s across 5-25F banks; ENT 12s-6min (load estimate 6×-wide — needs the real persist-power number). DECIDE: adopt per-tier? TWO unmeasured gates flagged: bench inrush/leakage vs the shared 2.5A 5VSB budget, and ENT persist load. Cell pricing = RFQ (OQ-11-style flag). Ties OQ-56/H2. | Pro/Max/ENT power-architecture divergence from Standard; ENT August demo (outage attestation) | study doc 2026-07-15 |
+| — | **"SMOKE TESTER" (owner riff + refinement + STANDUP 2026-07-24):** concept + refinement recorded (docs/smoke-tester-concept-2026-07-24.md §1–§9: fuse→crowbar fault-converter, blade 32V-arc honesty → hidden 5×20 HRC 250VAC coordination, safe smoke via flameproof fusible witnesses, neon CASE-LIVE, needle-meter-not-pixels, $79 retail w/ starter kit incl. spare brick, consumables ladder). Decision #1 EXECUTED by owner directive ("make a new beta module") — folder stood up at beta/smoke-tester/ (README = board spec of record, 3 sketch SVGs, sketch BOM ≈$36.5@100 rolling to the $30–34 target at 1k, markers, manifest). REMAINING OWNER DECISIONS #2–#12 (concept §8): terminator fence, coordination ratify, witness-chamber safety review, earth-ref form, AUX scope, compliance posture, price ratify, bundle position, in-box spare brick, consumables ladder. POWER REVISED (owner no-disposables directive, 2026-07-24 same day, EXECUTED): batteryless 2S-supercap store, self-charged off the DUT 5VSB/5V ways (33Ω 2W fusible on-brick + 5.6V CV zener) + USB-C cold-start; direct-from-store domain w/ TLV431 absolute ref; Li-ion considered+rejected (UN38.3/BMS/aging). Cell line = consigned (LCSC carries no supercaps — study gate 2026-07-15), SAME cells as the Pro/Max 2S provision → shared buy. Rollup ≈$39.15@100 (+$2.7). SNOUT WEAR RETIRED (owner bench pushback 2026-07-24, owner RIGHT — 2.3Ω/115×-spec-death error-budget math in README §2): HMC/gold adder dropped (std tin), snout = damage/service spare only, wear removed from consumables forecast; NEW decision #13 keep-paddle (recommended, ~$1.3) vs board-mount-direct. SIGN-OFF EXECUTED (owner 2026-07-25 "approve on all counts"): #2,3,5,8,9,11,12,13,14 RULED (#14 arcs = BOTH), #4 adopted-pending-safety-review, #10 bundle position OPEN. BOM SOURCED same day (LCSC-primary, jlcsearch-verified; anchors C7948/C56765/C3131/C142716/C3207132/C6793760/C48642402/C1741442/C190594/C110526 + platform reuse; datasheets vendored LM339/TLV431A/SMAZ — Littelfuse 215/297 + Hongfa PDFs fetch-blocked). Sub-board folders brick/ snout/ faceplate/ stood up (own KiCad projects at capture; generator+lib = the shared layer). K1 simplified to 1-pole latching HF3F-L/5 (PG-race t0 from the PS_ON# node). REMAINING OWNER/DESK: consigned buys (neons, flicker tube, meter, missile toggle, supercaps, Mini-Fit, case quote, ATO fuse bulk), STOCK WATCHES (C6793760=800, C349125=124, C3207132=997, C190594=749), 2R090T glass-body check + #4 safety review + arc-coordination bench (gates DRAFT-drop), #10 bundle call. ARCS RIFF RECORDED (owner ask 2026-07-25, concept §9.10, decision #14): glass GDTs on the brick as the visible-AND-functional mains crowbar (fault's own energy, witness-window placement, +$1-2) + momentary LAMP-TEST/SHOW button (contained ~100mW boost strikes all gas bulbs + a flicker-flame tube — the show doubles as the safety self-test for the CASE-LIVE bulb); sealed-devices-only fence, Jacob's-ladder-class open arcs named and REJECTED, never-generate-what-you-detect rule; recommendation BOTH, ~$3-4 BOM adder, retail holds $79. Next agent phase gated on nods: Phase A CAD library → Phase B capture; DRAFT drops only after the arc-coordination bench (230VAC-into-a-way film). SMOKE SHOT ADDED (owner "I do want that" 2026-07-25): dedicated demo branch 12V → 10A-T HRC C142733 (fuse-first) → horn button (held-only) → KNP-1R pellet (the brick-witness part) in a tool-less clip = 144W puff ~100ms behind the window, ~$0.02/shot reload, kit ships 20, 50-bag refill SKU; mains-while-pressing corner cleared by the HRC; consumable ⑤ (dies on purpose); #4 review scope grows to demo-shot vent cadence. AUX DESCOPED (owner scope objection SUSTAINED 2026-07-25 — "a DMM job, not the smoke tester": port + 3 AUX ways + continuity way + adapter SKUs removed, agent's safety framing retracted on record; −$3.5–4 BOM → rollup ≈$39–41@100 / ~$31–33@1k; brick 2×8, LM339 back to 6 pkgs, meter pos-6 → STORE; cable checking lives with the DMM / deck per DESIGN-SHEET §A). BOTH-GRIDS Q ANSWERED in spec (README §3 note): 120 vs 230+ VAC input changes nothing — DC outputs identical, mains-facing parts specced at 325Vpk worst case, fuse currents input-agnostic, no switch/variant; ~400VDC PFC-bus ingress = explicit arc-bench DC row. Pellet clip = OTS KF141V-2.54-2P C475114 button-release (WJ250B C8454 fallback). DC-INCURSION Q (owner 2026-07-25): realism ladder recorded (concept §9.14 — leakage/tracking = the realistic+dominant case, handled silently by the neons; stiff 400VDC = rarest, physically a 30-45J cap dump not a supply); handling = designed WITNESS-FIRST sequence (clamp leg self-disconnects sub-ms; no 32VDC blade ever breaks 400V) + NEW FIRST-CONTACT RULE (MIN LOAD off until first green, silk + card) + bench DC rows both ways; 10×38 gPV solar-fuse upgrade evaluated + REJECTED (+$15-20, disproportionate). #15 AFTERMATH SHOW RULED AS AMENDED (owner nod + automatic directive, 2026-07-25): any POP auto-wakes the WHOLE panel (passive BF-OR D_AW1..5 → Q_AUTO ∥ TEST; DUT-harvest-powered by construction; zero-standby kept — wake signal requires a live way) + flame tube & NE_EVT relaxation blinker run while the condition lives; fence #14 AMENDED owner-authorized (HV = held ∨ live-event, never with fuse door open — lid µswitch kills boost); honest boundary: non-pop reds still need held-TEST; ~$0.50 all-in; APPLIED README §4 + BOM + SVGs. Mains-tier cost autopsy DONE (§9.15B): all-in ~$2.3-2.5, five cheaper alternatives examined + rejected for load-bearing reasons (HRC-delete = blade arc in unrated holder; shared GND fuse = kills indication mid-event; series-R = 7% measurement error; trace fuse = trust story; MOV-only = loses crowbar + show); recommendation NO CHANGE — already at honest floor. | testers/smoke-tester capture start; ST-bundle composition | beta/smoke-tester/README.md |
 | 8 | Panel cadence/seats (API spend) | wave-4 CL-22 frontier seats | parity plan §1 |
 | 9 | Swarm charters / budget / precision floor | wave-4 CL-24 verifier tier | parity plan §1 |
 | 11 | Frontier data egress | wave-4 CL-22 frontier seat binding | parity plan §1 |
@@ -405,3 +409,541 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   dropped in the same event. Agent-side default is now CPU-AMG for interactive-hours solves, so
   this is optional: raising `HKLM\...\GraphicsDrivers\TdrDelay` (e.g. 2->10s) gives compute
   kernels patience and stops the resets if you want the GPU path while at the machine.
+
+- **[2026-07-23] TWO GOLDEN RE-FREEZE RITUALS (CODEOWNERS-gated, from the 20-red test triage):**
+  (a) **CL03 parity golden** (`tests/golden/parity-report.json`): the live checker registry
+  legitimately grew 34 -> 42 since the freeze (new: decoupler-adjacency-k5, ecap-edge-distance,
+  fiducial-protocol, kelvin-sense-no-connector-tap, mlcc-edge-orientation,
+  no-foreign-on-high-current-pour, sense-body-clear-of-pour, via-on-pad; +6 corpus entries).
+  Ritual: `python3 scripts/cec_corpus_compile.py`, copy `build/corpus-compiled/parity.json`
+  over the golden in an owner-approved PR. Until then `test_cl03_compiler.T6ParityGolden`
+  stays a known-red (honest: enforcement growth, not rot).
+  (b) **route-oracle fixture** (`tests/golden/fixtures/route-oracle/eps-rev3-n2`): the
+  2026-07-22 injection fail-closed correctly stamps it INJECTION INCOMPLETE (4/5 SENSEC nets
+  inject no current on that routed state). Either the injection path gets completed for the
+  fixture class (thermal-injection lane) or the fixture re-freezes under the newer craft
+  standard (FOLLOWUPS already owes that re-freeze). Do NOT relax the fail-closed -- it kills
+  a real vacuous-pass mirage. `test_route_oracle.test_gate_clean_placement_passes` stays a
+  known-red until one of the two lands.
+
+- **[2026-07-23] 24-PIN RUNTIME H-GROW (74x55 -> 74x59) vs the no-growth ruling — YOUR CALL:**
+  every 24-pin wave materializes at H=59, not the static 55: the pre-existing SHUNT_GAP
+  lever ("SHUNT_GAP may grow H", cec_fresh_wave BOARD_WH note) auto-grows the height for
+  shunt-row spacing legality. It predates and has been firing through your 2026-07-23
+  shrink-only ruling ("growth needs exhausted-ideas + my sign-off"). Options: (a) sign off
+  H=59 as the 24-pin's working envelope for now; (b) direct a machinery pass to make the
+  shunt row legal at 55 (walk-pitch/cell work — the honest-but-larger effort); (c) let the
+  post-clean shrink pass reclaim it later (the documented plan of record: "the shrink pass
+  comes after a gate-clean baseline exists"). Agent default until ruled: (c) — no further
+  growth, mechanism left as-is, flagged on every readout.
+
+- **[2026-07-24] USB BACKFEED INTO FAULTY-PSU BULK (owner discovery, CONFIRMED by transient
+  sim) — BETA DESIGN DECISION:** with a module USB-attached and a dead/faulty PSU connected,
+  VBUS charges the PSU's 5VSB bulk through the module's ORing diode (24-pin: directly through
+  the 25mohm shunt; other modules: through the RJ45 tree into the hub's 4700uF hold-up).
+  Simulated: Ipk ~27A in all cases; Q = 0.5mC (100uF) to 22mC (4700uF tree) vs the 50uC USB
+  inrush budget; a 2ohm-faulted PSU draws ~400mC SUSTAINED -> host port eFuse trips every
+  time (or rail sag on unprotected benches). The HUB is already safe (TPS2121 mux: reverse
+  blocking + ILIM + soft-start, both stages). The MODULES' SS34 ORing diode blocks only the
+  reverse direction (PSU->USB); the forward path is unlimited. PROPOSED (quality-first):
+  propagate the hub front-end pattern -- TPS2121 (C485916, already sourced/vendored) as the
+  module USB ingress: VBUS + the module's 5VSB source as mux inputs, logic rail as output;
+  kills the class at the root (~$0.6/board; alternatives TPS2115A ~$0.5 or TPS2553 load
+  switch + keep D2). Needs your sign-off as a beta-line schematic change to every module.
+  INTERIM (no respin, do now for PSU-tester work): a powered USB hub or USB isolator between
+  the bench PC and any module when testing suspect PSUs = sacrificial per-port limiting;
+  document in the tester workflow (also: a tripped port reads as "dead module" -- worth a
+  troubleshooting note so it is not misdiagnosed). First-article bench item if adopted:
+  verify TPS2121 reverse behavior with OUT driven while both inputs dead, module topology.
+  - **ILIM ruling follow-up (owner question 2026-07-24, "is ILIM specced for that / rely on it alone?"):**
+    NO single reliance -- the load-bearing mitigation is the mux's INPUT ISOLATION (back-to-back
+    FETs; the PSU bulk is simply not in the USB circuit), not the limiter. ILIM+CSS only handle
+    the module's own local caps: at the hub-proven C_SS 2.2uF (~10ms ramp), inrush ~= 50mA --
+    three orders under any port limit; spec ILIM ~1A (above ESP flash-burst ~500mA, under port
+    budgets; +-20% accuracy irrelevant to safety). DEFENSE-IN-DEPTH spec for sign-off:
+    (1) TPS2121 ingress per module (isolation = layer 1); (2) ~750mA-hold polyfuse on VBUS
+    AHEAD of the mux (~$0.03, layer 2 -- protects the host even against a failed/mis-soldered
+    mux); (3) OVP pin set (~6V IN1 cutoff) so a faulty PSU shoving a high 5VSB disconnects
+    instead of cooking the logic (free margin for the PSU-tester environment); (4) FIRST-ARTICLE
+    BENCH GATE: unpowered reverse behavior, OUT driven at 5V with both inputs dead (the blocking
+    specs assume a live device -- this is the one datasheet gap that needs measurement).
+  - **KVM-path extension (owner catch 2026-07-24, "this would also cause our KVM route issues"):**
+    CONFIRMED and WORSE than the module case -- as-built, J_KVM pin 1 is a RAW +5VSB rail tap
+    (the §2.9 three-source OR is still PROPOSED = OQ-53..56 open), so: (a) a PC-USB-powered
+    NanoKVM faces the hub 4700uF + the ENTIRE module 5VSB tree (eFuse-trip class, nothing in
+    series); (b) a powered hub back-drives the PC port THROUGH the KVM (its header 5V ~= its
+    VBUS); (c) even the intended wall-wart forensic path works by back-driving U7's OUT -- the
+    exact unpowered-reverse bench-gap case. PROPOSED RESOLUTION (resolves-toward OQ-53/55):
+    third TPS2121 cascade stage -- KVM 5V as the LOWEST-priority mux INPUT (spec §2.9 order:
+    MAIN_5V > 5VSB > USB > wall-wart/KVM), + ~1A-hold polyfuse on the KVM 5V pin (defense
+    layer 2; D7 ESD on the ref pin already present). Turns the forensic path into a designed
+    input and fixes all three directions with the already-sourced part. INTERIM bench rule:
+    never connect the NanoKVM USB-C to a PC while its aux cable is on a powered hub; wall-wart
+    only for the forensic path. The first-article unpowered-reverse bench gate now covers TWO
+    load-bearing cases (module ingress + KVM path).
+  - **STATUS (2026-07-24, this row + both sub-rows): SPEC'D — spec/BOM half DONE, schematic
+    half PENDING.** The ratified package landed as controlled spec **v1.6.0** (Document
+    control summary; §2.9 hardening-block + KVM third stage; §4 aux-link row note; §6.14
+    module USB-ingress mux block incl. the ARGB per-source-diode-OR exclusion; §9 ~+$1.0/board
+    note; OQ-53/OQ-55 resolution notes per the no-silent-rewrite convention; §11 full entry;
+    Outstanding board action 7 opened) with 2026-07-24 owner-ruling provenance citing these
+    rows. Per-board part/refdes/net-move plan (real LCSC-verified parts: TPS2121 C485916
+    stock 3,473; VBUS polyfuse Littelfuse 1206L075/16WR C371166 stock 7,735; KVM polyfuse
+    FUZETEC FSMD110-16-1206R C5707763 stock 1,015 — restock watch; ILIM 100k→1.24A typ w/
+    datasheet math, OV1 47k/10k→6.04V, PR1 100k/33k→4.27V, C_SS 2.2uF C23630):
+    `docs/usb-ingress-bom-delta-2026-07-24.md`. Generated bom/*.csv untouched (regenerate
+    from schematics). REMAINING: the beta schematic implementation pass (Sonnet via MCP,
+    CLAUDE.md action item 6) on the 5 sensing modules + hub-standard-rev2, then the
+    first-article unpowered-reverse bench gate (owner clock). Interim bench rules are in
+    force and recorded in spec §2.9.
+  - **OWNER RULINGS 2026-07-24 (in-session) on the survey findings:**
+    (a) **Finding 3 SIGNED OFF**: hub OV dividers on every TPS2121 stage (U5/U7 + the new KVM
+    stage), same 47k/10k ~6.04V posture as the module package -- LUMPED into the running
+    schematic pass (forwarded to the agent same-day). Spec addendum note owed (v1.6.x) at the
+    morning consolidation.
+    (b) **Finding 1 (mains ingress) RULED -- layered posture**: (i) a testing-METHODOLOGY smoke
+    test before sensitive equipment ever connects to a DUT PSU (pre-flight with sacrificial/
+    protected instrumentation); (ii) fast-shutdown-on-detection where feasible -- the 24-pin
+    rev3's PS_ON# drive is now a DIRECT PSU-shutdown actuator for the tester (owner caveat,
+    recorded verbatim in intent: NOT guaranteed on a faulty PSU -- treat as mitigation, never
+    as the safety case); (iii) full station-safety hardware (RCD/GFCI + isolation transformer +
+    earth-bonded frame w/ M3 chassis bond) = a PRO/MAX TESTING-STATION tier feature. The
+    tester product spec carries all three layers when drafted.
+  - **SPICE VERIFICATION LANDED (96d93157, docs/spice-backfeed-verify-2026-07-24.md, ngspice 44.2,
+    datasheet-fit models):** mitigated design PASSES B/C/D with 82-1029x margins; baseline confirms
+    ~27A (and NEW: a healthy 3300uF PSU alone crosses the 2.5A/1ms hard-trip -- no fault needed);
+    KVM unmitigated is WORSE (33.3A). TWO MARGINALS FOR YOUR EYE: (F) the LP5907 sees a real
+    0.8-7.4us excursion above 6.5V abs-max during a fast 12V cross-rail fault -- governed by the
+    TPS2121's UNDOCUMENTED OV response time (options: accept-with-bench-check, or a small output
+    clamp/TVS; your call at the schematic review); (E) unpowered-reverse confirmed genuinely
+    unspecified -- but the layer-2 polyfuses bound the worst case (trip 5-27ms even with ZERO mux
+    protection), so the bench gate confirms rather than carries the safety case. Methodology flag:
+    the repo's "~10ms C_SS ramp hub-proven" figure is untraceable; datasheet Table 9-1 predicts
+    ~125ms (12x gap) -- both pass as simulated, but the downstream "~50mA inrush" estimate should
+    be restated from the datasheet figure.
+
+## 2026-07-25 — HUB INNER-LAYER DOCTRINE: two owner rulings conflict (DECISION OWED)
+
+**The conflict.** 2026-07-23 (recorded verbatim on `hub-standard-rev2.pour_asks` in
+`scripts/cec_fresh_wave.py`): *"do the ugly giant pours inside of that layer instead of on
+top"* — power floods belong on the freed In2, because post-route additive floods do not
+consume routing space, so In2 is empty at route time and still serves as a third routing
+layer. 2026-06-14 stackup ruling: the hub's second inner is a **SIGNAL** layer. A 2026-07-25
+in-session discussion (owner asked for industry practice, then approved moving rails to the
+2 oz outers) was **BACKED OUT UNAPPLIED** once the 07-23 ruling surfaced — the agent should
+have surfaced it before recommending. Nothing about the hub's rail layers has changed.
+
+**Measured cost of the current (07-23) doctrine**, on a fresh routed hub
+(`build/hubfix/doctrine-routed.kicad_pcb`, seed 260, post-SWIG-fix):
+- B.Cu carries 125 segments / 790 mm of signal.
+- **19 of them (15%) cross ≥2 different In2 nets** — a reference-split crossing each.
+- **127 mm (16%) of B.Cu length runs over In2 void** — no reference copper beneath at all.
+- In2 rail floods: `/VCC_P1` 4434 mm², `GND` 323 mm², everything else ≤41 mm².
+- No dead zones (the 07-25 hygiene reapers work: the previously-measured 0 mm² `/PSU_5V`
+  and floating `/+5V_HOLD` are gone).
+
+**Separate defect, independent of the doctrine (recommend fixing either way):** `/VCC_P1`
+alone occupies **4434 mm² — 72% of the 88×70 board** — for a per-port RJ-45 VCC feed of
+~0.5 A, which IPC-2152 satisfies with a fraction of a millimetre of width. That is the
+"giant amorphous blob" class from the 24-pin review, on the hub, and it is what squeezed the
+new In2 GND fill down to 323 mm². Flood extent should follow the net's ampacity + reach, not
+the leftover area.
+
+**Options:** (a) KEEP 07-23 (floods on In2) and let the GND fill take whatever the floods
+leave — the 15%/16% reference numbers stand; (b) rails to the 2 oz outers, In2 = signal +
+stitched GND fill (mechanism is landed and inert: set `power_pour_layers` on the board);
+(c) keep floods on In2 but size them to ampacity, which likely fixes most of the 15%/16%
+without touching the doctrine at all.
+
+**Landed regardless (both doctrines benefit):** post-route In2 GND fill at priority 0 with
+island removal (`cec_fr.add_inner_gnd_fill`, `inner_gnd_fill` board param) — measured
+5510 mm² before the floods take priority, 323 mm² after.
+
+## 2026-07-25 — 12VHPWR FORCE COPPER: RESOLVED same day (row kept for the record; my first diagnosis was wrong)
+
+**Measured regression** (07-19 vs today, same board/params class): SENSEP lane copper
+480.8 mm → 119.7 mm, locked segments 164 → 62, **max lane width 2.50 mm → 0.25 mm**. On a
+600 W / 50 A connector board that is a fusing hazard, not cosmetics. The 0.25 mm copper is
+not a shrunken lane — it is Freerouting routing the 12 V nets at signal width because **no
+force lane was laid at all**: `[materialize] force lanes: 0/6 laid`.
+
+**Root cause chain, each step measured:**
+1. The **via-in-pad ruling (2026-07-25)** correctly excludes barrels overlapping ANY pad.
+2. The LO via field's search window sits directly under the shunt's LO pad — which is also
+   where the **sense cell** packs the INA240 for short Kelvin. Named blockers, identical on
+   all six lanes: `pad U10.5 x12, pad RS1.2 x10, pad U10.6 x7`.
+3. Widening the search to walk the lane's own descent (landed) gets past the via site, and
+   the lane then refuses one gate later: `LO spoke vs RFL1.2 [/IN1_N]` — the spoke from the
+   shunt pad to the relocated field crosses the cell's own filter resistors.
+4. Underneath it all the placement walk is already over-constrained:
+   `[rails] 6 cols need 60mm > 41mm avail -> walk INFEASIBLE at the 9.0mm cell floor`.
+
+**Why this is an owner decision and not an agent fix:** every remaining path touches a
+ratified rule — (a) exempt the lane's OWN shunt pad from the via-in-pad ruling (via-in-pad
+is an assembly/solder-wicking concern; filled/capped vias are a normal fab option, but it is
+your ruling to relax); (b) loosen the sense cell's Kelvin packing to open a lane corridor
+(cell geometry is blueprint-ratified); (c) grow the board, which the 2026-07-23 standing rule
+forbids ("machinery, never millimetres"); (d) build a real path search that routes the LO
+spoke AROUND the cell instead of straight — the only option that touches no ruling, and the
+largest piece of work.
+
+**RESOLVED THE SAME DAY, NO DECISION NEEDED — and the framing above was wrong.** Owner
+pushback ("it *was* just fine, something we just did broke it all") was correct: this was a
+regression, not three rules colliding. Two defects in the 07-24 via-in-pad guard caused it,
+both fixed in `cec_force_lanes` without touching the via-in-pad ruling, the ratified cell
+packing, or the board size:
+
+1. **Phantom square pads.** The guard tested `half = max(w,h)/2` on BOTH axes, modelling every
+   pad as a square of its longest dimension. The 3.35 × 1.23 mm shunt LO pad excluded ±1.675 mm
+   in y where its true half-extent is 0.615, and the INA240's 0.60 × 1.95 mm pads excluded over
+   3× their real width. That phantom copper — not the ruling — sealed the via window. Half
+   extents now come per-axis from the pad's real bounding box (rotated pads included).
+2. **Reachability checked too late.** Sites were picked blind to the spoke and the spoke was
+   validated only after the whole field was chosen, so ONE unreachable site refused an entire
+   50 A lane. Each candidate site now proves its own spoke during the search.
+
+**Verified on the same board/seed that produced 0/6:** `force lanes: 6/6 laid`, lane copper
+**480.8 mm at 2.50 mm max width** — the exact 07-19 good-era figure (broken: 119.7 mm at
+0.25 mm), structural DRC 27 → 15. Options (a)–(d) above are all moot; nothing was relaxed.
+
+**Landed meanwhile (no ruling touched):** the refusal now names its blockers (`pad U10.5 x12,
+...`) instead of an opaque "no clear LO via site" — it took two rounds of that message to
+find this, and the next person should not pay that cost again.
+
+## 2026-07-25 — "NOTHING PLACES INSIDE A POUR" (owner ruling): measured, not yet enforceable
+
+**The ruling:** the pour is set first and is never encroached upon; if a placement cannot work
+without a pour incursion, the POURS get redone rather than the rule bent.
+
+**What landed:** `cec_constraints.laid_pour_incursion_summary` + the
+`no-incursion-in-laid-pour` checker, measured against the pours ACTUALLY ON THE BOARD and
+including PARTS (not just tracks/vias). Every grade now reports `incursion` and the wave
+prints it. This was needed because the existing `no-foreign-on-high-current-pour` rule
+re-derives a corridor box instead of reading the laid pours: it reported `foreign=0t` on the
+eps winner while that board carried **4 foreign pads (C1, C20), 7 tracks and 4 vias** inside
+the pours.
+
+**Not folded into the gate yet, deliberately.** Nothing in the pipeline can currently satisfy
+it, and a gate no board can pass is a stopped line. The two halves that are missing:
+
+1. **Placer avoidance.** The mechanism exists (`pourfirst_avoid_boxes` +
+   `_legalize_avoiding_pours`, used by the p8/p9 passes) but is fed only by the pour-first
+   freeze. MEASURED DEAD END: enabling `pour_first` on eps produces a board with **no force
+   pours at all** — the solve finds the nets already connected, the single-owner whitelist
+   then drops every manifold, and the empty frozen state supersedes the live asks. It reported
+   `incursion=0` for the worst possible reason. Do not enable pour_first on the cable boards.
+2. **The redo loop.** The pours are derived FROM the placement (connector→shunt corridors), so
+   "pours first" needs a real two-pass: place anchors → derive pour regions → place the rest
+   avoiding them → re-derive → converge, with the owner's escalation (placement impossible ->
+   redo the pours) as the loop's exit. That is an architectural rung, not a patch.
+
+**Recommended sequence:** (a) feed the placer avoid-boxes from the PourPlan corridors rather
+than the pour-first freeze — that alone should clear the 4 foreign PADS, which are the part of
+the ruling nothing else can fix; (b) then the two-pass convergence; (c) then flip the gate on.
+
+## 2026-07-26 — NET-CURRENT MODEL: RESOLVED for the tabled boards (owner basis applied)
+
+Surfaced while sizing via fields (owner: "don't just say it gives some amperage without
+checking it against design spec... plan for worst case"). `cec_synth_pipeline._net_currents`
+assigns any net matching `"3V3"` a flat **0.8 A**. That figure matches **neither** spec anchor:
+
+* the module's own **+3V3 logic rail** is bounded by its source — the **LP5907 LDO, 250 mA
+  maximum per the TI datasheet** (spec Hub regulator row). 0.8 A is **3.2× the ceiling**.
+* the **24-pin ATX 3.3 V RAIL** is ~**18 A** — three ATX 3.3 V circuits against the
+  **6 A/circuit** bar (spec §2.8). The 6 A figure is PER CIRCUIT, not the rail: the
+  2026-07-06 re-ratification (TE 63969-1, 22.9 A at 125% = 18.32 A/joint) gives atx24 ten
+  joints with **3V3 ×2**, and two blades only make sense above one joint's 18.32 A. (My
+  first pass mis-read the per-circuit figure as the rail — owner correction 2026-07-26:
+  "we have two blades, because I have seen much more amperage than that.") 0.8 A is
+  **~22× too small** for that rail.
+
+The same function routes every `_HI`/`_LO` net to `cable_current_A` (default 40 A) regardless
+of which rail it belongs to, so a 24-pin `/SENSE3V3_HI` — a 6 A-class circuit — is modelled at
+40 A while `+3V3` is modelled at 0.8 A.
+
+Anything sized from these numbers is guesswork: pour widths (IPC inverse), via counts, the
+electrothermal injection, and the ampacity-deficit prints all consume them. Via sizing now
+takes the spec's own margin policy (§2.8: continuous rating ≥125% of sustained worst case at
+≤30 °C rise) applied to a stated per-net current, but the per-net current itself still comes
+from this model.
+
+**Owed:** a per-board net-current table grounded in the spec anchors (6 A/circuit for 24-pin
+rails, LDO ceilings for logic rails, ~13 A/pin → 52 A/cable EPS, ~39 A/cable PCIe, per-pin
+12VHPWR), replacing the substring-matched defaults. Until then, treat every current-derived
+number on the 24-pin as unverified.
+
+**RESOLVED 2026-07-26** for the four tabled boards. `_SPEC_NET_CURRENTS` in
+`cec_synth_pipeline` now carries a per-board, per-net design-basis table consulted ahead of
+the substring heuristics, every figure sourced:
+
+* **24-pin 3.3 V and 5 V = 20 A** — owner ruling 2026-07-26 ("the most we're going to see is
+  like 20 A on 3v3 and 5V, and with margin we should be good"). This is the REAL ceiling and
+  supersedes per-pin arithmetic: J3 physically carries 4× 3.3 V, 5× 5 V, 2× 12 V circuits
+  (counted from the netlist), but no PSU sources the full 6 A bar on every pin at once. The
+  agent's first pass derived 5 V as 5×6 = 30 A, which needs 37.5 A at the 125 % margin and
+  EXCEEDS its two ratified joints (36.6 A) — a teeth test caught the contradiction.
+* 24-pin 12 V = 12 A (2 circuits × the 6 A bar; 15 A at margin vs one joint's 18.32 A).
+* 24-pin 5VSB = 3 A (ATX standby is a 2.5–3 A rail, not a 6 A circuit).
+* logic rails bounded by their SOURCE: `+3V3` = 0.25 A (LP5907 LDO ceiling), `+5VSB` = 0.5 A.
+* cable boards keep the owner per-cable basis: EPS 52 A, PCIe 39 A, 12VHPWR 9.2 A per pin.
+
+Teeth assert each rail against its RATIFIED JOINT COUNT at the 125 % margin, so a future
+current edit that outgrows its blades fails the suite instead of shipping.
+
+**Still open:** boards outside the table (hub, argb, eps-rev3) fall through to the substring
+heuristics, and `GND` still takes `cable_current_A` on every board.
+
+## 2026-07-26 — PCIe-3port seat conflict: diagnosed, blocked on the anchor_pins frame
+
+That board has published only placement-only skeletons for days. Cause is exact: the third
+cable's sense cell seats at x≈87.5 and the RJ-45's default seat spans x 82.9–101.7 /
+y 11.6–28.6, so **U32 (a SOT-23-5) lands entirely inside J1** — `courtyard overlaps J1|U32`
+on every variant and every seed, before routing.
+
+Geometrically there is room: U32's row ends at y 24.1 and the board is 44.1 tall, so a jack
+seat at y 31–35 clears it while keeping the right-edge overhang the cable needs, with no
+dimension change. **That fix was tried and reverted**: `anchor_pins` does not place in the
+frame the measurement assumed — every trial (y = 31, 32, 33, 34.5) failed earlier with
+`J1 1 pad(s) out of bounds`, where the unpinned board passes that same check. The
+anchor_pins coordinate convention needs establishing before pinning any connector this way;
+until then the board stays as it is rather than trading one refusal for an earlier one.
+
+## 2026-07-26 — DECISION NEEDED: two current tables disagree on the 24-pin rails
+
+Found while wiring the pour-eligibility gate (a rail a track carries should not get a
+plane). Two sources feed current-dependent decisions and they do not agree:
+
+| net | `cec_thermal_overlay` | `spec_net_current` |
+|---|---|---|
+| `/SENSE5V_HI` | **25.0 A** | **20.0 A** |
+| `+5VSB` | **5.0 A** | **0.5 A** |
+| `/SENSE5V_LO` | absent | 20.0 A |
+| `+3V3` | absent | 0.25 A |
+
+The spec table encodes your 2026-07-26 ruling ("the most we're going to see is like 20A on
+3v3 and 5V"); the overlay's 25 A predates it. The `+5VSB` gap is larger and may not be drift
+at all — 0.5 A reads like the module's own standby draw while 5.0 A reads like the
+pass-through rail, i.e. two different quantities sharing a name.
+
+Nothing was silently reconciled. The pour gate takes the **larger** of the two, so a rail can
+never lose copper to the smaller of two disagreeing numbers. But the two tables also feed
+THERMAL gates, where max() is not automatically the right rule, so this needs your call:
+which table is authoritative per quantity, and is `+5VSB` one net or two?
+
+## 2026-07-26 — incursion decomposed: it is THREE problems, not one
+
+The 24-pin's "incursion 127/103/173" has been quoted as a single number. Measured by kind
+and layer on the s963 winner it splits into three items with different owners:
+
+| kind | layer | n | owner |
+|---|---|---|---|
+| pad | F.Cu | 102 | PLACER — parts seated inside laid pours |
+| via | In2 / B.Cu / F.Cu | 93 / 47 / 33 | ROUTER — inner reservation just landed, expect movement |
+| track | F.Cu / In2 | 92 / 11 | ROUTER — same |
+
+By producer, the biggest pad group is **`patch` (69)** — the guaranteed shunt patches. Those
+sit exactly where the Kelvin rule REQUIRES the sense IC to be, hard against the shunt's inner
+edge. So most of the placer-side number is not a part that wandered into a pour; it is the
+"placements literally cannot work without a pour incursion" case you named on 2026-07-25,
+where the answer is to redo the POUR (leave the tap window), not evict the part.
+
+That matters for sequencing: an eviction-only fix would fight the Kelvin gate and lose. The
+work is a pour-redo loop, and it should be scoped against these three numbers separately so
+progress is visible instead of averaged into one figure.
+
+## 2026-07-26 — pour-fix validation: 6 rounds x 4 boards, seeds 990-1001
+
+| board | n | pads | tracks | vias | diag | stray | gap | dead |
+|---|---|---|---|---|---|---|---|---|
+| eps-8pin | 6 | 2-6 | 0-9 | 1-5 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| pcie-8pin-2port | 6 | 9-21 | 2-9 | 5-12 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| 12vhpwr-standard | 6 | 0 | 0 | 0 | 0-2 | 0 | 0 | 0 | (pour_over) |
+| atx-24pin-rev3 | 6 | 69-72 | 53-78 | 13-32 | 3-5 | 0-5 | 0 | 0 | REAL |
+
+Verified on ALL SIX 24-pin winners, not one sample: `+3V3` never pours (the 391mm2 In2 slab
+across the shunt row is gone) and `/SENSE3V3_HI` never touches In2 -- 2-3 zones at
+~350-415mm2 on F.Cu+B.Cu, against six zones on three layers at 1869mm2 before. EPS
+connectivity held (unconn 24 vs a 21-24 pre-fix band) with kelvin_ok intact, so reclaiming
+~3900mm2 of copper cost nothing.
+
+STILL OPEN, unchanged by this work: the 24-pin's 69-72 pad incursions are a structural floor
+(five seeds, no movement), ~69 of them `patch` pads where the Kelvin rule requires the sense
+IC. That needs the pour-REDO loop -- carving the patch reservation at PLAN time around the
+sense IC's required seat. Carving it after placement would only redefine the region to match
+reality and make the metric meaningless, which is why it was not done as a quick fix.
+
+## 2026-07-26 — DECISION NEEDED: the candidate reference is stale because pour quality is not ranked
+
+The per-board `candidate/` folders are the reference you open. After today's pour fixes the
+24-pin's stored candidate is STILL the pre-fix board (`band-core-mid-compact-s390`): +3V3
+poured, /SENSE3V3_HI on three layers, 6 zones, 974mm2 -- i.e. it still shows every defect
+reported today, even though the pipeline no longer produces them.
+
+Promotion ranks on the routing sort_key alone, and unconnected sorts FIRST:
+
+| | stored (s390) | new (s1000) |
+|---|---|---|
+| pour overlaps (p/t/v) | 370/111/171 | 72/71/21 |
+| long diagonals | 17 | 5 |
+| stray vias | 14 | 0 |
+| DRC | 86 | 26 |
+| unconnected | 114 | 127 |
+
+So a board that is 5x worse on pour overlap, 3x on diagonals and 3x on DRC keeps the slot on
+an 11% unconnected edge. Nothing was silently re-ranked -- what "best" means is your call.
+Options: (a) add pour-quality terms to the sort key, (b) keep routing-first but refuse to
+promote a candidate that regresses pour metrics, (c) leave as-is and read candidates as
+"best routed", judging pour quality only from wave winners.
+
+## 2026-07-27 — FYI/ratify: hub DRU exemption for the flooded power rails
+
+Getting the hub to a fab gate, its only severity-error DRC was 20 `track_width` hits against
+`Power min width` (0.5mm) on +5VSB, /PSU_5V, /MAIN_5V_RAW, /USB_VBUS at 0.3-0.4mm actual.
+
+This is a RULE LAG, not a design fault. The hub power rung (2026-07-23, your "do the ugly
+giant pours inside of that layer") made those rails post-route additive In2 slabs, but the
+blanket width rule was never updated to match, so it now flags the thin pickup stubs the
+flood backs. EPS already carries the identical exemption for /SENSEC*, documented in its own
+DRU for the same reason.
+
+Ampacity was checked BEFORE relaxing anything, and holds without even counting the floods:
+IPC-2221 puts 0.3mm of 1oz outer copper at ~1.55A, and /USB_VBUS -- the thinnest-flooded and
+worst-flagged net -- is fused at 1.1A hold by F5. Measured floods on the s272 candidate:
++5VSB 478mm2, /PSU_5V 238mm2, /MAIN_5V_RAW 87mm2, /USB_VBUS 15mm2. The floor still applies to
+every other Power-class net, where a track IS the only conductor.
+
+Result: hub severity-error DRC 20 -> 0. Flagging rather than burying it because it is a
+design-rule edit on a fab-bound board; say the word if you want the floor kept and the tracks
+widened instead.
+
+ALSO FIXED, and worth knowing: the candidate/ directories carry NO .kicad_dru, so DRC run
+there sees 5 violations where the same board with its rules has 20. The hub fab gate now
+REFUSES to grade a board with no .kicad_dru beside it rather than reporting a clean pass.
+
+## 2026-07-27 — RETRACTED: the hub's "board-level wall" was MY OWN REGRESSION
+
+**Do not act on the analysis below. The design decision it asks you for is withdrawn.**
+
+The wall was an inner-layer pour keepout I added on 2026-07-26. It reserves inner pour
+regions from the router -- correct on a pour-first board (it removed the 24-pin's In2
+diagonals) but WRONG on the hub, whose floods are post-route additive and whose power rung
+depends on In2 being empty at route time, "a true third routing layer" (your words,
+2026-07-23). I handed the router two layers instead of three.
+
+Every piece of evidence in the analysis below was produced AFTER that change: the ten seeds
+at 46-60, the 76/76 lastmile refusals, the ingress-cluster localization. With the keepout
+scoped correctly, the FIRST seed routed to **16 unconnected with fab_drc 0 -- FAB OK**. That
+is half the incumbent's 32 and the best this board has ever produced (historical band 7-36).
+
+No placement change is needed. The original text is kept below unedited, per the
+no-silent-rewrite rule, as the record of how the wrong conclusion was reached.
+
+## 2026-07-27 — [SUPERSEDED, see retraction above] hub fab push: DRC side solved, connectivity is a board-level wall
+
+Where the hub stands after this session:
+
+  * FAB SIDE: **SOLVED**. Severity-error DRC 20 -> 0 (the `Power min width` rule lag,
+    ratify row above), and against a JLCPCB capability profile the repaired board reads
+    **FAB OK** -- fab_drc 0, slivers 0, islands 0, 3 non-blocking acid traps. Repairs run
+    automatically at every wave publish now.
+  * CONNECTIVITY: **WALL**, and it is not a seed problem. Two independent attempts:
+      - RESAMPLE at high effort (passes 40 / opt 60, ~2.5x default), TEN ROUNDS COMPLETE:
+        46, 60, 48, 57, 49, 52, 49, 55, 265 (a failed placement), 53. BEST OF CHAIN = 46,
+        against the incumbent candidate's 32. Ten seeds, not one came close. Regenerating
+        the board is a lottery the incumbent already won over hundreds of prior runs.
+      - POLISH the incumbent: `synthesize_lastmile` at max_mm 8 / cap 120 attempted 76
+        closures and closed **ZERO** -- every one refused by the foreign-collision guard.
+        The gaps are not distance gaps or missing vias; there is no clear path for them.
+
+Both results point the same way, and they meet YOUR OWN acceptance bar for this board
+(2026-07-23): "If it cannot route with 3 separate routable layers, there is an issue with it
+itself and we need to improve it." The hub has F.Cu + SIG2 + B.Cu routable with In1 a solid
+GND plane, and 76 closures find no room. That is a board-level issue -- placement density or
+the layer budget -- not a router-effort issue, so more waves will not close it.
+
+WHERE the congestion is (measured, so this is actionable rather than "the board is dense"):
+23 of the 32 gaps sit in TWO clusters.
+
+  * n=13 at x 45.7-65.7 / y 39.4-66.0 -- the south-centre band, mixed signals
+    (GND x3, /EN, /TEMP_HUB, /MAIN_5V_SENSE, /LED_DATA).
+  * n=10 in a 5 x 8mm box at x 23.4-28.5 / y 60.9-69.0 -- and the nets name it:
+    /PSU_5V x3, /PSU_5V_KVM x2, /U11_OV1, GND x2, /AUX_UART_RX. That is the
+    USB-BACKFEED INGRESS CLUSTER (U11's TPS2121 third cascade stage + the KVM
+    priority path, spec v1.6.0). Ten unroutable gaps in 40mm2.
+
+So the single densest failure is the newest circuit on the board. That is the first place to
+buy room, and it is a much smaller change than a stackup.
+
+RECOMMENDED next move (needs your call, since it is a design change): relieve congestion
+rather than re-roll seeds. Options in rough order of cost: (a) revisit the placement
+constraints that pack the power/ingress cluster, (b) give the hub a 6-layer stackup, (c)
+accept a documented residual and hand-finish the last gaps in the GUI. The wave chain keeps
+running meanwhile, but on this evidence it is buying little.
+
+## 2026-07-27 — 24-pin: J3's PADS ARE ON THE BOARD EDGE (fab-blocking, placement fix)
+
+Running the fab-house profile over the CURRENT-code 24-pin winner (s1000) leaves 13 findings,
+and 12 of them are one fault: **J3 pins 1-8 (PTH pads, /SENSE3V3_HI, /SENSE5V_HI, GND,
+/ATX_PWROK) sit at 0.0000mm copper-to-edge.** JLCPCB needs 0.20mm. As drawn, the routing bit
+cuts through the connector's own pads at depanelization -- the board cannot be built.
+
+Cause is placement, not copper: J3 is seated with edge OVERHANG (correct by doctrine -- the
+cable must seat without fouling the board) but has gone far enough that the PADS crossed the
+cut line, not just the body. No copper repair can fix this; the part needs seating ~0.3mm+
+inboard so its pads clear the edge while the shroud still overhangs.
+
+CONTEXT WORTH NOTING: today's pour work already fixed most of this board's fabricability.
+Stale candidate (s390) vs current-code winner (s1000), both after fab repair:
+
+| | s390 (the stored reference) | s1000 (current pipeline) |
+|---|---|---|
+| fab DRC | 55 | 13 |
+| slivers | 19 | 0 |
+| acid traps | 14 | 0 |
+| clearance @70um | 8 | 0 |
+
+So the 70um copper-to-copper and the sliver field are ALREADY GONE from what the pipeline
+produces now -- they survive only in the stored candidate, which the ranking keeps because it
+has better unconnected (114 vs 127). That is the same stale-reference problem raised on
+2026-07-26: the reference you open is not what the pipeline builds.
+
+- [2026-07-25] **PENDING OWNER RULING — 12VHPWR bolted daughterboards (LOCKED §2.8 carve-out revisit, owner-initiated):** study at `docs/standard-tier-review/hpwr-daughterboard-study-2026-07-25.md` — output DB carries the captive soldered pigtail (zero added mated 12VHPWR pairs), input becomes swappable DBs (native 12V-2x6 default / 2×-3× PCIe-8-pin variants w/ honest S1-S4 strapping / lug). INTERFACE v2 (owner correction 2026-07-25, study §8 governs): PER-LANE separation preserved — 6 individual 12V lane joints (blade 190% or M3 330% of the 12A hog case) + ONE fatty M4 GND bolt (170% @50A, doubles as the mount) + narrow 1x4 sideband stub; the 2-position 12V bus form is RETRACTED (would gang lanes = destroy per-pin observability). REORDER UNLOCK recorded: DB copper owns lane<->pin order mapping both ends -> main board lanes = straight parallel bars, fan-out corridor deleted (compaction lever, pairs w/ 6L/POFV). +$1.5-2.5/module, first-article torque/contact-R/thermal gates + keying-checker lane-map assertion. RECOMMEND ADOPT (lean: 6 blades + 1 M4), beta line only. §10 ADDENDUM (owner, same day): dual-row UNFENCED — owner's MAIN ramp = top-down fan + heatsink on the shunts (fan elevated from DNP-menu to primary product direction; §6.6 TIM fence doesn't bind this module); bottom-row heat = copper-filled POFV via fields -> top heatsink (~2K/W field, ~0.3K board-through at the mW-class shunt loads); form choice OPEN for owner: 30mm single-row paddle (cheapest) vs ~19mm double-row cable-stick (~equal area, +double-side assembly + FEM fan-model extension). USB-C RULED: stays, 16P stands — 6P class is power-only (no D+/D- pins exist), would kill the flash/CDC port function = fails owner's no-sacrifice test; 16P is the minimal data-capable class, delta vs 6P ~1-2mm/$0.05. Spec §2.8 amendment text drafted in the study §6 — owner's pen flips the lock.
+
+## 2026-08-01 — consolidation onto main: PR #70 open, needs your review
+
+**PR #70** (`claude/pipeline-pass-2` → `main`) carries the 297-commit pipeline-pass-2 line:
+pour correctness, the fabricability check + repair, and the hub work. `origin/main` is merged
+in, the 13 commits another session pushed to the branch on 07-31/08-01 are merged in, no
+conflicts outstanding, and **no CODEOWNERS-protected path is touched** — so it needs an
+ordinary review, not a code-owner review.
+
+**It cannot be merged by an agent.** Branch protection reports `REVIEW_REQUIRED`, and RB-04
+consent-integrity says agents must not authenticate as the owner. That is the gate working as
+designed; the merge is yours.
+
+**CI is red, and it is red on main too.** The `kicad` check fails on
+`test_corridor_model.test_phase2_default_placement_is_legal` — verified failing on
+`origin/main` itself (residual 1 != 0), and main's KiCad checks have been failing since
+2026-07-17. Honest caveat: the residual is 2 on this branch vs 1 on main, so the branch
+nudges a pre-existing failure slightly worse without causing it.
+
+### The other branches
+| branch | vs main | disposition |
+|---|---|---|
+| `claude/freerouting-pipeline-status-yoli0z` | +6 | **already contained** in PR #70 — nothing to do |
+| `claude/housekeeping-ring-buffers` | +1 | open **PR #69** — merge via its own PR |
+| `claude/enterprise-trust-addendum` | +10 | open **PR #64** |
+| `claude/rev3-hier-revisions` | +4 | open **PR #63** |
+| `claude/sch-tooling-unify` | +2 | open **PR #62** |
+| `claude/24pin-tester-psu-usb-fault-e2i4tf` | +4 | no PR — Smoke Tester concept + USB-fix rollout; wants one |
+| `claude/seat-bindings` | +3 | no PR — policy/Decision-9 closure; wants one |
+| `infra/route-notifications` | +2 | no PR — routing-run ping channel |
+| `claude/pcb-candidates` | +1 | no PR — superseded by the live `candidate/` dirs |
+| `ops/agent-handoff` | +1842 | **DO NOT MERGE** |
+
+**`ops/agent-handoff` is not repo work.** It is the session-end hook's lane (handoff +
+memory snapshots). `main` is not an ancestor of it, and a merge would delete **4,720,168
+lines across 2,013 files**. It stays separate by design.
+
+I did not fold the four PR'd branches into PR #70: doing so would route their content around
+the review each already has open. Say the word if you would rather have one merge.

@@ -26,6 +26,37 @@ AC sense pod: PARKED (owner) — no folder until un-parked. R-bank plates:
 chassis metalwork + lug wiring, NOT a PCB (bank switching FETs/fuses live on
 the main board; only heavy wire crosses).
 
+**"Smoke Tester" — STOOD UP on the beta line (owner directive 2026-07-24; folder
+`beta/smoke-tester/`, sketch-stage):** sacrificial first-contact triage box —
+per-rail blade fuse + crowbar fault-converter (a fuse alone cannot catch
+mains-on-a-rail), blade+HRC 250 VAC coordination, neon hot-ground CASE-LIVE
+detector, relay-armed PS_ON, needle meter, pure analog, terminator-only (never
+inline). Workflow position: ahead of everything in this census (Smoke Tester →
+module/ST deck → Pro/Max). Spec of record: `beta/smoke-tester/README.md`; concept +
+decision list: `docs/smoke-tester-concept-2026-07-24.md`.
+
+**DUT INPUT INTERFACE — replaceable straight-through boards (OWNER-RULED 2026-07-25:
+"just a straight-through connector… they sell those off the shelf, ModDIY probably —
+can just resell those").** Every deck slot's DUT-facing plug-in position is a
+REPLACEABLE STRAIGHT-THROUGH CONNECTOR BOARD, not the module's own header: the DUT
+cable mates with a cheap board carrying the family male header, wired through to the
+module behind it. Per-DUT matings and mechanical abuse land on a $2–5 part; modules
+($35 ST … $600+ Pro/Max) never accumulate matings. SOURCING POSTURE (ruled): resell
+off-the-shelf ModDIY-class straight-through/jig boards where they exist (24-pin/EPS/
+PCIe) — with the STANDING MODDIY CAVEAT carried from OQ-86/88 verbatim: DIY-category,
+provenance-unverified, prototype-OK, the resold/sellable version needs the bench
+qualification pass (catalog check + sample order = owner desk item). MONITORING (no
+sense contacts on an off-the-shelf board): the tester program stores a per-head
+BASELINE at install and trends ΔV/ΔI across load steps against it — head-contact
+drift becomes a firmware alarm ("replace input board, slot N") using measurements the
+modules already make (OQ-85 row). UPGRADE RUNG (only if metrology demands): our own
+head PCB with the OQ-88 sense-return contacts populated (port-end Kelvin, the 12d
+pattern) — decision deferred until a bench case shows baseline-trending insufficient.
+EXCEPTION: 12VHPWR keeps the designed `hpwr-fixture-head` (already in this census) —
+melt-class per-pin monitoring is load-bearing there and an unmonitored straight-through
+contradicts the §2.8 minimal-mated-pairs rationale. Consumer modules: UNCHANGED
+(cycle counts moot outside the deck).
+
 ## B. Floorplan doctrine (zones, in airflow order — sketch §4 is binding)
 
 ```

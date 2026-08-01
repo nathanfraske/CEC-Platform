@@ -78,6 +78,38 @@ def local_pads(libid):
     return out
 
 _PADSZ_CACHE = {}
+_PADBOX_CACHE = {}
+
+
+def local_pad_boxes(libid):
+    """[(lx0, ly0, lx1, ly1)] LOCAL extent boxes of a footprint's electrical pads
+    (centroid +/- size/2, the PAD's own rotation applied). Memoized. Added
+    2026-07-23 (the D5 model-truth defect): easyeda-class footprints draw their
+    courtyard around the BODY only, so every courtyard-based placement model
+    under-sized them and movers legally-by-model parked pads past the board edge
+    (D5 SOT-23: courtyard half-x 0.65 vs real pad copper reach 1.87). courtyard_bbox
+    unions these so every consumer is pad-truthful."""
+    if libid in _PADBOX_CACHE:
+        return _PADBOX_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); out = []
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        if "np_thru_hole" in b.split("\n")[0]:
+            continue
+        num = re.match(r'\(pad "([^"]*)"', b)
+        at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', b)
+        sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if not (num and num.group(1) and at and sz):
+            continue
+        lx, ly = float(at.group(1)), float(at.group(2))
+        sx, sy = float(sz.group(1)), float(sz.group(2))
+        prot = float(at.group(3) or 0.0) % 180.0
+        if 45.0 <= prot < 135.0:                    # pad rotated ~90: axes swap
+            sx, sy = sy, sx
+        out.append((lx - sx / 2.0, ly - sy / 2.0, lx + sx / 2.0, ly + sy / 2.0))
+    _PADBOX_CACHE[libid] = out
+    return out
 
 
 def local_pad_sizes(libid):
@@ -165,6 +197,15 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
             cy = pad_hi + 1.0
         dx, dy = _rot(cx, cy, rot)
         xs += [x + dx - r, x + dx + r]; ys += [y + dy - r, y + dy + r]
+    # PAD-TRUTH UNION (2026-07-23, the D5 class): a courtyard that fails to cover
+    # the pad copper (easyeda body-only courtyards) under-sizes every placement
+    # model -- union the real pad extents so seats/colliders match what DRC and
+    # the board edge actually see. Pads are never keepout-trimmed (they ARE the
+    # band the trim preserves).
+    for (px0, py0, px1, py1) in local_pad_boxes(libid):
+        for (lx, ly) in ((px0, py0), (px1, py0), (px0, py1), (px1, py1)):
+            dx, dy = _rot(lx, ly, rot)
+            xs.append(x + dx); ys.append(y + dy)
     if not xs:
         return (x - 1, x + 1, y - 1, y + 1)
     return (min(xs), max(xs), min(ys), max(ys))
@@ -400,7 +441,7 @@ def export_netlist(dir_, base):
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
                 corner_radius=0.0, back_refs=(), inner_power_routing=False,
-                fiducials=()):
+                inner_label="PWR_RT", fiducials=()):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -419,8 +460,15 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                              flip=(ref in back_refs)))
         else:
             print(f"  WARN no footprint for {ref}", file=sys.stderr)
-    for i, (x, y) in enumerate(mounts, 1):
-        fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via", f"H{i}", x, y, 0,
+    for i, m in enumerate(mounts, 1):
+        # (x, y) -> the platform M3 default; (x, y, libid) -> that land (the
+        # mount_fp_override contract: the H1 M2 provision measured 2026-07-23
+        # as an M3 stamped under an M2 model -- a 1.04mm/side model-vs-board
+        # gap that parked jellybeans "legally" onto the real courtyard).
+        x, y = m[0], m[1]
+        mfp = (m[2] if len(m) > 2 and m[2] else
+               "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via")
+        fps.append(place(mfp, f"H{i}", x, y, 0,
                          padnet, code_of, gnd_all=True))
     for i, (x, y) in enumerate(fiducials, 1):
         # assembly fiducials (round-2 item 6, 2026-07-08): the placer always PLANNED
@@ -478,7 +526,19 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n" + zone + g + note +
            "\n\t(embedded_fonts no)\n)\n")
     if inner_power_routing:
-        doc = doc.replace('(6 "In2.Cu" power "12V")', '(6 "In2.Cu" signal "PWR_RT")', 1)
+        # the freed inner's user label follows its role: "PWR_RT" on rail-alt
+        # boards (24-pin), "SIG2" on signal-inner boards (hub) -- cosmetic,
+        # the canonical In2.Cu is what tooling resolves
+        # STACKUP LABEL HONESTY (owner ask 2026-07-25): the shared table now
+        # ships In2 as the cable-board GND PLANE ("GND2", type power). On the
+        # inner-ROUTING boards (24-pin rail-alt / hub signal inner) it becomes a
+        # routable signal layer instead. Both spellings are accepted so a board
+        # generated before the rename still converts.
+        for _stale in ('(6 "In2.Cu" power "GND2")', '(6 "In2.Cu" power "12V")'):
+            if _stale in doc:
+                doc = doc.replace(_stale,
+                                  f'(6 "In2.Cu" signal "{inner_label}")', 1)
+                break
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body

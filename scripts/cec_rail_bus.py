@@ -12,7 +12,7 @@
 # pour, then route_directed lets Freerouting fill the signals AROUND the locked rail trunk.
 #
 # Usage (in the routing container):
-#   python3 scripts/cec_rail_bus.py --board-pcb build/.../X.kicad_pcb --board modules/eps-8pin --out OUT.kicad_pcb
+#   python3 scripts/cec_rail_bus.py --board-pcb build/.../X.kicad_pcb --board beta/eps-8pin --out OUT.kicad_pcb
 import argparse
 import json
 import os

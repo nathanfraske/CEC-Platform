@@ -18,7 +18,7 @@
 # DUAL MODE (like cec_overnight_directed): the heavy steps (--seed/--analyze/--apply/--measure) run IN the
 # routing container (pcbnew + Freerouting); the host --run driver invokes them via `docker compose exec`
 # and calls the cloud LLM planner seat host-side. Run the driver from the host:
-#   python3 scripts/cec_place_planner.py --run --board modules/eps-8pin --rounds 6
+#   python3 scripts/cec_place_planner.py --run --board beta/eps-8pin --rounds 6
 
 import argparse
 import dataclasses

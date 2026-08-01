@@ -35,7 +35,33 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
+Spec revision reflected here: **v1.6.0 (2026-07-24), controlled baseline** — USB-BACKFEED
+PROTECTION PACKAGE (owner rulings 2026-07-24, sign-off record `docs/owner-queue.md`
+2026-07-24 rows; transient-sim-confirmed fault: with a module USB-attached and a dead/faulty
+PSU connected, VBUS back-feeds the PSU's 5VSB bulk through the module SS34 ORing diode —
+~27A peak, 0.5–22mC/event vs the 50uC USB inrush budget, ~400mC sustained on a 2Ω-faulted
+PSU = guaranteed host eFuse trip; the hub's host-USB was already safe behind its TPS2121
+stages). Ratified, BETA line only (alpha/rev2 frozen as shipped): (1) every beta Standard
+sensing module's USB-C ingress becomes a TPS2121 priority mux (C485916, the hub part) —
+5VSB source (RJ45 VCC; post-shunt 5VSB tap on the 24-pin, inserted ahead of its existing
+MAIN×5VSB mux) + VBUS in, logic rail out, D2 SS34 RETIRED; input ISOLATION is the
+load-bearing mitigation (owner ILIM ruling — never the limiter alone), ILIM 100k ≈ 1.24A
+typ (I=65.2/R^0.861; exact-1A solve 128k is outside the 18–100k recommended window), C_SS
+2.2uF (hub-proven), OV1 47k/10k ≈ 6.04V faulty-PSU cutoff; (2) 750mA-hold polyfuse on VBUS
+ahead of the mux (Littelfuse 1206L075/16WR, C371166); (3) hub J_KVM pin 1 (was a RAW +5VSB
+tap) becomes the designed LOWEST-priority input via a third TPS2121 cascade stage —
+MAIN_5V > 5VSB > USB > wall-wart/KVM, resolving-toward OQ-53/OQ-55 (consumer part half) —
+plus a 1.1A-hold polyfuse (FSMD110-16-1206R, C5707763); (4) FIRST-ARTICLE BENCH GATE:
+TPS2121 unpowered reverse behavior (OUT driven at 5V, both inputs dead — datasheet
+characterizes reverse blocking only for a live device; load-bearing for module ingress AND
+the KVM path). Interim bench rules (spec §2.9): sacrificial powered hub/isolator between
+bench PC and module whenever a suspect PSU is attached; NanoKVM wall-wart-only while its
+aux cable is on a powered hub. ARGB Standard is NOT in the class (true per-source 3-way
+diode-OR). See spec §2.9, §4, §6.14, §9, OQ-53/55, §11; per-board part/refdes plan
+`docs/usb-ingress-bom-delta-2026-07-24.md`. BOARD STATE: spec'd only — no schematic
+carries it yet (Sonnet MCP pass pending, action item 6).
+
+Prior baseline, retained for provenance: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
 SENSING-IC REVERSION: the 24-pin ATX module's four rail-sensing ICs revert from the INA228
 back to the **INA238** (LCSC C2868250, JLC-assembly-native and stocked; the INA228 is
 LCSC-unavailable, reference-only) on an explicit owner ruling (2026-07-05, supply-chain and
@@ -88,7 +114,7 @@ OQ-1..OQ-89. No other LOCKED electrical decision altered, no section renumbered.
 The 24-pin's J4 removal, the EPS/PCIe per-cable output-header removal, and the Keystone clip
 placement (`TB1..TBn`) on each main board landed (commit `b76a62a`, "Task 9: blade interface
 on main boards"). The three passive daughterboard projects (the mating TE-63849-1-tab side)
-now exist at `modules/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
+now exist at `beta/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
 DRC/ERC-clean 4-layer PCBs (`scripts/gen-output-daughterboard.py`), per-family asymmetric
 keying documented in each board's README, BETA-1 title blocks, DRAFT markers (fit-check gate
 still open, OQ-86). New library assets: `cec-Connector_Generic:{ATX24,EPS8,PCIe8}_Daughterboard_
@@ -398,18 +424,24 @@ cec-platform/
     cec.kicad_sym            # symbols
     cec.pretty/              # footprints (RJ-45 FTP jack, SK6812, ESP32, power input; per-pin protection net dropped for consumer (§2.4), Enterprise/MC uplink protection under OQ-7)
     3dmodels/
+  beta/                      # THE AUTHORITATIVE BETA LINE (physical move 2026-07-22, owner
+                             #   directive "no further confusion on where the latest ones are"):
+                             #   atx-24pin-rev3, eps-8pin, eps-8pin-rev3, pcie-8pin-2port,
+                             #   pcie-8pin-3port, 12vhpwr-standard, argb-standard,
+                             #   hub-standard-rev2, output-daughterboards/{atx24,eps,pcie}-out-db.
+                             #   RULE: in beta/ = the latest; modules//hubs/ = alpha + history.
+                             #   Index + move record: beta/README.md. Resolvers (cec_router
+                             #   find_board, cec_facts board_catalog, cec_synth_pipeline
+                             #   Config.load) search beta/ FIRST.
   hubs/
-    hub-standard/
+    hub-standard/            # ALPHA (shipped proto-v1)
     hub-pro/
     hub-enterprise/          # platform-summary only for now (OQ-7)
     hub-mission-critical/    # platform-summary only for now (OQ-7)
-  modules/
+  modules/                   # ALPHA + superseded history (beta line moved to beta/)
     atx-24pin/
-    eps-8pin/
-    pcie-8pin-2port/           # PCIe SKU: 2 ports (4 connectors)
-    pcie-8pin-3port/           # PCIe SKU: 3 ports (6 connectors)
-    12vhpwr-standard/
     12vhpwr-pro/
+    ...                      # + the -rev2 SUPERSEDED copies (markers in each dir)
   fab/                       # tagged release snapshots of exactly what was sent to the board house
   firmware/                  # module firmware: shared ESP-IDF components + per-app trees + RTL (see "Firmware tree" below)
   scripts/                   # kicad-cli wrappers and CI helpers
@@ -433,10 +465,10 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
 | 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35* |
-| EPS 8-pin module | modules/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
-| PCIe 8-pin 2-port | modules/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
-| PCIe 8-pin 3-port | modules/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
-| 12VHPWR Standard module | modules/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
+| EPS 8-pin module | beta/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
+| PCIe 8-pin 2-port | beta/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
+| PCIe 8-pin 3-port | beta/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
+| 12VHPWR Standard module | beta/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
 | 12VHPWR Pro module (lead) | modules/12vhpwr-pro | Pro | ESP32-P4 | - | - | $98 to $99 |
 
 Every board uses the RJ-45 connector defined below. Enterprise and Mission
@@ -1053,7 +1085,10 @@ Open items (surface before acting):
    C157923; footprint JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal — changed from top-entry
    B5B-PH-K-S/C157993 per the v3.9 right-angle correction so the NanoKVM cable exits a board
    edge), FORM LOCKED v3.7 (OQ-51), symbol cec:CEC_NANOKVM_AUX_5P. Pins: 1 =
-   +5VSB (shared §2.9 rail), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
+   +5VSB (shared §2.9 rail — SUPERSEDED for beta by spec v1.6.0, 2026-07-24: pin 1
+   becomes the designed lowest-priority INPUT of a third TPS2121 cascade stage behind a
+   1.1A-hold polyfuse, inbound wall-wart/forensic only, the hub never drives it; the raw
+   tap stands only on the alpha board — see action item 6), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
    RX -> 33ohm R20 -> ESP IO12, 5 = NanoKVM 3V3 ref. NO trigger GPIO (triggers ride
    the UART in-band). The 3V3 ref is sensed UNTRUSTED/RATIOMETRIC (the user's "can't
    trust the 3v3 beyond a shadow of a doubt" call): KVM 3V3 via 47k/10k (R21/R22) ->
@@ -1167,7 +1202,7 @@ Open items (surface before acting):
    does not drop them. Test points recommended ONLY if room
    (GND/+3V3/+5VSB/VRAIL_DIV/CAN_H/CAN_L) — add in the GUI, not the schematic
    (TestPoint symbol isn't embedded). Plan + diagram:
-   modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
+   beta/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
    FEM PROBE FINDINGS (2026-06-09, adversarially verified; corrected for the model's
    segment-sum optimism — see the model-debt note below): balanced 600W (8.33A/pin)
    worst-lane dT ~+14C / 64C max (pass); connector-rating 9.2A/pin ~+18C / 68C (pass,
@@ -1216,6 +1251,18 @@ Open items (surface before acting):
    landed detail: rev3 README §2026-07-14. OPEN: spec §6.1 note (owner's pen), OQ-85
    interlock rows, first-article bench trio (gate scope / PSU pull-up survey / BAT54S
    pin-map) — owner-queue §1 RULED row.
+
+6. USB-backfeed protection package (spec v1.6.0, owner rulings 2026-07-24) — SPEC'D,
+   schematic pass PENDING (Sonnet via MCP). Every beta Standard sensing module: TPS2121
+   USB-ingress mux (C485916) replacing the D2 SS34 ORing diode + 750mA-hold VBUS polyfuse
+   (C371166) + ILIM 100k / OV1 47k/10k / PR1 100k/33k / C_SS 2.2uF straps; hub-standard-rev2:
+   third TPS2121 cascade stage (U11) making J_KVM pin 1 the lowest-priority input + 1.1A-hold
+   polyfuse F5 (C5707763). Per-board refdes/net-move plan: `docs/usb-ingress-bom-delta-
+   2026-07-24.md` (the input contract for the pass); spec §2.9/§6.14 v1.6.0 blocks are the
+   design record. ARGB excluded (per-source diode-OR). FIRST-ARTICLE BENCH GATE carried:
+   TPS2121 unpowered reverse behavior, OUT at 5V with both inputs dead (two load-bearing
+   paths). Until the boards land, the §2.9 interim bench rules apply (sacrificial powered
+   hub/isolator against suspect PSUs; NanoKVM wall-wart-only on a powered hub).
 
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch
@@ -1785,7 +1832,7 @@ Done (kept for context):
   99x44 2-port floorplan.
 - 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
   All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
-  the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
+  the bom skill); outputs in beta/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
   BOM-jlcpcb.csv). ~$21/board JLC parts (single-qty) under the $49 target; cost driven
   by 6x INA240A3DR ($1.87, C2060584 = the SOIC-8 **D** part, never PW) + ESP32
   (C3013941) + 6x 1mΩ shunt. D1 corrected PESD5V0S1UL->PESD5V0S1BA (C5261083). Pinouts
@@ -1907,7 +1954,7 @@ Done (kept for context):
   (C720477, same cec-vendor:SW_Push symbol, netlist preserved). Sourced 29/35 parts
   with LCSC (INA238AIDGSR C2868250, ESP32-S3-MINI-1-N4R2 C3013941, RJ45 54602
   C2847314, USB-C C2765186, SS34 C8678, LP5907 C80670, TJA1051T/3 C38695, passives
-  reused from the Hub). BOM at modules/eps-8pin/bom/. UNSOURCED (6): RS1/RS2 the
+  reused from the Hub). BOM at beta/eps-8pin/bom/. UNSOURCED (6): RS1/RS2 the
   0.5mOhm 2512 shunt (OQ-11 open) + J_IN1/2/J_OUT1/2 Mini-Fit Jr (THT). ERC clean
   (benign lib_symbol_mismatch). The EPS schematic is now HAND-SOURCED -> do not
   regenerate with gen-modules.py (would revert). gen-modules.py STILL emits
@@ -2011,7 +2058,10 @@ Done (kept for context):
   BASE_PARTS), mirroring the 24-pin so every module is flashable: USB-C (J5, ESP
   native USB on pins 24 D+ / 23 D-), VBUS->+5VSB ORing Schottky D2 (SS34) + 10uF
   bulk C9, CC1/CC2 5.1k pulldowns R8/R9, BOOT button SW1 (GPIO0), RESET button
-  SW2 (EN). The GPIO0 isolated-label ERC warning is gone now that SW1 connects
+  SW2 (EN). [D2 SS34 SUPERSEDED for the beta line by spec v1.6.0 (2026-07-24): the
+  USB ingress becomes a TPS2121 mux + VBUS polyfuse and D2 is RETIRED (VBUS-backfeed
+  fault class); schematic pass pending — see active action item 6. Alpha boards keep
+  D2 as shipped.] The GPIO0 isolated-label ERC warning is gone now that SW1 connects
   it. Module fp-lib-tables completed (all cec-* footprint libs + cec-MountingHole)
   so footprint links resolve in ERC and the GUI.
 - Interposer-module PCB floorplans (2026-06-04, scripts/gen-module-pcb.py — the
@@ -2047,7 +2097,7 @@ Done (kept for context):
   dominate). The per-lane sense passives (RFH/RFL/CF + C10-15) are PLACED by the
   generator now; the control-side decoupling (C1-C8, R1/R2/R7, D1) still comes via
   Update-from-Schematic. High-current routing PLAN
-  is documented in modules/12vhpwr-standard/12vhpwr-routing-plan.png
+  is documented in beta/12vhpwr-standard/12vhpwr-routing-plan.png
   (scripts/gen-hpwr-routing-plan.py, ENRICHED v3.4): a to-placement top-down of the
   six equal-length lanes, the four-wire Kelvin detail + the INA RC filter, the
   4-layer stackup, and explicit WIDTH/VIA/STITCH tables — 12V lane 2.5mm on F.Cu +
@@ -2094,7 +2144,7 @@ Done (kept for context):
   Update-from-Schematic (incl. the 12VHPWR INA input-filter RFH/RFL/CF + sideband
   taps R10-R13), then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
-- 12VHPWR routing netclasses LOADED into modules/12vhpwr-standard/*.kicad_pro
+- 12VHPWR routing netclasses LOADED into beta/12vhpwr-standard/*.kicad_pro
   (2026-06-04) so the GUI auto-applies width + via per net while routing: Power12V
   (track 2.5mm, via 0.9/0.5mm, clr 0.25 — pattern /SENSEP* = the six 12V lanes),
   Sense (0.25mm, via 0.6/0.3 — /INPP* /INNP* /ISENSEP* /VRAIL_DIV), GND (0.5mm, via

@@ -1,0 +1,274 @@
+[
+ {
+  "id": "k1.placement.order-and-grid",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "regions": [
+    "global-placement"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Placement order: (1) fixed mechanical (connectors at ruled edges w/ mouth-overhang, mounts, fiducials); (2) critical analog cells as rigid stamps (shunt+sense); (3) MCU/core; (4) decoupling at pins before any general passive; (5) bulk/filters at rail entries; (6) remaining passives clustered to owners; (7) silk/fiducial pass. Grid 0.5mm coarse / 0.25mm fine; passives in rows/columns; courtyard-to-courtyard >= 0.25mm; hand-solder THT >= 2mm iron access; parts > 5mm tall keep >= 1.5mm from fine-pitch neighbors (AOI shadow); nothing flex-sensitive within 3mm of a depanel line.",
+  "source": {
+   "type": "decision",
+   "ref": "docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.1 (owner ask 2026-07-17); process basis IPC-CM-770E + J-STD-001 (sheet I.14)",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "The placer's pass structure (p2 anchors -> p3 seats -> stamps -> anneal) already realizes (1)-(3),(6); the grid/AOI/iron-access legs are unmechanized. Mechanization queue: sheet §J.6."
+ },
+ {
+  "id": "k1.mlcc.edge-orientation",
+  "class": "A",
+  "kind": "rule",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "part_classes": [
+    "mlcc-0402",
+    "mlcc-0603",
+    "mlcc-0805"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "An MLCC near a board/depanel edge orients its LONG axis PARALLEL to that edge and sits >= 1mm in -- board flex at depanel/handling cracks the terminations of a perpendicular part.",
+  "severity": "advisory",
+  "source": {
+   "type": "datasheet",
+   "ref": "MLCC flex-crack vendor guidance, Murata/KEMET app-note class (sheet I.15); platform application docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.1/§K.7",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Mechanized 2026-07-17: cec_constraints 'mlcc-edge-orientation' (advisory, proposed; edge_band_mm 1.0; off-board mid-layout parks excluded). Teeth: tests/test_design_sheet_checks.py. Committed boards measured N/A (no MLCC in the band).",
+  "fixture": "tests/test_design_sheet_checks.py"
+ },
+ {
+  "id": "k2.rotation.polarity-uniformity",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "regions": [
+    "rotation-polarity"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Boards use 0/90/180/270 rotations only. Polarized parts share ONE polarity direction per axis per board; ICs keep pin-1 in <= 2 quadrants per board (AOI operators and rework techs read a board, not a part). JLC CPL rotation corrections are tracked per footprint in each fab README -- part of the board, not tribal memory.",
+  "source": {
+   "type": "decision",
+   "ref": "docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.2; library zero-orientation basis IPC-7351B (sheet I.17)",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "CPL-rotation-table presence lint at fab-snapshot time is queued (sheet §J.6 [wb]); the platform has eaten easyeda-export rotation mismatches before."
+ },
+ {
+  "id": "k3.silk.dense-area-protocol",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "regions": [
+    "silkscreen"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Refdes ALWAYS (>= 0.8mm text / 0.15mm stroke, never over pads/bare copper/fiducial clear zones). In dense clusters drop VALUES first (values live on F.Fab + assembly drawing). NEVER dropped: polarity marks, pin-1 indicators, connector pin labels, warning marks -- and polarity/pin-1 marking extends BEYOND the part outline. Value renders on silk only where it fits un-clipped -- fit-tested at generation, not documented-as-cosmetic after.",
+  "source": {
+   "type": "decision",
+   "ref": "docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.3 + §K.0.h (the found conflict: the generator's unconditional Value-to-silk IS the documented cosmetic-silk-hit source); legibility floor IPC-A-610 class (sheet I.13)",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "SUPERSEDES the unconditional Value->silk generator behavior once the value-fit test lands in the regenerators (queued, sheet §J.6/FOLLOWUPS)."
+ },
+ {
+  "id": "k4.fiducial.protocol",
+  "class": "A",
+  "kind": "rule",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "part_classes": [
+    "fiducial"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "3 global fiducials per assembled side: 1.0mm copper dot, 2.0mm mask opening, >= 3mm copper/silk clear zone, placed ASYMMETRICALLY (L-arrangement, never 180-degree symmetric -- vision ambiguity), >= 5mm from board edges, never under parts. Local fiducial pair beside <= 0.5mm-pitch fields where room allows (VSSOP-10 sits at the boundary; JLC does not require it).",
+  "severity": "advisory",
+  "source": {
+   "type": "standard",
+   "ref": "IPC-7351B fiducial guidance + JLCPCB capability pages (sheet I.11/I.17); platform numbers docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.4 [wb]",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Mechanized 2026-07-17: cec_constraints 'fiducial-protocol' (advisory, proposed; count/asymmetry/edge-margin/clear-zone legs; N/A given no fiducials -- presence stays fiducials-present's gate). Measured: hub-standard PASSES all legs; 12vhpwr satisfies asymmetry (the sheet's claim) but FID1/FID2 sit 4.2/2.9mm from an edge vs the 5.0 [wb] target -- the audit reports it; beta layouts close it.",
+  "fixture": "tests/test_design_sheet_checks.py"
+ },
+ {
+  "id": "k5.decoupling.geometry-protocol",
+  "class": "A",
+  "kind": "rule",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "part_classes": [
+    "decoupling-cap"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Per-pin allocation, smallest-C closest: 100nF 0402 within ~1.5mm pad-to-pad of its pin; connection order PAD -> CAP -> VIA (never pin -> via -> cap); two vias to the plane per cap where room, shared vias between caps forbidden; LOOP AREA is the metric (above self-resonance the loop inductance IS the capacitor). Bulk at rail entries, one bulk per rail minimum.",
+  "severity": "advisory",
+  "source": {
+   "type": "standard",
+   "ref": "Ott, Electromagnetic Compatibility Engineering (Wiley 2009) ch.11 + Bogatin, Signal and Power Integrity -- Simplified (3rd ed.) PDN chapters (sheet I.2-class); platform application docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.5 [wb]",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Ownership half is mechanized (decoupling-cap-owner, ratified 3.5mm as-built calibration). The 1.5mm GEOMETRY target is audited by the new 'decoupler-adjacency-k5' (advisory, proposed) -- measured 2026-07-17: hub 5/5, 12vhpwr 11/11, eps 9/9 decouplers beyond 1.5mm, i.e. the as-built boards are 3.5mm-class; the audit exists so beta layouts can close toward the protocol. The via-order/shared-via legs need routed-copper analysis -- queued (sheet §J.6).",
+  "fixture": "tests/test_design_sheet_checks.py"
+ },
+ {
+  "id": "k6.gnd.stitching-pitch",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "netclasses": [
+    "GND"
+   ],
+   "regions": [
+    "stitching-field"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Stitching via grid <= 10mm general tying outer GND copper to inner plane(s); <= 5mm along the board perimeter and around plane slots; every connector shield tab (SH1/SH2) gets >= 2 vias within 2mm. Basis: lambda/20 at the platform's fastest Standard content lands near 7mm -- 5mm perimeter / 10mm field satisfies with margin.",
+  "severity": "advisory",
+  "source": {
+   "type": "standard",
+   "ref": "Ott, Electromagnetic Compatibility Engineering (Wiley 2009) ch.16-17 (return paths / shield bonding; sheet I.2/I.3); platform numbers docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.6 [wb]",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Stitching-pitch audit checker queued (sheet §J.6) -- needs via-field analysis on routed boards; not in the 2026-07-17 mechanization wave. Class H until its checker lands (AM-02 fixture rides the mechanization; then reclassify A)."
+ },
+ {
+  "id": "k6.gnd.edge-band-per-board-class",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "regions": [
+    "board-perimeter"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Perimeter GND edge band ruling by board class: Hub Standard YES (>= 0.5mm band both outers, stitched <= 5mm, tied to all four M3 chassis pads AND the jacks' SH tabs -- four cable entries + chassis bond + handling ESD). Cable modules NO (outers are 12V pour real estate; the inner GND pair already makes the edge fringe GND-to-GND; instead inner-plane edge setback >= 0.3mm + perimeter stitching between the GND inners). 24-pin: stitch-only. Output daughterboards: no.",
+  "source": {
+   "type": "decision",
+   "ref": "docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.6 (the owner's edge-band question, answered per board class, 2026-07-17)",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Hub beta picks up the band at its rev2 layout wave; band-presence assertion queued with it (sheet §J.6)."
+ },
+ {
+  "id": "k7.dfm.jlcpcb-design-floors",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ],
+   "vendor": "jlcpcb"
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Design floors deliberately above JLCPCB capability floors: trace/space design 0.127mm signal (capability 0.09; platform runs >= 0.22); drill design >= 0.3 (capability 0.2); annular >= 0.15 (platform runs 0.2+); copper-to-edge >= 0.3mm; mask web >= 0.2mm else gang the opening; teardrops ON for THT-heavy boards; no acute copper junctions < 30 degrees. Stencil 1:1 except pads > 2mm^2 get 60-80% windowpane (shunt pads, e-cap pads, blade tabs). 0402 anti-tombstone: both terminals see balanced thermal copper. Tent signal vias; leave open thermal/current fields. V-cut for rectangular outlines, mouse-bite for notched; keep-away 1mm V-cut / 2mm tooling. Single-side SMT stays the Standard-tier default.",
+  "severity": "advisory",
+  "source": {
+   "type": "fab",
+   "ref": "JLCPCB published capability pages (sheet I.17), fetched at sheet authoring; platform floors docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.7",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Vendor-scoped (D2): capability numbers drift -- re-verify against the JLC pages at each fab snapshot. The DFM stage + per-snapshot fab-README capability table carry the check today; the 0402-balanced-entry and windowpane legs are stencil/fab-doc rules, not board geometry. Class H until its checker lands (AM-02 fixture rides the mechanization; then reclassify A)."
+ },
+ {
+  "id": "k8.ecap.large-smd-electrolytic",
+  "class": "A",
+  "kind": "rule",
+  "scope": {
+   "families": [
+    "hub"
+   ],
+   "part_classes": [
+    "smd-aluminum-electrolytic"
+   ]
+  },
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "rule": "Large SMD electrolytic cans (>= 10mm, the Hub C1 4700uF class): vendor land exactly (base pads carry mechanical load); reflow vendor-profile-limited (typ. peak <= 250C, commonly ONE pass -- board schedules single-pass reflow, rework near the can hand/selective only); placement >= 5mm from board edges, >= 3mm from V-cuts, polarity silk beyond the can, uniform polar axis; lifetime is Arrhenius (every 10C cooler ~doubles life -- >= 10mm from LDO/WROOM hot zone, out of enclosed-case hot pockets); >= 2mm enclosure clearance above the vent end; multi-gram can adhesive dot decided at proto shake test; AOI shadow >= 2mm.",
+  "severity": "advisory",
+  "source": {
+   "type": "datasheet",
+   "ref": "Ymin VKM series spec + Wuerth/Panasonic eiCap reflow guidance + Arrhenius 10C rule (sheet I.16); platform application docs/standard-tier-review/STANDARD-DESIGN-SHEET.md §K.8 [wb]",
+   "date": "2026-07-17"
+  },
+  "status": "proposed",
+  "notes": "Edge-distance leg mechanized 2026-07-17: cec_constraints 'ecap-edge-distance' (advisory, proposed; hub C1 measured 12.05mm -- passes). Reflow-profile pull (exact Ymin VKM) + adhesive-dot shake decision owed at the beta BOM pass (sheet §J.7); thermal-zone tagging rides the §6.6 enclosed model.",
+  "fixture": "tests/test_design_sheet_checks.py"
+ }
+]

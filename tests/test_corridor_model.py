@@ -22,7 +22,7 @@ except Exception:
     HAVE_PCBNEW = False
 
 # LEGACY fixture: the pre-beta committed board this suite's geometry assertions encode
-# (the live modules/eps-8pin is the beta TB-blade board; see tests/fixtures/.../README.md).
+# (the live beta/eps-8pin is the beta TB-blade board; see tests/fixtures/.../README.md).
 EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb"))
 
 
@@ -294,9 +294,11 @@ class TestCorridorCheckers(unittest.TestCase):
     def test_shared_bus_boards_na(self):
         # 12VHPWR / 24-pin share J3/J4 across pairs -> the per-cable checkers must N/A, never false-FAIL
         checked = 0
-        for rel in ("12vhpwr-standard/12vhpwr-standard-module.kicad_pcb",
-                    "atx-24pin/24pin-module.kicad_pcb"):
-            p = os.path.normpath(os.path.join(HERE, "..", "modules", rel))
+        # 12vhpwr-standard lives in beta/ since the 2026-07-22 physical move;
+        # atx-24pin is the alpha board and stays under modules/.
+        for root, rel in (("beta", "12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"),
+                          ("modules", "atx-24pin/24pin-module.kicad_pcb")):
+            p = os.path.normpath(os.path.join(HERE, "..", root, rel))
             if not os.path.isfile(p):
                 continue
             checked += 1
@@ -774,7 +776,7 @@ class TestLayerLever(unittest.TestCase):
 
     def test_shared_bus_noop(self):
         import cec_fr, tempfile
-        p = os.path.normpath(os.path.join(HERE, "..", "modules",
+        p = os.path.normpath(os.path.join(HERE, "..", "beta",
                                           "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb"))
         if os.path.isfile(p):
             rep = cec_fr.stagger_corridor_crossings(

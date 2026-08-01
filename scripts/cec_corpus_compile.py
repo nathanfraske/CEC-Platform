@@ -547,7 +547,8 @@ def scan_generated_sections(repo_root=ROOT, out_root=OUT_ROOT):
     COMMITTED .kicad_dru must byte-match the current compiled section for that
     board. Drift = stale convenience copy. -> error list."""
     errs = []
-    for path in sorted(glob.glob(os.path.join(repo_root, "hubs", "*", "*.kicad_dru"))
+    for path in sorted(glob.glob(os.path.join(repo_root, "beta", "*", "*.kicad_dru"))
+                       + glob.glob(os.path.join(repo_root, "hubs", "*", "*.kicad_dru"))
                        + glob.glob(os.path.join(repo_root, "modules", "*", "*.kicad_dru"))):
         text = open(path, encoding="utf-8").read()
         if GEN_BEGIN not in text:

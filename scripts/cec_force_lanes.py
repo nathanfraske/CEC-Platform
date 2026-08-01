@@ -54,14 +54,32 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
     fcu, bcu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     nets = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
-    pads = []                                     # (ref, num, net, x, y, half)
+    pads = []                                     # (ref, num, net, x, y, half, hx, hy)
     for fp in board.GetFootprints():
         ref = fp.GetReference()
         for p_ in fp.Pads():
             pos = p_.GetPosition()
             sz = p_.GetSize()
-            half = max(sz.x, sz.y) / (2.0 * MM)   # true half-extent (guard = DRC, not 2mm-pad guess)
-            pads.append((ref, p_.GetNumber(), p_.GetNetname(), pos.x / MM, pos.y / MM, half))
+            half = max(sz.x, sz.y) / (2.0 * MM)   # legacy scalar reach (lane_collider)
+            # PER-AXIS HALF EXTENTS (regression fix 2026-07-25). The via-in-pad
+            # guard added on 07-24 tested `half` -- max(w,h)/2 -- on BOTH axes,
+            # i.e. it modelled every pad as a SQUARE of its longest dimension.
+            # A 1.5x0.6mm SOIC pad then excluded a 1.5x1.5 box and the 2512 shunt
+            # pad excluded ~2.1mm in x where the real pad half is 0.75. That
+            # phantom copper sealed the LO via window on all six 12VHPWR lanes,
+            # so `force lanes: 0/6 laid` and the board's 2.5mm 12V force copper
+            # was replaced by 0.25mm Freerouting signal traces on a 50A path.
+            # Taken from the pad's real bounding box, so rotated pads are honest
+            # too (GetSize is in the pad's own axes).
+            try:
+                bb_ = p_.GetBoundingBox()
+                hx = bb_.GetWidth() / (2.0 * MM)
+                hy = bb_.GetHeight() / (2.0 * MM)
+            except Exception:                              # noqa: BLE001
+                hx = sz.x / (2.0 * MM)
+                hy = sz.y / (2.0 * MM)
+            pads.append((ref, p_.GetNumber(), p_.GetNetname(), pos.x / MM, pos.y / MM,
+                         half, hx, hy))
 
     lock_vias, lock_segs = [], []
     for t in board.GetTracks():
@@ -70,7 +88,8 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             lock_vias.append((pos.x / MM, pos.y / MM))
         elif t.IsLocked():
             s_, e_ = t.GetStart(), t.GetEnd()
-            lock_segs.append((t.GetNetname(), s_.x / MM, s_.y / MM, e_.x / MM, e_.y / MM))
+            lock_segs.append((t.GetNetname(), s_.x / MM, s_.y / MM, e_.x / MM, e_.y / MM,
+                              t.GetWidth() / MM))
 
     added = []
 
@@ -101,48 +120,76 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         board.Add(v)
         added.append(v)
 
-    def clear_spot(x, y):
-        """Via site must clear foreign pads + locked cell copper."""
-        for ref, num, net, px, py, half in pads:
+    def spot_blocker(x, y):
+        """What blocks a via site here -- a short reason, or None if it is clear.
+
+        Returns the REASON rather than a bare False (2026-07-25): all six 12VHPWR
+        lanes were refusing with "no clear LO via site" and the message named
+        nothing, so the regression that cost the board its 2.5mm force copper
+        (lanes 0/6 laid, 12V nets left to Freerouting at 0.25mm signal width on a
+        50A path) could not be diagnosed from a wave log. A refusal that cannot
+        be read is a refusal that gets rediscovered.
+        """
+        for ref, num, net, px, py, half, hx, hy in pads:
+            # assembly-class via-in-pad exclusion (owner ruling 2026-07-25):
+            # no barrel overlapping ANY pad, own net / J3 / J4 included
+            # (0.5 = via r 0.45 + 0.05 no-overlap margin). Per-AXIS extents --
+            # the ruling bans a barrel touching pad copper, not a square
+            # circumscribing it (see the pads[] note above).
+            if abs(px - x) < hx + 0.5 and abs(py - y) < hy + 0.5:
+                return f"pad {ref}.{num}"
             if ref.startswith(("J3", "J4")):
                 continue
             if abs(px - x) < 1.35 and abs(py - y) < 1.35 \
                     and not net.startswith("/SENSEP") and net != "/FAN_12V":
-                return False
+                return f"foreign pad {ref}.{num} ({net})"
         for vx, vy in lock_vias:
             if (vx - x) ** 2 + (vy - y) ** 2 < 1.45 ** 2:
-                return False
-        for net, sx, sy, ex, ey in lock_segs:
-            if _seg_pt_d2(x, y, sx, sy, ex, ey) < 0.85 ** 2:
-                return False
-        return True
+                return "locked via"
+        for net, sx, sy, ex, ey, _lw in lock_segs:
+            if _seg_pt_d2(x, y, sx, sy, ex, ey) < (0.45 + _lw / 2.0 + 0.25) ** 2:
+                return f"locked copper {net}"
+        return None
+
+    def clear_spot(x, y):
+        return spot_blocker(x, y) is None
 
     def lane_collider(plan, own_nets):
-        """First foreign pad within reach of a planned segment (w/2 + pad-half
-        1.0 + clearance 0.25), or None. Foreign = not J3/J4/own-lane/GND-via-
-        exempt; GND THT barrels are part of the DESIGN (the necks thread their
-        gaps) so J3/J4 are skipped -- the geometry owns that clearance."""
+        """First foreign pad OR foreign locked copper within reach of a planned
+        segment, or None. Foreign = not J3/J4/own-lane; GND THT barrels are part
+        of the DESIGN (the necks thread their gaps) so J3/J4 are skipped -- the
+        geometry owns that clearance. Locked copper/vias added per the codex
+        stack-audit 2026-07-19 #2 (the collider was blind to them)."""
+        from cec_force_rails import _seg_seg_d2
         for (x1, y1, x2, y2, w, _ly) in plan:
-            for ref, num, net, px, py, half in pads:
+            for ref, num, net, px, py, half, hx, hy in pads:
                 if ref.startswith(("J3", "J4", "FID")) or net in own_nets:
                     continue
                 reach = (w / 2.0 + half + 0.25) ** 2
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < reach:
                     return "%s.%s [%s] at (%.1f,%.1f)" % (ref, num, net, px, py)
+            for lnet, sx, sy, ex, ey, lw in lock_segs:
+                if lnet in own_nets:
+                    continue
+                if _seg_seg_d2(x1, y1, x2, y2, sx, sy, ex, ey) < (w / 2.0 + lw / 2.0 + 0.25) ** 2:
+                    return "locked copper [%s] (%.1f,%.1f)-(%.1f,%.1f)" % (lnet, sx, sy, ex, ey)
+            for vx, vy in lock_vias:
+                if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2.0 + 0.45 + 0.25) ** 2:
+                    return "locked via at (%.1f,%.1f)" % (vx, vy)
         return None
 
-    j3_gnd = sorted(y for r, n, net, x, y, h_ in pads if r == "J3" and net == "GND")
-    j4_gnd = sorted(y for r, n, net, x, y, h_ in pads if r == "J4" and net == "GND")
+    j3_gnd = sorted(y for r, n, net, x, y, h_, hx_, hy_ in pads if r == "J3" and net == "GND")
+    j4_gnd = sorted(y for r, n, net, x, y, h_, hx_, hy_ in pads if r == "J4" and net == "GND")
     j3_gnd_y = j3_gnd[0] if j3_gnd else None
     j4_gnd_y = j4_gnd[0] if j4_gnd else None
 
     report = {}
     for n in range(1, 7):
         hi, lo = hi_net(n, nets), f"/SENSEP{n}_LO"
-        rs1 = next(((x, y) for r, pn, net, x, y, h_ in pads if r == f"RS{n}" and net == hi), None)
-        rs2 = next(((x, y) for r, pn, net, x, y, h_ in pads if r == f"RS{n}" and net == lo), None)
-        j3p = [(x, y) for r, pn, net, x, y, h_ in pads if r == "J3" and net == hi]
-        j4p = [(x, y) for r, pn, net, x, y, h_ in pads if r == "J4" and net == lo]
+        rs1 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == hi), None)
+        rs2 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == lo), None)
+        j3p = [(x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == "J3" and net == hi]
+        j4p = [(x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == "J4" and net == lo]
         if not (rs1 and rs2 and j3p and j4p and j3_gnd_y and j4_gnd_y):
             report[n] = "MISSING PADS"
             continue
@@ -165,7 +212,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             (rs1[0], fan_y, rs1[0], rs1[1], 2.5, fcu),
         ]
         own = {hi, lo}
-        col = lane_collider(hi_plan, own)
+        col = lane_collider(hi_plan, {hi})
         if col:
             # HOOK-DESCENT fallback (lane 6 vs the right-edge RJ-45): drop on an
             # offset column clear of the obstacle, approach the shunt from ABOVE
@@ -178,7 +225,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                     (hx, rs1[1] - 1.2, rs1[0], rs1[1] - 1.2, 2.5, fcu),
                     (rs1[0], rs1[1] - 1.2, rs1[0], rs1[1], 2.5, fcu),
                 ]
-                if lane_collider(hook, own) is None:
+                if lane_collider(hook, {hi}) is None:
                     hi_plan, col = hook, None
                     break
         if col:
@@ -188,22 +235,56 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         # ---- LO via field beside RS.2 (F.Cu spokes -> B.Cu)
         lane_x = rs2[0]
         sites = []
-        for dy in (1.3, 2.0, 2.7, 3.4, 4.1):
-            for dx in (-1.7, 1.7, -1.0, 1.0, 0.0):
+        blockers = {}
+        # SEARCH WINDOW WIDENED (2026-07-25 regression fix): the ladder used to
+        # stop at 4.1mm below the LO pad. Once the via-in-pad ruling excluded
+        # barrels overlapping ANY pad -- correctly -- every site inside that
+        # window could be owned by the shunt pad and its neighbours, and the lane
+        # refused outright rather than stepping outside. Refusing a 50A lane is a
+        # far worse outcome than a slightly longer spoke, so the ladder now walks
+        # out to 7.7mm and records WHY each ring failed.
+        # The field belongs anywhere on the lane's OWN descent to J4, not only in
+        # a fixed window under the pad: measured on all six 12VHPWR lanes, the
+        # window is owned by the shunt's LO pad and the INA240 packed against it
+        # for short Kelvin (both correct designs), so a fixed window can only
+        # refuse. Walk the corridor the lane already occupies.
+        _y_h = j4_gnd_y - 3.2 - 2.9 * rank - off
+        _reach = max(4.1, abs(_y_h - rs2[1]) - 1.0)
+        _ladder = [round(1.3 + 0.7 * k, 2) for k in range(int((_reach - 1.3) / 0.7) + 1)]
+        for dy in (_ladder or [1.3, 2.0, 2.7, 3.4, 4.1]):
+            for dx in (-1.7, 1.7, -1.0, 1.0, 0.0, -2.4, 2.4):
                 if len(sites) >= 4:
                     break
                 cx, cy = lane_x + dx, rs2[1] + dy
-                if clear_spot(cx, cy) and all(
+                why = spot_blocker(cx, cy)
+                if why is None and all(
                         (cx - a) ** 2 + (cy - b) ** 2 >= 1.15 ** 2 for a, b in sites):
-                    sites.append((cx, cy))
+                    # REACHABILITY IS PART OF LEGALITY (2026-07-25): the spoke
+                    # from RS.2 to this site used to be checked only AFTER the
+                    # whole field was picked, so ONE unreachable site refused the
+                    # entire 50A lane -- measured as `LO spoke vs RFL{n}.2` on all
+                    # six 12VHPWR lanes once the field was pushed past the filter
+                    # resistors. A site the spoke cannot reach is not a site.
+                    _sp = [(rs2[0], rs2[1], cx, cy, 1.0, fcu)]
+                    _c = lane_collider(_sp, {lo})
+                    if _c is None:
+                        sites.append((cx, cy))
+                    else:
+                        blockers["spoke vs " + _c.split(" at ")[0]] = \
+                            blockers.get("spoke vs " + _c.split(" at ")[0], 0) + 1
+                elif why is not None:
+                    blockers[why] = blockers.get(why, 0) + 1
         if not sites:
-            report[n] = "REFUSED: no clear LO via site"
+            top = sorted(blockers.items(), key=lambda kv: -kv[1])[:3]
+            report[n] = ("REFUSED: no clear LO via site (blocked by "
+                         + ", ".join(f"{k} x{v}" for k, v in top) + ")"
+                         if top else "REFUSED: no clear LO via site")
             continue
         sy_max, sy_min = max(b for a, b in sites), min(b for a, b in sites)
-        y_h = j4_gnd_y - 3.2 - 2.9 * rank - off
+        y_h = _y_h
         xn4 = p4[0] + gap_dir
         lo_spokes = [(rs2[0], rs2[1], cx, cy, 1.0, fcu) for cx, cy in sites]
-        col = lane_collider(lo_spokes, own)
+        col = lane_collider(lo_spokes, {lo})
         if col:
             report[n] = "REFUSED: LO spoke vs " + col
             continue
@@ -211,6 +292,86 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         # ---- commit
         for seg in hi_plan:
             track(hi, *seg[:4], seg[4], seg[5])
+        # ---- HI TAPS (2026-07-19, wave-14b forensic): the lane's HI net can carry
+        # OFF-LANE pads -- on 12vhpwr lane 6 the HI alias is /FAN_12V, whose R5.1
+        # (rail-divider tap), J2.2 (fan header, anchor-pinned beside the lane) and
+        # D5.1 (flyback) hang off it. FR consistently fails those hops (measured
+        # every wave; landing windows alone did not fix it), so the lane LAYS them:
+        # a straight locked tap off the committed vertical at the pad's own y,
+        # guarded against foreign pads (lane_collider) AND locked copper of other
+        # nets (the taps break the lanes' non-crossing-by-construction assumption,
+        # so pad-only guarding is not enough). Out-of-span or blocked -> refuse
+        # LOUD and leave the pad to FR (the windows remain its backstop).
+        _vx = hi_plan[-1][0]                       # committed vertical column x
+        _vy0 = min(hi_plan[-1][1], hi_plan[-1][3])
+        _vy1 = max(hi_plan[-1][1], hi_plan[-1][3])
+        _lane_refs = ("J3", "J4", f"RS{n}", f"RFH{n}", f"RFL{n}", f"CF{n}", "FID")
+        _extra = [(r_, pn_, px_, py_, h_) for r_, pn_, net_, px_, py_, h_, hx_, hy_ in pads
+                  if net_ == hi and not r_.startswith(_lane_refs)
+                  and abs(px_ - _vx) > 0.8]
+        for r_, pn_, px_, py_, h_ in sorted(_extra, key=lambda q: abs(q[2] - _vx)):
+            _w = 0.8 if r_.startswith(("J", "D", "Q")) else 0.4
+            if not (_vy0 + 0.6 <= py_ <= _vy1 - 0.6):
+                if verbose:
+                    print("[force-lanes] HI tap %s.%s out of lane-%d span -- left to FR"
+                          % (r_, pn_, n), flush=True)
+                continue
+            def _tap_col(plan):
+                _c = lane_collider(plan, {hi})
+                if _c is not None:
+                    return _c
+                # foreign locked copper: pre-existing (lock_segs, width unknown ->
+                # assume 2.5mm lane half 1.25 + 0.25 clearance) AND this run's
+                # earlier lanes (added, sampled the same way)
+                _run = []
+                for _t in added:
+                    if _t.Type() != pcbnew.PCB_TRACE_T:
+                        continue
+                    _n2 = _t.GetNetname()
+                    if _n2 == hi:                  # per-leg own net (audit #2):
+                        continue                   # LO copper IS foreign to a HI tap
+                    _s2, _e2 = _t.GetStart(), _t.GetEnd()
+                    _run.append((_n2, _s2.x / MM, _s2.y / MM, _e2.x / MM, _e2.y / MM,
+                                 _t.GetWidth() / MM))
+                for net_, sx_, sy_, ex_, ey_, _lw2 in list(lock_segs) + _run:
+                    if net_ == hi:
+                        continue
+                    for (_ax, _ay, _bx, _by, _tw, _tl) in plan:
+                        for _q in (0.0, 0.25, 0.5, 0.75, 1.0):
+                            _qx, _qy = _ax + (_bx - _ax) * _q, _ay + (_by - _ay) * _q
+                            if _seg_pt_d2(_qx, _qy, sx_, sy_, ex_, ey_) < (_tw / 2 + 1.5) ** 2:
+                                return "locked %s" % net_
+                return None
+
+            _plans = [[(_vx, py_, px_, py_, _w, fcu)]]
+            # DOGLEG fallbacks (measured refusal class: the target part's OWN other
+            # pad, or a parked part, sits dead on the straight path): run at an
+            # offset row, pass the pad's x, drop on the FAR-side column, enter the
+            # pad from the far side.
+            _dir = 1.0 if _vx > px_ else -1.0        # toward the lane from the pad
+            _xj = px_ - _dir * (h_ + 0.9)
+            for _dy in (1.6, -1.6):
+                if _vy0 + 0.6 <= py_ + _dy <= _vy1 - 0.6:
+                    _plans.append([(_vx, py_ + _dy, _xj, py_ + _dy, _w, fcu),
+                                   (_xj, py_ + _dy, _xj, py_, _w, fcu),
+                                   (_xj, py_, px_, py_, _w, fcu)])
+            _col, _laid = "no plan", None
+            for _pl in _plans:
+                _col = _tap_col(_pl)
+                if _col is None:
+                    _laid = _pl
+                    break
+            if _laid is None:
+                if verbose:
+                    print("[force-lanes] HI tap %s.%s REFUSED vs %s -- left to FR"
+                          % (r_, pn_, _col), flush=True)
+                continue
+            for _seg in _laid:
+                track(hi, *_seg[:4], _seg[4], _seg[5])
+                lock_segs.append((hi, _seg[0], _seg[1], _seg[2], _seg[3]))
+            if verbose:
+                print("[force-lanes] HI tap laid: lane %d -> %s.%s (%.1f,%.1f, %d seg)"
+                      % (n, r_, pn_, px_, py_, len(_laid)), flush=True)
         for cx, cy in sites:
             via(lo, cx, cy)
             track(lo, rs2[0], rs2[1], cx, cy, 1.0, fcu)

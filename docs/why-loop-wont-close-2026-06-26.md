@@ -88,7 +88,7 @@ Built step 1 (edge_keepout) + an A/B on the committed eps EXPOSED a more precise
 
 ### CORRECTION (same session) — two hypotheses tested and DISPROVEN
 Tested the step-2 diagnosis directly instead of shipping it; both failed:
-- **The placements are IDENTICAL.** tests/golden/eps-8pin and modules/eps-8pin have the same 46 parts at the
+- **The placements are IDENTICAL.** tests/golden/eps-8pin and beta/eps-8pin have the same 46 parts at the
   same positions (0 differing). So the route()-vs-golden gap is NOT a placement difference.
 - **The mirror does NOT bridge it.** Applying `cec_fr.synthesize_power_copper` to route()'s stranded output left
   kelvin_ok=False / drc=5 / unconn=16 unchanged. So the "route() lacks the mirror" diagnosis (committed cccb2a2)

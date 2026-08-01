@@ -1,0 +1,78 @@
+(version 1)
+
+# CEC Hub Standard — custom design rules.
+# KiCad auto-loads <board>.kicad_dru from the project dir. A netclass
+# `track_width` is only the *routing default*, so DRC will NOT flag an
+# under-width power trace on its own. The track_width (min ...) rule below
+# makes DRC actually catch a hairline on the Power class.
+#
+# Sizing basis (see LAYOUT-GUIDE.md): the 5VSB trunk worst case is ~3A
+# (4 ports x ~0.5A module + the Hub's own LEDs + MCU, with the firmware LED
+# cap holding the total under the JST-XH / connector rating, OQ-2). The trunk
+# (J1 power-in -> U5 mux -> +5VSB star) carries that full ~3A and is POURED
+# (or routed >=1.5mm at 1oz) -- verified by pour copper area (IPC-2152), NOT by
+# a per-track floor. Each RJ-45 VCC branch carries only one module (~0.5A).
+# The 0.5mm Power floor below is a safety net against accidental hairlines on
+# the distribution, not the trunk sizing mechanism.
+#
+# NOTE (2026-06-04): this rule only bites if the Power netclass actually
+# captures the rail nets. The .kicad_pro netclass patterns were missing the
+# root-sheet "/" prefix, so /5VSB_RAW, /+5V_HOLD and /USB_VBUS silently fell
+# into Default and this rule never fired (DRC read clean while the trunk was
+# 0.4mm). Patterns fixed; with the class applied, DRC now flags the under-width
+# power traces -- /5VSB_RAW (the ~3A trunk: pour or >=1.5mm), plus /USB_VBUS and
+# /+5V_HOLD (raise to >=0.5mm). Clear these in the GUI routing/pour pass; do
+# NOT raise the floor to hide the trunk -- pour the trunk instead.
+
+# NO width floor on the FLOODED power rails (+5VSB / PSU_5V / MAIN_5V_RAW /
+# USB_VBUS). Same reasoning as the EPS DRU's /SENSEC* exemption: these rails are
+# carried by post-route additive In2 slabs (the 2026-07-23 hub power rung), and a
+# TRACK floor false-flags the thin pickup stubs the flood backs. The rung landed
+# without this rule being updated to match, so the board read 20 track_width
+# ERRORS that are not ampacity faults -- measured floods on the s272 candidate:
+# +5VSB 478mm2, /PSU_5V 238mm2, /MAIN_5V_RAW 87mm2, /USB_VBUS 15mm2 on In2.
+# Ampacity holds without even counting the flood: IPC-2221 puts 0.3mm of 1oz
+# outer copper at ~1.55A, and /USB_VBUS -- the thinnest-flooded and worst-flagged
+# net -- is fused at 1.1A hold by F5. The floor still applies to any other
+# Power-class net, where a track IS the only conductor.
+(rule "Power min width"
+	(constraint track_width (min 0.5mm))
+	(condition "A.NetClass == 'Power'
+	            && A.NetName != '+5VSB'
+	            && A.NetName != '/PSU_5V'
+	            && A.NetName != '/MAIN_5V_RAW'
+	            && A.NetName != '/USB_VBUS'"))
+
+# USB 2.0 Full-Speed pair (ESP32-S3 native USB, GPIO19/20 <-> USB-C J6).
+# FS (12 Mbps) is impedance-tolerant, so on THIS (Standard) board ~90ohm diff
+# is good-practice-not-critical -- just keep D+/D- coupled and short. The
+# strict 90ohm discipline matters on Hub Pro (USB High Speed, 480 Mbps).
+#
+# The stackup IS now defined (hub-standard.kicad_pcb: 0.2104mm 7628 prepreg,
+# Dk 4.5, over the solid L2/In1 GND plane, 1oz outer). Get the exact W/S for
+# 90ohm differential from JLCPCB's impedance calculator for this stackup (or
+# order impedance-controlled and let JLC tune), then set the USB netclass
+# Diff Pair Width/Gap (Board Setup -> Net Classes) to match. The rules below
+# are a safety-net window around the ~90ohm region -- tighten to the calc value.
+(rule "USB diff pair gap"
+	(constraint diff_pair_gap (min 0.12mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
+(rule "USB diff pair width"
+	(constraint track_width (min 0.15mm) (max 0.25mm))
+	(condition "A.NetClass == 'USB'"))
+
+# No CAN-specific rule. Classical CAN @ 500 kbps is forgiving and the
+# controlled medium is the cable's twisted pair + the fixed 120ohm split
+# termination at the Hub (R3/R4/C7) -- on-board it is a short multidrop stub
+# bus to the 4 ports. Keep CAN_H/CAN_L coupled and short; stock diff is fine.
+
+# No special high-current / HV clearance rule. At <=5V the Default 0.2mm
+# clearance is electrically ample platform-wide on this board.
+
+# D-11 SETTLEMENT (owner ruling 2026-07-15, recommendation accepted: DRU exception,
+# not copper surgery): the XKB U262 USB-C land's own pad-to-locating-NPTH spacing is
+# 0.165-0.20mm BY MANUFACTURER DRAWING -- a proven vendor land the generic 0.25mm
+# board rule should not outrank. Scoped to that footprint's pads only.
+(rule usbc_vendor_land_hole_clearance
+  (condition "A.memberOfFootprint('J_USB') && B.memberOfFootprint('J_USB')")
+  (constraint hole_clearance (min 0.15mm)))

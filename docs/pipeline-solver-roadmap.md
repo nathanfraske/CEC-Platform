@@ -9,7 +9,7 @@ memory entry [[pipeline-solver-roadmap]] and FOLLOWUPS point here._
 
 | Solver | Where | Backend | Status |
 |---|---|---|---|
-| 2.5D thermal field solve (per-layer conduction, via coupling, sub-grid traces) | `cec_thermal2d.py` via `_oracle_thermal` | GPU cupy CG/AMG, scipy fallback | GATING (with the mirage guard: dT≈0 fail + double-solve confirm). **Known defect: non-deterministic** — root-cause open (FOLLOWUPS; pyamg `ml.solve` returns unconverged iterates flagless, dT swung 21↔174 on one artifact) |
+| 2.5D thermal field solve (per-layer conduction, via coupling, sub-grid traces) | `cec_thermal2d.py` via `_oracle_thermal` | GPU cupy CG/AMG, scipy fallback | GATING. Nondeterminism defect FIXED 2026-07-17 (unconverged-iterate guards + determinism golden `tests/test_thermal2d_determinism.py` — the PDN prereq is CLEARED). Injection accounting added 2026-07-22 (`nets_requested/dropped/absent` on every stamp; a dropped configured net = FAIL "INJECTION INCOMPLETE" — kills the partial-injection mirage where an OPEN rail read cooler than a routed one) |
 | Analytic electrothermal (IPC-2221 Picard, serial min-cut cross-section, per-via split) | `cec_synth_pipeline.electrothermal_solve` | CPU closed-form | Lumped fallback / synth-pipeline gate |
 | Closed-form Z0/Zdiff (Hammerstad-Jensen + edge-coupled approx) vs the committed stackup | `cec_impedance.audit_impedance` | CPU instant | ADVISORY (landed 2026-07-08). First finding: USB netclass = 91.3Ω vs 90 target (+1.4%, validated); **CAN = 91–105Ω vs 120 target platform-wide** (fine at 500k; the 1Mbps option's SI bench would care) |
 | Kelvin loop-area (∫separation·dl along routed force/sense pairs) | `cec_impedance.audit_kelvin_loops` | CPU instant | ADVISORY (landed 2026-07-08; calibrate bands before gating) |
@@ -170,6 +170,43 @@ landed same day (see the defect note in the table).
   are anneal-cost vectorization, packing-correctness fixes, and the prune/adjudicate
   split — all CPU-cheap).
 
+## BGA-READINESS (owner directive 2026-07-23: "we have multi-BGA chip boards coming up, so something's gotta give to get it better at figuring out routing/placements")
+
+Context: the current stack (FR 1.7.0-cec2 + deterministic pre-lay + the wave) strains on a
+108-part hub with 2 signal layers; the upcoming board class (ENT PolarFire MPFS095TC on
+FCVG484 = 484-ball 0.8mm BGA, ESP32-P4 hubs/Pro modules) is a different league — BGA
+escape/fanout, 6+ layer stackups, length-matched buses. The measured lesson of this month
+points ONE direction: every durable win came from moving copper OUT of the stochastic
+router INTO the deterministic plane (locked rails, authored cells, pour compiler, tap
+synthesis). FR's role has been shrinking toward "jellybean interconnect only" — and that is
+exactly the right shape for BGA work, because BGA fanout is the MOST deterministic routing
+there is (dogbone/via-in-pad patterns per ring, escape channels per quadrant are formulaic).
+
+Rungs (owner picks funding order; A+B are the recommendation):
+- **A. BGA fanout/escape generator on the deterministic plane** (build): per-ring dogbone +
+  escape-channel synthesis as locked copper (the authored-cell pattern generalized), stackup-
+  aware (ring depth -> layer assignment), emitted pre-FR exactly like rails/cells today. FR
+  then routes only channel-to-channel interconnect. This is OUR proven pattern and no
+  external router does it better than a generator can.
+- **B. Escape-aware placement terms** (extend the wave): courtyard/escape-corridor
+  reservation around BGA macros (the walk-band lesson generalized), per-quadrant fanout
+  budget as a placement score term. Without this the placer will park jellybeans in escape
+  channels and no router survives it.
+- **C. Router re-evaluation for the interconnect residual** (evaluate, don't assume): FR
+  2.x fork surgery (we already maintain a fork; the 2.2.4 blockers — normalize hang, no
+  seed axis — are patchable in principle), KiCad 10 IPC-API scripted routing (kipy — no
+  headless P&S exposure today, watch upstream), commercial/ML (DeepPCB-class) as a paid
+  benchmark only. Gate any adoption on the FR-01-style epoch protocol (byte-determinism,
+  bench parity, seed diversity).
+- **D. Stackup/DRU authoring for 6-layer** (prereq for A): layer-pair plan + via classes
+  (blind/buried decision is a SPEC/owner item), netclass coverage synthesized from the
+  schematic role map instead of hand patterns (the 2026-07-23 pattern-coverage gap made
+  the case).
+
+Sizing note: A+B are weeks-scale on the existing codebase (the cell/rail machinery is the
+harness); C is open-ended and should trail A/B since the interconnect residual shrinks as
+the deterministic plane grows.
+
 ## Pipeline improvements — non-solver (same standing list)
 
 - **ACTUATION-SPACE DEEP DIVE (owner ask 2026-07-08, orchestrator's own analysis):
@@ -193,9 +230,16 @@ landed same day (see the defect note in the table).
   final fill/DRC + audit as advisory verdict field. (FOLLOWUPS; teeth done.)
 - **Oracle checker consolidation** — ~15-20 redundant `pcbnew.LoadBoard`s + 2 mergeable
   kicad-cli DRC spawns per candidate (~1.5-2.5s/candidate measured). (FOLLOWUPS.)
-- **Freerouting REST server wiring** — `docker-freerouting-1` idle 3 weeks;
-  `CEC_FREEROUTING_URL` env exists, `cec_fr` never reads it. Session reuse + live progress
-  → stage-0 pre-kill becomes possible. Large. (FOLLOWUPS.)
+- **Freerouting REST server wiring — LANDED 2026-07-22, as the CEC FORK server** (owner
+  directive: REST serves our 1.7.0-cec2 jar, not the official 2.x image, which is a
+  different router behind a freerouting.app auth wall and binds 127.0.0.1 as shipped).
+  `scripts/cec_fr_server.py` job API executes `cec_fr.run_freerouting` per job (all env
+  knobs + plateau-kill + tree-kill identical); `cec_fr` reads `CEC_FREEROUTING_URL`
+  (route verdicts re-raise, infra falls back to local loudly; `CEC_FR_REST=0` opts out);
+  compose `freerouting` service = the server, `CEC_FR_SERVER_WORKERS=6` is the box-wide
+  FR concurrency governor. PROVEN: REST-vs-local SES byte-identical (eps), SB-08 golden
+  through REST = identical pre-existing signature, 12 contract tests. Not built: warm-JVM
+  reuse (1.7.0 is batch-mode) and richer server-side pre-kill policies.
 - **Pre-route gate screen** — placement-only gates could skip the FR route (71-95% of
   candidate cost) for doomed placements; costs failure-ranking fidelity. Opt-in design
   sketched. (FOLLOWUPS.)

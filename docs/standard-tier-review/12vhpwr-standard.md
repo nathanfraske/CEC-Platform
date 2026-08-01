@@ -1,6 +1,6 @@
 # 12VHPWR Standard — refinement review (space / consumer fit / fab-readiness)
 
-Read-only review, 2026-07-03. Ground truth = `modules/12vhpwr-standard/12vhpwr-standard-module.{kicad_sch,kicad_pcb,kicad_pro}`,
+Read-only review, 2026-07-03. Ground truth = `beta/12vhpwr-standard/12vhpwr-standard-module.{kicad_sch,kicad_pcb,kicad_pro}`,
 `bom/`, `fab/12vhpwr-standard-proto-v1/`, `DRC.rpt`, spec §6.1/§6.4/OQ-8/OQ-11, CLAUDE.md.
 
 ## 1. Fab-readiness

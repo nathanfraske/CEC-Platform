@@ -83,7 +83,16 @@ _page_rev = str(int(time.time()))   # server-start stamp: stale browser tabs sel
 # auto-archives anything NEW matching WATCH_GLOBS (the fresh-run output convention:
 # every accepted candidate of the synthesis wave lands in build/fresh/<board>/), so
 # new boards appear in the snapshot timeline as they are made.
-WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb"]
+# build/fresh = the original fresh-run convention; build/fresh-wave-loop = the wave
+# drivers' --out publish root (winners + reports land there at wave end -- the 12vhpwr
+# work14 relaunch surfaced the gap: the dash never archived its PCBs). WORK dirs
+# (build/fresh-wave-loop-work*, build/fresh-work) stay UNWATCHED on purpose: the
+# activity feed + the fresh list already show in-progress variants, and auto-archiving
+# every intermediate would churn renders/GPU solves. CEC_DASH_WATCH adds extra
+# repo-relative globs (comma-separated) without a code edit.
+WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb",
+               "build/fresh-wave-loop/**/*.kicad_pcb"] + [
+    g.strip() for g in os.environ.get("CEC_DASH_WATCH", "").split(",") if g.strip()]
 _watch_seen = {}              # path -> mtime already enqueued
 _watch_status = {"globs": list(WATCH_GLOBS), "enqueued": 0, "last_scan": None}
 
@@ -92,7 +101,9 @@ def _beta_boards():
     """The committed beta line: every dir carrying a BETA marker (beta/README.md convention)
     plus the output daughterboards. Newest .kicad_pcb (non-routed) + DRAFT state per board."""
     out = []
-    pats = [os.path.join(ROOT, "modules", "*"), os.path.join(ROOT, "hubs", "*"),
+    pats = [os.path.join(ROOT, "beta", "*"), os.path.join(ROOT, "modules", "*"),
+            os.path.join(ROOT, "hubs", "*"),
+            os.path.join(ROOT, "beta", "output-daughterboards", "*"),
             os.path.join(ROOT, "modules", "output-daughterboards", "*")]
     for d in sorted({d for p in pats for d in glob.glob(p) if os.path.isdir(d)}):
         is_beta = os.path.exists(os.path.join(d, "BETA"))
@@ -237,8 +248,21 @@ def _analyze_in_container(board, detail_png, current_png, width,
     # ---- thermal solve + the two blended detail panels (reuse cec_thermal_overlay) ----
     try:
         import cec_thermal_overlay as ov
+        # BUDGETED + COARSEN-RETRY (2026-07-23, the archive-analyzer pathology:
+        # fine-grid per-net CG spun 2.5 cores for 2-4.5h on fat-copper boards
+        # -- faulthandler-traced). Fine grid gets a hard wall-clock budget; a
+        # PARTIAL result (budget-skipped nets) retries once at the waves'
+        # proven 0.8mm grid with its own budget. Never camp a core for hours.
         res, fpath, cool = ov._solve_thermal(
-            board, ambient=SOLVE["ambient"], grid_mm=SOLVE["grid_mm"], h_eff=SOLVE["h_eff"])
+            board, ambient=SOLVE["ambient"], grid_mm=SOLVE["grid_mm"],
+            h_eff=SOLVE["h_eff"], time_budget_s=180.0)
+        if any("time budget" in str(v)
+               for v in (getattr(res, "nets_dropped", None) or {}).values()):
+            print("[dash] fine-grid thermal hit its budget -- retrying at 0.8mm",
+                  file=sys.stderr)
+            res, fpath, cool = ov._solve_thermal(
+                board, ambient=SOLVE["ambient"], grid_mm=0.8,
+                h_eff=SOLVE["h_eff"], time_budget_s=300.0)
         ov._draw_detail_blend(fpath, res, detail_png, mode="thermal", cool_label=cool,
                               gate_dt=GATE_DT, final_board_w=width, title=os.path.basename(board))
         ov._draw_detail_blend(fpath, res, current_png, mode="current", cool_label=cool,

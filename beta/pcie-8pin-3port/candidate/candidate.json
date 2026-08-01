@@ -1,0 +1,39 @@
+{
+ "board": "pcie-8pin-3port",
+ "commit": "cfd230db",
+ "grade": {
+  "diffpair_ok": false,
+  "drc": 9999,
+  "foreign": {
+   "pours": 0,
+   "status": "error",
+   "tracks": 9999,
+   "vias": 9999
+  },
+  "gate": false,
+  "kelvin_ok": false,
+  "rails": null,
+  "thermal_ok": false,
+  "unconn_critical": [],
+  "unconnected": 9999
+ },
+ "label": "periph-left-compact-s710",
+ "reason": "first candidate",
+ "routed": false,
+ "schema": 1,
+ "schematic_match": 0.9556,
+ "schematic_parts": 90,
+ "sort_key": [
+  1,
+  Infinity
+ ],
+ "source": "build/fresh-wave-fixed/pcie-8pin-3port/20260725T1907-periph-left-compact-s710.kicad_pcb",
+ "thermal": {
+  "dT": null,
+  "max_T": null,
+  "note": "new best has no routed board -- thermal not solvable",
+  "ok": false
+ },
+ "updated": "2026-07-25T19:07:42",
+ "wave_out_root": "build/fresh-wave-fixed"
+}

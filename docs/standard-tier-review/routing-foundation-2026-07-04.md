@@ -12,11 +12,11 @@ The six consumer beta boards and the schematic/PCB pair used for measurement:
 | Board | Schematic (beta-active) | PCB |
 |---|---|---|
 | Hub Standard | `hubs/hub-standard/hub-standard.kicad_sch` | routed |
-| 24-pin ATX | `modules/atx-24pin-rev3/24pin-module.kicad_sch` | **layout not started** — PCB is a byte-identical copy of `atx-24pin-rev2`'s 90° "L" shrink-study, not a rev3 layout |
-| EPS 8-pin | `modules/eps-8pin/eps8pin-module.kicad_sch` | placed, 0 copper |
-| PCIe 2-port | `modules/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch` | placed, 0 copper |
-| PCIe 3-port | `modules/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch` | placed, 0 copper |
-| 12VHPWR Standard | `modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` | routed, DRC-clean |
+| 24-pin ATX | `beta/atx-24pin-rev3/24pin-module.kicad_sch` | **layout not started** — PCB is a byte-identical copy of `atx-24pin-rev2`'s 90° "L" shrink-study, not a rev3 layout |
+| EPS 8-pin | `beta/eps-8pin/eps8pin-module.kicad_sch` | placed, 0 copper |
+| PCIe 2-port | `beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch` | placed, 0 copper |
+| PCIe 3-port | `beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch` | placed, 0 copper |
+| 12VHPWR Standard | `beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch` | routed, DRC-clean |
 
 (`atx-24pin-rev2`/`-rev3` and `eps-8pin-rev2`/`pcie-*-rev2` naming is inconsistent across
 families — see `docs/standard-tier-review/atx-24pin.md` §5 — the table above is the

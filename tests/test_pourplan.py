@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_pourplan as P                                       # noqa: E402 (pure; lazy pcbnew)
 
-EPS = os.path.join(ROOT, "modules", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
+EPS = os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
 
 try:
     import pcbnew                                              # noqa: F401

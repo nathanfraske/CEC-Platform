@@ -49,7 +49,7 @@ stream; the rationale is that this module is the fleet's most load-bearing valid
 | DETECT | **10 kΩ** (CAN+100BASE-T1 — was 2.2 kΩ CAN-only pre-6th-ruling) | §2.3; owner ruling 2026-07-02 (6th) |
 | Mezzanine | Male stack header populated if OQ-77 adopts the integrated form | REQ-24PIN-020 |
 
-BOM delta vs `modules/atx-24pin-rev3`: −ESP32-C6-MINI-1-N4 (~$3.5) / +ESP32-P4 ($4.47) +
+BOM delta vs `beta/atx-24pin-rev3`: −ESP32-C6-MINI-1-N4 (~$3.5) / +ESP32-P4 ($4.47) +
 external QSPI flash + support (~$1–1.5) / +100BASE-T1 front-end (DP83TC814S-Q1 $2.39 +
 CMC/caps/PESD ≈ $3.0–4.2 total) / identity ≈$0 (5th ruling — MCU-resident key) / DETECT R
 swap ($0) / native-USB flashing retained (P4 has USB, no bridge). **Net delta ≈ +$5–7**

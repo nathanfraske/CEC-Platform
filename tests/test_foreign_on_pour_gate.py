@@ -21,9 +21,9 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-EPS = os.path.join(ROOT, "modules", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
-HPWR = os.path.join(ROOT, "modules", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
-ATX = os.path.join(ROOT, "modules", "atx-24pin-rev3", "24pin-module.kicad_pcb")
+EPS = os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
+HPWR = os.path.join(ROOT, "beta", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
+ATX = os.path.join(ROOT, "beta", "atx-24pin-rev3", "24pin-module.kicad_pcb")
 
 try:
     import pcbnew                                              # noqa: F401

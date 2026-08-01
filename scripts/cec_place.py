@@ -594,7 +594,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     import glob
-    cands = [p for p in glob.glob(os.path.join(ROOT, "modules", a.board, "*.kicad_pcb"))
+    cands = [p for p in glob.glob(os.path.join(ROOT, "beta", a.board, "*.kicad_pcb"))
+             + glob.glob(os.path.join(ROOT, "modules", a.board, "*.kicad_pcb"))
              if "-routed" not in p and ".merged." not in p]
     src = sorted(cands)[0]
     os.makedirs(a.out, exist_ok=True)

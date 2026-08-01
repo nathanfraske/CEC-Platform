@@ -63,7 +63,12 @@ import cec_overnight_directed as ovd
 import cec_verifier
 
 RUN_DATE = os.environ.get("CEC_FS_DATE", time.strftime("%Y-%m-%d"))
-PERM = os.path.join(ROOT, "docs", f"fullstack-run-{RUN_DATE}")
+# CEC_FULLSTACK_DIR overrides the artifact dir (run-dir escape fix 2026-07-17:
+# unit tests exercising writers like _audit_prompt kept re-creating
+# docs/fullstack-run-<date>/ stubs on every host-battery run; tests patch
+# fs.PERM to tmp -- the test_auditor_dispatch pattern -- or set this env).
+PERM = (os.environ.get("CEC_FULLSTACK_DIR")
+        or os.path.join(ROOT, "docs", f"fullstack-run-{RUN_DATE}"))
 BROKER = os.environ.get("CEC_VLLM_URL", "http://localhost:8080/v1")
 V4_EVERY = int(os.environ.get("CEC_FS_V4_EVERY", "4"))
 RULE_CAP = 10                                   # convergence lesson #3

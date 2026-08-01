@@ -69,7 +69,7 @@ CONTAINER_ROOT = "/workspace"
 
 # Board floorplan paths (the committed, hand-finalized boards are the stable input).
 BOARD_PCB = {
-    "eps-8pin": os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb"),
+    "eps-8pin": os.path.join(ROOT, "beta", "eps-8pin", "eps8pin-module.kicad_pcb"),
     # Path-B generalization (actuation-lever validation): the Hub is the board where the PLACEMENT
     # lever actually bites (eps's stall is foreign-signal-in-corridor, inert for placement). The Hub
     # lives under hubs/, not modules/ -- find_board() resolves both.

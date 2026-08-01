@@ -1,0 +1,1842 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "4d8d5a2e-6b0a-4b6b-9a7a-2f7a7a8a2a09")
+	(paper "A4")
+	(title_block
+		(title "CEC 12VHPWR Standard Module: 09-hub-link")
+		(date "2026-07-02")
+		(rev "BETA-1")
+		(company "CEC")
+		(comment 1 "HUB LINK  RJ-45 + DETECT")
+	)
+	(lib_symbols
+		(symbol "cec:CEC_RJ45_8P8C_FTP"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_RJ45_8P8C_FTP"
+				(at 0 -12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 RSVD (reserved spare; not AUX_REF, OQ-3), 8 DETECT."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "CEC RJ45 8P8C connector universal interface module hub FTP"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_RJ45_8P8C_FTP_1_1"
+				(rectangle
+					(start -5.08 10.16)
+					(end 5.08 -10.16)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin passive line
+					(at -10.16 8.89 0)
+					(length 5.08)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 6.35 0)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 3.81 0)
+					(length 5.08)
+					(name "CAN1_H"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 1.27 0)
+					(length 5.08)
+					(name "STREAM_P"
+						(effects
+							(font
+								(size 1.1 1.1)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 -1.27 0)
+					(length 5.08)
+					(name "STREAM_N"
+						(effects
+							(font
+								(size 1.1 1.1)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 -3.81 0)
+					(length 5.08)
+					(name "CAN1_L"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 -6.35 0)
+					(length 5.08)
+					(name "RSVD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -10.16 -8.89 0)
+					(length 5.08)
+					(name "DETECT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 1.27 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "SH1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 -1.27 180)
+					(length 5.08)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "SH2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:R_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "R_Small"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_Small_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:C_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.254 1.778 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C_Small"
+				(at 0.254 -2.032 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "capacitor cap"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_Small_0_1"
+				(polyline
+					(pts
+						(xy -1.524 0.508) (xy 1.524 0.508)
+					)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.524 -0.508) (xy 1.524 -0.508)
+					)
+					(stroke
+						(width 0.3302)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:D_Schottky"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D_Schottky"
+				(at 0 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Schottky diode"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "diode Schottky"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "D_Schottky_0_1"
+				(polyline
+					(pts
+						(xy -1.905 0.635) (xy -1.905 1.27) (xy -1.27 1.27) (xy -1.27 -1.27) (xy -0.635 -1.27) (xy -0.635 -0.635)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_Schottky_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:FerriteBead_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "FB"
+				(at 0 1.778 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "FerriteBead_Small"
+				(at 0 -1.778 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Ferrite bead / 0-ohm bridge, small symbol (H3a: VBUS entry populated, port-VCC entry provisioned 0R-default). Footprint borrows the generic 0805 2-pad SMD land (cec-Capacitor_SMD:C_0805_2012Metric) -- same envelope as the Murata MPZ2012 ('2012' = 0805 metric) family; not a purpose-drawn bead footprint."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "ferrite bead emi filter"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_0805* L_0805*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "FerriteBead_Small_0_1"
+				(rectangle
+					(start -1.905 1.27)
+					(end 1.905 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "FerriteBead_Small_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 1.905)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 1.905)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(text "HUB LINK  RJ-45 + DETECT"
+		(exclude_from_sim no)
+		(at 107.95 53.34 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "b94a2147-6fc1-4184-8f1e-1587f5e9fa1c")
+	)
+	(symbol
+		(lib_id "cec:CEC_RJ45_8P8C_FTP")
+		(at 133.35 100.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "155fb020-3cc7-4895-a036-81128845895e")
+		(property "Reference" "J1" (at 133.35 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TO-HUB" (at 133.35 87.63 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 133.35 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 133.35 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Kinghelm" (at 133.35 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "KH-RJ45-58-8P8C" (at 133.35 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2683360" (at 133.35 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "14cc9f4c-cb1e-49de-b081-be712f57a5d6"))
+		(pin "2" (uuid "ae1e0994-306c-4fff-ab59-c3687577dc89"))
+		(pin "3" (uuid "d5fd0f60-a002-4507-a330-212b1bb297e4"))
+		(pin "4" (uuid "103fbd2c-db23-42f5-8a15-8f785d613528"))
+		(pin "5" (uuid "5cab8aca-f170-4574-89e5-b902670baddd"))
+		(pin "6" (uuid "ce8d6072-ef6e-4f57-8991-df2492f34fd1"))
+		(pin "7" (uuid "51e34d32-9ca3-4524-a3dd-de6811f9afac"))
+		(pin "8" (uuid "31543792-c273-4b9c-a71f-d8a0fff202bb"))
+		(pin "SH1" (uuid "71548fd9-85cc-4704-99a1-bd0268347fdb"))
+		(pin "SH2" (uuid "6edf74b9-ee5b-4882-bb33-a10c1c0deb73"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "J1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 196.85 68.58 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9b786926-4d69-4de7-8742-1af4ec3f5a53")
+		(property "Reference" "R1" (at 198.882 67.31 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 198.882 69.85 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 196.85 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 196.85 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 196.85 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF2201TCE" (at 196.85 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25879" (at 196.85 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "52269362-861e-44e8-821e-398efedac448"))
+		(pin "2" (uuid "814e58d4-c865-4ae8-ae60-baf9ec99956e"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "R1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 203.2 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "197a7e3f-5854-491d-9853-52ac69790a12")
+		(property "Reference" "C6" (at 204.47 111.76 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 204.47 114.3 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 203.2 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 203.2 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 203.2 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL21A106KAYNNNE" (at 203.2 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C15850" (at 203.2 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "12dd29c3-f1f6-4091-811a-562530c9a3f6"))
+		(pin "2" (uuid "51e2fd30-4811-4610-bce3-de0fd74cb41c"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "C6") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:D_Schottky")
+		(at 177.8 68.58 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "871a87ff-5248-4168-a0c0-400e1a28d1ce")
+		(property "Reference" "D1" (at 177.8 62.23 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 177.8 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 177.8 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 177.8 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C5261083" (at 177.8 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Nexperia" (at 177.8 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "PESD5V0S1BA" (at 177.8 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "1c8771d0-a42e-482e-a4a4-a33cb2619101"))
+		(pin "2" (uuid "ba6fa67a-10e9-4598-9ace-d9d1a98eeef5"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "D1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 215.9 68.58 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ece71a52-5278-447a-b8d3-ba36a23335ff")
+		(property "Reference" "R7" (at 217.932 67.31 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100kΩ" (at 217.932 69.85 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 215.9 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 215.9 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 215.9 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1003TCE" (at 215.9 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25741" (at 215.9 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "139d3df3-f434-46aa-a8f5-157812e2426a"))
+		(pin "2" (uuid "4a4bbf7d-e9d4-452a-9e28-f8f342fd6160"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "R7") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:FerriteBead_Small")
+		(at 177.8 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b37e991b-3970-4305-b5b6-2c4d6d34c3cc")
+		(property "Reference" "FB2" (at 177.8 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R" (at 177.8 107.95 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0805W8F0000T5E" (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C17477" (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(b) 5VSB port-VCC entry bead POSITION. 0R jumper populated by default (0805 land also accepts an MPZ2012-family ferrite bead pad-for-pad -- populate a real bead only on EMC evidence). Pin1=VCC_RAW (J1 RJ-45 pin1 side), pin2=+5VSB (existing board rail, unchanged, relocated power-flag symbol #PWR01)." (at 177.8 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "cd1278ab-550d-42e5-8653-8e61975e469b"))
+		(pin "2" (uuid "9d022270-2a0e-44b8-b0ab-129ceefd8811"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "FB2") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 173.99 68.58) (xy 170.18 68.58))
+		(stroke (width 0) (type default)) (uuid "45ff9798-a76c-4b81-875c-cfeeace05cfd"))
+	(wire (pts (xy 123.19 109.22) (xy 119.38 109.22))
+		(stroke (width 0) (type default)) (uuid "fcf1768c-8692-44e1-b4b7-32aa7db0d2b6"))
+	(wire (pts (xy 196.85 66.04) (xy 196.85 62.23))
+		(stroke (width 0) (type default)) (uuid "77692083-baad-40c7-9f13-b1925e1f2aad"))
+	(wire (pts (xy 215.9 66.04) (xy 215.9 62.23))
+		(stroke (width 0) (type default)) (uuid "c73c685a-55ef-45dd-a1a7-9cfd31618cac"))
+	(wire (pts (xy 181.61 113.03) (xy 185.42 113.03))
+		(stroke (width 0) (type default)) (uuid "417d80f4-127c-4207-af01-3747c328c246"))
+	(wire (pts (xy 123.19 91.44) (xy 119.38 91.44))
+		(stroke (width 0) (type default)) (uuid "965d3477-c4ac-4026-88b7-3efd6832bb9b"))
+	(wire (pts (xy 123.19 96.52) (xy 119.38 96.52))
+		(stroke (width 0) (type default)) (uuid "577337ae-3078-4dc2-bae9-bf61474c739d"))
+	(wire (pts (xy 123.19 104.14) (xy 119.38 104.14))
+		(stroke (width 0) (type default)) (uuid "dbfab70d-dd9a-401a-809c-fc8ea70ccf2d"))
+	(wire (pts (xy 215.9 71.12) (xy 215.9 74.93))
+		(stroke (width 0) (type default)) (uuid "3c639102-1dba-48ba-97e0-3f222cdb8c6a"))
+	(wire (pts (xy 203.2 115.57) (xy 203.2 119.38))
+		(stroke (width 0) (type default)) (uuid "f25a8dc3-e589-4383-a9ce-741b789cd5c3"))
+	(wire (pts (xy 181.61 68.58) (xy 185.42 68.58))
+		(stroke (width 0) (type default)) (uuid "bc062f69-e4b1-4d5b-8616-a1fff045db88"))
+	(wire (pts (xy 123.19 93.98) (xy 119.38 93.98))
+		(stroke (width 0) (type default)) (uuid "c0061ac9-9cc2-46bd-8dfd-a9aa4b06178c"))
+	(wire (pts (xy 143.51 99.06) (xy 147.32 99.06))
+		(stroke (width 0) (type default)) (uuid "58111cf3-2406-49a7-9c07-e877bd8f1336"))
+	(wire (pts (xy 143.51 101.6) (xy 148.59 101.6))
+		(stroke (width 0) (type default)) (uuid "ca486e7f-0128-4d9a-8ada-042b3a157102"))
+	(wire (pts (xy 196.85 71.12) (xy 196.85 74.93))
+		(stroke (width 0) (type default)) (uuid "1c29b834-dc70-4950-ba4c-525d5b6f8109"))
+	(wire (pts (xy 203.2 110.49) (xy 203.2 106.68))
+		(stroke (width 0) (type default)) (uuid "bcd258eb-acca-4ed4-9d95-328c7e40cce9"))
+	(wire (pts (xy 173.99 113.03) (xy 170.18 113.03))
+		(stroke (width 0) (type default)) (uuid "26dedf7a-ce7d-414c-9bd1-5d0e323fc7e2"))
+	(wire (pts (xy 215.9 74.93) (xy 102.87 74.93))
+		(stroke (width 0) (type default)) (uuid "329dcaf4-a3c4-464f-9c93-23694ef74112"))
+	(wire (pts (xy 119.38 96.52) (xy 102.87 96.52))
+		(stroke (width 0) (type default)) (uuid "a92e2c97-8099-400d-881f-701145fd6ed4"))
+	(wire (pts (xy 119.38 104.14) (xy 102.87 104.14))
+		(stroke (width 0) (type default)) (uuid "1c2199fc-cfb0-4693-b8a5-28c116a7e98d"))
+	(wire (pts (xy 107.95 130.81) (xy 107.95 140.97))
+		(stroke (width 0) (type default)) (uuid "80817a2a-4a76-4f4a-a8e7-1f17fe8b73ae"))
+	(wire (pts (xy 123.19 130.81) (xy 123.19 140.97))
+		(stroke (width 0) (type default)) (uuid "1a11a9c7-a06f-44c8-aeaa-94625a935c72"))
+	(label "DETECT" (at 119.38 109.22 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9a0f8aa9-3695-4361-ac38-1fe948a8822d"))
+	(label "DETECT" (at 196.85 62.23 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "576a4624-537b-4f52-86e5-f63e5d3f0bad"))
+	(label "DETECT" (at 215.9 62.23 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "038dbbae-1489-488f-b16c-8f8ec4cfbb6a"))
+	(label "VCC_RAW" (at 119.38 91.44 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b24bf45e-819e-4d5d-b40d-c3fd926220a7"))
+	(hierarchical_label "DETECT"
+		(shape output)
+		(at 170.18 68.58 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "f0808fd0-2481-400c-8b49-57ce3c1bb2bc")
+	)
+	(hierarchical_label "VCC_RAW"
+		(shape output)
+		(at 185.42 113.03 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "3305d799-21e7-4234-b9bb-6b95511eca76")
+	)
+	(hierarchical_label "DETECT_SENSE"
+		(shape output)
+		(at 102.87 74.93 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "1d3a37d4-6a90-45ab-b5e4-7ed37544a2a2")
+	)
+	(hierarchical_label "CAN_H"
+		(shape output)
+		(at 102.87 96.52 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "c624afc2-0f0b-4192-a90c-d375d0712ea8")
+	)
+	(hierarchical_label "CAN_L"
+		(shape output)
+		(at 102.87 104.14 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "d2fd22fe-0456-4baf-8973-2901bc28ae76")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 203.2 119.38 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "94fc014c-d06f-49bb-b424-d83fa0f2c3e9")
+		(property "Reference" "#PWR901" (at 203.2 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 203.2 124.46 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f1519be1-aca3-4a66-b5a1-84bf7b3c71e7"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR901") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 185.42 68.58 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8ba51e27-f3e0-48ca-a098-5a910019f213")
+		(property "Reference" "#PWR902" (at 185.42 66.04 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 185.42 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "36e48031-def1-47ca-8495-77164fa7cc9b"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR902") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 119.38 93.98 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d5885a0f-d502-43ae-a050-cd8a036b5009")
+		(property "Reference" "#PWR903" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 119.38 99.06 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "892b0a63-bb36-4361-9bda-09353422e330"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR903") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 147.32 99.06 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "85a34191-1081-4a4e-bbdb-a94e4ed5346f")
+		(property "Reference" "#PWR904" (at 147.32 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 147.32 104.14 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "3dd252eb-22d0-4a54-805b-df35f4e951cf"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR904") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 148.59 101.6 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4cdc6a63-e505-4b9a-906b-4f21cdf11cfd")
+		(property "Reference" "#PWR905" (at 148.59 99.06 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 148.59 106.68 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "fa653bcf-6bc1-4905-bed2-a86a0f852d2d"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR905") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 196.85 74.93 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d0a25e74-ddad-470e-88fd-ef16b8372763")
+		(property "Reference" "#PWR906" (at 196.85 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 196.85 80.01 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "fda03066-a9c3-40a3-8268-a4847fda90f5"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR906") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 203.2 106.68 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "219cabfe-0f58-443a-b621-5ea15faf99e8")
+		(property "Reference" "#PWR907" (at 203.2 104.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 203.2 101.6 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "79dfa9d1-098c-4f22-a239-a23f3ac59402"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR907") (unit 1))
+			)
+		)
+	)
+
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 107.95 130.81 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "230560a8-a5f3-41ea-b9a4-9d9170cd451c")
+		(property "Reference" "#PWR909" (at 107.95 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 107.95 143.51 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "edca9af3-ed35-4bc2-956e-3b76a495b740"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR909") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 107.95 140.97 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9f64f8ad-d0cf-4c2a-b6e3-56d9e6b5dbcf")
+		(property "Reference" "#FLG910" (at 107.95 138.43 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 107.95 128.27 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "a485a0bd-3a81-4b48-b222-a48c69feed19"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#FLG910") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 123.19 130.81 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "319d4e4b-d051-41e2-a596-d754322d433e")
+		(property "Reference" "#FLG911" (at 123.19 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 123.19 143.51 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f03e6a55-f7e9-483a-97f7-cd06919bfafc"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#FLG911") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 123.19 140.97 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b209e0a4-a673-41f3-97cf-e3b318c002a8")
+		(property "Reference" "#PWR912" (at 123.19 138.43 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 123.19 146.05 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "1df0d29c-5a99-4fa2-ab66-d9a40e805fdb"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09" (reference "#PWR912") (unit 1))
+			)
+		)
+	)
+	(no_connect (at 123.19 99.06) (uuid "ca22e76e-560e-4557-95d3-fdd3e34be898"))
+	(no_connect (at 123.19 101.6) (uuid "e8f096bf-df3e-43d1-b8c4-ab113e893dcc"))
+	(no_connect (at 123.19 106.68) (uuid "1d2c3dc6-2734-4e32-a845-a814a4d183b5"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 170.18 113.03 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "c882d7d0-e67f-46cc-b585-f19cd7b10e69")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 170.18 113.03 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(sheet_instances
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09"
+			(page "10")
+		)
+	)
+	(embedded_fonts no)
+)

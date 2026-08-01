@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="632" viewBox="0 0 980 632" font-family="monospace">
+  <rect width="980" height="600" fill="#ffffff"/>
+  <text x="20" y="28" font-size="16" font-weight="bold">SMOKE TESTER — controls &amp; indication sketches</text>
+
+  <!-- A: arm/fire -->
+  <rect x="20" y="45" width="460" height="240" fill="#eafbea" stroke="#1a7a1a"/>
+  <text x="32" y="65" font-size="12" font-weight="bold" fill="#1a7a1a">A. ARM / FIRE — latching relay, zero hold current</text>
+  <rect x="40" y="85" width="120" height="34" fill="#fff" stroke="#333"/>
+  <text x="48" y="99" font-size="10" font-weight="bold">SW_ARM missile-</text>
+  <text x="48" y="112" font-size="10" font-weight="bold">cover toggle</text>
+  <line x1="160" y1="102" x2="205" y2="102" stroke="#333" stroke-width="1.5"/>
+  <rect x="205" y="85" width="80" height="34" fill="#fff" stroke="#333"/>
+  <text x="212" y="99" font-size="10">RC edge</text>
+  <text x="212" y="112" font-size="10">pulse (cap)</text>
+  <line x1="285" y1="102" x2="330" y2="102" stroke="#333" stroke-width="1.5"/>
+  <rect x="330" y="80" width="130" height="70" fill="#fff" stroke="#1a7a1a" stroke-width="2"/>
+  <text x="340" y="98" font-size="11" font-weight="bold">K1 1-POLE LATCHING</text>
+  <text x="340" y="112" font-size="9.5">HF3F-L/5 C190594</text>
+  <text x="340" y="125" font-size="9.5">RESET ← lid µsw OR</text>
+  <text x="340" y="138" font-size="9.5">DISARM position</text>
+  <text x="40" y="140" font-size="9.5" fill="#1a7a1a">open fuse door ⇒ RESET pulse ⇒ released = SAFE STATE (mechanical fact, no firmware)</text>
+  <line x1="395" y1="150" x2="395" y2="178" stroke="#333" stroke-width="1.5"/>
+  <text x="250" y="176" font-size="10" font-weight="bold">pole A:</text>
+  <line x1="310" y1="172" x2="395" y2="172" stroke="#333" stroke-width="1.5"/>
+  <rect x="310" y="185" width="60" height="22" fill="#fff" stroke="#333"/>
+  <text x="318" y="200" font-size="10">100Ω</text>
+  <line x1="370" y1="196" x2="420" y2="196" stroke="#333" stroke-width="1.5"/>
+  <text x="424" y="200" font-size="10.5" font-weight="bold">→ PS_ON# (to DUT GND)</text>
+  <text x="318" y="222" font-size="9.5">PESD5V0S1BA clamp (LCSC C5261083)</text>
+  <text x="250" y="245" font-size="10" font-weight="bold">race t0:</text>
+  <text x="310" y="245" font-size="10">the PS_ON# node crossing low (spare LM339 watches it)</text>
+  <text x="40" y="268" font-size="9.5" fill="#555">Finger → toggle → coil → contact. The user NEVER completes a circuit with DUT copper.</text>
+
+  <!-- B: PWR_OK race -->
+  <rect x="500" y="45" width="460" height="240" fill="#eaf0fd" stroke="#2255aa"/>
+  <text x="512" y="65" font-size="12" font-weight="bold" fill="#2255aa">B. PWR_OK TIMING RACE — all analog, ±coarse by design</text>
+  <text x="512" y="84" font-size="10">PS_ON# asserts = t0 → RC charges; taps at ~100ms and ~500ms</text>
+  <line x1="530" y1="100" x2="530" y2="190" stroke="#333" stroke-width="1.5"/>
+  <line x1="530" y1="190" x2="930" y2="190" stroke="#333" stroke-width="1.5"/>
+  <path d="M530 185 C 620 110, 760 95, 925 92" stroke="#2255aa" fill="none" stroke-width="2"/>
+  <line x1="640" y1="190" x2="640" y2="120" stroke="#888" stroke-dasharray="4 3"/>
+  <text x="628" y="205" font-size="9.5">100ms</text>
+  <line x1="800" y1="190" x2="800" y2="98" stroke="#888" stroke-dasharray="4 3"/>
+  <text x="788" y="205" font-size="9.5">500ms</text>
+  <text x="512" y="228" font-size="10">PWR_OK in (1kΩ + PESD) latches its rising edge against the two taps:</text>
+  <text x="512" y="245" font-size="10.5" font-weight="bold">before 100ms ⇒ ◉ PG EARLY (suspicious)   100–500ms ⇒ ◉ PG OK   after/never ⇒ ◉ PG LATE/NEVER</text>
+  <text x="512" y="264" font-size="9.5" fill="#555">2 comparator sections + RS latch; ATX window checked the dumb way, on purpose.</text>
+
+  <!-- C: hot ground -->
+  <rect x="20" y="305" width="460" height="180" fill="#fdf7e2" stroke="#a8830a"/>
+  <text x="32" y="325" font-size="12" font-weight="bold" fill="#8a6d00">C. HOT-GROUND NEON CHAINS — zero powered parts</text>
+  <text x="40" y="350" font-size="10.5">DUT_GND ──470k(0.5W,350V)──470k── NE-2 ── EARTH ref</text>
+  <circle cx="330" cy="368" r="9" fill="none" stroke="#a11" stroke-width="2"/>
+  <text x="348" y="372" font-size="11.5" font-weight="bold" fill="#a11">◉ CASE LIVE — DO NOT TOUCH</text>
+  <text x="40" y="398" font-size="10.5">WAY_12V ─1M┐</text>
+  <text x="40" y="412" font-size="10.5">WAY_5V  ─1M┤─── NE-2 ── EARTH ref   ◉ RAIL LIVE</text>
+  <text x="40" y="426" font-size="10.5">WAY_3V3 ─1M┤</text>
+  <text x="40" y="440" font-size="10.5">WAY_5VSB─1M┘</text>
+  <text x="40" y="462" font-size="9.5" fill="#555">Neon strikes ~90V ⇒ line potential lights it; 48–90V faults light nothing (known limit, windows still catch gross OV).</text>
+  <text x="40" y="476" font-size="9.5" fill="#555">Earth ref: rear pigtail OR earth-only IEC inlet — open decision #5.</text>
+
+  <!-- D: meter -->
+  <rect x="500" y="305" width="460" height="180" fill="#f4f4f4" stroke="#333"/>
+  <text x="512" y="325" font-size="12" font-weight="bold">D. NEEDLE METER — the only "readout", by design</text>
+  <circle cx="600" cy="400" r="48" fill="#fff" stroke="#333" stroke-width="2"/>
+  <line x1="600" y1="400" x2="632" y2="368" stroke="#a11" stroke-width="2.5"/>
+  <path d="M562 388 A 48 48 0 0 1 638 388" stroke="#333" fill="none"/>
+  <text x="560" y="466" font-size="9.5">85C1-class 100µA</text>
+  <rect x="690" y="360" width="90" height="70" fill="#fff" stroke="#333"/>
+  <text x="698" y="378" font-size="10">SW_SEL 1P6T:</text>
+  <text x="698" y="392" font-size="9.5">12V·5V·3V3·</text>
+  <text x="698" y="404" font-size="9.5">5VSB·−12V·STORE</text>
+  <text x="698" y="422" font-size="9.5">taps DIVIDED nodes</text>
+  <text x="800" y="378" font-size="9.5">Never sees &gt; a few volts,</text>
+  <text x="800" y="392" font-size="9.5">whatever the DUT does.</text>
+  <text x="800" y="406" font-size="9.5">Scale printed ×10; needle</text>
+  <text x="800" y="420" font-size="9.5">slam on a hiccuping PSU is</text>
+  <text x="800" y="434" font-size="9.5">the demo no lamp can give.</text>
+  <text x="512" y="470" font-size="9.5" fill="#555">No pixels, no MCU: numbers are the 24-pin module / ST deck's job (the product ladder).</text>
+
+  <!-- power strip -->
+  <rect x="20" y="505" width="940" height="122" fill="#fafafa" stroke="#999"/>
+  <text x="32" y="525" font-size="11" font-weight="bold">POWER — BATTERYLESS + INSTANT-ON: 5VSB⊕5V⊕USB-C ORing node → [33Ω RW_H → 5.6V zener → 2S 2F store] ∥ [33Ω RW_D → D_DOM → domain]; domain = diode-OR(harvest-direct, store).</text>
+  <text x="32" y="543" font-size="9.5">First light ≈ instant (~ms) on any live rail or USB brick — no charge-first ritual; store fills behind it (usable ~30s, full ~2min): 8.6J ≈ ~4.5min held-TEST ≈ ~5 sessions. TLV431 1.24V ref, rail 2.5–5V.</text>
+  <text x="32" y="558" font-size="9.5">Store's whole job = ride-through + LAMP TEST: the diode-OR hands over the instant the DUT collapses, so lamps/latches never strobe with the fault they report.</text>
+  <text x="32" y="573" font-size="9.5" fill="#555">No lithium (no UN38.3, no BMS, no aging cliff), no disposables, no recharge chore — using the tool charges it. STORE-OK = the CHARGE bar's bottom step.</text>
+  <text x="32" y="588" font-size="9.5">◆ CHARGE bar (2026-07-25): 2R/2Y/2G 2mA VU column bottom-up (red=thin, green=full), TEST-held — 7R string on STORE node vs TLV431 ref into 6 LM339 steps (2.9…4.65V), SS8050-gated = zero rest drain; ~20–40s/step.</text>
+  <text x="32" y="603" font-size="9.5" fill="#a11">◆ SMOKE SHOT (2026-07-25): 12V → 10A-T HRC (C142733) → red horn button (held) → KNP 1Ω pellet clip = 144W puff ~100ms behind the window; reload like a blade fuse, ~$0.02/shot; mains corner cleared by the HRC.</text>
+  <text x="32" y="620" font-size="9.5" fill="#a11">◆ #15 AFTERMATH SHOW (RULED as-amended): any POP auto-wakes the whole panel (BF-OR → Q_AUTO ∥ TEST, DUT-harvest-powered) + flame tube & NE_EVT blinker run while the condition lives — no button; HV fence: held ∨ live-event, lid-open kills.</text>
+</svg>

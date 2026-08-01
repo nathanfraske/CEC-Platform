@@ -6,7 +6,7 @@ top-down plan: what's already routed (high-current J3->shunt on F.Cu, shunt->J4
 on B.Cu) vs what remains (per-pin Kelvin sense taps, INA input filters, and the
 six INA outputs to the ESP ADC). Lane completion is taken from the DRC
 unconnected list at time of writing. Output:
-    modules/12vhpwr-standard/12vhpwr-route-plan.png
+    beta/12vhpwr-standard/12vhpwr-route-plan.png
 This is a documentation artifact; the copper itself is laid in the GUI.
 """
 import re, math
@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, FancyArrowPatch, Circle
 from matplotlib.lines import Line2D
 
-PCB = "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"
+PCB = "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"
 
 # ---- parse footprint placements (ref -> x,y,rot) ----
 lines = open(PCB).read().splitlines(); N=len(lines)
@@ -169,5 +169,5 @@ T(y,"+12V is the MIDDLE row; GND barrels (3 mm pitch,\n1.48 mm gaps) sit between
 T(y,"BEFORE RE-CHECKING DRC",fontweight="bold",fs=11); y-=0.035
 T(y,"• Fill All Zones (B): clears the 252 'actual 0.000 mm'\n   clearance/hole hits — they are STALE GND-pour artifacts\n   (kicad-cli can't refill).  BOTH inner zones = GND.\n• Delete 18 dangling vias + 3 dangling track stubs.\n• Update PCB from Schematic: pulls U2 value\n   TJA1462A → TJA1051T/3 (footprint identical).\n• Outline fixed: connector mouth moved off Edge.Cuts.",fs=8)
 
-fig.savefig("modules/12vhpwr-standard/12vhpwr-route-plan.png",dpi=145,facecolor="white")
-print("wrote modules/12vhpwr-standard/12vhpwr-route-plan.png")
+fig.savefig("beta/12vhpwr-standard/12vhpwr-route-plan.png",dpi=145,facecolor="white")
+print("wrote beta/12vhpwr-standard/12vhpwr-route-plan.png")

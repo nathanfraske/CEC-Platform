@@ -21,7 +21,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 BOARD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                     "modules", "eps-8pin", "eps8pin-module.kicad_pcb")
+                     "beta", "eps-8pin", "eps8pin-module.kicad_pcb")
 NET = "/CAN_H"
 # three RELATIONAL waypoints, all placeable on the committed floorplan
 INTENTS = [{"net": NET,

@@ -51,3 +51,17 @@ agent sees them), and they apply to any task in any domain.
 _Origin: the 2026-06-28 thermal "neck" artifact (`docs/lessons-thermal-neck-artifact-2026-06-28.md`)
 and the accumulated discipline in `CLAUDE.md`. Keep this list short; add a point only when a
 real mistake earns it._
+
+## (11) Datasheet provenance is PER-PARAMETER, never per-agent (owner, 2026-07-24)
+
+Every device limit, threshold, or curve entering a simulation, margin
+calculation, or spec text MUST be traced to the vendored datasheet (file +
+section) AT THE POINT OF USE -- an upstream artifact (survey, queue row, work
+order) citing a value is NOT a source, no matter how authoritative the chain
+looks. Origin: the LP5907 abs-max entered the failure survey as an assumed
+6.5V, crossed two agent boundaries gaining false authority, and produced an OV
+trip point ABOVE the part's real 6.0V ceiling -- while SNVS798Q sat vendored in
+lib/datasheets/ the whole time. The same session's SPICE agent PROVED the rule
+works when applied: its per-part datasheet fits caught the C_SS ramp being 12x
+off. Inherited constants are re-verified, or they are labeled ASSUMED in the
+output -- never silently load-bearing.

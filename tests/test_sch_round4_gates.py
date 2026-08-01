@@ -38,7 +38,7 @@ def _frozen_flat_12vhpwr():
     import subprocess, tempfile
     out = subprocess.run(
         ["git", "show", _FLAT_12VHPWR_REV +
-         ":modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch"],
+         ":beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch"],
         capture_output=True, text=True, cwd=ROOT)
     if out.returncode != 0:
         raise unittest.SkipTest("flat 12vhpwr baseline rev unavailable")
@@ -285,7 +285,7 @@ class SheetBoundsTest(unittest.TestCase):
 # ============================================================================
 # Deliverable 3: inventory() / check_inventory_equal()
 # ============================================================================
-REAL_EPS = os.path.join(ROOT, "modules/eps-8pin/eps8pin-module.kicad_sch")
+REAL_EPS = os.path.join(ROOT, "beta/eps-8pin/eps8pin-module.kicad_sch")
 
 
 class InventoryTest(unittest.TestCase):
@@ -631,7 +631,7 @@ class RealBoardLadderSanityTest(unittest.TestCase):
     24pin-rev3's U1 ladder was applied for real and must show no residual
     un-bused run."""
     HUB = os.path.join(ROOT, "hubs/hub-standard/hub-standard.kicad_sch")
-    PIN24 = os.path.join(ROOT, "modules/atx-24pin-rev3/24pin-module.kicad_sch")
+    PIN24 = os.path.join(ROOT, "beta/atx-24pin-rev3/24pin-module.kicad_sch")
 
     @unittest.skipUnless(os.path.isfile(HUB), "hub-standard schematic not present")
     def test_hub_standard_u1_has_no_ladder(self):

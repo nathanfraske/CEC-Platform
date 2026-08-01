@@ -75,6 +75,11 @@ if command -v python3 >/dev/null 2>&1; then
     tests.test_prompt_audit_fixes \
     tests.test_auditor_dispatch \
     tests.test_corridor_model \
+    tests.test_wave_new_best_thermal \
+    tests.test_thermal2d_determinism \
+    tests.test_locked_residue \
+    tests.test_wave_prune \
+    tests.test_anneal_vectorized \
     tests.test_stagger_feedback \
     tests.test_ei02_control_lane \
     tests.test_placer_oracle \

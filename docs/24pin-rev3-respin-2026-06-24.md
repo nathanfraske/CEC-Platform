@@ -1,6 +1,6 @@
 # 24-pin ATX module — rev3 respin spec (2026-06-24)
 
-rev3 scaffold created at `modules/atx-24pin-rev3/` (copy of rev2). This rev folds in: (A) the optional
+rev3 scaffold created at `beta/atx-24pin-rev3/` (copy of rev2). This rev folds in: (A) the optional
 mezzanine stack (Hub-on-24-pin, see docs/mezzanine-stack-design-2026-06-24.md), and (B) the 5V/5VSB power-mux
 consolidation. Plus the shrink levers already proven (90deg + header overhang + the J4->pigtail option).
 

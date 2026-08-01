@@ -1,6 +1,6 @@
 # EPS 8-pin module (Standard tier) — refinement review
 
-Scope: `modules/eps-8pin/`. Read-only review against CLAUDE.md, spec §6.1/6.2/6.4/6.13,
+Scope: `beta/eps-8pin/`. Read-only review against CLAUDE.md, spec §6.1/6.2/6.4/6.13,
 and the checked-in `.kicad_sch`/`.kicad_pcb`/BOM as ground truth (measured with
 `kicad-cli sch erc` / `pcb drc` / `sch export netlist`, KiCad 10.0.4). No files
 under `modules/` were changed.
@@ -126,7 +126,7 @@ port is accessible), not a candidate for cost-down.
 
 ## 4. BOM cost-down at the $32 target
 
-The committed BOM (`modules/eps-8pin/bom/eps8pin-module-BOM-jlcpcb.csv`) sources 24 of
+The committed BOM (`beta/eps-8pin/bom/eps8pin-module-BOM-jlcpcb.csv`) sources 24 of
 30 distinct lines; unsourced: the 4 Mini-Fit Jr THT connectors (expected — hand-solder/
 consign, no LCSC line) and RS1/RS2 (see §5 — the shunt part is now actually locked,
 just not yet written into this file). No priced `bom.csv` is committed for this board
@@ -169,7 +169,7 @@ the only anchor. Cost-down levers, ranked by leverage:
   property at all (verified in the raw `.kicad_sch`), and the BOM CSV still lists a bare
   `0.5mΩ / R_2512_6332Metric` placeholder. This is a known, tracked gap (the
   ratification sheet's own checklist explicitly defers "writing the MPN into
-  `modules/eps-8pin/bom/*.csv`" as a separate follow-up pass), not a fresh problem — but
+  `beta/eps-8pin/bom/*.csv`" as a separate follow-up pass), not a fresh problem — but
   it means "shunt part locked" cannot yet be read as "shunt part sourced on this board."
 - **BOM CSV connector footprint is stale.** `bom/eps8pin-module-BOM-jlcpcb.csv` lists
   J_IN1/J_IN2/J_OUT1/J_OUT2 as `Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal`

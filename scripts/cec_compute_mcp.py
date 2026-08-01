@@ -58,7 +58,8 @@ def _board_path(board):
     rp = os.path.join(ROOT, board)
     if os.path.isfile(rp):
         return rp
-    for pat in (os.path.join(ROOT, "modules", board),
+    for pat in (os.path.join(ROOT, "beta", board),          # beta/ FIRST (move 2026-07-22)
+                os.path.join(ROOT, "modules", board),
                 os.path.join(ROOT, "hubs", board)):
         if os.path.isdir(pat):
             pcbs = [f for f in os.listdir(pat) if f.endswith(".kicad_pcb")]
@@ -203,7 +204,7 @@ TOOL_SCHEMAS = [
     {"type": "function", "function": {
         "name": "cec_drc", "description": "Run real KiCad DRC on a CEC board (path or module name); returns violation counts by type.",
         "parameters": {"type": "object", "properties": {
-            "board": {"type": "string", "description": "board path or module name, e.g. modules/eps-8pin or a build/ candidate path"},
+            "board": {"type": "string", "description": "board path or module name, e.g. beta/eps-8pin or a build/ candidate path"},
             "severity_errors_only": {"type": "boolean"}}, "required": ["board"]}}},
     {"type": "function", "function": {
         "name": "cec_render", "description": "Render a CEC board to PNG; returns the image path (repo-relative).",

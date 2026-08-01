@@ -318,10 +318,10 @@ def autonomy_search(make_session, intents, *, k=1, grade_kw=None, verbose=False)
                 print("  [autonomy] %-22s gate=%s sort_key=%s" % (name, v.get("gate"), v.get("sort_key")))
         except Exception as e:                 # noqa: BLE001 -- a broken intent ranks worst, never aborts the sweep
             results.append({"name": name, "gate": False, "error": "%s: %s" % (type(e).__name__, e),
-                            "sort_key": (1, 9, 9999, 9999, 9999, 1e6)})
+                            "sort_key": (1, float("inf"))})
             if verbose:
                 print("  [autonomy] %-22s ERROR %s" % (name, e))
-    results.sort(key=lambda r: r.get("sort_key", (1, 9, 9999, 9999, 9999, 1e6)))
+    results.sort(key=lambda r: r.get("sort_key", (1, float("inf"))))
     return results[:k] if k else results
 
 
