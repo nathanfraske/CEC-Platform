@@ -13,6 +13,10 @@
       "path": "esp/proto/12vhpwr"
     },
     {
+      "name": "proto: hub-standard (esp32s3)",
+      "path": "esp/proto/hub-standard"
+    },
+    {
       "name": "CEC-Platform (repo)",
       "path": ".."
     }
