@@ -210,11 +210,24 @@ checks a `CecOptions` flag that defaults to stock behavior).
   `scripts/patches/freerouting-1.7.0-cec2.patch`
 - **Jar sha256:** `149cebd88169be77f5ddc7e1d50284451204f10c088e5d7380859ab0395b7ce5`
   The cec2 patch removes the upstream build-user and build-clock manifest
-  fields, disables file timestamps, and enables reproducible entry order. Two
-  full `executableJar --rerun-tasks` builds on 2026-08-01 produced this same
-  complete-JAR digest.
+  fields, freezes the generated `Constants.java` build date to the reviewed
+  binary's date, disables file timestamps, and enables reproducible entry order.
+  The reviewed digest is also compiler-platform specific: it is produced by
+  Temurin **Windows x64** JDK 17.0.20+8. The corresponding Linux x64 JDK does
+  not produce the pinned complete-JAR digest even with identical sources and
+  version. `scripts/build-freerouting-cec2.ps1` pins and verifies the Windows
+  JDK archive, build patch, and final JAR hash.
   (durable copies: `/mnt/e/toolchain/fr-fork/` + `build/fr-fork/`)
 - **cec_fr wiring:** `-noecho` + `-progress` default ON where supported
   (`CEC_FR_NOECHO=0` reverts the echo for A/Bs); `-maxstall` opt-in via
   `CEC_FR_MAXSTALL=<k>`; the seed axis remains opt-in via `CEC_FR_SEED_AXIS=1`.
-- Rebuild: same recipe as above; apply the cec2 patch instead of the cec1 one.
+- Hash-exact rebuild from Windows PowerShell:
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File scripts/build-freerouting-cec2.ps1
+  ```
+
+  The default output is
+  `build/fr-fork/freerouting-1.7.0-cec2.jar`. The script builds in a disposable
+  `%TEMP%` directory, validates both the JDK and JAR hashes, and removes the
+  downloaded toolchain and Gradle cache when finished.

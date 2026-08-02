@@ -23,16 +23,18 @@ on:
   workflow_dispatch:
     inputs:
       board:
-        description: "Module (dir under modules/)"
+        description: "Authoritative BETA board (dir under beta/)"
         type: choice
         default: eps-8pin
         options:
           - eps-8pin
+          - eps-8pin-rev3
           - pcie-8pin-2port
           - pcie-8pin-3port
           - 12vhpwr-standard
-          - atx-24pin
-          - atx-24pin-rev2   # current 24-pin line; honor the Quilter locked placements (R-07)
+          - atx-24pin-rev3
+          - argb-standard
+          - hub-standard-rev2
       mode:
         description: "run = full pipeline | sweep = placement sweep | candidates = route-candidate metrics (agentic loop)"
         type: choice

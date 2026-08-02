@@ -271,6 +271,9 @@ BOARD_WH = {
     # was genuinely full, every hub variant refused. 8mm of height is the cap's row.
     "hub-standard-rev2": (88.0, 70.0),
     "eps-8pin": (96.0, 37.0),
+    # Current BETA rev3 source. Keep this explicit: falling through to the
+    # generic 100x44 default silently routes a different placement problem.
+    "eps-8pin-rev3": (96.0, 40.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
     # owner 2026-07-08 "way too large -- tone it down": geometry floor is J3 (~63mm) and
@@ -610,7 +613,8 @@ BOARD_PARAMS = {
 # Approved 2026-08-01 six-layer fabrication policy. The Hub keeps 1 oz
 # outers; every high-current module uses 2 oz outers. Both profiles reserve
 # In1/In4 as ground, route signals on F/In2/B, and place power copper on In3.
-for _board_name in ("eps-8pin", "pcie-8pin-2port", "pcie-8pin-3port",
+for _board_name in ("eps-8pin", "eps-8pin-rev3",
+                    "pcie-8pin-2port", "pcie-8pin-3port",
                     "12vhpwr-standard", "atx-24pin-rev3"):
     _p = BOARD_PARAMS.setdefault(_board_name, {})
     _p["stackup_profile"] = "jlcpcb_6l_pofv_high_current"

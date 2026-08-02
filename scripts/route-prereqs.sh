@@ -14,7 +14,6 @@
 # Fails fast with an install hint per missing piece, so a misprovisioned runner gives
 # a clear error instead of a deep stack trace mid-route. See docs/self-hosted-router.md.
 set -u
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
 
 note() { printf '  %-22s %s\n' "$1" "$2"; }
@@ -46,7 +45,7 @@ fi
 # FR-version aware (FR-01): FR 1.x needs java 17+; FR 2.2.x is compiled for java 25.
 # On Linux with an older java, cec_fr falls back automatically to the hash-pinned
 # official jpackage app-image (bundled JRE 25), so java<25 is a note there, not a failure.
-FRV="${CEC_FR_VERSION:-1.7.0}"
+FRV="${CEC_FR_VERSION:-1.7.0-cec2}"
 case "$FRV" in 1.*) jneed=17 ;; *) jneed=25 ;; esac
 if command -v java >/dev/null 2>&1; then
   jver="$(java -version 2>&1 | head -1)"
@@ -80,10 +79,10 @@ fi
 jar="${CEC_FREEROUTING_JAR:-}"
 if [ -n "$jar" ] && [ -f "$jar" ]; then
   note "freerouting jar" "OK (\$CEC_FREEROUTING_JAR=$jar)"
-elif [ -f /tmp/fr_1.7.0.jar ] || [ -f "$HOME/.cache/cec/freerouting-1.7.0.jar" ]; then
+elif [ -f "/tmp/fr_${FRV}.jar" ] || [ -f "$HOME/.cache/cec/freerouting-${FRV}.jar" ]; then
   note "freerouting jar" "OK (cached)"
 else
-  note "freerouting jar" "not cached -- cec_fr.ensure_jar() will download the pinned v1.7.0 on first route"
+  note "freerouting jar" "not cached -- build or provide the pinned ${FRV} artifact before routing"
 fi
 
 echo

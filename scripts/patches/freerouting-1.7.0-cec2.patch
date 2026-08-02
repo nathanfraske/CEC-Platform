@@ -335,3 +335,8 @@ index e79089e..cd1caf5 100644
                  'Build-Revision': versioning.info.commit,
                  'Specification-Title': project.name,
                  'Specification-Version': project.version,
+@@ -120,3 +111,3 @@ task writeVersionInfo() {
+                 + "  public static final String FREEROUTING_VERSION = \"${publishing.versionId}\";\n"
+-                + "  public static final String FREEROUTING_BUILD_DATE = \"${buildDate}\";\n"
++                + "  public static final String FREEROUTING_BUILD_DATE = \"2026-08-01\";\n"
+                 + "}\n"

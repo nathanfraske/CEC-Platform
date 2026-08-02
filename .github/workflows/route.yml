@@ -23,19 +23,18 @@ on:
   workflow_dispatch:
     inputs:
       board:
-        description: "Module to route (dir under modules/)"
+        description: "Authoritative BETA board to route (dir under beta/)"
         type: choice
         default: eps-8pin
         options:
           - eps-8pin
+          - eps-8pin-rev3
           - pcie-8pin-2port
           - pcie-8pin-3port
           - 12vhpwr-standard
-          - atx-24pin
-          # rev2 is the current 24-pin line (QUILTER-CONSTRAINTS.md). NOTE: Freerouting on
-          # rev2 must honor the same locked placements Quilter is forbidden to move
-          # (connectors, shunts, INAs, U1 region); placement edits only via apply_edit (R-07).
-          - atx-24pin-rev2
+          - atx-24pin-rev3
+          - argb-standard
+          - hub-standard-rev2
       seeds:
         description: "Comma-separated Freerouting param-variant seeds"
         default: "0,1,2,3"
@@ -68,7 +67,7 @@ jobs:
     timeout-minutes: 180
     env:
       # Optional: set repo/org variable CEC_FREEROUTING_JAR to a local jar to skip the
-      # one-time download. Otherwise cec_fr.ensure_jar() downloads the pinned v1.7.0.
+      # hash-verified cec2 artifact. See ops/README-fr-fork.md for the exact rebuild.
       CEC_FREEROUTING_JAR: ${{ vars.CEC_FREEROUTING_JAR }}
     steps:
       - name: Checkout
