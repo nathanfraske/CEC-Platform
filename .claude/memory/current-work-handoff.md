@@ -1,5 +1,15 @@
 # Current work handoff
 
+## MODULAR-DESKTOP GRAIN RULED (2026-07-25 ~16:00Z) — uATX commodity tray
+Owner closed the cartridge sub-thread: ship a MicroATX-adjacent COMMODITY board,
+slot whatever — no Framework/COM dependency (both demoted to alternates in the idea
+record). Grain = board-in-a-tray; boards seen once a generation (CPU/RAM upgrade),
+day-to-day modularity stays no-wire via the cable-delete interposer; PDB backplane,
+blade docks, QD water, cooling cartridge, CEC nervous system all carry over. Idea
+record only (post-beta). NOTE: branch claude/pipeline-pass-2 was merged+deleted
+upstream mid-session; recreated by push (merged history + new idea commits — PRs show
+only new diffs); optional main+N tidy via force-with-lease = owner-gated, offered.
+
 ## MODULAR-DESKTOP RIFF 3 — PRICING + QD WATER (2026-07-25 ~15:40Z, idea record only)
 Owner: COM-HPC sounds pricey (CONFIRMED: call-for-pricing, $800-2500+ industrial class)
 -> demoted to the longevity option. CONSUMER-PRICED cartridge cores: Framework Desktop
