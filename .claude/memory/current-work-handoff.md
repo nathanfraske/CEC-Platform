@@ -1,5 +1,18 @@
 # Current work handoff
 
+## MODULAR-DESKTOP RIFF 3 — PRICING + QD WATER (2026-07-25 ~15:40Z, idea record only)
+Owner: COM-HPC sounds pricey (CONFIRMED: call-for-pricing, $800-2500+ industrial class)
+-> demoted to the longevity option. CONSUMER-PRICED cartridge cores: Framework Desktop
+Mainboard $799 STANDALONE (16-core Strix Halo, mini-ITX mount, trusted + docs culture;
+caveat: soldered LPDDR5X -> RAM upgrade = cartridge swap) / Framework Laptop 13-16
+boards from $449 (SO-DIMM = glovebox hatch works; FW16 expansion-bay spec published).
+Workstation grain = wrap socketed mini-ITX AM5/W680 (commodity). QD WATER: dry-break
+QDs mature + cheap (Koolance QD3/4 ~$20-40/pair, CPC NS, Staubli); server DLC racks
+blind-mate them at scale (Cray EX / Lenovo Neptune = the pattern); cartridge face = 2
+QD ports beside power blades + PCIe, ONE insertion mates power+data+coolant; cooling
+module (pump/res/rad) = its own cartridge; CEC = loop telemetry on CAN (flow/dT/pump-I/
+leak), dry-break + tray + flow-anomaly = defense in depth. FOLLOWUPS updated.
+
 ## MODULAR-DESKTOP RIFF 2 — COMPUTE CARTRIDGE (2026-07-25 ~15:10Z, idea record only)
 Owner: "CPU or RAM upgrade without seeing boards?" ANSWER: DDR reach physics (mm-class
 CPU<->RAM) forbids RAM-alone docking -> the natural sealed grain = CPU+VRM+RAM in ONE
