@@ -4994,7 +4994,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B105KO8NNNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -14758,7 +14758,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B105KO8NNNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")

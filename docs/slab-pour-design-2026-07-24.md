@@ -1,6 +1,13 @@
-# Slab-pour architecture — subtractive power copper (owner concept, 2026-07-24)
+# Slab-pour architecture: subtractive power copper (owner concept, 2026-07-24)
 
-**Status: RATIFIED DIRECTION (owner, 2026-07-24 in-session), implementation queued.**
+> **Implementation status, 2026-08-02.** The declared-current slab allocator,
+> minimum-width gate, current-source provenance, pickup synthesis, stale-zone
+> removal, and fail-closed Hub rebuild path are implemented. The system does not
+> claim that every present placement is pourable. Current Hub and ATX diagnostics
+> stop on missing anchors, current-source conflicts, or minimum-width failures.
+> See `beta-placement-passives-audit-2026-08-02.md` for measured results.
+
+**Status: RATIFIED DIRECTION (owner, 2026-07-24 in-session), partially implemented and gated.**
 Owner's concept, verbatim intent: *"make a pour just a giant slab, intentional
 overshoot in all directions, and progressively shave off areas of it until it fits
 and doesn't take up more space than it needs, and no cross-section on it is less

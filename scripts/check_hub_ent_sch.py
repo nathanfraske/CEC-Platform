@@ -580,6 +580,7 @@ def main():
     _, ext_out = net_named(nets, "EXT_EF_OUT")
     _, stage_a = net_named(nets, "STAGE_A_OUT")
     _, sys5v = net_named(nets, "+5V_SYS")
+    _, gnd = net_named(nets, "GND")
 
     check({("U101", "4"), ("U101", "5"), ("U101", "6"), ("U101", "7"), ("U101", "8")} <= main_out,
           "U_EF1 (MAIN_5V eFuse) OUT pins 4-8 tied together")
@@ -591,11 +592,13 @@ def main():
           "U_EF2.OUT -> U_PC1 (stage A) PR1/IN1 (5VSB is stage-A's priority input)")
     check({("U103", "4"), ("U103", "5"), ("U103", "6"), ("U103", "7"), ("U103", "8")} <= ext_out,
           "U_EF3 (EXT eFuse) OUT pins 4-8 tied together")
-    check(("U104", "2") in ext_out and ("U104", "3") in ext_out,
-          "U_EF3.OUT -> U_PC1 (stage A) IN2/CP2 (EXT is stage-A's non-priority input)")
+    check(("U104", "2") in ext_out and ("U104", "3") not in ext_out,
+          "U_EF3.OUT -> U_PC1 (stage A) IN2 only")
     check(("U104", "1") in stage_a and ("U104", "8") in stage_a
-          and ("U105", "2") in stage_a and ("U105", "3") in stage_a,
-          "U_PC1 (stage A) OUT -> U_PC2 (stage B) IN2/CP2 (cascade chain)")
+          and ("U105", "2") in stage_a and ("U105", "3") not in stage_a,
+          "U_PC1 (stage A) OUT -> U_PC2 (stage B) IN2 only")
+    check({("U104", "3"), ("U105", "3")} <= gnd,
+          "both TPS2121 CP2 pins tied to GND for fixed-priority operation")
     check(("U105", "1") in sys5v and ("U105", "8") in sys5v,
           "U_PC2 (stage B) OUT -> +5V_SYS (merged system rail)")
 

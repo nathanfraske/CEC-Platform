@@ -1,5 +1,5 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-"C1,C2",2,1uF,C_0603_1608Metric,CL10B105KO8NNNC,Samsung,C15849,,,,,,
+"C1,C2",2,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,,,,
 "C3,C4,C5,C8,C10,C11,C12,C20,C21,C22,C30,C31,C32,C40,C43",15,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,U4 IN2 (VBUS) bypass.
 C41,1,100nF,C_0402_1005Metric,,,,,,,,,
 C42,1,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,,,,"U4 soft-start cap (~10ms output ramp, hub-proven value)."

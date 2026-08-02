@@ -175,19 +175,20 @@ def board_thermal_config(board_path, board_hint=None):
         ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
         return nc, profile_stackup, ov, None
     if "hub-standard" in name or "hub" in name.split("-")[0:1]:
-        # HUB ENTRY (2026-07-23, closes the FOLLOWUPS 2026-07-22 gap that made
-        # every hub new-best stamp read dT=0 "INJECTION INCOMPLETE"): the hub
-        # has no J_IN/J_OUT or *_HI cable anatomy, so the generic defaults
-        # never injected anything. Currents = the §2.5/OQ-2 basis: the 5VSB
-        # trunk carries ~3A worst case (4 ports x ~0.5A + the hub's own LEDs +
-        # MCU under the firmware cap) J1 -> mux -> star; each port VCC branch
-        # ~0.5A; MAIN_5V feed ~2A (J_5V -> U7 mux); USB VBUS ~0.5A. GND = the
-        # ~3A aggregate return to the power-in. Stackup = the board-class
-        # ruling (2026-06-14): ONE inner GND plane + one inner SIGNAL layer,
-        # 1oz inners, 2oz outers. cooling=None (still-air conservative): the
-        # enclosed Hub case model (RGB shine-through, §4) is an owner rung --
-        # still-air is the honest bound until then.
+        # The Hub has no J_IN/J_OUT or *_HI cable anatomy, so it needs an
+        # explicit source/sink map. Currents remain the existing §2.5/OQ-2
+        # design basis: about 3 A on the shared path, 0.5 A per protected port,
+        # 2 A on MAIN_5V, and 0.5 A on USB VBUS. The map below follows the
+        # exported rev2 netlist's actual cascade:
+        #
+        #   U5 OUT -> U11 IN1 -> U11 OUT -> U7 IN2 -> U7 OUT
+        #          -> F1..F4 -> J2..J5
+        #
+        # Stackup comes only from the approved fabrication profile. For the
+        # Hub that is JLC06161H-3313: 1 oz outer and 0.5 oz inner copper.
+        # cooling=None keeps the still-air bound until the enclosure is known.
         nc = {"+5VSB": 3.0, "/5VSB_RAW": 3.0, "/PSU_5V": 3.0,
+              "/PSU_5V_KVM": 3.0,
               "/MAIN_5V_RAW": 2.0, "/+5V_HOLD": 1.0, "/USB_VBUS": 0.5,
               "/VCC_P1": 0.5, "/VCC_P2": 0.5, "/VCC_P3": 0.5, "/VCC_P4": 0.5,
               "GND": 3.0}
@@ -197,15 +198,16 @@ def board_thermal_config(board_path, board_hint=None):
         # dropped "no src/sink terminals").
         ov = {
             "/5VSB_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
-            "/PSU_5V": {"refs_src": ["U5"], "refs_sink": ["U7"]},
+            "/PSU_5V": {"refs_src": ["U5"], "refs_sink": ["U11"]},
+            "/PSU_5V_KVM": {"refs_src": ["U11"], "refs_sink": ["U7"]},
             "/MAIN_5V_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
-            "+5VSB": {"refs_src": ["U7"], "refs_sink": ["J2", "J3", "J4", "J5"]},
+            "+5VSB": {"refs_src": ["U7"], "refs_sink": ["F1", "F2", "F3", "F4"]},
             "/+5V_HOLD": {"refs_src": ["D1"], "refs_sink": ["U3"]},
             "/USB_VBUS": {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
-            "/VCC_P1": {"refs_src": ["U7"], "refs_sink": ["J2"]},
-            "/VCC_P2": {"refs_src": ["U7"], "refs_sink": ["J3"]},
-            "/VCC_P3": {"refs_src": ["U7"], "refs_sink": ["J4"]},
-            "/VCC_P4": {"refs_src": ["U7"], "refs_sink": ["J5"]},
+            "/VCC_P1": {"refs_src": ["F1"], "refs_sink": ["J2"]},
+            "/VCC_P2": {"refs_src": ["F2"], "refs_sink": ["J3"]},
+            "/VCC_P3": {"refs_src": ["F3"], "refs_sink": ["J4"]},
+            "/VCC_P4": {"refs_src": ["F4"], "refs_sink": ["J5"]},
             "GND": {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
                     "refs_sink": ["J_PWR"]},
         }

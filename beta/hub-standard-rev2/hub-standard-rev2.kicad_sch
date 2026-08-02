@@ -7404,16 +7404,9 @@
 		)
 		(uuid "44620923-14c4-4971-a540-9ed2895e2e57")
 	)
-	(wire
-		(pts
-			(xy 384.81 115.57) (xy 384.81 118.11)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "449872ef-abfa-4dab-a937-daba4b6b4ddf")
-	)
+	(label "GND" (at 384.81 115.57 180)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "449872ef-abfa-4dab-a937-daba4b6b4ddf"))
 	(wire
 		(pts
 			(xy 292.1 71.12) (xy 288.29 71.12)
@@ -9455,7 +9448,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 242.57 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -9477,7 +9470,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "XKB" (at 0 0 0)
+		(property "Manufacturer" "XUNPU" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10141,7 +10134,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Espressif" (at 0 0 0)
+		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10487,7 +10480,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 76.2 118.11 0)
 			(hide yes)
 			(show_name no)
@@ -10509,7 +10502,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Nexperia" (at 0 0 0)
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11376,7 +11369,7 @@
 		(property "Reference" "D6" (at 267.9747 245.09 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "USBLC6-2SC6" (at 267.9747 247.29 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UMW" (at 0 0 0)
 			(effects
 				(font
@@ -12438,7 +12431,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 76.2 179.07 0)
 			(hide yes)
 			(show_name no)
@@ -12460,7 +12453,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Nexperia" (at 0 0 0)
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13805,7 +13798,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf"
 			(at 299.72 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -14157,7 +14150,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/gpn/tps2121"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf"
 			(at 402.59 113.03 0)
 			(hide yes)
 			(show_name no)
@@ -15646,7 +15639,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C2683360.pdf"
 			(at 560.07 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -15848,7 +15841,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 242.57 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -15870,7 +15863,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "XKB" (at 0 0 0)
+		(property "Manufacturer" "XUNPU" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16304,7 +16297,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
 			(at 430.53 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -16325,7 +16318,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "NXP" (at 0 0 0)
+		(property "Manufacturer" "NXP Semiconductors" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16333,7 +16326,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "TJA1051T/3" (at 0 0 0)
+		(property "MPN" "TJA1051T/3/1J" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17108,7 +17101,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 76.2 138.43 0)
 			(hide yes)
 			(show_name no)
@@ -17130,7 +17123,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Nexperia" (at 0 0 0)
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17604,7 +17597,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C2683360.pdf"
 			(at 560.07 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -18351,7 +18344,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C2683360.pdf"
 			(at 560.07 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -18903,7 +18896,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps3839.pdf"
 			(at 154.94 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -19820,7 +19813,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/lp5907.pdf"
 			(at 355.6 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -19931,7 +19924,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C2683360.pdf"
 			(at 560.07 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -20057,7 +20050,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 76.2 158.75 0)
 			(hide yes)
 			(show_name no)
@@ -20079,7 +20072,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Nexperia" (at 0 0 0)
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20427,7 +20420,7 @@
 		(property "Reference" "U6" (at 118.7276 331.45 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "SN74AHCT1G08" (at 118.7276 333.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 134.62 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 134.62 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74ahct1g08.pdf" (at 134.62 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
@@ -20665,7 +20658,7 @@
 		(property "Reference" "U7" (at 119.38 340.6445 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TPS2121RUXR" (at 119.38 342.8445 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 119.38 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 119.38 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 119.38 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
@@ -21086,7 +21079,7 @@
 	(label "MAIN_5V_RAW" (at 97.79 349.25 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "634512f2-85f3-4b53-b1de-dab3e8ccf61d"))
 	(label "MAIN_5V_RAW" (at 199.39 363.22 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "98b28c7b-659f-4746-a34b-b3a0f3f287cb"))
 	(label "PSU_5V_KVM" (at 97.79 377.19 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "3a81234e-f2c8-4055-90b6-54bddf8143c4"))
-	(label "PSU_5V_KVM" (at 97.79 372.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "91728d99-c79f-4633-a1ef-0a9a0fefbc4f"))
+	(label "GND" (at 97.79 372.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "91728d99-c79f-4633-a1ef-0a9a0fefbc4f"))
 	(label "U7_ILM" (at 140.97 379.73 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "54923960-db1d-47de-be6c-816cb0688c67"))
 	(label "U7_ILM" (at 149.86 363.22 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a5c2cb92-83a3-4986-8135-2f419951a7b4"))
 	(label "U7_SS" (at 140.97 374.65 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "2bc39b90-cc82-46d6-80aa-8b2f30bf6e77"))
@@ -21646,8 +21639,8 @@
 		(property "Reference" "D7" (at 331.47 367.3145 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "PESD5V0S1BA" (at 331.47 369.5145 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Nexperia" (at 0 0 0)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -22191,7 +22184,7 @@
 		(property "Reference" "U8" (at 500.38 347.98 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TLV7011DBVR" (at 500.38 363.22 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 500.38 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 500.38 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf" (at 500.38 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "W12 (owner ruling H1, 2026-07-03): 5V-drop hardware comparator for the persist-on-fault trigger. IN+ = the existing R15/R16 MAIN_5V_SENSE divider node; IN- = the new R26/R27 threshold divider off +3V3 (~0.75V, ~4.3V MAIN_5V trip); OUT -> PWR_FAIL_INT -> a free ESP32 GPIO (see report for candidate pin)." (at 500.38 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TLV7011DBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -22635,9 +22628,9 @@
 		(property "Reference" "D8" (at 386.08 232.41 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "SMAJ5.0A" (at 386.08 234.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C113952.pdf" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "SMAJ5.0A" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "generic (LCSC pick)" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "MDD (Microdiode Semiconductor)" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C113952" (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry." (at 386.08 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "63c005c5-7db5-4191-9587-1b65fef5b88e"))
@@ -22684,9 +22677,9 @@
 		(property "Reference" "D9" (at 406.4 232.41 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "SMAJ5.0A" (at 406.4 234.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C113952.pdf" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "SMAJ5.0A" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "generic (LCSC pick)" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "MDD (Microdiode Semiconductor)" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C113952" (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry." (at 406.4 247.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "abcf29c4-2b3a-4feb-afae-e25c960dc987"))
@@ -23123,7 +23116,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "2b2645a5-2388-4372-8841-f1da52635b7d")
 		(property "Reference" "J6P" (at 340.36 234.95 0) (effects (font (size 1.27 1.27))))
@@ -23132,7 +23125,7 @@
 		(property "Datasheet" "" (at 340.36 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "PinHeader 2x03 2.54mm THT (generic)" (at 340.36 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "generic" (at 340.36 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (power segment); supersedes the 2026-07-15 column-paired 2x08 map (flip-invariance premise retired by the 2026-07-19 no-flip ruling). THT + DNP -- facing/assembly per the stack doc." (at 340.36 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (power segment); supersedes the 2026-07-15 column-paired 2x08 map. Fitted per docs/decisions/owner-session-2026-08-01.md. Exact mating header/socket MPN and stack height remain owner selections." (at 340.36 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "aa0fbf45-24f4-4883-9068-a65830168c08"))
 		(pin "2" (uuid "48220bcd-a400-4192-acf5-43881c87de28"))
 		(pin "3" (uuid "bb5b9bcb-6322-46a4-a736-57a3b615a975"))
@@ -23272,7 +23265,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "760c96c4-5fc1-4d9c-a76b-5fcdc7818691")
 		(property "Reference" "J6C" (at 340.36 265.43 0) (effects (font (size 1.27 1.27))))
@@ -23281,7 +23274,7 @@
 		(property "Datasheet" "" (at 340.36 280.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "PinHeader 2x04 2.54mm THT (generic)" (at 340.36 280.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "generic" (at 340.36 280.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (comms segment). STREAM_P/STREAM_N (pins 4/6) intentionally unconnected -- Standard-tier hub carries no RS-485 pair; forward-compat provision only, matches the 24-pin side's unconnected STREAM pads." (at 340.36 280.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (comms segment), fitted per docs/decisions/owner-session-2026-08-01.md. STREAM_P/STREAM_N (pins 4/6) are intentionally unconnected on both Standard-tier boards. Exact mating header/socket MPN and stack height remain owner selections." (at 340.36 280.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "b550e151-b68c-432b-8035-3e4d4a1bdf06"))
 		(pin "2" (uuid "b19ff92d-f2d9-4c5c-adc4-4fd8addbce1c"))
 		(pin "3" (uuid "92421d72-9d6f-42a8-8062-23f6bebeb405"))
@@ -23391,7 +23384,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp yes)
+		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "c71d5b43-20df-47fc-9ebe-dfac2fc0b740")
 		(property "Reference" "J6D" (at 340.36 295.91 0) (effects (font (size 1.27 1.27))))
@@ -23400,7 +23393,7 @@
 		(property "Datasheet" "" (at 340.36 311.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "PinHeader 2x02 2.54mm THT (generic)" (at 340.36 311.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "generic" (at 340.36 311.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (ID segment). RSVD (pin 3) intentionally unconnected -- reserved spare, no net on this board. DETECT ties to /DETECT1 (hub port-1 detect line; role match is what mates, not the literal name)." (at 340.36 311.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (ID segment), fitted per docs/decisions/owner-session-2026-08-01.md. RSVD (pin 3) is intentionally unconnected. DETECT ties to /DETECT1. Exact mating header/socket MPN and stack height remain owner selections." (at 340.36 311.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7fc3b876-3f2c-4d12-9dcd-43cd898efcf4"))
 		(pin "2" (uuid "983f0aaa-3709-4467-823b-c0c1f112f0cb"))
 		(pin "3" (uuid "3f2bed00-d280-4c62-ba2d-a7814c507f19"))
@@ -23501,7 +23494,7 @@
 		(property "Reference" "U11" (at 679.45 44.45 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TPS2121RUXR" (at 679.45 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TPS2121RUXR" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C485916" (at 679.45 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -23534,7 +23527,7 @@
 	(label "KVM_5V_IN" (at 657.86 67.31 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "356d745b-460a-4551-a7ac-295f1e2b6052"))
 	(wire (pts (xy 661.67 62.23) (xy 657.86 62.23))
 		(stroke (width 0) (type default)) (uuid "4dfd951e-904c-4d95-89a1-a54e4c5c32c4"))
-	(label "KVM_5V_IN" (at 657.86 62.23 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4b7e1f47-b361-45f2-8c2b-76b1fb1de340"))
+	(label "GND" (at 657.86 62.23 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4b7e1f47-b361-45f2-8c2b-76b1fb1de340"))
 	(wire (pts (xy 661.67 80.01) (xy 657.86 80.01))
 		(stroke (width 0) (type default)) (uuid "2d43739a-871c-4b7f-bc85-7a885393bebb"))
 	(symbol
@@ -23753,7 +23746,7 @@
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "CL21A106KAYNNNE" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL10A106MA8NRNC" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C96446" (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line." (at 655.32 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7d63155d-96ad-4e29-a9b5-a5e31d41c763"))

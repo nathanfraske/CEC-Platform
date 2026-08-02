@@ -157,7 +157,7 @@ PSU-facing stage as well; the ratified package protects the logic rail via U6 al
 | ADD | C22, C23 | 100 nF 0402 / 10 µF 0603 | C1525 / C96446 | U11 IN2 bypass/bulk (hub's own 0603 10 µF line) |
 | NET MOVE | J_KVM pin 1 | +5VSB → /KVM_5V_IN | — | The raw rail tap is retired; the pin becomes inbound-only (spec §2.9/§4 v1.6.0). D7 (PESD on the 3V3 ref pin) unchanged |
 | NET MOVE | U7 pin 2 (IN2) | /PSU_5V → U11.OUT | — | Completes MAIN_5V > 5VSB > USB > KVM |
-| STRAP | — | U11 PR1/CP2/OV1/OV2/ST | — | Mirror the as-built U5/U7 strap style; 100 k/33 k (C25741/C25779) if a PR1 divider is used — note the rev2 BOM carries no 100 k line today, so that would be a new line |
+| STRAP | U11 | PR1/CP2/OV1/OV2/ST | Existing support parts | Corrected 2026-08-02 from the TI TPS2121 fixed-priority table and exported netlist: PR1 follows IN1, CP2 is GND, OV2 is GND, OV1 uses the fitted divider, and ST is unused. U5 and U7 use the same CP2-low fixed-priority mode. |
 
 ## 4. Cost delta (100-qty class)
 

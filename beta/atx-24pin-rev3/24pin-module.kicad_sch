@@ -1688,7 +1688,7 @@
 						(type none)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 33.02 0)
 					(length 2.54)
 					(name "GND"
@@ -1706,7 +1706,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 30.48 0)
 					(length 2.54)
 					(name "GND"
@@ -1724,7 +1724,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 27.94 0)
 					(length 2.54)
 					(name "3V3"
@@ -1742,7 +1742,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 25.4 0)
 					(length 2.54)
 					(name "NC"
@@ -1760,7 +1760,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 22.86 0)
 					(length 2.54)
 					(name "IO2"
@@ -1778,7 +1778,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 20.32 0)
 					(length 2.54)
 					(name "IO3"
@@ -1796,7 +1796,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 17.78 0)
 					(length 2.54)
 					(name "NC"
@@ -1814,7 +1814,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin input line
 					(at -11.43 15.24 0)
 					(length 2.54)
 					(name "EN"
@@ -1832,7 +1832,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 12.7 0)
 					(length 2.54)
 					(name "IO4"
@@ -1850,7 +1850,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 10.16 0)
 					(length 2.54)
 					(name "IO5"
@@ -1868,7 +1868,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 7.62 0)
 					(length 2.54)
 					(name "GND"
@@ -1886,7 +1886,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 5.08 0)
 					(length 2.54)
 					(name "IO0"
@@ -1904,7 +1904,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 2.54 0)
 					(length 2.54)
 					(name "IO1"
@@ -1922,7 +1922,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 0 0)
 					(length 2.54)
 					(name "GND"
@@ -1940,7 +1940,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -2.54 0)
 					(length 2.54)
 					(name "IO6"
@@ -1958,7 +1958,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -5.08 0)
 					(length 2.54)
 					(name "IO7"
@@ -1976,7 +1976,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -7.62 0)
 					(length 2.54)
 					(name "IO12"
@@ -1994,7 +1994,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -10.16 0)
 					(length 2.54)
 					(name "IO13"
@@ -2012,7 +2012,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -12.7 0)
 					(length 2.54)
 					(name "IO14"
@@ -2030,7 +2030,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -15.24 0)
 					(length 2.54)
 					(name "IO15"
@@ -2048,7 +2048,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 -17.78 0)
 					(length 2.54)
 					(name "NC"
@@ -2066,7 +2066,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -20.32 0)
 					(length 2.54)
 					(name "IO8"
@@ -2084,7 +2084,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -22.86 0)
 					(length 2.54)
 					(name "IO9"
@@ -2102,7 +2102,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -25.4 0)
 					(length 2.54)
 					(name "IO18"
@@ -2120,7 +2120,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -27.94 0)
 					(length 2.54)
 					(name "IO19"
@@ -2138,7 +2138,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -30.48 0)
 					(length 2.54)
 					(name "IO20"
@@ -2156,7 +2156,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -33.02 0)
 					(length 2.54)
 					(name "IO21"
@@ -2174,7 +2174,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -31.75 180)
 					(length 2.54)
 					(name "IO22"
@@ -2192,7 +2192,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -29.21 180)
 					(length 2.54)
 					(name "IO23"
@@ -2210,7 +2210,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -26.67 180)
 					(length 2.54)
 					(name "RXD0"
@@ -2228,7 +2228,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -24.13 180)
 					(length 2.54)
 					(name "TXD0"
@@ -2246,7 +2246,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -21.59 180)
 					(length 2.54)
 					(name "NC"
@@ -2264,7 +2264,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -19.05 180)
 					(length 2.54)
 					(name "NC"
@@ -2282,7 +2282,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -16.51 180)
 					(length 2.54)
 					(name "NC"
@@ -2300,7 +2300,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -13.97 180)
 					(length 2.54)
 					(name "NC"
@@ -2318,7 +2318,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -11.43 180)
 					(length 2.54)
 					(name "GND"
@@ -2336,7 +2336,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -8.89 180)
 					(length 2.54)
 					(name "GND"
@@ -2354,7 +2354,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -6.35 180)
 					(length 2.54)
 					(name "GND"
@@ -2372,7 +2372,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -3.81 180)
 					(length 2.54)
 					(name "GND"
@@ -2390,7 +2390,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -1.27 180)
 					(length 2.54)
 					(name "GND"
@@ -2408,7 +2408,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 1.27 180)
 					(length 2.54)
 					(name "GND"
@@ -2426,7 +2426,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 3.81 180)
 					(length 2.54)
 					(name "GND"
@@ -2444,7 +2444,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 6.35 180)
 					(length 2.54)
 					(name "GND"
@@ -2462,7 +2462,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 8.89 180)
 					(length 2.54)
 					(name "GND"
@@ -2480,7 +2480,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 11.43 180)
 					(length 2.54)
 					(name "GND"
@@ -2498,7 +2498,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 13.97 180)
 					(length 2.54)
 					(name "GND"
@@ -2516,7 +2516,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 16.51 180)
 					(length 2.54)
 					(name "GND"
@@ -2534,7 +2534,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 19.05 180)
 					(length 2.54)
 					(name "GND"
@@ -2552,7 +2552,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 21.59 180)
 					(length 2.54)
 					(name "GND"
@@ -2570,7 +2570,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 24.13 180)
 					(length 2.54)
 					(name "GND"
@@ -2588,7 +2588,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 26.67 180)
 					(length 2.54)
 					(name "GND"
@@ -2606,7 +2606,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 29.21 180)
 					(length 2.54)
 					(name "GND"
@@ -2624,7 +2624,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 31.75 180)
 					(length 2.54)
 					(name "GND"
@@ -13127,6 +13127,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 388.62 81.28 0)
 			(show_name no)
@@ -13293,6 +13295,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 110.49 267.97 0)
 			(show_name no)
@@ -13371,7 +13375,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf"
 			(at 44.45 275.59 0)
 			(hide yes)
 			(show_name no)
@@ -13382,6 +13386,8 @@
 				)
 			)
 		)
+		(property "MPN" "U262-161N-4BVC11" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XKB Connection" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 44.45 275.59 0)
 			(show_name no)
@@ -14426,7 +14432,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
 			(at 311.15 278.13 0)
 			(hide yes)
 			(show_name no)
@@ -14437,6 +14443,8 @@
 				)
 			)
 		)
+		(property "MPN" "TJA1051T/3/1J" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "NXP Semiconductors" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 311.15 278.13 0)
 			(show_name no)
@@ -14680,7 +14688,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
 			(at 85.09 213.36 0)
 			(hide yes)
 			(show_name no)
@@ -14975,6 +14983,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 185.42 115.57 0)
 			(show_name no)
@@ -15174,7 +15184,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 364.49 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -15185,6 +15195,8 @@
 				)
 			)
 		)
+		(property "MPN" "TLV7011DBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 364.49 78.74 0)
 			(show_name no)
@@ -15831,7 +15843,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 245.11 275.59 0)
 			(hide yes)
 			(show_name no)
@@ -15842,6 +15854,8 @@
 				)
 			)
 		)
+		(property "MPN" "PESD5V0S1BA" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "HXY MOSFET" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 245.11 275.59 0)
 			(show_name no)
@@ -16439,7 +16453,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 95.25 289.56 0)
 			(hide yes)
 			(show_name no)
@@ -16450,6 +16464,8 @@
 				)
 			)
 		)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XUNPU" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 95.25 289.56 0)
 			(show_name no)
@@ -16890,7 +16906,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C157931.pdf"
 			(at 182.88 292.1 0)
 			(hide yes)
 			(show_name no)
@@ -16901,6 +16917,9 @@
 				)
 			)
 		)
+		(property "LCSC" "C157931" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "S2B-XH-A(LF)(SN)" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "JST" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 182.88 292.1 0)
 			(show_name no)
@@ -17066,6 +17085,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 226.06 182.88 0)
 			(show_name no)
@@ -17598,6 +17619,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 323.85 81.28 0)
 			(show_name no)
@@ -17677,7 +17700,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 69.85 289.56 0)
 			(hide yes)
 			(show_name no)
@@ -17688,6 +17711,8 @@
 				)
 			)
 		)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XUNPU" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 69.85 289.56 0)
 			(show_name no)
@@ -18283,7 +18308,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 294.64 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -18294,6 +18319,8 @@
 				)
 			)
 		)
+		(property "MPN" "INA181A2IDBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 294.64 110.49 0)
 			(show_name no)
@@ -18510,6 +18537,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 233.68 195.58 0)
 			(show_name no)
@@ -18774,7 +18803,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 160.02 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -19372,7 +19401,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf"
 			(at 69.85 335.28 0)
 			(hide yes)
 			(show_name no)
@@ -19393,7 +19422,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Diodes Inc / PANJIT (platform part)"
+		(property "Manufacturer" "HXY MOSFET"
 			(at 69.85 335.28 0)
 			(hide yes)
 			(show_name no)
@@ -20518,6 +20547,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 234.95 54.61 0)
 			(show_name no)
@@ -21244,7 +21275,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 160.02 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -22903,7 +22934,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 364.49 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -22914,6 +22945,8 @@
 				)
 			)
 		)
+		(property "MPN" "TLV7011DBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 364.49 110.49 0)
 			(show_name no)
@@ -23150,7 +23183,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 294.64 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -23161,6 +23194,8 @@
 				)
 			)
 		)
+		(property "MPN" "INA181A2IDBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 294.64 78.74 0)
 			(show_name no)
@@ -23340,6 +23375,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 96.52 190.5 0)
 			(show_name no)
@@ -23650,7 +23687,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 160.02 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -24059,7 +24096,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/lp5907.pdf"
 			(at 170.18 195.58 0)
 			(hide yes)
 			(show_name no)
@@ -24070,6 +24107,8 @@
 				)
 			)
 		)
+		(property "MPN" "LP5907MFX-3.3/NOPB" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 170.18 195.58 0)
 			(show_name no)
@@ -24244,6 +24283,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 317.5 264.16 0)
 			(show_name no)
@@ -24558,6 +24599,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 185.42 85.09 0)
 			(show_name no)
@@ -24769,6 +24812,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 323.85 113.03 0)
 			(show_name no)
@@ -25106,6 +25151,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 219.71 182.88 0)
 			(show_name no)
@@ -25584,6 +25631,8 @@
 				)
 			)
 		)
+		(property "MPN" "TPS2121RUXR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 55.88 201.93 0)
 			(show_name no)
@@ -25695,7 +25744,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C2683360.pdf"
 			(at 180.34 275.59 0)
 			(hide yes)
 			(show_name no)
@@ -25706,6 +25755,8 @@
 				)
 			)
 		)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Kinghelm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 180.34 275.59 0)
 			(show_name no)
@@ -26016,6 +26067,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 388.62 54.61 0)
 			(show_name no)
@@ -26781,6 +26834,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 283.21 287.02 0)
 			(show_name no)
@@ -26860,7 +26915,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://documentation.espressif.com/esp32-c6-mini-1_mini-1u_datasheet_en.pdf"
 			(at 275.59 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -26871,6 +26926,8 @@
 				)
 			)
 		)
+		(property "MPN" "ESP32-C6-MINI-1-N4" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Espressif Systems" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 275.59 204.47 0)
 			(show_name no)
@@ -27452,6 +27509,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 388.62 113.03 0)
 			(show_name no)
@@ -27703,7 +27762,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "generic"
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 284.48 346.71 0)
 			(hide yes)
 			(show_name no)
@@ -27714,7 +27773,7 @@
 				)
 			)
 		)
-		(property "MPN" "0R 0402 jumper"
+		(property "MPN" "0402WGF0000TCE"
 			(at 284.48 346.71 0)
 			(hide yes)
 			(show_name no)
@@ -27933,7 +27992,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 209.55 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -28093,6 +28152,8 @@
 				)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 185.42 54.61 0)
 			(show_name no)
@@ -28330,7 +28391,9 @@
 			)
 		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 294.64 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 294.64 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf" (at 294.64 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA181A2IDBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "1979da37-b573-4705-9a23-74db23ed257b"))
 		(pin "2" (uuid "05c9f901-4146-4906-b0f6-d16af57dc202"))
 		(pin "3" (uuid "cf81750e-6a4e-46ac-94c9-6d98fa1f3395"))
@@ -28437,6 +28500,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 323.85 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ee2de3f2-4850-44b4-b458-0c93eedc565f"))
 		(pin "2" (uuid "325933a4-db49-456e-925c-7c76c3aaa0f2"))
 		(instances
@@ -28509,7 +28574,9 @@
 			)
 		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 364.49 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 364.49 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf" (at 364.49 142.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TLV7011DBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7e1e1bae-5eee-4222-b3ea-851c3feaa8c2"))
 		(pin "2" (uuid "34102f78-dd48-41f5-b283-d225c62114fd"))
 		(pin "3" (uuid "5287bd25-746b-4ebe-8f3f-cf176ffe32b8"))
@@ -28594,7 +28661,9 @@
 			)
 		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 294.64 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 294.64 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf" (at 294.64 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA181A2IDBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6485b706-246b-45b4-ae9a-de44b377e665"))
 		(pin "2" (uuid "077a7b42-1e5a-41b0-b0fe-623d18523999"))
 		(pin "3" (uuid "d49e3a9d-865a-454b-a9a2-635485e0d8eb"))
@@ -28774,6 +28843,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 323.85 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "b129732c-abb2-42b1-a689-5819318e6528"))
 		(pin "2" (uuid "0e455e9f-1afa-4276-9a71-697e11c92558"))
 		(instances
@@ -28846,7 +28917,9 @@
 			)
 		)
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 364.49 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 364.49 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf" (at 364.49 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TLV7011DBVR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "f521be64-8d09-4a2d-8ea8-510e98bb84e8"))
 		(pin "2" (uuid "c6aa67c2-7fa8-401d-9b3b-52c3d8303fbd"))
 		(pin "3" (uuid "838b22d8-0157-417b-910d-eb19607317da"))
@@ -28938,6 +29011,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 69.85 300.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 300.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "5288eca4-54af-4c03-a408-c80085a14a80"))
 		(pin "2" (uuid "b09aea75-1600-402d-9aab-219f14fec16e"))
 		(instances
@@ -29039,6 +29114,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 388.62 144.78 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 144.78 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7d393406-50dc-4a6c-99f0-6d6b4e57fcc7"))
 		(pin "2" (uuid "651fd9f3-156a-4187-a47b-c52b7ed2b2f1"))
 		(instances
@@ -29112,6 +29189,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 388.62 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "0b359762-66b2-421e-86aa-9abaca7869a5"))
 		(pin "2" (uuid "4fee9d2a-ac82-4429-a9e6-0866797a1714"))
 		(instances
@@ -29306,6 +29385,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 384.81 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 384.81 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "2577c0e6-ece7-4637-96a4-77029843102e"))
 		(pin "2" (uuid "8486d7aa-74cf-4334-bb03-dbfb18aba3d8"))
 		(instances
@@ -29367,9 +29448,9 @@
 		(property "Reference" "D4" (at 393.7 237.49 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "PESD5V0S1BA" (at 393.7 224.45 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "PESD5V0S1BA" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Diodes Inc / PANJIT (platform part)" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "HXY MOSFET" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C5261083" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "PWR_OK ESD clamp (owner 2026-07-14: clamp both signal taps; DETECT-pin posture)" (at 393.7 252.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "edd26316-28b1-4bd9-acdc-e3b45bb8cf70"))
@@ -29536,6 +29617,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 384.81 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 384.81 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "2f5f90b3-65b9-42ed-be01-1e6e06e76c71"))
 		(pin "2" (uuid "eeedec1c-d720-4502-ae31-670f03dd6c4c"))
 		(instances
@@ -29597,9 +29680,9 @@
 		(property "Reference" "D3" (at 393.7 243.84 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "PESD5V0S1BA" (at 393.7 226.99 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C5261083.pdf" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "PESD5V0S1BA" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Diodes Inc / PANJIT (platform part)" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "HXY MOSFET" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C5261083" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "PS_ON# ESD clamp" (at 393.7 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "38db7f54-fc8a-4db5-9044-650d5759a6ee"))
@@ -29646,9 +29729,9 @@
 		(property "Reference" "Q1" (at 414.02 243.84 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "AO3400A" (at 414.02 240.96 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.aosmd.com/res/datasheets/AO3400A.pdf" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "AO3400A" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "AOS" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Alpha & Omega Semiconductor" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C20917" (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "PS_ON# OPEN-DRAIN drive (owner-approved 2026-07-14): wired-OR with the motherboard, can force PSU ON, can never source. 100k gate pull-down = released at reset/crash (fail-safe). Line is 5.25V max vs 30V rating; sink budget 10mA vs Vol<1mV." (at 414.02 264.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "f618b520-7b77-464f-9f41-2c09314ab1e4"))
@@ -29905,6 +29988,8 @@
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 398.78 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 398.78 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "af6e2d31-af9d-44c6-8f0d-9070799766dd"))
 		(pin "2" (uuid "acc0486e-0708-4fbf-903b-2b04873c45ea"))
 		(instances
@@ -29951,7 +30036,7 @@
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "BAT54S" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "(easyeda vendored, argb precedent)" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UMW" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C545549" (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "dual clamp on the ADC pin: series pair A1(p1)=GND -> mid(p3)=node = LOW clamp at -0.3V; mid -> K2(p2)=+3V3 = high clamp. VERIFY p1/p3/p2 = A1/mid/K2 against the C545549 land at first article (symbol pin-name text is sloppy; drawing verified)." (at 411.48 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7058c506-b187-4508-942c-ec820b647231"))
@@ -30343,7 +30428,7 @@
 		(property "Reference" "U6" (at 490.22 34.29 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TPS2121RUXR" (at 490.22 64.77 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TPS2121RUXR" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C485916" (at 490.22 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -32763,6 +32848,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: TPS2121 IN1 (+5V_MAIN) input bypass at U5 pin 7 (ds 10.1)"
 			(at 424.18 60.0 0)
 			(show_name no)
@@ -33023,6 +33110,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: TPS2121 IN1 input bulk at U5 pin 7"
 			(at 431.8 60.0 0)
 			(show_name no)
@@ -33283,6 +33372,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: TPS2121 IN2 (+5VSB) input bypass at U5 pin 2"
 			(at 408.94 78.0 0)
 			(show_name no)
@@ -33543,6 +33634,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: TPS2121 IN2 input bulk at U5 pin 2"
 			(at 416.56 78.0 0)
 			(show_name no)
@@ -33803,6 +33896,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic non-polar; source >=25V rating)"
 			(at 424.18 78.0 0)
 			(show_name no)
@@ -33989,6 +34084,8 @@
 				(hide yes)
 			)
 		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic non-polar; source >=25V rating)"
 			(at 431.8 78.0 0)
 			(show_name no)

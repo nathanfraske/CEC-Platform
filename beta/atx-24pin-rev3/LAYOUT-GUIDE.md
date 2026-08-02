@@ -1,83 +1,113 @@
-# 24-pin ATX Interposer — Placement & Routing Priority
+# ATX 24-pin rev3 placement and routing guide
 
-Why rev1 felt chaotic: power, analog sensing, and digital were interleaved, so
-the 15–20 A rails, the precision Kelvin sense, and the MCU all fought for the
-same space. The fix is to **zone the board and lock the spine first**, then let
-the easy stuff fill in around it.
+## Status and authority
 
-## Mental model: one spine, three zones
-- **Power spine (high-current):** J3 (PSU in) → RS1/RS2/RS5/RS6 shunts →
-  J4 (mobo out, 90° CCW). The dominant feature — lay it first; everything orbits it.
-- **Sense clusters (analog):** each INA228 + its shunt + 100 nF, hugging the spine.
-- **Digital island:** ESP32 (U1) + LDO (U3) + CAN (U2) + USB-C (J5) + housekeeping,
-  kept *off* the spine so the 20 A return currents don't run under the MCU/analog.
+This guide applies to the current BETA schematic. It supersedes the earlier
+four-layer and Quilter-oriented notes that occupied this file. The governing
+fabrication and mating decisions are recorded in
+`docs/decisions/owner-session-2026-08-01.md`. Device rules are in
+`docs/standard-tier-review/STANDARD-DESIGN-SHEET.md`.
 
-## Do these yourself — high priority (an autorouter won't infer the intent)
+The schematic has passed the current error-level ERC and bounded DC topology
+checks. Placement and routing are not closed. The checked-in candidate does not
+exactly match the current schematic because C50 still has the old footprint.
+No placement, route, pour, DRC, or FEM result from that candidate is release
+evidence until the PCB is synchronized.
 
-**1. Mechanical anchors — place these first.** J3, J4 (90° CCW), J1 (RJ-45 → Hub),
-J5 (USB-C), J2 (5VSB → Hub). These are set by the enclosure and cable exits, not by
-electrons. Lock them; the layout grows around them.
+All wireless functions are excluded from this board family. The 3.3 V supply
+qualification must use a reviewed worst-case load budget for the wired firmware
+mode and every fitted load on that rail.
 
-**2. The power spine (J3 → shunts → J4).** Wide top+bottom pours + the In2 plane,
-shunts in-path. Spread your ~25 vias/rail *along* the current path (don't clump
-them — clumping is what the parallel-derate punishes). Keep rail necks
-**> ~4 mm/layer on the 20 A rails** (5 V, 3 V3); 12 V/5VSB are easy. This is the
-I²R + thermal heart — clean here = clean everywhere.
+## Six-layer contract
 
-**3. Kelvin sense — the accuracy bit (§6.8).** Each INA228 hard against its shunt.
-Sense taps come **off the shunt's terminal copper**, short, tightly parallel,
-**top layer only** — never down a via and back (that folds via inductance into the
-measurement). Equal-length Vin+/Vin−, 100 nF at the INA. *This is the #1 thing an
-autorouter gets wrong — hand-place and hand-route it, or hard-lock it.*
+Use the pipeline profile `jlcpcb_6l_pofv_high_current` with this modelled copper:
 
-**4. Logic supply.** 5VSB → LP5907 (U3) → 3 V3 → ESP32, in/out caps local, short
-loop. D1 (USB ORing Schottky) by the 5VSB node.
+| Layer | Role | Finished copper |
+| --- | --- | ---: |
+| F.Cu | Signal and power | 0.0700 mm |
+| In1.Cu | Ground reference plane | 0.0152 mm |
+| In2.Cu | Signal routing | 0.0152 mm |
+| In3.Cu | Power routing and pours | 0.0152 mm |
+| In4.Cu | Ground reference plane | 0.0152 mm |
+| B.Cu | Signal and power | 0.0700 mm |
 
-**5. Diff pairs.** `USB_D+/USB_D-` (J5↔U1): the 90 Ω pair — short, matched,
-referenced to the In1 ground plane; recompute width/gap for the 1 oz stack first.
-`CAN1_P/CAN1_N` (U2↔J1): short + parallel (PCB-Z non-critical — the cable's twisted
-pair + the Hub's 120 Ω split are the controlled medium; **no termination on the
-module**).
+The router may route ordinary traces on F.Cu, In2.Cu, In3.Cu, and B.Cu. It may
+not route them on In1.Cu or In4.Cu. Both ground planes must remain continuous
+under signal return paths except for reviewed unavoidable antipads.
 
-**6. Decoupling.** Every IC's bypass caps right at the pin, short return to In1.
+At equal resistance and current, a 0.0152 mm conductor requires
+2.289473684 times the width of a 0.0348 mm conductor. This is only a geometry
+ratio. It does not replace the current-density and thermal gates, and it does
+not establish that a routed neck is acceptable.
 
-## Hand to Quilter — lock the above, then let it route the rest
-Once the spine + sense clusters + connectors are locked, Quilter is great at the
-tedious low-speed digital web:
-- **INA228 I²C bus** — SDA/SCL/ALERT from all four to the ESP32, plus the pull-ups.
-- **CAN control** — TXD/RXD ESP32 ↔ U2.
-- **Housekeeping** — 74LVC1G17 (U4/U5), service/boot switches (SW1/2), status LED
-  (D2), DETECT resistor (R1 → pin 8), spare ESP32 GPIO, boot/I²C pull-ups.
-- **Ground stitching + copper-fill cleanup** outside the spine.
+The public JLCPCB data reviewed for this audit supports the 0.0152 mm inner
+copper buildup and 1 oz or 2 oz outer options. The exact `JLC06162H-3313`
+selector name came from the owner decision record and still requires
+order-screen verification before release.
 
-### What to actually give it
-1. The **schematic** (rev2 synced copy) + your **L-shaped board outline**.
-2. The project **netclasses/rules** — but first set the **HighCurrent** min-width and
-   the **USB/CAN** diff width+gap for the 1 oz stack.
-3. Your **locked placements** (connectors, shunts, INA228s) as fixed, plus
-   **keepouts**: the high-current spine, the ESP32 antenna, the Kelvin regions.
-4. Mark the **pre-routed nets** (spine, Kelvin, diff pairs) so it routes *around*
-   them, not through them.
+## Via rules
 
-**The split: you own analog + high-current + mechanical intent; Quilter owns the
-digital tedium.** Lock the spine and the sense clusters and the chaos goes away —
-everything else is just filling gaps.
+- Use plated through vias only.
+- Blind, buried, stacked, staggered, and microvias are not approved.
+- Same-net via-in-pad is permitted only when the PCB declares the approved
+  POFV profile and the complete via land is contained inside the SMD pad.
+- A via touching a different-net pad, a through-hole pad, or a pad boundary is
+  not a POFV pickup and remains a collision.
+- POFV is a routing and pickup tool. It does not waive annular-ring, drill,
+  current-density, thermal, or assembly checks.
 
-## High-current rails: beat the criss-cross with the stack
-The ATX pinout scatters each rail across non-adjacent pins at *both ends* of the
-connector (+5 V on 4/6/21/22/23, +3.3 V on 1/2/12/13, +12 V on 10/11, +5VSB on 9,
-GND on 8 scattered pins), so any single-layer pour for a rail spans the whole
-connector and overlaps the others. Don't fight it in 2D — use the stack as a
-vertical interchange:
+## Placement order
 
-- **One spanning rail per layer.** Only 12 V/5 V/3.3 V span (5VSB = 1 pin, GND =
-  plane), and you have F.Cu/In2/B.Cu besides the In1 GND plane. Pins via *straight
-  down* to their rail's layer; rails cross on *different layers* (vias, not weaves).
-  The shunt bridges on top: pin → via to rail layer → via up to shunt → via back
-  down → out to J4. 5 V and 3.3 V (two clusters each) most want a dedicated layer.
-- **In1 stays a solid GND plane** — the 8 GND pins just via to it; GND leaves the
-  criss-cross and stays the return path + diff-pair reference.
-- **Distribute the shunts inline** on each rail's lane — four shunts clustered
-  centrally force every rail to converge then fan out (a crossing generator).
-- **Align clusters, not pin numbers:** place/rotate J4 so its 5 V/12 V/3.3 V
-  clusters sit near J3's same-rail clusters, and keep the J3↔J4 span short.
+1. Lock the board outline, J3 and J4 cable interfaces, segmented J6P/J6C/J6D,
+   and the shared H1 datum. H1 is a fitted plated M2 GND lug and must coincide
+   with the Hub mate.
+2. Place each shunt in the direct force-current path between its input and
+   output connector contacts. Do not send load current through a Kelvin tap.
+3. Place each current-sense amplifier and its matched input network at its
+   shunt. Route the two sense taps from the shunt terminal copper as a pair.
+4. Place protection and source-selection parts at the rail nodes they protect.
+   Keep their input, output, and ground loops local.
+5. Place the 3.3 V regulator with its selected input and output capacitors at
+   the regulator pins. Do not add the ESP reference bulk capacitor until the
+   LP5907 output-capacitance conflict has an approved resolution.
+6. Place one device-qualified bypass capacitor at each IC supply pin or supply
+   group. A capacitor elsewhere on the same named rail is not proof of local
+   bypassing.
+7. Route USB and CAN only after their reference planes and connector locations
+   are fixed. Route low-speed housekeeping after the force-current, Kelvin,
+   protection, and differential paths are locked.
+
+## Power pours
+
+The current placement contract asks for `+3V3`, `+5VSB`, and `+5V_MAIN` on
+In3.Cu. The slab generator must obtain current from the reviewed board current
+table or thermal configuration. Missing current, conflicting current, a missing
+anchor, an overlapping allocation, or a minimum-width failure must stop the
+run.
+
+The current candidate does not pass that boundary. A diagnostic run found
+minimum-width failures on `+3V3` and `+5VSB`. The thermal configuration also
+claims 5 A for `+5VSB` where the board specification claims 0.5 A, and 25 A for
+`+5V_MAIN` where the specification claims 20 A. Those values require owner
+review. The pipeline must not silently choose either source.
+
+## Device and passive release gates
+
+- LP5907 input and output capacitors require exact selected parts, effective
+  capacitance evidence, and a complete 3.3 V load budget below the regulator's
+  250 mA rating with approved margin.
+- Each INA238 requires its local supply bypass and the shunt, filter, and alert
+  topology specified by its channel.
+- Each TLV7011 and logic gate requires the datasheet-conditioned local bypass.
+- TPS2121 IN1, IN2, and OUT nodes require close selected X5R or X7R bypassing.
+- Protection thresholds, divider tolerance, connector MPNs, voltage ratings,
+  dielectric, package, and assembly state must be selected in CAD and BOM.
+- Decouplers are placed by the supplied pin and return loop, not by reference
+  number order or general proximity to the IC body.
+
+## Release boundary
+
+The next physical pass must first synchronize C50 and regenerate the candidate.
+It must then pass exact schematic freshness, strict slab allocation, route
+completion, error-level DRC, laid-copper connectivity, current-density, thermal,
+and mating checks. The present candidate is not a fabrication package.

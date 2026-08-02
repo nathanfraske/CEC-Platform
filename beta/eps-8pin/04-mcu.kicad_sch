@@ -687,7 +687,7 @@
 						(type none)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 33.02 0)
 					(length 2.54)
 					(name "GND"
@@ -705,7 +705,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 30.48 0)
 					(length 2.54)
 					(name "GND"
@@ -723,7 +723,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 27.94 0)
 					(length 2.54)
 					(name "3V3"
@@ -741,7 +741,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 25.4 0)
 					(length 2.54)
 					(name "NC"
@@ -759,7 +759,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 22.86 0)
 					(length 2.54)
 					(name "IO2"
@@ -777,7 +777,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 20.32 0)
 					(length 2.54)
 					(name "IO3"
@@ -795,7 +795,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 17.78 0)
 					(length 2.54)
 					(name "NC"
@@ -813,7 +813,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin input line
 					(at -11.43 15.24 0)
 					(length 2.54)
 					(name "EN"
@@ -831,7 +831,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 12.7 0)
 					(length 2.54)
 					(name "IO4"
@@ -849,7 +849,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 10.16 0)
 					(length 2.54)
 					(name "IO5"
@@ -867,7 +867,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 7.62 0)
 					(length 2.54)
 					(name "GND"
@@ -885,7 +885,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 5.08 0)
 					(length 2.54)
 					(name "IO0"
@@ -903,7 +903,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 2.54 0)
 					(length 2.54)
 					(name "IO1"
@@ -921,7 +921,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at -11.43 0 0)
 					(length 2.54)
 					(name "GND"
@@ -939,7 +939,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -2.54 0)
 					(length 2.54)
 					(name "IO6"
@@ -957,7 +957,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -5.08 0)
 					(length 2.54)
 					(name "IO7"
@@ -975,7 +975,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -7.62 0)
 					(length 2.54)
 					(name "IO12"
@@ -993,7 +993,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -10.16 0)
 					(length 2.54)
 					(name "IO13"
@@ -1011,7 +1011,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -12.7 0)
 					(length 2.54)
 					(name "IO14"
@@ -1029,7 +1029,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -15.24 0)
 					(length 2.54)
 					(name "IO15"
@@ -1047,7 +1047,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at -11.43 -17.78 0)
 					(length 2.54)
 					(name "NC"
@@ -1065,7 +1065,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -20.32 0)
 					(length 2.54)
 					(name "IO8"
@@ -1083,7 +1083,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -22.86 0)
 					(length 2.54)
 					(name "IO9"
@@ -1101,7 +1101,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -25.4 0)
 					(length 2.54)
 					(name "IO18"
@@ -1119,7 +1119,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -27.94 0)
 					(length 2.54)
 					(name "IO19"
@@ -1137,7 +1137,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -30.48 0)
 					(length 2.54)
 					(name "IO20"
@@ -1155,7 +1155,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at -11.43 -33.02 0)
 					(length 2.54)
 					(name "IO21"
@@ -1173,7 +1173,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -31.75 180)
 					(length 2.54)
 					(name "IO22"
@@ -1191,7 +1191,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -29.21 180)
 					(length 2.54)
 					(name "IO23"
@@ -1209,7 +1209,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -26.67 180)
 					(length 2.54)
 					(name "RXD0"
@@ -1227,7 +1227,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin bidirectional line
 					(at 11.43 -24.13 180)
 					(length 2.54)
 					(name "TXD0"
@@ -1245,7 +1245,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -21.59 180)
 					(length 2.54)
 					(name "NC"
@@ -1263,7 +1263,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -19.05 180)
 					(length 2.54)
 					(name "NC"
@@ -1281,7 +1281,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -16.51 180)
 					(length 2.54)
 					(name "NC"
@@ -1299,7 +1299,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin no_connect line
 					(at 11.43 -13.97 180)
 					(length 2.54)
 					(name "NC"
@@ -1317,7 +1317,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -11.43 180)
 					(length 2.54)
 					(name "GND"
@@ -1335,7 +1335,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -8.89 180)
 					(length 2.54)
 					(name "GND"
@@ -1353,7 +1353,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -6.35 180)
 					(length 2.54)
 					(name "GND"
@@ -1371,7 +1371,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -3.81 180)
 					(length 2.54)
 					(name "GND"
@@ -1389,7 +1389,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 -1.27 180)
 					(length 2.54)
 					(name "GND"
@@ -1407,7 +1407,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 1.27 180)
 					(length 2.54)
 					(name "GND"
@@ -1425,7 +1425,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 3.81 180)
 					(length 2.54)
 					(name "GND"
@@ -1443,7 +1443,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 6.35 180)
 					(length 2.54)
 					(name "GND"
@@ -1461,7 +1461,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 8.89 180)
 					(length 2.54)
 					(name "GND"
@@ -1479,7 +1479,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 11.43 180)
 					(length 2.54)
 					(name "GND"
@@ -1497,7 +1497,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 13.97 180)
 					(length 2.54)
 					(name "GND"
@@ -1515,7 +1515,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 16.51 180)
 					(length 2.54)
 					(name "GND"
@@ -1533,7 +1533,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 19.05 180)
 					(length 2.54)
 					(name "GND"
@@ -1551,7 +1551,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 21.59 180)
 					(length 2.54)
 					(name "GND"
@@ -1569,7 +1569,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 24.13 180)
 					(length 2.54)
 					(name "GND"
@@ -1587,7 +1587,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 26.67 180)
 					(length 2.54)
 					(name "GND"
@@ -1605,7 +1605,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 29.21 180)
 					(length 2.54)
 					(name "GND"
@@ -1623,7 +1623,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 11.43 31.75 180)
 					(length 2.54)
 					(name "GND"
@@ -2112,11 +2112,7 @@
 		(at 217.17 125.73)
 		(uuid "52113dd0-d804-4545-8f85-166870ada081")
 	)
-	(no_connect
-		(at 217.17 148.59)
-		(uuid "76d1317f-dcc3-480e-b792-ac209e3ef7a5")
-	)
-	(no_connect
+		(no_connect
 		(at 217.17 118.11)
 		(uuid "848c4a7c-6332-486f-9f70-3959a914993b")
 	)
@@ -2768,6 +2764,24 @@
 		)
 		(uuid "df07d9f4-595f-497f-a805-090b2df661c1")
 	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 214.63 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c70f6079-e65a-4573-91bd-1a8a4723a07b")
+		(property "Reference" "#PWR401" (at 214.63 165.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 214.63 171.45 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ff8bdb59-c569-464a-a0ee-be610f96eb37"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/83ceb2d1-e50f-4838-831a-71136b7d1260" (reference "#PWR401") (unit 1))
+			)
+		)
+	)
 	(wire
 		(pts
 			(xy 240.03 104.14) (xy 242.57 104.14)
@@ -3261,7 +3275,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://documentation.espressif.com/esp32-c6-mini-1_mini-1u_datasheet_en.pdf"
 			(at 228.6 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -3970,7 +3984,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 266.7 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -3991,7 +4005,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "XKB"
+		(property "Manufacturer" "XUNPU"
 			(at 266.7 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -4498,7 +4512,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C720477.pdf"
 			(at 246.38 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -4519,7 +4533,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "XKB"
+		(property "Manufacturer" "XUNPU"
 			(at 246.38 182.88 0)
 			(hide yes)
 			(show_name no)
@@ -4730,5 +4744,58 @@
 	)
 	(wire (pts (xy 223.52 140.97) (xy 223.52 143.51))
 		(stroke (width 0) (type default)) (uuid "6c2fa444-9eb5-4f8e-99c4-9ccf1181e0bc"))
-	(label "GPIO0" (at 223.52 143.51 270) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e82b3ece-8ade-4752-b937-78b87b12522a"))
+	(label "GPIO0" (at 223.52 143.51 270) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e82b3ece-8ade-4752-b937-78b87b12522a"))	(wire (pts (xy 217.17 148.59) (xy 213.36 148.59))
+		(stroke (width 0) (type default)) (uuid "ed10fb9c-0d43-4f73-8475-6db4b6c03525"))
+	(label "IO8_STRAP" (at 213.36 148.59 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "fbe42d26-a617-4259-bce9-8b2d1ae5e2c8"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 195.58 160.02 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "83c170f8-d9a8-4117-b54f-e281e3a298b9")
+		(property "Reference" "R19" (at 195.58 153.67 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kΩ" (at 195.58 166.37 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25744.html" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "ESP32-C6 GPIO8 download-strap pull-up" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "10 kohm follows Espressif ESP32-C6-DevKitC-1; GPIO8 must be high with GPIO9 low for joint download boot" (at 195.58 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f1e9201f-c087-433f-8ce1-213e9c4850d1"))
+		(pin "2" (uuid "fc896a2b-5d69-4904-8e48-4f2bc00138a3"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/83ceb2d1-e50f-4838-831a-71136b7d1260" (reference "R19") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 195.58 157.48) (xy 195.58 154.94))
+		(stroke (width 0) (type default)) (uuid "714be519-a823-4019-b4ef-ff2c88ca90b3"))
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 195.58 154.94 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "03335317-d5b5-4ff3-a227-77715b6553c8")
+		(property "Reference" "#PWR0799" (at 195.58 152.4 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 195.58 158.75 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "0a42b96c-3f9e-45ca-ba87-6bcffea1a484"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/83ceb2d1-e50f-4838-831a-71136b7d1260" (reference "#PWR0799") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 195.58 162.56) (xy 195.58 165.1))
+		(stroke (width 0) (type default)) (uuid "e115eeb0-bd49-4629-ab87-42743dce9fe1"))
+	(label "IO8_STRAP" (at 195.58 165.1 270) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "62cee7de-eaab-4430-aab9-6e83b76c29e5"))
+
 )

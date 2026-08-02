@@ -1965,7 +1965,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf"
 			(at 149.86 26.67 0)
 			(hide yes)
 			(show_name no)
@@ -1976,6 +1976,8 @@
 				)
 			)
 		)
+		(property "MPN" "87427-0802" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Molex" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 149.86 26.67 0)
 			(show_name no)
@@ -4018,7 +4020,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf"
 			(at 149.86 83.82 0)
 			(hide yes)
 			(show_name no)
@@ -4029,6 +4031,8 @@
 				)
 			)
 		)
+		(property "MPN" "87427-0802" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Molex" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" ""
 			(at 149.86 83.82 0)
 			(show_name no)

@@ -357,6 +357,7 @@ BOARD_PARAMS = {
                                "priority": 2, "provenance": "placer_ask",
                                "evac": False}
                               for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
+                                        "/PSU_5V_KVM",
                                         "/MAIN_5V_RAW", "/USB_VBUS",
                                         "/+5V_HOLD", "/VCC_P1", "/VCC_P2",
                                         "/VCC_P3", "/VCC_P4")],
@@ -1013,7 +1014,7 @@ def _prev_best_key(pub_dir):
 
 CANDIDATE_DIR = "candidate"
 CANDIDATE_META = "candidate.json"
-_CANDIDATE_README = """# `candidate/` — the current best routed board for this module
+_CANDIDATE_README = """# `candidate/`: the current best routed board for this module
 
 ONE board file, kept current by the wave (owner directive 2026-07-25: "the current
 best should be placed into a candidate folder per board and kept current with only
@@ -1025,10 +1026,12 @@ recording where it came from and how it graded. Open it to see the real current
 state of the layout without digging through `build/fresh-wave-*/`.
 
 RULES the wave enforces on every publish:
-  * SCHEMATIC FRESHNESS outranks score: a winner carrying more of the CURRENT
-    netlist replaces the reference even on a worse score, and a staler board never
-    replaces a fresher one (`schematic_match` in `candidate.json` records it) --
-    a board that grades well but predates a schematic change is the worse reference;
+  * SCHEMATIC FRESHNESS outranks score: a winner matching more of the CURRENT
+    component signatures replaces the reference even on a worse score, and a
+    staler board never replaces a fresher one. The signature covers value,
+    footprint, and numbered-pad nets. `schematic_match` and `schematic_exact` in
+    `candidate.json` record the result. A board that grades well but predates a
+    schematic or footprint change is the worse reference;
   * otherwise it replaces this file only when the new winner BEATS the recorded
     `sort_key` (lower is better -- the same ranking the wave itself uses);
   * a routed winner always beats a placement-only one, and a placement-only winner
@@ -1042,20 +1045,41 @@ schematic + the module's own project files stay in the parent directory.
 
 
 def _board_refs(pcb_path):
-    """Footprint reference set of a board, or None if it cannot be read."""
+    """Physical component signatures of a board, or None if unreadable.
+
+    Freshness cannot be a reference-only comparison. A board with all the same
+    references can still be electrically stale after a footprint or pin-to-net
+    change. Each signature therefore includes value, footprint library item,
+    and the deduplicated numbered-pad net map.
+    """
     try:
         import pcbnew
     except ImportError:                                    # host-side tests
         return None
     try:
         b = pcbnew.LoadBoard(str(pcb_path))
-        return {fp.GetReference() for fp in b.GetFootprints()}
+        signatures = {}
+        for fp in b.GetFootprints():
+            ref = str(fp.GetReference())
+            footprint = str(fp.GetFPID().GetLibItemName())
+            pins = {
+                (str(pad.GetNumber()), str(pad.GetNetname()))
+                for pad in fp.Pads()
+                if (str(pad.GetNumber()) and str(pad.GetNetname()) and
+                    not str(pad.GetNetname()).startswith("unconnected-"))
+            }
+            signatures[ref] = (
+                str(fp.GetValue()),
+                footprint,
+                tuple(sorted(pins)),
+            )
+        return signatures
     except Exception:                                      # noqa: BLE001
         return None
 
 
 def _netlist_refs(board):
-    """Reference set the CURRENT schematic expects, or None if unavailable.
+    """Component signatures the CURRENT schematic expects, or None.
 
     Goes through `_ensure_netlist_path`, NOT `cfg.net` directly: most boards
     carry no committed .net file, so the direct read returned None for every
@@ -1072,14 +1096,37 @@ def _netlist_refs(board):
             net = getattr(cfg, "net", "") or ""
         if not (net and os.path.isfile(net)):
             return None
-        refs = set(csp.Netlist.from_file(net).comps)
-        return refs or None
+        parsed = csp.Netlist.from_file(net)
+        # Only physical schematic components belong in a PCB freshness
+        # denominator.  Legacy generated power symbols can carry ordinary
+        # PWR201-style references in a netlist even though they have no
+        # footprint and must never appear on the board.
+        physical = {
+            ref: comp for ref, comp in parsed.comps.items()
+            if str(comp.footprint or "").strip()
+        }
+        pins_by_ref = {ref: set() for ref in physical}
+        for net_name, nodes in parsed.nets.items():
+            if not net_name or str(net_name).startswith("unconnected-"):
+                continue
+            for ref, pin in nodes:
+                if ref in pins_by_ref and pin:
+                    pins_by_ref[ref].add((str(pin), str(net_name)))
+        signatures = {
+            ref: (
+                str(comp.value),
+                str(comp.footprint).rsplit(":", 1)[-1],
+                tuple(sorted(pins_by_ref[ref])),
+            )
+            for ref, comp in physical.items()
+        }
+        return signatures or None
     except Exception:                                      # noqa: BLE001
         return None
 
 
 def _schematic_match(pcb_path, want_refs):
-    """How much of the current schematic this board actually carries (0..1).
+    """How much of the current schematic this board exactly carries (0..1).
 
     The reason this is a RULE and not a nicety: "best by sort_key" can be a board
     that predates a schematic change. Measured 2026-07-25 -- the 12VHPWR winner
@@ -1093,7 +1140,18 @@ def _schematic_match(pcb_path, want_refs):
     have = _board_refs(pcb_path)
     if have is None:
         return None
-    return len(want_refs & have) / float(len(want_refs))
+    # Tests and host fallbacks may still supply simple reference sets. Keep
+    # that compatibility path explicit, but live pcbnew/netlist reads return
+    # dictionaries and require exact component signatures.
+    if isinstance(want_refs, set) and isinstance(have, set):
+        return len(want_refs & have) / float(len(want_refs))
+    if not isinstance(want_refs, dict) or not isinstance(have, dict):
+        return None
+    matches = sum(
+        ref in have and have[ref] == signature
+        for ref, signature in want_refs.items()
+    )
+    return matches / float(len(want_refs))
 
 
 def _candidate_update(board, published_pcb, best, *, out_root=None):
@@ -1143,7 +1201,7 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
         if not have:
             why = "first candidate"
         elif fresher:
-            why = (f"carries more of the current schematic "
+            why = (f"matches more of the current schematic "
                    f"({fresh_now:.0%} vs {fresh_prev:.0%} of {len(want)} parts)")
         elif staler:
             print(f"[wave] {board} candidate: kept (this winner carries only "
@@ -1190,6 +1248,8 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
             "label": best.get("label"),
             "sort_key": list(key_now),
             "schematic_match": (round(fresh_now, 4) if fresh_now is not None else None),
+            "schematic_exact": (fresh_now is not None and
+                                abs(fresh_now - 1.0) <= 1e-9),
             "schematic_parts": (len(want) if want else None),
             "grade": {k: best.get(k) for k in
                       ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",

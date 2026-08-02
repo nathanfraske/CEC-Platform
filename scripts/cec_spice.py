@@ -32,15 +32,15 @@ import subprocess
 import sys
 import tempfile
 
+import cec_toolchain
+
 def _ngspice_executable():
-    override = os.environ.get("CEC_NGSPICE")
-    if override:
-        return override
-    if os.name == "nt":
-        # The official Windows ngspice.exe is the GUI frontend. Batch tools
-        # must use the console binary or fail to launch it explicitly.
-        return shutil.which("ngspice_con.exe") or "ngspice_con.exe"
-    return shutil.which("ngspice") or "ngspice"
+    resolved = cec_toolchain.ngspice_console()
+    if resolved:
+        return resolved
+    # Preserve the actionable missing-command error while refusing the GUI
+    # binary on Windows.
+    return "ngspice_con.exe" if os.name == "nt" else "ngspice"
 
 
 NGSPICE = _ngspice_executable()
@@ -84,7 +84,13 @@ def _run(cir):
         kw = {"capture_output": True, "text": True, "timeout": 30}
         if os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
             kw["creationflags"] = subprocess.CREATE_NO_WINDOW
-        run = subprocess.run([NGSPICE, "-b", path], **kw)
+        run_cwd = cec_toolchain.ngspice_cwd(NGSPICE)
+        if run_cwd:
+            kw["cwd"] = run_cwd
+        # -n suppresses user .spiceinit files. SPICE_SCRIPTS selects the
+        # repository-owned standard spinit, which is otherwise always loaded.
+        kw["env"] = cec_toolchain.ngspice_batch_env()
+        run = subprocess.run([NGSPICE, "-n", "-b", path], **kw)
         if run.returncode != 0:
             detail = (run.stderr or run.stdout or "no diagnostic").strip()
             raise RuntimeError("ngspice exited %d: %s" %

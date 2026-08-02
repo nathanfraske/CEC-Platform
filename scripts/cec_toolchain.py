@@ -35,6 +35,74 @@ _UNSET = object()
 _cli_cache = _UNSET
 
 
+def ngspice_console():
+    """Return a batch-safe ngspice executable, or None.
+
+    Windows ngspice distributions contain both a GUI executable and
+    ``ngspice_con.exe``.  Never return the generic Windows executable because
+    batch invocations of it create persistent Parse windows.  The user-local
+    path is the portable, non-admin installation used by CEC workstations.
+    """
+    override = os.environ.get("CEC_NGSPICE")
+    if override:
+        # An environment override must not reopen the exact GUI failure this
+        # resolver exists to prevent.  Keep wrapper commands usable, but reject
+        # the official Windows GUI binary by basename and continue searching
+        # for ngspice_con.exe.
+        override_name = os.path.basename(override).lower()
+        if os.name != "nt" or override_name not in ("ngspice", "ngspice.exe"):
+            return override
+    if os.name != "nt":
+        return shutil.which("ngspice")
+    console = shutil.which("ngspice_con.exe")
+    if console:
+        return console
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidates = glob.glob(os.path.join(
+            local, "CEC-Tools", "ngspice-*", "Spice64", "bin",
+            "ngspice_con.exe"))
+        if candidates:
+            return sorted(candidates, reverse=True)[0]
+    return None
+
+
+def ngspice_cwd(executable):
+    """Working directory required by the official portable Windows bundle.
+
+    Its ``spinit`` loads XSPICE code models through paths relative to
+    ``Spice64/bin``.  Returning that directory prevents false model-load and
+    singular-matrix failures when a batch deck is launched from the repo.
+    Installed/PATH commands on other platforms need no cwd override.
+    """
+    if os.name != "nt" or not executable or not os.path.isfile(executable):
+        return None
+    bindir = os.path.dirname(os.path.abspath(executable))
+    model = os.path.normpath(os.path.join(
+        bindir, "..", "lib", "ngspice", "analog.cm"))
+    return bindir if os.path.isfile(model) else None
+
+
+def ngspice_batch_env():
+    """Environment for deterministic, repository-owned batch startup.
+
+    ``-n`` suppresses a user's ``.spiceinit`` but ngspice still reads its
+    standard ``spinit``. Point SPICE_SCRIPTS at the CEC batch-only startup
+    file so a machine installation cannot add models or settings to a
+    verification run. This also avoids the ngspice 46 Windows archive's
+    reference to an optional ``xtraevt.cm`` file that is absent from that
+    archive.
+    """
+    env = os.environ.copy()
+    scripts = os.environ.get("CEC_NGSPICE_SCRIPTS")
+    if not scripts:
+        scripts = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "spice")
+    if os.path.isfile(os.path.join(scripts, "spinit")):
+        env["SPICE_SCRIPTS"] = scripts
+    return env
+
+
 def kicad_cli():
     """Path to kicad-cli, or None. Resolved once and cached."""
     global _cli_cache

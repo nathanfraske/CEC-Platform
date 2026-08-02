@@ -29,7 +29,8 @@ import cec_sch_layout as L        # noqa: E402  T1 layout/mutator engine
 def _read(path_or_text):
     """Accept either a file path or already-loaded .kicad_sch text."""
     if "\n" not in path_or_text and os.path.isfile(path_or_text):
-        return open(path_or_text).read()
+        with open(path_or_text, encoding="utf-8", errors="replace") as handle:
+            return handle.read()
     return path_or_text
 
 
@@ -314,7 +315,8 @@ def _inventory_walk(path, out, visited, root_dir):
     if path in visited or not os.path.isfile(path):
         return
     visited.add(path)
-    text = open(path).read()
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        text = handle.read()
     rel = os.path.relpath(path, root_dir)
     work = L._strip_lib_symbols(text)
     for s, e, (ox, oy), ref, rot, lib_id, mir in L._symbol_spans(work):

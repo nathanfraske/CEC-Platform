@@ -30,6 +30,8 @@ except ImportError:
 EPS = os.path.join(ROOT, "beta", "eps-8pin", "eps8pin-module.kicad_pcb")
 HPWR = os.path.join(ROOT, "beta", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
 HUB = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb")
+HUB_BETA = os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
+                        "hub-standard-rev2-candidate.kicad_pcb")
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +66,20 @@ class TestHostUnits(unittest.TestCase):
         finally:
             os.unlink(p)
         self.assertEqual(refs, {"R12", "J_KVM"})  # placeholder, '?' and #PWR dropped
+
+    def test_legacy_named_power_symbols_are_not_physical_pcb_refs(self):
+        if not HAVE_PCBNEW:
+            self.skipTest("cec_constraints imports pcbnew at module level")
+        inventory = {
+            "PWR201": {"lib_id": "cec-power:GND"},
+            "R1": {"lib_id": "Device:R"},
+        }
+        refs = {
+            ref for ref, rec in inventory.items()
+            if (not K._board_only_ref(ref)
+                and not rec.get("lib_id", "").startswith(("cec-power:", "power:")))
+        }
+        self.assertEqual(refs, {"R1"})
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +135,19 @@ class TestCheckPack(unittest.TestCase):
         self.assertTrue(ok, detail)
         self.assertIn("known-open", detail)  # OQ-11 shunts + THT headers noted
 
+    def test_hub_dnp_placeholders_are_not_treated_as_populated_bom_parts(self):
+        board = pcbnew.LoadBoard(HUB_BETA)
+        ok, detail = K.CHECKERS["bom-field-lint"](board, HUB_BETA, {})[:2]
+        self.assertTrue(ok, detail)
+        self.assertIn("no placeholder/empty BOM fields", detail)
+
+    def test_hub_candidate_is_refused_when_pin_net_signature_is_stale(self):
+        board = pcbnew.LoadBoard(HUB_BETA)
+        ok, detail = K.CHECKERS["sch-pcb-sync"](board, HUB_BETA, {})[:2]
+        self.assertFalse(ok, detail)
+        self.assertIn("0.974", detail)
+        self.assertIn("U5(pad nets)", detail)
+
     def test_detect_resistor_hub_vs_module(self):
         hub = pcbnew.LoadBoard(HUB)
         ok, detail = K.CHECKERS["detect-resistor-code"](hub, HUB, {})[:2]
@@ -133,7 +162,8 @@ class TestCheckPack(unittest.TestCase):
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (run in the routing container)")
 class TestIntakeGate(unittest.TestCase):
     def test_draft_marker_does_not_waive_live_erc(self):
-        g = K.intake_gate(EPS)
+        with mock.patch.object(K, "_erc_errors", return_value=1):
+            g = K.intake_gate(EPS)
         self.assertFalse(g["ok"], g["reasons"])
         self.assertEqual(g["results"]["erc"][0], "FAIL")
         self.assertTrue(any("erc [hard]" in reason for reason in g["reasons"]))

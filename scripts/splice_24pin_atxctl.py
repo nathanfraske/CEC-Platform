@@ -112,8 +112,9 @@ FP_C      = "cec-Capacitor_SMD:C_0402_1005Metric"
 LVC_PROPS = {"MPN": "SN74LVC1G17DBVR", "Manufacturer": "Texas Instruments",
              "LCSC": "C7836",
              "Datasheet": "https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf"}
-PESD_PROPS = {"MPN": "PESD5V0S1BA", "Manufacturer": "Diodes Inc / PANJIT (platform part)",
-              "LCSC": "C5261083"}
+PESD_PROPS = {"MPN": "PESD5V0S1BA", "Manufacturer": "HXY MOSFET",
+              "LCSC": "C5261083",
+              "Datasheet": "https://www.lcsc.com/datasheet/C5261083.pdf"}
 
 # ---------- 3. the block (free region measured empty x346-429 / y243-291) ----------
 out.append(cec_sch.emit_section(
@@ -209,7 +210,7 @@ emit_part("C64", "C_Small", "100nF", 398.78, 278.13, "C", FP_C)
 wire_pin("C", (398.78, 278.13), "1", "NEG12V_ADC")
 wire_pin("C", (398.78, 278.13), "2", ("PWR", "GND"))
 emit_part("D5", "BAT54S", "BAT54S", 411.48, 278.13, "BAT", FP_BAT,
-          {"MPN": "BAT54S", "Manufacturer": "(easyeda vendored, argb precedent)",
+          {"MPN": "BAT54S", "Manufacturer": "UMW",
            "LCSC": "C545549",
            "Note": "dual clamp on the ADC pin: series pair A1(p1)=GND -> mid(p3)="
                    "node = LOW clamp at -0.3V; mid -> K2(p2)=+3V3 = high clamp. "

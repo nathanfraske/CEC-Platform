@@ -92,12 +92,12 @@ SHEET_TITLES = {
 # libraries
 # ---------------------------------------------------------------------------
 LIBS = {
-    "cec":            open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
-    "cec-vendor":      open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
-    "power":           open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read(),
-    "cec-ent-power":   open(f"{ROOTDIR}/lib/cec-ent-power.kicad_sym").read(),
-    "cec-ent-mcu":     open(f"{ROOTDIR}/lib/cec-ent-mcu.kicad_sym").read(),
-    "cec-ent-hub-local": open(f"{HERE}/lib-local.kicad_sym").read(),
+    "cec":            open(f"{ROOTDIR}/lib/cec.kicad_sym", encoding="utf-8").read(),
+    "cec-vendor":      open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym", encoding="utf-8").read(),
+    "power":           open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym", encoding="utf-8").read(),
+    "cec-ent-power":   open(f"{ROOTDIR}/lib/cec-ent-power.kicad_sym", encoding="utf-8").read(),
+    "cec-ent-mcu":     open(f"{ROOTDIR}/lib/cec-ent-mcu.kicad_sym", encoding="utf-8").read(),
+    "cec-ent-hub-local": open(f"{HERE}/lib-local.kicad_sym", encoding="utf-8").read(),
 }
 
 UR = "UNI-ROYAL"
@@ -379,13 +379,10 @@ L01C.powerflag_nets = ["EXT_5V"]
 # ---------------------------------------------------------------------------
 # 01d -- Priority cascade (U104=stage A, U105=stage B)
 # ---------------------------------------------------------------------------
-# Pin ties per hub-standard's AS-BUILT netlist (verified via netlist export,
-# 2026-07-02): PR1->IN1 and OV1/OV2->GND match BOM-D's own recommendation, but
-# CP2 is tied to IN2 (NOT GND) on the real shipping board -- BOM-D explicitly
-# flagged its own CP2->GND tie as unverified ("I could not fully re-derive the
-# exact wired nets from the raw .kicad_sch"). This generator follows the
-# PROVEN as-built wiring (CP2->IN2) rather than BOM-D's independently-reasoned
-# but unverified recommendation; see the final report for the full comparison.
+# Fixed-priority ties re-derived from the TPS2121 truth table and confirmed on
+# the repaired BETA Hub netlist on 2026-08-02. PR1 is tied to IN1 and CP2 is
+# tied low. Tying CP2 to IN2 does not implement the claimed fixed-priority
+# behavior and is not accepted as evidence merely because an older board did it.
 GX, GY = 20, 40
 L01D.add_part("U104", "cec-vendor", "TPS2121RUXR", "TPS2121RUXR", GX, GY,
           "cec-Package_DFN_QFN:RUX0012A",
@@ -418,8 +415,9 @@ L01D.add_part("C111", "cec-vendor", "C_Small", "2.2u", GX + 140, GY + 60,
            "Description": "soft-start cap, cascade stage B"})
 
 L01D.net("SVB_EF_OUT", ("U104", "6"), ("U104", "7"))       # PR1->IN1 (priority = 5VSB)
-L01D.net("EXT_EF_OUT", ("U104", "2"), ("U104", "3"))       # IN2=EXT, CP2->IN2 (as-built pattern)
-L01D.net("GND", ("U104", "4"), ("U104", "5"), ("U104", "12"))  # OV2, OV1, GND
+L01D.net("EXT_EF_OUT", ("U104", "2"))                        # IN2=EXT
+L01D.net("GND", ("U104", "3"), ("U104", "4"), ("U104", "5"),
+         ("U104", "12"))                                     # CP2, OV2, OV1, GND
 L01D.net("STAGE_A_OUT", ("U104", "1"), ("U104", "8"))
 L01D.net("ILM_PC1", ("R119", "1"), ("U104", "10"))
 L01D.net("GND", ("R119", "2"))
@@ -427,8 +425,9 @@ L01D.net("SS_PC1", ("C110", "1"), ("U104", "11"))
 L01D.net("GND", ("C110", "2"))
 
 L01D.net("MAIN_EF_OUT", ("U105", "6"), ("U105", "7"))      # PR1->IN1 (priority = MAIN_5V)
-L01D.net("STAGE_A_OUT", ("U105", "2"), ("U105", "3"))      # IN2=stage-A OUT, CP2->IN2
-L01D.net("GND", ("U105", "4"), ("U105", "5"), ("U105", "12"))
+L01D.net("STAGE_A_OUT", ("U105", "2"))                       # IN2=stage-A OUT
+L01D.net("GND", ("U105", "3"), ("U105", "4"), ("U105", "5"),
+         ("U105", "12"))                                    # CP2, OV2, OV1, GND
 L01D.net("+5V_SYS", ("U105", "1"), ("U105", "8"))
 L01D.net("ILM_PC2", ("R120", "1"), ("U105", "10"))
 L01D.net("GND", ("R120", "2"))
@@ -798,20 +797,17 @@ def compose_01d():
     c.wire(c.pin("U104", "6"), (34, 74))
     c.wire((34, 64), (34, 74))
     c.hier("SVB_EF_OUT", 34, 64, 180)
-    c.wire(c.pin("U104", "3"), (34, 82))
     c.wire(c.pin("U104", "2"), (34, 86))
-    c.wire((34, 82), (34, 86))
     c.hier("EXT_EF_OUT", 34, 86, 180)
-    c.use(("U104", "6"), ("U104", "7"), ("U104", "2"), ("U104", "3"))
+    c.use(("U104", "6"), ("U104", "7"), ("U104", "2"))
 
-    # stage A OUT -> stage B IN2/CP2: the cascade chain, drawn
+    # stage A OUT -> stage B IN2: the cascade chain, drawn
     c.wire(c.pin("U104", "1"), (76, 64))
     c.wire(c.pin("U104", "8"), (76, 66))
-    c.wire((76, 64), (76, 66), (76, 90), (82, 90), (82, 86), (82, 82))
-    c.wire(c.pin("U105", "3"), (82, 82))
+    c.wire((76, 64), (76, 66), (76, 90), (82, 90), (82, 86))
     c.wire(c.pin("U105", "2"), (82, 86))
     c.label("STAGE_A_OUT", 76, 64, 0)
-    c.use(("U104", "1"), ("U104", "8"), ("U105", "2"), ("U105", "3"))
+    c.use(("U104", "1"), ("U104", "8"), ("U105", "2"))
 
     # stage B priority input bus; its hier label joins the LEFT column at
     # x=34 (S1: one scannable edge column -- MAIN 58 / SVB 64 / EXT 86),
@@ -823,8 +819,17 @@ def compose_01d():
     c.hier("MAIN_EF_OUT", 34, 58, 180)
     c.use(("U105", "6"), ("U105", "7"))
     c.caption(lf.desc, 20, 48)
-    c.note("PR1->IN1 + CP2->IN2 per the AS-BUILT hub-standard netlist "
-           "(BOM-D's CP2->GND was flagged unverified by its own author)", 20, 114)
+    c.note("Fixed priority: PR1->IN1 and CP2->GND per TPS2121 truth table; "
+           "re-verified 2026-08-02", 20, 114)
+
+    # CP2 is a digital priority-mode input, not a companion power pin. Give
+    # each stage an explicit local GND path so the drawing and L01D net model
+    # cannot silently disagree again.
+    for Ua, gx in (("U104", 30), ("U105", 78)):
+        px, py = c.pin(Ua, "3")
+        c.wire((px, py), (gx, py), (gx, 102))
+        c.stamp("GND", gx, 102, 0)
+        c.use((Ua, "3"))
 
     # merged system rail out
     c.wire(c.pin("U105", "1"), (118, 64))

@@ -73,3 +73,14 @@ a ground-bond resistance check before and after the peel, shake, and thermal
 cycle work. Hardware finish, washer style, torque, and an acceptance resistance
 must be selected from measured samples or supplier data before they become
 production values.
+
+## ESP32 operating scope
+
+All ESP32 devices in the BETA board family operate with wireless functions
+disabled. There is no wireless-enabled BETA variant. Placement guidance and
+power qualification must use the wired firmware mode.
+
+This decision removes wireless transmit-current comparisons from the electrical
+audit. It does not by itself qualify the 250 mA LP5907. Each board still needs a
+reviewed worst-case 3.3 V current budget for the controller, sensing, CAN, logic,
+and housekeeping loads, including operating tolerance and approved margin.

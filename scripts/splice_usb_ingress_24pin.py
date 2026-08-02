@@ -20,9 +20,9 @@
 #     separate from/parallel to U5) is deleted outright, same as every other
 #     board.
 #   - C50/R53 ANNOTATE: back-fill LCSC (+MPN/Manufacturer for completeness)
-#     onto U5's own existing, LCSC-blank support parts -- verified live that
-#     both currently carry NO LCSC property at all (not just empty), so this
-#     is a pure BOM-metadata addition, zero connectivity change.
+#     onto U5's own existing, LCSC-blank support parts. C50's selected C23630
+#     is a 0603 part, so the generator and authoritative schematic must use a
+#     0603 footprint. The earlier 0402 footprint was not assembly-compatible.
 #   - CP2/OV2/ST straps: the per-board table has no explicit STRAP row for U6
 #     (unlike EPS/PCIe/12VHPWR's tables, which each have one) -- applying spec
 #     Sec 2's general datasheet rule ("CP2, OV2 ... and ST strap to GND per

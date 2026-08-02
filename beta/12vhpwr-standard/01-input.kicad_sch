@@ -1331,7 +1331,7 @@
 		(property "Value" "AO3400A" (at 149.86 57.15 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.aosmd.com/res/datasheets/AO3400A.pdf" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "AOS" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Alpha & Omega Semiconductor" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "AO3400A" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C20917" (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Note" "Q_FAN: low-side NMOS switch for J2 fan return. Drain=FAN_RET, Source=GND, Gate=FAN_GATE (100R series R14 from ESP32 IO21/FAN_EN, 10k pullup R15 to +3V3). DEFAULT-ON (owner ruling): with 3V3 up and the GPIO not actively driving low, R15 holds the gate high and the fan runs; firmware drives FAN_EN LOW to turn the fan off. 30V/5.7A SOT-23, LCSC C20917, 853k+ in stock." (at 149.86 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))

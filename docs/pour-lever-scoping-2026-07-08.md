@@ -1,4 +1,11 @@
-# Pour lever — scoping / plan of record (DRAFT — SCOPING, awaiting owner review)
+# Pour lever: scoping plan of record (DRAFT, awaiting owner review)
+
+> **Historical scoping document.** The statement below that nothing is built is
+> no longer current. The pipeline now carries declarative pour asks, deterministic
+> current-proportional slabs, placement pickups, strict minimum-width checks, and
+> fail-closed rebuilds. Current behavior and the remaining placement failures are
+> recorded in `beta-placement-passives-audit-2026-08-02.md`. This file remains the
+> original architecture record, not an operating guide.
 
 _Owner ask, 2026-07-08 (verbatim intent): "implement a pour lever into the pipeline... so the
 placer and router can ask for a new pour and it can be nudged around and re-built as needed when

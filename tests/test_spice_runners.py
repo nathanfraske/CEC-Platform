@@ -77,6 +77,33 @@ class BackfeedRunnerTest(unittest.TestCase):
                         tstep="1u", tstop="10u")
             self.assertFalse(os.path.exists(stale))
 
+    def test_local_transient_uses_relative_wrdata_in_scratch_directory(self):
+        captured = {}
+
+        def fake_run(cir, name, **kwargs):
+            captured["cir"] = cir
+            captured["name"] = name
+            captured.update(kwargs)
+            with open(os.path.join(captured["run_cwd"], "tran.data"), "w",
+                      encoding="utf-8") as handle:
+                handle.write("0 0\n1e-6 1\n")
+            return {}, "", ""
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(BACKFEED, "SCRATCH", directory), \
+                mock.patch.object(BACKFEED, "_ngspice_runner",
+                                  return_value=("local", "ngspice-batch")), \
+                mock.patch.object(BACKFEED, "run_ngspice",
+                                  side_effect=fake_run):
+            data, _, _ = BACKFEED.run_ngspice_tran(
+                BACKFEED.TITLE, ["v(out)"], "tran",
+                tstep="1u", tstop="10u")
+
+        self.assertIn("wrdata tran.data v(out)", captured["cir"])
+        self.assertNotIn(":/", captured["cir"])
+        self.assertEqual(captured["run_cwd"], directory)
+        self.assertEqual(data["v(out)"].tolist(), [0.0, 1.0])
+
     def test_charge_uses_available_numpy_trapezoid_api(self):
         data = {"time": np.array([0.0, 1.0, 2.0]),
                 "i(vsense)": np.array([0.0, 1.0, 0.0])}

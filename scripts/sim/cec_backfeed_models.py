@@ -3,13 +3,10 @@
 """cec_backfeed_models -- shared ngspice device models + runner/parser for the
 2026-07-24 USB-backfeed protection verification (docs/spice-backfeed-verify-2026-07-24.md).
 
-Engine: real ngspice (v44.2, KLU solver), run inside docker-routing-1 (the repo's own
-routing container, which already carries ngspice for scripts/cec_spice.py and
-scripts/cec_spice_sanity.py -- this module follows their existing subprocess/tempfile
-convention). NOT PySpice (PySpice is not installed on the host and would still need to
-find/drive a real ngspice binary, which only exists in the container -- calling the
-container's ngspice binary directly via ngspice -b is simpler and is the repo's own
-established pattern).
+Engine: real batch ngspice, using a local console executable when available and the
+routing container only as a fallback. The runner follows the same deterministic
+repository-owned spinit policy as scripts/cec_spice.py and
+scripts/cec_spice_sanity.py. It does not use PySpice.
 
 Every .model card below cites the datasheet value(s) it is fit to. Where a datasheet
 gives only ONE precise point (SS34's IF=3A/VF=0.55V; the 1206L PPTC families' single
@@ -51,11 +48,15 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE))
+import cec_toolchain  # noqa: E402
+
 SCRATCH = os.path.join(REPO_ROOT, "build", "spice_scratch")
 os.makedirs(SCRATCH, exist_ok=True)
 
@@ -73,18 +74,9 @@ DOCKER_CONTAINER = os.environ.get("CEC_ROUTING_CONTAINER", "docker-routing-1")
 
 def _ngspice_runner():
     """Return (mode, executable) for a batch-safe local or Docker runner."""
-    override = os.environ.get("CEC_NGSPICE")
-    if override:
-        return "local", override
-    if os.name == "nt":
-        console = shutil.which("ngspice_con.exe")
-        if console:
-            return "local", console
-        # Never select the GUI ngspice.exe on Windows.
-    else:
-        local = shutil.which("ngspice")
-        if local:
-            return "local", local
+    local = cec_toolchain.ngspice_console()
+    if local:
+        return "local", local
     docker = shutil.which("docker")
     if docker:
         return "docker", docker
@@ -92,7 +84,7 @@ def _ngspice_runner():
     raise RuntimeError("no batch ngspice runner found; set CEC_NGSPICE to %s" % name)
 
 # --------------------------------------------------------------------------- runner
-def run_ngspice(cir_text, name, *, runner=None):
+def run_ngspice(cir_text, name, *, runner=None, run_cwd=None):
     """Write a deck to build/spice_scratch/<name>.cir (visible in the container at
     /workspace/build/spice_scratch/<name>.cir, since docker-routing-1 mounts the repo
     root at /workspace) and run it via `docker exec ... ngspice -b`. Returns
@@ -105,11 +97,16 @@ def run_ngspice(cir_text, name, *, runner=None):
     rel = os.path.relpath(path, REPO_ROOT)
     container_path = "/workspace/" + rel.replace(os.sep, "/")
     mode, exe = runner or _ngspice_runner()
-    cmd = ([exe, "-b", path] if mode == "local" else
-           [exe, "exec", DOCKER_CONTAINER, "ngspice", "-b", container_path])
+    cmd = ([exe, "-n", "-b", path] if mode == "local" else
+           [exe, "exec", DOCKER_CONTAINER, "ngspice", "-n", "-b", container_path])
     kw = {"capture_output": True, "text": True, "timeout": 180}
     if mode == "local" and os.name == "nt" and hasattr(subprocess, "CREATE_NO_WINDOW"):
         kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+    if mode == "local":
+        selected_cwd = run_cwd or cec_toolchain.ngspice_cwd(exe)
+        if selected_cwd:
+            kw["cwd"] = selected_cwd
+        kw["env"] = cec_toolchain.ngspice_batch_env()
     r = subprocess.run(cmd, **kw)
     if r.returncode != 0:
         detail = (r.stderr or r.stdout or "no diagnostic").strip()
@@ -146,7 +143,12 @@ def run_ngspice_tran(cir_body, vectors, name, *, tstep, tstop, extra_control="",
         pass
     runner = _ngspice_runner()
     if runner[0] == "local":
-        data_target = os.path.abspath(data_path).replace(os.sep, "/")
+        # ngspice 46 on Windows rejects a quoted drive-letter path in wrdata
+        # ("C:/...": Invalid argument). Run the deck from the scratch directory
+        # and give wrdata a relative filename. The deck itself is still passed to
+        # ngspice by absolute path, and the repository spinit remains selected by
+        # run_ngspice.
+        data_target = datafile
     else:
         data_target = "/workspace/" + os.path.relpath(
             data_path, REPO_ROOT).replace(os.sep, "/")
@@ -156,11 +158,16 @@ def run_ngspice_tran(cir_body, vectors, name, *, tstep, tstop, extra_control="",
         cir_body
         + f".tran {tstep} {tstop}{uic_flag}\n"
         + ".control\nrun\n"
-        + f'wrdata "{data_target}" {vec_list}\n'
+        # Every target is runner-generated and contains no whitespace. Avoid
+        # quoting it because the Windows console build treats the quote marks as
+        # part of the filename and reports "Invalid argument".
+        + f"wrdata {data_target} {vec_list}\n"
         + extra_control
         + "\n.endc\n.end\n"
     )
-    meas, out, err = run_ngspice(cir, name, runner=runner)
+    meas, out, err = run_ngspice(
+        cir, name, runner=runner,
+        run_cwd=(SCRATCH if runner[0] == "local" else None))
     if not os.path.exists(data_path):
         detail = (err or out or "no transient data file").strip()
         raise RuntimeError("ngspice produced no transient data: %s" % detail[-800:])

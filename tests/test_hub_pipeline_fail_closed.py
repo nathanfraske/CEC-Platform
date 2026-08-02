@@ -16,6 +16,11 @@ import hub_pipeline_run as H  # noqa: E402
 
 
 class TestHubAcceptance(unittest.TestCase):
+    def test_repour_uses_current_ask_contract(self):
+        nets = H._hub_pour_nets()
+        self.assertIn("/PSU_5V_KVM", nets)
+        self.assertEqual(len(nets), len(set(nets)))
+
     def test_all_terms_are_required(self):
         args = ({"gates_pass": True}, 0, [], True, True)
         terms, accepted = H._acceptance_terms(*args)

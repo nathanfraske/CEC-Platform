@@ -2488,7 +2488,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
 			(at 157.48 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -2509,7 +2509,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "NXP"
+		(property "Manufacturer" "NXP Semiconductors"
 			(at 157.48 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -2520,7 +2520,7 @@
 				)
 			)
 		)
-		(property "MPN" "TJA1051T/3"
+		(property "MPN" "TJA1051T/3/1J"
 			(at 157.48 88.9 0)
 			(hide yes)
 			(show_name no)

@@ -2670,15 +2670,22 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     off the pad, placed INSIDE the covering pour/plane polygon, so the later
     ZONE_FILLER connects it. Foreign-collision-guarded per candidate direction
     (the synthesize_force_vias discipline); a pad with no clear direction is
-    skipped loudly-by-count, never forced. Returns {pads, vias, stubs, skipped}."""
+    skipped loudly-by-count, never forced. On a board with an explicit POFV
+    profile, a fully-contained same-net via at the pad centre is preferred; the
+    guarded offset stub remains the fallback. Returns
+    {pads, vias, stubs, pofv, skipped}."""
     import math as _math
     nets_nc = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
     # target polygons per net: the ask/derived pour rects + any same-net ZONE
     # outline (the GND inner plane) -- coverage is tested on the OUTLINE bbox
     # (rect pours today; plane zones are near-board-sized).
     polys = {}
+    requested = set()
     for p in (power_pours or ()):
         net = p.get("net")
+        if net:
+            requested.add(net)
+            polys.setdefault(net, [])
         poly = p.get("polygon") or ()
         if net and poly:
             xs = [q[0] for q in poly]; ys = [q[1] for q in poly]
@@ -2694,7 +2701,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                  (bb.GetX() + bb.GetWidth()) / 1e6,
                  (bb.GetY() + bb.GetHeight()) / 1e6))
     if not polys:
-        return {"pads": 0, "vias": 0, "stubs": 0, "skipped": 0}
+        return {"pads": 0, "vias": 0, "stubs": 0, "pofv": 0,
+                "skipped": 0}
     # pads already touched by copper: any track/via endpoint within the pad box
     touched = set()
     tracks = [t for t in board.GetTracks()]
@@ -2702,7 +2710,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     # within 0.85mm of ANY existing or just-placed via
     _pk_vias = [(t.GetPosition().x, t.GetPosition().y)
                 for t in tracks if t.GetClass() == "PCB_VIA"]
-    n_p = n_v = n_s = n_skip = 0
+    n_p = n_v = n_s = n_pofv = n_skip = 0
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             net = pad.GetNetname()
@@ -2713,8 +2721,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             pos = pad.GetPosition()
             px, py = pos.x / 1e6, pos.y / 1e6
             boxes = [b for b in polys[net]
-                     if b[0] <= px <= b[2] and b[1] <= py <= b[3]]
-            if not boxes:
+                      if b[0] <= px <= b[2] and b[1] <= py <= b[3]]
+            if not boxes and net not in requested:
                 continue                       # no covering pour -> not ours
             hit = False
             pr = max(pad.GetSizeX(), pad.GetSizeY()) / 2 + 50000
@@ -2733,6 +2741,35 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             if nc is None:
                 continue
             lay_id = board.GetLayerID(pad.GetLayerName())
+
+            # VIA-IN-PAD FIRST. The centralized fabrication check proves the
+            # declared profile, same-net identity, SMD attribute, dimensions,
+            # and full-land containment. The all-layer collision probe then
+            # applies the ordinary through-via clearance contract. Refusal at
+            # either gate preserves the established adjacent-via fallback.
+            if (not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(0.85) ** 2
+                        for qx, qy in _pk_vias)
+                    and _via_spot_clear(board, pos, _nm(dia), _nm(0.25),
+                                        {nc}, drill_nm=_nm(drill),
+                                        net_code=nc)):
+                v = pcbnew.PCB_VIA(board)
+                v.SetPosition(pos)
+                v.SetDrill(_nm(drill))
+                v.SetWidth(_nm(dia))
+                v.SetNetCode(nc)
+                board.Add(v)
+                _pk_vias.append((pos.x, pos.y))
+                tracks.append(v)
+                n_v += 1; n_p += 1; n_pofv += 1
+                continue
+
+            if not boxes:
+                # A raw ask without established geometry may bootstrap only
+                # through a fabrication-qualified via in pad. An adjacent via
+                # has no proven future-pour coverage yet, so do not guess one.
+                n_skip += 1
+                continue
+
             placed = False
             for off_mm in (offset, offset + 0.4, offset - 0.25):
                 if placed:
@@ -2794,7 +2831,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     break
             if not placed:
                 n_skip += 1
-    return {"pads": n_p, "vias": n_v, "stubs": n_s, "skipped": n_skip}
+    return {"pads": n_p, "vias": n_v, "stubs": n_s,
+            "pofv": n_pofv, "skipped": n_skip}
 
 
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,

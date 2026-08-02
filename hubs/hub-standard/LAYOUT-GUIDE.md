@@ -1,137 +1,140 @@
-# Hub Standard — Placement & Routing Guide
+# Hub Standard BETA rev2 placement and routing guide
 
-This board is **not** the 24-pin interposer. There is no high-current spine and
-no Kelvin analog: it is a low-current (~3 A max), low-speed (USB Full-Speed
-12 Mbps, classical CAN 500 kbps) aggregation board. So the hard parts are not
-routing density — they are (1) the **ground plane** for EMC, (2) the **5VSB
-power + isolation/hold-up topology**, (3) the **WROOM antenna keepout**, and
-(4) keeping the **4 ports' CAN** and the **USB pair** clean.
+## Status and authority
 
-## Do we need 4 layers? — Yes, but for the plane, not the routing
+This guide applies to `beta/hub-standard-rev2`. It replaces the historical
+four-layer Hub guide. The governing fabrication and mating decisions are in
+`docs/decisions/owner-session-2026-08-01.md`. Device rules are in
+`docs/standard-tier-review/STANDARD-DESIGN-SHEET.md`.
 
-The routing genuinely does **not** need 4 layers (no high-speed nets, low part
-count, ~3 A power). The reason to keep 4-layer is the **uninterrupted L2 ground
-plane**:
+The Hub schematic is closed at the current error-level ERC and bounded DC
+topology boundary. Placement is deliberately left open for redesign. The
+checked-in candidate is stale at U5, U7, and U11 and still has DRC,
+unconnected-copper, pour, and field-model failures. It is not a fabrication
+candidate.
 
-- **EMC.** This is the cable aggregation point — 4 RJ-45 ports, each driving a
-  CAN pair onto ~1 m of cable. A solid GND plane gives every CAN/USB signal a
-  tight return directly beneath it and cuts common-mode emissions. It is the
-  partner to the spec's FTP-shield intent (OQ-15); a 2-layer board undercuts it.
-- **Future Wi-Fi.** The WROOM module wants a clean ground reference under its
-  non-antenna pins; a noisy 2-layer board risks coupling into 2.4 GHz.
-- **Power.** A 5VSB pour/plane makes the 4-port ~3 A distribution low-impedance.
+All wireless functions are excluded from this board family. The 3.3 V supply
+qualification must use a reviewed worst-case load budget for the wired firmware
+mode and every fitted rail load.
 
-**2-layer is viable** for a pure functional bring-up (solid bottom GND pour,
-top-side power), saving ~$15-20 per 5-board JLCPCB proto — at the cost of EMC
-margin and more layout discipline (keep the bottom pour solid, minimize bottom
-routing). Spec §4 / the README lock 4-layer; keeping it needs no change, so this
-guide assumes **4-layer 1.6 mm**. Dropping to 2-layer is a spec-revision call —
-only worth it if cost is a hard driver and EMC can wait.
+## Source topology
 
-Suggested stackup — **JLC04161H-7628**, JLCPCB's default 4-layer 1.6 mm:
-**1 oz outer (L1/L4), 0.5 oz inner (L2/L3)**. 0.5 oz inner is the standard,
-cheapest option and the right call here (see "Copper weight" below).
-- **L1 (F.Cu, 1 oz):** components, signals, **and the ~3 A 5VSB distribution** —
-  keep the heavy power on the thick outer copper.
-- **L2 (In1, 0.5 oz):** solid GND plane — the deliverable. 0.5 oz is fine for a
-  plane (return current spreads out; ampacity is a *trace* concern, not a plane
-  one). Keep it unbroken under U1, the diff pairs, and the CAN bus.
-- **L3 (In2, 0.5 oz):** signal crossings + GND fill. An optional +5VSB *assist*
-  pour is OK (a wide pour carries current even at 0.5 oz), but don't let it be
-  the only path for the trunk.
-- **L4 (B.Cu, 1 oz):** spillover signals + GND fill, stitched to L2.
+- U5, U7, and U11 form the current TPS2121 cascade.
+- CP2 pin 3 is tied low at every stage. The exported netlist therefore proves
+  the fixed source priority `MAIN_5V > 5VSB > USB > KVM` at the bounded DC
+  topology level.
+- L2 is DNP and excluded from the BOM. No inductance value is needed.
+- Each TPS2121 IN1, IN2, and OUT node requires a selected close X5R or X7R
+  bypass capacitor. The present schematic does not satisfy every node.
+- The SPICE harness does not prove switchover transient response, protection
+  thresholds, reverse-current dynamics, thermal behavior, or fault energy.
 
-**Copper weight — 0.5 oz inner is fine.** It is JLCPCB's default (cheaper than
-1 oz inner) and nothing here needs more: the L2 GND plane doesn't care about
-thickness, and the only heavy net (~3 A 5VSB) lives on the 1 oz outer layers.
-Rule of thumb: a ~3 A *trace* on 0.5 oz internal would have to be impractically
-wide (internal copper derates ~50 % vs external), so never bury the trunk as an
-inner trace — but a *pour/plane* at 0.5 oz is fine. Keep power on L1; let the
-inners be GND + signal.
+## Six-layer contract
 
-## Place these first — mechanical anchors (set by the enclosure, not electrons)
-- **4× RJ-45 (J2–J5):** along the back edge, evenly spaced, cable exit outward.
-- **USB-C (J6):** front/side edge for the host cable; **hard against U1** (short
-  USB pair).
-- **2-pin power-in (J1):** near where the 24-pin module's 5VSB cable enters.
-- **4× M3 mounting holes** (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via`):
-  corners, assign the pad net to **GND** so the pad + stitching vias tie the
-  In1 plane to the chassis screw (grounding + the §6.6 thermal path).
-- **U1 (WROOM):** antenna at a board edge, **pointing off-board**, with the
-  module antenna keepout honored — **no copper on ANY layer under the antenna**
-  (including the L2 plane). This is the one keepout that voids the "solid plane".
+Use the pipeline profile `jlcpcb_6l_pofv_signal` with this modelled copper:
 
-## Then the four functional clusters (each kept local)
+| Layer | Role | Finished copper |
+| --- | --- | ---: |
+| F.Cu | Signal | 0.0350 mm |
+| In1.Cu | Ground reference plane | 0.0152 mm |
+| In2.Cu | Signal routing | 0.0152 mm |
+| In3.Cu | Power routing and pours | 0.0152 mm |
+| In4.Cu | Ground reference plane | 0.0152 mm |
+| B.Cu | Signal | 0.0350 mm |
 
-**1. Power front-end / isolation (the heart).** Lay this as one tight cluster:
-```
-  J1 ──→ C9 ──→ U5(TPS2121 mux) ──→ C_bulk ──→ D1(SS14) ──→ C1(4700µF) + C2 ──→ U3(LP5907) ──→ C3
-  (5VSB_RAW)        (IN1)            (+5VSB)    (iso)      (+5V_HOLD reservoir)        (+3V3)
-                     ▲
-        J6 VBUS ──────┘ (IN2, USB OR-in)   R_ILIM + C_SS at U5
-```
+The router may use F.Cu, In2.Cu, In3.Cu, and B.Cu. It may not place ordinary
+traces on In1.Cu or In4.Cu. Both ground planes must remain continuous under
+signal return paths except for reviewed unavoidable antipads.
 
-**R_ILIM value (verified, not a placeholder):** `R_ILIM1 = 27 kΩ → ~3.8 A` current
-limit, from the TPS2121 equation `I_LIM = 65.2 / R_ILIM(kΩ)^0.861` (TI app note
-SLVAEC2). That sits just above the ~3 A trunk max (and well above the OQ-2 firmware
-cap), so it protects against a downstream fault without nuisance-tripping at full
-load. (27 kΩ coincidentally equals R13, but the value is correct on its own math.)
-- `D1` is the isolation diode: it keeps `C1`'s big reservoir off the measured
-  5VSB. Keep `C1`/`C2` on the `+5V_HOLD` side of `D1`; keep `C_bulk`/`C5` on the
-  `+5VSB` side. Do **not** bridge them.
-- `C1` is the 16 mm 4700 µF can (Panasonic EEVFK1C472M) — it is the biggest part
-  on the board; budget its footprint early.
-- Blackout sense: `R12/R13` (47k/27k) divide `+5VSB` into U1 GPIO8 — place by
-  U1, sensing the rail before `D1`. (On PC power-loss 5VSB collapses → MCU
-  dumps from the `+5V_HOLD` reservoir.)
+At equal resistance and current, a 0.0152 mm conductor requires
+2.289473684 times the width of a 0.0348 mm conductor. The current-density and
+thermal gates remain mandatory because this ratio does not account for copper
+spreading, necks, vias, contact resistance, temperature, or enclosure cooling.
 
-**2. MCU core.** `U1` central. `C4` decoupling at the pin. `SW1`(reset→EN,
-with `R2`/`C6`), `SW2`(boot→GPIO0, with `R11`/`C8`), and `U4`(TPS3839
-supervisor→EN) clustered at U1. Service/boot are hand-press parts — keep
-accessible.
+## Via rules
 
-**3. CAN hub.** `U2`(TJA1051T/3) centered relative to the 4 ports. The **fixed
-120 Ω split termination** (`R3`+`R4` = 2×60 Ω, with `C7` 4n7 from `CAN_MID` to
-GND) sits **right at U2**. Bus `CAN_H`/`CAN_L` to the 4 ports as a short
-multidrop. **No termination at the ports** (Hub-only, locked). CAN control
-(`CAN_TX`/`CAN_RX`, U1↔U2) is low-speed — Default class.
+- Use plated through vias only.
+- Blind, buried, stacked, staggered, and microvias are not approved.
+- Same-net via-in-pad is permitted only under the declared POFV profile when the
+  complete via land is inside the SMD pad.
+- The pickup synthesizer may center a qualified POFV in a suitable pad. If that
+  is impossible, it may use a guarded adjacent via and stub. If neither is
+  geometrically safe, it must report a placement failure.
 
-**4. DETECT + LEDs.**
-- `R5–R8` (10k DETECT pull-ups, **now to +3V3**) each by its port's pin 8;
-  `DETECT1–4` to U1 ADC1 channels. Route `+3V3` to them — microamp current,
-  thin trace fine.
-- `DL1–DL7` (SK6812 chain) where they need to be seen (top/edge). `LED_DATA`
-  U1→DL1, then daisy-chain DOUT→DIN. `+5VSB` to each (firmware current cap, OQ-2).
+## Segmented mezzanine and ground lug
 
-## Power routing
-- **Trunk** (`J1 → U5 → +5VSB star`, ~3 A): **pour it**, or route ≥1.5 mm at
-  1 oz. Verify by pour copper area (IPC-2152), not a track floor.
-- **Port VCC branches** (`+5VSB` → each RJ-45 pin 1, ~0.5 A each): ≥0.5 mm.
-- **`+5V_HOLD`** (post-`D1`, ~0.15 A dump): short, ≥0.5 mm.
-- All on the **Power** netclass (1.0 mm default, 0.5 mm DRC floor). GND is poured
-  (L2 plane + fills), not a track class.
+J6P, J6C, and J6D remain the selected segmented Hub-to-24-pin scheme. H1 is a
+mandatory coincident plated M2 GND land on both boards. Conductive hardware is
+fitted, so H1 supplements the connector ground contacts as an inter-board
+ground bond. It is not the sole normal return path.
 
-## Diff pairs (over the L2 GND plane)
-- **`USB_DP`/`USB_DM`** (USB FS, 90 Ω): short, coupled, referenced to L2. FS is
-  tolerant; recompute width/gap for the final stackup (USB class: 0.2 mm /
-  0.13 mm gap is the starting point). CC resistors `R9`/`R10` at J6.
-- **`CAN_H`/`CAN_L`**: short + parallel; PCB impedance non-critical (the cable +
-  the 120 Ω split are the controlled medium).
+Lock the three connector segments and H1 before automatic placement. The mating
+gate must reject missing, moved, masked, unplated, dimensionally wrong, or
+noncoincident H1 geometry.
 
-## Keepouts
-- **WROOM antenna** — no copper, any layer (breaks the L2 plane locally).
-- Nothing else special; <=5 V everywhere, 0.2 mm clearance is ample.
+## Placement order
 
-## Netclasses / DRU (already in the project)
-| Class | Nets | Intent |
-|---|---|---|
-| **Power** | `+5VSB`, `5VSB_RAW`, `+5V_HOLD`, `USB_VBUS` | 1.0 mm default; trunk poured/≥1.5 mm; 0.5 mm DRC floor |
-| **USB** | `USB_DP`, `USB_DM` | 90 Ω FS pair; 0.1–0.2 mm gap rule; recompute for stackup |
-| **CAN** | `CAN_H`, `CAN_L` | coupled + short; stock diff fine |
-| **Default** | `+3V3`, `GND`, `DETECT1–4`, `LED_DATA`, `CAN_TX/RX/MID`, `EN`, `GPIO0`, `USB_CC1/2`, control | autorouter/Quilter OK |
+1. Lock J6P/J6C/J6D, H1, all external ports, board outline, and enclosure-driven
+   access points.
+2. Place the U5/U7/U11 source cascade and hold-up network as a compact power
+   cell. Keep each source path direct and each bypass loop local.
+3. Place the 3.3 V regulator with its exact selected input and output
+   capacitors. Do not add the ESP reference bulk capacitor until the LP5907
+   output-capacitance conflict has an approved resolution.
+4. Place port power switching, CAN front ends, USB circuitry, monitoring, and
+   logic in repeated functional cells. Each cell must retain a direct ground
+   return and one-to-one local bypass coverage.
+5. Reserve In3.Cu corridors and safe vertical pickups before routing ordinary
+   signals. Do not assume a same-net named zone reaches an SMD pad.
+6. Route USB and CAN over a continuous reference plane. Route housekeeping only
+   after the source, protection, power pickup, and differential paths are fixed.
 
-## The Quilter / autorouter split
-This board is simple enough to mostly hand-route, or to delegate after locking:
-the connectors + the **power front-end cluster** + the **antenna keepout** + the
-**USB/CAN diff pairs** (lock these), then let the router handle the digital web
-(DETECT, control GPIO, LED data, +3V3 distribution) and the ground/copper fill.
+## Current Hub pour contract
+
+The Hub asks for eleven In3.Cu slabs:
+
+- `+5VSB`
+- `/5VSB_RAW`
+- `/PSU_5V`
+- `/PSU_5V_KVM`
+- `/MAIN_5V_RAW`
+- `/USB_VBUS`
+- `/+5V_HOLD`
+- `/VCC_P1`
+- `/VCC_P2`
+- `/VCC_P3`
+- `/VCC_P4`
+
+The standalone runner now takes this list from the current placement contract,
+not from stale zones in a candidate. It removes inherited slabs, creates safe
+pickups where possible, and rebuilds the allocation. It stops on missing
+current, current-source conflict, missing anchors, overlap, or a minimum-width
+failure.
+
+A live ripped-board diagnostic created 40 pickups, including 28 qualified POFV
+pickups and 12 guarded stub vias. It then stopped because the present placement
+could not provide every required anchor and minimum-width corridor. In
+particular, `/PSU_5V` and `/PSU_5V_KVM` had no usable inner anchor with the
+current pad geometry. This is a placement redesign requirement, not permission
+to reduce the design current or relax the pour floor.
+
+## Device and passive release gates
+
+- LP5907 qualification requires exact selected stability capacitors, effective
+  capacitance evidence, and a complete 3.3 V load budget below 250 mA with
+  approved margin.
+- Every IC supply pin or supply group requires the device-qualified local
+  bypass. Rail-level capacitance elsewhere does not satisfy that rule.
+- TPS2121 bypassing must be checked per IN1, IN2, and OUT node.
+- Protection thresholds, divider tolerance, voltage rating, dielectric,
+  package, connector MPN, and assembly state must be explicit in CAD and BOM.
+- Decouplers must minimize the supplied-pin to capacitor to return loop. Their
+  placement is checked after the PCB is synchronized, not inferred from the
+  schematic net name.
+
+## Closure boundary
+
+For now, the Hub is closed only at schematic, error-level ERC, and bounded DC
+topology SPICE. A future placement redesign must synchronize U5, U7, and U11,
+then pass strict pours, routing, error-level DRC, laid-copper connectivity, FEM,
+and mating checks. No current physical result supports fabrication release.

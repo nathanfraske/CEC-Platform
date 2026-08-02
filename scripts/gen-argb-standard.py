@@ -48,16 +48,25 @@ import cec_sch_gates as G     # noqa: E402
 import cec_sch_archetypes as arch  # noqa: E402
 
 BOARD = "argb-standard"
-BOARD_DIR = os.path.join(ROOT, "modules", BOARD)
+# The authoritative BETA line moved from modules/ to beta/ in ff5d405e.
+# Keeping the old destination made this generator fail or recreate a stale,
+# non-authoritative tree instead of updating the board it claims to generate.
+BOARD_DIR = os.path.join(ROOT, "beta", BOARD)
 PROJECT_NAME = "argb-standard-module"
 ROOT_SCH = os.path.join(BOARD_DIR, f"{PROJECT_NAME}.kicad_sch")
 REV = "BETA-1"
 
+
+def _read_utf8(path):
+    with open(path, encoding="utf-8") as handle:
+        return handle.read()
+
+
 LIBS = {
-    "cec":                 open(f"{ROOT}/lib/cec.kicad_sym").read(),
-    "cec-vendor":          open(f"{ROOT}/lib/vendor/cec-vendor.kicad_sym").read(),
-    "power":               open(f"{ROOT}/lib/vendor/cec-power.kicad_sym").read(),
-    "cec-Connector_Generic": open(f"{ROOT}/lib/vendor/Connector_Generic.kicad_sym").read(),
+    "cec":                 _read_utf8(f"{ROOT}/lib/cec.kicad_sym"),
+    "cec-vendor":          _read_utf8(f"{ROOT}/lib/vendor/cec-vendor.kicad_sym"),
+    "power":               _read_utf8(f"{ROOT}/lib/vendor/cec-power.kicad_sym"),
+    "cec-Connector_Generic": _read_utf8(f"{ROOT}/lib/vendor/Connector_Generic.kicad_sym"),
 }
 POWER_PORTS = {"GND": "GND", "+3V3": "+3V3"}
 
@@ -176,10 +185,12 @@ ap(L01, "C2", "cec-vendor", "C_Small", "1n", "cec-Capacitor_SMD:C_0402_1005Metri
    {"Manufacturer": "Murata", "MPN": "GRM1555C1H102JA01D", "LCSC": "C76947",
     "Description": "Rail-divider ADC filter cap (matches the 12VHPWR VRAIL_DIV precedent)"})
 
-L01.net("SATA_5V_RAW", ("J1", "7"), ("J1", "8"), ("J1", "9"), ("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
+L01.net("SATA_5V_RAW", ("J1", "7"), ("J1", "8"), ("J1", "9"),
+        ("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"))
 L01.net("GND", ("J1", "4"), ("J1", "5"), ("J1", "6"), ("J1", "10"), ("J1", "11"), ("J1", "12"),
         ("R1", "1"), ("C1", "2"), ("R3", "2"), ("C2", "2"))
-L01.net("5V_POST_FET", ("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"), ("F1", "1"))
+L01.net("5V_POST_FET", ("Q1", "1"), ("Q1", "2"), ("Q1", "3"),
+        ("F1", "1"))
 L01.net("5V_POST_FUSE", ("F1", "2"), ("RT1", "1"))
 L01.net("+5V_LED_IN", ("RT1", "2"), ("C1", "1"), ("R2", "1"))
 # R1 pin roles are SWAPPED vs the naive pin1=GATE_Q1/pin2=GND assignment
@@ -257,7 +268,8 @@ ap(L03, "R5", "cec-vendor", "R_Small", "100k", "cec-Resistor_SMD:R_0402_1005Metr
    {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1003TCE", "LCSC": "C25741",
     "Description": "DETECT poke-and-ack high-Z tap (spec Sec 2.3)"})
 ap(L03, "D1", "cec-vendor", "D_Schottky", "PESD5V0S1BA", "cec-Diode_SMD:D_SOD-323",
-   {"Manufacturer": "Nexperia", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+   {"Manufacturer": "HXY MOSFET", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+    "Datasheet": "https://www.lcsc.com/datasheet/C5261083.pdf",
     "Description": "DETECT pin-8 hot-plug ESD diode (spec Sec 2.4 LOCKED)"})
 ap(L03, "FB1", "cec-vendor", "FerriteBead_Small", "0R", "cec-Capacitor_SMD:C_0805_2012Metric",
    {"Manufacturer": "UNI-ROYAL", "MPN": "0805W8F0000T5E", "LCSC": "C17477",
@@ -303,7 +315,8 @@ L03.powerflag_nets = []
 L04 = LEAVES["04-can"]
 ap(L04, "U2", "cec-vendor", "TJA1051T-3", "TJA1051T/3",
    "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-   {"Manufacturer": "NXP", "MPN": "TJA1051T/3", "LCSC": "C38695"})
+   {"Manufacturer": "NXP Semiconductors", "MPN": "TJA1051T/3/1J", "LCSC": "C38695",
+    "Datasheet": "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"})
 ap(L04, "C4", "cec-vendor", "C_Small", "100n", "cec-Capacitor_SMD:C_0402_1005Metric",
    {"Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC", "LCSC": "C1525"})
 ap(L04, "C5", "cec-vendor", "C_Small", "100n", "cec-Capacitor_SMD:C_0402_1005Metric",
@@ -353,11 +366,13 @@ ap(L07, "J3", "cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C 2.0",
    "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
    {"Manufacturer": "XKB Connectivity", "MPN": "U262-161N-4BVC11", "LCSC": "C319148"})
 ap(L07, "D5", "cec-vendor", "D_Schottky", "PESD5V0S1BA", "cec-Diode_SMD:D_SOD-323",
-   {"Manufacturer": "Nexperia", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+   {"Manufacturer": "HXY MOSFET", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+    "Datasheet": "https://www.lcsc.com/datasheet/C5261083.pdf",
     "Description": "Discrete VBUS clamp, ahead of the entry bead (H3a posture)"})
 ap(L07, "D6", "cec-vendor", "USBLC6-2SC6", "USBLC6-2SC6",
    "cec-Package_TO_SOT_SMD:SOT-23-6",
-   {"Manufacturer": "onsemi", "MPN": "USBLC6-2SC6", "LCSC": "C2687116"})
+   {"Manufacturer": "UMW", "MPN": "USBLC6-2SC6", "LCSC": "C2687116",
+    "Datasheet": "https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf"})
 ap(L07, "FB2", "cec-vendor", "FerriteBead_Small", "600R@100MHz FB (MPZ2012S601AT000)",
    "cec-Capacitor_SMD:C_0805_2012Metric",
    {"Manufacturer": "TDK", "MPN": "MPZ2012S601AT000", "LCSC": "C21519",
@@ -404,7 +419,8 @@ ap(L05, "U1", "cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N4R2",
                    "owner ratifies. See README.md Sec 1."})
 ap(L05, "U3", "cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3",
    "cec-Package_TO_SOT_SMD:SOT-23-5",
-   {"Manufacturer": "Texas Instruments", "MPN": "LP5907MFX-3.3", "LCSC": "C80670"})
+   {"Manufacturer": "Texas Instruments", "MPN": "LP5907MFX-3.3/NOPB", "LCSC": "C80670",
+    "Datasheet": "https://www.ti.com/lit/ds/symlink/lp5907.pdf"})
 # NOTE: lib symbol name is the BASE "LP5907MFX-1.2" -- the "LP5907MFX-3.3"
 # library entry is a KiCad (extends "LP5907MFX-1.2") variant stub with no
 # pins/graphics of its own, which this repo's cec_sch pin-table tooling does
@@ -526,9 +542,10 @@ L05.powerflag_nets = []
 #       clamp -> PESD5V0S1BA TVS -> ARGB header. Spec Sec 7.3 (LOCKED approach).
 # ===========================================================================
 L06 = LEAVES["06-led-outputs"]
-ap(L06, "U5", "cec-vendor", "74AHCT244", "SN74AHCT244PW",
+ap(L06, "U5", "cec-vendor", "74AHCT244", "74AHCT244PW,118",
    "cec-Package_SO:TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL",
    {"Manufacturer": "Nexperia", "MPN": "74AHCT244PW,118", "LCSC": "C135583",
+    "Datasheet": "https://assets.nexperia.com/documents/data-sheet/74AHC_AHCT244.pdf",
     "Description": "Octal buffer/line driver, non-inverting, 3-state -- TTL "
                    "input threshold (~2V) so 3.3V MCU drive is in-spec at a "
                    "5V supply (spec Sec 7.3)"})
@@ -570,7 +587,8 @@ for _ch in range(1, 9):
                        "implements the described clamp)"})
     ap(L06, _dtvs, "cec-vendor", "D_Schottky", "PESD5V0S1BA",
        "cec-Diode_SMD:D_SOD-323",
-       {"Manufacturer": "Nexperia", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+       {"Manufacturer": "HXY MOSFET", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+        "Datasheet": "https://www.lcsc.com/datasheet/C5261083.pdf",
         "Description": f"LED channel {_ch} per-line ESD TVS"})
     ap(L06, _j, "cec-Connector_Generic", "Conn_01x04", "ARGB_5V_HDR",
        "cec-Connector_PinHeader_2.54mm:HDR-TH_4P-P2.54-V-M",
@@ -673,7 +691,8 @@ def _grid_place(c, refs, x0, y0, cols, dx=16, dy=16):
 def compose_power_input(c, lf):
     c.place("J1", 20, 50)
     # bus the three SATA +5V pins (7,8,9) to a shared vertical spine, then
-    # right into Q1's three paralleled source pins
+    # right into Q1's four paralleled drain pins. A reverse-polarity PMOS
+    # must have its body diode facing from input drain to protected source.
     p7, p8, p9 = c.pin("J1", "7"), c.pin("J1", "8"), c.pin("J1", "9")
     busx = p7[0] - 10
     c.wire(p7, (busx, p7[1]))
@@ -682,7 +701,7 @@ def compose_power_input(c, lf):
     # p8 (the Y-middle pin) is a TRUE SHARED ENDPOINT of two bus segments
     # (p7-p8, p8-p9) rather than an interior tap of one continuous p7-to-p9
     # run (measured bug, fixed): a later bridge wire ALSO needs to start
-    # exactly at p8's point (see srcbusx below) to reach Q1's source, and
+    # exactly at p8's point to reach Q1's drain bus, and
     # with the single-continuous-run version that made THREE separate wire
     # objects converge on one WIRE'S INTERIOR point (only p8's own stub
     # was a true endpoint there) -- the exported netlist showed p7/p9
@@ -693,26 +712,18 @@ def compose_power_input(c, lf):
     c.wire((busx, p8[1]), (busx, p9[1]))
     c.use(("J1", "7"), ("J1", "8"), ("J1", "9"))
 
-    # Q1 rot=270 (CHANGED from 90 -- measured bug, fixed): at rot90 the
-    # source pins (1,2,3) sit on Q1's RIGHT (u_x=56) and drain (5,6,7,8) on
-    # its LEFT (u_x=44) -- backwards from the SATA(left)->source->drain->
-    # F1(right) flow, forcing the drain bus back across the source bus's
-    # own X-range (u_x 50-56). A drain-bus wire's own endpoint (from pin7,
-    # the max-Y drain pin) landed exactly inside the source bus's Y=52
-    # horizontal run's interior -- an unintended T-junction SHORTING THE
-    # FET'S SOURCE TO ITS OWN DRAIN, defeating the whole reverse-polarity
-    # protection (measured via the exported netlist: Q1 pins 1-3 AND 5-8
-    # all merged into one node with F1/J1 -- not merely an ERC nuisance).
-    # At rot=270, source(1,2,3) is on the LEFT (u_x=44, facing J1) and
-    # drain(5,6,7,8) on the RIGHT (u_x=56, facing F1) -- a clean monotonic
-    # left-to-right flow with no bus crossing possible.
-    c.place("Q1", 50, 50, 270)
-    q1, q2, q3 = c.pin("Q1", "1"), c.pin("Q1", "2"), c.pin("Q1", "3")
-    srcbusx = busx + 30
+    # Q1 rot=90 places drain pins 5..8 toward the SATA input and source
+    # pins 1..3 toward the protected load. This is the body-diode orientation
+    # required by the selected PMOS reverse-polarity topology. The previous
+    # rot=270 layout was geometrically tidy but electrically reversed.
+    c.place("Q1", 50, 50, 90)
+    q5, q6, q7, q8 = (c.pin("Q1", "5"), c.pin("Q1", "6"),
+                      c.pin("Q1", "7"), c.pin("Q1", "8"))
+    input_bus_x = min(p[0] for p in (q5, q6, q7, q8)) - 8
     # J1 (a 15-pin SATA connector) draws its own body as a rectangle
     # spanning the FULL pin1-to-pin15 height -- every one of its pins,
     # including p8, sits inside that box's own Y-range by construction, so
-    # a naive straight bridge from busx (left of the body) to srcbusx
+    # a naive straight bridge from busx (left of the body) to input_bus_x
     # (right of it) at p8's own Y cuts straight across the body (measured:
     # audit-sch.py wire_through_body). busx/srcbusx are ALREADY clear of
     # the body in X (busx left of it, srcbusx right of it) -- only the
@@ -720,33 +731,20 @@ def compose_power_input(c, lf):
     # up to a Y clear of the body's top (pin1) before crossing, then back
     # down to p8's Y on the far side (also body-clear in X there).
     bridge_y = 25
-    c.wire((busx, p8[1]), (busx, bridge_y), (srcbusx, bridge_y), (srcbusx, p8[1]))
-    # q1 happens to share p8's own Y (both =50) -- a "jog" via an
-    # intermediate (srcbusx, q1[1]) point would be a ZERO-LENGTH wire
-    # segment (measured bug, fixed: KiCad's connectivity did not propagate
-    # through that degenerate segment, splitting J1.7/J1.9 off from J1.8/
-    # Q1.1-3 into two separate isolated nets even though every coordinate
-    # was nominally "coincident" -- exported-netlist verified). Route q1
-    # directly with no redundant same-point jog; q2/q3 genuinely need theirs
-    # (different Y).
-    c.wire((srcbusx, p8[1]), q1)
-    c.wire((srcbusx, p8[1]), (srcbusx, q2[1]), q2)
-    c.wire((srcbusx, p8[1]), (srcbusx, q3[1]), q3)
-    c.use(("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
-    q5, q6, q7, q8 = (c.pin("Q1", "5"), c.pin("Q1", "6"),
-                      c.pin("Q1", "7"), c.pin("Q1", "8"))
-    dbusx = q5[0] + 8
+    c.wire((busx, p8[1]), (busx, bridge_y),
+           (input_bus_x, bridge_y), (input_bus_x, p8[1]))
     for p in (q5, q6, q7, q8):
-        c.wire(p, (dbusx, p[1]))
-    # measured Y order q7(48) < q5(50) < q6(52) < q8(54) -- one vertical run
-    # spanning the full min-to-max (q7 to q8) passes through q5/q6's stub
-    # endpoints too (a stub landing on the spine's interior is still
-    # electrically joined). (Corrected: an earlier version of this comment
-    # and span mislabeled q6 as the minimum -- it is actually q7 -- and the
-    # resulting q6-to-q8 span [52,54] missed both q7(48) and q5(50),
-    # leaving q7 fully unconnected per the exported netlist.)
-    c.wire((dbusx, q7[1]), (dbusx, q8[1]))
+        c.wire((input_bus_x, p[1]), p)
+    input_ys = sorted(set([p8[1]] + [p[1] for p in (q5, q6, q7, q8)]))
+    for y0, y1 in zip(input_ys, input_ys[1:]):
+        c.wire((input_bus_x, y0), (input_bus_x, y1))
     c.use(("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"))
+
+    q1, q2, q3 = c.pin("Q1", "1"), c.pin("Q1", "2"), c.pin("Q1", "3")
+    output_bus_x = max(p[0] for p in (q1, q2, q3)) + 8
+    for p in (q1, q2, q3):
+        c.wire(p, (output_bus_x, p[1]))
+    c.use(("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
     qg = c.pin("Q1", "4")
     c.place("R1", qg[0], qg[1] - 12)
     r1_2 = c.pin("R1", "2")
@@ -755,7 +753,10 @@ def compose_power_input(c, lf):
 
     c.place("F1", 75, 50)
     f1, f2 = c.pin("F1", "1"), c.pin("F1", "2")
-    c.wire((dbusx, q6[1]), (dbusx, f1[1]), f1)
+    c.wire((output_bus_x, f1[1]), f1)
+    output_ys = sorted(set([f1[1]] + [p[1] for p in (q1, q2, q3)]))
+    for y0, y1 in zip(output_ys, output_ys[1:]):
+        c.wire((output_bus_x, y0), (output_bus_x, y1))
     c.use(("F1", "1"))
 
     c.place("RT1", 95, 50)
@@ -1611,12 +1612,12 @@ def build(force=False):
     import json as _json
     pro_path = os.path.join(BOARD_DIR, f"{PROJECT_NAME}.kicad_pro")
     if os.path.isfile(pro_path):
-        with open(pro_path) as fh:
+        with open(pro_path, encoding="utf-8") as fh:
             pro = _json.load(fh)
         sev = pro.setdefault("erc", {}).setdefault("rule_severities", {})
         if sev.get("label_dangling") != "warning":
             sev["label_dangling"] = "warning"
-            with open(pro_path, "w") as fh:
+            with open(pro_path, "w", encoding="utf-8", newline="\n") as fh:
                 _json.dump(pro, fh, indent=2)
                 fh.write("\n")
             print(f"{os.path.basename(pro_path)}: erc.rule_severities."

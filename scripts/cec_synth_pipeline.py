@@ -8136,48 +8136,40 @@ def _oracle_sense_side(board_path):
     return {"applicable": True, "ok": not viol, "violations": viol[:12]}
 
 
-def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
-    """PLACEMENT-QUALITY gate term (owner 2026-07-08: 'decouplers right up against their
-    respective components... should be gating'). FUNCTIONAL formulation, board-only: a
-    decoupling cap (2-pad C, one pad GND, one pad a rail '+...') must sit within *max_mm*
-    of SOME IC pad on that same rail -- its electrical job is proximity to whoever it
-    decouples, independent of any ownership bookkeeping (an ownership-model check fired on
-    the gate-clean eps fixture; this one passes it and fires on real strays). Series/RC/
-    signal parts never match the pad pattern, so they are exempt by construction.
-    max_mm CALIBRATED on the hand-quality fab boards (charter rule: measure, never guess):
-    hub/12vhpwr worst legitimate case = 6.35mm (a bulk cap beside its entry element);
-    real strays measure 10-62mm -- an order of magnitude of separation."""
+def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
+    """Placement gate using one-to-one, selected-device bypass ownership.
+
+    The former implementation let a capacitor satisfy whichever powered part
+    happened to be nearest, included bulk capacitors, and even allowed
+    connectors or diodes to count as the owner.  This delegates to the same
+    value-qualified pad-to-pad matcher used by the constraint report.  LP5907
+    manufacturer distance limits remain device-specific; ``max_mm`` is the CEC
+    project limit for requirements whose datasheets only say "close".
+    """
     import pcbnew
+    import cec_constraints
     board = pcbnew.LoadBoard(board_path)
     if board is None:
         return {"ok": False, "violations": [("board", "unloadable", -1)]}
-    ic_pads_by_net = {}
-    caps = []
-    for fp in board.GetFootprints():
-        r = fp.GetReference() or ""
-        # 'respective COMPONENTS': any working part on the rail -- IC, diode, connector,
-        # blade, switch. A bulk cap at the power ENTRY (eps C1 next to its ORing diode,
-        # 62mm from the LDO) is correctly placed; an IC-only target set false-fired on it.
-        if r[:1] in ("U", "D", "J", "Q") or r.startswith(("TB", "SW", "FB")):
-            for p in fp.Pads():
-                nn = p.GetNetname()
-                if nn:
-                    ic_pads_by_net.setdefault(nn, []).append(p.GetPosition())
-        if r.startswith("C") and fp.GetPadCount() == 2:
-            nets = {p.GetNetname() for p in fp.Pads()}
-            rail = next((n for n in nets if n.startswith("+")), None)
-            if rail and "GND" in nets:
-                caps.append((r, rail, fp.GetPosition()))
-    viol = []
-    for ref, rail, pos in caps:
-        tgts = ic_pads_by_net.get(rail, [])
-        if not tgts:
-            continue                                     # no IC on that rail: bulk/input cap
-        d = min(math.hypot((pos.x - q.x) / 1e6, (pos.y - q.y) / 1e6) for q in tgts)
-        if d > max_mm:
-            viol.append((ref, rail, round(d, 2)))
-    viol.sort(key=lambda v: -v[2])
-    return {"ok": not viol, "violations": viol[:12]}
+    measured = cec_constraints._device_bypass_assignment(
+        board, project_max_mm=max_mm
+    )
+    violations = []
+    for req in measured["missing"]:
+        cap_ref = req.get("nearest_ref") or "unassigned-cap"
+        distance = req.get("nearest_mm")
+        violations.append((
+            cap_ref,
+            "%s.%s[%s]" % (req["ref"], req["pin"], req["rail"]),
+            round(distance, 2) if distance is not None else -1,
+        ))
+    violations.sort(key=lambda item: -item[2])
+    return {
+        "ok": not violations,
+        "violations": violations[:12],
+        "assigned": len(measured["assigned"]),
+        "requirements": len(measured["requirements"]),
+    }
 
 def _oracle_pour_family(routed_board_path):
     """ORPHANED-CHECKER wiring (blind-spots lens, 2026-07-08): the mature high-current
@@ -10887,6 +10879,17 @@ _SPEC_NET_CURRENTS = {
 }
 
 
+def _spec_current_table(board):
+    """Resolve an exact board key or a committed/generated board filename."""
+    identity = str(board or "").replace("\\", "/").lower()
+    if identity in _SPEC_NET_CURRENTS:
+        return _SPEC_NET_CURRENTS[identity]
+    matches = [key for key in _SPEC_NET_CURRENTS if key in identity]
+    if not matches:
+        return {}
+    return _SPEC_NET_CURRENTS[max(matches, key=len)]
+
+
 def spec_gnd_current(board, board_nets):
     """GND return = the sum of the board's DISTINCT rails, from the same table.
 
@@ -10902,7 +10905,7 @@ def spec_gnd_current(board, board_nets):
     2026-07-06 re-ratification surfaced, because that hairline came from the
     higher per-pin rail figures the owner's 20A ceiling supersedes.
     """
-    tbl = _SPEC_NET_CURRENTS.get(str(board or ""), {})
+    tbl = _spec_current_table(board)
     if not tbl:
         return None
     if "GND" in tbl:
@@ -10925,7 +10928,7 @@ def spec_net_current(board, net):
 
     Longest-prefix match so /SENSE3V3_HI and /SENSE3V3_LO both resolve to the
     3.3V rail while +3V3 (the LDO-fed logic rail) stays separate."""
-    tbl = _SPEC_NET_CURRENTS.get(str(board or ""), {})
+    tbl = _spec_current_table(board)
     best = None
     for pat, amps in tbl.items():
         if net == pat or net.startswith(pat):

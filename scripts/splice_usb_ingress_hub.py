@@ -16,23 +16,15 @@
 #     one more consumer of it; U5 itself is untouched).
 #   - U11.IN2 (pin 2) = new /KVM_5V_IN, fed from J_KVM.pin1 through new
 #     polyfuse F5 (defense layer 2, same pattern as every module's F1).
-#   - U11.OUT (1,8) = new /PSU_5V_KVM, which REPLACES U7.pin2's (IN2) AND
-#     U7.pin3's (CP2) existing "/PSU_5V" tie -- both pins share that net today
-#     (U7's own as-built style hard-ties CP2 to IN2, verified live), so BOTH
-#     move to "/PSU_5V_KVM" together, completing the NET MOVE the delta doc
-#     specifies for U7.pin2 (a detail the doc's own text doesn't call out for
-#     CP2, but leaving it on the old /PSU_5V net would just short U11's whole
-#     OUT stage back onto U5's output around U7's own mux -- verified as the
-#     as-built pattern, not silently invented).
+#   - U11.OUT (1,8) = new /PSU_5V_KVM, which replaces U7.pin2's (IN2)
+#     existing "/PSU_5V" tie. U7.pin3 (CP2) is grounded so the documented
+#     fixed input priority is selected instead of highest-voltage comparator
+#     mode.
 #
-# Strap style: per the doc, "mirror the as-built U5/U7 strap style" -- NOT the
-# per-module package's strict datasheet-default posture. Verified live (both
-# U5 and U7): CP2 hard-tied to IN2's own net, OV1/OV2 -> GND, PR1 hard-tied to
-# IN1's own net, ST left a genuine no_connect (not GND-strapped). U11 mirrors
-# this EXACTLY -- no OV1 divider is added here (that would be the per-module
-# package's posture, not this board's own precedent, and the coordinator's
-# mid-task request to add one to the EXISTING U5/U7 as well was declined as
-# out of the actual work order -- see the final report).
+# Strap style: CP2 is grounded, OV2 is grounded, PR1 is tied to IN1, and ST is
+# left as a genuine no-connect. This implements the source order recorded in
+# spec section 2.9 and owner-queue.md on 2026-07-24. OV1 is handled by the
+# separately approved divider splice on every Hub mux stage.
 import os
 import sys
 
@@ -59,7 +51,7 @@ BOM = {
                    Note="U11 soft-start cap, mirrors C_SS1/C_SS2 (hub-proven ~10ms ramp)."),
     "C22": dict(Manufacturer="Samsung", MPN="CL05B104KO5NNNC", LCSC="C1525",
                 Note="U11 IN2 (KVM 5V) bypass."),
-    "C23": dict(Manufacturer="Samsung", MPN="CL21A106KAYNNNE", LCSC="C96446",
+    "C23": dict(Manufacturer="Samsung", MPN="CL10A106MA8NRNC", LCSC="C96446",
                 Note="U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line."),
 }
 
@@ -91,28 +83,24 @@ if __name__ == "__main__":
     blob.append(sc.wire_and_label(r_pins, "F5", "1", F5_X, F5_Y, "KVM_5V_RAW"))
     blob.append(sc.wire_and_label(r_pins, "F5", "2", F5_X, F5_Y, "KVM_5V_IN"))
 
-    # ---------- 3. U7.pin2 (IN2) AND U7.pin3 (CP2) NET MOVE: /PSU_5V -> /PSU_5V_KVM
-    # (both pins share the as-built "/PSU_5V" label today -- U7.CP2 is hard-tied
-    # to U7.IN2's own net, the as-built style; verified live, both are plain
-    # (label "PSU_5V" ...) instances at their own distinct coordinates). ----------
+    # ---------- 3. Move U7 IN2 to /PSU_5V_KVM and ground CP2. ----------
     txt, old2, tag2 = sc.rename_label_at(txt, 97.79, 377.19, "PSU_5V_KVM")
     assert old2 == "PSU_5V" and tag2 == "label", (old2, tag2)
-    txt, old3, tag3 = sc.rename_label_at(txt, 97.79, 372.11, "PSU_5V_KVM")
+    txt, old3, tag3 = sc.rename_label_at(txt, 97.79, 372.11, "GND")
     assert old3 == "PSU_5V" and tag3 == "label", (old3, tag3)
-    print("U7.pin2/pin3: /PSU_5V ties renamed -> /PSU_5V_KVM (both)")
+    print("U7.pin2: /PSU_5V -> /PSU_5V_KVM; U7.pin3 CP2 -> GND")
 
     # ---------- 4. place U11 + straps, mirroring the as-built U5/U7 style ----------
     UX, UY = sc.gsnap(680.0), sc.gsnap(60.0)
     blob.append(cec_sch.emit_symbol("U11", "cec-vendor", "TPS2121RUXR", "TPS2121RUXR",
                                      UX, UY, sorted(mux_pins.keys()), PROJECT, ROOT_UUID,
                                      fp="cec-Package_DFN_QFN:RUX0012A", props=BOM["U11"]))
-    # OUT (1,8) -> PSU_5V_KVM (joins U7.pin2/pin3 by name)
+    # OUT (1,8) -> PSU_5V_KVM (joins U7.pin2 by name)
     blob.append(sc.wire_and_label(mux_pins, "U11", "1", UX, UY, "PSU_5V_KVM"))
     blob.append(sc.wire_and_label(mux_pins, "U11", "8", UX, UY, "PSU_5V_KVM"))
-    # IN2 (2) -> KVM_5V_IN (post-F5); CP2 (3) -> hard-tied to IN2's own net too
-    # (as-built U5/U7 style: CP2 mirrors IN2, not GND)
+    # IN2 (2) -> KVM_5V_IN (post-F5); CP2 (3) -> GND for fixed IN1 priority.
     blob.append(sc.wire_and_label(mux_pins, "U11", "2", UX, UY, "KVM_5V_IN"))
-    blob.append(sc.wire_and_label(mux_pins, "U11", "3", UX, UY, "KVM_5V_IN"))
+    blob.append(sc.wire_and_power(mux_pins, "U11", "3", UX, UY, "GND", PROJECT, ROOT_UUID, "#PWR9210"))
     # OV2 (4) -> GND; OV1 (5) -> GND (as-built style: both grounded, no divider)
     for pin, ref in (("4", "#PWR9201"), ("5", "#PWR9202")):
         blob.append(sc.wire_and_power(mux_pins, "U11", pin, UX, UY, "GND", PROJECT, ROOT_UUID, ref))

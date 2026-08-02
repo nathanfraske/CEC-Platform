@@ -1,0 +1,7 @@
+* CEC deterministic ngspice batch initialization
+* Generated CEC verification decks use only built-in analog devices.
+* Do not load optional XSPICE or OSDI modules from a machine installation.
+alias exit quit
+set filetype=ascii
+set num_threads=1
+unset osdi_enabled

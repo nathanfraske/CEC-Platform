@@ -2,7 +2,7 @@
 "1uF","C1,C2,C14,C15,C16,C17,C24","cec-Capacitor_SMD:C_0603_1608Metric",""
 "22uF","C25","cec-Capacitor_SMD:C_0805_2012Metric",""
 "100nF","C3,C4,C5,C8,C10,C11,C12,C13,C18,C20,C22,C60,C61,C62,C63,C63V31,C64,C65V1,C65VSB1,C73V31,C75V1,C75VSB1,C612V1,C712V1","cec-Capacitor_SMD:C_0402_1005Metric","C1525"
-"2u2","C50","cec-Capacitor_SMD:C_0402_1005Metric","C23630"
+"2u2","C50","cec-Capacitor_SMD:C_0603_1608Metric","C23630"
 "2.2uF","C51","cec-Capacitor_SMD:C_0603_1608Metric","C23630"
 "100nF","C52","cec-Capacitor_SMD:C_0402_1005Metric","C1525"
 "10uF","C53","cec-Capacitor_SMD:C_0805_2012Metric","C15850"

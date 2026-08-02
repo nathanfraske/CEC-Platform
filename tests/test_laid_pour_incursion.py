@@ -132,7 +132,7 @@ class TestRealHubAllocation(unittest.TestCase):
                     and zone.GetNetname() not in nets):
                 nets.append(zone.GetNetname())
         previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
-        os.environ["CEC_THERMAL_BOARD_HINT"] = self.HUB
+        os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
         try:
             pours, report = SLAB.synthesize_slab_pours(
                 board, [{"net": net, "layers": ("In3.Cu",)} for net in nets],
@@ -145,6 +145,8 @@ class TestRealHubAllocation(unittest.TestCase):
         self.assertTrue(pours)
         self.assertTrue(all(row.get("allocation") == "weighted_fair_v1"
                             for row in report.values()))
+        self.assertTrue(all(row.get("design_current_source") ==
+                            "board_thermal_config" for row in report.values()))
         failed_width = {key[0] for key, row in report.items()
                         if row.get("min_width_ok") is False}
         self.assertEqual(failed_width,

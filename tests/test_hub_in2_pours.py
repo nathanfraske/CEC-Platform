@@ -35,7 +35,11 @@ class TestHubParamsConformance(unittest.TestCase):
 
     def test_pour_asks_live_on_in3(self):
         asks = self.p.get("pour_asks") or []
-        self.assertGreaterEqual(len(asks), 10)
+        self.assertEqual({a["net"] for a in asks}, {
+            "+5VSB", "/5VSB_RAW", "/PSU_5V", "/PSU_5V_KVM",
+            "/MAIN_5V_RAW", "/USB_VBUS", "/+5V_HOLD",
+            "/VCC_P1", "/VCC_P2", "/VCC_P3", "/VCC_P4",
+        })
         for a in asks:
             self.assertEqual(tuple(a["layers"]), ("In3.Cu",),
                              f"pour ask {a['net']} must live on the approved "
@@ -107,6 +111,22 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                          "an isolated covered pad with clear space must be "
                          "stitched -- 0 here = the own-pad false-refusal")
         self.assertEqual(r["skipped"], 0)
+
+    def test_declared_pofv_profile_prefers_contained_via_in_pad(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        b.SetCopperLayerCount(6)
+        props = b.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        b.SetProperties(props)
+        pad = next(iter(next(iter(b.GetFootprints())).Pads()))
+        pours = [{"net": "+5VSB", "layers": ("In3.Cu",)}]
+        r = cec_fr.synthesize_power_pickups(b, pours)
+        vias = [t for t in b.GetTracks() if t.GetClass() == "PCB_VIA"]
+        self.assertEqual((r["vias"], r["pofv"], r["stubs"]), (1, 1, 0))
+        self.assertEqual(vias[0].GetPosition(), pad.GetPosition())
 
     def test_via_spot_probe_spans_all_layers(self):
         # B2 short reproduction: a foreign track on In2 under the via spot.

@@ -3436,7 +3436,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf"
 			(at 167.64 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -4083,7 +4083,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf"
 			(at 97.79 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -4324,7 +4324,7 @@
 		(property "Reference" "U4" (at 270.51 44.45 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TPS2121RUXR" (at 270.51 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "TPS2121RUXR" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C485916" (at 270.51 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))

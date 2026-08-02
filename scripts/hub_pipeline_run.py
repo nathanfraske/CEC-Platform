@@ -140,19 +140,43 @@ def _fill_worker(out):
     return bd.GetAreaCount()
 
 
-def _strip_pours_worker(out):
-    """Remove inherited slab zones and save before any later pcbnew operation."""
+def _prepare_repour_worker(out, nets):
+    """Bootstrap pickups from old outlines, then remove inherited slabs.
+
+    The old zones are never accepted as final copper. They are used only as a
+    coverage envelope so the guarded pickup pass can connect SMD rail pads to
+    In3 before the fresh slab solve requires real inner-layer anchors.
+    """
     import pcbnew
+    import cec_fr
 
     board = pcbnew.LoadBoard(out)
     old = [zone for zone in board.Zones()
            if (zone.GetZoneName() or "").startswith("slab:")]
-    nets = sorted({zone.GetNetname() for zone in old if zone.GetNetname()})
-    if not nets:
-        raise RuntimeError("six-layer Hub reference contains no named slab asks")
+    if not old:
+        raise RuntimeError("six-layer Hub reference contains no named slab zones")
+    covered = {zone.GetNetname() for zone in old if zone.GetNetname()}
+    missing = sorted(set(nets) - covered)
+    pickup = cec_fr.synthesize_power_pickups(
+        board, ({"net": net, "layers": ("In3.Cu",)} for net in nets),
+        plane_nets=tuple(nets))
     for zone in old:
         board.Remove(zone)
     pcbnew.SaveBoard(out, board)
+    return {"zones_removed": len(old), "pickup": pickup,
+            "asks_without_bootstrap_zone": missing}
+
+
+def _hub_pour_nets():
+    """Return the current Hub ask contract, independent of stale PCB zones."""
+    import cec_fresh_wave
+
+    asks = cec_fresh_wave._board_params("hub-standard-rev2")  # noqa: SLF001
+    nets = tuple(dict.fromkeys(
+        ask.get("net") for ask in (asks.get("pour_asks") or ())
+        if ask.get("net")))
+    if not nets:
+        raise RuntimeError("Hub placement contract contains no power-pour asks")
     return nets
 
 
@@ -194,8 +218,9 @@ def materialize_onto_reference(cand, ref_pcb, out):
     ctx = mp.get_context("spawn")
     with ctx.Pool(1) as pool:
         moved = pool.apply(_reposition_worker, (dict(cand.P), ref, dst))
+    slab_nets = _hub_pour_nets()
     with ctx.Pool(1) as pool:
-        slab_nets = pool.apply(_strip_pours_worker, (dst,))
+        pool.apply(_prepare_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:
         pour_report = pool.apply(_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill

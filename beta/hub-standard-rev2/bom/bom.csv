@@ -4,7 +4,7 @@ C11,1,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,
 C12,1,10nF,C_0402_1005Metric,CL05B103KB5NNNC,Samsung,C15195,,,,,,
 C13,1,100nF,C_0603_1608Metric,CC0603KRX7R9BB104,YAGEO,C14663,,,,,,
 "C2,C3,C9,C10",4,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,,,,
-C23,1,10uF,C_0603_1608Metric,CL21A106KAYNNNE,Samsung,C96446,,,,,,U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line.
+C23,1,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line.
 "C4,C5,C6,C8,C14,C15,C16,C17,C18,C19,C20,C21,C22",13,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,"DETECT immunity filter (owner VRM-coupling concern 2026-07-15): 100n on the 10k-source analog identity line; ~1ms settle, irrelevant to detection; kills near-field pickup.,U11 IN2 (KVM 5V) bypass."
 C7,1,4n7,C_0402_1005Metric,0402B472K500NT,Fenghua,C1538,,,,,,
 "C_SS1,C_SS2,C_SS3",3,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,,,,"U11 soft-start cap, mirrors C_SS1/C_SS2 (hub-proven ~10ms ramp)."

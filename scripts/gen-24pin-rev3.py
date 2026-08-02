@@ -130,6 +130,7 @@ fps = {r: gm.footprint_for(r, *parts[r]) for r in parts}
 fps["J3"] = fps["J4"] = "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A2_2x12_P4.20mm_Horizontal"
 fps["J6"] = "cec-Connector_PinHeader_2.00mm:PinHeader_2x08_P2.00mm_Vertical"
 fps["U5"] = "cec-vendor:RUX0012A"
+fps["C50"] = "cec-Capacitor_SMD:C_0603_1608Metric"
 wire_nets = [f"SENSE{label}_HI" for label in ("12V", "5V", "3V3")]
 
 # ---- LABELLED SECTIONS + placement (group each cluster inside its box) ----

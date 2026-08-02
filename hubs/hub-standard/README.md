@@ -1,5 +1,12 @@
 # Hub Standard
 
+> **Historical alpha record.** The current BETA Hub is
+> `beta/hub-standard-rev2`. Use `LAYOUT-GUIDE.md`,
+> `docs/decisions/owner-session-2026-08-01.md`, and
+> `docs/standard-tier-review/STANDARD-DESIGN-SHEET.md` for current rules. The
+> four-layer layout and pre-fabrication claims below are not BETA release
+> evidence.
+
 Tier 1 of 4. The mainstream Hub: 4 ports, classical CAN, USB Full Speed.
 Canonical detail in spec [§4](../../CEC-Platform-Ground-Truth-Spec.md). All
 v1.1 decisions carry forward unchanged **except connector and cabling**.
@@ -7,7 +14,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Item | Decision |
 |---|---|
 | Tier | 1 of 4 |
-| MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; antenna keepout honored for future Wi-Fi). MINI-1 has no 16 MB SKU, so the aggregation Hub uses WROOM; modules stay on MINI-1. |
+| MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM). MINI-1 has no 16 MB SKU, so the aggregation Hub uses WROOM; modules stay on MINI-1. Wireless functions are disabled across the BETA family. |
 | Ports | 4× RJ-45 8P8C, locking boot (was Mini-Fit Jr 12-circuit) |
 | Protocol | Classical CAN @ 500 kbps over the TJA1051T/3 (classical, VIO 3.3 V) |
 | Termination | Fixed 120 Ω split at the Hub |
@@ -67,7 +74,7 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > routed (DRC: 0 unconnected), in pre-fab review. The `DRAFT` marker still
 > skips CI ERC/DRC.):** RJ-45 re-cut COMPLETE (4 ports + the 2-pin
 > `CEC_PWR_IN_2P` 5VSB power-in). MCU is **ESP32-S3-WROOM-1-N16R8** (symbol +
-> footprint vendored, antenna keepout honored — all 4 layers, off-board left).
+> footprint vendored, with the controller placed at the board edge).
 > 5VSB front-end built: TPS2121 mux (PSU/USB OR-in) → **D1** isolation Schottky
 > → 4700 µF hold-up on the isolated `+5V_HOLD` node → LP5907; 470 µF `C_bulk`
 > surge cap on the shared `+5VSB`; blackout-sense divider → GPIO8. **ERC: 0

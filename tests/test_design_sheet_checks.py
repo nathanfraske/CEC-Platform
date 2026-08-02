@@ -98,12 +98,13 @@ class TestMeasuredVerdicts(unittest.TestCase):
         self.assertTrue(ok, detail)
         self.assertIsNone(K.CHECKERS["ecap-edge-distance"](self.eps, EPS, {})[0])
 
-    def test_decoupler_k5_audit_fires_on_asbuilt(self):
-        # the as-built boards are calibrated to decoupling-cap-owner's 3.5mm, so the
-        # sheet's 1.5mm target MUST report a gap -- that gap is the audit's product
+    def test_decoupler_k5_reports_retired_universal_threshold(self):
+        # The 2026-08-02 source audit found no device-independent basis for the
+        # former 1.5mm number. Keep the historical ID visible but non-gating.
         ok, detail = K.CHECKERS["decoupler-adjacency-k5"](self.hub, HUB, {})[:2]
-        self.assertFalse(ok, detail)
-        self.assertIn("K.5 audit", detail)
+        self.assertIsNone(ok, detail)
+        self.assertIn("1.5mm K.5 target retired", detail)
+        self.assertIn("one-to-one", detail)
 
 
 @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(HUB), "pcbnew + boards required")
@@ -165,19 +166,18 @@ class TestTeethSabotage(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("C1", detail)
 
-    def test_decoupler_k5_threshold_both_ways(self):
-        # the measurement path honors the registry param: a huge target passes the
-        # same board the 1.5mm target fires on (threshold behavior, both directions)
-        c = next(c for c in K.REGISTRY if c.id == "decoupler-adjacency-k5")
-        old = c.params["target_mm"]
-        try:
-            c.params["target_mm"] = 1000.0
-            ok, detail = K.CHECKERS["decoupler-adjacency-k5"](self.hub, HUB, {})[:2]
-            self.assertTrue(ok, detail)
-        finally:
-            c.params["target_mm"] = old
-        ok, _ = K.CHECKERS["decoupler-adjacency-k5"](self.hub, HUB, {})[:2]
-        self.assertFalse(ok)
+    def test_decoupler_assignment_is_one_to_one_and_value_qualified(self):
+        measured = K._device_bypass_assignment(self.hub, project_max_mm=1000.0)
+        cap_refs = [item["cap_ref"] for item in measured["assigned"].values()]
+        self.assertEqual(len(cap_refs), len(set(cap_refs)))
+        assigned_100n = next(
+            item for item in measured["assigned"].values()
+            if item["requirement"]["kind"] == "100n"
+        )
+        before = len(measured["assigned"])
+        self._fp(assigned_100n["cap_ref"]).SetValue("1nF")
+        after = K._device_bypass_assignment(self.hub, project_max_mm=1000.0)
+        self.assertLess(len(after["assigned"]), before)
 
 
 if __name__ == "__main__":

@@ -118,6 +118,11 @@ class SpecNetCurrentTest(unittest.TestCase):
         self.assertNotEqual(f("atx-24pin-rev3", "+3V3"),
                             f("atx-24pin-rev3", "/SENSE3V3_HI"))
 
+    def test_committed_candidate_filename_resolves_board_table(self):
+        self.assertEqual(self.csp.spec_net_current(
+            "beta/atx-24pin-rev3/candidate/atx-24pin-rev3-candidate.kicad_pcb",
+            "+3V3"), 0.25)
+
     def test_cable_boards_keep_the_owner_per_cable_basis(self):
         f = self.csp.spec_net_current
         self.assertEqual(f("eps-8pin", "/SENSEC1_HI"), 52.0)      # ~13A/pin x4

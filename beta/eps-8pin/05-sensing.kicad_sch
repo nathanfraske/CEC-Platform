@@ -3114,7 +3114,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 156.21 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -3383,7 +3383,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 264.16 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -3707,7 +3707,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina238.pdf"
 			(at 264.16 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -5079,7 +5079,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 156.21 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -5872,7 +5872,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 207.01 205.74 0)
 			(hide yes)
 			(show_name no)
@@ -6440,7 +6440,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 207.01 148.59 0)
 			(hide yes)
 			(show_name no)

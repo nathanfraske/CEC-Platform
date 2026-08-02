@@ -930,7 +930,8 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         + ("\n".join(flags) + "\n" if flags else "")
         + ("\n".join(ncs) + "\n" if ncs else "")
         + f'\t(sheet_instances\n\t\t(path "/{sheet_instances_path}"\n\t\t\t(page "{page}")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n')
-    open(out_path, "w").write(content)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
     return {"parts": len(parts), "nets": len(nets), "labels": len(labels),
             "hlabels": len(hlabels), "glabels": len(glabels), "wires": len(wires),
             "flags": len(flags), "junctions": len(junctions), "nc": len(ncs)}
@@ -1060,7 +1061,8 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
         + "\n".join(sheets) + "\n"
         + legend_str + "\n"
         + '\t(sheet_instances\n\t\t(path "/"\n\t\t\t(page "1")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n')
-    open(out_path, "w").write(content)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
 
 
 def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path,
@@ -1087,7 +1089,8 @@ def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path,
         f'\t\t(uuid "{cec_sch.u()}")\n\t)\n'
         f'\t(sheet_instances\n\t\t(path "/{sheet_sym_uuid}"\n\t\t\t(page "{page}")\n\t\t)\n\t)\n'
         '\t(embedded_fonts no)\n)\n')
-    open(out_path, "w").write(content)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
 
 
 # ---------------------------------------------------------------------------
@@ -1426,7 +1429,8 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
         + ("\n".join(hlabels) + "\n" if hlabels else "")
         + ("\n".join(flags) + "\n" if flags else "")
         + f'\t(sheet_instances\n\t\t(path "{footer_path}"\n\t\t\t(page "{footer_page}")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n')
-    open(out_path, "w").write(content)
+    with open(out_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
     return {"leaves": len(leaves), "nets": len(net_pins), "wired_nets": len(pairs),
             "root_exports": len(root_exports),
             "global_power": len(global_power_exports)}

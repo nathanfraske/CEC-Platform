@@ -63,6 +63,26 @@ class FabricationProfileTest(unittest.TestCase):
         self.assertAlmostEqual(atx_stack["In3.Cu"] * T2.OZ_M * 1000.0,
                                0.0152, places=12)
 
+    def test_hub_thermal_map_matches_mux_and_port_fuse_topology(self):
+        currents, _, terminals, _ = TOV.board_thermal_config(
+            "hub-standard-rev2")
+        self.assertEqual(currents["/PSU_5V_KVM"], 3.0)
+        self.assertEqual(
+            terminals["/PSU_5V"],
+            {"refs_src": ["U5"], "refs_sink": ["U11"]})
+        self.assertEqual(
+            terminals["/PSU_5V_KVM"],
+            {"refs_src": ["U11"], "refs_sink": ["U7"]})
+        self.assertEqual(
+            terminals["+5VSB"],
+            {"refs_src": ["U7"],
+             "refs_sink": ["F1", "F2", "F3", "F4"]})
+        for index in range(1, 5):
+            self.assertEqual(
+                terminals[f"/VCC_P{index}"],
+                {"refs_src": [f"F{index}"],
+                 "refs_sink": [f"J{index + 1}"]})
+
 
 class SixLayerFemTest(unittest.TestCase):
     def test_layer_centers_follow_exact_five_dielectrics(self):

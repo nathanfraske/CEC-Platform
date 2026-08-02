@@ -1,5 +1,12 @@
 # CEC Platform PCB automation audit, 2026-08-01
 
+> **Superseded evidence snapshot.** This report describes the first audit pass
+> before the 2026-08-02 electrical, passive, SPICE, pour-bootstrap, candidate
+> freshness, and documentation work. In particular, its ngspice availability,
+> Hub repour, SPICE execution, and candidate status statements are no longer
+> current. Use `beta-placement-passives-audit-2026-08-02.md` for the refreshed
+> evidence and remaining blockers.
+
 ## Scope and evidence boundary
 
 This audit started from `main` commit

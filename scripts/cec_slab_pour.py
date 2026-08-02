@@ -53,6 +53,42 @@ class SlabAllocationError(RuntimeError):
                          % ", ".join("%s/%s" % key for key in self.failures))
 
 
+def _board_file_path(board):
+    """Return the loaded board path when pcbnew exposes one.
+
+    Committed boards already identify their family in the filename. Requiring a
+    separate CEC_THERMAL_BOARD_HINT for those boards made the standalone pour
+    command silently lose its current model even though the input itself was
+    sufficient. Generated wave boards still use the explicit environment hint
+    because their temporary filenames do not identify the board family.
+    """
+    if board is None:
+        return ""
+    try:
+        return str(board.GetFileName() or "")
+    except Exception:                                  # noqa: BLE001
+        return ""
+
+
+def _board_thermal_config(board=None):
+    """Resolve thermal inputs from the explicit hint or loaded board path."""
+    try:
+        import cec_thermal_overlay as _ov
+        path = _board_file_path(board)
+        hint = (os.environ.get("CEC_THERMAL_BOARD_HINT", "")
+                or os.path.basename(path))
+        return _ov.board_thermal_config(path or hint, board_hint=hint)
+    except Exception:                                  # noqa: BLE001
+        return None
+
+
+def _board_identity(board=None):
+    """Board-family key used by the synthesis design-current table."""
+    path = _board_file_path(board)
+    return (os.environ.get("CEC_THERMAL_BOARD_HINT", "")
+            or os.path.basename(path))
+
+
 def _nm(mm):
     return int(round(mm * MM))
 
@@ -368,9 +404,10 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 _emit_slab_plan(out, rep, group[0], group[0]["mask"], grid,
                                 smooth=(len(layer_plans) == 1))
                 continue
-            weights, missing = _slab_design_currents(group)
+            weights, missing, current_sources = _slab_design_currents(
+                group, board=board)
             if missing:
-                why = ("overlapping slab allocation requires a verified "
+                why = ("overlapping slab allocation requires a declared "
                        "design-basis current; missing %s" % ", ".join(missing))
                 for p in group:
                     rep[p["key"]].update({"skipped": why,
@@ -382,7 +419,8 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 [p["mask"] for p in group],
                 [p["anchors"] for p in group], weights,
                 names=[p["net"] for p in group])
-            for p, owned, amps, ar in zip(group, masks, weights, alloc):
+            for p, owned, amps, ar, current_source in zip(
+                    group, masks, weights, alloc, current_sources):
                 # Re-run the same width/prune invariant with every other
                 # allocation cell treated as contested. This cannot introduce
                 # overlap and catches a fair-share strip that became too thin.
@@ -391,6 +429,7 @@ def synthesize_slab_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 final_rep.update({
                     "allocation": "weighted_fair_v1",
                     "design_current_A": float(amps),
+                    "design_current_source": current_source,
                     "target_cells": ar["target_cells"],
                     "allocated_cells_before_shave": ar["allocated_cells"],
                     "allocation_share": ar["share"],
@@ -448,28 +487,39 @@ def _overlap_groups(plans):
     return groups
 
 
-def _slab_design_currents(plans):
+def _slab_design_currents(plans, *, board=None):
     """Resolve sustained currents without inventing a fallback value.
 
     An ask may carry ``design_current_A`` explicitly. Otherwise the board's
-    thermal adapter is the authority, using CEC_THERMAL_BOARD_HINT set by the
-    synthesis pipeline. A missing or non-positive value is returned as missing
-    so an overlapping allocation fails closed instead of silently becoming an
-    equal-share guess.
+    thermal adapter supplies the declared model input, followed by the shared
+    synthesis design-current table when the thermal adapter has no entry. A
+    committed board is resolved from its loaded filename; generated wave
+    boards use the explicit CEC_THERMAL_BOARD_HINT set by the synthesis
+    pipeline. A missing or non-positive value is returned as missing so an
+    overlapping allocation fails closed instead of silently becoming an
+    equal-share guess. This function records provenance but does not claim
+    owner approval for a model value; release validation remains a separate
+    design-basis gate.
     """
     cfg_currents = {}
+    cfg = _board_thermal_config(board)
+    cfg_currents = dict((cfg[0] if cfg else None) or {})
     try:
-        import cec_thermal_overlay as _ov
-        hint = os.environ.get("CEC_THERMAL_BOARD_HINT", "")
-        cfg = _ov.board_thermal_config(hint)
-        cfg_currents = dict((cfg[0] if cfg else None) or {})
+        import cec_synth_pipeline as _sp
+        spec_current = lambda net: _sp.spec_net_current(  # noqa: E731
+            _board_identity(board), net)
     except Exception:                                  # noqa: BLE001
-        cfg_currents = {}
-    values, missing = [], []
+        spec_current = lambda _net: None               # noqa: E731
+    values, missing, sources = [], [], []
     for p in plans:
         raw = p["ask"].get("design_current_A")
+        source = "ask.design_current_A"
         if raw is None:
             raw = cfg_currents.get(p["net"])
+            source = "board_thermal_config"
+        if raw is None:
+            raw = spec_current(p["net"])
+            source = "spec_net_current"
         try:
             val = float(raw)
         except (TypeError, ValueError):
@@ -477,7 +527,8 @@ def _slab_design_currents(plans):
         if not math.isfinite(val) or val <= 0:
             missing.append(p["net"])
         values.append(val)
-    return values, missing
+        sources.append(source)
+    return values, missing, sources
 
 
 def weighted_fair_masks(candidates, anchors, weights, *, names=None):
@@ -1600,13 +1651,8 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     # same source cec_fr.synthesize_pour_bonds._mirror_needed reads; a net
     # absent from the config (or a board with none) falls back to the
     # 1.2mm practical floor (task-specified default).
-    net_currents = {}
-    try:
-        import cec_thermal_overlay as _ov
-        _cfg = _ov.board_thermal_config(os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
-        net_currents = dict((_cfg[0] if _cfg else None) or {})
-    except Exception:                                  # noqa: BLE001
-        net_currents = {}
+    _cfg = _board_thermal_config(board)
+    net_currents = dict((_cfg[0] if _cfg else None) or {})
 
     # shunt neighborhoods, once (the F.Cu bias input -- design step 3's
     # "free inside shunt neighborhoods")
@@ -1917,14 +1963,8 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
     grid = Grid(board, cell_mm)
     nets_nc = {n.GetNetname(): c
                for c, n in board.GetNetInfo().NetsByNetcode().items()}
-    net_currents = {}
-    try:
-        import cec_thermal_overlay as _ov
-        _cfg = _ov.board_thermal_config(
-            os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
-        net_currents = dict((_cfg[0] if _cfg else None) or {})
-    except Exception:                                  # noqa: BLE001
-        net_currents = {}
+    _cfg = _board_thermal_config(board)
+    net_currents = dict((_cfg[0] if _cfg else None) or {})
     shunt_boxes = shunt_neighborhoods(board)
     shunt_mask = np.zeros((grid.ny, grid.nx), bool)
     for (x0, y0, x1, y1) in shunt_boxes:

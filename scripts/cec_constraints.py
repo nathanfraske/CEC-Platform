@@ -34,6 +34,8 @@ import cec_score      # noqa: E402  -- _derive_pairs (Kelvin _HI/_LO, diff _P/_N
 import cec_fab_profile as cec_fab  # noqa: E402 -- declared stackup/POFV authority
 import cec_mezz_contract as cec_mezz  # noqa: E402 -- shared segmented mating contract
 import cec_toolchain  # noqa: E402 -- cross-platform KiCad executable resolution
+import cec_sch_gates  # noqa: E402 -- hierarchy-aware assembly inventory
+import cec_spice_sanity  # noqa: E402 -- KiCad netlist parser used for exact freshness
 
 
 # ===========================================================================
@@ -274,8 +276,12 @@ REGISTRY = [
     # ---- placement / passives ----------------------------------------------------------
     C(id="decoupling-cap-owner", title="Decoupling cap at its owner IC power pad",
       category="placement", severity="strong", checkable="yes", directive="adjacent",
-      rule="Each decoupling cap sits within max_mm of an IC pad on the same power net.",
-      source="cec_pcb verify_passives", status="ratified", params={"max_mm": 3.5}),
+      rule="Each audited powered device receives a distinct, value-qualified bypass capacitor on "
+           "its own supply net. The assignment is one-to-one and uses pad-to-pad distance, so one "
+           "capacitor cannot satisfy multiple ICs. The 3.5mm limit is a ratified CEC placement "
+           "limit, not a universal datasheet number; device-specific numeric limits override it.",
+      source="CEC project placement limit; device capacitor requirements from selected-part datasheets",
+      status="ratified", params={"max_mm": 3.5}),
     C(id="trace-width-high-current", title="No too-thin trace on a high-current net",
       category="placement", severity="strong", checkable="yes", directive="none",
       rule="No track on a 12V/*_HI net is thinner than min_mm unless the net is carried by a pour.",
@@ -365,13 +371,12 @@ REGISTRY = [
       status="ratified", params={"edge_min_mm": 5.0, "min_uf": 470.0}),
     C(id="decoupler-adjacency-k5", title="Decoupling loop length vs the K.5 target (audit)",
       category="assembly-dfm", severity="advisory", checkable="yes", directive="adjacent",
-      rule="AUDIT of the K.5 geometry target: every 100nF-class decoupler's power pad sits within "
-           "target_mm (pad-to-pad) of its IC power pin. Distinct from decoupling-cap-owner (the "
-           "ratified as-built 3.5mm ownership gate): this reports the gap to the sheet's tighter "
-           "protocol target so beta layouts can close it; it never blocks.",
-      source="STANDARD-DESIGN-SHEET §K.5 [wb] + Ott ch.11 / Bogatin PDN loop-inductance basis "
-             "(I.2-class); as-built calibration remains decoupling-cap-owner's 3.5mm",
-      status="proposed", params={"target_mm": 1.5}),
+      rule="Historical K.5 proximity audit retained for report compatibility. The former universal "
+           "1.5mm target is retired because the cited material supports minimizing loop inductance "
+           "but does not establish that number for every selected device and package.",
+      source="2026-08-02 guideline audit; numeric acceptance moved to selected-part datasheets and "
+             "the explicit CEC project limit",
+      status="proposed"),
 
     # ---- schematic / BOM conformance ---------------------------------------------------
     C(id="detect-resistor-code", title="DETECT code resistor per §2.3",
@@ -1938,48 +1943,214 @@ def _chk_ecap_edge(board, path, ctx):
     return True, "%d large e-cap(s) all >= %.1fmm from every edge" % (len(caps), edge_min)
 
 
+def _capacitance_f_board(value):
+    """Parse the compact capacitance notation used on the PCB footprints."""
+    text = (value or "").strip().lower().replace("µ", "u").replace("μ", "u")
+    text = text.replace(" ", "").removesuffix("f")
+    embedded = re.fullmatch(r"(\d+)([pnum])(\d+)", text)
+    if embedded:
+        number = float("%s.%s" % (embedded.group(1), embedded.group(3)))
+        prefix = embedded.group(2)
+    else:
+        plain = re.fullmatch(r"(\d+(?:\.\d+)?)([pnum]?)", text)
+        if not plain:
+            return None
+        number = float(plain.group(1))
+        prefix = plain.group(2)
+    return number * {"": 1.0, "p": 1e-12, "n": 1e-9,
+                     "u": 1e-6, "m": 1e-3}[prefix]
+
+
+def _ground_net(net):
+    return net == "GND" or bool(net and net.endswith("/GND"))
+
+
+def _numbered_pad(fp, number):
+    return next((pad for pad in fp.Pads() if str(pad.GetNumber()) == str(number)), None)
+
+
+def _device_bypass_assignment(board, *, project_max_mm=3.5):
+    """Resolve distinct capacitor ownership for selected powered devices.
+
+    The result is board-only and deterministic.  It matches capacitors to the
+    selected device's actual supply pad and rail, then enforces either a
+    manufacturer numeric limit or the explicit CEC project placement limit.
+    """
+    caps = []
+    for fp in board.GetFootprints():
+        if not fp.GetReference().startswith("C"):
+            continue
+        dnp, excluded = _fp_assembly_state(fp)
+        if dnp or excluded:
+            continue
+        pads = list(fp.Pads())
+        if len(pads) != 2:
+            continue
+        grounded = [pad for pad in pads if _ground_net(pad.GetNetname())]
+        powered = [pad for pad in pads if pad.GetNetname() and not _ground_net(pad.GetNetname())]
+        farads = _capacitance_f_board(_val(fp))
+        if len(grounded) == 1 and len(powered) == 1 and farads is not None:
+            caps.append({
+                "ref": fp.GetReference(), "fp": fp, "pad": powered[0],
+                "rail": powered[0].GetNetname(), "farads": farads,
+            })
+
+    device_rules = (
+        ("INA238", "6", "100n", "INA238"),
+        ("INA181", "6", "100n", "INA181"),
+        ("INA180", "5", "100n", "INA180"),
+        ("INA240", "6", "100n", "INA240"),
+        ("74AHCT244", "20", "100n", "74AHCT244"),
+        ("SN74AHCT1G08", "5", "100n", "SN74AHCT1G08"),
+        ("74LVC1G17", "5", "100n", "SN74LVC1G17"),
+        ("REF3030", "1", "100n", "REF3030"),
+        ("TPS3839", "3", "100n", "TPS3839"),
+        ("TLV7011", "5", "100n", "TLV7011"),
+        ("TJA1051", "3", "100n", "TJA1051"),
+    )
+    requirements = []
+    for fp in board.GetFootprints():
+        ref, value = fp.GetReference(), _val(fp)
+        if not ref.startswith("U"):
+            continue
+        dnp, excluded = _fp_assembly_state(fp)
+        if dnp or excluded:
+            continue
+        for token, pin_number, kind, source in device_rules:
+            if token not in value:
+                continue
+            pad = _numbered_pad(fp, pin_number)
+            if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                requirements.append({
+                    "id": "%s:%s:%s" % (ref, pin_number, kind),
+                    "ref": ref, "pin": pin_number, "pad": pad,
+                    "rail": pad.GetNetname(), "kind": kind,
+                    "max_mm": project_max_mm, "source": source,
+                })
+            break
+
+        if "ESP32-C6-MINI-1" in value or "ESP32-S3-MINI-1" in value:
+            esp_pin = "3"
+        elif "ESP32-S3-WROOM-1" in value:
+            esp_pin = "2"
+        else:
+            esp_pin = None
+        if esp_pin:
+            pad = _numbered_pad(fp, esp_pin)
+            if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                requirements.append({
+                    "id": "%s:%s:100n" % (ref, esp_pin),
+                    "ref": ref, "pin": esp_pin, "pad": pad,
+                    "rail": pad.GetNetname(), "kind": "100n",
+                    "max_mm": project_max_mm,
+                    "source": "ESP32 peripheral schematic",
+                })
+
+        if "LP5907" in value:
+            for pin_number, role, max_mm in (("1", "lp-input", 10.0),
+                                              ("5", "lp-output", 100.0)):
+                pad = _numbered_pad(fp, pin_number)
+                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                    requirements.append({
+                        "id": "%s:%s:%s" % (ref, pin_number, role),
+                        "ref": ref, "pin": pin_number, "pad": pad,
+                        "rail": pad.GetNetname(), "kind": "at-least-1u",
+                        "max_mm": max_mm, "source": "LP5907",
+                    })
+
+        if "TPS2121" in value:
+            for pin_number, role in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
+                pad = _numbered_pad(fp, pin_number)
+                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                    requirements.append({
+                        "id": "%s:%s:%s" % (ref, pin_number, role),
+                        "ref": ref, "pin": pin_number, "pad": pad,
+                        "rail": pad.GetNetname(), "kind": "any",
+                        "max_mm": project_max_mm, "source": "TPS2121",
+                    })
+
+    def compatible(req, cap):
+        if cap["rail"] != req["rail"]:
+            return False
+        if req["kind"] == "100n":
+            return abs(cap["farads"] - 100e-9) <= 1e-15
+        if req["kind"] == "at-least-1u":
+            return cap["farads"] >= 1e-6
+        return cap["farads"] > 0
+
+    def distance(req, cap):
+        a, b = req["pad"].GetPosition(), cap["pad"].GetPosition()
+        return math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
+
+    edges = {}
+    compatible_all = {}
+    for index, req in enumerate(requirements):
+        all_candidates = [
+            (cap_index, distance(req, cap))
+            for cap_index, cap in enumerate(caps) if compatible(req, cap)
+        ]
+        all_candidates.sort(key=lambda item: (item[1], caps[item[0]]["ref"]))
+        compatible_all[index] = all_candidates
+        edges[index] = [item for item in all_candidates if item[1] <= req["max_mm"]]
+
+    cap_owner = {}
+    assigned_index = {}
+
+    def augment(req_index, seen_caps):
+        for cap_index, dist in edges[req_index]:
+            if cap_index in seen_caps:
+                continue
+            seen_caps.add(cap_index)
+            previous = cap_owner.get(cap_index)
+            if previous is None or augment(previous, seen_caps):
+                cap_owner[cap_index] = req_index
+                assigned_index[req_index] = (cap_index, dist)
+                if previous is not None:
+                    assigned_index.pop(previous, None)
+                return True
+        return False
+
+    for req_index in sorted(range(len(requirements)), key=lambda i: (
+            len(edges[i]), requirements[i]["rail"], requirements[i]["ref"],
+            requirements[i]["pin"])):
+        augment(req_index, set())
+
+    assigned = {}
+    missing = []
+    for req_index, req in enumerate(requirements):
+        if req_index in assigned_index:
+            cap_index, dist = assigned_index[req_index]
+            assigned[req["id"]] = {
+                "requirement": req, "cap_ref": caps[cap_index]["ref"],
+                "distance_mm": dist,
+            }
+            continue
+        miss = dict(req)
+        if compatible_all[req_index]:
+            cap_index, nearest = compatible_all[req_index][0]
+            miss["nearest_ref"] = caps[cap_index]["ref"]
+            miss["nearest_mm"] = nearest
+        else:
+            miss["nearest_ref"] = None
+            miss["nearest_mm"] = None
+        missing.append(miss)
+    return {"requirements": requirements, "assigned": assigned, "missing": missing}
+
+
 @checker("decoupler-adjacency-k5")
 def _chk_decap_k5(board, path, ctx):
-    target = _param("decoupler-adjacency-k5", "target_mm", 1.5)
-    POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
-    by_net = _pads_by_net(board)
-    ic_pad_by_net = collections.defaultdict(list)
-    for n, lst in by_net.items():
-        if any(p in n.upper() for p in POWER):
-            for r, pad, fp in lst:
-                if r.startswith("U"):
-                    ic_pad_by_net[n].append((pad, r))
-    if not ic_pad_by_net:
-        return None, "no IC power pads resolved"
-    worst, over = [], []
-    for fp in board.GetFootprints():
-        r = fp.GetReference()
-        if not r.startswith("C"):
-            continue
-        val = _val(fp).lower().replace("µ", "u")
-        if not (("n" in val and "u" not in val) or "0.1u" in val):
-            continue
-        best, owner = 1e9, None
-        for cpad in fp.Pads():
-            for ipad, iref in ic_pad_by_net.get(cpad.GetNetname(), []):
-                a, b = cpad.GetPosition(), ipad.GetPosition()
-                dd = math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
-                if dd < best:
-                    best, owner = dd, iref
-        if owner is None or best > 1e8:
-            continue
-        worst.append(best)
-        if best > target:
-            over.append((r, best, owner))
-    if not worst:
-        return None, "no decoupler-to-IC loop resolved"
-    if over:
-        over.sort(key=lambda t: -t[1])
-        return (False, "K.5 audit: %d/%d decoupler(s) beyond the %.1fmm pad-to-pad target "
-                "(as-built gate stays decoupling-cap-owner @3.5): %s"
-                % (len(over), len(worst), target,
-                   ", ".join("%s %.1fmm (%s)" % o for o in over[:8])))
-    return True, "all %d decoupler loops within the %.1fmm K.5 target" % (len(worst), target)
+    measured = _device_bypass_assignment(
+        board, project_max_mm=_param("decoupling-cap-owner", "max_mm", 3.5)
+    )
+    if not measured["requirements"]:
+        return None, "no audited powered devices resolved"
+    distances = [item["distance_mm"] for item in measured["assigned"].values()]
+    worst = max(distances, default=0.0)
+    return None, (
+        "historical universal 1.5mm K.5 target retired; device-specific one-to-one "
+        "audit resolved %d/%d requirements, worst assigned pad distance %.2fmm" %
+        (len(measured["assigned"]), len(measured["requirements"]), worst)
+    )
 
 
 @checker("rj45-link-pinmap")
@@ -2067,41 +2238,39 @@ def _chk_shunt_val(board, path, ctx):
 @checker("decoupling-cap-owner")
 def _chk_decap(board, path, ctx):
     max_mm = _param("decoupling-cap-owner", "max_mm", 3.5)
-    POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
-    by_net = _pads_by_net(board)
-    ic_pad_by_net = collections.defaultdict(list)   # power net -> [(IC pad, IC ref)]  (real bypass loop)
-    for n, lst in by_net.items():
-        if any(p in n.upper() for p in POWER):
-            for r, pad, fp in lst:
-                if r.startswith("U"):
-                    ic_pad_by_net[n].append((pad, r))
-    if not ic_pad_by_net:
-        return None, "no IC power pads resolved"
-    fails = []
-    for fp in board.GetFootprints():
-        r = fp.GetReference()
-        if not r.startswith("C"):
-            continue
-        val = _val(fp).lower().replace("µ", "u")
-        # only DECOUPLING caps (nF range / 0.1u) own an IC; bulk/hold-up caps (>=1uF) sit off-IC
-        if not (("n" in val and "u" not in val) or "0.1u" in val):
-            continue
-        # measure the actual bypass loop: cap power pad -> the IC power pad on the SAME net (not IC centre)
-        best, owner = 1e9, None
-        for cpad in fp.Pads():
-            cn = cpad.GetNetname()
-            for ipad, iref in ic_pad_by_net.get(cn, []):
-                a, b = cpad.GetPosition(), ipad.GetPosition()
-                dd = math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
-                if dd < best:
-                    best, owner = dd, iref
-        if best < 1e8 and best > max_mm and owner:
-            fails.append((r, best, owner))
-    if fails:
-        return (False, "decoupling caps far from their IC power pad (>%.1fmm bypass loop): %s"
-                % (max_mm, ", ".join("%s %.1fmm" % (f[0], f[1]) for f in fails[:8])),
-                [{"type": "adjacent", "a": f[0], "b": f[2], "max_mm": max_mm} for f in fails[:8]])
-    return True, "decoupling caps within %.1fmm of their IC power pad" % max_mm
+    measured = _device_bypass_assignment(board, project_max_mm=max_mm)
+    requirements = measured["requirements"]
+    if not requirements:
+        return None, "no audited powered devices resolved"
+    missing = measured["missing"]
+    if missing:
+        details = []
+        payload = []
+        for req in missing[:12]:
+            nearest = req.get("nearest_mm")
+            reason = "no compatible capacitor on %s" % req["rail"]
+            if nearest is not None:
+                reason = "nearest compatible capacitor %.2fmm away (limit %.2fmm)" % (
+                    nearest, req["max_mm"])
+            details.append("%s.%s %s" % (req["ref"], req["pin"], reason))
+            payload.append({
+                "type": "adjacent",
+                "a": req.get("nearest_ref") or "unassigned-cap",
+                "b": req["ref"],
+                "max_mm": req["max_mm"],
+            })
+        return False, (
+            "%d/%d device-specific bypass requirement(s) lack a distinct in-limit capacitor: %s" %
+            (len(missing), len(requirements), "; ".join(details))
+        ), payload
+    worst = max(
+        measured["assigned"].values(), key=lambda item: item["distance_mm"]
+    )
+    return True, (
+        "%d one-to-one bypass assignments pass; worst is %s to %s at %.2fmm" %
+        (len(requirements), worst["cap_ref"], worst["requirement"]["ref"],
+         worst["distance_mm"])
+    )
 
 
 @checker("ic-power-ground-connected")
@@ -2401,13 +2570,51 @@ _BOM_KNOWN_OPEN = ("RS", "J_IN", "J_OUT")     # OQ-11 shunts + consigned THT pow
 _BOM_PLACEHOLDER = re.compile(r"(^$|^~$|_Small$|\b(TODO|TBD|FIXME|PLACEHOLDER|APPROXIMATE)\b)", re.I)
 
 
+def _schematic_for_board(path, ctx):
+    """Resolve a project's root schematic, including candidate subfolders."""
+    if ctx.get("sch"):
+        return ctx["sch"]
+    directory = os.path.dirname(os.path.abspath(path))
+    for candidate_dir in (directory, os.path.dirname(directory)):
+        sch = cec_toolchain.find_root_sch(candidate_dir)
+        if sch:
+            return sch
+    return _project_file(path, ".kicad_sch")
+
+
+def _schematic_inventory_for_board(path, ctx):
+    sch = _schematic_for_board(path, ctx)
+    if not sch:
+        return None, None
+    key = "_sch_inventory::" + os.path.abspath(sch)
+    if key not in ctx:
+        ctx[key] = cec_sch_gates.inventory(sch)
+    return sch, ctx[key]
+
+
+def _fp_assembly_state(fp):
+    """Return (DNP, excluded-from-BOM), tolerating older pcbnew bindings."""
+    dnp_fn = getattr(fp, "IsDNP", None)
+    bom_fn = getattr(fp, "IsExcludedFromBOM", None)
+    return (bool(dnp_fn()) if dnp_fn else False,
+            bool(bom_fn()) if bom_fn else False)
+
+
 @checker("bom-field-lint")
 def _chk_bom_lint(board, path, ctx):
     placeholders, unsourced_known = [], []
     n_parts = 0
+    _sch, sch_inventory = _schematic_inventory_for_board(path, ctx)
     for fp in board.GetFootprints():
         ref = fp.GetReference()
         if _board_only_ref(ref):
+            continue
+        pcb_dnp, pcb_excluded = _fp_assembly_state(fp)
+        sch_rec = (sch_inventory or {}).get(ref)
+        sch_excluded = bool(sch_rec and (
+            sch_rec.get("dnp") or not sch_rec.get("in_bom", True)
+            or not sch_rec.get("on_board", True)))
+        if pcb_dnp or pcb_excluded or sch_excluded:
             continue
         n_parts += 1
         val = _val(fp)
@@ -2470,32 +2677,157 @@ def _sch_refs(sch_path):
     return refs
 
 
+def _pcb_component_signatures(board):
+    """Value, footprint item, and connected numbered-pad nets by reference."""
+    signatures = {}
+    for fp in board.GetFootprints():
+        ref = str(fp.GetReference())
+        if _board_only_ref(ref):
+            continue
+        pins = {
+            (str(pad.GetNumber()), str(pad.GetNetname()))
+            for pad in fp.Pads()
+            if (str(pad.GetNumber()) and str(pad.GetNetname()) and
+                not str(pad.GetNetname()).startswith("unconnected-"))
+        }
+        signatures[ref] = (
+            str(fp.GetValue()),
+            str(fp.GetFPID().GetLibItemName()),
+            tuple(sorted(pins)),
+        )
+    return signatures
+
+
+def _schematic_component_signatures(sch, inventory, ctx):
+    """Export the current schematic and build the same signature as the PCB.
+
+    A reference-only comparison is insufficient: a board can retain every
+    reference while carrying an old value, footprint, or pin-to-net mapping.
+    The result is cached because intake also runs ERC on the same schematic.
+    """
+    key = "_sch_component_signatures::" + os.path.abspath(sch)
+    if key in ctx:
+        return ctx[key]
+    cli = cec_toolchain.kicad_cli()
+    if not cli:
+        raise RuntimeError("kicad-cli unavailable for exact schematic/PCB sync")
+    fd, out = tempfile.mkstemp(prefix="cec_sync_", suffix=".net")
+    os.close(fd)
+    try:
+        proc = subprocess.run(
+            [cli, "sch", "export", "netlist", "-o", out, sch],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if proc.returncode:
+            raise RuntimeError(
+                "netlist export exited %d: %s" %
+                (proc.returncode, (proc.stderr or proc.stdout).strip()[:500])
+            )
+        _components, nets = cec_spice_sanity.parse_netlist(out)
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    pins_by_ref = collections.defaultdict(set)
+    for net, nodes in nets.items():
+        if not net or str(net).startswith("unconnected-"):
+            continue
+        for ref, pin in nodes:
+            if pin:
+                pins_by_ref[ref].add((str(pin), str(net)))
+    signatures = {}
+    for ref, rec in inventory.items():
+        if (_board_only_ref(ref) or
+                rec.get("lib_id", "").startswith(("cec-power:", "power:")) or
+                not rec.get("on_board", True)):
+            continue
+        signatures[ref] = (
+            str(rec.get("value", "")),
+            str(rec.get("footprint", "")).rsplit(":", 1)[-1],
+            tuple(sorted(pins_by_ref.get(ref, set()))),
+        )
+    ctx[key] = signatures
+    return signatures
+
+
 @checker("sch-pcb-sync")
 def _chk_sch_pcb_sync(board, path, ctx):
-    sch = ctx.get("sch") or _project_file(path, ".kicad_sch")
+    sch, sch_inventory = _schematic_inventory_for_board(path, ctx)
     if not sch:
         return None, "no sibling .kicad_sch found"
-    sch_refs = _sch_refs(sch)
+    sch_refs = ({
+        ref for ref, rec in sch_inventory.items()
+        if (not _board_only_ref(ref)
+            and not rec.get("lib_id", "").startswith(("cec-power:", "power:")))
+    }
+                if sch_inventory is not None else _sch_refs(sch))
     if not sch_refs:
         return None, "schematic parsed to 0 instance refs (unexpected format)"
-    pcb_refs = {fp.GetReference() for fp in board.GetFootprints()
-                if not _board_only_ref(fp.GetReference())}
+    pcb_by_ref = {fp.GetReference(): fp for fp in board.GetFootprints()
+                  if not _board_only_ref(fp.GetReference())}
+    pcb_refs = set(pcb_by_ref)
     sch_only = sorted(sch_refs - pcb_refs)
     pcb_only = sorted(pcb_refs - sch_refs)
+    state_mismatches = []
+    if sch_inventory is not None:
+        for ref in sorted(sch_refs & pcb_refs):
+            rec = sch_inventory[ref]
+            actual_dnp, actual_excluded = _fp_assembly_state(pcb_by_ref[ref])
+            expected_dnp = bool(rec.get("dnp"))
+            expected_excluded = not bool(rec.get("in_bom", True))
+            if actual_dnp != expected_dnp:
+                state_mismatches.append(
+                    "%s DNP sch=%s pcb=%s" %
+                    (ref, "yes" if expected_dnp else "no",
+                     "yes" if actual_dnp else "no"))
+            if actual_excluded != expected_excluded:
+                state_mismatches.append(
+                    "%s BOM-excluded sch=%s pcb=%s" %
+                    (ref, "yes" if expected_excluded else "no",
+                     "yes" if actual_excluded else "no"))
     fresh = ""
     try:
         if os.path.getmtime(sch) > os.path.getmtime(path):
             fresh = "; sch is NEWER than pcb (Update-PCB-from-Schematic may be pending)"
     except OSError:
         pass
-    if sch_only or pcb_only:
+    if sch_only or pcb_only or state_mismatches:
         parts = []
         if sch_only:
             parts.append("in sch NOT on pcb (stale board): %s" % ", ".join(sch_only[:10]))
         if pcb_only:
             parts.append("on pcb NOT in sch (orphans): %s" % ", ".join(pcb_only[:10]))
+        if state_mismatches:
+            parts.append("assembly-state mismatch: %s" %
+                         ", ".join(state_mismatches[:10]))
         return False, "; ".join(parts) + fresh
-    return True, "ref sets in sync (%d refs)%s" % (len(pcb_refs), fresh)
+    expected = _schematic_component_signatures(sch, sch_inventory, ctx)
+    actual = _pcb_component_signatures(board)
+    mismatches = []
+    for ref in sorted(expected):
+        if ref not in actual:
+            continue
+        fields = []
+        if expected[ref][0] != actual[ref][0]:
+            fields.append("value")
+        if expected[ref][1] != actual[ref][1]:
+            fields.append("footprint")
+        if expected[ref][2] != actual[ref][2]:
+            fields.append("pad nets")
+        if fields:
+            mismatches.append("%s(%s)" % (ref, "/".join(fields)))
+    if mismatches:
+        matched = len(expected) - len(mismatches)
+        ratio = matched / float(len(expected)) if expected else 0.0
+        return False, (
+            "component signatures are stale: %d/%d exact (%.3f); mismatches: %s%s" %
+            (matched, len(expected), ratio, ", ".join(mismatches[:10]), fresh)
+        )
+    return True, "exact value/footprint/pad-net signatures and assembly state in sync (%d refs)%s" % (
+        len(pcb_refs), fresh)
 
 
 # ---------------------------------------------------------------------------

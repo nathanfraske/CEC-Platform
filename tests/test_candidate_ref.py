@@ -13,6 +13,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -148,6 +150,7 @@ class CandidateRefTest(unittest.TestCase):
         self.assertIn("postingress", self._body())
         meta = self._meta()
         self.assertEqual(meta["schematic_match"], 1.0)
+        self.assertTrue(meta["schematic_exact"])
         self.assertIn("current schematic", meta["reason"])
 
     def test_equal_freshness_falls_through_to_score(self):
@@ -156,6 +159,42 @@ class CandidateRefTest(unittest.TestCase):
         self.assertIsNone(self._publish("w2", (1, 9)))       # worse score, same freshness
         self.assertIsNotNone(self._publish("w3", (1, 1)))    # better score, same freshness
         self.assertIn("w3", self._body())
+
+    def test_same_reference_with_changed_footprint_is_stale(self):
+        want = {
+            "C50": ("2u2", "C_0603_1608Metric", (("1", "/SS"), ("2", "GND"))),
+        }
+        have = {
+            "C50": ("2u2", "C_0402_1005Metric", (("1", "/SS"), ("2", "GND"))),
+        }
+        w._board_refs = lambda _path: have
+        self.assertEqual(w._schematic_match("candidate.kicad_pcb", want), 0.0)
+
+    def test_same_reference_with_changed_pin_net_is_stale(self):
+        want = {
+            "U5": ("TPS2121RUXR", "RUX0012A", (("3", "GND"),)),
+        }
+        have = {
+            "U5": ("TPS2121RUXR", "RUX0012A", (("3", "/IN2"),)),
+        }
+        w._board_refs = lambda _path: have
+        self.assertEqual(w._schematic_match("candidate.kicad_pcb", want), 0.0)
+
+    def test_netlist_freshness_excludes_nonphysical_power_symbols(self):
+        net = self._pcb("dummy-net", text="netlist placeholder")
+        parsed = SimpleNamespace(
+            comps={
+                "U1": SimpleNamespace(value="IC", footprint="lib:IC"),
+                "PWR201": SimpleNamespace(value="GND", footprint=""),
+            },
+            nets={"GND": [("U1", "2"), ("PWR201", "1")]},
+        )
+        cfg = SimpleNamespace(net=net)
+        with mock.patch.object(w.csp.Config, "load", return_value=cfg), \
+                mock.patch.object(w.csp, "_ensure_netlist_path", return_value=net), \
+                mock.patch.object(w.csp.Netlist, "from_file", return_value=parsed):
+            signatures = w._netlist_refs("unit-test-board")
+        self.assertEqual(set(signatures), {"U1"})
 
     def test_unknown_board_is_never_invented(self):
         best = {"label": "x", "sort_key": [1], "routed": None}

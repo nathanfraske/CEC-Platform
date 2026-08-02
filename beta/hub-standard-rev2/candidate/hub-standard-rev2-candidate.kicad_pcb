@@ -426,7 +426,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -7142,7 +7142,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -7990,7 +7990,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -10605,7 +10605,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.162779 -0.51)
@@ -11162,7 +11162,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -15517,7 +15517,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.91 -1.56)
@@ -19393,7 +19393,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start 0.91 -1.56)
@@ -22748,7 +22748,7 @@
 				)
 			)
 		)
-		(attr smd)
+		(attr smd exclude_from_bom dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)

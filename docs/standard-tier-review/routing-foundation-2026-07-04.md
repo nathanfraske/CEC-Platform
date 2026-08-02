@@ -1,4 +1,11 @@
-# Routing foundation — stackup register + footprint needs audit (2026-07-04)
+# Routing foundation: stackup register and footprint needs audit (2026-07-04)
+
+> **Historical snapshot.** The four-layer stackups, layer roles, PCB states, and
+> open recommendations below were measured on 2026-07-04 and are not current
+> BETA routing instructions. The approved six-layer roles and current candidate
+> status are recorded in `STANDARD-DESIGN-SHEET.md`,
+> `../decisions/owner-session-2026-08-01.md`, and
+> `../beta-placement-passives-audit-2026-08-02.md`.
 
 Scope: TODO.md 2026-07-04 07:50, part (b). Foundation only — **no `.kicad_sch` touched,
 no routing run**. W6 (EPS/PCIe routing pass) stays owner-deferred pending

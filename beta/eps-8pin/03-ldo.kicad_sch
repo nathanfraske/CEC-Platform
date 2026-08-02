@@ -1146,7 +1146,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B105KO8NNNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 179.07 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -1482,7 +1482,7 @@
 				)
 			)
 		)
-		(property "MPN" "CL10B105KO8NNNC"
+		(property "MPN" "CL10A105KB8NNNC"
 			(at 179.07 118.11 0)
 			(hide yes)
 			(show_name no)
@@ -1636,7 +1636,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/lp5907.pdf"
 			(at 147.32 102.87 0)
 			(hide yes)
 			(show_name no)
@@ -1668,7 +1668,7 @@
 				)
 			)
 		)
-		(property "MPN" "LP5907MFX-3.3"
+		(property "MPN" "LP5907MFX-3.3/NOPB"
 			(at 147.32 102.87 0)
 			(hide yes)
 			(show_name no)

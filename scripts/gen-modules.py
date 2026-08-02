@@ -81,6 +81,10 @@ BASE_PARTS = {
     # are all CAN-only Standard -> 2.2k (0.595 V code). Use a 1% precision part.
     "R1": ("cec-vendor", "R_Small", "2k2"),
     "R2": ("cec-vendor", "R_Small", "10k"),
+    # ESP32-C6 GPIO8 has no default internal bias. Joint download boot needs
+    # GPIO8=1 while GPIO9 is held low. This 10 kohm pull-up is copied from the
+    # official ESP32-C6-DevKitC-1 reference schematic.
+    "R19": ("cec-vendor", "R_Small", "10k"),
     # R3/R4 (I2C SDA/SCL pull-ups) are added per-topology in build(): the I2C
     # sensing bus exists only on the i2c-cable/i2c-rail modules. The analog
     # 12VHPWR module has no I2C, so IO8/IO9 (pins 12/13) are free there and
@@ -176,7 +180,7 @@ def build(dirn):
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
         "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3"),("D2","1")],
-        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R_BOOT","1")],
+        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R19","1"),("R_BOOT","1")],
         "GND":   [("J1","2"),("J1","SH1"),("J1","SH2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
                   ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),("C_BOOT","2"),
@@ -188,6 +192,7 @@ def build(dirn):
         # is a recoverable re-enumerate event, so the internal BOD is enough.
         # SW2 adds a manual RESET button; SW1 a BOOT button on GPIO0 (flashing).
         "EN":     [("U1","8"),("R2","2"),("C5","1"),("SW2","2")],
+        "IO8_STRAP": [("U1", "22"), ("R19", "2")],
         "CAN_TX": [("U1","26"),("U2","1")],
         "CAN_RX": [("U1","27"),("U2","4")],
         "CAN_H":  [("U2","7"),("J1","3")],
@@ -408,7 +413,7 @@ def layout(dirn, parts):
     P = {
         "J1": (50, 70),
         "U3": (150, 55), "C1": (120, 60), "C2": (180, 60), "C6": (95, 40),
-        "R1": (120, 110), "R2": (180, 110), "C5": (210, 110),
+        "R1": (120, 110), "R2": (180, 110), "R19": (195, 110), "C5": (210, 110),
         "U2": (240, 70), "C4": (240, 35), "C8": (278, 100),
         "U1": (340, 90),
         "R3": (300, 40), "R4": (320, 40),
@@ -459,8 +464,8 @@ for dirn, base in (MODS if __name__ == "__main__" else []):   # importable w/o s
     parts, nets = build(dirn)
     out = f"{ROOTDIR}/modules/{dirn}/{base}.kicad_sch"
     used = cec_sch.load_symbols(LIBS, parts)
-    # GPIO0 is the service-button pad — single-pin label by design, no NC flag.
-    nc_skip = {("U1", "4")}
+    # Every C6 pad is now either connected or deliberately marked no-connect.
+    nc_skip = set()
     # Power rails use power-PORT symbols (GND triangle, +5VSB/+3V3 bars) instead
     # of text labels. The per-node shunt->monitor sense link (SENSE*_HI) is a
     # 2-pin colinear net -> draw it as a real wire.

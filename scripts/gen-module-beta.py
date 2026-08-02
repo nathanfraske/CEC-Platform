@@ -77,7 +77,7 @@ FIXED_LEAF = {
     "FL1": "02-can", "R11": "02-can", "R12": "02-can",
     "U3": "03-ldo", "C1": "03-ldo", "C2": "03-ldo",
     "U1": "04-mcu", "C3": "04-mcu", "C5": "04-mcu", "C7": "04-mcu",
-    "R2": "04-mcu", "SW1": "04-mcu", "SW2": "04-mcu",
+    "R2": "04-mcu", "R19": "04-mcu", "SW1": "04-mcu", "SW2": "04-mcu",
     "R10": "05-sensing", "C40": "05-sensing", "R3": "05-sensing", "R4": "05-sensing",
     "J5": "07-usb-flash", "D2": "07-usb-flash", "D3": "07-usb-flash",
     "FB1": "07-usb-flash", "C9": "07-usb-flash", "R8": "07-usb-flash", "R9": "07-usb-flash",
