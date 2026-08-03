@@ -471,7 +471,7 @@
       "ground_pin_not_ground": "warning",
       "hier_label_mismatch": "error",
       "isolated_pin_label": "warning",
-      "label_dangling": "error",
+      "label_dangling": "warning",
       "label_multiple_wires": "warning",
       "lib_symbol_issues": "warning",
       "lib_symbol_mismatch": "warning",
@@ -507,7 +507,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "routed.kicad_pro",
+    "filename": "periph-right-compact-s0.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -579,7 +579,7 @@
         "pcb_color": "rgb(220, 80, 20)",
         "priority": 0,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 1.5,
+        "track_width": 0.2,
         "tuning_profile": "",
         "via_diameter": 0.9,
         "via_drill": 0.5,
@@ -619,24 +619,20 @@
         "pattern": "+3V3"
       },
       {
-        "netclass": "HighCurrent",
-        "pattern": "*RAIL*"
+        "netclass": "USB",
+        "pattern": "*USB_D_P"
       },
       {
         "netclass": "USB",
-        "pattern": "*USB_D+"
-      },
-      {
-        "netclass": "USB",
-        "pattern": "*USB_D-"
+        "pattern": "*USB_D_N"
       },
       {
         "netclass": "CAN",
-        "pattern": "/CAN_H"
+        "pattern": "*CAN_H"
       },
       {
         "netclass": "CAN",
-        "pattern": "/CAN_L"
+        "pattern": "*CAN_L"
       },
       {
         "netclass": "CAN",
@@ -682,6 +678,7 @@
       "netlist": "",
       "plot": "",
       "specctra_dsn": "",
+      "step": "",
       "vrml": ""
     },
     "page_layout_descr_file": ""

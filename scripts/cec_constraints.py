@@ -37,6 +37,7 @@ import cec_toolchain  # noqa: E402 -- cross-platform KiCad executable resolution
 import cec_sch_gates  # noqa: E402 -- hierarchy-aware assembly inventory
 import cec_spice_sanity  # noqa: E402 -- KiCad netlist parser used for exact freshness
 import cec_impedance  # noqa: E402 -- profile-aware coupled-pair geometry
+import cec_device_bypass  # noqa: E402 -- shared device/cap rules with placer
 
 
 # ===========================================================================
@@ -849,6 +850,35 @@ _MEZZ_SEGMENTS = {
     for s in cec_mezz.SEGMENTS
 }
 
+# The mating datum is derived from the nominal stack boards, not from a runtime
+# routing-growth outline.  The ATX force-rail wave may add height below the
+# nominal 74x55 frame; that must not silently move the already-authoritative
+# mating seats.  The Hub is physically reflected about X for the face-to-face
+# dead-bug assembly, so both its offsets and connector angles are conjugated.
+_MEZZ_SIDES = {
+    "atx-24pin-rev3": {"mirror_x": False, "assembly_dc": (0.0, 0.0)},
+    "hub-standard-rev2": {"mirror_x": True,
+                          "assembly_dc": cec_mezz.STACK["hub_assembly_dc_mm"]},
+}
+
+
+def _mezz_side(by_ref, path):
+    """Resolve the assembly side from fitted hardware before the filename.
+
+    Optimizer and review artifacts are routinely written under temporary
+    names.  A pathname-only discriminator therefore mirrored legitimate Hub
+    sockets as if they were ATX headers.  The mating hardware is an intrinsic,
+    unambiguous board property; the path is retained only as a legacy fallback.
+    """
+    j6p = by_ref.get("J6P")
+    token = j6p.GetFPIDAsString().upper() if j6p is not None else ""
+    if "PINSOCKET" in token:
+        return _MEZZ_SIDES["hub-standard-rev2"]
+    if "PINHEADER" in token:
+        return _MEZZ_SIDES["atx-24pin-rev3"]
+    norm = os.path.normpath(path).lower()
+    return next((v for k, v in _MEZZ_SIDES.items() if k in norm), None)
+
 
 def _mezz_net_role(net):
     n = (net or "").upper().replace("~", "")
@@ -886,7 +916,18 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
     if missing:
         errors.append("missing segment(s) %s" % ",".join(missing))
     x0, y0, x1, y1 = _edge_bbox(board)
-    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    side = _mezz_side(by_ref, path)
+    if side:
+        # Size sweeps derive their mating pins from the candidate W/H.  Check
+        # against that board's actual outline center; a compiled-in nominal
+        # size made every legitimate shrink candidate fail this gate.
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        mirror_x = bool(side["mirror_x"])
+        ax, ay = side.get("assembly_dc", (0.0, 0.0))
+    else:
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        mirror_x = False
+        ax, ay = 0.0, 0.0
     tol = 0.05
     for ref, (seat, pin_roles, fp_token) in _MEZZ_SEGMENTS.items():
         fp = by_ref.get(ref)
@@ -894,7 +935,9 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
             continue
         pos = fp.GetPosition()
         got = (_mm(pos.x), _mm(pos.y), float(fp.GetOrientationDegrees()) % 360.0)
-        want = (cx + seat[0], cy + seat[1], seat[2] % 360.0)
+        want = (cx + (-(seat[0] - ax) if mirror_x else seat[0] - ax),
+                cy + seat[1] - ay,
+                ((180.0 - seat[2]) if mirror_x else seat[2]) % 360.0)
         if (abs(got[0] - want[0]) > tol or abs(got[1] - want[1]) > tol
                 or abs(((got[2] - want[2] + 180.0) % 360.0) - 180.0) > 0.01):
             errors.append("%s seat (%.2f,%.2f,%.1f), expected (%.2f,%.2f,%.1f)" %
@@ -913,8 +956,9 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         errors.append("missing shared H1 M2 ground lug")
     else:
         pos = lug.GetPosition()
-        want = (cx + cec_mezz.GROUND_LUG["dc"][0],
-                cy + cec_mezz.GROUND_LUG["dc"][1])
+        lug_dx, lug_dy = cec_mezz.GROUND_LUG["dc"]
+        want = (cx + (-(lug_dx - ax) if mirror_x else lug_dx - ax),
+                cy + lug_dy - ay)
         if abs(_mm(pos.x) - want[0]) > tol or abs(_mm(pos.y) - want[1]) > tol:
             errors.append("H1 seat (%.2f,%.2f), expected (%.2f,%.2f)" %
                           (_mm(pos.x), _mm(pos.y), want[0], want[1]))
@@ -934,7 +978,7 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         if (center is None
                 or abs(_mm(center.GetDrillSize().x) - cec_mezz.GROUND_LUG["drill_mm"]) > 0.01
                 or abs(_mm(center.GetSize().x) - cec_mezz.GROUND_LUG["land_mm"]) > 0.01):
-            errors.append("H1 lacks the specified 2.2mm M2 hole / 4.4mm lug land")
+            errors.append("H1 lacks the specified 2.7mm M2.5 hole / 5.0mm lug land")
         if (center is None or not center.GetLayerSet().Contains(pcbnew.F_Mask)
                 or not center.GetLayerSet().Contains(pcbnew.B_Mask)):
             errors.append("H1 lug land is not exposed on both outer faces")
@@ -959,8 +1003,12 @@ def _chk_kelvin_fcu(board, path, ctx):
         n = t.GetNetname()
         if n not in sense:
             continue
-        if t.Type() == pcbnew.PCB_VIA_T:
-            bad.append("via on %s" % n)                        # §6.8: never route the sense down-and-back
+        if t.Type() == pcbnew.PCB_VIA_T and n not in force:
+            # A shared force/sense net legitimately carries current-path via
+            # arrays away from the measurement tap.  Pad-local tap topology is
+            # independently checked below; only a via on a low-current-only
+            # sense leg is an unconditional violation here.
+            bad.append("via on %s" % n)
         elif t.Type() == pcbnew.PCB_TRACE_T and t.GetLayer() != pcbnew.F_Cu and n not in force:
             bad.append("%s off F.Cu" % n)                      # off-F.Cu only faults the low-current sense leg
     if bad:
@@ -1203,12 +1251,13 @@ def _derive_pour_boxes(board, path):
     kelvin, _ = cec_score._derive_pairs(_nets(board))
     by_net = _pads_by_net(board)
     shared = _shared_bus_conns(kelvin, by_net)
+    shared_force_nets = _shared_bus_force_nets(by_net, shared)
     layer_id = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
     boxes, own = [], set()
     for pr in pours:
         net = pr["net"]
         jrefs = {ref for ref, _, _ in by_net.get(net, []) if ref.upper().startswith("J")}
-        if jrefs & shared:
+        if jrefs & shared or net in shared_force_nets:
             continue                                       # shared-bus per-pin/per-rail -> N/A
         xs = [p[0] for p in pr["polygon"]]
         ys = [p[1] for p in pr["polygon"]]
@@ -1333,7 +1382,13 @@ def _chk_foreign_on_pour(board, path, ctx):
 
 @checker("high-current-pour-present")
 def _chk_pour(board, path, ctx):
-    hc = [n for n in _nets(board) if "12V" in n.upper() or n.endswith("_HI")]
+    # High-current rails are the nets on the two-terminal measurement shunts.
+    # A substring search for "12V" incorrectly promoted low-current monitor
+    # nets such as NEG12V_DIV, DET12V, DETAMP12V and NEG12V_ADC into pour rails.
+    hc = sorted({p.GetNetname()
+                 for fp in board.GetFootprints()
+                 if fp.GetReference().upper().startswith("RS") and fp.GetPadCount() == 2
+                 for p in fp.Pads() if p.GetNetname()})
     if not hc:
         return None, "no high-current nets"
     if _track_count(board) == 0:
@@ -1396,6 +1451,23 @@ def _shared_bus_conns(kelvin, by_net):
             if ref.upper().startswith("J"):
                 serves[ref].add(hi[:-3])
     return {ref for ref, pairs in serves.items() if len(pairs) > 1}
+
+
+def _shared_bus_force_nets(by_net, shared_connectors):
+    """Both sides of every shunt fed by a shared multi-rail connector.
+
+    The old N/A filter looked for the connector on each individual pour net.
+    That catches the source side of a shunt but not its load side, even though
+    both are the same per-rail shared-bus path.  Discover the two-pad shunt from
+    the connector-side net, then return every net on that shunt.
+    """
+    fed_shunts = set()
+    for _net, nodes in by_net.items():
+        refs = {ref for ref, _p, _fp in nodes}
+        if refs & set(shared_connectors):
+            fed_shunts.update(ref for ref in refs if ref.upper().startswith("RS"))
+    return {_net for _net, nodes in by_net.items()
+            if any(ref in fed_shunts for ref, _p, _fp in nodes)}
 
 
 def _corridor_bands(board):
@@ -1567,14 +1639,85 @@ def _chk_min_cross(board, path, ctx):
                   % (len(solved), j_max, hi[1], hi[0]))
 
 
+def _kelvin_thin_components(board, sense, *, max_width_mm=0.4):
+    """Connected F.Cu thin-track components for each force/sense net.
+
+    Connectivity includes T-junctions whose endpoint lands on the middle of
+    another segment.  The old check treated every segment independently, so a
+    perfectly valid bent or branched Kelvin tree could never "directly" reach
+    both the precision and fast-sense inputs.
+    """
+    by_net = collections.defaultdict(list)
+    for t in board.GetTracks():
+        if (t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense
+                and t.GetLayer() == pcbnew.F_Cu
+                and _mm(t.GetWidth()) <= max_width_mm):
+            s, e = t.GetStart(), t.GetEnd()
+            by_net[t.GetNetname()].append((
+                (_mm(s.x), _mm(s.y), _mm(e.x), _mm(e.y)), t))
+
+    def _intersects(a, b, tol=0.03):
+        def _orient(p, q, r):
+            return ((q[0] - p[0]) * (r[1] - p[1])
+                    - (q[1] - p[1]) * (r[0] - p[0]))
+        ap, aq = (a[0], a[1]), (a[2], a[3])
+        bp, bq = (b[0], b[1]), (b[2], b[3])
+        o1, o2 = _orient(ap, aq, bp), _orient(ap, aq, bq)
+        o3, o4 = _orient(bp, bq, ap), _orient(bp, bq, aq)
+        if ((o1 <= 0 <= o2 or o2 <= 0 <= o1)
+                and (o3 <= 0 <= o4 or o4 <= 0 <= o3)):
+            # Bounding boxes reject collinear-but-disjoint extensions.
+            if (max(min(a[0], a[2]), min(b[0], b[2]))
+                    <= min(max(a[0], a[2]), max(b[0], b[2])) + tol
+                    and max(min(a[1], a[3]), min(b[1], b[3]))
+                    <= min(max(a[1], a[3]), max(b[1], b[3])) + tol):
+                return True
+        return min(_point_segment_mm(ap, b), _point_segment_mm(aq, b),
+                   _point_segment_mm(bp, a), _point_segment_mm(bq, a)) <= tol
+
+    out = collections.defaultdict(list)
+    for net, rows in by_net.items():
+        parent = list(range(len(rows)))
+
+        def find(i):
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+
+        def union(i, j):
+            a, b = find(i), find(j)
+            if a != b:
+                parent[b] = a
+
+        for i, (a, _ta) in enumerate(rows):
+            for j in range(i + 1, len(rows)):
+                if _intersects(a, rows[j][0]):
+                    union(i, j)
+        groups = collections.defaultdict(list)
+        for i, row in enumerate(rows):
+            groups[find(i)].append(row)
+        out[net] = [{"segments": [r[0] for r in group],
+                     "tracks": [r[1] for r in group]}
+                    for group in groups.values()]
+    return out
+
+
+def _kelvin_component_touches(comp, pad, extra=0.15):
+    pos, size = pad.GetPosition(), pad.GetSize()
+    point = (_mm(pos.x), _mm(pos.y))
+    reach = math.hypot(_mm(size.x), _mm(size.y)) / 2.0 + extra
+    return any(_point_segment_mm(point, seg) <= reach for seg in comp["segments"])
+
+
 @checker("kelvin-sense-from-inner-pad")
 def _chk_kelvin_inner(board, path, ctx):
-    """FULL §6.8 four-wire tap check (the directive=inner_tap ENFORCE leg). For each 2-pad shunt sense
-    pad, a thin F.Cu stub must (a) LEAVE FROM THE INNER EDGE (inner-ness >= inner_min_mm), (b) run as a
-    DIRECT F.Cu segment (no via -- a single track has none) whose far end TERMINATES ON an INA input pad
-    on that net (HI->IN+, LO->IN-). The generative builder cec_fr.synthesize_kelvin_taps lays exactly
-    this, so build and check agree by construction; a centre/outer tap or a stub that never reaches the
-    IN+/IN- pad FAILs. On FAIL we emit an inner_tap payload so the route-time synth can (re)build it."""
+    """Verify each Kelvin tree leaves the inner shunt edge and reaches every sense input.
+
+    A valid tap may be bent and may branch to both the precision and fast-sense
+    amplifiers.  Therefore the electrical object checked here is a connected
+    thin-track F.Cu tree, not one artificially straight segment.
+    """
     if _track_count(board) == 0:
         return None, "floorplan (route-time)"
     shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
@@ -1582,24 +1725,18 @@ def _chk_kelvin_inner(board, path, ctx):
     if not shunts or not sense:
         return None, "no shunt / sense nets"
     inner_min = _param("kelvin-sense-from-inner-pad", "inner_min_mm", 0.1)
-    ina_reach = _param("kelvin-sense-from-inner-pad", "ina_reach_mm", 0.9)
-    # INA input pads on each sense net -- the topology TARGET the tap must terminate on.
-    ina_pads = collections.defaultdict(list)                 # net -> [(x_mm, y_mm)]
+    # Current-sense input pads on each net.  VBUS and digital pins are excluded
+    # by the per-part pin-function table below.
+    ina_pads = collections.defaultdict(list)
     for fp in board.GetFootprints():
         if not _is(fp, "INA2", "INA181"):
             continue
         for p in fp.Pads():
             nn = p.GetNetname()
-            if nn in sense:
-                pp = p.GetPosition()
-                ina_pads[nn].append((_mm(pp.x), _mm(pp.y)))
-    # the tap stubs: thin tracks on a sense net, restricted to F.Cu (no-via leg of §6.8 -- a via is not
-    # a PCB_TRACE_T, and an off-F.Cu sense trace is the down-and-back the tap must replace).
-    thin = collections.defaultdict(list)
-    for t in board.GetTracks():
-        if (t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense
-                and _mm(t.GetWidth()) <= 0.4 and t.GetLayer() == pcbnew.F_Cu):
-            thin[t.GetNetname()].append(t)
+            want = _kelvin_input_pad_name(fp, nn)
+            if nn in sense and want is not None and p.GetPadName() == want:
+                ina_pads[nn].append((fp, p))
+    components = _kelvin_thin_components(board, sense)
     bad, checked, payload = [], 0, []
     for sh in shunts:
         pads = list(sh.Pads())
@@ -1618,36 +1755,41 @@ def _chk_kelvin_inner(board, path, ctx):
             inn = math.hypot(ix, iy) or 1.0
             ix, iy = ix / inn, iy / inn
             sz = pad.GetSize()
-            diag = math.hypot(_mm(sz.x), _mm(sz.y)) / 2 + 0.3
-            best_inner, tap_to_ina = None, False
-            for t in thin.get(net, []):
-                ends = (t.GetStart(), t.GetEnd())
-                for j, end in enumerate(ends):
-                    ex, ey = _mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)
-                    if math.hypot(ex, ey) > diag:            # this end is not on/near the shunt pad
-                        continue
-                    inner = ex * ix + ey * iy                # connection point's inner-ness (mm toward the sense edge)
-                    best_inner = inner if best_inner is None else max(best_inner, inner)
-                    far = ends[1 - j]                        # the stub's OTHER end -> must reach an INA input pad
-                    if (inner >= inner_min
-                            and any(math.hypot(_mm(far.x) - tx, _mm(far.y) - ty) <= ina_reach
-                                    for tx, ty in targets)):
-                        tap_to_ina = True
-            if best_inner is None:
+            pad_reach = math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + 0.3
+            touching = [comp for comp in components.get(net, [])
+                        if _kelvin_component_touches(comp, pad, extra=0.3)]
+            if not touching:
                 continue                                     # no stub resolvable on this pad -> not checked
             checked += 1
-            if tap_to_ina:
+            best_inner = None
+            valid_tree = None
+            for comp in touching:
+                # The shunt-side endpoint must start on the pad's inward half;
+                # merely crossing the pad centre is not a Kelvin inner-edge tap.
+                for seg in comp["segments"]:
+                    for ex_abs, ey_abs in ((seg[0], seg[1]), (seg[2], seg[3])):
+                        ex, ey = ex_abs - _mm(pc.x), ey_abs - _mm(pc.y)
+                        if math.hypot(ex, ey) <= pad_reach:
+                            inner = ex * ix + ey * iy
+                            best_inner = inner if best_inner is None else max(best_inner, inner)
+                if (best_inner is not None and best_inner >= inner_min
+                        and all(_kelvin_component_touches(comp, target)
+                                for _target_fp, target in targets)):
+                    valid_tree = comp
+                    break
+            if valid_tree is not None:
                 continue
-            why = "not inner edge" if best_inner < inner_min else "no direct F.Cu tap to IN+/IN-"
+            why = ("not inner edge" if best_inner is None or best_inner < inner_min
+                   else "F.Cu Kelvin tree does not reach every IN+/IN- input")
             bad.append("%s pad %s (%s)" % (sh.GetReference(), pad.GetPadName(), why))
             payload.append({"type": "inner_tap", "shunt": sh.GetReference(),
                             "pad": pad.GetPadName(), "net": net, "why": why})
     if checked == 0:
         return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
     if bad:
-        return (False, "Kelvin sense not tapped from the inner shunt edge to IN+/IN-: "
+        return (False, "Kelvin sense not tapped from the inner shunt edge to every IN+/IN-: "
                 + "; ".join(bad[:6]), payload)
-    return True, "Kelvin inner-edge -> IN+/IN- F.Cu taps verified (%d shunt pad(s))" % checked
+    return True, "Kelvin inner-edge F.Cu trees reach every IN+/IN- (%d shunt pad(s))" % checked
 
 
 # IN+/IN- input pad NAME per current-sense part (Vbus is deliberately absent -- it is a high-Z
@@ -1670,39 +1812,38 @@ def _kelvin_input_pad_name(fp, net):
 
 @checker("kelvin-sense-no-connector-tap")
 def _chk_kelvin_no_connector_tap(board, path, ctx):
-    """The kelvin-from-connector GATE (owner directive 2026-06-28). For each current-sense IC INPUT pad
-    (IN+/IN-, by pin function) on a SENSEC _HI/_LO net, count the DISTINCT copper stubs incident on the
-    pad (tracks clustered by far endpoint, + vias). A true four-wire Kelvin has EXACTLY ONE via-less F.Cu
-    stub landing on the 2-pad shunt's pad; a SECOND stub (FR wiring the same-net pad to the connector / a
-    second pour point), a via, or a lone stub that misses the shunt is the defect -- the sense pad is then
-    tied to >1 point of the current-carrying copper and the stub carries load current.
+    """Reject a connector/via tap while accepting one branched shunt-origin tree.
 
-    A correct tap legitimately reaches the connector THROUGH the shunt terminal (the HI pour ties the
-    shunt terminal to the connector), so 'reaches the connector' is NOT the test -- the parallel SECOND
-    connection is. Geometry-local, no fail-open: a board where the only stub lands on the shunt PASSES.
-    Self-gating N/A on a floorplan (no tracks) or a board with no 2-pad shunt / INA input on a sense net."""
+    Multiple current-sense inputs may share the same Kelvin tree.  What is not
+    allowed is a second tree at an input, a via at an input, no shunt origin,
+    more than one shunt origin, or any direct connector-pad touch.
+    """
     if _track_count(board) == 0:
         return None, "floorplan (route-time)"
     sense = _sense_nets(board)
-    shunt_pads = collections.defaultdict(list)                  # net -> [(x,y,reach_mm)] of the 2-pad shunt
+    shunt_pads = collections.defaultdict(list)
     for fp in board.GetFootprints():
         if not (fp.GetReference().upper().startswith("RS") and fp.GetPadCount() == 2):
             continue
         for p in fp.Pads():
             nn = p.GetNetname()
             if nn in sense:
-                pos = p.GetPosition(); sz = p.GetSize()
-                shunt_pads[nn].append((_mm(pos.x), _mm(pos.y), math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + 0.3))
+                shunt_pads[nn].append((fp, p))
     if not sense or not shunt_pads:
         return None, "no 2-pad shunt / sense nets"
     extra = _param("kelvin-sense-no-connector-tap", "pad_reach_extra_mm", 0.15)
-    cluster = _param("kelvin-sense-no-connector-tap", "stub_far_cluster_mm", 0.5)
-    # index tracks/vias by net once
-    net_tracks = collections.defaultdict(list)
+    components = _kelvin_thin_components(board, sense)
+    connector_pads = collections.defaultdict(list)
+    for fp in board.GetFootprints():
+        if not fp.GetReference().upper().startswith("J"):
+            continue
+        for p in fp.Pads():
+            if p.GetNetname() in sense:
+                connector_pads[p.GetNetname()].append((fp, p))
+    vias = collections.defaultdict(list)
     for t in board.GetTracks():
-        nn = t.GetNetname()
-        if nn in sense:
-            net_tracks[nn].append(t)
+        if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() in sense:
+            vias[t.GetNetname()].append(t)
     bad, checked = [], 0
     for fp in board.GetFootprints():
         if not _is(fp, "INA2", "INA181"):
@@ -1716,38 +1857,38 @@ def _chk_kelvin_no_connector_tap(board, path, ctx):
                 continue                                       # only the IN+/IN- pad (never Vbus / digital)
             pos = p.GetPosition(); pc = (_mm(pos.x), _mm(pos.y))
             sz = p.GetSize(); reach = math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + extra
-            fars, vias = [], 0                                  # far endpoints of incident stubs; incident vias
-            for t in net_tracks.get(net, []):
-                if t.Type() == pcbnew.PCB_VIA_T:
-                    vp = t.GetPosition()
-                    if math.hypot(_mm(vp.x) - pc[0], _mm(vp.y) - pc[1]) <= reach:
-                        vias += 1
-                    continue
-                ends = ((_mm(t.GetStart().x), _mm(t.GetStart().y)),
-                        (_mm(t.GetEnd().x), _mm(t.GetEnd().y)))
-                for k, end in enumerate(ends):
-                    if math.hypot(end[0] - pc[0], end[1] - pc[1]) <= reach:
-                        fars.append(ends[1 - k])               # this stub touches the pad; record its far end
-            if not fars and not vias:
+            touching = [comp for comp in components.get(net, [])
+                        if _kelvin_component_touches(comp, p, extra=extra)]
+            pad_vias = []
+            for via in vias.get(net, []):
+                vp = via.GetPosition()
+                if math.hypot(_mm(vp.x) - pc[0], _mm(vp.y) - pc[1]) <= reach:
+                    pad_vias.append(via)
+            if not touching and not pad_vias:
                 continue                                       # unconnected input -> board-routing-complete owns it
             checked += 1
-            # cluster the far endpoints so a split-but-collinear single tap counts once
-            clusters = []
-            for f in fars:
-                if not any(math.hypot(f[0] - c[0], f[1] - c[1]) <= cluster for c in clusters):
-                    clusters.append(f)
-            n_conn = len(clusters) + vias
-            on_shunt = (len(clusters) == 1 and vias == 0
-                        and any(math.hypot(clusters[0][0] - sx, clusters[0][1] - sy) <= sr
-                                for sx, sy, sr in shunt_pads[net]))
-            if n_conn == 1 and on_shunt:
-                continue                                       # clean single inner-edge tap to the shunt
-            if vias:
+            shunt_origins, connector_taps = [], []
+            if len(touching) == 1:
+                comp = touching[0]
+                shunt_origins = [(owner, sp) for owner, sp in shunt_pads[net]
+                                 if _kelvin_component_touches(comp, sp, extra=0.3)]
+                connector_taps = [(owner, cp) for owner, cp in connector_pads.get(net, [])
+                                  if _kelvin_component_touches(comp, cp, extra=extra)]
+            if (len(touching) == 1 and not pad_vias
+                    and len(shunt_origins) == 1 and not connector_taps):
+                continue
+            if pad_vias:
                 why = "via on the sense input (tap must be via-less F.Cu)"
-            elif n_conn >= 2:
-                why = "%d parallel stubs (only the single shunt tap is allowed)" % n_conn
+            elif len(touching) != 1:
+                why = "%d separate F.Cu trees at input (exactly one allowed)" % len(touching)
+            elif connector_taps:
+                why = "Kelvin tree directly touches connector pad(s): %s" % ",".join(
+                    "%s.%s" % (owner.GetReference(), cp.GetPadName())
+                    for owner, cp in connector_taps[:4])
+            elif len(shunt_origins) > 1:
+                why = "Kelvin tree has %d shunt origins (exactly one allowed)" % len(shunt_origins)
             else:
-                why = "lone stub does not land on the shunt pad"
+                why = "Kelvin tree has no shunt-pad origin"
             bad.append("%s.%s on %s: %s" % (fp.GetReference(), p.GetPadName(), net, why))
     if checked == 0:
         return None, "no resolvable INA input stub on a sense net"
@@ -1755,7 +1896,7 @@ def _chk_kelvin_no_connector_tap(board, path, ctx):
         return (False, "Kelvin sense input has a parallel/non-shunt connection (carries load current -- "
                 "not four-wire): " + "; ".join(bad[:6]),
                 [{"type": "inner_tap", "why": "connector_tap", "detail": d} for d in bad])
-    return True, "Kelvin sense inputs connect by the single shunt tap alone (%d input pad(s))" % checked
+    return True, "Kelvin inputs use one via-less, connector-free shunt tree (%d input pad(s))" % checked
 
 
 def _fp_courtyard_bbox(fp):
@@ -1783,25 +1924,16 @@ def _chk_sense_body_clear(board, path, ctx):
     FAIL-CLOSED on the same region-finder hole as no-foreign-on-high-current-pour: a board WITH SENSEC
     pour copper whose region-finder raises/returns empty FAILS (the body-clear cannot be verified),
     never N/A-pass. Genuine no-pour boards keep their N/A skip."""
-    import cec_fr
-    has_pours = _has_sensec_pours(board)
     try:
-        pours = cec_fr.derive_power_pours(path, board=board)
-    except Exception as e:                                       # noqa: BLE001
-        if has_pours:
-            return (False, "FAIL-CLOSED: sense-body-clear region-finder errored on a board WITH SENSEC "
-                    "pours (%s) -- cannot verify the sense IC body clears the high-current pour"
-                    % type(e).__name__)
-        return None, "derive_power_pours unavailable (%s)" % type(e).__name__
-    if not pours:
-        if has_pours:
-            return (False, "FAIL-CLOSED: board has SENSEC pour zones but derive_power_pours found no "
-                    "corridor -- cannot verify the sense IC body clears the high-current pour")
-        return None, "no SENSEC high-current pour region (shared-bus / non-cable board)"
+        filtered, _allowed = _derive_pour_boxes(board, path)
+    except PourRegionError as e:
+        return (False, "FAIL-CLOSED: sense-body-clear region-finder errored on a board WITH SENSEC "
+                "pours -- cannot verify the sense IC body clears the high-current pour: %s" % e)
+    if filtered is None:
+        return None, "no per-cable SENSEC high-current pour region (shared-bus / non-cable board)"
     box_by_net = collections.defaultdict(list)
-    for pr in pours:
-        xs = [p[0] for p in pr["polygon"]]; ys = [p[1] for p in pr["polygon"]]
-        box_by_net[pr["net"]].append((min(xs), max(xs), min(ys), max(ys)))
+    for net, _lid, x0, x1, y0, y1 in filtered:
+        box_by_net[net].append((x0, x1, y0, y1))
     tol = _param("sense-body-clear-of-pour", "max_overlap_mm2", 2.0)
     fails, oks, payload = [], [], []
     for fp in board.GetFootprints():
@@ -2090,8 +2222,24 @@ def _chk_mounts(board, path, ctx):
     clear = _param("mount-holes-present-clear", "clear_mm", 2.0)
     mounts = [fp for fp in board.GetFootprints() if _is(fp, "MountingHole", "MOUNT")]
     if len(mounts) < want:
-        return (False, "found %d mounts, expect >= %d" % (len(mounts), want),
-                [{"type": "add", "what": "mounting_hole", "need": want - len(mounts)}])
+        # Dead-bug stack alternative: three independently located plated
+        # mezzanine segments provide the multi-point structural restraint and
+        # H1 is the plated M2.5 ground/retention lug.  Counting only standalone
+        # M3 footprints incorrectly rejects this intentional retention system.
+        segs = {fp.GetReference(): fp for fp in board.GetFootprints()
+                if fp.GetReference() in ("J6P", "J6C", "J6D")}
+        lug = next((fp for fp in mounts if fp.GetReference() == "H1"
+                    and any((p.GetNetname() or "").upper() == "GND"
+                            and p.GetDrillSize().x > 0 for p in fp.Pads())), None)
+        plated = (len(segs) == 3 and all(
+            list(fp.Pads()) and all(p.GetDrillSize().x > 0 for p in fp.Pads())
+            for fp in segs.values()))
+        if lug is None or not plated:
+            return (False, "found %d mounts, expect >= %d (and no complete J6P/J6C/J6D + H1 "
+                    "stack-retention alternative)" % (len(mounts), want),
+                    [{"type": "add", "what": "mounting_hole", "need": want - len(mounts)}])
+        return True, ("segmented stack retention present: plated J6P/J6C/J6D at three locations "
+                      "+ GND-tied M2.5 H1 lug")
     conns = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("J") and list(fp.Pads())]
     near = [(mh.GetReference(), j.GetReference(), _min_pad_dist_mm(mh, j))
             for mh in mounts for j in conns if _min_pad_dist_mm(mh, j) < clear]
@@ -2213,20 +2361,7 @@ def _chk_ecap_edge(board, path, ctx):
 
 def _capacitance_f_board(value):
     """Parse the compact capacitance notation used on the PCB footprints."""
-    text = (value or "").strip().lower().replace("µ", "u").replace("μ", "u")
-    text = text.replace(" ", "").removesuffix("f")
-    embedded = re.fullmatch(r"(\d+)([pnum])(\d+)", text)
-    if embedded:
-        number = float("%s.%s" % (embedded.group(1), embedded.group(3)))
-        prefix = embedded.group(2)
-    else:
-        plain = re.fullmatch(r"(\d+(?:\.\d+)?)([pnum]?)", text)
-        if not plain:
-            return None
-        number = float(plain.group(1))
-        prefix = plain.group(2)
-    return number * {"": 1.0, "p": 1e-12, "n": 1e-9,
-                     "u": 1e-6, "m": 1e-3}[prefix]
+    return cec_device_bypass.capacitance_f(value)
 
 
 def _ground_net(net):
@@ -2263,19 +2398,6 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                 "rail": powered[0].GetNetname(), "farads": farads,
             })
 
-    device_rules = (
-        ("INA238", "6", "100n", "INA238"),
-        ("INA181", "6", "100n", "INA181"),
-        ("INA180", "5", "100n", "INA180"),
-        ("INA240", "6", "100n", "INA240"),
-        ("74AHCT244", "20", "100n", "74AHCT244"),
-        ("SN74AHCT1G08", "5", "100n", "SN74AHCT1G08"),
-        ("74LVC1G17", "5", "100n", "SN74LVC1G17"),
-        ("REF3030", "1", "100n", "REF3030"),
-        ("TPS3839", "3", "100n", "TPS3839"),
-        ("TLV7011", "5", "100n", "TLV7011"),
-        ("TJA1051", "3", "100n", "TJA1051"),
-    )
     requirements = []
     for fp in board.GetFootprints():
         ref, value = fp.GetReference(), _val(fp)
@@ -2284,95 +2406,21 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
         dnp, excluded = _fp_assembly_state(fp)
         if dnp or excluded:
             continue
-        for token, pin_number, kind, source in device_rules:
-            if token not in value:
-                continue
+        for pin_number, kind, max_mm, source in \
+                cec_device_bypass.requirements_for_value(value, project_max_mm):
             pad = _numbered_pad(fp, pin_number)
             if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
                 requirements.append({
                     "id": "%s:%s:%s" % (ref, pin_number, kind),
                     "ref": ref, "pin": pin_number, "pad": pad,
                     "rail": pad.GetNetname(), "kind": kind,
-                    "max_mm": project_max_mm, "source": source,
+                    "max_mm": max_mm, "source": source,
                 })
-            break
-
-        if "ESP32-C6-MINI-1" in value or "ESP32-S3-MINI-1" in value:
-            esp_pin = "3"
-        elif "ESP32-S3-WROOM-1" in value:
-            esp_pin = "2"
-        else:
-            esp_pin = None
-        if esp_pin:
-            pad = _numbered_pad(fp, esp_pin)
-            if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
-                requirements.append({
-                    "id": "%s:%s:100n" % (ref, esp_pin),
-                    "ref": ref, "pin": esp_pin, "pad": pad,
-                    "rail": pad.GetNetname(), "kind": "100n",
-                    "max_mm": project_max_mm,
-                    "source": "ESP32 peripheral schematic",
-                })
-
-        if "LP5907" in value:
-            for pin_number, role, max_mm in (("1", "lp-input", 10.0),
-                                              ("5", "lp-output", 100.0)):
-                pad = _numbered_pad(fp, pin_number)
-                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
-                    requirements.append({
-                        "id": "%s:%s:%s" % (ref, pin_number, role),
-                        "ref": ref, "pin": pin_number, "pad": pad,
-                        "rail": pad.GetNetname(), "kind": "at-least-1u",
-                        "max_mm": max_mm, "source": "LP5907",
-                    })
-
-        if "TLV62569" in value:
-            # TI's input capacitor belongs directly at VIN/GND. The output cap
-            # is on the far side of the inductor and is checked by the compact
-            # switching-cell rule below rather than pretending SW is VOUT.
-            pad = _numbered_pad(fp, "4")
-            if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
-                requirements.append({
-                    "id": "%s:4:buck-input" % ref,
-                    "ref": ref, "pin": "4", "pad": pad,
-                    "rail": pad.GetNetname(), "kind": "at-least-10u",
-                    "max_mm": 2.0, "source": "TLV62569",
-                })
-
-        if "TLV75533" in value:
-            ldo_pins = (("6", "ldo-input"), ("1", "ldo-output")) \
-                if "PDRVR" in value else (("1", "ldo-input"), ("5", "ldo-output"))
-            for pin_number, role in ldo_pins:
-                pad = _numbered_pad(fp, pin_number)
-                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
-                    requirements.append({
-                        "id": "%s:%s:%s" % (ref, pin_number, role),
-                        "ref": ref, "pin": pin_number, "pad": pad,
-                        "rail": pad.GetNetname(), "kind": "at-least-1u",
-                        "max_mm": 2.0, "source": "TLV75533",
-                    })
-
-        if "TPS2121" in value:
-            for pin_number, role in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
-                pad = _numbered_pad(fp, pin_number)
-                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
-                    requirements.append({
-                        "id": "%s:%s:%s" % (ref, pin_number, role),
-                        "ref": ref, "pin": pin_number, "pad": pad,
-                        "rail": pad.GetNetname(), "kind": "any",
-                        "max_mm": project_max_mm, "source": "TPS2121",
-                    })
 
     def compatible(req, cap):
         if cap["rail"] != req["rail"]:
             return False
-        if req["kind"] == "100n":
-            return abs(cap["farads"] - 100e-9) <= 1e-15
-        if req["kind"] == "at-least-1u":
-            return cap["farads"] + 1e-15 >= 1e-6
-        if req["kind"] == "at-least-10u":
-            return cap["farads"] + 1e-15 >= 10e-6
-        return cap["farads"] > 0
+        return cec_device_bypass.kind_compatible(req["kind"], cap["farads"])
 
     def distance(req, cap):
         a, b = req["pad"].GetPosition(), cap["pad"].GetPosition()

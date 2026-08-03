@@ -1973,6 +1973,84 @@ def _series_endpoints(nl, pref, owner_cands, nets_of):
     return (A[0], A[1], na), (B[0], B[1], nb)
 
 
+def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
+    """One-to-one selected-device capacitor ownership from the netlist.
+
+    The board checker and the placer share the device/value rules through
+    ``cec_device_bypass``.  Placement has no coordinates yet, so it assigns a
+    compatible capacitor deterministically to each actual supply pin; the
+    cluster engine then seats that capacitor at that exact owner pad.  This
+    replaces the old global-rail load balancer for audited bypass parts.
+    """
+    import cec_device_bypass
+
+    pin_net = {}
+    by_ref = defaultdict(list)
+    for net, nodes in nl.nets.items():
+        for ref, pin in nodes:
+            pin_net[(ref, str(pin))] = net
+            by_ref[ref].append((str(pin), net))
+
+    caps = []
+    for ref in passives:
+        if not ref.startswith("C") or ref not in nl.comps:
+            continue
+        nodes = by_ref.get(ref, ())
+        grounded = [(p, n) for p, n in nodes if _is_gnd_net(n)]
+        powered = [(p, n) for p, n in nodes if n and not _is_gnd_net(n)]
+        farads = cec_device_bypass.capacitance_f(nl.comps[ref].value)
+        if len(grounded) == 1 and len(powered) == 1 and farads is not None:
+            caps.append({"ref": ref, "rail": powered[0][1], "farads": farads})
+
+    requirements = []
+    for ref in ic_refs:
+        comp = nl.comps.get(ref)
+        if comp is None:
+            continue
+        for pin, kind, max_mm, source in \
+                cec_device_bypass.requirements_for_value(comp.value, project_max_mm):
+            rail = pin_net.get((ref, str(pin)))
+            if rail and not _is_gnd_net(rail):
+                requirements.append({"ref": ref, "pin": str(pin), "rail": rail,
+                                     "kind": kind, "max_mm": max_mm,
+                                     "source": source})
+
+    def _ref_number(ref):
+        m = re.search(r"\d+", ref)
+        return int(m.group()) if m else 10 ** 9
+
+    compatible = {}
+    for i, req in enumerate(requirements):
+        compatible[i] = [c for c in caps
+                         if c["rail"] == req["rail"]
+                         and cec_device_bypass.kind_compatible(req["kind"], c["farads"])]
+
+    used = set()
+    out = {}
+    # Tight manufacturer limits and scarce-value requirements are assigned
+    # first. Schematic reference affinity is only a deterministic tie-break.
+    order = sorted(range(len(requirements)), key=lambda i: (
+        requirements[i]["max_mm"], len(compatible[i]),
+        requirements[i]["rail"], requirements[i]["ref"], requirements[i]["pin"]))
+    for i in order:
+        req = requirements[i]
+        avail = [c for c in compatible[i] if c["ref"] not in used]
+        if not avail:
+            continue
+        owner_suffix = req["ref"][1:]
+        cap = min(avail, key=lambda c: (
+            0 if c["ref"][1:] == owner_suffix else 1,
+            abs(_ref_number(c["ref"]) - _ref_number(req["ref"])),
+            c["ref"]))
+        used.add(cap["ref"])
+        out[cap["ref"]] = {
+            "owner": req["ref"], "pin": req["pin"],
+            "rail": req["rail"], "kind": req["kind"],
+            "max_mm": req["max_mm"], "source": req["source"],
+        }
+    return out
+
+
 def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
     """Generalize the hand PASSIVE_SPEC to FUNCTIONAL grouping: ref -> (owner, owner_pad). A part's
     owner is the ANCHOR (IC, connector J*, OR shunt RS*) it shares the most non-power SIGNAL nets with.
@@ -2055,6 +2133,12 @@ def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
         pad = _owner_pad(nl, owner, pnets & nets_of[owner])
         if pad:
             spec[pref] = (owner, pad)
+    # Device-specific bypass ownership is authoritative over the generic
+    # common-rail load balancer above.  Each matched capacitor gets a distinct
+    # supply-pin owner and may not remain a series element.
+    for pref, req in _device_bypass_specs(nl, passives, ic_refs).items():
+        spec[pref] = (req["owner"], req["pin"])
+        series.pop(pref, None)
     return spec, series
 
 
@@ -2385,7 +2469,7 @@ def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
 
 
 def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
-                  edge=0.55):
+                  edge=0.90):
     """Greedy non-overlap legalization (proper detailed placement): place each movable part at
     the NEAREST FREE position to its target by an outward spiral search, so the result has ZERO
     real courtyard overlap by construction. Each part's obstacle is its TRUE courtyard -- centre
@@ -2434,10 +2518,11 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
         tx, ty = P[r][0], P[r][1]
         # EDGE INSET (2026-07-23, s120 forensic: 6 of 7 residual copper_edge
         # hits were PLACED passives with pads 0.3-0.5mm off the outline -- the
-        # legal range allowed courtyards flush to the edge). Movable courtyards
-        # (pad-truth post-D5) stay >= edge inside the outline, so pads honor
-        # the 0.5 copper-edge rule by construction. Anchors/overhang parts are
-        # not movables and keep their edge seats.
+        # legal range allowed courtyards flush to the edge). The release oracle
+        # requires 0.8mm physical courtyard-to-Edge.Cuts clearance; KiCad's
+        # stroked graphics consume roughly 0.075mm in the native DRC result, so
+        # the constructive inset is 0.90mm. Anchors/overhang parts are not
+        # movables and keep their intentional edge seats.
         lo_x, hi_x = hw - cx + edge, W - hw - cx - edge
         lo_y, hi_y = hh - cy + edge, H - hh - cy - edge
         if hi_x < lo_x:
@@ -2491,7 +2576,7 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
 
 
 def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None,
-                       edge=0.55):
+                       edge=0.90):
     """The original sequential legalizer -- the no-numpy fallback + the record/replay
     reference implementation (see legalize_pack's docstring for the equivalence proof)."""
     DEF = (0.0, 0.0, 1.0, 1.0)
@@ -3266,6 +3351,52 @@ def _net_pad_centroid_x(nl, comps, ref, net, P):
     return (sum(xs) / len(xs)) if xs else P[ref][0]
 
 
+def _rigid_row_clear_shift(row_boxes, obstacle_boxes, W, *, clr=0.5,
+                           margin=0.6, bounds_boxes=None, constraints=None):
+    """Return the smallest legal X shift for a rigid connector row.
+
+    The row's internal pitch is a mating contract, so resolving a collision by
+    moving one member is forbidden. Candidate shifts are the exact box-contact
+    boundaries against every vertically relevant fixed obstacle; the least
+    movement that clears all obstacles and keeps the whole row in bounds wins.
+    ``None`` means the fixed outline has no legal rigid-row translation.
+    """
+    if not row_boxes:
+        return 0.0
+    bounds_boxes = bounds_boxes or row_boxes
+    constraints = constraints or ((row_boxes, obstacle_boxes),)
+
+    def y_relevant(a, b):
+        return a[2] < b[3] + clr and a[3] > b[2] - clr
+
+    candidates = {0.0}
+    for moving, obstacles in constraints:
+        for rb in moving.values():
+            for ob in obstacles.values():
+                if not y_relevant(rb, ob):
+                    continue
+                candidates.add(ob[0] - clr - rb[1])
+                candidates.add(ob[1] + clr - rb[0])
+
+    def legal(dx):
+        if min(b[0] + dx for b in bounds_boxes.values()) < margin - 1e-6:
+            return False
+        if max(b[1] + dx for b in bounds_boxes.values()) > W - margin + 1e-6:
+            return False
+        for moving, obstacles in constraints:
+            for rb in moving.values():
+                for ob in obstacles.values():
+                    if not y_relevant(rb, ob):
+                        continue
+                    if (rb[0] + dx < ob[1] + clr - 1e-6
+                            and rb[1] + dx > ob[0] - clr + 1e-6):
+                        return False
+        return True
+
+    legal_shifts = [dx for dx in candidates if legal(dx)]
+    return min(legal_shifts, key=lambda dx: (abs(dx), dx)) if legal_shifts else None
+
+
 def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
     """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
     (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
@@ -3580,6 +3711,13 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 _st_cols[0] = max(_st_cols[0], _lb)
             for _i3 in range(1, len(_st_cols)):              # re-enforce separation L->R
                 _st_cols[_i3] = max(_st_cols[_i3], _st_cols[_i3 - 1] + _min_sep)
+            _out_ys = [anchors[r][1] for c in shared
+                       for r in c.get("j_out_blades", ()) if r in anchors]
+            # HI always faces the J3/source edge.  The historical top-input
+            # board used rot270; the rev3 bottom-input assembly is its vertical
+            # reflection and therefore uses rot90.
+            _shunt_rot = (90.0 if (_out_ys and anchors[jin][1]
+                                    > sum(_out_ys) / len(_out_ys)) else 270.0)
             for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
                 col = _st_cols[_ci]
                 # PER-COLUMN DROP (the owner pair's second half): a column whose
@@ -3588,7 +3726,8 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 # chains + cell stamp follow the actual seat).
                 _sy2 = H / 2.0
                 if c["shunt"] in comps and _lblk:
-                    _sc0, _sc1, _shw2, _shh2 = _courtyard_info(comps[c["shunt"]], 270.0)
+                    _sc0, _sc1, _shw2, _shh2 = _courtyard_info(
+                        comps[c["shunt"]], _shunt_rot)
                     for (_bx0, _bx1, _by0, _by1) in _lblk:
                         if (col + _sc0 - _shw2 < _bx1 + 0.4
                                 and col + _sc0 + _shw2 > _bx0 - 0.4
@@ -3599,7 +3738,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                                 print(f"  [rails] {c['shunt']} dropped {_need:.1f}mm "
                                       f"below the row (edge-connector margin)",
                                       file=sys.stderr, flush=True)
-                anchors[c["shunt"]] = (col, _sy2, 270.0)
+                anchors[c["shunt"]] = (col, _sy2, _shunt_rot)
                 seated.append(c["shunt"])
                 if c["j_out_blades"]:
                     blade_cables.append((c, col))
@@ -3711,6 +3850,46 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                             _ax, _ay = anchors[_r3][0] + _shift, anchors[_r3][1]
                             _rt = anchors[_r3][2] if len(anchors[_r3]) > 2 else 0.0
                             anchors[_r3] = (_ax, _ay, _rt)
+                # MEZZ-AWARE RIGID ROW CLEARANCE (2026-08-03): centering the
+                # exact SSQ-104 signal stub left it 0.64mm inside J6C's fixed
+                # courtyard. Move TB1..TB10 + J_SIG together so the output
+                # daughterboard pitch/order remains exact. This is a general
+                # fixed-obstacle solve, not a reference-specific coordinate.
+                _row_refs = [r for r in anchors
+                             if r.startswith("TB") or r == stub]
+                _row_boxes = {}
+                for _rr in _row_refs:
+                    if _rr not in comps:
+                        continue
+                    _rp = anchors[_rr]
+                    _rcx, _rcy, _rhw, _rhh = _courtyard_info(
+                        comps[_rr], _rp[2] if len(_rp) > 2 else 0.0)
+                    _row_boxes[_rr] = (_rp[0] + _rcx - _rhw,
+                                       _rp[0] + _rcx + _rhw,
+                                       _rp[1] + _rcy - _rhh,
+                                       _rp[1] + _rcy + _rhh)
+                _obstacle_boxes = {}
+                for _or, _op in anchors.items():
+                    if _or in _row_refs or _or not in comps:
+                        continue
+                    _ocx, _ocy, _ohw, _ohh = _courtyard_info(
+                        comps[_or], _op[2] if len(_op) > 2 else 0.0)
+                    _obstacle_boxes[_or] = (_op[0] + _ocx - _ohw,
+                                            _op[0] + _ocx + _ohw,
+                                            _op[1] + _ocy - _ohh,
+                                            _op[1] + _ocy + _ohh)
+                _clear_dx = _rigid_row_clear_shift(
+                    _row_boxes, _obstacle_boxes, float(W or 100.0))
+                if _clear_dx is None:
+                    print("  [rails] rigid blade row has no legal fixed-obstacle "
+                          "translation", file=sys.stderr, flush=True)
+                elif abs(_clear_dx) > 0.05:
+                    for _rr in _row_refs:
+                        _ax, _ay, _ar = anchors[_rr]
+                        anchors[_rr] = (_ax + _clear_dx, _ay, _ar)
+                    print(f"  [rails] rigid blade row shifted {_clear_dx:+.2f}mm "
+                          "clear of fixed connector courtyards",
+                          file=sys.stderr, flush=True)
     # LANE RE-FAN (owner ladder 2026-07-11, topology-agnostic): rigid blueprint
     # cells make the SENSE pitch a HARD floor -- adjacent cells' locked copper at
     # sub-pitch seats collides at materialize (measured: /IN2_N vs lane 1 at 5.7mm;
@@ -5241,6 +5420,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     _rk = _role_clr = _func_stamped = None
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
     _intent_locked = set()      # p10 near()/order() seats -- locked so p12 never undoes them
+    _bypass_locked = set()      # pad-level device bypass/switch-cell seats
+    _bypass_refused = []        # hard placement residue; part of candidate legality
     # DUAL-SIDED face model (lifted from the post-ladder block so the passes are side-aware):
     # _cells = per-rail sensing cells + F/B faces; _back = the full back-ref set; _tht_keep =
     # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts; _seat_snags = seat-repair residuals.
@@ -5271,7 +5452,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # SHUNT_GAP_MM (~6.5mm) un-poured notch -- room for the sense cluster + a B.Cu overflow lane the
         # route-under dives the overflow nets through. Self-gating (0.0 on a board with no 2-pad shunt).
         if os.environ.get("CEC_SHUNT_GAP", "0") == "1":
-            _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl) or _shared_bus_topology(nl))
+            # Only independent cable corridors (EPS/PCIe) earn board growth.
+            # The ATX shared-bus topology reserves its rail gaps inside the
+            # declared compact envelope; treating it as a cable interposer
+            # silently inflated the 86x95 dead-bug board to 86x99.
+            _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl))
             if _grow > 0:
                 H = round(H + _grow, 1)
         # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
@@ -5558,6 +5743,59 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
         _topo = _cable_topology(nl) or _shared_bus_topology(nl)
         seated = _seed_corridor_spine(_topo, anchors, H, nl, comps, W=W, params=cfg.params)
+        # The blade-row solve above clears fixed COMPONENT courtyards. Now that
+        # shared-bus shunt columns are final, clear the FOREIGN signal stub from
+        # the exact width-aware force-rail reservations too. TB blades are the
+        # intended rail terminals and therefore are not collision bodies here;
+        # they move with the stub through bounds_boxes so blind-mate pitch and
+        # board containment remain invariant.
+        _stub = next((r for r in sorted(anchors) if r.startswith("J_SIG")), None)
+        if _stub and _stub in comps and cfg.params.get("force_rails"):
+            for _attempt in range(2):
+                _row_refs = [r for r in anchors
+                             if r.startswith("TB") or r == _stub]
+                _row_boxes = {}
+                for _rr in _row_refs:
+                    if _rr not in comps:
+                        continue
+                    _rp = anchors[_rr]
+                    _cx, _cy, _hw, _hh = _courtyard_info(
+                        comps[_rr], _rp[2] if len(_rp) > 2 else 0.0)
+                    _row_boxes[_rr] = (_rp[0] + _cx - _hw,
+                                       _rp[0] + _cx + _hw,
+                                       _rp[1] + _cy - _hh,
+                                       _rp[1] + _cy + _hh)
+                _rail_boxes = {
+                    f"rail-{i}": tuple(b[1:])
+                    for i, b in enumerate(
+                        _force_rail_boxes(lambda d: anchors.get(d)))
+                }
+                _fixed_boxes = {}
+                for _or, _op in anchors.items():
+                    if _or in _row_refs or _or not in comps:
+                        continue
+                    _cx, _cy, _hw, _hh = _courtyard_info(
+                        comps[_or], _op[2] if len(_op) > 2 else 0.0)
+                    _fixed_boxes[_or] = (_op[0] + _cx - _hw,
+                                          _op[0] + _cx + _hw,
+                                          _op[1] + _cy - _hh,
+                                          _op[1] + _cy + _hh)
+                _dx = _rigid_row_clear_shift(
+                    {_stub: _row_boxes[_stub]}, _rail_boxes, float(W or 100.0),
+                    bounds_boxes=_row_boxes,
+                    constraints=((_row_boxes, _fixed_boxes),
+                                 ({_stub: _row_boxes[_stub]}, _rail_boxes)))
+                if _dx is None:
+                    print("  [rails] rigid blade row has no legal translation "
+                          "clear of force-rail copper", file=sys.stderr, flush=True)
+                    break
+                if abs(_dx) <= 0.05:
+                    break
+                for _rr in _row_refs:
+                    _ax, _ay, _ar = anchors[_rr]
+                    anchors[_rr] = (_ax + _dx, _ay, _ar)
+                print(f"  [rails] rigid blade row shifted {_dx:+.2f}mm clear "
+                      "of force-rail copper", file=sys.stderr, flush=True)
         free_shunts = [r for r in shunts if r not in seated]
 
     # ============================================================ P3b: critical seats (kelvin/ESP/CAN)
@@ -5591,7 +5829,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         _esp, _esp_pos = _seat_antenna_ic(ics, comps, W, H, cfg.params.get("antenna_edge"),
                                           drop_antenna=drop_antenna)
         if _esp:
-            anchors[_esp] = _esp_pos
+            # Explicit board pins are an owner contract.  The generic antenna
+            # seat may propose a useful default for an unpinned MCU, but must
+            # never displace a board-specific hard anchor (ATX U1 is the
+            # regression case that exposed this ordering bug).
+            if _esp not in (cfg.pins or {}) or _esp not in anchors:
+                anchors[_esp] = _esp_pos
+            else:
+                _esp_pos = anchors[_esp]
         # BUTTONS CLUSTER (owner 2026-07-08: "keep the buttons together in an easily accessible
         # place that actually makes sense"): seat SW* as a fixed side-by-side pair inboard of the
         # USB connector -- BOOT is pressed while plugging USB, so that IS the sensible place.
@@ -5726,6 +5971,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # force-lane board picks this up for free). Absent that gate, ESP falls through
         # to the ordinary relative_place/anneal IC path UNCHANGED (byte-identical
         # elsewhere -- the golden-safety discipline).
+        _pinned_esp = next((r for r in ics
+                            if r in (cfg.pins or {})
+                            and ("esp32" in (comps.get(r, "") or "").lower()
+                                 or "rf_module" in (comps.get(r, "") or "").lower())),
+                           None)
+        if _esp is None and _pinned_esp and _pinned_esp in anchors:
+            # A hard-pinned radio already has its board-specific legal seat.
+            # Mark it as seated so the generic force-rail MCU macro below does
+            # not replace that owner decision with a newly searched seat.
+            _esp = _pinned_esp
+            _esp_pos = anchors[_pinned_esp]
         if _esp is None and (cfg.params.get("force_lanes")
                              or cfg.params.get("force_rails")
                              or cfg.params.get("mcu_cluster_seat")):
@@ -5853,7 +6109,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 # neighbours (CAN transceiver / host jack) as the next-best proxy for
                 # "near the MCU".
                 _mcu_sws = sorted(r for r in ics if r.startswith("SW"))
-                if len(_mcu_sws) == 2:
+                _pinned_sws = [r for r in _mcu_sws if r in (cfg.pins or {})]
+                if len(_mcu_sws) == 2 and len(_pinned_sws) == 2:
+                    # Board contract owns this pair's accessible edge seat.
+                    # P2 already locked the two pins; re-seating them near the
+                    # MCU here would violate both that lock and the physical
+                    # access requirement.
+                    _sw_seated = list(_mcu_sws)
+                    _bp_refs.update(_mcu_sws)
+                elif len(_mcu_sws) == 2:
                     _sw_a, _sw_b = _mcu_sws
                     if _mcu_locked:
                         _pair_score_pts = [(sum(anchors[r][0] for r in _mcu_locked) / len(_mcu_locked),
@@ -6218,6 +6482,36 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                               min(ys) - bm, max(ys) + bm))
         return boxes
 
+    def _blueprint_copper_boxes(*, margin=0.30):
+        """Tight keepouts around authored blueprint tracks and vias.
+
+        Device bypass parts may enter a cell's broad placement envelope when
+        their owner is inside that cell, but they must never occupy the locked
+        internal copper itself.  These segment-local boxes preserve that useful
+        distinction and mirror the exact affine transform materialize uses.
+        """
+        if not _blueprint_stamps:
+            return []
+        import cec_cell_extract as _cx
+        out = []
+        for _st in _blueprint_stamps:
+            t_ = _st.get("template") or {}
+            ax_, ay_ = _st.get("at_mm", (0.0, 0.0))
+            rot_ = float(_st.get("rot", 0.0))
+            for tr_ in t_.get("internal_tracks", []):
+                a_ = _cx._to_global(*tr_["start_rel_mm"], ax_, ay_, rot_)
+                b_ = _cx._to_global(*tr_["end_rel_mm"], ax_, ay_, rot_)
+                h_ = float(tr_.get("width_mm", 0.2)) / 2.0 + margin
+                out.append(("__BPCOPPER__", min(a_[0], b_[0]) - h_,
+                            max(a_[0], b_[0]) + h_, min(a_[1], b_[1]) - h_,
+                            max(a_[1], b_[1]) + h_))
+            for v_ in t_.get("vias", []):
+                q_ = _cx._to_global(*v_["at_rel_mm"], ax_, ay_, rot_)
+                h_ = float(v_.get("dia_mm", 0.8)) / 2.0 + margin
+                out.append(("__BPCOPPER__", q_[0] - h_, q_[0] + h_,
+                            q_[1] - h_, q_[1] + h_))
+        return out
+
     def _force_corridor_boxes(pos_of):
         """Placement keepouts for the FORCE-LANE copper (owner rung 2026-07-11,
         'set and not infringed on'): the fat J3->shunt->J4 copper is laid LOCKED
@@ -6292,12 +6586,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # to the 2512's +-2.96mm pad offset vs what the lay measures)
             _srot = _sp[2] if len(_sp) > 2 else 270.0
             try:
-                _hi_p = cec_pcb.pad_global(c["shunt"], "1",
+                # Net membership, not screen Y, identifies the source side.
+                # That keeps the reservation conjugate when the whole power
+                # path is vertically reflected (J3 bottom, TBs top).
+                _hi_num = next(p for r, p in nl.nets.get(c["hi"], ())
+                               if r == c["shunt"])
+                _lo_num = next(p for r, p in nl.nets.get(c["lo"], ())
+                               if r == c["shunt"])
+                _hi_p = cec_pcb.pad_global(c["shunt"], _hi_num,
                                            {c["shunt"]: (sx, sy, _srot)}, comps)
-                _lo_p = cec_pcb.pad_global(c["shunt"], "2",
+                _lo_p = cec_pcb.pad_global(c["shunt"], _lo_num,
                                            {c["shunt"]: (sx, sy, _srot)}, comps)
-                if _hi_p[1] > _lo_p[1]:                     # hi = the J3-facing (upper) pad
-                    _hi_p, _lo_p = _lo_p, _hi_p
             except Exception:                               # noqa: BLE001
                 _hi_p, _lo_p = (sx, sy), (sx, sy)
             try:
@@ -6307,51 +6606,40 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                           for _r2, p_ in nl.nets.get(c["hi"], []) if _r2 == "J3"]
             except Exception:                               # noqa: BLE001
                 j3pads = []
-            tbs = [(_r2, "1", pos_of(_r2)[0], pos_of(_r2)[1], 1.2, True)
-                   for _r2, _p2 in nl.nets.get(c["lo"], [])
-                   if _r2.startswith("TB") and pos_of(_r2)]
+            # Match discover_rails() at the electrical PAD, not the footprint
+            # origin.  The blade terminal's pad is offset from its anchor; the
+            # old approximation shifted the reserved sink row by several mm,
+            # allowing a mezzanine connector into copper that materialize()
+            # then quite correctly refused.
+            tbs = []
+            for _r2, _p2 in nl.nets.get(c["lo"], []):
+                _tp = pos_of(_r2)
+                if not (_r2.startswith("TB") and _tp and _r2 in comps):
+                    continue
+                _trot = _tp[2] if len(_tp) > 2 else 0.0
+                try:
+                    _tx, _ty = cec_pcb.pad_global(
+                        _r2, _p2, {_r2: (_tp[0], _tp[1], _trot)}, comps)
+                    _psz = cec_pcb.local_pad_sizes(comps[_r2])[_p2]
+                    _thalf = max(_psz) / 2.0
+                except Exception:                           # noqa: BLE001
+                    _tx, _ty, _thalf = _tp[0], _tp[1], 1.2
+                tbs.append((_r2, _p2, _tx, _ty, _thalf, True))
+            try:
+                _spad_w = max(cec_pcb.local_pad_sizes(comps[c["shunt"]])[_hi_num])
+            except Exception:                               # noqa: BLE001
+                _spad_w = None
             rails_data.append({"rs": c["shunt"], "src_net": c["hi"], "snk_net": c["lo"],
                                "amps": amps, "hi": tuple(_hi_p), "lo": tuple(_lo_p),
+                               "pad_w": _spad_w,
                                "j3": sorted(j3pads, key=lambda q: q[1]),
                                "tb": sorted(tbs, key=lambda q: q[2])})
         _alt_on = bool(cfg.params.get("rail_alt_layer"))
-        chains = _cfr.plan_rail_chains(rails_data, j3_bot, alt=_alt_on)
-        boxes = []
-        for rs2, ch in chains.items():
-            half = ch["w"] / 2.0 + 0.75
-            # Reserve ONLY the FACE segments (alt copper passes under parts --
-            # §2.3: reserving the inner-layer runs would re-tile the board for
-            # nothing) + the via-array sites (through barrels need part-free
-            # spots).
-            for (x1, y1, x2, y2, _sw, _tag) in list(ch["src"]) + list(ch["snk"]):
-                if _tag != "face":
-                    continue
-                boxes.append(("__FORCERAIL__",
-                              min(x1, x2) - half, max(x1, x2) + half,
-                              min(y1, y2) - half, max(y1, y2) + half))
-            for (ax, ay, n_v, _an) in ch.get("arrays", ()):
-                # FULL candidate-site envelope (audit finding 2b: the lay may
-                # select sites at +-2.6mm while only +-2.2 was reserved) + the
-                # via barrel + clearance
-                ah = 2.6 + 0.45 + 0.45
-                boxes.append(("__FORCERAIL__", ax - ah, ax + ah, ay - ah, ay + ah))
-            _sd = ch.get("snk_desc")
-            if _sd:
-                # the LO descent column: reserved so the lay's sink FACE-RETRY
-                # escape stays open (2026-07-19: a cluster cap 2.8mm off the
-                # column killed both the alt sink and its face retry)
-                _dx0, _dy0, _dy1, _dw = _sd
-                _dh = _dw / 2.0 + 0.75
-                boxes.append(("__FORCERAIL__", _dx0 - _dh, _dx0 + _dh,
-                              min(_dy0, _dy1), max(_dy0, _dy1)))
-            _sb = ch.get("snk_band")
-            if _sb:
-                # the sink band row, same rationale (a buffer IC under the row
-                # was the face-retry's next blocker)
-                _bx0, _bx1, _by, _bw = _sb
-                _bh = _bw / 2.0 + 0.75
-                boxes.append(("__FORCERAIL__", _bx0 - _bh, _bx1 + _bh,
-                              _by - _bh, _by + _bh))
+        boxes = [("__FORCERAIL__", *b) for b in
+                 _cfr.rail_placement_boxes(rails_data, j3_bot, alt=_alt_on)]
+        if os.environ.get("CEC_RAIL_BOX_DEBUG"):
+            print("[force-rail-boxes] " + json.dumps(boxes),
+                  file=sys.stderr, flush=True)
         return boxes
 
     # ============================================================ P4: blueprint cells (rigid stamp)
@@ -6559,11 +6847,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # their F/B faces (from the seated shunt x-order) and the full back set (cell members + their
         # owned passives, guarded). Empty unless the board declares dual_sided + is shared-bus ->
         # every face-aware branch below is inert -> byte-identical on single-sided boards.
-        _cells = _back = _tht_keep = None
+        _cells = _tht_keep = None
+        # Some parts are mechanically required on the outward face even on a
+        # single-sided electrical design.  Hub BOOT/RESET use this path in the
+        # face-down stack so they remain reachable from outside the assembly.
+        _back = tuple(sorted(set(cfg.params.get("fixed_back_refs", ()))))
         _back_stripped = set()
         if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
             _cells = _dual_side_cells(_topo, anchors, nl, comps)
-            _back, _back_stripped = _dual_side_back_refs(_cells, spec, anchors_roles, comps)
+            _auto_back, _back_stripped = _dual_side_back_refs(
+                _cells, spec, anchors_roles, comps)
+            _back = tuple(sorted(set(_back) | set(_auto_back)))
             if _back_stripped:
                 print(f"  [dual-side guard] kept OFF the back (owner rule): {sorted(_back_stripped)}",
                       file=sys.stderr)
@@ -6816,23 +7110,27 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
         nonlocal _nets_of, _net_exempt, _restamped
+        _locked = set(getattr(_state, "locked", None) or ())
         # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
         for unit, offs in cluster_offsets.items():
             if unit not in P:
                 continue
             ux, uy, _ur = P[unit]
             for pref, (dx, dy, pr) in offs.items():
-                P[pref] = (ux + dx, uy + dy, pr)
+                if pref in _locked:
+                    continue
+                rdx, rdy = cec_pcb._rot(dx, dy, _ur)
+                P[pref] = (ux + rdx, uy + rdy, (pr + _ur) % 360.0)
         # 4b. FUNCTIONAL stamps: the fixed-anchor (connector/shunt) clusters in their pre-computed absolute
         #     coords, and the SERIES elements on the segment between their two endpoint anchors. The fixed
         #     anchor (J*) does not move during anneal, so its absolute cluster coords are still valid here.
         _func_stamped = []
         for pref, xyr in fixed_stamp.items():
-            if pref in comps:
+            if pref in comps and pref not in _locked:
                 P[pref] = xyr
                 _func_stamped.append(pref)
         for pref, ((aR, aP), (bR, bP)) in series.items():
-            if pref not in comps:
+            if pref not in comps or pref in _locked:
                 continue
             pa = _pad_xy_global(nl, aR, aP, P, comps)
             pb = _pad_xy_global(nl, bR, bP, P, comps)
@@ -7146,14 +7444,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # -- THE decoupler/divider scatter mechanism; three ownership-side "fixes" were inert
         # because ownership was never broken). Re-stamp every cluster at its owner's FINAL
         # position, then settle only the re-stamped parts (owners never move here).
+        # A contract pin/earlier ratified placement is authoritative.  This
+        # pass repairs cluster followers after their movable owner settles; it
+        # must never overwrite an already locked follower (measured on rev3:
+        # the explicitly pinned hold-up capacitor C1 was silently displaced).
+        _locked9 = set(getattr(_state, "locked", None) or ())
         _restamped = []
         for unit, offs in cluster_offsets.items():
             if unit not in P:
                 continue
             ux, uy, _ur = P[unit]
             for pref, (dx, dy, pr) in offs.items():
-                if pref in P:
-                    P[pref] = (ux + dx, uy + dy, pr)
+                if pref in P and pref not in _locked9:
+                    rdx, rdy = cec_pcb._rot(dx, dy, _ur)
+                    P[pref] = (ux + rdx, uy + rdy, (pr + _ur) % 360.0)
                     _restamped.append(pref)
         if _restamped:
             _rs_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2]
@@ -7196,6 +7500,328 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                          bounds=_bounds)
             else:
                 legalize_pack(P, _restamped, _rs_cy, W, H, clr=0.4, bounds=_bounds)
+
+    # ============================================================ P5: selected-device pad seats
+    def _p9b_device_bypass(_state):
+        """Seat audited bypass caps and compact buck switch cells by real pads.
+
+        Generic cluster ownership is useful for the full passive population,
+        but selected devices carry stronger requirements: a distinct compatible
+        cap at a specific supply pad, and a compact SW->L->Cout loop.  This pass
+        is the geometric enforcement half of ``cec_device_bypass`` and the
+        matching constraint checkers.
+        """
+        nonlocal P, _bypass_locked, _bypass_refused
+        import cec_device_bypass
+
+        locked = set(getattr(_state, "locked", None) or ())
+        assignments = _device_bypass_specs(
+            nl, passives, [r for r in ics if not r.startswith("SW")])
+
+        pin_net = {(r, str(p)): net for net, nodes in nl.nets.items()
+                   for r, p in nodes}
+        assigned_req = {(req["owner"], req["pin"]) for req in assignments.values()}
+        refused = []
+        for ref in [r for r in ics if not r.startswith("SW")]:
+            comp = nl.comps.get(ref)
+            if comp is None:
+                continue
+            for pin, _kind, _max_mm, _source in \
+                    cec_device_bypass.requirements_for_value(comp.value, 3.5):
+                if pin_net.get((ref, str(pin))) and (ref, str(pin)) not in assigned_req:
+                    refused.append(f"{ref}.{pin}: no distinct compatible capacitor")
+
+        def part_box(ref, pos=None):
+            q = pos or P[ref]
+            return cec_pcb.courtyard_bbox(
+                comps[ref], q[0], q[1], q[2],
+                drop_keepout=(drop_antenna and ref in drop_kc))
+
+        boxes = {r: part_box(r) for r in P if r in comps}
+        # The blueprint envelope contains the powered IC itself, so using the
+        # whole envelope as a bypass keepout makes local decoupling impossible.
+        # Reserve the authored copper segments themselves instead: a cap may
+        # enter its owner's cell, but cannot make materialize refuse locked
+        # internal copper.
+        avoid_named = (_force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
+                       + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d))
+                       + _blueprint_copper_boxes()
+                       )
+        avoid = [(b[1], b[2], b[3], b[4]) for b in avoid_named]
+
+        def clear(box, skip, margin=0.15):
+            x0, x1, y0, y1 = box
+            if x0 < 0.90 or x1 > W - 0.90 or y0 < 0.90 or y1 > H - 0.90:
+                return False
+            for ref, other in boxes.items():
+                if ref in skip:
+                    continue
+                if (x0 - margin < other[1] and x1 + margin > other[0]
+                        and y0 - margin < other[3] and y1 + margin > other[2]):
+                    return False
+            for other in avoid:
+                if (x0 - margin < other[1] and x1 + margin > other[0]
+                        and y0 - margin < other[3] and y1 + margin > other[2]):
+                    return False
+            return True
+
+        def pad_num_on(ref, net, *, ground=False):
+            for n, nodes in nl.nets.items():
+                if (ground and not _is_gnd_net(n)) or (not ground and n != net):
+                    continue
+                for r, p in nodes:
+                    if r == ref:
+                        return str(p)
+            return None
+
+        def pad_at(ref, pad, pos):
+            local = cec_pcb.local_pads(comps[ref]).get(str(pad))
+            if local is None:
+                return pos[0], pos[1]
+            dx, dy = cec_pcb._rot(local[0], local[1], pos[2])
+            return pos[0] + dx, pos[1] + dy
+
+        def ground_points(ref, pos=None):
+            out = []
+            pos = pos or P[ref]
+            for net, nodes in nl.nets.items():
+                if not _is_gnd_net(net):
+                    continue
+                for r, pin in nodes:
+                    if r == ref:
+                        out.append(pad_at(ref, pin, pos))
+            return out
+
+        def overlaps(a, b, margin=0.15):
+            return (a[0] - margin < b[1] and a[1] + margin > b[0]
+                    and a[2] - margin < b[3] and a[3] + margin > b[2])
+
+        owner_req_count = {}
+        for _req in assignments.values():
+            owner_req_count[_req["owner"]] = owner_req_count.get(_req["owner"], 0) + 1
+
+        for cap, req in sorted(assignments.items(), key=lambda row: (
+                row[1]["max_mm"], row[1]["owner"], row[1]["pin"])):
+            owner = req["owner"]
+            if cap not in P or owner not in P:
+                continue
+            cap_pin = pad_num_on(cap, req["rail"])
+            gnd_pin = pad_num_on(cap, "", ground=True)
+            if cap_pin is None:
+                refused.append(f"{cap}->{owner}: no rail pad")
+                continue
+            target = pad_at(owner, req["pin"], P[owner])
+            owner_gnd = ground_points(owner)
+            old = P[cap]
+            step = 0.25
+            n = int(math.ceil(req["max_mm"] / step))
+            best = None
+            for rot in (0.0, 90.0, 180.0, 270.0):
+                local = cec_pcb.local_pads(comps[cap]).get(cap_pin, (0.0, 0.0))
+                pdx, pdy = cec_pcb._rot(local[0], local[1], rot)
+                for ix in range(-n, n + 1):
+                    for iy in range(-n, n + 1):
+                        ox, oy = ix * step, iy * step
+                        pdist = math.hypot(ox, oy)
+                        if pdist > req["max_mm"] + 1e-9:
+                            continue
+                        pos = (target[0] + ox - pdx, target[1] + oy - pdy, rot)
+                        box = part_box(cap, pos)
+                        if not clear(box, {cap}, margin=0.10):
+                            continue
+                        gdist = 0.0
+                        if owner_gnd and gnd_pin:
+                            gp = pad_at(cap, gnd_pin, pos)
+                            gdist = min(math.hypot(gp[0] - q[0], gp[1] - q[1])
+                                        for q in owner_gnd)
+                        move = math.hypot(pos[0] - old[0], pos[1] - old[1])
+                        score = pdist + 0.20 * gdist + 0.005 * move
+                        key = (round(score, 6), round(pdist, 6), rot, pos[0], pos[1])
+                        if best is None or key < best[0]:
+                            best = (key, pos, box)
+            if best is None:
+                # A preceding compact-cell seat can already be electrically
+                # valid even when no alternative search seat exists.  Ratify
+                # the live pad geometry rather than creating false residue.
+                current_pad = pad_at(cap, cap_pin, P[cap])
+                current_dist = math.hypot(current_pad[0] - target[0],
+                                          current_pad[1] - target[1])
+                if current_dist <= req["max_mm"] + 1e-9:
+                    _bypass_locked.add(cap)
+                    continue
+
+                # Dense boards sometimes need the tiny owner and its cap to
+                # move as a pair.  Do this only for a single-supply owner that
+                # is not an anchor/blueprint/previous lock: moving a multi-rail
+                # IC here could invalidate a capacitor already seated above.
+                joint = None
+                if (owner_req_count.get(owner) == 1 and owner not in locked
+                        and owner not in anchors and owner not in _bp_refs):
+                    owner_old = P[owner]
+                    radius, owner_step = 6.0, 0.50
+                    on = int(radius / owner_step)
+                    for oix in range(-on, on + 1):
+                        for oiy in range(-on, on + 1):
+                            omove = math.hypot(oix * owner_step, oiy * owner_step)
+                            if omove > radius + 1e-9:
+                                continue
+                            opos = (owner_old[0] + oix * owner_step,
+                                    owner_old[1] + oiy * owner_step, owner_old[2])
+                            obox = part_box(owner, opos)
+                            if not clear(obox, {owner, cap}, margin=0.15):
+                                continue
+                            otarget = pad_at(owner, req["pin"], opos)
+                            ognd = ground_points(owner, opos)
+                            for rot in (0.0, 90.0, 180.0, 270.0):
+                                local = cec_pcb.local_pads(comps[cap]).get(
+                                    cap_pin, (0.0, 0.0))
+                                pdx, pdy = cec_pcb._rot(local[0], local[1], rot)
+                                for ix in range(-n, n + 1):
+                                    for iy in range(-n, n + 1):
+                                        ox, oy = ix * step, iy * step
+                                        pdist = math.hypot(ox, oy)
+                                        if pdist > req["max_mm"] + 1e-9:
+                                            continue
+                                        cpos = (otarget[0] + ox - pdx,
+                                                otarget[1] + oy - pdy, rot)
+                                        cbox = part_box(cap, cpos)
+                                        if (not clear(cbox, {owner, cap}, margin=0.10)
+                                                or overlaps(cbox, obox, margin=0.10)):
+                                            continue
+                                        gdist = 0.0
+                                        if ognd and gnd_pin:
+                                            gp = pad_at(cap, gnd_pin, cpos)
+                                            gdist = min(math.hypot(
+                                                gp[0] - q[0], gp[1] - q[1]) for q in ognd)
+                                        cmove = math.hypot(cpos[0] - old[0],
+                                                           cpos[1] - old[1])
+                                        score = (pdist + 0.20 * gdist
+                                                 + 0.04 * omove + 0.005 * cmove)
+                                        key = (round(score, 6), round(pdist, 6),
+                                               round(omove, 6), rot, opos, cpos)
+                                        if joint is None or key < joint[0]:
+                                            joint = (key, opos, obox, cpos, cbox)
+                if joint is None:
+                    refused.append(
+                        f"{cap}->{owner}.{req['pin']}: no legal <= {req['max_mm']}mm seat")
+                    continue
+                P[owner], boxes[owner] = joint[1], joint[2]
+                P[cap], boxes[cap] = joint[3], joint[4]
+                _bypass_locked.update((owner, cap))
+                continue
+            P[cap] = best[1]
+            boxes[cap] = best[2]
+            _bypass_locked.add(cap)
+
+        # Compact TLV62569 SW->inductor->output-cap loop.  The search uses
+        # actual pad offsets/courtyards and keeps every other component fixed.
+        for buck in [r for r in ics if r in P and "TLV62569" in (nl.comps[r].value or "")]:
+            if buck in locked:
+                pass                         # owner stays fixed; followers may move
+            sw_net = pin_net.get((buck, "3"))
+            if not sw_net:
+                refused.append(f"{buck}: SW pin has no net")
+                continue
+            inductors = []
+            for ref in P:
+                if not ref.startswith("L") or ref not in comps or ref in locked:
+                    continue
+                nodes = [(str(p), n) for (rr, p), n in pin_net.items() if rr == ref]
+                swp = next((p for p, n in nodes if n == sw_net), None)
+                other = next(((p, n) for p, n in nodes if n != sw_net and n), None)
+                if len(nodes) == 2 and swp and other:
+                    inductors.append((ref, swp, other[0], other[1]))
+            if not inductors:
+                refused.append(f"{buck}: no movable output inductor")
+                continue
+            ind, in_pin, out_pin, out_net = sorted(inductors)[0]
+            caps = []
+            for ref in P:
+                if (not ref.startswith("C") or ref not in comps or ref in locked
+                        or ref in _bp_refs or ref in assignments):
+                    continue
+                nodes = [(str(p), n) for (rr, p), n in pin_net.items() if rr == ref]
+                railp = next((p for p, n in nodes if n == out_net), None)
+                gndp = next((p for p, n in nodes if _is_gnd_net(n)), None)
+                farads = cec_device_bypass.capacitance_f(nl.comps[ref].value)
+                if len(nodes) == 2 and railp and gndp and farads is not None \
+                        and farads + 1e-15 >= 10e-6:
+                    caps.append((ref, railp, gndp))
+            if not caps:
+                refused.append(f"{buck}: no unassigned >=10uF output cap")
+                continue
+            cap, cap_pin, cap_gnd = sorted(caps)[0]
+            sw_target = pad_at(buck, "3", P[buck])
+            old_l, old_c = P[ind], P[cap]
+            grid = 0.50
+            l_trials = []
+            for lrot in (0.0, 90.0, 180.0, 270.0):
+                lp = cec_pcb.local_pads(comps[ind]).get(in_pin, (0.0, 0.0))
+                ldx, ldy = cec_pcb._rot(lp[0], lp[1], lrot)
+                for ix in range(-6, 7):
+                    for iy in range(-6, 7):
+                        d = math.hypot(ix * grid, iy * grid)
+                        if d > 3.0 + 1e-9:
+                            continue
+                        pos = (sw_target[0] + ix * grid - ldx,
+                               sw_target[1] + iy * grid - ldy, lrot)
+                        box = part_box(ind, pos)
+                        if clear(box, {ind, cap}, margin=0.15):
+                            l_trials.append((d + 0.005 * math.hypot(
+                                pos[0] - old_l[0], pos[1] - old_l[1]), pos, box))
+            l_trials.sort(key=lambda row: row[0])
+            best = None
+            for _ls, lpos, lbox in l_trials[:80]:
+                lout = pad_at(ind, out_pin, lpos)
+                for crot in (0.0, 90.0, 180.0, 270.0):
+                    cp = cec_pcb.local_pads(comps[cap]).get(cap_pin, (0.0, 0.0))
+                    cdx, cdy = cec_pcb._rot(cp[0], cp[1], crot)
+                    for ix in range(-7, 8):
+                        for iy in range(-7, 8):
+                            cd = math.hypot(ix * grid, iy * grid)
+                            if cd > 3.5 + 1e-9:
+                                continue
+                            cpos = (lout[0] + ix * grid - cdx,
+                                    lout[1] + iy * grid - cdy, crot)
+                            cbox = part_box(cap, cpos)
+                            if not clear(cbox, {ind, cap}, margin=0.15):
+                                continue
+                            if (cbox[0] - 0.15 < lbox[1] and cbox[1] + 0.15 > lbox[0]
+                                    and cbox[2] - 0.15 < lbox[3]
+                                    and cbox[3] + 0.15 > lbox[2]):
+                                continue
+                            swd = math.hypot(*(a - b for a, b in zip(
+                                pad_at(ind, in_pin, lpos), sw_target)))
+                            move = math.hypot(cpos[0] - old_c[0], cpos[1] - old_c[1])
+                            key = (round(swd + cd + 0.005 * move, 6), swd, cd,
+                                   lpos, cpos)
+                            if best is None or key < best[0]:
+                                best = (key, lpos, lbox, cpos, cbox)
+            if best is None:
+                # A compact cell may have been deliberately authored upstream.
+                # Accept its live PAD distances if they already satisfy the
+                # same limits used by the checker; absence of a replacement
+                # seat is not itself an electrical failure.
+                live_swd = math.hypot(*(a - b for a, b in zip(
+                    pad_at(ind, in_pin, P[ind]), sw_target)))
+                live_lcd = math.hypot(*(a - b for a, b in zip(
+                    pad_at(ind, out_pin, P[ind]), pad_at(cap, cap_pin, P[cap]))))
+                if live_swd <= 3.0 + 1e-9 and live_lcd <= 3.5 + 1e-9:
+                    _bypass_locked.update((ind, cap))
+                    continue
+                refused.append(f"{buck}-{ind}-{cap}: no compact legal switch-cell seat")
+                continue
+            P[ind], boxes[ind] = best[1], best[2]
+            P[cap], boxes[cap] = best[3], best[4]
+            _bypass_locked.update((ind, cap))
+
+        if refused:
+            print("  [p9b] device bypass/switch seats refused: "
+                  + "; ".join(refused[:8]), file=sys.stderr, flush=True)
+        _bypass_refused = list(refused)
+        if _bypass_locked:
+            print(f"  [p9b] pad-level device seats locked: "
+                  f"{sorted(_bypass_locked)}", file=sys.stderr, flush=True)
 
     # ============================================================ P7/P8: intent levers (LAST)
     def _p10_intents(_state):
@@ -7266,7 +7892,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         if not _fids:
             return
         _PP = P if P is not None else anchors
-        _e = 3.0
+        # Assembly fiducials need a real optical working field, not merely a
+        # copper-legal seat.  Keep their centres at least 5 mm from the board
+        # edge and require a 3 mm unobstructed radius around each target.
+        _e = 5.0
         _corners = [(_e, _e), (W - _e, _e), (_e, H - _e), (W - _e, H - _e)]
         _bodies = []
         # P AND anchors (owner defect batch #2, 2026-07-20): openness scanned P only,
@@ -7296,10 +7925,21 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # if openness >= _FID_R there or at an edge-slide position (slide along each
         # of the corner's two edges, staying in the edge band); corners that cannot
         # host are skipped for the NEXT corner (4 corners, 3 fids = one spare).
-        _FID_R = 1.6
+        # 1 mm copper fiducial radius plus the 3 mm optical keep-clear used by
+        # the release checker.  Courtyard/pad boxes are measured from the
+        # fiducial centre, so the required centre-to-obstacle distance is 4 mm.
+        _FID_R = 4.0
         _ranked = sorted(_corners, key=lambda c: -_openness(c[0], c[1]))
         _used = set()
         _placed_f = {}
+
+        def _spread_ok(qx, qy):
+            # Global registration points must span the board; two different
+            # corner searches may otherwise converge on the same edge slot.
+            min_sep = max(12.0, 0.18 * min(W, H))
+            return all(math.hypot(qx - px, qy - py) >= min_sep
+                       for px, py in _placed_f.values())
+
         for _f in _fids:
             _best = None
             for _ci, (_cx, _cy) in enumerate(_ranked):
@@ -7308,17 +7948,42 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _cands = [(_cx, _cy)]
                 _sx = 1.0 if _cx < W / 2 else -1.0
                 _sy = 1.0 if _cy < H / 2 else -1.0
-                for _k in range(1, 29):
-                    # slide up to ~half the edge (measured: the MCU macro owns 17mm of
-                    # the bottom-right corner -- 12mm never cleared it; the legal slot
-                    # is the J4<->macro gap further along the bottom edge)
-                    _cands.append((_cx + _sx * _k, _cy))       # slide along the x edge
-                    _cands.append((_cx, _cy + _sy * _k))       # slide along the y edge
+                for _k in range(1, int(max(W, H)) + 1):
+                    # Search the full two incident edges.  Four outward-facing
+                    # RJ45 mouths legitimately consume an entire board edge, so
+                    # a third fiducial may need to move past the edge midpoint.
+                    _qx, _qy = _cx + _sx * _k, _cy
+                    if _e <= _qx <= W - _e:
+                        _cands.append((_qx, _qy))
+                    _qx, _qy = _cx, _cy + _sy * _k
+                    if _e <= _qy <= H - _e:
+                        _cands.append((_qx, _qy))
                 _hit = next(((qx, qy) for qx, qy in _cands
-                             if _openness(qx, qy) >= _FID_R), None)
+                             if _openness(qx, qy) >= _FID_R
+                             and _spread_ok(qx, qy)), None)
                 if _hit:
                     _best = (_ci, _hit)
                     break
+            if _best is None:
+                # A connector-dense perimeter can consume every corner and
+                # edge slot (the Hub's four 14 mm RJ45 mouths do exactly that
+                # on the left).  Search the interior for the point that gives
+                # the widest registration baseline while preserving the full
+                # optical/body clearance.  Board fiducials need not sit on an
+                # edge; collision-free spread is the actual assembly need.
+                _global = []
+                for _gx in range(int(math.ceil(_e)), int(math.floor(W - _e)) + 1):
+                    for _gy in range(int(math.ceil(_e)), int(math.floor(H - _e)) + 1):
+                        if _openness(_gx, _gy) < _FID_R or not _spread_ok(_gx, _gy):
+                            continue
+                        _baseline = min((math.hypot(_gx - px, _gy - py)
+                                         for px, py in _placed_f.values()), default=1e9)
+                        _edge_d = min(_gx, W - _gx, _gy, H - _gy)
+                        _global.append((_baseline, -_edge_d, _gx, _gy))
+                if _global:
+                    _g = max(_global)
+                    _ci = next(i for i in range(len(_ranked)) if i not in _used)
+                    _best = (_ci, (_g[2], _g[3]))
             if _best is None:
                 # NO corner/slide can host (measured 2026-07-23 on the 24-pin
                 # v4 frame: J5's tuck owns TR, the pinned U1 column owns the
@@ -7366,10 +8031,16 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 _cands = [(_cx, _cy)]
                 _sx = 1.0 if _cx < W / 2 else -1.0
                 _sy = 1.0 if _cy < H / 2 else -1.0
-                for _k in range(1, 29):
-                    _cands.append((_cx + _sx * _k, _cy))
-                    _cands.append((_cx, _cy + _sy * _k))
-                _ok = [q for q in _cands if _open_hard(q[0], q[1]) >= _fr]
+                for _k in range(1, int(max(W, H)) + 1):
+                    _qx, _qy = _cx + _sx * _k, _cy
+                    if _e <= _qx <= W - _e:
+                        _cands.append((_qx, _qy))
+                    _qx, _qy = _cx, _cy + _sy * _k
+                    if _e <= _qy <= H - _e:
+                        _cands.append((_qx, _qy))
+                _ok = [q for q in _cands
+                       if _open_hard(q[0], q[1]) >= _fr
+                       and _spread_ok(q[0], q[1])]
                 if not _ok:
                     # truly nothing hostable even with eviction: the historical
                     # raw-corner dump (loud in the gate) -- never silent.
@@ -7442,14 +8113,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              # FRONT-END -> everything else): the ESP/CAN/button seats must seat AROUND
              # the cells, not the cells around the seats (measured: the evac-exempt CAN
              # seat landed inside lane envelopes on every probe).
-             locks_out=lambda _s: sorted(_bp_refs),
+             locks_out=lambda _s: sorted(
+                 set(_bp_refs) - set(_device_bypass_specs(
+                     nl, passives, [q for q in ics if not q.startswith("SW")]))),
              doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
         Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
              # _bp_refs here also covers the MCU-cluster seat's satellites + SW pair
              # (2026-07-12): they self-add to _bp_refs on success so this lambda locks
              # them without a second bespoke list; harmless when empty/blueprint-only.
-             locks_out=lambda _s: (list(seated) + list(seated_inas) + ([_esp] if _esp else [])
-                                   + list(_sw_seated) + list(_can_seated) + sorted(_bp_refs)),
+             locks_out=lambda _s: [r for r in (
+                 list(seated) + list(seated_inas) + ([_esp] if _esp else [])
+                 + list(_sw_seated) + list(_can_seated) + sorted(_bp_refs))
+                 if r not in _device_bypass_specs(
+                     nl, passives, [q for q in ics if not q.startswith("SW")])],
              doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat + cell Y-stagger repair"),
         Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
              doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
@@ -7464,7 +8140,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              # fixed-vs-locked pairs no repair pass may touch by design). A ref
              # whose live courtyard overlaps another placed ref at lock time stays
              # MOVABLE for p8b/p12; loud.
-             locks_out=lambda _s: _locks_sans_overlaps(list(_func_stamped)),
+             # Audited bypass capacitors remain movable until p9b seats them
+             # against real supply pads; a generic stamp lock must not freeze a
+             # merely plausible rail-relative seat first.
+             locks_out=lambda _s: _locks_sans_overlaps([
+                 r for r in _func_stamped
+                 if r not in _device_bypass_specs(
+                     nl, passives, [q for q in ics if not q.startswith("SW")])]),
              doc="stamp cluster passives + functional/series parts, legalize the stamped set"),
         Pass("p8_evac_mop", _p8_evac_mop, phase="P7",
              doc="evacuate corridors/pours of foreign bodies + final mop-up settle"),
@@ -7477,8 +8159,6 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         Pass("p10_intents", _p10_intents, phase="P7",
              locks_out=lambda _s: sorted(_intent_locked),
              doc="near()/order() intent levers, applied LAST so nothing undoes them"),
-        Pass("p11_fiducials_last", _p11_fiducials_last, phase="P7",
-             doc="seat FID1..n in the 3 most-open corners LAST (staged off-board until now)"),
         # FINAL LEGALITY (2026-07-23, the truthful-courtyard chain collapse: every
         # hub variant refused pre-route on SW/TH1-class overlaps that a post-p8b
         # pass created or restored -- measured: the final P carried MODEL-VISIBLE
@@ -7488,6 +8168,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # never touched).
         Pass("p12_final_legality", _p8b_affinity_reseat, phase="P7",
              doc="re-run the affinity re-seat LAST: no model-visible overlap survives"),
+        Pass("p9b_device_bypass", _p9b_device_bypass, phase="P5",
+             locks_out=lambda _s: sorted(_bypass_locked),
+             doc="seat distinct selected-device bypass caps at real supply pads after all owner moves + compact buck SW-L-C loop"),
+        Pass("p11_fiducials_last", _p11_fiducials_last, phase="P7",
+             doc="seat FID1..n in the 3 most-open corners after every electrical placement pass"),
     ]
 
     def _locks_sans_overlaps(refs):
@@ -7538,6 +8223,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                   ", ".join(_mechanical_drops), file=sys.stderr)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna,   # honest DRC-accurate residual
                           back_refs=(_back or ()))               # face-aware: cross-face != overlap
+    # Missing or geometrically refused per-device bypass seats are physical
+    # placement residue.  Omitting them from the production key let a compact
+    # but electrically invalid ATX candidate win the prune phase.
+    res += len(_bypass_refused)
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
     # through a FORMED high-current band. The rank key + a pre-route reject (proxy_reject). The
@@ -7589,6 +8278,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     # internal copper on the real board (placement candidates carry no copper -- like fiducials).
     cand.blueprint_stamps = _blueprint_stamps
     cand.mechanical_drops = _mechanical_drops
+    cand.bypass_refused = tuple(_bypass_refused)
     # POUR-FIRST ANCHOR SET (v3 rung, docs/slab-pour-design-2026-07-24.md v3):
     # the refs that exist at the owner's seam -- "connectors + blueprint
     # stamps + MCU" -- recorded from the placer's OWN knowledge (connector-
@@ -10220,13 +10910,16 @@ def materialize(cand, cfg, out, *, logo=None):
     except Exception as _e:                                     # noqa: BLE001 -- fail-safe
         print(f"[materialize] netclass/dru carriage failed ({_e})", file=sys.stderr)
     if logo is None and cfg and (cfg.params.get("logo_at") == "ring"):
-        # hub-rev2 centerpiece: FRONT logo at the seated LED ring's centroid
-        # (+ the old board's measured logo offset within the ring).
+        # Hub centerpiece at the seated LED ring's centroid (+ the old board's
+        # measured offset).  The face is explicit because the dead-bug stack
+        # exposes B.Cu as the user-visible surface.
         _rr = [r for r in (cfg.params.get("logo_ring_refs") or ()) if r in cand.P]
         if _rr:
             _cx = sum(cand.P[r][0] for r in _rr) / len(_rr)
             _cy = sum(cand.P[r][1] for r in _rr) / len(_rr)
-            logo = (_cx - 0.08, _cy - 1.82, False)
+            _back_logo = cfg.params.get("logo_side", "front") == "back"
+            logo = ((_cx - 0.08, _cy - 1.82) if _back_logo
+                    else (_cx - 0.08, _cy - 1.82, False))
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
                         drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
@@ -10841,7 +11534,7 @@ def _picard_dt(I, cross_mm2, ambient, external):
 _SPEC_NET_CURRENTS = {
     "atx-24pin-rev3": {
         "/SENSE3V3": 20.0, "/SENSE5V": 20.0, "/SENSE12V": 12.0, "/SENSE5VSB": 3.0,
-        "+5V_MAIN": 20.0, "+3V3": 0.25, "+5VSB": 0.5,
+        "+5V_MAIN": 20.0, "+3V3": 0.50, "+5VSB": 3.0,
     },
     # EPS/PCIe cable rails keep the owner's per-cable design basis (§2.8):
     # EPS ~13A/pin continuous -> ~52A/cable; PCIe ~13A/pin over 3x12V -> ~39A/cable.

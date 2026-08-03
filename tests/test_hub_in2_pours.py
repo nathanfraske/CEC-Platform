@@ -37,7 +37,7 @@ class TestHubParamsConformance(unittest.TestCase):
         asks = self.p.get("pour_asks") or []
         self.assertEqual({a["net"] for a in asks}, {
             "+5VSB", "/5VSB_RAW", "/PSU_5V", "/PSU_5V_KVM",
-            "/MAIN_5V_RAW", "/USB_VBUS", "/+5V_HOLD",
+            "/MAIN_5V_RAW", "/+5V_HOLD",
             "/VCC_P1", "/VCC_P2", "/VCC_P3", "/VCC_P4",
         })
         for a in asks:

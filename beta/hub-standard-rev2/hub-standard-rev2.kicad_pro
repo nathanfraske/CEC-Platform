@@ -674,19 +674,19 @@
       },
       {
         "netclass": "USB",
-        "pattern": "USB_DP"
+        "pattern": "USB_D_P"
       },
       {
         "netclass": "USB",
-        "pattern": "/USB_DP"
+        "pattern": "/USB_D_P"
       },
       {
         "netclass": "USB",
-        "pattern": "USB_DM"
+        "pattern": "USB_D_N"
       },
       {
         "netclass": "USB",
-        "pattern": "/USB_DM"
+        "pattern": "/USB_D_N"
       },
       {
         "netclass": "Power",

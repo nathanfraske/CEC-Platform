@@ -5,6 +5,7 @@
 | Board | Implemented path | Decision basis |
 |---|---|---|
 | `12vhpwr-standard` | `+5VSB` -> TLV75533PDRVR -> `+3V3` | Direct 500 mA high-PSRR LDO in the thermal-pad DRV package. It removes the LP5907 current/thermal bottleneck without adding a switch node beside the six-channel measurement chain. |
+| `atx-24pin-rev3` | selected `+5V_SYS` -> TLV75533PDRVR -> `+3V3` | Direct 500 mA thermal-pad LDO. Its reviewed wired-mode load remains below the 12VHPWR case, while its measurement chain benefits from avoiding an unnecessary switching node. |
 | `hub-standard-rev2` | held `LOGIC_REG_IN` -> TLV62569DBVR + 2.2 uH -> `+3V3` | Direct buck. Hub has no precision INA/reference chain, and energy conversion down to 3.45 V preserves useful shutdown hold-up. No post-LDO is fitted. |
 
 The superseded 12VHPWR buck-plus-post-LDO proposal is not the selected design.
@@ -35,6 +36,26 @@ disabled. The 160 mA controller envelope already exceeds the Espressif
 | **Required source current** | | **212.327 mA** |
 
 TLV75533 capacity is 500 mA: 42.5% utilized and 57.5% remaining after the
+system margin.
+
+### ATX 24-pin Rev3
+
+| Consumer | Quantity x maximum | Budget |
+|---|---:|---:|
+| ESP32-C6-MINI wired controller envelope | 1 x 160.000 mA | 160.000 mA |
+| INA238 | 4 x 1.100 mA | 4.400 mA |
+| INA181 | 4 x 0.300 mA | 1.200 mA |
+| TLV7011 | 4 x 0.010 mA | 0.040 mA |
+| TJA1051 VIO | 1 x 0.500 mA | 0.500 mA |
+| 74LVC1G17 buffers | 2 x 0.040 mA | 0.080 mA |
+| two 2.2k pull-ups, both low | 2 x 1.500 mA | 3.000 mA |
+| four 10k pull-ups, all low | 4 x 0.330 mA | 1.320 mA |
+| -12 V scaling divider | 1 | 0.158 mA |
+| **Subtotal** | | **170.698 mA** |
+| **20% design margin** | | **34.140 mA** |
+| **Required source current** | | **204.838 mA** |
+
+TLV75533 capacity is 500 mA: 41.0% utilized and 59.0% remaining after the
 system margin.
 
 ### Hub Standard Rev2
@@ -69,6 +90,7 @@ Quiescent power is small relative to the load term and is omitted below.
 |---|---:|---:|---:|---|
 | 12VHPWR LP5907 SOT-23 | `(5.25-3.3)*0.212327 = 0.414 W` | 193.4 C/W | **130.1 C** | exceeds 125 C operating limit; only 15.1% current-rating headroom |
 | 12VHPWR TLV75533 DRV WSON | same 0.414 W | 100.2 C/W | **91.5 C** | selected; 57.5% current headroom |
+| ATX TLV75533 DRV WSON | `(5.25-3.3)*0.204838 = 0.399 W` | 100.2 C/W | **90.0 C** | selected; 59.0% current headroom |
 | Hub LP5907 SOT-23 | `(5.25-3.3)*0.195654 = 0.382 W` | 193.4 C/W | **123.8 C** | essentially at the 125 C limit before PCB/environment uncertainty |
 | Hub TLV62569 buck | about 0.114 W at the 85% efficiency floor | 188.2 C/W | **71.4 C** | selected; layout/bench correlation still required |
 
@@ -106,6 +128,7 @@ OQ-56 remains the required hardware proof.
 | Item | Selection / repository asset |
 |---|---|
 | 12VHPWR regulator | TLV75533PDRVR, LCSC C2861750, WSON-6 exposed pad |
+| ATX regulator | TLV75533PDRVR, LCSC C2861750, WSON-6 exposed pad |
 | Symbol | `lib/vendor/cec-vendor.kicad_sym` (`TLV75533PDRVR`, exact DRV pin map) |
 | Footprint | `lib/vendor/Package_SON.pretty/WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm.kicad_mod` |
 | 3D model | `lib/3dmodels/Package_SON.3dshapes/WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm.step` |

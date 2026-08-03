@@ -1,37 +1,37 @@
-"Reference","Qty","Value","Footprint","MPN","Manufacturer","LCSC","LC_Stock","Chosen_Distributor","Datasheet","Validated","DNP","Notes"
-"C1","1","100uF","cec-Capacitor_SMD:C_1210_3225Metric","CL32A107MQVNNNE","Samsung","C49066","","","","","",""
-"C2","1","1nF","cec-Capacitor_SMD:C_0402_1005Metric","GRM1555C1H102JA01D","Murata","C76947","","","","","",""
-"C3-C5,C11,C39","5","100nF","cec-Capacitor_SMD:C_0402_1005Metric","CL05B104KO5NNNC","Samsung","C1525","","","","","",""
-"C6,C10","2","10uF","cec-Capacitor_SMD:C_0805_2012Metric","CL21A106KAYNNNE","Samsung","C15850","","","","","",""
-"C7-C9","3","1uF","cec-Capacitor_SMD:C_0603_1608Metric","CL10B105KA8NNNC","Samsung","C29936","","","","","",""
-"D1,D5,D15-D22","10","PESD5V0S1BA","cec-Diode_SMD:D_SOD-323","PESD5V0S1BA","Nexperia","C5261083","","","","","",""
-"D2-D4","3","SS34","cec-Diode_SMD:D_SMA","SS34","MDD","C8678","","","","","",""
-"D6","1","USBLC6-2SC6","cec-Package_TO_SOT_SMD:SOT-23-6","USBLC6-2SC6","onsemi","C2687116","","","","","",""
-"D7-D14","8","BAT54S","cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL","BAT54S","UMW","C545549","","","","","",""
-"DL1","1","SK6812MINI","cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm","SK6812MINI-E","Opsco","C5149201","","","","","",""
-"F1","1","2920L700/12MR","cec-Fuse_SMD:F2920","2920L700/12MR","Littelfuse","C207092","","","","","",""
-"FB1","1","0R","cec-Capacitor_SMD:C_0805_2012Metric","0805W8F0000T5E","UNI-ROYAL","C17477","","","","","",""
-"FB2","1","600R@100MHz FB (MPZ2012S601AT000)","cec-Capacitor_SMD:C_0805_2012Metric","MPZ2012S601AT000","TDK","C21519","","","","","",""
-"FL1","1","CAN CMC position (ACT45B-510-2P-TL003), DNP","cec-Common_Mode_Choke:CMC_SMD4P_L4.5xW3.2mm","ACT45B-510-2P-TL003","TDK","C76584","","","","","DNP",""
-"J1","1","SATA_PWR_15P","","SATA power 15P male, right-angle (TBD)","(consigned)","","","","","","",""
-"J2","1","TO-HUB","cec:RJ45_FTP_Shielded_Horizontal","KH-RJ45-58-8P8C","Kinghelm","C2683360","","","","","",""
-"J3","1","USB-C 2.0","cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11","U262-161N-4BVC11","XKB Connectivity","C319148","","","","","",""
-"J4-J11","8","ARGB_5V_HDR","cec-Connector_PinHeader_2.54mm:HDR-TH_4P-P2.54-V-M","B-2100S04P-A110","Ckmtw","C124378","","","","","",""
-"Q1","1","AO4407A","cec-Package_SO:SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL","AO4407A","Alpha & Omega Semiconductor","C16072","","","","","",""
-"R1,R3,R8,R9","4","10kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF1002TCE","UNI-ROYAL","C25744","","","","","",""
-"R2","1","47kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF4702TCE","UNI-ROYAL","C25792","","","","","",""
-"R4","1","2.2kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF2201TCE","UNI-ROYAL","C25879","","","","","",""
-"R5","1","100kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF1003TCE","UNI-ROYAL","C25741","","","","","",""
-"R6,R7","2","0Ω","cec-Resistor_SMD:R_0402_1005Metric","0402WGF0000TCE","UNI-ROYAL","C17168","","","","","",""
-"R10-R17,R20","9","330Ω","cec-Resistor_SMD:R_0402_1005Metric","0402WGF3300TCE","UNI-ROYAL","C25104","","","","","",""
-"R18,R19","2","5.1kΩ","cec-Resistor_SMD:R_0402_1005Metric","0402WGF5101TCE","UNI-ROYAL","C25905","","","","","",""
-"RS1","1","5mOhm","cec-Resistor_SMD:R_2512_6332Metric","HoYLR2512-2W-5mR-1%","Milliohm","C5375417","","","","","",""
-"RT1","1","MF72-5D-20","cec-Thermistor_THT:RES-TH_L22.0-W7.0-P10.00-D1.0-S2.00","MF72-5D-20","Nanjing Shiheng Electronics","C122780","","","","","",""
-"SW1","1","BOOT","cec-Button_Switch_SMD:TS-1088-AR02016","TS-1088-AR02016","XKB","C720477","","","","","",""
-"SW2","1","RESET","cec-Button_Switch_SMD:TS-1088-AR02016","TS-1088-AR02016","XKB","C720477","","","","","",""
-"U1","1","ESP32-S3-MINI-1-N4R2","cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout","ESP32-S3-MINI-1-N4R2","Espressif","C3013941","","","","","",""
-"U2","1","TJA1051T/3","cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm","TJA1051T/3","NXP","C38695","","","","","",""
-"U3","1","LP5907MFX-3.3","cec-Package_TO_SOT_SMD:SOT-23-5","LP5907MFX-3.3","Texas Instruments","C80670","","","","","",""
-"U4","1","INA180A2","cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL","INA180A2IDBVR","Texas Instruments","C192764","","","","","",""
-"U5","1","SN74AHCT244PW","cec-Package_SO:TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL","74AHCT244PW,118","Nexperia","C135583","","","","","",""
-"U6","1","SN74AHCT1G08","cec-Package_TO_SOT_SMD:SOT-23-5","SN74AHCT1G08DBVR","Texas Instruments","C113521","","","","","",""
+Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
+C1,1,100uF,C_1210_3225Metric,CL32A107MQVNNNE,Samsung,C49066,,,,,,"+5V_LED bulk cap, charged (slew-limited) through RT1"
+C2,1,1nF,C_0402_1005Metric,GRM1555C1H102JA01D,Murata,C76947,,,,,,Rail-divider ADC filter cap (matches the 12VHPWR VRAIL_DIV precedent)
+"C3,C4,C5,C11,C39",5,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,
+"C6,C10",2,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,,,,
+"C7,C8,C9",3,1uF,C_0603_1608Metric,CL10B105KA8NNNC,Samsung,C29936,,,,,,"LDO IN bulk,LDO OUT bulk"
+"D1,D5,D15,D16,D17,D18,D19,D20,D21,D22",10,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,HXY MOSFET,C5261083,,,https://www.lcsc.com/datasheet/C5261083.pdf,,,"DETECT pin-8 hot-plug ESD diode (spec Sec 2.4 LOCKED),Discrete VBUS clamp, ahead of the entry bead (H3a posture),LED channel 1 per-line ESD TVS,LED channel 2 per-line ESD TVS,LED channel 3 per-line ESD TVS,LED channel 4 per-line ESD TVS,LED channel 5 per-line ESD TVS,LED channel 6 per-line ESD TVS,LED channel 7 per-line ESD TVS,LED channel 8 per-line ESD TVS"
+"D2,D3,D4",3,SS34,D_SMA,SS34,MDD,C8678,,,,,,"Logic-power OR: +5V_LED (SATA-derived) leg,Logic-power OR: RJ-45 5VSB leg (PROPOSAL -- see README.md Sec 3),Logic-power OR: USB VBUS leg"
+D6,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf,,,
+"D7,D8,D9,D10,D11,D12,D13,D14",8,BAT54S,SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL,BAT54S,UMW,C545549,,,,,,"LED channel 1 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 2 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 3 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 4 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 5 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 6 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 7 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp),LED channel 8 DATA-first hot-plug clamp (dual-series Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by rendering the vendored symbol, see README.md Sec 4. Spec names BAT54W, which is not a real dual-diode part under that name; BAT54S is the verified series-diode part that implements the described clamp)"
+DL1,1,SK6812MINI,LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm,SK6812MINI-E,OPSCO Optoelectronics,C5149201,,,,,,"Status pixel, platform LED language"
+F1,1,2920L700/12MR,F2920,2920L700/12MR,Littelfuse,C207092,,,https://www.lcsc.com/datasheet/C207092.pdf,,,"Resettable PPTC fuse, 7A hold / 14A trip / 12V max"
+FB1,1,0R,C_0805_2012Metric,0805W8F0000T5E,UNI-ROYAL,C17477,,,,,,"5VSB entry bead position, 0R-provisioned (H3a ferrite posture (b) -- real bead swaps in only on EMC evidence)"
+FB2,1,600R@100MHz FB (MPZ2012S601AT000),C_0805_2012Metric,MPZ2012S601AT000,TDK,C21519,,,,,,"VBUS entry bead, POPULATED (H3a ferrite posture (a))"
+FL1,1,"CAN CMC position (ACT45B-510-2P-TL003), DNP",CMC_SMD4P_L4.5xW3.2mm,ACT45B-510-2P-TL003,TDK,C76584,,,,,DNP,"EMC insurance position, DNP-provisioned (OQ-83: platform CMC part+footprint not yet converged; matches EPS/24-pin's choice over 12VHPWR's ACT1210L)"
+J1,1,SATA_PWR_15P,,"SATA power 15P male, right-angle (TBD)",(consigned),,,,,,,"SATA power connector, 15-pin, board-mount male, right-angle. No LCSC line exists for this shape (verified); source directly from a connector house (e.g. KLS Connector KLS1-SATA family) at BOM lock, matching the Mini-Fit Jr consigned-part precedent."
+J2,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
+J3,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
+"J4,J5,J6,J7,J8,J9,J10,J11",8,ARGB_5V_HDR,HDR-TH_4P-P2.54-V-M,B-2100S04P-A110,Ckmtw,C124378,,,,,,"LED channel 1 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 2 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 3 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 4 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 5 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 6 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 7 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md),LED channel 8 ARGB strip header -- plain 1x4 2.54mm, pin 2 left NC (real keyed 4-pos/3-used ARGB part does not exist on LCSC; OQ-36, see README.md)"
+Q1,1,AO4407A,SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL,AO4407A,Alpha & Omega Semiconductor,C16072,,,https://www.aosmd.com/res/datasheets/AO4407A.pdf,,,"P-channel MOSFold, logic-level Vgs(th) -1.7 to -3V, ID -12A (25C), reverse-polarity series pass element"
+"R1,R3,R8,R9",4,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,"EN pullup,GPIO0/BOOT pullup"
+"R10,R11,R12,R13,R14,R15,R16,R17,R20",9,330Ω,R_0402_1005Metric,0402WGF3300TCE,UNI-ROYAL,C25104,,,,,,"LED channel 1 series resistor,LED channel 2 series resistor,LED channel 3 series resistor,LED channel 4 series resistor,LED channel 5 series resistor,LED channel 6 series resistor,LED channel 7 series resistor,LED channel 8 series resistor"
+"R18,R19",2,5.1kΩ,R_0402_1005Metric,0402WGF5101TCE,UNI-ROYAL,C25905,,,,,,
+R2,1,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,
+R4,1,2.2kΩ,R_0402_1005Metric,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,DETECT code resistor: CAN-only link class (spec Sec 2.3)
+R5,1,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,,,,DETECT poke-and-ack high-Z tap (spec Sec 2.3)
+"R6,R7",2,0Ω,R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,,,,,"H3a-PATTERN populated bypass (FL1 CAN_H winding),H3a-PATTERN populated bypass (FL1 CAN_L winding)"
+RS1,1,5mOhm,R_2512_6332Metric,HoYLR2512-2W-5mR-1%,Milliohm,C5375417,,,,,,"Total-rail current shunt, 5mOhm/2W/1% -- see README.md Sec 2 for the headroom math (working-choice value)"
+RT1,1,MF72-5D-20,RES-TH_L22.0-W7.0-P10.00-D1.0-S2.00,MF72 5D20,Nanjing Shiheng Electronics,C122780,,,https://www.lcsc.com/datasheet/C122780.pdf,,,"Power NTC inrush-current limiter, 5 ohm cold / 7A rated (controlled inrush element -- spec Sec 7.2; OOS at LCSC as of 2026-07-05, flagged, matches this repo's own precedent for a real-but-thin-stock part, cf. the ESP32-S3-MINI-1 pick below)"
+SW1,1,BOOT,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,
+SW2,1,RESET,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,
+U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif Systems,C3013941,,,https://documentation.espressif.com/esp32-s3-mini-1_mini-1u_datasheet_en.pdf,,,"Working-basis MCU (OQ-29 OPEN, platform-wide) -- LCD/I2S parallel peripheral drives all 8 WS2812-class channels with low jitter; same exact part already used on 12VHPWR-Standard. OOS at LCSC as of 2026-07-05 (docs/pricing-study-2026-07-05.md), owner ratifies. See README.md Sec 1."
+U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3/1J,NXP Semiconductors,C38695,,,https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf,,,
+U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3/NOPB,Texas Instruments,C80670,,,https://www.ti.com/lit/ds/symlink/lp5907.pdf,,,
+U4,1,INA180A2,SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL,INA180A2IDBVR,Texas Instruments,C192764,,,https://www.ti.com/lit/ds/symlink/ina180.pdf,,,"Current-sense amplifier, gain=50V/V (A2), spec Sec 7.4 LOCKED part"
+U5,1,"74AHCT244PW,118",TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL,"74AHCT244PW,118",Nexperia,C135583,,,https://assets.nexperia.com/documents/data-sheet/74AHC_AHCT244.pdf,,,"Octal buffer/line driver, non-inverting, 3-state -- TTL input threshold (~2V) so 3.3V MCU drive is in-spec at a 5V supply (spec Sec 7.3)"
+U6,1,SN74AHCT1G08,SOT-23-5,SN74AHCT1G08DBVR,Texas Instruments,C113521,,,https://www.ti.com/lit/ds/symlink/sn74ahct1g08.pdf,,,"2-input AND, both inputs tied = non-inverting 3.3V->5V level shift for the SK6812 DIN (Hub Standard's own U6 precedent, verbatim)"

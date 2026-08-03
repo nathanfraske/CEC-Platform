@@ -129,13 +129,47 @@ class TestDiscovery(unittest.TestCase):
         self.assertEqual(rl["snk_net"], "+5V_MAIN")        # the TB side, no SENSE name
         self.assertEqual(len(rl["j3"]), 2)
         self.assertEqual(len(rl["tb"]), 1)
-        self.assertEqual(rl["amps"], 25.0)                 # 5V bar
+        self.assertEqual(rl["amps"], 20.0)                 # ratified 5V ceiling
 
     def test_amps_ladder(self):
-        self.assertEqual(FR._amps_for(["/SENSE5VSB_LO", "+5VSB"]), 5.0)
+        self.assertEqual(FR._amps_for(["/SENSE5VSB_LO", "+5VSB"]), 3.0)
         self.assertEqual(FR._amps_for(["/SENSE3V3_HI", "/SENSE3V3_LO"]), 20.0)
         self.assertEqual(FR._amps_for(["/SENSE12V_HI", "/SENSE12V_LO"]), 12.0)
-        self.assertEqual(FR._amps_for(["/SENSE5V_HI", "+5V_MAIN"]), 25.0)
+        self.assertEqual(FR._amps_for(["/SENSE5V_HI", "+5V_MAIN"]), 20.0)
+
+    def test_bottom_input_plan_is_vertical_conjugate(self):
+        rails = FR.discover_rails(_mkboard())
+        fwd = FR.plan_rail_chains(rails, max(q[2] for q in rails[0]["j3"]))
+        axis2 = 42.0                 # reflection y' = 42 - y
+        rev = []
+        for rl in rails:
+            q = dict(rl)
+            q["hi"] = (rl["hi"][0], axis2 - rl["hi"][1])
+            q["lo"] = (rl["lo"][0], axis2 - rl["lo"][1])
+            q["j3"] = [tuple(list(p[:2]) + [axis2 - p[2]] + list(p[3:]))
+                       for p in rl["j3"]]
+            q["tb"] = [tuple(list(p[:3]) + [axis2 - p[3]] + list(p[4:]))
+                      for p in rl["tb"]]
+            rev.append(q)
+        back = FR.plan_rail_chains(rev, max(q[2] for q in rev[0]["j3"]))
+        for kind in ("src", "snk"):
+            want = {(round(x1, 6), round(axis2 - y1, 6),
+                     round(x2, 6), round(axis2 - y2, 6), w, tag)
+                    for x1, y1, x2, y2, w, tag in fwd["RS2"][kind]}
+            got = {(round(x1, 6), round(y1, 6), round(x2, 6),
+                    round(y2, 6), w, tag)
+                   for x1, y1, x2, y2, w, tag in back["RS2"][kind]}
+            self.assertEqual(got, want)
+
+    def test_tht_probe_reserves_inner_power_runs(self):
+        rails = FR.discover_rails(_mkboard_alt())
+        j3_bot = max(q[2] for rail in rails for q in rail["j3"])
+        face = FR.rail_placement_boxes(
+            rails, j3_bot, alt=True, include_inner=False)
+        through_barrel = FR.rail_placement_boxes(
+            rails, j3_bot, alt=True, include_inner=True)
+        self.assertGreater(len(through_barrel), len(face))
+        self.assertTrue(set(face).issubset(set(through_barrel)))
 
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (routing container)")

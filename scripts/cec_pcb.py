@@ -446,9 +446,17 @@ def write_dru(dru_path, rules, header=""):
     print(f"WROTE {os.path.relpath(dru_path, ROOT)}")
 
 # ============================================================ board build
-def export_netlist(dir_, base):
-    netf = f"{ROOT}/modules/{dir_}/{base}.net"
-    os.system(f"cd {ROOT}/modules/{dir_} && kicad-cli sch export netlist -o {base}.net "
+def export_netlist(dir_, base, *, tree="modules"):
+    """Export from an explicit repository product tree.
+
+    Most legacy callers live under modules/, while the authoritative output
+    daughterboards live under beta/.  Keeping the default preserves the old
+    API without letting a BETA generator silently update a shadow tree.
+    """
+    if tree not in {"modules", "beta"}:
+        raise ValueError(f"unsupported netlist tree: {tree}")
+    netf = f"{ROOT}/{tree}/{dir_}/{base}.net"
+    os.system(f"cd {ROOT}/{tree}/{dir_} && kicad-cli sch export netlist -o {base}.net "
               f"{base}.kicad_sch >/dev/null 2>&1")
     return netf
 

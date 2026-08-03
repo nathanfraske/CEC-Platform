@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auditable worst-case +3V3 budgets for the two current BETA boards.
+"""Auditable worst-case +3V3 budgets for the reviewed current BETA boards.
 
 Every entry maps to a fitted schematic consumer or a deliberately conservative
 controller envelope.  Values are wired-mode maxima; BETA firmware has wireless
@@ -29,6 +29,23 @@ class Load:
 
 
 LOADS: dict[str, tuple[Load, ...]] = {
+    "atx-24pin-rev3": (
+        Load("ESP32-C6-MINI wired controller envelope", 1, 160.000,
+             "wireless-disabled controller/flash envelope aligned with the other BETA controllers"),
+        Load("INA238 precision current monitor", 4, 1.100,
+             "datasheet maximum quiescent current over -40C to +125C"),
+        Load("INA181 current-sense amplifier", 4, 0.300,
+             "datasheet maximum quiescent current over -40C to +125C"),
+        Load("TLV7011 comparator", 4, 0.010,
+             "datasheet maximum quiescent current"),
+        Load("TJA1051 VIO", 1, 0.500, "datasheet dominant-state maximum"),
+        Load("SN74LVC1G17 control buffers", 2, 0.040,
+             "conservative static supply allowance per buffer"),
+        Load("I2C pull-ups, both low", 2, 3.3 / 2_200 * 1e3, "3.3V / 2.2k"),
+        Load("RESET, IO8, status and threshold pull-ups low", 4, 0.330, "3.3V / 10k"),
+        Load("-12V translator divider current", 1, 0.158,
+             "worst normal -12V operating point through the 3V3-referenced divider"),
+    ),
     "12vhpwr-standard": (
         Load("ESP32-S3-MINI wired controller envelope", 1, 160.000,
              "107.9mA modem-sleep/all clocks + 10mA flash, rounded up"),

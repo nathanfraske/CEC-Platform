@@ -142,48 +142,56 @@ def _stamp_back_face(png):
 def mating_frame_pins(W, H, contract, side):
     """SHARED MATING FRAME derivation (owner 2026-07-20: mezzanine first, but
     "that derivation methodology can also be used for all of the daughterboards
-    and the eventual psu tester pipeline" -- keep it general). Boards stack
-    CENTER-ALIGNED (maximal overlap, zero offset); the contract declares, in
-    SHARED coordinates (offsets from the common center), EITHER the v2
+    and the eventual psu tester pipeline" -- keep it general). The contract
+    declares, in SHARED assembly coordinates (offsets from the ATX nominal-
+    frame center), EITHER the v2
     segment-list form (structural segmented mezz, owner GO 2026-07-22,
     docs/mezz-structural-segments-2026-07-22.md):
       {"conns": [{"ref": .., "dc": (dx, dy), "rot": deg}, ...],
        "mount_dc": ((dx, dy), ...),     # required fitted lug for this contract
        "mount_fp": "lib:footprint",     # optional per-contract mount land (e.g. M2)
        "mount_net": "GND",              # optional electrical role for every mount land
-       "sides": {name: {"mount_refs": (..), "mirror_x": bool}}}
+       "sides": {name: {"mount_refs": (..), "mirror_x": bool,
+                         "assembly_dc": (board_center_dx, board_center_dy)}}}
     OR the legacy single-connector form:
       {"conn_dc": (dx, dy), "conn_rot": deg,
        "rect_dc": (x0, y0, x1, y1),     # the standoff datum rectangle
        "sides": {name: {"conn_ref": .., "mount_refs": (..), "mirror_x": bool}}}
-    A side with mirror_x=True flips to mate (its x offsets negate). Returns
+    A side with mirror_x=True flips to mate. Each shared point is first made
+    relative to that board's assembly-center offset, then its X is reflected;
+    connector orientation becomes ``180deg - rot``. Returns
     {"anchor_pins": .., "mount_pos_override": .., ["mount_fp_override": ..]}
     for that side -- feed into BOARD_PARAMS. One declaration, every mating
     side derived; the mating refs are alignment DATUM (exempt from
     nudge/anneal by the pipeline). MATE INVARIANT (the property that matters):
-    for any two sides, every mating ref's position differs by ONE constant
-    translation -- guaranteed by construction since both sides add the same
-    (dx, dy) to their own centers."""
+    after applying each side's assembly translation/reflection, every mating
+    field is coincident."""
     sd = contract["sides"][side]
     m = -1.0 if sd.get("mirror_x") else 1.0
+    ax, ay = sd.get("assembly_dc", (0.0, 0.0))
     cx, cy = W / 2.0, H / 2.0
     if "conns" in contract:                       # v2: N structural segments
-        pins = {c["ref"]: (cx + m * c["dc"][0], cy + c["dc"][1],
-                           c.get("rot", 0))
+        pins = {c["ref"]: (cx + m * (c["dc"][0] - ax),
+                           cy + c["dc"][1] - ay,
+                           ((180.0 - c.get("rot", 0)) % 360.0
+                            if sd.get("mirror_x") else c.get("rot", 0)))
                 for c in contract["conns"]}
     else:                                         # legacy single connector
         dx, dy = contract["conn_dc"]
-        pins = {sd["conn_ref"]: (cx + m * dx, cy + dy,
-                                 contract.get("conn_rot", 0))}
+        _rot = contract.get("conn_rot", 0)
+        pins = {sd["conn_ref"]: (cx + m * (dx - ax), cy + dy - ay,
+                                 ((180.0 - _rot) % 360.0
+                                  if sd.get("mirror_x") else _rot))}
     # standoffs: an explicit "mount_dc" POINT LIST (possibly EMPTY -- the R1
     # structural-segment form carries stability in the segments themselves; a
     # single point = the R2 provisioned DNP-able land) or the legacy "rect_dc"
     # 4-corner rectangle.
     if "mount_dc" in contract:
-        pts = [(cx + m * mx, cy + my) for (mx, my) in contract["mount_dc"]]
+        pts = [(cx + m * (mx - ax), cy + my - ay)
+               for (mx, my) in contract["mount_dc"]]
     elif "rect_dc" in contract:
         x0, y0, x1, y1 = contract["rect_dc"]
-        pts = [(cx + m * mx, cy + my)
+        pts = [(cx + m * (mx - ax), cy + my - ay)
                for (mx, my) in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))]
     else:
         pts = []
@@ -196,17 +204,12 @@ def mating_frame_pins(W, H, contract, side):
     return out
 
 
-# THE HUB-ON-24PIN MEZZANINE CONTRACT (the 2026-06-24 stack doc §4, finalized
-# 2026-07-20). NO-FLIP convention (owner ruling 2026-07-20: "the Hub will just
-# sit over top normally, not flip -- the flip will cause too much heat issues
-# and case design issues"): both boards component-side UP, the Hub's socket
-# mounted on its UNDERSIDE, so NO shared-frame x-mirror on either side. The
-# 2026-06-24 doc's board-flip convention (+ its MIRROR-GOTCHA framing) is
-# SUPERSEDED; the J6/J_MEZZ mated pin map must be RE-VERIFIED under the
-# bottom-mounted-socket convention (FOLLOWUPS). Connector left-flank vertical
-# (the shared point must be free on BOTH unmirrored boards; the Hub side of
-# this spot is probe-verified clear), standoff datum 66x25 -- DRAFT values,
-# wave-iterable.
+# THE HUB-ON-24PIN MEZZANINE CONTRACT.  The current dead-bug assembly reflects
+# the Hub about the physical Y axis: Hub F.Cu faces ATX F.Cu, while the Hub
+# B.Cu/logo/LED windows face outward.  The canonical segment coordinates are
+# the ATX face; the Hub transform mirrors X and connector rotations.  This is
+# deliberately encoded here so every placement, render, and mating audit uses
+# the same physical transform.
 # conn geometry: the 2x8's 14mm pad field extends along LOCAL +y from the
 # anchor (measured); rot 180 points it -y, so the anchor sits at the field's
 # BOTTOM -- dc y +17.5 centers the barrels on the y-31..45 strip (between the
@@ -227,24 +230,21 @@ MEZZ_HUB_24PIN = {
     # docs/mezz-structural-segments-2026-07-22.md): the single 2x8 J6 + the
     # H1-H3 M3 standoff trio are RETIRED; three KEYED segments (J6P 2x3 power /
     # J6C 2x4 comms / J6D 2x2 ID, Appendix A pin maps) ARE the mounting system.
-    # SEATS v4 (2026-07-23, seg4 forensic -- scripts/cec_mezz_probe.py with the
-    # SHUNT-ROW WALK BAND as a hard region + MULTI-SUBSTRATE stability tiers +
-    # seg-vs-seg legality): v3's J6C sat inside the rail walk's blocker band and
-    # walled the column walk at x~39, crushing the pitch 12->5.38/8.0 (the
-    # INA|shunt courtyard-refusal class). v4: J6P + J6D on the right column
-    # (STABLE across 3 substrates/side), J6C top strip near its U2/comms target
-    # (the ONE fallback-tier member: the 74x55 frame provably cannot host a
-    # third stable seat -- per-seed conflicts are named by the pre-route gates;
-    # the measured W-grow lever is in docs/owner-queue.md). Pattern asymmetry
-    # 33.1mm (>=8 tooth), pairwise spread >=10 with the H1 M2 provision as the
-    # 4th support vertex. Probe report /tmp/mezz-probe5-sp9.json (container).
+    # SEATS R3/R4 (2026-08-03): exact pad-derived force-rail boxes + real asymmetric
+    # header/socket courtyards, intersected across 3 placements per side.  An
+    # explicit 70..86mm width sweep kept internal macros movable; 85mm had no
+    # stable balanced support set, while 86mm produced the four-quadrant field
+    # below across all six substrates.  Different pin counts retain insertion
+    # keying. Report: /tmp/balanced-w86.json.
     "conns": [{"ref": s["ref"], "dc": s["dc"], "rot": s["rot"]}
               for s in mezz.SEGMENTS],
     # FITTED GROUND LUG: ONE populated M2 land. The production contract
     # requires conductive hardware at this shared seat. The seat is
-    # bottom-center-left,
-    # between the rail band and the TB row start); the pre-route courtyard
-    # gate names any collision per-variant -- probe/wave is the arbiter.
+    # lower-left support vertex (the X-mirror of J6C), jointly hard-legal across the same six probe
+    # substrates. R4 moves the J6C/H1 support row 5mm inward after the real
+    # force-rail lay proved the former J6C GND barrel occupied the 3V3 sink
+    # band; both boards remain placement-clean. The pre-route courtyard gate
+    # remains the release arbiter.
     "mount_dc": (mezz.GROUND_LUG["dc"],),
     "mount_fp": mezz.GROUND_LUG["footprint"],
     # This is an electrical part of the mating contract.  A populated metal M2
@@ -256,8 +256,13 @@ MEZZ_HUB_24PIN = {
     "mount_electrical_role": mezz.GROUND_LUG["electrical_role"],
     "mount_population": mezz.GROUND_LUG["population"],
     "mount_contact": mezz.GROUND_LUG["contact"],
-    "sides": {"atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False},
-              "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": False}},
+    "stack": mezz.STACK,
+    "sides": {
+        "atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False,
+                            "assembly_dc": (0.0, 0.0)},
+        "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": True,
+                              "assembly_dc": mezz.STACK["hub_assembly_dc_mm"]},
+    },
 }
 
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
@@ -270,7 +275,7 @@ BOARD_WH = {
     # (4-jack row, WROOM cluster ~48x41, LED ring, bottom J_KVM/J_USB, mezz J6+datum)
     # the 21x17mm C1 hold-up cap measured ZERO free cells at every stage -- the board
     # was genuinely full, every hub variant refused. 8mm of height is the cap's row.
-    "hub-standard-rev2": (88.0, 70.0),
+    "hub-standard-rev2": (86.0, 74.0),
     # Current and only BETA EPS source. Keep this explicit: falling through to the
     # generic 100x44 default silently routes a different placement problem.
     "eps-8pin-rev3": (96.0, 40.0),
@@ -291,7 +296,11 @@ BOARD_WH = {
     # J6 field 17.4 = 82.2mm > 70, every remaining assignment 0.03-0.6mm short
     # (probe series s0d..s0u). W74 clears the chain with 3.2mm spare. The
     # 12vhpwr 62x62->62x66 measured-capacity precedent applies.
-    "atx-24pin-rev3": (74.0, 55.0),
+    # DEAD-BUG STACK R3: 86mm is the measured balanced-mezz width floor.  H=95
+    # is the analytical cable-access floor: the Hub is offset -0.7mm so its
+    # 9.8/11.2mm exposed bands clear the 8.35/9.75mm connector reaches plus
+    # the 1.2mm planar guard.  This is not a placer-driven size increase.
+    "atx-24pin-rev3": (86.0, 95.0),
     # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
     # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
     # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
@@ -326,7 +335,7 @@ BOARD_PARAMS = {
     # hub) -- the MCU/fan seats stay dormant by their force_lanes gate; hub-specific
     # rungs (LED-ring centerpiece macro, WROOM seat) get added from wave-1 evidence.
     # Mezz segments are DNP but their LANDS place like any part; positions are the
-    # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, no-flip, 2026-07-22
+    # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, dead-bug flip,
     # segmented form -- J6P/J6C/J6D + the one provisioned M2).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
                           # RECALIBRATED 100 -> 150 (wall probe 2026-07-23):
@@ -361,9 +370,18 @@ BOARD_PARAMS = {
                                "evac": False}
                               for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
                                         "/PSU_5V_KVM",
-                                        "/MAIN_5V_RAW", "/USB_VBUS",
+                                        "/MAIN_5V_RAW",
                                         "/+5V_HOLD", "/VCC_P1", "/VCC_P2",
                                         "/VCC_P3", "/VCC_P4")],
+                          # Treat each power pour as a routed object. The old
+                          # same-layer fair-share slabs split +5VSB into nine
+                          # disconnected anchor islands on this compact board.
+                          # Over-under finds one continuous corridor and uses a
+                          # compact via field only when a real obstruction
+                          # requires a layer transition. USB_VBUS is intentionally
+                          # not a pour request: at 0.5A its 1.0mm Power-class
+                          # ordinary route is ample and avoids a pointless plane.
+                          "overunder": True,
                           # + the pickup stitch: SMD pads the route never
                           # reached get stub+via into the covering flood /
                           # GND plane at import (rung part 2 -- the floods
@@ -379,16 +397,32 @@ BOARD_PARAMS = {
                           # In2/B leg -> back down); measured on s120: 8
                           # closed, unconn 30->22, zero new DRC of any class.
                           "lastmile": True,
-                          # LED-chain daisy links measure 7-10mm (s140's top
-                          # strand, 4x DL6-DOUT items) -- just past the 5mm
-                          # default reach; GND is down to ONE 2.2mm gap.
+                          # LED-ring daisy links measure 7-10mm -- just past
+                          # the 5mm default reach; GND is down to one short gap.
                           "lastmile_max_mm": 8.0,
                           # In2 remains a real signal layer in the approved
                           # six-layer profile. The legacy flag stays enabled for
                           # compatibility with four-layer seed boards only.
                           "inner_power_routing": True,
-                          **mating_frame_pins(88.0, 70.0, MEZZ_HUB_24PIN,
+                          **mating_frame_pins(86.0, 74.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
+                          # The 16x17.5 mm hold-up capacitor is a mechanical
+                          # macro, not a jellybean. Its previously free early
+                          # seat changed when mezz anchors moved and could land
+                          # against J6D. Pin the multiseed-clean seat so the
+                          # hold-up current loop and mechanical clearance are
+                          # both deterministic.
+                          "anchor_pins": {
+                              **mating_frame_pins(
+                                  86.0, 74.0, MEZZ_HUB_24PIN,
+                                  "hub-standard-rev2")["anchor_pins"],
+                              "C1": (63.8, 42.0, 0.0),
+                              # Top-side debug access near the upper-right
+                              # edge; no second-side PCBA operation for two
+                              # buttons that are used only while disassembled.
+                              "SW_RESET": (75.0, 20.0, 0.0),
+                              "SW_BOOT": (75.0, 27.0, 0.0),
+                          },
                           "mount_holes": "corners", "connector_overhang": "edge",
                           "corner_radius": 2.5,   # owner 2026-07-15: rounded edges
                           # owner batch 2026-07-15: WROOM ON the edge, antenna OUT.
@@ -410,23 +444,31 @@ BOARD_PARAMS = {
                                            # never an edge (2026-07-22 segmented split)
                                            "J6P": "free", "J6C": "free",
                                            "J6D": "free"},
-                          # owner catch on wave-1 snapshots (2026-07-15): jacks were
-                          # seated on the RIGHT (the host-role default edge) -- the
-                          # 4-jack row belongs on the long TOP edge like the proto;
-                          # USB + KVM bottom, power feed right.
-                          "edge_override": {"J2": "top", "J3": "top", "J4": "top",
-                                            "J5": "top", "J_USB": "bottom",
+                          # Native Hub top view: four jacks face LEFT. Reflecting
+                          # the populated Hub to mate makes their mouths face RIGHT
+                          # with ATX IN at bottom and OUT at top. Four 18.5mm
+                          # courtyards require the 74mm edge.
+                          "edge_override": {"J2": "left", "J3": "left", "J4": "left",
+                                            "J5": "left", "J_USB": "bottom",
                                             "J_KVM": "bottom", "J_PWR": "right"},
-                          # centerpiece (owner: "the center logo and LEDs"): the ring
-                          # (DL1-5,DL7) as a RIGID group, offsets lifted verbatim from
-                          # the proto board's ring; scored to board center. DL6 is NOT
-                          # in the group = the free status LED. Logo = FRONT copper at
-                          # the seated ring's centroid (materialize logo_at=ring).
+                          # Centerpiece (owner: "the center logo and LEDs"): six LEDs
+                          # (DL1-5,DL7) plus their six dedicated 100nF bypass capacitors
+                          # form one rigid macro. Each capacitor is 2.95mm above its LED:
+                          # about 0.9mm clear of the internal Edge.Cuts aperture while
+                          # remaining close to the opposite-diagonal VDD/GND pads.
+                          # Logo = BACK copper, outward after the dead-bug flip.
                           "rigid_groups": [{"score": "center", "logo": True, "offsets": {
                               "DL1": (-0.08, -10.42, 0), "DL2": (7.42, -4.32, 0),
                               "DL3": (9.92, 5.68, 0), "DL4": (-0.08, 7.68, 0),
-                              "DL5": (-10.08, 5.68, 0), "DL7": (-7.08, -4.32, 0)}}],
+                              "DL5": (-10.08, 5.68, 0), "DL7": (-7.08, -4.32, 0),
+                              "C29": (-0.08, -7.47, 0), "C30": (7.42, -1.37, 0),
+                              "C31": (9.92, 8.63, 0), "C32": (-0.08, 10.63, 0),
+                              "C33": (-10.08, 8.63, 0), "C34": (-7.08, -1.37, 0)}}],
                           "logo_at": "ring",
+                          "logo_side": "back",
+                          "fixed_back_refs": (),
+                          "stack_gap_mm": mezz.STACK["board_gap_mm"],
+                          "stack_inward_height_mm": mezz.STACK["inward_component_height_mm"],
                           "logo_ring_refs": ("DL1", "DL2", "DL3", "DL4", "DL5", "DL7")},
     "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
                          "respect_antenna_keepout": False,
@@ -473,32 +515,31 @@ BOARD_PARAMS = {
     "atx-24pin-rev3": {
                        # MEZZANINE ALIGNMENT CONTRACT (owner 2026-07-20 "they
                        # need to be cross-coordinated"; SEGMENTED 2026-07-22):
-                       # the Hub stacks on the 24-pin CENTER-ALIGNED, NO-FLIP;
+                       # the Hub stacks on the 24-pin CENTER-ALIGNED and reflected;
                        # the shared frame = MEZZ_HUB_24PIN's three structural
                        # segments (v4: J6P/J6D right column, J6C top strip)
                        # + one provisioned M2. NOTE the frame math uses
-                       # the STATIC BOARD_WH (74x55); a runtime H-grow (e.g.
+                       # the STATIC BOARD_WH (86x95); a runtime H-grow (e.g.
                        # SHUNT_GAP -> 59) only biases the stack's centering
                        # over the 24-pin, never the mate (constant-translation
                        # invariant, test_mating_frame).
-                       **mating_frame_pins(74.0, 55.0, MEZZ_HUB_24PIN,
+                       **mating_frame_pins(86.0, 95.0, MEZZ_HUB_24PIN,
                                            "atx-24pin-rev3"),
-                       # U1 (ESP macro) HARD PIN (2026-07-23, seats-v4 verify):
-                       # under v4 the p3crit mcu-cluster + p8b ladder find NO
-                       # legal U1 seat ("free cells=0") and leave it overlapping
-                       # H1/cell parts -- yet the measured seg-era home
-                       # (66.0,41.4,rot-90; right column below J6P, above the TB
-                       # row) is STILL legal under v4 and was chosen IDENTICALLY
-                       # by all three strat families (placement diversity already
-                       # zero). Pin = the honest encoding of the measured
-                       # optimum, J2-precedent; unpin when the seat search learns
-                       # sub-cell windows (p5/p6 audit lever).
+                       # Only mechanical stack datums are pinned.  U1 remains a
+                       # movable macro so seed-era placer limits cannot inflate
+                       # the board-size floor.
                        "anchor_pins": {**mating_frame_pins(
-                           74.0, 55.0, MEZZ_HUB_24PIN,
-                           "atx-24pin-rev3")["anchor_pins"],
-                           "U1": (66.0, 41.4, -90)},
+                           86.0, 95.0, MEZZ_HUB_24PIN,
+                           "atx-24pin-rev3")["anchor_pins"]},
                        "corner_radius": 2.5,
                        "connector_overhang": "edge",
+                       # Assembly datum: 24-pin PSU input at the BOTTOM, output
+                       # blade field at the TOP.  J2 is the remaining Hub power
+                       # connector; obsolete RJ-45 J1 is retired at source.
+                       "anchor_roles": {"J3": "power_in", "J2": "power_out"},
+                       "edge_override": {**{f"TB{i}": "top" for i in range(1, 11)},
+                                         "J_SIG1": "top", "J3": "bottom",
+                                         "J2": "right"},
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
                        # physical antenna section just rides at an edge like any body extent.
                        "respect_antenna_keepout": False,
@@ -806,6 +847,28 @@ def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
     VALIDATED seat proposal dict (cec_wave_intents), applied instead of a named
     hand intent; its role_keepouts merge into params (the params-level lever)."""
     _p = _board_params(board)
+    # Size sweeps must move the complete mating datum with the candidate
+    # outline.  BOARD_PARAMS holds the nominal snapshot for consumers that do
+    # not pass W/H, but using those absolute pins here made smaller-board probes
+    # test stale connector coordinates instead of the requested geometry.
+    if board in MEZZ_HUB_24PIN["sides"]:
+        _mf = mating_frame_pins(W, H, MEZZ_HUB_24PIN, board)
+        _p["mount_pos_override"] = _mf["mount_pos_override"]
+        if "mount_fp_override" in _mf:
+            _p["mount_fp_override"] = _mf["mount_fp_override"]
+        _ap = dict(_p.get("anchor_pins") or {})
+        for _mr in ("J6P", "J6C", "J6D"):
+            _ap.pop(_mr, None)
+        _ap.update(_mf["anchor_pins"])
+        if board == "atx-24pin-rev3":
+            # The legacy absolute U1 pin was a small-frame placer workaround,
+            # not a mechanical datum. Let each sweep solve the MCU honestly.
+            _ap.pop("U1", None)
+        elif board == "hub-standard-rev2" and "C1" in _ap:
+            # C1 is a real 21x17mm mechanical macro. Keep its power-entry seat
+            # relative to the right edge/vertical center as width is swept.
+            _ap["C1"] = (W - 22.2, H / 2.0 + 5.0, 0.0)
+        _p["anchor_pins"] = _ap
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)
         _p["role_keepouts"] = dict(proposal["role_keepouts"])
@@ -1038,6 +1101,9 @@ RULES the wave enforces on every publish:
     schematic or footprint change is the worse reference;
   * otherwise it replaces this file only when the new winner BEATS the recorded
     `sort_key` (lower is better -- the same ranking the wave itself uses);
+  * a board satisfying the CURRENT segmented-mezzanine geometry replaces one
+    that violates it, independent of route score; an obsolete mechanical datum
+    is stale in the same way an obsolete component signature is stale;
   * a routed winner always beats a placement-only one, and a placement-only winner
     NEVER overwrites a routed reference;
   * exactly one `.kicad_pcb` lives here -- stale board files are pruned.
@@ -1164,6 +1230,28 @@ def _schematic_match(pcb_path, want_refs):
     return matches / float(len(want_refs))
 
 
+def _mezz_contract_status(pcb_path):
+    """True/False for a Hub/ATX segmented-mezz candidate, else None.
+
+    Candidate freshness used to cover only electrical inventory. That allowed
+    a mechanically obsolete stack seat to remain incumbent unless a new route
+    also happened to beat its score. Treat the shared physical datum as another
+    freshness axis; unrelated boards remain unaffected.
+    """
+    norm = os.path.normpath(str(pcb_path or "")).lower()
+    if not any(name in norm for name in ("atx-24pin-rev3", "hub-standard-rev2")):
+        return None
+    try:
+        import pcbnew
+        import cec_constraints
+        pcb = pcbnew.LoadBoard(str(pcb_path))
+        ok, _detail = cec_constraints._chk_mezzanine_segment_contract(
+            pcb, str(pcb_path), {})
+        return bool(ok) if ok is not None else None
+    except Exception:                                  # noqa: BLE001 -- fail closed
+        return False
+
+
 def refresh_candidate_metadata(board):
     """Recompute a committed candidate's freshness against TODAY's schematic.
 
@@ -1193,6 +1281,7 @@ def refresh_candidate_metadata(board):
         "schematic_status": ("exact" if exact else
                              "stale" if match is not None else "unknown"),
         "freshness_checked": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "mezzanine_contract_ok": _mezz_contract_status(pcb_path),
     })
     tmp_path = meta_path + ".tmp"
     with open(tmp_path, "w") as fh:
@@ -1245,6 +1334,8 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
         want = _netlist_refs(board)
         fresh_now = _schematic_match(published_pcb, want)
         fresh_prev = _schematic_match(dst_pcb, want) if os.path.isfile(dst_pcb) else None
+        mech_now = _mezz_contract_status(published_pcb)
+        mech_prev = _mezz_contract_status(dst_pcb) if os.path.isfile(dst_pcb) else None
         fresher = staler = False
         if fresh_now is not None and fresh_prev is not None:
             fresher = fresh_now > fresh_prev + 1e-9
@@ -1260,6 +1351,12 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
                   f"{fresh_now:.0%} of the current schematic vs the reference's "
                   f"{fresh_prev:.0%} -- a staler board never replaces a fresher one)",
                   flush=True)
+            return None
+        elif mech_now is True and mech_prev is False:
+            why = "matches the current segmented-mezzanine mechanical datum"
+        elif mech_now is False and mech_prev is True:
+            print(f"[wave] {board} candidate: kept (winner violates the current "
+                  f"segmented-mezzanine mechanical datum)", flush=True)
             return None
         elif routed_now and not prev_routed:
             why = "routed beats placement-only"
@@ -1306,6 +1403,7 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
                                  "stale" if fresh_now is not None else "unknown"),
             "freshness_checked": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "schematic_parts": (len(want) if want else None),
+            "mezzanine_contract_ok": mech_now,
             "grade": {k: best.get(k) for k in
                       ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
                        "unconn_critical", "foreign", "thermal_ok", "rails")},

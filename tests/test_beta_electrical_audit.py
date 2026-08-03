@@ -415,13 +415,13 @@ class TestBetaElectricalAudit(unittest.TestCase):
         findings = audit.check_pour_current_contract()
         conflicts = [f for f in findings
                      if f["code"] == "POUR_CURRENT_MODEL_CONFLICT"]
-        self.assertTrue(any(f["board"] == "atx-24pin-rev3" and
-                            "+5VSB" in f["message"] for f in conflicts))
-        # The reviewed Hub model is now deliberately reconciled: 2.5 A on
-        # mutually-exclusive shared-bus stages and 0.5 A on the held logic
-        # reservoir.  Keep the ATX assertion above as a live negative fixture,
-        # but a Hub conflict here would be a regression.
-        self.assertFalse(any(f["board"] == "hub-standard-rev2"
+        # The reviewed ATX and Hub maps are now deliberately reconciled. Hub
+        # uses 2.5 A on mutually-exclusive shared-bus stages and the reviewed
+        # logic-rail source limit on the held reservoir; ATX uses its ratified
+        # rail table. Reintroducing a second active source must become a live
+        # blocker again.
+        self.assertFalse(any(f["board"] in {"atx-24pin-rev3",
+                                             "hub-standard-rev2"}
                              for f in conflicts))
 
 

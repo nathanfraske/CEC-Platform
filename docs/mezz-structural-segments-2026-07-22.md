@@ -1,9 +1,20 @@
 # Mezzanine mounting rework — structural connector segments (owner riff, 2026-07-22)
 
-> Status update, 2026-08-01: the segmented J6P/J6C/J6D scheme is selected with
-> one fitted, conductive M2 ground-lug fastener at H1. The optional and DNP-able
-> wording below is historical. The controlling decision is
-> `docs/decisions/owner-session-2026-08-01.md`.
+> **Current status, 2026-08-03:** J6P/J6C/J6D remain selected, but the physical
+> assembly is now the reflected dead-bug stack. ATX F.Cu faces Hub F.Cu; Hub
+> B.Cu is outward. The fitted conductive lug is M2.5, not M2, and uses an 18 mm
+> Harwin `R25-1001802` standoff. ATX uses Samtec `TSW-10x-17-G-D` long-post
+> headers; Hub uses `SSQ-10x-03-G-D` sockets. The 18 mm gap leaves 4 mm nominal
+> clearance over the approximately 14 mm inward RJ-45 body. Native Hub top view
+> has four RJ-45 mouths left; after reflection they face assembly-right. ATX J3
+> input is bottom, the output field is top, and obsolete direct RJ-45 J1 is
+> removed. The J6C/H1 support row is at shared y=-25 mm: a real force-rail probe
+> moved it 5 mm inward from the earlier jointly legal seat because a J6C GND
+> barrel occupied the ATX 3V3 sink band. Both stack members remain placement-
+> clean and ATX lays all four forced rails. `scripts/cec_mezz_contract.py` and
+> `MEZZ_HUB_24PIN` are the executable
+> physical source of truth. The option study and no-flip/M2 prose below is
+> retained as historical rationale only.
 
 _Owner asks (2026-07-22): (a) "lower the mounts to M2s… place them in the 4 corners… 4 mirrored
 on the 24-pin"; (b) "better idea… more compact stability that doesn't involve 4 massive screw
@@ -103,11 +114,13 @@ a respin).
 4. Owner bench: the R1 peel/shake gate on the first mated sample (parts orderable same-day —
    generic 2.54 machined-pin strips).
 
-## Appendix A — EXACT implementation contract (owner GO 2026-07-22; both boards IDENTICAL)
+## Appendix A — electrical pin contract (identical roles; side-specific hardware)
 
-Symbols (in `lib/cec.kicad_sym`, pre-staged): `cec:CEC_CONN_2x3` (J6P), `cec:CEC_CONN_2x4`
-(J6C), `cec:CEC_CONN_2x2` (J6D). Footprints (vendored from pinned KiCad-10 stock):
-`cec-Connector_PinHeader_2.54mm:PinHeader_2x0{3,4,2}_P2.54mm_Vertical`.
+Symbols: `cec:CEC_CONN_2x3` (J6P), `cec:CEC_CONN_2x4` (J6C), and
+`cec:CEC_CONN_2x2` (J6D). The ATX side uses vendored 2.54 mm pin-header lands
+for `TSW-10x-17-G-D`; the Hub side uses vendored 2.54 mm socket lands for
+`SSQ-10x-03-G-D`. Pad numbering is identical, so the electrical table below is
+conjugate after the physical reflection.
 
 Roles derive from the stack-doc 16-pin role table (pins 1,2,3 = the +5V role;
 4,7,10,12,14,15,16 = GND; 5=CAN_H; 6=CAN_L; 8=STREAM_P; 9=STREAM_N; 11=DETECT;

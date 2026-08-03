@@ -1,10 +1,10 @@
 {
  "board": "hub-standard-rev2",
- "commit": "3956a248",
- "freshness_checked": "2026-08-02T23:30:04",
+ "commit": "d838d8f",
+ "freshness_checked": "2026-08-03T18:36:18",
  "grade": {
   "diffpair_ok": true,
-  "drc": 5,
+  "drc": 90,
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -15,49 +15,56 @@
   "kelvin_ok": true,
   "rails": null,
   "thermal_ok": false,
-  "unconn_critical": [],
-  "unconnected": 16
+  "unconn_critical": [
+   "GND"
+  ],
+  "unconnected": 38
  },
- "label": "plain-compact-s3000",
- "reason": "sort_key [1, 0, 0, 0, 16, 5, 1000000.0] < [1, 0, 1, 0, 32, 10, 1000000.0]",
+ "label": "plain-compact-s0-polish",
+ "mezzanine_contract_ok": true,
+ "reason": "matches more of the current schematic (100% vs 96% of 119 parts)",
  "routed": true,
  "schema": 1,
  "schematic_exact": false,
- "schematic_match": 0.8455,
- "schematic_parts": 123,
+ "schematic_match": 0.9917,
+ "schematic_parts": 120,
  "schematic_status": "stale",
  "sort_key": [
   1,
   0,
+  1,
   0,
-  0,
-  16,
-  5,
+  38,
+  90,
   1000000.0
  ],
- "source": "build/fresh-wave-hub/hub-standard-rev2/20260727T1554-plain-compact-s3000.kicad_pcb",
+ "source": "../../../../tmp/cec-fresh-publish-20260803-r4/hub-standard-rev2/20260803T1800-plain-compact-s0-polish.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
   "backend": "auto",
   "cooling": "still-air (no case)",
-  "dT": 7.25,
-  "error": "INJECTION INCOMPLETE: 7/11 configured net(s) injected no current (+5VSB, /PSU_5V, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "dT": 21.04,
+  "error": "INJECTION INCOMPLETE: 9/12 configured net(s) injected no current (/+5V_HOLD, /5VSB_RAW, /PSU_5V, /PSU_5V_KVM, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4). Requested nets that are absent or electrically open exclude their Joule heat from dT, so a pass would be vacuous. Remove a genuinely inapplicable net from the board-specific scenario, or close the rail circuit.",
   "gate_dt": 30.0,
   "grid_mm": 0.4,
-  "max_T": 57.25,
+  "max_T": 71.04,
+  "nets_absent": [
+   "/+5V_HOLD",
+   "/PSU_5V",
+   "/PSU_5V_KVM",
+   "/VCC_P1",
+   "/VCC_P2",
+   "/VCC_P3",
+   "/VCC_P4"
+  ],
   "nets_dropped": {
-   "+5VSB": "no src/sink terminals on copper",
-   "/PSU_5V": "no src/sink terminals on copper",
-   "/USB_VBUS": "src/sink on disconnected copper islands (open circuit -- no current injected)",
-   "/VCC_P1": "no src/sink terminals on copper",
-   "/VCC_P2": "no src/sink terminals on copper",
-   "/VCC_P3": "no src/sink terminals on copper",
-   "/VCC_P4": "no src/sink terminals on copper"
+   "/5VSB_RAW": "src/sink on disconnected copper islands (open circuit -- no current injected)",
+   "/USB_VBUS": "src/sink on disconnected copper islands (open circuit -- no current injected)"
   },
-  "nets_injected": 4,
-  "nets_requested": 11,
+  "nets_injected": 3,
+  "nets_requested": 12,
   "ok": false
  },
- "updated": "2026-07-27T15:55:45",
- "wave_out_root": "build/fresh-wave-hub"
+ "updated": "2026-08-03T18:01:14",
+ "wave_out_root": "../../../../tmp/cec-fresh-publish-20260803-r4"
 }

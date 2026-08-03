@@ -559,6 +559,24 @@ def _foreign_clear(board, shape, layer_id, foreign_codes, clr_nm):
     return None
 
 
+def _unique_board_netname(requested, actual_names):
+    """Resolve a blueprint net against KiCad's hierarchical destination names.
+
+    Exact names always win.  A short authored name such as ``/DETAMP12V`` may
+    otherwise bind to one, and only one, sheet-qualified destination such as
+    ``/FOUR-RAIL PRECISION + FAST SENSING/DETAMP12V``.  Ambiguous basenames are
+    deliberately unresolved: guessing a copper net is never an acceptable
+    placement convenience.
+    """
+    names = tuple(actual_names)
+    if requested in names:
+        return requested
+    basename = str(requested).rstrip("/").rsplit("/", 1)[-1]
+    matches = [name for name in names
+               if str(name).rstrip("/").rsplit("/", 1)[-1] == basename]
+    return matches[0] if len(matches) == 1 else None
+
+
 def _lay_locked_copper(board, copper, *, clearance_mm=None):
     """Lay `copper` ({"tracks":[...], "vias":[...]}) onto `board` as LOCKED segments, GUARDED
     as a WHOLE CELL: resolve every net, build the pcbnew objects in memory, test EACH against
@@ -583,12 +601,20 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
         except Exception:                           # noqa: BLE001
             clr_nm = _nm(0.2)
 
-    # resolve nets; a net missing on the destination board = a HARD refuse (named).
+    # Resolve nets; hierarchy prefixes are board-instance details, so an
+    # exact-miss may use a UNIQUE basename match.  Zero/multiple matches are a
+    # HARD refuse.  This keeps reusable cell templates hierarchy-agnostic while
+    # still failing closed if two sheets expose the same local name.
+    _net_items = tuple(board.GetNetInfo().NetsByNetcode().values())
+    _name_to_code = {item.GetNetname(): item.GetNetCode() for item in _net_items}
+    _resolved_name = {}
+
     def netcode(name):
-        try:
-            return board.GetNetcodeFromNetname(name)
-        except (IndexError, KeyError):            # KiCad-10 SWIG map RAISES on a
-            return -1                             # missing key instead of returning -1
+        actual = _unique_board_netname(name, _name_to_code)
+        if actual is None:
+            return -1
+        _resolved_name[name] = actual
+        return _name_to_code[actual]
 
     cell_codes = set()
     resolved_tracks, resolved_vias = [], []
@@ -684,7 +710,8 @@ def _lay_locked_copper(board, copper, *, clearance_mm=None):
             vv.SetLayerPair(top, bot); vv.SetNetCode(nc); vv.SetLocked(True)
             board.Add(vv)
             report["laid_vias"] += 1
-    report["nets"] = sorted({tr["net"] for tr in tracks} | {v["net"] for v in vias})
+    report["nets"] = sorted({_resolved_name.get(tr["net"], tr["net"]) for tr in tracks}
+                            | {_resolved_name.get(v["net"], v["net"]) for v in vias})
     return report
 
 

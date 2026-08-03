@@ -154,10 +154,10 @@ def board_thermal_config(board_path, board_hint=None):
         # stops running configless. Rail currents = the owner connector bars
         # (spec §6.4-adjacent, the force-rails RAIL_AMPS table).
         nc = {"/SENSE12V_HI": 12.0, "/SENSE12V_LO": 12.0,
-              "/SENSE5V_HI": 25.0, "+5V_MAIN": 25.0,
+              "/SENSE5V_HI": 20.0, "+5V_MAIN": 20.0,
               "/SENSE3V3_HI": 20.0, "/SENSE3V3_LO": 20.0,
-              "+5VSB": 5.0, "/SENSE5VSB_LO": 5.0,
-              "GND": 62.0}
+              "+5VSB": 3.0, "/SENSE5VSB_LO": 3.0,
+              "GND": 55.0}
         ov = {}
         # Sink = the WHOLE TB blade row, not TB1 (2026-07-22, found by the injection
         # accounting): the wave's straight-through pass chooses the TB net order PER

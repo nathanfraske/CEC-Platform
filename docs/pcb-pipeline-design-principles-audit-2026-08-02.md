@@ -1,14 +1,14 @@
-# PCB pipeline design-principles audit — 2026-08-02
+# PCB pipeline design-principles audit — revised 2026-08-03
 
 ## Scope and release meaning
 
 This is an independent audit of the automated placement, routing, copper, and
 fabrication pipeline. It does not assume that the existing design notes or
-checked-in candidates are correct. The audited current BETA inputs are:
-
-- `beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch`
-- `beta/hub-standard-rev2/hub-standard-rev2.kicad_sch`
-- `beta/eps-8pin-rev3/eps-8pin-rev3.kicad_sch`
+checked-in candidates are correct. The audited current BETA inputs are exactly
+the ten entries in `scripts/cec_beta_manifest.py`: 12VHPWR, ARGB, ATX rev3,
+EPS rev3, Hub rev2, both PCIe products, and the three output daughterboards.
+Discovery is manifest-only; archived or recursively discovered board folders
+cannot enter the current audit.
 
 `eps-8pin` is an older board and is not the EPS product under review. There is
 one EPS product; `eps-8pin-rev3` is its current BETA implementation. Board
@@ -84,7 +84,9 @@ repository's electrothermal solver and first-article temperature tests.
 | Pair topology | Differential checking stopped at router/DRC success. It did not prove skew, common layer, transitions, or return reference. | A ratified hard physical-integrity gate checks USB and CAN leg discovery, skew, same layer set, equal and bounded via count, adjacency to a GND plane, sampled filled-GND coverage, sampled pair coupling, and nearby GND return vias at signal layer transitions. |
 | Placement | Generic proximity rules did not prove the new power topology. | The pipeline has explicit one-owner bypass assignment, device-specific value qualification, a hard TLV62569 switch-cell distance rule, and one-per-pin TPS2121 bypass coverage. Global connector-facing and rework orientation remain partial as listed below. |
 | Copper weight/DFM | Fabrication audit applied the high-current 2 oz value to the 1 oz Hub. | Copper weight now resolves from the board's current selected profile. Plated-hole aspect scanning was added to fabrication audit. |
-| Current ownership | Hub thermal and synthesis maps described different currents, and the held logic rail could be mistaken for the 2.5 A port bus. | Shared mutually-exclusive mux stages and GND use 2.5 A; each protected port, USB VBUS, and `+5V_HOLD` use 0.5 A. The hold reservoir actually feeds the reviewed 215.386 mA worst-case-with-margin logic rail, not the port bus. Conflicting active current sources block instead of choosing one silently. |
+| Current ownership | Hub thermal and synthesis maps described different currents, and the held logic rail could be mistaken for the 2.5 A port bus. | Shared mutually-exclusive mux stages and GND use 2.5 A; each protected port and USB VBUS use 0.5 A. The hold reservoir actually feeds the reviewed 195.654 mA worst-case-with-margin logic rail, not the port bus. Conflicting active current sources block instead of choosing one silently. |
+| Internal cutouts | The reverse-LED footprint's courtyard modeled the body but not the fabrication clearance around its shine-through aperture; an unrelated current-limit resistor legally entered the cutout margin. | The footprint now encodes the 0.8 mm aperture margin in F.CrtYd. Six LED bypass capacitors form one rigid macro at 2.95 mm offset. Fresh Hub placement has zero pad, courtyard, and courtyard-to-edge/cutout violations. |
+| Rigid blind-mate rows | Static pinning of J_SIG1 was overwritten by the intentional daughterboard row alignment, while moving only the stub would break the mating pitch. | TB1..TB10 and J_SIG1 are solved as one rigid row against fixed component and force-rail boxes. The current ATX uses a 0.52 mm whole-row translation and retains every pitch/order relationship. |
 
 ## Width and via acceptance chain
 
@@ -136,8 +138,9 @@ explicit human review:
   checker exists;
 - selected footprints are not yet mechanically compared pin-by-pin with every
   manufacturer land-pattern drawing and 3D body envelope;
-- courtyard checking is incomplete and some placement oracles remain advisory
-  where current footprints generate false positives;
+- courtyard checking is still footprint-quality-dependent. The current reverse
+  LED and mezzanine footprints carry measured body/cutout extents, but the
+  pipeline cannot infer a missing manufacturer courtyard from a generic land;
 - solder-mask web, paste-reduction/windowing, stencil aperture separation,
   fiducials, tooling rails, panel/depanel stress, V-score/tab placement,
   castellations, and edge plating are not complete hard release gates;
@@ -149,26 +152,33 @@ explicit human review:
 
 ## Current electrical release state
 
-The updated electrical audit reports:
+The 2026-08-03 manifest-only audit reports 21 blockers, 19 warnings and 28
+information findings across ten projects:
 
-- 12VHPWR current BETA: 0 blockers, 3 warnings, 7 information findings. The
-  regulator load is 233.591 mA including 20% margin versus the TLV75533's
-  conservative 500 mA limit (53.3% remaining).
-- Hub current BETA: 3 blockers, 4 warnings, 11 information findings. The only
-  electrical blockers are the unresolved orderable J6P/J6C/J6D mating parts and
-  stack height. The 3.3 V load is 215.386 mA including 20% margin versus the
-  selected inductor's conservative 1.760 A thermal rating (87.8% remaining).
-- EPS current BETA (`eps-8pin-rev3`): 3 blockers, 2 warnings, 1 information
-  finding. It still has the superseded direct Schottky USB ingress, an
-  unvalidated LP5907 capacitor network, and no reviewed 3.3 V worst-case load
-  budget. These findings belong to the one current EPS and are not cleared by
-  the older `eps-8pin` directory.
+- ATX rev3 and Hub rev2 have no electrical blockers. ATX requires 204.838 mA
+  including 20% margin from the 500 mA TLV75533 (59.0% remaining). Hub requires
+  195.654 mA from the 1.76 A conservative buck/inductor limit (88.9% remaining).
+  The exact Samtec segmented mezzanine roles match. Hub retains four warnings:
+  the OQ-56 bench proof and three 5.66..6.37 V TPS2121 OVP windows.
+- 12VHPWR has one blocker: its 47k/10k TPS2121 OV1 divider can trip as high as
+  6.374 V ahead of a 6.0 V-absolute-maximum regulator. Its reviewed TLV75533
+  load is 212.327 mA (57.5% remaining).
+- EPS rev3 has three blockers: the legacy Schottky USB OR path, an unapproved
+  LP5907 capacitor network, and no reviewed 3.3 V load budget. This is the one
+  EPS product; `eps-8pin` is not a variant or current input.
+- ARGB has nine blockers: its U6 bypass, LP5907 network/load budget, unresolved
+  SATA connector/footprint, and unproven NTC/PPTC/PMOS 7 A margins.
+- Each PCIe board has four blockers: LP5907 capacitor/load qualification,
+  TPS2121 OV1 margin, and a missing U4 IN1 local bypass. Two exact passive
+  selections per board also remain warnings.
+- The three output daughterboards have no electrical-audit findings, but still
+  require mating/load/first-article proof.
 
 The Hub hold-up topology watches the final selected `+5VSB` ahead of the
 reservoir diode. Nominal trip is 4.355 V (bounded 4.060–4.663 V), retaining at
 least 60 mV before the reviewed buck regulation floor. The conservative sudden
-loss calculation gives 11.96 ms against a 10 ms trigger-to-durable-commit
-budget, leaving 1.96 ms. This is a paper bound; OQ-56 bench validation remains
+loss calculation gives 13.167 ms against a 10 ms trigger-to-durable-commit
+budget, leaving 3.167 ms. This is a paper bound; OQ-56 bench validation remains
 open for source decay, capacitor ESR/aging/temperature, load shedding, and
 actual durable-write latency.
 
@@ -176,8 +186,8 @@ actual durable-write latency.
 
 - Changed-script byte compilation: pass.
 - Focused electrical, hold-up, six-layer, route-fail-closed, candidate,
-  netclass, laid-pour, SPICE, and thermal-source regression group: 210 passed,
-  5 subtests passed.
+  netclass, laid-pour, SPICE, and thermal-source regression group: 241 passed,
+  5 skipped for unavailable/fixture-gated route cases.
 - Added adversarial fixtures cover exact profile stackup selection, per-board
   copper weight, aggregate release FAIL/ERROR behavior, a clean USB pair with
   ground/coupling, asymmetric pair vias with a missing return via, SES
@@ -187,15 +197,18 @@ actual durable-write latency.
 
 The post-repair pipeline was exercised against the current manifest inputs, not
 the archived EPS line or a stale dashboard entry.  These are diagnostic outputs;
-neither candidate is releasable:
+none of these artifacts is releasable:
 
 | Candidate | Via construction | Width result | Pair/return-path result | DRC / connectivity | Verdict |
 |---|---|---|---|---|---|
+| Hub rev2 R4/R7, 86x74 | Partial route has no sub-profile via land/drill, annular, type, or 8:1 aspect finding; placement R7 is 0 residual with buttons on F.Cu and six aperture-qualified LED bypass macros | Partial returned geometry has no sub-profile width finding, but that does not clear 38 missing connections | CAN skew is 5.0 mm against the 4.0 mm gate; thermal injection is incomplete on 9/12 requested rails | route polish leaves 90 structural DRC and 38 unconnected; independent fab pass has 34 DRC, 13 acid-trap candidates, zero slivers/islands | BLOCKED; clean placement is visual evidence only |
+| ATX rev3 R4, 86x95 | All four forced rails lay with profile widths/via arrays; existing locked copper has no sub-profile via/aspect finding | Existing locked copper has no sub-profile width finding; freerouting returned no completed signal route | No routed pair/return result exists because routing plateau-killed | all twelve placement variants were residual 0, but the route plateau-killed at 218/186 and the placement artifact has 310 unconnected | BLOCKED; placement/rail proof only |
 | 12VHPWR `20260802T2350-plain-compact-s0` | PASS: 104/104 routed vias are plated through-board and meet the selected profile's drill, annular-land, and 8:1 aspect rules | FAIL: 293 current-model segments are undersized; representative SENSEP lanes use 0.25-1.40 mm where the current model requires 2.239 mm outside a qualifying same-net fill | FAIL: lane-pair skew is 15.51 mm with only 29.7% coupled coverage; USB naming also prevents automatic P/N recognition | 30 structural DRC findings and 102 unconnected items in the wave gate | BLOCKED |
 | EPS rev3 `20260802T2351-periph-right-dataflow-s1-polish` | PASS: 84/84 routed vias are plated through-board and profile-dimensional | FAIL: 177 current-model segments are undersized | FAIL: USB skew 5.81 mm and 33.0% coupled coverage; CAN skew 5.34 mm, 91.5% adjacent filled-GND coverage, and 20.3% coupled coverage | 4 structural DRC findings, 27 unconnected items, and 5 acid-trap candidates in the independent fab pass | BLOCKED |
 
-Both candidates also fail the device-specific decoupler-owner gate, via-in-pad
-qualification, and visible silkscreen review.  Their 3D renders show overlapping
+The 12VHPWR and EPS route artifacts also fail the device-specific
+decoupler-owner gate, via-in-pad qualification, and visible silkscreen review.
+Their 3D renders show overlapping
 references and values; the current silk metric is only a soft score and does not
 prove label legibility or a universal readable orientation.  This remains an
 explicit automation gap: a future board is not accepted from a visually crowded
@@ -206,8 +219,9 @@ The dashboard was repaired to read the authoritative ten-project BETA manifest
 not installed or accessible.  Native fallback avoids a duplicate routing image
 on clean WSL installations while preserving the same panel and gate contract.
 
-Fresh route and dashboard evidence are recorded separately in the final-review
-build output. A refusal or failed ratified constraint is evidence that the
+Fresh route evidence is recorded in the wave reports, while the current
+placement renders are in `output/review/` and the dashboard's local analyzed
+archive. A refusal or failed ratified constraint is evidence that the
 pipeline worked; it is not replaced with a stale candidate for presentation.
 
 ## Release conclusion

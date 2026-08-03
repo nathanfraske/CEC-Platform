@@ -1,0 +1,3 @@
+Designator,Quantity,Description,Manufacturer,MPN,LCSC,Datasheet,Notes
+H1-STACK,1,"18mm female-female brass standoff, M2.5, 5mm A/F",Harwin,R25-1001802,,https://www.harwin.com/products/R25-1001802,"Conductive inter-board GND lug; sets 18mm board gap and 4mm nominal margin over 14mm RJ-45 body"
+H1-SCREW,2,"M2.5x6mm stainless pan-head machine screw",Multicomp Pro,MP006553,,https://cpc.farnell.com/multicomp-pro/mp006553/screw-pan-head-pozidriv-m25-6mm/dp/FN05312,"One screw from each outward board face into H1-STACK; preserve metal-to-exposed-copper contact"

@@ -11,7 +11,7 @@
 # IDENTICAL per-pin lanes (fixed v7 geometry), the 24-pin carries FOUR
 # heterogeneous RAILS (12V / 5V / 3V3 / 5VSB), each J3 pin-group -> straddle
 # shunt -> TB blade tab(s), with per-rail currents (the owner connector bars:
-# 5V 25A / 3V3 20A / 12V 12A / 5VSB 5A) and per-rail FACE (the placer's
+# 5V 20A / 3V3 20A / 12V 12A / 5VSB 3A) and per-rail FACE (the placer's
 # alternating-F/B rail chains). GND is NOT a rail here: the plane + stitching
 # own it.
 #
@@ -38,7 +38,7 @@ import cec_fab_profile as cec_fab
 
 MM = 1e6
 
-RAIL_AMPS = (("5VSB", 5.0), ("3V3", 20.0), ("12V", 12.0), ("5V", 25.0))
+RAIL_AMPS = (("5VSB", 3.0), ("3V3", 20.0), ("12V", 12.0), ("5V", 20.0))
 
 
 def _amps_for(nets):
@@ -85,7 +85,7 @@ def plan_bands(items, j3_bot, *, y0_off=2.5):
     return {k: ys[ri] for k, ri in assign.items()}, (y - j3_bot)
 
 
-def plan_rail_chains(rails, j3_bot, *, alt=False):
+def _plan_rail_chains_forward(rails, j3_bot, *, alt=False):
     """The IDEAL per-rail CHAIN segments -- pure data, THE one geometry source
     (pour-strategy refinement §2.1/§2.4 + §2.3 layer crossing, owner GO
     2026-07-19): the lay commits these (guards adapt), the placement keepouts
@@ -243,6 +243,95 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
                          "snk_desc": (lx, lyy, band2, w),
                          "snk_band": (min(txs), max(txs), band2, w)}
     return out
+
+
+def plan_rail_chains(rails, j3_bot, *, alt=False):
+    """Plan rail chains for either vertical connector ordering.
+
+    The original compiler is expressed in a source-at-top coordinate frame.
+    Rev3's assembly datum puts J3 at the bottom and the TB outputs at the top.
+    Reflecting Y before and after the proven compiler preserves every width,
+    layer, via-array, and collision invariant without maintaining a second
+    geometry implementation.
+    """
+    j3_ys = [q[2] for rl in rails for q in rl.get("j3", ())]
+    tb_ys = [q[3] for rl in rails for q in rl.get("tb", ())]
+    reverse = bool(j3_ys and tb_ys
+                   and (sum(j3_ys) / len(j3_ys) > sum(tb_ys) / len(tb_ys)))
+    if not reverse:
+        return _plan_rail_chains_forward(rails, j3_bot, alt=alt)
+
+    def _ry(rl):
+        q = dict(rl)
+        q["hi"] = (rl["hi"][0], -rl["hi"][1])
+        q["lo"] = (rl["lo"][0], -rl["lo"][1])
+        q["j3"] = [tuple(list(p[:2]) + [-p[2]] + list(p[3:]))
+                   for p in rl.get("j3", ())]
+        q["tb"] = [tuple(list(p[:3]) + [-p[3]] + list(p[4:]))
+                  for p in rl.get("tb", ())]
+        return q
+
+    rrails = [_ry(rl) for rl in rails]
+    rj3_edge = max((q[2] for rl in rrails for q in rl.get("j3", ())),
+                   default=-j3_bot)
+    raw = _plan_rail_chains_forward(rrails, rj3_edge, alt=alt)
+
+    def _seg(s):
+        x1, y1, x2, y2, w, tag = s
+        return (x1, -y1, x2, -y2, w, tag)
+
+    out = {}
+    for rs, ch in raw.items():
+        q = dict(ch)
+        q["band_y"] = -ch["band_y"]
+        q["src"] = [_seg(s) for s in ch["src"]]
+        q["snk"] = [_seg(s) for s in ch["snk"]]
+        q["pin_drops"] = [(x1, -y1, x2, -y2, w, net, tag)
+                          for x1, y1, x2, y2, w, net, tag
+                          in ch["pin_drops"]]
+        q["arrays"] = [(x, -y, n, net) for x, y, n, net in ch["arrays"]]
+        x, y0, y1, w = ch["snk_desc"]
+        q["snk_desc"] = (x, -y0, -y1, w)
+        x0, x1, y, w = ch["snk_band"]
+        q["snk_band"] = (x0, x1, -y, w)
+        out[rs] = q
+    return out
+
+
+def rail_placement_boxes(rails, j3_bot, *, alt=False, include_inner=False):
+    """Return the component-free XY envelopes required by the emitted rail plan.
+
+    This is the shared placement/mechanical-probe view of ``plan_rail_chains``.
+    By default it reserves only face copper, every through-via array site, and
+    the sink retry corridors; inner-layer runs may pass below SMD parts.
+    ``include_inner=True`` reserves every copper layer for THT mechanical
+    probes because connector barrels pierce the inner power layers.
+    Each result is ``(x0, x1, y0, y1)`` in board coordinates.
+    """
+    boxes = []
+    for ch in plan_rail_chains(rails, j3_bot, alt=alt).values():
+        half = ch["w"] / 2.0 + 0.75
+        for x1, y1, x2, y2, _sw, tag in list(ch["src"]) + list(ch["snk"]):
+            if tag != "face" and not include_inner:
+                continue
+            boxes.append((min(x1, x2) - half, max(x1, x2) + half,
+                          min(y1, y2) - half, max(y1, y2) + half))
+        for ax, ay, _n_v, _net in ch.get("arrays", ()):
+            # The via placer may select sites at +/-2.6 mm; include barrel and
+            # clearance so the placement model covers every candidate site.
+            ah = 2.6 + 0.45 + 0.45
+            boxes.append((ax - ah, ax + ah, ay - ah, ay + ah))
+        sd = ch.get("snk_desc")
+        if sd:
+            x, y0, y1, w = sd
+            h = w / 2.0 + 0.75
+            boxes.append((x - h, x + h, min(y0, y1), max(y0, y1)))
+        sb = ch.get("snk_band")
+        if sb:
+            x0, x1, y, w = sb
+            h = w / 2.0 + 0.75
+            boxes.append((x0 - h, x1 + h, y - h, y + h))
+    return boxes
 
 
 def _seg_pt_d2(x, y, sx, sy, ex, ey):

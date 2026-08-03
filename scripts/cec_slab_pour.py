@@ -2112,7 +2112,18 @@ if __name__ == "__main__":
     b = pcbnew.LoadBoard(a.board)
     asks = [{"net": n, "layers": tuple(a.layers.split(","))}
             for n in a.nets.split(",") if n]
-    pours, rep = synthesize_slab_pours(b, asks)
+    try:
+        pours, rep = synthesize_slab_pours(b, asks)
+    except SlabAllocationError as exc:
+        # A fail-closed CLI that prints only the net/layer list forces manual
+        # instrumentation precisely when the placer/pour contract needs repair.
+        # Preserve the non-zero exit while surfacing the invariant evidence.
+        print(json.dumps({
+            "pours": 0,
+            "failures": [f"{net}|{layer}" for net, layer in exc.failures],
+            "report": {f"{k[0]}|{k[1]}": v for k, v in exc.report.items()},
+        }, indent=1, default=str))
+        raise SystemExit(1)
     print(json.dumps({"pours": len(pours),
                       "report": {f"{k[0]}|{k[1]}": v for k, v in rep.items()}},
                      indent=1, default=str))

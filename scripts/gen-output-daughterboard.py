@@ -117,7 +117,7 @@ FAMILIES["atx24-out-db"] = dict(
     tabs=ATX24_TABS,
     header=dict(ref="J20", symbol=("cec", "CEC_CONN_1x4"),
                 fp="cec-Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Horizontal_LongPin",
-                net=ATX24_HEADER_NET, value="SIGNAL STUB (1x4 blind-mate)"),
+                net=ATX24_HEADER_NET, value="TSW-104-12-G-S-RA"),
     W=140.0, H=75.0,
 )
 
@@ -170,7 +170,10 @@ FAMILIES["pcie-out-db"] = dict(
 
 
 def _board_dir(fam):
-    return f"{ROOT}/modules/{FAMILIES[fam]['dirn']}"
+    # The current production line lives under beta/output-daughterboards.
+    # Writing to modules/ silently created a second, untracked tree and left
+    # the actual BETA board stale, defeating the generator's own contract.
+    return f"{ROOT}/beta/{FAMILIES[fam]['dirn']}"
 
 
 def _bootstrap_sch(path):
@@ -249,15 +252,14 @@ FIELD_PROPS = {
                    "and none is placed here.",
 }
 HEADER_PROPS = {
-    "Manufacturer": "generic", "LCSC": "",
-    "Description": "1x4 2.54mm RIGHT-ANGLE Dupont-class pin header, LONG "
-                   "mating tails (10-15mm class) -- blind-mate signal stub, "
+    "Manufacturer": "Samtec", "MPN": "TSW-104-12-G-S-RA", "LCSC": "",
+    "Datasheet": "https://www.samtec.com/products/tsw-104-12-g-s-ra",
+    "Description": "1x4 2.54mm RIGHT-ANGLE TSW header with 14.99mm E dimension -- blind-mate signal stub, "
                    "pins down past the bottom edge parallel to the blades, "
                    "mating the main board's vertical 1x4 female socket in "
                    "the same drop (owner, 2026-07-05; memo addendum 5). "
-                   "Commodity class at LCSC (Ckmtw/Cankemeng RA lines); the "
-                   "specific long-pin MPN is pinned at the OQ-89 SKU pass; "
-                   "consigned acceptable. Keyed-JST-PH (S4B/B4B-PH-K-S, the "
+                   "The exact TSW-104-12-G-S-RA ordering code is valid in the Samtec TSW series; "
+                   "consigned assembly is acceptable. Keyed-JST-PH (S4B/B4B-PH-K-S, the "
                    "Hub J_KVM family) is the demoted cabled fallback if the "
                    "blind-mate tolerance fails the fit check.",
 }
@@ -680,7 +682,7 @@ def build_pcb_base(fam, out_override=None):
     # the track's displayed net to whatever it's actually touching on
     # save/reload (documented elsewhere in this repo as exactly this
     # footgun). Cheap to always regenerate; never worth the staleness risk.
-    cp.export_netlist(f"output-daughterboards/{fam}", cfg["base"])
+    cp.export_netlist(f"output-daughterboards/{fam}", cfg["base"], tree="beta")
     comps, vals, nets = cp.parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}

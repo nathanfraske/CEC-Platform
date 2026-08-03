@@ -1911,7 +1911,7 @@
 					(justify left top)
 				)
 			)
-			(property "Footprint" "LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
+			(property "Footprint" "LED_SMD:LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount"
 				(at 1.27 -7.62 0)
 				(effects
 					(font
@@ -1921,7 +1921,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf"
+			(property "Datasheet" "https://datasheet.lcsc.com/lcsc/1810231311_OPSCO-Optoelectronics-SK6812MINI-E_C5149201.pdf"
 				(at 2.54 -9.525 0)
 				(effects
 					(font
@@ -1931,7 +1931,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "RGB LED with integrated controller"
+			(property "Description" "SK6812MINI-E reverse-mount RGB LED with integrated controller, 3.2x2.8mm"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1949,7 +1949,7 @@
 					(hide yes)
 				)
 			)
-			(property "ki_fp_filters" "LED*SK6812MINI*PLCC*3.5x3.5mm*P1.75mm*"
+			(property "ki_fp_filters" "LED*SK6812MINI-E*ReverseMount*"
 				(at 0 0 0)
 				(effects
 					(font

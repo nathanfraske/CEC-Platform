@@ -1279,8 +1279,9 @@ def _ov1_divider(inventory, pins_by_ref, mux_ref):
 
 def _check_tps2121_ovp(board, inventory, pins_by_ref):
     findings = []
-    has_lp5907 = any(
-        "LP5907" in rec["value"] and rec["on_board"] and not rec["dnp"]
+    has_six_volt_regulator = any(
+        ("LP5907" in rec["value"] or "TLV75533" in rec["value"])
+        and rec["on_board"] and not rec["dnp"]
         for rec in inventory.values()
     )
     for ref, rec in sorted(inventory.items()):
@@ -1301,15 +1302,22 @@ def _check_tps2121_ovp(board, inventory, pins_by_ref):
             # The selected UNI-ROYAL WGF parts are 1%.  TPS2121 rising VREF is
             # 1.01 V min and 1.10 V max.  Evaluate both resistor extremes as
             # inputs, rather than trusting the nominal-only result.
-            if (top[1]["props"].get("MPN") == "0402WGF4702TCE" and
+            if (top[1]["props"].get("MPN") in {"0402WGF4702TCE", "0402WGF4322TCE"} and
                     bottom[1]["props"].get("MPN") == "0402WGF1002TCE"):
                 trip_min = 1.01 * (1.0 + r_top * 0.99 / (r_bottom * 1.01))
                 trip_max = 1.10 * (1.0 + r_top * 1.01 / (r_bottom * 0.99))
                 message += f" and {trip_min:.3f} to {trip_max:.3f} V at specified extremes"
-                if has_lp5907 and trip_max > 6.0:
-                    message += "; the board contains an LP5907 with 6.0 V VIN absolute maximum"
+                if has_six_volt_regulator and trip_max > 6.0:
+                    message += "; the board contains a regulator with 6.0 V VIN absolute maximum"
                     findings.append(_finding(
                         board, "BLOCKER", "OVP_MARGIN", message, ref))
+                elif has_six_volt_regulator and trip_min <= 5.25:
+                    message += "; lower tolerance bound can nuisance-trip inside the allowed 5.25 V source range"
+                    findings.append(_finding(
+                        board, "BLOCKER", "OVP_INPUT_WINDOW", message, ref))
+                elif has_six_volt_regulator:
+                    findings.append(_finding(
+                        board, "INFO", "OVP_WINDOW", message, ref))
                 else:
                     findings.append(_finding(
                         board, "WARN", "OVP_THRESHOLD", message, ref))
@@ -1317,10 +1325,10 @@ def _check_tps2121_ovp(board, inventory, pins_by_ref):
                 findings.append(_finding(
                     board, "WARN", "OVP_THRESHOLD", message, ref))
         elif _gnd(ov_net):
-            severity = "BLOCKER" if has_lp5907 else "WARN"
+            severity = "BLOCKER" if has_six_volt_regulator else "WARN"
             message = "OV1 is tied to GND, so this mux stage provides no IN1 overvoltage cutoff"
-            if has_lp5907:
-                message += "; the board contains an LP5907 with 6.0 V VIN absolute maximum"
+            if has_six_volt_regulator:
+                message += "; the board contains a regulator with 6.0 V VIN absolute maximum"
             findings.append(_finding(board, severity, "OVP_DISABLED", message, ref))
     return findings
 
@@ -1371,7 +1379,10 @@ def _check_hub_holdup(board, inventory, pins_by_ref):
         blocker("RJ_HOLD", "default hold-up jumper must be fitted")
     require_pins("RJ_HOLD", {"1": "/+5V_HOLD", "2": "/LOGIC_REG_IN"})
     rj_buck = inventory.get("RJ_BUCK")
-    if not rj_buck or not rj_buck.get("dnp") or rj_buck.get("in_bom"):
+    # The authoritative hierarchy retires the alternate feed completely.  A
+    # legacy source that still carries it is acceptable only when it is DNP and
+    # excluded from the BOM; absence is the stronger current-state result.
+    if rj_buck and (not rj_buck.get("dnp") or rj_buck.get("in_bom")):
         blocker("RJ_BUCK", "alternate pre-regulator jumper must remain DNP and excluded from BOM")
     require_pins("U3", {"1": "/LOGIC_REG_IN", "4": "/LOGIC_REG_IN"})
 
@@ -1443,6 +1454,10 @@ def check_board_specific(board, inventory, pins_by_ref):
             "load_A": cec_power_budget.budget("12vhpwr-standard")["required_mA"] / 1e3,
             "capacity_A": 0.500, "bucks": 0, "ldos": 1,
         },
+        "atx-24pin-rev3": {
+            "load_A": cec_power_budget.budget("atx-24pin-rev3")["required_mA"] / 1e3,
+            "capacity_A": 0.500, "bucks": 0, "ldos": 1,
+        },
         "hub-standard-rev2": {
             # Conservative source capacity is the selected inductor's 1.76 A
             # thermal current rating, below the TLV62569's 2 A IC rating.
@@ -1500,12 +1515,16 @@ def check_board_specific(board, inventory, pins_by_ref):
 
     if board == "hub-standard-rev2":
         l2 = inventory.get("L2")
-        if not l2 or not l2["dnp"] or l2["in_bom"]:
+        if l2 and (not l2["dnp"] or l2["in_bom"]):
             findings.append(_finding(
                 board, "BLOCKER", "HUB_L2_STATE", "L2 must remain DNP and excluded from BOM", "L2"))
-        else:
+        elif l2:
             findings.append(_finding(
                 board, "INFO", "HUB_L2_DNP", "L2 is correctly DNP; no inductance selection is required", "L2"))
+        else:
+            findings.append(_finding(
+                board, "INFO", "HUB_L2_RETIRED",
+                "obsolete L2 boost reservation is absent from the authoritative hierarchy", "L2"))
 
         priority_contract = {
             "U5": {

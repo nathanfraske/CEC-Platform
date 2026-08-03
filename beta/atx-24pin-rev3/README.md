@@ -1,4 +1,14 @@
-# atx-24pin-rev3 — BETA-2 (output-architecture revision; PCB layout not started)
+# atx-24pin-rev3 — current hierarchical BETA
+
+> **CURRENT STATUS (2026-08-03):** `24pin-module.kicad_sch` plus its five
+> functional leaves is the authoritative source. The direct Hub RJ-45 `J1` is
+> removed; the segmented `J6P/J6C/J6D` mezzanine owns the Hub data/detect/stack
+> link and `J2` remains the dedicated Hub power connector. The dead-bug
+> assembly has the ATX input `J3` on the bottom edge and the output blade/signal
+> field on the top edge. The reflected Hub puts its four RJ-45 mouths on the
+> assembly right. The mechanical contract is an 18 mm board gap with an M2.5
+> conductive ground-lug standoff. All earlier flat/synced-copy/"PCB not
+> started" prose below is historical provenance, not current build guidance.
 
 > **STATUS (2026-07-04, spec §2.8 v1.4.0 output-architecture revision, owner-ratified):** the
 > schematic is now **BETA-2**. J4 (the Mini-Fit Jr 24-circuit MALE output header, previously
@@ -84,15 +94,15 @@ trend) before first fab. The low-current ATX standards circuits (PS_ON#,
 PWR_OK, −12V) ride a separate 2×5 2.54 mm signal header (`J_SIG`) instead of
 a blade clip; see the BETA-2 status block for its exact pin map.
 
-## Known issue (prototype run) — RJ-45 VCC parallels the JST feed
+## Historical rev2-only issue — RJ-45 VCC paralleled the JST feed
 
 rev2 ties **J1 pin 1 (RJ-45 VCC)** to `+5VSB`, so the module feeds the Hub on
 **both** the dedicated JST 5VSB feed **and** its RJ-45 VCC pin, in parallel.
 Because the Hub power mux sits only in the JST leg (JST = mux input, RJ-45 VCC =
 mux output), a **short RJ-45 patch** makes the RJ-45 the lower-resistance path —
 it carries the majority of the bulk current (up to ~1.7 A at 3 A total, over the
-**1.5 A RJ-45 contact rating**) and bypasses the mux's PSU/USB OR-ing. Fixed on
-rev3 by leaving J1.1 open (spec §2.7 v3.3); rev2 is ordered as-is, so mitigate at
+**1.5 A RJ-45 contact rating**) and bypasses the mux's PSU/USB OR-ing. Rev3 first
+left J1.1 open and now removes J1 entirely; rev2 is ordered as-is, so mitigate at
 bring-up — any one of:
 
 1. **Long RJ-45 patch (≥1.5–2 m)** on the 24-pin↔Hub link: the conductor
@@ -110,7 +120,7 @@ VCC stays under 1.5 A regardless of patch length. No rev2 bodge and no Hub-side
 workaround; the real fix is **24-pin rev3** (J1.1 no-connect). Rule of thumb:
 don't run a fully-populated, full-LED system on an un-bodged rev2.
 
-## Shared schematic (canonical = atx-24pin)
+## Archived scaffold convention (superseded)
 The schematic here is a **synced copy**. The source of truth is
 `../atx-24pin/24pin-module.kicad_sch`.
 

@@ -14,7 +14,7 @@
  "errata_rev3": [
   "rename /CAN1_P,/CAN1_N -> CAN1_H,CAN1_L (platform _H/_L convention) -- DONE, verified live in the rev3 schematic (CAN_H/CAN_L labels, no /CAN1_P//CAN1_N remaining)",
   "R1 DETECT code migration (2.2k CAN-only, section 2.3) -- DONE, verified live (R1 Value=2.2k\u03a9 in the rev3 schematic; the poke-ack tap R7 100k\u03a9 -> DETECT_SENSE is also present)",
-  "DETECT pin-8 ESD diode D1 (rev2 shipped without it) -- DONE, verified live (D1=PESD5V0S1BA wired to /DETECT->GND in the rev3 schematic); the platform FTP RJ-45 jack (cec:RJ45_FTP_Shielded_Horizontal) and the J1 pin-1 (RJ-45 VCC) no-connect are also confirmed present in rev3, though those were not originally listed in this errata array",
+  "DETECT pin-8 ESD diode D1 (rev2 shipped without it) -- DONE, verified live (D1=PESD5V0S1BA wired to /DETECT->GND in the rev3 schematic); obsolete direct RJ-45 J1 retired 2026-08-03 because the segmented mezzanine now owns the Hub link",
   "RESOLVED 2026-07-03 (beta splice, B4/K1 gate, docs/standard-tier-review/beta-splices/atx-24pin.md): the J6-vs-design-doc pin-map contradiction is CLOSED in the SCHEMATIC's favor. Evidence: hubs/hub-rev2/hub-rev2.kicad_sch's J_MEZZ (the actual mating socket, generated 2026-06-24 19:05, ~50min AFTER rev3's final pinout-verify commit at 18:14) independently uses the IDENTICAL pin map as rev3's J6 (+5V_SYS=1/2/3, GND=4/7/10/12/14/15/16, CAN_H=5, CAN_L=6, DETECT=11, STREAM_P/N=8/9, RSVD=13) -- i.e. the real mated hardware pair already agrees with itself and diverges from the design doc's 2026-06-24 13:58 draft table, which was never actually implemented on either side. The design doc (docs/mezzanine-stack-design-2026-06-24.md sec.3) has been corrected to match the as-built map; the schematics (rev3 J6, hub-rev2 J_MEZZ) are UNCHANGED -- no re-pin needed, no re-derivation risk to the already-verified mated pair. Net-alias note updated: no side of this board needed net renames for the fix."
  ],
  "placement_directives": {
@@ -39,10 +39,9 @@
   "signal_stub_note": "J_SIG1 = 1x4 (owner ruling closes study item 5, NO sense-return); collinear with the blade row, pad1 one field pitch beyond the last slot; pin order matches db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND",
   "seed_size_note": "owner 2026-07-08: tone the size down -- seed 70x55 (floors: J3 ~63mm, blade row+stub ~59mm); shrink further once gate-clean",
   "hub_jacks": [
-   "J1",
    "J2"
   ],
-  "hub_jacks_note": "owner 2026-07-08: TO-HUB-PWR (J2) next to the RJ-45 (J1); edge follows the PSU input -- J3 top -> jacks LEFT, J3 bottom -> jacks RIGHT",
+  "hub_jacks_note": "2026-08-03 dead-bug stack: direct RJ-45 J1 is obsolete and removed; TO-HUB-PWR J2 remains on the right edge while the segmented mezzanine carries CAN, DETECT, ground and stack power",
   "inner_power_routing": true,
   "inner_power_routing_note": "24-pin stackup exception (CLAUDE.md): In1 = GND plane, In2 = rail-routing layer (12V/5V/3V3/5VSB route around each other); cable boards keep both inners GND",
   "shunt_gap_mm": 16.0,

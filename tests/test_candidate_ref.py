@@ -160,6 +160,24 @@ class CandidateRefTest(unittest.TestCase):
         self.assertIsNotNone(self._publish("w3", (1, 1)))    # better score, same freshness
         self.assertIn("w3", self._body())
 
+    def test_current_mezz_datum_replaces_obsolete_datum_despite_worse_score(self):
+        self._publish("oldmech", (0, 0))
+        with mock.patch.object(
+                w, "_mezz_contract_status",
+                side_effect=lambda path: False if "candidate" in str(path) else True):
+            self.assertIsNotNone(self._publish("newmech", (9, 9)))
+        self.assertIn("newmech", self._body())
+        self.assertTrue(self._meta()["mezzanine_contract_ok"])
+        self.assertIn("mechanical datum", self._meta()["reason"])
+
+    def test_obsolete_mezz_datum_cannot_replace_current_datum(self):
+        self._publish("currentmech", (9, 9))
+        with mock.patch.object(
+                w, "_mezz_contract_status",
+                side_effect=lambda path: True if "candidate" in str(path) else False):
+            self.assertIsNone(self._publish("oldmech", (0, 0)))
+        self.assertIn("currentmech", self._body())
+
     def test_status_refresh_marks_candidate_stale_after_schematic_change(self):
         self._publish("w1", (1, 1))
         self._fake_refs({"U1", "L1"}, {"candidate": {"U1"}})

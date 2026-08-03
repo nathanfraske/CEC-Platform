@@ -18,6 +18,9 @@ RULES the wave enforces on every publish:
     schematic or footprint change is the worse reference;
   * otherwise it replaces this file only when the new winner BEATS the recorded
     `sort_key` (lower is better -- the same ranking the wave itself uses);
+  * a board satisfying the CURRENT segmented-mezzanine geometry replaces one
+    that violates it, independent of route score; an obsolete mechanical datum
+    is stale in the same way an obsolete component signature is stale;
   * a routed winner always beats a placement-only one, and a placement-only winner
     NEVER overwrites a routed reference;
   * exactly one `.kicad_pcb` lives here -- stale board files are pruned.

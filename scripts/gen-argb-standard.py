@@ -654,7 +654,7 @@ ap(L08, "U6", "cec-vendor", "SN74AHCT1G08", "SN74AHCT1G08",
                    "precedent, verbatim)"})
 ap(L08, "DL1", "cec-vendor", "SK6812MINI", "SK6812MINI",
    "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm",
-   {"Manufacturer": "Opsco", "MPN": "SK6812MINI-E", "LCSC": "C5149201",
+   {"Manufacturer": "OPSCO Optoelectronics", "MPN": "SK6812MINI-E", "LCSC": "C5149201",
     # measured bug, fixed: C2841455 (an earlier value here) is NOT this LED --
     # verified against the live LCSC listing it is a VIIYONG 4.7pF 0201
     # ceramic cap, an unrelated part. C5149201 is the Hub Standard's own

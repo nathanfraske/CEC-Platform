@@ -48,9 +48,60 @@ CONFIG = {
     "hub-standard-rev2": {
         "live": "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch",
         "archive": "old-revisions/beta/hub-standard-rev2-flat-2026-08-02/hub-standard-rev2.kicad_sch",
+        # The old H2 boost -> second-buck reservation was deliberately never a
+        # complete application circuit (its inductor and several mandatory
+        # passives were bench-TBD).  It is preserved in the archived flat
+        # capture, but carrying the position-only rung in the live BETA wastes
+        # board area and makes an unfinished option look production-capable.
+        "retired_refs": {"RJ_BUCK", "U9", "U10", "L2", "R29", "R30", "R31", "R32",
+                         # DL6 was the non-ring LED below/right of the logo.
+                         # The six-device ring already carries the intended
+                         # status language; preserve DL6 only in the archive.
+                         "DL6"},
+        # Electrically bypass the retired LED in the addressable chain.
+        "net_overrides": {("DL7", "3"): "Net-(DL5-DOUT)"},
         "flags": {"01-power-input-selection": ["GND", "+5VSB", "5VSB_RAW", "USB_VBUS", "PSU_5V",
                                                      "MAIN_5V_RAW", "PSU_5V_KVM", "KVM_5V_IN"],
                   "02-holdup-3v3": ["+3V3", "LOGIC_REG_IN"]},
+        "property_overrides": {
+            **{f"DL{i}": {
+                "footprint": "cec-LED_SMD:LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount",
+                "props": {"Datasheet": "https://datasheet.lcsc.com/lcsc/1810231311_OPSCO-Optoelectronics-SK6812MINI-E_C5149201.pdf",
+                          "MPN": "SK6812MINI-E", "Manufacturer": "OPSCO Optoelectronics",
+                          "LCSC": "C5149201"}}
+               for i in (1, 2, 3, 4, 5, 7)},
+            "C14": {"props": {
+                "Note": "SN74AHCT1G08 U6 local 100nF bypass; place directly at VCC/GND."}},
+            "J6P": {"footprint": "cec-Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical",
+                    "props": {"MPN": "SSQ-103-03-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/ssw_th.pdf",
+                              "Note": "Exact 2x3 Hub socket; mates ATX TSW-103-17-G-D in the 18mm dead-bug stack."}},
+            "J6C": {"footprint": "cec-Connector_PinSocket_2.54mm:PinSocket_2x04_P2.54mm_Vertical",
+                    "props": {"MPN": "SSQ-104-03-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/ssw_th.pdf",
+                              "Note": "Exact 2x4 Hub socket; mates ATX TSW-104-17-G-D in the 18mm dead-bug stack. STREAM_P/N are intentionally NC on both Standard boards."}},
+            "J6D": {"footprint": "cec-Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical",
+                    "props": {"MPN": "SSQ-102-03-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/ssw_th.pdf",
+                              "Note": "Exact 2x2 Hub socket; mates ATX TSW-102-17-G-D in the 18mm dead-bug stack. RSVD is intentionally NC."}},
+            "RJ_HOLD": {"props": {
+                "Datasheet": "https://www.lcsc.com/product-detail/C17168.html",
+                "Description": "Populated 0-ohm link from the post-diode +5V hold-up reservoir to the complete TLV62569 3.3V buck stage."}},
+        },
+        "synthetic_parts": {
+            f"C{29 + index}": {
+                "leaf": "06-status-leds", "lib_id": "cec-vendor:C_Small",
+                "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                "nets": {"1": "+5VSB", "2": "GND"},
+                "props": {
+                    "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                    "LCSC": "C1525",
+                    "Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                    "Note": f"Dedicated 100nF local bypass for DL{led}; place directly at VDD/VSS."
+                }
+            }
+            for index, led in enumerate((1, 2, 3, 4, 5, 7))
+        },
         "leaves": [
             ("01-power-input-selection", "POWER INPUT + SOURCE SELECTION",
              "Three TPS2121 stages, protected inputs, current limits, OV thresholds and local reservoirs.",
@@ -58,8 +109,8 @@ CONFIG = {
                   "R_ILIM1 R_ILIM2 R_ILIM3 R33 R34 R35 R36 R37 R38")),
             ("02-holdup-3v3", "HOLD-UP + 3V3 REGULATOR",
              "5VSB loss detection precedes the hold-up diode; shutdown is requested before reservoir or regulator dropout.",
-             rows("D1 C1 RJ_HOLD RJ_BUCK U9 U10 L2", "U3 L1 C2 C3 U8 C17",
-                  "R12 R13 C12 R26 R27 R28 R29 R30 R31 R32 R39 R40")),
+             rows("D1 C1 RJ_HOLD", "U3 L1 C2 C3 U8 C17",
+                  "R12 R13 C12 R26 R27 R28 R39 R40")),
             ("03-mcu-usb", "MCU + USB SERVICE PORT",
              "ESP32-S3 control, reset/boot supervision and protected USB-C service ingress.",
              rows("J_USB D6 U1 U4", "C4 C6 C8 C10 C11 C13 R2 R9 R10 R11 SW_BOOT SW_RESET")),
@@ -71,8 +122,8 @@ CONFIG = {
              "Fused KVM feed, UART, rail dividers and hub temperature sensing.",
              rows("J_KVM F5 D7 TH1", "C16 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25")),
             ("06-status-leds", "STATUS LED CHAIN",
-             "Level-shifted, series-damped seven-device addressable status chain.",
-             rows("U6 R14 DL1 DL2 DL3 DL4 DL5 DL6 DL7 C14")),
+             "Level-shifted, series-damped six-device addressable status ring.",
+             rows("U6 R14 DL1 DL2 DL3 DL4 DL5 DL7", "C14 C29 C30 C31 C32 C33 C34")),
         ],
     },
     "eps-8pin-rev3": {
@@ -97,6 +148,128 @@ CONFIG = {
     "atx-24pin-rev3": {
         "live": "beta/atx-24pin-rev3/24pin-module.kicad_sch",
         "archive": "old-revisions/beta/atx-24pin-rev3-flat-2026-08-02/24pin-module.kicad_sch",
+        # J1 was the direct RJ-45 Hub link.  The segmented mezzanine now owns
+        # that connection, so J1 is intentionally removed during authoritative
+        # recomposition rather than left as an attractive obsolete option.
+        "retired_refs": {"J1", "U3"},
+        "property_overrides": {
+            "C1": {"props": {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC",
+                               "LCSC": "C29936",
+                               "Datasheet": "https://product.samsungsem.com/mlcc/CL10B105KA8NNN.do",
+                               "Note": "TLV75533 input local 1uF X7R; place at U3 IN/GND."}},
+            **{ref: {"props": {
+                "Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC",
+                "LCSC": "C29936",
+                "Datasheet": "https://product.samsungsem.com/mlcc/CL10B105KA8NNN.do",
+                "Note": "Exact 1uF 25V X7R 0603 local bypass capacitor."
+            }} for ref in ("C2", "C15", "C16", "C17", "C24")},
+            "C14": {"props": {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC",
+                                "LCSC": "C29936",
+                                "Datasheet": "https://product.samsungsem.com/mlcc/CL10B105KA8NNN.do",
+                                "Note": "TLV75533 output local 1uF X7R; place at U3 OUT/GND."}},
+            "C25": {"props": {
+                "Manufacturer": "Samsung", "MPN": "CL21A226MAQNNNE",
+                "LCSC": "C45783",
+                "Datasheet": "https://product.samsungsem.com/mlcc/CL21A226MPCLRN.do",
+                "Note": "Exact 22uF 25V X5R 0805 source-mux reservoir capacitor."}},
+            **{ref: {"props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1002TCE",
+                "LCSC": "C25744",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25744.html"
+            }} for ref in ("R2", "R10", "R51", "R60", "R61")},
+            **{ref: {"props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1003TCE",
+                "LCSC": "C25741",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25741.html"
+            }} for ref in ("R7", "R52")},
+            **{ref: {"props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF2201TCE",
+                "LCSC": "C25879",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25879.html"
+            }} for ref in ("R1", "R3", "R4")},
+            **{ref: {"props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF5101TCE",
+                "LCSC": "C25905",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25905.html"
+            }} for ref in ("R8", "R9")},
+            "R50": {"props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF2002TCE",
+                "LCSC": "C25765",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25765.html"}},
+            "R55": {"value": "43.2kΩ", "props": {
+                "Manufacturer": "UNI-ROYAL", "MPN": "0402WGF4322TCE", "LCSC": "C25894",
+                "Datasheet": "https://www.lcsc.com/product-detail/C25894.html",
+                "Note": "U6 OV1 top: 43.2k/10k gives 5.618V nominal, 5.287..5.948V at 1%/VREF extremes."}},
+            "J3": {"props": {
+                "Manufacturer": "Molex", "MPN": "39291247",
+                "Datasheet": "https://www.molex.com/en-us/products/part-detail/39291247",
+                "Note": "24-circuit Mini-Fit Jr right-angle through-hole ATX input header."}},
+            "J_SIG1": {
+                "value": "SSQ-104-03-G-S",
+                "footprint": "cec-Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical",
+                "props": {
+                    "Manufacturer": "Samtec", "MPN": "SSQ-104-03-G-S",
+                    "Datasheet": "https://www.samtec.com/products/ssq-104-03-g-s",
+                    "Note": "Vertical 1x4 socket; mates the daughterboard TSW-104-12-G-S-RA long-tail right-angle header pin-for-pin."}},
+            "J6P": {"footprint": "cec-Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical",
+                    "props": {"MPN": "TSW-103-17-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/tsw_th.pdf",
+                              "Note": "Exact 2x3 ATX long-post header; mates Hub SSQ-103-03-G-D in the 18mm dead-bug stack."}},
+            "J6C": {"footprint": "cec-Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical",
+                    "props": {"MPN": "TSW-104-17-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/tsw_th.pdf",
+                              "Note": "Exact 2x4 ATX long-post header; mates Hub SSQ-104-03-G-D in the 18mm dead-bug stack. STREAM_P/N are intentionally NC on both Standard boards."}},
+            "J6D": {"footprint": "cec-Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical",
+                    "props": {"MPN": "TSW-102-17-G-D", "Manufacturer": "Samtec",
+                              "Datasheet": "https://suddendocs.samtec.com/catalog_english/tsw_th.pdf",
+                              "Note": "Exact 2x2 ATX long-post header; mates Hub SSQ-102-03-G-D in the 18mm dead-bug stack. RSVD is intentionally NC."}},
+            "C20": {"props": {
+                "Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                "Note": "TPS2121 U5 IN2 / U6 OUT local 100nF bypass on 5VSB_MUX."}},
+            "C21": {"props": {
+                "Datasheet": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
+                "Note": "TPS2121 U5 IN2 / U6 OUT local 10uF bulk on 5VSB_MUX."}},
+        },
+        # Repair an old annotation/net mismatch: C20/C21 were described as the
+        # second U5 input bank but tied to raw +5VSB.  U5.IN2 is fed from U6.OUT
+        # on 5VSB_MUX, so the bypass bank belongs on that inter-mux node.
+        "net_overrides": {("C20", "1"): "5VSB_MUX", ("C21", "1"): "5VSB_MUX",
+                          ("U5", "5"): "U5_OV1"},
+        "synthetic_parts": {
+            "U3": {"leaf": "03-regulator-mcu", "lib_id": "cec-vendor:TLV75533PDRVR",
+                   "value": "TLV75533PDRVR",
+                   "footprint": "cec-Package_SON:WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm",
+                   "nets": {"1": "+3V3", "3": "GND", "4": "+5V_SYS",
+                            "6": "+5V_SYS", "7": "GND"},
+                   "props": {"Manufacturer": "Texas Instruments", "MPN": "TLV75533PDRVR",
+                             "LCSC": "C2861750",
+                             "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+                             "Description": "500mA direct 3.3V LDO with exposed thermal pad"}},
+            "R59": {"leaf": "02-power-usb", "lib_id": "cec-vendor:R_Small",
+                    "value": "43.2kΩ", "footprint": "cec-Resistor_SMD:R_0402_1005Metric",
+                    "nets": {"1": "+5V_MAIN", "2": "U5_OV1"},
+                    "props": {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF4322TCE",
+                              "LCSC": "C25894", "Datasheet": "https://www.lcsc.com/product-detail/C25894.html",
+                              "Note": "U5 OV1 divider top."}},
+            "R69": {"leaf": "02-power-usb", "lib_id": "cec-vendor:R_Small",
+                    "value": "10kΩ", "footprint": "cec-Resistor_SMD:R_0402_1005Metric",
+                    "nets": {"1": "U5_OV1", "2": "GND"},
+                    "props": {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1002TCE",
+                              "LCSC": "C25744", "Datasheet": "https://www.lcsc.com/product-detail/C25744.html",
+                              "Note": "U5 OV1 divider bottom."}},
+            "C54": {"leaf": "02-power-usb", "lib_id": "cec-vendor:C_Small",
+                    "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                    "nets": {"1": "+5VSB", "2": "GND"},
+                    "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                              "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                              "LCSC": "C1525", "Note": "TPS2121 U6 IN1 local 100nF bypass."}},
+            "C55": {"leaf": "02-power-usb", "lib_id": "cec-vendor:C_Small",
+                    "value": "10uF", "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+                    "nets": {"1": "+5VSB", "2": "GND"},
+                    "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
+                              "Manufacturer": "Samsung", "MPN": "CL21A106KAYNNNE",
+                              "LCSC": "C15850", "Note": "TPS2121 U6 IN1 local 10uF bulk."}},
+        },
         "flags": {"01-atx-power-control": ["GND", "+5VSB", "+5V_MAIN"],
                   "02-power-usb": ["+5V_SYS", "5VSB_MUX", "VBUS"]},
         "leaves": [
@@ -106,13 +279,13 @@ CONFIG = {
                   "J_SIG1 Q1 U4 U8 D3 D4 D5", "C22 C23 C64 R70 R71 R72 R73 R74 R75 R76")),
             ("02-power-usb", "5V SOURCE MUX + USB SERVICE INGRESS",
              "Cascaded TPS2121 source selection and protected USB-C service power/data ingress.",
-             rows("U5 U6 J5 D7 D_USB1 F1 FB1", "C1 C4 C6 C9 C18 C19 C20 C21 C24 C25 C50 C51 C52 C53",
-                  "R50 R51 R52 R53 R54 R55 R56 R57 R58 R8 R9")),
-            ("03-regulator-mcu", "3V3 REGULATOR + MCU", "LP5907 rail, ESP32-C6 control and local boot/reset support.",
+             rows("U5 U6 J5 D7 D_USB1 F1 FB1", "C1 C4 C6 C9 C18 C19 C20 C21 C24 C25 C50 C51 C52 C53 C54 C55",
+                  "R50 R51 R52 R53 R54 R55 R56 R57 R58 R59 R69 R8 R9")),
+            ("03-regulator-mcu", "3V3 REGULATOR + MCU", "Thermal-pad TLV75533 rail, ESP32-C6 control and local boot/reset support.",
              rows("U3 U1", "C2 C3 C5 C7 C8 C10 C11 C12 C13 C14 R2 R10 R3 R4 SW1 SW2")),
             ("04-hub-can-stack", "HUB LINK + CAN + STACK",
-             "RJ-45/stack interfaces, optional CAN common-mode choke position and 5V feed bridge.",
-             rows("J1 J2 J6C J6D J6P U2", "D1 FB2 FL1 R1 R7 R_BYP_H1 R_BYP_L1")),
+             "Mezzanine stack interface, optional CAN common-mode choke position and 5V feed bridge.",
+             rows("J2 J6C J6D J6P U2", "D1 FB2 FL1 R1 R7 R_BYP_H1 R_BYP_L1")),
             ("05-rail-sensing", "FOUR-RAIL PRECISION + FAST SENSING",
              "Four INA238 measurement channels plus INA181/TLV7011 transient channels and shared threshold conditioning.",
              rows("R60 C60 R61 C61", "U10 U612V1 U712V1 C15 C612V1 C712V1",
@@ -173,8 +346,10 @@ def _route_note(board: str, note: str, fallback: str) -> str:
     return fallback
 
 
-def extract(path: str, leaf_of: dict[str, str]):
-    inv = G.inventory(path)
+def extract(path: str, leaf_of: dict[str, str], retired_refs=(), synthetic_refs=()):
+    retired_refs = set(retired_refs)
+    inv_all = G.inventory(path)
+    inv = {r: d for r, d in inv_all.items() if r not in retired_refs}
     by_name = {}
     text = open(path, encoding="utf-8", errors="replace").read()
     hierarchical = bool(re.search(r'\(sheet\n', L._strip_lib_symbols(text)))
@@ -191,6 +366,9 @@ def extract(path: str, leaf_of: dict[str, str]):
             _values, nets = cec_spice_sanity.parse_netlist(net_path)
             for name, members in nets.items():
                 if name.startswith("unconnected-"):
+                    continue
+                members = [(r, p) for r, p in members if r not in retired_refs]
+                if not members:
                     continue
                 bare = _bare(name)
                 if bare in by_name and by_name[bare] != sorted(members):
@@ -215,8 +393,12 @@ def extract(path: str, leaf_of: dict[str, str]):
     else:
         for members, name in R.netlist_groups(path).items():
             if not name.startswith("unconnected-"):
-                by_name[_bare(name)] = sorted(members)
-    missing, extra = sorted(set(inv) - set(leaf_of)), sorted(set(leaf_of) - set(inv))
+                kept = [(r, p) for r, p in members if r not in retired_refs]
+                if kept:
+                    by_name[_bare(name)] = sorted(kept)
+    synthetic_refs = set(synthetic_refs)
+    missing = sorted(set(inv) - set(leaf_of))
+    extra = sorted(set(leaf_of) - set(inv) - synthetic_refs)
     if missing or extra:
         raise SystemExit(f"partition mismatch: missing={missing}, extra={extra}")
     parts, fps, props = {}, {}, {}
@@ -225,6 +407,46 @@ def extract(path: str, leaf_of: dict[str, str]):
         parts[ref], fps[ref], props[ref] = (lib, name, d["value"]), d["footprint"], d["props"]
     spans = {name: {leaf_of[ref] for ref, _pin in members} for name, members in by_name.items()}
     return {"inventory": inv, "parts": parts, "footprints": fps, "props": props, "by_name": by_name, "spans": spans}
+
+
+def _apply_net_overrides(extracted: dict, leaf_of: dict[str, str], overrides: dict):
+    """Apply audited pin-level net repairs before composing and validating."""
+    by_name = extracted["by_name"]
+    for (ref, pin), new_net in overrides.items():
+        member = (ref, str(pin))
+        old = [name for name, members in by_name.items() if member in members]
+        if len(old) != 1:
+            raise SystemExit(f"net override {ref}.{pin}: expected one source net, found {old}")
+        by_name[old[0]] = [node for node in by_name[old[0]] if node != member]
+        if not by_name[old[0]]:
+            del by_name[old[0]]
+        by_name.setdefault(new_net, []).append(member)
+        by_name[new_net] = sorted(set(by_name[new_net]))
+    extracted["spans"] = {
+        name: {leaf_of[ref] for ref, _pin in members}
+        for name, members in by_name.items()
+    }
+
+
+def _inject_synthetic_parts(extracted: dict, specs: dict):
+    """Add newly audited parts until they become self-hosting live source."""
+    for ref, spec in specs.items():
+        if ref in extracted["inventory"]:
+            continue
+        props = {"Value": spec["value"], "Footprint": spec["footprint"],
+                 **spec.get("props", {})}
+        extracted["inventory"][ref] = {
+            "lib_id": spec["lib_id"], "sheet": spec["leaf"] + ".kicad_sch",
+            "value": spec["value"], "footprint": spec["footprint"],
+            "dnp": False, "in_bom": True, "on_board": True, "props": props,
+        }
+        lib, name = spec["lib_id"].split(":", 1)
+        extracted["parts"][ref] = (lib, name, spec["value"])
+        extracted["footprints"][ref] = spec["footprint"]
+        extracted["props"][ref] = props
+        for pin, net in spec.get("nets", {}).items():
+            extracted["by_name"].setdefault(net, []).append((ref, str(pin)))
+            extracted["by_name"][net] = sorted(set(extracted["by_name"][net]))
 
 
 def _cap_bank(c: C.Compose, caps: list[str], power: str, x0: int, y0: int):
@@ -346,13 +568,8 @@ def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
     }.items() for p in pins])
     c.region("LIVE 5VSB DROPOUT DETECTOR", 15, 92, 130, 153)
 
-    # Optional boost/secondary buck rung is intentionally DNP and visually
-    # subordinate; it must never look like the active source path.
-    optional = ["RJ_BUCK", "U9", "U10", "L2", "R29", "R30", "R31", "R32"]
-    for i, ref in enumerate(optional):
-        c.place(ref, 165 + (i % 3) * 45, 108 + (i // 3) * 25)
-    c.region("DNP BOOST / SECONDARY-BUCK OPTION", 150, 90, 300, 178)
-    c.note("NOT FITTED: active BETA uses RJ_HOLD and the direct TLV62569 stage above", 158, 184, 1.05)
+    c.note("The incomplete H2 boost/secondary-buck reservation is archived, not fitted on the live BETA.",
+           150, 184, 1.05)
 
 
 def _combine_gnd_array(c: C.Compose, ref: str, pins: list[str]):
@@ -468,8 +685,29 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
         for ref in sum(row_groups, []):
             if ref in leaf_of: raise SystemExit(f"duplicate partition ref {ref}")
             leaf_of[ref] = lid
-    extracted = extract(source, leaf_of)
-    source_place = _source_placements(source); raw_notes = _source_notes(source, source_place, leaf_of)
+    extracted = extract(source, leaf_of, cfg.get("retired_refs", ()),
+                        cfg.get("synthetic_parts", ()))
+    _inject_synthetic_parts(extracted, cfg.get("synthetic_parts", {}))
+    _apply_net_overrides(extracted, leaf_of, cfg.get("net_overrides", {}))
+    for ref, override in cfg.get("property_overrides", {}).items():
+        if ref not in extracted["inventory"]:
+            raise SystemExit(f"property override ref absent from source: {ref}")
+        if override.get("footprint"):
+            extracted["footprints"][ref] = override["footprint"]
+            extracted["inventory"][ref]["footprint"] = override["footprint"]
+            extracted["inventory"][ref]["props"]["Footprint"] = override["footprint"]
+        if override.get("value"):
+            value = override["value"]
+            lib, name, _old = extracted["parts"][ref]
+            extracted["parts"][ref] = (lib, name, value)
+            extracted["inventory"][ref]["value"] = value
+            extracted["inventory"][ref]["props"]["Value"] = value
+            extracted["props"][ref]["Value"] = value
+        extracted["props"][ref].update(override.get("props", {}))
+        extracted["inventory"][ref]["props"].update(override.get("props", {}))
+    source_place = {r: p for r, p in _source_placements(source).items()
+                    if r in leaf_of}
+    raw_notes = _source_notes(source, source_place, leaf_of)
     source_notes = defaultdict(list)
     for fallback, notes in raw_notes.items():
         for note in notes:
@@ -528,7 +766,7 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             group_gap = 6
             y_cursor = 30
         wide_label_leaves = {
-            "01-power-input-selection", "02-holdup-3v3", "03-mcu-usb",
+            "01-power-input-selection", "02-holdup-3v3", "02-power-usb", "03-mcu-usb",
             "03-sensing", "05-rail-sensing", "01-atx-power-control",
         }
         group_points = []
@@ -561,7 +799,7 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
                 "03-mcu-usb": ("USB SERVICE + CONTROLLER", "LOCAL BYPASS + RESET / BOOT"),
                 "04-can-module-ports": ("CAN + MODULE / STACK INTERFACES", "PROTECTION + FUSED FEEDS", "LOCAL FILTER / DETECT BIAS"),
                 "05-kvm-aux-sensors": ("KVM + TEMPERATURE", "RAIL SENSE DIVIDERS"),
-                "06-status-leds": ("LEVEL SHIFT + SEVEN-LED CHAIN",),
+                "06-status-leds": ("LEVEL SHIFT + SIX-LED CHAIN",),
             }.get(lid, ())
             for gi, points in enumerate(group_points):
                 if not points or gi >= len(group_titles):
@@ -576,10 +814,10 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
 
         if board == "atx-24pin-rev3" and lid == "02-power-usb":
             # U6_PR1 is on a left-facing TPS2121 pin. Its long name needs a
-            # extended attached stub to clear U6's visible pin number; doing
-            # this in the composition preserves both connectivity and label
-            # attachment instead of creating a floating cosmetic move.
-            c.stub_label("U6", "6", "U6_PR1", length=6)
+            # short attached stub plus the wider IC pitch: this keeps it clear
+            # of both U6's visible pin number and U5_OV1. The label endpoint is
+            # still wired; it is not a floating cosmetic move.
+            c.stub_label("U6", "6", "U6_PR1", length=2)
         if board == "atx-24pin-rev3" and lid == "04-hub-can-stack":
             # FL1 carries a long, orderable DNP value. Keep its field on the
             # open left side so it remains attached to the part visually and

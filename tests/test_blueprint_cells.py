@@ -72,6 +72,16 @@ class TestIdealInternal(unittest.TestCase):
         out = cce.synthesize_ideal_internal(tpl)
         self.assertEqual(len(out["internal_tracks"]), 1, "a net with extracted copper is not re-synthesized")
 
+    def test_hierarchical_net_resolution_is_exact_then_unique(self):
+        names = ("GND", "/SHEET A/DETAMP12V", "/SHEET B/OTHER")
+        self.assertEqual(cce._unique_board_netname("GND", names), "GND")
+        self.assertEqual(cce._unique_board_netname("/DETAMP12V", names),
+                         "/SHEET A/DETAMP12V")
+
+    def test_hierarchical_net_resolution_refuses_ambiguity(self):
+        names = ("/SHEET A/DETAMP12V", "/SHEET B/DETAMP12V")
+        self.assertIsNone(cce._unique_board_netname("/DETAMP12V", names))
+
 
 @unittest.skipUnless(HAVE, "pcbnew required")
 class TestDoubleLayGuard(unittest.TestCase):

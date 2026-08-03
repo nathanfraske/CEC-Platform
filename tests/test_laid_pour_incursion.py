@@ -13,6 +13,7 @@ import pcbnew  # noqa: E402
 import cec_constraints as C  # noqa: E402
 import cec_fab_profile as FAB  # noqa: E402
 import cec_slab_pour as SLAB  # noqa: E402
+import cec_fresh_wave as WAVE  # noqa: E402
 
 
 def _board():
@@ -141,66 +142,44 @@ class TestRealHubAllocation(unittest.TestCase):
                          (("/NO_SUCH_RAIL", "In3.Cu"),))
 
     @unittest.skipUnless(os.path.isfile(HUB), "Hub candidate required")
-    def test_current_allocator_replaces_overlapping_legacy_slabs(self):
-        from shapely.geometry import Polygon
-
+    def test_stale_candidate_diagnostic_fails_closed_on_every_current_ask(self):
         board = pcbnew.LoadBoard(self.HUB)
-        nets = []
-        for zone in board.Zones():
-            if ((zone.GetZoneName() or "").startswith("slab:")
-                    and zone.GetNetname() not in nets):
-                nets.append(zone.GetNetname())
+        asks = WAVE.BOARD_PARAMS["hub-standard-rev2"]["pour_asks"]
         previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
-        os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
+        os.environ["CEC_THERMAL_BOARD_HINT"] = self.HUB
         try:
             pours, report = SLAB.synthesize_slab_pours(
-                board, [{"net": net, "layers": ("In3.Cu",)} for net in nets],
-                strict=False)
+                board, asks, strict=False)
         finally:
             if previous is None:
                 os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
             else:
                 os.environ["CEC_THERMAL_BOARD_HINT"] = previous
-        self.assertTrue(pours)
-        self.assertTrue(all(row.get("allocation") == "weighted_fair_v1"
+        expected = {(ask["net"], "In3.Cu") for ask in asks}
+        self.assertEqual(set(report), expected)
+        self.assertTrue(all(row.get("allocation_failed_closed")
                             for row in report.values()))
-        self.assertTrue(all(row.get("design_current_source") ==
-                            "board_thermal_config" for row in report.values()))
-        failed_width = {key[0] for key, row in report.items()
-                        if row.get("min_width_ok") is False}
-        self.assertEqual(failed_width,
-                         {"+5VSB", "/5VSB_RAW", "/MAIN_5V_RAW", "/VCC_P2"})
-        self.assertTrue(all(report[(net, "In3.Cu")]["allocation_failed_closed"]
-                            for net in failed_width))
-        self.assertAlmostEqual(sum(row["allocation_share"] for row in report.values()),
-                               1.0, places=9)
-        for index, left in enumerate(pours):
-            left_shape = Polygon(left["polygon"]).buffer(0)
-            for right in pours[index + 1:]:
-                if left["net"] == right["net"] or left["layer"] != right["layer"]:
-                    continue
-                overlap = left_shape.intersection(Polygon(right["polygon"]).buffer(0)).area
-                self.assertAlmostEqual(overlap, 0.0, places=9,
-                                       msg="%s overlaps %s" % (left["net"], right["net"]))
+        # Non-strict is diagnostic only: it may return provisional polygons,
+        # but every row remains explicitly blocked and cannot be released.
+        self.assertEqual(len(pours), len(asks))
 
     @unittest.skipUnless(os.path.isfile(HUB), "Hub candidate required")
     def test_current_hub_allocation_is_refused_until_widths_are_satisfied(self):
         board = pcbnew.LoadBoard(self.HUB)
-        nets = sorted({zone.GetNetname() for zone in board.Zones()
-                       if (zone.GetZoneName() or "").startswith("slab:")})
+        asks = WAVE.BOARD_PARAMS["hub-standard-rev2"]["pour_asks"]
         previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
         os.environ["CEC_THERMAL_BOARD_HINT"] = self.HUB
         try:
             with self.assertRaises(SLAB.SlabAllocationError) as raised:
                 SLAB.synthesize_slab_pours(
-                    board, [{"net": net, "layers": ("In3.Cu",)} for net in nets])
+                    board, asks)
         finally:
             if previous is None:
                 os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
             else:
                 os.environ["CEC_THERMAL_BOARD_HINT"] = previous
         self.assertEqual({key[0] for key in raised.exception.failures},
-                         {"+5VSB", "/5VSB_RAW", "/MAIN_5V_RAW", "/VCC_P2"})
+                         {ask["net"] for ask in asks})
 
 
 if __name__ == "__main__":

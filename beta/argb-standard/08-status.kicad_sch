@@ -906,7 +906,7 @@
 		(property "Value" "SK6812MINI" (at 184.15 100.33 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Opsco" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "OPSCO Optoelectronics" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "SK6812MINI-E" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C5149201" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "Status pixel, platform LED language" (at 184.15 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))

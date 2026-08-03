@@ -30,10 +30,18 @@ if not HAVE:
 
 
 class TestEdgeSeatRotation(unittest.TestCase):
+    def test_generic_legalizer_constructs_release_edge_margin(self):
+        for fn in (csp.legalize_pack, csp._legalize_pack_seq):
+            pos = {"R1": (0.0, 0.0, 0.0)}
+            cy = {"R1": (0.0, 0.0, 1.0, 0.5)}
+            fn(pos, ["R1"], cy, 20.0, 10.0)
+            self.assertGreaterEqual(pos["R1"][0] - 1.0, 0.89)
+            self.assertGreaterEqual(pos["R1"][1] - 0.5, 0.89)
+
     def test_j3_pads_in_bounds_with_own_rotation(self):
         cfg = csp.Config.load("atx-24pin-rev3")
         nl = csp.View(cfg).nl
-        W, H = 74.0, 55.0
+        W, H = 86.0, 95.0
         res = csp.seed_anchors(nl, W, H,
                                {r: c.footprint for r, c in nl.comps.items()},
                                dict(cfg.pins or {}),
@@ -60,8 +68,8 @@ class TestEdgeSeatRotation(unittest.TestCase):
         # gate-guarded per variant, not re-tested here.)
         import tempfile
         import cec_fresh_wave as w
-        for board, (W, H) in (("atx-24pin-rev3", (74.0, 55.0)),
-                              ("hub-standard-rev2", (88.0, 70.0))):
+        for board, (W, H) in (("atx-24pin-rev3", (86.0, 95.0)),
+                              ("hub-standard-rev2", (86.0, 74.0))):
             # canonical constructor (2026-07-23 fix): raw
             # PlacementSession(params=...) does NOT thread anchor_pins into
             # pins= (the documented protocol gotcha) -- U1 ran UNPINNED here,

@@ -1,247 +1,138 @@
 # NEXT AGENT HANDOFF: REMOVE WHEN DONE
 
-> This is a temporary handoff file. Read it before changing the BETA PCB work.
-> Delete this file in the final cleanup commit after every item assigned to the
-> next agent is either resolved, deliberately deferred in an owner decision, or
-> moved into a permanent issue or design record.
+> Current as of 2026-08-03. This remains temporary because the primary boards
+> do not yet pass the complete route/fabrication gate. Delete it only under the
+> completion rule at the end of this file.
 
-## Remote state
+## Remote and product scope
 
 - Repository: `nathanfraske/CEC-Platform`
 - Branch: `agent/pcb-pipeline-audit-repairs-20260801`
-- Branch URL:
-  `https://github.com/nathanfraske/CEC-Platform/tree/agent/pcb-pipeline-audit-repairs-20260801`
-- Latest audited work commit: `2eed9748b1641d6b758bf3d3b2af271939dff382`
-- Earlier pipeline repair commit: `9dbaea5f`
-- Local and remote branch hashes matched when this handoff was written.
-- No pull request was opened. The owner requested an accessible remote branch.
-- `tmp/` is intentionally untracked and is not part of the remote work.
+- Use the branch tip; fixed commit hashes in the earlier handoff were stale.
+- The current BETA set is exactly the ten entries in
+  `scripts/cec_beta_manifest.py`.
+- There is one EPS product: `beta/eps-8pin-rev3`. `eps-8pin` is archived
+  lineage, not a product variant and not a current audit input.
+- `tmp/` and `output/` are local diagnostic/render outputs and are not branch
+  source unless deliberately promoted.
 
 ## Read these first
 
-1. `docs/beta-placement-passives-audit-2026-08-02.md`
-2. `docs/decisions/owner-session-2026-08-01.md`
-3. `docs/standard-tier-review/STANDARD-DESIGN-SHEET.md`
-4. `beta/atx-24pin-rev3/LAYOUT-GUIDE.md`
-5. `hubs/hub-standard/LAYOUT-GUIDE.md`
-6. `scripts/cec_beta_electrical_audit.py`
+1. `docs/pcb-pipeline-design-principles-audit-2026-08-02.md`
+2. `docs/beta-power-regulator-selection-2026-08-02.md`
+3. `docs/mezz-structural-segments-2026-07-22.md`
+4. `docs/atx-hub-can-freeze-assessment-2026-08-03.md`
+5. `beta/atx-24pin-rev3/README.md`
+6. `beta/hub-standard-rev2/README.md`
 
-The August 2 audit is the current evidence record. Older four-layer placement,
-routing, and pour documents are marked historical or superseded.
+## Current owner decisions and implemented topology
 
-## Product decisions already made
+- Current ATX rev3 and Hub rev2 are functional hierarchies. Their earlier flat
+  source captures live only under `old-revisions/beta/` and cannot be
+  rediscovered as current boards.
+- ATX rev3 uses a TLV75533 WSON direct 3.3 V LDO. Its reviewed worst-case load
+  is 204.838 mA including 20% margin against 500 mA capacity.
+- Hub rev2 uses the TLV62569 buck directly for 3.3 V. Its reviewed worst-case
+  load is 195.654 mA against the selected inductor's conservative 1.76 A
+  thermal limit. A post-buck LDO is not required.
+- Hub shutdown watches the final live `+5VSB` before the reservoir diode, not
+  regulator dropout. The bounded paper result is 13.167 ms hold-up against a
+  10 ms durable-commit budget, leaving 3.167 ms. OQ-56 remains a bench gate.
+- ATX TPS2121 OVP uses 43.2k/10k dividers: 5.639 V nominal and
+  5.287..5.948 V bounded.
+- The direct ATX RJ-45 is obsolete and removed. CAN remains on the segmented
+  mezzanine pending system-level proof of a CAN-free FREEZE transport; the
+  assessment is informational and made no electrical change.
+- The reflected dead-bug stack is the physical contract. ATX F.Cu faces Hub
+  F.Cu, ATX 24-pin input is below the Hub outline, the daughterboard/output row
+  is above it, and the Hub's four RJ-45 mouths are assembly-right after mating.
+- The stack uses exact Samtec pairs: ATX `TSW-10x-17-G-D` long-post headers and
+  Hub `SSQ-10x-03-G-D` sockets in unique 2x3, 2x4, and 2x2 segments. One fitted
+  M2.5 ground lug uses an 18 mm Harwin `R25-1001802` standoff, leaving 4 mm
+  nominal clearance over the approximately 14 mm RJ-45 bodies.
+- The shared J6C/H1 row is at y=-25 mm in the common mating frame. Both sides
+  pass the segment/mount geometry contract; ATX lays all four forced rails.
+- Hub has six reverse-mount LEDs: `DL1..DL5,DL7`. DL6 is retired and bypassed
+  in the chain. C29..C34 are one local 100 nF bypass per retained LED. Each
+  reverse-LED footprint encodes the shine-through aperture and 0.8 mm internal
+  clearance in its courtyard.
+- Hub logo remains on B.Cu. `SW_RESET` and `SW_BOOT` are F.Cu-only at the
+  accessible right edge; there is no reason to pay for double-sided assembly
+  for these two debug controls.
 
-- Wireless functions are disabled on every ESP32 BETA board. There is no
-  wireless-enabled BETA variant.
-- The selected Hub-to-24-pin interface is segmented J6P, J6C, and J6D.
-- H1 is a mandatory coincident plated M2 GND lug with fitted conductive
-  hardware. It supplements the connector ground contacts.
-- High-current boards use the six-layer 2 oz outer profile. The Hub uses 1 oz
-  outer copper. Both use 0.0152 mm inner copper in the model.
-- Legal ordinary-trace layers are F.Cu, In2.Cu, In3.Cu, and B.Cu. In1.Cu and
-  In4.Cu are GND planes.
-- Plated through vias are approved. Same-net POFV is approved only under the
-  declared profile with the complete via land inside the SMD pad.
-- Blind, buried, stacked, staggered, and microvias are not approved.
-- Hub L2 is DNP and excluded from the BOM. Do not assign an inductance value.
+## Current electrical release state
 
-## Work completed on this branch
+The manifest-only audit currently reports 21 blockers, 19 warnings, and 28
+information findings. ATX rev3 and Hub rev2 have zero electrical blockers.
+Remaining blockers are deliberately not weakened:
 
-### Pipeline and physical-design software
+- 12VHPWR: one TPS2121 OVP bound exceeds the downstream regulator's 6.0 V
+  absolute maximum.
+- EPS rev3: legacy Schottky USB OR ingress, unapproved LP5907 capacitor
+  network, and no reviewed 3.3 V load budget.
+- ARGB: nine blockers covering bypass/regulator qualification, the unresolved
+  SATA connector, and NTC/PPTC/PMOS 7 A margin.
+- Each PCIe board: four blockers covering LP5907 qualification, TPS2121 OVP,
+  and missing local U4 IN1 bypass.
+- The output daughterboards have no electrical-audit findings but still need
+  mating, load, and first-article proof.
 
-- Connected placement, pours, routing, physics, and release checks through the
-  actual top-level flow.
-- Hardened KiCad tool, JSON, netlist, DRC, ERC, and candidate acceptance gates.
-- Candidate freshness now compares reference, value, footprint item, assembly
-  state, and numbered-pad net map.
-- Carried the six-layer policy through DSN export, Freerouting, SES import, and
-  route verification. A real smoke route used In3.Cu and returned with zero
-  unconnected items.
-- Added fabrication-qualified same-net POFV pickup synthesis with guarded
-  adjacent-via fallback.
-- Repaired the slab allocator so it records current provenance, refuses missing
-  or conflicting current, removes stale slabs, and stops on missing anchors,
-  overlap, or minimum-width failure.
-- The Hub runner now reads the current eleven-rail ask contract instead of stale
-  candidate zones.
-- Field-solver injection accounting now blocks absent or disconnected requested
-  nets instead of presenting a low-temperature false assurance.
-- Schematic MCP mutation failures now restore the complete reachable project.
-
-### SPICE and topology
-
-- Windows resolves only `ngspice_con.exe`, launches it hidden, and rejects a
-  `CEC_NGSPICE` override pointing to GUI `ngspice.exe`.
-- The console executable used in the audit was
-  `C:\Users\Admin\AppData\Local\CEC-Tools\ngspice-46\Spice64\bin\ngspice_con.exe`.
-- The harness finds root schematics, uses unique element names, rejects empty or
-  failed runs, and cleans temporary decks.
-- The TPS2121 bounded model is directional for reverse-current blocking instead
-  of being a bidirectional resistor.
-- Hub U5, U7, and U11 CP2 pin 3 are grounded. The exported netlist proves fixed
-  priority `MAIN_5V > 5VSB > USB > KVM` at the bounded DC topology level.
-- All 11 BETA projects pass the bounded DC harness with no findings or coverage
-  gaps. Every report still sets functional signoff to false.
-
-### Electrical and part audit
-
-- All 11 BETA root schematics pass fresh KiCad error-level ERC.
-- The machine-readable audit covers 714 fitted components across the 11 BETA
-  projects.
-- Verified part records and cross-board LCSC consistency were repaired where
-  manufacturer evidence was available.
-- Device-specific bypass checks cover LP5907, TPS2121, the current-sense parts,
-  CAN, logic, comparator, supervisor, reference, and ESP32 supply networks.
-- The current electrical result is 66 blockers, 38 warnings, and 10 information
-  findings. Do not weaken these gates merely to obtain a passing result.
-
-## Fundamental schematic and topology problems still open
-
-The Hub source-priority topology is repaired. Hub L2 is not needed. This does
-not mean every BETA schematic is electrically ready. The following are real
-schematic or design-basis problems:
-
-1. **LP5907 capacitor networks on eight boards.** Nominal output-node
-   capacitance is above the documented 10 uF application range, input
-   capacitance is below output capacitance for the fast-load guidance, or both.
-   Do not add the ESP reference 22 uF capacitor until the regulator and complete
-   capacitor network are resolved.
-2. **LP5907 current qualification on eight boards.** There is no reviewed
-   worst-case wired-mode 3.3 V load budget for the controller, sensing, CAN,
-   logic, and housekeeping loads. The regulator is rated for 250 mA. The owner
-   must approve the current budget or select another regulator.
-3. **TPS2121 OVP.** Eight populated dividers can cross above the LP5907 6.0 V
-   absolute maximum at specified extremes. ATX U5 has OV1 tied to ground and
-   therefore provides no IN1 overvoltage cutoff. Thresholds and divider
-   tolerances need an owner-approved design basis.
-4. **TPS2121 local bypassing.** Eleven IN1, IN2, or OUT node checks lack a
-   selected local X5R or X7R rail-to-ground capacitor.
-5. **EPS rev3 USB ingress.** It still uses the superseded direct Schottky USB OR
-   topology instead of the approved TPS2121 plus fuse ingress.
-6. **ARGB power input.** The SATA connector is unselected, the 7 A NTC has no
-   current margin, the PPTC derates below 7 A above 20 C, the PMOS lacks a
-   guaranteed maximum resistance at the applied gate drive, and U6 lacks its
-   required local bypass.
-7. **Connectors and mezzanine.** J6P, J6C, and J6D currently use generic or
-   same-gender placeholder footprints. Select an orderable header/socket pair
-   and validate the mated stack height. Other generic connectors are listed in
-   the electrical audit.
-8. **Current-model conflicts.** ATX and Hub specification currents disagree
-   with their thermal configurations on eight rail entries. The pipeline now
-   stops instead of choosing one. The owner must validate the design-current
-   table.
-
-These findings include specification and device-datasheet nonconformance. Fresh
-ERC and bounded DC SPICE do not clear them.
-
-## Physical board status
+## Current physical evidence
 
 No primary BETA PCB is fabrication-ready.
 
-- Fifteen BETA PCB files contain 357 error-severity DRC violations and 1,374
+- Hub placement R7 is 86x74 mm with zero placement residual, pad-boundary,
+  courtyard, and courtyard-to-cutout findings. Buttons are on F.Cu and all six
+  LED bypass macros are present.
+- A fresh Hub route exercise still leaves 38 unconnected items. The route has
+  90 structural DRC findings; independent fabrication analysis has 34 DRC
+  findings and 13 acid-trap candidates. CAN skew is 5.0 mm against the 4.0 mm
+  gate and thermal injection is incomplete on 9/12 requested rails. It is a
+  diagnostic route, not a current release candidate.
+- ATX placement R4 is 86x95 mm. All twelve placement variants had zero
+  residual and all four forced rails lay. Signal routing plateau-killed at
+  218/186; no completed route exists and the placement artifact has 310
   unconnected items.
-- The three output daughterboards are DRC-clean, but the ATX daughterboard still
-  has an unresolved connector selection. They also need mating, electrical,
-  load, and thermal first-article tests.
-- All six primary candidates are stale against their current schematics.
-- 12VHPWR candidate: 101/102 exact signatures; FL1 is missing.
-- ATX candidate: 122/123 exact signatures; C50 footprint differs.
-- EPS candidate: 70/73 exact signatures; FL1 and R19 are missing and U1 pad nets
-  differ.
-- Hub candidate: 112/115 exact signatures; U5, U7, and U11 pad nets differ.
-- PCIe 2-port candidate: 71/74 exact signatures; FL1 and R19 are missing and U1
-  pad nets differ.
-- PCIe 3-port candidate: 85/88 exact signatures; FL1 and R19 are missing and U1
-  pad nets differ.
-- The checked-in 12VHPWR, EPS, and PCIe candidates are still four-layer files.
-  Their pipeline parameters are migrated, but the physical PCB files are not.
+- On the returned partial/existing geometry, the profile width/via checks found
+  no sub-profile track width, via land/drill, annular, type, or aspect issue.
+  This proves the geometry checkers execute; it does not clear missing copper.
+- The checked-in Hub routed candidate is stale after the sixth LED bypass was
+  added. Keep its diagnostic route scores, but never present it as current
+  schematic evidence. The clean R7 board is placement evidence only.
 
-## Pour and FEM status
+## Dashboard and visual review
 
-- A ripped Hub diagnostic created 40 safe pickups, including 28 POFV and 12
-  guarded stub-via pickups, and removed eight stale zones.
-- Strict Hub allocation then stopped because the present placement lacks legal
-  anchors for `/PSU_5V` and `/PSU_5V_KVM` and cannot maintain minimum width on
-  several other rails. This is a placement problem, not a reason to lower the
-  current or width floor.
-- The ATX diagnostic also stopped on `+3V3` and `+5VSB` minimum-width failures.
-- Hub FEM is invalid as thermal evidence because ten configured power nets were
-  dropped on disconnected copper islands. Its apparent 0.536 C rise is false
-  assurance.
-- The 12VHPWR 60 C design-basis solve reached 111.0 C, a 51.0 C rise, and
-  9.061 W Joule loss with 12 blocking current-density or conductor-temperature
-  flags. The solver is uncalibrated, so use this as a rejection result rather
-  than an exact temperature prediction.
+- Use one dashboard instance at `http://localhost:8090`; kill the prior process
+  before restarting `scripts/cec_dashboard.py`.
+- The activity feed contains the current Hub and ATX placement renders. Their
+  names include `placement` so they are not confused with route signoff.
+- Current hierarchical PDFs are generated under `output/pdf/` and model-free
+  board renders under `output/review/`.
 
 ## Recommended next sequence
 
-1. Obtain owner decisions for the regulator/current budget, capacitor network,
-   OVP thresholds, exact bypass parts, mezzanine parts and height, ARGB power
-   parts, and conflicting rail currents.
-2. Apply those decisions to the schematic generators and authoritative root
-   schematics. Re-run the electrical audit, ERC, and bounded SPICE before
-   touching placement.
-3. Update each PCB from its current schematic and require exact candidate
-   freshness before using any old placement or route score.
-4. Redesign Hub and ATX placement around legal In3.Cu slab corridors and safe
-   vertical pickups. Keep J6P/J6C/J6D and H1 fixed.
-5. Materialize the actual six-layer candidates for 12VHPWR, EPS, and PCIe.
-6. Run strict pours, routing, error-level DRC, laid-copper connectivity, FEM,
-   and mating gates in that order.
-7. Perform first-article electrical, load, thermal, mating, and ground-bond
-   tests before any production claim.
+1. Close the 21 remaining electrical blockers in their authoritative schematic
+   generators; rerun the manifest audit and error-level ERC.
+2. Regenerate exact-schematic placement candidates. Do not inherit parts or
+   net maps from stale candidate boards.
+3. Improve Hub/ATX legal power corridors and signal routing without increasing
+   the board outlines merely to accommodate a weak placer/router.
+4. Require, in order: exact freshness, placement/orientation/cutout gates,
+   strict pours, complete route, zero error-level DRC and unconnected items,
+   pair/reference checks, per-segment width and via checks, laid-copper
+   connectivity, electrothermal/FEM, and fabrication audit.
+5. Perform first-article electrical, hold-up, load, thermal, USB/CAN,
+   connector-mating, stack-clearance, ground-bond, peel, and shake tests.
 
-## Verification already completed
+## Completion rule
 
-- Fresh ERC: 11 of 11 BETA root schematics passed.
-- Fresh bounded DC SPICE: 11 of 11 BETA projects passed, with functional
-  signoff false.
-- KiCad-focused six-layer, pour, freshness, and design tests: 80 passed with 5
-  subtests passed.
-- Placement, pour, POFV, routing, and mezzanine group: 203 passed and 14 skipped,
-  with 5 subtests passed.
-- Thermal and FEM group: 201 passed and 7 skipped.
-- Final SPICE launcher group: 40 passed.
-- `git diff --check` and changed-script compilation passed before commit.
+Delete this handoff only after:
 
-A full 1,459-test run exceeded its ten-minute limit and did not produce a final
-result. A later schematic integration group opened visible Windows child command
-windows and was terminated. Do not run that full multiprocessing suite in the
-interactive desktop session. Use bounded groups or a headless CI worker. No
-full-suite pass is claimed.
-
-## Useful commands
-
-Electrical audit, expected to exit nonzero while blockers remain:
-
-```powershell
-python scripts/cec_beta_electrical_audit.py --beta-root beta --json-out build/audit-current/beta-electrical-passives.json
-```
-
-Console SPICE for one board:
-
-```powershell
-python scripts/cec_spice_sanity.py --board beta/hub-standard-rev2 --json --require-signoff
-```
-
-Confirm the batch executable before any live SPICE run:
-
-```powershell
-python -c "import sys;sys.path.insert(0,'scripts');import cec_toolchain as t;print(t.ngspice_console())"
-```
-
-It must resolve to `ngspice_con.exe`, never `ngspice.exe`.
-
-## Completion rule for the next agent
-
-Do not delete this handoff merely because code was changed. Delete it only after:
-
-- every owner input above is captured in a permanent decision record,
-- the assigned schematic fixes are verified,
-- regenerated candidates pass exact freshness,
-- remaining physical failures are either fixed or recorded as explicit owner
-  deferrals, and
-- the final remote branch contains the replacement permanent evidence.
-
-The final cleanup commit should delete
-`00_NEXT_AGENT_HANDOFF_REMOVE_WHEN_DONE.md`.
+- the remaining electrical selections and owner decisions are captured in
+  permanent design records;
+- regenerated candidates are exact against current schematics;
+- every primary board passes the complete aggregate physical release gate, or
+  each remaining failure is an explicit owner deferral in a permanent record;
+- required first-article obligations are transferred to permanent issue/test
+  records; and
+- the final remote branch contains the replacement evidence.

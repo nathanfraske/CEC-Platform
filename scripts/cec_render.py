@@ -7,7 +7,7 @@ strip all silkscreen (footprint refs/values + silk graphics + board-level silk d
 from an in-memory COPY, save to a temp file, and render that. The source board is never
 touched. Used by the wave snapshots, the escalator probe, and the dashboard.
 
-CLI: python3 scripts/cec_render.py BOARD OUT [--side top|bottom] [--silk] [--timeout N]
+CLI: python3 scripts/cec_render.py BOARD OUT [--side top|bottom] [--silk] [--no-bodies] [--timeout N]
 """
 import argparse
 import os
@@ -114,10 +114,12 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--side", default="top", choices=("top", "bottom"))
     ap.add_argument("--silk", action="store_true", help="keep silkscreen (default: stripped)")
+    ap.add_argument("--no-bodies", action="store_true",
+                    help="strip all 3D models from the disposable render copy")
     ap.add_argument("--timeout", type=int, default=180)
     args = ap.parse_args()
     out = render(args.board, args.out, side=args.side, no_silk=not args.silk,
-                 timeout=args.timeout)
+                 no_bodies=args.no_bodies, timeout=args.timeout)
     print(out or "RENDER FAILED")
     return 0 if out else 1
 
