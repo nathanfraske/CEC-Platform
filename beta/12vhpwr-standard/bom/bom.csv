@@ -1,6 +1,6 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-"C1,C29",2,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,"buck input capacitor, 10uF X5R 25V,buck output / post-LDO input capacitor, 10uF X5R 25V"
-C2,1,1uF,C_0603_1608Metric,CL10B105KA8NNNC,Samsung,C29936,,,,,,"post-LDO local output capacitor, 1uF X7R 25V"
+C1,1,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,"LDO input capacitor, 10uF X5R 25V"
+C2,1,1uF,C_0603_1608Metric,CL10B105KA8NNNC,Samsung,C29936,,,,,,"LDO local output capacitor, 1uF X7R 25V"
 C24,1,1nF,C_0402_1005Metric,GRM1555C1H102JA01D,Murata,C76947,,,,,,VRAIL_DIV ADC anti-alias / S&H cap; C0G; fc~19kHz with 47k||10k source
 C26,1,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,https://product.samsungsem.com/mlcc/CL10A225KO8NNN.do,,,"U5 soft-start cap (~10ms output ramp, hub-proven value)."
 "C3,C4,C5,C8,C10,C11,C12,C13,C14,C15,C20,C21,C22,C23,C25,C27",16,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do,,,U5 IN2 (VBUS) bypass.
@@ -18,7 +18,6 @@ J2,1,CEC_FAN_3P (DNP),JST_PH_B3B-PH-K-S_1x03_P2.00mm_Vertical,B3B-PH-K-S(LF)(SN)
 J3,1,12V-2x6 IN,CEC_12V2x6_Horizontal,2191161161,Molex,,,,,,,
 J4,1,12V-2x6 OUT pigtail,CEC_12V2x6_Horizontal,2191161161,Molex,,,,,,,
 J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
-L1,1,2.2uH,VLS252010HBX-2R2M-1,VLS252010HBX-2R2M-1,TDK,C88527,,,,,,"2.2uH shielded buck inductor, 2.3A Isat max / 1.76A thermal-rated"
 Q1,1,AO3400A,SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR,AO3400A,Alpha & Omega Semiconductor,C20917,,,https://www.aosmd.com/res/datasheets/AO3400A.pdf,,,"Q_FAN: low-side NMOS switch for J2 fan return. Drain=FAN_RET, Source=GND, Gate=FAN_GATE (100R series R14 from ESP32 IO21/FAN_EN, 10k pullup R15 to +3V3). DEFAULT-ON (owner ruling): with 3V3 up and the GPIO not actively driving low, R15 holds the gate high and the fan runs; firmware drives FAN_EN LOW to turn the fan off. 30V/5.7A SOT-23, LCSC C20917, 853k+ in stock."
 R1,1,2.2kΩ,R_0402_1005Metric,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,
 "R10,R11,R12,R13,R17",5,1kΩ,R_0402_1005Metric,0402WGF1001TCE,UNI-ROYAL,C11702,,,,,,FAN_TACH series R into ESP32 IO47 (FAN_TACH_GPIO) -- ESD/current limiting on the tach line into the ADC-capable GPIO used as a digital input.
@@ -27,10 +26,9 @@ R14,1,100Ω,R_0402_1005Metric,RC0402JR-07100RL,YAGEO,C106233,,,,,,"Q_FAN gate se
 "R22,R23",2,0Ω,R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,,,,,"H3a(c) CAN_H bypass -- REQUIRED alongside FL1: a DNP series CMC opens the CAN_H line in the netlist (DNP only affects BOM/assembly, not connectivity), so this 0R bridges FL1 pins 1(H_IN)/3(H_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R23) if FL1 is ever populated.,H3a(c) CAN_L bypass -- REQUIRED alongside FL1: bridges FL1 pins 2(L_IN)/4(L_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R22) if FL1 is ever populated."
 R26,1,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,"U5 OV1 divider top (IN1 side) -- 1% UNI-ROYAL, NOT the 0.1% Yageo R5/R6 precision line elsewhere on this board."
 R29,1,33kΩ,R_0402_1005Metric,0402WGF3302TCE,UNI-ROYAL,C25779,,,,,,U5 PR1 divider bottom (GND side) -> ~4.27V typical validity floor.
-R30,1,560kΩ,R_0402_1005Metric,0402WGF5603TCE,UNI-ROYAL,C132339,,,,,,buck FB top; 3.96V nominal with R31
 R5,1,47kΩ,R_0402_1005Metric,RT0402BRD0747KL,Yageo,C728561,,,,,,
 R6,1,10kΩ,R_0402_1005Metric,RT0402BRD0710KL,Yageo,C190095,,,,,,
-"R7,R25,R28,R31",4,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,https://www.lcsc.com/product-detail/C25741.html,,,"U5 ILIM strap -> ~1.24A typical (I_LIM=65.2/R_kOhm^0.861).,U5 PR1 divider top (IN1 side)."
+"R7,R25,R28",3,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,https://www.lcsc.com/product-detail/C25741.html,,,"U5 ILIM strap -> ~1.24A typical (I_LIM=65.2/R_kOhm^0.861).,U5 PR1 divider top (IN1 side)."
 "R8,R9",2,5.1kΩ,R_0402_1005Metric,0402WGF5101TCE,UNI-ROYAL,C25905,,,,,,
 "RFH1,RFH2,RFH3,RFH4,RFH5,RFH6,RFL1,RFL2,RFL3,RFL4,RFL5,RFL6",12,10Ω,R_0402_1005Metric,RT0402BRE0710RL,Yageo,C705642,,,,,,
 "RS1,RS2,RS3,RS4,RS5,RS6",6,1mΩ,R_2512_6332Metric,CSS2H-2512R-1L00F,Bourns,C4175647,,,,,,"OQ-11 LOCKED (spec v1.2.0, 2026-07-02; docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md): Bourns CSS2H-2512R-1L00F, 1mΩ, confirmed the only real 1mΩ Bourns part (K-1L00F does not exist)"
@@ -39,8 +37,7 @@ SW2,1,RESET,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com
 "TH1,TH2",2,NTC 10k,NTC_0402_1005Metric,NCP15XH103F03RC,Murata Electronics,C77131,,,https://datasheet.lcsc.com/datasheet/pdf/c9e5c9a36e405340079034c7608ac4b6.pdf?productCode=C77131,,,
 U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif Systems,C3013941,,,https://documentation.espressif.com/esp32-s3-mini-1_mini-1u_datasheet_en.pdf,,,
 "U10,U11,U12,U13,U14,U15",6,INA240A3,SOIC-8_3.9x4.9mm_P1.27mm,INA240A3DR,Texas Instruments,C2060584,,,https://www.ti.com/lit/ds/symlink/ina240.pdf,,,
-U16,1,TLV75533PDBVR,SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL,TLV75533PDBVR,Texas Instruments,C404027,,,https://www.ti.com/lit/ds/symlink/tlv755p.pdf,,,500mA high-PSRR 3.3V post-LDO for measurement/MCU rail
+U16,1,TLV75533PDRVR,WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm,TLV75533PDRVR,Texas Instruments,C2861750,,,https://www.ti.com/lit/ds/symlink/tlv755p.pdf,,,500mA high-PSRR 3.3V direct LDO; WSON exposed pad removes the SOT-23 thermal bottleneck
 U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3/1J,NXP Semiconductors,C38695,,,https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf,,,
-U3,1,TLV62569DBVR,SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL,TLV62569DBVR,Texas Instruments,C141836,,,https://www.ti.com/lit/ds/symlink/tlv62569.pdf,,,2A synchronous buck; +5VSB to nominal 3.96V pre-LDO rail
 U4,1,REF3030,REF3030_DBZ3,REF3030AIDBZR,Texas Instruments,C38423,,,https://www.ti.com/lit/ds/symlink/ref3030.pdf,,,
 U5,1,TPS2121RUXR,RUX0012A,TPS2121RUXR,Texas Instruments,C485916,,,https://www.ti.com/lit/ds/symlink/tps2121.pdf,,,

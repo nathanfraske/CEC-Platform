@@ -249,7 +249,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/ca198d8f-413f-4be9-af01-5364aac597a7")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/cf5103f4-9d03-446b-b2a6-2677ef8d4802")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -450,7 +450,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/ff89f1ca-333a-464a-8c98-b5e29c5f4538")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/7376248f-7402-402b-9937-0b53e5944f47")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -1615,7 +1615,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/709d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a07/c1fc8b0f-a66f-48a0-bd72-fb8a065675a6")
+		(path "/709d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a07/e4a9318b-097d-47f2-b7d9-367e32eb7a09")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -1803,7 +1803,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/7ee651be-f65a-48fb-a57d-df2bdae5cb6e")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/cacec5ee-01c1-4362-bdd2-165818b43ae3")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -2138,7 +2138,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/ce777086-7157-4963-b450-8f395a98826a")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/27e27fc9-dff2-4589-b5d0-8840a23d1608")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -2336,7 +2336,7 @@
 			)
 		)
 		(property ki_fp_filters "NTC_0402* R_0402*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/4dd5a412-02c5-46ec-8974-449498e5da92")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/a5f6719c-67d2-4e93-bb61-8df5ab043d7d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -2580,7 +2580,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/718b2201-24e2-4759-9ce4-dcaa25ad40b9")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/45498fb9-a4f9-47b4-b27c-2d452796200f")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -2776,7 +2776,7 @@
 				)
 			)
 		)
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/3bdee78c-fd58-4052-9505-8568380fc927")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/6a01bb0d-2a47-4218-aeb2-0cf98b7ee702")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -3050,7 +3050,7 @@
 				)
 			)
 		)
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/6e29bcb6-58a8-48c7-99b2-e4322eef3614")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/8dc9b7e7-2840-4818-b1dd-af383675d58d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -3327,7 +3327,7 @@
 				)
 			)
 		)
-		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/a0880d9f-0fb8-4332-8291-7e32d011c672")
+		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/5625a20f-23ca-4a9b-8a4b-f81852530df7")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -4154,7 +4154,7 @@
 				)
 			)
 		)
-		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/ca94a407-f477-4b4e-801a-9c76117fa4e2")
+		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/ac9c8a2f-5f52-4d03-8a4f-b8cbc6a1fe4c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -4546,7 +4546,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/c68c2465-dfa6-4c4f-9c34-dfdcaa270eed")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/442fd37b-f5e8-48d2-8003-04f071808363")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -4836,7 +4836,7 @@
 			)
 		)
 		(property ki_fp_filters "ESP32?S*MINI?1")
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/6510e99b-1cf2-4cde-9c88-8393ea2467b6")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/c9a5545c-db49-4ee8-8b1b-be98204e6109")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -6294,7 +6294,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/06ca3aaf-03ce-4746-b977-ba8e71b1f09e")
+		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/42101b59-17e8-479b-b9d4-7a7093b0e404")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -6495,7 +6495,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/7cc348e3-78dc-475a-be43-efb0a50f7935")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/62605dcd-b2a6-47c4-aeba-5ee9f90f27ce")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -6683,7 +6683,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/f3fc37cf-57a8-4d46-9f8a-b23dfbd4cb3d")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/cd13dc45-bdc4-4136-9fa5-c35758120d3f")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -7093,7 +7093,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/709d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a07/86f6131a-be70-4971-8122-20ebed52db4f")
+		(path "/709d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a07/e600d72e-052b-4968-a7a6-f645e7d02c4d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -7280,7 +7280,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/21dab520-0129-4c04-a0a8-c1382ec26d05")
+		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/71a9c5c2-9b8c-4a2e-9a34-029391b8674d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -7481,7 +7481,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/65538ea4-1328-4103-90ba-05bf3d1d0e69")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/59a50ee8-b87b-4936-98af-4f7336b1416b")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -7681,7 +7681,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/7b9908d4-6c25-4b43-a9ab-75fd73777f18")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/a04fd39a-6705-489c-a69a-ea4504ad1fee")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -7868,7 +7868,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/053dd4b5-cc95-43cf-b03f-55caa4e25806")
+		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/f97048a0-b8a6-4a5c-9fc4-808e693ee5cb")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -8056,7 +8056,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/90bfe6c5-4e24-4d63-86da-a0a89732775c")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/72db6dcb-826d-4061-bfa5-dc25eb4a560a")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -8243,7 +8243,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/70ffd4a6-3b7f-4a04-b2e8-7f7d82b3d2d6")
+		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/c8d7a964-1b17-4b8f-ad3c-a8ae66af2dda")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -8431,7 +8431,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/7acfa1cc-7895-4018-a227-05bc063b0a4c")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/e3d3b068-b14a-4dfb-bdf4-c856ecb052fe")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -8841,7 +8841,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/f56adb6a-3076-4503-a3d0-63df86b031c4")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/c58b2c65-9f2d-4c41-b3a7-74ddc1bdf8fd")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -9163,7 +9163,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/ccabbd6b-627d-40af-a3fb-0a5aabc7c707")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/37ceccb7-26f2-426b-b1ce-12f43df6cb5d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -9586,7 +9586,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/7bac3f2f-0804-4057-bcb8-1f071d8cc2a9")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/5307d731-2425-4633-ac76-34d398141c60")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -9908,7 +9908,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/4df7f28e-9628-48b2-b702-8c6d4257317a")
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/50c4af71-4c8b-4f2e-9122-d82fba1288fe")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -10096,7 +10096,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/2bf65859-bc0b-445f-a13b-cb1e9ffc9cd9")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/ec462931-737b-4b90-addb-ac92408104c4")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -10284,7 +10284,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/c6b8a538-1c0f-4348-a2bc-51c80e32494b")
+		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/379888ed-b3e3-4f73-9f42-d00421f86631")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -10485,7 +10485,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/2db7870b-9a90-4d6d-ba03-ae192b7ee34c")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/bbab1b03-e76b-4307-8bb5-0ebcfa626798")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -10681,7 +10681,7 @@
 				)
 			)
 		)
-		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/1a0f4cf5-45a4-42a0-bf07-0d4f60429c5e")
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/67e42cf7-8619-4b08-be80-b751962f171c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -11352,7 +11352,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/c9e0f3f5-89ed-4cd0-9bef-2746cdea6a6a")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/422571ca-a395-49b5-90f3-3a99be76c8d6")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -11553,7 +11553,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/54267049-ef9c-4223-a543-c717930da757")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/1f16bbfb-c5cb-4042-89e2-b41c32be8dbb")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -11741,7 +11741,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/4a5b8ecf-dbf0-4094-8a5e-320c6bfb05c4")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/323a83c4-36d2-4b4a-96d7-ec1b2f53ceca")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -12063,7 +12063,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/d7927990-ca4a-41b4-86bf-504b899a1605")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/6c3d7144-3f5d-4b4a-95ce-d6995967c6e9")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -12676,7 +12676,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/3824b62a-f6ad-463c-b7a7-eacadc350283")
+		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/fed6ba54-8eed-4644-bf37-8be417fee7e7")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -12876,7 +12876,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/1f7aebba-e10e-4786-92c1-83e9ed1fa989")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/c403cf43-60e2-43d0-8a77-4b3f4b18d71e")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -13064,7 +13064,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/393d5bbb-ce4b-4ed3-8835-1e011c6bf27d")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/e94b1067-c6e7-4784-afe4-55432d77b93c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -13474,7 +13474,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/26bd2c9b-3ee0-48ef-950d-0dacdee5180e")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/920f8c21-08b6-40f6-9407-d3fb069102b1")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -13662,7 +13662,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/eb016f07-e2dd-4f35-a1aa-8f1eeb99e4af")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/34cc7824-f9d0-434b-b393-ff0d5c1e00fc")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -13863,7 +13863,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/8c41369b-ddac-4be3-aa1a-97e39e87c03e")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/0efb8801-c2c5-4480-af05-6ff5e989c296")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -14051,7 +14051,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/46728800-957f-46a0-9161-559708819be5")
+		(path "/1a9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a01/96791ad0-9716-4f65-94e1-38ba71fa9270")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -14239,7 +14239,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/619fc617-d08a-442f-8a27-80439d1eebee")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/c6ae2cd5-16ff-4f2b-b7a4-b2c39dc5554c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -14426,7 +14426,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/ec9a2279-f2ef-4be9-b2e9-48b9c3de9e77")
+		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/7f99d42b-b97e-47d3-a6ab-89a3a424c4e5")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -14618,7 +14618,7 @@
 			)
 		)
 		(property ki_fp_filters "USB*C*Receptacle*")
-		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/77609681-ce0a-452e-9d8a-5f06cba180e4")
+		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/541133dd-9311-4622-ba15-0fd0b0722a42")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -15216,7 +15216,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/0d16776e-7fe0-4e43-835a-9d9cf5f10b86")
+		(path "/b49d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a11/392cb4c5-277c-42a8-9605-f4b9c8f84a51")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -15404,7 +15404,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/8f92f120-92b6-4678-a78a-0851345875b0")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/3f4fe2d1-45dd-482a-b5ac-1ac911c877c9")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -15605,7 +15605,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/c622b700-0fde-4cbf-b102-8c8e9fc7414f")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/1cf3d3e9-3504-49fb-896a-413715f73c4e")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -15793,7 +15793,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/b9737601-99d5-492e-b28b-938de52a8e89")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/f1f40d7b-3a0e-4dd8-9008-d3bf1a8798de")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -15981,7 +15981,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/080727fa-e6a4-475c-8fa3-699f2d62e3a3")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/0b05409e-7a1d-4646-a57a-6f2e851ca84b")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -16422,7 +16422,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/19cb2c1a-564f-470e-840e-8a424bb2d384")
+		(path "/819d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a08/6f20302a-c5db-46ac-9516-8537020aa63c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -16610,7 +16610,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/e8566ff6-93de-4e8c-abc5-4b5c0410530d")
+		(path "/5e9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a05/bab0850b-4301-458d-81ba-edcfcd242647")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -16811,7 +16811,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/41296cba-34a9-4764-9f1a-97a13770539f")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/018d7798-c9fd-489a-b6b7-a9ffe1860c3a")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -16999,7 +16999,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/d9b657dc-582b-4867-b7a6-cf44eb4f887a")
+		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/4c426f26-4ec8-404b-9036-859b61f550be")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -17187,7 +17187,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/a2191a18-9205-44c9-9ae3-c82a4b060357")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/bc2e9139-0f4b-4354-b7b5-a5b35ec3f078")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -17610,7 +17610,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/81b45524-cf6b-4ac8-8076-b6895faeb029")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/afce0a29-94c6-401d-b2f4-bf33a3551eec")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -17808,7 +17808,7 @@
 			)
 		)
 		(property ki_fp_filters "NTC_0402* R_0402*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/91bef5e7-a1ab-466e-9fbb-b85aad47127b")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/3eadf880-ad07-42e2-a9ad-d16977e01ff7")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -18055,7 +18055,7 @@
 			)
 		)
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
-		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/2cbf9a78-4172-44d0-ab07-944544108310")
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/95f3aeb3-fa72-437d-86cd-8371325a7706")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -18384,7 +18384,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/976d9155-9a46-4d0a-b24f-990bfa44da31")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/6f0ab42b-f276-491e-a0b2-90562d51495f")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -18584,7 +18584,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/f0b372bc-6d17-440b-94e0-8996699182eb")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/c887bb25-3a7b-4a8b-a401-0397d80579aa")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -18772,7 +18772,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/3c42c8ac-82bf-416e-bfd3-de2d163a3a7e")
+		(path "/a39d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a10/04e017ac-09d3-4c63-9efd-c5c77496eb43")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -18959,7 +18959,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/a0833512-d0a6-44ff-9e76-f5503d0237ca")
+		(path "/6f9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a06/5fc3162d-509f-43ad-8844-5259441fa0a3")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -19559,7 +19559,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/0f777ef4-0e7a-4dcd-8ce9-67f6664f138a")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/871a6a6f-1b98-4940-b853-bb07c30a24cb")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -19759,7 +19759,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/26297af5-9683-4cb2-ab28-a42d4daae613")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/25a0c923-501b-47d4-a1a1-e4aa6db31d77")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -20536,7 +20536,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/22d632bc-eec2-4b63-90c5-45725eb36793")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/fbdca826-1534-4a0e-800b-430acf364ffd")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -20724,7 +20724,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/80062b98-54b6-4d81-ace5-1215262af81b")
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/4dd6fc31-ea14-4773-acfa-6a18158d0c3d")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -20912,7 +20912,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/399e8dd5-9586-47bd-834a-48a20d79318c")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/4320dbda-6c12-4843-b7ae-0a7454fc20d6")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -21111,7 +21111,7 @@
 				)
 			)
 		)
-		(path "/3c9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a03/23581599-6418-4da0-9123-17e514bb3fdc")
+		(path "/3c9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a03/b43097f0-68ad-4d20-8d54-262012e1079f")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -21937,7 +21937,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/e4b6f546-0b60-4cbc-ae87-c709e72845ce")
+		(path "/929d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a09/e3c10fbc-3807-43cb-95a3-e3bf3e84aff4")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -22125,7 +22125,7 @@
 			)
 		)
 		(property ki_fp_filters "SOIC*3.9x4.9mm*P1.27mm*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/1d74e855-154d-4bd1-8038-020cf408ce14")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/0e87fc2c-740a-4a84-81be-8d8044c2706a")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -22535,7 +22535,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/62bd94b3-6d45-4f3b-b504-5c42f86a7623")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/f78e44eb-d84d-47af-b816-1a8d61af6c75")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -22736,7 +22736,7 @@
 			)
 		)
 		(property ki_fp_filters "R_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/b1752708-f8a3-47b8-8c57-6cb6dcb08b19")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/0b84ed5f-b03e-4f15-8f47-f1cf5da52873")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -23058,7 +23058,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/04f2026e-6f4c-475d-baa4-05680bfc2f5d")
+		(path "/4d9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a04/7b0b2f14-12fa-46f1-9b31-6bd24a579b6c")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units
@@ -23380,7 +23380,7 @@
 			)
 		)
 		(property ki_fp_filters "C_*")
-		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/495e19ea-305b-4324-ba18-5c0d03bef699")
+		(path "/2b9d5a2e-6b0a-4b6b-9a7a-2f7a7a8a1a02/b4886f51-a387-4c35-b989-5eca5781a887")
 		(sheetname "/")
 		(sheetfile "12vhpwr-standard-module.kicad_sch")
 		(units

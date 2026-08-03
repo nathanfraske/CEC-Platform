@@ -29,6 +29,7 @@ if HERE not in sys.path:
 import cec_sch  # noqa: E402
 import cec_sch_gates  # noqa: E402
 import cec_hub_holdup  # noqa: E402
+import cec_power_budget  # noqa: E402
 import cec_spice_sanity  # noqa: E402
 import cec_toolchain  # noqa: E402
 import cec_beta_manifest  # noqa: E402
@@ -133,6 +134,7 @@ PACKAGE_RULES = (
     ("LP5907MFX-3.3/NOPB", "SOT-23-5"),
     ("TLV62569DBVR", "SOT-23-5"),
     ("TLV75533PDBVR", "SOT-23-5"),
+    ("TLV75533PDRVR", "WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm"),
     ("VLS252010HBX-2R2M-1", "VLS252010HBX-2R2M-1"),
     ("0402WGF4533TCE", "R_0402_1005Metric"),
     ("0402WGF1003TCE", "R_0402_1005Metric"),
@@ -173,6 +175,11 @@ TLV62569_PIN_NAMES = {
 
 TLV75533_PIN_NAMES = {
     "1": "IN", "2": "GND", "3": "EN", "4": "NC", "5": "OUT",
+}
+
+TLV75533_DRV_PIN_NAMES = {
+    "1": "OUT", "2": "NC", "3": "GND", "4": "EN",
+    "5": "NC", "6": "IN", "7": "EP",
 }
 
 
@@ -259,6 +266,22 @@ def pin_map(nets: dict[str, list[tuple[str, str]]]) -> dict[str, dict[str, str]]
         for ref, pin in nodes:
             out.setdefault(ref, {})[pin] = net
     return out
+
+
+def _net_basename(net: str | None) -> str | None:
+    """Return a hierarchy-independent electrical net name.
+
+    KiCad qualifies labels local to a hierarchical sheet with the sheet path.
+    The audit contracts describe the intended local label, so compare the final
+    path component while preserving the exact spelling of the electrical name.
+    """
+    if net is None:
+        return None
+    return net.rsplit("/", 1)[-1]
+
+
+def _same_net(actual: str | None, expected: str | None) -> bool:
+    return _net_basename(actual) == _net_basename(expected)
 
 
 def _nc(net: str | None) -> bool:
@@ -597,7 +620,10 @@ def check_passives(board, inventory, pins_by_ref):
             if output_net:
                 modern_supply_outputs.add(output_net)
         else:
-            input_net, output_net = pins.get("1"), pins.get("5")
+            if "PDRVR" in value:
+                input_net, output_net = pins.get("6"), pins.get("1")
+            else:
+                input_net, output_net = pins.get("1"), pins.get("5")
             requirements = (("input", input_net, 1e-6, None),
                             ("output", output_net, 1e-6, 200e-6))
             if output_net:
@@ -961,6 +987,28 @@ def check_topology(board, root_sch, inventory, pins_by_ref):
                     f"CAD proves {top[0]}/{bottom[0]} feedback divider; nominal output is "
                     f"{nominal:.3f} V on {output_net}", ref))
 
+        elif "TLV75533PDRVR" in value:
+            _check_named_pin_table(
+                findings, board, ref, root_sch, rec, symbol_cache,
+                TLV75533_DRV_PIN_NAMES, "selected TLV75533 DRV symbol",
+            )
+            _require_pin(findings, board, ref, pins, "3", _gnd, "GND")
+            _require_pin(findings, board, ref, pins, "7", _gnd, "grounded exposed pad")
+            _require_pin(findings, board, ref, pins, "6", _connected_non_ground,
+                         "connected non-ground input supply")
+            _require_pin(findings, board, ref, pins, "1", _power, "regulated output")
+            _require_connected(findings, board, ref, pins, "4")
+            _require_distinct(findings, board, ref, pins, "6", "1", "LDO input/output")
+            if pins.get("6") != pins.get("4"):
+                findings.append(_finding(
+                    board, "BLOCKER", "LDO_ENABLE_SOURCE",
+                    f"EN pin 4 is {pins.get('4')!r}, not input net {pins.get('6')!r}", ref))
+            for pin in ("2", "5"):
+                if not _nc(pins.get(pin)):
+                    findings.append(_finding(
+                        board, "BLOCKER", "PIN_ROLE",
+                        f"NC pin {pin} is tied to {pins.get(pin)!r}", ref))
+
         elif "TLV75533" in value:
             _check_named_pin_table(
                 findings, board, ref, root_sch, rec, symbol_cache,
@@ -1299,7 +1347,7 @@ def _check_hub_holdup(board, inventory, pins_by_ref):
     def require_pins(ref, expected):
         actual = pins_by_ref.get(ref, {})
         for pin, net in expected.items():
-            if actual.get(pin) != net:
+            if not _same_net(actual.get(pin), net):
                 blocker(ref, f"pin {pin} is {actual.get(pin)!r}, expected {net!r}")
 
     c1 = inventory.get("C1")
@@ -1392,14 +1440,14 @@ def check_board_specific(board, inventory, pins_by_ref):
     regulator_contracts = {
         # Loads already include the engineering 20% design margin.
         "12vhpwr-standard": {
-            "load_A": 0.233591, "capacity_A": 0.500,
-            "post_ldo": True,
+            "load_A": cec_power_budget.budget("12vhpwr-standard")["required_mA"] / 1e3,
+            "capacity_A": 0.500, "bucks": 0, "ldos": 1,
         },
         "hub-standard-rev2": {
             # Conservative source capacity is the selected inductor's 1.76 A
             # thermal current rating, below the TLV62569's 2 A IC rating.
-            "load_A": 0.215386, "capacity_A": 1.760,
-            "post_ldo": False,
+            "load_A": cec_power_budget.budget("hub-standard-rev2")["required_mA"] / 1e3,
+            "capacity_A": 1.760, "bucks": 1, "ldos": 0,
         },
     }
     contract = regulator_contracts.get(board)
@@ -1410,15 +1458,12 @@ def check_board_specific(board, inventory, pins_by_ref):
                      if "TLV75533" in rec.get("value", "") and _fitted(rec)]
         legacy = [ref for ref, rec in inventory.items()
                   if "LP5907" in rec.get("value", "") and _fitted(rec)]
-        if len(bucks) != 1 or bool(post_ldos) != contract["post_ldo"] or legacy:
+        if (len(bucks) != contract["bucks"] or
+                len(post_ldos) != contract["ldos"] or legacy):
             findings.append(_finding(
                 board, "BLOCKER", "REGULATOR_ARCHITECTURE",
-                f"expected one TLV62569, post-LDO={contract['post_ldo']}, and no LP5907; "
-                f"found bucks={bucks}, post-LDOs={post_ldos}, legacy={legacy}"))
-        elif contract["post_ldo"] and len(post_ldos) != 1:
-            findings.append(_finding(
-                board, "BLOCKER", "REGULATOR_ARCHITECTURE",
-                f"expected exactly one TLV75533 post-LDO; found {post_ldos}"))
+                f"expected bucks={contract['bucks']}, TLV75533 LDOs={contract['ldos']}, "
+                f"and no LP5907; found bucks={bucks}, LDOs={post_ldos}, legacy={legacy}"))
         else:
             load = contract["load_A"]
             capacity = contract["capacity_A"]
@@ -1427,6 +1472,31 @@ def check_board_specific(board, inventory, pins_by_ref):
                 f"reviewed worst-case rail load including 20% margin is {load * 1e3:.3f} mA; "
                 f"conservative source capacity is {capacity * 1e3:.0f} mA "
                 f"({(capacity - load) / capacity * 100:.1f}% remaining)"))
+
+    if board == "12vhpwr-standard":
+        expected_fan = {
+            "D5": {"1": "FAN_12V", "2": "FAN_RET"},
+            "J2": {"1": "FAN_RET", "2": "FAN_12V", "3": "FAN_TACH"},
+            "Q1": {"1": "FAN_GATE", "2": "GND", "3": "FAN_RET"},
+            "R14": {"1": "FAN_EN", "2": "FAN_GATE"},
+            "R15": {"1": "+3V3", "2": "FAN_GATE"},
+            "R16": {"1": "+3V3", "2": "FAN_TACH"},
+            "R17": {"1": "FAN_TACH", "2": "FAN_TACH_GPIO"},
+        }
+        wrong = []
+        for ref, contract_pins in expected_fan.items():
+            actual = pins_by_ref.get(ref, {})
+            for pin, wanted in contract_pins.items():
+                got = actual.get(pin)
+                if not got or got.rsplit("/", 1)[-1] != wanted:
+                    wrong.append(f"{ref}.{pin}={got!r}, expected {wanted}")
+        if wrong:
+            findings.append(_finding(
+                board, "BLOCKER", "FAN_SWITCH_TOPOLOGY", "; ".join(wrong)))
+        else:
+            findings.append(_finding(
+                board, "INFO", "FAN_SWITCH_TOPOLOGY",
+                "fan header, flyback diode, low-side MOSFET, gate bias, and tach path are distinct and correct"))
 
     if board == "hub-standard-rev2":
         l2 = inventory.get("L2")
@@ -1455,7 +1525,7 @@ def check_board_specific(board, inventory, pins_by_ref):
         for mux_ref, expected in priority_contract.items():
             actual = pins_by_ref.get(mux_ref, {})
             for pin, net in expected.items():
-                if actual.get(pin) != net:
+                if not _same_net(actual.get(pin), net):
                     contract_ok = False
                     findings.append(_finding(
                         board, "BLOCKER", "HUB_SOURCE_PRIORITY",
@@ -1484,7 +1554,9 @@ def check_board_specific(board, inventory, pins_by_ref):
             cap = next((item for item in _rail_capacitors(inventory, pins_by_ref)
                         if item["ref"] == cap_ref), None)
             selected = bool(cap and _cap_selected_and_verified(cap)[0])
-            if (not _fitted(rec) or set(cap_pins.values()) != {rail, "GND"} or not selected):
+            actual_cap_nets = {_net_basename(net) for net in cap_pins.values()}
+            expected_cap_nets = {_net_basename(rail), "GND"}
+            if (not _fitted(rec) or actual_cap_nets != expected_cap_nets or not selected):
                 mux_caps_ok = False
                 findings.append(_finding(
                     board, "BLOCKER", "HUB_TPS2121_LOCAL_BYPASS",

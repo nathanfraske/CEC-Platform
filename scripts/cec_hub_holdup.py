@@ -12,8 +12,10 @@ import argparse
 import json
 import math
 
+import cec_power_budget
 
-HUB_LOAD_A = 0.215386
+
+HUB_LOAD_A = cec_power_budget.budget("hub-standard-rev2")["required_mA"] / 1e3
 VOUT_V = 3.3
 EFFICIENCY_FLOOR = 0.85
 CAP_NOMINAL_F = 4700e-6

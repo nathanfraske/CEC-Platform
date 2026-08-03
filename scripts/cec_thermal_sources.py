@@ -318,8 +318,9 @@ def _cfg(cfg):
 # applies. See the class-by-class comments.
 
 # ---- LDOs -------------------------------------------------------------------------
-# LP5907MFX-3.3 -- populated on Hub Standard (U3) and 12VHPWR Standard (U3), regulating
-# +5VSB -> +3V3 logic. TI datasheet SNVSxxx, vendored lib/datasheets/LP5907.pdf:
+# LP5907MFX-3.3 -- retained on legacy module designs.  It is not the current
+# Hub Rev2 regulator (TLV62569 buck) or 12VHPWR regulator (TLV75533PDRVR).
+# TI datasheet SNVSxxx, vendored lib/datasheets/LP5907.pdf:
 #   - IQ (enabled): 12 uA typ / 425 uA max @ VEN=1.2V, IOUT=250mA (Electrical
 #     Characteristics table, "IQ Quiescent current", line ~261 of the extracted text;
 #     also the front-page bullet "Very low IQ (enabled): 12uA").
@@ -345,7 +346,6 @@ LDO_SPECS = {
                     "for the 3.3V DBV option at 500mA over -40C to 125C.",
         "iq_typ_A": 25e-6,
         "iq_max_A": 40e-6,
-        "vin_V": 3.96,
         "vout_V": 3.3,
     },
 }

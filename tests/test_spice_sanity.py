@@ -108,11 +108,12 @@ class TestDeckGeneration(unittest.TestCase):
         self.assertIn("min(3.96", source)
         self.assertEqual(deck.model_classes["U3"], "behavioral-buck-setpoint")
 
-    def test_tlv75533_uses_reviewed_dbv_pins_and_dropout(self):
+    def test_tlv75533_uses_reviewed_drv_pins_and_dropout(self):
         deck = spice.build_deck(
-            {"U16": "TLV75533PDBVR"},
-            {"PRE": [("U16", "1"), ("U16", "3")],
-             "GND": [("U16", "2")], "+3V3": [("U16", "5")]},
+            {"U16": "TLV75533PDRVR"},
+            {"+5VSB": [("U16", "6"), ("U16", "4")],
+             "GND": [("U16", "3"), ("U16", "7")],
+             "+3V3": [("U16", "1")]},
         )
         source = next(line for line in deck.lines if "_U16_0 " in line)
         self.assertIn("min(3.3", source)

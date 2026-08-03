@@ -19,4 +19,5 @@
   (lib (name "cec-Common_Mode_Choke")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Common_Mode_Choke.pretty")(options "")(descr "Vendored, pinned; FL1 CAN CMC candidate land (routing-foundation pass 2026-07-04)"))
   (lib (name "cec-Inductor_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Inductor_SMD.pretty")(options "")(descr "Vendored, pinned; TDK VLS252010HBX power inductor"))
   (lib (name "cec-Package_DFN_QFN")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_DFN_QFN.pretty")(options "")(descr "Vendored, pinned; U5 TPS2121RUXR USB-ingress mux (spec Sec 6.14 v1.6.0)"))
+  (lib (name "cec-Package_SON")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_SON.pretty")(options "")(descr "Vendored, pinned; thermal-pad TLV75533 DRV package"))
 )

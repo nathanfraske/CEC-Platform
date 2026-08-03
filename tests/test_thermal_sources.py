@@ -65,13 +65,13 @@ class T1LdoHandAnchor(unittest.TestCase):
         hi = TS._ldo_power(comp, "LP5907", TS._cfg({"i_load_U3_A": 0.20}))
         self.assertGreater(hi.watts, lo.watts)
 
-    def test_tlv75533_reviewed_12vhpwr_case(self):
-        comp = TS.SourceComp(ref="U16", value="TLV75533PDBVR")
-        cfg = TS._cfg({"i_load_U16_A": 0.233591, "vin_U16_V": 3.96})
+    def test_tlv75533_reviewed_direct_12vhpwr_case(self):
+        comp = TS.SourceComp(ref="U16", value="TLV75533PDRVR")
+        cfg = TS._cfg({"i_load_U16_A": 0.2123268, "vin_U16_V": 5.25})
         hs = TS._ldo_power(comp, "TLV75533", cfg)
-        hand = (3.96 - 3.3) * 0.233591 + 3.96 * 25e-6
+        hand = (5.25 - 3.3) * 0.2123268 + 5.25 * 25e-6
         self.assertAlmostEqual(hs.watts, hand, delta=1e-6)
-        self.assertAlmostEqual(hs.watts, 0.154269, delta=1e-6)
+        self.assertAlmostEqual(hs.watts, 0.414169, delta=1e-6)
 
 
 class T1bBuckAnchor(unittest.TestCase):

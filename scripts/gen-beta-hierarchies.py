@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Build the large authoritative BETA schematics as readable hierarchies.
+"""Recompose the current authoritative BETA hierarchies by function.
 
-The source of truth is the archived, electrically reviewed flat capture. This
-driver partitions it by function, preserves every orderable part/property and
-numbered-pin net membership, and emits a thin root plus compact leaf sheets.
-It fails closed on an unclassified reference or an electrical mismatch.
+The live hierarchy is the default electrical/inventory source. Archived flat
+captures are accepted only through an explicit --source migration request.
+Every orderable property and numbered-pin net membership is gated.
 """
 from __future__ import annotations
 
 import argparse
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import textwrap
 import uuid
 from collections import defaultdict
@@ -25,6 +26,7 @@ import cec_sch  # noqa: E402
 import cec_sch_compose as C  # noqa: E402
 import cec_sch_gates as G  # noqa: E402
 import cec_sch_layout as L  # noqa: E402
+import cec_spice_sanity  # noqa: E402
 
 LIBS = {
     "cec": open(os.path.join(ROOT, "lib", "cec.kicad_sym"), encoding="utf-8").read(),
@@ -57,10 +59,10 @@ CONFIG = {
             ("02-holdup-3v3", "HOLD-UP + 3V3 REGULATOR",
              "5VSB loss detection precedes the hold-up diode; shutdown is requested before reservoir or regulator dropout.",
              rows("D1 C1 RJ_HOLD RJ_BUCK U9 U10 L2", "U3 L1 C2 C3 U8 C17",
-                  "R26 R27 R28 R29 R30 R31 R32 R39 R40")),
+                  "R12 R13 C12 R26 R27 R28 R29 R30 R31 R32 R39 R40")),
             ("03-mcu-usb", "MCU + USB SERVICE PORT",
              "ESP32-S3 control, reset/boot supervision and protected USB-C service ingress.",
-             rows("J_USB D6 U1 U4", "C4 C6 C8 C10 C11 C12 C13 R2 R9 R10 R11 R12 R13 SW_BOOT SW_RESET")),
+             rows("J_USB D6 U1 U4", "C4 C6 C8 C10 C11 C13 R2 R9 R10 R11 SW_BOOT SW_RESET")),
             ("04-can-module-ports", "CAN + FOUR MODULE PORTS + STACK",
              "One shared CAN segment, four fused module feeds, DETECT protection/filtering and the structural stack interface.",
              rows("U2 J2 J3 J4 J5 J6C J6D J6P", "F1 F2 F3 F4 D2 D3 D4 D5",
@@ -122,7 +124,16 @@ CONFIG = {
 
 
 def _bare(name: str) -> str:
-    return name[1:] if name.startswith("/") else name
+    name = name.replace("{slash}", "/")
+    name = name[1:] if name.startswith("/") else name
+    tail = name.rsplit("/", 1)[-1]
+    # KiCad prefixes every sheet-local net during hierarchical export.  Feed
+    # only the electrical label back into a regenerated leaf; retaining the
+    # sheet path as part of the label causes a second regeneration to escape
+    # the slash and nest the path again (SHEET{slash}NET).  Duplicate local
+    # basenames remain fail-closed in extract(), so this cannot silently merge
+    # two unrelated sheet-local nets.
+    return tail
 
 
 def _source_placements(path: str) -> dict[str, tuple[float, float, int]]:
@@ -132,6 +143,8 @@ def _source_placements(path: str) -> dict[str, tuple[float, float, int]]:
 
 
 def _source_notes(path: str, placement: dict[str, tuple[float, float, int]], leaf_of: dict[str, str]):
+    if not placement:
+        return defaultdict(list)
     text = open(path, encoding="utf-8", errors="replace").read()
     notes = defaultdict(list)
     for el in L._extract_text_elements(text):
@@ -163,9 +176,46 @@ def _route_note(board: str, note: str, fallback: str) -> str:
 def extract(path: str, leaf_of: dict[str, str]):
     inv = G.inventory(path)
     by_name = {}
-    for members, name in R.netlist_groups(path).items():
-        if not name.startswith("unconnected-"):
-            by_name[_bare(name)] = sorted(members)
+    text = open(path, encoding="utf-8", errors="replace").read()
+    hierarchical = bool(re.search(r'\(sheet\n', L._strip_lib_symbols(text)))
+    if hierarchical:
+        fd, net_path = tempfile.mkstemp(prefix="cec_beta_hier_", suffix=".net")
+        os.close(fd); os.unlink(net_path)
+        try:
+            run = subprocess.run(
+                ["kicad-cli", "sch", "export", "netlist", "-o", net_path, path],
+                capture_output=True, text=True, timeout=120)
+            if run.returncode:
+                raise SystemExit("current hierarchy netlist export failed: " +
+                                 (run.stderr or run.stdout)[-1000:])
+            _values, nets = cec_spice_sanity.parse_netlist(net_path)
+            for name, members in nets.items():
+                if name.startswith("unconnected-"):
+                    continue
+                bare = _bare(name)
+                if bare in by_name and by_name[bare] != sorted(members):
+                    combined = sorted(set(by_name[bare]) | set(members))
+                    member_leaves = {leaf_of[ref] for ref, _pin in combined}
+                    if len(member_leaves) != 1:
+                        raise SystemExit(
+                            f"duplicate local net name {bare!r} spans unrelated sheets")
+                    # Recover a previously path-qualified local label that was
+                    # emitted twice on the same leaf.  In KiCad both spellings
+                    # denote the same intended leaf-local electrical net; the
+                    # canonical regeneration emits one basename and therefore
+                    # reconnects the members instead of compounding the path.
+                    by_name[bare] = combined
+                    continue
+                by_name[bare] = sorted(members)
+        finally:
+            try:
+                os.unlink(net_path)
+            except OSError:
+                pass
+    else:
+        for members, name in R.netlist_groups(path).items():
+            if not name.startswith("unconnected-"):
+                by_name[_bare(name)] = sorted(members)
     missing, extra = sorted(set(inv) - set(leaf_of)), sorted(set(leaf_of) - set(inv))
     if missing or extra:
         raise SystemExit(f"partition mismatch: missing={missing}, extra={extra}")
@@ -200,6 +250,109 @@ def _cap_bank(c: C.Compose, caps: list[str], power: str, x0: int, y0: int):
     c.stamp("GND", min(x for x, _y in bots), bot_y, 0)
     c.caption(f"{power} LOCAL BYPASS / BULK BANK", x0, y0 - 8, 1.6)
     return set(caps)
+
+
+def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
+    """Dense, fully drawn active hold-up/regulator/detector islands.
+
+    The DNP boost rung remains a clearly boxed option below the active path.
+    This follows the reference schematic language: real local wires within a
+    function and hierarchy labels only where signals actually leave the sheet.
+    """
+    # Active energy path: live +5VSB -> isolation -> reservoir -> fitted
+    # RJ_HOLD -> buck -> +3V3.
+    c.place_pin("D1", "2", 25, 70, rot=180)
+    c.place_pin("C1", "1", 38, 70)
+    c.place_pin("RJ_HOLD", "1", 50, 70, rot=90)
+    c.place_pin("C2", "1", 65, 70)
+    c.place_pin("U3", "4", 80, 70)
+    c.place_pin("L1", "1", 100, 70, rot=90)
+    c.place_pin("C3", "1", 115, 70)
+    c.place_pin("R39", "1", 125, 70)
+    c.place_pin("R40", "1", 125, 74)
+
+    live, held = c.pin("D1", "2"), c.pin("D1", "1")
+    c1_top, c1_gnd = c.pin("C1", "1"), c.pin("C1", "2")
+    rj_hold_in, rj_hold_out = c.pin("RJ_HOLD", "1"), c.pin("RJ_HOLD", "2")
+    c2_top, c2_gnd = c.pin("C2", "1"), c.pin("C2", "2")
+    en, gnd, sw, vin, fb = (c.pin("U3", p) for p in ("1", "2", "3", "4", "5"))
+    l_in, l_out = c.pin("L1", "1"), c.pin("L1", "2")
+    c3_top, c3_gnd = c.pin("C3", "1"), c.pin("C3", "2")
+    fb_top, fb_mid = c.pin("R39", "1"), c.pin("R39", "2")
+    fb_bot_top, fb_gnd = c.pin("R40", "1"), c.pin("R40", "2")
+
+    c.wire(held, c1_top, rj_hold_in)
+    c.wire(rj_hold_out, c2_top, vin)
+    c.wire(vin, (vin[0] - 4, vin[1]), (vin[0] - 4, en[1]), en)
+    c.wire(sw, l_in)
+    c.wire(l_out, c3_top, fb_top)
+    c.wire(fb, (116, fb[1]), (116, fb_mid[1]), fb_mid, fb_bot_top)
+    c.stamp("+5VSB", *live, 0)
+    c.stamp("GND", *c1_gnd, 0); c.stamp("GND", *c2_gnd, 0)
+    c.stamp("GND", *gnd, 0); c.stamp("GND", *c3_gnd, 0)
+    c.stamp("GND", *fb_gnd, 0); c.stamp("+3V3", *l_out, 0)
+    c.label("+5V_HOLD", *c1_top, 0)
+    c.label("LOGIC_REG_IN", *c2_top, 0)
+    c.label("BUCK_SW_3V3", 96, sw[1], 90)
+    c.label("BUCK_FB_3V3", 116, fb_mid[1], 90)
+    c.use(*[(r, p) for r, pins in {
+        "D1": ("1", "2"), "C1": ("1", "2"), "RJ_HOLD": ("1", "2"),
+        "C2": ("1", "2"), "U3": ("1", "2", "3", "4", "5"),
+        "L1": ("1", "2"), "C3": ("1", "2"),
+        "R39": ("1", "2"), "R40": ("1", "2"),
+    }.items() for p in pins])
+    c.region("ACTIVE HOLD-UP + 3V3 BUCK", 15, 48, 136, 91)
+
+    # 5VSB loss detector. R12/R13/C12 sense the live rail upstream of D1;
+    # U8 and its threshold/hysteresis divider remain powered from held +3V3.
+    c.place_pin("R12", "2", 40, 129)
+    c.place_pin("R13", "1", 40, 129)
+    c.place_pin("C12", "1", 55, 129)
+    c.place_pin("U8", "3", 75, 129)
+    c.place_pin("C17", "1", 100, 125)
+    c.place_pin("R28", "1", 82, 108, rot=90)
+    c.place_pin("R26", "2", 112, 129)
+    c.place_pin("R27", "1", 112, 129)
+
+    r12_hi, sense = c.pin("R12", "1"), c.pin("R12", "2")
+    r13_top, r13_gnd = c.pin("R13", "1"), c.pin("R13", "2")
+    csense, csense_gnd = c.pin("C12", "1"), c.pin("C12", "2")
+    fail, ugnd, u_sense, thresh, uvcc = (c.pin("U8", p) for p in ("1", "2", "3", "4", "5"))
+    cvcc, cvcc_gnd = c.pin("C17", "1"), c.pin("C17", "2")
+    hyst_out, hyst_thresh = c.pin("R28", "1"), c.pin("R28", "2")
+    th_hi, th_node = c.pin("R26", "1"), c.pin("R26", "2")
+    th_bot, th_gnd = c.pin("R27", "1"), c.pin("R27", "2")
+
+    c.wire(sense, csense, u_sense)
+    c.wire(fail, (78, fail[1]), (78, hyst_out[1]), hyst_out)
+    c.wire(hyst_thresh, (96, hyst_thresh[1]), (96, thresh[1]), thresh, th_node)
+    c.wire(uvcc, cvcc)
+    c.stamp("+5VSB", *r12_hi, 0)
+    c.stamp("GND", *r13_gnd, 0); c.stamp("GND", *csense_gnd, 0)
+    c.stamp("GND", *ugnd, 0); c.stamp("GND", *cvcc_gnd, 0)
+    c.stamp("+3V3", *uvcc, 0); c.stamp("+3V3", *th_hi, 0)
+    c.stamp("GND", *th_gnd, 0)
+    c.label("COMP_THRESH", 96, 118, 90)
+    if "BLACKOUT_SENSE" in lf.hier_exports:
+        c.wire(u_sense, (65, u_sense[1]), (65, 145), (25, 145))
+        c.hier("BLACKOUT_SENSE", 25, 145, 180)
+    if "PWR_FAIL_INT" in lf.hier_exports:
+        c.wire(fail, (70, fail[1]), (70, 115), (25, 115))
+        c.hier("PWR_FAIL_INT", 25, 115, 180)
+    c.use(*[(r, p) for r, pins in {
+        "R12": ("1", "2"), "R13": ("1", "2"), "C12": ("1", "2"),
+        "U8": ("1", "2", "3", "4", "5"), "C17": ("1", "2"),
+        "R28": ("1", "2"), "R26": ("1", "2"), "R27": ("1", "2"),
+    }.items() for p in pins])
+    c.region("LIVE 5VSB DROPOUT DETECTOR", 15, 92, 130, 153)
+
+    # Optional boost/secondary buck rung is intentionally DNP and visually
+    # subordinate; it must never look like the active source path.
+    optional = ["RJ_BUCK", "U9", "U10", "L2", "R29", "R30", "R31", "R32"]
+    for i, ref in enumerate(optional):
+        c.place(ref, 165 + (i % 3) * 45, 108 + (i // 3) * 25)
+    c.region("DNP BOOST / SECONDARY-BUCK OPTION", 150, 90, 300, 178)
+    c.note("NOT FITTED: active BETA uses RJ_HOLD and the direct TLV62569 stage above", 158, 184, 1.05)
 
 
 def _combine_gnd_array(c: C.Compose, ref: str, pins: list[str]):
@@ -283,12 +436,17 @@ def _canonical_groups(path: str):
     return {frozenset(members): _bare(name) for members, name in R.netlist_groups(path).items() if not name.startswith("unconnected-")}
 
 
-def _validate(source: str, root: str):
-    inv_diff = G.check_inventory_equal(source, root)
-    src, dst = _canonical_groups(source), _canonical_groups(root)
+def _validate(expected: dict, root: str):
+    inv_diff = G.check_inventory_equal(expected["inventory"], root)
+    src = {frozenset(members): name for name, members in expected["by_name"].items()}
+    dst = _canonical_groups(root)
     membership = sorted([sorted(x) for x in set(src) ^ set(dst)])
+    def basename(name):
+        return name.replace("{slash}", "/").rsplit("/", 1)[-1]
     renamed = sorted((src[k], dst[k]) for k in set(src) & set(dst)
-                     if src[k] != dst[k] and not (src[k].startswith("Net-") or dst[k].startswith("Net-")))
+                     if src[k] != dst[k] and basename(src[k]) != basename(dst[k])
+                     and not (basename(src[k]).startswith("Net-") or
+                              basename(dst[k]).startswith("Net-")))
     if inv_diff or membership or renamed:
         raise SystemExit("hierarchy validation failed:\n" + "\n".join(
             [*("inventory: " + x for x in inv_diff), *("membership: " + repr(x) for x in membership[:20]),
@@ -298,11 +456,9 @@ def _validate(source: str, root: str):
 
 def build(board: str, source: str | None = None, out_dir: str | None = None):
     cfg = CONFIG[board]
-    source = os.path.abspath(source or os.path.join(ROOT, cfg["archive"]))
+    source = os.path.abspath(source or os.path.join(ROOT, cfg["live"]))
     if not os.path.isfile(source):
-        live = os.path.join(ROOT, cfg["live"])
-        if os.path.isfile(live) and not re.search(r'\(sheet\n', L._strip_lib_symbols(open(live).read())): source = live
-        else: raise SystemExit(f"flat source not found: {source}")
+        raise SystemExit(f"authoritative live source not found: {source}; use --source explicitly for a migration")
     out_dir = os.path.abspath(out_dir or os.path.dirname(os.path.join(ROOT, cfg["live"])))
     os.makedirs(out_dir, exist_ok=True)
 
@@ -345,7 +501,9 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             if here: lf.nets[net] = here
         export_nets = []
         for net, members in lf.nets.items():
-            if net not in POWER_NETS and net not in GLOBAL_NETS and not net.startswith("Net-"):
+            if (len(extracted["spans"].get(net, ())) > 1 and
+                    net not in POWER_NETS and net not in GLOBAL_NETS and
+                    not net.startswith("Net-")):
                 export_nets.append(net); lf.hier_exports[net] = ("output", members[0])
 
         c = C.Compose(lf, LIBS); c.caption(leaf_title, 8, 2, 2.2); c.note(desc, 8, 6, 1.15)
@@ -373,6 +531,7 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             "01-power-input-selection", "02-holdup-3v3", "03-mcu-usb",
             "03-sensing", "05-rail-sensing", "01-atx-power-control",
         }
+        group_points = []
         for group in row_groups:
             # Groups containing several ICs/connectors need enough horizontal
             # room for outward pin labels as well as the symbol bodies. Small
@@ -383,12 +542,37 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             else:
                 min_large_pitch = 46 if lid in wide_label_leaves else 38
             group_x_pitch = max(x_pitch, min_large_pitch) if large_symbols >= 2 else x_pitch
+            points = []
             for gi, ref in enumerate(group):
                 x = 18 + (gi % ncols) * group_x_pitch
                 y = y_cursor + (gi // ncols) * y_pitch
                 c.place(ref, x, y, source_place.get(ref, (0, 0, 0))[2])
+                points.append((x, y))
+            group_points.append(points)
             y_cursor += ((len(group) + ncols - 1) // ncols) * y_pitch + group_gap
         bank_y = y_cursor + 8
+
+        if board == "hub-standard-rev2" and lid == "02-holdup-3v3":
+            _compose_hub_holdup(c, lf)
+            bank_y = 234
+        else:
+            group_titles = {
+                "01-power-input-selection": ("SOURCE MUX DEVICES", "LOCAL RESERVOIRS + BYPASS", "CURRENT LIMIT + OVP SETPOINTS"),
+                "03-mcu-usb": ("USB SERVICE + CONTROLLER", "LOCAL BYPASS + RESET / BOOT"),
+                "04-can-module-ports": ("CAN + MODULE / STACK INTERFACES", "PROTECTION + FUSED FEEDS", "LOCAL FILTER / DETECT BIAS"),
+                "05-kvm-aux-sensors": ("KVM + TEMPERATURE", "RAIL SENSE DIVIDERS"),
+                "06-status-leds": ("LEVEL SHIFT + SEVEN-LED CHAIN",),
+            }.get(lid, ())
+            for gi, points in enumerate(group_points):
+                if not points or gi >= len(group_titles):
+                    continue
+                xs, ys = zip(*points)
+                # The USB-C symbol exposes top-edge pin names/numbers. Give
+                # that first block a taller title gutter so the section name
+                # remains visually separate at dashboard review scale.
+                top_pad = 22 if lid == "03-mcu-usb" and gi == 0 else 14
+                c.region(group_titles[gi], min(xs) - 10, min(ys) - top_pad,
+                         max(xs) + 16, max(ys) + 14)
 
         if board == "atx-24pin-rev3" and lid == "02-power-usb":
             # U6_PR1 is on a left-facing TPS2121 pin. Its long name needs a
@@ -403,6 +587,8 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             c.text_side["FL1"] = "left"
 
         for power in ("+3V3", "+5VSB"):
+            if board == "hub-standard-rev2" and lid == "02-holdup-3v3":
+                continue
             caps = []
             for ref in refs:
                 if not ref.startswith("C"): continue
@@ -517,8 +703,8 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
         paper="A2", libs=LIBS, pwr_base=900, lane_labels=True, pair_labels=True, rev=rev, title_comments=(
             "Authoritative BETA hierarchy; functional leaves only; no legacy project discovery.",
             "Repeated nets use shared trunks; power bypass arrays use real rails; hierarchy labels are wire-attached.",
-            "Generated from the archived reviewed flat source and gated by inventory/net/ERC equivalence.",))
-    net_count = _validate(source, root_out)
+            "Recomposed from the live current hierarchy and gated by inventory/net/ERC equivalence.",))
+    net_count = _validate(extracted, root_out)
     print(f"{os.path.basename(root_out)}: hierarchy valid, {len(extracted['inventory'])} parts, {net_count} connected nets")
     return root_out
 

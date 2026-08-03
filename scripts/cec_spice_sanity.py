@@ -170,7 +170,8 @@ def _r_ohms(val):
 #   ("diode", a_pin, k_pin, schottky?)    : internal diode a->k
 PIN_MODELS = {
     "LP5907": [("ldo", "1", "5", 3.3, 0.12), ("supply", "1")],
-    "TLV75533": [("ldo", "1", "5", 3.3, 0.238), ("supply", "1")],
+    "TLV75533PDRVR": [("ldo", "6", "1", 3.3, 0.238), ("supply", "6")],
+    "TLV75533PDBVR": [("ldo", "1", "5", 3.3, 0.238), ("supply", "1")],
     # TLV62569 is handled specially below: its output is calculated from the
     # actual feedback divider instead of hard-coding one board's setpoint.
     "TLV62569": [],

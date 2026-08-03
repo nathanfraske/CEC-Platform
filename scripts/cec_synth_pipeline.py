@@ -10834,7 +10834,7 @@ def _picard_dt(I, cross_mm2, ambient, external):
 #
 # Module-local logic rails are bounded by their SOURCE, not by a bus figure.
 # Legacy boards retain the LP5907 250mA ceiling.  The current 12VHPWR beta uses
-# a TLV75533 500mA post-LDO; Hub Rev2 uses the TLV62569 directly and is
+# a direct TLV75533PDRVR 500mA LDO; Hub Rev2 uses the TLV62569 directly and is
 # conservatively bounded by the selected inductor's 1.76A thermal rating.
 #   +5VSB  the module's own standby draw; the LED budget dominates (~0.4A/board
 #          full-white, capped in firmware per OQ-2) -> 0.5A

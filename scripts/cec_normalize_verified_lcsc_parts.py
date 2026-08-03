@@ -71,6 +71,11 @@ VERIFIED = {
         "MPN": "TLV75533PDBVR",
         "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
     },
+    "C2861750": {
+        "Manufacturer": "Texas Instruments",
+        "MPN": "TLV75533PDRVR",
+        "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+    },
     "C88527": {
         "Manufacturer": "TDK",
         "MPN": "VLS252010HBX-2R2M-1",

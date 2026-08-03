@@ -38,8 +38,8 @@
 #                SW1, SW2
 #   06-can       U2, C4, C8, FL1,         (TJA1051T/3 + CMC position + the
 #                R22, R23                 H3a-PATTERN 0R bypasses)
-#   07-ldo       U3, U16, L1, R30-R31,     (5V-to-3.96V buck + quiet 3V3
-#                C1, C2, C29                post-LDO -- NO cross-sheet nets)
+#   07-ldo       U16, C1, C2              (direct quiet 5V-to-3V3 thermal-pad
+#                                          LDO -- NO cross-sheet nets)
 #   08-usb       J5, D2-D4, FB1, F1, U5,  (USB-C flash/debug + TPS2121 ingress,
 #                C9, C26-C28, R8-R9,       H3 USB ESD/EMC suite)
 #                R26-R29
@@ -83,67 +83,43 @@ LIBS = {
 POWER_PORTS = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
 POWER_NETS = set(POWER_PORTS)
 
-# Upgraded 12VHPWR power stage (owner-approved 2026-08-02).  The switching
-# converter does not feed the measurement chain directly: TLV62569 makes a
-# nominal 3.96V intermediate rail and TLV75533 removes switching ripple before
-# +3V3 reaches the INA240s, REF3030, and ESP32-S3.  The 560k/100k divider's
-# worst-case low output is 3.816V using TLV62569 VFB=0.588V min and opposing
-# 1% resistor tolerances, clearing TLV75533's 238mV max dropout at 500mA.
+# Re-reviewed 12VHPWR power stage (2026-08-03).  A direct thermal-pad TLV75533
+# supplies the precision rail.  The former buck/post-LDO cascade solved the old
+# LP5907 current/heat problem, but added a switch node and parts without buying
+# useful margin: DRV WSON thermal performance makes the direct LDO safe at the
+# component-by-component 212.327mA design load, including 20% system margin.
 POWER_STAGE_PARTS = {
-    "U3": ("cec-vendor", "TLV62569DBVR", "TLV62569DBVR"),
-    "U16": ("cec-vendor", "TLV75533PDBVR", "TLV75533PDBVR"),
-    "L1": ("cec-vendor", "L_Small", "2.2uH"),
-    "R30": ("cec-vendor", "R_Small", "560k"),
-    "R31": ("cec-vendor", "R_Small", "100k"),
+    "U16": ("cec-vendor", "TLV75533PDRVR", "TLV75533PDRVR"),
     "C1": ("cec-vendor", "C_Small", "10u"),
-    "C29": ("cec-vendor", "C_Small", "10u"),
     "C2": ("cec-vendor", "C_Small", "1u"),
 }
 POWER_STAGE_FOOTPRINTS = {
-    "U3": "cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
-    "U16": "cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
-    "L1": "cec-Inductor_SMD:VLS252010HBX-2R2M-1",
-    "R30": "cec-Resistor_SMD:R_0402_1005Metric",
-    "R31": "cec-Resistor_SMD:R_0402_1005Metric",
+    "U16": "cec-Package_SON:WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm",
     "C1": "cec-Capacitor_SMD:C_0603_1608Metric",
-    "C29": "cec-Capacitor_SMD:C_0603_1608Metric",
     "C2": "cec-Capacitor_SMD:C_0603_1608Metric",
 }
 POWER_STAGE_PROPS = {
-    "U3": {"Manufacturer": "Texas Instruments", "MPN": "TLV62569DBVR",
-           "LCSC": "C141836", "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv62569.pdf",
-           "Description": "2A synchronous buck; +5VSB to nominal 3.96V pre-LDO rail"},
-    "U16": {"Manufacturer": "Texas Instruments", "MPN": "TLV75533PDBVR",
-            "LCSC": "C404027", "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
-            "Description": "500mA high-PSRR 3.3V post-LDO for measurement/MCU rail"},
-    "L1": {"Manufacturer": "TDK", "MPN": "VLS252010HBX-2R2M-1",
-           "LCSC": "C88527", "Description": "2.2uH shielded buck inductor, 2.3A Isat max / 1.76A thermal-rated"},
-    "R30": {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF5603TCE",
-            "LCSC": "C132339", "Description": "buck FB top; 3.96V nominal with R31"},
-    "R31": {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1003TCE",
-            "LCSC": "C25741", "Description": "buck FB bottom; 100k per TI recommendation"},
+    "U16": {"Manufacturer": "Texas Instruments", "MPN": "TLV75533PDRVR",
+            "LCSC": "C2861750", "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+            "Description": "500mA high-PSRR 3.3V direct LDO; WSON exposed pad removes the SOT-23 thermal bottleneck"},
     "C1": {"Manufacturer": "Samsung", "MPN": "CL10A106MA8NRNC",
-           "LCSC": "C96446", "Description": "buck input capacitor, 10uF X5R 25V"},
-    "C29": {"Manufacturer": "Samsung", "MPN": "CL10A106MA8NRNC",
-            "LCSC": "C96446", "Description": "buck output / post-LDO input capacitor, 10uF X5R 25V"},
+           "LCSC": "C96446", "Description": "LDO input capacitor, 10uF X5R 25V"},
     "C2": {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC",
-           "LCSC": "C29936", "Description": "post-LDO local output capacitor, 1uF X7R 25V"},
+           "LCSC": "C29936", "Description": "LDO local output capacitor, 1uF X7R 25V"},
 }
 POWER_STAGE_NETS = {
-    "+5VSB": [("U3", "1"), ("U3", "4"), ("C1", "1")],
-    "GND": [("U3", "2"), ("U16", "2"), ("C1", "2"), ("C29", "2"),
-            ("C2", "2"), ("R31", "2")],
-    "BUCK_SW_3V96": [("U3", "3"), ("L1", "1")],
-    "PRE_LDO_3V96": [("L1", "2"), ("C29", "1"), ("R30", "1"),
-                     ("U16", "1"), ("U16", "3")],
-    "BUCK_FB_3V96": [("U3", "5"), ("R30", "2"), ("R31", "1")],
-    "+3V3": [("U16", "5"), ("C2", "1")],
+    "+5VSB": [("U16", "6"), ("U16", "4"), ("C1", "1")],
+    "GND": [("U16", "3"), ("U16", "7"), ("C1", "2"), ("C2", "2")],
+    "+3V3": [("U16", "1"), ("C2", "1")],
 }
-PRIVATE_POWER_STAGE_NETS = {
-    "BUCK_SW_3V96", "PRE_LDO_3V96", "BUCK_FB_3V96",
-}
+PRIVATE_POWER_STAGE_NETS = set()
 PRIVATE_LOCAL_NETS = PRIVATE_POWER_STAGE_NETS | {
     "U5_OV1", "U5_PR1", "U5_ILM", "U5_SS",
+    # These are deliberately local wires inside the fan functional island.
+    # Exporting them as decorative root sheet pins made KiCad flatten the
+    # adjacent passive endpoints into one parent net. Their exact local names
+    # remain visible and auditable without leaving 01-input.
+    "FAN_RET", "FAN_GATE", "FAN_TACH",
 }
 
 # The first hierarchical conversion exposed a pre-existing flat-source merge
@@ -157,6 +133,22 @@ USB_INGRESS_REPAIRED_NETS = {
     ],
     "U5_OV1": [("U5", "5"), ("R26", "2"), ("R27", "1")],
     "U5_PR1": [("U5", "6"), ("R28", "2"), ("R29", "1")],
+}
+
+# The old flat source also collapsed the fan MOSFET drain, gate, flyback
+# return, connector return, connector tach, and tach series resistor onto one
+# net.  Keep this explicit selected topology beside the ingress repair so a
+# hierarchy regeneration can never self-host that short again.
+FAN_REPAIRED_NETS = {
+    "FAN_12V": [("D5", "1"), ("J2", "2"), ("J3", "6"),
+                ("R5", "1"), ("RFH6", "1"), ("RS6", "1")],
+    "FAN_RET": [("D5", "2"), ("J2", "1"), ("Q1", "3")],
+    "FAN_GATE": [("Q1", "1"), ("R14", "2"), ("R15", "2")],
+    "FAN_TACH": [("J2", "3"), ("R16", "2"), ("R17", "1")],
+    "FAN_TACH_GPIO": [("R17", "2"), ("U1", "27")],
+    "FAN_EN": [("R14", "1"), ("U1", "25")],
+    "+3V3": [("R15", "1"), ("R16", "1")],
+    "GND": [("Q1", "2")],
 }
 
 # ---------------------------------------------------------------------------
@@ -190,7 +182,7 @@ _assign("09-hub-link", ["J1", "D1", "R1", "R7", "FB2", "C6"])
 _assign("10-temp", ["TH1", "TH2", "R20", "R21", "C20", "C21"])
 _assign("11-rail-ref", ["U4", "C22", "C23"])
 
-assert len(FIXED_LEAF) == 107, len(FIXED_LEAF)
+assert len(FIXED_LEAF) == 102, len(FIXED_LEAF)
 
 
 def classify_ref(ref):
@@ -226,7 +218,7 @@ LEAF_META = {
                     "CAN  TJA1051T/3 + CMC position (FL1, DNP) with the "
                     "H3a-PATTERN 0R bypasses R22/R23"),
     "07-ldo":      ("07-ldo.kicad_sch", "07-ldo",
-                    "5V-to-3.96V buck + quiet 3V3 post-LDO"),
+                    "direct quiet +5VSB-to-3V3 thermal-pad LDO"),
     "08-usb":      ("08-usb.kicad_sch", "08-usb",
                     "FLASH / USB-C + H3 standalone-mode USB ESD/EMC suite"),
     "09-hub-link": ("09-hub-link.kicad_sch", "09-hub-link",
@@ -382,6 +374,19 @@ def extract(flat_sch):
             del by_name[name]
     for name, members in USB_INGRESS_REPAIRED_NETS.items():
         by_name[name] = sorted(members)
+
+    fan_members = {
+        member for members in FAN_REPAIRED_NETS.values() for member in members
+    }
+    for name, members in list(by_name.items()):
+        kept = [member for member in members if tuple(member) not in fan_members]
+        if kept:
+            by_name[name] = kept
+        else:
+            del by_name[name]
+    for name, members in FAN_REPAIRED_NETS.items():
+        by_name[name] = sorted(set(map(tuple, by_name.get(name, ()))) |
+                               set(map(tuple, members)))
 
     parts, footprints, props, dnp_refs = {}, {}, {}, set()
     for ref, d in inv.items():
@@ -557,7 +562,7 @@ def _ladder_column(c, pins, offset_dx):
 # docstring) -- the caption STRING is what G8 checks, not co-location.
 FLAT_CAPTIONS = {
     "09-hub-link": "HUB LINK  RJ-45 + DETECT",
-    "07-ldo": "3V3 POWER: BUCK + QUIET POST-LDO",
+    "07-ldo": "QUIET 3V3 POWER",
     "06-can": "CAN  TJA1051",
     "05-mcu": "MCU  ESP32-S3-MINI-1",
     "04-ina": "6-CHANNEL PER-PIN SENSING  6x INA240",
@@ -571,56 +576,29 @@ FLAT_CAPTIONS = {
 # LEAF COMPOSERS
 # ============================================================================
 def compose_ldo(c, lf):
-    # Draw the actual energy path rather than scattering same-name labels on
-    # every pin.  This keeps the authoritative generated schematic readable:
-    # +5VSB -> buck -> 3.96V -> quiet post-LDO -> +3V3.
-    c.place_pin("U3", "1", 45, 35)
-    c.place_pin("C1", "1", 30, 35)
-    sw = c.pin("U3", "3")
-    c.place_pin("L1", "1", 70, sw[1], rot=90)
-    pre = c.pin("L1", "2")
-    c.place_pin("R30", "1", 80, pre[1])
-    fb = c.pin("R30", "2")
-    c.place_pin("R31", "1", 80, fb[1])
-    c.place_pin("C29", "1", 95, pre[1])
-    c.place_pin("U16", "1", 115, pre[1])
-    out = c.pin("U16", "5")
-    c.place_pin("C2", "1", 140, out[1])
-
-    c1_in, c1_gnd = c.pin("C1", "1"), c.pin("C1", "2")
-    vin, en = c.pin("U3", "1"), c.pin("U3", "4")
-    sw = c.pin("U3", "3")
-    buck_fb = c.pin("U3", "5")
-    l1_in, l1_out = c.pin("L1", "1"), c.pin("L1", "2")
-    rtop, rmid = c.pin("R30", "1"), c.pin("R30", "2")
-    rbot_top, rbot_gnd = c.pin("R31", "1"), c.pin("R31", "2")
-    cout_in, cout_gnd = c.pin("C29", "1"), c.pin("C29", "2")
-    ldo_in, ldo_en = c.pin("U16", "1"), c.pin("U16", "3")
-    ldo_out, ldo_gnd = c.pin("U16", "5"), c.pin("U16", "2")
-    post_in, post_gnd = c.pin("C2", "1"), c.pin("C2", "2")
-
-    c.wire(c1_in, vin, en)
-    c.wire(sw, l1_in)
-    c.wire(l1_out, rtop, cout_in, ldo_in)
-    c.wire(ldo_in, ldo_en)
-    # R30 and C29 pins sit directly on the drawn 3.96V rail.
-    c.wire(buck_fb, (65, buck_fb[1]), (65, rmid[1]), rmid)
-    c.wire(ldo_out, post_in)
-
-    c.stamp("+5VSB", *c1_in, 0)
-    c.stamp("GND", *c1_gnd, 0)
-    c.stamp("GND", *c.pin("U3", "2"), 0)
+    # bladeRF-style compact functional island: one visible energy path, local
+    # input/output capacitors aligned to their owner, and no floating net-name
+    # inventory.  The exposed pad is explicitly grounded.
+    c.place_pin("U16", "6", 55, 35)
+    c.place_pin("C1", "1", 32, 35)
+    c.place_pin("C2", "1", 82, 35)
+    cin, cin_gnd = c.pin("C1", "1"), c.pin("C1", "2")
+    vin, en = c.pin("U16", "6"), c.pin("U16", "4")
+    out = c.pin("U16", "1")
+    cout, cout_gnd = c.pin("C2", "1"), c.pin("C2", "2")
+    c.wire(cin, vin)
+    c.wire(vin, (vin[0] - 5, vin[1]), (vin[0] - 5, en[1]), en)
+    c.wire(out, cout)
+    c.stamp("+5VSB", *cin, 0)
+    c.stamp("GND", *cin_gnd, 0)
+    c.stamp("GND", *c.pin("U16", "3"), 0)
+    c.stamp("GND", *c.pin("U16", "7"), 0)
+    c.stamp("+3V3", *out, 0)
     c.stamp("GND", *cout_gnd, 0)
-    c.stamp("GND", *rbot_gnd, 0)
-    c.stamp("GND", *ldo_gnd, 0)
-    c.stamp("+3V3", *ldo_out, 0)
-    c.stamp("GND", *post_gnd, 0)
-    c.label("BUCK_SW_3V96", *sw, 0)
-    c.label("PRE_LDO_3V96", *l1_out, 0)
-    c.label("BUCK_FB_3V96", *buck_fb, 0)
     c.use(*[pin for pins in POWER_STAGE_NETS.values() for pin in pins])
     c.caption(FLAT_CAPTIONS["07-ldo"], 10, 8)
-    c.note("TLV62569 560k/100k -> 3.96V nominal; TLV75533 post-LDO -> quiet +3V3", 18, 76)
+    c.region("DIRECT LOW-NOISE REGULATOR", 18, 18, 95, 57)
+    c.note("TLV75533PDRVR: 500mA direct LDO; exposed pad to ground copper", 23, 65)
     c.done()
 
 
@@ -641,10 +619,7 @@ def seed_upgraded_power_leaf(root_uuid, title, rev):
     lf.props = {ref: dict(props) for ref, props in POWER_STAGE_PROPS.items()}
     lf.placement = {}
     lf.hier_exports = {}
-    # L1 is passive, so the intermediate rail has no KiCad power-output pin.
-    # Mark that real converter output as driven; this is not a blanket ERC
-    # exclusion and will disappear if the named topology disappears.
-    lf.powerflag_nets = ["PRE_LDO_3V96"]
+    lf.powerflag_nets = []
     c = C.Compose(lf, LIBS)
     compose_ldo(c, lf)
     out_path = os.path.join(BOARD_DIR, fname)
@@ -656,8 +631,8 @@ def seed_upgraded_power_leaf(root_uuid, title, rev):
         page=str(LEAF_ORDER.index(lid) + 2), out_path=out_path,
         paper=LEAF_PAPER[lid], title=f"{title}: {sheetname}", comment1=desc,
         pwr_base=700, layout=lf.layout,
-        name_pin_nets=["BUCK_SW_3V96", "PRE_LDO_3V96", "BUCK_FB_3V96"], rev=rev)
-    print(f"{fname}: seeded TLV62569 + TLV75533 power-stage migration")
+        name_pin_nets=[], rev=rev)
+    print(f"{fname}: seeded direct thermal-pad TLV75533 power stage")
 
 
 def compose_output(c, lf):
@@ -742,16 +717,63 @@ def compose_usb(c, lf):
 
 
 def compose_input(c, lf):
-    c.place("J3", 20, 40)
-    c.place("J2", 90, 15)
+    c.caption("12V-2x6 INPUT + FAN CONTROL", 10, 5)
+    c.place("J3", 20, 45)
     _grid_place(c, ["R10", "R11", "R12", "R13"], 90, 60, 1, dx=16, dy=16)
-    # D5 owns the FAN_12V/FAN_RET hierarchy anchors.  Its pins face left, so
-    # keep it at the left edge; the generated edge-column runs then terminate
-    # before they can cross the connector and protection symbols.
-    c.place("D5", 5, 140)
-    _grid_place(c, ["Q1", "R14", "R15", "R16", "R17"],
-                105, 110, 3, dx=22, dy=24)
-    _auto_io(c, lf.hier_exports)
+    c.region("SIDEBAND SERIES TAPS", 78, 43, 108, 118)
+
+    # Fully drawn fan island. J2 faces right so its three conductors leave in
+    # a readable stack: return, +12V and tach. D5 is drawn in parallel across
+    # the fan supply/return, Q1 switches the low side, and the gate/tach bias
+    # networks are visibly attached instead of represented by floating labels.
+    c.place("J2", 100, 130, rot=180)
+    c.place("D5", 122, 131, rot=270)
+    c.place_pin("Q1", "3", 150, 150)
+    c.place_pin("R14", "2", 134, 150, rot=90)
+    c.place_pin("R15", "2", 134, 150)
+    c.place_pin("R17", "1", 130, 115, rot=90)
+    c.place_pin("R16", "2", 120, 115)
+
+    jret, j12, jtach = (c.pin("J2", p) for p in ("1", "2", "3"))
+    dk, da = c.pin("D5", "1"), c.pin("D5", "2")
+    gate, drain, source = (c.pin("Q1", p) for p in ("1", "3", "2"))
+    fan_en, gate_r = c.pin("R14", "1"), c.pin("R14", "2")
+    gate_pu, gate_node = c.pin("R15", "1"), c.pin("R15", "2")
+    tach_pu, tach_node = c.pin("R16", "1"), c.pin("R16", "2")
+    tach_in, tach_gpio = c.pin("R17", "1"), c.pin("R17", "2")
+
+    # Flyback cathode -> FAN_12V and anode -> switched FAN_RET. The staggered
+    # elbows avoid ambiguous wire crossings.
+    c.wire(dk, (118, dk[1]), (118, j12[1]), j12)
+    c.wire(da, (120, da[1]), (120, jret[1]), jret)
+    c.wire(jret, (150, jret[1]), drain)
+    # Gate drive and default-on pull-up.
+    # R14.2, R15.2 and Q1.G are intentionally co-located at one junction;
+    # never draw through either resistor body (that would short its pins).
+    # Tach leaves the connector on a separate row, then crosses R17 before
+    # the off-sheet GPIO. R16 is the open-collector pull-up.
+    c.wire(jtach, (110, jtach[1]), (110, tach_in[1]), tach_node, tach_in)
+
+    c.stamp("+3V3", *gate_pu, 0)
+    c.stamp("+3V3", *tach_pu, 0)
+    c.stamp("GND", *source, 0)
+    c.label("FAN_RET", 110, jret[1], 0)
+    c.label("FAN_GATE", *gate, 0)
+    c.label("FAN_TACH", 115, tach_in[1], 0)
+    c.hier("FAN_12V", *j12, 0)
+    c.hier("FAN_EN", *fan_en, 180)
+    c.hier("FAN_TACH_GPIO", *tach_gpio, 0)
+    c.use(("J2", "1"), ("J2", "2"), ("J2", "3"),
+          ("D5", "1"), ("D5", "2"),
+          ("Q1", "1"), ("Q1", "2"), ("Q1", "3"),
+          ("R14", "1"), ("R14", "2"), ("R15", "1"), ("R15", "2"),
+          ("R16", "1"), ("R16", "2"), ("R17", "1"), ("R17", "2"))
+    for net, (_shape, (ref, pin)) in lf.hier_exports.items():
+        if net in {"FAN_12V", "FAN_EN", "FAN_TACH_GPIO"}:
+            continue
+        _pt, (dx, _dy) = c.pin_out(ref, pin)
+        c.io(net, "left" if dx < 0 else "right")
+    c.region("OPTIONAL FAN (DNP)", 91, 105, 161, 166)
     c.done()
 
 
@@ -890,8 +912,7 @@ def build(force=False, upgrade_power_stage=False):
                 hx["VCC_RJ45"] = ("output", anchor)
         lf.hier_exports = hx
         if lid == "07-ldo":
-            # Buck output is passive through L1 but drives U16.IN/EN.
-            lf.powerflag_nets = ["PRE_LDO_3V96"]
+            lf.powerflag_nets = []
         elif lid == "08-usb":
             # Connector/fuse/passive-fed TPS2121 inputs are intentionally
             # externally driven power rails.
@@ -1006,6 +1027,19 @@ def build(force=False, upgrade_power_stage=False):
                     fh.write("\n")
                 print(f"{os.path.basename(pro_path)}: erc.rule_severities."
                       f"label_dangling -> warning (name-pin stub class)")
+
+    # Keep routed-footprint schematic links synchronized with the freshly
+    # emitted hierarchy.  UUID path drift otherwise leaves the PCB apparently
+    # detached from the authoritative current schematic even when every ref
+    # and electrical net is unchanged.  reconcile_pcb verifies the rewrite and
+    # restores the original bytes if pcbnew rejects the result.
+    pcb_path = os.path.join(board_dir, f"{PROJECT_NAME}.kicad_pcb")
+    if os.path.isfile(pcb_path):
+        pcb_report = R.reconcile_pcb(
+            pcb_path, {}, R.symbol_paths(root_path), dry_run=False)
+        print(f"{os.path.basename(pcb_path)}: "
+              f"path_updates={pcb_report['path_updates']} "
+              f"path_unchanged={pcb_report['path_unchanged']}")
     return stats, parent_stats
 
 
@@ -1014,7 +1048,7 @@ def main(argv=None):
     ap.add_argument("--force", action="store_true",
                      help="regenerate even if the root is already hierarchical")
     ap.add_argument("--upgrade-power-stage", action="store_true",
-                    help="migrate 07-ldo to TLV62569 buck + TLV75533 post-LDO before regeneration")
+                    help="migrate 07-ldo to the direct thermal-pad TLV75533 LDO before regeneration")
     args = ap.parse_args(argv)
     build(force=args.force, upgrade_power_stage=args.upgrade_power_stage)
     return 0

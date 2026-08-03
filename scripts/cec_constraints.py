@@ -2340,7 +2340,9 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                 })
 
         if "TLV75533" in value:
-            for pin_number, role in (("1", "ldo-input"), ("5", "ldo-output")):
+            ldo_pins = (("6", "ldo-input"), ("1", "ldo-output")) \
+                if "PDRVR" in value else (("1", "ldo-input"), ("5", "ldo-output"))
+            for pin_number, role in ldo_pins:
                 pad = _numbered_pad(fp, pin_number)
                 if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
                     requirements.append({

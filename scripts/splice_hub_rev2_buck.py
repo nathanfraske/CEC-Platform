@@ -2,7 +2,7 @@
 """One-shot, idempotent Hub Standard Rev2 LP5907 -> TLV62569 migration.
 
 The Hub does not contain the 12VHPWR current-measurement analog front end, so
-it does not receive the TLV75533 post-LDO.  This splice keeps the existing
+it does not receive the direct TLV75533 LDO.  This splice keeps the existing
 input-selection/hold-up nets and replaces only the 3V3 regulator stage:
 
     /LOGIC_REG_IN -> TLV62569 -> 2.2uH -> +3V3

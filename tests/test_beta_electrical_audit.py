@@ -33,6 +33,14 @@ class TestBetaElectricalAudit(unittest.TestCase):
         self.assertAlmostEqual(audit.capacitance_f("4n7"), 4.7e-9)
         self.assertIsNone(audit.capacitance_f("TBD"))
 
+    def test_local_net_contract_accepts_kicad_hierarchy_qualification(self):
+        self.assertTrue(audit._same_net(
+            "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD", "/+5V_HOLD"))
+        self.assertTrue(audit._same_net(
+            "/POWER INPUT + SOURCE SELECTION/PSU_5V", "/PSU_5V"))
+        self.assertFalse(audit._same_net(
+            "/POWER INPUT + SOURCE SELECTION/PSU_5V", "/USB_VBUS"))
+
     def test_one_bypass_cap_cannot_cover_two_required_devices(self):
         inv = {
             "U1": self._rec("INA181A2IDBVR"),
