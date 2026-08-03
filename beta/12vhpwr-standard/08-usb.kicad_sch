@@ -3,7 +3,7 @@
 	(generator "eeschema")
 	(generator_version "10.0")
 	(uuid "3c8d5a2e-6b0a-4b6b-9a7a-2f7a7a8a2a08")
-	(paper "A4")
+	(paper "A3")
 	(title_block
 		(title "CEC 12VHPWR Standard Module: 08-usb")
 		(date "2026-07-02")

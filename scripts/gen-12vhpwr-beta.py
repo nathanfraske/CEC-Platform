@@ -290,7 +290,7 @@ BOX = {
     "07-ldo":      (210, 220, 45, 26),
 }
 LEAF_PAPER = {lid: ("A2" if lid in ("02-lanes", "04-ina")
-                    else "A3" if lid in ("01-input", "05-mcu") else "A4")
+                    else "A3" if lid in ("01-input", "05-mcu", "08-usb") else "A4")
               for lid in LEAF_ORDER}
 ROOT_PAPER = "A2"
 
