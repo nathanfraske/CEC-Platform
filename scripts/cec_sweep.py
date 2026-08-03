@@ -33,15 +33,15 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 # every board, for the constraint sweep (path relative to ROOT)
 ALL_BOARDS = [
     ("24pin-rev2",      "modules/atx-24pin-rev2/24pin-module.kicad_pcb"),
-    ("eps-8pin",        "beta/eps-8pin/eps8pin-module.kicad_pcb"),
+    ("eps-8pin-rev3",   "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_pcb"),
     ("pcie-2port",      "beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_pcb"),
     ("pcie-3port",      "beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_pcb"),
     ("12vhpwr-std",     "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"),
     ("12vhpwr-pro",     "modules/12vhpwr-pro/12vhpwr-pro-module.kicad_pcb"),
-    ("hub-standard",    "hubs/hub-standard/hub-standard.kicad_pcb"),
+    ("hub-standard-rev2", "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"),
 ]
 # the cec_router interposer family (module dir names) -- routable from a committed floorplan
-ROUTE_BOARDS = ["eps-8pin", "pcie-8pin-2port", "pcie-8pin-3port"]
+ROUTE_BOARDS = ["eps-8pin-rev3", "pcie-8pin-2port", "pcie-8pin-3port"]
 
 
 def _py():

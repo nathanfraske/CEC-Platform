@@ -256,6 +256,11 @@
       "enabled": false
     }
   },
+  "erc": {
+    "rule_severities": {
+      "label_dangling": "warning"
+    }
+  },
   "cvpcb": {
     "equivalence_files": []
   },

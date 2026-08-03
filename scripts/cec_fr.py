@@ -46,6 +46,8 @@ import signal
 import tempfile
 import subprocess
 import urllib.request
+import json
+import fnmatch
 from dataclasses import dataclass, field
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -4409,6 +4411,92 @@ def normalize_track_width(board, *, tol_mm: float = 0.005) -> int:
     return fixed
 
 
+def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
+    """Raise imported tracks/vias to their assigned netclass geometry.
+
+    Freerouting's SES may ignore or round class-specific widths and via sizes.
+    Every undersized ordinary feature is raised to the contract; oversized
+    copper is retained. A resulting clearance conflict is intentionally left to
+    DRC/release rejection. Direct INA2xx Kelvin nets are excluded because those
+    names can share a force rail while their sense stub is intentionally thin;
+    the dedicated Kelvin and high-current-pour gates own that topology.
+    """
+    pro_path = (board_path[:-len(".kicad_pcb")] + ".kicad_pro"
+                if board_path.endswith(".kicad_pcb") else "")
+    if not pro_path or not os.path.isfile(pro_path):
+        return {"tracks": 0, "vias": 0, "status": "no-project"}
+    try:
+        with open(pro_path, encoding="utf-8") as source:
+            ns = (json.load(source).get("net_settings") or {})
+    except Exception as exc:                              # noqa: BLE001
+        return {"tracks": 0, "vias": 0,
+                "status": "project-error:%s" % type(exc).__name__}
+    classes = {c.get("name"): c for c in (ns.get("classes") or [])
+               if c.get("name")}
+    if not classes:
+        return {"tracks": 0, "vias": 0, "status": "no-classes"}
+    assignments = ns.get("netclass_assignments") or {}
+    patterns = [(row.get("netclass"), row.get("pattern"))
+                for row in (ns.get("netclass_patterns") or [])
+                if row.get("netclass") in classes and row.get("pattern")]
+
+    def resolve(net):
+        chosen = assignments.get(net)
+        if isinstance(chosen, list):
+            chosen = chosen[0] if chosen else None
+        if chosen in classes:
+            return classes[chosen]
+        for name, pattern in patterns:
+            if fnmatch.fnmatchcase(net, pattern):
+                return classes[name]
+        return classes.get("Default", {})
+
+    def is_pair_net(net):
+        upper = net.upper()
+        return (bool(re.search(r"_(?:P|N)$", upper))
+                or upper.endswith(("CAN_H", "CAN_L", "CAN_H_BUS", "CAN_L_BUS"))
+                or "USB_D" in upper)
+
+    direct_sense = set()
+    for fp in board.GetFootprints():
+        try:
+            value = fp.GetValue().upper()
+        except Exception:                                # noqa: BLE001
+            value = ""
+        if "INA2" not in value:
+            continue
+        for pad in fp.Pads():
+            net = pad.GetNetname() or ""
+            if net.endswith(("_HI", "_LO", "_P", "_N")):
+                direct_sense.add(net)
+
+    track_fixed = via_fixed = 0
+    for item in board.GetTracks():
+        net = item.GetNetname() or ""
+        spec = resolve(net)
+        if item.GetClass() == "PCB_TRACK":
+            target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
+                           or spec.get("track_width") or 0)
+            current = item.GetWidth() / MM
+            if (net not in direct_sense and target > 0
+                    and current < target - tol_mm):
+                item.SetWidth(_nm(target))
+                track_fixed += 1
+        elif item.GetClass() == "PCB_VIA":
+            target_dia = float(spec.get("via_diameter") or 0)
+            target_drill = float(spec.get("via_drill") or 0)
+            dia = item.GetWidth(item.TopLayer()) / MM
+            drill = item.GetDrillValue() / MM
+            new_dia = max(dia, target_dia)
+            new_drill = max(drill, target_drill)
+            if new_dia > dia + tol_mm or new_drill > drill + tol_mm:
+                item.SetWidth(_nm(new_dia))
+                item.SetDrill(_nm(new_drill))
+                via_fixed += 1
+    return {"tracks": track_fixed, "vias": via_fixed, "status": "ok",
+            "sense_exempt_nets": sorted(direct_sense)}
+
+
 def normalize_via_annular(board, *, min_annular: float = 0.10,
                           target_annular: float = 0.12, min_drill: float = 0.30) -> int:
     """Repair vias whose annular ring is below *min_annular* (mm).
@@ -5151,6 +5239,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         if _nw:
             print("[fr] normalized %d sub-minimum track width(s)" % _nw,
                   file=sys.stderr)
+        _ng = normalize_netclass_geometry(board, out_path)
+        if _ng.get("tracks") or _ng.get("vias"):
+            print("[fr] normalized netclass geometry: %d track(s), %d via(s)"
+                  % (_ng.get("tracks", 0), _ng.get("vias", 0)), file=sys.stderr)
     if fill_zones:
         # UnFill first: re-filling an already-filled multi-layer zone in one process can
         # segfault this KiCad-10 SWIG build (see cec_route.py fill()).
@@ -5834,7 +5926,7 @@ def generate_batch(
 if __name__ == "__main__":
     import time
 
-    EPS_BOARD = "/home/user/CEC-Platform/beta/eps-8pin/eps8pin-module.kicad_pcb"
+    EPS_BOARD = os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb")
     OUT_DIR = os.path.join(_TMP, "cec_fr_selftest")
 
     print("=" * 70)

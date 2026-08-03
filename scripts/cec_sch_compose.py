@@ -316,7 +316,7 @@ def _emit_symbol2(ref, lib, name, val, x, y, rot, pins, project, root, used_entr
         f'\t\t(property "{k}" "{v}" (at {cec_sch.f(x)} {cec_sch.f(y)} 0) '
         f'(effects (font (size 1.27 1.27)) (hide yes)))\n'
         for k, v in props.items()
-        if k not in ("Datasheet", "Reference", "Value", "Footprint") and v)
+        if k not in ("Datasheet", "Reference", "Value", "Footprint"))
 
     # pin geometry (absolute) for the field-placement decision
     tmp_place = {ref: (x, y, rot)}
@@ -1109,7 +1109,8 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
                        own_uuid, out_path, title, paper="A3",
                        global_power_exports=None, libs=None, pwr_base=0,
                        gp_block_xy=None, page="2", title_comments=None,
-                       lane_labels=False, name_pin_nets=None, rev="DRAFT"):
+                       lane_labels=False, name_pin_nets=None, rev="DRAFT",
+                       pair_labels=False):
     """
     leaves: ordered list of dicts, each:
         {id, sym_uuid, filename, sheetname, page, x, y, w, h,
@@ -1239,6 +1240,18 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
                               "only 1:1 leaf wiring is composed; split it or add labels")
     by_dst = {}
     for net_name, p in sorted(pairs.items()):
+        if pair_labels:
+            # Dense star hierarchies (Hub/ATX) cannot draw every pair as a
+            # straight inter-box lane without crossing an intervening sheet
+            # box.  Two short, wire-attached local-label stubs preserve the
+            # exact bare net name and are the conventional readable answer;
+            # this is opt-in so existing linear-family generators retain
+            # their fully drawn lanes byte-for-byte.
+            for px, py, side, _li in p:
+                ex = px + STUB if side == "right" else px - STUB
+                wires.append((px, py, ex, py))
+                labels.append((net_name, ex, py, 0 if side == "right" else 180))
+            continue
         (sx, sy, sside, _sli), (txx, tyy, tside, tli) = sorted(p, key=lambda q: q[0])
         if sside != "right" or tside != "left":
             raise SystemExit(f"build_thin_parent: net {net_name} pin sides must be "

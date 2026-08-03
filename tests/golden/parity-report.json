@@ -541,11 +541,6 @@
    "zone": "staging"
   },
   {
-   "checkable": "yes",
-   "entry": "high-current-path-inline-no-bypass",
-   "zone": "staging"
-  },
-  {
    "checkable": "partial",
    "entry": "high-current-pour-on-outer-layers",
    "zone": "staging"
@@ -734,6 +729,46 @@
    "checkable": "n/a",
    "entry": "judge.reading_assertion_band",
    "zone": "promoted"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k1.placement.order-and-grid",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k2.rotation.polarity-uniformity",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k3.silk.dense-area-protocol",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k5.decoupling.geometry-protocol",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k6.gnd.edge-band-per-board-class",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k6.gnd.stitching-pitch",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k7.dfm.jlcpcb-design-floors",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "k8.ecap.large-smd-electrolytic",
+   "zone": "staging"
   },
   {
    "checkable": "yes",
@@ -1266,11 +1301,6 @@
    "zone": "staging"
   },
   {
-   "checkable": "partial",
-   "entry": "sense-ic-thermal-separation-from-pour",
-   "zone": "staging"
-  },
-  {
    "checkable": "yes",
    "entry": "sensing-ic-12vhpwr-pro-ltc2358-ina240",
    "zone": "staging"
@@ -1589,8 +1619,8 @@
  "counts": {
   "corpus_only": 323,
   "matched": 24,
-  "registry": 46,
-  "registry_orphan": 22,
+  "registry": 48,
+  "registry_orphan": 24,
   "tombstones": 0
  },
  "matched": [
@@ -1802,6 +1832,12 @@
   },
   {
    "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "buck-switch-cell-placement",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
    "registry": "can-coupled-no-module-term",
    "section_candidates": [
     "can-coupled-routing",
@@ -1812,7 +1848,19 @@
   },
   {
    "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "decoupler-adjacency-k5",
+   "section_candidates": [],
+   "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
    "registry": "diffpair-pn-naming",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "ecap-edge-distance",
    "section_candidates": [],
    "status": "ratified"
   },
@@ -1830,6 +1878,12 @@
   },
   {
    "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "high-speed-pair-physical-integrity",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
    "registry": "hot-sensitive-separation",
    "section_candidates": [
     "chassis-tim-land-under-eps-pcie-shunts",
@@ -1837,6 +1891,12 @@
     "esp32-away-from-shunt-heat"
    ],
    "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "hub-stackup-6layer",
+   "section_candidates": [],
+   "status": "ratified"
   },
   {
    "action": "draft a corpus entry, then promote + tombstone",
@@ -1856,6 +1916,18 @@
   },
   {
    "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "kelvin-sense-no-connector-tap",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "mezzanine-segment-contract",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
    "registry": "min-pour-cross-section",
    "section_candidates": [],
    "status": "proposed"
@@ -1863,6 +1935,12 @@
   {
    "action": "draft a corpus entry, then promote + tombstone",
    "registry": "netclass-geometry-conformance",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "no-incursion-in-laid-pour",
    "section_candidates": [],
    "status": "ratified"
   },
@@ -1890,6 +1968,18 @@
     "analysis-reads-seat-reasoning",
     "gnd-plane-continuity"
    ],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "through-vias-only",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "via-on-pad",
+   "section_candidates": [],
    "status": "ratified"
   }
  ],

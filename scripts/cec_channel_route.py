@@ -14,8 +14,8 @@
 # route). Lanes weave around the cable connectors that sit in the channels.
 #
 # Usage (in the routing container):
-#   python3 scripts/cec_channel_route.py --lay-only --board-pcb IN --board beta/eps-8pin --out LANES.kicad_pcb
-#   python3 scripts/cec_channel_route.py --route    --board-pcb IN --board beta/eps-8pin --out ROUTED.kicad_pcb
+#   python3 scripts/cec_channel_route.py --lay-only --board-pcb IN --board beta/eps-8pin-rev3 --out LANES.kicad_pcb
+#   python3 scripts/cec_channel_route.py --route    --board-pcb IN --board beta/eps-8pin-rev3 --out ROUTED.kicad_pcb
 import argparse
 import json
 import os

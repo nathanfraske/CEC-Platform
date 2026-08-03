@@ -38,19 +38,11 @@ class Target:
 
 TARGETS = (
     Target(
-        "beta/eps-8pin/04-mcu.kicad_sch",
-        "eps8pin-module",
-        "ef7f6c4c-2dd9-4559-b472-96b33604786a/"
-        "83ceb2d1-e50f-4838-831a-71136b7d1260",
-        160.02,
-        "#PWR0799",
-    ),
-    Target(
         "beta/pcie-8pin-2port/04-mcu.kicad_sch",
         "pcie8pin-2port-module",
         "a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64/"
         "83ceb2d1-e50f-4838-831a-71136b7d1260",
-        160.02,
+        176.53,
         "#PWR0799",
     ),
     Target(
@@ -58,13 +50,14 @@ TARGETS = (
         "pcie8pin-3port-module",
         "a8ecf94e-f41a-4523-8cf1-1d72f47f3e7e/"
         "83ceb2d1-e50f-4838-831a-71136b7d1260",
-        160.02,
+        176.53,
         "#PWR0799",
     ),
     Target(
-        "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_sch",
+        "beta/eps-8pin-rev3/02-regulator-mcu.kicad_sch",
         "eps-8pin-rev3",
-        "ef7f6c4c-2dd9-4559-b472-96b33604786a",
+        "ef7f6c4c-2dd9-4559-b472-96b33604786a/"
+        "26d53442-a9ff-5508-b459-d1a1a45026fa",
         130.81,
         "#PWR919",
     ),

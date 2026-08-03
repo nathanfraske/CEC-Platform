@@ -14,7 +14,7 @@ Working candidates stay in build/fresh-work/<board>/ (NOT watched; the dashboard
 must not GPU-analyze every loser).
 
 Run INSIDE the routing container:
-    python3 scripts/cec_fresh_wave.py --boards eps-8pin,pcie-8pin-2port
+    python3 scripts/cec_fresh_wave.py --boards eps-8pin-rev3,pcie-8pin-2port
         [--seeds 0,1,2,3] [--passes 16] [--opt 20] [--out build/fresh]
 
 The variant set is deliberately structure-first (the 2026-06-30 placer-feasibility
@@ -34,6 +34,7 @@ ROOT = os.path.dirname(HERE)
 
 import cec_synth_pipeline as csp                       # noqa: E402
 import cec_mezz_contract as mezz                       # noqa: E402
+import cec_beta_manifest                              # noqa: E402
 from cec_placement_session import PlacementSession     # noqa: E402
 try:
     import cec_worklog                                 # dashboard activity feed (best-effort)
@@ -270,8 +271,7 @@ BOARD_WH = {
     # the 21x17mm C1 hold-up cap measured ZERO free cells at every stage -- the board
     # was genuinely full, every hub variant refused. 8mm of height is the cap's row.
     "hub-standard-rev2": (88.0, 70.0),
-    "eps-8pin": (96.0, 37.0),
-    # Current BETA rev3 source. Keep this explicit: falling through to the
+    # Current and only BETA EPS source. Keep this explicit: falling through to the
     # generic 100x44 default silently routes a different placement problem.
     "eps-8pin-rev3": (96.0, 40.0),
     "pcie-8pin-2port": (86.5, 44.0),
@@ -613,7 +613,7 @@ BOARD_PARAMS = {
 # Approved 2026-08-01 six-layer fabrication policy. The Hub keeps 1 oz
 # outers; every high-current module uses 2 oz outers. Both profiles reserve
 # In1/In4 as ground, route signals on F/In2/B, and place power copper on In3.
-for _board_name in ("eps-8pin", "eps-8pin-rev3",
+for _board_name in ("eps-8pin-rev3",
                     "pcie-8pin-2port", "pcie-8pin-3port",
                     "12vhpwr-standard", "atx-24pin-rev3"):
     _p = BOARD_PARAMS.setdefault(_board_name, {})
@@ -1042,6 +1042,12 @@ RULES the wave enforces on every publish:
     NEVER overwrites a routed reference;
   * exactly one `.kicad_pcb` lives here -- stale board files are pruned.
 
+`candidate.json` is also refreshable without publishing a board. Consumers that
+use a candidate as a placement oracle or materialization template MUST require
+`schematic_exact: true` after a current refresh. A stale candidate remains useful
+for historical outline, connector, mount, and copper review, but it is not a
+component-inventory or pin/net authority.
+
 This is a REFERENCE, not the board of record: it is machine-written, so never hand-edit
 it (edits are silently overwritten by the next better wave). The authoritative
 schematic + the module's own project files stay in the parent directory.
@@ -1158,6 +1164,48 @@ def _schematic_match(pcb_path, want_refs):
     return matches / float(len(want_refs))
 
 
+def refresh_candidate_metadata(board):
+    """Recompute a committed candidate's freshness against TODAY's schematic.
+
+    Candidate metadata used to be stamped only when a wave published. A later
+    schematic edit could therefore leave `schematic_exact: true` in JSON even
+    though the PCB no longer carried the current component signatures. Refresh
+    is deliberately metadata-only: it never edits or replaces the PCB.
+    """
+    board_dir = os.path.join(ROOT, "beta", board)
+    cdir = os.path.join(board_dir, CANDIDATE_DIR)
+    pcb_path = os.path.join(cdir, f"{board}-candidate.kicad_pcb")
+    meta_path = os.path.join(cdir, CANDIDATE_META)
+    if not (os.path.isfile(pcb_path) and os.path.isfile(meta_path)):
+        return None
+    try:
+        with open(meta_path) as fh:
+            meta = json.load(fh) or {}
+    except Exception:                                    # noqa: BLE001
+        meta = {}
+    want = _netlist_refs(board)
+    match = _schematic_match(pcb_path, want)
+    exact = match is not None and abs(match - 1.0) <= 1e-9
+    meta.update({
+        "schematic_match": (round(match, 4) if match is not None else None),
+        "schematic_exact": exact,
+        "schematic_parts": (len(want) if want else None),
+        "schematic_status": ("exact" if exact else
+                             "stale" if match is not None else "unknown"),
+        "freshness_checked": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    })
+    tmp_path = meta_path + ".tmp"
+    with open(tmp_path, "w") as fh:
+        json.dump(meta, fh, indent=1, sort_keys=True, default=str)
+        fh.write("\n")
+    os.replace(tmp_path, meta_path)
+    with open(os.path.join(cdir, "README.md"), "w") as fh:
+        fh.write(_CANDIDATE_README)
+    print(f"[candidate] {board}: freshness={meta['schematic_status']} "
+          f"match={meta['schematic_match']}", flush=True)
+    return meta
+
+
 def _candidate_update(board, published_pcb, best, *, out_root=None):
     """Keep `beta/<board>/candidate/` pointing at the CURRENT BEST board.
 
@@ -1238,9 +1286,8 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
             if os.path.abspath(stale) != os.path.abspath(dst_pcb):
                 os.remove(stale)
         readme = os.path.join(cdir, "README.md")
-        if not os.path.isfile(readme):
-            with open(readme, "w") as fh:
-                fh.write(_CANDIDATE_README)
+        with open(readme, "w") as fh:
+            fh.write(_CANDIDATE_README)
         meta = {
             "schema": 1,
             "board": board,
@@ -1254,6 +1301,10 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
             "schematic_match": (round(fresh_now, 4) if fresh_now is not None else None),
             "schematic_exact": (fresh_now is not None and
                                 abs(fresh_now - 1.0) <= 1e-9),
+            "schematic_status": ("exact" if fresh_now is not None and
+                                 abs(fresh_now - 1.0) <= 1e-9 else
+                                 "stale" if fresh_now is not None else "unknown"),
+            "freshness_checked": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "schematic_parts": (len(want) if want else None),
             "grade": {k: best.get(k) for k in
                       ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
@@ -1343,6 +1394,11 @@ def _wave_workers():
 
 
 def run_board(board, seeds, passes, opt, out_root, work_root):
+    if board not in cec_beta_manifest.WAVE_BOARDS:
+        raise ValueError(
+            f"{board!r} is not a current manifest-declared BETA wave board; "
+            f"choose one of {', '.join(cec_beta_manifest.WAVE_BOARDS)}"
+        )
     W, H = BOARD_WH.get(board, (100.0, 44.0))
     if os.environ.get("CEC_BOARD_W"):
         W = float(os.environ["CEC_BOARD_W"])                # A/B knob (owner 2026-07-12)
@@ -1591,7 +1647,7 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
 
 def main():
     ap = argparse.ArgumentParser(description="fresh-board synthesis wave (run in-container)")
-    ap.add_argument("--boards", default="eps-8pin")
+    ap.add_argument("--boards", default="eps-8pin-rev3")
     ap.add_argument("--seeds", default="0,1,2,3")
     ap.add_argument("--passes", type=int, default=16)
     ap.add_argument("--opt", type=int, default=20)

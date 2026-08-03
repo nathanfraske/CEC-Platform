@@ -31,8 +31,9 @@ import cec_pcb_reconcile as R  # noqa: E402
 HAVE_CLI = TC.have_kicad_cli()
 HAVE_PCBNEW = R.pcbnew is not None
 
-HUB_STANDARD = os.path.join(ROOT, "hubs", "hub-standard")
-EPS8PIN = os.path.join(ROOT, "beta", "eps-8pin")
+HUB_STANDARD = os.path.join(ROOT, "old-revisions", "hubs", "hub-standard-alpha")
+EPS8PIN = os.path.join(ROOT, "beta", "eps-8pin-rev3")
+EPS8PIN_ARCHIVE = os.path.join(ROOT, "old-revisions", "beta", "eps-8pin-pre-rev3")
 # The pre-beta eps snapshot (generator cec-cec_pcb, legacy zone (net_name ...) form,
 # zero (path ...) fields) -- the exact property set EpsRoundTripTest documents. The live
 # beta/eps-8pin PCB was GUI re-saved during the beta arc (generator pcbnew) and no
@@ -421,7 +422,7 @@ class ReconcileProjectTest(unittest.TestCase):
         # uses NetClass conditions only (verified by grep, this session) --
         # confirms the DRU path is presently inert on real boards, not just
         # in this synthetic test.
-        dru = _find(EPS8PIN, ".kicad_dru")
+        dru = _find(EPS8PIN_ARCHIVE, ".kicad_dru")
         pro = _write_toy_pro(os.path.join(self.tmp, "toy.kicad_pro"), [])
         dru_copy = os.path.join(self.tmp, "eps_copy.kicad_dru")
         shutil.copy(dru, dru_copy)

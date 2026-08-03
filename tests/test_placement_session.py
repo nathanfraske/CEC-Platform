@@ -19,7 +19,10 @@ sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
 import cec_synth_pipeline as csp           # noqa: E402
 import cec_placement_session as cps        # noqa: E402
 
-BOARD, W, H = "eps-8pin", 96.0, 37.0
+# The placement compiler must exercise the one current EPS product.  The
+# pre-rev3 37 mm board is an archive fixture only and must never be selected by
+# a live placement test.
+BOARD, W, H = "eps-8pin-rev3", 96.0, 40.0
 
 
 def _sess():

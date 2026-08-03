@@ -36,6 +36,7 @@ import cec_mezz_contract as cec_mezz  # noqa: E402 -- shared segmented mating co
 import cec_toolchain  # noqa: E402 -- cross-platform KiCad executable resolution
 import cec_sch_gates  # noqa: E402 -- hierarchy-aware assembly inventory
 import cec_spice_sanity  # noqa: E402 -- KiCad netlist parser used for exact freshness
+import cec_impedance  # noqa: E402 -- profile-aware coupled-pair geometry
 
 
 # ===========================================================================
@@ -239,6 +240,14 @@ REGISTRY = [
       category="EMC/RF", severity="hard", checkable="yes", directive="adjacent",
       rule="USB_D_P/_N both routed with 0 unconnected ratlines.", source="spec §3; cec_score",
       status="ratified", checker="diffpair-gate"),
+    C(id="high-speed-pair-physical-integrity",
+      title="High-speed/coupled pairs preserve geometry and return path",
+      category="EMC/RF", severity="hard", checkable="yes", directive="none",
+      rule="USB and CAN pairs use symmetric signal layers and vias (at most two per leg), "
+           "meet the project skew/coupling limits, remain above a filled adjacent GND plane, "
+           "and place a GND return via within 1.5mm of every signal-pair transition.",
+      source="TI SLLU149E/SLLA653 routing guidance; owner pipeline audit 2026-08-02",
+      status="ratified"),
     C(id="diffpair-pn-naming", title="Diff pairs use the _P/_N suffix convention",
       category="EMC/RF", severity="strong", checkable="yes", directive="none",
       rule="Differential pairs use the _P/_N suffix (e.g. /USB_D_P, /USB_D_N) so KiCad's diff-pair "
@@ -282,10 +291,20 @@ REGISTRY = [
            "limit, not a universal datasheet number; device-specific numeric limits override it.",
       source="CEC project placement limit; device capacitor requirements from selected-part datasheets",
       status="ratified", params={"max_mm": 3.5}),
+    C(id="buck-switch-cell-placement", title="TLV62569 switching cell is compact",
+      category="placement", severity="hard", checkable="yes", directive="adjacent",
+      rule="For each fitted TLV62569, the SW pad-to-inductor connection is <=3.0mm and the "
+           "inductor output-to-output-capacitor connection is <=3.5mm. The output capacitor "
+           "must return directly to GND. This bounds the high-di/dt switch cell before routing.",
+      source="TI TLV62569 datasheet application/layout guidance; selected 2.2uH/10uF network",
+      status="ratified", params={"sw_to_l_mm": 3.0, "l_to_cout_mm": 3.5}),
     C(id="trace-width-high-current", title="No too-thin trace on a high-current net",
       category="placement", severity="strong", checkable="yes", directive="none",
-      rule="No track on a 12V/*_HI net is thinner than min_mm unless the net is carried by a pour.",
-      source="user-named (trace widths); .kicad_dru", status="ratified", params={"min_mm": 1.0}),
+      rule="Every >=1A current-model track segment meets the profile-aware IPC-2221 width "
+           "at 30C rise and 125% current, unless that exact segment is embedded in its own "
+           "filled zone. Kelvin sense stubs are owned by the dedicated Kelvin gates.",
+      source="owner trace-width audit 2026-08-02; project current model; IPC-2221 conservative model",
+      status="ratified"),
     C(id="ic-power-ground-connected", title="Every IC's power + GND pins are connected",
       category="placement", severity="hard", checkable="yes", directive="power_escape",
       rule="No IC (U*) has an unconnected power(+3V3/+5VSB/VBUS/VCC/VDD) or GND pad -- a stranded supply or "
@@ -786,6 +805,8 @@ def _chk_through_vias_only(board, path, ctx):
     expected = cec_fab.profile_for_board_hint(path)
     if profile not in cec_fab.PROFILES and expected not in cec_fab.PROFILES:
         return None, "no approved six-layer fabrication profile"
+    profile_name = profile if profile in cec_fab.PROFILES else expected
+    profile_spec = cec_fab.get_profile(profile_name)
     bad = []
     for via in (t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T):
         try:
@@ -793,13 +814,32 @@ def _chk_through_vias_only(board, path, ctx):
                 q = via.GetPosition()
                 bad.append("%s@(%.2f,%.2f)" %
                            (via.GetNetname() or "<no net>", _mm(q.x), _mm(q.y)))
+                continue
+            drill = _mm(via.GetDrillValue())
+            dia = _via_width_mm(via)
+            annular = (dia - drill) / 2.0
+            aspect = profile_spec["board_thickness_mm"] / max(drill, 1e-9)
+            problems = []
+            if drill < profile_spec["pofv_drill_min_mm"] - 1e-6:
+                problems.append("drill %.3f<%.3fmm" %
+                                (drill, profile_spec["pofv_drill_min_mm"]))
+            if annular < profile_spec["pofv_annular_min_mm"] - 1e-6:
+                problems.append("annular %.3f<%.3fmm" %
+                                (annular, profile_spec["pofv_annular_min_mm"]))
+            if aspect > 8.0 + 1e-6:
+                problems.append("aspect %.2f:1>8:1" % aspect)
+            if problems:
+                q = via.GetPosition()
+                bad.append("%s@(%.2f,%.2f) %s" %
+                           (via.GetNetname() or "<no net>", _mm(q.x), _mm(q.y),
+                            ",".join(problems)))
         except Exception as exc:                        # noqa: BLE001
-            return False, "cannot verify via type: %s" % exc
+            return False, "cannot verify via type/dimensions: %s" % exc
     if bad:
-        return False, "%d blind/buried/microvia(s): %s%s" % (
+        return False, "%d illegal via type/dimension(s): %s%s" % (
             len(bad), ", ".join(bad[:8]),
             " (+%d)" % (len(bad) - 8) if len(bad) > 8 else "")
-    return True, "all vias are plated through-board (%d checked)" % sum(
+    return True, "all vias are plated through-board and profile-dimensional (%d checked)" % sum(
         1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
 
 
@@ -1801,6 +1841,234 @@ def _chk_diffpair(board, path, ctx):
     return m.diffpair_ok, "diffpair_ok=%s" % m.diffpair_ok
 
 
+def _coupled_pair_names(board):
+    """Return USB naming variants plus CAN_H/CAN_L as physical pairs.
+
+    CAN is deliberately included even though KiCad's ``_P/_N`` auto-pair
+    convention does not discover it.
+    """
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values()
+             if n.GetNetname()}
+    pairs, seen = [], set()
+
+    def add(kind, p, n):
+        key = frozenset((p, n))
+        if p in names and n in names and key not in seen:
+            pairs.append((kind, p, n))
+            seen.add(key)
+
+    _kelvin, derived = cec_score._derive_pairs(names)
+    for p, n in derived:
+        kind = "usb" if "USB" in p.upper() else ("can" if "CAN" in p.upper() else "diff")
+        add(kind, p, n)
+    for p, n in (("/USB_DP", "/USB_DM"), ("USB_DP", "USB_DM"),
+                 ("/USB_D+", "/USB_D-"), ("USB_D+", "USB_D-")):
+        add("usb", p, n)
+    for p, n in (("/CAN_H", "/CAN_L"), ("CAN_H", "CAN_L"),
+                 ("/CAN_H_BUS", "/CAN_L_BUS"), ("CAN_H_BUS", "CAN_L_BUS")):
+        add("can", p, n)
+    return pairs
+
+
+def _point_segment_mm(point, segment):
+    px, py = point
+    x0, y0, x1, y1 = segment
+    vx, vy = x1 - x0, y1 - y0
+    length2 = vx * vx + vy * vy
+    u = 0.0 if length2 == 0 else max(0.0, min(1.0,
+        ((px - x0) * vx + (py - y0) * vy) / length2))
+    return math.hypot(px - (x0 + u * vx), py - (y0 + u * vy))
+
+
+def _pair_netclass_geometry(path, kind):
+    classes = cec_impedance._netclasses(path)
+    spec = next((v for k, v in classes.items() if kind in (k or "").lower()), {})
+    width = spec.get("diff_width") or spec.get("width")
+    gap = spec.get("diff_gap")
+    if kind == "usb":
+        return float(width or 0.20), float(gap or 0.13)
+    if kind == "can":
+        return float(width or 0.25), float(gap or 0.20)
+    return float(width or 0.20), float(gap or 0.20)
+
+
+def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
+    """Physical USB/CAN route-quality verdict for the final filled board.
+
+    This intentionally goes beyond connectivity/DRC: it measures skew, coupling,
+    layer/via symmetry, adjacent-reference legality, actual filled-GND coverage,
+    and transition return vias. Closed-form impedance remains an advisory because
+    fabrication confirmation (or a calibrated 2-D solver) is still required.
+    """
+    b = board or pcbnew.LoadBoard(board_path)
+    pairs = _coupled_pair_names(b)
+    if not pairs:
+        return {"applicable": False, "ok": True, "pairs": [], "violations": []}
+    profile_name = cec_fab.active_profile_name(b, hint=board_path)
+    if not profile_name:
+        return {"applicable": False, "ok": True, "pairs": [], "violations": [],
+                "note": "no active fabrication profile; legacy board is outside current BETA gate"}
+    profile = cec_fab.get_profile(profile_name)
+    roles = dict(zip(cec_fab.COPPER_LAYERS, profile["roles"]))
+    layers = cec_fab.COPPER_LAYERS
+
+    tracks_by_net, vias_by_net = collections.defaultdict(list), collections.defaultdict(list)
+    gnd_vias = []
+    for item in b.GetTracks():
+        name = item.GetNetname() or ""
+        if item.GetClass() == "PCB_TRACK":
+            tracks_by_net[name].append(item)
+        elif item.GetClass() == "PCB_VIA":
+            vias_by_net[name].append(item)
+            if name == "GND":
+                gnd_vias.append(item.GetPosition())
+
+    gnd_polys = {}
+
+    def reference_layer(signal_layer):
+        if signal_layer not in layers or "SIG" not in roles.get(signal_layer, ""):
+            return None
+        i = layers.index(signal_layer)
+        adjacent = []
+        if i > 0:
+            adjacent.append(layers[i - 1])
+        if i + 1 < len(layers):
+            adjacent.append(layers[i + 1])
+        return next((layer for layer in adjacent if roles.get(layer) == "GND"), None)
+
+    def filled_gnd(layer):
+        if layer in gnd_polys:
+            return gnd_polys[layer]
+        lid = b.GetLayerID(layer)
+        polys = []
+        for zone in b.Zones():
+            if zone.GetNetname() != "GND" or not zone.IsOnLayer(lid):
+                continue
+            poly = zone.GetFilledPolysList(lid)
+            if poly.OutlineCount() > 0:
+                polys.append(poly)
+        gnd_polys[layer] = polys
+        return polys
+
+    def layer_name(track):
+        lid = int(track.GetLayer())
+        return cec_fab.COPPER_LAYER_IDS.get(lid, b.GetLayerName(lid))
+
+    def segment(track):
+        s, e = track.GetStart(), track.GetEnd()
+        return (s.x / 1e6, s.y / 1e6, e.x / 1e6, e.y / 1e6)
+
+    pair_rows, all_violations = [], []
+    for kind, pnet, nnet in pairs:
+        p_tracks, n_tracks = tracks_by_net[pnet], tracks_by_net[nnet]
+        violations = []
+        p_len = sum(math.hypot(t.GetEnd().x - t.GetStart().x,
+                               t.GetEnd().y - t.GetStart().y) / 1e6 for t in p_tracks)
+        n_len = sum(math.hypot(t.GetEnd().x - t.GetStart().x,
+                               t.GetEnd().y - t.GetStart().y) / 1e6 for t in n_tracks)
+        skew_limit = 3.81 if kind == "usb" else 5.0
+        skew = abs(p_len - n_len)
+        if not p_tracks or not n_tracks:
+            violations.append("one or both legs have no routed track segments")
+        if skew > skew_limit + 1e-6:
+            violations.append("skew %.2fmm exceeds %.2fmm" % (skew, skew_limit))
+
+        p_layers = {layer_name(t) for t in p_tracks}
+        n_layers = {layer_name(t) for t in n_tracks}
+        if p_layers != n_layers:
+            violations.append("asymmetric layer sets P=%s N=%s" %
+                              (sorted(p_layers), sorted(n_layers)))
+        used_layers = p_layers | n_layers
+        bad_layers = [layer for layer in used_layers if reference_layer(layer) is None]
+        if bad_layers:
+            violations.append("route layer(s) lack adjacent GND reference: %s" %
+                              ", ".join(sorted(bad_layers)))
+
+        p_vias, n_vias = vias_by_net[pnet], vias_by_net[nnet]
+        if len(p_vias) != len(n_vias):
+            violations.append("asymmetric via count P=%d N=%d" % (len(p_vias), len(n_vias)))
+        if max(len(p_vias), len(n_vias)) > 2:
+            violations.append("more than two signal vias per leg P=%d N=%d" %
+                              (len(p_vias), len(n_vias)))
+        missing_returns = []
+        for via in p_vias + n_vias:
+            at = via.GetPosition()
+            nearest = min((math.hypot(at.x - gv.x, at.y - gv.y) / 1e6
+                           for gv in gnd_vias), default=float("inf"))
+            if nearest > 1.5 + 1e-9:
+                missing_returns.append((at.x / 1e6, at.y / 1e6, nearest))
+        if missing_returns:
+            violations.append("%d transition via(s) lack a GND return via within 1.5mm" %
+                              len(missing_returns))
+
+        width, nominal_gap = _pair_netclass_geometry(board_path, kind)
+        coupled, coupled_total = 0, 0
+        ref_covered, ref_total = 0, 0
+        for track in p_tracks + n_tracks:
+            seg = segment(track)
+            x0, y0, x1, y1 = seg
+            length = math.hypot(x1 - x0, y1 - y0)
+            count = max(1, int(math.ceil(length / sample_mm)))
+            layer = layer_name(track)
+            ref = reference_layer(layer)
+            polys = filled_gnd(ref) if ref else []
+            for i in range(count):
+                u = (i + 0.5) / count
+                x, y = x0 + (x1 - x0) * u, y0 + (y1 - y0) * u
+                ref_total += 1
+                point = pcbnew.VECTOR2I(int(round(x * 1e6)), int(round(y * 1e6)))
+                if any(poly.Contains(point) for poly in polys):
+                    ref_covered += 1
+                # Coupling is sampled in both directions. Use the opposite leg,
+                # not the current net; rebuild its table for N samples below.
+                opposite = n_tracks if track.GetNetname() == pnet else p_tracks
+                opp_segments = [segment(o) for o in opposite if layer_name(o) == layer]
+                coupled_total += 1
+                if opp_segments:
+                    center = min(_point_segment_mm((x, y), other) for other in opp_segments)
+                    edge_gap = center - width
+                    if -0.03 <= edge_gap <= (2.5 * nominal_gap + 0.15):
+                        coupled += 1
+        ref_fraction = ref_covered / max(1, ref_total)
+        coupled_fraction = coupled / max(1, coupled_total)
+        min_coupled = 0.80 if kind == "usb" else 0.60
+        if ref_total and ref_fraction < 0.95:
+            violations.append("filled adjacent-GND coverage %.1f%% is below 95%%" %
+                              (100.0 * ref_fraction))
+        if coupled_total and coupled_fraction < min_coupled:
+            violations.append("coupled-route coverage %.1f%% is below %.0f%%" %
+                              (100.0 * coupled_fraction, 100.0 * min_coupled))
+
+        stackups = {}
+        for layer in sorted(used_layers):
+            if reference_layer(layer):
+                stackups[layer] = cec_impedance.stackup_for_board(
+                    board_path, board=b, layer=layer)
+        row = {"kind": kind, "p": pnet, "n": nnet,
+               "length_p_mm": round(p_len, 3), "length_n_mm": round(n_len, 3),
+               "skew_mm": round(skew, 3), "layers": sorted(used_layers),
+               "vias_p": len(p_vias), "vias_n": len(n_vias),
+               "reference_coverage_pct": round(100.0 * ref_fraction, 1),
+               "coupled_coverage_pct": round(100.0 * coupled_fraction, 1),
+               "stackups": stackups, "violations": violations}
+        pair_rows.append(row)
+        all_violations.extend("%s %s/%s: %s" % (kind.upper(), pnet, nnet, msg)
+                              for msg in violations)
+    return {"applicable": True, "ok": not all_violations,
+            "profile": profile_name, "pairs": pair_rows,
+            "violations": all_violations}
+
+
+@checker("high-speed-pair-physical-integrity")
+def _chk_high_speed_pair_physical(board, path, ctx):
+    rep = high_speed_pair_summary(path, board=board)
+    if not rep.get("applicable"):
+        return None, rep.get("note", "no USB/CAN physical pair on this board")
+    if not rep["ok"]:
+        return False, "; ".join(rep["violations"][:8])
+    return True, "%d pair(s) meet skew/layer/via/coupling/reference-return contract" % len(rep["pairs"])
+
+
 @checker("diffpair-pn-naming")
 def _chk_pn_naming(board, path, ctx):
     nets = set(_nets(board))
@@ -2058,6 +2326,30 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                         "max_mm": max_mm, "source": "LP5907",
                     })
 
+        if "TLV62569" in value:
+            # TI's input capacitor belongs directly at VIN/GND. The output cap
+            # is on the far side of the inductor and is checked by the compact
+            # switching-cell rule below rather than pretending SW is VOUT.
+            pad = _numbered_pad(fp, "4")
+            if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                requirements.append({
+                    "id": "%s:4:buck-input" % ref,
+                    "ref": ref, "pin": "4", "pad": pad,
+                    "rail": pad.GetNetname(), "kind": "at-least-10u",
+                    "max_mm": 2.0, "source": "TLV62569",
+                })
+
+        if "TLV75533" in value:
+            for pin_number, role in (("1", "ldo-input"), ("5", "ldo-output")):
+                pad = _numbered_pad(fp, pin_number)
+                if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
+                    requirements.append({
+                        "id": "%s:%s:%s" % (ref, pin_number, role),
+                        "ref": ref, "pin": pin_number, "pad": pad,
+                        "rail": pad.GetNetname(), "kind": "at-least-1u",
+                        "max_mm": 2.0, "source": "TLV75533",
+                    })
+
         if "TPS2121" in value:
             for pin_number, role in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
                 pad = _numbered_pad(fp, pin_number)
@@ -2075,7 +2367,9 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
         if req["kind"] == "100n":
             return abs(cap["farads"] - 100e-9) <= 1e-15
         if req["kind"] == "at-least-1u":
-            return cap["farads"] >= 1e-6
+            return cap["farads"] + 1e-15 >= 1e-6
+        if req["kind"] == "at-least-10u":
+            return cap["farads"] + 1e-15 >= 10e-6
         return cap["farads"] > 0
 
     def distance(req, cap):
@@ -2273,6 +2567,71 @@ def _chk_decap(board, path, ctx):
     )
 
 
+@checker("buck-switch-cell-placement")
+def _chk_buck_switch_cell(board, path, ctx):
+    """Measure the two placement-critical TLV62569 switching-cell legs."""
+    bucks = [fp for fp in board.GetFootprints()
+             if "TLV62569" in _val(fp) and not any(_fp_assembly_state(fp))]
+    if not bucks:
+        return None, "no fitted TLV62569"
+
+    max_sw_l = _param("buck-switch-cell-placement", "sw_to_l_mm", 3.0)
+    max_l_c = _param("buck-switch-cell-placement", "l_to_cout_mm", 3.5)
+
+    def pad_distance(a, b):
+        pa, pb = a.GetPosition(), b.GetPosition()
+        return math.hypot(_mm(pa.x - pb.x), _mm(pa.y - pb.y))
+
+    failures = []
+    passes = []
+    footprints = list(board.GetFootprints())
+    for buck in bucks:
+        ref = buck.GetReference()
+        sw = _numbered_pad(buck, "3")
+        if sw is None or not sw.GetNetname():
+            failures.append(f"{ref} SW pin 3 has no net")
+            continue
+        inductors = []
+        for fp in footprints:
+            if not fp.GetReference().startswith("L") or any(_fp_assembly_state(fp)):
+                continue
+            pads = list(fp.Pads())
+            sw_pads = [pad for pad in pads if pad.GetNetname() == sw.GetNetname()]
+            if len(pads) == 2 and len(sw_pads) == 1:
+                other = pads[0] if pads[1] is sw_pads[0] else pads[1]
+                if other.GetNetname() and not _ground_net(other.GetNetname()):
+                    inductors.append((pad_distance(sw, sw_pads[0]), fp, other))
+        if not inductors:
+            failures.append(f"{ref} SW net {sw.GetNetname()} has no two-pad output inductor")
+            continue
+        sw_l, inductor, lout = min(inductors, key=lambda row: row[0])
+        if sw_l > max_sw_l:
+            failures.append(f"{ref}->{inductor.GetReference()} SW leg {sw_l:.2f}mm > {max_sw_l:.2f}mm")
+
+        output_caps = []
+        for fp in footprints:
+            if not fp.GetReference().startswith("C") or any(_fp_assembly_state(fp)):
+                continue
+            pads = list(fp.Pads())
+            rail = [pad for pad in pads if pad.GetNetname() == lout.GetNetname()]
+            gnd = [pad for pad in pads if _ground_net(pad.GetNetname())]
+            if len(pads) == 2 and len(rail) == 1 and len(gnd) == 1:
+                farads = _capacitance_f_board(_val(fp))
+                if farads is not None and farads + 1e-15 >= 10e-6:
+                    output_caps.append((pad_distance(lout, rail[0]), fp))
+        if not output_caps:
+            failures.append(f"{inductor.GetReference()} output {lout.GetNetname()} has no >=10uF GND-return capacitor")
+            continue
+        l_c, cap = min(output_caps, key=lambda row: row[0])
+        if l_c > max_l_c:
+            failures.append(f"{inductor.GetReference()}->{cap.GetReference()} output leg {l_c:.2f}mm > {max_l_c:.2f}mm")
+        passes.append(f"{ref}-{inductor.GetReference()}-{cap.GetReference()} {sw_l:.2f}/{l_c:.2f}mm")
+
+    if failures:
+        return False, "TLV62569 switch-cell placement: " + "; ".join(failures)
+    return True, "TLV62569 switch cells compact: " + "; ".join(passes)
+
+
 @checker("ic-power-ground-connected")
 def _chk_ic_power(board, path, ctx):
     if _track_count(board) == 0:
@@ -2315,28 +2674,84 @@ def _chk_routed(board, path, ctx):
 def _chk_tw(board, path, ctx):
     if _track_count(board) == 0:
         return None, "floorplan (no tracks)"
-    min_mm = _param("trace-width-high-current", "min_mm", 1.0)
-    # exempt nets carried by a pour
-    poured = set()
-    for z in board.Zones():
-        try:
-            if z.GetFilledArea() / 1e12 > 5:
-                poured.add(z.GetNetname())
-        except Exception:
-            pass
-    thin = collections.defaultdict(float)
+    profile_name = cec_fab.active_profile_name(board, hint=path)
+    if not profile_name:
+        return None, "no current fabrication profile for current-density width model"
+    # Design-basis current is one source of truth shared with DCIR/thermal.
+    import cec_synth_pipeline as csp
+    names = _nets(board)
+    gnd_current = csp.spec_gnd_current(path, names)
+
+    def amps_for(net):
+        if net.rsplit("/", 1)[-1] == "GND":
+            return gnd_current
+        return csp.spec_net_current(path, net)
+
+    # A track fully embedded in its own filled zone is not the load-bearing
+    # cross-section; the zone/pour-width gates own that copper. Merely having a
+    # zone somewhere on the net is no exemption.
+    zone_polys = collections.defaultdict(list)
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or not zone.GetNetname():
+            continue
+        for lid in board.GetEnabledLayers().CuStack():
+            if not zone.IsOnLayer(lid):
+                continue
+            poly = zone.GetFilledPolysList(lid)
+            if poly.OutlineCount():
+                zone_polys[(zone.GetNetname(), int(lid))].append(poly)
+
+    def embedded(track):
+        polys = zone_polys.get((track.GetNetname(), int(track.GetLayer())), ())
+        if not polys:
+            return False
+        s, e = track.GetStart(), track.GetEnd()
+        mid = pcbnew.VECTOR2I((s.x + e.x) // 2, (s.y + e.y) // 2)
+        return all(any(poly.Contains(point) for poly in polys)
+                   for point in (s, mid, e))
+
+    sense = _sense_nets(board)
+    bad, checked, poured = [], 0, 0
     for t in board.GetTracks():
         if t.Type() != pcbnew.PCB_TRACE_T:
             continue
         n = t.GetNetname()
-        if not ("12V" in n.upper() or n.endswith("_HI")) or n in poured:
+        amps = amps_for(n)
+        if amps is None or amps < 1.0:
             continue
-        thin[n] = max(thin[n], _mm(t.GetWidth()))
-    bad = sorted(n for n, w in thin.items() if w < min_mm)
+        checked += 1
+        if embedded(t):
+            poured += 1
+            continue
+        # Direct INA2xx Kelvin stubs can share the force net name. Their
+        # zero-via/F.Cu/inner-pad topology is independently hard-gated.
+        if n in sense:
+            continue
+        lid = int(t.GetLayer())
+        layer = cec_fab.COPPER_LAYER_IDS.get(lid, board.GetLayerName(lid))
+        try:
+            required = cec_fab.ipc2221_required_width_mm(
+                amps, layer, profile_name=profile_name, rise_c=30.0, margin=1.25)
+        except ValueError as exc:
+            bad.append((n, layer, _mm(t.GetWidth()), None, str(exc)))
+            continue
+        actual = _mm(t.GetWidth())
+        if actual + 0.001 < required:
+            bad.append((n, layer, actual, required, "not inside its own filled zone"))
     if bad:
-        return (False, "high-current nets routed thinner than %.1fmm (and not poured): %s" % (min_mm, ", ".join(bad[:6])),
-                [{"type": "keepout", "reserve": "pour_or_widen", "nets": bad}])
-    return True, "no too-thin high-current trace"
+        detail = "; ".join("%s %s %.3fmm<%smm (%s)" %
+                           (n, layer, actual,
+                            ("?" if required is None else "%.3f" % required), why)
+                           for n, layer, actual, required, why in bad[:8])
+        return (False, "%d current-model trace segment(s) undersized: %s" %
+                (len(bad), detail),
+                [{"type": "keepout", "reserve": "pour_or_widen", "net": n,
+                  "layer": layer, "actual_mm": actual, "required_mm": required}
+                 for n, layer, actual, required, _why in bad[:20]])
+    if checked == 0:
+        return None, "no routed net with a ratified >=1A current model"
+    return True, ("%d current-model trace segment(s) checked against %s; %d embedded in "
+                  "their own filled zone" % (checked, profile_name, poured))
 
 
 @checker("hot-sensitive-separation")
@@ -2490,7 +2905,9 @@ def _netclass_rules(board_path):
         return None
     classes = {}
     for c in ns.get("classes", []):
-        classes[c.get("name", "")] = {k: c[k] for k in ("track_width", "via_diameter", "via_drill")
+        classes[c.get("name", "")] = {k: c[k] for k in
+                                      ("track_width", "via_diameter", "via_drill",
+                                       "diff_pair_width", "diff_pair_gap")
                                       if k in c}
     if not classes:
         return None
@@ -2531,6 +2948,7 @@ def _chk_netclass_geom(board, path, ctx):
         return None, "unrouted floorplan (no tracks/vias to conform)"
     tol = _param("netclass-geometry-conformance", "tol_mm", 0.001)
     sense = _sense_nets(board)            # SHARED force+sense: track width checker-exempt
+    pair_nets = {net for _kind, p, n in _coupled_pair_names(board) for net in (p, n)}
     bad = collections.defaultdict(lambda: collections.Counter())
     for t in board.GetTracks():
         net = t.GetNetname()
@@ -2546,7 +2964,8 @@ def _chk_netclass_geom(board, path, ctx):
             if dr and _mm(t.GetDrillValue()) < dr - tol:
                 bad[(net, cls)]["via_drill"] += 1
         elif t.Type() == pcbnew.PCB_TRACE_T:
-            w = minima.get("track_width")
+            w = (minima.get("diff_pair_width") if net in pair_nets else None) \
+                or minima.get("track_width")
             if net in sense:
                 continue                  # deliberate ~0.25mm Kelvin stub on the force net
             if w and _mm(t.GetWidth()) < w - tol:
@@ -2561,8 +2980,9 @@ def _chk_netclass_geom(board, path, ctx):
         payload = [{"net": net, "class": cls, "kind": k, "count": n}
                    for (net, cls), cnt in bad.items() for k, n in cnt.items()]
         return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
-    return True, "all tracks/vias meet their netclass minima (%d classes; sense-stub exemption on %d net(s))" % (
-        len(classes), len(sense))
+    return True, ("all tracks/vias meet assigned track/diff/via minima (%d classes; "
+                  "%d physical pair net(s); sense-stub exemption on %d net(s))" %
+                  (len(classes), len(pair_nets), len(sense)))
 
 
 # bom-field-lint: assembly-irrelevant refs + the DOCUMENTED-open sourcing gaps.
@@ -3096,6 +3516,39 @@ def run(board_path, ctx=None):
     return out
 
 
+POST_ROUTE_EXCLUSIONS = frozenset({
+    # Intake already proved the authoritative schematic/netlist relationship.
+    # Routed artifacts live in build/run directories without a sibling schematic,
+    # so re-running this path-based checker here would be a false release failure.
+    "sch-pcb-sync",
+})
+
+
+def blocking_rows(rows, *, phase="post_route"):
+    """All ratified, deterministic hard/strong failures for a release phase."""
+    excluded = POST_ROUTE_EXCLUSIONS if phase == "post_route" else frozenset()
+    return [(c, status, detail, payload) for c, status, detail, payload in rows
+            if c.id not in excluded
+            and c.status == "ratified"
+            and c.checkable == "yes"
+            and c.severity in ("hard", "strong")
+            and status in ("FAIL", "ERROR")]
+
+
+def release_gate(board_path, ctx=None, *, phase="post_route"):
+    """Fail-closed aggregate gate over every ratified deterministic contract."""
+    rows = run(board_path, ctx)
+    blocked = blocking_rows(rows, phase=phase)
+    return {
+        "ok": not blocked,
+        "phase": phase,
+        "checked": len(rows),
+        "blockers": [{"id": c.id, "severity": c.severity,
+                      "status": status, "detail": detail}
+                     for c, status, detail, _payload in blocked],
+    }
+
+
 def report(board_path, ctx, as_json=False):
     rows = run(board_path, ctx)
     if as_json:
@@ -3125,6 +3578,7 @@ def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     ctx = {"radio": "--radio" in argv}
     as_json = "--json" in argv
+    strict = "--strict" in argv
     boards = [a for a in argv if not a.startswith("--")]
 
     # CL-25 INTAKE GATE CLI: the schematic-side refuse-candidates subset.
@@ -3168,15 +3622,29 @@ def main(argv=None):
         return 0
 
     blobs = []
+    strict_rc = 0
     for b in boards:
         if as_json:
             blobs.append(report(b, ctx, as_json=True))
         else:
             report(b, ctx)
             print()
+        if strict:
+            gate = release_gate(b, ctx, phase="post_route")
+            strict_rc = strict_rc or (0 if gate["ok"] else 1)
+            if not as_json:
+                print("STRICT RELEASE :: %s -> %s (%d blocker(s))" %
+                      (os.path.basename(b), "PASS" if gate["ok"] else "FAIL",
+                       len(gate["blockers"])))
+                for blocker in gate["blockers"][:16]:
+                    print("  [%s] %-32s %s" %
+                          (blocker["status"][0], blocker["id"],
+                           str(blocker["detail"])[:100]))
+            else:
+                blobs[-1]["strict_release"] = gate
     if as_json:
         print(json.dumps(blobs, indent=1))
-    return 0
+    return strict_rc
 
 
 def laid_pour_incursion_summary(board_path, *, exclude_plane=True):
@@ -3269,12 +3737,17 @@ def _chk_laid_pour_incursion(board, path, ctx):
     back to be redone, never the rule bent. See laid_pour_incursion_summary."""
     rep = laid_pour_incursion_summary(path)
     if not rep.get("applicable"):
-        return []
-    out = []
-    for it in rep["items"]:
-        out.append("%s %s [%s] inside pour %s"
-                   % (it["kind"], it.get("ref", ""), it.get("net", ""), it["pour"]))
-    return out
+        return None, "no reserved laid signal/power pour on this board"
+    if rep.get("status") == "error":
+        return False, "laid-pour analysis error: %s" % rep.get("error", "unknown")
+    out = ["%s %s [%s] inside pour %s"
+           % (it["kind"], it.get("ref", ""), it.get("net", ""), it["pour"])
+           for it in rep["items"]]
+    if out:
+        return (False, "; ".join(out[:12]),
+                [{"type": "separate", "target": it.get("ref") or it.get("net"),
+                  "from": it["pour"]} for it in rep["items"][:12]])
+    return True, "no parts, foreign tracks, or vias inside laid reserved pours"
 
 
 if __name__ == "__main__":

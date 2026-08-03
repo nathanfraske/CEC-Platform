@@ -687,7 +687,7 @@ def _find_root_sch(board_dir):
     tried first (byte-for-byte prior behavior, no change for every
     currently-flat board). Once a board is hierarchical (round-4 conversion:
     a thin-parent root plus several `NN-<block>.kicad_sch` leaves in the SAME
-    directory -- e.g. beta/eps-8pin/{eps8pin-module,01-hub-link,...}.kicad_sch
+    directory -- e.g. beta/eps-8pin-rev3/{eps-8pin-rev3,01-hub-can,...}.kicad_sch
     -- there are many candidates), fall back to KiCad's own project
     convention: the root schematic shares its basename with the project's
     `.kicad_pro` (verified against every real hierarchical project in this
@@ -764,7 +764,7 @@ def main(argv=None):
         description="Reconcile a module .kicad_pcb (+ .kicad_pro/.kicad_dru) "
                     "after its schematic converts from flat to hierarchical.")
     ap.add_argument("--board", required=True,
-                     help="module directory, e.g. beta/eps-8pin")
+                     help="module directory, e.g. beta/eps-8pin-rev3")
     ap.add_argument("--baseline-rev", required=True,
                      help="git rev holding the pre-conversion FLAT schematic")
     ap.add_argument("--dry-run", action="store_true",

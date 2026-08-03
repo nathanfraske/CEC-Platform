@@ -46,7 +46,7 @@ cec_thermal_sources
 Two independent capabilities, both read-only / additive:
 
 1. **Heat-source inventory** (`inventory()`): given a board directory (e.g.
-   ``beta/12vhpwr-standard`` or ``hubs/hub-standard``), enumerates every
+   ``beta/12vhpwr-standard`` or ``beta/hub-standard-rev2``), enumerates every
    DISSIPATING component beyond the shunts the existing solvers already model
    (LDOs, addressable LEDs, MCU modules, CAN transceivers, current-sense
    amplifiers, protection diodes, and a few board-specific extras such as the
@@ -284,7 +284,7 @@ class SourceConfig:
 
 DEFAULT_PARAMS = {
     "vcc_5vsb_V": 5.0,          # nominal +5VSB rail (JST-XH bulk feed, spec §2.7)
-    "vcc_3v3_V": 3.3,           # LP5907MFX-3.3 regulated output (fixed by part number)
+    "vcc_3v3_V": 3.3,           # regulated logic-rail output
     # Logic-rail load current for the LDO dropout*I calc: MCU active current (see
     # MCU_SPECS) + a documented allowance for the CAN transceiver's VIO pin, the
     # comparator/supervisor/level-shifter quiescent draws, and pull-up/ADC-divider
@@ -337,6 +337,32 @@ LDO_SPECS = {
                     "@VEN=1.2V,IOUT=250mA (line ~261); VDO 120mV typ/200mV max @IOUT=250mA (line ~265).",
         "iq_typ_A": 12e-6,
         "iq_max_A": 425e-6,
+        "vout_V": 3.3,
+    },
+    "TLV75533": {
+        "citation": "TI TLV755P datasheet, lib/datasheets/TLV755P.pdf: 25uA typical "
+                    "ground current, 500mA output rating, and 238mV maximum dropout "
+                    "for the 3.3V DBV option at 500mA over -40C to 125C.",
+        "iq_typ_A": 25e-6,
+        "iq_max_A": 40e-6,
+        "vin_V": 3.96,
+        "vout_V": 3.3,
+    },
+}
+
+# ---- Buck converters ---------------------------------------------------------------
+# TLV62569 efficiency is operating-point dependent and the datasheet curves are
+# typical, not guaranteed minima.  Use an explicit conservative 85% design floor for
+# heat injection; callers can override it with a measured efficiency.  The floor is
+# deliberately marked unverified so it cannot be mistaken for a manufacturer limit.
+BUCK_SPECS = {
+    "TLV62569": {
+        "citation": "TI TLV62569 datasheet, lib/datasheets/TLV62569.pdf: 35uA "
+                    "operating quiescent current, 2A output rating, and typical "
+                    "efficiency curves. The 85% thermal-model floor is a conservative "
+                    "project design assumption, not a guaranteed datasheet minimum.",
+        "iq_typ_A": 35e-6,
+        "efficiency_floor": 0.85,
         "vout_V": 3.3,
     },
 }
@@ -535,6 +561,7 @@ FERRITE_SPECS = {
 # ============================================================ classification
 _CLASS_TABLE = (
     ("ldo", LDO_SPECS),
+    ("buck", BUCK_SPECS),
     ("led", LED_SPECS),
     ("mcu", MCU_SPECS),
     ("can_xcvr", CAN_XCVR_SPECS),
@@ -576,7 +603,7 @@ class HeatSource:
 
 def _ldo_power(comp, part, cfg):
     spec = LDO_SPECS[part]
-    vin = cfg.get("vcc_5vsb_V")
+    vin = cfg.get("vin_%s_V" % comp.ref, spec.get("vin_V", cfg.get("vcc_5vsb_V")))
     vout = spec["vout_V"]
     i_load = cfg.get("i_load_%s_A" % comp.ref, None)
     if i_load is None:
@@ -589,6 +616,24 @@ def _ldo_power(comp, part, cfg):
     basis = "(Vin-Vout)*I_load + Vin*Iq = (%.2f-%.2f)*%.4fA + %.2f*%.2eA" % (
         vin, vout, i_load, vin, iq)
     return HeatSource(comp.ref, "ldo", part, round(p, 6), basis, spec["citation"])
+
+
+def _buck_power(comp, part, cfg):
+    spec = BUCK_SPECS[part]
+    vin = cfg.get("vin_%s_V" % comp.ref, cfg.get("vcc_5vsb_V"))
+    vout = cfg.get("vout_%s_V" % comp.ref, spec["vout_V"])
+    i_load = cfg.get("i_load_%s_A" % comp.ref,
+                     cfg.get("i_3v3_logic_total_A", cfg.get("i_3v3_logic_misc_A")))
+    efficiency = cfg.get("efficiency_%s" % comp.ref, spec["efficiency_floor"])
+    if not 0.0 < efficiency <= 1.0:
+        raise ValueError("buck efficiency must be in (0,1]")
+    pout = vout * i_load
+    loss = pout * (1.0 / efficiency - 1.0) + vin * spec["iq_typ_A"]
+    basis = ("Pout*(1/eta-1)+Vin*Iq = %.2fV*%.6fA*(1/%.3f-1) + "
+             "%.2fV*%.2eA" % (vout, i_load, efficiency, vin, spec["iq_typ_A"]))
+    return HeatSource(comp.ref, "buck", part, round(loss, 6), basis,
+                      spec["citation"], unverified=True,
+                      note="85% efficiency floor is a conservative design assumption; replace with measured loss")
 
 
 def _led_power(refs, cfg):
@@ -688,7 +733,8 @@ def _ferrite_power(comp, part, cfg):
 
 
 _POWER_FN = {
-    "ldo": _ldo_power, "mcu": _mcu_power, "can_xcvr": _can_xcvr_power,
+    "ldo": _ldo_power, "buck": _buck_power,
+    "mcu": _mcu_power, "can_xcvr": _can_xcvr_power,
     "reference": _reference_power, "sense_amp": _sense_amp_power,
     "protection_diode": _protection_diode_power, "power_mux": _power_mux_power,
     "supervisor": _supervisor_power, "ferrite": _ferrite_power,
@@ -721,6 +767,16 @@ def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None):
             sch_path = _tc.find_root_sch(board_dir) or None
     if not sch_path or not os.path.isfile(sch_path):
         raise FileNotFoundError("cec_thermal_sources.inventory: no .kicad_sch found for %r" % board_dir)
+
+    board_name = os.path.basename(os.path.normpath(board_dir))
+    if board_name == "12vhpwr-standard":
+        cfg.params.setdefault("i_load_U3_A", 0.233591)
+        cfg.params.setdefault("vout_U3_V", 3.96)
+        cfg.params.setdefault("i_load_U16_A", 0.233591)
+        cfg.params.setdefault("vin_U16_V", 3.96)
+    elif board_name == "hub-standard-rev2":
+        cfg.params.setdefault("i_load_U3_A", 0.215386)
+        cfg.params.setdefault("vout_U3_V", 3.318)
 
     comps = load_components(sch_path)
     sources, unverified, dnp = [], [], []
@@ -771,7 +827,6 @@ def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None):
     if pcb_path and os.path.isfile(pcb_path) and _HAVE_PCBNEW:
         attach_positions(sources, pcb_path)
 
-    board_name = os.path.basename(os.path.normpath(board_dir))
     total = round(sum(s.watts for s in sources), 4)
     return InventoryResult(board=board_name, sources=sources, total_W=total,
                            unverified_refs=unverified, dnp_skipped=sorted(dnp))
@@ -1054,7 +1109,7 @@ def format_emissivity_table(regions):
 
 # ============================================================ CLI self-test / demo
 def main(argv=None):
-    boards = argv or ["hubs/hub-standard", "beta/12vhpwr-standard"]
+    boards = argv or ["beta/hub-standard-rev2", "beta/12vhpwr-standard"]
     for b in boards:
         d = os.path.join(ROOT, b)
         print("=" * 78)

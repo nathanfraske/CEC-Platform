@@ -35,6 +35,8 @@ import subprocess
 import sys
 import tempfile
 
+import cec_fab_profile as cec_fab
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
@@ -51,10 +53,11 @@ except Exception:                                          # noqa: BLE001
 # --------------------------------------------------------------------------
 # FAB PROFILES -- a vendor's stated capability, NOT our design intent.
 # JLCPCB standard process (the repo's fab -- BOM outputs are *-jlcpcb.csv).
-# Values are the vendor's published minimums; where a value depends on copper
-# weight, the 2oz entry is used for outer layers on the cable boards, which is
-# the binding case (heavier copper needs wider spacing because of etch
-# undercut).
+# Values are deliberately conservative CEC release floors, not a claim that the
+# vendor cannot fabricate below them. They stay above JLCPCB's published 2026
+# multilayer minima (0.09mm at 1oz, 0.15mm at 2oz) to protect yield. Copper
+# weight is resolved from the board's declared fabrication profile by default;
+# applying the 2oz rule to the 1oz Hub used to produce a misleading audit.
 # --------------------------------------------------------------------------
 PROFILES = {
     "jlcpcb": {
@@ -70,6 +73,7 @@ PROFILES = {
         "min_copper_edge": 0.20,
         "min_silk_width": 0.15,
         "min_sliver": 0.10,          # copper/mask sliver a process can hold
+        "max_plated_aspect": 8.0,    # CEC process margin for plated through holes
     },
 }
 
@@ -87,7 +91,18 @@ def profile_rules(prof, copper_oz):
         "edge": prof["min_copper_edge"],
         "silk": prof["min_silk_width"],
         "sliver": prof["min_sliver"],
+        "aspect": prof["max_plated_aspect"],
     }
+
+
+def board_outer_copper_oz(board_path):
+    """Resolve finished outer copper from the selected board profile."""
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    name = cec_fab.active_profile_name(board, hint=board_path)
+    if not name:
+        return None
+    return cec_fab.stackup_oz(name)["F.Cu"]
 
 
 def write_fab_dru(path, r):
@@ -152,7 +167,36 @@ def artifact_scan(board_path, r):
     from shapely.geometry import Polygon, box as _box, LineString
     from shapely.ops import unary_union
     b = pcbnew.LoadBoard(board_path)
-    out = {"slivers": [], "islands": [], "acid_traps": []}
+    out = {"slivers": [], "islands": [], "acid_traps": [],
+           "drill_aspect": []}
+
+    # --- plated through-hole aspect ratio. KiCad DRC checks drill diameter,
+    # not whether a small legal drill is reasonable through this board thickness.
+    profile_name = cec_fab.active_profile_name(b, hint=board_path)
+    thickness = (cec_fab.get_profile(profile_name)["board_thickness_mm"]
+                 if profile_name else float(b.GetDesignSettings().GetBoardThickness()) / 1e6)
+    max_aspect = float(r["aspect"])
+    for item in b.GetTracks():
+        if item.GetClass() != "PCB_VIA":
+            continue
+        drill = item.GetDrillValue() / 1e6
+        if drill > 0 and thickness / drill > max_aspect + 1e-9:
+            at = item.GetPosition()
+            out["drill_aspect"].append({
+                "kind": "via", "drill_mm": round(drill, 3),
+                "aspect": round(thickness / drill, 2),
+                "at": [round(at.x / 1e6, 2), round(at.y / 1e6, 2)]})
+    for fp in b.GetFootprints():
+        for pad in fp.Pads():
+            if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_PTH):
+                continue
+            drill = min(v for v in (pad.GetDrillSize().x / 1e6,
+                                    pad.GetDrillSize().y / 1e6) if v > 0)
+            if thickness / drill > max_aspect + 1e-9:
+                out["drill_aspect"].append({
+                    "kind": "pad", "ref": fp.GetReference(),
+                    "pad": pad.GetPadName(), "drill_mm": round(drill, 3),
+                    "aspect": round(thickness / drill, 2)})
 
     # --- pour slivers + isolated islands, per zone per layer
     for z in b.Zones():
@@ -291,10 +335,12 @@ def summarise(rep):
     n_s = len(rep.get("slivers", []))
     n_i = len(rep.get("islands", []))
     n_a = len(rep.get("acid_traps", []))
-    blocking = rep["drc_total"] + n_s + n_i
-    return ("%-46s fab_drc=%-4d unconn=%-4d slivers=%-3d islands=%-3d acid_traps=%-3d %s"
+    n_d = len(rep.get("drill_aspect", []))
+    blocking = rep["drc_total"] + n_s + n_i + n_d
+    return ("%-46s fab_drc=%-4d unconn=%-4d slivers=%-3d islands=%-3d "
+            "drill_aspect=%-3d acid_traps=%-3d %s"
             % (os.path.basename(rep["board"])[:46], rep["drc_total"],
-               rep["unconnected"], n_s, n_i, n_a,
+               rep["unconnected"], n_s, n_i, n_d, n_a,
                "FAB OK" if blocking == 0 else "BLOCKED"))
 
 
@@ -303,8 +349,8 @@ def main():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("boards", nargs="+")
     ap.add_argument("--profile", default="jlcpcb", choices=sorted(PROFILES))
-    ap.add_argument("--copper-oz", type=float, default=2.0,
-                    help="outer copper weight; 2oz is the binding case here")
+    ap.add_argument("--copper-oz", type=float, default=None,
+                    help="override outer copper weight; default resolves the board profile")
     ap.add_argument("--json", default="")
     ap.add_argument("--no-artifacts", action="store_true")
     ap.add_argument("--quiet", action="store_true")
@@ -314,10 +360,18 @@ def main():
         if not os.path.isfile(bp):
             print("MISSING %s" % bp)
             continue
-        rep = check(bp, a.profile, a.copper_oz, not a.no_artifacts)
+        copper_oz = a.copper_oz
+        if copper_oz is None:
+            copper_oz = board_outer_copper_oz(bp)
+        if copper_oz is None:
+            print("MISSING FAB PROFILE %s (pass --copper-oz explicitly)" % bp)
+            bad += 1
+            continue
+        rep = check(bp, a.profile, copper_oz, not a.no_artifacts)
         reps.append(rep)
         print(summarise(rep), flush=True)
-        if rep.get("drc_total", 0) or rep.get("slivers") or rep.get("islands"):
+        if (rep.get("drc_total", 0) or rep.get("slivers") or rep.get("islands")
+                or rep.get("drill_aspect")):
             bad += 1
         if not a.quiet:
             for k, n in sorted((rep.get("drc") or {}).items(), key=lambda kv: -kv[1]):

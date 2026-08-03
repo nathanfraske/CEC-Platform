@@ -105,6 +105,30 @@ class TestBetaElectricalAudit(unittest.TestCase):
         self.assertEqual(len(missing), 1)
         self.assertIn("IN2", missing[0]["message"])
 
+    def test_tps2121_shared_rail_still_requires_distinct_local_caps(self):
+        inv = {
+            "U5": self._rec("TPS2121RUXR"),
+            "U11": self._rec("TPS2121RUXR"),
+            "C1": self._rec("1uF", lcsc="C15849", mpn="CL10A105KB8NNNC"),
+            "C2": self._rec("1uF", lcsc="C15849", mpn="CL10A105KB8NNNC"),
+            "C3": self._rec("1uF", lcsc="C15849", mpn="CL10A105KB8NNNC"),
+            "C4": self._rec("1uF", lcsc="C15849", mpn="CL10A105KB8NNNC"),
+            "C5": self._rec("1uF", lcsc="C15849", mpn="CL10A105KB8NNNC"),
+        }
+        pins = {
+            "U5": {"7": "A", "2": "B", "1": "SHARED"},
+            "U11": {"7": "SHARED", "2": "C", "1": "D"},
+            "C1": {"1": "A", "2": "GND"},
+            "C2": {"1": "B", "2": "GND"},
+            "C3": {"1": "SHARED", "2": "GND"},
+            "C4": {"1": "C", "2": "GND"},
+            "C5": {"1": "D", "2": "GND"},
+        }
+        findings = audit.check_passives("board", inv, pins)
+        missing = [f for f in findings if f["code"] == "TPS2121_BYPASS_NODE"]
+        self.assertEqual(len(missing), 1)
+        self.assertIn("SHARED", missing[0]["message"])
+
     def test_role_normalizes_mating_net_names(self):
         self.assertEqual(audit._role("/+5V_SYS_PORT"), "POWER5")
         self.assertEqual(audit._role("+5VSB"), "POWER5")
@@ -385,9 +409,12 @@ class TestBetaElectricalAudit(unittest.TestCase):
                      if f["code"] == "POUR_CURRENT_MODEL_CONFLICT"]
         self.assertTrue(any(f["board"] == "atx-24pin-rev3" and
                             "+5VSB" in f["message"] for f in conflicts))
-        self.assertTrue(any(f["board"] == "hub-standard-rev2" and
-                            "/MAIN_5V_RAW" in f["message"]
-                            for f in conflicts))
+        # The reviewed Hub model is now deliberately reconciled: 2.5 A on
+        # mutually-exclusive shared-bus stages and 0.5 A on the held logic
+        # reservoir.  Keep the ATX assertion above as a live negative fixture,
+        # but a Hub conflict here would be a regression.
+        self.assertFalse(any(f["board"] == "hub-standard-rev2"
+                             for f in conflicts))
 
 
 if __name__ == "__main__":

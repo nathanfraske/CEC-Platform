@@ -12,9 +12,9 @@ in KiCad. PLAN artifact only -- it touches no board geometry.
 """
 import os, re, subprocess
 
-PCB = "hubs/hub-standard/hub-standard.kicad_pcb"
-SVG = "hubs/hub-standard/hub-standard-placement-plan.svg"
-PNG = "hubs/hub-standard/hub-standard-placement-plan.png"
+PCB = "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"
+SVG = "build/hub-standard-rev2-placement-plan.svg"
+PNG = "build/hub-standard-rev2-placement-plan.png"
 
 # ---- approximate courtyard W x H (mm, unrotated) keyed by footprint name ----
 SIZE = {

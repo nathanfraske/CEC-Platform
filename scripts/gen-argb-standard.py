@@ -746,7 +746,11 @@ def compose_power_input(c, lf):
         c.wire(p, (output_bus_x, p[1]))
     c.use(("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
     qg = c.pin("Q1", "4")
-    c.place("R1", qg[0], qg[1] - 12)
+    # Put the gate pulldown outside the MOSFET body on the gate side.  With
+    # R1 above Q1 the gate wire entered from the wrong side and crossed the
+    # AO4407A body.  Rotation 180 keeps pin 2 toward the gate and pin 1 toward
+    # the GND stamp while leaving both labels upright after the text pass.
+    c.place("R1", qg[0], qg[1] + 12, 180)
     r1_2 = c.pin("R1", "2")
     c.wire(qg, r1_2)
     c.use(("Q1", "4"), ("R1", "2"))
@@ -1423,21 +1427,29 @@ COMPOSERS = {
 # k=7); 05-mcu's own left edge clears the rightmost of {01,02,03,04,07} by
 # the same margin, and 06/08 clear 05's right edge likewise.
 BOX = {
-    "01-power-input": (4,   8,   170, 100),
-    "02-sense":        (210, 130, 110, 50),
-    "03-hub-link":     (4,   200, 110, 60),
-    "04-can":          (150, 280, 130, 100),
-    "07-usb-flash":    (4,   400, 170, 100),
-    "05-mcu":          (360, 8,   190, 260),
-    "06-led-outputs":  (600, 8,   260, 300),
-    "08-status":       (600, 330, 130, 60),
+    # Pair nets use conventional short, wire-attached labels at the root, so
+    # the hierarchy can be a compact functional grid instead of an A0 lane
+    # routing canvas.  The two genuine N-way buses remain global labels.
+    # A2 landscape, two functional rows.  The previous A1 root passed the
+    # geometry audit but forced reviewers to zoom excessively just to read
+    # the sheet names and paired-net labels.  This tighter grid keeps every
+    # label clear of its neighbour while making the hierarchy readable at a
+    # normal full-page review scale.
+    "01-power-input": (10,  10, 55, 50),
+    "02-sense":       (90,  10, 55, 50),
+    "03-hub-link":    (170, 10, 60, 50),
+    "04-can":         (255, 10, 70, 55),
+    "07-usb-flash":   (10, 100, 70, 50),
+    "05-mcu":         (105, 100, 85, 105),
+    "06-led-outputs": (220, 100, 90, 105),
+    "08-status":      (335, 100, 65, 50),
 }
 LEAF_PAPER = {
     "01-power-input": "A3", "02-sense": "A4", "03-hub-link": "A4",
     "04-can": "A4", "07-usb-flash": "A4", "05-mcu": "A2",
     "06-led-outputs": "A1", "08-status": "A4",
 }
-ROOT_PAPER = "A0"
+ROOT_PAPER = "A2"
 
 # GND arrays bused to one link (owner directive, round-4 plan doc item 2 --
 # applied here too for consistency): U1 (ESP32-S3-MINI-1) carries 21 GND pads.
@@ -1502,7 +1514,7 @@ def _patch_dnp(path, dnp_refs):
     return n
 
 
-def build(force=False):
+def build(force=False, root_only=False):
     if os.path.isfile(ROOT_SCH) and not force:
         raise SystemExit(f"{ROOT_SCH} already exists -- refusing to run "
                           f"(pass --force to regenerate anyway)")
@@ -1512,45 +1524,46 @@ def build(force=False):
                           # pair, the one global_nets bus, or purely internal)
 
     stats = {}
-    for lid in LEAF_ORDER:
-        lf = LEAVES[lid]
-        c = C.Compose(lf, LIBS)
-        COMPOSERS[lid](c, lf)
+    if not root_only:
+        for lid in LEAF_ORDER:
+            lf = LEAVES[lid]
+            c = C.Compose(lf, LIBS)
+            COMPOSERS[lid](c, lf)
 
-        out_path = os.path.join(BOARD_DIR, lf.filename)
-        st = C.build_leaf(
-            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
-            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
-            LIBS, PROJECT_NAME, path_prefix=f"{ROOT_UUID}/{LEAF_SYM_UUIDS[lid]}",
-            sheet_instances_path=LEAF_SYM_UUIDS[lid],
-            own_uuid=LEAF_OWN_UUIDS[lid], page=str(LEAF_ORDER.index(lid) + 2),
-            out_path=out_path, paper=LEAF_PAPER[lid],
-            title=f"CEC ARGB Controller Standard: {lf.sheetname}", comment1=lf.desc,
-            pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
-            global_nets=GLOBAL_NETS_PER_LEAF.get(lid),
-            name_pin_nets=name_pin_nets.get(lid), rev=REV)
-        n_moved, still = L.nudge_texts(out_path)
-        st["nudged"], st["text_overlaps_left"] = n_moved, still
-        dnp_here = DNP_REFS & set(lf.parts)
-        st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
-        for ref in GND_BUS_TARGETS.get(lid, ()):
-            res = G.bus_power_ladder(out_path, ref, "GND")
-            st.setdefault("gnd_bus", []).append((ref, res["applied"], res.get("flags_removed", 0)))
-        try:
-            st["flags_spread"] = len(L.spread_power_flags(out_path) or ())
-        except Exception:
-            st["flags_spread"] = "n/a"
-        try:
-            st["flags_deduped"] = len(L.dedupe_power_flags(out_path) or ())
-        except Exception:
-            st["flags_deduped"] = "n/a"
-        try:
-            st["labels_flipped"] = len(L.flip_label_collisions(out_path) or ())
-        except Exception:
-            st["labels_flipped"] = "n/a"
-        L.nudge_texts(out_path)
-        stats[lid] = st
-        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
+            out_path = os.path.join(BOARD_DIR, lf.filename)
+            st = C.build_leaf(
+                lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+                POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+                LIBS, PROJECT_NAME, path_prefix=f"{ROOT_UUID}/{LEAF_SYM_UUIDS[lid]}",
+                sheet_instances_path=LEAF_SYM_UUIDS[lid],
+                own_uuid=LEAF_OWN_UUIDS[lid], page=str(LEAF_ORDER.index(lid) + 2),
+                out_path=out_path, paper=LEAF_PAPER[lid],
+                title=f"CEC ARGB Controller Standard: {lf.sheetname}", comment1=lf.desc,
+                pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
+                global_nets=GLOBAL_NETS_PER_LEAF.get(lid),
+                name_pin_nets=name_pin_nets.get(lid), rev=REV)
+            n_moved, still = L.nudge_texts(out_path)
+            st["nudged"], st["text_overlaps_left"] = n_moved, still
+            dnp_here = DNP_REFS & set(lf.parts)
+            st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
+            for ref in GND_BUS_TARGETS.get(lid, ()):
+                res = G.bus_power_ladder(out_path, ref, "GND")
+                st.setdefault("gnd_bus", []).append((ref, res["applied"], res.get("flags_removed", 0)))
+            try:
+                st["flags_spread"] = len(L.spread_power_flags(out_path) or ())
+            except Exception:
+                st["flags_spread"] = "n/a"
+            try:
+                st["flags_deduped"] = len(L.dedupe_power_flags(out_path) or ())
+            except Exception:
+                st["flags_deduped"] = "n/a"
+            try:
+                st["labels_flipped"] = len(L.flip_label_collisions(out_path) or ())
+            except Exception:
+                st["labels_flipped"] = "n/a"
+            L.nudge_texts(out_path)
+            stats[lid] = st
+            print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
 
     # ---- root: for every leaf, gather its 2-leaf PAIRED nets (nets that
     # appear in exactly one OTHER leaf's hier_exports too); the two true
@@ -1592,7 +1605,7 @@ def build(force=False):
         leaves_for_parent, set(), PROJECT_NAME, ROOT_UUID, None, ROOT_UUID,
         out_path=ROOT_SCH, title="CEC ARGB Controller Standard (8-channel)",
         paper=ROOT_PAPER, global_power_exports=None, libs=LIBS, pwr_base=900,
-        lane_labels=True, name_pin_nets=None, rev=REV,
+        pair_labels=True, name_pin_nets=None, rev=REV,
         title_comments=(
             f"Root = thin parent: sheet-symbol fan-out/fan-in only, no "
             f"components. Rev {REV} -- NEW board, no alpha lineage (owner "
@@ -1600,8 +1613,8 @@ def build(force=False):
             "Leaf sheets: " + ", ".join(LEAVES[lid].sheetname for lid in LEAF_ORDER),
             "GND/+3V3 are global power nets (per-leaf symbols); +5V_LED "
             "(4 leaves) and +5VSB_RJ (3 leaves) are genuine N-way buses "
-            "(global_label, project-wide); every other crossing is a real "
-            "drawn sheet-pin lane carrying its exact net name."))
+            "(global_label, project-wide); every other crossing uses short "
+            "wire-attached sheet-pin labels carrying its exact net name."))
     print(f"{os.path.basename(ROOT_SCH)} (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
 
@@ -1629,8 +1642,10 @@ def main(argv=None):
     ap_ = argparse.ArgumentParser(description=__doc__)
     ap_.add_argument("--force", action="store_true",
                       help="regenerate even if the root already exists")
+    ap_.add_argument("--root-only", action="store_true",
+                     help="rebuild only the thin hierarchy root; preserve all leaf files")
     args = ap_.parse_args(argv)
-    build(force=args.force)
+    build(force=args.force, root_only=args.root_only)
     return 0
 
 

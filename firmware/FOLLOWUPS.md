@@ -537,13 +537,12 @@ event-record v1, shared journal, evidence-pull policy, host core split).
 
 `firmware/contracts/persist-on-fault.md` is the contract of record; the
 single-source budget constant is `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS`
-(cec_nvs Kconfig, default 15). Owner SPICE numbers (2026-07-15) for the Hub
-Standard 4700 µF hold-up: ~26 ms @ 80 mA base / ~23 ms @ 120 mA typical /
-~16 ms @ 240 mA worst case — SIMULATED (SPICE, not bench; provenance
-corrected 2026-07-15). They supersede the beta-lock §L back-of-envelope
-estimates (~25/36/65–75 ms) as numbers of record, but OQ-56's BENCH
-verification remains FULLY open — the SPICE decay model itself is on the
-bench list below.
+(cec_nvs Kconfig, default 10; legacy name, now trigger-to-durable semantics).
+The current-BETA conservative sudden-loss bound is 11.96 ms at 215.386 mA
+including 20% design margin, minimum 3760 µF, worst-case SS14 drop, and 85%
+conversion, leaving 1.96 ms model margin. The earlier 16–26 ms SPICE table is
+historical pre-buck evidence, not the current acceptance bound. OQ-56 BENCH
+verification remains FULLY open.
 Open:
 - OWNER PEN: fold the simulated numbers into spec/beta-lock §L (the §L text
   still carries the pre-SPICE estimates as "numbers of record").
@@ -598,7 +597,7 @@ retire it.
 - [2026-07-16] OWNER FACT (PSU-tester thread): **Pro/Max supercap hold-up planned — "tens of
   seconds"** ("5VSB + 5V_PSU + 5V_USB are all muxed in… ~25ms hold up cap in just the
   standard… planning supercaps in the Pro and Max modules"). Recorded in
-  firmware/contracts/persist-on-fault.md §Tier outlook: Standard keeps the ≤15 ms gasp
+  firmware/contracts/persist-on-fault.md §Tier outlook: Standard keeps the ≤10 ms gasp
   contract unchanged; Pro/Max gets its OWN contract (full-state persist class — rings,
   captures, erases legal in-window) authored when the supercap hardware lands; board scope
   (modules / Hub Pro / testers) confirmed at that design pass. Spec §2.9/§L fold = owner pen.

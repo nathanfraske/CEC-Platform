@@ -204,7 +204,7 @@ TOOL_SCHEMAS = [
     {"type": "function", "function": {
         "name": "cec_drc", "description": "Run real KiCad DRC on a CEC board (path or module name); returns violation counts by type.",
         "parameters": {"type": "object", "properties": {
-            "board": {"type": "string", "description": "board path or module name, e.g. beta/eps-8pin or a build/ candidate path"},
+            "board": {"type": "string", "description": "board path or module name, e.g. beta/eps-8pin-rev3 or a build/ candidate path"},
             "severity_errors_only": {"type": "boolean"}}, "required": ["board"]}}},
     {"type": "function", "function": {
         "name": "cec_render", "description": "Render a CEC board to PNG; returns the image path (repo-relative).",

@@ -95,6 +95,29 @@ class TestDeckGeneration(unittest.TestCase):
         self.assertIn("r1_u2_ld0", names)
         self.assertIn("r1_u2_ld1", names)
 
+    def test_tlv62569_setpoint_comes_from_actual_feedback_divider(self):
+        deck = spice.build_deck(
+            {"U3": "TLV62569DBVR", "R1": "560k", "R2": "100k", "L1": "2.2uH"},
+            {"VIN": [("U3", "1"), ("U3", "4")],
+             "GND": [("U3", "2"), ("R2", "2")],
+             "SW": [("U3", "3"), ("L1", "1")],
+             "FB": [("U3", "5"), ("R1", "2"), ("R2", "1")],
+             "VOUT": [("R1", "1"), ("L1", "2")]},
+        )
+        source = next(line for line in deck.lines if "_U3_buck " in line)
+        self.assertIn("min(3.96", source)
+        self.assertEqual(deck.model_classes["U3"], "behavioral-buck-setpoint")
+
+    def test_tlv75533_uses_reviewed_dbv_pins_and_dropout(self):
+        deck = spice.build_deck(
+            {"U16": "TLV75533PDBVR"},
+            {"PRE": [("U16", "1"), ("U16", "3")],
+             "GND": [("U16", "2")], "+3V3": [("U16", "5")]},
+        )
+        source = next(line for line in deck.lines if "_U16_0 " in line)
+        self.assertIn("min(3.3", source)
+        self.assertIn("- 0.238", source)
+
     def test_tps2121_uses_verified_in2_pin_and_joins_both_outputs(self):
         deck = spice.build_deck(
             {"U5": "TPS2121RUXR"},

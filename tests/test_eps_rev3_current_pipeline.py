@@ -9,6 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_fresh_wave as wave  # noqa: E402
+import cec_beta_manifest as manifest  # noqa: E402
 import cec_synth_pipeline as synth  # noqa: E402
 
 try:
@@ -27,6 +28,10 @@ class TestEpsRev3CurrentPipeline(unittest.TestCase):
         self.assertEqual(os.path.basename(cfg.pcb), "eps-8pin-rev3.kicad_pcb")
 
     def test_fresh_wave_has_explicit_rev3_geometry_and_stackup(self):
+        self.assertNotIn("eps-8pin", wave.BOARD_WH)
+        self.assertNotIn("eps-8pin", wave.BOARD_PARAMS)
+        self.assertNotIn("eps-8pin", manifest.CURRENT_BETA_BOARDS)
+        self.assertEqual(manifest.WAVE_BOARDS.count("eps-8pin-rev3"), 1)
         self.assertEqual(wave.BOARD_WH["eps-8pin-rev3"], (96.0, 40.0))
         params = wave._board_params("eps-8pin-rev3")
         self.assertEqual(params["stackup_profile"],

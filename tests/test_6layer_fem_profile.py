@@ -66,7 +66,8 @@ class FabricationProfileTest(unittest.TestCase):
     def test_hub_thermal_map_matches_mux_and_port_fuse_topology(self):
         currents, _, terminals, _ = TOV.board_thermal_config(
             "hub-standard-rev2")
-        self.assertEqual(currents["/PSU_5V_KVM"], 3.0)
+        self.assertEqual(currents["/PSU_5V_KVM"], 2.5)
+        self.assertEqual(currents["/+5V_HOLD"], 0.5)
         self.assertEqual(
             terminals["/PSU_5V"],
             {"refs_src": ["U5"], "refs_sink": ["U11"]})

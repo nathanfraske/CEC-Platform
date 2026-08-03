@@ -118,6 +118,11 @@ class SpecNetCurrentTest(unittest.TestCase):
         self.assertNotEqual(f("atx-24pin-rev3", "+3V3"),
                             f("atx-24pin-rev3", "/SENSE3V3_HI"))
 
+    def test_current_beta_regulator_source_limits(self):
+        f = self.csp.spec_net_current
+        self.assertEqual(f("12vhpwr-standard", "+3V3"), 0.50)
+        self.assertEqual(f("hub-standard-rev2", "+3V3"), 1.76)
+
     def test_committed_candidate_filename_resolves_board_table(self):
         self.assertEqual(self.csp.spec_net_current(
             "beta/atx-24pin-rev3/candidate/atx-24pin-rev3-candidate.kicad_pcb",

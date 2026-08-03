@@ -444,9 +444,13 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                 continue
             laid = _lay(board, pc, p_pts, width_nm, lay_id)
             laid += _lay(board, nc, n_pts, width_nm, lay_id)
-            zd_nom = cec_impedance.zdiff_edge_coupled(width, gap)
+            stackup = cec_impedance.stackup_for_board(
+                board.GetFileName() or "", board=board, layer=layer)
+            zkw = {"h_mm": stackup["h_mm"], "er": stackup["er"],
+                   "t_mm": stackup["t_mm"]}
+            zd_nom = cec_impedance.zdiff_edge_coupled(width, gap, **zkw)
             g_meas = _measured_gap(p_pts, n_pts, width)
-            zd_meas = (cec_impedance.zdiff_edge_coupled(width, g_meas)
+            zd_meas = (cec_impedance.zdiff_edge_coupled(width, g_meas, **zkw)
                        if g_meas is not None else None)
             run_len = round(sum(_dist(a, b) for a, b in zip(p_pts, p_pts[1:])), 2)
             coupled_len = round(_dist(Pls, Ple), 2)
@@ -461,6 +465,7 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                     "zdiff_nominal": round(zd_nom, 1),
                     "zdiff_measured": (round(zd_meas, 1) if zd_meas is not None else None),
                     "ztarget": pair.get("ztarget"), "segments": len(laid),
+                    "stackup": stackup,
                     "length_mm": run_len, "coupled_len_mm": coupled_len}
     _why = ("no clear coupled corridor at exact %sR geometry (escape+middle guard refused); "
             "hand off to cec_staged_fr tier-fallback"

@@ -21,7 +21,9 @@ sys.dont_write_bytecode = True
 
 import cec_thermal_sources as TS                              # noqa: E402
 
-HUB_DIR = os.path.join(ROOT, "hubs", "hub-standard")
+HUB_DIR = os.path.join(ROOT, "beta", "hub-standard-rev2")
+HUB_SCH = os.path.join(HUB_DIR, "hub-standard-rev2.kicad_sch")
+HUB_PCB = os.path.join(HUB_DIR, "candidate", "hub-standard-rev2-candidate.kicad_pcb")
 HPWR_DIR = os.path.join(ROOT, "beta", "12vhpwr-standard")
 
 try:
@@ -62,6 +64,30 @@ class T1LdoHandAnchor(unittest.TestCase):
         lo = TS._ldo_power(comp, "LP5907", TS._cfg({"i_load_U3_A": 0.05}))
         hi = TS._ldo_power(comp, "LP5907", TS._cfg({"i_load_U3_A": 0.20}))
         self.assertGreater(hi.watts, lo.watts)
+
+    def test_tlv75533_reviewed_12vhpwr_case(self):
+        comp = TS.SourceComp(ref="U16", value="TLV75533PDBVR")
+        cfg = TS._cfg({"i_load_U16_A": 0.233591, "vin_U16_V": 3.96})
+        hs = TS._ldo_power(comp, "TLV75533", cfg)
+        hand = (3.96 - 3.3) * 0.233591 + 3.96 * 25e-6
+        self.assertAlmostEqual(hs.watts, hand, delta=1e-6)
+        self.assertAlmostEqual(hs.watts, 0.154269, delta=1e-6)
+
+
+class T1bBuckAnchor(unittest.TestCase):
+    def test_tlv62569_loss_floor(self):
+        comp = TS.SourceComp(ref="U3", value="TLV62569DBVR")
+        cfg = TS._cfg({"i_load_U3_A": 0.215386, "vout_U3_V": 3.318,
+                       "efficiency_U3": 0.85})
+        hs = TS._buck_power(comp, "TLV62569", cfg)
+        hand = 3.318 * 0.215386 * (1.0 / 0.85 - 1.0) + 5.0 * 35e-6
+        self.assertAlmostEqual(hs.watts, hand, delta=1e-6)
+        self.assertTrue(hs.unverified)
+
+    def test_invalid_efficiency_rejected(self):
+        comp = TS.SourceComp(ref="U3", value="TLV62569DBVR")
+        with self.assertRaises(ValueError):
+            TS._buck_power(comp, "TLV62569", TS._cfg({"efficiency_U3": 0.0}))
 
 
 class T2LedPlatformAnchor(unittest.TestCase):
@@ -168,7 +194,8 @@ class T5DnpDetection(unittest.TestCase):
 
 class T6Classify(unittest.TestCase):
     def test_family_matches(self):
-        cases = [("LP5907MFX-3.3", "ldo"), ("SK6812MINI-E", None),  # handled by ref-prefix path
+        cases = [("LP5907MFX-3.3", "ldo"), ("TLV75533PDBVR", "ldo"),
+                 ("TLV62569DBVR", "buck"), ("SK6812MINI-E", None),  # handled by ref-prefix path
                  ("ESP32-S3-WROOM-1", "mcu"), ("ESP32-S3-MINI-1-N4R2", "mcu"),
                  ("TJA1051T/3", "can_xcvr"), ("INA238AIDGSR", "sense_amp"),
                  ("INA240A3", "sense_amp"), ("PESD5V0S1BA", "protection_diode"),
@@ -248,11 +275,11 @@ class T8HubInventory(unittest.TestCase):
 
     def test_expected_families_present(self):
         fams = {s.family for s in self.inv.sources}
-        for expect in ("ldo", "led", "mcu", "can_xcvr"):
+        for expect in ("buck", "led", "mcu", "can_xcvr"):
             self.assertIn(expect, fams)
 
     def test_no_mutation_of_board_files(self):
-        sch = os.path.join(HUB_DIR, "hub-standard.kicad_sch")
+        sch = HUB_SCH
         before = os.path.getmtime(sch)
         TS.inventory(HUB_DIR)
         after = os.path.getmtime(sch)
@@ -314,10 +341,7 @@ class T10Emissivity(unittest.TestCase):
                          {"solder_mask_copper", "exposed_pad_metal", "silkscreen"})
 
     def test_format_contract_keys(self):
-        import glob
-        pcbs = [p for p in glob.glob(os.path.join(HUB_DIR, "*.kicad_pcb"))
-               if "-routed" not in p and ".merged." not in p]
-        regions = TS.emissivity_regions(sorted(pcbs)[0])
+        regions = TS.emissivity_regions(HUB_PCB)
         self.assertIn("board", regions)
         self.assertIn("board_area_mm2", regions)
         self.assertGreater(regions["board_area_mm2"], 0)

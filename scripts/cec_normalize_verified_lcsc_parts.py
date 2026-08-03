@@ -26,6 +26,59 @@ from cec_fix_eps_rev3_bom_fields import _properties, _set_property  # noqa: E402
 
 
 VERIFIED = {
+    "C487318": {
+        "Manufacturer": "Ymin",
+        "MPN": "VKMI2101C472MV",
+        "Datasheet": "https://www.lcsc.com/product-detail/C487318.html",
+    },
+    "C138063": {
+        "Manufacturer": "YAGEO",
+        "MPN": "RC0402FR-0711KL",
+        "Datasheet": "https://www.lcsc.com/product-detail/C138063.html",
+    },
+    "C27009": {
+        "Manufacturer": "UNI-ROYAL",
+        "MPN": "0402WGF4533TCE",
+        "Datasheet": "https://www.lcsc.com/product-detail/C27009.html",
+    },
+    "C25741": {
+        "Manufacturer": "UNI-ROYAL",
+        "MPN": "0402WGF1003TCE",
+        "Datasheet": "https://www.lcsc.com/product-detail/C25741.html",
+    },
+    "C25744": {
+        "Manufacturer": "UNI-ROYAL",
+        "MPN": "0402WGF1002TCE",
+        "Datasheet": "https://www.lcsc.com/product-detail/C25744.html",
+    },
+    "C132339": {
+        "Manufacturer": "UNI-ROYAL",
+        "MPN": "0402WGF5603TCE",
+        "Datasheet": "https://www.lcsc.com/product-detail/C132339.html",
+    },
+    "C2480": {
+        "Manufacturer": "MDD (Microdiode Semiconductor)",
+        "MPN": "SS14",
+        "Datasheet": "https://www.lcsc.com/datasheet/C2480.pdf",
+    },
+    "C141836": {
+        "Manufacturer": "Texas Instruments",
+        "MPN": "TLV62569DBVR",
+        "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv62569.pdf",
+    },
+    "C404027": {
+        "Manufacturer": "Texas Instruments",
+        "MPN": "TLV75533PDBVR",
+        "Datasheet": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+    },
+    "C88527": {
+        "Manufacturer": "TDK",
+        "MPN": "VLS252010HBX-2R2M-1",
+        "Datasheet": (
+            "https://product.tdk.com/en/search/inductor/inductor/smd/"
+            "info?part_no=VLS252010HBX-2R2M-1"
+        ),
+    },
     "C5736265": {
         "Manufacturer": "Espressif Systems",
         "MPN": "ESP32-C6-MINI-1-N4",
@@ -172,26 +225,37 @@ VERIFIED = {
     "C96446": {
         "Manufacturer": "Samsung",
         "MPN": "CL10A106MA8NRNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL10A106MA8NRN.do",
     },
     "C15850": {
         "Manufacturer": "Samsung",
         "MPN": "CL21A106KAYNNNE",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
     },
     "C15849": {
         "Manufacturer": "Samsung",
         "MPN": "CL10A105KB8NNNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL10A105KB8NNN.do",
     },
     "C29936": {
         "Manufacturer": "Samsung",
         "MPN": "CL10B105KA8NNNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL10B105KA8NNN.do",
     },
     "C1525": {
         "Manufacturer": "Samsung",
         "MPN": "CL05B104KO5NNNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+    },
+    "C15195": {
+        "Manufacturer": "Samsung",
+        "MPN": "CL05B103KB5NNNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL05B103KB5NNN.do",
     },
     "C23630": {
         "Manufacturer": "Samsung",
         "MPN": "CL10A225KO8NNNC",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL10A225KO8NNN.do",
     },
     "C17168": {
         "Manufacturer": "UNI-ROYAL",

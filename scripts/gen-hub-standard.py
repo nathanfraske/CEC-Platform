@@ -23,7 +23,8 @@ import cec_sch
 
 # ---------------------------------------------------------------------------
 # STALE — DO NOT RUN against the live board. This generator predates the GUI/
-# hand work on hubs/hub-standard: it still describes ESP32-S3-MINI-1 (not the
+# historical hand work now archived under old-revisions/hubs/hub-standard-alpha:
+# it still describes ESP32-S3-MINI-1 (not the
 # WROOM-1), an R1 1 ohm inrush resistor and NO TPS2121 mux, DETECT pull-ups to
 # +5VSB (the bug fixed to +3V3), and lacks U5 (mux), D2-D6 (ESD), the blackout
 # sense, the flash buttons, and the SK6812 level shifter (U6/R14/C14). Re-running
@@ -39,7 +40,7 @@ ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
         "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
         "power": open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read()}
-OUT = f"{ROOTDIR}/hubs/hub-standard/hub-standard.kicad_sch"
+OUT = f"{ROOTDIR}/old-revisions/hubs/hub-standard-alpha/hub-standard.kicad_sch"
 
 # ---- parts: refdes -> (lib, symbol, value) -------------------------------
 PARTS = {

@@ -243,7 +243,7 @@ if __name__ == "__main__":
     # smoke test on the EPS board: fill the existing GND zone, lay one track + via, verify.
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     import shutil
-    src = f"{ROOT}/beta/eps-8pin/eps8pin-module.kicad_pcb"
+    src = f"{ROOT}/beta/eps-8pin-rev3/eps-8pin-rev3.kicad_pcb"
     test = os.path.join(tempfile.gettempdir(), "cec_route_smoke.kicad_pcb"); shutil.copy(src, test)
     # the .kicad_pro/.dru sit next to the source; copy DRC context too
     for ext in (".kicad_pro", ".kicad_dru"):

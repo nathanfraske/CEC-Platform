@@ -285,7 +285,7 @@ class SheetBoundsTest(unittest.TestCase):
 # ============================================================================
 # Deliverable 3: inventory() / check_inventory_equal()
 # ============================================================================
-REAL_EPS = os.path.join(ROOT, "beta/eps-8pin/eps8pin-module.kicad_sch")
+REAL_EPS = os.path.join(ROOT, "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_sch")
 
 
 class InventoryTest(unittest.TestCase):
@@ -630,8 +630,8 @@ class RealBoardLadderSanityTest(unittest.TestCase):
     nothing to bus), so bus_power_ladder must be a documented no-op there;
     24pin-rev3's U1 ladder was applied for real and must show no residual
     un-bused run."""
-    HUB = os.path.join(ROOT, "hubs/hub-standard/hub-standard.kicad_sch")
-    PIN24 = os.path.join(ROOT, "beta/atx-24pin-rev3/24pin-module.kicad_sch")
+    HUB = os.path.join(ROOT, "beta/hub-standard-rev2/03-mcu-usb.kicad_sch")
+    PIN24 = os.path.join(ROOT, "beta/atx-24pin-rev3/03-regulator-mcu.kicad_sch")
 
     @unittest.skipUnless(os.path.isfile(HUB), "hub-standard schematic not present")
     def test_hub_standard_u1_has_no_ladder(self):

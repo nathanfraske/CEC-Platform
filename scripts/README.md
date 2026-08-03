@@ -28,8 +28,8 @@ no-op until boards exist.
 
 ```bash
 # One board
-scripts/erc.sh hubs/hub-standard/hub-standard.kicad_sch
-scripts/drc.sh hubs/hub-standard/hub-standard.kicad_pcb
+scripts/erc.sh beta/hub-standard-rev2/hub-standard-rev2.kicad_sch
+scripts/drc.sh beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb
 
 # Everything, the way CI runs it
 scripts/check-all.sh

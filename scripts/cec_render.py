@@ -94,11 +94,18 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
     except Exception:                                      # noqa: BLE001
         return None
     finally:
-        if tmp and os.path.isfile(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
+        if tmp:
+            # KiCad 10 may create project sidecars beside an otherwise
+            # disposable board render.  Remove the complete temp family so
+            # dashboard/wave rendering cannot slowly consume the workstation's
+            # storage with cec_nosilk_*.kicad_pro/.kicad_prl debris.
+            base = tmp[:-len(".kicad_pcb")]
+            for path in (tmp, base + ".kicad_pro", base + ".kicad_prl",
+                         base + ".kicad_dru", base + ".kicad_sch"):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
 
 
 def main():

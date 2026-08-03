@@ -96,7 +96,7 @@ class TestPruneDecision(unittest.TestCase):
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (real compile)")
 class TestPlaceVariantSmoke(unittest.TestCase):
     def test_compile_only_produces_key(self):
-        r = W._place_variant("eps-8pin", 96.0, 37.0, "plain", "compact", 0)
+        r = W._place_variant("eps-8pin-rev3", 96.0, 40.0, "plain", "compact", 0)
         self.assertIsNone(r.get("error"), r.get("error"))
         self.assertEqual(r["label"], "plain-compact-s0")
         self.assertIsInstance(r["place_key"], list)

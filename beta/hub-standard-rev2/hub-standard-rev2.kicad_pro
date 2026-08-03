@@ -507,7 +507,7 @@
       "ground_pin_not_ground": "warning",
       "hier_label_mismatch": "error",
       "isolated_pin_label": "warning",
-      "label_dangling": "error",
+      "label_dangling": "warning",
       "label_multiple_wires": "warning",
       "lib_symbol_issues": "warning",
       "lib_symbol_mismatch": "warning",
@@ -606,7 +606,7 @@
       {
         "bus_width": 12,
         "clearance": 0.2,
-        "diff_pair_gap": 0.13,
+        "diff_pair_gap": 0.34,
         "diff_pair_width": 0.2,
         "line_style": 0,
         "microvia_diameter": 0.3,

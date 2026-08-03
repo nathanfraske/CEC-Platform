@@ -1,23 +1,23 @@
 menu "CEC persistence (NVS / persist-on-fault)"
 
     config CEC_PERSIST_WRITE_BUDGET_MS
-        int "Persist-on-fault flash write budget (ms)"
-        default 15
+        int "Persist-on-fault trigger-to-durable-commit budget (ms)"
+        default 10
         help
-            The persist-on-fault contract's binding write budget
+            The persist-on-fault contract's binding end-to-end budget
             (firmware/contracts/persist-on-fault.md): on the power-fail
-            trigger the gasp must complete ALL flash programming within
-            this many milliseconds — the RAM tail + commit record only,
-            never a bulk dump, and program-only (the persist region is
-            pre-erased in normal operation).
+            interrupt the gasp must complete ISR entry, load shedding,
+            the RAM-tail write, commit/index programming, and durable
+            completion within this many milliseconds. It is never a bulk
+            dump, and the persist region is pre-erased in normal operation.
 
-            The default 15 sits under the WORST-CASE simulated hold-up
-            ride-through of the Hub Standard 4700 uF reservoir (owner
-            SPICE run 2026-07-15: ~26 ms @ 80 mA base, ~23 ms @ 120 mA
-            typical, ~16 ms @ 240 mA worst case; bench validation is
-            still owed under OQ-56). Re-sims/re-tests update this
-            default together with the contract doc's table — this
-            Kconfig is the single source firmware reads; never
-            re-hardcode the number.
+            The default 10 sits under the current-BETA conservative
+            sudden-loss paper bound of 11.96 ms at the reviewed 215.386 mA
+            rail load (including 20% design margin), minimum 3760 uF,
+            worst-case SS14 drop, and 85% conversion. This leaves 1.96 ms
+            model margin. OQ-56 must still validate ESR, temperature,
+            aging, slow brownout, source decay, and real durable-commit
+            latency. Re-tests update this default and the contract together;
+            firmware must never re-hardcode the number.
 
 endmenu

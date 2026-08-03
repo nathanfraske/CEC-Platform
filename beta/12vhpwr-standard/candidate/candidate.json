@@ -1,9 +1,10 @@
 {
  "board": "12vhpwr-standard",
- "commit": "d3ffd3ff",
+ "commit": "1d9e84f",
+ "freshness_checked": "2026-08-03T00:11:51",
  "grade": {
   "diffpair_ok": true,
-  "drc": 16,
+  "drc": 30,
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -13,43 +14,47 @@
   "gate": false,
   "kelvin_ok": false,
   "rails": null,
-  "thermal_ok": true,
+  "thermal_ok": false,
   "unconn_critical": [
+   "/FAN_12V",
    "GND"
   ],
-  "unconnected": 47
+  "unconnected": 102
  },
- "label": "plain-compact-s721",
- "reason": "sort_key [1, 1, 1, 0, 47, 16, 1000000.0] < [1, 2, 2, 0, 39, 24, 1000000.0]",
+ "label": "plain-compact-s0",
+ "reason": "matches more of the current schematic (100% vs 80% of 106 parts)",
  "routed": true,
  "schema": 1,
- "schematic_match": 0.9902,
- "schematic_parts": 102,
+ "schematic_exact": true,
+ "schematic_match": 1.0,
+ "schematic_parts": 106,
+ "schematic_status": "exact",
  "sort_key": [
   1,
   1,
-  1,
+  2,
   0,
-  47,
-  16,
+  102,
+  30,
   1000000.0
  ],
- "source": "build/fresh-wave-pours/12vhpwr-standard/20260725T1941-plain-compact-s721.kicad_pcb",
+ "source": "build/final-review/fresh/12vhpwr-standard/20260802T2350-plain-compact-s0.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
   "backend": "auto",
   "cooling": "production: metal case (TIM on RS shunts + M3 mounts)",
-  "dT": 19.58,
+  "dT": 36.33,
+  "error": "INJECTION INCOMPLETE: 1/14 configured net(s) injected no current (/SENSEP6_HI). Requested nets that are absent or electrically open exclude their Joule heat from dT, so a pass would be vacuous. Remove a genuinely inapplicable net from the board-specific scenario, or close the rail circuit.",
   "gate_dt": 30.0,
   "grid_mm": 0.4,
-  "max_T": 69.58,
+  "max_T": 86.33,
   "nets_absent": [
    "/SENSEP6_HI"
   ],
   "nets_injected": 13,
   "nets_requested": 14,
-  "ok": true
+  "ok": false
  },
- "updated": "2026-07-25T19:42:54",
- "wave_out_root": "build/fresh-wave-pours"
+ "updated": "2026-08-03T00:11:51",
+ "wave_out_root": "build/final-review/fresh"
 }

@@ -1,0 +1,11 @@
+* TDK VLS252010HBX-2R2M-1 simple equivalent-circuit model
+* Parameters from TDK Equivalent Circuit Model Library, 2019-01-22:
+* L1=2.2uH, R1=2.2kohm, C1=5.005pF, R2(DCR)=0.100ohm.
+* Topology: series DCR + inductance, with parallel loss resistance and
+* self-capacitance across the two-terminal device.
+.SUBCKT VLS252010HBX_2R2M_1 P N
+R_DCR P X 0.100
+L_MAIN X N 2.2u
+R_LOSS P N 2.2k
+C_SELF P N 5.005p
+.ENDS VLS252010HBX_2R2M_1

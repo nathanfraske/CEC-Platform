@@ -460,12 +460,12 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 
 | Board | Directory | Tier | MCU | Ports | Host link | BOM target (100q) |
 |---|---|---|---|---|---|---|
-| Hub Standard | hubs/hub-standard | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
+| Hub Standard | beta/hub-standard-rev2 | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
 | Hub Pro | hubs/hub-pro | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
 | 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35* |
-| EPS 8-pin module | beta/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
+| EPS 8-pin module | beta/eps-8pin-rev3 | Standard | ESP32-C6-MINI-1 | - | - | $32 |
 | PCIe 8-pin 2-port | beta/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
 | PCIe 8-pin 3-port | beta/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
 | 12VHPWR Standard module | beta/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
@@ -2511,4 +2511,3 @@ its main and must stay byte-identical unless that tooling moves with
 them. The capture/detection engines are config-driven — judge a change
 against BOTH apps' postures (the dual lineages are documented in the
 component headers and `firmware/FOLLOWUPS.md`).
-

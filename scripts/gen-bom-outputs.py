@@ -35,8 +35,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cec_toolchain as tc                                        # noqa: E402
 
-FIELDS = ("Value,Reference,Footprint,LCSC,LCSC Part,MPN,Manufacturer,Note,"
-          "QUANTITY,DNP")
+FIELDS = ("Value,Reference,Footprint,LCSC,LCSC Part,MPN,Manufacturer,Datasheet,"
+          "Description,Note,QUANTITY,DNP")
 
 
 def _export(sch, exclude_dnp):
@@ -96,8 +96,10 @@ def main():
         for row in _export(sch, exclude_dnp=False):
             w.writerow([row["Reference"], row["QUANTITY"], row["Value"],
                         _short_fp(row["Footprint"]), row.get("MPN", ""),
-                        row.get("Manufacturer", ""), row["LCSC"], "", "", "", "",
-                        row.get("DNP", ""), row.get("Note", "")])
+                        row.get("Manufacturer", ""), row["LCSC"], "", "",
+                        row.get("Datasheet", ""), "",
+                        row.get("DNP", ""),
+                        row.get("Note", "") or row.get("Description", "")])
     print(f"wrote {track}")
 
 

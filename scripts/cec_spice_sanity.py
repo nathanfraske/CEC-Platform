@@ -170,6 +170,10 @@ def _r_ohms(val):
 #   ("diode", a_pin, k_pin, schottky?)    : internal diode a->k
 PIN_MODELS = {
     "LP5907": [("ldo", "1", "5", 3.3, 0.12), ("supply", "1")],
+    "TLV75533": [("ldo", "1", "5", 3.3, 0.238), ("supply", "1")],
+    # TLV62569 is handled specially below: its output is calculated from the
+    # actual feedback divider instead of hard-coding one board's setpoint.
+    "TLV62569": [],
     "TPS2121": [("switch", "1", "8", None)],   # handled specially: IN1/IN2->OUT states
     "TLV7011": [("supply", "5")],
     "ESP32-S3-WROOM-1": [("supply", "2")],
@@ -581,12 +585,40 @@ def build_deck(comps, nets, *, state=None, sources=(), loads_scale=1.0):
                     "steady-state reverse-current blocking is directional; priority dynamics, OV, current limit, soft-start, RON, RCB threshold, and RCB response time are not modeled",
                 )
                 continue
+            if "TLV62569" in (val or ""):
+                fb_net = net_of_pin.get((ref, "5"))
+                divider = []
+                for rref, rval in comps.items():
+                    if not rref.startswith("R"):
+                        continue
+                    rpins = [(pin, net) for (rr, pin), net in net_of_pin.items()
+                             if rr == rref]
+                    if fb_net not in [net for _pin, net in rpins]:
+                        continue
+                    other = [net for _pin, net in rpins if net != fb_net]
+                    if len(other) == 1:
+                        divider.append((other[0], _r_ohms(rval)))
+                r_bottom = next((r for net, r in divider if net == "GND"), None)
+                r_top = next((r for net, r in divider if net != "GND"), None)
+                if not r_top or not r_bottom:
+                    d.gap(ref, "TLV62569 feedback divider could not be resolved")
+                    continue
+                vout = 0.6 * (1.0 + r_top / r_bottom)
+                d.add(f"B{idx}_{ref}_buck {N(ref, '3')} 0 "
+                      f"V = max(0, min({vout:.9g}, V({N(ref, '4')})))")
+                d.add(f"R{idx}_{ref}_vinload {N(ref, '4')} 0 1Meg")
+                d.modeled(
+                    ref, "behavioral-buck-setpoint",
+                    "feedback setpoint and DC input ceiling are modeled; switching ripple, "
+                    "efficiency, current limit, compensation, startup, and load transient are not modeled",
+                )
+                continue
             if matched is None:
                 detail = f"unmodeled IC {val!r}; all pins left high impedance"
                 d.notes.append(f"{ref}: {detail}")
                 d.gap(ref, detail)
                 continue
-            if "LP5907" in (val or ""):
+            if "LP5907" in (val or "") or "TLV75533" in (val or ""):
                 d.modeled(ref, "behavioral-ldo",
                           "EN, current limit, dropout curve, and input/output current transfer are not modeled")
             elif "USBLC6" not in (val or ""):

@@ -7,7 +7,8 @@ cec_sch's props=) and lays the parts out in role-based labelled sections. Rev2 d
 SOCKET (mirror of the 24-pin rev3 header) wired as "port 0" -- +5V_SYS(pre-muxed) -> +5VSB rail,
 the shared CAN bus, /DETECT1, GND. Population variant: J_MEZZ XOR the J2 RJ-45 port.
 
-NOTE: this is a fresh REV2 board (hubs/hub-rev2/), NOT a regeneration of the live hand-maintained
+NOTE: this is the archived sectioned draft
+(old-revisions/hubs/hub-rev2-sectioned-draft/), not the current BETA Hub.
 hub-standard (which stays the source of truth). Run scripts/gen-hub-extract first if the netlist moved.
 """
 import sys, os, json, re
@@ -15,8 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_sch
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EX = json.load(open(f"{ROOT}/hubs/hub-rev2/extract.json"))
-OUT = f"{ROOT}/hubs/hub-rev2/hub-rev2.kicad_sch"
+EX = json.load(open(f"{ROOT}/old-revisions/hubs/hub-rev2-sectioned-draft/extract.json"))
+OUT = f"{ROOT}/old-revisions/hubs/hub-rev2-sectioned-draft/hub-rev2.kicad_sch"
 BASE = "hub-rev2"
 LIBS = {"cec": open(f"{ROOT}/lib/cec.kicad_sym").read(),
         "cec-vendor": open(f"{ROOT}/lib/vendor/cec-vendor.kicad_sym").read(),

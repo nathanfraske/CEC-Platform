@@ -35,7 +35,7 @@
 # wiring onto cec_router.route, the electrothermal physics FEA, sign-off, build+freeze)
 # land in subsequent commits and plug into this backbone.
 #
-# Verified against the real EPS module (beta/eps-8pin) -- see the __main__ self-test.
+# Verified against the current EPS module (beta/eps-8pin-rev3) -- see the __main__ self-test.
 import os
 import re
 import sys
@@ -9669,9 +9669,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 import cec_impedance
                 import pcbnew as _pn
                 _sib = _pn.LoadBoard(routed)
-                si = {"impedance": cec_impedance.audit_impedance(routed),
+                si = {"impedance": cec_impedance.audit_impedance(routed, board=_sib),
                       "kelvin_loops": cec_impedance.audit_kelvin_loops(routed, board=_sib),
-                      "crosstalk": cec_impedance.audit_crosstalk(routed, board=_sib)}
+                      "crosstalk": cec_impedance.audit_crosstalk(routed, board=_sib),
+                      "pair_physical": cec_constraints.high_speed_pair_summary(
+                          routed, board=_sib)}
             except Exception as e:                            # noqa: BLE001
                 si = {"error": "%s: %s" % (type(e).__name__, e)}
             try:
@@ -10155,14 +10157,12 @@ def materialize(cand, cfg, out, *, logo=None):
     if cfg.params.get("respect_antenna_keepout", True) is False:
         _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
     # NETCLASS + DRU CARRIAGE (owner 2026-07-15: "trace width needs to be a thing"):
-    # fresh boards shipped with only a Default netclass and no DRU, so thin power was
-    # INVISIBLE to DRC. Carry the donor board dir's power-class netclasses (min track
-    # width >= 0.3mm -- Power/GND/CAN classes) + its .kicad_dru sidecar onto every
-    # materialized candidate. Signal-class floors are deliberately NOT carried yet:
-    # FR 1.7.0 routes at 0.2mm regardless (the measured 2026-06-06 limitation; the
-    # real fix = the queued FR width surgery), and a 0.22 signal floor would flood
-    # every candidate's DRC with hundreds of hits and drown the ranking signal --
-    # power-net hits are the honest pressure at the right magnitude.
+    # every class and every binding pattern travels with the generated board.
+    # The previous >=0.3mm filter silently dropped USB/signal width and via rules,
+    # so a router could emit the wrong geometry and never be measured against the
+    # design intent. Freerouting limitations are handled after SES import by exact
+    # netclass normalization plus DRC/release rejection; hiding the rule is never
+    # an acceptable workaround.
     try:
         import glob as _glob
         import json as _json
@@ -10190,20 +10190,15 @@ def materialize(cand, cfg, out, *, logo=None):
                 _mine = {"meta": {"filename": os.path.basename(_outpro), "version": 3}}
             _dns = _donor.get("net_settings") or {}
             _dc = _dns.get("classes") or []
-            _keep = [c for c in _dc if c.get("name") == "Default"
-                     or float(c.get("track_width", 0) or 0) >= 0.3]
-            if len(_keep) > 1:
-                # PATTERNS TOO (owner 2026-07-15 "trace width seems completely
-                # unchanged" -- the original carriage copied classes WITHOUT their
-                # netclass_patterns, so every net stayed Default and the DSN carried
-                # no width rules; with patterns bound, FR routes the class width
-                # natively, the mechanism the 12vhpwr locked-net reconcile measured).
+            _keep = list(_dc)
+            if _keep:
                 _kn = {c.get("name") for c in _keep}
                 _kp = [q for q in (_dns.get("netclass_patterns") or [])
                        if q.get("netclass") in _kn]
                 _ns = _mine.setdefault("net_settings", {})
                 _ns["classes"] = _keep
                 _ns["netclass_patterns"] = _kp
+                _ns["netclass_assignments"] = _dns.get("netclass_assignments")
             # DESIGN-SETTINGS RULES TOO (2026-07-23 forensic): the donor's DRC
             # constraint set (min hole / edge clearance / ...) never rode along,
             # so candidates were judged by KiCad DEFAULTS -- the hand hub sets
@@ -10837,8 +10832,10 @@ def _picard_dt(I, cross_mm2, ambient, external):
 # landed. Sizing from a theoretical bar rather than the real ceiling is what
 # produced that contradiction.)
 #
-# Module-local logic rails are bounded by their SOURCE, not by a bus figure:
-#   +3V3   the LP5907 LDO, 250mA maximum per the TI datasheet (spec Hub row)
+# Module-local logic rails are bounded by their SOURCE, not by a bus figure.
+# Legacy boards retain the LP5907 250mA ceiling.  The current 12VHPWR beta uses
+# a TLV75533 500mA post-LDO; Hub Rev2 uses the TLV62569 directly and is
+# conservatively bounded by the selected inductor's 1.76A thermal rating.
 #   +5VSB  the module's own standby draw; the LED budget dominates (~0.4A/board
 #          full-white, capped in firmware per OQ-2) -> 0.5A
 _SPEC_NET_CURRENTS = {
@@ -10855,7 +10852,7 @@ _SPEC_NET_CURRENTS = {
     # connector's own per-pin rating (§6.1 / the routing plan's design basis).
     # Cross-check: 6 x 9.2 = 55.2A against 600W/12V = 50A sustained -- the per-pin
     # rating carries the rail with ~10% headroom, as it should.
-    "12vhpwr-standard": {"/SENSEP": 9.2, "+3V3": 0.25, "+5VSB": 0.5},
+    "12vhpwr-standard": {"/SENSEP": 9.2, "+3V3": 0.50, "+5VSB": 0.5},
     # eps-8pin-rev3 shares the eps design basis; its SENSEC current decision is
     # owner-gated (lineage frozen), so it inherits rather than diverges.
     "eps-8pin-rev3": {"/SENSEC": 52.0, "+3V3": 0.25, "+5VSB": 0.5},
@@ -10863,10 +10860,14 @@ _SPEC_NET_CURRENTS = {
     # per port over RJ-45 VCC. Sources: the shared 5VSB rail is ~2.5A (§2.5 /
     # OQ-2's cap), each port's VCC carries ONE module's draw (LED-dominated,
     # ~0.4A full-white, firmware-capped) against a 1.5A connector rating (§2.1),
-    # and +3V3 is the LP5907's 250mA ceiling.
+    # and +3V3 is bounded by the VLS252010HBX-2R2M-1 inductor's conservative
+    # 1.76A thermal-current rating (below the TLV62569's 2A IC rating).
     "hub-standard-rev2": {
         "+5VSB": 2.5, "/5VSB_RAW": 2.5, "/MAIN_5V": 2.5, "/PSU_5V": 2.5,
-        "/+5V_HOLD": 2.5, "/USB_VBUS": 0.5, "/VCC_P": 0.5, "+3V3": 0.25,
+        # The held reservoir feeds only the reviewed 215.386mA logic rail. A
+        # conservative 0.5A copper/thermal basis covers conversion loss and
+        # transient headroom without pretending it carries the 2.5A port bus.
+        "/+5V_HOLD": 0.5, "/USB_VBUS": 0.5, "/VCC_P": 0.5, "+3V3": 1.76,
         # EXPLICIT GND, because summing this board's rails DOUBLE COUNTS: +5VSB,
         # /5VSB_RAW, /PSU_5V, /MAIN_5V and /+5V_HOLD are stages of ONE rail behind
         # the TPS2121 cascade, and only one source is ever live (§2.9 priority

@@ -1,6 +1,7 @@
 {
  "board": "hub-standard-rev2",
  "commit": "3956a248",
+ "freshness_checked": "2026-08-02T23:30:04",
  "grade": {
   "diffpair_ok": true,
   "drc": 5,
@@ -21,8 +22,10 @@
  "reason": "sort_key [1, 0, 0, 0, 16, 5, 1000000.0] < [1, 0, 1, 0, 32, 10, 1000000.0]",
  "routed": true,
  "schema": 1,
- "schematic_match": 1.0,
- "schematic_parts": 115,
+ "schematic_exact": false,
+ "schematic_match": 0.8455,
+ "schematic_parts": 123,
+ "schematic_status": "stale",
  "sort_key": [
   1,
   0,

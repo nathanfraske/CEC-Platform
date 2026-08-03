@@ -27,12 +27,12 @@ tooling that checks them.
 
 | Board | Directory | Tier | MCU | Ports | Host link | BOM target (100q) |
 |---|---|---|---|---|---|---|
-| Hub Standard | [`hubs/hub-standard`](hubs/hub-standard) | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
+| Hub Standard | [`beta/hub-standard-rev2`](beta/hub-standard-rev2) | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
 | Hub Pro | [`hubs/hub-pro`](hubs/hub-pro) | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | [`hubs/hub-enterprise`](hubs/hub-enterprise) | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | [`hubs/hub-mission-critical`](hubs/hub-mission-critical) | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
-| 24-pin ATX module | [`modules/atx-24pin`](modules/atx-24pin) (+ [`atx-24pin-rev2`](modules/atx-24pin-rev2), the current line) | Standard | per module spec | – | – | $35 |
-| EPS 8-pin module | [`beta/eps-8pin`](beta/eps-8pin) | Standard | per module spec | – | – | $32 |
+| 24-pin ATX module | [`beta/atx-24pin-rev3`](beta/atx-24pin-rev3) | Standard | per module spec | – | – | $35 |
+| EPS 8-pin module | [`beta/eps-8pin-rev3`](beta/eps-8pin-rev3) | Standard | per module spec | – | – | $32 |
 | PCIe 8-pin 2-port | [`beta/pcie-8pin-2port`](beta/pcie-8pin-2port) | Standard | per module spec | – | – | $38 |
 | PCIe 8-pin 3-port | [`beta/pcie-8pin-3port`](beta/pcie-8pin-3port) | Standard | per module spec | – | – | ~$42 |
 | 12VHPWR Standard module | [`beta/12vhpwr-standard`](beta/12vhpwr-standard) | Standard | per module spec | – | – | $49 |
@@ -159,20 +159,20 @@ Wrapper scripts in [`scripts/`](scripts) drive `kicad-cli`. Each prefers a local
 
 ```bash
 # Electrical rule check (schematic). Exit 0 = clean, 5 = violations.
-scripts/erc.sh hubs/hub-standard/hub-standard.kicad_sch
+scripts/erc.sh beta/hub-standard-rev2/hub-standard-rev2.kicad_sch
 
 # Design rule check (layout). Exit 0 = clean, 5 = violations.
-scripts/drc.sh hubs/hub-standard/hub-standard.kicad_pcb
+scripts/drc.sh beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb
 
 # Connectivity netlist and BOM, for checking against the spec.
-scripts/netlist.sh hubs/hub-standard/hub-standard.kicad_sch
-scripts/bom.sh     hubs/hub-standard/hub-standard.kicad_sch
+scripts/netlist.sh beta/hub-standard-rev2/hub-standard-rev2.kicad_sch
+scripts/bom.sh     beta/hub-standard-rev2/hub-standard-rev2.kicad_sch
 
 # Top-side render for a quick silk/placement look.
-scripts/render.sh  hubs/hub-standard/hub-standard.kicad_pcb
+scripts/render.sh  beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb
 
 # Fab package (gerbers + drill + pick-and-place) into the gitignored build/ dir.
-scripts/fab.sh     hubs/hub-standard/hub-standard.kicad_pcb
+scripts/fab.sh     beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb
 
 # CI sweep: ERC over every schematic, DRC over every layout. A board with a
 # fab/<board>-* snapshot is ALWAYS checked, DRAFT marker or not; the gate fails

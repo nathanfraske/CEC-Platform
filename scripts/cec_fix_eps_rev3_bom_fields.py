@@ -29,7 +29,8 @@ import cec_sch  # noqa: E402
 
 
 DEFAULT = os.path.join(
-    ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_sch")
+    ROOT, "old-revisions", "beta", "eps-8pin-rev3-flat-2026-08-02",
+    "eps-8pin-rev3.kicad_sch")
 LCSC_RE = re.compile(r"^C\d+$")
 
 MOLEX_87427 = {
@@ -47,7 +48,7 @@ BOURNS_L500 = {
     "MPN": "CSS2H-2512R-L500F",
     "Datasheet": "https://www.bourns.com/docs/product-datasheets/css2h-2512.pdf",
     "Note": (
-        "OQ-11 locked selection shared with beta/eps-8pin: 0.5mOhm, "
+        "OQ-11 locked selection on the single current EPS product: 0.5mOhm, "
         "CSS2H-2512R-L500F. Distributor availability remains a BOM-freeze check."
     ),
 }

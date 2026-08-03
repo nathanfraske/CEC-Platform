@@ -1,49 +1,50 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-C1,1,4700uF,CP_Elec_16x17.5,VKMI2101C472MV,Samxon,C487318,,,,,,
-C11,1,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,
-C12,1,10nF,C_0402_1005Metric,CL05B103KB5NNNC,Samsung,C15195,,,,,,
-C13,1,100nF,C_0603_1608Metric,CC0603KRX7R9BB104,YAGEO,C14663,,,,,,
-"C2,C3,C9,C10",4,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,,,,
-C23,1,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,,,,U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line.
-"C4,C5,C6,C8,C14,C15,C16,C17,C18,C19,C20,C21,C22",13,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,"DETECT immunity filter (owner VRM-coupling concern 2026-07-15): 100n on the 10k-source analog identity line; ~1ms settle, irrelevant to detection; kills near-field pickup.,U11 IN2 (KVM 5V) bypass."
+C1,1,4700uF,CP_Elec_16x17.5,VKMI2101C472MV,Ymin,C487318,,,https://www.lcsc.com/product-detail/C487318.html,,,"Hold-up reservoir, 4700uF +/-20%, 16V, 10000h at 105C, SMD D16xL21mm. Exact C487318 listing is Ymin (not Samxon); minimum capacitance 3760uF is used by the shutdown-energy audit."
+C12,1,10nF,C_0402_1005Metric,CL05B103KB5NNNC,Samsung,C15195,,,https://product.samsungsem.com/mlcc/CL05B103KB5NNN.do,,,
+"C2,C3,C11,C23",4,10uF,C_0603_1608Metric,CL10A106MA8NRNC,Samsung,C96446,,,https://product.samsungsem.com/mlcc/CL10A106MA8NRN.do,,,U11 IN2 (KVM 5V) bulk -- the hub's own 0603 10uF line.
+"C4,C5,C6,C8,C13,C14,C15,C16,C17,C18,C19,C20,C21,C22",14,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do,,,"DETECT immunity filter (owner VRM-coupling concern 2026-07-15): 100n on the 10k-source analog identity line; ~1ms settle, irrelevant to detection; kills near-field pickup.,U11 IN2 (KVM 5V) bypass."
 C7,1,4n7,C_0402_1005Metric,0402B472K500NT,Fenghua,C1538,,,,,,
+"C9,C10,C24,C25,C26,C27,C28",7,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,https://product.samsungsem.com/mlcc/CL10A105KB8NNN.do,,,"U11 IN1 local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin,U11 OUT local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin,U5 OUT local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin,U7 IN1 local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin,U7 IN2 local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin"
 "C_SS1,C_SS2,C_SS3",3,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,,,,"U11 soft-start cap, mirrors C_SS1/C_SS2 (hub-proven ~10ms ramp)."
-C_bulk1,1,470uF,CP_Elec_6.3x7.7,RVT1A471M0607,Lelon,C335982,,,,,,
-D1,1,SS14,D_SMA,SS14,MDD,C2480,,,,,,
-"D2,D3,D4,D5,D7",5,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,Nexperia,C5261083,,,,,,
-D6,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,,,,
-"D8,D9",2,SMAJ5.0A,D_SMA,SMAJ5.0A,generic (LCSC pick),C113952,,,,,,"Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry."
+C_bulk1,1,470uF,CP_Elec_6.3x7.7,RVT1A471M0607,Lelon,C335982,,,,,,Bulk surge cap on Hub +5VSB distribution
+D1,1,SS14,D_SMA,SS14,MDD (Microdiode Semiconductor),C2480,,,https://www.lcsc.com/datasheet/C2480.pdf,,,"MDD SS14 40V 1A Schottky hold-up isolation diode; cathode pin 1 to +5V_HOLD, anode pin 2 to the selected +5VSB source. Maximum specified VF is 0.55V at 1A."
+"D2,D3,D4,D5,D7",5,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,HXY MOSFET,C5261083,,,https://www.lcsc.com/datasheet/C5261083.pdf,,,"Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)"
+D6,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf,,,
+"D8,D9",2,SMAJ5.0A,D_SMA,SMAJ5.0A,MDD (Microdiode Semiconductor),C113952,,,https://www.lcsc.com/datasheet/C113952.pdf,,,"Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry."
 "DL1,DL2,DL3,DL4,DL5,DL6,DL7",7,SK6812MINI-E,LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm,SK6812MINI-E,Opsco,C5149201,,,,,,
 "F1,F2,F3,F4",4,PTC 500mA,R_0805_2012Metric,SMD0805-050-6,generic (JLC catalog),C46640983,,,,,,"Per-port RJ45-VCC polyfuse (owner ruling 2026-07-15): fault isolation -- a shorted patch cable or failed module trips ONE port instead of browning out the shared 5VSB system (the TPS2121 limit is total, not per-port). 0805 PTC, 500mA hold, 6V rated. ~150mV drop at load absorbed by module LDO headroom."
 F5,1,1.1A/16V PTC,R_1206_3216Metric,FSMD110-16-1206R,FUZETEC,C5707763,,,,,,"1.1A hold/2.2A trip/16V resettable PTC polyfuse, KVM 5V ingress defense layer 2 (spec Sec 2.9 v1.6.0). F1-F4 are the 2026-07-15 per-port 500mA PTCs -- unrelated position."
-J2,1,PORT1,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,,,,
-J3,1,PORT2,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,,,,
-J4,1,PORT3,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,,,,
-J5,1,PORT4,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,,,,
-J6C?,1,TO-24PIN-STACK-COMMS,PinHeader_2x04_P2.54mm_Vertical,PinHeader 2x04 2.54mm THT (generic),generic,,,,,,DNP,"Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (comms segment). STREAM_P/STREAM_N (pins 4/6) intentionally unconnected -- Standard-tier hub carries no RS-485 pair; forward-compat provision only, matches the 24-pin side's unconnected STREAM pads."
-J6D?,1,TO-24PIN-STACK-ID,PinHeader_2x02_P2.54mm_Vertical,PinHeader 2x02 2.54mm THT (generic),generic,,,,,,DNP,"Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (ID segment). RSVD (pin 3) intentionally unconnected -- reserved spare, no net on this board. DETECT ties to /DETECT1 (hub port-1 detect line; role match is what mates, not the literal name)."
-J6P?,1,TO-24PIN-STACK-PWR,PinHeader_2x03_P2.54mm_Vertical,PinHeader 2x03 2.54mm THT (generic),generic,,,,,,DNP,Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (power segment); supersedes the 2026-07-15 column-paired 2x08 map (flip-invariance premise retired by the 2026-07-19 no-flip ruling). THT + DNP -- facing/assembly per the stack doc.
+J2,1,PORT1,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
+J3,1,PORT2,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
+J4,1,PORT3,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
+J5,1,PORT4,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
+J6C?,1,TO-24PIN-STACK-COMMS,PinHeader_2x04_P2.54mm_Vertical,PinHeader 2x04 2.54mm THT (generic),generic,,,,,,,"Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (comms segment), fitted per docs/decisions/owner-session-2026-08-01.md. STREAM_P/STREAM_N (pins 4/6) are intentionally unconnected on both Standard-tier boards. Exact mating header/socket MPN and stack height remain owner selections."
+J6D?,1,TO-24PIN-STACK-ID,PinHeader_2x02_P2.54mm_Vertical,PinHeader 2x02 2.54mm THT (generic),generic,,,,,,,"Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (ID segment), fitted per docs/decisions/owner-session-2026-08-01.md. RSVD (pin 3) is intentionally unconnected. DETECT ties to /DETECT1. Exact mating header/socket MPN and stack height remain owner selections."
+J6P?,1,TO-24PIN-STACK-PWR,PinHeader_2x03_P2.54mm_Vertical,PinHeader 2x03 2.54mm THT (generic),generic,,,,,,,Segmented mezz per docs/mezz-structural-segments-2026-07-22.md Appendix A (power segment); supersedes the 2026-07-15 column-paired 2x08 map. Fitted per docs/decisions/owner-session-2026-08-01.md. Exact mating header/socket MPN and stack height remain owner selections.
 J_KVM?,1,CEC_NANOKVM_AUX_5P,JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal,S5B-PH-K-S(LF)(SN),JST,C157923,,,,,,
-J_PWR?,1,PWR_IN,JST_XH_S3B-XH-A_1x03_P2.50mm_Horizontal,S3B-XH-A(LF)(SN),JST,C157928,,,,,,
-J_USB?,1,USB-C,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,,,,
+J_PWR?,1,PWR_IN,JST_XH_S3B-XH-A_1x03_P2.50mm_Horizontal,S3B-XH-A(LF)(SN),JST,C157928,,,,,,"CEC consolidated Hub power-in (A4, beta-lock-register 2026-07-03): replaces the separate J_5VSB + J_5V 2-pin connectors with one 3-pin JST XH, GND-center so any misinsertion is benign. Pin 1 MAIN_5V, pin 2 GND, pin 3 5VSB."
+J_USB?,1,USB-C,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
+L1,1,2.2uH,VLS252010HBX-2R2M-1,VLS252010HBX-2R2M-1,TDK,C88527,,,https://product.tdk.com/en/search/inductor/inductor/smd/info?part_no=VLS252010HBX-2R2M-1,,,"2.2uH shielded buck inductor, 2.3A Isat max / 1.76A thermal-rated"
 "R12,R15,R17,R21,R23,R33,R35,R37",8,47kΩ,R_0402_1005Metric,0402WGF4702TCE,UNI-ROYAL,C25792,,,,,,"U11 OV1 divider top (PSU_5V side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage.,U5 OV1 divider top (5VSB_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage.,U7 OV1 divider top (MAIN_5V_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage."
 "R13,R_ILIM1,R_ILIM2,R_ILIM3",4,27kΩ,R_0402_1005Metric,0402WGF2702TCE,UNI-ROYAL,C25771,,,,,,"U11 ILIM strap, mirrors R_ILIM1/R_ILIM2 (~3.8A) -- F5's own 1.1A hold is the tighter element toward the wall-wart."
 R14,1,330Ω,R_0402_1005Metric,0402WGF3300TCE,UNI-ROYAL,C25104,,,,,,
 "R19,R20",2,33Ω,R_0402_1005Metric,0402WGF330JTCE,UNI-ROYAL,C25105,,,,,,
 "R2,R5,R6,R7,R8,R11,R16,R18,R22,R24,R25,R34,R36,R38",14,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,"U11 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R37.,U5 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R33.,U7 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R35."
-R26,1,34.0kOhm,R_0402_1005Metric,0402WGF3402TCE,UNI-ROYAL,C48939,,,,,,
-R27,1,10.0kOhm,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,
-R28,1,1MOhm,R_0402_1005Metric,0402WGF1004TCE,UNI-ROYAL,C26083,,,,,,
+R26,1,11.0kOhm,R_0402_1005Metric,RC0402FR-0711KL,YAGEO,C138063,,,https://www.lcsc.com/product-detail/C138063.html,,,"Selected-rail dropout threshold divider, top leg (1%). With R27=10k and R28=1M hysteresis, sets U8 IN- near 1.59V for a nominal 4.36V trip on the upstream +5VSB BLACKOUT_SENSE divider."
+R27,1,10.0kOhm,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,,,,"W12 comparator threshold divider, bottom leg (1%)."
+R28,1,1MOhm,R_0402_1005Metric,0402WGF1004TCE,UNI-ROYAL,C26083,,,,,,"Selected-rail dropout comparator hysteresis feedback (~1M), OUT -> COMP_THRESH. BLACKOUT_SENSE remains available to the ADC for logging while U8 supplies the hardware interrupt."
 "R3,R4",2,60.4,R_0402_1005Metric,GR0402F60R4TAG00,Viking,C49654185,,,,,,
+R39,1,453kΩ,R_0402_1005Metric,0402WGF4533TCE,UNI-ROYAL,C27009,,,https://www.lcsc.com/product-detail/C27009.html,,,Hub buck FB top; 3.318V nominal
+R40,1,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,https://www.lcsc.com/product-detail/C25741.html,,,Hub buck FB bottom; 100k per TI recommendation
 "R9,R10",2,5.1kΩ,R_0402_1005Metric,0402WGF5101TCE,UNI-ROYAL,C25905,,,,,,
-RJ_HOLD?,1,0R (jumper),R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,,,,,
-SW_BOOT?,1,SW_BOOT,TS-1088-AR02016,TS-1088-AR02016,XKB,C720477,,,,,,
-SW_RESET?,1,SW_RST,TS-1088-AR02016,TS-1088-AR02016,XKB,C720477,,,,,,
+RJ_HOLD?,1,0R (jumper),R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,,,,,H2 rung-1/default jumper (POPULATED): ties the logic-regulator input straight to +5V_HOLD. Desolder + populate RJ_BUCK to use the alternate pre-regulated input path.
+SW_BOOT?,1,SW_BOOT,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,"Push button switch, generic, two pins"
+SW_RESET?,1,SW_RST,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,"Push button switch, generic, two pins"
 TH1,1,NTC 10k,NTC_0402_1005Metric,NCP15XH103F03RC,Murata Electronics,C77131,,,,,,
-U1,1,ESP32-S3-WROOM-1,ESP32-S3-WROOM-1_NoAntKeepout,ESP32-S3-WROOM-1-N16R8,Espressif,C2913202,,,,,,
-U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3,NXP,C38695,,,,,,
-U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3/NOPB,Texas Instruments,C80670,,,,,,
-U4,1,TPS3839K33,SOT-23,TPS3839K33DBZR,Texas Instruments,C96333,,,,,,
-"U5,U7,U11",3,TPS2121RUXR,RUX0012A,TPS2121RUXR,Texas Instruments,C485916,,,,,,
-U6,1,SN74AHCT1G08,SOT-23-5,SN74AHCT1G08DBVR,Texas Instruments,C113521,,,,,,
-U8,1,TLV7011DBVR,SOT-23-5,TLV7011DBVR,Texas Instruments,C702117,,,,,,
+U1,1,ESP32-S3-WROOM-1,ESP32-S3-WROOM-1_NoAntKeepout,ESP32-S3-WROOM-1-N16R8,Espressif Systems,C2913202,,,https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf,,,"RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD"
+U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3/1J,NXP Semiconductors,C38695,,,https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf,,,
+U3,1,TLV62569DBVR,SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL,TLV62569DBVR,Texas Instruments,C141836,,,https://www.ti.com/lit/ds/symlink/tlv62569.pdf,,,2A synchronous buck; Hub +3V3 direct regulator (no post-LDO required)
+U4,1,TPS3839K33,SOT-23,TPS3839K33DBZR,Texas Instruments,C96333,,,https://www.ti.com/lit/ds/symlink/tps3839.pdf,,,
+"U5,U7,U11",3,TPS2121RUXR,RUX0012A,TPS2121RUXR,Texas Instruments,C485916,,,https://www.ti.com/lit/ds/symlink/tps2121.pdf,,,
+U6,1,SN74AHCT1G08,SOT-23-5,SN74AHCT1G08DBVR,Texas Instruments,C113521,,,https://www.ti.com/lit/ds/symlink/sn74ahct1g08.pdf,,,
+U8,1,TLV7011DBVR,SOT-23-5,TLV7011DBVR,Texas Instruments,C702117,,,https://www.ti.com/lit/ds/symlink/tlv7011.pdf,,,"Hardware persist/shutdown trigger for loss of the final selected +5VSB rail, upstream of D1 and the 4700uF hold-up reservoir. IN+=BLACKOUT_SENSE, IN-=COMP_THRESH (~1.59V; ~4.36V nominal selected-rail trip), OUT=PWR_FAIL_INT -> ESP32 IO14. This trigger precedes buck dropout; TPS3839 remains the final reset backstop."

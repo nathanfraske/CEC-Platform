@@ -1048,6 +1048,29 @@ def independent_drc(final, rules, *, weights=None):
         verdict["gates_pass"] = False
         reasons.append("actual laid-pour incursion gate crashed (fail-closed): %s: %s"
                        % (type(_e).__name__, _e))
+
+    # Aggregate EVERY ratified deterministic hard/strong constraint. The older
+    # verdict hand-picked a small subset, allowing placement, decoupling,
+    # orientation, routing-completeness, and SI failures to remain informational.
+    # Keep the targeted folds above for rich diagnostics, then close the release
+    # surface here so future ratified checkers cannot become silently orphaned.
+    try:
+        import cec_constraints
+        release = cec_constraints.release_gate(final, phase="post_route")
+        verdict["ratified_release_gate"] = release
+        if not release["ok"]:
+            verdict["gates_pass"] = False
+            for blocker in release["blockers"]:
+                reason = "%s [%s]: %s" % (
+                    blocker["id"], blocker["status"], blocker["detail"])
+                if reason not in reasons:
+                    reasons.append(reason)
+    except Exception as _e:                              # noqa: BLE001
+        verdict["ratified_release_gate"] = {
+            "ok": False, "error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("ratified release gate crashed (fail-closed): %s: %s"
+                       % (type(_e).__name__, _e))
     return verdict
 
 

@@ -17,7 +17,7 @@ reference that gap needs.
 Usage::
 
     python3 scripts/cec_candidate_sync.py                  # all boards
-    python3 scripts/cec_candidate_sync.py --boards eps-8pin,hub-standard-rev2
+    python3 scripts/cec_candidate_sync.py --boards eps-8pin-rev3,hub-standard-rev2
     python3 scripts/cec_candidate_sync.py --dry-run
 """
 
@@ -32,6 +32,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import cec_fresh_wave as w                                # noqa: E402
+import cec_beta_manifest                                  # noqa: E402
 
 
 def _routed(pcb_path):
@@ -85,16 +86,23 @@ def best_published(board):
     return rows[0]
 
 
-def sync(boards=None, dry_run=False):
-    boards = boards or [os.path.basename(d) for d in
-                        sorted(glob.glob(os.path.join(ROOT, "beta", "*")))
-                        if os.path.isdir(d)]
+def sync(boards=None, dry_run=False, status_only=False):
+    boards = boards or list(cec_beta_manifest.WAVE_BOARDS)
     out = {}
     for board in boards:
+        if board not in cec_beta_manifest.WAVE_BOARDS:
+            raise ValueError(
+                f"{board!r} is not a current manifest-declared BETA wave board"
+            )
+        if status_only:
+            out[board] = w.refresh_candidate_metadata(board)
+            if out[board] is None:
+                print(f"[candidate] {board}: no committed candidate metadata -- skipped")
+            continue
         pick = best_published(board)
         if pick is None:
             print(f"[candidate] {board}: no published wave output -- skipped")
-            out[board] = None
+            out[board] = w.refresh_candidate_metadata(board)
             continue
         best = dict(pick["best"])
         # _candidate_update reads `routed` as a PATH it can stat.
@@ -108,17 +116,26 @@ def sync(boards=None, dry_run=False):
             continue
         out[board] = w._candidate_update(board, pick["pcb"], best,
                                          out_root=os.path.dirname(os.path.dirname(pick["pcb"])))
+        # Even when the incumbent wins and `_candidate_update` is a no-op, its
+        # recorded freshness must describe today's schematic rather than the
+        # schematic that happened to exist at publication time.
+        refreshed = w.refresh_candidate_metadata(board)
+        if out[board] is None:
+            out[board] = refreshed
     return out
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--boards", default="", help="comma-separated; default = every beta/ board")
+    ap.add_argument("--boards", default="",
+                    help="comma-separated; default = manifest-declared wave boards")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--status-only", action="store_true",
+                    help="refresh candidate freshness metadata; never select or copy a PCB")
     a = ap.parse_args()
     boards = [b.strip() for b in a.boards.split(",") if b.strip()] or None
-    sync(boards, dry_run=a.dry_run)
+    sync(boards, dry_run=a.dry_run, status_only=a.status_only)
 
 
 if __name__ == "__main__":

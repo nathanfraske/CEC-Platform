@@ -39,6 +39,25 @@ class TestLaidPourIncursion(unittest.TestCase):
         self.assertIn(check_id, C.CHECKERS)
         self.assertTrue(any(row.id == check_id for row in C.REGISTRY))
 
+    def test_checker_returns_normal_na_tuple_not_an_error_shape(self):
+        board = pcbnew.BOARD()
+        state, detail = C._chk_laid_pour_incursion(board, board, {})[:2]
+        self.assertIsNone(state)
+        self.assertIn("no reserved", detail)
+
+    def test_checker_fails_on_detected_incursion(self):
+        board, _power, signal = _board()
+        track = pcbnew.PCB_TRACK(board)
+        track.SetNet(signal)
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetStart(pcbnew.VECTOR2I_MM(2, 5))
+        track.SetEnd(pcbnew.VECTOR2I_MM(8, 5))
+        track.SetWidth(pcbnew.FromMM(0.25))
+        board.Add(track)
+        state, detail = C._chk_laid_pour_incursion(board, board, {})[:2]
+        self.assertFalse(state)
+        self.assertIn("inside pour", detail)
+
     def test_wide_track_edge_is_detected_when_centerline_is_outside(self):
         board, _power, signal = _board()
         track = pcbnew.PCB_TRACK(board)

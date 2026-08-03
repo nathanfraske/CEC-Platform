@@ -109,6 +109,7 @@ class TestVerifiedLcscNormalization(unittest.TestCase):
         self.assertEqual(refs, ["C1"])
         self.assertIn('(property "MPN" "CL10A105KB8NNNC"', repaired)
         self.assertIn('(property "Manufacturer" "Samsung"', repaired)
+        self.assertIn('product.samsungsem.com/mlcc/CL10A105KB8NNN.do', repaired)
 
     def test_verified_capacitor_package_mismatch_is_not_hidden(self):
         expected = normalize.VERIFIED["C96446"]

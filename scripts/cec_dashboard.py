@@ -21,12 +21,14 @@
 #      zoom/pan/fit frame at full resolution (>=1600px). Gate badges:
 #      kelvin_ok / foreign_on_pour / drc / unconnected / thermal.
 #
-# Architecture: a plain stdlib http.server on the HOST. The HOST never imports
-# pcbnew -- it shells the heavy work (thermal solve + render + gate eval) into
-# the routing container, which has pcbnew + cupy (GPU). This same file runs the
-# in-container half too: `cec_dashboard.py --analyze-board ...` (run INSIDE the
-# container) does one 2.5D solve, draws both panels, evaluates the gates, and
-# prints a JSON summary -- so there is no nested-quoting helper script, one file.
+# Architecture: a plain stdlib http.server on the HOST. Heavy work normally
+# runs in the routing container (pcbnew + cupy/GPU), but a clean WSL install
+# with the native KiCad/Python toolchain must not require a second copy of that
+# toolchain in Docker merely to view a board.  The analyzer therefore falls
+# back to the native host when Docker access is unavailable.  This same file
+# runs the analysis half in either backend: `cec_dashboard.py --analyze-board
+# ...` does one 2.5D solve, draws both panels, evaluates the gates, and prints a
+# JSON summary.
 #
 # Archiving is non-blocking: a single background worker (GPU is single-flight)
 # drains an archive queue. Seeding + ad-hoc --archive enqueue onto it.
@@ -98,28 +100,28 @@ _watch_status = {"globs": list(WATCH_GLOBS), "enqueued": 0, "last_scan": None}
 
 
 def _beta_boards():
-    """The committed beta line: every dir carrying a BETA marker (beta/README.md convention)
-    plus the output daughterboards. Newest .kicad_pcb (non-routed) + DRAFT state per board."""
+    """The committed current BETA line, from the authoritative manifest only.
+
+    Marker/glob discovery previously omitted the current EPS and Hub whenever a
+    directory lacked a BETA marker, while also making it too easy for archived
+    lineages to reappear.  The dashboard must show the same ten products as the
+    electrical and routing pipelines.
+    """
+    import cec_beta_manifest as manifest
+
     out = []
-    pats = [os.path.join(ROOT, "beta", "*"), os.path.join(ROOT, "modules", "*"),
-            os.path.join(ROOT, "hubs", "*"),
-            os.path.join(ROOT, "beta", "output-daughterboards", "*"),
-            os.path.join(ROOT, "modules", "output-daughterboards", "*")]
-    for d in sorted({d for p in pats for d in glob.glob(p) if os.path.isdir(d)}):
-        is_beta = os.path.exists(os.path.join(d, "BETA"))
-        is_db = os.path.sep + "output-daughterboards" + os.path.sep in d + os.path.sep
-        if not (is_beta or is_db):
-            continue
-        pcbs = [p for p in glob.glob(os.path.join(d, "*.kicad_pcb"))
-                if "-routed" not in p and ".merged." not in p]
-        pcb = max(pcbs, key=os.path.getmtime) if pcbs else None
-        if not pcb and not glob.glob(os.path.join(d, "*.kicad_sch")):
-            continue                       # a grouping dir, not a board
-        out.append({"name": os.path.basename(d), "dir": os.path.relpath(d, ROOT),
+    for project in manifest.PROJECTS:
+        d = os.path.join(ROOT, "beta", project["directory"])
+        schematic = os.path.join(d, project["schematic"])
+        pcb = os.path.join(d, project["pcb"]) if project.get("pcb") else None
+        if pcb and not os.path.isfile(pcb):
+            pcb = None
+        out.append({"name": project["board"], "dir": os.path.relpath(d, ROOT),
                     "pcb": os.path.relpath(pcb, ROOT) if pcb else None,
                     "mtime": os.path.getmtime(pcb) if pcb else None,
                     "draft": os.path.exists(os.path.join(d, "DRAFT")),
-                    "sch": bool(glob.glob(os.path.join(d, "*.kicad_sch")))})
+                    "sch": os.path.isfile(schematic),
+                    "wave": bool(project.get("wave"))})
     return out
 
 
@@ -296,10 +298,38 @@ def _analyze_in_container(board, detail_png, current_png, width,
 # ============================================================================
 #  HOST half -- container exec, archiving, browser/analyzer server.
 # ============================================================================
+def _native_analysis_argv(argv):
+    """Translate container `/workspace/...` arguments to this checkout."""
+    prefix = "/workspace/"
+    return [os.path.join(ROOT, arg[len(prefix):]) if arg.startswith(prefix) else arg
+            for arg in argv]
+
+
+def _docker_analysis_available():
+    """True only when this user can actually invoke the routing container."""
+    if not shutil.which("docker") or not os.path.isfile(COMPOSE_FILE):
+        return False
+    try:
+        groups = subprocess.run(["id", "-nG"], capture_output=True, text=True,
+                                timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return groups.returncode == 0 and "docker" in groups.stdout.split()
+
+
 def _container_run(argv, timeout, env=None):
-    """Run `argv` inside the routing container via `sg docker -c "... exec -T routing bash -lc '...'"`.
-    `env` is a dict of VAR=val prefixed before the command (NOT shell-quoted as args). Returns the
-    CompletedProcess; raises on timeout (caller catches). Plain args -> no nested-quoting helper script."""
+    """Run the analyzer in Docker when available, otherwise in native WSL.
+
+    The native path is deliberate clean-machine support: it avoids a large,
+    duplicate Docker image when KiCad, pcbnew, and the compute dependencies are
+    already installed in WSL.  `env` has identical semantics in both backends.
+    """
+    if not _docker_analysis_available():
+        host_env = os.environ.copy()
+        host_env.update({str(k): str(v) for k, v in (env or {}).items()})
+        return subprocess.run(_native_analysis_argv(argv), cwd=ROOT, env=host_env,
+                              capture_output=True, text=True, timeout=timeout)
+
     prefix = "".join(f"{k}={shlex.quote(str(v))} " for k, v in (env or {}).items())
     inner = "cd /workspace && " + prefix + " ".join(shlex.quote(a) for a in argv)
     compose = (f"docker compose -f {shlex.quote(COMPOSE_FILE)} exec -T routing "

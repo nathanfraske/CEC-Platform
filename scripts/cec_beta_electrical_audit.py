@@ -12,7 +12,6 @@ It does not claim transient, EMC, thermal, firmware, or assembly sign-off.
 from __future__ import annotations
 
 import argparse
-import glob
 import json
 import math
 import os
@@ -29,14 +28,22 @@ if HERE not in sys.path:
 
 import cec_sch  # noqa: E402
 import cec_sch_gates  # noqa: E402
+import cec_hub_holdup  # noqa: E402
 import cec_spice_sanity  # noqa: E402
 import cec_toolchain  # noqa: E402
+import cec_beta_manifest  # noqa: E402
 from cec_normalize_verified_lcsc_parts import VERIFIED  # noqa: E402
 
 
 SOURCES = {
     "TPS2121": "https://www.ti.com/lit/ds/symlink/tps2121.pdf",
     "LP5907": "https://www.ti.com/lit/ds/symlink/lp5907.pdf",
+    "TLV62569": "https://www.ti.com/lit/ds/symlink/tlv62569.pdf",
+    "TLV755P": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+    "VLS252010HBX-2R2M-1": (
+        "https://product.tdk.com/en/search/inductor/inductor/smd/"
+        "info?part_no=VLS252010HBX-2R2M-1"
+    ),
     "INA180": "https://www.ti.com/lit/ds/symlink/ina180.pdf",
     "INA181": "https://www.ti.com/lit/ds/symlink/ina181.pdf",
     "INA238": "https://www.ti.com/lit/ds/symlink/ina238.pdf",
@@ -84,6 +91,15 @@ SOURCES = {
     ),
     "C38695": "https://www.lcsc.com/product-detail/C38695.html",
     "C80670": "https://www.lcsc.com/product-detail/C80670.html",
+    "C141836": "https://www.lcsc.com/product-detail/C141836.html",
+    "C487318": "https://www.lcsc.com/product-detail/C487318.html",
+    "C138063": "https://www.lcsc.com/product-detail/C138063.html",
+    "C2480": "https://www.lcsc.com/product-detail/C2480.html",
+    "C404027": "https://www.lcsc.com/product-detail/C404027.html",
+    "C88527": "https://www.lcsc.com/product-detail/C88527.html",
+    "C27009": "https://www.lcsc.com/product-detail/C27009.html",
+    "C25741": "https://www.lcsc.com/product-detail/C25741.html",
+    "C132339": "https://www.lcsc.com/product-detail/C132339.html",
     "C485916": "https://www.lcsc.com/product-detail/C485916.html",
     "C2058784": "https://www.lcsc.com/product-detail/C2058784.html",
     "C702117": "https://www.lcsc.com/product-detail/C702117.html",
@@ -115,6 +131,12 @@ PACKAGE_RULES = (
     ("INA181A2IDBVR", "SOT-23-6"),
     ("INA180A2IDBVR", "SOT-23-5"),
     ("LP5907MFX-3.3/NOPB", "SOT-23-5"),
+    ("TLV62569DBVR", "SOT-23-5"),
+    ("TLV75533PDBVR", "SOT-23-5"),
+    ("VLS252010HBX-2R2M-1", "VLS252010HBX-2R2M-1"),
+    ("0402WGF4533TCE", "R_0402_1005Metric"),
+    ("0402WGF1003TCE", "R_0402_1005Metric"),
+    ("0402WGF5603TCE", "R_0402_1005Metric"),
     ("TLV7011DBVR", "SOT-23-5"),
     ("TJA1051T/3/1J", "SOIC-8"),
     ("74AHCT244PW,118", "TSSOP-20"),
@@ -133,6 +155,7 @@ PACKAGE_RULES = (
     ("CL10B105KA8NNNC", "C_0603_1608Metric"),
     ("CL05B104KO5NNNC", "C_0402_1005Metric"),
     ("0402WGF0000TCE", "R_0402_1005Metric"),
+    ("RC0402FR-0711KL", "R_0402_1005Metric"),
     ("BAT54S", "SOT-23-3"),
     ("87427-0802", "87427-0802"),
 )
@@ -142,6 +165,14 @@ TPS2121_PIN_NAMES = {
     "1": "OUT", "2": "IN2", "3": "CP2", "4": "OV2",
     "5": "OV1", "6": "PR1", "7": "IN1", "8": "OUT",
     "9": "ST", "10": "ILM", "11": "SS", "12": "GND",
+}
+
+TLV62569_PIN_NAMES = {
+    "1": "EN", "2": "GND", "3": "SW", "4": "VIN", "5": "FB",
+}
+
+TLV75533_PIN_NAMES = {
+    "1": "IN", "2": "GND", "3": "EN", "4": "NC", "5": "OUT",
 }
 
 
@@ -196,18 +227,7 @@ def _finding(board: str, severity: str, code: str, message: str, ref: str = ""):
 
 
 def discover_projects(beta_root: str) -> list[tuple[str, str, str]]:
-    projects = []
-    for pro in glob.glob(os.path.join(beta_root, "**", "*.kicad_pro"), recursive=True):
-        directory = os.path.dirname(pro)
-        if "candidate" in os.path.normpath(directory).split(os.sep):
-            continue
-        stem = os.path.splitext(os.path.basename(pro))[0]
-        schematic = os.path.join(directory, stem + ".kicad_sch")
-        if not os.path.isfile(schematic):
-            schematic = cec_toolchain.find_root_sch(directory)
-        if schematic:
-            projects.append((os.path.relpath(directory, beta_root), directory, schematic))
-    return sorted(set(projects))
+    return list(cec_beta_manifest.project_paths(beta_root))
 
 
 def export_netlist(schematic: str) -> tuple[dict[str, str], dict[str, list[tuple[str, str]]]]:
@@ -553,6 +573,65 @@ def check_passives(board, inventory, pins_by_ref):
                 ref,
             ))
 
+    modern_supply_outputs = set()
+    for ref, rec in sorted(inventory.items()):
+        value = rec.get("value", "")
+        if not _fitted(rec) or ("TLV62569" not in value and "TLV75533" not in value):
+            continue
+        pins = pins_by_ref.get(ref, {})
+        if "TLV62569" in value:
+            input_net = pins.get("4")
+            sw_net = pins.get("3")
+            output_net = None
+            for lref, lrec in inventory.items():
+                if not lref.startswith("L") or not _fitted(lrec):
+                    continue
+                lpins = pins_by_ref.get(lref, {})
+                if sw_net in lpins.values():
+                    other = [net for net in lpins.values() if net != sw_net]
+                    if len(other) == 1:
+                        output_net = other[0]
+                        break
+            requirements = (("input", input_net, 4.7e-6, None),
+                            ("output", output_net, 10e-6, 47e-6))
+            if output_net:
+                modern_supply_outputs.add(output_net)
+        else:
+            input_net, output_net = pins.get("1"), pins.get("5")
+            requirements = (("input", input_net, 1e-6, None),
+                            ("output", output_net, 1e-6, 200e-6))
+            if output_net:
+                modern_supply_outputs.add(output_net)
+
+        for label, rail, minimum, maximum in requirements:
+            candidates = sorted(
+                (cap for cap in caps_by_rail.get(rail, [])
+                 if cap["farads"] + 1e-15 >= minimum),
+                key=lambda cap: (cap["farads"], cap["ref"]),
+            )
+            total = sum(cap["farads"] for cap in caps_by_rail.get(rail, []))
+            if not candidates:
+                findings.append(_finding(
+                    board, "BLOCKER", "REGULATOR_CAP_MISSING",
+                    f"{value} {label} rail {rail!r} lacks the required nominal "
+                    f">={minimum * 1e6:g} uF ceramic capacitance", ref))
+                continue
+            selected, detail = _cap_selected_and_verified(candidates[0])
+            if not selected:
+                findings.append(_finding(
+                    board, "BLOCKER", "CRITICAL_CAP_SELECTION",
+                    f"{value} {label} capacitor {candidates[0]['ref']} is not fully verified: {detail}",
+                    ref))
+            if maximum is not None and total > maximum + 1e-15:
+                findings.append(_finding(
+                    board, "BLOCKER", "REGULATOR_CAP_RANGE",
+                    f"{value} {label} node totals {total * 1e6:.3g} uF nominal, above "
+                    f"the reviewed {maximum * 1e6:g} uF range", ref))
+        findings.append(_finding(
+            board, "INFO", "REGULATOR_CAP_NETWORK",
+            f"{value} nominal input/output capacitor network is inside the reviewed datasheet range",
+            ref))
+
     for mcu_ref, mcu_rec in sorted(inventory.items()):
         value = mcu_rec.get("value", "")
         if not _fitted(mcu_rec) or "ESP32-" not in value:
@@ -575,7 +654,8 @@ def check_passives(board, inventory, pins_by_ref):
                 "and housekeeping loads under the required wireless-disabled firmware mode",
                 mcu_ref,
             ))
-        if not any(cap["farads"] >= 22e-6 for cap in caps_by_rail.get(supply_net, [])):
+        if (supply_net not in modern_supply_outputs and
+                not any(cap["farads"] >= 22e-6 for cap in caps_by_rail.get(supply_net, []))):
             findings.append(_finding(
                 board, "WARN", "ESP32_REFERENCE_BULK_DEVIATION",
                 f"{value} peripheral schematic shows 22 uF plus 100 nF on the module supply, "
@@ -583,27 +663,53 @@ def check_passives(board, inventory, pins_by_ref):
                 "regulator and total output-capacitance conflict is resolved",
                 mcu_ref,
             ))
+        elif supply_net in modern_supply_outputs:
+            total = sum(cap["farads"] for cap in caps_by_rail.get(supply_net, []))
+            findings.append(_finding(
+                board, "INFO", "ESP32_REVIEWED_REGULATOR_NETWORK",
+                f"{value} is fed by the reviewed regulator topology with "
+                f"{total * 1e6:.3g} uF nominal distributed capacitance on {supply_net}",
+                mcu_ref,
+            ))
 
     # TPS2121 does not prescribe a universal capacitor value.  It does require
-    # bypass capacitors on IN1, IN2, and OUT to be close and X5R/X7R.  This
-    # schematic-side check proves each node has at least one selected ceramic;
-    # the PCB checker is responsible for proximity.
+    # bypass capacitors on IN1, IN2, and OUT to be close and X5R/X7R.  Shared
+    # rails are common in a cascaded mux, so a node-existence test is not
+    # sufficient: assign a distinct selected ceramic to every device pin.
+    # The PCB checker independently repeats one-to-one ownership with the
+    # actual pad-to-pad distance.
+    tps_requirements = []
     for ref, rec in sorted(inventory.items()):
         if "TPS2121" not in rec.get("value", "") or not _fitted(rec):
             continue
         pins = pins_by_ref.get(ref, {})
         for pin, label in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
             rail = pins.get(pin)
-            candidates = caps_by_rail.get(rail, [])
-            verified = [cap for cap in candidates if _cap_selected_and_verified(cap)[0]]
-            if not verified:
-                detail = "no rail-to-GND capacitor" if not candidates else "no verified X5R/X7R selection"
-                findings.append(_finding(
-                    board, "BLOCKER", "TPS2121_BYPASS_NODE",
-                    f"{label} pin {pin} on {rail!r} has {detail}; the datasheet calls for "
-                    "close X5R/X7R bypassing on IN1, IN2, and OUT",
-                    ref,
-                ))
+            tps_requirements.append({"ref": ref, "pin": pin, "label": label, "rail": rail})
+    tps_used = set()
+    tps_assigned = {}
+    for req in sorted(tps_requirements, key=lambda item: (item["rail"] or "", item["ref"], item["pin"])):
+        candidates = sorted(caps_by_rail.get(req["rail"], []), key=lambda cap: cap["ref"])
+        verified = [cap for cap in candidates
+                    if cap["ref"] not in tps_used and _cap_selected_and_verified(cap)[0]]
+        if verified:
+            cap = verified[0]
+            tps_assigned[(req["ref"], req["pin"])] = cap
+            tps_used.add(cap["ref"])
+            continue
+        detail = "no rail-to-GND capacitor" if not candidates else "no unassigned verified X5R/X7R selection"
+        findings.append(_finding(
+            board, "BLOCKER", "TPS2121_BYPASS_NODE",
+            f"{req['label']} pin {req['pin']} on {req['rail']!r} has {detail}; "
+            "the datasheet calls for close X5R/X7R bypassing on IN1, IN2, and OUT",
+            req["ref"],
+        ))
+    if tps_requirements and len(tps_assigned) == len(tps_requirements):
+        findings.append(_finding(
+            board, "INFO", "TPS2121_BYPASS_COVERAGE",
+            f"{len(tps_assigned)} TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; "
+            "PCB placement proximity remains independently gated",
+        ))
 
     unresolved = []
     for ref, rec in sorted(inventory.items()):
@@ -778,6 +884,101 @@ def check_topology(board, root_sch, inventory, pins_by_ref):
                     f"OUT pins 1/8 differ: {pins.get('1')!r} vs {pins.get('8')!r}", ref))
             _require_distinct(findings, board, ref, pins, "1", "2", "OUT vs IN2")
             _require_distinct(findings, board, ref, pins, "1", "7", "OUT vs IN1")
+
+        elif "TLV62569" in value:
+            _check_named_pin_table(
+                findings, board, ref, root_sch, rec, symbol_cache,
+                TLV62569_PIN_NAMES, "selected TLV62569 symbol",
+            )
+            _require_pin(findings, board, ref, pins, "2", _gnd, "GND")
+            _require_connected(findings, board, ref, pins, "1", "3", "4", "5")
+            _require_distinct(findings, board, ref, pins, "3", "4", "SW vs VIN")
+            _require_distinct(findings, board, ref, pins, "3", "5", "SW vs FB")
+            if pins.get("1") != pins.get("4"):
+                findings.append(_finding(
+                    board, "BLOCKER", "BUCK_ENABLE_SOURCE",
+                    f"EN pin 1 is {pins.get('1')!r}, not the selected VIN net "
+                    f"{pins.get('4')!r}", ref))
+
+            sw_net = pins.get("3")
+            fb_net = pins.get("5")
+            output_net = None
+            inductors = []
+            for lref, lrec in inventory.items():
+                if not lref.startswith("L") or not _fitted(lrec):
+                    continue
+                lpins = pins_by_ref.get(lref, {})
+                if sw_net not in lpins.values():
+                    continue
+                other = [net for net in lpins.values() if net != sw_net]
+                if len(other) == 1:
+                    inductors.append((lref, lrec, other[0]))
+            if len(inductors) != 1:
+                findings.append(_finding(
+                    board, "BLOCKER", "BUCK_INDUCTOR_TOPOLOGY",
+                    f"SW net {sw_net!r} has {len(inductors)} fitted series-inductor candidates; expected one",
+                    ref))
+            else:
+                lref, lrec, output_net = inductors[0]
+                if lrec.get("props", {}).get("MPN") != "VLS252010HBX-2R2M-1":
+                    findings.append(_finding(
+                        board, "BLOCKER", "BUCK_INDUCTOR_SELECTION",
+                        f"{lref} is not the reviewed VLS252010HBX-2R2M-1 2.2 uH part",
+                        ref))
+
+            top = bottom = None
+            for rref, rrec in inventory.items():
+                if not rref.startswith("R") or not _fitted(rrec):
+                    continue
+                rpins = pins_by_ref.get(rref, {})
+                if fb_net not in rpins.values():
+                    continue
+                other = [net for net in rpins.values() if net != fb_net]
+                if len(other) != 1:
+                    continue
+                record = (rref, rrec, cec_spice_sanity._r_ohms(rrec["value"]))
+                if output_net is not None and other[0] == output_net:
+                    top = record
+                elif _gnd(other[0]):
+                    bottom = record
+            expected_top = 453e3 if board == "hub-standard-rev2" else 560e3
+            if not top or not bottom:
+                findings.append(_finding(
+                    board, "BLOCKER", "BUCK_FEEDBACK_TOPOLOGY",
+                    "feedback divider is not proven from buck output through FB to GND",
+                    ref))
+            elif not (math.isclose(top[2] or 0.0, expected_top, rel_tol=1e-9) and
+                      math.isclose(bottom[2] or 0.0, 100e3, rel_tol=1e-9)):
+                findings.append(_finding(
+                    board, "BLOCKER", "BUCK_FEEDBACK_VALUE",
+                    f"reviewed divider is {expected_top/1e3:g}k/100k; CAD has "
+                    f"{top[0]}={top[2]} and {bottom[0]}={bottom[2]} ohm",
+                    ref))
+            elif output_net is not None:
+                nominal = 0.6 * (1.0 + top[2] / bottom[2])
+                findings.append(_finding(
+                    board, "INFO", "BUCK_OUTPUT_SETPOINT",
+                    f"CAD proves {top[0]}/{bottom[0]} feedback divider; nominal output is "
+                    f"{nominal:.3f} V on {output_net}", ref))
+
+        elif "TLV75533" in value:
+            _check_named_pin_table(
+                findings, board, ref, root_sch, rec, symbol_cache,
+                TLV75533_PIN_NAMES, "selected TLV75533 symbol",
+            )
+            _require_pin(findings, board, ref, pins, "2", _gnd, "GND")
+            _require_pin(findings, board, ref, pins, "1", _connected_non_ground,
+                         "connected non-ground input supply")
+            _require_pin(findings, board, ref, pins, "5", _power, "regulated output")
+            _require_connected(findings, board, ref, pins, "3")
+            _require_distinct(findings, board, ref, pins, "1", "5", "LDO input/output")
+            if pins.get("1") != pins.get("3"):
+                findings.append(_finding(
+                    board, "BLOCKER", "LDO_ENABLE_SOURCE",
+                    f"EN pin 3 is {pins.get('3')!r}, not input net {pins.get('1')!r}", ref))
+            if not _nc(pins.get("4")):
+                findings.append(_finding(
+                    board, "BLOCKER", "PIN_ROLE", f"NC pin 4 is tied to {pins.get('4')!r}", ref))
 
         elif "TLV7011" in value:
             _require_pin(findings, board, ref, pins, "2", _gnd, "GND")
@@ -1076,9 +1277,157 @@ def _check_tps2121_ovp(board, inventory, pins_by_ref):
     return findings
 
 
+def _check_hub_holdup(board, inventory, pins_by_ref):
+    """Prove source-loss detection is upstream of the isolated reservoir.
+
+    This check is intentionally reference-specific because these nets form one
+    ratified safety/persistence cell.  A value-only search could accept a
+    second, unrelated divider or a reservoir on the wrong side of D1.
+    """
+    if board != "hub-standard-rev2":
+        return []
+    findings = []
+
+    def blocker(ref, message):
+        findings.append(_finding(
+            board, "BLOCKER", "HOLDUP_SOURCE_DROPOUT_TOPOLOGY", message, ref))
+
+    def fitted(ref):
+        rec = inventory.get(ref)
+        return bool(rec and rec.get("on_board") and not rec.get("dnp"))
+
+    def require_pins(ref, expected):
+        actual = pins_by_ref.get(ref, {})
+        for pin, net in expected.items():
+            if actual.get(pin) != net:
+                blocker(ref, f"pin {pin} is {actual.get(pin)!r}, expected {net!r}")
+
+    c1 = inventory.get("C1")
+    c1_props = (c1 or {}).get("props", {})
+    if (not fitted("C1") or capacitance_f((c1 or {}).get("value", "")) != 4700e-6 or
+            c1_props.get("LCSC") != "C487318" or
+            c1_props.get("MPN") != "VKMI2101C472MV" or
+            c1_props.get("Manufacturer") != "Ymin"):
+        blocker("C1", "requires fitted Ymin VKMI2101C472MV / C487318, 4700uF +/-20%")
+    require_pins("C1", {"1": "/+5V_HOLD", "2": "GND"})
+
+    d1 = inventory.get("D1")
+    d1_props = (d1 or {}).get("props", {})
+    if (not fitted("D1") or d1_props.get("LCSC") != "C2480" or
+            d1_props.get("MPN") != "SS14"):
+        blocker("D1", "requires fitted MDD SS14 / C2480 hold-up isolation diode")
+    # KiCad diode convention: pin 1 = cathode, pin 2 = anode.
+    require_pins("D1", {"1": "/+5V_HOLD", "2": "+5VSB"})
+
+    if not fitted("RJ_HOLD"):
+        blocker("RJ_HOLD", "default hold-up jumper must be fitted")
+    require_pins("RJ_HOLD", {"1": "/+5V_HOLD", "2": "/LOGIC_REG_IN"})
+    rj_buck = inventory.get("RJ_BUCK")
+    if not rj_buck or not rj_buck.get("dnp") or rj_buck.get("in_bom"):
+        blocker("RJ_BUCK", "alternate pre-regulator jumper must remain DNP and excluded from BOM")
+    require_pins("U3", {"1": "/LOGIC_REG_IN", "4": "/LOGIC_REG_IN"})
+
+    require_pins("R12", {"1": "+5VSB", "2": "/BLACKOUT_SENSE"})
+    require_pins("R13", {"1": "/BLACKOUT_SENSE", "2": "GND"})
+    require_pins("C12", {"1": "/BLACKOUT_SENSE", "2": "GND"})
+    require_pins("U1", {"12": "/BLACKOUT_SENSE", "22": "/PWR_FAIL_INT"})
+    require_pins("U8", {
+        "1": "/PWR_FAIL_INT", "2": "GND", "3": "/BLACKOUT_SENSE",
+        "4": "/COMP_THRESH", "5": "+3V3",
+    })
+    require_pins("R26", {"1": "+3V3", "2": "/COMP_THRESH"})
+    require_pins("R27", {"1": "/COMP_THRESH", "2": "GND"})
+    require_pins("R28", {"1": "/PWR_FAIL_INT", "2": "/COMP_THRESH"})
+    require_pins("U4", {"1": "GND", "2": "/EN", "3": "+3V3"})
+
+    reviewed = {
+        "R12": (47e3, "0402WGF4702TCE"),
+        "R13": (27e3, "0402WGF2702TCE"),
+        "R26": (11e3, "RC0402FR-0711KL"),
+        "R27": (10e3, "0402WGF1002TCE"),
+        "R28": (1e6, "0402WGF1004TCE"),
+    }
+    for ref, (expected_ohms, expected_mpn) in reviewed.items():
+        rec = inventory.get(ref) or {}
+        actual_ohms = cec_spice_sanity._r_ohms(rec.get("value", ""))
+        if (not fitted(ref) or not math.isclose(actual_ohms or 0.0, expected_ohms,
+                                                rel_tol=1e-9) or
+                rec.get("props", {}).get("MPN") != expected_mpn):
+            blocker(ref, f"reviewed source-dropout value/selection is {expected_ohms:g} ohm, {expected_mpn}")
+    if (not fitted("C12") or
+            not math.isclose(capacitance_f(inventory["C12"]["value"]) or 0.0,
+                             10e-9, rel_tol=1e-9)):
+        blocker("C12", "BLACKOUT_SENSE filter must be fitted 10nF")
+
+    calculation = cec_hub_holdup.model()
+    if calculation["sudden_loss_margin_ms"] <= 0:
+        blocker("C1", "minimum-capacitance sudden-loss model does not clear the firmware budget")
+    if calculation["trip_to_regulation_headroom_min_V"] <= 0:
+        blocker("U8", "worst-low source trip does not precede the reviewed buck regulation floor")
+
+    if not any(f["severity"] == "BLOCKER" for f in findings):
+        findings.append(_finding(
+            board, "INFO", "HOLDUP_SOURCE_DROPOUT_ORDER",
+            f"U8 watches final selected +5VSB ahead of D1 and asserts PWR_FAIL_INT; "
+            f"nominal trip {calculation['trip_nominal_V']:.3f} V, bounded "
+            f"{calculation['trip_min_V']:.3f}..{calculation['trip_max_V']:.3f} V, "
+            f"at least {calculation['trip_to_regulation_headroom_min_V'] * 1e3:.0f} mV "
+            "ahead of the reviewed buck regulation floor"))
+        findings.append(_finding(
+            board, "INFO", "HOLDUP_SUDDEN_LOSS_BUDGET",
+            f"C1 minimum 3760uF, 4.15V conservative reservoir start, 3.45V "
+            f"regulation floor, 85% conversion and {cec_hub_holdup.HUB_LOAD_A * 1e3:.3f}mA "
+            f"load produce {calculation['sudden_loss_hold_ms']:.2f}ms; the 10ms "
+            f"trigger-to-durable-commit budget retains {calculation['sudden_loss_margin_ms']:.2f}ms"))
+        findings.append(_finding(
+            board, "WARN", "HOLDUP_BENCH_OPEN",
+            "topology and bounded paper model pass, but OQ-56 still must measure slow-brownout behavior, capacitor ESR/aging/temperature, source decay, load shed, and durable-commit latency"))
+    return findings
+
+
 def check_board_specific(board, inventory, pins_by_ref):
     findings = []
     findings += _check_tps2121_ovp(board, inventory, pins_by_ref)
+    findings += _check_hub_holdup(board, inventory, pins_by_ref)
+    regulator_contracts = {
+        # Loads already include the engineering 20% design margin.
+        "12vhpwr-standard": {
+            "load_A": 0.233591, "capacity_A": 0.500,
+            "post_ldo": True,
+        },
+        "hub-standard-rev2": {
+            # Conservative source capacity is the selected inductor's 1.76 A
+            # thermal current rating, below the TLV62569's 2 A IC rating.
+            "load_A": 0.215386, "capacity_A": 1.760,
+            "post_ldo": False,
+        },
+    }
+    contract = regulator_contracts.get(board)
+    if contract:
+        bucks = [ref for ref, rec in inventory.items()
+                 if "TLV62569" in rec.get("value", "") and _fitted(rec)]
+        post_ldos = [ref for ref, rec in inventory.items()
+                     if "TLV75533" in rec.get("value", "") and _fitted(rec)]
+        legacy = [ref for ref, rec in inventory.items()
+                  if "LP5907" in rec.get("value", "") and _fitted(rec)]
+        if len(bucks) != 1 or bool(post_ldos) != contract["post_ldo"] or legacy:
+            findings.append(_finding(
+                board, "BLOCKER", "REGULATOR_ARCHITECTURE",
+                f"expected one TLV62569, post-LDO={contract['post_ldo']}, and no LP5907; "
+                f"found bucks={bucks}, post-LDOs={post_ldos}, legacy={legacy}"))
+        elif contract["post_ldo"] and len(post_ldos) != 1:
+            findings.append(_finding(
+                board, "BLOCKER", "REGULATOR_ARCHITECTURE",
+                f"expected exactly one TLV75533 post-LDO; found {post_ldos}"))
+        else:
+            load = contract["load_A"]
+            capacity = contract["capacity_A"]
+            findings.append(_finding(
+                board, "INFO", "REGULATOR_LOAD_MARGIN",
+                f"reviewed worst-case rail load including 20% margin is {load * 1e3:.3f} mA; "
+                f"conservative source capacity is {capacity * 1e3:.0f} mA "
+                f"({(capacity - load) / capacity * 100:.1f}% remaining)"))
+
     if board == "hub-standard-rev2":
         l2 = inventory.get("L2")
         if not l2 or not l2["dnp"] or l2["in_bom"]:
@@ -1118,6 +1467,34 @@ def check_board_specific(board, inventory, pins_by_ref):
             findings.append(_finding(
                 board, "INFO", "HUB_SOURCE_PRIORITY",
                 "CAD proves MAIN_5V > 5VSB > USB > KVM fixed priority with CP2 low on all three TPS2121 stages",
+            ))
+
+        mux_bypass_contract = {
+            # One capacitor per physical mux power pin.  C24/C25 and C26/C28
+            # intentionally duplicate shared electrical rails because the PCB
+            # must place one local part at each different TPS2121 package.
+            "C9": "/5VSB_RAW", "C10": "/USB_VBUS", "C24": "/PSU_5V",
+            "C25": "/PSU_5V", "C22": "/KVM_5V_IN", "C26": "/PSU_5V_KVM",
+            "C27": "/MAIN_5V_RAW", "C28": "/PSU_5V_KVM", "C15": "+5VSB",
+        }
+        mux_caps_ok = True
+        for cap_ref, rail in mux_bypass_contract.items():
+            rec = inventory.get(cap_ref, {})
+            cap_pins = pins_by_ref.get(cap_ref, {})
+            cap = next((item for item in _rail_capacitors(inventory, pins_by_ref)
+                        if item["ref"] == cap_ref), None)
+            selected = bool(cap and _cap_selected_and_verified(cap)[0])
+            if (not _fitted(rec) or set(cap_pins.values()) != {rail, "GND"} or not selected):
+                mux_caps_ok = False
+                findings.append(_finding(
+                    board, "BLOCKER", "HUB_TPS2121_LOCAL_BYPASS",
+                    f"expected fitted exact X5R/X7R capacitor from {rail} to GND for the reviewed mux-pin assignment",
+                    cap_ref,
+                ))
+        if mux_caps_ok:
+            findings.append(_finding(
+                board, "INFO", "HUB_TPS2121_LOCAL_BYPASS",
+                "all nine U5/U11/U7 IN1, IN2, and OUT pins have explicit one-per-pin exact ceramic selections; placement distance is gated after regeneration",
             ))
 
     if board == "eps-8pin-rev3":

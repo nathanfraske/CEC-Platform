@@ -1121,7 +1121,7 @@ if __name__ == "__main__":
     BOARDS = [
         ("/tmp/fr-test/b_routed.kicad_pcb", "routed"),
         ("/tmp/fr-test/b.kicad_pcb",         "unrouted"),
-        ("/home/user/CEC-Platform/beta/eps-8pin/eps8pin-module.kicad_pcb",
+        (os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb"),
          "floorplan"),
     ]
 

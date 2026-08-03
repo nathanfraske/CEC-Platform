@@ -263,6 +263,21 @@ def _reference_intake():
     return cec_constraints.intake_gate(board, ctx={"sch": schematic})
 
 
+def _reference_freshness():
+    """Require the materialization oracle to match the current Hub netlist exactly."""
+    import cec_fresh_wave
+
+    board = os.path.join(S.ROOT, REF)
+    want = cec_fresh_wave._netlist_refs("hub-standard-rev2")  # noqa: SLF001
+    match = cec_fresh_wave._schematic_match(board, want)      # noqa: SLF001
+    return {
+        "match": match,
+        "exact": match is not None and abs(match - 1.0) <= 1e-9,
+        "schematic_parts": len(want) if want else None,
+        "board": REF,
+    }
+
+
 def _route_iteration_timeout(remaining_s, max_iters, reserve_s=30):
     """Bound each parallel seed batch so all planned iterations fit the run window."""
     usable = float(remaining_s) - float(reserve_s)
@@ -308,6 +323,25 @@ def main():
     report = {"board": a.board, "hours": a.hours, "seats": sel, "stages": [],
               "placements": [], "routes": [], "policy_ok": None, "ref_intake": None}
     log("=== FULL HUB PIPELINE (place -> route -> check), budget %.2f h ===" % a.hours)
+
+    # The runner copies the candidate's footprint inventory before moving the
+    # synthesized placement. A stale candidate would silently omit newly added
+    # parts (for example the current buck L1/divider) and preserve old pin nets.
+    # Refuse before spending placement/routing compute; the next exact candidate
+    # must be generated from the authoritative current schematic first.
+    try:
+        report["reference_freshness"] = _reference_freshness()
+    except Exception as e:
+        report["reference_freshness"] = {
+            "exact": False, "error": "%s: %s" % (type(e).__name__, e)}
+    if not report["reference_freshness"].get("exact"):
+        log("REFERENCE: STALE/UNKNOWN against current schematic -> refuse before placement (%s)"
+            % report["reference_freshness"])
+        report["elapsed_s"] = round(time.time() - t0, 1)
+        with open(os.path.join(a.out, "report.json"), "w", encoding="utf-8") as out_file:
+            json.dump(report, out_file, indent=2, default=str)
+        return 2
+    log("REFERENCE: exact current-schematic signature match")
 
     # ---- run-start guards: policy loadability (DF-05/07 anti-ratchet) + REF schematic intake ----
     try:

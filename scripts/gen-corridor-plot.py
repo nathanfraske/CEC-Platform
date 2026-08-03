@@ -15,7 +15,7 @@ import cec_synth_pipeline as sp
 import cec_pcb
 import pcbnew
 
-EPS = "beta/eps-8pin/eps8pin-module.kicad_pcb"
+EPS = "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_pcb"
 OUT = "build/corridor-plots"
 
 

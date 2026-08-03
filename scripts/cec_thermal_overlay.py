@@ -177,8 +177,9 @@ def board_thermal_config(board_path, board_hint=None):
     if "hub-standard" in name or "hub" in name.split("-")[0:1]:
         # The Hub has no J_IN/J_OUT or *_HI cable anatomy, so it needs an
         # explicit source/sink map. Currents remain the existing §2.5/OQ-2
-        # design basis: about 3 A on the shared path, 0.5 A per protected port,
-        # 2 A on MAIN_5V, and 0.5 A on USB VBUS. The map below follows the
+        # design basis: 2.5 A on every mutually-exclusive shared-bus stage,
+        # 0.5 A per protected port and on the held logic reservoir, and 0.5 A
+        # on USB VBUS. The map below follows the
         # exported rev2 netlist's actual cascade:
         #
         #   U5 OUT -> U11 IN1 -> U11 OUT -> U7 IN2 -> U7 OUT
@@ -187,11 +188,11 @@ def board_thermal_config(board_path, board_hint=None):
         # Stackup comes only from the approved fabrication profile. For the
         # Hub that is JLC06161H-3313: 1 oz outer and 0.5 oz inner copper.
         # cooling=None keeps the still-air bound until the enclosure is known.
-        nc = {"+5VSB": 3.0, "/5VSB_RAW": 3.0, "/PSU_5V": 3.0,
-              "/PSU_5V_KVM": 3.0,
-              "/MAIN_5V_RAW": 2.0, "/+5V_HOLD": 1.0, "/USB_VBUS": 0.5,
+        nc = {"+5VSB": 2.5, "/5VSB_RAW": 2.5, "/PSU_5V": 2.5,
+              "/PSU_5V_KVM": 2.5,
+              "/MAIN_5V_RAW": 2.5, "/+5V_HOLD": 0.5, "/USB_VBUS": 0.5,
               "/VCC_P1": 0.5, "/VCC_P2": 0.5, "/VCC_P3": 0.5, "/VCC_P4": 0.5,
-              "GND": 3.0}
+              "GND": 2.5}
         # rev2 anatomy: the A4 consolidation makes J_PWR the ONE 3-pin power-in
         # (MAIN_5V / GND / 5VSB) -- there is no J1/J_5V on this board (measured
         # 2026-07-23; the first entry draft used the alpha names and every net

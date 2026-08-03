@@ -24,6 +24,8 @@
 # ============================================================================
 import fnmatch, json, os, re
 
+import cec_beta_manifest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPILED_ROOT = os.path.join(ROOT, "build", "corpus-compiled")
 
@@ -41,7 +43,32 @@ def board_catalog():
     # KEEPS its side family (hub/module -- corpus scoping depends on it; name prefix
     # decides) and additionally carries "beta" (additive: families_match is
     # intersection-based, so extra families only widen legitimate scoping).
-    for side, fam in (("beta", None), ("hubs", "hub"), ("modules", "module")):
+    product_names = {
+        "hub-standard-rev2": "hub-standard",
+        "eps-8pin-rev3": "eps-8pin",
+    }
+    for project in cec_beta_manifest.PROJECTS:
+        # The corpus compiler models product families, not nested mechanical
+        # daughterboards.  Preserve its historic product names while binding
+        # them to the one manifest-declared current revision on disk.
+        if "/" in project["board"]:
+            continue
+        revision_name = project["board"]
+        name = product_names.get(revision_name, revision_name)
+        bdir = os.path.join(ROOT, "beta", project["directory"])
+        f0 = "hub" if os.path.basename(name).startswith("hub") else "module"
+        pcb = (os.path.join(bdir, project["pcb"])
+               if project["pcb"] and os.path.isfile(os.path.join(bdir, project["pcb"]))
+               else None)
+        out.append({
+            "name": name,
+            "dir": bdir,
+            "pcb": pcb,
+            "sch": os.path.join(bdir, project["schematic"]),
+            "families": [f0, name, revision_name, "beta"],
+        })
+
+    for side, fam in (("hubs", "hub"), ("modules", "module")):
         base = os.path.join(ROOT, side)
         if not os.path.isdir(base):
             continue
@@ -98,10 +125,20 @@ def board_facts(board):
         libids = sorted(set(_FP.findall(text)))
         refs = sorted(set(_REF.findall(text)))
     elif board.get("sch") and os.path.isfile(board["sch"]):
-        with open(board["sch"], encoding="utf-8", errors="replace") as f:
-            text = f.read()
-        libids = sorted(set(_SCH_LIBID.findall(text)))
-        refs = sorted(set(_REF.findall(text)))
+        # Root-only regexes return an empty inventory for the current thin
+        # hierarchy parents.  Use the hierarchy-aware inventory gate so scope
+        # resolution sees the real leaf symbols and never falls back to an
+        # archived flat schematic.
+        try:
+            import cec_sch_gates
+            inv = cec_sch_gates.inventory(board["sch"])
+            refs = sorted(inv)
+            libids = sorted({row["lib_id"] for row in inv.values()})
+        except Exception:  # noqa: BLE001 -- keep catalog reads fail-soft
+            with open(board["sch"], encoding="utf-8", errors="replace") as f:
+                text = f.read()
+            libids = sorted(set(_SCH_LIBID.findall(text)))
+            refs = sorted(set(_REF.findall(text)))
     # board-manifest net ALIASES (owner ruling #11, 2026-06-10): a fixed-in-
     # stone rev whose net names predate a platform convention declares the
     # role mapping in board-manifest.json; alias names join the matchable set

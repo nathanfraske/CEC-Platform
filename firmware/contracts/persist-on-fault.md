@@ -5,46 +5,42 @@ Spec basis: §2.9 (subsystem power management, persist-on-fault),
 IO14, H2 hold-up ladder, G3 budget), OQ-56 (bench verification), OQ-85 / SB-07
 (firmware-contract set).
 
-**Status: STARTED 2026-07-15 (owner direction).** The numbers below are
-SPICE-SIMULATED (not bench-measured) and are the numbers of record *right now*;
-bench testing (OQ-56) may move them, and a re-test/re-sim updates the table, the
-Kconfig default, and (owner pen) spec §L together. The **write budget is the
+**Status: UPDATED 2026-08-02 for the current BETA buck and selected-rail
+dropout detector.** The hardware trigger now observes the final selected
+`+5VSB` rail ahead of D1 and C1, rather than waiting for regulator dropout.
+The conservative sudden-loss bound below is calculated, not bench-measured;
+OQ-56 may move it. A re-test/re-model updates this file, the Kconfig default,
+and (owner pen) spec §L together. The **trigger-to-durable-commit budget is the
 binding term** until the owner re-ratifies it.
 The location of this file (`firmware/contracts/`) is provisional under OQ-85 /
 SB-07 ("where firmware contracts are authored and versioned" is an open
 decision) — the content binds regardless of where the file ends up.
 
-## Simulated ride-through (owner SPICE run, 2026-07-15)
+## Current-BETA bounded sudden-loss model (2026-08-02)
 
-Hub Standard hold-up C1 (4700 µF, Samxon/Ymin VKMI2101C472MV, LDO-fed,
-D1-Schottky-isolated reservoir), 5V-loss to unusable-rail, no load shed —
-**provenance: SPICE simulation, not bench measurement**:
+The current Hub Standard uses Ymin VKMI2101C472MV C1 (4700 µF nominal,
+3760 µF at -20% tolerance), MDD SS14 D1, and a TLV62569 buck feeding the
+reviewed 3.3 V load. With the 215.386 mA worst-case load including 20% design
+margin, 4.15 V conservative reservoir start, 3.45 V reviewed regulation floor,
+and 85% conversion floor, the energy model gives **11.96 ms** to the regulation
+floor. A **10.00 ms** end-to-end budget therefore retains **1.96 ms** model
+margin before any load shed.
 
-| Hub load          | SPICE ride-through |
-|-------------------|--------------------|
-| 80 mA (base)      | ~26 ms             |
-| 120 mA (typical)  | ~23 ms             |
-| 240 mA (worst case) | ~16 ms           |
-
-These simulated windows supersede the §L back-of-envelope *estimates* ("~25 ms
-full-tilt (150 mA) / 36 ms nominal / 65–75 ms after the load-shed ISR
-(70–85 mA)") and the G3 rough budget (≈60 ms @ ~100 mA) as the numbers of
-record. At comparable low/typical loads the simulated window is roughly a third
-of the estimated one (26 ms @ 80 mA vs 65–75 ms @ 70–85 mA estimated), which is
-why the write budget below is far tighter than §L implied. They are NOT a bench
-result: OQ-56's bench verification remains fully open and includes validating
-this SPICE decay model on real hardware. Folding the simulated numbers into the
-spec's §L row is an owner-pen spec edit (queued in `firmware/FOLLOWUPS.md`).
+The earlier 2026-07-15 16–26 ms SPICE table described the pre-buck assumptions
+and remains historical evidence only; it is not the acceptance bound for this
+current-BETA topology. Neither calculation is a bench result. OQ-56 must cover
+fast loss and slow brownout, the actual source decay, C1 ESR/capacitance across
+temperature and aging, real load shedding, and durable flash completion.
 
 ## Contract terms (binding on the Hub persist implementation)
 
-1. **Write budget — ≤ 15 ms of flash programming at typical load.** On the
-   power-fail trigger (beta Hub: TLV7011 5V-drop comparator → RTC-wake GPIO
-   IO14, §L/H1) the persist path completes *all* flash writes within
-   `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS` (default **15**, component `cec_nvs`).
-   15 ms is deliberately chosen *below the 16 ms worst-case simulated window*,
-   so the gasp that meets budget at typical load (≥ 8 ms slack at 23–26 ms)
-   also survives the 240 mA worst case even before load shed helps.
+1. **End-to-end budget — ≤ 10 ms from hardware trigger to durable commit.** On
+   the TLV7011 selected-`+5VSB` dropout interrupt at IO14, the persist path
+   completes ISR entry, load shedding, flash programming, the commit/index
+   record, and durable-completion acknowledgement within
+   `CONFIG_CEC_PERSIST_WRITE_BUDGET_MS` (default **10**, component `cec_nvs`).
+   The legacy option name is retained for configuration compatibility, but its
+   contract meaning is the complete trigger-to-durable interval.
 2. **No bulk dump.** The gasp writes ONLY the RAM tail + a commit/index record
    (a few KB at most). All history (events, frozen windows, counters) reaches
    flash during normal operation via **continuous background commits** — the
@@ -71,13 +67,13 @@ spec's §L row is an owner-pen spec edit (queued in `firmware/FOLLOWUPS.md`).
    the Kconfig default, the table above, and (owner pen) spec §L in the same
    change. Firmware must take the value from Kconfig, never re-hardcode it.
 
-## Feasibility inside 15 ms (to confirm on the bench, OQ-56 remainder)
+## Feasibility inside 10 ms (to confirm on the bench, OQ-56 remainder)
 
 ESP32-S3-WROOM quad-NOR page program (256 B) is ~0.3–0.7 ms through
-`esp_flash`, so 15 ms covers roughly 3–6 KB of programming plus ISR latency and
-one task hop. The contract payload (term 2: tail + index, ≤ ~2 KB nominal)
-therefore carries ~2× internal headroom *inside* the budget, which itself has
-8–11 ms of simulated slack at typical load. Still owed by OQ-56 on the bench:
+`esp_flash`; the contract payload (term 2: tail + index, ≤ ~2 KB nominal) is
+therefore plausible inside 10 ms only when the region is already erased and
+the path is tightly bounded. There is no claimed timing margin until measured.
+Still owed by OQ-56 on the bench:
 the hold-up decay itself (validate the SPICE table above on real hardware),
 ISR-entry-to-first-write latency, real WROOM flash throughput under our cache
 config, and the PSU-side 5VSB decay shape.
@@ -89,8 +85,8 @@ Owner (PSU-tester thread, recording verbatim intent): *"5VSB + 5V_PSU +
 standard, and we're planning supercaps in the Pro and Max modules that
 would give us tens of seconds."*
 
-- **Standard tier**: this contract as written — the ~25 ms-class window
-  (16–26 ms SPICE table) forces the ≤15 ms program-only gasp. Nothing here
+- **Standard tier**: this contract as written — the current 11.96 ms
+  conservative sudden-loss bound forces the ≤10 ms program-only gasp. Nothing here
   relaxes.
 - **Pro and Max (PLANNED, not yet on any board):** supercap hold-up with a
   **tens-of-seconds** window flips the persist class entirely — from

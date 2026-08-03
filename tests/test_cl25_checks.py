@@ -27,9 +27,11 @@ except ImportError:
     HAVE_PCBNEW = False
     K = None
 
-EPS = os.path.join(ROOT, "beta", "eps-8pin", "eps8pin-module.kicad_pcb")
+EPS = os.path.join(ROOT, "old-revisions", "beta", "eps-8pin-pre-rev3",
+                   "eps8pin-module.kicad_pcb")
 HPWR = os.path.join(ROOT, "beta", "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb")
-HUB = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb")
+HUB = os.path.join(ROOT, "old-revisions", "hubs", "hub-standard-alpha",
+                   "hub-standard.kicad_pcb")
 HUB_BETA = os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
                         "hub-standard-rev2-candidate.kicad_pcb")
 
@@ -125,7 +127,8 @@ class TestCheckPack(unittest.TestCase):
         ok, detail = K.CHECKERS["sch-pcb-sync"](board, eps, {})[:2]
         self.assertTrue(ok, detail)
         # cross-wire: the EPS board against the Hub schematic must FAIL (desync class)
-        hub_sch = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_sch")
+        hub_sch = os.path.join(ROOT, "beta", "hub-standard-rev2",
+                               "hub-standard-rev2.kicad_sch")
         ok2, detail2 = K.CHECKERS["sch-pcb-sync"](board, eps, {"sch": hub_sch})[:2]
         self.assertFalse(ok2, detail2)
 
@@ -145,8 +148,11 @@ class TestCheckPack(unittest.TestCase):
         board = pcbnew.LoadBoard(HUB_BETA)
         ok, detail = K.CHECKERS["sch-pcb-sync"](board, HUB_BETA, {})[:2]
         self.assertFalse(ok, detail)
-        self.assertIn("0.974", detail)
-        self.assertIn("U5(pad nets)", detail)
+        # The current direct-buck schematic adds these three physical parts;
+        # the routed candidate must remain rejected until it is regenerated.
+        self.assertIn("L1", detail)
+        self.assertIn("R39", detail)
+        self.assertIn("R40", detail)
 
     def test_detect_resistor_hub_vs_module(self):
         hub = pcbnew.LoadBoard(HUB)
@@ -195,7 +201,8 @@ class TestIntakeGate(unittest.TestCase):
     def test_refusal_carries_named_reasons(self):
         """A board failing the schematic-side subset is refused WITH named reasons
         (cross-wired sch => sync FAIL => refusal)."""
-        hub_sch = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_sch")
+        hub_sch = os.path.join(ROOT, "beta", "hub-standard-rev2",
+                               "hub-standard-rev2.kicad_sch")
         g = K.intake_gate(EPS, ctx={"sch": hub_sch})
         self.assertFalse(g["ok"])
         self.assertTrue(any("sch-pcb-sync" in r for r in g["reasons"]), g["reasons"])

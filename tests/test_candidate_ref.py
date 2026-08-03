@@ -160,6 +160,15 @@ class CandidateRefTest(unittest.TestCase):
         self.assertIsNotNone(self._publish("w3", (1, 1)))    # better score, same freshness
         self.assertIn("w3", self._body())
 
+    def test_status_refresh_marks_candidate_stale_after_schematic_change(self):
+        self._publish("w1", (1, 1))
+        self._fake_refs({"U1", "L1"}, {"candidate": {"U1"}})
+        meta = w.refresh_candidate_metadata(self.board)
+        self.assertEqual(meta["schematic_match"], 0.5)
+        self.assertFalse(meta["schematic_exact"])
+        self.assertEqual(meta["schematic_status"], "stale")
+        self.assertIn("freshness_checked", meta)
+
     def test_same_reference_with_changed_footprint_is_stale(self):
         want = {
             "C50": ("2u2", "C_0603_1608Metric", (("1", "/SS"), ("2", "GND"))),

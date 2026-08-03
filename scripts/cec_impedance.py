@@ -8,8 +8,10 @@ impedance + Kelvin loop-area + crosstalk parallel-run advisories. Pure CPU, inst
 Rung 1 of the solver roadmap (docs/pipeline-solver-roadmap.md):
   * Z0 / Zdiff -- Hammerstad-Jensen microstrip + the classic edge-coupled
     approximation Zdiff ~= 2*Z0*(1 - 0.48*exp(-0.96*s/h)), evaluated against the
-    COMMITTED stackup (outer signal = microstrip over the In1 plane: h=0.2mm FR4
-    er=4.5, t=0.07mm 2oz -- gen-module-pcb.stackup()). Validates the hand-picked
+    board's DECLARED fabrication profile (outer signal over its adjacent ground
+    plane, with the selected vendor dielectric and finished copper thickness).
+    The old four-layer constants remain only as an explicitly labelled legacy
+    fallback for boards which have not selected a profile. Validates hand-picked
     netclass width/gap constants nobody ever checked against the stackup.
     Closed-form accuracy is ~1% (HJ) / ~10% (the coupled term) -- an ADVISORY,
     the exact answer is the roadmap's 2D electrostatic field solver.
@@ -29,14 +31,63 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import cec_fab_profile as cec_fab
+
 MM = 1_000_000
 
-# committed stackup (gen-module-pcb.stackup): outer Cu over dielectric-1 to In1 plane
-STACKUP = {"h_mm": 0.2, "er": 4.5, "t_mm": 0.07}
+# Historical four-layer stackup. Never use this silently for a current BETA board.
+LEGACY_STACKUP = {"h_mm": 0.2, "er": 4.5, "t_mm": 0.07}
+# Compatibility alias for callers which explicitly request the historical model.
+STACKUP = LEGACY_STACKUP
 
 # impedance-class targets (spec-side: USB FS 90R diff; CAN/RS-485 120R; ENT T1 100R)
 TARGETS = {"USB": ("diff", 90.0), "CAN": ("diff", 120.0),
            "RS485": ("diff", 120.0), "T1": ("diff", 100.0)}
+
+
+def stackup_for_board(pcb_path, *, board=None, layer="F.Cu"):
+    """Resolve microstrip geometry from the board's active fabrication profile.
+
+    Current BETA boards select one of ``cec_fab_profile.PROFILES`` either by an
+    explicit board property or by their authoritative family path.  The result
+    records provenance so an audit cannot confuse the legacy fallback with a
+    vendor-selected buildup.
+    """
+    profile_name = cec_fab.active_profile_name(board, hint=pcb_path)
+    if not profile_name:
+        return {**LEGACY_STACKUP, "profile": None, "signal_layer": layer,
+                "reference_layer": "In1.Cu", "source": "legacy-four-layer-fallback",
+                "warning": "no declared/inferred fabrication profile"}
+    profile = cec_fab.get_profile(profile_name)
+    layers = cec_fab.COPPER_LAYERS
+    if layer not in layers:
+        raise ValueError("unknown copper layer %r" % layer)
+    index = layers.index(layer)
+    roles = dict(zip(layers, profile["roles"]))
+    candidates = []
+    if index > 0:
+        candidates.append((index - 1, index - 1))
+    if index + 1 < len(layers):
+        candidates.append((index + 1, index))
+    # A controlled surface route must reference an adjacent uninterrupted GND
+    # plane. Prefer it deterministically when two adjacent layers exist.
+    ground = [(li, di) for li, di in candidates if roles[layers[li]] == "GND"]
+    if not ground:
+        raise ValueError("%s has no adjacent GND reference in profile %s" %
+                         (layer, profile_name))
+    ref_i, dielectric_i = ground[0]
+    dielectric = profile["dielectrics"][dielectric_i]
+    return {
+        "h_mm": float(dielectric[1]),
+        "er": float(dielectric[3]),
+        "t_mm": cec_fab.copper_thickness_mm(profile_name, layer),
+        "profile": profile_name,
+        "vendor_stackup": profile["vendor_stackup"],
+        "signal_layer": layer,
+        "reference_layer": layers[ref_i],
+        "dielectric_material": dielectric[2],
+        "source": "cec_fab_profile",
+    }
 
 
 # ------------------------------------------------------------------ closed forms
@@ -103,12 +154,13 @@ def _netclasses(pcb_path):
     return out
 
 
-def audit_impedance(pcb_path):
+def audit_impedance(pcb_path, *, board=None, layer="F.Cu"):
     """Per impedance-class netclass: computed Zdiff vs target. ADVISORY."""
     ok, ref = _selfcheck()
     if not ok:
         return {"ok": False, "error": f"selfcheck failed: {ref}"}
     classes = _netclasses(pcb_path)
+    stackup = stackup_for_board(pcb_path, board=board, layer=layer)
     rows = []
     for cname, spec in classes.items():
         key = next((k for k in TARGETS if k.lower() in cname.lower()), None)
@@ -120,10 +172,13 @@ def audit_impedance(pcb_path):
         if not w or not g:
             rows.append({"class": cname, "target": tgt, "note": "no diff width/gap set"})
             continue
-        z = zdiff_edge_coupled(float(w), float(g))
+        z = zdiff_edge_coupled(float(w), float(g),
+                               h_mm=stackup["h_mm"], er=stackup["er"],
+                               t_mm=stackup["t_mm"])
         rows.append({"class": cname, "w": w, "gap": g, "zdiff": round(z, 1),
                      "target": tgt, "err_pct": round(100 * (z - tgt) / tgt, 1)})
-    return {"ok": True, "selfcheck": ref, "stackup": dict(STACKUP), "classes": rows}
+    return {"ok": True, "selfcheck": ref, "stackup": stackup, "classes": rows,
+            "advisory": "closed-form estimate; fabrication impedance confirmation remains required"}
 
 
 # ------------------------------------------------------------------ kelvin loop area
