@@ -2090,10 +2090,12 @@ def retrofit_decoupler_adjacency(sch_path, ic_ref, ic_pin, cap_ref, *,
 def flip_label_collisions(sch_path, out_path=None):
     """Labels whose text lies across a FOREIGN wire: flip the horizontal
     justify (text reads out the other side of its anchor) when that clears
-    every wire; count fixed. Anchors never move (electrical)."""
+    every wire *and* does not put the text on another visible label, field,
+    pin name, or pin number. Anchors never move (electrical)."""
     text = open(sch_path).read()
     wires = _extract_wires(text)
     elems = _extract_text_elements(text, with_spans=True)
+    obstacles = elems + _extract_pin_glyphs(text)
     fixed = 0
     for el in elems:
         if el["kind"] not in ("label", "global_label", "hierarchical_label"):
@@ -2117,6 +2119,9 @@ def flip_label_collisions(sch_path, out_path=None):
                         nh, jv, el["size"] * 1.15
                         if el["kind"] != "label" else 0.0)
         if hits(nb):
+            continue
+        if any(other is not el and _bbox_overlap(nb, other["bbox"], margin=0.1)
+               for other in obstacles):
             continue
         # splice the justify token inside this element's effects
         s = text.find(f'"{el["text"]}"', 0)

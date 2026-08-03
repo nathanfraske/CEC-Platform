@@ -350,23 +350,57 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
 
         c = C.Compose(lf, LIBS); c.caption(leaf_title, 8, 2, 2.2); c.note(desc, 8, 6, 1.15)
         if lid == "01-power-input-selection":
-            leaf_paper, ncols, x_pitch, y_pitch = "A1", 6, 60, 38
+            # Dense but repetitive source-selection rows. Ten compact
+            # columns keep the whole function reviewable on A3 without
+            # shrinking its 1.27 mm reference/value text to an A1 thumbnail.
+            leaf_paper, ncols, x_pitch, y_pitch = "A3", 10, 29, 22
         elif lid == "06-status-leds":
             leaf_paper, ncols, x_pitch, y_pitch = "A3", 10, 20, 36
         elif len(refs) <= 10:
             leaf_paper, ncols, x_pitch, y_pitch = "A4", 4, 42, 32
         elif len(refs) <= 22:
-            leaf_paper, ncols, x_pitch, y_pitch = "A3", 5, 45, 36
+            leaf_paper, ncols, x_pitch, y_pitch = "A3", 9, 30, 25
         else:
-            leaf_paper, ncols, x_pitch, y_pitch = "A2", 6, 50, 38
-        y_cursor = 45 if lid.endswith("regulator-mcu") else 30
+            leaf_paper, ncols, x_pitch, y_pitch = "A3", 10, 29, 22
+        if lid.endswith("regulator-mcu"):
+            y_pitch = max(y_pitch, 34)
+            group_gap = 10
+            y_cursor = 45
+        else:
+            group_gap = 6
+            y_cursor = 30
+        wide_label_leaves = {
+            "01-power-input-selection", "02-holdup-3v3", "03-mcu-usb",
+            "03-sensing", "05-rail-sensing", "01-atx-power-control",
+        }
         for group in row_groups:
+            # Groups containing several ICs/connectors need enough horizontal
+            # room for outward pin labels as well as the symbol bodies. Small
+            # passive arrays retain the compact pitch and stay consolidated.
+            large_symbols = sum(ref.startswith(("U", "J")) for ref in group)
+            if lid == "01-power-input-selection":
+                min_large_pitch = 52
+            else:
+                min_large_pitch = 46 if lid in wide_label_leaves else 38
+            group_x_pitch = max(x_pitch, min_large_pitch) if large_symbols >= 2 else x_pitch
             for gi, ref in enumerate(group):
-                x = 18 + (gi % ncols) * x_pitch
+                x = 18 + (gi % ncols) * group_x_pitch
                 y = y_cursor + (gi // ncols) * y_pitch
                 c.place(ref, x, y, source_place.get(ref, (0, 0, 0))[2])
-            y_cursor += ((len(group) + ncols - 1) // ncols) * y_pitch + 8
+            y_cursor += ((len(group) + ncols - 1) // ncols) * y_pitch + group_gap
         bank_y = y_cursor + 8
+
+        if board == "atx-24pin-rev3" and lid == "02-power-usb":
+            # U6_PR1 is on a left-facing TPS2121 pin. Its long name needs a
+            # extended attached stub to clear U6's visible pin number; doing
+            # this in the composition preserves both connectivity and label
+            # attachment instead of creating a floating cosmetic move.
+            c.stub_label("U6", "6", "U6_PR1", length=6)
+        if board == "atx-24pin-rev3" and lid == "04-hub-can-stack":
+            # FL1 carries a long, orderable DNP value. Keep its field on the
+            # open left side so it remains attached to the part visually and
+            # cannot run through the adjacent connector's vertical pin rail.
+            c.text_side["FL1"] = "left"
 
         for power in ("+3V3", "+5VSB"):
             caps = []
@@ -414,26 +448,47 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
             # single explicit external trunk.
             pass
 
+        # Preserve the archived engineering notes, but balance them into two
+        # explicit columns instead of a single tall tail. This keeps notes
+        # close to their function and makes their 1 mm text readable at the
+        # standard 2048 px review width.
         note_y = bank_y + 6
-        for note in source_notes.get(lid, []):
-            wrapped = textwrap.wrap(note, 92, replace_whitespace=False)
-            c.note("\n".join(wrapped), 8, note_y, 1.0); note_y += max(8, 2 + 2 * len(wrapped))
-        needed_w = (18 + max(0, ncols - 1) * x_pitch + 70) * cec_sch.GRID
-        needed_h = (note_y + 18) * cec_sch.GRID
-        for candidate in ("A4", "A3", "A2", "A1"):
-            pw, ph = C.PAPER[candidate]
-            if needed_w <= pw - 20 and needed_h <= ph - 20:
-                leaf_paper = candidate; break
-        else:
-            leaf_paper = "A0"
+        wrapped_notes = [textwrap.wrap(note, 54, replace_whitespace=False)
+                         for note in source_notes.get(lid, [])]
+        note_columns = [[], []]
+        note_lines = [0, 0]
+        for wrapped in wrapped_notes:
+            col = 0 if note_lines[0] <= note_lines[1] else 1
+            note_columns[col].append(wrapped)
+            note_lines[col] += len(wrapped) + 1
+        for col, blocks in enumerate(note_columns):
+            column_y = note_y
+            for wrapped in blocks:
+                c.note("\n".join(wrapped), 8 + col * 145, column_y, 1.0)
+                column_y += max(7, 2 + 2 * len(wrapped))
         c.done()
+
+        x0, x1, y0, y1 = C.leaf_content_bbox(
+            lf.parts, lf.placement, LIBS, lf.layout, lf.powerflag_nets)
+        content_w, content_h = x1 - x0, y1 - y0
+        for candidate in ("A4", "A3"):
+            paper_w, paper_h = C.PAPER[candidate]
+            if content_w <= paper_w - 30 and content_h <= paper_h - 30:
+                leaf_paper = candidate
+                break
+        else:
+            raise SystemExit(
+                f"{board}/{lid}: composed content {content_w:.1f} x {content_h:.1f} mm "
+                "does not fit a readable A3 leaf; split or recompose the function")
 
         leaf_sym = str(uuid.uuid5(uuid.NAMESPACE_URL, f"cec:{board}:{lid}:sheet")); leaf_own = str(uuid.uuid5(uuid.NAMESPACE_URL, f"cec:{board}:{lid}:file"))
         out = os.path.join(out_dir, lf.filename)
         stats = C.build_leaf(lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None, LIBS, pro, path_prefix=f"{root_uuid}/{leaf_sym}",
             sheet_instances_path=leaf_sym, own_uuid=leaf_own, page=str(li + 2), out_path=out, paper=leaf_paper,
-            title=f"{title}: {leaf_title}", comment1=desc, pwr_base=100 * (li + 1), layout=lf.layout,
+            title=f"{title}: {leaf_title}",
+            comment1=textwrap.shorten(desc, width=64, placeholder="..."),
+            pwr_base=100 * (li + 1), layout=lf.layout,
             global_nets=GLOBAL_NETS & set(lf.nets), rev=rev)
         _patch_states(out, extracted["inventory"]); deduped = _dedupe_labels(out)
         # Collapse the ESP32 exposed-ground flag ladder with the proven
@@ -441,10 +496,7 @@ def build(board: str, source: str | None = None, out_dir: str | None = None):
         # refuses a blocked wire corridor, and the final hierarchy-equivalence
         # gate below still independently proves net membership.
         ladder = G.bus_power_ladder(out, "U1", "GND")
-        try:
-            flipped = len(L.flip_label_collisions(out) or ())
-        except Exception:
-            flipped = 0
+        flipped = L.flip_label_collisions(out)
         moved, left = L.nudge_texts(out)
         print(f"{lf.filename}: parts={len(refs)} paper={leaf_paper} wires={stats.get('wires')} "
               f"deduped={deduped} bused={ladder.get('flags_removed', 0)} "

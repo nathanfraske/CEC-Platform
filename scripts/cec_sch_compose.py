@@ -206,6 +206,22 @@ class Compose:
         U = cec_sch.GRID
         self.labels.append((net, xu * U, yu * U, ang))
 
+    def stub_label(self, ref, pin, net, length=8):
+        """Draw one deliberately extended, attached local-net label stub.
+
+        Use this for a dense multi-pin symbol whose normal one-grid stub leaves
+        a long net name on top of the symbol's own pin number. It is explicit
+        composition, not a post-write text move: the wire and label endpoint
+        stay coincident and the pin is removed from the generic stub pass.
+        """
+        assert (ref, pin) in self.lf.nets.get(net, ()), (ref, pin, net)
+        (x, y), (dx, dy) = self.pin_out(ref, pin)
+        end = (x + dx * length, y + dy * length)
+        self.wire((x, y), end)
+        angle = 0 if dx > 0 else (180 if dx < 0 else (270 if dy < 0 else 90))
+        self.label(net, *end, angle)
+        self.use((ref, pin))
+
     def stamp(self, sym, xu, yu, rot):
         U = cec_sch.GRID
         self.power.append((sym, xu * U, yu * U, rot))
@@ -342,11 +358,22 @@ def _emit_symbol2(ref, lib, name, val, x, y, rot, pins, project, root, used_entr
         fields = [("Reference", ref, fx, y - G, just),
                   ("Value", val, fx, y + G, just)]
     elif len(pins) <= 2:
-        fields = [("Reference", ref, x, ymin - 5 * G, None),
-                  ("Value", val, x, ymin - 3 * G, None)]
+        if text_side == "left":
+            fields = [("Reference", ref, xmin - G, ymin - 5 * G, "right"),
+                      ("Value", val, xmin - G, ymin - 3 * G, "right")]
+        else:
+            fields = [("Reference", ref, x, ymin - 5 * G, None),
+                      ("Value", val, x, ymin - 3 * G, None)]
     else:
-        fields = [("Reference", ref, x, ymin - 4 * G, None),
-                  ("Value", val, x, ymin - 2 * G, None)]
+        # Multi-pin ICs commonly have a supply pin and power glyph centered
+        # above the body. Put the field stack just beyond the upper-right (or
+        # explicitly requested upper-left) corner: close enough to identify
+        # the part, but clear of top-pin numbers, names, and vertical rails.
+        side = 1 if text_side != "left" else -1
+        fx = (xmax + 2 * G) if side > 0 else (xmin - 2 * G)
+        just = "left" if side > 0 else "right"
+        fields = [("Reference", ref, fx, ymin - 4 * G, just),
+                  ("Value", val, fx, ymin - 2 * G, just)]
     # KiCad renders a field at (symbol rotation + field angle): measured via
     # SVG export (rot-90 R_Small: field angle 0 -> rotate(-90) vertical text,
     # field angle 90 -> horizontal). Compensate so fields always read
@@ -574,6 +601,70 @@ def _powerflag_anchors(powerflag_nets, placement, power_ports, project,
             flags.append(_emit_power2("PWR_FLAG", sx, by_, 0, project, path_prefix, pwr_ref("#FLG")))
 
 
+def _leaf_content_bbox(used, parts, placement, layout, powerflag_nets):
+    """Return the real pre-centering content bounds for a composed leaf.
+
+    This is deliberately the same geometry the writer uses: symbol bodies and
+    pins, drawn layout, annotation extents, hierarchy-label gutters, and the
+    power-flag bank. Keeping it as one helper lets hierarchy generators choose
+    a sheet from occupied geometry instead of a pessimistic row/column formula
+    that can silently turn readable A3 content into tiny A1 content.
+    """
+    layout = layout or {}
+    xs, ys = [], []
+    for ref in parts:
+        x0, x1, y0, y1 = _part_extent(used, parts, placement, ref)
+        xs += [x0, x1]
+        ys += [y0, y1]
+    for wire in layout.get("wires", ()):
+        xs += [wire[0], wire[2]]
+        ys += [wire[1], wire[3]]
+    for label in layout.get("labels", ()):
+        xs += [label[1], label[1] + (12 if label[3] == 0 else 0)]
+        ys.append(label[2])
+    for stamp in layout.get("power", ()):
+        xs.append(stamp[1])
+        ys += [stamp[2] - 5, stamp[2] + 5]
+    for net_name, (hx, hy, angle) in layout.get("hier_at", {}).items():
+        xs += [hx, hx + (len(net_name) * 1.4 if angle == 0 else 0)]
+        ys.append(hy)
+    for _kind, note_text, tx, ty, size in layout.get("texts", ()):
+        longest = max((len(line) for line in note_text.split("\n")), default=1)
+        xs += [tx, tx + longest * size * 1.02]
+        ys += [ty, ty + (note_text.count("\n") + 1) * size * 1.6]
+    for region in layout.get("regions", ()):
+        xs += [region[1], region[3]]
+        ys += [region[2], region[4]]
+
+    if not xs or not ys:
+        raise ValueError("cannot size an empty schematic leaf")
+
+    # Edge-anchored hierarchy columns hang outside the component bounds.
+    cx0, cx1 = min(xs), max(xs)
+    io_sides = layout.get("io_sides", {})
+    for side in ("left", "right"):
+        count = sum(1 for value in io_sides.values() if value == side)
+        if not count:
+            continue
+        gutter = (count + 3) * 2 * cec_sch.GRID
+        label_w = max(len(name) for name, value in io_sides.items() if value == side) * 1.4 + 4
+        xs.append(cx0 - gutter - label_w if side == "left" else cx1 + gutter + label_w)
+
+    if powerflag_nets:
+        pf_y = max(point[1] for point in placement.values()) + 19.05
+        pf_x = min(point[0] for point in placement.values())
+        xs += [pf_x, pf_x + (len(powerflag_nets) - 1) * 15.24 + 5]
+        ys += [pf_y, pf_y + 17]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def leaf_content_bbox(parts, placement, libs, layout=None, powerflag_nets=()):
+    """Public sizing probe used by generators before selecting sheet paper."""
+    normalized = _norm_placement(placement)
+    used = cec_sch.load_symbols(libs, parts)
+    return _leaf_content_bbox(used, parts, normalized, layout or {}, powerflag_nets)
+
+
 def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                power_ports, powerflag_nets, hier_exports, sections,
                libs, project, path_prefix, sheet_instances_path, own_uuid,
@@ -680,43 +771,20 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     # ---- CENTERING (the owner's "put them in the middle of the sheets"):
     # preview the content bbox from part extents + composed geometry + the
     # powerflag anchor block, then translate placement AND layout together.
-    xs, ys = [], []
-    for ref in parts:
-        x0, x1, y0, y1 = _part_extent(used, parts, placement, ref)
-        xs += [x0, x1]; ys += [y0, y1]
-    for w in lay_wires:
-        xs += [w[0], w[2]]; ys += [w[1], w[3]]
-    for l in lay_labels:
-        xs += [l[1], l[1] + (12 if l[3] in (0,) else 0)]; ys.append(l[2])
-    for p in lay_power:
-        xs.append(p[1]); ys += [p[2] - 5, p[2] + 5]
-    for net_name, (hx_, hy_, hang_) in hier_at.items():
-        xs += [hx_, hx_ + (len(net_name) * 1.4 if hang_ == 0 else 0)]
-        ys.append(hy_)
-    for t in lay_texts:
-        _kind, ttxt, tx, ty, tsz = t
-        longest = max((len(ln) for ln in ttxt.split("\n")), default=1)
-        xs += [tx, tx + longest * tsz * 1.02]
-        ys += [ty, ty + (ttxt.count("\n") + 1) * tsz * 1.6]
-    for r in lay_regions:
-        xs += [r[1], r[3]]; ys += [r[2], r[4]]
-    # content bbox BEFORE reserving io-column gutters (columns hang off it)
-    cx0, cx1 = min(xs), max(xs)
-    for side in ("left", "right"):
-        k = sum(1 for s in io_sides.values() if s == side)
-        if k:
-            gut = (k + 3) * 2 * cec_sch.GRID
-            lbl = max((len(n) for n, s in io_sides.items() if s == side)) * 1.4 + 4
-            if side == "left":
-                xs.append(cx0 - gut - lbl)
-            else:
-                xs.append(cx1 + gut + lbl)
-    if powerflag_nets:
-        pf_y = max(p[1] for p in placement.values()) + 19.05
-        pf_x = min(p[0] for p in placement.values())
-        xs += [pf_x, pf_x + (len(powerflag_nets) - 1) * 15.24 + 5]
-        ys += [pf_y, pf_y + 17]
-    dx, dy = _center_shift((min(xs), max(xs), min(ys), max(ys)), paper)
+    bbox_layout = dict(layout)
+    bbox_layout.update({
+        "wires": lay_wires,
+        "labels": lay_labels,
+        "power": lay_power,
+        "hier_at": hier_at,
+        "texts": lay_texts,
+        "regions": lay_regions,
+        "io_sides": io_sides,
+    })
+    dx, dy = _center_shift(
+        _leaf_content_bbox(used, parts, placement, bbox_layout, powerflag_nets),
+        paper,
+    )
 
     placement = {r: (x + dx, y + dy, rot) for r, (x, y, rot) in placement.items()}
     for w in lay_wires:
@@ -794,6 +862,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         flags += rp
 
     glabels = []
+    port_stamp_keys = set()
     io_attach = {n: tuple(p) for n, p in io_from.items()}
     for net_name, conns in nets.items():
         is_global = net_name in global_nets
@@ -817,8 +886,12 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                 else:
                     hlabels.append(hier_label(net_name, hx[0], bx, by, lang))
             elif port:
-                flags.append(_emit_power2(port, bx, by, _port_rot(port, dx_, dy_),
-                                          project, path_prefix, pwr_ref("#PWR")))
+                prot = _port_rot(port, dx_, dy_)
+                stamp_key = (port, round(bx, 4), round(by, 4), prot)
+                if stamp_key not in port_stamp_keys:
+                    flags.append(_emit_power2(port, bx, by, prot, project,
+                                              path_prefix, pwr_ref("#PWR")))
+                    port_stamp_keys.add(stamp_key)
             else:
                 labels.append(cec_sch.emit_label(net_name, bx, by, lang))
 
