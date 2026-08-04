@@ -4742,10 +4742,14 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     A 1.0 mm power class cannot physically enter a 0.4 mm fine-pitch pad at full
     width.  Imported narrow copper is therefore preserved for at most 1.5 mm of
     graph distance from that pad, and a longer segment is split at the boundary
-    before its remainder is widened.  This is a local escape, never permission
-    for a long skinny power route. Direct INA2xx Kelvin nets are excluded because
-    those names can share a force rail while their sense stub is intentionally
-    thin; the dedicated Kelvin and high-current-pour gates own that topology.
+    before its remainder is widened.  The same exception is available for at
+    most 2.5 mm from a plated through-hole pad, but only when widening the actual
+    imported escape would collide with a nearby foreign-net pad.  This covers
+    staggered connector pin fields without weakening ordinary THT power routes.
+    These are local escapes, never permission for a long skinny power route.
+    Direct INA2xx Kelvin nets are excluded because those names can share a force
+    rail while their sense stub is intentionally thin; the dedicated Kelvin and
+    high-current-pour gates own that topology.
     """
     pro_path = (board_path[:-len(".kicad_pcb")] + ".kicad_pro"
                 if board_path.endswith(".kicad_pcb") else "")
@@ -4804,7 +4808,6 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     # retained and any long first segment is split at a deterministic boundary.
     from collections import defaultdict
     import heapq
-    import math
 
     original_items = list(board.GetTracks())
     track_rows = []
@@ -4828,22 +4831,57 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             "item": item, "uuid": item.m_Uuid.AsString(), "net": net,
             "layer": item.GetLayer(), "start": (s.x, s.y), "end": (e.x, e.y),
             "length": length, "current": current, "target": target,
-            # Keep a useful escape for wide rails, but cap it so this exception
-            # can never turn into a long, thermally weak power trace.
-            "limit": max(0.6, min(1.5, 1.5 * target)),
         }
         track_rows.append(row)
         by_net[net].append(row)
 
+    def pad_layers(pad):
+        return frozenset(pad.GetLayerSet().CuStack())
+
+    # Return whether the centreline segment intersects an axis-aligned pad
+    # copper box expanded by the prospective track radius and clearance.  Pad
+    # bounding boxes are conservative for round/custom pads, which is desirable
+    # here: this function only preserves copper that Freerouting already made
+    # narrow, and the subsequent DRC remains authoritative.
+    def segment_hits_expanded_box(start, end, box, expansion):
+        x0, y0 = start[0] / MM, start[1] / MM
+        x1, y1 = end[0] / MM, end[1] / MM
+        xmin = box.GetX() / MM - expansion
+        ymin = box.GetY() / MM - expansion
+        xmax = xmin + box.GetWidth() / MM + 2.0 * expansion
+        ymax = ymin + box.GetHeight() / MM + 2.0 * expansion
+        dx, dy = x1 - x0, y1 - y0
+        lo, hi = 0.0, 1.0
+        for origin, delta, low, high in ((x0, dx, xmin, xmax),
+                                         (y0, dy, ymin, ymax)):
+            if abs(delta) <= 1e-12:
+                if origin < low or origin > high:
+                    return False
+                continue
+            enter = (low - origin) / delta
+            leave = (high - origin) / delta
+            if enter > leave:
+                enter, leave = leave, enter
+            lo, hi = max(lo, enter), min(hi, leave)
+            if lo > hi:
+                return False
+        return True
+
+    all_pads = []
     fine_pads = defaultdict(list)
     for fp in board.GetFootprints():
         for pad in fp.Pads():
+            net = pad.GetNetname() or ""
+            layers = pad_layers(pad)
+            if net:
+                clearance = float(resolve(net).get("clearance") or 0)
+                all_pads.append(
+                    (pad, net, layers, pad.GetBoundingBox(), clearance))
             try:
                 if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
                     continue
             except Exception:                              # noqa: BLE001
                 continue
-            net = pad.GetNetname() or ""
             if not net or net in direct_sense:
                 continue
             spec = resolve(net)
@@ -4851,8 +4889,58 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                            or spec.get("track_width") or 0)
             size = pad.GetSize()
             if target > 0 and min(size.x, size.y) / MM < target - tol_mm:
-                fine_pads[net].append(
-                    (pad, frozenset(pad.GetLayerSet().CuStack())))
+                limit = max(0.6, min(1.5, 1.5 * target))
+                fine_pads[net].append((pad, layers, limit))
+
+    # A THT pad need not itself be narrower than a power netclass, yet a
+    # staggered adjacent pin can still make a full-width escape impossible.
+    # Detect that condition from the imported route geometry.  Only inspect the
+    # first 2.5 mm from an endpoint that actually lands on the same-net PTH pad;
+    # a collision farther along a route is not a pin-escape entitlement.
+    pth_limit = 2.5
+    for net, rows in by_net.items():
+        if net in direct_sense:
+            continue
+        seen_pads = {pad.m_Uuid.AsString() for pad, _layers, _limit
+                     in fine_pads.get(net, ())}
+        for pad, pad_net, layers, _box, _clearance in all_pads:
+            if pad_net != net or pad.m_Uuid.AsString() in seen_pads:
+                continue
+            try:
+                if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_PTH):
+                    continue
+            except Exception:                              # noqa: BLE001
+                continue
+            constrained = False
+            for row in rows:
+                if row["layer"] not in layers:
+                    continue
+                for endpoint, other in ((row["start"], row["end"]),
+                                        (row["end"], row["start"])):
+                    point = pcbnew.VECTOR2I(endpoint[0], endpoint[1])
+                    if not pad.HitTest(point):
+                        continue
+                    frac = min(1.0, pth_limit / row["length"])
+                    prefix_end = (
+                        int(round(endpoint[0] + (other[0] - endpoint[0]) * frac)),
+                        int(round(endpoint[1] + (other[1] - endpoint[1]) * frac)))
+                    own_clear = float(resolve(net).get("clearance") or 0)
+                    for (_foreign, foreign_net, foreign_layers, foreign_box,
+                         foreign_clear) in all_pads:
+                        if foreign_net == net or row["layer"] not in foreign_layers:
+                            continue
+                        expansion = row["target"] / 2.0 + max(own_clear, foreign_clear)
+                        if segment_hits_expanded_box(endpoint, prefix_end,
+                                                     foreign_box, expansion):
+                            constrained = True
+                            break
+                    if constrained:
+                        break
+                if constrained:
+                    break
+            if constrained:
+                fine_pads[net].append((pad, layers, pth_limit))
+                seen_pads.add(pad.m_Uuid.AsString())
 
     handled = set()
     neckdown_sections = split_tracks = widened_sections = 0
@@ -4870,34 +4958,37 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             adjacency[a].append((b, row["length"]))
             adjacency[b].append((a, row["length"]))
 
-        distance = {}
+        # Track the greatest remaining neck-down budget at each graph node.
+        # This keeps a 1.5 mm SMD escape and a 2.5 mm constrained-THT escape on
+        # the same net independent without globally relaxing either bound.
+        budget = {}
         queue = []
         for node, point in node_points.items():
-            if any(node[2] in layers and pad.HitTest(point)
-                   for pad, layers in pads):
-                distance[node] = 0.0
-                heapq.heappush(queue, (0.0, node))
+            remaining = max((limit for pad, layers, limit in pads
+                             if node[2] in layers and pad.HitTest(point)),
+                            default=0.0)
+            if remaining > 0:
+                budget[node] = remaining
+                heapq.heappush(queue, (-remaining, node))
         while queue:
-            dist, node = heapq.heappop(queue)
-            if dist != distance.get(node):
+            neg_remaining, node = heapq.heappop(queue)
+            remaining = -neg_remaining
+            if remaining != budget.get(node):
                 continue
             for other, edge_len in adjacency[node]:
-                new_dist = dist + edge_len
-                # No row retains more than 1.5 mm, so distances beyond that
-                # cannot influence a neck-down decision.
-                if new_dist > 1.5 + 1e-9:
+                new_remaining = remaining - edge_len
+                if new_remaining <= 1e-9:
                     continue
-                if new_dist + 1e-12 < distance.get(other, math.inf):
-                    distance[other] = new_dist
-                    heapq.heappush(queue, (new_dist, other))
+                if new_remaining > budget.get(other, 0.0) + 1e-12:
+                    budget[other] = new_remaining
+                    heapq.heappush(queue, (-new_remaining, other))
 
         for row in rows:
             a = (row["start"][0], row["start"][1], row["layer"])
             b = (row["end"][0], row["end"][1], row["layer"])
-            length, limit = row["length"], row["limit"]
-            da, db = distance.get(a, math.inf), distance.get(b, math.inf)
-            keep_a = max(0.0, min(length, limit - da)) if math.isfinite(da) else 0.0
-            keep_b = max(0.0, min(length, limit - db)) if math.isfinite(db) else 0.0
+            length = row["length"]
+            keep_a = max(0.0, min(length, budget.get(a, 0.0)))
+            keep_b = max(0.0, min(length, budget.get(b, 0.0)))
             if keep_a <= 1e-6 and keep_b <= 1e-6:
                 continue
             handled.add(row["uuid"])
