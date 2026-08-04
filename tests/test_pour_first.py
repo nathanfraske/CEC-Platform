@@ -24,6 +24,7 @@ from cec_slab_pour import (  # noqa: E402
     _nowhere_zone_verdict,
     _prep_overunder_net,
     _terminal_reachable_zone_keys,
+    _zone_components,
     connector_manifolds,
     footprint_copper_boxes,
     pourfirst_conv_split,
@@ -439,6 +440,20 @@ class TestFloatingZoneComponents(unittest.TestCase):
         self.assertEqual(
             _terminal_reachable_zone_keys(adjacency, {"pad_end"}),
             {"pad_end", "transit", "far_end"})
+
+    def test_component_terminal_count_is_aggregated(self):
+        adjacency = {
+            "terminal_a": {"transit"},
+            "transit": {"terminal_a", "terminal_b"},
+            "terminal_b": {"transit"},
+            "orphan": set(),
+        }
+        components = {frozenset(rows)
+                      for rows in _zone_components(adjacency)}
+        self.assertEqual(components, {
+            frozenset(("terminal_a", "transit", "terminal_b")),
+            frozenset(("orphan",)),
+        })
 
 
 class TestEnumerateWinning(unittest.TestCase):

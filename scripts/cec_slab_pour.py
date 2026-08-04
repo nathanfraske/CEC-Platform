@@ -2392,6 +2392,77 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
     return {"corridors": corridors, "report": report}
 
 
+def _pcb_item_identity(item):
+    """Stable process-local identity for a KiCad board item."""
+    try:
+        return str(item.m_Uuid)
+    except Exception:                                  # noqa: BLE001
+        try:
+            return str(item.GetUuid())
+        except Exception:                              # noqa: BLE001
+            return "swig:%d" % id(item)
+
+
+def _zone_components(adjacency):
+    """Connected components of a pure zone adjacency graph."""
+    unseen = set(adjacency)
+    out = []
+    while unseen:
+        root = unseen.pop()
+        component = {root}
+        stack = [root]
+        while stack:
+            key = stack.pop()
+            for other in adjacency.get(key, ()):
+                if other in unseen:
+                    unseen.remove(other)
+                    component.add(other)
+                    stack.append(other)
+        out.append(component)
+    return out
+
+
+def _copper_zone_graph(conn, zones, excluded_keys=()):
+    """Build exact zone adjacency, including shared pad/track/via carriers."""
+    by_key = {_pcb_item_identity(z): z for z in zones}
+    excluded = set(excluded_keys)
+    adjacency = {key: set() for key in by_key if key not in excluded}
+    terminals = set()
+    carriers = {}
+    for key, zone in by_key.items():
+        if key not in adjacency:
+            continue
+        try:
+            items = list(conn.GetConnectedItems(zone))
+        except Exception:                              # noqa: BLE001
+            # Connectivity uncertainty must never authorize copper deletion.
+            terminals.add(key)
+            continue
+        for item in items:
+            klass = item.GetClass()
+            if klass == "ZONE":
+                other = _pcb_item_identity(item)
+                if (other in adjacency
+                        and by_key[other].GetNetCode() == zone.GetNetCode()):
+                    adjacency[key].add(other)
+                    adjacency[other].add(key)
+            elif klass in ("PAD", "PCB_VIA", "PCB_TRACK"):
+                terminals.add(key)
+                carriers.setdefault(
+                    (zone.GetNetCode(), klass, _pcb_item_identity(item)),
+                    set()).add(key)
+    # Two zone polygons on different layers commonly meet only through the
+    # same through-via.  KiCad may report the barrel to both polygons without
+    # reporting the polygons directly to one another, so make that conductive
+    # relationship explicit in the graph.
+    for keys in carriers.values():
+        keys = list(keys)
+        for key in keys[1:]:
+            adjacency[keys[0]].add(key)
+            adjacency[key].add(keys[0])
+    return by_key, adjacency, terminals
+
+
 def _terminal_reachable_zone_keys(adjacency, terminal_keys):
     """Return every zone in a zone-to-zone component that reaches copper.
 
@@ -2454,22 +2525,9 @@ def cleanup_floating_zones(board_path):
     zones = [z for z in board.Zones()
              if not z.GetIsRuleArea() and z.GetNetname()]
 
-    def _zone_key(zone):
-        try:
-            return str(zone.m_Uuid)
-        except Exception:                              # noqa: BLE001
-            try:
-                return str(zone.GetUuid())
-            except Exception:                          # noqa: BLE001
-                # SWIG wrappers are stable for this fresh load. This fallback
-                # is process-local and is never serialized.
-                return "swig:%d" % id(zone)
-
-    by_key = {_zone_key(z): z for z in zones}
     empty = set()
-    adjacency = {key: set() for key in by_key}
-    terminals = set()
-    for key, z in by_key.items():
+    for z in zones:
+        key = _pcb_item_identity(z)
         # ZERO-FILL zones are dead by definition (measured on the s510
         # winner: a `pourplan:` outline whose fill was fully carved away
         # survived as a phantom "pour connected to nothing") -- but ONLY once a
@@ -2480,28 +2538,9 @@ def cleanup_floating_zones(board_path):
                 continue
         except Exception:                              # noqa: BLE001
             pass
-        try:
-            items = list(conn.GetConnectedItems(z))
-        except Exception:                              # noqa: BLE001
-            # Connectivity uncertainty must never authorize copper deletion.
-            terminals.add(key)
-            continue
-        for item in items:
-            klass = item.GetClass()
-            if klass in ("PAD", "PCB_VIA", "PCB_TRACK"):
-                terminals.add(key)
-            elif klass == "ZONE":
-                other = _zone_key(item)
-                if other in adjacency and other not in empty:
-                    adjacency[key].add(other)
-                    adjacency[other].add(key)
-
     # Zero-fill polygons cannot conduct and therefore cannot bridge two live
-    # parts of the graph. Remove them before walking terminal reachability.
-    for key in empty:
-        adjacency.pop(key, None)
-    for rows in adjacency.values():
-        rows.difference_update(empty)
+    # parts of the graph. Exclude them while building connectivity.
+    by_key, adjacency, terminals = _copper_zone_graph(conn, zones, empty)
     live = _terminal_reachable_zone_keys(adjacency, terminals)
     doomed = [z for key, z in by_key.items()
               if key in empty or key not in live]
@@ -3228,25 +3267,16 @@ def reap_nowhere_zones(board_path, *, cell_mm=0.8):
     if pcbnew is None:
         return 0
     board = pcbnew.LoadBoard(board_path)
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
     grid = Grid(board, cell_mm)
+    zones = [z for z in board.Zones()
+             if (not z.GetIsRuleArea() and z.GetNetname()
+                 and z.GetNetname() != "GND")]
+    by_key, adjacency, _terminal_keys = _copper_zone_graph(conn, zones)
     cl_cache = {}
-    doomed = []
-    for z in board.Zones():
-        if z.GetIsRuleArea():
-            continue
-        net = z.GetNetname()
-        if not net or net == "GND":
-            continue
-        name = ""
-        try:
-            name = z.GetZoneName() or ""
-        except Exception:                              # noqa: BLE001
-            name = ""
-        # NO early name-exit here (mandate part 4b): the exemption is the
-        # VERDICT's business, and it protects the single-cluster judgment
-        # only -- an exempt-named zone touching ZERO clusters must still
-        # reach _nowhere_zone_verdict to die (measured: the early skip let
-        # a sliver-fill `pourplan:` zone with 0 cluster hits survive).
+    zone_hits = {}
+    for key, z in by_key.items():
         nc = z.GetNetCode()
         if nc not in cl_cache:
             cl_cache[nc] = terminal_clusters(board, nc, grid)
@@ -3269,16 +3299,42 @@ def reap_nowhere_zones(board_path, *, cell_mm=0.8):
                             break
                     except Exception:                  # noqa: BLE001
                         break
-        if _nowhere_zone_verdict(name, net, len(hit)):
+        zone_hits[key] = hit
+
+    doomed = []
+    for component in _zone_components(adjacency):
+        component_hits = set().union(
+            *(zone_hits.get(key, set()) for key in component))
+        # A routed-object pour is a chain of zone polygons. Interior members
+        # intentionally touch no terminal cluster themselves; the component's
+        # endpoints carry that responsibility. Judge the conducting component
+        # as a whole or the reaper cuts valid power corridors into pieces.
+        if len(component_hits) >= 2:
+            continue
+        for key in component:
+            z = by_key[key]
+            net = z.GetNetname()
+            try:
+                name = z.GetZoneName() or ""
+            except Exception:                          # noqa: BLE001
+                name = ""
+            # NO early name-exit here (mandate part 4b): the exemption is the
+            # VERDICT's business, and protects the single-cluster judgment
+            # only. A zero-terminal component dies regardless of its name.
+            if not _nowhere_zone_verdict(
+                    name, net, len(component_hits)):
+                continue
             bb = z.GetBoundingBox()
             doomed.append((z, net,
                            (round(bb.GetLeft() / MM, 1),
                             round(bb.GetTop() / MM, 1),
                             round(bb.GetRight() / MM, 1),
-                            round(bb.GetBottom() / MM, 1)), len(hit)))
+                            round(bb.GetBottom() / MM, 1)),
+                           len(component_hits)))
     for (z, net, bbox, nhit) in doomed:
         print(f"[cec_slab_pour] nowhere-reap: zone on {net} at {bbox} "
-              f"connects {nhit} terminal cluster(s) (<2) -- REMOVED",
+              f"belongs to component with {nhit} terminal cluster(s) (<2) "
+              "-- REMOVED",
               file=sys.stderr)
         board.Remove(z)
     # ORPHAN-VIA SWEEP (mandate part 4a, 2026-07-25): an UNLOCKED via whose
