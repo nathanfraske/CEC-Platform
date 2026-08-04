@@ -25,6 +25,70 @@ import cec_score  # noqa: E402
 import cec_synth_pipeline as CSP  # noqa: E402
 
 
+class HubHierarchicalNetclassTest(unittest.TestCase):
+    HUB = os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
+                       "hub-standard-rev2-candidate.kicad_pcb")
+    PROJECTS = (
+        os.path.join(ROOT, "beta", "hub-standard-rev2",
+                     "hub-standard-rev2.kicad_pro"),
+        os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
+                     "hub-standard-rev2-candidate.kicad_pro"),
+    )
+
+    @unittest.skipUnless(os.path.isfile(HUB), "current Hub candidate required")
+    def test_current_hierarchical_rails_and_pairs_resolve_to_physical_classes(self):
+        # KiCad sheet paths prefix the leaf net name.  Root-only patterns such
+        # as `/PSU_5V` silently assign the real
+        # `/POWER INPUT + SOURCE SELECTION/PSU_5V` net to Default, which let a
+        # 2.5 A rail route at 0.2 mm.  Exercise the actual current Hub names.
+        board = pcbnew.LoadBoard(self.HUB)
+        expected = {
+            "+5VSB": ("Power", 1.0, 0.8, 0.4),
+            "/5VSB_RAW": ("Power", 1.0, 0.8, 0.4),
+            "/MAIN_5V_RAW": ("Power", 1.0, 0.8, 0.4),
+            "/USB_VBUS": ("Power", 1.0, 0.8, 0.4),
+            "/POWER INPUT + SOURCE SELECTION/PSU_5V":
+                ("Power", 1.0, 0.8, 0.4),
+            "/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM":
+                ("Power", 1.0, 0.8, 0.4),
+            "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD":
+                ("Power", 1.0, 0.8, 0.4),
+            "/CAN + FOUR MODULE PORTS + STACK/VCC_P4":
+                ("Power", 1.0, 0.8, 0.4),
+            "/CAN + FOUR MODULE PORTS + STACK/CAN_H":
+                ("CAN", 0.25, 0.6, 0.3),
+            "/MCU + USB SERVICE PORT/USB_D_P":
+                ("USB", 0.20, 0.6, 0.3),
+        }
+        for net, want in expected.items():
+            item = board.GetNetInfo().GetNetItem(net)
+            self.assertIsNotNone(item, net)
+            cls = item.GetNetClassSlow()
+            got = (cls.GetName(), cls.GetTrackWidth() / 1e6,
+                   cls.GetViaDiameter() / 1e6, cls.GetViaDrill() / 1e6)
+            self.assertEqual(got, want, net)
+
+    def test_materialization_donor_and_reference_share_wildcard_patterns(self):
+        expected = {
+            ("Power", "+5VSB"), ("Power", "*5VSB_RAW"),
+            ("Power", "*+5V_HOLD"), ("Power", "*USB_VBUS"),
+            ("Power", "*MAIN_5V_RAW"), ("Power", "*PSU_5V"),
+            ("Power", "*PSU_5V_KVM"), ("Power", "*VCC_P1"),
+            ("Power", "*VCC_P2"), ("Power", "*VCC_P3"),
+            ("Power", "*VCC_P4"), ("CAN", "*CAN_H"),
+            ("CAN", "*CAN_L"), ("USB", "*USB_D_P"),
+            ("USB", "*USB_D_N"),
+        }
+        observed = []
+        for path in self.PROJECTS:
+            with open(path, encoding="utf-8") as source:
+                rows = json.load(source)["net_settings"]["netclass_patterns"]
+            patterns = {(row["netclass"], row["pattern"]) for row in rows}
+            self.assertEqual(patterns, expected, path)
+            observed.append(patterns)
+        self.assertEqual(observed[0], observed[1])
+
+
 class RouteGeometryAdvisoryTest(unittest.TestCase):
     def test_unlocked_off_angle_is_reported_and_locked_authored_is_excluded(self):
         with tempfile.TemporaryDirectory() as directory:

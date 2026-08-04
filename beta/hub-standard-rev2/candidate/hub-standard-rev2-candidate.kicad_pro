@@ -355,91 +355,59 @@
       },
       {
         "netclass": "Power",
-        "pattern": "5VSB_RAW"
+        "pattern": "*5VSB_RAW"
       },
       {
         "netclass": "Power",
-        "pattern": "/5VSB_RAW"
+        "pattern": "*+5V_HOLD"
       },
       {
         "netclass": "Power",
-        "pattern": "+5V_HOLD"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "/+5V_HOLD"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "USB_VBUS"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "/USB_VBUS"
+        "pattern": "*USB_VBUS"
       },
       {
         "netclass": "CAN",
-        "pattern": "CAN_H"
+        "pattern": "*CAN_H"
       },
       {
         "netclass": "CAN",
-        "pattern": "/CAN_H"
-      },
-      {
-        "netclass": "CAN",
-        "pattern": "CAN_L"
-      },
-      {
-        "netclass": "CAN",
-        "pattern": "/CAN_L"
+        "pattern": "*CAN_L"
       },
       {
         "netclass": "USB",
-        "pattern": "USB_D_P"
+        "pattern": "*USB_D_P"
       },
       {
         "netclass": "USB",
-        "pattern": "/USB_D_P"
-      },
-      {
-        "netclass": "USB",
-        "pattern": "USB_D_N"
-      },
-      {
-        "netclass": "USB",
-        "pattern": "/USB_D_N"
+        "pattern": "*USB_D_N"
       },
       {
         "netclass": "Power",
-        "pattern": "/MAIN_5V_RAW"
+        "pattern": "*MAIN_5V_RAW"
       },
       {
         "netclass": "Power",
-        "pattern": "MAIN_5V_RAW"
+        "pattern": "*PSU_5V"
       },
       {
         "netclass": "Power",
-        "pattern": "/PSU_5V"
+        "pattern": "*PSU_5V_KVM"
       },
       {
         "netclass": "Power",
-        "pattern": "PSU_5V"
+        "pattern": "*VCC_P1"
       },
       {
         "netclass": "Power",
-        "pattern": "/VCC_P1"
+        "pattern": "*VCC_P2"
       },
       {
         "netclass": "Power",
-        "pattern": "/VCC_P2"
+        "pattern": "*VCC_P3"
       },
       {
         "netclass": "Power",
-        "pattern": "/VCC_P3"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "/VCC_P4"
+        "pattern": "*VCC_P4"
       }
     ]
   },
