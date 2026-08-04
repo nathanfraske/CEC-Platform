@@ -13,6 +13,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -410,6 +411,27 @@ class TestRectRealization(unittest.TestCase):
                 [[(4, 10, "F.Cu"), (4, 10, "In3.Cu")]], [bridge],
                 {"F.Cu": 1.6, "In3.Cu": 1.6}, g,
                 f_admit=[(0.0, 0.0, 1.0, 1.0)], strict_bridges=True)
+
+    def test_blocked_bridge_field_reseats_on_free_two_layer_spur(self):
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(12, 8)
+        bridge = (4, 5, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        shifted_via = ((5 + 0.5) * g.cell, (4 + 0.5) * g.cell)
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                side_effect=[([], 0), ([shifted_via], 1)]) as field:
+            _polys, vias, notes = realize_overunder_rects(
+                [[(4, 5, "In2.Cu"), (4, 5, "B.Cu")]], [bridge],
+                {"In2.Cu": 1.6, "B.Cu": 1.6}, g,
+                free_masks=masks, strict_bridges=True)
+
+        self.assertEqual(field.call_count, 2)
+        self.assertEqual(vias, [shifted_via])
+        self.assertTrue(any("field reseated" in note for note in notes), notes)
 
 
 if __name__ == "__main__":

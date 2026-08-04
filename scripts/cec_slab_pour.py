@@ -1521,7 +1521,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     via_pts = []
     from shapely.geometry import box as _sbox2
     for f in bridges:
-        (r, c, lf, lt) = f[:4]
+        (r, c, lf, lt, dx, dy) = f[:6]
         fcx = grid.x0 + (c + 0.5) * grid.cell
         fcy = grid.y0 + (r + 0.5) * grid.cell
         # The search and drawing stages must use the same F.Cu admission
@@ -1540,6 +1540,60 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         vs, rs = field_via_line(f, half_w, grid, pad_boxes, placed,
                                 pitch_mm=pitch_mm, ledger_mm=ledger_mm,
                                 pad_allow=pad_allow)
+        if not vs:
+            # The path search proves copper-cell freedom but historically did
+            # not include the diameter-aware barrel ledger.  A transition cell
+            # can therefore be legal for copper yet have every compact field
+            # slot blocked by existing vias or pads.  Reseat the transition a
+            # few cells along a straight, both-layer-free spur; the landing box
+            # below bonds the shifted field back to the original run boundary.
+            def _cell_free(rr, cc):
+                for layer in (lf, lt):
+                    mask = (free_masks or {}).get(layer)
+                    if mask is None:
+                        continue
+                    if (rr < 0 or cc < 0 or rr >= mask.shape[0]
+                            or cc >= mask.shape[1] or not mask[rr, cc]):
+                        return False
+                x = grid.x0 + (cc + 0.5) * grid.cell
+                y = grid.y0 + (rr + 0.5) * grid.cell
+                return not ("F.Cu" in {lf, lt} and admit is not None
+                            and not admit.buffer(1e-6).covers(Point(x, y)))
+
+            def _spur_free(rr, cc):
+                dr = 0 if rr == r else (1 if rr > r else -1)
+                dc = 0 if cc == c else (1 if cc > c else -1)
+                cr, cc_ = r, c
+                while (cr, cc_) != (rr, cc):
+                    cr += dr
+                    cc_ += dc
+                    if not _cell_free(cr, cc_):
+                        return False
+                return True
+
+            for radius in range(1, 5):
+                found = False
+                for dr, dc in ((0, -radius), (0, radius),
+                               (-radius, 0), (radius, 0)):
+                    rr, cc = r + dr, c + dc
+                    if not _spur_free(rr, cc):
+                        continue
+                    shifted = (rr, cc, lf, lt, dx, dy)
+                    shifted_vs, shifted_rs = field_via_line(
+                        shifted, half_w, grid, pad_boxes, placed,
+                        pitch_mm=pitch_mm, ledger_mm=ledger_mm,
+                        pad_allow=pad_allow)
+                    if not shifted_vs:
+                        continue
+                    vs, rs = shifted_vs, shifted_rs
+                    notes.append(
+                        "bridge at cell (%d,%d) field reseated to (%d,%d) "
+                        "for diameter-aware ledger clearance"
+                        % (r, c, rr, cc))
+                    found = True
+                    break
+                if found:
+                    break
         if not vs:
             msg = ("bridge at cell (%d,%d) placed NO via (ledger + pad "
                    "exclusion exhausted every slot)" % (r, c))
