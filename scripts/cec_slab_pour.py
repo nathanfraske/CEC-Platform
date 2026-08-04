@@ -810,7 +810,7 @@ def terminal_clusters(board, nc, grid):
 
 def route_overunder(layers, passable, anchors, clab, nclusters, *,
                     bias_fn, bridge_cost=8.0, turn_cost=1.75,
-                    chains_out=None):
+                    chains_out=None, bridge_forbidden=None):
     """PURE-RASTER core of the over-under pathfinder (owner v2 design, step
     3): grow ONE multi-layer Steiner-ish tree connecting every terminal
     cluster 1..nclusters recorded in *clab* (a (ny,nx) int label array, 0 =
@@ -946,7 +946,9 @@ def route_overunder(layers, passable, anchors, clab, nclusters, *,
                     parent[(nr, ncc, li, ndir)] = (r, c, li, di)
                     heapq.heappush(heap, (nd, nr, ncc, li, ndir))
             for oli, olay in enumerate(layers):
-                if oli == li or not passable[olay][r, c]:
+                if (oli == li or not passable[olay][r, c]
+                        or (bridge_forbidden is not None
+                            and bridge_forbidden[r, c])):
                     continue                    # bridge needs BOTH sides
                 nd = d + bridge_cost
                 if nd < dist[oli, r, c, di]:
@@ -1295,7 +1297,8 @@ def vias_for_current(amps, *, redundancy=1):
 
 
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
-                   ledger_mm=VIA_LEDGER_MM, n_needed=None, pad_allow=None):
+                   ledger_mm=VIA_LEDGER_MM, n_needed=None, pad_allow=None,
+                   via_allow=None):
     """Via positions for ONE compact field: a roughly square ARRAY centred on
     the transition (owner ruling 2026-07-25 -- a layer change is one via array,
     not a fence across the corridor), each slot checked against the barrel
@@ -1364,6 +1367,9 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
         if (_pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN)
                 and not (pad_allow and pad_allow(vx, vy))):
             reseated += 1                  # blocked slot -> keep sliding
+            continue
+        if via_allow is not None and not via_allow(vx, vy):
+            reseated += 1
             continue
         out.append((vx, vy))
     reseated = reseated if out else 0
@@ -1447,7 +1453,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                             existing_vias=(), f_admit=None, free_masks=None,
                             clip_masks=None, holes_out=None,
                             pitch_mm=1.2, ledger_mm=VIA_LEDGER_MM,
-                            pad_allow=None,
+                            pad_allow=None, via_allow=None,
                             strict_bridges=False):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
     stays the search's; the copper is DRAWN geometry -- one straight capsule
@@ -1549,7 +1555,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         half_w = max(reqw.get(lf, 1.2), reqw.get(lt, 1.2)) / 2.0
         vs, rs = field_via_line(f, half_w, grid, pad_boxes, placed,
                                 pitch_mm=pitch_mm, ledger_mm=ledger_mm,
-                                pad_allow=pad_allow)
+                                pad_allow=pad_allow, via_allow=via_allow)
         if not vs:
             # The path search proves copper-cell freedom but historically did
             # not include the diameter-aware barrel ledger.  A transition cell
@@ -1567,8 +1573,10 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                         return False
                 x = grid.x0 + (cc + 0.5) * grid.cell
                 y = grid.y0 + (rr + 0.5) * grid.cell
-                return not ("F.Cu" in {lf, lt} and admit is not None
-                            and not admit.buffer(1e-6).covers(Point(x, y)))
+                if ("F.Cu" in {lf, lt} and admit is not None
+                        and not admit.buffer(1e-6).covers(Point(x, y))):
+                    return False
+                return via_allow is None or via_allow(x, y)
 
             def _spur_free(rr, cc):
                 dr = 0 if rr == r else (1 if rr > r else -1)
@@ -1592,7 +1600,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                     shifted_vs, shifted_rs = field_via_line(
                         shifted, half_w, grid, pad_boxes, placed,
                         pitch_mm=pitch_mm, ledger_mm=ledger_mm,
-                        pad_allow=pad_allow)
+                        pad_allow=pad_allow, via_allow=via_allow)
                     if not shifted_vs:
                         continue
                     vs, rs = shifted_vs, shifted_rs
@@ -1730,9 +1738,52 @@ def _stamp_generated_via_keepouts(mask, grid, vias, net, clearance_mm=0.3):
     return stamped
 
 
+def _stamp_generated_pour_keepouts(mask, grid, pours, net, layer,
+                                   clearance_mm=0.3):
+    """Reserve already allocated foreign rail copper in a later search.
+
+    Generated zones are returned as dictionaries and are not added to the
+    pcbnew board until the complete batch has been solved.  Consequently the
+    ordinary board raster cannot see an earlier rail or connector manifold.
+    Rasterize those planned outlines explicitly so sequential allocation has
+    the same foreign-copper contract as allocation against the source board.
+    """
+    from shapely.geometry import Polygon
+    from shapely.vectorized import contains
+
+    stamped = 0
+    cell_halo = grid.cell * math.sqrt(2.0) / 2.0
+    xs_all = grid.x0 + (np.arange(grid.nx) + 0.5) * grid.cell
+    ys_all = grid.y0 + (np.arange(grid.ny) + 0.5) * grid.cell
+    for pour in pours or ():
+        if (pour.get("net") == net
+                or (layer is not None and pour.get("layer") != layer)):
+            continue
+        geom = Polygon(pour.get("polygon") or (),
+                       pour.get("holes") or ()).buffer(0)
+        if geom.is_empty:
+            continue
+        # Expanding by half a cell diagonal makes centre sampling conservative:
+        # every raster cell touched by the clearance-expanded copper is marked.
+        geom = geom.buffer(float(clearance_mm) + cell_halo, join_style=2)
+        x0, y0, x1, y1 = geom.bounds
+        i0 = max(0, int(math.floor((x0 - grid.x0) / grid.cell - 0.5)))
+        i1 = min(grid.nx - 1,
+                 int(math.ceil((x1 - grid.x0) / grid.cell - 0.5)))
+        j0 = max(0, int(math.floor((y0 - grid.y0) / grid.cell - 0.5)))
+        j1 = min(grid.ny - 1,
+                 int(math.ceil((y1 - grid.y0) / grid.cell - 0.5)))
+        if i1 < i0 or j1 < j0:
+            continue
+        xx, yy = np.meshgrid(xs_all[i0:i1 + 1], ys_all[j0:j1 + 1])
+        mask[j0:j1 + 1, i0:i1 + 1] |= contains(geom, xx, yy)
+        stamped += 1
+    return stamped
+
+
 def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
                         shunt_mask, clearance_mm=0.3, manifolds=(),
-                        generated_vias=()):
+                        generated_vias=(), generated_pours=()):
     """Shared per-net SEARCH PREP for the over-under machinery -- extracted
     2026-07-25 (pre-FR corridor reservation, docs/slab-pour-design-2026-07-24.md
     priority ruling) so `synthesize_overunder_pours` (post-route realization)
@@ -1771,12 +1822,17 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
 
     # step 2: per-layer eroded/passable masks + required width
     amps = net_currents.get(net, 0.0)
+    bridge_forbidden = np.zeros((grid.ny, grid.nx), bool)
+    _stamp_generated_pour_keepouts(
+        bridge_forbidden, grid, generated_pours, net, None, clearance_mm)
     passable, anchors, rcells, reqw, foreign = {}, {}, {}, {}, {}
     for lay in layers:
         lay_id = board.GetLayerID(lay)
         fmask, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
         _stamp_generated_via_keepouts(
             fmask, grid, generated_vias, net, clearance_mm)
+        _stamp_generated_pour_keepouts(
+            fmask, grid, generated_pours, net, lay, clearance_mm)
         w = req_width_mm(amps, lay, board=board) if amps > 0 else 1.2
         rc = max(1, int(round(w / (2.0 * grid.cell))))
         eroded = ndimage.binary_erosion(~fmask, structure=st,
@@ -1820,6 +1876,8 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
                                grid, clearance_mm)
         _stamp_generated_via_keepouts(
             fmask, grid, generated_vias, net, clearance_mm)
+        _stamp_generated_pour_keepouts(
+            fmask, grid, generated_pours, net, extra, clearance_mm)
         helped = [k for k in uncov if (anc & (clab == k)).any()]
         if not helped:
             continue
@@ -1944,7 +2002,8 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     return {"layers": layers, "passable": passable, "anchors": anchors,
             "foreign": foreign, "clab": clab, "nclusters": nclusters,
             "rcells": rcells, "reqw": reqw, "bias_fn": _bias,
-            "attach_notes": attach_notes, "f_admit_mask": f_admit_mask}, None
+            "attach_notes": attach_notes, "f_admit_mask": f_admit_mask,
+            "bridge_forbidden": bridge_forbidden}, None
 
 
 def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
@@ -2023,6 +2082,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
 
     pour_dicts, via_list, report = [], [], {}
     planned_bridge_vias = []
+    planned_pours = []
 
     # v3.1 stage 0: connector manifolds -- LAID FIRST (they lead the dict
     # list) and handed to every net's search as attach targets.
@@ -2035,12 +2095,14 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         for md in manifold_dicts:
             if md.get("net") in nets_nc:
                 man_by_net.setdefault(md["net"], []).append(md)
+                planned_pours.append(md)
     elif manifolds:
         _ask_nets = {a.get("net") for a in asks if a.get("net") in nets_nc}
         for md in connector_manifolds(board, nets=_ask_nets):
             man_by_net.setdefault(md["net"], []).append(md)
         for _mn in sorted(man_by_net):
             pour_dicts.extend(man_by_net[_mn])
+            planned_pours.extend(man_by_net[_mn])
         if man_by_net:
             print("[cec_slab_pour] over-under: %d connector manifold(s) for "
                   "%d net(s) laid first (v3.1 stage 0)"
@@ -2058,7 +2120,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             board, net, nc, list(a.get("layers") or (a.get("layer", "F.Cu"),)),
             grid, net_currents=net_currents, shunt_mask=shunt_mask,
             clearance_mm=clearance_mm, manifolds=man_by_net.get(net, ()),
-            generated_vias=planned_bridge_vias)
+            generated_vias=planned_bridge_vias, generated_pours=planned_pours)
         if prep is None:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "reason": _why}
@@ -2074,7 +2136,8 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         chains = []
         path_cells, bridges, ok, bottleneck = route_overunder(
             prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
-            prep["nclusters"], bias_fn=prep["bias_fn"], chains_out=chains)
+            prep["nclusters"], bias_fn=prep["bias_fn"], chains_out=chains,
+            bridge_forbidden=prep["bridge_forbidden"])
         if collect is not None:
             collect[net] = {"ok": ok, "path_cells": path_cells,
                             "bridges": bridges, "rcells": prep["rcells"],
@@ -2144,12 +2207,18 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 _blocking, _allowed = fab.via_at_pad_conflicts(
                     board, _at, _nm(0.9), _nm(0.5), _nc)
                 return _blocking is None and bool(_allowed)
+            _bridge_forbidden = prep["bridge_forbidden"]
+            def _planned_via_allow(_x, _y, _mask=_bridge_forbidden):
+                _i, _j = grid.ix(_x), grid.iy(_y)
+                return (0 <= _i < grid.nx and 0 <= _j < grid.ny
+                        and not _mask[_j, _i])
             realized, _vpts, _rnotes = realize_overunder_rects(
                 chains, bridges, reqw, grid, pad_boxes=_padb,
                 existing_vias=existing_vias_mm, f_admit=_f_admit,
                 free_masks=prep.get("free") or prep.get("passable"),
                 clip_masks=_realize_masks, holes_out=_realized_holes,
-                pad_allow=_pofv_pad_allow, strict_bridges=True)
+                pad_allow=_pofv_pad_allow, via_allow=_planned_via_allow,
+                strict_bridges=True)
             net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
             for _nt in _rnotes:
                 print(f"[cec_slab_pour] over-under[{net}]: {_nt}",
@@ -2173,6 +2242,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 if holes:
                     row["holes"] = holes
                 pour_dicts.append(row)
+                planned_pours.append(row)
                 segs += 1
 
         for v in net_vias:

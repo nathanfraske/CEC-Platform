@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 from cec_slab_pour import (  # noqa: E402
     Grid,
+    _stamp_generated_pour_keepouts,
     _stamp_generated_via_keepouts,
     bridges_to_vias,
     route_overunder,
@@ -56,6 +57,25 @@ class TestRouteOverunder(unittest.TestCase):
         self.assertEqual(
             _stamp_generated_via_keepouts(own_mask, grid, prior, "RAIL_A"), 0)
         self.assertFalse(own_mask.any(), "same-net barrel remains an anchor")
+
+    def test_earlier_foreign_pour_is_reserved_for_later_net(self):
+        grid = _G(12, 12)
+        prior = [{"net": "RAIL_A", "layer": "In3.Cu",
+                  "polygon": [(3.0, 3.0), (5.0, 3.0),
+                              (5.0, 5.0), (3.0, 5.0)]}]
+        mask = np.zeros((grid.ny, grid.nx), bool)
+
+        self.assertEqual(_stamp_generated_pour_keepouts(
+            mask, grid, prior, "RAIL_B", "In3.Cu"), 1)
+        self.assertTrue(mask.any(), "foreign planned pour must block search")
+        own_mask = np.zeros_like(mask)
+        self.assertEqual(_stamp_generated_pour_keepouts(
+            own_mask, grid, prior, "RAIL_A", "In3.Cu"), 0)
+        self.assertFalse(own_mask.any(), "same-net pour remains attachable")
+        other_layer = np.zeros_like(mask)
+        self.assertEqual(_stamp_generated_pour_keepouts(
+            other_layer, grid, prior, "RAIL_B", "F.Cu"), 0)
+        self.assertFalse(other_layer.any(), "other-layer copper is not foreign")
 
     def test_straight_single_layer_path(self):
         # layer A fully open; layer B fully impassable (never a bridge
@@ -115,6 +135,31 @@ class TestRouteOverunder(unittest.TestCase):
         req_w = {"A": 1.2, "B": 1.2}
         vias = bridges_to_vias(bridges, req_w, grid)
         self.assertGreaterEqual(len(vias), 2, "at least one via per bridge")
+
+    def test_bridge_transition_respects_all_layer_keepout(self):
+        ny, nx = 10, 40
+        passable = {"A": np.ones((ny, nx), bool),
+                    "B": np.ones((ny, nx), bool)}
+        passable["A"][:, 15:25] = False
+        anchors = {"A": np.zeros((ny, nx), bool),
+                   "B": np.zeros((ny, nx), bool)}
+        anchors["A"][4:6, 1:3] = True
+        anchors["A"][4:6, 36:38] = True
+        clab = np.zeros((ny, nx), int)
+        clab[4:6, 1:3] = 1
+        clab[4:6, 36:38] = 2
+        forbidden = np.ones((ny, nx), bool)
+        forbidden[:, 14] = False
+        forbidden[:, 25] = False
+
+        _paths, bridges, ok, bottleneck = route_overunder(
+            ["A", "B"], passable, anchors, clab, 2, bias_fn=_uniform,
+            bridge_forbidden=forbidden)
+
+        self.assertTrue(ok, bottleneck)
+        self.assertEqual(len(bridges), 2)
+        self.assertTrue(all(not forbidden[r, c]
+                            for r, c, *_rest in bridges))
 
     def test_no_path_reports_failure_and_lays_nothing(self):
         # a single layer, hard-walled all the way across between the two
