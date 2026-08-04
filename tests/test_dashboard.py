@@ -18,6 +18,31 @@ import cec_render  # noqa: E402
 
 
 class TestDashboard(unittest.TestCase):
+    def test_blended_overlays_include_six_layer_stack(self):
+        import cec_thermal_overlay
+
+        self.assertEqual(
+            cec_thermal_overlay._BLEND_STACK_BU,
+            ["B.Cu", "In4.Cu", "In3.Cu", "In2.Cu", "In1.Cu", "F.Cu"])
+        for layer in ("In3.Cu", "In4.Cu"):
+            self.assertIn(layer, cec_thermal_overlay._BLEND_LEDGE)
+            self.assertIn(layer, cec_thermal_overlay._BLEND_LTINT)
+
+    def test_blended_thermal_verdict_fails_closed_on_incomplete_injection(self):
+        import cec_thermal_overlay
+
+        incomplete = types.SimpleNamespace(
+            max_T=50.5, ambient=50.0,
+            nets_dropped={"/OPEN": "no terminal path"}, nets_absent={})
+        complete = types.SimpleNamespace(
+            max_T=50.5, ambient=50.0, nets_dropped={}, nets_absent={})
+        self.assertEqual(
+            cec_thermal_overlay._blend_thermal_verdict(incomplete, 40),
+            ("FAIL", True))
+        self.assertEqual(
+            cec_thermal_overlay._blend_thermal_verdict(complete, 40),
+            ("PASS", False))
+
     def test_analyzer_exposes_complete_six_layer_stack(self):
         self.assertEqual([panel for panel, _filename, _layers
                           in dashboard.COPPER_PLOTS],

@@ -2247,16 +2247,17 @@ def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15):
 # spine wants to attach; the F one is the barrel-field bus bar); an SMD group
 # gets its own side only.
 # ---------------------------------------------------------------------------
-def connector_manifolds(board, nets=None, *, margin_mm=4.0,
-                        single_pad_margin_mm=0.3,
+def connector_manifolds(board, nets=None, *, margin_mm=0.3,
                         ref_prefixes=("J", "TB")):
     """Manifold pour dicts for every (connector, net) pin group.
 
     *nets* -- restrict to these net names (None = every non-GND net on a
     connector). GND is always excluded (plane-carried; a GND manifold would
-    just shadow the plane). ``margin_mm`` gangs a true multi-pin bus field;
-    an isolated power pin uses ``single_pad_margin_mm`` so it cannot create an
-    8 mm slab across unrelated connector pins. Returns dicts in add_power_pours' format with
+    just shadow the plane). ``margin_mm`` is a local attach allowance, not a
+    board-routing corridor: the over-under solver owns the widened remote path.
+    Keeping this small prevents a connector's grouped power row from creating
+    a giant slab across interleaved foreign pins. Returns dicts in
+    add_power_pours' format with
     provenance "slab" (the bond/scrap filter + F-rectangularize exemption
     class) and a "name" carrying the manifold identity for the choke-point
     admit + the nowhere-reaper exemption."""
@@ -2274,11 +2275,10 @@ def connector_manifolds(board, nets=None, *, margin_mm=4.0,
                 continue
             by_net.setdefault(n, []).append(p)
         for net, ps in sorted(by_net.items()):
-            margin = margin_mm if len(ps) > 1 else single_pad_margin_mm
-            x0 = min(p.GetBoundingBox().GetLeft() for p in ps) / MM - margin
-            y0 = min(p.GetBoundingBox().GetTop() for p in ps) / MM - margin
-            x1 = max(p.GetBoundingBox().GetRight() for p in ps) / MM + margin
-            y1 = max(p.GetBoundingBox().GetBottom() for p in ps) / MM + margin
+            x0 = min(p.GetBoundingBox().GetLeft() for p in ps) / MM - margin_mm
+            y0 = min(p.GetBoundingBox().GetTop() for p in ps) / MM - margin_mm
+            x1 = max(p.GetBoundingBox().GetRight() for p in ps) / MM + margin_mm
+            y1 = max(p.GetBoundingBox().GetBottom() for p in ps) / MM + margin_mm
             # natural layers: >1 copper layer on any pad = THT group (barrels
             # anchor F AND In2); single-layer = SMD group on its own side.
             tht = any(len(set(p.GetLayerSet().CuStack())) > 1 for p in ps)

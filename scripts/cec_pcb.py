@@ -421,6 +421,12 @@ def write_netclasses(pro_path, classes, patterns):
             pro = json.load(fh)
     else:
         pro = {}
+    # A project sidecar is routinely copied beside a renamed route candidate.
+    # KiCad retains this field when the JSON is copied, and headless consumers
+    # can then bind the board to the temporary/original project name instead of
+    # the sibling sidecars.  Always make the project self-identifying at the
+    # path we are actually writing.
+    pro.setdefault("meta", {})["filename"] = os.path.basename(pro_path)
     pro["net_settings"] = {"classes": classes, "meta": {"version": 4}, "net_colors": None,
                            "netclass_assignments": None,
                            "netclass_patterns": [{"netclass": nc, "pattern": p} for nc, p in patterns]}

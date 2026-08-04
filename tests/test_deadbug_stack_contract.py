@@ -74,6 +74,15 @@ class DeadBugStackContractTest(unittest.TestCase):
         self.assertIn('(layer "Edge.Cuts")', fp)
         self.assertIn('(at -2.725 0.75)', fp)   # pin 1 = DOUT
         self.assertIn('(at 2.725 0.75)', fp)    # pin 4 = VDD
+        dru = open(os.path.join(
+            ROOT, "beta", "hub-standard-rev2",
+            "hub-standard-rev2.kicad_dru"), encoding="utf-8").read()
+        self.assertIn("reverse_led_vendor_aperture_clearance", dru)
+        self.assertIn("edge_clearance (min 0.25mm)", dru)
+        cand_dru = open(os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_dru"), encoding="utf-8").read()
+        self.assertIn("reverse_led_vendor_aperture_clearance", cand_dru)
 
         for ref in ("C29", "C30", "C31", "C32", "C33", "C34"):
             self.assertIn(ref, hub)

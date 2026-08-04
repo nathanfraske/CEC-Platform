@@ -160,8 +160,12 @@ class TestRealHubAllocation(unittest.TestCase):
         self.assertTrue(all(row.get("allocation_failed_closed")
                             for row in report.values()))
         # Non-strict is diagnostic only: it may return provisional polygons,
-        # but every row remains explicitly blocked and cannot be released.
-        self.assertEqual(len(pours), len(asks))
+        # including zero or multiple fragments for an ask, but every row
+        # remains explicitly blocked and cannot be released. Do not encode the
+        # retired one-giant-manifold-per-rail shape as an allocation contract.
+        self.assertTrue(pours)
+        self.assertLessEqual({p["net"] for p in pours},
+                             {ask["net"] for ask in asks})
 
     @unittest.skipUnless(os.path.isfile(HUB), "Hub candidate required")
     def test_current_hub_allocation_is_refused_until_widths_are_satisfied(self):

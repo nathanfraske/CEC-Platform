@@ -168,11 +168,12 @@ class TestConnectorManifolds(unittest.TestCase):
         for d in out:
             xs = [q[0] for q in d["polygon"]]
             ys = [q[1] for q in d["polygon"]]
-            # the group bbox (pads span y 3.4..13.6, x 5.4..6.6) + 4mm margin
-            self.assertLessEqual(min(xs), 5.4 - 3.9)
-            self.assertGreaterEqual(max(xs), 6.6 + 3.9)
-            self.assertLessEqual(min(ys), 3.4 - 3.9)
-            self.assertGreaterEqual(max(ys), 13.6 + 3.9)
+            # Local attach only: group bbox + 0.3mm. The remote over-under
+            # path owns width; the connector manifold must not become a slab.
+            self.assertAlmostEqual(min(xs), 5.4 - 0.3, places=3)
+            self.assertAlmostEqual(max(xs), 6.6 + 0.3, places=3)
+            self.assertAlmostEqual(min(ys), 3.4 - 0.3, places=3)
+            self.assertAlmostEqual(max(ys), 13.6 + 0.3, places=3)
             self.assertEqual(d["name"], "manifold:J3:+5VSB")
             self.assertEqual(d["provenance"], "slab")
 

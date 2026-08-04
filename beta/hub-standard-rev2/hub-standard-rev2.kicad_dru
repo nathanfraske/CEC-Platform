@@ -76,3 +76,11 @@
 (rule usbc_vendor_land_hole_clearance
   (condition "A.memberOfFootprint('J_USB') && B.memberOfFootprint('J_USB')")
   (constraint hole_clearance (min 0.15mm)))
+
+# The SK6812MINI-E reverse-mount vendor land deliberately straddles its
+# 3.4x3.0mm optical aperture. Pad copper is 0.30mm from the routed aperture;
+# scope that fab-qualified distance to the six LED lands only. Routed copper
+# gets no exception and is held out by edge_cutout_* route keepouts.
+(rule reverse_led_vendor_aperture_clearance
+  (condition "A.memberOfFootprint('DL*') || B.memberOfFootprint('DL*')")
+  (constraint edge_clearance (min 0.25mm)))

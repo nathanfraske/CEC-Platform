@@ -808,7 +808,7 @@ def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no cas
 #        a SMOOTH continuous field across the whole board -> heat pooling is
 #        instantly readable, but the copper geometry is washed out.
 #    (2) eps-render-thermal.png  (the standalone build/render-thermal.py):
-#        TRANSLUCENT STACKED copper layers (F/In1/In2/B all visible at once,
+#        TRANSLUCENT STACKED copper layers (all enabled layers visible at once,
 #        overlaps show through) with distinct pad/trace/via/pour treatments and
 #        PROMINENT via rings -- crisp copper structure, but heat reads only as a
 #        per-feature tint, not a field.
@@ -825,11 +825,21 @@ def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no cas
 #  of its NET (default_currents) through a current LUT + legend instead of the
 #  temperature field -- a cross-check (heat should track current).
 # ---------------------------------------------------------------------------
-_BLEND_STACK_BU = ["B.Cu", "In2.Cu", "In1.Cu", "F.Cu"]   # composite order (F.Cu ends on top)
+_BLEND_STACK_BU = ["B.Cu", "In4.Cu", "In3.Cu", "In2.Cu", "In1.Cu", "F.Cu"]
 _BLEND_LEDGE = {"F.Cu": (255, 96, 72), "In1.Cu": (90, 214, 120),     # pour-edge identity colour
-                "In2.Cu": (214, 110, 236), "B.Cu": (84, 150, 255)}
+                "In2.Cu": (214, 110, 236), "In3.Cu": (246, 181, 72),
+                "In4.Cu": (72, 210, 202), "B.Cu": (84, 150, 255)}
 _BLEND_LTINT = {"F.Cu": (255, 138, 120), "In1.Cu": (150, 238, 175),  # soft per-layer fill tint
-                "In2.Cu": (226, 150, 240), "B.Cu": (130, 182, 255)}
+                "In2.Cu": (226, 150, 240), "In3.Cu": (250, 205, 120),
+                "In4.Cu": (132, 232, 224), "B.Cu": (130, 182, 255)}
+
+
+def _blend_thermal_verdict(res, gate_dt):
+    """Fail the rendered verdict closed when requested current was not injected."""
+    dt = res.max_T - res.ambient
+    incomplete = bool((getattr(res, "nets_dropped", None) or {})
+                      or (getattr(res, "nets_absent", None) or {}))
+    return ("PASS" if dt <= gate_dt and not incomplete else "FAIL"), incomplete
 
 
 def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
@@ -848,8 +858,10 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
     from PIL import Image, ImageDraw
 
     b = pcbnew.LoadBoard(board_path)
-    STD = t2.STD_CU_LAYERS                       # lid -> std name (F.Cu/In1.Cu/In2.Cu/B.Cu)
+    STD = t2.STD_CU_LAYERS                       # lid -> standard copper-layer name
     STD_BY_NAME = {v: k for k, v in STD.items()}
+    blend_stack = [name for name in _BLEND_STACK_BU
+                   if name in STD_BY_NAME and b.IsLayerEnabled(STD_BY_NAME[name])]
 
     # ---- geometry transform (working == FINAL * ss) ------------------------
     bb = b.GetBoardEdgesBoundingBox()
@@ -1084,7 +1096,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
         BASE_DIM, COPPER_GAIN, K_TINT = 0.66, 1.12, 0.20
 
     canvas_f = base_rgb * BASE_DIM                           # the smooth field, dimmed -> copper has headroom to pop
-    for std in _BLEND_STACK_BU:
+    for std in blend_stack:
         m = masks[std]
         pour = np.asarray(m["pour"]) > 127
         trace = np.asarray(m["trace"]) > 127
@@ -1133,7 +1145,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
         except Exception:                                    # noqa: BLE001
             pass
 
-    for std in _BLEND_STACK_BU:                               # per-layer pour EDGES (layer identity)
+    for std in blend_stack:                                   # per-layer pour EDGES (layer identity)
         outer = std in ("F.Cu", "B.Cu")
         col = _BLEND_LEDGE[std] + (235 if outer else 150,)
         ew = (ss + 1) if outer else max(1, ss)
@@ -1159,7 +1171,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
 
     # ---- title -------------------------------------------------------------
     dt = res.max_T - res.ambient
-    verdict = "PASS" if dt <= gate_dt else "FAIL"
+    verdict, injection_incomplete = _blend_thermal_verdict(res, gate_dt)
     base_title = title or os.path.basename(board_path)
     if is_cur:
         g.text((14 * ss, 10 * ss),
@@ -1180,12 +1192,14 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
                "%s  -  electro-thermal copper map (smooth field + detailed copper)" % base_title,
                fill=(238, 241, 244), font=_pil_font(22 * ss))
         g.text((14 * ss, 44 * ss),
-               "colour = local copper temperature (turbo)   ·   peak %.1f°C   dT %.1f°C (gate %d)   [%s]   %s"
-               % (res.max_T, dt, gate_dt, verdict, cool_label),
+               "colour = local copper temperature (turbo)   ·   peak %.1f°C   dT %.1f°C (gate %d)   [%s]%s   %s"
+               % (res.max_T, dt, gate_dt, verdict,
+                  "  INJECTION INCOMPLETE" if injection_incomplete else "", cool_label),
                fill=vcol, font=_pil_font(15 * ss, False))
         g.text((14 * ss, 68 * ss),
-               "smooth field base + 4 copper layers drawn translucent & stacked (overlaps show through)   ·   "
-               "ambient %.0f°C   ·   grid %.2f mm" % (res.ambient, res.grid_mm),
+               "smooth field base + %d copper layers drawn translucent & stacked (overlaps show through)   ·   "
+               "ambient %.0f°C   ·   grid %.2f mm"
+               % (len(blend_stack), res.ambient, res.grid_mm),
                fill=(150, 165, 178), font=_pil_font(13 * ss, False))
 
     # ---- legend column -----------------------------------------------------
@@ -1242,7 +1256,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
     fy += 38 * ss
     g.text((lx, fy), "COPPER LAYERS (edge = layer)", fill=(210, 218, 222), font=fmd)
     fy += 24 * ss
-    for std in ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"]:
+    for std in reversed(blend_stack):
         col = _BLEND_LEDGE[std]
         g.rectangle([lx, fy + 2 * ss, lx + sw, fy + 15 * ss],
                     fill=col + (int(255 * 0.55),), outline=col, width=max(1, ss))

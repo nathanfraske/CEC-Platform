@@ -262,7 +262,9 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
     track/via in items (>2 items or a non-pad item) and is never touched here."""
     fcu = board.GetLayerID("F.Cu")
     pads = {}
+    footprints = {}
     for fp in board.GetFootprints():
+        footprints[fp.GetReference()] = fp
         for p in fp.Pads():
             pads[(fp.GetReference(), str(p.GetPadName()))] = p
     mounts = {fp.GetReference() for fp in board.GetFootprints()
@@ -309,6 +311,29 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
                 pad_refs = [m.group(2) for m in pad_ms if m]
                 if has_edge and pad_refs and all(r in mounts for r in pad_refs):
                     continue
+                # Reverse-mount LED vendor land vs its OWN optical aperture.
+                # KiCad CLI can miss the sibling .kicad_dru on renamed route
+                # artifacts, so duplicate the scoped rule here instead of
+                # either hiding all board-edge errors or falsely rejecting the
+                # manufacturer's intended land.  The waiver is deliberately
+                # narrow: pad only, same footprint's Edge.Cuts graphic, the
+                # exact SK6812MINI-E reverse-mount family, and a measured gap
+                # at/above the declared 0.25 mm qualified minimum. Tracks,
+                # vias, foreign apertures, and tighter lands remain failures.
+                edge_refs = []
+                for desc in descs:
+                    match = re.search(r"\bof (DL\d+)\b.*\bEdge\.Cuts\b", desc)
+                    if match:
+                        edge_refs.append(match.group(1))
+                actual = re.search(r"\bactual\s+([0-9.]+)\s*mm", v.get("description", ""))
+                if (len(pad_refs) == 1 and len(edge_refs) == 1
+                        and pad_refs[0] == edge_refs[0] and actual
+                        and float(actual.group(1)) >= 0.25):
+                    fp = footprints.get(pad_refs[0])
+                    if fp is not None:
+                        libname = str(fp.GetFPID().GetLibItemName()).lower()
+                        if "sk6812mini-e" in libname and "reversemount" in libname:
+                            continue
         out.append(v)
     return out
 

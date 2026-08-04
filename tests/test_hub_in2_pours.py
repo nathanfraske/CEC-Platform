@@ -16,7 +16,9 @@
 #      boards (the systematic false-refusal).
 # Tests 1-2 are host-runnable; test 3 needs pcbnew (container-only skip).
 import os
+import json
 import sys
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -128,6 +130,28 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual((r["vias"], r["pofv"], r["stubs"]), (1, 1, 0))
         self.assertEqual(vias[0].GetPosition(), pad.GetPosition())
 
+    def test_pickup_uses_power_netclass_geometry_before_clearance(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        b.SetCopperLayerCount(6)
+        props = b.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        b.SetProperties(props)
+        power = pcbnew.NETCLASS("Power")
+        power.SetTrackWidth(int(1.0e6))
+        power.SetViaDiameter(int(0.8e6))
+        power.SetViaDrill(int(0.4e6))
+        b.GetNetInfo().GetNetItem("+5VSB").SetNetClass(power)
+        pours = [{"net": "+5VSB", "layers": ("In3.Cu",)}]
+
+        result = cec_fr.synthesize_power_pickups(b, pours)
+        via = next(t for t in b.GetTracks() if t.GetClass() == "PCB_VIA")
+        self.assertEqual((result["vias"], result["pofv"]), (1, 1))
+        self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
+        self.assertEqual(via.GetDrillValue(), int(0.4e6))
+
     def test_via_spot_probe_spans_all_layers(self):
         # B2 short reproduction: a foreign track on In2 under the via spot.
         # The single-layer F.Cu probe passes (the hole that shorted); the
@@ -213,6 +237,82 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                                         int(0.25e6), {nc})
         self.assertFalse(old, "empty exempt set must self-collide (the bug)")
         self.assertTrue(new, "own-net exempt must clear an empty board")
+
+
+class TestLaidPipelinePourKeepouts(unittest.TestCase):
+    def test_hub_reserves_generated_signal_layer_pours_only(self):
+        import cec_fr
+
+        board = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        hints = cec_fr.laid_pipeline_pour_keepouts(board)
+        self.assertTrue(hints)
+        self.assertTrue(all(h["name"].startswith("laid-pour:") for h in hints))
+        self.assertTrue(all(tuple(h["layers"]) != ("PWR",) for h in hints))
+
+    def test_hub_edge_hints_reserve_reverse_led_apertures(self):
+        import cec_fr
+
+        board = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        hints = cec_fr.edge_keepout(board)
+        cuts = [h for h in hints if h["name"].startswith("edge_cutout_DL")]
+        self.assertEqual(len(cuts), 6)
+        self.assertTrue(all(c["allow_vias"] is False for c in cuts))
+
+
+class TestRouteArtifactContracts(unittest.TestCase):
+    def _hub_board(self):
+        import pcbnew
+
+        return pcbnew.LoadBoard(os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb"))
+
+    def test_reverse_led_aperture_waiver_is_pad_only_and_geometry_bounded(self):
+        import cec_score
+
+        board = self._hub_board()
+        edge = {"description": "Rectangle of DL1 on Edge.Cuts"}
+        pad = {"description": "Pad 1 [Net-(DL1-DOUT)] of DL1 on F.Cu"}
+        track = {"description": "Track [Net-(DL1-DOUT)] on F.Cu, length 1.0 mm"}
+        qualified = {
+            "type": "copper_edge_clearance",
+            "description": "Board edge clearance violation (actual 0.3542 mm)",
+            "items": [edge, pad],
+        }
+        too_close = {
+            "type": "copper_edge_clearance",
+            "description": "Board edge clearance violation (actual 0.2000 mm)",
+            "items": [edge, pad],
+        }
+        routed = {
+            "type": "copper_edge_clearance",
+            "description": "Board edge clearance violation (actual 0.3542 mm)",
+            "items": [edge, track],
+        }
+        kept = cec_score._drop_impossible_pad_artifacts(
+            [qualified, too_close, routed], board)
+        self.assertEqual(kept, [too_close, routed])
+
+    def test_sidecar_copy_rebinds_project_and_keeps_rules(self):
+        import cec_fr
+
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, "source.kicad_pcb")
+            dst = os.path.join(tmp, "renamed.kicad_pcb")
+            open(src, "w", encoding="utf-8").close()
+            with open(os.path.splitext(src)[0] + ".kicad_pro", "w", encoding="utf-8") as fh:
+                json.dump({"meta": {"filename": "stale.kicad_pro", "version": 3}}, fh)
+            with open(os.path.splitext(src)[0] + ".kicad_dru", "w", encoding="utf-8") as fh:
+                fh.write("(version 1)\n")
+            cec_fr.copy_project_sidecars(src, dst)
+            with open(os.path.splitext(dst)[0] + ".kicad_pro", encoding="utf-8") as fh:
+                pro = json.load(fh)
+            self.assertEqual(pro["meta"]["filename"], "renamed.kicad_pro")
+            self.assertTrue(os.path.isfile(os.path.splitext(dst)[0] + ".kicad_dru"))
 
 
 if __name__ == "__main__":

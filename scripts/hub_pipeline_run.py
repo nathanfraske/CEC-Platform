@@ -319,6 +319,11 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
         source = next((path for path in candidates if os.path.isfile(path)), None)
         if source:
             shutil.copy(source, dst_base + ext)
+    # The sidecars above may originate from an older project basename. Bind
+    # the materialized candidate to the actual filename that all downstream
+    # headless DRC/render/route stages will open.
+    import cec_fr
+    cec_fr.rebind_project_metadata(dst)
     return out, moved, pour_report
 
 

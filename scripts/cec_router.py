@@ -904,17 +904,11 @@ def serial_merge(board0, routed, contracts, out):
         # single region owning all nets -> its candidate IS the merged board
         cand = routed[names[0]][1]
         shutil.copy(cand.board, out)
-        for ext in (".kicad_pro", ".kicad_dru"):
-            s = cand.board[:-len(".kicad_pcb")] + ext
-            if os.path.exists(s):
-                shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+        cec_fr.copy_project_sidecars(cand.board, out)
         return out
     # multi-region: start from the floorplan, lay each region's owned-net copper.
     shutil.copy(board0, out)
-    base0 = board0[:-len(".kicad_pcb")]
-    for ext in (".kicad_pro", ".kicad_dru"):
-        if os.path.exists(base0 + ext):
-            shutil.copy(base0 + ext, out[:-len(".kicad_pcb")] + ext)
+    cec_fr.copy_project_sidecars(board0, out)
     merged = pcbnew.LoadBoard(out)
     owner_of = {n: c.owner for c in contracts for n in c.nets}
     for rname, (region, cand) in routed.items():
@@ -1599,10 +1593,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     # makes the route re-runnable to the same --out without a stale-file crash.
     write_once(spec.out, force=True)
     shutil.copy(merged, spec.out)
-    for ext in (".kicad_pro", ".kicad_dru"):
-        s = merged[:-len(".kicad_pcb")] + ext
-        if os.path.exists(s):
-            shutil.copy(s, spec.out[:-len(".kicad_pcb")] + ext)
+    cec_fr.copy_project_sidecars(merged, spec.out)
     # NOTE: ROUTE-UNDER now runs AFTER the TWO-PASS CORRIDOR below (not here). TPC rips + re-routes
     # every foreign track from scratch, so any pre-TPC layer-swap would be discarded; worse, the
     # pre-TPC swap relayers the USB diff pair onto the In2 plane, and protecting THAT messy multi-layer
@@ -1711,10 +1702,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 # unconnected vs pass-1 means keep pass-1).
                 if best_m.kelvin_ok and best_m.unconnected <= pass1_m.unconnected:
                     shutil.copy(best_tpc, spec.out)
-                    for ext in (".kicad_pro", ".kicad_dru"):
-                        s = best_tpc[:-len(".kicad_pcb")] + ext
-                        if os.path.exists(s):
-                            shutil.copy(s, spec.out[:-len(".kicad_pcb")] + ext)
+                    cec_fr.copy_project_sidecars(best_tpc, spec.out)
                     if verbose:
                         print(f"[route] TPC ADOPTED (kelvin={best_m.kelvin_ok} drc={best_m.drc} "
                               f"unconn={best_m.unconnected}); FR {tpc_info.get('fr_seconds')}s, "
@@ -1839,6 +1827,10 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
             print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
     if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
         _hints += cec_fr.edge_keepout(board_path)
+    # Materialized pipeline pours predate this route call. Reserve their actual
+    # saved signal-layer outlines so Freerouting cannot lay foreign copper in a
+    # region the independent laid-pour gate will necessarily reject.
+    _hints += cec_fr.laid_pipeline_pour_keepouts(board_path)
     spec.regions = [Region(name="all", nets=[],
                            hints=_hints,
                            fr_params={"passes": passes, "opt_time": opt_time,

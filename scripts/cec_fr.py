@@ -514,6 +514,45 @@ def plane_layers(board) -> list:
     return out
 
 
+PIPELINE_POUR_PREFIXES = (
+    "slab:", "overunder:", "pourfirst:", "pourplan:", "patch:", "manifold:",
+)
+
+
+def laid_pipeline_pour_keepouts(board_path):
+    """Return router hints for actual pipeline-owned pours on signal layers.
+
+    These zones are already materialized before a dedicated route, so an
+    import-time pour list cannot reserve them.  Convert their saved outlines to
+    layer-scoped rule-area hints before DSN export.  Dedicated plane/power
+    layers are excluded by the fabrication profile's routing-layer policy.
+    """
+    board = pcbnew.LoadBoard(board_path)
+    allowed = set(_fab.routing_layers(
+        board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", board_path)))
+    hints = []
+    for index, zone in enumerate(board.Zones()):
+        if zone.GetIsRuleArea():
+            continue
+        name = zone.GetZoneName() or ""
+        if not name.startswith(PIPELINE_POUR_PREFIXES):
+            continue
+        bbox = zone.GetBoundingBox()
+        for layer_id in zone.GetLayerSet().CuStack():
+            layer = board.GetLayerName(layer_id)
+            if layer not in allowed:
+                continue
+            hints.append({
+                "name": "laid-pour:%d:%s:%s" % (index, layer, name),
+                "x0": bbox.GetLeft() / MM,
+                "y0": bbox.GetTop() / MM,
+                "x1": bbox.GetRight() / MM,
+                "y1": bbox.GetBottom() / MM,
+                "layers": (layer,),
+            })
+    return hints
+
+
 def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     """LAYER POLICY (owner-ratified 2026-06-11, the FR-04 plane-carving finding): mark the
     named layers ``(type power)`` in the exported DSN so Freerouting EXCLUDES them from
@@ -2244,6 +2283,33 @@ def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_ref
                       "layers": layers,
                       "allow_vias": False, "block_fills": False})
         ai += 1
+    # INTERNAL APERTURES (reverse-mount LEDs, optical windows, slots) are
+    # Edge.Cuts too. The perimeter-strip logic cannot see footprint-local
+    # graphics, so FR previously routed tracks straight across those holes.
+    # Reserve the cut itself plus a small machining guard. Copper pads that
+    # intentionally flank a vendor aperture remain outside this box and route
+    # away from it; their explicit local edge-clearance rule owns pad-to-hole.
+    ci = 0
+    cut_guard = 0.20
+    for fp in own.GetFootprints():
+        for drawing in fp.GraphicalItems():
+            try:
+                if own.GetLayerName(drawing.GetLayer()) != "Edge.Cuts":
+                    continue
+            except Exception:                              # noqa: BLE001
+                continue
+            cb = drawing.GetBoundingBox()
+            hints.append({
+                "name": "edge_cutout_%s_%d" % (fp.GetReference(), ci),
+                "x0": round(cb.GetLeft() / MM - cut_guard, 2),
+                "y0": round(cb.GetTop() / MM - cut_guard, 2),
+                "x1": round(cb.GetRight() / MM + cut_guard, 2),
+                "y1": round(cb.GetBottom() / MM + cut_guard, 2),
+                "layers": layers,
+                "allow_vias": False,
+                "block_fills": False,
+            })
+            ci += 1
     return hints
 
 
@@ -2743,21 +2809,32 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             if nc is None:
                 continue
             lay_id = board.GetLayerID(pad.GetLayerName())
+            # Use the pad net's real class geometry at synthesis time.  A
+            # later final-artifact normalizer must never enlarge a pickup via
+            # or stub into a pad/neighbor that was only clear at the defaults.
+            try:
+                netclass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+                local_dia = max(float(dia), netclass.GetViaDiameter() / MM)
+                local_drill = max(float(drill), netclass.GetViaDrill() / MM)
+                local_stub_w = max(float(stub_w), netclass.GetTrackWidth() / MM)
+            except Exception:                            # noqa: BLE001
+                local_dia, local_drill, local_stub_w = dia, drill, stub_w
+            via_spacing = max(0.85, local_dia + 0.25)
 
             # VIA-IN-PAD FIRST. The centralized fabrication check proves the
             # declared profile, same-net identity, SMD attribute, dimensions,
             # and full-land containment. The all-layer collision probe then
             # applies the ordinary through-via clearance contract. Refusal at
             # either gate preserves the established adjacent-via fallback.
-            if (not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(0.85) ** 2
+            if (not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(via_spacing) ** 2
                         for qx, qy in _pk_vias)
-                    and _via_spot_clear(board, pos, _nm(dia), _nm(0.25),
-                                        {nc}, drill_nm=_nm(drill),
+                    and _via_spot_clear(board, pos, _nm(local_dia), _nm(0.25),
+                                        {nc}, drill_nm=_nm(local_drill),
                                         net_code=nc)):
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(pos)
-                v.SetDrill(_nm(drill))
-                v.SetWidth(_nm(dia))
+                v.SetDrill(_nm(local_drill))
+                v.SetWidth(_nm(local_dia))
                 v.SetNetCode(nc)
                 board.Add(v)
                 _pk_vias.append((pos.x, pos.y))
@@ -2781,11 +2858,11 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     at = pcbnew.VECTOR2I(int(pos.x + _math.cos(a) * _nm(off_mm)),
                                          int(pos.y + _math.sin(a) * _nm(off_mm)))
                     ax, ay = at.x / 1e6, at.y / 1e6
-                    if not any(b[0] + dia / 2 <= ax <= b[2] - dia / 2
-                               and b[1] + dia / 2 <= ay <= b[3] - dia / 2
+                    if not any(b[0] + local_dia / 2 <= ax <= b[2] - local_dia / 2
+                               and b[1] + local_dia / 2 <= ay <= b[3] - local_dia / 2
                                for b in boxes):
                         continue               # via must sit inside the pour
-                    if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(0.85) ** 2
+                    if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(via_spacing) ** 2
                            for qx, qy in _pk_vias):
                         continue               # barrel spacing (never stack)
                     # CALIBRATED GUARDS (rung probes v2/v3: pair-overlap alone
@@ -2804,26 +2881,26 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     # foreign In2 track AND a B.Cu track at the same spot --
                     # the freed inner carries FR tracks now. Plane zones are
                     # ignored by design: the filler's antipads handle them.)
-                    if not (_tap_foreign_clear(board, pos, at, _nm(stub_w),
+                    if not (_tap_foreign_clear(board, pos, at, _nm(local_stub_w),
                                                lay_id, _nm(0.25), {nc})
-                            and _via_spot_clear(board, at, _nm(dia),
+                            and _via_spot_clear(board, at, _nm(local_dia),
                                                 _nm(0.25), {nc},
-                                                drill_nm=_nm(drill),
+                                                drill_nm=_nm(local_drill),
                                                 net_code=nc)
-                            and _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
+                            and _tap_pair_overlap_clear(board, pos, at, _nm(local_stub_w),
                                                         lay_id, nc, set())):
                         continue
                     v = pcbnew.PCB_VIA(board)
                     v.SetPosition(at)
-                    v.SetDrill(_nm(drill))
-                    v.SetWidth(_nm(dia))
+                    v.SetDrill(_nm(local_drill))
+                    v.SetWidth(_nm(local_dia))
                     v.SetNetCode(nc)
                     board.Add(v)
                     _pk_vias.append((at.x, at.y))
                     tr = pcbnew.PCB_TRACK(board)
                     tr.SetStart(pos)
                     tr.SetEnd(at)
-                    tr.SetWidth(_nm(stub_w))
+                    tr.SetWidth(_nm(local_stub_w))
                     tr.SetLayer(lay_id)
                     tr.SetNetCode(nc)
                     board.Add(tr)
@@ -4124,14 +4201,51 @@ def _relayer_segment_inband(board, t, clip, target_layer, *, drill=0.3, dia=0.6)
 
 
 def _rm_tmp_board(path):
-    """Remove a temp board AND the .kicad_pro/.kicad_prl sidecars pcbnew.SaveBoard writes next to it
-    (os.remove on the .kicad_pcb alone leaks the two sidecars on every staged stagger -- re-audit LOW)."""
+    """Remove a temp board and every project sidecar created beside it."""
     base = path[:-len(".kicad_pcb")] if path.endswith(".kicad_pcb") else path
-    for p in (path, base + ".kicad_pro", base + ".kicad_prl"):
+    for p in (path, base + ".kicad_pro", base + ".kicad_dru", base + ".kicad_prl"):
         try:
             os.remove(p)
         except OSError:
             pass
+
+
+def rebind_project_metadata(board_path):
+    """Make a renamed board's project JSON identify its actual sibling path.
+
+    KiCad project files preserve ``meta.filename`` across an ordinary file
+    copy.  Route candidates are intentionally renamed many times, so leaving
+    the old value binds later headless DRC/render steps to a stale project name
+    and can silently orphan the matching custom-rule sidecar.
+    """
+    base = board_path[:-len(".kicad_pcb")] if board_path.endswith(".kicad_pcb") else board_path
+    pro_path = base + ".kicad_pro"
+    if not os.path.isfile(pro_path):
+        return None
+    with open(pro_path, encoding="utf-8") as fh:
+        pro = json.load(fh)
+    expected = os.path.basename(pro_path)
+    if pro.setdefault("meta", {}).get("filename") != expected:
+        pro["meta"]["filename"] = expected
+        with open(pro_path, "w", encoding="utf-8", newline="\n") as fh:
+            json.dump(pro, fh, indent=2)
+            fh.write("\n")
+    return pro_path
+
+
+def copy_project_sidecars(src_board, dst_board):
+    """Copy ``.kicad_pro``/``.kicad_dru`` with a renamed board and rebind it."""
+    src_base = src_board[:-len(".kicad_pcb")] if src_board.endswith(".kicad_pcb") else src_board
+    dst_base = dst_board[:-len(".kicad_pcb")] if dst_board.endswith(".kicad_pcb") else dst_board
+    copied = []
+    for ext in (".kicad_pro", ".kicad_dru"):
+        src, dst = src_base + ext, dst_base + ext
+        if os.path.isfile(src):
+            if os.path.abspath(src) != os.path.abspath(dst):
+                shutil.copy2(src, dst)
+            copied.append(dst)
+    rebind_project_metadata(dst_board)
+    return copied
 
 
 def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=print):
@@ -5427,6 +5541,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         except Exception as _ge:                        # noqa: BLE001 -- fail-safe
             print(f"[cec_fr] inner GND fill skipped ({_ge})", file=sys.stderr)
     pcbnew.SaveBoard(out_path, board)
+    # The routed artifact is a deliverable, not a naked board file. Preserve
+    # its netclasses and custom rules under the routed basename before any
+    # fresh-load cleanup or independent DRC step sees it.
+    copy_project_sidecars(board_path, out_path)
     if not os.path.isfile(out_path):
         raise RuntimeError(
             f"cec_fr.import_ses: SaveBoard appeared to succeed but {out_path!r} is missing"
@@ -5488,12 +5606,7 @@ def bake_hints(
     # LoadProject on that path returns the cached dummy (rc True, classes lost) --
     # the DSN then exports class-less and FR routes every net at the 0.2 default.
     if copy_pro:
-        base = os.path.splitext(board_path)[0]
-        out_base = os.path.splitext(out_path)[0]
-        for ext in (".kicad_pro", ".kicad_dru"):
-            src = base + ext
-            if os.path.isfile(src):
-                shutil.copy2(src, out_base + ext)
+        copy_project_sidecars(board_path, out_path)
 
     if keepouts or copy_pro:
         board = pcbnew.LoadBoard(out_path)
