@@ -198,25 +198,34 @@ def _fill_worker(out, rail_nets=()):
 
     bd = pcbnew.LoadBoard(out)
     pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    before_pickup = {item.m_Uuid.AsString() for item in bd.GetTracks()}
     pickup = cec_fr.synthesize_power_pickups(
         bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets),
         lock=True)
+    pickup_item_ids = {item.m_Uuid.AsString() for item in bd.GetTracks()} - before_pickup
     resolver = cec_fr._project_netclass_resolver(out)
     bypass = cec_fr.synthesize_local_power_bypass_links(
         bd, lock=True, netclass_resolver=resolver)
     local_signal = cec_fr.synthesize_local_signal_links(
         bd, lock=True, netclass_resolver=resolver)
     normalization = {"tracks": 0, "vias": 0}
+    pickup_prune = {"vias": 0, "stubs": 0, "detail": []}
     if pickup["vias"] or bypass["linked"] or local_signal["linked"]:
         normalization = cec_fr.normalize_netclass_geometry(bd, out)
         for zone in bd.Zones():
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+        pickup_prune = cec_fr.prune_redundant_dangling_pickups(
+            bd, pickup_item_ids)
+        # Do not touch SWIG-owned zone objects after Remove(): pruning is the
+        # final in-process mutation, and deleting same-net copper needs no
+        # antipad refill.  A later worker may refill if another stage needs it.
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
             "local_power_bypass": bypass,
             "local_signal_links": local_signal,
-            "normalization": normalization}
+            "normalization": normalization,
+            "pickup_prune": pickup_prune}
 
 
 def _prepare_repour_worker(out, nets):
@@ -401,17 +410,18 @@ def _acceptance_terms(route_verdict, conformance_fail, physics_flags,
 
 _PRE_ROUTE_FATAL_DRC = frozenset({
     "clearance", "shorting_items", "tracks_crossing", "hole_clearance",
+    "isolated_copper", "via_dangling",
 })
 
 
 def _pre_route_materialization_gate(board_path):
     """Refuse electrically invalid synthesized copper before routing.
 
-    An unrouted board legitimately contains dangling bridge barrels and
-    isolated partial rail zones, so those cannot be release gates yet.  Copper
-    contact/clearance faults are never made legitimate by routing and only
-    waste every parallel seed.  Return a compact, auditable result from one
-    DRC run.
+    Ordinary signal ratlines are expected, but synthesized copper must already
+    be physically coherent: the shaped rails are filled and every generated
+    bridge/pickup barrel must contact copper on both sides. Copper collisions,
+    isolated fill, and dangling vias cannot be handed to the router as a valid
+    starting point. Return a compact, auditable result from one DRC run.
     """
     types, loci = cec_score.drc_types(board_path)
     fatal = {kind: count for kind, count in types.items()

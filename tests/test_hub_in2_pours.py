@@ -314,6 +314,64 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertTrue(pickup_items)
         self.assertTrue(all(item.IsLocked() for item in pickup_items))
 
+    def test_redundant_dangling_pickup_is_pruned_after_local_cluster_link(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        net = b.GetNetInfo().GetNetItem("+5VSB")
+        fp = next(iter(b.GetFootprints()))
+        second = pcbnew.PAD(fp)
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I(int(1e6), int(1e6)))
+        second.SetPosition(pcbnew.VECTOR2I(int(7e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); fp.Add(second)
+
+        def add_track(start, end):
+            track = pcbnew.PCB_TRACK(b)
+            track.SetStart(pcbnew.VECTOR2I(*(int(v * 1e6) for v in start)))
+            track.SetEnd(pcbnew.VECTOR2I(*(int(v * 1e6) for v in end)))
+            track.SetWidth(int(0.3e6)); track.SetLayer(pcbnew.F_Cu)
+            track.SetNet(net); b.Add(track)
+            return track
+
+        def add_via(at):
+            via = pcbnew.PCB_VIA(b)
+            via.SetPosition(pcbnew.VECTOR2I(*(int(v * 1e6) for v in at)))
+            via.SetWidth(int(0.6e6)); via.SetDrill(int(0.3e6))
+            via.SetNet(net); b.Add(via)
+            return via
+
+        # The later local-link pass joins both surface pads.  Only the left
+        # pickup lands in the shaped In2 rail; the right one is redundant.
+        add_track((5.0, 2.5), (7.0, 2.5))
+        valid_stub = add_track((5.0, 2.5), (5.0, 3.3))
+        valid_via = add_via((5.0, 3.3))
+        dead_stub = add_track((7.0, 2.5), (7.0, 3.3))
+        dead_via = add_via((7.0, 3.3))
+        zone = pcbnew.ZONE(b); zone.SetNet(net); zone.SetLayer(pcbnew.In2_Cu)
+        outline = zone.Outline(); outline.NewOutline()
+        for x, y in ((4.0, 3.0), (6.0, 3.0), (6.0, 4.0), (4.0, 4.0)):
+            outline.Append(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
+        b.Add(zone); pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+        pickup_ids = {item.m_Uuid.AsString()
+                      for item in (valid_stub, valid_via, dead_stub, dead_via)}
+        valid_stub_id = valid_stub.m_Uuid.AsString()
+        valid_via_id = valid_via.m_Uuid.AsString()
+        dead_stub_id = dead_stub.m_Uuid.AsString()
+        dead_via_id = dead_via.m_Uuid.AsString()
+
+        result = cec_fr.prune_redundant_dangling_pickups(b, pickup_ids)
+
+        remaining = {item.m_Uuid.AsString() for item in b.GetTracks()}
+        self.assertEqual((result["vias"], result["stubs"]), (1, 1))
+        self.assertIn(valid_via_id, remaining)
+        self.assertIn(valid_stub_id, remaining)
+        self.assertNotIn(dead_via_id, remaining)
+        self.assertNotIn(dead_stub_id, remaining)
+
     def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
         import pcbnew
         import cec_fr

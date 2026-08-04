@@ -3094,6 +3094,155 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             "skipped_detail": skipped_detail[:32]}
 
 
+def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
+    """Remove a generated pickup only when later local copper supersedes it.
+
+    Pickup synthesis intentionally precedes the local bypass/link passes: doing
+    the reverse can make a whole surface cluster look "already connected" even
+    though it still has no path to its inner-layer rail.  A later local link can,
+    however, join two independently synthesized pickups.  If one barrel did not
+    survive the final shaped fill, KiCad then reports a dangling via even though
+    the cluster has another valid stack transition.
+
+    Limit pruning to the exact items created by the pickup pass.  An adjacent
+    pickup is removable only when (1) its barrel contacts copper on at most one
+    layer after the final fill, (2) it owns exactly one generated stub, and (3)
+    KiCad's real connected component contains another proven multilayer anchor
+    (a non-dangling via or a plated through pad).  Via-in-pad pickups, router
+    vias, bridge fields, hand-authored copper, and the cluster's only transition
+    therefore fail closed and remain untouched.
+    """
+    import math as _math
+
+    wanted = {str(value) for value in (pickup_item_ids or ())}
+    if not wanted:
+        return {"vias": 0, "stubs": 0, "detail": []}
+
+    tracks = list(board.GetTracks())
+    tracks_by_id = {item.m_Uuid.AsString(): item for item in tracks}
+    pads = [pad for fp in board.GetFootprints() for pad in fp.Pads()]
+    pickup_tracks = [item for item in tracks
+                     if item.m_Uuid.AsString() in wanted
+                     and item.GetClass() != "PCB_VIA"]
+    pickup_vias = [item for item in tracks
+                   if item.m_Uuid.AsString() in wanted
+                   and item.GetClass() == "PCB_VIA"]
+    if not pickup_vias:
+        return {"vias": 0, "stubs": 0, "detail": []}
+
+    tol = int(float(tol_mm) * MM)
+    zones = []
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or not zone.IsOnCopperLayer():
+            continue
+        for layer in zone.GetLayerSet().CuStack():
+            try:
+                poly = zone.GetFilledPolysList(layer)
+            except Exception:                           # noqa: BLE001
+                continue
+            if poly and poly.OutlineCount() > 0:
+                zones.append((zone.GetNetname(), layer, poly))
+
+    def _point_on_track(point, track, extra=0):
+        start, end = track.GetStart(), track.GetEnd()
+        dx, dy = end.x - start.x, end.y - start.y
+        length_sq = dx * dx + dy * dy
+        if length_sq:
+            along = max(0.0, min(
+                1.0, ((point.x - start.x) * dx
+                      + (point.y - start.y) * dy) / length_sq))
+            near_x, near_y = start.x + along * dx, start.y + along * dy
+        else:
+            near_x, near_y = start.x, start.y
+        return _math.hypot(point.x - near_x, point.y - near_y) <= (
+            track.GetWidth() // 2 + int(extra) + tol)
+
+    def _contact_layers(via, *, ignored_ids=()):
+        ignored = set(ignored_ids)
+        point = via.GetPosition()
+        net = via.GetNetname()
+        radius = via.GetWidth(via.TopLayer()) // 2
+        found = set()
+        for other in tracks:
+            other_id = other.m_Uuid.AsString()
+            if (other is via or other_id in ignored
+                    or other.GetNetname() != net):
+                continue
+            if (other.GetClass() != "PCB_VIA"
+                    and via.IsOnLayer(other.GetLayer())
+                    and _point_on_track(point, other, radius)):
+                found.add(other.GetLayer())
+        for pad in pads:
+            if pad.GetNetname() != net:
+                continue
+            try:
+                hit = pad.HitTest(point, radius + tol)
+            except TypeError:
+                hit = pad.HitTest(point)
+            if hit:
+                found.update(layer for layer in pad.GetLayerSet().CuStack()
+                             if via.IsOnLayer(layer))
+        for zone_net, layer, poly in zones:
+            if (zone_net == net and via.IsOnLayer(layer)
+                    and poly.Collide(point, tol)):
+                found.add(layer)
+        return found
+
+    board.BuildConnectivity()
+    connectivity = board.GetConnectivity()
+    doomed = []
+    detail = []
+    for via in pickup_vias:
+        via_id = via.m_Uuid.AsString()
+        stubs = [track for track in pickup_tracks
+                 if (track.GetNetCode() == via.GetNetCode()
+                     and via.IsOnLayer(track.GetLayer())
+                     and _point_on_track(via.GetPosition(), track,
+                                         via.GetWidth(via.TopLayer()) // 2))]
+        # No-stub pickups are intentional POFV. Multiple stubs are no longer a
+        # simple removable leaf, so both cases remain for explicit diagnosis.
+        if len(stubs) != 1:
+            continue
+        stub_ids = {stub.m_Uuid.AsString() for stub in stubs}
+        if len(_contact_layers(via)) > 1:
+            continue
+        try:
+            component = list(connectivity.GetConnectedItems(via))
+        except Exception:                               # noqa: BLE001
+            component = []
+        replacement = None
+        for item in component:
+            if item is via or item.GetNetCode() != via.GetNetCode():
+                continue
+            if item.GetClass() == "PCB_VIA":
+                item_id = item.m_Uuid.AsString()
+                original = tracks_by_id.get(item_id)
+                if (item_id != via_id and original is not None
+                        and len(_contact_layers(
+                            original,
+                            ignored_ids=stub_ids | {via_id})) > 1):
+                    replacement = "via"
+                    break
+            if item.GetClass() == "PAD":
+                layers = tuple(item.GetLayerSet().CuStack())
+                if (item.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+                        and len(layers) > 1):
+                    replacement = "through-pad"
+                    break
+        if replacement is None:
+            continue
+        doomed.append((via, stubs[0]))
+        pos = via.GetPosition()
+        detail.append({"net": via.GetNetname(),
+                       "at_mm": [round(pos.x / MM, 6), round(pos.y / MM, 6)],
+                       "replacement": replacement})
+
+    for via, stub in doomed:
+        board.Remove(stub)
+        board.Remove(via)
+    return {"vias": len(doomed), "stubs": len(doomed), "detail": detail}
+
+
 def _canonical_45_xy_paths(start, end):
     """Return deterministic shortest paths whose legs are only 0/45/90 degrees.
 

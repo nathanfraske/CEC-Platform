@@ -128,6 +128,9 @@ class TestHubAcceptance(unittest.TestCase):
             def GetAreaCount(self):
                 return 7
 
+            def GetTracks(self):
+                return []
+
         board = Board()
         filler = mock.Mock()
         pickup = {"pads": 3, "vias": 3, "stubs": 2, "pofv": 1,
@@ -147,7 +150,10 @@ class TestHubAcceptance(unittest.TestCase):
                 mock.patch.object(cec_fr, "_project_netclass_resolver",
                                   return_value="resolver") as resolver, \
                 mock.patch.object(cec_fr, "normalize_netclass_geometry",
-                                  return_value={"tracks": 2, "vias": 0}) as normalize:
+                                  return_value={"tracks": 2, "vias": 0}) as normalize, \
+                mock.patch.object(cec_fr, "prune_redundant_dangling_pickups",
+                                  return_value={"vias": 0, "stubs": 0,
+                                                "detail": []}) as prune:
             result = H._fill_worker("fixture.kicad_pcb", ("/PWR",))
 
         synth.assert_called_once_with(
@@ -159,6 +165,7 @@ class TestHubAcceptance(unittest.TestCase):
         local_signal.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
+        prune.assert_called_once_with(board, set())
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)
@@ -196,7 +203,7 @@ class TestHubAcceptance(unittest.TestCase):
             with self.subTest(values=values):
                 self.assertFalse(H._acceptance_terms(*values)[1])
 
-    def test_pre_route_gate_refuses_contact_faults_not_expected_open_copper(self):
+    def test_pre_route_gate_refuses_contact_and_open_copper_faults(self):
         types = {"clearance": 2, "via_dangling": 31,
                  "isolated_copper": 7, "copper_edge_clearance": 2}
         loci = [{"type": kind, "where": kind} for kind in types]
@@ -204,18 +211,22 @@ class TestHubAcceptance(unittest.TestCase):
                                return_value=(types, loci)):
             result = H._pre_route_materialization_gate("fixture.kicad_pcb")
         self.assertFalse(result["ok"])
-        self.assertEqual(result["fatal"], {"clearance": 2})
+        self.assertEqual(result["fatal"], {
+            "clearance": 2, "via_dangling": 31, "isolated_copper": 7})
         self.assertEqual(result["loci"],
-                         [{"type": "clearance", "where": "clearance"}])
+                         [{"type": kind, "where": kind}
+                          for kind in ("clearance", "via_dangling",
+                                       "isolated_copper")])
 
-    def test_pre_route_gate_allows_expected_unrouted_findings(self):
+    def test_pre_route_gate_refuses_dangling_and_isolated_generated_copper(self):
         types = {"via_dangling": 31, "isolated_copper": 7,
                  "copper_edge_clearance": 2}
         with mock.patch.object(H.cec_score, "drc_types",
                                return_value=(types, [])):
             result = H._pre_route_materialization_gate("fixture.kicad_pcb")
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["fatal"], {})
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["fatal"], {
+            "via_dangling": 31, "isolated_copper": 7})
 
     def test_conformance_exception_is_a_failure(self):
         messages = []
