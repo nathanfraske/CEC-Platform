@@ -62,6 +62,7 @@ ARCHIVE_ROOT = os.path.join(ROOT, "build", "board-archive")
 SOLVE = {"ambient": 50.0, "grid_mm": 0.2, "h_eff": 15.0}   # board_thermal_config -> _prepare_filled -> solve
 PANEL_W = 1400                # final_board_w; total PNG >= ~1772px (board + 372px legend) -> the >=1600px ask
 GATE_DT = 30.0               # dT-over-ambient PASS gate
+THERMAL_GEOMETRY_SOURCE = "source-declared-copper-only:v1"
 WX_NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|wxWidgets")
 
 # Full six-layer stack, in physical order. The wave renderer and archive analyzer
@@ -208,6 +209,19 @@ def _thermal_board_hint(path):
         for board in sorted(manifest.CURRENT_BETA_BOARDS, key=len, reverse=True):
             if board.lower() in normalized:
                 return board
+        # Review exports and compact/wave artifacts often retain only a family
+        # prefix, not the full manifest slug. Keep aliases explicit and narrow;
+        # the exact manifest match above always wins (including daughterboards).
+        filename = os.path.basename(normalized)
+        aliases = (
+            (("12vhpwr", "12v2x6"), "12vhpwr-standard"),
+            (("atx-", "atx24-"), "atx-24pin-rev3"),
+            (("hub-",), "hub-standard-rev2"),
+            (("eps-",), "eps-8pin-rev3"),
+        )
+        for prefixes, board in aliases:
+            if filename.startswith(prefixes):
+                return board
     except Exception:                                      # noqa: BLE001 -- optional hint
         pass
     return None
@@ -314,6 +328,10 @@ def _analyze_in_container(board, detail_png, current_png, width,
         thermal = {"ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
                    "dT": round(dt, 2), "verdict": "PASS" if dt <= GATE_DT else "FAIL",
                    "cooling": cool, "grid_mm": res.grid_mm,
+                   "geometry_source": res.meta.get("geometry_source"),
+                   "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
+                   "analysis_geometry_sha256": res.meta.get("analysis_geometry_sha256"),
+                   "geometry_counts": res.meta.get("geometry_counts"),
                    "nets_requested": injection["nets_requested"],
                    "nets_injected": injection["nets_injected"],
                    "detail": os.path.basename(detail_png),
@@ -333,6 +351,8 @@ def _analyze_in_container(board, detail_png, current_png, width,
         out["thermal"] = thermal
     except Exception as e:                                          # noqa: BLE001
         out["thermal"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        if type(e).__name__ == "ThermalGeometryError":
+            out["thermal"].update({"verdict": "FAIL", "geometry_source": "INVALID"})
 
     # ---- gates: kelvin / diffpair / drc / unconnected + foreign-on-pour (CEC_SHUNT_GAP set by caller) ----
     try:
@@ -434,7 +454,11 @@ def _verdict(gates, thermal):
         failing.append("unconnected")
     if gates.get("drc"):
         failing.append("drc")
-    if thermal.get("ok") and thermal.get("verdict") == "FAIL":
+    geometry_source = thermal.get("geometry_source")
+    if geometry_source == "INVALID" or (
+            thermal.get("ok") and geometry_source != THERMAL_GEOMETRY_SOURCE):
+        failing.append("thermal-geometry")
+    elif thermal.get("ok") and thermal.get("verdict") == "FAIL":
         failing.append("thermal")
     return ("CLEAN" if not failing else "FAILED"), failing
 
@@ -530,6 +554,12 @@ def _load_archive():
         try:
             s = json.load(open(sj))
             s["id"] = s.get("id") or os.path.basename(os.path.dirname(sj))
+            # Verdict policy evolves. In particular, pre-v1 thermal summaries
+            # may have been solved on verifier-synthesized copper; never retain
+            # a historical CLEAN badge when current policy can prove the FEM
+            # geometry provenance is missing.
+            s["verdict"], s["failing"] = _verdict(
+                s.get("gates") or {}, s.get("thermal") or {})
             found[s["id"]] = s
         except Exception:                                          # noqa: BLE001
             pass
@@ -811,7 +841,10 @@ function renderBadges(){
   +gbadge('unconnected',g.unconnected===0,String(g.unconnected));
  const off45=Number.isInteger(rq.unlocked_off45_tracks)?rq.unlocked_off45_tracks:null;
  if(off45!==null) h+=`<span class="pill ${off45===0?'ok':'warn'}" title="Unlocked generated trace segments outside 0/45/90 degrees; locked authored launches excluded">off-45 ${off45}</span>`;
- if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;
+ const geomOk=t.geometry_source==='source-declared-copper-only:v1';
+ if(t.ok&&!geomOk) h+=`<span class="pill bad" title="Legacy or unproven FEM geometry; re-run this board with source-only copper verification">thermal INVALID · geometry unproven</span>`;
+ else if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal on source-declared copper only, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;
+ else if(t.geometry_source==='INVALID') h+=`<span class="pill bad" title="${esc(t.error||'FEM geometry parity failed')}">thermal INVALID · geometry parity</span>`;
  else h+=`<span class="pill dim" title="${esc(t.error||'')}">thermal n/a</span>`;
  el.innerHTML=h+verdictPill();
 }

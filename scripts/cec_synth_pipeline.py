@@ -10000,17 +10000,36 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     import cec_thermal_overlay as _tov
     res, _filled, label = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
     dT = float(res.max_T) - float(res.ambient)
+    expected_geometry = getattr(
+        _tov, "THERMAL_GEOMETRY_SOURCE", "source-declared-copper-only:v1")
+    meta = dict(getattr(res, "meta", None) or {})
+    geometry = {
+        "geometry_source": meta.get("geometry_source"),
+        "source_geometry_sha256": meta.get("source_geometry_sha256"),
+        "analysis_geometry_sha256": meta.get("analysis_geometry_sha256"),
+    }
+    if (geometry["geometry_source"] != expected_geometry
+            or not geometry["source_geometry_sha256"]
+            or geometry["source_geometry_sha256"] != geometry["analysis_geometry_sha256"]):
+        return {"ok": False, "max_T": round(float(res.max_T), 2),
+                "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+                "gate_dt": gate_dt, "cooling": label, **geometry,
+                "error": "THERMAL GEOMETRY UNPROVEN: FEM must use only source-declared "
+                         "copper with matching source/analysis fingerprints"}
     # INJECTION ACCOUNTING (2026-07-22, the partial-injection mirage fix): a configured
     # net PRESENT on the board whose src/sink have no common copper component injects
     # NOTHING -- its Joule heat is simply missing from the field, so a less-complete
     # board reads COOLER (measured: 24-pin chain "dT~10.9 PASS" stamps on boards with
     # +5V_MAIN/+5VSB still open, vs 61.8 on a sibling). Any dropped net => FAIL with
-    # the named nets; absent-from-board nets stay advisory (the alpha /FAN_12V
-    # contract). The accounting rides every stamp so a pass is provably complete.
+    # the named nets. Configured absent nets also fail: board-family scenarios
+    # must select the artifact's actual net name (for example lane 6 is either
+    # /SENSEP6_HI or /FAN_12V, never both). The accounting rides every stamp so
+    # a pass is provably complete.
     req = dict(getattr(res, "nets_requested", None) or {})
     dropped = dict(getattr(res, "nets_dropped", None) or {})
     absent = dict(getattr(res, "nets_absent", None) or {})
-    inj = {"nets_requested": len(req), "nets_injected": len(req) - len(dropped) - len(absent)}
+    inj = {"nets_requested": len(req), "nets_injected": len(req) - len(dropped) - len(absent),
+           **geometry}
     if dropped:
         inj["nets_dropped"] = {n: dropped[n] for n in sorted(dropped)}
     if absent:
@@ -10034,6 +10053,15 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     if dT <= gate_dt:
         res2, _f2, _l2 = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
         dT2 = float(res2.max_T) - float(res2.ambient)
+        meta2 = dict(getattr(res2, "meta", None) or {})
+        if (meta2.get("geometry_source") != expected_geometry
+                or meta2.get("source_geometry_sha256") != geometry["source_geometry_sha256"]
+                or meta2.get("analysis_geometry_sha256") != geometry["source_geometry_sha256"]):
+            return {"ok": False, "max_T": round(float(res2.max_T), 2),
+                    "ambient": round(float(res2.ambient), 2), "dT": round(dT2, 2),
+                    "gate_dt": gate_dt, "cooling": label, **inj,
+                    "error": "THERMAL GEOMETRY DRIFT: confirmation solve did not use the "
+                             "same source-declared copper"}
         worst = max(dT, dT2)
         if dT2 <= 0.05 or abs(dT2 - dT) > max(2.0, 0.2 * max(dT, dT2)) or worst > gate_dt:
             return {"ok": False, "max_T": round(float(res.ambient) + worst, 2),

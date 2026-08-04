@@ -74,12 +74,17 @@ class TestDropMechanism(unittest.TestCase):
 class _FakeRes:
     """Duck-typed ThermalResult carrying only what _oracle_thermal reads."""
 
-    def __init__(self, dT, requested=None, dropped=None, absent=None, ambient=50.0):
+    def __init__(self, dT, requested=None, dropped=None, absent=None, ambient=50.0,
+                 geometry_proven=True):
         self.max_T = ambient + dT
         self.ambient = ambient
         self.nets_requested = requested or {}
         self.nets_dropped = dropped or {}
         self.nets_absent = absent or {}
+        self.meta = ({"geometry_source": "source-declared-copper-only:v1",
+                      "source_geometry_sha256": "same-fingerprint",
+                      "analysis_geometry_sha256": "same-fingerprint"}
+                     if geometry_proven else {})
 
 
 class TestStampClassification(unittest.TestCase):
@@ -135,6 +140,12 @@ class TestStampClassification(unittest.TestCase):
         self.assertTrue(st["ok"])
         self.assertEqual(st["nets_injected"], 1)
         self.assertNotIn("nets_dropped", st)
+
+    def test_unproven_geometry_fails_before_temperature_can_pass(self):
+        st = self._stamp(_FakeRes(12.0, requested={"GND": 50.0},
+                                  geometry_proven=False))
+        self.assertFalse(st["ok"])
+        self.assertIn("THERMAL GEOMETRY UNPROVEN", st["error"])
 
 
 if __name__ == "__main__":

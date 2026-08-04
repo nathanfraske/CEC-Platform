@@ -37,6 +37,9 @@ class TestDashboard(unittest.TestCase):
         self.assertEqual(dashboard._thermal_board_hint(
             "/repo/beta/atx-24pin-rev3/candidate/board.kicad_pcb"),
             "atx-24pin-rev3")
+        self.assertEqual(dashboard._thermal_board_hint(
+            "/repo/output/review/atx-86x95-deadbug-r4.kicad_pcb"),
+            "atx-24pin-rev3")
 
     def test_thermal_injection_report_names_omitted_paths(self):
         result = types.SimpleNamespace(
@@ -45,6 +48,23 @@ class TestDashboard(unittest.TestCase):
         report = dashboard._thermal_injection_report(result)
         self.assertEqual(report["nets_injected"], 1)
         self.assertEqual(report["omitted"], ["/B", "/C"])
+
+    def test_legacy_thermal_pass_is_invalid_without_geometry_proof(self):
+        gates = {"ok": True, "kelvin_ok": True, "drc": 0, "unconnected": 0,
+                 "foreign": {"status": "na"}}
+        verdict, failing = dashboard._verdict(
+            gates, {"ok": True, "verdict": "PASS", "dT": 1.0})
+        self.assertEqual(verdict, "FAILED")
+        self.assertEqual(failing, ["thermal-geometry"])
+
+    def test_source_only_thermal_pass_can_be_clean(self):
+        gates = {"ok": True, "kelvin_ok": True, "drc": 0, "unconnected": 0,
+                 "foreign": {"status": "na"}}
+        verdict, failing = dashboard._verdict(
+            gates, {"ok": True, "verdict": "PASS",
+                    "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE})
+        self.assertEqual((verdict, failing), ("CLEAN", []))
+        self.assertIn("geometry unproven", dashboard.PAGE)
 
     @unittest.skipUnless(shutil.which("kicad-cli") and shutil.which("rsvg-convert"),
                          "KiCad and rsvg-convert required for the real wave tile")

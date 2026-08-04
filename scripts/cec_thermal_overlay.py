@@ -27,6 +27,7 @@ default stackup is the cost-down baseline F/B=1oz, In1/In2=0.5oz.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -45,6 +46,17 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_thermal2d as t2  # noqa: E402
 import cec_fab_profile as fab  # noqa: E402
+
+
+# FEM is a verifier, not a copper generator.  This marker is copied into every
+# result so downstream gates and archived dashboards can reject results created
+# by the former "derive expected pours while solving" behavior.
+THERMAL_GEOMETRY_SOURCE = "source-declared-copper-only:v1"
+_TEMP_ANALYSIS_PATHS = set()
+
+
+class ThermalGeometryError(RuntimeError):
+    """The analysis board could not be proven copper-identical to its source."""
 
 
 def board_fab_profile(board_path, board_hint=None):
@@ -127,16 +139,24 @@ def board_thermal_config(board_path, board_hint=None):
     profile_stackup = fab.stackup_oz(profile_name) if profile_name else None
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
+        # The current BETA sheet renamed lane 6's pre-shunt node to /FAN_12V
+        # because the fan feed taps that lane.  Select exactly one lane-6 name
+        # from the artifact being verified; requesting both silently double-
+        # described one physical lane and made injection accounting fail on the
+        # obsolete name.
+        board_nets = set()
+        if board_path and os.path.isfile(board_path):
+            try:
+                import pcbnew
+                board_nets = {str(net) for net in pcbnew.LoadBoard(board_path).GetNetsByName().keys()}
+            except Exception:                                  # noqa: BLE001
+                board_nets = set()
         for n in range(1, 7):
-            nc["/SENSEP%d_HI" % n] = 8.33
+            hi = "/FAN_12V" if n == 6 and "/FAN_12V" in board_nets else "/SENSEP%d_HI" % n
+            nc[hi] = 8.33
             nc["/SENSEP%d_LO" % n] = 8.33
-            ov["/SENSEP%d_HI" % n] = {"refs_src": ["J3"], "refs_sink": ["RS%d" % n]}
+            ov[hi] = {"refs_src": ["J3"], "refs_sink": ["RS%d" % n]}
             ov["/SENSEP%d_LO" % n] = {"refs_src": ["RS%d" % n], "refs_sink": ["J4"]}
-        # BETA sheets (2026-07-11): lane 6's pre-shunt node is /FAN_12V (J2 fan
-        # feed taps it, spec enclosed menu) -- same 8.33A lane current; absent
-        # nets are ignored, so alpha boards are unaffected.
-        nc["/FAN_12V"] = 8.33
-        ov["/FAN_12V"] = {"refs_src": ["J3"], "refs_sink": ["RS6"]}
         nc["GND"] = 50.0
         ov["GND"] = {"refs_src": ["J4"], "refs_sink": ["J3"]}
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
@@ -253,37 +273,212 @@ def _copper_patches(board, std_layers):
     return out
 
 
-def _prepare_filled(board_path):
-    """Pour the SENSEC high-current corridors + FILL all zones so the solver and the render have REAL
-    copper. Placement candidates ship with UNFILLED zones (the filled pours only exist in the temp routed
-    board during measure), so without this the field is uniform ambient and the heatmap reads blank. Adds
-    the F.Cu SENSEC pours (so the 12V corridors show) then fills GND/+pours. Returns a temp filled-board
-    path; degrades to the original path on any failure (the overlay must never hard-fail)."""
+def _xy(point):
+    return int(point.x), int(point.y)
+
+
+def _polyset_signature(polyset):
+    """JSON-safe signature of source-declared polygon outlines (not fill cache)."""
+    polygons = []
+    for oi in range(polyset.OutlineCount()):
+        outline = polyset.Outline(oi)
+        outer = tuple(_xy(outline.CPoint(i)) for i in range(outline.PointCount()))
+        holes = []
+        for hi in range(polyset.HoleCount(oi)):
+            hole = polyset.Hole(oi, hi)
+            holes.append(tuple(_xy(hole.CPoint(i)) for i in range(hole.PointCount())))
+        polygons.append((outer, tuple(holes)))
+    return tuple(polygons)
+
+
+def _declared_copper_manifest(board):
+    """Return the copper topology that a verifier is allowed to consume.
+
+    Filled polygons are deliberately excluded: they are a KiCad-derived cache
+    which `_prepare_filled` may refresh.  Zone declarations, tracks/vias and pad
+    copper are included, so adding a hypothetical corridor or changing actual
+    copper while preparing FEM cannot pass unnoticed.
+    """
+    zones = []
+    zone_rule_getters = (
+        "GetFillMode", "GetMinThickness", "GetLocalClearance",
+        "GetThermalReliefGap", "GetThermalReliefSpokeWidth", "GetPadConnection",
+        "GetCornerSmoothingType", "GetCornerRadius", "GetIslandRemovalMode",
+        "GetMinIslandArea", "GetIsRuleArea", "GetDoNotAllowTracks",
+        "GetDoNotAllowVias", "GetDoNotAllowPads", "GetDoNotAllowFootprints",
+        "GetDoNotAllowZoneFills",
+    )
+    for zone in board.Zones():
+        rules = tuple((name, getattr(zone, name)()) for name in zone_rule_getters)
+        zones.append((
+            zone.GetNetname(), zone.GetZoneName(), int(zone.GetAssignedPriority()),
+            tuple(int(layer) for layer in zone.GetLayerSet().Seq()),
+            rules, _polyset_signature(zone.Outline()),
+        ))
+
+    tracks = []
+    for track in board.GetTracks():
+        klass = track.GetClass()
+        common = (
+            klass, track.GetNetname(),
+            tuple(int(layer) for layer in track.GetLayerSet().Seq()),
+            _xy(track.GetStart()), _xy(track.GetEnd()), bool(track.IsLocked()),
+        )
+        if klass == "PCB_VIA":
+            layers = tuple(int(layer) for layer in track.GetLayerSet().Seq())
+            detail = (
+                "via", _xy(track.GetPosition()), int(track.GetDrill()),
+                int(track.TopLayer()), int(track.BottomLayer()), int(track.GetViaType()),
+                tuple((layer, int(track.GetWidth(layer))) for layer in layers),
+            )
+        else:
+            mid = _xy(track.GetMid()) if hasattr(track, "GetMid") else None
+            detail = ("route", int(track.GetLayer()), int(track.GetWidth()), mid)
+        tracks.append(common + detail)
+
+    pads = []
+    for footprint in board.GetFootprints():
+        ref = footprint.GetReference()
+        for pad in footprint.Pads():
+            size, drill = pad.GetSize(), pad.GetDrillSize()
+            offset, delta = pad.GetOffset(), pad.GetDelta()
+            pads.append((
+                ref, pad.GetNumber(), pad.GetNetname(),
+                tuple(int(layer) for layer in pad.GetLayerSet().Seq()),
+                _xy(pad.GetPosition()), (int(size.x), int(size.y)),
+                (int(drill.x), int(drill.y)), (int(offset.x), int(offset.y)),
+                (int(delta.x), int(delta.y)), int(pad.GetShape()),
+                int(pad.GetAttribute()), float(pad.GetOrientation().AsDegrees()),
+                bool(pad.IsLocked()),
+            ))
+
+    # Board-item ordering is not semantic and KiCad may normalize it on save.
+    return {
+        "zones": sorted(zones, key=repr),
+        "tracks": sorted(tracks, key=repr),
+        "pads": sorted(pads, key=repr),
+    }
+
+
+def _manifest_sha256(manifest):
+    payload = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _assert_geometry_parity(source, analysis):
+    if source == analysis:
+        return
+    counts = lambda m: {kind: len(m.get(kind, ())) for kind in ("zones", "tracks", "pads")}
+    raise ThermalGeometryError(
+        "FEM preparation changed declared copper geometry: source=%s analysis=%s"
+        % (counts(source), counts(analysis)))
+
+
+def _remove_temp_board_artifacts(board_path):
+    """Remove a controlled temp PCB and KiCad sidecars created while saving it."""
+    if not board_path:
+        return
+    base = (board_path[:-len(".kicad_pcb")] if board_path.endswith(".kicad_pcb")
+            else board_path)
+    for path in (board_path, base + ".kicad_pro", base + ".kicad_prl",
+                 base + ".kicad_dru", board_path + "-bak"):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass
+
+
+def _register_temp_analysis_path(board_path):
+    """Delete a worker's reusable analysis board when that worker exits."""
+    if board_path in _TEMP_ANALYSIS_PATHS:
+        return
+    import atexit
+    _TEMP_ANALYSIS_PATHS.add(board_path)
+    atexit.register(_remove_temp_board_artifacts, board_path)
+
+
+def _prepare_filled(board_path, *, return_provenance=False):
+    """Fill only source-declared zones and prove copper-geometry parity.
+
+    Unfilled zone polygons are declarations of real intended copper, so KiCad's
+    fill cache may be refreshed for the solver.  No zone, trace, via or pad may
+    be synthesized here.  Any load/fill/save/parity error is verification-fatal
+    rather than silently falling back to a different analysis artifact.
+    """
     import pcbnew
     import tempfile
+
+    stage = None
     try:
-        b = pcbnew.LoadBoard(board_path)
-        try:
-            import cec_fr
-            pours = cec_fr.derive_power_pours(board_path, board=b)
-            cec_fr.add_power_pours(b, pours, fill=False)
-        except Exception:                                    # noqa: BLE001 -- pours are a bonus; GND fill is the core
-            pass
-        for z in b.Zones():
-            z.UnFill()
-        pcbnew.ZONE_FILLER(b).Fill(b.Zones())
-        out = os.path.join(tempfile.gettempdir(), "thermal_filled_" + os.path.basename(board_path))
-        pcbnew.SaveBoard(out, b)
-        return out
-    except Exception:                                        # noqa: BLE001
-        return board_path
+        source_path = os.path.abspath(board_path)
+        if not os.path.isfile(source_path):
+            raise ThermalGeometryError("FEM source board does not exist: %s" % source_path)
+        board = pcbnew.LoadBoard(source_path)
+        if board is None:
+            raise ThermalGeometryError("KiCad could not load FEM source board: %s" % source_path)
+        source_manifest = _declared_copper_manifest(board)
+        source_sha = _manifest_sha256(source_manifest)
+
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        _assert_geometry_parity(source_manifest, _declared_copper_manifest(board))
+
+        # One bounded, overwritten cache entry per process/thread avoids both
+        # basename collisions and a new multi-megabyte board for every wave.
+        # Pipeline workers are separate processes; dashboard analysis is
+        # single-flight.  A thread id also keeps an accidental in-process
+        # parallel solve from overwriting another thread's render input.
+        import threading
+        worker_key = "%d_%d" % (os.getpid(), threading.get_ident())
+        out = os.path.join(
+            tempfile.gettempdir(),
+            "thermal_filled_%s.kicad_pcb" % worker_key,
+        )
+        fd, stage = tempfile.mkstemp(
+            prefix=".%s." % os.path.basename(out), suffix=".kicad_pcb",
+            dir=tempfile.gettempdir())
+        os.close(fd)
+        pcbnew.SaveBoard(stage, board)
+        if not os.path.isfile(stage) or os.path.getsize(stage) == 0:
+            raise ThermalGeometryError("KiCad did not save the filled FEM analysis board")
+        saved = pcbnew.LoadBoard(stage)
+        if saved is None:
+            raise ThermalGeometryError("KiCad could not reload the filled FEM analysis board")
+        saved_manifest = _declared_copper_manifest(saved)
+        _assert_geometry_parity(source_manifest, saved_manifest)
+        analysis_sha = _manifest_sha256(saved_manifest)
+        os.replace(stage, out)
+        _register_temp_analysis_path(out)
+        _remove_temp_board_artifacts(stage)  # PCB was moved; removes SaveBoard's .pro/.prl sidecars
+        stage = None
+
+        provenance = {
+            "geometry_source": THERMAL_GEOMETRY_SOURCE,
+            "source_geometry_sha256": source_sha,
+            "analysis_geometry_sha256": analysis_sha,
+            "geometry_counts": {
+                kind: len(source_manifest[kind]) for kind in ("zones", "tracks", "pads")
+            },
+        }
+        return (out, provenance) if return_provenance else out
+    except ThermalGeometryError:
+        raise
+    except Exception as exc:                                  # noqa: BLE001
+        raise ThermalGeometryError(
+            "could not prepare source-only FEM geometry: %s: %s"
+            % (type(exc).__name__, exc)) from exc
+    finally:
+        _remove_temp_board_artifacts(stage)
 
 
 def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
                    grid_mm=0.3, h_eff=15.0, src_sink_override=None,
                    time_budget_s=None, backend="auto", board_hint=None):
     """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
-    render_thermal_detail). Reads the per-board config, pours+fills the candidate, applies
+    render_thermal_detail). Reads the per-board config, fills source-declared zones, applies
     the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
     overrides), and runs the 2.5D field solver. Returns (res, filled_board_path, cool_label).
     Factored out so the per-layer raster and the full-detail copper map solve ONCE and share
@@ -293,7 +488,7 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
         board_path, board_hint=board_hint)   # read BEFORE _prepare_filled renames
     dielectric = board_dielectric_config(board_path, board_hint=board_hint)
     profile_name = board_fab_profile(board_path, board_hint=board_hint)
-    board_path = _prepare_filled(board_path)             # candidates ship unfilled -> pour + fill first
+    board_path, geometry = _prepare_filled(board_path, return_provenance=True)
     if currents is None:
         currents = cfg_nc if cfg_nc is not None else default_currents(board_path)
     if stackup is None:
@@ -327,6 +522,7 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
         gnd_inner_layers=(("In1.Cu", "In4.Cu") if profile_name else
                           ("In1.Cu", "In2.Cu")),
         **cool_kw)
+    res.meta.update(geometry)
     return res, board_path, cool_label
 
 
@@ -652,8 +848,14 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
     # ---- per-net current lookup (current mode) -----------------------------
     is_cur = (mode == "current")
     if is_cur and currents is None:
-        cfg_nc, _stk, _ss, _cool = board_thermal_config(board_path)   # 12VHPWR -> per-pin lanes; else None
-        currents = cfg_nc if cfg_nc else default_currents(board_path)
+        # The current panel is a cross-check of THIS solved field, so its
+        # labels/colors must use the exact scenario sent to the solver. Falling
+        # back to basename-derived defaults after the board was renamed to a
+        # temp path previously mislabeled ATX as balanced EPS.
+        currents = dict(getattr(res, "nets_requested", None) or {})
+        if not currents:
+            cfg_nc, _stk, _ss, _cool = board_thermal_config(board_path)
+            currents = cfg_nc if cfg_nc else default_currents(board_path)
     currents = currents or {}
 
     def cur_of(net):
@@ -987,7 +1189,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
     if is_cur:
         g.text((lx, cby + cbh + 8 * ss), "scale 0–%.1f A" % vhi, fill=(146, 166, 176), font=fsm)
         g.text((lx, cby + cbh + 26 * ss),
-               "balanced EPS currents (default_currents)", fill=(146, 166, 176), font=fsm)
+               "same net-current scenario used by FEM", fill=(146, 166, 176), font=fsm)
     else:
         g.text((lx, cby + cbh + 8 * ss),
                "scale %.1f–%.1f (contrast-stretched)" % (vlo, vhi), fill=(146, 166, 176), font=fsm)
@@ -1053,12 +1255,11 @@ def render_detail_blend(board_path, out_png, mode="thermal", currents=None, stac
                         ambient=50.0, grid_mm=0.3, h_eff=15.0, gate_dt=30.0,
                         src_sink_override=None, cmap_name="turbo", final_board_w=1180):
     """Solve + draw the blended detail map (mode='thermal') or its current twin (mode='current').
-    Returns a summary dict. The current twin reuses default_currents -- the SAME currents the solve used."""
+    Returns a summary dict. The current twin reuses the exact currents recorded by the solve."""
     res, fpath, cool_label = _solve_thermal(board_path, currents=currents, stackup=stackup,
                                             ambient=ambient, grid_mm=grid_mm, h_eff=h_eff,
                                             src_sink_override=src_sink_override)
-    leg_cur = currents if (mode == "current" and currents is not None) else (
-        default_currents(fpath) if mode == "current" else None)
+    leg_cur = (dict(res.nets_requested) if mode == "current" else None)
     _draw_detail_blend(fpath, res, out_png, mode=mode, currents=leg_cur, cool_label=cool_label,
                        gate_dt=gate_dt, cmap_name=cmap_name, final_board_w=final_board_w,
                        title=os.path.basename(board_path))
@@ -1067,6 +1268,10 @@ def render_detail_blend(board_path, out_png, mode="thermal", currents=None, stac
         "ok": True, "mode": mode, "max_T": round(res.max_T, 2), "ambient": res.ambient,
         "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
         "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
+        "geometry_source": res.meta.get("geometry_source"),
+        "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
+        "analysis_geometry_sha256": res.meta.get("analysis_geometry_sha256"),
+        "geometry_counts": res.meta.get("geometry_counts"),
     }
     if mode == "current":
         out["currents"] = {k: round(float(v), 2) for k, v in (leg_cur or {}).items()}
@@ -1090,6 +1295,10 @@ def render_thermal_detail(board_path, out_png, currents=None, stackup=None,
         "ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
         "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
         "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
+        "geometry_source": res.meta.get("geometry_source"),
+        "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
+        "analysis_geometry_sha256": res.meta.get("analysis_geometry_sha256"),
+        "geometry_counts": res.meta.get("geometry_counts"),
         "per_net_maxT": {k: round(v, 1) for k, v in res.per_net_maxT.items()},
     }
 
