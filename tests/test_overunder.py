@@ -25,7 +25,9 @@ from cec_slab_pour import (  # noqa: E402
     _stamp_generated_pour_keepouts,
     _stamp_generated_via_keepouts,
     bridges_to_vias,
+    field_via_line,
     route_overunder,
+    terminal_clusters,
 )
 
 
@@ -44,6 +46,38 @@ def _uniform(lay, r, c):
 
 
 class TestRouteOverunder(unittest.TestCase):
+    def test_existing_track_merges_guarded_pad_and_pickup_terminals(self):
+        class Point:
+            def __init__(self, x, y):
+                self.x, self.y = int(x * 1e6), int(y * 1e6)
+        class Box:
+            def __init__(self, x0, y0, x1, y1):
+                self.v = [int(q * 1e6) for q in (x0, y0, x1, y1)]
+            def GetLeft(self): return self.v[0]
+            def GetTop(self): return self.v[1]
+            def GetRight(self): return self.v[2]
+            def GetBottom(self): return self.v[3]
+        class Pad:
+            def __init__(self, x, y): self.box = Box(x, y, x + 0.2, y + 0.2)
+            def GetNetCode(self): return 7
+            def GetBoundingBox(self): return self.box
+        class Footprint:
+            def Pads(self): return [Pad(1.1, 1.1), Pad(5.1, 5.1)]
+        class Track:
+            def GetClass(self): return "PCB_TRACK"
+            def GetNetCode(self): return 7
+            def GetLayer(self): return 0
+            def GetStart(self): return Point(1.1, 1.1)
+            def GetEnd(self): return Point(5.1, 5.1)
+        class Board:
+            def GetFootprints(self): return [Footprint()]
+            def GetTracks(self): return [Track()]
+
+        labels, count = terminal_clusters(Board(), 7, _G(10, 10, cell=1.0))
+
+        self.assertEqual(count, 1)
+        self.assertEqual(labels[1, 1], labels[5, 5])
+
     def test_earlier_foreign_bridge_via_is_reserved_for_later_net(self):
         grid = _G(12, 12)
         mask = np.zeros((grid.ny, grid.nx), bool)
@@ -76,6 +110,18 @@ class TestRouteOverunder(unittest.TestCase):
         self.assertEqual(_stamp_generated_pour_keepouts(
             other_layer, grid, prior, "RAIL_B", "F.Cu"), 0)
         self.assertFalse(other_layer.any(), "other-layer copper is not foreign")
+
+    def test_compact_field_cannot_reseat_outside_admitted_corridor(self):
+        grid = _G(12, 12)
+        bridge = (5, 5, "A", "B", 1.0, 0.0)
+        allowed = lambda x, y: x < 4.5
+
+        vias, _reseated = field_via_line(
+            bridge, 1.2, grid, (), (), n_needed=2, via_allow=allowed)
+
+        self.assertTrue(vias)
+        self.assertTrue(all(allowed(x, y) for x, y in vias),
+                        "spare-ring slots must obey the realized corridor")
 
     def test_straight_single_layer_path(self):
         # layer A fully open; layer B fully impassable (never a bridge

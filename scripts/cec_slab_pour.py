@@ -774,8 +774,15 @@ def req_width_mm(amps, layer, *, board=None, profile_name=None):
 
 
 def terminal_clusters(board, nc, grid):
-    """Step 1 (owner v2 design): the net's own pads/vias, clustered
-    spatially via scipy.ndimage.label on the union anchor raster.
+    """Step 1 (owner v2 design): physically connected terminal clusters.
+
+    Pads and vias seed the terminal raster. Existing same-net tracks then
+    merge the endpoint clusters they actually join. This matters for guarded
+    pad-to-pickup links laid before pour synthesis: ignoring their track made
+    the already-connected pad and through-via look like two terminals, so the
+    solver added a redundant bridge field and clipped its landing into islands.
+    Track chains are grouped by exact endpoint and layer; crossings on different
+    layers therefore do not create fictitious connectivity.
 
     THT pads/vias anchor every copper layer; SMD anchor only their own
     side. No separate THT/SMD branch is needed here: a plain union of every
@@ -805,7 +812,71 @@ def terminal_clusters(board, nc, grid):
         grid.stamp_anchor_box(mask, q.x / MM - r, q.y / MM - r,
                               q.x / MM + r, q.y / MM + r)
     clab, n = ndimage.label(mask)
-    return clab, n
+    if n <= 1:
+        return clab, n
+
+    segments = []
+    for t in board.GetTracks():
+        if t.GetClass() == "PCB_VIA" or t.GetNetCode() != nc:
+            continue
+        s, e = t.GetStart(), t.GetEnd()
+        segments.append((
+            (int(t.GetLayer()), int(s.x), int(s.y)),
+            (int(t.GetLayer()), int(e.x), int(e.y)),
+            (grid.iy(s.y / MM), grid.ix(s.x / MM)),
+            (grid.iy(e.y / MM), grid.ix(e.x / MM)),
+        ))
+    if not segments:
+        return clab, n
+
+    # Connected track components, keyed by exact endpoint on one layer.
+    node_parent = {}
+    def _node_find(node):
+        node_parent.setdefault(node, node)
+        while node_parent[node] != node:
+            node_parent[node] = node_parent[node_parent[node]]
+            node = node_parent[node]
+        return node
+    def _node_union(a, b):
+        ra, rb = _node_find(a), _node_find(b)
+        if ra != rb:
+            node_parent[rb] = ra
+    for start, end, _scell, _ecell in segments:
+        _node_union(start, end)
+
+    label_parent = list(range(n + 1))
+    def _label_find(label):
+        while label_parent[label] != label:
+            label_parent[label] = label_parent[label_parent[label]]
+            label = label_parent[label]
+        return label
+    def _label_union(a, b):
+        ra, rb = _label_find(a), _label_find(b)
+        if ra != rb:
+            label_parent[rb] = ra
+
+    component_labels = {}
+    for start, _end, scell, ecell in segments:
+        root = _node_find(start)
+        labels = component_labels.setdefault(root, set())
+        for row, col in (scell, ecell):
+            if 0 <= row < grid.ny and 0 <= col < grid.nx:
+                label = int(clab[row, col])
+                if label:
+                    labels.add(label)
+    for labels in component_labels.values():
+        labels = sorted(labels)
+        for label in labels[1:]:
+            _label_union(labels[0], label)
+
+    roots = sorted({_label_find(label) for label in range(1, n + 1)})
+    dense = {root: index + 1 for index, root in enumerate(roots)}
+    if len(roots) == n:
+        return clab, n
+    merged = np.zeros_like(clab)
+    for label in range(1, n + 1):
+        merged[clab == label] = dense[_label_find(label)]
+    return merged, len(roots)
 
 
 def route_overunder(layers, passable, anchors, clab, nclusters, *,
