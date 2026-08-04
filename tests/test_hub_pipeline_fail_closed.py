@@ -219,8 +219,6 @@ class TestHubAcceptance(unittest.TestCase):
                   "ignored": 0, "detail": []}
         signal = {"networks": 3, "linked": 3, "legs": 5, "vias": 2,
                   "refused": 0, "ignored": 0, "detail": []}
-        rail_finish = {"closed": 1, "legs": 2, "refused": 0,
-                       "far": 0, "cross_layer": 0}
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
                 mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
                 mock.patch.object(cec_fr, "_project_netclass_resolver",
@@ -231,8 +229,6 @@ class TestHubAcceptance(unittest.TestCase):
                                   return_value=bypass) as local_bypass, \
                 mock.patch.object(cec_fr, "synthesize_local_signal_links",
                                   return_value=signal) as local_signal, \
-                mock.patch.object(cec_fr, "synthesize_lastmile",
-                                  return_value=rail_finish) as finish_rail, \
                 mock.patch.object(cec_fr, "normalize_netclass_geometry",
                                   return_value={"tracks": 1, "vias": 1}) as normalize:
             result = H._prepour_local_worker("fixture.kicad_pcb", ("/PWR",))
@@ -244,16 +240,13 @@ class TestHubAcceptance(unittest.TestCase):
             board, lock=True, netclass_resolver="resolver")
         local_signal.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
-        finish_rail.assert_called_once_with(
-            board, max_mm=8.0, cap=80, netclass_resolver="resolver",
-            include_nets=("/PWR", "GND"), lock=True)
-        self.assertEqual(normalize.call_count, 2)
-        self.assertEqual(filler.Fill.call_count, 3)
+        self.assertEqual(normalize.call_count, 1)
+        self.assertEqual(filler.Fill.call_count, 2)
         self.assertTrue(board.saved)
         self.assertEqual(result["same_footprint_links"], same_footprint)
         self.assertEqual(result["local_power_bypass"], bypass)
         self.assertEqual(result["local_signal_links"], signal)
-        self.assertEqual(result["local_rail_finish"], rail_finish)
+        self.assertEqual(result["local_rail_finish"]["closed"], 0)
 
     def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
         import cec_fresh_wave

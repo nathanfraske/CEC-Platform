@@ -280,12 +280,12 @@ def _prepour_local_worker(out, rail_nets=()):
     pour solver builds its foreign-copper masks; adding them after the slabs
     were filled made the pipeline obstruct its own shortest legal escapes.
 
-    The remaining hand-authored zones (notably GND) are freshly filled first,
-    so last-mile connectivity is evaluated against real plane copper.  Rail
-    gaps may be bridged here even though their shaped zones do not exist yet:
-    the following over-under solve must land those locked barrels in real
-    copper, and the fail-closed materialization DRC rejects the candidate if
-    it cannot.  This worker never synthesizes rail pickups from absent fill.
+    The remaining hand-authored zones (notably GND) are freshly filled first.
+    Do not run the general rail/GND last-mile pass here: without final rail
+    fill it creates speculative bridge barrels that can exhaust the shaped
+    pour solver's legal via ledger.  Rail completion remains in the post-pour
+    worker, where connectivity is evaluated against real copper.  This worker
+    never synthesizes rail pickups from absent fill.
     """
     import pcbnew
     import cec_fr
@@ -310,24 +310,14 @@ def _prepour_local_worker(out, rail_nets=()):
             zone.UnFill()
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
 
-    board.BuildConnectivity()
-    local_rail = cec_fr.synthesize_lastmile(
-        board, max_mm=8.0, cap=80, netclass_resolver=resolver,
-        include_nets=tuple(rail_nets) + ("GND",), lock=True)
-    rail_normalization = {"tracks": 0, "vias": 0}
-    if local_rail["closed"]:
-        rail_normalization = cec_fr.normalize_netclass_geometry(board, out)
-        for zone in board.Zones():
-            zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-
     board.Save(out)
     return {"same_footprint_links": same_footprint,
             "local_power_bypass": bypass,
             "local_signal_links": local_signal,
             "normalization": normalization,
-            "local_rail_finish": local_rail,
-            "rail_normalization": rail_normalization}
+            "local_rail_finish": {"closed": 0, "legs": 0, "refused": 0,
+                                  "far": 0, "cross_layer": 0},
+            "rail_normalization": {"tracks": 0, "vias": 0}}
 
 
 def _is_pipeline_rail_zone_name(name):

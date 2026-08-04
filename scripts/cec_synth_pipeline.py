@@ -8025,17 +8025,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                for other_ref, other in boxes.items()
                                if other_ref not in (owner, ref)):
                             continue
-                        if any(_segment_hits_rect(target, part_point, other,
-                                                  margin=0.20)
-                               for other in avoid):
-                            continue
                         owner_pad_blocked = False
                         for other_pin in cec_pcb.local_pads(comps[owner]):
                             if str(other_pin) == str(owner_pin):
                                 continue
                             other_point = pad_at(owner, str(other_pin), P[owner])
                             if _point_segment_distance(
-                                    other_point, target, part_point) < 0.55:
+                                    other_point, target, part_point) < 0.35:
                                 owner_pad_blocked = True
                                 break
                         if owner_pad_blocked:
