@@ -447,14 +447,15 @@ def _hub_route_passes(seed_timeout_s, route_workers,
                       requested=HUB_INITIAL_FR_PASSES):
     """Choose depth that can finish before the per-seed timeout at this breadth.
 
-    On the live Hub, sixteen simultaneous JVMs complete seven passes in the
-    roughly 4.5-minute short-wave slot; asking all of them for twelve causes the
-    entire first batch to time out around pass six and wastes one third of the
-    wave before the router's own backoff discovers seven. Retain the proven
-    twelve-pass request for longer windows and narrower batches.
+    On the live Hub, sixteen simultaneous JVMs complete seven passes within a
+    short-wave slot; asking all of them for twelve timed out all sixteen seeds
+    even with a 582-second per-seed allowance, then the router's own backoff
+    proved seven passes importable.  Avoid spending the first third of every
+    wave rediscovering that measured limit.  Retain twelve for longer windows
+    and narrower batches.
     """
     passes = max(4, int(requested))
-    if float(seed_timeout_s) < 330 and int(route_workers) >= 12:
+    if float(seed_timeout_s) < 660 and int(route_workers) >= 12:
         return min(passes, 7)
     if float(seed_timeout_s) < 330 and int(route_workers) >= 8:
         return min(passes, 9)

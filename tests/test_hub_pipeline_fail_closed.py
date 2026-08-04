@@ -204,7 +204,9 @@ class TestHubAcceptance(unittest.TestCase):
     def test_short_wide_route_uses_depth_that_can_finish(self):
         self.assertEqual(H._hub_route_passes(283, 16, requested=12), 7)
         self.assertEqual(H._hub_route_passes(283, 8, requested=12), 9)
-        self.assertEqual(H._hub_route_passes(400, 16, requested=12), 12)
+        self.assertEqual(H._hub_route_passes(400, 16, requested=12), 7)
+        self.assertEqual(H._hub_route_passes(582, 16, requested=12), 7)
+        self.assertEqual(H._hub_route_passes(700, 16, requested=12), 12)
         self.assertEqual(H._hub_route_passes(283, 16, requested=6), 6)
 
     def test_closure_prefers_smallest_equally_legal_outline(self):
