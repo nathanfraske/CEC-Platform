@@ -2818,7 +2818,7 @@ def _edge_leg_clear(board, start, end, half_width_nm, *, edge_mm=0.5):
 
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                              filled_zone_nets=(), stub_w=0.3, offset=0.8,
-                             drill=0.3, dia=0.6):
+                             drill=0.3, dia=0.6, lock=False):
     """POWER-PICKUP STITCH (2026-07-23, the hub power rung's missing piece --
     measured on the rung probe: additive floods laid but the hub's power pads
     are SMD, and a pour on another layer cannot reach an F.Cu pad without a
@@ -2830,7 +2830,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     (the synthesize_force_vias discipline); a pad with no clear direction is
     skipped loudly-by-count, never forced. On a board with an explicit POFV
     profile, a fully-contained same-net via at the pad centre is preferred; the
-    guarded offset stub remains the fallback. Returns
+    guarded offset stub remains the fallback. With ``lock=True`` only the
+    synthesized pickup items are fixed in the DSN; the rest of each power net
+    remains routable. Returns
     {pads, vias, stubs, pofv, skipped}.
 
     ``filled_zone_nets`` is the post-fill form of the contract. Those nets
@@ -2965,6 +2967,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                 v.SetDrill(_nm(local_drill))
                 v.SetWidth(_nm(local_dia))
                 v.SetNetCode(nc)
+                v.SetLocked(bool(lock))
                 board.Add(v)
                 _pk_vias.append((pos.x, pos.y))
                 tracks.append(v)
@@ -3033,6 +3036,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     v.SetDrill(_nm(local_drill))
                     v.SetWidth(_nm(local_dia))
                     v.SetNetCode(nc)
+                    v.SetLocked(bool(lock))
                     board.Add(v)
                     _pk_vias.append((at.x, at.y))
                     tr = pcbnew.PCB_TRACK(board)
@@ -3041,6 +3045,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     tr.SetWidth(_nm(local_stub_w))
                     tr.SetLayer(lay_id)
                     tr.SetNetCode(nc)
+                    tr.SetLocked(bool(lock))
                     board.Add(tr)
                     tracks.append(tr)
                     n_v += 1; n_s += 1; n_p += 1

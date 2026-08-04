@@ -189,7 +189,8 @@ def _fill_worker(out, rail_nets=()):
     bd = pcbnew.LoadBoard(out)
     pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
     pickup = cec_fr.synthesize_power_pickups(
-        bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets))
+        bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets),
+        lock=True)
     normalization = {"tracks": 0, "vias": 0}
     if pickup["vias"]:
         normalization = cec_fr.normalize_netclass_geometry(bd, out)

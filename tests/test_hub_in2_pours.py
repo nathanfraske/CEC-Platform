@@ -300,6 +300,20 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
         self.assertEqual(via.GetDrillValue(), int(0.4e6))
 
+    def test_pre_route_pickup_can_be_fixed_without_locking_whole_net(self):
+        import cec_fr
+
+        b = self._one_pad_board()
+        pours = [{"net": "+5VSB", "layer": "In2.Cu",
+                  "polygon": [(0.0, 0.0), (10.0, 0.0),
+                              (10.0, 5.0), (0.0, 5.0)]}]
+        result = cec_fr.synthesize_power_pickups(b, pours, lock=True)
+        pickup_items = list(b.GetTracks())
+
+        self.assertEqual((result["vias"], result["stubs"]), (1, 1))
+        self.assertTrue(pickup_items)
+        self.assertTrue(all(item.IsLocked() for item in pickup_items))
+
     def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
         import pcbnew
         import cec_fr

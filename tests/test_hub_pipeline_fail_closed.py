@@ -141,7 +141,8 @@ class TestHubAcceptance(unittest.TestCase):
             result = H._fill_worker("fixture.kicad_pcb", ("/PWR",))
 
         synth.assert_called_once_with(
-            board, (), plane_nets=("GND",), filled_zone_nets=("/PWR",))
+            board, (), plane_nets=("GND",), filled_zone_nets=("/PWR",),
+            lock=True)
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
