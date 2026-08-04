@@ -291,8 +291,34 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
                                   power_pours=(), kelvin_taps=False)
 
             self.assertTrue(os.path.exists(output))
-            self.assertEqual(normalize.call_count, 1)
-            self.assertEqual(normalize.call_args.args[1], source)
+            self.assertGreaterEqual(normalize.call_count, 1)
+            self.assertTrue(all(call.args[1] == source
+                                for call in normalize.call_args_list))
+
+    def test_ses_import_renormalizes_last_mile_geometry_before_scoring(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._board(directory)
+            ses = os.path.join(directory, "candidate.ses")
+            output = os.path.join(directory, "candidate.kicad_pcb")
+            with open(ses, "w", encoding="utf-8") as handle:
+                handle.write("(session candidate)\n")
+
+            lastmile = {"closed": 1, "legs": 1, "refused": 0,
+                        "far": 0, "cross_layer": 0}
+            with mock.patch.dict(os.environ, {"CEC_LASTMILE": "1"}), \
+                    mock.patch.object(pcbnew, "ImportSpecctraSES",
+                                      return_value=True), \
+                    mock.patch.object(pcbnew, "ZONE_FILLER"), \
+                    mock.patch.object(cec_fr, "synthesize_lastmile",
+                                      return_value=lastmile), \
+                    mock.patch.object(cec_fr, "normalize_netclass_geometry",
+                                      return_value={"tracks": 1, "vias": 1}) as normalize:
+                cec_fr.import_ses(source, ses, output, fill_zones=True,
+                                  power_pours=(), kelvin_taps=False)
+
+            self.assertEqual(normalize.call_count, 2)
+            self.assertTrue(all(call.args[1] == source
+                                for call in normalize.call_args_list))
 
 
 if __name__ == "__main__":

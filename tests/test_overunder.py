@@ -323,6 +323,28 @@ class TestRectRealization(unittest.TestCase):
             self.assertFalse(Polygon(coords).buffer(0).covers(right),
                              "F copper escaped the admit clip")
 
+    def test_vector_width_cannot_regrow_over_a_blocked_corridor_cell(self):
+        from shapely.geometry import Point, Polygon
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(14, 7)
+        chains = [[(3, c, "In3.Cu") for c in range(1, 13)]]
+        clip = np.zeros((g.ny, g.nx), bool)
+        clip[2:5, 1:13] = True
+        clip[2:5, 6] = False             # foreign pad/clearance column
+        holes = {}
+        polys, _vias, _notes = realize_overunder_rects(
+            chains, [], {"In3.Cu": 1.6}, g,
+            clip_masks={"In3.Cu": clip}, holes_out=holes)
+
+        copper = [Polygon(coords, holes.get(("In3.Cu", index), ())).buffer(0)
+                  for index, coords in enumerate(polys.get("In3.Cu", ()))]
+        blocked = Point((6 + 0.5) * g.cell, (3 + 0.5) * g.cell)
+        self.assertFalse(any(poly.covers(blocked) for poly in copper),
+                         "vector widening regrew over a raster obstacle")
+        for col in (3, 10):
+            clear = Point((col + 0.5) * g.cell, (3 + 0.5) * g.cell)
+            self.assertTrue(any(poly.covers(clear) for poly in copper))
+
     def test_f_bridge_landing_covers_every_barrel_on_both_layers(self):
         from shapely.geometry import Point, Polygon
         from cec_slab_pour import realize_overunder_rects

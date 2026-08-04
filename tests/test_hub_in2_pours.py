@@ -372,6 +372,80 @@ class TestLaidPipelinePourKeepouts(unittest.TestCase):
         self.assertTrue(hints)
         self.assertTrue(all(h["name"].startswith("laid-pour:") for h in hints))
         self.assertTrue(all(tuple(h["layers"]) != ("PWR",) for h in hints))
+        self.assertTrue(all(len(h.get("polygon") or ()) >= 3 for h in hints))
+
+    def test_baked_keepout_preserves_nonrectangular_outline(self):
+        import pcbnew
+        import cec_fr
+
+        polygon = [(1.0, 1.0), (6.0, 1.0), (6.0, 2.0),
+                   (2.0, 2.0), (2.0, 6.0), (1.0, 6.0)]
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.kicad_pcb")
+            output = os.path.join(directory, "hinted.kicad_pcb")
+            pcbnew.SaveBoard(source, pcbnew.BOARD())
+            cec_fr.bake_hints(
+                source, output, copy_pro=False,
+                keepouts=[{"name": "exact-L", "polygon": polygon,
+                           "layers": ("F.Cu",)}])
+            board = pcbnew.LoadBoard(output)
+            zones = list(board.Zones())
+            self.assertEqual(len(zones), 1)
+            contour = zones[0].Outline().Outline(0)
+            got = [(contour.CPoint(k).x / 1e6,
+                    contour.CPoint(k).y / 1e6)
+                   for k in range(contour.PointCount())]
+            self.assertEqual(got, polygon)
+
+    def test_baked_keepout_preserves_interior_route_window(self):
+        import pcbnew
+        import cec_fr
+
+        polygon = [(1.0, 1.0), (8.0, 1.0), (8.0, 8.0), (1.0, 8.0)]
+        hole = [(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0)]
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.kicad_pcb")
+            output = os.path.join(directory, "hinted.kicad_pcb")
+            pcbnew.SaveBoard(source, pcbnew.BOARD())
+            cec_fr.bake_hints(
+                source, output, copy_pro=False,
+                keepouts=[{"name": "exact-donut", "polygon": polygon,
+                           "holes": [hole], "layers": ("F.Cu",)}])
+            outline = list(pcbnew.LoadBoard(output).Zones())[0].Outline()
+            self.assertEqual(outline.HoleCount(0), 1)
+            contour = outline.Hole(0, 0)
+            got = [(contour.CPoint(k).x / 1e6,
+                    contour.CPoint(k).y / 1e6)
+                   for k in range(contour.PointCount())]
+            self.assertEqual(got, hole)
+
+    def test_laid_pour_hint_round_trips_interior_route_window(self):
+        import pcbnew
+        import cec_fr
+
+        mm = lambda value: int(value * 1e6)
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "laid.kicad_pcb")
+            board = pcbnew.BOARD()
+            zone = pcbnew.ZONE(board)
+            zone.SetLayer(pcbnew.F_Cu)
+            zone.SetZoneName("overunder:test")
+            outline = zone.Outline()
+            oi = outline.NewOutline()
+            for x, y in ((1, 1), (8, 1), (8, 8), (1, 8)):
+                outline.Append(mm(x), mm(y))
+            hi = outline.NewHole(oi)
+            for x, y in ((3, 3), (3, 6), (6, 6), (6, 3)):
+                outline.Append(mm(x), mm(y), oi, hi)
+            board.Add(zone)
+            pcbnew.SaveBoard(source, board)
+
+            hints = cec_fr.laid_pipeline_pour_keepouts(source)
+            self.assertEqual(len(hints), 1)
+            self.assertEqual(len(hints[0]["holes"]), 1)
+            self.assertEqual(hints[0]["holes"][0],
+                             [(3.0, 3.0), (3.0, 6.0),
+                              (6.0, 6.0), (6.0, 3.0)])
 
     def test_hub_edge_hints_reserve_reverse_led_apertures(self):
         import cec_fr

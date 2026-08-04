@@ -1427,6 +1427,7 @@ def _l_simplify(cells, free, grid):
 
 def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                             existing_vias=(), f_admit=None, free_masks=None,
+                            clip_masks=None, holes_out=None,
                             pitch_mm=1.2, ledger_mm=0.85, pad_allow=None,
                             strict_bridges=False):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
@@ -1442,6 +1443,17 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     neighborhoods + own manifolds): F run pieces are clipped to their union
     (the add_power_pours choke would refuse them anyway -- clipping here is
     the same rule applied at draw time, loud via the returned notes).
+
+    *clip_masks* -- optional per-layer final corridor masks.  The vector
+    capsules and bridge landings are intersected with their exact raster
+    cover before export.  This reapplies the search's foreign-pad/track/via
+    mask after widening the centerline; without it a legal centerline could
+    grow sideways over an obstacle that the search itself correctly blocked.
+
+    *holes_out* -- optional dict populated as ``(layer, polygon_index) ->
+    [hole_ring, ...]``.  The public polygon return remains backwards
+    compatible, while pour callers can preserve an obstacle wholly enclosed
+    by a lane instead of discarding its interior ring.
 
     Returns (polys_by_layer, via_pts, notes):
       polys_by_layer: {layer: [[(x, y), ...], ...]} exterior coord lists
@@ -1534,12 +1546,22 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     out = {}
     for lay, gs in lay_geoms.items():
         u = unary_union([g for g in gs if not g.is_empty])
+        clip = (clip_masks or {}).get(lay)
+        if clip is not None:
+            allowed = unary_union([_sbox(*rect)
+                                   for rect in _mask_rects(clip, grid)])
+            u = u.intersection(allowed)
         polys = []
         for g in getattr(u, "geoms", [u]):
             if g.geom_type != "Polygon" or g.area < 0.4:
                 continue
             polys.append([(round(x, 3), round(y, 3))
                           for (x, y) in g.exterior.coords])
+            holes = [[(round(x, 3), round(y, 3))
+                      for (x, y) in ring.coords]
+                     for ring in g.interiors]
+            if holes and holes_out is not None:
+                holes_out[(lay, len(polys) - 1)] = holes
         if polys:
             out[lay] = polys
     return out, via_pts, notes
@@ -1903,9 +1925,21 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         # change -- the dilated-cell smear (3-cell bridge disks + closing =
         # the owner's "amorphous blobs / via lines") survives only behind
         # CEC_OU_SMEAR=1 as the A/B escape hatch.
+        _realize_masks = corridor_masks(
+            path_cells, bridges, rcells, prep["foreign"], grid,
+            margin_cells=0)
+        _realized_holes = {}
         if os.environ.get("CEC_OU_SMEAR") == "1":
-            apply_bridge_overlap(path_cells, bridges, grid)
-            realized = realize_overunder(path_cells, rcells, grid)
+            # The legacy shape stays available for A/B, but it must obey the
+            # same foreign-obstacle mask as every other realization.
+            realized = {
+                lay: [[(round(x0, 3), round(y0, 3)),
+                       (round(x1, 3), round(y0, 3)),
+                       (round(x1, 3), round(y1, 3)),
+                       (round(x0, 3), round(y1, 3))]
+                      for (x0, y0, x1, y1) in _mask_rects(mask, grid)]
+                for lay, mask in _realize_masks.items()
+            }
             net_vias = bridges_to_vias(bridges, reqw, grid,
                                        existing=existing_vias_mm)
         else:
@@ -1942,6 +1976,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 chains, bridges, reqw, grid, pad_boxes=_padb,
                 existing_vias=existing_vias_mm, f_admit=_f_admit,
                 free_masks=prep.get("free") or prep.get("passable"),
+                clip_masks=_realize_masks, holes_out=_realized_holes,
                 pad_allow=_pofv_pad_allow, strict_bridges=True)
             net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
             for _nt in _rnotes:
@@ -1949,9 +1984,23 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                       file=sys.stderr)
         segs = 0
         for lay, polys in realized.items():
-            for poly in polys:
-                pour_dicts.append({"net": net, "layer": lay, "polygon": poly,
-                                   "provenance": "overunder"})
+            for poly_index, poly in enumerate(polys):
+                row = {"net": net, "layer": lay, "polygon": poly,
+                       "provenance": "overunder",
+                       # Shapely legitimately emits separate components that
+                       # meet at one corner. KiCad classifies same-priority
+                       # point contact as zones_intersect even on the same
+                       # net. Distinct priorities within this one net/layer
+                       # make that intentional contact explicit. Cross-net
+                       # safety remains fail-closed in the exact foreign-net
+                       # raster mask and post-fill incursion/conformance gate;
+                       # the index deliberately resets rather than creating a
+                       # global priority scheme that could conceal bad copper.
+                       "priority": 4 + poly_index}
+                holes = _realized_holes.get((lay, poly_index))
+                if holes:
+                    row["holes"] = holes
+                pour_dicts.append(row)
                 segs += 1
 
         for v in net_vias:

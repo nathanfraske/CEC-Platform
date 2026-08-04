@@ -537,19 +537,33 @@ def laid_pipeline_pour_keepouts(board_path):
         name = zone.GetZoneName() or ""
         if not name.startswith(PIPELINE_POUR_PREFIXES):
             continue
-        bbox = zone.GetBoundingBox()
         for layer_id in zone.GetLayerSet().CuStack():
             layer = board.GetLayerName(layer_id)
             if layer not in allowed:
                 continue
-            hints.append({
-                "name": "laid-pour:%d:%s:%s" % (index, layer, name),
-                "x0": bbox.GetLeft() / MM,
-                "y0": bbox.GetTop() / MM,
-                "x1": bbox.GetRight() / MM,
-                "y1": bbox.GetBottom() / MM,
-                "layers": (layer,),
-            })
+            outline = zone.Outline()
+            for contour_index in range(outline.OutlineCount()):
+                contour = outline.Outline(contour_index)
+                polygon = [(contour.CPoint(k).x / MM,
+                            contour.CPoint(k).y / MM)
+                           for k in range(contour.PointCount())]
+                if len(polygon) < 3:
+                    continue
+                holes = []
+                for hole_index in range(outline.HoleCount(contour_index)):
+                    contour_hole = outline.Hole(contour_index, hole_index)
+                    hole = [(contour_hole.CPoint(k).x / MM,
+                             contour_hole.CPoint(k).y / MM)
+                            for k in range(contour_hole.PointCount())]
+                    if len(hole) >= 3:
+                        holes.append(hole)
+                hints.append({
+                    "name": "laid-pour:%d:%d:%s:%s"
+                            % (index, contour_index, layer, name),
+                    "polygon": polygon,
+                    "holes": holes,
+                    "layers": (layer,),
+                })
     return hints
 
 
@@ -1598,6 +1612,7 @@ def add_power_pours(board, pours, *, fill: bool = False):
 
         {"net": "/SENSEC1_HI",                 # net to pour (must exist on the board)
          "polygon": [(x, y), ...],             # outline vertices in mm
+         "holes": [[(x, y), ...], ...],        # optional interior rings
          "layer": "F.Cu",                      # default "F.Cu"
          "priority": 2,                        # above the GND plane (0); default 2
          "min_thickness": 0.25,                # mm; default 0.25
@@ -1692,7 +1707,8 @@ def add_power_pours(board, pours, *, fill: bool = False):
         # Clip the outline out of every same-layer shunt tap gap before it becomes
         # copper. A pour reduced to nothing is dropped (it was ALL gap).
         _lay_name = p.get("layer", "F.Cu")
-        _polys = [(list(p["polygon"]), [])]
+        _polys = [(list(p["polygon"]),
+                   [list(ring) for ring in (p.get("holes") or ())])]
         for _glays, _grect, _gref, _gnet in _gaps:
             if _lay_name not in _glays or (_gnet is not None and _gnet != net):
                 continue
@@ -5533,6 +5549,17 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
               f"{lm['refused']} refused, {lm['far']} far, "
               f"{lm['cross_layer']} cross-layer", file=sys.stderr)
         if lm["closed"]:
+            # The completer creates fresh tracks/vias after the SES geometry
+            # normalization above. Grade candidates with those additions at
+            # their shipped netclass dimensions too; otherwise ranking sees
+            # skinny last-mile copper and the release choke widens it only
+            # after selection, changing both DRC and connectivity.
+            _lm_ng = normalize_netclass_geometry(board, board_path)
+            if _lm_ng.get("tracks") or _lm_ng.get("vias"):
+                print("[fr] normalized last-mile netclass geometry: "
+                      "%d track(s), %d via(s)"
+                      % (_lm_ng.get("tracks", 0), _lm_ng.get("vias", 0)),
+                      file=sys.stderr)
             for z in board.Zones():
                 z.UnFill()
             pcbnew.ZONE_FILLER(board).Fill(board.Zones())
@@ -5600,7 +5627,13 @@ def bake_hints(
     Each entry in *keepouts* is a dict::
 
         {"name": str, "x0": float, "y0": float, "x1": float, "y1": float,
-         "layers": tuple[str, ...]}   # all in mm
+         "layers": tuple[str, ...]}   # rectangular, all in mm
+
+    or ``{"name": str, "polygon": [(x, y), ...], "holes": [[...], ...],
+    "layers": (...)}`` for an exact non-rectangular outline.  Exact polygons
+    keep a routed pour's access notches open; preserving their interior rings
+    is equally important because those rings are often the only route to a
+    foreign pad deliberately excluded from the pour.
 
     The keepout is a rule-area ZONE (DoNotAllowTracks + DoNotAllowVias +
     DoNotAllowCopperPour) that Freerouting will see in the exported DSN and avoid.
@@ -5627,8 +5660,23 @@ def bake_hints(
         board = pcbnew.LoadBoard(out_path)
 
         for ko in keepouts:
-            x0, y0 = float(ko["x0"]), float(ko["y0"])
-            x1, y1 = float(ko["x1"]), float(ko["y1"])
+            polygon = ko.get("polygon")
+            if polygon is None:
+                x0, y0 = float(ko["x0"]), float(ko["y0"])
+                x1, y1 = float(ko["x1"]), float(ko["y1"])
+                polygon = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+            polygon = [(float(px), float(py)) for px, py in polygon]
+            if len(polygon) < 3:
+                raise ValueError("cec_fr.bake_hints: keepout %r polygon has < 3 points"
+                                 % ko.get("name", "keepout"))
+            holes = []
+            for hole in ko.get("holes") or ():
+                points = [(float(px), float(py)) for px, py in hole]
+                if len(points) < 3:
+                    raise ValueError(
+                        "cec_fr.bake_hints: keepout %r hole has < 3 points"
+                        % ko.get("name", "keepout"))
+                holes.append(points)
             layers = ko.get("layers", ("F.Cu", "B.Cu"))
             name = ko.get("name", "keepout")
 
@@ -5665,9 +5713,13 @@ def bake_hints(
 
             # In-place outline append (never SetOutline — SWIG alias bug, see cec_route.py)
             o = z.Outline()
-            o.NewOutline()
-            for (px, py) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+            oi = o.NewOutline()
+            for (px, py) in polygon:
                 o.Append(_nm(px), _nm(py))
+            for hole in holes:
+                hi = o.NewHole(oi)
+                for (px, py) in hole:
+                    o.Append(_nm(px), _nm(py), oi, hi)
             if z.Outline().FullPointCount() < 3:
                 raise RuntimeError(
                     f"cec_fr.bake_hints: keepout {name!r} outline has < 3 points"
