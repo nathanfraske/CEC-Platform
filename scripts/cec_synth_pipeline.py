@@ -2103,13 +2103,30 @@ def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
                 continue
             shared_sig = psig & on
             if shared_sig:
-                # tie-break: more shared signals first, then a connector/shunt over an IC for a part
-                # whose ONLY signal reach is that connector (CC pull-down), then a stable ref order.
+                # Tie-break: more shared signals first, then the most LOCAL
+                # shared signal (fewest distinct refs).  A passive commonly
+                # touches both a global raw rail and a private sense/program
+                # node; the private node owns its physical placement.  Only
+                # after locality ties does a connector/shunt beat an IC (the
+                # CC pull-down case), followed by stable ref order.
                 is_anchor = 1 if o in anchor_refs else 0
-                sig.append((len(shared_sig), is_anchor, o))
+                shared_fanout = sum(len({r for r, _p in nl.nets.get(n, ())})
+                                    for n in shared_sig)
+                sig.append((len(shared_sig), -shared_fanout, is_anchor, o))
         if sig:
             owner = _pick_signal_owner(sig)
-            pad = _owner_pad(nl, owner, (psig & nets_of[owner]) or (pnets & nets_of[owner]))
+            owner_shared = (psig & nets_of[owner]) or (pnets & nets_of[owner])
+            # A divider's upper resistor can share both the broad source rail
+            # and the private threshold node with the same IC.  Seat it at the
+            # private node, alongside the lower resistor, rather than at the
+            # unrelated rail pin.  Equal-fanout nets retain _owner_pad's stable
+            # power/pad tie-break.
+            if owner_shared:
+                fanout = {n: len({r for r, _p in nl.nets.get(n, ())})
+                          for n in owner_shared}
+                local = min(fanout.values())
+                owner_shared = {n for n in owner_shared if fanout[n] == local}
+            pad = _owner_pad(nl, owner, owner_shared)
             if pad:
                 spec[pref] = (owner, pad)
             continue
@@ -2143,10 +2160,65 @@ def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
 
 
 def _pick_signal_owner(sig):
-    """Resolve the strongest-signal-coupling owner from [(n_shared_sig, is_anchor, ref)]. Most shared
-    signal nets wins; a connector/shunt anchor breaks a tie over an IC (a part whose signal reach is a
-    connector belongs ON it -- the CC pull-down case); ref order is the final deterministic tie-break."""
-    return max(sig, key=lambda t: (t[0], t[1], t[2]))[2]
+    """Resolve the strongest signal owner.
+
+    Rows are ``(n_shared, negative_total_fanout, is_anchor, ref)``.  A
+    low-fanout programming/sense node is a stronger physical relationship
+    than a global raw rail; connector preference remains the next tie-break
+    for true connector-local parts such as CC resistors.
+    """
+    return max(sig, key=lambda t: (t[0], t[1], t[2], t[3]))[3]
+
+
+def _cluster_passive_refs(passives, blueprint_refs=(), pinned_refs=()):
+    """Return only followers the macro learner is allowed to move.
+
+    A hard-pinned passive is already a mechanical/placement macro in its own
+    right.  Including it in an owner's learned movable cluster reserves its
+    often-large courtyard at the owner origin even though later lock checks
+    correctly refuse to move it.  The resulting false macro pushes the real
+    local support parts away before the pin is restored.
+    """
+    excluded = set(blueprint_refs or ()) | set(pinned_refs or ())
+    return [ref for ref in passives if ref not in excluded]
+
+
+def _functional_affinity_points(ref, placed, anchors, spec, adjacency):
+    """Targets for a late legality re-seat, preserving functional ownership.
+
+    Owned passives score exclusively against their derived functional owner.
+    Falling back to every raw netlist neighbor is actively harmful for
+    GND-referenced programming parts: the global GND clique overwhelms the
+    one nearby IC and scatters the part across the board.  Non-owned parts keep
+    the historical neighbor-based behavior.
+    """
+    owner = (spec.get(ref) or (None, None))[0]
+    if owner:
+        pos = placed.get(owner) or anchors.get(owner)
+        if pos is not None:
+            return [tuple(pos[:2])]
+    return [tuple(placed[o][:2]) for o in adjacency.get(ref, ())
+            if o in placed and o != ref]
+
+
+def _local_signal_followers(nl, spec, refs=()):
+    """Return topology-proven passives that belong at one IC signal pin.
+
+    The shared owner net must be non-power and contain only two or three
+    distinct component refs: point-to-point programming/soft-start parts and
+    the two-part divider/filter pattern.  Global buses and rails are excluded,
+    so this remains a general topology rule rather than a refdes allow-list.
+    """
+    allowed = set(refs or spec)
+    out = []
+    for ref, (owner, pad) in spec.items():
+        if ref not in allowed:
+            continue
+        net = nl.net_of(owner, str(pad))
+        members = {r for r, _p in nl.nets.get(net, ())} if net else set()
+        if net and not _is_power_net(net) and 2 <= len(members) <= 3:
+            out.append((ref, owner, str(pad), net, len(members)))
+    return sorted(out, key=lambda row: (row[4], row[1], row[2], row[0]))
 
 
 def place_mechanical(W, H, params):
@@ -6756,7 +6828,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # BLUEPRINT (P4): a stamped cell's parts (incl. its owned passives) are RIGID -- exclude them
         # from the cluster/stamp flow so p7/p9 never re-stamp them off the cell. Empty _bp_refs ->
         # identical inputs -> byte-identical (the golden-safety invariant).
-        _bp_passives = [p for p in passives if p not in _bp_refs]
+        # Explicit pins are already fixed placement/mechanical macros.  Never
+        # let one contaminate a movable owner's learned macro envelope (the Hub
+        # hold-up capacitor is 21x17 mm and previously scattered U11 support).
+        _bp_passives = _cluster_passive_refs(passives, _bp_refs, cfg.pins)
         spec, series = derive_passive_spec(nl, _bp_passives, [r for r in ics if not r.startswith("SW")],
                                            anchor_refs=_fixed_anchor_refs)
         by_owner = defaultdict(list)
@@ -7051,7 +7126,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         moved = 0
         for r in bad:
             _is_big = r in _oversized
-            nbr_pts = [P[o][:2] for o in adj.get(r, ()) if o in P and o != r]
+            nbr_pts = _functional_affinity_points(r, P, anchors, spec, adj)
             if not nbr_pts:
                 nbr_pts = [(W / 2.0, H / 2.0)]
             occ = [boxes[o] for o in boxes if o != r
@@ -7841,6 +7916,77 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             P[ind], boxes[ind] = best[1], best[2]
             P[cap], boxes[cap] = best[3], best[4]
             _bypass_locked.update((ind, cap))
+
+        # Final compact seats for private programming, soft-start, threshold,
+        # and sense-divider parts.  Earlier macro placement gives the board a
+        # legal global packing, but the final legality re-seat can otherwise
+        # separate a GND-referenced follower because raw adjacency sees every
+        # component on the GND plane.  Repack topology-proven low-fanout
+        # followers around the REAL owner pad after every owner/cap move.
+        local_rows = [row for row in _local_signal_followers(nl, spec, passives)
+                      if row[0] in P and row[1] in P
+                      and row[0] not in locked and row[0] not in _bp_refs
+                      and row[0] not in _bypass_locked]
+        local_refs = {row[0] for row in local_rows}
+        old_boxes = {ref: boxes.pop(ref) for ref in local_refs if ref in boxes}
+
+        def _local_area(ref):
+            box = old_boxes.get(ref) or part_box(ref)
+            return max(0.0, box[1] - box[0]) * max(0.0, box[3] - box[2])
+
+        # Larger followers take the scarce near-pad seats first; fanout-two
+        # parts precede divider pairs at equal area.
+        local_rows.sort(key=lambda row: (-_local_area(row[0]), row[4],
+                                         row[1], row[2], row[0]))
+        local_max_mm = 5.0
+        for ref, owner, owner_pin, net, _fanout in local_rows:
+            part_pin = pad_num_on(ref, net)
+            if part_pin is None:
+                boxes[ref] = old_boxes[ref]
+                continue
+            target = pad_at(owner, owner_pin, P[owner])
+            owner_gnd = ground_points(owner)
+            gnd_pin = pad_num_on(ref, "", ground=True)
+            old = P[ref]
+            step = 0.25
+            n = int(math.ceil(local_max_mm / step))
+            best = None
+            for rot in (0.0, 90.0, 180.0, 270.0):
+                local = cec_pcb.local_pads(comps[ref]).get(part_pin, (0.0, 0.0))
+                pdx, pdy = cec_pcb._rot(local[0], local[1], rot)
+                for ix in range(-n, n + 1):
+                    for iy in range(-n, n + 1):
+                        ox, oy = ix * step, iy * step
+                        pdist = math.hypot(ox, oy)
+                        if pdist > local_max_mm + 1e-9:
+                            continue
+                        pos = (target[0] + ox - pdx,
+                               target[1] + oy - pdy, rot)
+                        box = part_box(ref, pos)
+                        if not clear(box, set(), margin=0.10):
+                            continue
+                        gdist = 0.0
+                        if owner_gnd and gnd_pin:
+                            gp = pad_at(ref, gnd_pin, pos)
+                            gdist = min(math.hypot(gp[0] - q[0], gp[1] - q[1])
+                                        for q in owner_gnd)
+                        move = math.hypot(pos[0] - old[0], pos[1] - old[1])
+                        score = pdist + 0.15 * gdist + 0.005 * move
+                        key = (round(score, 6), round(pdist, 6), rot,
+                               pos[0], pos[1])
+                        if best is None or key < best[0]:
+                            best = (key, pos, box)
+            if best is None:
+                boxes[ref] = old_boxes[ref]
+                current = pad_at(ref, part_pin, P[ref])
+                current_dist = math.hypot(current[0] - target[0],
+                                          current[1] - target[1])
+                if current_dist > local_max_mm + 1e-9:
+                    refused.append(
+                        f"{ref}->{owner}.{owner_pin}: no legal <= {local_max_mm}mm local seat")
+                continue
+            P[ref], boxes[ref] = best[1], best[2]
+            _bypass_locked.add(ref)
 
         if refused:
             print("  [p9b] device bypass/switch seats refused: "
