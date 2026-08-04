@@ -214,6 +214,10 @@ def spec_to_dru(spec):
 
 
 # ============================================================ edits (apply_edit)
+class InvalidEditReference(KeyError):
+    """A controller edit names a footprint absent from the routed artifact."""
+
+
 def apply_edit(state, edit):
     """Apply a structured edit to a RegionState and return it (mutated in place).
     Edit `type`:
@@ -241,7 +245,8 @@ def apply_edit(state, edit):
         b = pcbnew.LoadBoard(state.board)
         fp = b.FindFootprintByReference(edit["ref"])
         if not fp:
-            raise KeyError(f"apply_edit place: footprint {edit['ref']} not found")
+            raise InvalidEditReference(
+                f"apply_edit place: footprint {edit['ref']} not found")
         x, y, rot = edit["at"]
         fp.SetPosition(pcbnew.VECTOR2I(int(round(x * 1e6)), int(round(y * 1e6))))
         fp.SetOrientationDegrees(rot)
@@ -253,7 +258,8 @@ def apply_edit(state, edit):
         b = pcbnew.LoadBoard(state.board)
         fp = b.FindFootprintByReference(edit["ref"])
         if not fp:
-            raise KeyError(f"apply_edit place_nudge: footprint {edit['ref']} not found")
+            raise InvalidEditReference(
+                f"apply_edit place_nudge: footprint {edit['ref']} not found")
         dx, dy = edit["delta"]
         p = fp.GetPosition()
         fp.SetPosition(pcbnew.VECTOR2I(p.x + int(round(dx * 1e6)), p.y + int(round(dy * 1e6))))
@@ -266,7 +272,8 @@ def apply_edit(state, edit):
         b = pcbnew.LoadBoard(state.board)
         fp = b.FindFootprintByReference(edit["ref"])
         if not fp:
-            raise KeyError(f"apply_edit place_rotate: footprint {edit['ref']} not found")
+            raise InvalidEditReference(
+                f"apply_edit place_rotate: footprint {edit['ref']} not found")
         fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
         pcbnew.SaveBoard(state.board, b)
     elif t == "place_cluster":
@@ -327,6 +334,14 @@ def _apply_edit_guarded(state, edit, log, region, it):
         apply_edit(state, edit)
         return True
     except Exception as e:                               # noqa: BLE001 -- narrowed below
+        if isinstance(e, InvalidEditReference):
+            reason = f"EDIT REFUSED [{type(e).__name__}]: {e}"
+            log.add(region=region.name, iteration=it, candidates=[], chosen=None,
+                    verdict=Verdict("refuse", reason, tier="edit-validation", edit=edit),
+                    note="invalid-edit-reference")
+            if os.environ.get("CEC_VERBOSE"):
+                print(f"[route] {region.name} it{it}: {reason}")
+            return False
         import cec_pourplan
         if isinstance(e, (cec_pourplan.EscalateToHuman, cec_pourplan.PourCrossSectionRefused)):
             reason = f"POUR-REBUILD REFUSED [{type(e).__name__}]: {e}"
@@ -455,6 +470,17 @@ def default_escalator(region, state, history, spec):
 _REAL_DRC = ("clearance", "shorting_items", "hole_to_hole", "hole_clearance")
 
 
+def _drc_item_references(descriptions):
+    """Extract complete KiCad references, including suffixes such as J6P.
+
+    The old ``[A-Z]+[0-9]+`` expression silently truncated segmented references
+    (J6P -> J6), causing the repair manager to target a footprint that never
+    existed and discard an otherwise useful route batch.
+    """
+    return re.findall(r"\bof ([A-Z][A-Z0-9_-]*[0-9][A-Z0-9_-]*)\b",
+                      descriptions or "")
+
+
 def targeted_repair(board_path, *, tier="worker"):
     """Read the worst REAL DRC violation on a routed candidate and propose a TARGETED edit -- finer than
     a global effort bump. For a track/via clearance or short between DIFFERENT nets: a 'keepout' RIP-UP
@@ -492,7 +518,7 @@ def targeted_repair(board_path, *, tier="worker"):
         descs = " ".join(it.get("description", "") for it in items)
         if "LOGO" in descs.upper():
             continue                                    # decorative-logo residual -> a finishing pass, not a rip-up
-        refs = re.findall(r"\bof ([A-Z]+[0-9]+)", descs)
+        refs = _drc_item_references(descs)
         if len(set(refs)) == 1 and len(refs) >= 2:
             continue                                    # same-footprint headless false short -> skip
         # positions are in MM in the kicad-cli DRC JSON; center the edit on the point-like item

@@ -3,6 +3,7 @@
 """The standalone Hub runner may publish only a complete accepted artifact."""
 
 import os
+import pickle
 import sys
 import unittest
 from unittest import mock
@@ -12,14 +13,72 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_constraints  # noqa: E402
 import cec_router  # noqa: E402
+import cec_slab_pour  # noqa: E402
 import hub_pipeline_run as H  # noqa: E402
 
 
 class TestHubAcceptance(unittest.TestCase):
     def test_repour_uses_current_ask_contract(self):
         nets = H._hub_pour_nets()
-        self.assertIn("/PSU_5V_KVM", nets)
+        self.assertIn("/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM", nets)
+        self.assertIn("/HOLD-UP + 3V3 REGULATOR/+5V_HOLD", nets)
+        self.assertIn("/CAN + FOUR MODULE PORTS + STACK/VCC_P4", nets)
+        self.assertNotIn("/PSU_5V_KVM", nets)
         self.assertEqual(len(nets), len(set(nets)))
+
+    def test_repour_ask_names_exist_exactly_on_current_board(self):
+        import pcbnew
+
+        board = pcbnew.LoadBoard(os.path.join(ROOT, H.REF))
+        board_nets = {str(name) for name in board.GetNetsByName().keys()}
+        self.assertTrue(set(H._hub_pour_nets()).issubset(board_nets))
+
+    def test_generated_rail_zone_names_are_version_independent(self):
+        for prefix in H.PIPELINE_RAIL_ZONE_PREFIXES:
+            with self.subTest(prefix=prefix):
+                self.assertTrue(H._is_pipeline_rail_zone_name(prefix + "/PWR"))
+        self.assertFalse(H._is_pipeline_rail_zone_name("GND Plane"))
+        self.assertFalse(H._is_pipeline_rail_zone_name("hand-authored:+5V"))
+        self.assertFalse(H._is_pipeline_rail_zone_name(None))
+
+    def test_net_resolution_fails_closed_on_missing_or_ambiguous(self):
+        board = os.path.join(ROOT, H.REF)
+        with self.assertRaisesRegex(RuntimeError, "missing"):
+            H._resolve_board_net_names(board, ("/DOES_NOT_EXIST",))
+
+    def test_slab_failure_survives_worker_serialization(self):
+        source = cec_slab_pour.SlabAllocationError(
+            (("/PWR", "In3.Cu"),), {("/PWR", "In3.Cu"): {"reason": "fixture"}})
+        restored = pickle.loads(pickle.dumps(source))
+        self.assertEqual(restored.failures, source.failures)
+        self.assertEqual(restored.report, source.report)
+        self.assertEqual(str(restored), str(source))
+
+    def test_hub_repour_uses_live_overunder_contract(self):
+        import cec_fr
+        import cec_fresh_wave
+        import cec_slab_pour
+        import pcbnew
+
+        self.assertTrue(cec_fresh_wave._board_params("hub-standard-rev2")["overunder"])
+        nets = H._hub_pour_nets()
+        rows = {net: {"path_found": True, "segments": 1, "bridges": 0,
+                      "layers_used": ["In3.Cu"]} for net in nets}
+        with mock.patch.object(pcbnew, "LoadBoard", return_value=object()), \
+                mock.patch.object(pcbnew, "SaveBoard"), \
+                mock.patch.object(cec_slab_pour, "synthesize_overunder_pours",
+                                  return_value=([{"net": nets[0]}], [(nets[0], 1, 2)], rows)) as solve, \
+                mock.patch.object(cec_fr, "add_power_pours") as add_pours, \
+                mock.patch.object(cec_fr, "add_overunder_vias",
+                                  return_value=[object()]) as add_vias:
+            report = H._repour_worker("fixture.kicad_pcb", nets)
+        self.assertEqual(report["planner"], "overunder")
+        self.assertEqual(report["rails"], 10)
+        self.assertEqual(report["vias"], 1)
+        self.assertTrue(all(row["path_found"] for row in report["paths"].values()))
+        solve.assert_called_once()
+        add_pours.assert_called_once()
+        add_vias.assert_called_once()
 
     def test_all_terms_are_required(self):
         args = ({"gates_pass": True}, 0, [], True, True)
@@ -83,6 +142,21 @@ class TestHubAcceptance(unittest.TestCase):
                                           work_dir=os.path.join(out, "work"))
         self.assertIsNone(final)
         self.assertFalse(log.final["verdict"]["gates_pass"])
+
+    def test_segmented_reference_is_not_truncated_by_repair_parser(self):
+        desc = "Pad 1 [/PWR] of J6P; Pad 2 [/OTHER] of U32"
+        self.assertEqual(cec_router._drc_item_references(desc), ["J6P", "U32"])
+
+    def test_invalid_advisory_reference_is_refused_without_aborting(self):
+        board = os.path.join(ROOT, H.REF)
+        region = cec_router.Region("fixture")
+        state = cec_router.RegionState(region, board, (0,))
+        log = cec_router.DecisionLog()
+        edit = {"type": "place_nudge", "ref": "J_DOES_NOT_EXIST",
+                "delta": (0.4, 0.4)}
+        self.assertFalse(cec_router._apply_edit_guarded(state, edit, log, region, 1))
+        self.assertEqual(log.entries[-1]["note"], "invalid-edit-reference")
+        self.assertEqual(log.entries[-1]["verdict"]["action"], "refuse")
 
     def test_route_intake_exception_refuses(self):
         import tempfile

@@ -52,6 +52,16 @@ class SlabAllocationError(RuntimeError):
         super().__init__("slab allocation failed closed for %s"
                          % ", ".join("%s/%s" % key for key in self.failures))
 
+    def __reduce__(self):
+        """Preserve the structured failure across multiprocessing boundaries.
+
+        RuntimeError normally pickles only ``args``.  This exception's public
+        constructor also requires the allocation report, so relying on the
+        default reducer makes a worker-result thread crash while unpickling the
+        error and leaves its parent blocked forever.
+        """
+        return type(self), (self.failures, self.report)
+
 
 def _board_file_path(board):
     """Return the loaded board path when pcbnew exposes one.

@@ -41,6 +41,14 @@ CONFORMANCE_REQUIRED_PASS = {
     "hub-stackup-6layer", "through-vias-only", "mezzanine-segment-contract",
 }
 
+# Names owned by the copper synthesis pipeline.  These are safe to use as a
+# temporary pickup envelope and then replace; hand-authored zones (including
+# the GND planes) are deliberately excluded.  ``slab:`` is the legacy name,
+# while current boards may contain any of the later planner realizations.
+PIPELINE_RAIL_ZONE_PREFIXES = (
+    "slab:", "overunder:", "pourfirst:", "pourplan:", "patch:", "manifold:",
+)
+
 
 def _build_seats(sel, spec, log):
     """Build (manager, worker) for cec_router.route() per the resolved seat backend, mirroring
@@ -141,7 +149,7 @@ def _fill_worker(out):
 
 
 def _prepare_repour_worker(out, nets):
-    """Bootstrap pickups from old outlines, then remove inherited slabs.
+    """Bootstrap pickups from generated outlines, then remove inherited rail zones.
 
     The old zones are never accepted as final copper. They are used only as a
     coverage envelope so the guarded pickup pass can connect SMD rail pads to
@@ -152,9 +160,10 @@ def _prepare_repour_worker(out, nets):
 
     board = pcbnew.LoadBoard(out)
     old = [zone for zone in board.Zones()
-           if (zone.GetZoneName() or "").startswith("slab:")]
+           if _is_pipeline_rail_zone_name(zone.GetZoneName())]
     if not old:
-        raise RuntimeError("six-layer Hub reference contains no named slab zones")
+        raise RuntimeError(
+            "six-layer Hub reference contains no pipeline-generated rail zones")
     covered = {zone.GetNetname() for zone in old if zone.GetNetname()}
     missing = sorted(set(nets) - covered)
     pickup = cec_fr.synthesize_power_pickups(
@@ -167,39 +176,82 @@ def _prepare_repour_worker(out, nets):
             "asks_without_bootstrap_zone": missing}
 
 
+def _is_pipeline_rail_zone_name(name):
+    """Return whether *name* identifies copper owned by the synthesis pipeline."""
+    return str(name or "").startswith(PIPELINE_RAIL_ZONE_PREFIXES)
+
+
+def _resolve_board_net_names(board_path, requested):
+    """Resolve schematic-local ask names to exact saved-board net names.
+
+    KiCad qualifies sheet-local nets in the PCB.  An exact name always wins;
+    otherwise exactly one hierarchy-suffix match is required.  Missing or
+    ambiguous asks fail closed so a pour can never silently target no net (or
+    the wrong identically named leaf on another sheet).
+    """
+    import pcbnew
+
+    board = pcbnew.LoadBoard(board_path)
+    available = {str(name) for name in board.GetNetsByName().keys() if str(name)}
+    resolved = []
+    for requested_name in requested:
+        requested_name = str(requested_name)
+        if requested_name in available:
+            matches = [requested_name]
+        else:
+            suffix = requested_name if requested_name.startswith("/") else "/" + requested_name
+            matches = sorted(name for name in available if name.endswith(suffix))
+        if len(matches) != 1:
+            state = "missing" if not matches else "ambiguous: %s" % ", ".join(matches)
+            raise RuntimeError("Hub pour net %r is %s in %s"
+                               % (requested_name, state, board_path))
+        resolved.append(matches[0])
+    return tuple(dict.fromkeys(resolved))
+
+
 def _hub_pour_nets():
-    """Return the current Hub ask contract, independent of stale PCB zones."""
+    """Return the current Hub ask contract using exact saved-board net names."""
     import cec_fresh_wave
 
     asks = cec_fresh_wave._board_params("hub-standard-rev2")  # noqa: SLF001
-    nets = tuple(dict.fromkeys(
+    requested = tuple(dict.fromkeys(
         ask.get("net") for ask in (asks.get("pour_asks") or ())
         if ask.get("net")))
-    if not nets:
+    if not requested:
         raise RuntimeError("Hub placement contract contains no power-pour asks")
-    return nets
+    return _resolve_board_net_names(os.path.join(S.ROOT, REF), requested)
 
 
 def _repour_worker(out, nets):
-    """Lay the current disjoint slab allocation in a fresh pcbnew process."""
+    """Lay the Hub's current routed-object power corridors in a fresh process.
+
+    The live Hub contract has ``overunder=True`` because ten mutually exclusive
+    same-layer slabs cannot join all rail terminals on this compact board.  Do
+    not regress to the superseded fair-share slab solver here: the over-under
+    search may bridge to another signal layer with qualified via fields when a
+    real obstruction requires it.
+    """
     import pcbnew
     import cec_fr
     import cec_slab_pour
 
     board = pcbnew.LoadBoard(out)
     asks = [{"net": net, "layers": ("In3.Cu",)} for net in nets]
-    pours, report = cec_slab_pour.synthesize_slab_pours(board, asks)
-    failed = ["%s/%s" % key for key, row in report.items()
-              if (row.get("allocation_failed_closed") or row.get("skipped")
-                  or row.get("min_width_ok") is False)]
+    pours, vias, report = cec_slab_pour.synthesize_overunder_pours(
+        board, asks, manifolds=True)
+    failed = sorted(net for net, row in report.items()
+                    if row.get("path_found") is not True)
     if failed or not pours:
-        raise RuntimeError("Hub slab allocation failed for %s" % (", ".join(failed) or "all rails"))
+        raise RuntimeError("Hub over-under allocation failed for %s"
+                           % (", ".join(failed) or "all rails"))
     cec_fr.add_power_pours(board, pours, fill=False)
+    added_vias = cec_fr.add_overunder_vias(board, vias)
     pcbnew.SaveBoard(out, board)
     return {"rails": len(nets), "polygons": len(pours),
-            "allocation": sorted({row.get("allocation") for row in report.values()}),
-            "currents_A": {key[0]: row.get("design_current_A")
-                           for key, row in report.items()}}
+            "vias": len(added_vias or ()), "planner": "overunder",
+            "paths": {net: {key: row.get(key) for key in
+                              ("path_found", "segments", "bridges", "layers_used")}
+                      for net, row in report.items()}}
 
 
 def materialize_onto_reference(cand, ref_pcb, out):
@@ -414,8 +466,9 @@ def main():
             mat = os.path.abspath(os.path.join(a.out, "hub-cand%d.kicad_pcb" % rank))
             _, nmoved, pour_report = materialize_onto_reference(cand, REF, mat)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
-                "%d rails -> %d disjoint slab polygons)"
-                % (rank, nmoved, pour_report["rails"], pour_report["polygons"]))
+                "%d rails -> %d %s polygons, %d bridge vias)"
+                % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
+                   pour_report["planner"], pour_report["vias"]))
             remaining = deadline - time.time()
             slots = max(1, len(topK) - rank)
             opt = int(max(15, min(50, remaining / slots / 8)))   # per-seed opt seconds within budget
