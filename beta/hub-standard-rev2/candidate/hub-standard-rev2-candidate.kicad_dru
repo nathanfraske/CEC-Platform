@@ -73,8 +73,19 @@
 # not copper surgery): the XKB U262 USB-C land's own pad-to-locating-NPTH spacing is
 # 0.165-0.20mm BY MANUFACTURER DRAWING -- a proven vendor land the generic 0.25mm
 # board rule should not outrank. Scoped to that footprint's pads only.
+# Match only the four drawing-qualified J_USB lands instead of every pad in the
+# connector; because this is hole_clearance it cannot relax copper-to-copper
+# spacing.
 (rule usbc_vendor_land_hole_clearance
-  (condition "A.memberOfFootprint('J_USB') && B.memberOfFootprint('J_USB')")
+  (condition "(A.memberOfFootprint('J_USB')
+                && A.Pad_Type == 'SMD'
+                && (A.Pad_Number == 'A4' || A.Pad_Number == 'A9'
+                    || A.Pad_Number == 'B1' || A.Pad_Number == 'B12'))
+              ||
+              (B.memberOfFootprint('J_USB')
+                && B.Pad_Type == 'SMD'
+                && (B.Pad_Number == 'A4' || B.Pad_Number == 'A9'
+                    || B.Pad_Number == 'B1' || B.Pad_Number == 'B12'))")
   (constraint hole_clearance (min 0.15mm)))
 
 # The SK6812MINI-E reverse-mount vendor land deliberately straddles its

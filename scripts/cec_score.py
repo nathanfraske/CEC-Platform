@@ -298,6 +298,28 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
                             continue                       # impossible short -> the known artifact
                     except Exception:                      # noqa: BLE001 -- never widen the filter on error
                         pass
+        elif v.get("type") == "hole_clearance":
+            # KiCad CLI 10 can ignore an otherwise valid sibling .kicad_dru
+            # copper-to-hole exception. Duplicate the XKB drawing-qualified
+            # J_USB exception in the headless scoring path, bounded by all of:
+            # exact footprint, exact four SMD lands, the connector's own NPTH,
+            # and the declared 0.15 mm floor. Foreign holes, routed copper,
+            # other lands, other connectors, and tighter geometry still fail.
+            items = v.get("items", [])
+            descs = [it.get("description", "") for it in items]
+            pad_ms = [_RE_PAD_ITEM.match(x) for x in descs]
+            pad_hits = [m for m in pad_ms if m]
+            npth_hits = [x for x in descs if x == "NPTH pad of J_USB"]
+            actual = re.search(r"\bactual\s+([0-9.]+)\s*mm", v.get("description", ""))
+            if (len(items) == 2 and len(pad_hits) == 1 and len(npth_hits) == 1
+                    and pad_hits[0].group(2) == "J_USB"
+                    and pad_hits[0].group(1) in {"A4", "A9", "B1", "B12"}
+                    and actual and float(actual.group(1)) >= 0.15):
+                fp = footprints.get("J_USB")
+                if fp is not None:
+                    libname = str(fp.GetFPID().GetLibItemName())
+                    if libname == "USB_C_Receptacle_XKB_U262-16XN-4BVC11":
+                        continue
         elif v.get("type") == "copper_edge_clearance":
             # MOUNT-pad annulus near Edge.Cuts: the documented deliberate finishing state
             # (place_mechanical e=3.5 note -- an M3 screw pad may hug the edge; the GUI

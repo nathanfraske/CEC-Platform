@@ -419,6 +419,37 @@ class TestRouteArtifactContracts(unittest.TestCase):
             [qualified, too_close, routed], board)
         self.assertEqual(kept, [too_close, routed])
 
+    def test_usbc_vendor_hole_waiver_is_land_and_geometry_bounded(self):
+        import cec_score
+
+        board = self._hub_board()
+        npth = {"description": "NPTH pad of J_USB"}
+        a4 = {"description": "Pad A4 [/USB_VBUS] of J_USB on F.Cu"}
+        a5 = {"description": "Pad A5 [/USB_CC1] of J_USB on F.Cu"}
+        qualified = {
+            "type": "hole_clearance",
+            "description": "Hole clearance violation (actual 0.2005 mm)",
+            "items": [a4, npth],
+        }
+        too_close = {
+            "type": "hole_clearance",
+            "description": "Hole clearance violation (actual 0.1400 mm)",
+            "items": [a4, npth],
+        }
+        wrong_land = {
+            "type": "hole_clearance",
+            "description": "Hole clearance violation (actual 0.2005 mm)",
+            "items": [a5, npth],
+        }
+        routed = {
+            "type": "hole_clearance",
+            "description": "Hole clearance violation (actual 0.2005 mm)",
+            "items": [{"description": "Track [/USB_VBUS] on F.Cu"}, npth],
+        }
+        kept = cec_score._drop_impossible_pad_artifacts(
+            [qualified, too_close, wrong_land, routed], board)
+        self.assertEqual(kept, [too_close, wrong_land, routed])
+
     def test_sidecar_copy_rebinds_project_and_keeps_rules(self):
         import cec_fr
 
