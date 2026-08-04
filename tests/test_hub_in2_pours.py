@@ -314,6 +314,56 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertTrue(pickup_items)
         self.assertTrue(all(item.IsLocked() for item in pickup_items))
 
+    def test_same_footprint_duplicate_smd_pins_are_locally_joined(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("1")
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("2")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I(int(1e6), int(1e6)))
+        second.SetPosition(pcbnew.VECTOR2I(int(7e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); footprint.Add(second)
+
+        result = cec_fr.synthesize_same_footprint_links(board)
+
+        tracks = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+        self.assertEqual((result["groups"], result["linked"]), (1, 1))
+        self.assertTrue(tracks)
+        self.assertEqual(tracks[0].GetNetname(), "+5VSB")
+
+    def test_same_footprint_diff_pair_leg_waits_for_atomic_pair_router(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        diff_net = pcbnew.NETINFO_ITEM(board, "/USB_D_P")
+        board.Add(diff_net)
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("A6"); first.SetNet(diff_net)
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("B6")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I(int(1e6), int(1e6)))
+        second.SetPosition(pcbnew.VECTOR2I(int(6e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(diff_net); footprint.Add(second)
+
+        result = cec_fr.synthesize_same_footprint_links(board)
+
+        self.assertEqual((result["groups"], result["linked"]), (0, 0))
+        self.assertFalse(list(board.GetTracks()))
+
     def test_redundant_dangling_pickup_is_pruned_after_local_cluster_link(self):
         import pcbnew
         import cec_fr

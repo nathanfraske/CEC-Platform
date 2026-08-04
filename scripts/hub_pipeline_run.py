@@ -204,13 +204,16 @@ def _fill_worker(out, rail_nets=()):
         lock=True)
     pickup_item_ids = {item.m_Uuid.AsString() for item in bd.GetTracks()} - before_pickup
     resolver = cec_fr._project_netclass_resolver(out)
+    local_footprint = cec_fr.synthesize_same_footprint_links(
+        bd, lock=True, netclass_resolver=resolver)
     bypass = cec_fr.synthesize_local_power_bypass_links(
         bd, lock=True, netclass_resolver=resolver)
     local_signal = cec_fr.synthesize_local_signal_links(
         bd, lock=True, netclass_resolver=resolver)
     normalization = {"tracks": 0, "vias": 0}
     pickup_prune = {"vias": 0, "stubs": 0, "detail": []}
-    if pickup["vias"] or bypass["linked"] or local_signal["linked"]:
+    if (pickup["vias"] or local_footprint["linked"] or bypass["linked"]
+            or local_signal["linked"]):
         normalization = cec_fr.normalize_netclass_geometry(bd, out)
         for zone in bd.Zones():
             zone.UnFill()
@@ -222,6 +225,7 @@ def _fill_worker(out, rail_nets=()):
         # antipad refill.  A later worker may refill if another stage needs it.
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
+            "same_footprint_links": local_footprint,
             "local_power_bypass": bypass,
             "local_signal_links": local_signal,
             "normalization": normalization,
@@ -695,12 +699,14 @@ def main():
                 cand, REF, mat, pinned_refs=cand_cfg.pins)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
+                "%d guarded same-footprint links; "
                 "%d guarded local power links; "
                 "%d guarded local signal links; "
                 "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
                    pour_report["pre_route_finish"]["power_pickups"]["vias"],
+                   pour_report["pre_route_finish"]["same_footprint_links"]["linked"],
                    pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
                    pour_report["pre_route_finish"]["local_signal_links"]["linked"],
                    pour_report["uuid_normalization"]["rewritten"]))

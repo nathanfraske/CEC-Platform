@@ -3809,6 +3809,199 @@ def synthesize_local_power_bypass_links(
             "refused": refused, "ignored": ignored, "detail": detail}
 
 
+def synthesize_same_footprint_links(
+        board, *, max_mm=3.0, min_w=0.2, clearance=0.20, lock=True,
+        netclass_resolver=None):
+    """Close duplicated same-net SMD pins locally before global routing.
+
+    Multi-pin power switches, regulators, and buffers commonly expose two or
+    more physical lands for one electrical node. Those lands should form a
+    compact local copper cluster; leaving each as an independent global-router
+    terminal wastes scarce escape channels and can strand a pad at a
+    fine-pitch package corner.
+
+    For every footprint-local same-net SMD group, use KiCad connectivity to
+    find distinct components and join the nearest pair with the normal guarded
+    0/45/90 last-mile geometry. Width, clearance, and bounded pad neck-downs
+    come from the project's real netclass. THT pins remain plane/pour policy's
+    responsibility; Kelvin and differential-pair nets are excluded because
+    their two legs must be synthesized atomically. Every collision or missing
+    common layer refuses closed. Returns
+    ``{groups, linked, legs, refused, ignored, detail}``.
+    """
+    import math as _math
+    from collections import defaultdict
+
+    all_cu = set(board.GetEnabledLayers().CuStack())
+    kelvin = {net for pair in _board_kelvin_pairs(board) for net in pair}
+
+    def _pad_key(pad):
+        pos = pad.GetPosition()
+        try:
+            reference = pad.GetParentFootprint().GetReference()
+        except Exception:                               # noqa: BLE001
+            reference = ""
+        return (reference, str(pad.GetNumber()), pos.x, pos.y)
+
+    def _layers(pad):
+        return frozenset(layer for layer in pad.GetLayerSet().CuStack()
+                         if layer in all_cu)
+
+    def _spec(net):
+        if netclass_resolver is not None:
+            return dict(netclass_resolver(net) or {})
+        try:
+            klass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+            return {"track_width": klass.GetTrackWidth() / MM,
+                    "clearance": klass.GetClearance() / MM}
+        except Exception:                               # noqa: BLE001
+            return {}
+
+    def _pairish(net):
+        upper = net.upper()
+        return (bool(re.search(r"_(?:P|N)$", upper))
+                or "USB_D" in upper
+                or upper.endswith(("CAN_H", "CAN_L", "CAN_H_BUS",
+                                   "CAN_L_BUS")))
+
+    def _escape(pad, class_width):
+        minor = min(pad.GetSize().x, pad.GetSize().y)
+        if minor >= class_width:
+            return None
+        local_width = min(class_width, max(_nm(min_w), minor // 2))
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_width / MM)))
+        return local_width, budget
+
+    groups = []
+    ignored = 0
+    for footprint in board.GetFootprints():
+        try:
+            if footprint.IsDNP():
+                continue
+        except Exception:                               # noqa: BLE001
+            pass
+        by_net = defaultdict(list)
+        for pad in footprint.Pads():
+            if (pad.GetNetCode() > 0 and pad.GetNetname()
+                    and pad.GetAttribute() == pcbnew.PAD_ATTRIB_SMD):
+                by_net[pad.GetNetname()].append(pad)
+        for net, pads in by_net.items():
+            if len(pads) >= 2 and net not in kelvin and not _pairish(net):
+                groups.append((footprint.GetReference(), net, pads))
+            else:
+                ignored += 1
+
+    linked = legs_added = refused = 0
+    detail = []
+    for reference, net, pads in sorted(groups, key=lambda row: (row[0], row[1])):
+        spec = _spec(net)
+        width_mm = float(spec.get("track_width") or min_w)
+        class_width = _nm(max(float(min_w), width_mm))
+        local_clearance = _nm(max(float(clearance),
+                                  float(spec.get("clearance") or 0.0)))
+        blocked = set()
+        group_links = 0
+        while True:
+            if group_links >= len(pads) - 1:
+                refused += 1
+                detail.append({"ref": reference, "net": net,
+                               "status": "refused",
+                               "reason": "connectivity did not converge"})
+                break
+            board.BuildConnectivity()
+            connectivity = board.GetConnectivity()
+            parent = list(range(len(pads)))
+
+            def _find(index):
+                while parent[index] != index:
+                    parent[index] = parent[parent[index]]
+                    index = parent[index]
+                return index
+
+            def _union(left, right):
+                left, right = _find(left), _find(right)
+                if left != right:
+                    parent[right] = left
+
+            key_to_index = {_pad_key(pad): index
+                            for index, pad in enumerate(pads)}
+            for index, pad in enumerate(pads):
+                try:
+                    connected = connectivity.GetConnectedItems(pad)
+                except Exception:                       # noqa: BLE001
+                    connected = ()
+                for item in connected:
+                    if item.GetClass() != "PAD":
+                        continue
+                    other = key_to_index.get(_pad_key(item))
+                    if other is not None:
+                        _union(index, other)
+            roots = {_find(index) for index in range(len(pads))}
+            if len(roots) <= 1:
+                break
+
+            candidates = []
+            for left in range(len(pads)):
+                for right in range(left + 1, len(pads)):
+                    if _find(left) == _find(right):
+                        continue
+                    pair_key = (_pad_key(pads[left]), _pad_key(pads[right]))
+                    if pair_key in blocked:
+                        continue
+                    common = _layers(pads[left]) & _layers(pads[right])
+                    if not common:
+                        blocked.add(pair_key)
+                        continue
+                    a, b = pads[left].GetPosition(), pads[right].GetPosition()
+                    distance = _math.hypot(b.x - a.x, b.y - a.y) / MM
+                    if distance <= float(max_mm):
+                        candidates.append((distance, left, right, pair_key,
+                                           sorted(common)))
+            candidates.sort(key=lambda row: (row[0], row[1], row[2]))
+            selected = None
+            for distance, left, right, pair_key, common in candidates:
+                start, end = pads[left].GetPosition(), pads[right].GetPosition()
+                for layer in common:
+                    path = _guarded_profiled_lastmile_legs(
+                        board, start, end, class_width, layer,
+                        local_clearance, pads[left].GetNetCode(),
+                        lambda a, b, half: _edge_leg_clear(board, a, b, half),
+                        start_escape=_escape(pads[left], class_width),
+                        end_escape=_escape(pads[right], class_width))
+                    if path:
+                        selected = (distance, left, right, layer, path)
+                        break
+                if selected:
+                    break
+                blocked.add(pair_key)
+            if selected is None:
+                missing = len(roots) - 1
+                refused += missing
+                detail.append({"ref": reference, "net": net,
+                               "status": "refused",
+                               "remaining_components": len(roots)})
+                break
+
+            distance, left, right, layer, path = selected
+            for start, end, width in path:
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(start); track.SetEnd(end); track.SetWidth(width)
+                track.SetLayer(layer); track.SetNetCode(pads[left].GetNetCode())
+                track.SetLocked(bool(lock)); board.Add(track)
+                legs_added += 1
+            linked += 1
+            group_links += 1
+            detail.append({"ref": reference, "net": net,
+                           "from": str(pads[left].GetNumber()),
+                           "to": str(pads[right].GetNumber()),
+                           "distance_mm": round(distance, 3),
+                           "layer": board.GetLayerName(layer),
+                           "legs": len(path), "status": "linked"})
+
+    return {"groups": len(groups), "linked": linked, "legs": legs_added,
+            "refused": refused, "ignored": ignored, "detail": detail}
+
+
 def synthesize_local_signal_links(
         board, *, max_mm=5.0, max_refs=3, min_power_width=0.5,
         min_w=0.2, clearance=0.20, lock=True,

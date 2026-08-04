@@ -139,10 +139,14 @@ class TestHubAcceptance(unittest.TestCase):
                   "ignored": 1, "detail": []}
         signal = {"networks": 3, "linked": 3, "legs": 5, "refused": 0,
                   "ignored": 7, "detail": []}
+        same_footprint = {"groups": 4, "linked": 4, "legs": 4,
+                          "refused": 0, "ignored": 8, "detail": []}
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
                 mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
                 mock.patch.object(cec_fr, "synthesize_power_pickups",
                                   return_value=pickup) as synth, \
+                mock.patch.object(cec_fr, "synthesize_same_footprint_links",
+                                  return_value=same_footprint) as local_fp, \
                 mock.patch.object(cec_fr, "synthesize_local_power_bypass_links",
                                   return_value=bypass) as local_bypass, \
                 mock.patch.object(cec_fr, "synthesize_local_signal_links",
@@ -160,6 +164,8 @@ class TestHubAcceptance(unittest.TestCase):
             board, (), plane_nets=("GND",), filled_zone_nets=("/PWR",),
             lock=True)
         resolver.assert_called_once_with("fixture.kicad_pcb")
+        local_fp.assert_called_once_with(
+            board, lock=True, netclass_resolver="resolver")
         local_bypass.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
         local_signal.assert_called_once_with(
@@ -169,6 +175,7 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)
+        self.assertEqual(result["same_footprint_links"], same_footprint)
         self.assertEqual(result["local_power_bypass"], bypass)
         self.assertEqual(result["local_signal_links"], signal)
 
