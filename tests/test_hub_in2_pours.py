@@ -274,6 +274,33 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
         self.assertEqual(via.GetDrillValue(), int(0.4e6))
 
+    def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        net = b.GetNetInfo().GetNetItem("+5VSB")
+        zone = pcbnew.ZONE(b)
+        zone.SetNet(net)
+        zone.SetLayer(pcbnew.In2_Cu)
+        outline = zone.Outline()
+        outline.NewOutline()
+        # L shape: the pad at (5, 2.5) is inside the 0..10 x 0..5 bbox,
+        # but outside real copper above the 1 mm bottom bar.
+        for x, y in ((0, 0), (10, 0), (10, 1),
+                     (1, 1), (1, 5), (0, 5)):
+            outline.Append(pcbnew.VECTOR2I_MM(x, y))
+        b.Add(zone)
+        pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+        pad = next(iter(next(iter(b.GetFootprints())).Pads()))
+        self.assertTrue(zone.GetBoundingBox().Contains(pad.GetPosition()))
+        self.assertFalse(zone.GetFilledPolysList(pcbnew.In2_Cu).Contains(
+            pad.GetPosition()))
+
+        result = cec_fr.synthesize_power_pickups(
+            b, (), plane_nets=(), filled_zone_nets=("+5VSB",))
+        self.assertEqual((result["vias"], result["skipped"]), (0, 1))
+
     def test_via_spot_probe_spans_all_layers(self):
         # B2 short reproduction: a foreign track on In2 under the via spot.
         # The single-layer F.Cu probe passes (the hole that shorted); the
@@ -448,6 +475,7 @@ class TestLaidPipelinePourKeepouts(unittest.TestCase):
                               (6.0, 6.0), (6.0, 3.0)])
 
     def test_hub_edge_hints_reserve_reverse_led_apertures(self):
+        import pcbnew
         import cec_fr
 
         board = os.path.join(
@@ -457,6 +485,43 @@ class TestLaidPipelinePourKeepouts(unittest.TestCase):
         cuts = [h for h in hints if h["name"].startswith("edge_cutout_DL")]
         self.assertEqual(len(cuts), 6)
         self.assertTrue(all(c["allow_vias"] is False for c in cuts))
+        board_obj = pcbnew.LoadBoard(board)
+        dl1 = next(fp for fp in board_obj.GetFootprints()
+                   if fp.GetReference() == "DL1")
+        edge_item = next(item for item in dl1.GraphicalItems()
+                         if item.GetLayer() == pcbnew.Edge_Cuts)
+        bb = edge_item.GetBoundingBox()
+        dl1_hint = next(c for c in cuts
+                        if c["name"].startswith("edge_cutout_DL1_"))
+        self.assertEqual(
+            (dl1_hint["x0"], dl1_hint["y0"], dl1_hint["x1"], dl1_hint["y1"]),
+            (round(bb.GetLeft() / 1e6 - 0.5, 2),
+             round(bb.GetTop() / 1e6 - 0.5, 2),
+             round(bb.GetRight() / 1e6 + 0.5, 2),
+             round(bb.GetBottom() / 1e6 + 0.5, 2)))
+
+    def test_hub_u2_pickup_overlap_is_blocked_by_guard(self):
+        import pcbnew
+        import cec_fab_profile as fab
+        import cec_fr
+
+        path = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        board = pcbnew.LoadBoard(path)
+        u2 = next(fp for fp in board.GetFootprints()
+                  if fp.GetReference() == "U2")
+        pad = next(p for p in u2.Pads() if p.GetPadName() == "3")
+        # Wave 13/15 reproduction: the adjacent pickup chose the 0.55 mm east
+        # seat. Its 0.8 mm land clips the 1.95 x 0.60 oval.
+        at = pcbnew.VECTOR2I(pad.GetPosition().x + int(0.55e6),
+                            pad.GetPosition().y)
+        blocking, _allowed = fab.via_at_pad_conflicts(
+            board, at, int(0.8e6), int(0.4e6), pad.GetNetCode())
+        self.assertIsNotNone(blocking)
+        self.assertFalse(cec_fr._via_spot_clear(
+            board, at, int(0.8e6), int(0.25e6), {pad.GetNetCode()},
+            drill_nm=int(0.4e6), net_code=pad.GetNetCode()))
 
 
 class TestRouteArtifactContracts(unittest.TestCase):

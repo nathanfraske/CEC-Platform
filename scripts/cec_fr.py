@@ -2314,7 +2314,12 @@ def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_ref
     # intentionally flank a vendor aperture remain outside this box and route
     # away from it; their explicit local edge-clearance rule owns pad-to-hole.
     ci = 0
-    cut_guard = 0.20
+    # This is copper-to-machined-edge clearance, not merely a plotting guard.
+    # The Hub's board rule is 0.50 mm; 0.20 let post-route SIG2 tracks pass
+    # 0.473 mm from a reverse-LED aperture and let vias get closer still.
+    # Vendor-authored LED pads are handled by their narrowly scoped DRC rule,
+    # while routed copper must meet the ordinary board-edge rule.
+    cut_guard = 0.50
     for fp in own.GetFootprints():
         for drawing in fp.GraphicalItems():
             try:
@@ -2752,7 +2757,8 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
 
 
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
-                             stub_w=0.3, offset=0.8, drill=0.3, dia=0.6):
+                             filled_zone_nets=(), stub_w=0.3, offset=0.8,
+                             drill=0.3, dia=0.6):
     """POWER-PICKUP STITCH (2026-07-23, the hub power rung's missing piece --
     measured on the rung probe: additive floods laid but the hub's power pads
     are SMD, and a pour on another layer cannot reach an F.Cu pad without a
@@ -2765,7 +2771,13 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     skipped loudly-by-count, never forced. On a board with an explicit POFV
     profile, a fully-contained same-net via at the pad centre is preferred; the
     guarded offset stub remains the fallback. Returns
-    {pads, vias, stubs, pofv, skipped}."""
+    {pads, vias, stubs, pofv, skipped}.
+
+    ``filled_zone_nets`` is the post-fill form of the contract. Those nets
+    are eligible only where their *actual filled polygon* contains the future
+    via centre; a zone bounding box is used only as a cheap prefilter. This
+    lets a second pass connect surface rail pads after shaped pours exist
+    without treating the empty space between over-under lanes as copper."""
     import math as _math
     nets_nc = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
     # target polygons per net: the ask/derived pour rects + any same-net ZONE
@@ -2782,20 +2794,39 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
         if net and poly:
             xs = [q[0] for q in poly]; ys = [q[1] for q in poly]
             polys.setdefault(net, []).append((min(xs), min(ys), max(xs), max(ys)))
+    exact_nets = set(filled_zone_nets or ())
+    filled_polys = {}
     for z in board.Zones():
         if z.GetIsRuleArea():
             continue
         nn = z.GetNetname()
-        if nn in plane_nets:
+        if nn in plane_nets or nn in exact_nets:
             bb = z.GetBoundingBox()
             polys.setdefault(nn, []).append(
                 (bb.GetX() / 1e6, bb.GetY() / 1e6,
                  (bb.GetX() + bb.GetWidth()) / 1e6,
                  (bb.GetY() + bb.GetHeight()) / 1e6))
+        if nn in exact_nets:
+            for lid in z.GetLayerSet().CuStack():
+                try:
+                    poly = z.GetFilledPolysList(lid)
+                    if poly.OutlineCount():
+                        filled_polys.setdefault(nn, []).append(poly)
+                except Exception:                         # noqa: BLE001
+                    continue
     if not polys:
         return {"pads": 0, "vias": 0, "stubs": 0, "pofv": 0,
                 "skipped": 0}
-    # pads already touched by copper: any track/via endpoint within the pad box
+    def _filled_at(net, at):
+        """Whether *at* is in real, already-filled same-net copper."""
+        if net not in exact_nets:
+            return True
+        return any(poly.Contains(at) for poly in filled_polys.get(net, ()))
+
+    # Use KiCad's real connectivity graph instead of an endpoint-near-bbox
+    # proxy, which is ambiguous at rotated and oval lands.
+    board.BuildConnectivity()
+    connectivity = board.GetConnectivity()
     touched = set()
     tracks = [t for t in board.GetTracks()]
     # via-spacing ledger (the s218 clipping class): never seat a pickup barrel
@@ -2816,17 +2847,13 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                       if b[0] <= px <= b[2] and b[1] <= py <= b[3]]
             if not boxes and net not in requested:
                 continue                       # no covering pour -> not ours
-            hit = False
-            pr = max(pad.GetSizeX(), pad.GetSizeY()) / 2 + 50000
-            for t in tracks:
-                if t.GetNetCode() != pad.GetNetCode():
-                    continue
-                for q in (t.GetStart(), t.GetEnd()):
-                    if abs(q.x - pos.x) < pr and abs(q.y - pos.y) < pr:
-                        hit = True
-                        break
-                if hit:
-                    break
+            try:
+                pad_uuid = pad.m_Uuid.AsString()
+                hit = any(item.m_Uuid.AsString() != pad_uuid
+                          and item.GetNetCode() == pad.GetNetCode()
+                          for item in connectivity.GetConnectedItems(pad))
+            except Exception:                            # noqa: BLE001
+                hit = False
             if hit:
                 continue                       # FR/locked copper reached it
             nc = nets_nc.get(net)
@@ -2850,7 +2877,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             # and full-land containment. The all-layer collision probe then
             # applies the ordinary through-via clearance contract. Refusal at
             # either gate preserves the established adjacent-via fallback.
-            if (not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(via_spacing) ** 2
+            if (_filled_at(net, pos)
+                    and not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(via_spacing) ** 2
                         for qx, qy in _pk_vias)
                     and _via_spot_clear(board, pos, _nm(local_dia), _nm(0.25),
                                         {nc}, drill_nm=_nm(local_drill),
@@ -2886,6 +2914,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                                and b[1] + local_dia / 2 <= ay <= b[3] - local_dia / 2
                                for b in boxes):
                         continue               # via must sit inside the pour
+                    if not _filled_at(net, at):
+                        continue               # bbox hit but no real filled copper
                     if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(via_spacing) ** 2
                            for qx, qy in _pk_vias):
                         continue               # barrel spacing (never stack)
@@ -3610,6 +3640,22 @@ def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_code
     GetEffectiveShape().Collide() geometry KiCad DRC uses, so a PASS here is DRC-clean for copper
     clearance on this segment -- the guard that lets the tap REFUSE rather than lay a shorting stub."""
     seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    # Pipeline-owned laid pours are reserved copper, not ordinary zones whose
+    # filler may be casually antipadded. Freerouting sees their outlines as
+    # keepouts, but additive post-route helpers bypass the DSN. Apply the same
+    # no-incursion contract here so all guarded helpers refuse foreign copper.
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or zone.GetNetCode() in sense_codes:
+            continue
+        if not (zone.GetZoneName() or "").startswith(PIPELINE_POUR_PREFIXES):
+            continue
+        if layer_id not in zone.GetLayerSet().CuStack():
+            continue
+        try:
+            if zone.Outline().Collide(seg, 0):
+                return False
+        except Exception:                              # noqa: BLE001
+            continue
     for fp in board.GetFootprints():
         for p in fp.Pads():
             if p.GetNetCode() in sense_codes:
@@ -5543,6 +5589,29 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         for z in board.Zones():
             z.UnFill()
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # A shaped rail pour may pass under isolated surface terminals that could
+    # not be proven covered before fill. Re-run against the actual filled
+    # polygons before last-mile clustering; then refill around new barrels.
+    if (os.environ.get("CEC_POWER_PICKUP", "0") == "1" and fill_zones):
+        _post_nets = {p.get("net") for p in (power_pours or ()) if p.get("net")}
+        _post_nets.add("GND")
+        _post_pk = synthesize_power_pickups(
+            board, (), plane_nets=(), filled_zone_nets=tuple(_post_nets))
+        if _post_pk["vias"] or _post_pk["skipped"]:
+            print(f"[cec_fr] post-fill power pickups: {_post_pk['vias']} via(s) "
+                  f"at {_post_pk['pads']} stranded pad(s), "
+                  f"{_post_pk['skipped']} skipped (no clear filled slot)",
+                  file=sys.stderr)
+        if _post_pk["vias"]:
+            _pk_ng = normalize_netclass_geometry(board, board_path)
+            if _pk_ng.get("tracks") or _pk_ng.get("vias"):
+                print("[fr] normalized post-fill pickup netclass geometry: "
+                      "%d track(s), %d via(s)"
+                      % (_pk_ng.get("tracks", 0), _pk_ng.get("vias", 0)),
+                      file=sys.stderr)
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     # LAST-MILE COMPLETER (2026-07-23, recipe-gated): close <=5mm same-net
     # cluster gaps FR left unfinished (measured on the s120 best: 13 of 30
     # residual unconn were such gaps, incl. both GND criticals). MUST run on a

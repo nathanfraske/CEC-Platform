@@ -321,7 +321,6 @@ def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
         import pcbnew
     except ImportError:
         return None, []
-    circle = pcbnew.SHAPE_CIRCLE(at, int(diameter_nm) // 2)
     allowed = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
@@ -329,7 +328,14 @@ def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
             if not stack:
                 continue
             try:
-                hit = pad.GetEffectiveShape(stack[0]).Collide(circle, 0)
+                # Use the same point+radius overload as the post-route
+                # via-on-pad gate. SHAPE::Collide(other_shape) is not
+                # symmetric for every KiCad pad primitive: on the Hub U2.3
+                # oval it returned false for a 0.8 mm circle whose centre was
+                # only 0.55 mm from the pad centre, while the reverse query
+                # (and the physical copper) overlapped.
+                hit = pad.GetEffectiveShape(stack[0]).Collide(
+                    at, int(diameter_nm) // 2)
             except Exception:  # noqa: BLE001
                 hit = False
             if not hit:

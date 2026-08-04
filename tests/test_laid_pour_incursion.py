@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import pcbnew  # noqa: E402
 import cec_constraints as C  # noqa: E402
 import cec_fab_profile as FAB  # noqa: E402
+import cec_fr as FR  # noqa: E402
 import cec_slab_pour as SLAB  # noqa: E402
 import cec_fresh_wave as WAVE  # noqa: E402
 
@@ -26,6 +27,7 @@ def _board():
     zone = pcbnew.ZONE(board)
     zone.SetNet(power)
     zone.SetLayer(pcbnew.F_Cu)
+    zone.SetZoneName("overunder:PWR")
     outline = zone.Outline()
     outline.NewOutline()
     for x, y in ((0, 0), (10, 0), (10, 10), (0, 10)):
@@ -95,6 +97,21 @@ class TestLaidPourIncursion(unittest.TestCase):
         report = C.laid_pour_incursion_summary(board)
         self.assertEqual((report["n_parts"], report["n_tracks"], report["n_vias"]),
                          (0, 0, 0))
+
+    def test_post_route_guard_refuses_foreign_laid_pour_incursion(self):
+        board, power, signal = _board()
+        start = pcbnew.VECTOR2I_MM(2, 5)
+        end = pcbnew.VECTOR2I_MM(8, 5)
+        self.assertFalse(FR._tap_foreign_clear(
+            board, start, end, pcbnew.FromMM(0.25), pcbnew.F_Cu,
+            pcbnew.FromMM(0.2), {signal.GetNetCode()}))
+        self.assertTrue(FR._tap_foreign_clear(
+            board, start, end, pcbnew.FromMM(0.25), pcbnew.F_Cu,
+            pcbnew.FromMM(0.2), {power.GetNetCode()}))
+        self.assertFalse(FR._via_spot_clear(
+            board, pcbnew.VECTOR2I_MM(5, 5), pcbnew.FromMM(0.6),
+            pcbnew.FromMM(0.2), {signal.GetNetCode()},
+            drill_nm=pcbnew.FromMM(0.3), net_code=signal.GetNetCode()))
 
     def test_declared_internal_power_plane_is_not_a_reserved_pour(self):
         board = pcbnew.BOARD()
