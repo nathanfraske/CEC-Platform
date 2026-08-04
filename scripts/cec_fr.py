@@ -3108,7 +3108,8 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
     return None
 
 
-def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40):
+def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40,
+                        netclass_resolver=None):
     """LAST-MILE COMPLETER (2026-07-23, from the s120 residual measurement: 13 of
     30 unconnected gaps were <=5mm same-net pad/via/track gaps FR left unclosed in
     dense clusters -- including BOTH GND criticals, each a stranded pad sitting
@@ -3122,7 +3123,11 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     fat width, so the track_width DRC posture matches FR's own copper). Every leg
     is foreign-collision-guarded (_tap_foreign_clear, own-net exempt); refuses
     loudly, never forces. Cross-layer-only gaps are counted, not attempted.
-    Returns {closed, legs, refused, far, cross_layer}."""
+    ``netclass_resolver`` supplies the final project via dimensions.  Bridge
+    seats MUST be collision-checked at those dimensions: validating the
+    router-default 0.6/0.3 mm land and enlarging it later can turn a legal seat
+    beside a fine-pitch pad into an unqualified via-in-pad.  Returns
+    {closed, legs, refused, far, cross_layer}."""
     from collections import Counter, defaultdict
     conn = board.GetConnectivity()
     all_cu = list(board.GetEnabledLayers().CuStack())
@@ -3140,6 +3145,8 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     for nc_, items in by_net.items():
         ws = Counter(o.GetWidth() for u, k, o in items if k == "trk")
         width_mode[nc_] = ws.most_common(1)[0][0] if ws else _nm(min_w)
+    net_names = {code: info.GetNetname()
+                 for code, info in board.GetNetInfo().NetsByNetcode().items()}
 
     def _anchors(kind, obj):
         """[(x, y, frozenset(layer_ids))] -- the connectable points of an item."""
@@ -3296,8 +3303,13 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                     break
             if ops is None:
                 # over-the-top: stub+via each end, bridge on an empty layer
+                spec = (netclass_resolver(net_names.get(nc_, ""))
+                        if netclass_resolver is not None else {}) or {}
+                bridge_dia = float(spec.get("via_diameter") or 0.6)
+                bridge_drill = float(spec.get("via_drill") or 0.3)
                 ops = _lastmile_bridge(board, A, al, B, bl, w, nc_,
                                        bridge_lays, _nm(clearance),
+                                       drill=bridge_drill, dia=bridge_dia,
                                        leg_ok=_lm_leg_ok)
             if ops is None:
                 n_ref += 1
@@ -5625,7 +5637,8 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     if os.environ.get("CEC_LASTMILE", "0") == "1" and fill_zones:
         board.BuildConnectivity()
         lm = synthesize_lastmile(
-            board, max_mm=float(os.environ.get("CEC_LASTMILE_MAX_MM", "5.0")))
+            board, max_mm=float(os.environ.get("CEC_LASTMILE_MAX_MM", "5.0")),
+            netclass_resolver=_project_netclass_resolver(board_path))
         print(f"[cec_fr] lastmile: {lm['closed']} gap(s) closed ({lm['legs']} leg(s)), "
               f"{lm['refused']} refused, {lm['far']} far, "
               f"{lm['cross_layer']} cross-layer", file=sys.stderr)

@@ -906,7 +906,14 @@ def _vital_keepouts_from_rules(board, rules):
 def _candidate_pool(cands, rules, weights):
     """Score ok candidates, sort best-first by (gates_pass desc, objective asc).
     Content-hash dedupe BEFORE scoring (R-01 adjunct): FR is deterministic, so identical
-    params yield byte-identical boards; scoring (a full DRC) is the expensive step."""
+    params yield byte-identical boards; scoring (a full DRC) is the expensive step.
+
+    Candidate scoring also folds the independent via-on-pad check into the
+    in-loop hard gate.  KiCad's ordinary DRC does not reject same-net via-in-pad,
+    so deferring this check until the final artifact used to let a geometrically
+    invalid board win every iteration and only fail after the repair budget was
+    exhausted.
+    """
     scored, seen = [], {}
     for c in cands:
         if not (c.ok and c.board):
@@ -916,9 +923,35 @@ def _candidate_pool(cands, rules, weights):
             scored.append((c, seen[h]))     # reuse the duplicate's metrics, skip the DRC
             continue
         m = cec_score.score(c.board, rules)
+        try:
+            import cec_constraints
+            vop = cec_constraints.via_on_pad_summary(c.board)
+            m.detail["via_on_pad"] = {
+                "same_net": vop["same"], "diff_net": vop["diff"],
+                "allowed_pofv": vop.get("allowed_pofv", 0),
+                "same_detail": vop.get("same_detail", [])[:8],
+                "diff_detail": vop.get("diff_detail", [])[:8],
+            }
+            if vop["same"] or vop["diff"]:
+                m.gates_pass = False
+        except Exception as exc:                           # noqa: BLE001
+            # Candidate selection is a release decision.  A broken checker is
+            # not evidence that a board is safe, so keep the same fail-closed
+            # posture as independent_drc().
+            m.detail["via_on_pad"] = {
+                "error": "%s: %s" % (type(exc).__name__, exc)}
+            m.gates_pass = False
         seen[h] = m
         scored.append((c, m))
-    scored.sort(key=lambda cm: (0 if cm[1].gates_pass else 1, cec_score.objective(cm[1], weights)))
+    def _key(cm):
+        m = cm[1]
+        vop = m.detail.get("via_on_pad", {})
+        faults = (int(vop.get("same_net", 0)) + int(vop.get("diff_net", 0))
+                  if "error" not in vop else 10**9)
+        return (0 if m.gates_pass else 1, faults,
+                cec_score.objective(m, weights))
+
+    scored.sort(key=_key)
     return scored
 
 

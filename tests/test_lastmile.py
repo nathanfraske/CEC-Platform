@@ -12,6 +12,7 @@ import os
 import math
 import sys
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -125,6 +126,26 @@ class TestLastmile(unittest.TestCase):
         self.assertEqual(r["closed"], 0,
                          "edge-hugging closure must be refused (the +4 "
                          "copper_edge regression class)")
+
+    def test_bridge_uses_final_netclass_via_geometry(self):
+        """A bridge seat must be judged at the size it will ship, not at the
+        smaller router default that normalize_netclass_geometry later grows."""
+        import pcbnew
+        import cec_fr
+
+        b = _board([(5, 5, "/POWER"), (7, 5, "/POWER")])
+        pads = [p for fp in b.GetFootprints() for p in fp.Pads()]
+        back = pcbnew.LSET()
+        back.AddLayer(pcbnew.B_Cu)
+        pads[1].SetLayerSet(back)  # no common layer: force over-the-top bridge
+
+        with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None) as bridge:
+            cec_fr.synthesize_lastmile(
+                b, netclass_resolver=lambda _net: {
+                    "via_diameter": 0.8, "via_drill": 0.4})
+        self.assertTrue(bridge.called)
+        self.assertEqual(bridge.call_args.kwargs["dia"], 0.8)
+        self.assertEqual(bridge.call_args.kwargs["drill"], 0.4)
 
     def test_wave_plumbing(self):
         import cec_fresh_wave as w
