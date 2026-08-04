@@ -758,6 +758,29 @@ def _dsn_exclude_pins(dsn_path: str, pins) -> int:
     return removed
 
 
+def plane_tht_exclusion_nets(board, min_fill_ratio=0.5):
+    """Nets with a genuinely plane-sized filled zone.
+
+    A routed-object corridor can span most of a board while occupying only a
+    few percent of its copper area. Classifying by zone bounding box made such
+    rails look like planes and removed every THT pin from the router even when
+    the sparse fill did not connect them. Judge actual saved fill area instead.
+    """
+    bb = board.GetBoardEdgesBoundingBox()
+    board_area = max(1, bb.GetWidth()) * max(1, bb.GetHeight())
+    nets = set()
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or not zone.GetNetname():
+            continue
+        try:
+            filled_area = int(zone.GetFilledArea())
+        except Exception:                               # noqa: BLE001
+            filled_area = 0
+        if filled_area / board_area >= float(min_fill_ratio):
+            nets.add(zone.GetNetname())
+    return nets
+
+
 def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
 
@@ -837,15 +860,7 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
     # board (params plane_tht_exclude -> _oracle_env): default-off keeps the
     # frozen golden's DSN byte-identical.
     if os.environ.get("CEC_PLANE_THT_EXCLUDE", "0") == "1":
-        _bb2 = board.GetBoardEdgesBoundingBox()
-        _ba = max(1, _bb2.GetWidth()) * max(1, _bb2.GetHeight())
-        _pnets = set()
-        for z in board.Zones():
-            if z.GetIsRuleArea() or not z.GetNetname():
-                continue
-            zb = z.GetBoundingBox()
-            if (zb.GetWidth() * zb.GetHeight()) / _ba >= 0.5:
-                _pnets.add(z.GetNetname())
+        _pnets = plane_tht_exclusion_nets(board)
         if _pnets:
             _tht = set()
             for fp in board.GetFootprints():
