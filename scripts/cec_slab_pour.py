@@ -1796,6 +1796,104 @@ def _clip_pours_around_generated_vias(pours, vias, *, clearance_mm=0.3):
     return out, clipped
 
 
+def _clip_pours_around_foreign_copper(board, pours, *, clearance_mm=0.25):
+    """Subtract real foreign pads/tracks/vias from saved pour *outlines*.
+
+    KiCad's filler automatically creates antipads in the rendered copper, but
+    leaving the foreign object inside the zone outline violates the pipeline's
+    pour-first ownership contract and makes guarded post-route helpers treat a
+    visually empty antipad as reserved copper. Clip the vector source itself so
+    FEM, conformance, routing guards, and fabricated fill all describe the same
+    geometry. Same-net copper remains available as an anchor.
+
+    Bounding rectangles are deliberately conservative for pads and uncommon
+    track shapes; ordinary tracks and vias use their actual centerline/diameter.
+    Returns ``(revised_pours, number_of_source_outlines_clipped)``.
+    """
+    if not pours:
+        return [], 0
+
+    from shapely.geometry import LineString, Point, Polygon, box as _sbox
+    from shapely.ops import unary_union
+
+    clearance = float(clearance_mm)
+    enabled = set(board.GetEnabledLayers().CuStack())
+    pads = []
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            if not pad.GetNetname():
+                continue
+            bb = pad.GetBoundingBox()
+            layers = tuple(layer for layer in pad.GetLayerSet().CuStack()
+                           if layer in enabled)
+            pads.append((pad.GetNetname(), layers,
+                         _sbox(bb.GetLeft() / MM - clearance,
+                               bb.GetTop() / MM - clearance,
+                               bb.GetRight() / MM + clearance,
+                               bb.GetBottom() / MM + clearance)))
+
+    copper = []
+    for item in board.GetTracks():
+        net = item.GetNetname()
+        if not net:
+            continue
+        if item.GetClass() == "PCB_VIA":
+            pos = item.GetPosition()
+            radius = item.GetWidth(item.TopLayer()) / MM / 2.0 + clearance
+            geom = Point(pos.x / MM, pos.y / MM).buffer(radius, resolution=12)
+            layers = tuple(layer for layer in item.GetLayerSet().CuStack()
+                           if layer in enabled)
+        elif item.GetClass() == "PCB_TRACK":
+            start, end = item.GetStart(), item.GetEnd()
+            radius = item.GetWidth() / MM / 2.0 + clearance
+            geom = LineString(((start.x / MM, start.y / MM),
+                               (end.x / MM, end.y / MM))).buffer(
+                                   radius, cap_style=2, join_style=2)
+            layers = (item.GetLayer(),)
+        else:
+            bb = item.GetBoundingBox()
+            geom = _sbox(bb.GetLeft() / MM - clearance,
+                         bb.GetTop() / MM - clearance,
+                         bb.GetRight() / MM + clearance,
+                         bb.GetBottom() / MM + clearance)
+            layers = tuple(layer for layer in item.GetLayerSet().CuStack()
+                           if layer in enabled)
+        copper.append((net, layers, geom))
+
+    out = []
+    clipped = 0
+    for row in pours:
+        layer = board.GetLayerID(row.get("layer", "F.Cu"))
+        net = row.get("net")
+        foreign = [geom for owner, layers, geom in pads + copper
+                   if owner != net and layer in layers]
+        if not foreign:
+            out.append(row)
+            continue
+        source = Polygon(row.get("polygon") or (), row.get("holes") or ()).buffer(0)
+        revised_geom = source.difference(unary_union(foreign))
+        if revised_geom.equals(source):
+            out.append(row)
+            continue
+        clipped += 1
+        pieces = ([revised_geom] if revised_geom.geom_type == "Polygon" else
+                  list(getattr(revised_geom, "geoms", ())))
+        for piece in pieces:
+            if piece.geom_type != "Polygon" or piece.area < 0.4:
+                continue
+            revised = dict(row)
+            revised["polygon"] = [(round(x, 3), round(y, 3))
+                                  for x, y in piece.exterior.coords]
+            holes = [[(round(x, 3), round(y, 3)) for x, y in ring.coords]
+                     for ring in piece.interiors]
+            if holes:
+                revised["holes"] = holes
+            else:
+                revised.pop("holes", None)
+            out.append(revised)
+    return out, clipped
+
+
 def _stamp_generated_via_keepouts(mask, grid, vias, net, clearance_mm=0.3):
     """Reserve earlier generated through-vias in a later rail's search mask.
 
@@ -2351,6 +2449,11 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     if _via_clipped:
         print("[cec_slab_pour] over-under: clipped %d pour outline(s) around "
               "foreign bridge vias" % _via_clipped, file=sys.stderr)
+    pour_dicts, _copper_clipped = _clip_pours_around_foreign_copper(
+        board, pour_dicts, clearance_mm=clearance_mm)
+    if _copper_clipped:
+        print("[cec_slab_pour] over-under: clipped %d pour outline(s) around "
+              "foreign board copper" % _copper_clipped, file=sys.stderr)
 
     return pour_dicts, via_list, report
 

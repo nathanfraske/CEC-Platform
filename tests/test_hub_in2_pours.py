@@ -140,6 +140,7 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
                     if item.GetClass() == "PCB_VIA"]
             self.assertEqual(len(vias), 1)
             self.assertEqual(vias[0].GetNetname(), "+5V_TEST")
+            self.assertTrue(vias[0].IsLocked())
 
 
 class TestOverunderInternalCutoutRaster(unittest.TestCase):

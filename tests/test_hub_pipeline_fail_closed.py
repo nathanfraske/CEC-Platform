@@ -226,7 +226,11 @@ class TestHubAcceptance(unittest.TestCase):
                  "isolated_copper": 7, "copper_edge_clearance": 2}
         loci = [{"type": kind, "where": kind} for kind in types]
         with mock.patch.object(H.cec_score, "drc_types",
-                               return_value=(types, loci)):
+                               return_value=(types, loci)), \
+                mock.patch.object(H.cec_constraints,
+                                  "laid_pour_incursion_summary",
+                                  return_value={"n_parts": 0, "n_tracks": 0,
+                                                "n_vias": 0, "items": []}):
             result = H._pre_route_materialization_gate("fixture.kicad_pcb")
         self.assertFalse(result["ok"])
         self.assertEqual(result["fatal"], {
@@ -237,14 +241,34 @@ class TestHubAcceptance(unittest.TestCase):
                                        "isolated_copper")])
 
     def test_pre_route_gate_refuses_dangling_and_isolated_generated_copper(self):
-        types = {"via_dangling": 31, "isolated_copper": 7,
+        types = {"via_dangling": 31, "track_dangling": 2,
+                 "isolated_copper": 7,
                  "copper_edge_clearance": 2}
         with mock.patch.object(H.cec_score, "drc_types",
-                               return_value=(types, [])):
+                               return_value=(types, [])), \
+                mock.patch.object(H.cec_constraints,
+                                  "laid_pour_incursion_summary",
+                                  return_value={"n_parts": 0, "n_tracks": 0,
+                                                "n_vias": 0, "items": []}):
             result = H._pre_route_materialization_gate("fixture.kicad_pcb")
         self.assertFalse(result["ok"])
         self.assertEqual(result["fatal"], {
-            "via_dangling": 31, "isolated_copper": 7})
+            "via_dangling": 31, "track_dangling": 2,
+            "isolated_copper": 7})
+
+    def test_pre_route_gate_refuses_foreign_copper_inside_pour_outline(self):
+        incursion = {"n_parts": 2, "n_tracks": 1, "n_vias": 0,
+                     "items": [{"kind": "pad", "ref": "U1", "net": "SIG",
+                                "pour": "overunder:PWR"}]}
+        with mock.patch.object(H.cec_score, "drc_types",
+                               return_value=({}, [])), \
+                mock.patch.object(H.cec_constraints,
+                                  "laid_pour_incursion_summary",
+                                  return_value=incursion):
+            result = H._pre_route_materialization_gate("fixture.kicad_pcb")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["fatal"], {"laid_pour_incursion": 3})
+        self.assertIn("U1", result["loci"][0]["where"])
 
     def test_conformance_exception_is_a_failure(self):
         messages = []

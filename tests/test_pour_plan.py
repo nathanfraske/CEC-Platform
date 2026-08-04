@@ -432,6 +432,7 @@ class TestViaInPadExclusionRealBoard(unittest.TestCase):
         self.assertEqual(len(added), 1)
         p = added[0].GetPosition()
         self.assertAlmostEqual(p.x / MM, 13.0, places=2)
+        self.assertTrue(added[0].IsLocked())
 
     def test_overunder_ledger_accounts_for_existing_barrel_diameter(self):
         import tempfile

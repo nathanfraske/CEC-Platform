@@ -25,6 +25,7 @@ import cec_synth_pipeline as S          # noqa: E402
 import cec_router                       # noqa: E402
 import cec_score                        # noqa: E402
 import cec_seats                        # noqa: E402  (the cloud/local residency resolver)
+import cec_constraints                  # noqa: E402
 
 REF = "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"
 REF_SCH = "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch"
@@ -425,7 +426,7 @@ def _acceptance_terms(route_verdict, conformance_fail, physics_flags,
 
 _PRE_ROUTE_FATAL_DRC = frozenset({
     "clearance", "shorting_items", "tracks_crossing", "hole_clearance",
-    "isolated_copper", "via_dangling",
+    "isolated_copper", "via_dangling", "track_dangling",
 })
 
 
@@ -435,13 +436,26 @@ def _pre_route_materialization_gate(board_path):
     Ordinary signal ratlines are expected, but synthesized copper must already
     be physically coherent: the shaped rails are filled and every generated
     bridge/pickup barrel must contact copper on both sides. Copper collisions,
-    isolated fill, and dangling vias cannot be handed to the router as a valid
-    starting point. Return a compact, auditable result from one DRC run.
+    isolated fill, and dangling tracks or vias cannot be handed to the router
+    as a valid starting point. Return a compact, auditable result from one DRC
+    run.
     """
     types, loci = cec_score.drc_types(board_path)
     fatal = {kind: count for kind, count in types.items()
              if kind in _PRE_ROUTE_FATAL_DRC and count}
     details = [row for row in loci if row.get("type") in fatal]
+    incursion = cec_constraints.laid_pour_incursion_summary(board_path)
+    incursion_count = sum(int(incursion.get(key) or 0)
+                          for key in ("n_parts", "n_tracks", "n_vias"))
+    if incursion_count:
+        types = dict(types)
+        types["laid_pour_incursion"] = incursion_count
+        fatal["laid_pour_incursion"] = incursion_count
+        details.extend({"type": "laid_pour_incursion",
+                        "where": "%s %s on %s inside %s"
+                        % (row.get("kind", "copper"), row.get("ref", ""),
+                           row.get("net", ""), row.get("pour", "pour"))}
+                       for row in incursion.get("items", ())[:20])
     return {"ok": not fatal, "fatal": fatal, "types": types,
             "loci": details[:20]}
 

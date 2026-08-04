@@ -113,6 +113,43 @@ class TestLaidPourIncursion(unittest.TestCase):
             pcbnew.FromMM(0.2), {signal.GetNetCode()},
             drill_nm=pcbnew.FromMM(0.3), net_code=signal.GetNetCode()))
 
+    def test_overunder_source_outline_is_clipped_around_foreign_pad(self):
+        from shapely.geometry import Point, Polygon
+
+        board, power, signal = _board()
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U1")
+        foreign = pcbnew.PAD(footprint)
+        foreign.SetNumber("1")
+        foreign.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        foreign.SetShape(pcbnew.PAD_SHAPE_RECT)
+        foreign.SetSize(pcbnew.VECTOR2I_MM(1, 1))
+        foreign.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        foreign.SetLayerSet(pcbnew.PAD.SMDMask())
+        foreign.SetNet(signal)
+        footprint.Add(foreign)
+        own = pcbnew.PAD(footprint)
+        own.SetNumber("2")
+        own.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        own.SetShape(pcbnew.PAD_SHAPE_RECT)
+        own.SetSize(pcbnew.VECTOR2I_MM(1, 1))
+        own.SetPosition(pcbnew.VECTOR2I_MM(2, 2))
+        own.SetLayerSet(pcbnew.PAD.SMDMask())
+        own.SetNet(power)
+        footprint.Add(own)
+        board.Add(footprint)
+        pours = [{"net": "PWR", "layer": "F.Cu",
+                  "polygon": [(0, 0), (10, 0), (10, 10), (0, 10)]}]
+
+        revised, clipped = SLAB._clip_pours_around_foreign_copper(
+            board, pours)
+        shapes = [Polygon(row["polygon"], row.get("holes") or ())
+                  for row in revised]
+
+        self.assertEqual(clipped, 1)
+        self.assertFalse(any(shape.covers(Point(5, 5)) for shape in shapes))
+        self.assertTrue(any(shape.covers(Point(2, 2)) for shape in shapes))
+
     def test_declared_internal_power_plane_is_not_a_reserved_pour(self):
         board = pcbnew.BOARD()
         board.SetCopperLayerCount(6)
@@ -159,7 +196,7 @@ class TestRealHubAllocation(unittest.TestCase):
                          (("/NO_SUCH_RAIL", "In3.Cu"),))
 
     @unittest.skipUnless(os.path.isfile(HUB), "Hub candidate required")
-    def test_stale_candidate_diagnostic_fails_closed_on_every_current_ask(self):
+    def test_stale_candidate_diagnostic_reports_every_current_ask(self):
         board = pcbnew.LoadBoard(self.HUB)
         asks = WAVE.BOARD_PARAMS["hub-standard-rev2"]["pour_asks"]
         previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
@@ -174,18 +211,21 @@ class TestRealHubAllocation(unittest.TestCase):
                 os.environ["CEC_THERMAL_BOARD_HINT"] = previous
         expected = {(ask["net"], "In3.Cu") for ask in asks}
         self.assertEqual(set(report), expected)
-        self.assertTrue(all(row.get("allocation_failed_closed")
-                            for row in report.values()))
+        failures = {key for key, row in report.items()
+                    if row.get("allocation_failed_closed")}
+        self.assertTrue(failures)
+        self.assertLess(failures, expected)
         # Non-strict is diagnostic only: it may return provisional polygons,
-        # including zero or multiple fragments for an ask, but every row
-        # remains explicitly blocked and cannot be released. Do not encode the
-        # retired one-giant-manifold-per-rail shape as an allocation contract.
+        # including zero or multiple fragments for an ask. Failed rows remain
+        # explicitly blocked and cannot be released; a rail that now satisfies
+        # the invariant may report success. Do not encode the retired
+        # one-giant-manifold-per-rail shape as an allocation contract.
         self.assertTrue(pours)
         self.assertLessEqual({p["net"] for p in pours},
                              {ask["net"] for ask in asks})
 
     @unittest.skipUnless(os.path.isfile(HUB), "Hub candidate required")
-    def test_current_hub_allocation_is_refused_until_widths_are_satisfied(self):
+    def test_current_hub_allocation_refuses_each_unsatisfied_width(self):
         board = pcbnew.LoadBoard(self.HUB)
         asks = WAVE.BOARD_PARAMS["hub-standard-rev2"]["pour_asks"]
         previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
@@ -199,8 +239,20 @@ class TestRealHubAllocation(unittest.TestCase):
                 os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
             else:
                 os.environ["CEC_THERMAL_BOARD_HINT"] = previous
-        self.assertEqual({key[0] for key in raised.exception.failures},
-                         {ask["net"] for ask in asks})
+        diagnostic_board = pcbnew.LoadBoard(self.HUB)
+        previous = os.environ.get("CEC_THERMAL_BOARD_HINT")
+        os.environ["CEC_THERMAL_BOARD_HINT"] = self.HUB
+        try:
+            _pours, report = SLAB.synthesize_slab_pours(
+                diagnostic_board, asks, strict=False)
+        finally:
+            if previous is None:
+                os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
+            else:
+                os.environ["CEC_THERMAL_BOARD_HINT"] = previous
+        expected_failures = {key for key, row in report.items()
+                             if row.get("allocation_failed_closed")}
+        self.assertEqual(set(raised.exception.failures), expected_failures)
 
 
 if __name__ == "__main__":

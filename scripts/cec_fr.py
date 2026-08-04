@@ -4743,6 +4743,11 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         via.SetWidth(_nm(dia))
         via.SetNetCode(nc)
         via.SetLayerPair(f_cu, b_cu)
+        # These barrels are part of the synthesized rail topology, not router
+        # suggestions.  Freerouting preserves the locked pickup tracks but is
+        # otherwise free to delete an unlocked bridge via during SES import,
+        # which leaves a deterministic dangling rail stub on every seed.
+        via.SetLocked(True)
         board.Add(via)
         added.append(via)
         existing.append((x, y, dia))
