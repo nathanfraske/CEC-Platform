@@ -226,6 +226,13 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertLess(H._closure_placement_key(large),
                         H._closure_placement_key(illegal_small))
 
+    def test_materialization_rejection_has_ranked_fallbacks(self):
+        placed = ["first", "second", "third", "fourth"]
+        self.assertEqual(H._placement_probe_pool(placed, 1),
+                         ["first", "second", "third"])
+        self.assertEqual(H._placement_probe_pool(placed, 3), placed)
+        self.assertEqual(H._placement_probe_pool([], 1), [])
+
     def test_board_spec_carries_worker_timeout(self):
         import tempfile
         import cec_router

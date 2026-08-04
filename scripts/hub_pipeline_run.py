@@ -478,6 +478,18 @@ def _closure_placement_key(row):
             cand.proxy.get("proxy_score", 1e9))
 
 
+def _placement_probe_pool(placed, route_candidates, *, fallbacks=2):
+    """Keep ranked fallbacks for placements rejected during materialization.
+
+    ``route_candidates`` limits placements that actually consume router time.
+    A diameter-aware power bridge can still prove the top legal placement
+    unrealizable, so probe two more ranked placements before declaring that no
+    Hub candidate exists.
+    """
+    target = max(1, int(route_candidates))
+    return list(placed[:min(len(placed), target + max(0, int(fallbacks)))])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=1.0)
@@ -610,12 +622,17 @@ def main():
             % (sw, sh, b.strat, b.seed, b.residual, b.corridor_cross, b.similarity, b.proxy["hpwl"],
                rec["hpwl_ratio"], b.proxy.get("hub_terms")))
     placed.sort(key=_closure_placement_key)
-    topK = placed[: a.route_candidates]
-    log("ROUTE: %d top placement(s) -> %s" % (len(topK), [(t[0].strat, t[0].seed, t[0].residual) for t in topK]))
+    topK = _placement_probe_pool(placed, a.route_candidates)
+    log("ROUTE: probe %d top placement(s), route up to %d -> %s"
+        % (len(topK), a.route_candidates,
+           [(t[0].strat, t[0].seed, t[0].residual) for t in topK]))
 
     # ---- Stage 2: route each top placement (budget-bounded), score gates+DRC, electrothermal ----
     best = None
+    route_attempts = 0
     for rank, (cand, sw, sh, cand_cfg) in enumerate(topK):
+        if route_attempts >= a.route_candidates:
+            break
         if time.time() > deadline - 120:
             log("budget nearly spent -> stop before routing cand%d" % rank)
             break
@@ -639,7 +656,7 @@ def main():
             log("  cand%d: pre-route copper-contact gate PASS (%s)"
                 % (rank, pre_route["types"]))
             remaining = deadline - time.time()
-            slots = max(1, len(topK) - rank)
+            slots = max(1, a.route_candidates - route_attempts)
             opt = int(max(15, min(50, remaining / slots / 8)))   # per-seed opt seconds within budget
             max_iters = 3
             fr_timeout = _route_iteration_timeout(remaining, max_iters)
@@ -659,6 +676,7 @@ def main():
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
             # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
             manager, worker = _build_seats(sel, spec, log)
+            route_attempts += 1
             with S._oracle_env(cand_cfg.params), \
                     _freerouting_wave_environment(cand_cfg.params):
                 final, dlog = cec_router.route(
