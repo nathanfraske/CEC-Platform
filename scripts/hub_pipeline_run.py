@@ -201,11 +201,13 @@ def _fill_worker(out, rail_nets=()):
     pickup = cec_fr.synthesize_power_pickups(
         bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets),
         lock=True)
+    resolver = cec_fr._project_netclass_resolver(out)
     bypass = cec_fr.synthesize_local_power_bypass_links(
-        bd, lock=True,
-        netclass_resolver=cec_fr._project_netclass_resolver(out))
+        bd, lock=True, netclass_resolver=resolver)
+    local_signal = cec_fr.synthesize_local_signal_links(
+        bd, lock=True, netclass_resolver=resolver)
     normalization = {"tracks": 0, "vias": 0}
-    if pickup["vias"] or bypass["linked"]:
+    if pickup["vias"] or bypass["linked"] or local_signal["linked"]:
         normalization = cec_fr.normalize_netclass_geometry(bd, out)
         for zone in bd.Zones():
             zone.UnFill()
@@ -213,6 +215,7 @@ def _fill_worker(out, rail_nets=()):
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
             "local_power_bypass": bypass,
+            "local_signal_links": local_signal,
             "normalization": normalization}
 
 
@@ -683,11 +686,13 @@ def main():
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
                 "%d guarded local power links; "
+                "%d guarded local signal links; "
                 "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
                    pour_report["pre_route_finish"]["power_pickups"]["vias"],
                    pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
+                   pour_report["pre_route_finish"]["local_signal_links"]["linked"],
                    pour_report["uuid_normalization"]["rewritten"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({

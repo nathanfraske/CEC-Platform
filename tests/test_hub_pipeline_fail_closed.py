@@ -134,12 +134,16 @@ class TestHubAcceptance(unittest.TestCase):
                   "skipped": 0, "skipped_detail": []}
         bypass = {"pairs": 2, "linked": 2, "legs": 4, "refused": 0,
                   "ignored": 1, "detail": []}
+        signal = {"networks": 3, "linked": 3, "legs": 5, "refused": 0,
+                  "ignored": 7, "detail": []}
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
                 mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
                 mock.patch.object(cec_fr, "synthesize_power_pickups",
                                   return_value=pickup) as synth, \
                 mock.patch.object(cec_fr, "synthesize_local_power_bypass_links",
                                   return_value=bypass) as local_bypass, \
+                mock.patch.object(cec_fr, "synthesize_local_signal_links",
+                                  return_value=signal) as local_signal, \
                 mock.patch.object(cec_fr, "_project_netclass_resolver",
                                   return_value="resolver") as resolver, \
                 mock.patch.object(cec_fr, "normalize_netclass_geometry",
@@ -152,11 +156,14 @@ class TestHubAcceptance(unittest.TestCase):
         resolver.assert_called_once_with("fixture.kicad_pcb")
         local_bypass.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
+        local_signal.assert_called_once_with(
+            board, lock=True, netclass_resolver="resolver")
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)
         self.assertEqual(result["local_power_bypass"], bypass)
+        self.assertEqual(result["local_signal_links"], signal)
 
     def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
         import cec_fresh_wave

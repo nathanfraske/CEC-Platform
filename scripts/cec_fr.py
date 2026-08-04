@@ -2783,36 +2783,54 @@ def _edge_leg_clear(board, start, end, half_width_nm, *, edge_mm=0.5):
     A zero-length leg is the corresponding via-centre check when half_width is
     the via radius.
     """
-    bb = board.GetBoardEdgesBoundingBox()
-    if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
+    cache = getattr(board, "_cec_edge_leg_cache", None)
+    if cache is None:
+        bb = board.GetBoardEdgesBoundingBox()
+        outline = (bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom(),
+                   bb.GetWidth(), bb.GetHeight())
+        arcs = []
+        for drawing in board.GetDrawings():
+            try:
+                if (board.GetLayerName(drawing.GetLayer()) == "Edge.Cuts"
+                        and drawing.GetShape() == pcbnew.SHAPE_T_ARC):
+                    box = drawing.GetBoundingBox()
+                    arcs.append((box.GetLeft(), box.GetTop(),
+                                 box.GetRight(), box.GetBottom()))
+            except Exception:                           # noqa: BLE001
+                continue
+        cutouts = []
+        for footprint in board.GetFootprints():
+            for drawing in footprint.GraphicalItems():
+                try:
+                    if board.GetLayerName(drawing.GetLayer()) == "Edge.Cuts":
+                        box = drawing.GetBoundingBox()
+                        cutouts.append((box.GetLeft(), box.GetTop(),
+                                        box.GetRight(), box.GetBottom()))
+                except Exception:                       # noqa: BLE001
+                    continue
+        cache = (outline, tuple(arcs), tuple(cutouts))
+        # pcbnew BOARD proxies accept Python-side attributes.  The edge model
+        # is immutable throughout route/import helpers, so one snapshot avoids
+        # re-walking every footprint graphic for every maze lattice hop.
+        try:
+            setattr(board, "_cec_edge_leg_cache", cache)
+        except Exception:                               # noqa: BLE001
+            pass
+    outline, arcs, cutouts = cache
+    left, top, right, bottom, width, height = outline
+    if width <= 0 or height <= 0:
         return True
     margin = _nm(edge_mm) + int(half_width_nm)
     for point in (start, end):
-        if not (bb.GetLeft() + margin <= point.x <= bb.GetRight() - margin
-                and bb.GetTop() + margin <= point.y <= bb.GetBottom() - margin):
+        if not (left + margin <= point.x <= right - margin
+                and top + margin <= point.y <= bottom - margin):
             return False
-    for drawing in board.GetDrawings():
-        try:
-            if (board.GetLayerName(drawing.GetLayer()) != "Edge.Cuts"
-                    or drawing.GetShape() != pcbnew.SHAPE_T_ARC):
-                continue
-            arc = drawing.GetBoundingBox()
-            box = (arc.GetLeft(), arc.GetTop(), arc.GetRight(), arc.GetBottom())
-            if _segment_hits_expanded_box(start, end, box, margin):
-                return False
-        except Exception:                               # noqa: BLE001
-            continue
-    for footprint in board.GetFootprints():
-        for drawing in footprint.GraphicalItems():
-            try:
-                if board.GetLayerName(drawing.GetLayer()) != "Edge.Cuts":
-                    continue
-                cut = drawing.GetBoundingBox()
-                box = (cut.GetLeft(), cut.GetTop(), cut.GetRight(), cut.GetBottom())
-                if _segment_hits_expanded_box(start, end, box, margin):
-                    return False
-            except Exception:                           # noqa: BLE001
-                continue
+    for box in arcs:
+        if _segment_hits_expanded_box(start, end, box, margin):
+            return False
+    for box in cutouts:
+        if _segment_hits_expanded_box(start, end, box, margin):
+            return False
     return True
 
 
@@ -3259,6 +3277,10 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
     final_state = None
     directions = ((1, 0), (-1, 0), (0, 1), (0, -1))
     clear_cache = {}
+    foreign_zones, foreign_copper = _layer_foreign_shapes(
+        board, lay, {nc})
+    foreign_zones = _bucket_foreign_shapes(foreign_zones)
+    foreign_copper = _bucket_foreign_shapes(foreign_copper)
 
     def _hop_clear(A, B, width):
         ends = sorted(((A.x, A.y), (B.x, B.y)))
@@ -3266,8 +3288,9 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
         if key not in clear_cache:
             clear_cache[key] = bool(
                 leg_ok(A, B, width // 2)
-                and _tap_foreign_clear(board, A, B, width, lay,
-                                       clearance_nm, {nc}))
+                and _snapshot_foreign_clear(
+                    A, B, width, clearance_nm,
+                    foreign_zones, foreign_copper))
         return clear_cache[key]
 
     while heap:
@@ -3545,6 +3568,208 @@ def synthesize_local_power_bypass_links(
                        "legs": len(path), "status": "linked"})
 
     return {"pairs": pairs, "linked": linked, "legs": legs_added,
+            "refused": refused, "ignored": ignored, "detail": detail}
+
+
+def synthesize_local_signal_links(
+        board, *, max_mm=5.0, max_refs=3, min_power_width=0.5,
+        min_w=0.2, clearance=0.20, lock=True,
+        netclass_resolver=None):
+    """Pre-route topology-proven private IC programming networks.
+
+    A local threshold divider, soft-start capacitor, or current-limit resistor
+    should be complete before the global router spends congestion budget on
+    it.  Select only nets with one ``U*`` owner and one or two fitted ``R*``/
+    ``C*`` followers, no connector or other active member, a non-power
+    netclass width, and no Kelvin/differential-pair role.  Connect the nearest
+    remaining follower to the already-connected local cluster with guarded
+    same-layer 0/45/90 copper.  This is the routing counterpart of the placer's
+    low-fanout functional ownership rule and contains no board/refdes list.
+
+    Distributed rails, buses, connector nets, high-speed pairs, and every
+    cross-layer-only case remain the global router's responsibility.  All
+    collision and edge checks fail closed and emitted tracks are locked so the
+    router cannot scatter the local cell again.
+    """
+    import math as _math
+    from collections import defaultdict
+
+    all_cu = set(board.GetEnabledLayers().CuStack())
+    pads_by_net = defaultdict(list)
+    pad_count_by_ref = {}
+    for fp in board.GetFootprints():
+        ref = str(fp.GetReference() or "")
+        try:
+            if fp.IsDNP():
+                continue
+        except Exception:                                # noqa: BLE001
+            pass
+        fitted_pads = list(fp.Pads())
+        pad_count_by_ref[ref] = len(fitted_pads)
+        for pad in fitted_pads:
+            if pad.GetNetCode() > 0 and pad.GetNetname():
+                pads_by_net[pad.GetNetname()].append((ref, pad))
+
+    kelvin = {net for pair in _board_kelvin_pairs(board) for net in pair}
+
+    def _spec(net):
+        if netclass_resolver is not None:
+            return dict(netclass_resolver(net) or {})
+        try:
+            klass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+            return {"name": klass.GetName(),
+                    "track_width": klass.GetTrackWidth() / MM,
+                    "clearance": klass.GetClearance() / MM}
+        except Exception:                                # noqa: BLE001
+            return {}
+
+    def _pairish(net):
+        upper = net.upper()
+        return (net in kelvin or "USB_D" in upper
+                or upper.endswith(("_P", "_N", "CAN_H", "CAN_L",
+                                   "CAN_H_BUS", "CAN_L_BUS")))
+
+    def _layers(pad):
+        return frozenset(layer for layer in pad.GetLayerSet().CuStack()
+                         if layer in all_cu)
+
+    def _escape(pad, class_width):
+        try:
+            if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                return None
+        except Exception:                                # noqa: BLE001
+            return None
+        minor = min(pad.GetSize().x, pad.GetSize().y)
+        if minor >= class_width:
+            return None
+        local_width = min(class_width, max(_nm(min_w), minor // 2))
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_width / MM)))
+        return local_width, budget
+
+    def _pad_key(pad):
+        pos = pad.GetPosition()
+        try:
+            ref = pad.GetParentFootprint().GetReference()
+        except Exception:                                # noqa: BLE001
+            ref = ""
+        return ref, str(pad.GetNumber()), pos.x, pos.y
+
+    def _connected(source, target):
+        target_key = _pad_key(target)
+        try:
+            return any(item.GetClass() == "PAD"
+                       and _pad_key(item) == target_key
+                       for item in board.GetConnectivity().GetConnectedItems(source))
+        except Exception:                                # noqa: BLE001
+            return False
+
+    networks = linked = legs_added = refused = ignored = 0
+    detail = []
+    for net, rows in sorted(pads_by_net.items()):
+        refs = sorted({ref for ref, _pad in rows})
+        owners = [ref for ref in refs if ref.startswith("U")]
+        followers = [ref for ref in refs if ref.startswith(("R", "C"))]
+        spec = _spec(net)
+        width_mm = float(spec.get("track_width") or min_w)
+        if (_pairish(net) or len(refs) < 2 or len(refs) > int(max_refs)
+                or len(owners) != 1 or len(followers) != len(refs) - 1
+                or any(pad_count_by_ref.get(ref) != 2 for ref in followers)
+                or width_mm >= float(min_power_width)):
+            ignored += 1
+            continue
+        owner = owners[0]
+        owner_pads = [pad for ref, pad in rows if ref == owner]
+        follower_pads = {ref: [pad for row_ref, pad in rows if row_ref == ref]
+                         for ref in followers}
+        if not owner_pads or any(not pads for pads in follower_pads.values()):
+            ignored += 1
+            continue
+        networks += 1
+        board.BuildConnectivity()
+        root_pad = owner_pads[0]
+        connected_refs = {owner}
+        remaining = set(followers)
+        # Followers already electrically in the owner's cluster need no new
+        # copper, but still become valid launch points for the MST growth.
+        for ref in list(remaining):
+            if any(_connected(root_pad, pad) for pad in follower_pads[ref]):
+                connected_refs.add(ref)
+                remaining.remove(ref)
+        blocked_edges = set()
+        while remaining:
+            launches = [(ref, pad) for ref, pad in rows
+                        if ref in connected_refs]
+            candidates = []
+            for target_ref in sorted(remaining):
+                for target_pad in follower_pads[target_ref]:
+                    target_pos = target_pad.GetPosition()
+                    for source_ref, source_pad in launches:
+                        edge = (_pad_key(source_pad), _pad_key(target_pad))
+                        if edge in blocked_edges:
+                            continue
+                        common = _layers(source_pad) & _layers(target_pad)
+                        if not common:
+                            continue
+                        source_pos = source_pad.GetPosition()
+                        distance = _math.hypot(
+                            target_pos.x - source_pos.x,
+                            target_pos.y - source_pos.y) / MM
+                        if 1e-9 < distance <= float(max_mm):
+                            candidates.append((distance, target_ref,
+                                               source_ref, source_pad,
+                                               target_pad, sorted(common), edge))
+            candidates.sort(key=lambda row: (
+                row[0], row[1], row[2], _pad_key(row[3]), _pad_key(row[4])))
+            selected = None
+            class_width = _nm(width_mm)
+            local_clearance = _nm(max(float(clearance),
+                                      float(spec.get("clearance") or 0.0)))
+            for (distance, target_ref, source_ref, source_pad, target_pad,
+                 common, edge) in candidates:
+                source_pos = source_pad.GetPosition()
+                target_pos = target_pad.GetPosition()
+                for layer in common:
+                    path = _guarded_profiled_lastmile_legs(
+                        board, source_pos, target_pos, class_width, layer,
+                        local_clearance, target_pad.GetNetCode(),
+                        lambda start, end, half: _edge_leg_clear(
+                            board, start, end, half),
+                        start_escape=_escape(source_pad, class_width),
+                        end_escape=_escape(target_pad, class_width))
+                    if path:
+                        selected = (distance, target_ref, source_ref, layer,
+                                    target_pad.GetNetCode(), path)
+                        break
+                if selected:
+                    break
+                blocked_edges.add(edge)
+            if selected is None:
+                refused += len(remaining)
+                detail.append({"net": net, "owner": owner,
+                               "followers": sorted(remaining),
+                               "status": "refused", "reason": "no guarded MST edge"})
+                break
+            distance, target_ref, source_ref, layer, net_code, path = selected
+            for start, end, width in path:
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(start)
+                track.SetEnd(end)
+                track.SetWidth(width)
+                track.SetLayer(layer)
+                track.SetNetCode(net_code)
+                track.SetLocked(bool(lock))
+                board.Add(track)
+                legs_added += 1
+            linked += 1
+            connected_refs.add(target_ref)
+            remaining.remove(target_ref)
+            board.BuildConnectivity()
+            detail.append({"net": net, "owner": owner, "from": source_ref,
+                           "to": target_ref, "distance_mm": round(distance, 3),
+                           "layer": board.GetLayerName(layer),
+                           "legs": len(path), "status": "linked"})
+
+    return {"networks": networks, "linked": linked, "legs": legs_added,
             "refused": refused, "ignored": ignored, "detail": detail}
 
 
@@ -4266,6 +4491,147 @@ def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_code
             if t.GetEffectiveShape(layer_id).Collide(seg, clearance_nm):
                 return False
         except Exception:                           # noqa: BLE001
+            continue
+    return True
+
+
+def _layer_foreign_shapes(board, layer_id, sense_codes):
+    """Snapshot exact foreign-copper shapes for one guarded path search.
+
+    ``_tap_foreign_clear`` is the authoritative one-shot guard, but a bounded
+    maze can qualify thousands of lattice hops without mutating the board.
+    Re-walking every footprint and rebuilding every effective pad/track shape
+    for every hop made the Hub's post-router take roughly eleven CPU-minutes
+    per seed.  Snapshot the same KiCad shapes once per maze and retain their
+    bounding boxes only as a conservative rejection accelerator; every nearby
+    object still receives the identical ``Collide`` test before a hop passes.
+
+    Pipeline pour outlines use zero extra clearance, matching
+    ``_tap_foreign_clear``.  Pads/tracks/vias use the caller's copper
+    clearance.  A shape whose bounding box cannot be obtained remains in the
+    snapshot with ``None`` and is therefore always tested fail-closed.
+    """
+    zones = []
+    copper = []
+
+    def _append(rows, shape):
+        try:
+            box = shape.BBox()
+        except Exception:                              # noqa: BLE001
+            box = None
+        rows.append((shape, box))
+
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or zone.GetNetCode() in sense_codes:
+            continue
+        if not (zone.GetZoneName() or "").startswith(PIPELINE_POUR_PREFIXES):
+            continue
+        if layer_id not in zone.GetLayerSet().CuStack():
+            continue
+        try:
+            _append(zones, zone.Outline())
+        except Exception:                              # noqa: BLE001
+            # Preserve the historical guard's behavior for malformed/engine
+            # specific outlines: it also skips only the outline that cannot be
+            # inspected, rather than weakening checks on other copper.
+            continue
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if (pad.GetNetCode() in sense_codes
+                    or layer_id not in pad.GetLayerSet().CuStack()):
+                continue
+            try:
+                _append(copper, pad.GetEffectiveShape(layer_id))
+            except Exception:                          # noqa: BLE001
+                continue
+    for track in board.GetTracks():
+        if track.GetNetCode() in sense_codes:
+            continue
+        if track.Type() == pcbnew.PCB_VIA_T:
+            if layer_id not in track.GetLayerSet().CuStack():
+                continue
+        elif track.GetLayer() != layer_id:
+            continue
+        try:
+            _append(copper, track.GetEffectiveShape(layer_id))
+        except Exception:                              # noqa: BLE001
+            continue
+    return zones, copper
+
+
+def _bucket_foreign_shapes(rows, *, cell_nm=None, max_cells=4096):
+    """Build a conservative uniform-grid index over cached KiCad shapes."""
+    from collections import defaultdict
+
+    cell = int(cell_nm or _nm(2.0))
+    buckets = defaultdict(list)
+    global_rows = []
+    for index, (_shape, box) in enumerate(rows):
+        if box is None:
+            global_rows.append(index)
+            continue
+        try:
+            x0, y0 = box.GetX() // cell, box.GetY() // cell
+            x1 = (box.GetX() + box.GetWidth()) // cell
+            y1 = (box.GetY() + box.GetHeight()) // cell
+            count = (x1 - x0 + 1) * (y1 - y0 + 1)
+            if count > int(max_cells):
+                global_rows.append(index)
+                continue
+            for bx in range(int(x0), int(x1) + 1):
+                for by in range(int(y0), int(y1) + 1):
+                    buckets[(bx, by)].append(index)
+        except Exception:                              # noqa: BLE001
+            global_rows.append(index)
+    return {"rows": rows, "cell": cell, "buckets": dict(buckets),
+            "global": tuple(global_rows)}
+
+
+def _indexed_shape_rows(index, query_box):
+    """Yield the unique cached rows whose grid cells touch *query_box*."""
+    if not isinstance(index, dict):
+        return index
+    rows = index["rows"]
+    selected = set(index.get("global", ()))
+    if query_box is None:
+        selected.update(range(len(rows)))
+    else:
+        cell = index["cell"]
+        try:
+            x0, y0 = query_box.GetX() // cell, query_box.GetY() // cell
+            x1 = (query_box.GetX() + query_box.GetWidth()) // cell
+            y1 = (query_box.GetY() + query_box.GetHeight()) // cell
+            buckets = index["buckets"]
+            for bx in range(int(x0), int(x1) + 1):
+                for by in range(int(y0), int(y1) + 1):
+                    selected.update(buckets.get((bx, by), ()))
+        except Exception:                              # noqa: BLE001
+            selected.update(range(len(rows)))
+    return [rows[i] for i in sorted(selected)]
+
+
+def _snapshot_foreign_clear(S, T, width_nm, clearance_nm, zones, copper):
+    """Exact foreign-copper qualification against a shape snapshot."""
+    segment = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    try:
+        segment_box = segment.BBox()
+        clearance_box = segment_box.GetInflated(clearance_nm)
+    except Exception:                                  # noqa: BLE001
+        segment_box = clearance_box = None
+    for shape, box in _indexed_shape_rows(zones, segment_box):
+        try:
+            if (box is None or segment_box is None or box.Intersects(segment_box)) \
+                    and shape.Collide(segment, 0):
+                return False
+        except Exception:                              # noqa: BLE001
+            continue
+    for shape, box in _indexed_shape_rows(copper, clearance_box):
+        try:
+            if (box is None or clearance_box is None
+                    or box.Intersects(clearance_box)) \
+                    and shape.Collide(segment, clearance_nm):
+                return False
+        except Exception:                              # noqa: BLE001
             continue
     return True
 
@@ -5405,8 +5771,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
         target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
                        or spec.get("track_width") or 0)
         current = item.GetWidth() / MM
-        if (net in direct_sense or target <= 0
-                or current >= target - tol_mm):
+        if net in direct_sense or target <= 0:
             continue
         s, e = item.GetStart(), item.GetEnd()
         length = item.GetLength() / MM
@@ -5416,6 +5781,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             "item": item, "uuid": item.m_Uuid.AsString(), "net": net,
             "layer": item.GetLayer(), "start": (s.x, s.y), "end": (e.x, e.y),
             "length": length, "current": current, "target": target,
+            "undersized": current < target - tol_mm,
         }
         track_rows.append(row)
         by_net[net].append(row)
@@ -5452,6 +5818,10 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                 return False
         return True
 
+    try:
+        board_min_width = max(0.0, board.GetDesignSettings().m_TrackMinWidth / MM)
+    except Exception:                                  # noqa: BLE001
+        board_min_width = 0.20
     all_pads = []
     fine_pads = defaultdict(list)
     for fp in board.GetFootprints():
@@ -5473,9 +5843,11 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
                            or spec.get("track_width") or 0)
             size = pad.GetSize()
-            if target > 0 and min(size.x, size.y) / MM < target - tol_mm:
+            minor = min(size.x, size.y) / MM
+            if target > 0 and minor < target - tol_mm:
                 limit = max(0.6, min(1.5, 1.5 * target))
-                fine_pads[net].append((pad, layers, limit))
+                local_width = min(target, max(board_min_width, minor / 2.0))
+                fine_pads[net].append((pad, layers, limit, local_width))
 
     # A THT pad need not itself be narrower than a power netclass, yet a
     # staggered adjacent pin can still make a full-width escape impossible.
@@ -5486,7 +5858,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     for net, rows in by_net.items():
         if net in direct_sense:
             continue
-        seen_pads = {pad.m_Uuid.AsString() for pad, _layers, _limit
+        seen_pads = {pad.m_Uuid.AsString() for pad, _layers, _limit, _width
                      in fine_pads.get(net, ())}
         for pad, pad_net, layers, _box, _clearance in all_pads:
             if pad_net != net or pad.m_Uuid.AsString() in seen_pads:
@@ -5524,11 +5896,16 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                 if constrained:
                     break
             if constrained:
-                fine_pads[net].append((pad, layers, pth_limit))
+                # PTH entitlement preserves an imported narrow escape but does
+                # not proactively shrink a class-width route: unlike a
+                # fine-pitch SMD land, the pad itself can accept the class
+                # width and only the observed foreign-pin collision justifies
+                # retaining narrower imported copper.
+                fine_pads[net].append((pad, layers, pth_limit, None))
                 seen_pads.add(pad.m_Uuid.AsString())
 
     handled = set()
-    neckdown_sections = split_tracks = widened_sections = 0
+    neckdown_sections = split_tracks = widened_sections = narrowed_sections = 0
     for net, rows in by_net.items():
         pads = fine_pads.get(net, ())
         if not pads:
@@ -5549,37 +5926,48 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
         budget = {}
         queue = []
         for node, point in node_points.items():
-            remaining = max((limit for pad, layers, limit in pads
-                             if node[2] in layers and pad.HitTest(point)),
-                            default=0.0)
-            if remaining > 0:
-                budget[node] = remaining
-                heapq.heappush(queue, (-remaining, node))
+            seeds = [(limit, local_width)
+                     for pad, layers, limit, local_width in pads
+                     if node[2] in layers and pad.HitTest(point)]
+            if seeds:
+                remaining = max(row[0] for row in seeds)
+                local_width = min(
+                    (row[1] for row in seeds
+                     if row[0] == remaining and row[1] is not None),
+                    default=None)
+                budget[node] = (remaining, local_width)
+                width_rank = float("inf") if local_width is None else local_width
+                heapq.heappush(queue, (-remaining, width_rank, node))
         while queue:
-            neg_remaining, node = heapq.heappop(queue)
+            neg_remaining, width_rank, node = heapq.heappop(queue)
             remaining = -neg_remaining
-            if remaining != budget.get(node):
+            local_width = None if width_rank == float("inf") else width_rank
+            if (remaining, local_width) != budget.get(node):
                 continue
             for other, edge_len in adjacency[node]:
                 new_remaining = remaining - edge_len
                 if new_remaining <= 1e-9:
                     continue
-                if new_remaining > budget.get(other, 0.0) + 1e-12:
-                    budget[other] = new_remaining
-                    heapq.heappush(queue, (-new_remaining, other))
+                old_remaining, old_width = budget.get(other, (0.0, None))
+                old_rank = float("inf") if old_width is None else old_width
+                new_rank = float("inf") if local_width is None else local_width
+                if (new_remaining > old_remaining + 1e-12
+                        or (abs(new_remaining - old_remaining) <= 1e-12
+                            and new_rank < old_rank)):
+                    budget[other] = (new_remaining, local_width)
+                    heapq.heappush(queue, (-new_remaining, new_rank, other))
 
         for row in rows:
             a = (row["start"][0], row["start"][1], row["layer"])
             b = (row["end"][0], row["end"][1], row["layer"])
             length = row["length"]
-            keep_a = max(0.0, min(length, budget.get(a, 0.0)))
-            keep_b = max(0.0, min(length, budget.get(b, 0.0)))
+            budget_a = budget.get(a, (0.0, None))
+            budget_b = budget.get(b, (0.0, None))
+            keep_a = max(0.0, min(length, budget_a[0]))
+            keep_b = max(0.0, min(length, budget_b[0]))
             if keep_a <= 1e-6 and keep_b <= 1e-6:
                 continue
             handled.add(row["uuid"])
-            if keep_a + keep_b >= length - 1e-6:
-                neckdown_sections += 1
-                continue
 
             # Replace one long segment with [narrow prefix] [class-width body]
             # [narrow suffix] as applicable.  Track endpoints stay coincident,
@@ -5609,11 +5997,19 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             pieces = []
             for lo, hi in zip(cuts, cuts[1:]):
                 mid = (lo + hi) / 2.0
-                narrow = (mid <= keep_a + 1e-6
-                          or mid >= length - keep_b - 1e-6)
-                pieces.append((point_at(lo), point_at(hi),
-                               row["current"] if narrow else row["target"],
-                               narrow))
+                at_a = mid <= keep_a + 1e-6
+                at_b = mid >= length - keep_b - 1e-6
+                narrow = at_a or at_b
+                if narrow:
+                    allowed = [row["current"]]
+                    if at_a and budget_a[1] is not None:
+                        allowed.append(budget_a[1])
+                    if at_b and budget_b[1] is not None:
+                        allowed.append(budget_b[1])
+                    width = min(allowed)
+                else:
+                    width = max(row["current"], row["target"])
+                pieces.append((point_at(lo), point_at(hi), width, narrow))
             item = row["item"]
             for index, (start, end, width, narrow) in enumerate(pieces):
                 piece = item if index == 0 else item.Duplicate()
@@ -5624,11 +6020,14 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                     board.Add(piece)
                 if narrow:
                     neckdown_sections += 1
-                else:
+                if width > row["current"] + tol_mm:
                     widened_sections += 1
-            split_tracks += 1
+                elif width < row["current"] - tol_mm:
+                    narrowed_sections += 1
+            if len(pieces) > 1:
+                split_tracks += 1
 
-    track_fixed = widened_sections
+    track_fixed = widened_sections + narrowed_sections
     via_fixed = 0
     for item in original_items:
         net = item.GetNetname() or ""
@@ -5657,6 +6056,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     return {"tracks": track_fixed, "vias": via_fixed, "status": "ok",
             "neckdown_sections": neckdown_sections,
             "neckdown_split_tracks": split_tracks,
+            "neckdown_narrowed_sections": narrowed_sections,
             "legal_neckdown_uuids": sorted(handled),
             "sense_exempt_nets": sorted(direct_sense)}
 
@@ -6140,6 +6540,136 @@ def collapse_redundant_pth_transitions(board, *, clearance_mm=0.20):
     return {"removed": len(removed), "detail": removed}
 
 
+def synthesize_missing_layer_junction_vias(
+        board, *, netclass_resolver=None, lock=False, tol_mm=0.02):
+    """Heal exact cross-layer track junctions that have no transition barrel.
+
+    A Specctra import can occasionally return two same-net track endpoints at
+    the nominally same coordinate on different copper layers, separated only
+    by decimal round-trip noise, without the via that makes that apparent
+    junction electrical.  KiCad then reports a dangling track and an extra
+    ratsnest even though the router visibly drew a continuous path.  Add a
+    project-sized through via only when all of these facts are proven:
+
+    * at least two same-net track layers meet inside a 20 um endpoint cluster;
+    * no existing same-net via already spans the point;
+    * no same-net plated through-hole pad spans every participating layer (a
+      THT land already provides the inter-layer connection); and
+    * the centralized all-layer via/pad/copper guard accepts the final
+      netclass diameter and drill.
+
+    This is an importer repair, not a router: it never bridges separated
+    coordinates and it refuses via-in-SMD-pad or foreign-copper conflicts.
+    """
+    from collections import defaultdict
+
+    endpoints = defaultdict(list)
+    tracks = [track for track in board.GetTracks()
+              if track.GetClass() in ("PCB_TRACK", "PCB_ARC")
+              and track.GetNetCode() > 0]
+    for track in tracks:
+        for point in (track.GetStart(), track.GetEnd()):
+            endpoints[track.GetNetCode()].append((point.x, point.y, track))
+
+    vias = [track for track in board.GetTracks()
+            if track.GetClass() == "PCB_VIA"]
+    pads = [pad for fp in board.GetFootprints() for pad in fp.Pads()
+            if pad.GetNetCode() > 0]
+    candidates = added = refused = 0
+    detail = []
+    tol = _nm(tol_mm)
+    clusters = []
+    # SES coordinates can differ by a few tens of nanometres after decimal
+    # round-trip.  KiCad still flags those apparent junctions as dangling, so
+    # form endpoint clusters inside the same 20 um tolerance used by the
+    # dangling-track inspector.  Union only within a net and use an x-sorted
+    # sweep so this remains cheap on a dense board.
+    for net_code, rows in sorted(endpoints.items()):
+        rows = sorted(rows, key=lambda row: (row[0], row[1]))
+        parent = list(range(len(rows)))
+
+        def _find(index):
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        def _join(a, b):
+            ra, rb = _find(a), _find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for i, (x, y, _track) in enumerate(rows):
+            for j in range(i + 1, len(rows)):
+                x2, y2, _track2 = rows[j]
+                if x2 - x > tol:
+                    break
+                if abs(y2 - y) <= tol and (x2 - x) ** 2 + (y2 - y) ** 2 <= tol ** 2:
+                    _join(i, j)
+        grouped = defaultdict(list)
+        for index, row in enumerate(rows):
+            grouped[_find(index)].append(row)
+        for members in grouped.values():
+            clusters.append((net_code, members))
+
+    for net_code, members in clusters:
+        incident = [row[2] for row in members]
+        layers = {track.GetLayer() for track in incident}
+        if len(layers) < 2:
+            continue
+        x = int(round(sum(row[0] for row in members) / len(members)))
+        y = int(round(sum(row[1] for row in members) / len(members)))
+        point = pcbnew.VECTOR2I(x, y)
+        if any(via.GetNetCode() == net_code
+               and (via.GetPosition().x - x) ** 2
+               + (via.GetPosition().y - y) ** 2 <= tol ** 2 for via in vias):
+            continue
+        # A real THT/multilayer pad is already copper on every participating
+        # layer.  Do not repeat the historical false-positive behavior that
+        # drew a needless via/ratsnest beside through-hole connectors.
+        spans = False
+        for pad in pads:
+            if pad.GetNetCode() != net_code or not pad.HitTest(point):
+                continue
+            pad_layers = set(pad.GetLayerSet().CuStack())
+            if layers <= pad_layers:
+                spans = True
+                break
+        if spans:
+            continue
+        candidates += 1
+        net_name = incident[0].GetNetname()
+        spec = (dict(netclass_resolver(net_name) or {})
+                if netclass_resolver is not None else {})
+        diameter = float(spec.get("via_diameter") or 0.6)
+        drill = float(spec.get("via_drill") or 0.3)
+        clearance = float(spec.get("clearance") or 0.2)
+        if not _via_spot_clear(
+                board, point, _nm(diameter), _nm(clearance), {net_code},
+                drill_nm=_nm(drill), net_code=net_code):
+            refused += 1
+            detail.append({"net": net_name, "x_mm": x / MM,
+                           "y_mm": y / MM, "status": "refused"})
+            continue
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(point)
+        via.SetWidth(_nm(diameter))
+        via.SetDrill(_nm(drill))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNetCode(net_code)
+        via.SetLocked(bool(lock))
+        board.Add(via)
+        vias.append(via)
+        added += 1
+        detail.append({"net": net_name, "x_mm": x / MM, "y_mm": y / MM,
+                       "diameter_mm": diameter, "drill_mm": drill,
+                       "status": "added"})
+    if added:
+        board.BuildConnectivity()
+    return {"candidates": candidates, "added": added,
+            "refused": refused, "detail": detail}
+
+
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
                fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
                kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:
@@ -6196,6 +6726,14 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         if _pth_fix["removed"]:
             print("[cec_fr] collapsed %d redundant PTH layer-transition via(s): %s"
                   % (_pth_fix["removed"], _pth_fix["detail"][:8]), file=sys.stderr)
+    if os.environ.get("CEC_HEAL_LAYER_JUNCTIONS", "1") != "0":
+        _junction_fix = synthesize_missing_layer_junction_vias(
+            board, netclass_resolver=_project_netclass_resolver(board_path))
+        if _junction_fix["added"] or _junction_fix["refused"]:
+            print("[cec_fr] layer-junction repair: %d/%d via(s) added; "
+                  "%d refused"
+                  % (_junction_fix["added"], _junction_fix["candidates"],
+                     _junction_fix["refused"]), file=sys.stderr)
     # POUR LAY MOVED (2026-07-24 trace #2, the owner's "fixes did not land"
     # class): pours are laid ONCE at the single post-conversion site just
     # before fix_annular below. The lay that used to sit HERE ran before the

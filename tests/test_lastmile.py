@@ -344,6 +344,103 @@ class TestLastmile(unittest.TestCase):
         self.assertEqual(len(list(board.GetTracks())), count)
         self.assertEqual(second["detail"][0]["status"], "already-connected")
 
+    def test_local_signal_links_only_private_low_fanout_ic_network(self):
+        import cec_fr
+
+        board = _bypass_board()
+        resolve = lambda net: {  # noqa: E731 - compact test resolver
+            "track_width": 1.0 if net == "/POWER" else 0.20,
+            "clearance": 0.20,
+        }
+        result = cec_fr.synthesize_local_signal_links(
+            board, netclass_resolver=resolve)
+
+        self.assertEqual((result["networks"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        signal = [track for track in board.GetTracks()
+                  if track.GetNetname() == "/SENSE"]
+        power = [track for track in board.GetTracks()
+                 if track.GetNetname() == "/POWER"]
+        self.assertTrue(signal)
+        self.assertFalse(power, "distributed/power-width nets remain the "
+                         "global router's responsibility")
+        self.assertTrue(all(track.IsLocked() for track in signal))
+
+    def test_layer_junction_via_heals_roundtrip_but_skips_tht(self):
+        import pcbnew
+        import cec_fr
+
+        def fixture(with_pth=False):
+            board = pcbnew.BOARD()
+            board.SetCopperLayerCount(6)
+            net = pcbnew.NETINFO_ITEM(board, "/PWR")
+            board.Add(net)
+            p0 = pcbnew.VECTOR2I_MM(5.0, 5.0)
+            # Reproduce SES decimal round-trip drift: endpoints differ by
+            # 0.00005 mm but are visually the same layer transition.
+            for layer, end in ((pcbnew.F_Cu, pcbnew.VECTOR2I_MM(7.0, 5.0)),
+                               (pcbnew.In2_Cu,
+                                pcbnew.VECTOR2I_MM(7.00005, 5.00005))):
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(p0 if layer == pcbnew.F_Cu else end)
+                track.SetEnd(end if layer == pcbnew.F_Cu
+                             else pcbnew.VECTOR2I_MM(9.0, 5.0))
+                track.SetWidth(pcbnew.FromMM(0.5))
+                track.SetLayer(layer)
+                track.SetNet(net)
+                board.Add(track)
+            if with_pth:
+                fp = pcbnew.FOOTPRINT(board)
+                fp.SetReference("J1")
+                pad = pcbnew.PAD(fp)
+                pad.SetPadName("1")
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+                pad.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+                pad.SetSize(pcbnew.VECTOR2I_MM(1.2, 1.2))
+                pad.SetDrillSize(pcbnew.VECTOR2I_MM(0.6, 0.6))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(7.0, 5.0))
+                pad.SetLayerSet(pcbnew.PAD.PTHMask())
+                pad.SetNet(net)
+                fp.Add(pad)
+                board.Add(fp)
+            return board
+
+        resolve = lambda _net: {"via_diameter": 0.8, "via_drill": 0.4,
+                                "clearance": 0.2}
+        board = fixture()
+        repaired = cec_fr.synthesize_missing_layer_junction_vias(
+            board, netclass_resolver=resolve)
+        self.assertEqual((repaired["candidates"], repaired["added"],
+                          repaired["refused"]), (1, 1, 0))
+        self.assertEqual(len([item for item in board.GetTracks()
+                              if item.GetClass() == "PCB_VIA"]), 1)
+
+        tht_board = fixture(with_pth=True)
+        skipped = cec_fr.synthesize_missing_layer_junction_vias(
+            tht_board, netclass_resolver=resolve)
+        self.assertEqual((skipped["candidates"], skipped["added"]), (0, 0))
+
+    def test_maze_shape_snapshot_matches_authoritative_foreign_guard(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/A"), (7, 5, "/A"),
+                        (6, 5, "/BLOCK")])
+        start = pcbnew.VECTOR2I_MM(5.0, 5.0)
+        blocked = pcbnew.VECTOR2I_MM(7.0, 5.0)
+        clear = pcbnew.VECTOR2I_MM(5.0, 7.0)
+        code = board.GetNetcodeFromNetname("/A")
+        zones, copper = cec_fr._layer_foreign_shapes(
+            board, pcbnew.F_Cu, {code})
+        for end in (blocked, clear):
+            with self.subTest(end=(end.x, end.y)):
+                expected = cec_fr._tap_foreign_clear(
+                    board, start, end, int(0.2e6), pcbnew.F_Cu,
+                    int(0.2e6), {code})
+                actual = cec_fr._snapshot_foreign_clear(
+                    start, end, int(0.2e6), int(0.2e6), zones, copper)
+                self.assertEqual(actual, expected)
+
     def test_wave_plumbing(self):
         import cec_fresh_wave as w
         self.assertTrue(w.BOARD_PARAMS["hub-standard-rev2"].get("lastmile"))
