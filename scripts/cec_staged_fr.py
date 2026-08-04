@@ -166,9 +166,10 @@ def default_tiers(board_path):
     return [sorted(tier1)] if tier1 else []
 
 
-def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=None,
-                 timeout=900, verbose=True, pre_locked_nets=(), hints=(), skip_locked_taps=False,
-                 include_residual=True):
+def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8,
+                          opt=10, seed=None, timeout=900, verbose=True,
+                          pre_locked_nets=(), hints=(), skip_locked_taps=False,
+                          include_residual=True):
     """The tiered ladder. tiers = list of net-name lists; a final residual pass over
     everything else is implicit. Returns a report dict (per-tier stats + total wall).
 
@@ -180,7 +181,6 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
     import cec_fr02
     if tiers is None:
         tiers = default_tiers(placed_board)
-    work = tempfile.mkdtemp(prefix="cec_staged_", dir=os.environ.get("TMPDIR") or None)
     cur = os.path.join(work, "t0.kicad_pcb")
     shutil.copy(placed_board, cur)
     for ext in (".kicad_pro", ".kicad_dru"):
@@ -282,6 +282,33 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
             shutil.copy(s, out_board[:-len(".kicad_pcb")] + ext)
     report["total_wall_s"] = round(time.monotonic() - t_all, 1)
     return report
+
+
+def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=None,
+                 timeout=900, verbose=True, pre_locked_nets=(), hints=(), skip_locked_taps=False,
+                 include_residual=True):
+    """Run the tiered ladder in disposable scratch storage.
+
+    The output board and its project/rule files are copied out before cleanup. Set
+    ``CEC_STAGED_FR_KEEP_INTERMEDIATES=1`` only when the tier DSN/SES files are needed
+    for diagnosis; closure waves otherwise must not retain one work tree per probe.
+    """
+    work = tempfile.mkdtemp(prefix="cec_staged_", dir=os.environ.get("TMPDIR") or None)
+    keep = os.environ.get("CEC_STAGED_FR_KEEP_INTERMEDIATES", "0") == "1"
+    try:
+        report = _route_tiered_in_work(
+            placed_board, out_board, work=work, tiers=tiers, passes=passes,
+            opt=opt, seed=seed, timeout=timeout, verbose=verbose,
+            pre_locked_nets=pre_locked_nets, hints=hints,
+            skip_locked_taps=skip_locked_taps,
+            include_residual=include_residual,
+        )
+        if not keep:
+            report["work"] = None
+        return report
+    finally:
+        if not keep:
+            shutil.rmtree(work, ignore_errors=True)
 
 
 def measure(placed_board, *, seed=0, passes=8, opt=10):
