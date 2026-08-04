@@ -84,6 +84,17 @@ class FabricationProfileTest(unittest.TestCase):
                 {"refs_src": [f"F{index}"],
                  "refs_sink": [f"J{index + 1}"]})
 
+    def test_real_hub_thermal_map_uses_exact_hierarchical_net_names(self):
+        board = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        currents, _, terminals, _ = TOV.board_thermal_config(board)
+        self.assertIn("/POWER INPUT + SOURCE SELECTION/PSU_5V", currents)
+        self.assertIn("/HOLD-UP + 3V3 REGULATOR/+5V_HOLD", currents)
+        self.assertIn("/CAN + FOUR MODULE PORTS + STACK/VCC_P4", currents)
+        self.assertNotIn("/PSU_5V", currents)
+        self.assertEqual(set(currents), set(terminals))
+
 
 class SixLayerFemTest(unittest.TestCase):
     def test_layer_centers_follow_exact_five_dielectrics(self):

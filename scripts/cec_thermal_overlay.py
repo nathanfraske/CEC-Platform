@@ -108,6 +108,27 @@ def default_currents(board):
     return nc
 
 
+def _board_net_names(board_path):
+    """Return exact saved-board net names, or an empty set for hint-only calls."""
+    if not board_path or not os.path.isfile(board_path):
+        return set()
+    try:
+        import pcbnew
+        board = pcbnew.LoadBoard(board_path)
+        return {str(net) for net in board.GetNetsByName().keys()}
+    except Exception:                                      # noqa: BLE001
+        return set()
+
+
+def _resolve_hierarchical_net(short_name, board_nets):
+    """Resolve a schematic-local net name to its unique saved hierarchical name."""
+    if not board_nets or short_name in board_nets:
+        return short_name
+    suffix = short_name if short_name.startswith("/") else "/" + short_name
+    matches = sorted(net for net in board_nets if net.endswith(suffix))
+    return matches[0] if len(matches) == 1 else short_name
+
+
 def board_thermal_config(board_path, board_hint=None):
     """Per-board thermal inputs the generic auto-overlay can't infer from the netlist alone. Returns
     (net_currents, stackup_oz, src_sink_override, cooling), any of which may be None to fall back to the
@@ -144,13 +165,7 @@ def board_thermal_config(board_path, board_hint=None):
         # from the artifact being verified; requesting both silently double-
         # described one physical lane and made injection accounting fail on the
         # obsolete name.
-        board_nets = set()
-        if board_path and os.path.isfile(board_path):
-            try:
-                import pcbnew
-                board_nets = {str(net) for net in pcbnew.LoadBoard(board_path).GetNetsByName().keys()}
-            except Exception:                                  # noqa: BLE001
-                board_nets = set()
+        board_nets = _board_net_names(board_path)
         for n in range(1, 7):
             hi = "/FAN_12V" if n == 6 and "/FAN_12V" in board_nets else "/SENSEP%d_HI" % n
             nc[hi] = 8.33
@@ -208,29 +223,33 @@ def board_thermal_config(board_path, board_hint=None):
         # Stackup comes only from the approved fabrication profile. For the
         # Hub that is JLC06161H-3313: 1 oz outer and 0.5 oz inner copper.
         # cooling=None keeps the still-air bound until the enclosure is known.
-        nc = {"+5VSB": 2.5, "/5VSB_RAW": 2.5, "/PSU_5V": 2.5,
-              "/PSU_5V_KVM": 2.5,
-              "/MAIN_5V_RAW": 2.5, "/+5V_HOLD": 0.5, "/USB_VBUS": 0.5,
-              "/VCC_P1": 0.5, "/VCC_P2": 0.5, "/VCC_P3": 0.5, "/VCC_P4": 0.5,
-              "GND": 2.5}
+        board_nets = _board_net_names(board_path)
+        net = lambda short: _resolve_hierarchical_net(short, board_nets)  # noqa: E731
+        nc = {net("+5VSB"): 2.5, net("/5VSB_RAW"): 2.5,
+              net("/PSU_5V"): 2.5, net("/PSU_5V_KVM"): 2.5,
+              net("/MAIN_5V_RAW"): 2.5, net("/+5V_HOLD"): 0.5,
+              net("/USB_VBUS"): 0.5,
+              net("/VCC_P1"): 0.5, net("/VCC_P2"): 0.5,
+              net("/VCC_P3"): 0.5, net("/VCC_P4"): 0.5,
+              net("GND"): 2.5}
         # rev2 anatomy: the A4 consolidation makes J_PWR the ONE 3-pin power-in
         # (MAIN_5V / GND / 5VSB) -- there is no J1/J_5V on this board (measured
         # 2026-07-23; the first entry draft used the alpha names and every net
         # dropped "no src/sink terminals").
         ov = {
-            "/5VSB_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
-            "/PSU_5V": {"refs_src": ["U5"], "refs_sink": ["U11"]},
-            "/PSU_5V_KVM": {"refs_src": ["U11"], "refs_sink": ["U7"]},
-            "/MAIN_5V_RAW": {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
-            "+5VSB": {"refs_src": ["U7"], "refs_sink": ["F1", "F2", "F3", "F4"]},
-            "/+5V_HOLD": {"refs_src": ["D1"], "refs_sink": ["U3"]},
-            "/USB_VBUS": {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
-            "/VCC_P1": {"refs_src": ["F1"], "refs_sink": ["J2"]},
-            "/VCC_P2": {"refs_src": ["F2"], "refs_sink": ["J3"]},
-            "/VCC_P3": {"refs_src": ["F3"], "refs_sink": ["J4"]},
-            "/VCC_P4": {"refs_src": ["F4"], "refs_sink": ["J5"]},
-            "GND": {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
-                    "refs_sink": ["J_PWR"]},
+            net("/5VSB_RAW"): {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
+            net("/PSU_5V"): {"refs_src": ["U5"], "refs_sink": ["U11"]},
+            net("/PSU_5V_KVM"): {"refs_src": ["U11"], "refs_sink": ["U7"]},
+            net("/MAIN_5V_RAW"): {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
+            net("+5VSB"): {"refs_src": ["U7"], "refs_sink": ["F1", "F2", "F3", "F4"]},
+            net("/+5V_HOLD"): {"refs_src": ["D1"], "refs_sink": ["U3"]},
+            net("/USB_VBUS"): {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
+            net("/VCC_P1"): {"refs_src": ["F1"], "refs_sink": ["J2"]},
+            net("/VCC_P2"): {"refs_src": ["F2"], "refs_sink": ["J3"]},
+            net("/VCC_P3"): {"refs_src": ["F3"], "refs_sink": ["J4"]},
+            net("/VCC_P4"): {"refs_src": ["F4"], "refs_sink": ["J5"]},
+            net("GND"): {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
+                         "refs_sink": ["J_PWR"]},
         }
         return nc, profile_stackup, ov, None
     return None, profile_stackup, None, None
