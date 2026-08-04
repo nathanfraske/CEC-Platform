@@ -3678,6 +3678,20 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
     -- pickups, force vias, lastmile, tap doglegs -- inherits it."""
     if _via_pad_excluded(board, at, dia_nm, drill_nm, net_code) is not None:
         return False
+    # Copper graphics have no net code, so the ordinary foreign-net scan below
+    # cannot see them.  A through via piercing exposed logo/artwork copper is
+    # nevertheless a real short/clearance fault.  Probe exact graphical shapes
+    # on every copper layer before allowing any synthesized barrel.
+    circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
+    for fp in board.GetFootprints():
+        for item in fp.GraphicalItems():
+            try:
+                if item.GetLayer() not in board.GetEnabledLayers().CuStack():
+                    continue
+                if item.GetEffectiveShape().Collide(circ, clearance_nm):
+                    return False
+            except Exception:                           # noqa: BLE001
+                continue
     probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
     for lid in board.GetEnabledLayers().CuStack():
         if not _tap_foreign_clear(board, at, probe, dia_nm, lid,
