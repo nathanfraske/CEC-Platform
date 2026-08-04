@@ -97,6 +97,18 @@ _BUILD2 = textwrap.dedent("""
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (routing container)")
 class TestStitchPierce(unittest.TestCase):
+    def test_fanout_candidate_angles_are_canonical(self):
+        import cec_gnd_fanout
+        for direction in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                          (1, 1), (-1, 1), (1, -1), (-1, -1)):
+            with self.subTest(direction=direction):
+                x, y = cec_gnd_fanout._fanout_candidate_nm(
+                    10_000_000, 20_000_000,
+                    direction[0], direction[1], 0.7, 1.1)
+                dx, dy = abs(x - 10_000_000), abs(y - 20_000_000)
+                self.assertTrue(dx == 0 or dy == 0 or dx == dy,
+                                "GND fanout stubs must be 0/45/90 degrees")
+
     def test_pierce_creates_locked_via(self):
         import cec_gnd_fanout
         with tempfile.TemporaryDirectory() as d:

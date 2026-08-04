@@ -8929,8 +8929,12 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
     (kelvin-pair) nets -- the 12vhpwr's mirrored high-current LANES are plain tracks,
     no zone, and legitimately stitch 10 vias onto 3-pad /SENSEP* nets (measured; GND
     fields 209); the shipped 12vhpwr's /SB_CBL_PRES sideband hops 8 vias (the accepted
-    signal-net max, hence base 10). ADVISORY -- no real board fails today; it
-    back-stops absurd routes (the synthetic 41-via chain and 53.8x meander fail)."""
+    signal-net max, hence base 10). Also reports unlocked generated tracks that
+    are outside the canonical 0/45/90-degree set; locked authored launches are
+    excluded. That angle count is quality telemetry, not part of ``ok`` because
+    a controlled arbitrary-angle launch can be legitimate even when unlocked.
+    ADVISORY -- no real board fails today; it back-stops absurd routes (the
+    synthetic 41-via chain and 53.8x meander fail)."""
     import pcbnew
     import cec_fr
     board = pcbnew.LoadBoard(routed_board_path)
@@ -8950,6 +8954,7 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
     zoned = {z.GetNetname() for z in board.Zones() if z.IsOnCopperLayer()}
     tlen = {}
     nvias = {}
+    off45 = []
     for t in board.GetTracks():
         nn = t.GetNetname()
         if not nn:
@@ -8957,9 +8962,23 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
         if t.GetClass() == "PCB_VIA":
             nvias[nn] = nvias.get(nn, 0) + 1
         else:
-            tlen[nn] = tlen.get(nn, 0.0) + math.hypot(
-                (t.GetEnd().x - t.GetStart().x) / 1e6,
-                (t.GetEnd().y - t.GetStart().y) / 1e6)
+            dx = t.GetEnd().x - t.GetStart().x
+            dy = t.GetEnd().y - t.GetStart().y
+            tlen[nn] = tlen.get(nn, 0.0) + math.hypot(dx / 1e6, dy / 1e6)
+            # Authored/locked differential geometry can intentionally use a
+            # non-octilinear launch. Report only unlocked generated copper so
+            # this metric catches router/postprocessor regressions across every
+            # board without condemning controlled high-speed pad entries.
+            if dx or dy:
+                angle = abs(math.degrees(math.atan2(dy, dx))) % 90.0
+                delta = min(angle, abs(45.0 - angle), abs(90.0 - angle))
+                if delta > 0.5 and not t.IsLocked():
+                    off45.append({
+                        "net": nn,
+                        "layer": board.GetLayerName(t.GetLayer()),
+                        "angle_deg": round(abs(math.degrees(math.atan2(dy, dx))) % 180.0, 1),
+                        "length_mm": round(math.hypot(dx, dy) / 1e6, 2),
+                    })
 
     def _mst(pts):
         used = {0}
@@ -9003,6 +9022,8 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
     return {"ok": not viol, "violations": viol[:10],
             "worst_ratio": round(worst_ratio, 2),
             "vias_total": sum(nvias.values()),
+            "unlocked_off45_tracks": len(off45),
+            "unlocked_off45_examples": off45[:8],
             "mean_layers_per_net": mean_layers,
             "most_layered": [(n, c) for c, n in nlayers[:5]]}
 

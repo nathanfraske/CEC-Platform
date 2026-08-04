@@ -189,6 +189,25 @@ def _spot_legal(x, y, r_need, boxes, segs, edge, zone_fills=()):
     return True
 
 
+def _fanout_candidate_nm(pad_x_nm, pad_y_nm, dx, dy, off_x_mm, off_y_mm):
+    """Return an adjacent-via site on a strict 0/45/90 ray from the pad.
+
+    The old diagonal calculation normalized ``(dx, dy)`` and then multiplied
+    X and Y by different rectangular-pad clearances.  That quietly turned a
+    nominal 45-degree fanout into arbitrary angles such as 39.5 or 51.7
+    degrees.  Use the larger clearance on both diagonal axes; besides yielding
+    exact octilinear copper, this conservatively clears the pad rectangle.
+    Integer nanometres keep the two diagonal deltas bit-identical.
+    """
+    sx = 0 if dx == 0 else (1 if dx > 0 else -1)
+    sy = 0 if dy == 0 else (1 if dy > 0 else -1)
+    if sx and sy:
+        delta = int(round(max(off_x_mm, off_y_mm) * MM))
+        return pad_x_nm + sx * delta, pad_y_nm + sy * delta
+    return (pad_x_nm + sx * int(round(off_x_mm * MM)),
+            pad_y_nm + sy * int(round(off_y_mm * MM)))
+
+
 def stitch_locked_islands(board_path, out_path=None, *, dia=0.6, drill=0.3,
                           clearance=0.2, verbose=False):
     """Owner must-fix 2026-07-15 (measured on the wave-12 winner: ALL 14 GND ratlines
@@ -339,12 +358,14 @@ def synthesize(board_path, out_path=None, *, dia=0.6, drill=0.3, clearance=0.25,
         hw, hh = pb.GetWidth() / MM / 2.0, pb.GetHeight() / MM / 2.0
         best = None
         for ring in (0.0, 0.3, 0.6, 1.0):
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
-                n = math.hypot(dx, dy)
-                ux, uy = dx / n, dy / n
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
+                           (1, 1), (-1, 1), (1, -1), (-1, -1)):
                 off_x = (hw + r_via + clearance + ring)
                 off_y = (hh + r_via + clearance + ring)
-                cx, cy = x + ux * off_x, y + uy * off_y
+                cx_nm, cy_nm = _fanout_candidate_nm(
+                    p.GetPosition().x, p.GetPosition().y,
+                    dx, dy, off_x, off_y)
+                cx, cy = cx_nm / MM, cy_nm / MM
                 d_new = math.hypot(cx - x, cy - y)
                 if d_new > max_stub or d_new >= min(improve_frac * d_now, d_now - min_gain):
                     continue

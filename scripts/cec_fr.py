@@ -2837,15 +2837,76 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             "pofv": n_pofv, "skipped": n_skip}
 
 
+def _canonical_45_xy_paths(start, end):
+    """Return deterministic shortest paths whose legs are only 0/45/90 degrees.
+
+    The first two alternatives use one diagonal plus one orthogonal leg and
+    therefore have the same minimum octilinear length.  Manhattan L paths are
+    retained as congestion fallbacks.  Keeping this helper geometry-only makes
+    the last-mile and bridge paths share one policy and gives it direct tests.
+    """
+    sx, sy = (int(start[0]), int(start[1]))
+    tx, ty = (int(end[0]), int(end[1]))
+    dx, dy = tx - sx, ty - sy
+    if dx == 0 and dy == 0:
+        return []
+
+    paths = []
+
+    def _add(points):
+        clean = []
+        for point in points:
+            point = (int(point[0]), int(point[1]))
+            if not clean or point != clean[-1]:
+                clean.append(point)
+        candidate = tuple(clean)
+        if len(candidate) >= 2 and candidate not in paths:
+            paths.append(candidate)
+
+    adx, ady = abs(dx), abs(dy)
+    if dx == 0 or dy == 0 or adx == ady:
+        _add(((sx, sy), (tx, ty)))
+    else:
+        sign_x = 1 if dx > 0 else -1
+        sign_y = 1 if dy > 0 else -1
+        if adx > ady:
+            # horizontal then diagonal; diagonal then horizontal
+            _add(((sx, sy), (tx - sign_x * ady, sy), (tx, ty)))
+            _add(((sx, sy), (sx + sign_x * ady, ty), (tx, ty)))
+        else:
+            # vertical then diagonal; diagonal then vertical
+            _add(((sx, sy), (sx, ty - sign_y * adx), (tx, ty)))
+            _add(((sx, sy), (tx, sy + sign_y * adx), (tx, ty)))
+
+    _add(((sx, sy), (tx, sy), (tx, ty)))
+    _add(((sx, sy), (sx, ty), (tx, ty)))
+    return paths
+
+
+def _guarded_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok):
+    """Choose the first collision- and edge-safe canonical path S -> T."""
+    for xy_path in _canonical_45_xy_paths((S.x, S.y), (T.x, T.y)):
+        points = [pcbnew.VECTOR2I(x, y) for x, y in xy_path]
+        legs = list(zip(points, points[1:]))
+        if all(leg_ok(a, b, w // 2)
+               and _tap_foreign_clear(board, a, b, w, lay,
+                                      clearance_nm, {nc})
+               for a, b in legs):
+            return legs
+    return None
+
+
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                      *, drill=0.3, dia=0.6, leg_ok=None):
     """Over-the-top closure for a dense-field gap: seat a through-via just off
     each end (skipped when the end already spans layers -- a via/THT anchor),
     run the bridge leg on an EMPTY non-plane layer (In2/B.Cu -- the F escape
-    fabric is exactly what refused the straight/L), straight or one L. Every
+    fabric is exactly what refused the face-layer route), using a canonical
+    diagonal-plus-orthogonal path or Manhattan L. Every
     stub is foreign-guarded on its end's layer, every via spot all-layer
     guarded, every bridge leg guarded on the bridge layer, and every piece
-    passes the caller's leg_ok bounds check (edge awareness). Returns the op
+    uses canonical 0/45/90-degree geometry and passes the caller's leg_ok
+    bounds check (edge awareness). Returns the op
     list [("trk", S, T, w, lay) | ("via", at, drill, dia)] or None."""
     import math as _math
     if leg_ok is None:
@@ -2898,20 +2959,8 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                 continue
         S = pcbnew.VECTOR2I(int(pa[0]), int(pa[1]))
         T = pcbnew.VECTOR2I(int(pb[0]), int(pb[1]))
-        legs = None
-        if (leg_ok(S, T, w // 2)
-                and _tap_foreign_clear(board, S, T, w, lay_b, clearance_nm, {nc})):
-            legs = [(S, T)]
-        else:
-            for C in (pcbnew.VECTOR2I(T.x, S.y), pcbnew.VECTOR2I(S.x, T.y)):
-                if (C.x, C.y) in ((S.x, S.y), (T.x, T.y)):
-                    continue
-                if (leg_ok(S, C, w // 2) and leg_ok(C, T, w // 2)
-                        and _tap_foreign_clear(board, S, C, w, lay_b, clearance_nm, {nc})
-                        and _tap_foreign_clear(board, C, T, w, lay_b,
-                                               clearance_nm, {nc})):
-                    legs = [(S, C), (C, T)]
-                    break
+        legs = _guarded_lastmile_legs(
+            board, S, T, w, lay_b, clearance_nm, nc, leg_ok)
         if legs is None:
             continue
         ops = list(ops_a) + list(ops_b)
@@ -2936,8 +2985,8 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     pickup doctrine: per net, cluster the copper through the REAL connectivity
     engine (GetConnectedItems -- transitive and zone-aware, so run this only on a
     FILLED board); for the closest anchor pair between two clusters that shares a
-    copper layer and sits <= max_mm apart, lay ONE guarded straight track -- or an
-    L (two guarded legs) when the straight is blocked -- at the net's own
+    copper layer and sits <= max_mm apart, lay ONE guarded canonical 0/45/90
+    path (short diagonal+orthogonal first, Manhattan L as fallback) at the net's own
     established width (mode of its existing segments; a fat-class net gets its
     fat width, so the track_width DRC posture matches FR's own copper). Every leg
     is foreign-collision-guarded (_tap_foreign_clear, own-net exempt); refuses
@@ -3104,25 +3153,15 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             S = pcbnew.VECTOR2I(int(A[0]), int(A[1]))
             T = pcbnew.VECTOR2I(int(B[0]), int(B[1]))
             ops = None
-            # same-layer straight/L first, emptier layers before congested F
+            # Same-layer canonical 0/45/90 path first, emptier layers before
+            # congested F. Never introduce arbitrary-angle copper here: raw FR
+            # already emits octilinear routes, and a free-angle shortcut creates
+            # hard-to-read diagonal stubs and acute copper joins.
             for lay in sorted(com, reverse=True):
-                if (_lm_leg_ok(S, T, w // 2)
-                        and _tap_foreign_clear(board, S, T, w, lay,
-                                               _nm(clearance), {nc_})):
-                    ops = [("trk", S, T, w, lay)]
-                    break
-                for C in (pcbnew.VECTOR2I(int(B[0]), int(A[1])),
-                          pcbnew.VECTOR2I(int(A[0]), int(B[1]))):
-                    if (C.x, C.y) in ((S.x, S.y), (T.x, T.y)):
-                        continue                      # axis-aligned: straight covered it
-                    if (_lm_leg_ok(S, C, w // 2) and _lm_leg_ok(C, T, w // 2)
-                            and _tap_foreign_clear(board, S, C, w, lay,
-                                                   _nm(clearance), {nc_})
-                            and _tap_foreign_clear(board, C, T, w, lay,
-                                                   _nm(clearance), {nc_})):
-                        ops = [("trk", S, C, w, lay), ("trk", C, T, w, lay)]
-                        break
-                if ops:
+                legs = _guarded_lastmile_legs(
+                    board, S, T, w, lay, _nm(clearance), nc_, _lm_leg_ok)
+                if legs:
+                    ops = [("trk", a, b, w, lay) for a, b in legs]
                     break
             if ops is None:
                 # over-the-top: stub+via each end, bridge on an empty layer

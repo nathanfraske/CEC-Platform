@@ -1,16 +1,17 @@
 {
  "board": "hub-standard-rev2",
  "candidate_role": "diagnostic-reference",
- "commit": "e426ccb",
- "freshness_checked": "2026-08-03T19:54:35",
+ "commit": "304b1ae",
+ "freshness_checked": "2026-08-03T21:17:01",
  "grade": {
   "diffpair_ok": true,
-  "drc": 112,
+  "drc": 99,
   "drc_types": {
-   "clearance": 9,
-   "copper_edge_clearance": 62,
+   "clearance": 11,
+   "copper_edge_clearance": 43,
    "hole_clearance": 4,
-   "shorting_items": 16,
+   "shorting_items": 19,
+   "solder_mask_bridge": 1,
    "via_dangling": 21
   },
   "foreign": {
@@ -21,17 +22,16 @@
   },
   "gate": false,
   "kelvin_ok": true,
-  "rails": {},
+  "rails": null,
   "thermal_ok": false,
   "unconn_critical": [
    "GND"
   ],
-  "unconnected": 40
+  "unconnected": 34
  },
- "label": "periph-right-compact-s23",
- "live_score_checked": "2026-08-03T19:54:37",
+ "label": "periph-right-compact-s1-polish",
  "mezzanine_contract_ok": true,
- "reason": "sort_key [1, 0, 1, 0, 40, 113, 1000000.0] < [1, 0, 1, 0, 41, 75, 1000000.0]",
+ "reason": "sort_key [1, 0, 1, 0, 34, 99, 1000000.0] < [1, 0, 1, 0, 40, 112, 24.3]",
  "release_accepted": false,
  "route_gate_passed": false,
  "routed": true,
@@ -45,20 +45,20 @@
   0,
   1,
   0,
-  40,
-  112,
-  24.3
+  34,
+  99,
+  1000000.0
  ],
- "source": "../../../../tmp/cec-cross-wave2-hub/hub-standard-rev2/20260803T1924-periph-right-compact-s23.kicad_pcb",
+ "source": "build/angle-wave/hub-standard-rev2/20260803T2116-periph-right-compact-s1-polish.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
   "backend": "auto",
   "cooling": "still-air (no case)",
-  "dT": 24.34,
+  "dT": 25.57,
   "error": "INJECTION INCOMPLETE: 8/12 configured net(s) injected no current (/+5V_HOLD, /PSU_5V, /PSU_5V_KVM, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4). Requested nets that are absent or electrically open exclude their Joule heat from dT, so a pass would be vacuous. Remove a genuinely inapplicable net from the board-specific scenario, or close the rail circuit.",
   "gate_dt": 30.0,
   "grid_mm": 0.4,
-  "max_T": 74.34,
+  "max_T": 75.57,
   "nets_absent": [
    "/+5V_HOLD",
    "/PSU_5V",
@@ -75,6 +75,6 @@
   "nets_requested": 12,
   "ok": false
  },
- "updated": "2026-08-03T19:24:37",
- "wave_out_root": "../../../../tmp/cec-cross-wave2-hub"
+ "updated": "2026-08-03T21:17:01",
+ "wave_out_root": "build/angle-wave"
 }

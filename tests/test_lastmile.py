@@ -5,10 +5,11 @@
 # Last-mile completer teeth (2026-07-23, from the s120 residual autopsy: 13 of
 # 30 unconnected gaps were <=5mm same-net pad/via/track gaps FR left in dense
 # clusters -- incl. both GND criticals). The completer closes them post-fill
-# with guarded straight/L legs or the over-the-top bridge; it must refuse
+# with guarded canonical 0/45/90 legs or the over-the-top bridge; it must refuse
 # blocked and edge-hugging gaps and leave far gaps alone. pcbnew required
 # (container-only skip).
 import os
+import math
 import sys
 import unittest
 
@@ -69,6 +70,34 @@ class TestLastmile(unittest.TestCase):
         self.assertGreaterEqual(r["legs"], 1)
         segs = [t for t in b.GetTracks() if t.GetClass() != "PCB_VIA"]
         self.assertTrue(segs, "a closure must lay real copper")
+
+    def test_arbitrary_offset_uses_only_canonical_angles(self):
+        import cec_fr
+        b = _board([(5, 5, "/A"), (8, 7, "/A")])
+        r = cec_fr.synthesize_lastmile(b)
+        self.assertEqual(r["closed"], 1)
+        segs = [t for t in b.GetTracks() if t.GetClass() != "PCB_VIA"]
+        self.assertGreaterEqual(len(segs), 2)
+        for track in segs:
+            dx = track.GetEnd().x - track.GetStart().x
+            dy = track.GetEnd().y - track.GetStart().y
+            angle = abs(math.degrees(math.atan2(dy, dx))) % 90.0
+            self.assertLess(min(angle, abs(45.0 - angle), abs(90.0 - angle)),
+                            1e-6, "last-mile copper must be 0/45/90 degrees")
+
+    def test_canonical_path_helper_covers_octants(self):
+        import cec_fr
+        for end in ((3, 2), (-3, 2), (2, -3), (-2, -3), (3, 3), (0, 3)):
+            with self.subTest(end=end):
+                paths = cec_fr._canonical_45_xy_paths((0, 0), end)
+                self.assertTrue(paths)
+                for path in paths:
+                    self.assertEqual(path[0], (0, 0))
+                    self.assertEqual(path[-1], end)
+                    for (ax, ay), (bx, by) in zip(path, path[1:]):
+                        dx, dy = abs(bx - ax), abs(by - ay)
+                        self.assertTrue(dx == 0 or dy == 0 or dx == dy,
+                                        "every candidate leg must be octilinear")
 
     def test_far_gap_untouched(self):
         import cec_fr

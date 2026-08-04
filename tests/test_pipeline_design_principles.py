@@ -21,6 +21,29 @@ import cec_fr  # noqa: E402
 import cec_impedance as SI  # noqa: E402
 import cec_pcb  # noqa: E402
 import cec_score  # noqa: E402
+import cec_synth_pipeline as CSP  # noqa: E402
+
+
+class RouteGeometryAdvisoryTest(unittest.TestCase):
+    def test_unlocked_off_angle_is_reported_and_locked_authored_is_excluded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "angles.kicad_pcb")
+            board = pcbnew.CreateEmptyBoard()
+            net = pcbnew.NETINFO_ITEM(board, "/A")
+            board.Add(net)
+            for y, locked in ((2.0, False), (5.0, True)):
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(pcbnew.VECTOR2I_MM(1.0, y))
+                track.SetEnd(pcbnew.VECTOR2I_MM(4.0, y + 2.0))
+                track.SetWidth(pcbnew.FromMM(0.20))
+                track.SetLayer(board.GetLayerID("F.Cu"))
+                track.SetNet(net)
+                track.SetLocked(locked)
+                board.Add(track)
+            pcbnew.SaveBoard(path, board)
+            report = CSP._oracle_route_sanity(path)
+            self.assertEqual(report["unlocked_off45_tracks"], 1)
+            self.assertEqual(report["unlocked_off45_examples"][0]["net"], "/A")
 
 
 class CopperCrossingAcceptanceTest(unittest.TestCase):

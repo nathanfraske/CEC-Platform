@@ -200,6 +200,32 @@ def _safe_src(rel):
     return p
 
 
+def _thermal_board_hint(path):
+    """Recover the manifest board identity before an archive renames it board.*."""
+    try:
+        import cec_beta_manifest as manifest
+        normalized = str(path).replace("\\", "/").lower()
+        for board in sorted(manifest.CURRENT_BETA_BOARDS, key=len, reverse=True):
+            if board.lower() in normalized:
+                return board
+    except Exception:                                      # noqa: BLE001 -- optional hint
+        pass
+    return None
+
+
+def _thermal_injection_report(result):
+    """Summarize whether every configured current path actually injected."""
+    requested = dict(getattr(result, "nets_requested", None) or {})
+    dropped = dict(getattr(result, "nets_dropped", None) or {})
+    absent = dict(getattr(result, "nets_absent", None) or {})
+    omitted = sorted(set(dropped) | set(absent))
+    return {"nets_requested": len(requested),
+            "nets_injected": len(requested) - len(dropped) - len(absent),
+            "nets_dropped": {name: dropped[name] for name in sorted(dropped)},
+            "nets_absent": sorted(absent),
+            "omitted": omitted}
+
+
 def _watcher(poll_s=15):
     """Auto-archive NEW boards matching WATCH_GLOBS as they land (mtime-keyed, settle-guarded:
     a file must be >5s old so a mid-write board is not snapshotted half-saved)."""
@@ -284,10 +310,27 @@ def _analyze_in_container(board, detail_png, current_png, width,
         ov._draw_detail_blend(fpath, res, current_png, mode="current", cool_label=cool,
                               gate_dt=GATE_DT, final_board_w=width, title=os.path.basename(board))
         dt = res.max_T - res.ambient
-        out["thermal"] = {"ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
-                          "dT": round(dt, 2), "verdict": "PASS" if dt <= GATE_DT else "FAIL",
-                          "cooling": cool, "grid_mm": res.grid_mm,
-                          "detail": os.path.basename(detail_png), "current": os.path.basename(current_png)}
+        injection = _thermal_injection_report(res)
+        thermal = {"ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
+                   "dT": round(dt, 2), "verdict": "PASS" if dt <= GATE_DT else "FAIL",
+                   "cooling": cool, "grid_mm": res.grid_mm,
+                   "nets_requested": injection["nets_requested"],
+                   "nets_injected": injection["nets_injected"],
+                   "detail": os.path.basename(detail_png),
+                   "current": os.path.basename(current_png)}
+        if not injection["nets_requested"]:
+            thermal.update({"ok": False, "verdict": "N/A",
+                            "error": "no configured current-injection scenario for this board"})
+        elif injection["omitted"]:
+            thermal.update({"verdict": "FAIL",
+                            "nets_dropped": injection["nets_dropped"],
+                            "nets_absent": injection["nets_absent"],
+                            "error": "INJECTION INCOMPLETE: configured net(s) injected no current: "
+                                     + ", ".join(injection["omitted"])})
+        elif dt <= 0.05:
+            thermal.update({"verdict": "FAIL",
+                            "error": "solver returned dT~0 for a powered board"})
+        out["thermal"] = thermal
     except Exception as e:                                          # noqa: BLE001
         out["thermal"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
@@ -295,11 +338,18 @@ def _analyze_in_container(board, detail_png, current_png, width,
     try:
         import cec_score
         import cec_constraints
+        import cec_synth_pipeline
         m = cec_score.score(board)
         fp = cec_constraints.foreign_on_pour_summary(board)
+        try:
+            route_quality = cec_synth_pipeline._oracle_route_sanity(board)
+        except Exception as route_error:                         # noqa: BLE001 -- advisory
+            route_quality = {"ok": False,
+                             "error": f"{type(route_error).__name__}: {route_error}"}
         out["gates"] = {"ok": True, "kelvin_ok": bool(m.kelvin_ok), "diffpair_ok": bool(m.diffpair_ok),
                         "drc": int(m.drc), "unconnected": int(m.unconnected),
                         "gates_pass": bool(m.gates_pass),
+                        "route_sanity": route_quality,
                         "foreign": {"status": fp.get("status"), "applicable": fp.get("applicable"),
                                     "n_tracks": int(fp.get("n_tracks") or 0),
                                     "n_vias": int(fp.get("n_vias") or 0)}}
@@ -431,6 +481,10 @@ def archive_board(pcb_path, name):
                "panels": {}, "gates": {"ok": False, "error": "not run"},
                "thermal": {"ok": False, "error": "not run"}, "verdict": "FAILED", "failing": ["pending"]}
     try:
+        analysis_env = {"CEC_SHUNT_GAP": "1", "CEC_THERMAL_GPU_AMG": "1"}
+        board_hint = _thermal_board_hint(pcb_path)
+        if board_hint:
+            analysis_env["CEC_THERMAL_BOARD_HINT"] = board_hint
         cp = _container_run(
             ["python3", "scripts/cec_dashboard.py", "--analyze-board",
              "--board", rel(snap), "--detail", rel(detail), "--current", rel(current),
@@ -438,7 +492,7 @@ def archive_board(pcb_path, name):
              *[arg for panel, _filename, _layers in COPPER_PLOTS
                for arg in (f"--{panel}", rel(plots[panel]))],
              "--width", str(PANEL_W)],
-            timeout=900, env={"CEC_SHUNT_GAP": "1", "CEC_THERMAL_GPU_AMG": "1"})
+            timeout=900, env=analysis_env)
         res = _parse_last_json(cp.stdout)
         if res:
             summary["thermal"] = res.get("thermal", summary["thermal"])
@@ -746,7 +800,7 @@ function gbadge(label,ok,extra){const cl=ok===true?'ok':(ok===false?'bad':'dim')
 function renderBadges(){
  const el=document.getElementById('badges');
  if(!cur){el.innerHTML='';return;}
- const g=cur.gates||{}, t=cur.thermal||{}, fp=g.foreign||{};
+ const g=cur.gates||{}, t=cur.thermal||{}, fp=g.foreign||{}, rq=g.route_sanity||{};
  if(!g.ok){el.innerHTML=`<span class="pill bad" title="${esc(g.error||'')}">gate-eval n/a</span>`+verdictPill();return;}
  const fclean=(fp.status==='na')||(fp.status==='ok'&&!fp.n_tracks&&!fp.n_vias);
  const fok=(fp.status==='na')?null:fclean;
@@ -755,6 +809,8 @@ function renderBadges(){
   +gbadge('foreign-on-pour',fok,fext)
   +gbadge('drc',g.drc===0,String(g.drc))
   +gbadge('unconnected',g.unconnected===0,String(g.unconnected));
+ const off45=Number.isInteger(rq.unlocked_off45_tracks)?rq.unlocked_off45_tracks:null;
+ if(off45!==null) h+=`<span class="pill ${off45===0?'ok':'warn'}" title="Unlocked generated trace segments outside 0/45/90 degrees; locked authored launches excluded">off-45 ${off45}</span>`;
  if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;
  else h+=`<span class="pill dim" title="${esc(t.error||'')}">thermal n/a</span>`;
  el.innerHTML=h+verdictPill();
