@@ -127,6 +127,17 @@ class Grid:
             mask[j0:j1 + 1, i0:i1 + 1] = val
 
 
+def edge_cut_items(board):
+    """All board-level and footprint-local Edge.Cuts graphics."""
+    items = [item for item in getattr(board, "GetDrawings", lambda: ())()
+             if item.GetLayer() == pcbnew.Edge_Cuts]
+    items.extend(
+        item for fp in board.GetFootprints()
+        for item in getattr(fp, "GraphicalItems", lambda: ())()
+        if item.GetLayer() == pcbnew.Edge_Cuts)
+    return items
+
+
 def rasterize(board, nc, lay_id, grid, clearance_mm=0.3):
     """(foreign, anchors) boolean masks for one (net, layer)."""
     foreign = np.zeros((grid.ny, grid.nx), bool)
@@ -180,17 +191,27 @@ def rasterize(board, nc, lay_id, grid, clearance_mm=0.3):
     # footprint-local apertures (the Hub's reverse LEDs).  The outer outline
     # is already represented by Grid's board-edge margin, but stamping all
     # graphics also captures internal slots/cutouts that the old copper-only
-    # raster completely ignored.  Inflate by the largest over-under barrel
-    # radius as well as clearance because free_masks is also used directly to
-    # seat via-field centres, without the lane-width erosion applied later.
-    edge_halo = c + 0.45
-    edge_items = [item for item in getattr(board, "GetDrawings", lambda: ())()
-                  if item.GetLayer() == pcbnew.Edge_Cuts]
-    edge_items.extend(
-        item for fp in board.GetFootprints()
-        for item in getattr(fp, "GraphicalItems", lambda: ())()
-        if item.GetLayer() == pcbnew.Edge_Cuts)
-    for item in edge_items:
+    # raster completely ignored.  Lane-width erosion adds the routed copper's
+    # own radius later.  Via-field seating has a larger, separate exclusion in
+    # realize_overunder_rects; using that barrel halo here sealed the Hub's
+    # reverse-LED supply pads inside their own apertures.
+    edge_halo = c
+    board_edges = [item for item in getattr(board, "GetDrawings", lambda: ())()
+                   if item.GetLayer() == pcbnew.Edge_Cuts]
+    footprint_edges = []
+    for fp in board.GetFootprints():
+        # A reverse-mount aperture may be enclosed by the net's own annular
+        # F.Cu pads.  Those pads must remain valid terminal anchors; the zone
+        # filler clips their local copper to the aperture and the via-field
+        # exclusion below still forbids a barrel there.  Inner layers (where
+        # those SMD pads are not anchors) continue to see the through-cutout.
+        own_anchor = any(pad.GetNetCode() == nc for pad in fp.Pads())
+        if own_anchor:
+            continue
+        footprint_edges.extend(
+            item for item in getattr(fp, "GraphicalItems", lambda: ())()
+            if item.GetLayer() == pcbnew.Edge_Cuts)
+    for item in board_edges + footprint_edges:
         bb = item.GetBoundingBox()
         grid.stamp_box(
             foreign,
@@ -1793,6 +1814,18 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                     _bb = _pd.GetBoundingBox()
                     _padb.append((_bb.GetLeft() / MM, _bb.GetTop() / MM,
                                   _bb.GetRight() / MM, _bb.GetBottom() / MM))
+            # Reuse the field-via pad exclusion machinery for Edge.Cuts.  Its
+            # VIA_R + PAD_MARGIN expansion is only the pad-standoff rule; pre-
+            # inflate apertures by the 0.5-mm copper-edge requirement as well
+            # so a 0.9-mm barrel cannot sit 0.7 mm outside the cut and still
+            # fail DRC (the Wave-8d DL1 pair).
+            _edge_clear = 0.5
+            for _edge in edge_cut_items(board):
+                _bb = _edge.GetBoundingBox()
+                _padb.append((_bb.GetLeft() / MM - _edge_clear,
+                              _bb.GetTop() / MM - _edge_clear,
+                              _bb.GetRight() / MM + _edge_clear,
+                              _bb.GetBottom() / MM + _edge_clear))
             def _pofv_pad_allow(_x, _y, _nc=nc):
                 if pcbnew is None:
                     return False

@@ -155,7 +155,10 @@ class TestOverunderInternalCutoutRaster(unittest.TestCase):
             "hub-standard-rev2-candidate.kicad_pcb")
         board = pcbnew.LoadBoard(path)
         grid = cec_slab_pour.Grid(board)
-        nc = board.GetNetcodeFromNetname("+5VSB")
+        # An unrelated rail must see all apertures. +5VSB itself owns an LED
+        # pad around each aperture and is deliberately allowed a filler-clipped
+        # local terminal approach; field-via seating remains blocked for it.
+        nc = board.GetNetcodeFromNetname("/MAIN_5V_RAW")
         foreign, _anchors = cec_slab_pour.rasterize(
             board, nc, board.GetLayerID("In3.Cu"), grid)
         cutouts = [item for fp in board.GetFootprints()
