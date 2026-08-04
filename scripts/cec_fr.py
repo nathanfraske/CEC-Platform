@@ -4666,10 +4666,15 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
 
     Freerouting's SES may ignore or round class-specific widths and via sizes.
     Every undersized ordinary feature is raised to the contract; oversized
-    copper is retained. A resulting clearance conflict is intentionally left to
-    DRC/release rejection. Direct INA2xx Kelvin nets are excluded because those
-    names can share a force rail while their sense stub is intentionally thin;
-    the dedicated Kelvin and high-current-pour gates own that topology.
+    copper is retained.  The one physical exception is a bounded pin neck-down
+    at an SMD pad whose minor dimension is narrower than the class track width.
+    A 1.0 mm power class cannot physically enter a 0.4 mm fine-pitch pad at full
+    width.  Imported narrow copper is therefore preserved for at most 1.5 mm of
+    graph distance from that pad, and a longer segment is split at the boundary
+    before its remainder is widened.  This is a local escape, never permission
+    for a long skinny power route. Direct INA2xx Kelvin nets are excluded because
+    those names can share a force rail while their sense stub is intentionally
+    thin; the dedicated Kelvin and high-current-pour gates own that topology.
     """
     pro_path = (board_path[:-len(".kicad_pcb")] + ".kicad_pro"
                 if board_path.endswith(".kicad_pcb") else "")
@@ -4720,11 +4725,170 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             if net.endswith(("_HI", "_LO", "_P", "_N")):
                 direct_sense.add(net)
 
-    track_fixed = via_fixed = 0
-    for item in board.GetTracks():
+    # Fine-pitch SMD escape neck-downs --------------------------------------
+    # Freerouting can emit a legal narrow pin escape even when its SES ignores
+    # the assigned class width.  Blanket widening those short segments produced
+    # the Hub's U7 and USB-C pad-field shorts.  Work on the imported graph before
+    # the ordinary normalization pass so only the small, pad-connected prefix is
+    # retained and any long first segment is split at a deterministic boundary.
+    from collections import defaultdict
+    import heapq
+    import math
+
+    original_items = list(board.GetTracks())
+    track_rows = []
+    by_net = defaultdict(list)
+    for item in original_items:
+        if item.GetClass() != "PCB_TRACK":
+            continue
+        net = item.GetNetname() or ""
+        spec = resolve(net)
+        target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
+                       or spec.get("track_width") or 0)
+        current = item.GetWidth() / MM
+        if (net in direct_sense or target <= 0
+                or current >= target - tol_mm):
+            continue
+        s, e = item.GetStart(), item.GetEnd()
+        length = item.GetLength() / MM
+        if length <= 1e-9:
+            continue
+        row = {
+            "item": item, "uuid": item.m_Uuid.AsString(), "net": net,
+            "layer": item.GetLayer(), "start": (s.x, s.y), "end": (e.x, e.y),
+            "length": length, "current": current, "target": target,
+            # Keep a useful escape for wide rails, but cap it so this exception
+            # can never turn into a long, thermally weak power trace.
+            "limit": max(0.6, min(1.5, 1.5 * target)),
+        }
+        track_rows.append(row)
+        by_net[net].append(row)
+
+    fine_pads = defaultdict(list)
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            try:
+                if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                    continue
+            except Exception:                              # noqa: BLE001
+                continue
+            net = pad.GetNetname() or ""
+            if not net or net in direct_sense:
+                continue
+            spec = resolve(net)
+            target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
+                           or spec.get("track_width") or 0)
+            size = pad.GetSize()
+            if target > 0 and min(size.x, size.y) / MM < target - tol_mm:
+                fine_pads[net].append(
+                    (pad, frozenset(pad.GetLayerSet().CuStack())))
+
+    handled = set()
+    neckdown_sections = split_tracks = widened_sections = 0
+    for net, rows in by_net.items():
+        pads = fine_pads.get(net, ())
+        if not pads:
+            continue
+        adjacency = defaultdict(list)
+        node_points = {}
+        for row in rows:
+            a = (row["start"][0], row["start"][1], row["layer"])
+            b = (row["end"][0], row["end"][1], row["layer"])
+            node_points[a] = pcbnew.VECTOR2I(a[0], a[1])
+            node_points[b] = pcbnew.VECTOR2I(b[0], b[1])
+            adjacency[a].append((b, row["length"]))
+            adjacency[b].append((a, row["length"]))
+
+        distance = {}
+        queue = []
+        for node, point in node_points.items():
+            if any(node[2] in layers and pad.HitTest(point)
+                   for pad, layers in pads):
+                distance[node] = 0.0
+                heapq.heappush(queue, (0.0, node))
+        while queue:
+            dist, node = heapq.heappop(queue)
+            if dist != distance.get(node):
+                continue
+            for other, edge_len in adjacency[node]:
+                new_dist = dist + edge_len
+                # No row retains more than 1.5 mm, so distances beyond that
+                # cannot influence a neck-down decision.
+                if new_dist > 1.5 + 1e-9:
+                    continue
+                if new_dist + 1e-12 < distance.get(other, math.inf):
+                    distance[other] = new_dist
+                    heapq.heappush(queue, (new_dist, other))
+
+        for row in rows:
+            a = (row["start"][0], row["start"][1], row["layer"])
+            b = (row["end"][0], row["end"][1], row["layer"])
+            length, limit = row["length"], row["limit"]
+            da, db = distance.get(a, math.inf), distance.get(b, math.inf)
+            keep_a = max(0.0, min(length, limit - da)) if math.isfinite(da) else 0.0
+            keep_b = max(0.0, min(length, limit - db)) if math.isfinite(db) else 0.0
+            if keep_a <= 1e-6 and keep_b <= 1e-6:
+                continue
+            handled.add(row["uuid"])
+            if keep_a + keep_b >= length - 1e-6:
+                neckdown_sections += 1
+                continue
+
+            # Replace one long segment with [narrow prefix] [class-width body]
+            # [narrow suffix] as applicable.  Track endpoints stay coincident,
+            # so electrical connectivity is unchanged and the operation is
+            # idempotent on the next normalization pass.
+            cuts = [0.0]
+            if keep_a > 1e-6:
+                cuts.append(keep_a)
+            if length - keep_b > cuts[-1] + 1e-6:
+                cuts.append(length - keep_b)
+            if length > cuts[-1] + 1e-6:
+                cuts.append(length)
+            elif cuts[-1] != length:
+                cuts[-1] = length
+            if cuts[-1] < length:
+                cuts.append(length)
+
+            sx, sy = row["start"]
+            ex, ey = row["end"]
+
+            def point_at(offset):
+                frac = max(0.0, min(1.0, offset / length))
+                return pcbnew.VECTOR2I(
+                    int(round(sx + (ex - sx) * frac)),
+                    int(round(sy + (ey - sy) * frac)))
+
+            pieces = []
+            for lo, hi in zip(cuts, cuts[1:]):
+                mid = (lo + hi) / 2.0
+                narrow = (mid <= keep_a + 1e-6
+                          or mid >= length - keep_b - 1e-6)
+                pieces.append((point_at(lo), point_at(hi),
+                               row["current"] if narrow else row["target"],
+                               narrow))
+            item = row["item"]
+            for index, (start, end, width, narrow) in enumerate(pieces):
+                piece = item if index == 0 else item.Duplicate()
+                piece.SetStart(start)
+                piece.SetEnd(end)
+                piece.SetWidth(_nm(width))
+                if index:
+                    board.Add(piece)
+                if narrow:
+                    neckdown_sections += 1
+                else:
+                    widened_sections += 1
+            split_tracks += 1
+
+    track_fixed = widened_sections
+    via_fixed = 0
+    for item in original_items:
         net = item.GetNetname() or ""
         spec = resolve(net)
         if item.GetClass() == "PCB_TRACK":
+            if item.m_Uuid.AsString() in handled:
+                continue
             target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
                            or spec.get("track_width") or 0)
             current = item.GetWidth() / MM
@@ -4744,6 +4908,8 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                 item.SetDrill(_nm(new_drill))
                 via_fixed += 1
     return {"tracks": track_fixed, "vias": via_fixed, "status": "ok",
+            "neckdown_sections": neckdown_sections,
+            "neckdown_split_tracks": split_tracks,
             "sense_exempt_nets": sorted(direct_sense)}
 
 

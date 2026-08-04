@@ -337,6 +337,82 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertAlmostEqual(via.GetWidth(via.TopLayer()) / 1e6, 0.60)
             self.assertAlmostEqual(via.GetDrillValue() / 1e6, 0.30)
 
+    def test_power_width_neckdown_is_bounded_at_fine_pitch_smd_pad(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "neckdown.kicad_pcb")
+            pro = path[:-len(".kicad_pcb")] + ".kicad_pro"
+            board = pcbnew.CreateEmptyBoard()
+            net = pcbnew.NETINFO_ITEM(board, "PWR")
+            board.Add(net)
+
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("U1")
+            fp.SetLayer(pcbnew.F_Cu)
+            fp.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            layers = pcbnew.LSET()
+            layers.AddLayer(pcbnew.F_Cu)
+            pad.SetLayerSet(layers)
+            pad.SetNet(net)
+            fp.Add(pad)
+            board.Add(fp)
+
+            def add_track(x0, x1):
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(pcbnew.VECTOR2I_MM(x0, 10.0))
+                track.SetEnd(pcbnew.VECTOR2I_MM(x1, 10.0))
+                track.SetWidth(pcbnew.FromMM(0.20))
+                track.SetLayer(pcbnew.F_Cu)
+                track.SetNet(net)
+                board.Add(track)
+
+            add_track(10.0, 13.0)  # starts on the narrow SMD pad
+            add_track(20.0, 23.0)  # ordinary rail: no neck-down entitlement
+            pcbnew.SaveBoard(path, board)
+            with open(pro, "w", encoding="utf-8") as handle:
+                json.dump({"net_settings": {
+                    "classes": [
+                        {"name": "Default", "track_width": 0.20,
+                         "via_diameter": 0.60, "via_drill": 0.30},
+                        {"name": "Power", "track_width": 1.00,
+                         "via_diameter": 0.80, "via_drill": 0.40},
+                    ],
+                    "netclass_assignments": {"PWR": "Power"},
+                    "netclass_patterns": [],
+                }}, handle)
+
+            result = cec_fr.normalize_netclass_geometry(board, path)
+            local = [t for t in board.GetTracks()
+                     if t.GetClass() == "PCB_TRACK"
+                     and t.GetStart().x / 1e6 < 14.0]
+            remote = [t for t in board.GetTracks()
+                      if t.GetClass() == "PCB_TRACK"
+                      and t.GetStart().x / 1e6 >= 14.0]
+
+            self.assertEqual(result["neckdown_split_tracks"], 1)
+            self.assertEqual(result["neckdown_sections"], 1)
+            self.assertEqual(sorted(round(t.GetWidth() / 1e6, 2) for t in local),
+                             [0.20, 1.00])
+            narrow_mm = sum(t.GetLength() / 1e6 for t in local
+                            if round(t.GetWidth() / 1e6, 2) == 0.20)
+            self.assertAlmostEqual(narrow_mm, 1.5, places=3)
+            self.assertEqual([round(t.GetWidth() / 1e6, 2) for t in remote],
+                             [1.00])
+            before = [(t.GetStart().x, t.GetEnd().x, t.GetWidth())
+                      for t in board.GetTracks()
+                      if t.GetClass() == "PCB_TRACK"]
+            second = cec_fr.normalize_netclass_geometry(board, path)
+            after = [(t.GetStart().x, t.GetEnd().x, t.GetWidth())
+                     for t in board.GetTracks()
+                     if t.GetClass() == "PCB_TRACK"]
+            self.assertEqual(second["neckdown_split_tracks"], 0)
+            self.assertEqual(after, before)
+
     def test_ses_import_reads_netclasses_from_staged_source_project(self):
         with tempfile.TemporaryDirectory() as directory:
             source = self._board(directory)
