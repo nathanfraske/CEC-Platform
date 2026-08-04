@@ -12,6 +12,7 @@ Writes build/hub-full/{run.log, report.json, hub-cand*.kicad_pcb, route-cand*/..
 is the read-only reference oracle (Stage-1 inputs + MV3 similarity); this never edits it.
 """
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -80,6 +81,31 @@ def _build_seats(sel, spec, log):
         % (sel["manager_model"], sel["effort"], sel["worker_model"], sel["effort"]))
     return (jl.make_manager_swarm(spec, panel=1, model=sel["manager_model"], effort=sel["effort"]),
             jl.make_worker_swarm(spec, fanout=1, model=sel["worker_model"], effort=sel["effort"]))
+
+
+@contextlib.contextmanager
+def _freerouting_wave_environment(params):
+    """Activate the live wave's route-diversity and plateau contracts locally.
+
+    Seeds are inert in the pinned Freerouting fork unless the seed axis is
+    explicitly enabled.  The external plateau monitor also needs both its
+    streak and the board-calibrated recovery floor.  Scope all three variables
+    to one route call so importing this runner cannot contaminate other jobs.
+    """
+    keys = ("CEC_FR_SEED_AXIS", "CEC_FR_PLATEAU_KILL", "CEC_FR_PLATEAU_FLOOR")
+    previous = {key: os.environ.get(key) for key in keys}
+    os.environ["CEC_FR_SEED_AXIS"] = "1"
+    os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
+    os.environ.setdefault(
+        "CEC_FR_PLATEAU_FLOOR", str(int(params.get("wave_plateau_floor", 100))))
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def _conformance(final, cfg, log):
@@ -486,7 +512,9 @@ def main():
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
             # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
             manager, worker = _build_seats(sel, spec, log)
-            final, dlog = cec_router.route(mat, spec, manager=manager, worker=worker, verbose=True)
+            with _freerouting_wave_environment(cfg.params):
+                final, dlog = cec_router.route(
+                    mat, spec, manager=manager, worker=worker, verbose=True)
             if not (final and os.path.isfile(final)):
                 log("  cand%d: route produced no board (final=%r) -- skipping score" % (rank, final))
                 continue

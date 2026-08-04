@@ -54,6 +54,24 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertEqual(restored.report, source.report)
         self.assertEqual(str(restored), str(source))
 
+    def test_route_environment_enables_diversity_and_restores_process(self):
+        keys = ("CEC_FR_SEED_AXIS", "CEC_FR_PLATEAU_KILL", "CEC_FR_PLATEAU_FLOOR")
+        before = {key: os.environ.get(key) for key in keys}
+        try:
+            for key in keys:
+                os.environ.pop(key, None)
+            with H._freerouting_wave_environment({"wave_plateau_floor": 150}):
+                self.assertEqual(os.environ["CEC_FR_SEED_AXIS"], "1")
+                self.assertEqual(os.environ["CEC_FR_PLATEAU_KILL"], "4")
+                self.assertEqual(os.environ["CEC_FR_PLATEAU_FLOOR"], "150")
+            self.assertTrue(all(key not in os.environ for key in keys))
+        finally:
+            for key, value in before.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
     def test_hub_repour_uses_live_overunder_contract(self):
         import cec_fr
         import cec_fresh_wave
