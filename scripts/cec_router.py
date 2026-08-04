@@ -218,6 +218,17 @@ class InvalidEditReference(KeyError):
     """A controller edit names a footprint absent from the routed artifact."""
 
 
+class FixedFootprintEdit(RuntimeError):
+    """A controller edit tried to move a locked mechanical/user-pinned part."""
+
+
+def _refuse_locked_footprint(fp, edit_type):
+    if fp.IsLocked():
+        raise FixedFootprintEdit(
+            "apply_edit %s: footprint %s is locked by its placement contract"
+            % (edit_type, fp.GetReference()))
+
+
 def apply_edit(state, edit):
     """Apply a structured edit to a RegionState and return it (mutated in place).
     Edit `type`:
@@ -247,6 +258,7 @@ def apply_edit(state, edit):
         if not fp:
             raise InvalidEditReference(
                 f"apply_edit place: footprint {edit['ref']} not found")
+        _refuse_locked_footprint(fp, "place")
         x, y, rot = edit["at"]
         fp.SetPosition(pcbnew.VECTOR2I(int(round(x * 1e6)), int(round(y * 1e6))))
         fp.SetOrientationDegrees(rot)
@@ -260,6 +272,7 @@ def apply_edit(state, edit):
         if not fp:
             raise InvalidEditReference(
                 f"apply_edit place_nudge: footprint {edit['ref']} not found")
+        _refuse_locked_footprint(fp, "place_nudge")
         dx, dy = edit["delta"]
         p = fp.GetPosition()
         fp.SetPosition(pcbnew.VECTOR2I(p.x + int(round(dx * 1e6)), p.y + int(round(dy * 1e6))))
@@ -274,6 +287,7 @@ def apply_edit(state, edit):
         if not fp:
             raise InvalidEditReference(
                 f"apply_edit place_rotate: footprint {edit['ref']} not found")
+        _refuse_locked_footprint(fp, "place_rotate")
         fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
         pcbnew.SaveBoard(state.board, b)
     elif t == "place_cluster":
@@ -334,11 +348,12 @@ def _apply_edit_guarded(state, edit, log, region, it):
         apply_edit(state, edit)
         return True
     except Exception as e:                               # noqa: BLE001 -- narrowed below
-        if isinstance(e, InvalidEditReference):
+        if isinstance(e, (InvalidEditReference, FixedFootprintEdit)):
             reason = f"EDIT REFUSED [{type(e).__name__}]: {e}"
             log.add(region=region.name, iteration=it, candidates=[], chosen=None,
                     verdict=Verdict("refuse", reason, tier="edit-validation", edit=edit),
-                    note="invalid-edit-reference")
+                    note=("invalid-edit-reference" if isinstance(e, InvalidEditReference)
+                          else "fixed-footprint-edit"))
             if os.environ.get("CEC_VERBOSE"):
                 print(f"[route] {region.name} it{it}: {reason}")
             return False
@@ -1035,6 +1050,7 @@ def independent_drc(final, rules, *, weights=None):
     # misregistered Hub/24-pin mezzanine field.
     try:
         import cec_constraints
+        import pcbnew
         contract_checks = {}
         for cid in ("high-current-stackup-2oz", "hub-stackup-6layer",
                     "through-vias-only", "mezzanine-segment-contract"):
@@ -1098,6 +1114,28 @@ def independent_drc(final, rules, *, weights=None):
         reasons.append("ratified release gate crashed (fail-closed): %s: %s"
                        % (type(_e).__name__, _e))
     return verdict
+
+
+def normalize_final_artifact_geometry(board_path):
+    """Enforce board/project geometry on the exact artifact sent to DRC.
+
+    Import-time normalization can be invalidated by later finishing mutations
+    (two-pass corridor repair, route-under, or a merged repair board).  This
+    final choke point makes the saved deliverable authoritative and refills its
+    zones before the independent release verdict.
+    """
+    import pcbnew
+
+    board = pcbnew.LoadBoard(board_path)
+    rounded = cec_fr.normalize_track_width(board)
+    by_class = cec_fr.normalize_netclass_geometry(board, board_path)
+    changed = rounded + int(by_class.get("tracks", 0)) + int(by_class.get("vias", 0))
+    if changed:
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        pcbnew.SaveBoard(board_path, board)
+    return {"rounded_tracks": rounded, **by_class, "changed": changed}
 
 
 # ============================================================ two-pass corridor protect (TPC)
@@ -1695,7 +1733,11 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     _do_under = (_ru == "1") if _ru is not None else board_has_sensec_corridors(spec.out)
     if _do_under:
         _run_route_under(spec.out, rules, verbose=verbose)
+    final_norm = normalize_final_artifact_geometry(spec.out)
+    if verbose and final_norm.get("changed"):
+        print("[route] final-artifact geometry normalized: %s" % final_norm)
     verdict = independent_drc(spec.out, rules, weights=spec.weights)
+    verdict["final_geometry_normalization"] = final_norm
     # tidy the merge intermediates (the candidate lives at spec.out now)
     import glob as _glob
     for f in _glob.glob(merged[:-len(".kicad_pcb")] + ".*"):

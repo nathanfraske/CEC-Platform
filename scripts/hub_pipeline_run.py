@@ -12,6 +12,7 @@ Writes build/hub-full/{run.log, report.json, hub-cand*.kicad_pcb, route-cand*/..
 is the read-only reference oracle (Stage-1 inputs + MV3 similarity); this never edits it.
 """
 import argparse
+import copy
 import contextlib
 import json
 import os
@@ -134,7 +135,7 @@ def _conformance(final, cfg, log):
     return n_fail, sub
 
 
-def _reposition_worker(P, ref_pcb, out):
+def _reposition_worker(P, pinned_refs, ref_pcb, out):
     """Phase 1 (spawn subprocess): copy the reference, reposition the synth components, rip the
     committed routing. ORDER: move footprints BEFORE any Remove() (a Remove invalidates later SWIG
     iterators). After Remove() this process's pcbnew state is corrupt, so the zone FILL is a SEPARATE
@@ -155,6 +156,11 @@ def _reposition_worker(P, ref_pcb, out):
             x, y, rot = P[r]
             fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6) + ox, int(y * 1e6) + oy))
             fp.SetOrientationDegrees(rot)
+            if r in pinned_refs:
+                # Preserve mechanical/user-pinned seats through the router's
+                # advisory repair loop. Moving one after pour synthesis also
+                # invalidates the actual laid-copper contract.
+                fp.SetLocked(True)
             moved += 1
     for t in list(bd.GetTracks()):
         bd.Remove(t)
@@ -280,7 +286,7 @@ def _repour_worker(out, nets):
                       for net, row in report.items()}}
 
 
-def materialize_onto_reference(cand, ref_pcb, out):
+def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     """Materialize a synth placement onto the REFERENCE board's stackup (the owner's 'base stackup =
     committed Hub'). build_board's from-scratch output is NOT DSN-exportable (KiCad's Specctra
     exporter silently refuses it), so instead COPY the committed board -- which exports + routes fine,
@@ -295,7 +301,8 @@ def materialize_onto_reference(cand, ref_pcb, out):
     ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
     ctx = mp.get_context("spawn")
     with ctx.Pool(1) as pool:
-        moved = pool.apply(_reposition_worker, (dict(cand.P), ref, dst))
+        moved = pool.apply(
+            _reposition_worker, (dict(cand.P), tuple(pinned_refs), ref, dst))
     slab_nets = _hub_pour_nets()
     with ctx.Pool(1) as pool:
         pool.apply(_prepare_repour_worker, (dst, slab_nets))
@@ -446,12 +453,21 @@ def main():
         log("INTAKE(ref schematic): ERROR (reference schematic missing)")
 
     # ---- Stage 1: oracle Stage-1 + placement sweep (a couple sizes, keep the best) ----
+    import cec_fresh_wave
+
     cfg = S.Config.load(a.board)
     cfg.params["oracle_reference_path"] = REF
     os.environ["CEC_THERMAL_BOARD_HINT"] = os.path.abspath(REF)
     S.elicit_requirements(cfg, {"antenna_keepout": True})
     S.apply_oracle_stage1(cfg)
     W, H = cfg.params["size_target_wh"]
+    # The reference oracle supplies diagnostics and the candidate's physical
+    # stackup, but the live BETA declaration owns placement and route policy.
+    # Merge it after Stage 1 so stale oracle-derived connector edges can never
+    # override the current dead-bug/mezzanine contract.
+    live = cec_fresh_wave._placement_params(a.board, W, H)  # noqa: SLF001
+    cfg.pins = dict(live.pop("anchor_pins", {}) or {})
+    cfg.params.update(live)
     ref_pl = S.read_placement(REF)
     ref_proxy = S.placement_proxy(ref_pl)
     ref_hpwl = S.hpwl(ref_pl.pads_by_net)
@@ -464,12 +480,19 @@ def main():
             log("budget nearly spent -> stop before placement %.0fx%.0f" % (sw, sh))
             break
         try:
-            cs = S.place_candidates(cfg, sw, sh, strategies=S.STRATEGIES, seeds=(0, 1, 2, 3))
+            size_cfg = copy.deepcopy(cfg)
+            size_live = cec_fresh_wave._placement_params(  # noqa: SLF001
+                a.board, sw, sh)
+            size_cfg.pins = dict(size_live.pop("anchor_pins", {}) or {})
+            size_cfg.params.update(size_live)
+            cs = S.place_candidates(
+                size_cfg, sw, sh, strategies=S.STRATEGIES,
+                seeds=(0, 1, 2, 3))
         except Exception as e:
             log("  place %.0fx%.0f FAILED: %s" % (sw, sh, e))
             continue
         b = cs[0]
-        placed.append((b, sw, sh))
+        placed.append((b, sw, sh, size_cfg))
         rec = {"W": sw, "H": sh, "strat": b.strat, "seed": b.seed, "residual": b.residual,
                "corridor_cross": b.corridor_cross, "proxy_score": b.proxy.get("proxy_score"),
                "similarity": b.similarity, "hpwl": b.proxy["hpwl"],
@@ -484,13 +507,14 @@ def main():
 
     # ---- Stage 2: route each top placement (budget-bounded), score gates+DRC, electrothermal ----
     best = None
-    for rank, (cand, sw, sh) in enumerate(topK):
+    for rank, (cand, sw, sh, cand_cfg) in enumerate(topK):
         if time.time() > deadline - 120:
             log("budget nearly spent -> stop before routing cand%d" % rank)
             break
         try:
             mat = os.path.abspath(os.path.join(a.out, "hub-cand%d.kicad_pcb" % rank))
-            _, nmoved, pour_report = materialize_onto_reference(cand, REF, mat)
+            _, nmoved, pour_report = materialize_onto_reference(
+                cand, REF, mat, pinned_refs=cand_cfg.pins)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
@@ -512,7 +536,8 @@ def main():
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
             # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
             manager, worker = _build_seats(sel, spec, log)
-            with _freerouting_wave_environment(cfg.params):
+            with S._oracle_env(cand_cfg.params), \
+                    _freerouting_wave_environment(cand_cfg.params):
                 final, dlog = cec_router.route(
                     mat, spec, manager=manager, worker=worker, verbose=True)
             if not (final and os.path.isfile(final)):
@@ -524,10 +549,11 @@ def main():
             rules = cec_score.Rules.from_board(final)
             route_verdict = cec_router.independent_drc(final, rules, weights=spec.weights)
             m = cec_score.score(final, rules)
-            n_conf_fail, conf_rows = _conformance(final, cfg, log)   # synth-relevant geometry gate
-            cfg.params["thermal_field"] = True
+            n_conf_fail, conf_rows = _conformance(  # synth-relevant geometry gate
+                final, cand_cfg, log)
+            cand_cfg.params["thermal_field"] = True
             try:
-                th, physics_flags = S.physics(final, cfg)
+                th, physics_flags = S.physics(final, cand_cfg)
                 et = {"max_T": round(getattr(th, "max_T", float("nan")), 1),
                       "max_dT": round(getattr(th, "max_dT", float("nan")), 1),
                       "calibration": getattr(th, "calibration", "unknown"),

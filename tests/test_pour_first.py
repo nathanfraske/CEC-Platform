@@ -196,6 +196,20 @@ class TestConnectorManifolds(unittest.TestCase):
                                     for d in out),
                         "U1 is not a connector; J1 is")
 
+    def test_single_pin_manifold_does_not_cover_adjacent_foreign_pin(self):
+        own = _Pad("+5VSB", 1, 10.0, 10.0, half=0.6)
+        foreign = _Pad("/SIG", 2, 12.54, 10.0, half=0.6)
+        board = _Board(30, 20, [_FP("J4", [own, foreign])],
+                       {1: "+5VSB", 2: "/SIG"})
+        rows = connector_manifolds(board, nets={"+5VSB"})
+        self.assertTrue(rows)
+        for row in rows:
+            xs = [point[0] for point in row["polygon"]]
+            self.assertLess(max(xs), 12.54 - 0.6,
+                            "single-pin pickup must not slab across its neighbor")
+            self.assertAlmostEqual(min(xs), 10.0 - 0.6 - 0.3, places=3)
+            self.assertAlmostEqual(max(xs), 10.0 + 0.6 + 0.3, places=3)
+
 
 def _attach_scene():
     """The v3.1 thesis scene: an own THT pad DEEP in a foreign barrel field,

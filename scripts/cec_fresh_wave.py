@@ -21,6 +21,7 @@ The variant set is deliberately structure-first (the 2026-06-30 placer-feasibili
 finding: partitions/intents move the needle, absolute-coord jitter does not).
 """
 import argparse
+import copy
 import glob
 import json
 import os
@@ -819,7 +820,10 @@ def _intents_for(board):
 def _board_params(board):
     """The BOARD_PARAMS + board-manifest placement_directives merge (shared by the serial
     and parallel candidate paths)."""
-    p = dict(BOARD_PARAMS.get(board) or {})
+    # Several placement contracts contain nested maps (anchor_pins,
+    # mount_pos_override, role_keepouts).  A shallow copy lets a size sweep
+    # accidentally mutate the process-global BOARD_PARAMS declaration.
+    p = copy.deepcopy(BOARD_PARAMS.get(board) or {})
     mf = next((m for m in (os.path.join(ROOT, r, board, "board-manifest.json")
                            for r in ("beta", "modules", "hubs"))
                if os.path.isfile(m)),
@@ -841,35 +845,48 @@ def _board_params(board):
     return p
 
 
+def _placement_params(board, W, H):
+    """Return the live, size-specific placement contract for *board*.
+
+    This is the single public construction point for consumers that need the
+    same BETA placement recipe as :func:`_build_session` without constructing a
+    PlacementSession (notably the dedicated Hub closure runner).  Keeping the
+    mating-frame resize here prevents those runners from silently falling back
+    to the oracle's historical absolute connector seats.
+    """
+    p = _board_params(board)
+    # Size sweeps must move the complete mating datum with the candidate
+    # outline.  BOARD_PARAMS holds the nominal snapshot for consumers that do
+    # not pass W/H, but using those absolute pins here made smaller-board probes
+    # test stale connector coordinates instead of the requested geometry.
+    if board in MEZZ_HUB_24PIN["sides"]:
+        mf = mating_frame_pins(W, H, MEZZ_HUB_24PIN, board)
+        p["mount_pos_override"] = mf["mount_pos_override"]
+        if "mount_fp_override" in mf:
+            p["mount_fp_override"] = mf["mount_fp_override"]
+        anchors = dict(p.get("anchor_pins") or {})
+        for ref in ("J6P", "J6C", "J6D"):
+            anchors.pop(ref, None)
+        anchors.update(mf["anchor_pins"])
+        if board == "atx-24pin-rev3":
+            # The legacy absolute U1 pin was a small-frame placer workaround,
+            # not a mechanical datum. Let each sweep solve the MCU honestly.
+            anchors.pop("U1", None)
+        elif board == "hub-standard-rev2" and "C1" in anchors:
+            # C1 is a real 21x17mm mechanical macro. Keep its power-entry seat
+            # relative to the right edge/vertical center as width is swept.
+            anchors["C1"] = (W - 22.2, H / 2.0 + 5.0, 0.0)
+        p["anchor_pins"] = anchors
+    return p
+
+
 def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
                    pourfirst_artifact=True):
     """The variant's PlacementSession, identically for the place-only (prune) and
     full-grade phases -- factored so the two can never drift. *proposal* = a
     VALIDATED seat proposal dict (cec_wave_intents), applied instead of a named
     hand intent; its role_keepouts merge into params (the params-level lever)."""
-    _p = _board_params(board)
-    # Size sweeps must move the complete mating datum with the candidate
-    # outline.  BOARD_PARAMS holds the nominal snapshot for consumers that do
-    # not pass W/H, but using those absolute pins here made smaller-board probes
-    # test stale connector coordinates instead of the requested geometry.
-    if board in MEZZ_HUB_24PIN["sides"]:
-        _mf = mating_frame_pins(W, H, MEZZ_HUB_24PIN, board)
-        _p["mount_pos_override"] = _mf["mount_pos_override"]
-        if "mount_fp_override" in _mf:
-            _p["mount_fp_override"] = _mf["mount_fp_override"]
-        _ap = dict(_p.get("anchor_pins") or {})
-        for _mr in ("J6P", "J6C", "J6D"):
-            _ap.pop(_mr, None)
-        _ap.update(_mf["anchor_pins"])
-        if board == "atx-24pin-rev3":
-            # The legacy absolute U1 pin was a small-frame placer workaround,
-            # not a mechanical datum. Let each sweep solve the MCU honestly.
-            _ap.pop("U1", None)
-        elif board == "hub-standard-rev2" and "C1" in _ap:
-            # C1 is a real 21x17mm mechanical macro. Keep its power-entry seat
-            # relative to the right edge/vertical center as width is swept.
-            _ap["C1"] = (W - 22.2, H / 2.0 + 5.0, 0.0)
-        _p["anchor_pins"] = _ap
+    _p = _placement_params(board, W, H)
     if proposal is not None and proposal.get("role_keepouts"):
         _p = dict(_p)
         _p["role_keepouts"] = dict(proposal["role_keepouts"])

@@ -98,6 +98,21 @@ class TestHubAcceptance(unittest.TestCase):
         add_pours.assert_called_once()
         add_vias.assert_called_once()
 
+    def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
+        import cec_fresh_wave
+
+        for width, height in ((86.1, 74.1), (89.1, 77.1)):
+            params = cec_fresh_wave._placement_params(  # noqa: SLF001
+                "hub-standard-rev2", width, height)
+            expected = cec_fresh_wave.mating_frame_pins(
+                width, height, cec_fresh_wave.MEZZ_HUB_24PIN,
+                "hub-standard-rev2")["anchor_pins"]
+            for ref in ("J6P", "J6C", "J6D"):
+                self.assertEqual(params["anchor_pins"][ref], expected[ref])
+            self.assertTrue(params["overunder"])
+            self.assertTrue(params["power_pickup"])
+            self.assertTrue(params["lastmile"])
+
     def test_all_terms_are_required(self):
         args = ({"gates_pass": True}, 0, [], True, True)
         terms, accepted = H._acceptance_terms(*args)
@@ -175,6 +190,34 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertFalse(cec_router._apply_edit_guarded(state, edit, log, region, 1))
         self.assertEqual(log.entries[-1]["note"], "invalid-edit-reference")
         self.assertEqual(log.entries[-1]["verdict"]["action"], "refuse")
+
+    def test_router_refuses_to_nudge_locked_mechanical_footprint(self):
+        import shutil
+        import tempfile
+        import pcbnew
+
+        source = os.path.join(ROOT, H.REF)
+        with tempfile.TemporaryDirectory() as out:
+            board = os.path.join(out, "locked.kicad_pcb")
+            shutil.copy(source, board)
+            loaded = pcbnew.LoadBoard(board)
+            fp = loaded.FindFootprintByReference("J6P")
+            self.assertIsNotNone(fp)
+            before = fp.GetPosition()
+            fp.SetLocked(True)
+            pcbnew.SaveBoard(board, loaded)
+
+            region = cec_router.Region("fixture")
+            state = cec_router.RegionState(region, board, (0,))
+            log = cec_router.DecisionLog()
+            edit = {"type": "place_nudge", "ref": "J6P",
+                    "delta": (0.4, 0.4)}
+            self.assertFalse(cec_router._apply_edit_guarded(
+                state, edit, log, region, 1))
+            self.assertEqual(log.entries[-1]["note"], "fixed-footprint-edit")
+            after = pcbnew.LoadBoard(board).FindFootprintByReference(
+                "J6P").GetPosition()
+            self.assertEqual((after.x, after.y), (before.x, before.y))
 
     def test_route_intake_exception_refuses(self):
         import tempfile
