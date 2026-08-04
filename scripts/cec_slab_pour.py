@@ -175,6 +175,29 @@ def rasterize(board, nc, lay_id, grid, clearance_mm=0.3):
             else:
                 grid.stamp_box(foreign, px - w - c, py - w - c,
                                px + w + c, py + w + c)
+
+    # Edge.Cuts is a fabrication obstacle on EVERY copper layer, including
+    # footprint-local apertures (the Hub's reverse LEDs).  The outer outline
+    # is already represented by Grid's board-edge margin, but stamping all
+    # graphics also captures internal slots/cutouts that the old copper-only
+    # raster completely ignored.  Inflate by the largest over-under barrel
+    # radius as well as clearance because free_masks is also used directly to
+    # seat via-field centres, without the lane-width erosion applied later.
+    edge_halo = c + 0.45
+    edge_items = [item for item in getattr(board, "GetDrawings", lambda: ())()
+                  if item.GetLayer() == pcbnew.Edge_Cuts]
+    edge_items.extend(
+        item for fp in board.GetFootprints()
+        for item in getattr(fp, "GraphicalItems", lambda: ())()
+        if item.GetLayer() == pcbnew.Edge_Cuts)
+    for item in edge_items:
+        bb = item.GetBoundingBox()
+        grid.stamp_box(
+            foreign,
+            bb.GetLeft() / MM - edge_halo,
+            bb.GetTop() / MM - edge_halo,
+            bb.GetRight() / MM + edge_halo,
+            bb.GetBottom() / MM + edge_halo)
     return foreign, anchors
 
 

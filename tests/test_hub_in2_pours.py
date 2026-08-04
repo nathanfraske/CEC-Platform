@@ -17,8 +17,10 @@
 # Tests 1-2 are host-runnable; test 3 needs pcbnew (container-only skip).
 import os
 import json
+import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -75,6 +77,96 @@ class TestHubMaterializationSidecars(unittest.TestCase):
                 project = json.load(fh)
             self.assertEqual(project["meta"]["filename"], "hub-cand0.kicad_pro")
             self.assertTrue(os.path.isfile(os.path.splitext(output)[0] + ".kicad_dru"))
+
+
+class TestOverunderViaNetPersistence(unittest.TestCase):
+    def test_stale_filled_ground_plane_cannot_steal_rail_via_net(self):
+        try:
+            import pcbnew
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        build = textwrap.dedent("""
+            import os, sys, pcbnew
+            path = sys.argv[1]
+            mm = lambda value: int(value * 1e6)
+            board = pcbnew.CreateEmptyBoard()
+            board.SetCopperLayerCount(6)
+            gnd = pcbnew.NETINFO_ITEM(board, "GND")
+            rail = pcbnew.NETINFO_ITEM(board, "+5V_TEST")
+            board.Add(gnd); board.Add(rail)
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference("J1")
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber("1")
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I(mm(2), mm(2)))
+            pad.SetPosition(pcbnew.VECTOR2I(mm(5), mm(5)))
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(rail)
+            footprint.Add(pad); board.Add(footprint)
+            zone = pcbnew.ZONE(board)
+            zone.SetNet(gnd)
+            zone.SetLayer(pcbnew.In1_Cu)
+            outline = zone.Outline(); outline.NewOutline()
+            for x, y in ((2, 2), (38, 2), (38, 38), (2, 38)):
+                outline.Append(mm(x), mm(y))
+            board.Add(zone)
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            pcbnew.SaveBoard(path, board)
+            os._exit(0)
+        """)
+        add = textwrap.dedent("""
+            import os, sys, pcbnew
+            sys.path.insert(0, sys.argv[2])
+            import cec_fr
+            path = sys.argv[1]
+            board = pcbnew.LoadBoard(path)
+            added = cec_fr.add_overunder_vias(
+                board, [{"net": "+5V_TEST", "x_mm": 20.0, "y_mm": 20.0}])
+            if len(added) != 1:
+                raise RuntimeError("expected one bridge via, got %d" % len(added))
+            pcbnew.SaveBoard(path, board)
+            os._exit(0)
+        """)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "stale-plane.kicad_pcb")
+            subprocess.run([sys.executable, "-c", build, path], check=True)
+            subprocess.run([sys.executable, "-c", add, path,
+                            os.path.join(ROOT, "scripts")], check=True)
+            board = pcbnew.LoadBoard(path)
+            vias = [item for item in board.GetTracks()
+                    if item.GetClass() == "PCB_VIA"]
+            self.assertEqual(len(vias), 1)
+            self.assertEqual(vias[0].GetNetname(), "+5V_TEST")
+
+
+class TestOverunderInternalCutoutRaster(unittest.TestCase):
+    def test_reverse_led_edge_cutouts_block_every_copper_layer(self):
+        try:
+            import pcbnew
+            import cec_slab_pour
+        except ImportError:
+            self.skipTest("pcbnew/scipy not available")
+
+        path = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        board = pcbnew.LoadBoard(path)
+        grid = cec_slab_pour.Grid(board)
+        nc = board.GetNetcodeFromNetname("+5VSB")
+        foreign, _anchors = cec_slab_pour.rasterize(
+            board, nc, board.GetLayerID("In3.Cu"), grid)
+        cutouts = [item for fp in board.GetFootprints()
+                   for item in fp.GraphicalItems()
+                   if item.GetLayer() == pcbnew.Edge_Cuts]
+        self.assertEqual(len(cutouts), 6)
+        for item in cutouts:
+            center = item.GetBoundingBox().GetCenter()
+            self.assertTrue(
+                foreign[grid.iy(center.y / 1e6), grid.ix(center.x / 1e6)],
+                "internal Edge.Cuts aperture must be foreign to the pour search")
 
 
 class TestPourPolygonsPerLayer(unittest.TestCase):

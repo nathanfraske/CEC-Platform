@@ -3408,11 +3408,22 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
     wherever it passes through it, matching add_via_field's own convention
     (no blind/buried vias are used anywhere on this platform).
 
+    Unfills every zone before adding a barrel.  This is not cosmetic: a stale
+    filled GND plane has copper at a newly planned through-via position because
+    its antipad did not exist at the last fill.  KiCad's save-time connectivity
+    rebuild then reassigns that explicit rail via to GND.  All over-under
+    callers already refill after laying their final zones; clearing the stale
+    geometry here preserves the declared via net across save/reload and lets
+    that later fill cut the correct antipad.
+
     Re-checks the 0.85mm any-net barrel ledger against the board's CURRENT
     via set (defense in depth -- synthesize_overunder_pours already
     ledger-filters at generation time against this same board object, so
     this is a second, cheap pass, not the first one). Each *via_list* entry
     is {"net", "x_mm", "y_mm"}. Returns the added PCB_VIA objects."""
+    for zone in board.Zones():
+        zone.UnFill()
+
     existing = []
     for t in board.GetTracks():
         if t.GetClass() == "PCB_VIA":
