@@ -11964,7 +11964,8 @@ def _flow_axis(bb):
     return (0, xext) if xext >= yext else (1, yext)
 
 
-def _min_cut(features):
+def _min_cut(features, parallel_terminal_spans=(),
+             parallel_terminal_limits=()):
     """Serial min-cut of a net's copper along its flow axis. `features` is a list of
     (lo, hi, cross_mm2, ext_cross_mm2, is_pour): each spans [lo,hi] on the flow axis and
     contributes `cross_mm2` of copper there (ext_cross_mm2 = the part on an OUTER layer).
@@ -11976,9 +11977,19 @@ def _min_cut(features):
     current as copper area, not traces); the cut is then restricted to the pour's flow
     span so a zero-current sense/Kelvin stub that merely shares the net but sits OUTSIDE
     the force path cannot masquerade as a 40A series neck (the over-correction the naive
-    min-cut would make -- the mirror of the old over-count). Returns (min_cross_mm2,
-    external_bool) where external reflects the bottleneck cut's layer (IPC k, debt #3).
-    Degenerate (all zero-width) -> the single largest feature."""
+    min-cut would make -- the mirror of the old over-count).
+
+    ``parallel_terminal_spans`` are flow-axis envelopes of duplicated same-net
+    SMD pins on one IC.  Those pins meet at a common internal die node, so a cut
+    between their slightly staggered pad centres is not a physical series cut:
+    current enters/exits through the pin escapes in parallel.  Cuts inside only
+    that package-local envelope are skipped; every downstream neck remains
+    eligible. ``parallel_terminal_limits`` then conservatively caps the result
+    at the sum of the actual independent copper exits from those pins, so the
+    package envelope cannot make the large downstream pour hide a real pin
+    bottleneck. Returns (min_cross_mm2, external_bool) where external reflects
+    the bottleneck cut's layer (IPC k, debt #3). Degenerate (all zero-width) ->
+    the single largest feature."""
     if not features:
         return 0.0, False
     pours = [f for f in features if f[4]]
@@ -11989,6 +12000,8 @@ def _min_cut(features):
         mid = 0.5 * (pts[i] + pts[i + 1])
         if span and not (span[0] <= mid <= span[1]):         # outside the force-path span
             continue
+        if any(lo <= mid <= hi for lo, hi in parallel_terminal_spans):
+            continue
         tot = ext = 0.0
         for lo, hi, cs, ecs, _ in features:
             if lo <= mid <= hi:
@@ -11998,7 +12011,13 @@ def _min_cut(features):
             best, best_ext = tot, (ext >= 0.5 * tot)
     if best is None:                                         # all zero-width (or empty span)
         lo, hi, cs, ecs, _ = max(features, key=lambda f: f[2])
-        return cs, (cs > 0 and ecs >= 0.5 * cs)
+        best, best_ext = cs, (cs > 0 and ecs >= 0.5 * cs)
+    limits = [(float(cs), bool(ext))
+              for cs, ext in parallel_terminal_limits if float(cs) > 0]
+    if limits:
+        terminal_cross, terminal_ext = min(limits, key=lambda row: row[0])
+        if best is None or terminal_cross < best:
+            best, best_ext = terminal_cross, terminal_ext
     return best, best_ext
 
 
@@ -12187,7 +12206,40 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
     poured = set()
     via_pts = defaultdict(list)           # net -> [(x, y, drill_mm)]
     flow = {n: (_flow_axis(pad_bb[n])[0] if n in pad_bb else 1) for n in cur}
-    for t in b.GetTracks():
+    # Duplicated power/ground lands on one IC are parallel terminals of a
+    # common internal node.  Their small centre-coordinate stagger must not be
+    # interpreted as a serial copper bottleneck by the one-dimensional cut.
+    # Restrict this doctrine to U* SMD groups: connector contacts and passive
+    # arrays are not assumed internally common merely because the schematic
+    # assigns them one net.
+    parallel_terminal_groups = defaultdict(list)
+    for fp in b.GetFootprints():
+        if not fp.GetReference().upper().startswith("U"):
+            continue
+        grouped = defaultdict(list)
+        for pad in fp.Pads():
+            net = pad.GetNetname()
+            try:
+                smd = int(pad.GetAttribute()) == int(pcbnew.PAD_ATTRIB_SMD)
+            except Exception:
+                smd = False
+            if smd and cur.get(net, 0.0) > 0:
+                grouped[net].append(pad)
+        for net, pads in grouped.items():
+            if len(pads) < 2:
+                continue
+            axis = flow.get(net, 1)
+            boxes = [pad.GetBoundingBox() for pad in pads]
+            if axis == 0:
+                lo = min(box.GetLeft() for box in boxes) / 1e6
+                hi = max(box.GetRight() for box in boxes) / 1e6
+            else:
+                lo = min(box.GetTop() for box in boxes) / 1e6
+                hi = max(box.GetBottom() for box in boxes) / 1e6
+            if hi > lo:
+                parallel_terminal_groups[net].append((lo, hi, tuple(pads)))
+    board_tracks = list(b.GetTracks())
+    for t in board_tracks:
         net = t.GetNetname(); I = cur.get(net, 0.0)
         if I <= 0:
             continue
@@ -12224,9 +12276,53 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
             cs = (area / span) * ((2 if ext else 1) * CU_OZ_MM)   # avg perpendicular cut
             feat[net].append((lo, hi, cs, cs if ext else 0.0, True))
 
+    parallel_terminal_spans = defaultdict(list)
+    parallel_terminal_limits = defaultdict(list)
+    for net, groups in parallel_terminal_groups.items():
+        for lo, hi, pads in groups:
+            total_cross = total_external = 0.0
+            branches = 0
+            for pad in pads:
+                layers = set(pad.GetLayerSet().CuStack())
+                branch_options = []
+                for track in board_tracks:
+                    if (track.Type() != pcbnew.PCB_TRACE_T
+                            or track.GetNetname() != net
+                            or track.GetLayer() not in layers):
+                        continue
+                    start, end = track.GetStart(), track.GetEnd()
+                    start_hit = pad.HitTest(start)
+                    end_hit = pad.HitTest(end)
+                    if start_hit == end_hit:
+                        continue
+                    other = end if start_hit else start
+                    # A tie terminating on another pad in the same group does
+                    # not leave the common terminal node and is not a parallel
+                    # current exit.
+                    if any(other_pad is not pad and other_pad.HitTest(other)
+                           for other_pad in pads):
+                        continue
+                    external = track.GetLayer() in OUTER
+                    cross_section = ((track.GetWidth() / 1e6)
+                                     * ((2 if external else 1) * CU_OZ_MM))
+                    branch_options.append((cross_section, external))
+                if branch_options:
+                    cross_section, external = max(
+                        branch_options, key=lambda row: row[0])
+                    total_cross += cross_section
+                    if external:
+                        total_external += cross_section
+                    branches += 1
+            if branches >= 2 and total_cross > 0:
+                parallel_terminal_spans[net].append((lo, hi))
+                parallel_terminal_limits[net].append(
+                    (total_cross, total_external >= 0.5 * total_cross))
+
     cross, cross_ext = {}, {}             # net -> serial min-cut (mm^2), bottleneck-is-outer
     for net, fl in feat.items():
-        mc, ext = _min_cut(fl)
+        mc, ext = _min_cut(
+            fl, parallel_terminal_spans.get(net, ()),
+            parallel_terminal_limits.get(net, ()))
         if mc > 0:
             cross[net], cross_ext[net] = mc, ext
 

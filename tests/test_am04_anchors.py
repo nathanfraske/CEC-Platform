@@ -61,6 +61,38 @@ class T8bPicardAnchor(unittest.TestCase):
         v = S._picard_dt(100, 0.01, 25, True)
         self.assertLess(v, 1e6, "fusing regime must clamp, never return 1e40")
 
+    def test_parallel_ic_pin_stagger_is_not_a_serial_cut(self):
+        # Two 0.014 mm2 pin escapes leave one internal die node and merge at
+        # x=2.  The 0.1 mm centre stagger is inside the duplicated-pin envelope,
+        # so the physical minimum is their 0.028 mm2 parallel sum.
+        features = [
+            (-1.0, 0.0, 0.10, 0.10, True),
+            (0.0, 2.0, 0.014, 0.014, False),
+            (0.1, 2.0, 0.014, 0.014, False),
+            (2.0, 10.0, 0.10, 0.10, True),
+        ]
+        self.assertAlmostEqual(S._min_cut(features)[0], 0.014)
+        self.assertAlmostEqual(
+            S._min_cut(features,
+                       parallel_terminal_spans=((0.0, 0.2),),
+                       parallel_terminal_limits=((0.028, True),))[0],
+            0.028)
+
+    def test_parallel_pin_envelope_does_not_hide_downstream_neck(self):
+        features = [
+            (-1.0, 0.0, 0.10, 0.10, True),
+            (0.0, 2.0, 0.014, 0.014, False),
+            (0.1, 2.0, 0.014, 0.014, False),
+            (2.0, 3.0, 0.10, 0.10, True),
+            (3.0, 4.0, 0.01, 0.01, False),
+            (4.0, 10.0, 0.10, 0.10, True),
+        ]
+        self.assertAlmostEqual(
+            S._min_cut(features,
+                       parallel_terminal_spans=((0.0, 0.2),),
+                       parallel_terminal_limits=((0.028, True),))[0],
+            0.01)
+
 
 class T9Conservatism(unittest.TestCase):
     """Ruling 7(b): the uncalibrated solver's tested property IS conservatism
