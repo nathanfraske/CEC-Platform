@@ -24,6 +24,7 @@ from cec_slab_pour import (  # noqa: E402
     _nowhere_zone_verdict,
     _prep_overunder_net,
     connector_manifolds,
+    footprint_copper_boxes,
     pourfirst_conv_split,
     route_overunder,
     synthesize_overunder_pours,
@@ -91,15 +92,29 @@ class _Pad:
         return self._name
 
 
+class _Graphic:
+    def __init__(self, layer, box):
+        self._layer, self._bb = layer, _BB(*box)
+
+    def GetLayer(self):
+        return self._layer
+
+    def GetBoundingBox(self):
+        return self._bb
+
+
 class _FP:
-    def __init__(self, ref, pads):
-        self._ref, self._pads = ref, pads
+    def __init__(self, ref, pads, graphics=()):
+        self._ref, self._pads, self._graphics = ref, pads, graphics
 
     def GetReference(self):
         return self._ref
 
     def Pads(self):
         return list(self._pads)
+
+    def GraphicalItems(self):
+        return list(self._graphics)
 
 
 class _Net:
@@ -154,6 +169,21 @@ def _wall(nc, x0, x1, y0, y1, pitch=1.2, half=0.7):
     return pads
 
 
+class TestGridAnchorStamp(unittest.TestCase):
+    def test_small_via_anchor_cannot_claim_diagonal_neighbor_cell(self):
+        grid = Grid(_Board(30, 30, [], {}), 0.8)
+        mask = np.zeros((grid.ny, grid.nx), bool)
+        # Real 0.6-mm pickup via from the Hub P1 case.  Conservative obstacle
+        # stamping touches four cells, including (2,19), whose centre is
+        # 0.95 mm from the via centre.  An electrical anchor may claim only the
+        # centre-contained cell (1,20).
+        grid.stamp_anchor_box(mask, 16.4375, 1.5, 17.0375, 2.1)
+        self.assertTrue(mask[1, 20])
+        self.assertFalse(mask[2, 19])
+        ys, xs = np.where(mask)
+        self.assertEqual(list(zip(ys.tolist(), xs.tolist())), [(1, 20)])
+
+
 class TestConnectorManifolds(unittest.TestCase):
     def test_multi_pin_group_gangs_to_one_dict_per_layer(self):
         # 4 same-net THT pins on one connector -> ONE dict per natural layer
@@ -176,6 +206,8 @@ class TestConnectorManifolds(unittest.TestCase):
             self.assertAlmostEqual(max(ys), 13.6 + 0.3, places=3)
             self.assertEqual(d["name"], "manifold:J3:+5VSB")
             self.assertEqual(d["provenance"], "slab")
+            self.assertEqual(d["priority"], 3,
+                             "manifold must outrank its same-net feeder zone")
 
     def test_smd_group_gets_its_own_side_only(self):
         pads = [_Pad("/SIG", 3, 10.0, 5.0, layers=[_LAY["B.Cu"]]),
@@ -210,6 +242,15 @@ class TestConnectorManifolds(unittest.TestCase):
                             "single-pin pickup must not slab across its neighbor")
             self.assertAlmostEqual(min(xs), 10.0 - 0.6 - 0.3, places=3)
             self.assertAlmostEqual(max(xs), 10.0 + 0.6 + 0.3, places=3)
+
+    def test_footprint_copper_graphics_are_via_obstacles(self):
+        fp = _FP("LOGO1", [], [_Graphic(_LAY["B.Cu"], (4.0, 5.0, 8.0, 9.0)),
+                               _Graphic(99, (20.0, 21.0, 22.0, 23.0))])
+        board = _Board(30, 30, [fp], {})
+        boxes = footprint_copper_boxes(
+            board, is_copper_layer=lambda layer: layer in _ALL_CU)
+        self.assertEqual(boxes, [(4.0, 5.0, 8.0, 9.0)],
+                         "only actual footprint copper may block the via field")
 
 
 def _attach_scene():

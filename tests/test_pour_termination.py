@@ -401,3 +401,23 @@ class ViaCountTest(unittest.TestCase):
         vias, _ = sp.field_via_line((20, 20, "In2.Cu", "B.Cu", 1.0, 0.0), 9.0, G, [], [],
                                     n_needed=2)
         self.assertEqual(len(vias), 2)
+
+    def test_field_reserves_full_copper_clearance_from_pads(self):
+        import cec_slab_pour as sp
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 0.5
+        # The nominal field centre is (10.25, 10.25).  This pad begins 0.55 mm
+        # to its right: the former 0.45 + 0.05 test accepted it even though the
+        # board rule requires 0.20 mm beyond the 0.45-mm barrel.
+        pad_boxes = [(10.8, 10.0, 11.2, 10.5)]
+        vias, reseated = sp.field_via_line(
+            (20, 20, "In2.Cu", "B.Cu", 1.0, 0.0), 3.0, G, pad_boxes, [],
+            n_needed=1)
+        self.assertEqual(len(vias), 1)
+        self.assertGreater(reseated, 0)
+        self.assertNotEqual(vias[0], (10.25, 10.25))
+        self.assertFalse(sp._pad_hit(
+            pad_boxes, vias[0][0], vias[0][1], sp.VIA_R + sp.PAD_MARGIN))
+        self.assertGreaterEqual(sp.PAD_MARGIN, 0.20)

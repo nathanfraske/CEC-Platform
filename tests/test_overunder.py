@@ -156,6 +156,32 @@ class TestRouteOverunder(unittest.TestCase):
         self.assertEqual(bridges, [])
         self.assertIsNone(bottleneck)
 
+    def test_pickup_vias_keep_pour_on_non_top_layer(self):
+        ny, nx = 10, 24
+        passable = {"F.Cu": np.ones((ny, nx), bool),
+                    "In3.Cu": np.ones((ny, nx), bool)}
+        anchors = {"F.Cu": np.zeros((ny, nx), bool),
+                   "In3.Cu": np.zeros((ny, nx), bool)}
+        clab = np.zeros((ny, nx), int)
+        # Broad top pads, each with a real through pickup at its centre.
+        anchors["F.Cu"][3:7, 1:5] = True
+        anchors["F.Cu"][3:7, 19:23] = True
+        anchors["In3.Cu"][5, 3] = True
+        anchors["In3.Cu"][5, 21] = True
+        clab[3:7, 1:5] = 1
+        clab[3:7, 19:23] = 2
+
+        path_cells, bridges, ok, bottleneck = route_overunder(
+            ["In3.Cu", "F.Cu"], passable, anchors, clab, 2,
+            bias_fn=_uniform)
+
+        self.assertTrue(ok, bottleneck)
+        self.assertEqual(bridges, [],
+                         "a real pickup makes an F.Cu transition unnecessary")
+        self.assertTrue(path_cells["In3.Cu"].any())
+        self.assertFalse(path_cells["F.Cu"].any(),
+                         "top pad breadth must not beat its through pickup")
+
 
 class TestBridgesToVias(unittest.TestCase):
     def test_ledger_skips_close_existing_via(self):
@@ -296,6 +322,36 @@ class TestRectRealization(unittest.TestCase):
         for coords in polys.get("F.Cu", ()):
             self.assertFalse(Polygon(coords).buffer(0).covers(right),
                              "F copper escaped the admit clip")
+
+    def test_f_bridge_landing_covers_every_barrel_on_both_layers(self):
+        from shapely.geometry import Point, Polygon
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(30, 9)
+        bridge = (4, 10, "F.Cu", "In3.Cu", 1.0, 0.0)
+        cx = g.x0 + 10.5 * g.cell
+        cy = g.y0 + 4.5 * g.cell
+        polys, vias, _notes = realize_overunder_rects(
+            [[(4, 10, "F.Cu"), (4, 10, "In3.Cu")]], [bridge],
+            {"F.Cu": 4.0, "In3.Cu": 4.0}, g,
+            f_admit=[(cx - 0.2, cy - 0.2, cx + 0.2, cy + 0.2)],
+            strict_bridges=True)
+        self.assertTrue(vias)
+        for layer in ("F.Cu", "In3.Cu"):
+            copper = [Polygon(coords).buffer(0)
+                      for coords in polys.get(layer, ())]
+            for via in vias:
+                self.assertTrue(any(poly.covers(Point(*via)) for poly in copper),
+                                "%s must land every transition barrel" % layer)
+
+    def test_strict_f_bridge_rejects_search_draw_admission_mismatch(self):
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(30, 9)
+        bridge = (4, 10, "F.Cu", "In3.Cu", 1.0, 0.0)
+        with self.assertRaisesRegex(RuntimeError, "no admitted F.Cu landing"):
+            realize_overunder_rects(
+                [[(4, 10, "F.Cu"), (4, 10, "In3.Cu")]], [bridge],
+                {"F.Cu": 1.6, "In3.Cu": 1.6}, g,
+                f_admit=[(0.0, 0.0, 1.0, 1.0)], strict_bridges=True)
 
 
 if __name__ == "__main__":
