@@ -19,6 +19,17 @@ import hub_pipeline_run as H  # noqa: E402
 
 
 class TestHubAcceptance(unittest.TestCase):
+    def test_router_timeout_retries_back_off_instead_of_increasing_work(self):
+        state = SimpleNamespace(fr={"passes": 20, "opt_time": 50})
+        timed_out = [SimpleNamespace(ok=False,
+                                     err="run_freerouting timed out after 282s")
+                     for _ in range(4)]
+        verdict = cec_router.generation_timeout_backoff(timed_out, state)
+        self.assertEqual(verdict.tier, "deterministic:timeout-backoff")
+        self.assertEqual(verdict.edit["set"], {"passes": 12, "opt_time": 30})
+        self.assertIsNone(cec_router.generation_timeout_backoff(
+            [SimpleNamespace(ok=False, err="DSN export failed")], state))
+
     def test_repour_uses_current_ask_contract(self):
         nets = H._hub_pour_nets()
         self.assertIn("/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM", nets)

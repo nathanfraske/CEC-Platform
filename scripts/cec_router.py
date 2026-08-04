@@ -472,6 +472,37 @@ def default_worker(region, verdict, state, history, spec):
                    edit={"type": "fr_params", "set": {"passes": passes, "opt_time": opt}})
 
 
+def generation_timeout_backoff(cands, state):
+    """Return a deterministic repair when every router worker timed out.
+
+    A generation timeout is not evidence that the board needs *more* passes.
+    The old no-candidate path fed an empty pool to ``default_worker``, which
+    increased both pass count and optimization time; each retry therefore got
+    slower under the same wall-clock ceiling and all partial work was lost.
+    Back off effort until at least one bounded candidate can be imported and
+    judged.  Once a candidate exists, the ordinary DRC-driven repair loop owns
+    effort and topology again.
+    """
+    failures = [str(getattr(c, "err", "") or "") for c in cands
+                if not getattr(c, "ok", False)]
+    if not cands or len(failures) != len(cands):
+        return None
+    if not failures or not all("timed out" in failure.lower() for failure in failures):
+        return None
+    passes = int(state.fr.get("passes", 10))
+    opt = int(state.fr.get("opt_time", 30))
+    new_passes = max(4, min(passes - 1, int(round(passes * 0.60))))
+    new_opt = max(5, min(opt - 1, int(round(opt * 0.60))))
+    return Verdict(
+        "repair",
+        "all %d router workers timed out; back off bounded effort -> passes=%d opt=%d"
+        % (len(cands), new_passes, new_opt),
+        tier="deterministic:timeout-backoff",
+        edit={"type": "fr_params",
+              "set": {"passes": new_passes, "opt_time": new_opt}},
+    )
+
+
 def default_escalator(region, state, history, spec):
     """Opus-tier default: a structural change after Kmax stalls. Reserve the union of the
     vital areas more aggressively (push non-vital nets out) and reset effort. A real Opus
@@ -1547,7 +1578,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                        cec_score.objective(best[1], spec.weights))
                 if g_best is None or _gk < g_best[2]:
                     g_best = (best[0], best[1], _gk)
-            verdict = manager(region, scored, history)
+            generation_verdict = generation_timeout_backoff(cands, state)
+            verdict = generation_verdict or manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
                     note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}")
@@ -1559,7 +1591,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             if verdict.action == "accept" and best and best[1].gates_pass:
                 routed[region.name] = (region, best[0]); break
             # repair / escalate
-            if K >= spec.Kmax:
+            if K >= spec.Kmax and generation_verdict is None:
                 ev = escalator(region, state, history)
                 if ev.edit:
                     _apply_edit_guarded(state, ev.edit, log, region, it)
