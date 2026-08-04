@@ -365,6 +365,81 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual((result["groups"], result["linked"]), (0, 0))
         self.assertFalse(list(board.GetTracks()))
 
+    def test_interleaved_duplicate_pair_pads_are_joined_atomically(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        p_net = pcbnew.NETINFO_ITEM(board, "/USB_D_P")
+        n_net = pcbnew.NETINFO_ITEM(board, "/USB_D_N")
+        board.Add(p_net); board.Add(n_net)
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("A6"); first.SetNet(p_net)
+        first.SetSize(pcbnew.VECTOR2I(int(0.3e6), int(1.15e6)))
+        first.SetPosition(pcbnew.VECTOR2I(int(5.0e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+
+        for number, net, x in (("B6", p_net, 6.0),
+                               ("B7", n_net, 4.5),
+                               ("A7", n_net, 5.5)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I(int(0.3e6), int(1.15e6)))
+            pad.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(2.5e6)))
+            pad.SetLayerSet(layers); pad.SetNet(net); footprint.Add(pad)
+
+        result = cec_fr.synthesize_same_footprint_links(board)
+
+        tracks = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+        self.assertEqual((result["pair_groups"], result["pair_linked"]),
+                         (1, 2))
+        self.assertEqual((result["groups"], result["linked"]), (2, 2))
+        self.assertEqual({track.GetNetname() for track in tracks},
+                         {"/USB_D_P", "/USB_D_N"})
+        self.assertTrue(all(track.IsLocked() for track in tracks))
+        again = cec_fr.synthesize_same_footprint_links(board)
+        self.assertEqual(again["pair_linked"], 0)
+        self.assertEqual(len(list(board.GetTracks())), len(tracks))
+
+    def test_parallel_duplicate_pair_rows_are_joined_atomically(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        p_net = pcbnew.NETINFO_ITEM(board, "/USB_D_P")
+        n_net = pcbnew.NETINFO_ITEM(board, "/USB_D_N")
+        board.Add(p_net); board.Add(n_net)
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("1"); first.SetNet(p_net)
+        first.SetSize(pcbnew.VECTOR2I(int(1.0e6), int(0.5e6)))
+        first.SetPosition(pcbnew.VECTOR2I(int(5.0e6), int(2.0e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        for number, net, x, y in (("6", p_net, 7.0, 2.0),
+                                  ("3", n_net, 5.0, 3.5),
+                                  ("4", n_net, 7.0, 3.5)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I(int(1.0e6), int(0.5e6)))
+            pad.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
+            pad.SetLayerSet(layers); pad.SetNet(net); footprint.Add(pad)
+
+        result = cec_fr.synthesize_same_footprint_links(board)
+
+        tracks = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+        self.assertEqual((result["pair_groups"], result["pair_linked"]),
+                         (1, 2))
+        self.assertEqual(len(tracks), 2)
+        self.assertEqual({track.GetNetname() for track in tracks},
+                         {"/USB_D_P", "/USB_D_N"})
+
     def test_redundant_dangling_pickup_is_pruned_after_local_cluster_link(self):
         import pcbnew
         import cec_fr

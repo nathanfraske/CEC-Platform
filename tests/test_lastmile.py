@@ -366,6 +366,45 @@ class TestLastmile(unittest.TestCase):
                          "global router's responsibility")
         self.assertTrue(all(track.IsLocked() for track in signal))
 
+    def test_local_signal_uses_guarded_bridge_when_face_escape_is_blocked(self):
+        import pcbnew
+        import cec_fr
+
+        board = _bypass_board()
+        resolve = lambda net: {  # noqa: E731 - compact test resolver
+            "track_width": 1.0 if net == "/POWER" else 0.20,
+            "clearance": 0.20,
+            "via_diameter": 0.60, "via_drill": 0.30,
+        }
+        # Model a dense surface channel that has no guarded F.Cu route.  The
+        # same collision-aware over-the-top primitive used by last-mile must
+        # be tried before refusing a private local control net.
+        guarded = cec_fr._guarded_profiled_lastmile_legs
+
+        def block_long_face_route(board_, start, end, width, layer, *args,
+                                  **kwargs):
+            if (layer == pcbnew.F_Cu
+                    and math.hypot(end.x - start.x, end.y - start.y)
+                    > int(3.0e6)):
+                return None
+            return guarded(board_, start, end, width, layer, *args, **kwargs)
+
+        with mock.patch.object(cec_fr, "_guarded_profiled_lastmile_legs",
+                               side_effect=block_long_face_route):
+            result = cec_fr.synthesize_local_signal_links(
+                board, netclass_resolver=resolve)
+
+        self.assertEqual((result["networks"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        self.assertEqual(result["vias"], 2)
+        signal = [item for item in board.GetTracks()
+                  if item.GetNetname() == "/SENSE"]
+        self.assertTrue(any(item.GetClass() == "PCB_VIA" for item in signal))
+        self.assertTrue(any(item.GetClass() != "PCB_VIA"
+                            and item.GetLayer() != pcbnew.F_Cu
+                            for item in signal))
+        self.assertTrue(all(item.IsLocked() for item in signal))
+
     def test_layer_junction_via_heals_roundtrip_but_skips_tht(self):
         import pcbnew
         import cec_fr

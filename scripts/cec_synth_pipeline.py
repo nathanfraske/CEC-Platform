@@ -7715,6 +7715,22 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             target = pad_at(owner, req["pin"], P[owner])
             owner_gnd = ground_points(owner)
             old = P[cap]
+            if cap in locked:
+                # A user/blueprint/intent lock is authoritative.  p9b may
+                # certify an already-good locked seat, but it must never
+                # silently move one to satisfy its own bypass preference.
+                # This matters in particular for near() intents, which run
+                # before this final electrical placement pass.
+                current_pad = pad_at(cap, cap_pin, old)
+                current_dist = math.hypot(current_pad[0] - target[0],
+                                          current_pad[1] - target[1])
+                if current_dist <= req["max_mm"] + 1e-9:
+                    _bypass_locked.add(cap)
+                else:
+                    refused.append(
+                        f"{cap}->{owner}.{req['pin']}: locked at "
+                        f"{current_dist:.2f}mm > {req['max_mm']:.2f}mm")
+                continue
             step = 0.25
             n = int(math.ceil(req["max_mm"] / step))
             best = None
@@ -7939,6 +7955,38 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         local_rows.sort(key=lambda row: (-_local_area(row[0]), row[4],
                                          row[1], row[2], row[0]))
         local_max_mm = 5.0
+
+        def _segment_hits_rect(a, b, rect, margin=0.20):
+            """Conservative centreline/AABB test for a local escape channel."""
+            x0, x1, y0, y1 = rect
+            x0 -= margin; x1 += margin
+            y0 -= margin; y1 += margin
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            lo, hi = 0.0, 1.0
+            for origin, delta, low, high in (
+                    (a[0], dx, x0, x1), (a[1], dy, y0, y1)):
+                if abs(delta) <= 1e-12:
+                    if origin < low or origin > high:
+                        return False
+                    continue
+                enter, leave = (low - origin) / delta, (high - origin) / delta
+                if enter > leave:
+                    enter, leave = leave, enter
+                lo, hi = max(lo, enter), min(hi, leave)
+                if lo > hi:
+                    return False
+            return True
+
+        def _point_segment_distance(point, a, b):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            denom = dx * dx + dy * dy
+            if denom <= 1e-12:
+                return math.hypot(point[0] - a[0], point[1] - a[1])
+            t = max(0.0, min(1.0, ((point[0] - a[0]) * dx
+                                    + (point[1] - a[1]) * dy) / denom))
+            return math.hypot(point[0] - (a[0] + t * dx),
+                              point[1] - (a[1] + t * dy))
+
         for ref, owner, owner_pin, net, _fanout in local_rows:
             part_pin = pad_num_on(ref, net)
             if part_pin is None:
@@ -7964,6 +8012,33 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                target[1] + oy - pdy, rot)
                         box = part_box(ref, pos)
                         if not clear(box, set(), margin=0.10):
+                            continue
+                        part_point = pad_at(ref, part_pin, pos)
+                        # Reserve an actual copper escape, not only two legal
+                        # courtyards.  A shortest-distance seat can otherwise
+                        # put a decoupler body or an adjacent IC pin directly
+                        # between a soft-start/current-limit pad and its
+                        # follower.  That leaves the later guarded router no
+                        # legal first segment even on an otherwise open board.
+                        if any(_segment_hits_rect(target, part_point, other,
+                                                  margin=0.20)
+                               for other_ref, other in boxes.items()
+                               if other_ref not in (owner, ref)):
+                            continue
+                        if any(_segment_hits_rect(target, part_point, other,
+                                                  margin=0.20)
+                               for other in avoid):
+                            continue
+                        owner_pad_blocked = False
+                        for other_pin in cec_pcb.local_pads(comps[owner]):
+                            if str(other_pin) == str(owner_pin):
+                                continue
+                            other_point = pad_at(owner, str(other_pin), P[owner])
+                            if _point_segment_distance(
+                                    other_point, target, part_point) < 0.55:
+                                owner_pad_blocked = True
+                                break
+                        if owner_pad_blocked:
                             continue
                         gdist = 0.0
                         if owner_gnd and gnd_pin:

@@ -3824,9 +3824,9 @@ def synthesize_same_footprint_links(
     find distinct components and join the nearest pair with the normal guarded
     0/45/90 last-mile geometry. Width, clearance, and bounded pad neck-downs
     come from the project's real netclass. THT pins remain plane/pour policy's
-    responsibility; Kelvin and differential-pair nets are excluded because
-    their two legs must be synthesized atomically. Every collision or missing
-    common layer refuses closed. Returns
+    responsibility. Kelvin nets remain excluded; duplicated differential-pair
+    lands are synthesized only as an atomic two-leg breakout. Every collision
+    or missing common layer refuses closed. Returns
     ``{groups, linked, legs, refused, ignored, detail}``.
     """
     import math as _math
@@ -3864,6 +3864,16 @@ def synthesize_same_footprint_links(
                 or upper.endswith(("CAN_H", "CAN_L", "CAN_H_BUS",
                                    "CAN_L_BUS")))
 
+    def _pair_mate(net):
+        upper = net.upper()
+        for left, right in (("CAN_H_BUS", "CAN_L_BUS"),
+                            ("CAN_H", "CAN_L"), ("_P", "_N")):
+            if upper.endswith(left):
+                return net[:-len(left)] + right
+            if upper.endswith(right):
+                return net[:-len(right)] + left
+        return None
+
     def _escape(pad, class_width):
         minor = min(pad.GetSize().x, pad.GetSize().y)
         if minor >= class_width:
@@ -3873,6 +3883,7 @@ def synthesize_same_footprint_links(
         return local_width, budget
 
     groups = []
+    pair_groups = []
     ignored = 0
     for footprint in board.GetFootprints():
         try:
@@ -3885,10 +3896,19 @@ def synthesize_same_footprint_links(
             if (pad.GetNetCode() > 0 and pad.GetNetname()
                     and pad.GetAttribute() == pcbnew.PAD_ATTRIB_SMD):
                 by_net[pad.GetNetname()].append(pad)
+        paired_names = set()
+        for net in sorted(by_net):
+            mate = _pair_mate(net)
+            if (not mate or mate not in by_net or net >= mate
+                    or len(by_net[net]) != 2 or len(by_net[mate]) != 2):
+                continue
+            pair_groups.append((footprint.GetReference(), net, by_net[net],
+                                mate, by_net[mate]))
+            paired_names.update((net, mate))
         for net, pads in by_net.items():
             if len(pads) >= 2 and net not in kelvin and not _pairish(net):
                 groups.append((footprint.GetReference(), net, pads))
-            else:
+            elif net not in paired_names:
                 ignored += 1
 
     linked = legs_added = refused = 0
@@ -3998,8 +4018,187 @@ def synthesize_same_footprint_links(
                            "layer": board.GetLayerName(layer),
                            "legs": len(path), "status": "linked"})
 
-    return {"groups": len(groups), "linked": linked, "legs": legs_added,
-            "refused": refused, "ignored": ignored, "detail": detail}
+    # USB-C and similar reversible connectors interleave the duplicate lands
+    # of the two pair legs along one pad row.  Joining either net alone can
+    # strand its mate or make the global router cross the completed leg.  Tie
+    # the two duplicate groups atomically as opposed-side U fanouts on the same
+    # signal layer: one pair leg leaves each side of the row, exactly the
+    # standard reversible-connector breakout topology.  Both guarded plans
+    # must succeed before either is emitted.
+    pair_linked = pair_legs = pair_refused = 0
+    plane_ids = {board.GetLayerID(name) for name in plane_layers(board)}
+    plane_ids.discard(-1)
+    for reference, net_a, pads_a, net_b, pads_b in pair_groups:
+        board.BuildConnectivity()
+        connectivity = board.GetConnectivity()
+
+        def _group_connected(pads):
+            target = _pad_key(pads[1])
+            try:
+                return any(item.GetClass() == "PAD"
+                           and _pad_key(item) == target
+                           for item in connectivity.GetConnectedItems(pads[0]))
+            except Exception:                           # noqa: BLE001
+                return False
+
+        connected_a = _group_connected(pads_a)
+        connected_b = _group_connected(pads_b)
+        if connected_a and connected_b:
+            continue
+        if connected_a != connected_b:
+            refused += 1
+            pair_refused += 1
+            detail.append({"ref": reference, "nets": [net_a, net_b],
+                           "status": "refused",
+                           "reason": "one pair leg was already connected"})
+            continue
+        pads_all = pads_a + pads_b
+        xs = [pad.GetPosition().x for pad in pads_all]
+        ys = [pad.GetPosition().y for pad in pads_all]
+        axis_x = max(xs) - min(xs) >= max(ys) - min(ys)
+        normal = ys if axis_x else xs
+        single_row = max(normal) - min(normal) <= _nm(0.20)
+        common = set(all_cu) - plane_ids
+        for pad in pads_all:
+            common &= set(_layers(pad))
+        if not common:
+            refused += 2
+            pair_refused += 2
+            detail.append({"ref": reference, "nets": [net_a, net_b],
+                           "status": "refused",
+                           "reason": "no common non-plane copper layer"})
+            continue
+
+        pair_specs = {net: _spec(net) for net in (net_a, net_b)}
+        pair_widths = {
+            net: _nm(max(float(min_w), float(
+                pair_specs[net].get("diff_pair_width")
+                or pair_specs[net].get("track_width") or min_w)))
+            for net in (net_a, net_b)}
+        pair_clearances = {
+            net: _nm(max(float(clearance), float(
+                pair_specs[net].get("clearance") or 0.0)))
+            for net in (net_a, net_b)}
+        normal_halves = [
+            (pad.GetSize().y if axis_x else pad.GetSize().x) // 2
+            for pad in pads_all]
+        base_offset = int(max(
+            _nm(0.75), max(normal_halves)
+            + max(pair_widths.values()) // 2
+            + max(pair_clearances.values()) + _nm(0.05)))
+        offset_choices = [base_offset + _nm(step)
+                          for step in (0.0, 0.25, 0.50, 0.75)]
+
+        def _u_plan(net, pads, sign, offset, layer):
+            pads = sorted(pads, key=lambda pad: (
+                pad.GetPosition().x if axis_x else pad.GetPosition().y,
+                str(pad.GetNumber())))
+            start, end = pads[0].GetPosition(), pads[1].GetPosition()
+            if axis_x:
+                first = pcbnew.VECTOR2I(start.x, start.y + sign * offset)
+                second = pcbnew.VECTOR2I(end.x, end.y + sign * offset)
+            else:
+                first = pcbnew.VECTOR2I(start.x + sign * offset, start.y)
+                second = pcbnew.VECTOR2I(end.x + sign * offset, end.y)
+            width = pair_widths[net]
+            local_clearance = pair_clearances[net]
+            legs = []
+            for source, target, start_escape, end_escape in (
+                    (start, first, _escape(pads[0], width), None),
+                    (first, second, None, None),
+                    (second, end, None, _escape(pads[1], width))):
+                section = _guarded_profiled_lastmile_legs(
+                    board, source, target, width, layer, local_clearance,
+                    pads[0].GetNetCode(),
+                    lambda a, b, half: _edge_leg_clear(board, a, b, half),
+                    start_escape=start_escape, end_escape=end_escape,
+                    allow_maze=False)
+                if not section:
+                    return None
+                legs.extend(section)
+            return legs
+
+        def _direct_plan(net, pads, layer):
+            pads = sorted(pads, key=lambda pad: (
+                pad.GetPosition().x, pad.GetPosition().y,
+                str(pad.GetNumber())))
+            start, end = pads[0].GetPosition(), pads[1].GetPosition()
+            width = pair_widths[net]
+            local_clearance = pair_clearances[net]
+            legs = _profiled_lastmile_path(
+                [start, end], width,
+                start_escape=_escape(pads[0], width),
+                end_escape=_escape(pads[1], width))
+            if all(_edge_leg_clear(board, source, target, leg_width // 2)
+                   and _tap_foreign_clear(
+                       board, source, target, leg_width, layer,
+                       local_clearance, {pads[0].GetNetCode()})
+                   for source, target, leg_width in legs):
+                return legs
+            return None
+
+        selected = None
+        layer_order = sorted(common,
+                             key=lambda layer: (layer != pcbnew.F_Cu, layer))
+        # Parallel package rows (for example a flow-through USB protector)
+        # need only two short, parallel ties.  Try that lower-discontinuity
+        # topology before the reversible-connector U breakout.
+        for layer in layer_order:
+            plan_a = _direct_plan(net_a, pads_a, layer)
+            plan_b = _direct_plan(net_b, pads_b, layer)
+            if plan_a and plan_b:
+                selected = (layer, plan_a, plan_b)
+                break
+        if selected is None and single_row:
+            for layer in layer_order:
+                for sign_a, sign_b in ((-1, 1), (1, -1)):
+                    for offset_a in offset_choices:
+                        plan_a = _u_plan(net_a, pads_a, sign_a, offset_a, layer)
+                        if not plan_a:
+                            continue
+                        for offset_b in offset_choices:
+                            plan_b = _u_plan(net_b, pads_b, sign_b, offset_b, layer)
+                            if plan_b:
+                                selected = (layer, plan_a, plan_b)
+                                break
+                        if selected:
+                            break
+                    if selected:
+                        break
+                if selected:
+                    break
+        if selected is None:
+            refused += 2
+            pair_refused += 2
+            detail.append({"ref": reference, "nets": [net_a, net_b],
+                           "status": "refused",
+                           "reason": "no atomic guarded pair fanout"})
+            continue
+        layer, plan_a, plan_b = selected
+        for net, pads, path in ((net_a, pads_a, plan_a),
+                                (net_b, pads_b, plan_b)):
+            for start, end, width in path:
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(start); track.SetEnd(end); track.SetWidth(width)
+                track.SetLayer(layer); track.SetNetCode(pads[0].GetNetCode())
+                track.SetLocked(bool(lock)); board.Add(track)
+                legs_added += 1
+                pair_legs += 1
+            linked += 1
+            pair_linked += 1
+            detail.append({"ref": reference, "net": net,
+                           "from": str(pads[0].GetNumber()),
+                           "to": str(pads[1].GetNumber()),
+                           "layer": board.GetLayerName(layer),
+                           "legs": len(path), "atomic_pair": True,
+                           "status": "linked"})
+
+    return {"groups": len(groups) + 2 * len(pair_groups),
+            "linked": linked, "legs": legs_added,
+            "refused": refused, "ignored": ignored,
+            "pair_groups": len(pair_groups), "pair_linked": pair_linked,
+            "pair_legs": pair_legs, "pair_refused": pair_refused,
+            "detail": detail}
 
 
 def synthesize_local_signal_links(
@@ -4094,7 +4293,19 @@ def synthesize_local_signal_links(
         except Exception:                                # noqa: BLE001
             return False
 
-    networks = linked = legs_added = refused = ignored = 0
+    plane_ids = {board.GetLayerID(name) for name in plane_layers(board)}
+    bridge_lays = [
+        layer for layer in all_cu
+        if layer != pcbnew.F_Cu and layer not in plane_ids
+        and not any(role in board.GetLayerName(layer).upper()
+                    for role in ("GND", "PWR"))]
+    bridge_lays.sort(key=lambda layer: (
+        0 if "SIG" in board.GetLayerName(layer).upper() else
+        1 if board.GetLayerName(layer).upper().startswith("IN") else
+        2 if layer == pcbnew.B_Cu else 3,
+        layer))
+
+    networks = linked = legs_added = vias_added = refused = ignored = 0
     detail = []
     for net, rows in sorted(pads_by_net.items()):
         refs = sorted({ref for ref, _pad in rows})
@@ -4168,9 +4379,27 @@ def synthesize_local_signal_links(
                         start_escape=_escape(source_pad, class_width),
                         end_escape=_escape(target_pad, class_width))
                     if path:
-                        selected = (distance, target_ref, source_ref, layer,
-                                    target_pad.GetNetCode(), path)
+                        ops = [("trk", start, end, width, layer)
+                               for start, end, width in path]
+                        selected = (distance, target_ref, source_ref,
+                                    target_pad.GetNetCode(), ops)
                         break
+                if selected is None and bridge_lays:
+                    ops = _lastmile_bridge(
+                        board, (source_pos.x, source_pos.y),
+                        _layers(source_pad),
+                        (target_pos.x, target_pos.y), _layers(target_pad),
+                        class_width, target_pad.GetNetCode(), bridge_lays,
+                        local_clearance,
+                        drill=float(spec.get("via_drill") or 0.3),
+                        dia=float(spec.get("via_diameter") or 0.6),
+                        leg_ok=lambda start, end, half: _edge_leg_clear(
+                            board, start, end, half),
+                        start_escape=_escape(source_pad, class_width),
+                        end_escape=_escape(target_pad, class_width))
+                    if ops:
+                        selected = (distance, target_ref, source_ref,
+                                    target_pad.GetNetCode(), ops)
                 if selected:
                     break
                 blocked_edges.add(edge)
@@ -4180,28 +4409,47 @@ def synthesize_local_signal_links(
                                "followers": sorted(remaining),
                                "status": "refused", "reason": "no guarded MST edge"})
                 break
-            distance, target_ref, source_ref, layer, net_code, path = selected
-            for start, end, width in path:
-                track = pcbnew.PCB_TRACK(board)
-                track.SetStart(start)
-                track.SetEnd(end)
-                track.SetWidth(width)
-                track.SetLayer(layer)
-                track.SetNetCode(net_code)
-                track.SetLocked(bool(lock))
-                board.Add(track)
-                legs_added += 1
+            distance, target_ref, source_ref, net_code, ops = selected
+            used_layers = set()
+            for op in ops:
+                if op[0] == "via":
+                    _, at, drill, diameter = op
+                    via = pcbnew.PCB_VIA(board)
+                    via.SetPosition(at)
+                    via.SetDrill(_nm(drill))
+                    via.SetWidth(_nm(diameter))
+                    via.SetNetCode(net_code)
+                    via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                    via.SetLocked(bool(lock))
+                    board.Add(via)
+                    vias_added += 1
+                else:
+                    _, start, end, width, layer = op
+                    track = pcbnew.PCB_TRACK(board)
+                    track.SetStart(start)
+                    track.SetEnd(end)
+                    track.SetWidth(width)
+                    track.SetLayer(layer)
+                    track.SetNetCode(net_code)
+                    track.SetLocked(bool(lock))
+                    board.Add(track)
+                    used_layers.add(layer)
+                    legs_added += 1
             linked += 1
             connected_refs.add(target_ref)
             remaining.remove(target_ref)
             board.BuildConnectivity()
             detail.append({"net": net, "owner": owner, "from": source_ref,
                            "to": target_ref, "distance_mm": round(distance, 3),
-                           "layer": board.GetLayerName(layer),
-                           "legs": len(path), "status": "linked"})
+                           "layers": [board.GetLayerName(layer)
+                                      for layer in sorted(used_layers)],
+                           "legs": sum(op[0] == "trk" for op in ops),
+                           "vias": sum(op[0] == "via" for op in ops),
+                           "status": "linked"})
 
     return {"networks": networks, "linked": linked, "legs": legs_added,
-            "refused": refused, "ignored": ignored, "detail": detail}
+            "vias": vias_added, "refused": refused, "ignored": ignored,
+            "detail": detail}
 
 
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
@@ -4233,7 +4481,11 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
         if lay_b in lays:
             return (end, [])                      # via/THT/track-on-bridge: direct
         lay_e = min(lays)
-        for off in (0.55, 0.8, 1.2):
+        # Fine-pitch controllers often need to clear the full package body or
+        # its first passive ring before a legal through-via can land.  Keep the
+        # sweep bounded, but do not assume every viable seat is within 1.2 mm
+        # of the pad centre.
+        for off in (0.55, 0.8, 1.2, 1.6, 2.0, 2.5):
             for ang in (0, 90, 180, 270, 45, 135, 225, 315):
                 a = _math.radians(ang)
                 vx = int(ex + _math.cos(a) * _nm(off))
