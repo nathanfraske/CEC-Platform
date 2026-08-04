@@ -165,6 +165,41 @@ class DecisionLog:
         return path
 
 
+def _persist_iteration_best(spec, region, iteration, best, scored):
+    """Atomically publish the latest scored board and compact wave metrics.
+
+    A long parallel Freerouting batch can be useful even when a later repair is
+    interrupted or superseded.  Previously its only boards lived below a
+    timestamped /tmp directory, so the dashboard had nothing durable to show
+    and cleanup could not distinguish the useful candidate from disposable
+    fanout.  Keep exactly one overwritten progress board per route output.
+    """
+    if not best or not best[0].board:
+        return None
+    stem = spec.out[:-len(".kicad_pcb")] if spec.out.endswith(".kicad_pcb") else spec.out
+    board_out = stem + "-progress.kicad_pcb"
+    metrics_out = stem + "-progress.json"
+    os.makedirs(os.path.dirname(board_out) or ".", exist_ok=True)
+    board_tmp = board_out + ".tmp"
+    shutil.copy2(best[0].board, board_tmp)
+    os.replace(board_tmp, board_out)
+    cec_fr.copy_project_sidecars(best[0].board, board_out)
+    payload = {
+        "region": region.name,
+        "iteration": int(iteration),
+        "board": board_out,
+        "source_candidate": best[0].board,
+        "chosen": DecisionLog._m(best[1]),
+        "candidates": [DecisionLog._m(metrics) for _candidate, metrics in scored],
+    }
+    metrics_tmp = metrics_out + ".tmp"
+    with open(metrics_tmp, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    os.replace(metrics_tmp, metrics_out)
+    return board_out
+
+
 # ---- corpus archive --------------------------------------------------------------------------
 # The per-run <board>-decision-log.json written by to_json() is OVERWRITTEN every run. archive_log()
 # ALSO drops a uniquely-named copy under build/route/corpus/ so the logs ACCUMULATE across runs --
@@ -1616,6 +1651,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
                     note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}")
+            _persist_iteration_best(spec, region, it, best, scored)
             if verbose:
                 bm = best[1] if best else None
                 print(f"[route] {region.name} it{it}: {len(cands)} cand "
