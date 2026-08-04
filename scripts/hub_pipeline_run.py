@@ -169,16 +169,36 @@ def _reposition_worker(P, pinned_refs, ref_pcb, out):
     return moved
 
 
-def _fill_worker(out):
-    """Phase 2 (FRESH spawn subprocess): fill the zones at the new positions. The GND plane MUST
-    connect -- FR excludes the plane layer from signal routing, so an unfilled plane leaves every GND
-    ratline unroutable and FR routes ~nothing (measured). Must be a separate process from the Remove()
-    in phase 1, whose corruption would make LoadBoard here return a raw SwigPyObject."""
+def _fill_worker(out, rail_nets=()):
+    """Fill fresh zones and land guarded local pickups before Freerouting.
+
+    The GND plane MUST connect -- FR excludes its plane layer from signal
+    routing, so an unfilled plane leaves every GND ratline unroutable.  The
+    over-under rail zones have the same ordering requirement: only after the
+    real fill exists can we prove that an adjacent pickup barrel lands in
+    copper instead of in an empty lane between polygons.  Give those proven
+    pad-to-fill connections to the router as existing topology rather than
+    asking it to rediscover dozens of sub-millimetre power escapes.
+
+    This remains a separate process from the track-removal phase, whose pcbnew
+    SWIG state is invalid after Remove().
+    """
     import pcbnew
+    import cec_fr
+
     bd = pcbnew.LoadBoard(out)
     pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    pickup = cec_fr.synthesize_power_pickups(
+        bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets))
+    normalization = {"tracks": 0, "vias": 0}
+    if pickup["vias"]:
+        normalization = cec_fr.normalize_netclass_geometry(bd, out)
+        for zone in bd.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
     bd.Save(out)
-    return bd.GetAreaCount()
+    return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
+            "normalization": normalization}
 
 
 def _prepare_repour_worker(out, nets):
@@ -339,7 +359,8 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     with ctx.Pool(1) as pool:
         pour_report = pool.apply(_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
-        pool.apply(_fill_worker, (dst,))
+        finish_report = pool.apply(_fill_worker, (dst, slab_nets))
+    pour_report["pre_route_finish"] = finish_report
     return out, moved, pour_report
 
 
@@ -641,9 +662,10 @@ def main():
             _, nmoved, pour_report = materialize_onto_reference(
                 cand, REF, mat, pinned_refs=cand_cfg.pins)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
-                "%d rails -> %d %s polygons, %d bridge vias)"
+                "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
-                   pour_report["planner"], pour_report["vias"]))
+                   pour_report["planner"], pour_report["vias"],
+                   pour_report["pre_route_finish"]["power_pickups"]["vias"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({
                 "rank": rank, "board": os.path.relpath(mat, S.ROOT),

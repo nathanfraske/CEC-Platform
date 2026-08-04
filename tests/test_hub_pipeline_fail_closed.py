@@ -110,6 +110,43 @@ class TestHubAcceptance(unittest.TestCase):
         add_pours.assert_called_once()
         add_vias.assert_called_once()
 
+    def test_fill_worker_synthesizes_pickups_against_real_rail_fill(self):
+        import cec_fr
+        import pcbnew
+
+        class Zone:
+            def UnFill(self):
+                pass
+
+        class Board:
+            def Zones(self):
+                return [Zone()]
+
+            def Save(self, _out):
+                pass
+
+            def GetAreaCount(self):
+                return 7
+
+        board = Board()
+        filler = mock.Mock()
+        pickup = {"pads": 3, "vias": 3, "stubs": 2, "pofv": 1,
+                  "skipped": 0, "skipped_detail": []}
+        with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
+                mock.patch.object(cec_fr, "synthesize_power_pickups",
+                                  return_value=pickup) as synth, \
+                mock.patch.object(cec_fr, "normalize_netclass_geometry",
+                                  return_value={"tracks": 2, "vias": 0}) as normalize:
+            result = H._fill_worker("fixture.kicad_pcb", ("/PWR",))
+
+        synth.assert_called_once_with(
+            board, (), plane_nets=("GND",), filled_zone_nets=("/PWR",))
+        normalize.assert_called_once_with(board, "fixture.kicad_pcb")
+        self.assertEqual(filler.Fill.call_count, 2)
+        self.assertEqual(result["areas"], 7)
+        self.assertEqual(result["power_pickups"], pickup)
+
     def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
         import cec_fresh_wave
 

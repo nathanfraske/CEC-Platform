@@ -2756,6 +2756,66 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
                   "scrap": n_scrap}
 
 
+def _segment_hits_expanded_box(start, end, box, margin_nm):
+    """Whether a segment intersects an axis-aligned box expanded by margin."""
+    x0, y0, x1, y1 = box
+    x0, y0, x1, y1 = (x0 - margin_nm, y0 - margin_nm,
+                      x1 + margin_nm, y1 + margin_nm)
+    if (max(start.x, end.x) < x0 or min(start.x, end.x) > x1
+            or max(start.y, end.y) < y0 or min(start.y, end.y) > y1):
+        return False
+    dx, dy = end.x - start.x, end.y - start.y
+    if dx == 0 and dy == 0:
+        return True
+    corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+    sides = [dy * (cx - start.x) - dx * (cy - start.y)
+             for cx, cy in corners]
+    return not (all(side > 0 for side in sides)
+                or all(side < 0 for side in sides))
+
+
+def _edge_leg_clear(board, start, end, half_width_nm, *, edge_mm=0.5):
+    """Shared copper-to-Edge.Cuts guard for post-route synthesized features.
+
+    Temporary DSN rule areas protect Freerouting, but pickups and last-mile
+    copper are created after those areas are discarded.  Enforce the board-edge
+    inset, rounded-corner boxes, and footprint-local apertures for both helpers.
+    A zero-length leg is the corresponding via-centre check when half_width is
+    the via radius.
+    """
+    bb = board.GetBoardEdgesBoundingBox()
+    if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
+        return True
+    margin = _nm(edge_mm) + int(half_width_nm)
+    for point in (start, end):
+        if not (bb.GetLeft() + margin <= point.x <= bb.GetRight() - margin
+                and bb.GetTop() + margin <= point.y <= bb.GetBottom() - margin):
+            return False
+    for drawing in board.GetDrawings():
+        try:
+            if (board.GetLayerName(drawing.GetLayer()) != "Edge.Cuts"
+                    or drawing.GetShape() != pcbnew.SHAPE_T_ARC):
+                continue
+            arc = drawing.GetBoundingBox()
+            box = (arc.GetLeft(), arc.GetTop(), arc.GetRight(), arc.GetBottom())
+            if _segment_hits_expanded_box(start, end, box, margin):
+                return False
+        except Exception:                               # noqa: BLE001
+            continue
+    for footprint in board.GetFootprints():
+        for drawing in footprint.GraphicalItems():
+            try:
+                if board.GetLayerName(drawing.GetLayer()) != "Edge.Cuts":
+                    continue
+                cut = drawing.GetBoundingBox()
+                box = (cut.GetLeft(), cut.GetTop(), cut.GetRight(), cut.GetBottom())
+                if _segment_hits_expanded_box(start, end, box, margin):
+                    return False
+            except Exception:                           # noqa: BLE001
+                continue
+    return True
+
+
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                              filled_zone_nets=(), stub_w=0.3, offset=0.8,
                              drill=0.3, dia=0.6):
@@ -2834,6 +2894,7 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     _pk_vias = [(t.GetPosition().x, t.GetPosition().y)
                 for t in tracks if t.GetClass() == "PCB_VIA"]
     n_p = n_v = n_s = n_pofv = n_skip = 0
+    skipped_detail = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             net = pad.GetNetname()
@@ -2894,6 +2955,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             if (_filled_at(net, pos)
                     and not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(via_spacing) ** 2
                         for qx, qy in _pk_vias)
+                    and _edge_leg_clear(board, pos, pos,
+                                       _nm(local_dia) // 2)
                     and _via_spot_clear(board, pos, _nm(local_dia), _nm(0.25),
                                         {nc}, drill_nm=_nm(local_drill),
                                         net_code=nc)):
@@ -2913,6 +2976,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                 # through a fabrication-qualified via in pad. An adjacent via
                 # has no proven future-pour coverage yet, so do not guess one.
                 n_skip += 1
+                skipped_detail.append({"ref": fp.GetReference(),
+                                       "pad": pad.GetPadName(), "net": net,
+                                       "reason": "no proven covering copper"})
                 continue
 
             placed = False
@@ -2951,6 +3017,10 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     # ignored by design: the filler's antipads handle them.)
                     if not (_tap_foreign_clear(board, pos, at, _nm(local_stub_w),
                                                lay_id, _nm(0.25), {nc})
+                            and _edge_leg_clear(board, pos, at,
+                                               _nm(local_stub_w) // 2)
+                            and _edge_leg_clear(board, at, at,
+                                               _nm(local_dia) // 2)
                             and _via_spot_clear(board, at, _nm(local_dia),
                                                 _nm(0.25), {nc},
                                                 drill_nm=_nm(local_drill),
@@ -2978,8 +3048,12 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     break
             if not placed:
                 n_skip += 1
+                skipped_detail.append({"ref": fp.GetReference(),
+                                       "pad": pad.GetPadName(), "net": net,
+                                       "reason": "no guarded via slot in filled copper"})
     return {"pads": n_p, "vias": n_v, "stubs": n_s,
-            "pofv": n_pofv, "skipped": n_skip}
+            "pofv": n_pofv, "skipped": n_skip,
+            "skipped_detail": skipped_detail[:32]}
 
 
 def _canonical_45_xy_paths(start, end):
@@ -3183,68 +3257,8 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
         if _pl >= 0:
             plane_ids.add(_pl)
 
-    # EDGE AWARENESS (first s120 run: +4 copper_edge -- synthesized legs bypass
-    # the route-time strips). Every op point must sit inside the outline AABB
-    # inset by (rule 0.5 + half-width), and every leg must stay out of the
-    # rounded-corner arc boxes (the same notch class the edge strips cover).
-    _bb = board.GetBoardEdgesBoundingBox()
-    _arcs = []
-    for _dw in board.GetDrawings():
-        try:
-            if (board.GetLayerName(_dw.GetLayer()) == "Edge.Cuts"
-                    and _dw.GetShape() == pcbnew.SHAPE_T_ARC):
-                ab = _dw.GetBoundingBox()
-                _arcs.append((ab.GetLeft(), ab.GetTop(),
-                              ab.GetRight(), ab.GetBottom()))
-        except Exception:                           # noqa: BLE001
-            continue
-    _cutouts = []
-    for _fp in board.GetFootprints():
-        for _dw in _fp.GraphicalItems():
-            try:
-                if board.GetLayerName(_dw.GetLayer()) != "Edge.Cuts":
-                    continue
-                cb = _dw.GetBoundingBox()
-                _cutouts.append((cb.GetLeft(), cb.GetTop(),
-                                 cb.GetRight(), cb.GetBottom()))
-            except Exception:                       # noqa: BLE001
-                continue
-
-    def _segment_hits_box(S, T, box, margin):
-        x0, y0, x1, y1 = box
-        x0, y0, x1, y1 = (x0 - margin, y0 - margin,
-                          x1 + margin, y1 + margin)
-        if (max(S.x, T.x) < x0 or min(S.x, T.x) > x1
-                or max(S.y, T.y) < y0 or min(S.y, T.y) > y1):
-            return False
-        dx, dy = T.x - S.x, T.y - S.y
-        if dx == 0 and dy == 0:
-            return True
-        corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
-        sides = [dy * (cx - S.x) - dx * (cy - S.y)
-                 for cx, cy in corners]
-        return not (all(side > 0 for side in sides)
-                    or all(side < 0 for side in sides))
-
     def _lm_leg_ok(S, T, half_nm):
-        if _bb.GetWidth() <= 0 or _bb.GetHeight() <= 0:
-            return True                            # no outline -> no edge rule
-        m = _nm(0.5) + half_nm
-        for q in (S, T):
-            if not (_bb.GetLeft() + m <= q.x <= _bb.GetRight() - m
-                    and _bb.GetTop() + m <= q.y <= _bb.GetBottom() - m):
-                return False
-        for box in _arcs:
-            if _segment_hits_box(S, T, box, m):
-                return False
-        # Reverse-mount LED windows and other footprint-local apertures are
-        # real routed-board holes too.  Route-time edge keepouts protect them
-        # from Freerouting, but last-mile runs after those temporary rule areas
-        # are discarded and must carry the same geometry itself.
-        for box in _cutouts:
-            if _segment_hits_box(S, T, box, m):
-                return False
-        return True
+        return _edge_leg_clear(board, S, T, half_nm)
 
     # KELVIN EXCLUSION: sense nets connect ONLY through their authored taps at
     # the shunt inner edge -- an arbitrary lastmile closure on a shared

@@ -326,6 +326,8 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         result = cec_fr.synthesize_power_pickups(
             b, (), plane_nets=(), filled_zone_nets=("+5VSB",))
         self.assertEqual((result["vias"], result["skipped"]), (0, 1))
+        self.assertEqual(result["skipped_detail"][0]["reason"],
+                         "no guarded via slot in filled copper")
 
     def test_via_spot_probe_spans_all_layers(self):
         # B2 short reproduction: a foreign track on In2 under the via spot.
