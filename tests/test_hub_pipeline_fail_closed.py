@@ -180,6 +180,12 @@ class TestHubAcceptance(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CEC_HUB_ROUTE_WORKERS": "99"}):
             self.assertEqual(H._hub_route_parallelism(32, 23 * gib), 16)
 
+    def test_short_wide_route_uses_depth_that_can_finish(self):
+        self.assertEqual(H._hub_route_passes(283, 16, requested=12), 7)
+        self.assertEqual(H._hub_route_passes(283, 8, requested=12), 9)
+        self.assertEqual(H._hub_route_passes(400, 16, requested=12), 12)
+        self.assertEqual(H._hub_route_passes(283, 16, requested=6), 6)
+
     def test_closure_prefers_smallest_equally_legal_outline(self):
         def candidate(score, residual=0, crossings=0):
             return SimpleNamespace(

@@ -421,6 +421,24 @@ def _hub_route_parallelism(cpu_count=None, available_memory_bytes=None):
     return max(1, min(ceiling, int(requested)))
 
 
+def _hub_route_passes(seed_timeout_s, route_workers,
+                      requested=HUB_INITIAL_FR_PASSES):
+    """Choose depth that can finish before the per-seed timeout at this breadth.
+
+    On the live Hub, sixteen simultaneous JVMs complete seven passes in the
+    roughly 4.5-minute short-wave slot; asking all of them for twelve causes the
+    entire first batch to time out around pass six and wastes one third of the
+    wave before the router's own backoff discovers seven. Retain the proven
+    twelve-pass request for longer windows and narrower batches.
+    """
+    passes = max(4, int(requested))
+    if float(seed_timeout_s) < 330 and int(route_workers) >= 12:
+        return min(passes, 7)
+    if float(seed_timeout_s) < 330 and int(route_workers) >= 8:
+        return min(passes, 9)
+    return passes
+
+
 def _closure_placement_key(row):
     """Rank legal, corridor-clean Hub placements by minimum board area.
 
@@ -591,14 +609,15 @@ def main():
             max_iters = 3
             fr_timeout = _route_iteration_timeout(remaining, max_iters)
             route_workers = _hub_route_parallelism()
+            route_passes = _hub_route_passes(fr_timeout, route_workers)
             route_seeds = tuple(range(route_workers))
             log("ROUTE cand%d (%s/s%d residual=%d size %.0fx%.0f) "
                 "opt_time=%ds passes=%d seed_timeout=%ds parallel_seeds=%d"
-                % (rank, cand.strat, cand.seed, cand.residual, sw, sh, opt,
-                   HUB_INITIAL_FR_PASSES, fr_timeout, route_workers))
+                 % (rank, cand.strat, cand.seed, cand.residual, sw, sh, opt,
+                    route_passes, fr_timeout, route_workers))
             spec, name = cec_router.board_spec(
                 mat, os.path.abspath(os.path.join(a.out, "route-cand%d" % rank)),
-                seeds=route_seeds, passes=HUB_INITIAL_FR_PASSES, opt_time=opt,
+                seeds=route_seeds, passes=route_passes, opt_time=opt,
                 max_iters=max_iters, kmax=2, max_workers=route_workers,
                 fr_timeout=fr_timeout)
             # CONTROL PLANE: judge+fix tiers per the resolved residency (cloud Claude / local broker /
