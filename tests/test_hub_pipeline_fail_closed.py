@@ -6,6 +6,7 @@ import os
 import pickle
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -152,6 +153,23 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertEqual(H._route_iteration_timeout(150, 3), 40)
         with self.assertRaises(RuntimeError):
             H._route_iteration_timeout(20, 3)
+
+    def test_closure_prefers_smallest_equally_legal_outline(self):
+        def candidate(score, residual=0, crossings=0):
+            return SimpleNamespace(
+                residual=residual, corridor_cross=crossings,
+                corridor_cross_aware=crossings,
+                proxy={"proxy_score": score})
+
+        small = (candidate(101.0), 86.1, 74.1, object())
+        large = (candidate(99.0), 89.1, 77.1, object())
+        self.assertLess(H._closure_placement_key(small),
+                        H._closure_placement_key(large))
+
+        # Area is never allowed to conceal a real legality improvement.
+        illegal_small = (candidate(1.0, residual=1), 86.1, 74.1, object())
+        self.assertLess(H._closure_placement_key(large),
+                        H._closure_placement_key(illegal_small))
 
     def test_board_spec_carries_worker_timeout(self):
         import tempfile

@@ -371,6 +371,22 @@ def _route_iteration_timeout(remaining_s, max_iters, reserve_s=30):
     return max(5, int(usable // int(max_iters)))
 
 
+def _closure_placement_key(row):
+    """Rank legal, corridor-clean Hub placements by minimum board area.
+
+    A marginal proxy improvement cannot justify a larger PCB when a smaller
+    candidate is equally legal and leaves the same number of pour-corridor
+    crossings.  The larger sweep sizes remain available as fallbacks when they
+    actually improve legality or corridor cleanliness.
+    """
+    cand, width, height = row[:3]
+    return (cand.residual,
+            getattr(cand, "corridor_cross_aware", cand.corridor_cross),
+            cand.corridor_cross,
+            float(width) * float(height),
+            cand.proxy.get("proxy_score", 1e9))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=1.0)
@@ -501,7 +517,7 @@ def main():
         log("  size %.0fx%.0f: best %s/s%d residual=%d cc=%d sim=%.3f hpwl=%.0f (%.2fx) hub=%s"
             % (sw, sh, b.strat, b.seed, b.residual, b.corridor_cross, b.similarity, b.proxy["hpwl"],
                rec["hpwl_ratio"], b.proxy.get("hub_terms")))
-    placed.sort(key=lambda t: (t[0].residual, t[0].proxy.get("proxy_score", 1e9)))
+    placed.sort(key=_closure_placement_key)
     topK = placed[: a.route_candidates]
     log("ROUTE: %d top placement(s) -> %s" % (len(topK), [(t[0].strat, t[0].seed, t[0].residual) for t in topK]))
 
