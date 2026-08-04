@@ -112,6 +112,42 @@ def _lock_nets_copper(board, nets):
     return n
 
 
+def _import_stage_worker(cur, ses, nxt, final, pours, skip_locked_taps):
+    """Import one SES in a disposable pcbnew process.
+
+    ``cec_fr.import_ses`` performs several Remove/load/fill operations.  KiCad's
+    SWIG bindings can leave the interpreter's global board state invalid after
+    that sequence; a later ``LoadBoard`` then returns a bare ``SwigPyObject``.
+    Tiered routing must therefore treat every import as a process boundary, the
+    same discipline used by Hub materialization.
+    """
+    import cec_fr
+    if final:
+        cec_fr.import_ses(cur, ses, nxt, power_pours=pours,
+                          skip_locked_taps=skip_locked_taps)
+    else:
+        cec_fr.import_ses(cur, ses, nxt, fill_zones=False, fix_annular=False,
+                          power_pours=(), kelvin_taps=False)
+
+
+def _lock_stage_worker(board_path, nets):
+    """Lock routed tier copper in a second fresh pcbnew process."""
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    if not hasattr(board, "GetTracks"):
+        raise RuntimeError("pcbnew.LoadBoard returned invalid board state")
+    n = _lock_nets_copper(board, set(nets))
+    pcbnew.SaveBoard(board_path, board)
+    return n
+
+
+def _spawn_apply(func, args):
+    """Run a pcbnew mutation in an isolated spawn worker."""
+    import multiprocessing as mp
+    with mp.get_context("spawn").Pool(1) as pool:
+        return pool.apply(func, args)
+
+
 def default_tiers(board_path):
     """Tier-1 = the coupled/critical signal set FR handles worst when contended: diff
     pairs (_P/_N convention) + the CAN pair class. (Kelvin force/sense pins are already
@@ -206,13 +242,10 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
         cec_fr.run_freerouting(dsn, ses, passes=passes, opt_time=opt, seed=seed,
                                jar=jar, workdir=fr_wd, timeout=timeout)
         nxt = os.path.join(work, f"t{i + 1}.kicad_pcb")
-        if final:
-            pours = cec_fr.derive_power_pours(cur)
-            cec_fr.import_ses(cur, ses, nxt, power_pours=pours,
-                              skip_locked_taps=skip_locked_taps)
-        else:
-            cec_fr.import_ses(cur, ses, nxt, fill_zones=False, fix_annular=False,
-                              power_pours=(), kelvin_taps=False)
+        pours = cec_fr.derive_power_pours(cur) if final else []
+        _spawn_apply(_import_stage_worker,
+                     (cur, ses, nxt, final, pours, skip_locked_taps))
+        if not final:
             # REFUSE-LOUD GATE (ladder doctrine): a tier that ADDS structural DRC
             # beyond a small routing allowance is laying through something it cannot
             # see -- drop its result rather than lock damage in (the caller falls
@@ -226,9 +259,8 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
                                         "structural_pre": _pre, "structural_post": _post,
                                         "wall_s": round(time.monotonic() - t0, 1)})
                 continue                       # cur unchanged; tier nets stay unrouted
-            b = pcbnew.LoadBoard(nxt)
-            nlocked = _lock_nets_copper(b, tier)
-            b.Save(nxt)
+            nlocked = _spawn_apply(_lock_stage_worker,
+                                   (nxt, tuple(sorted(tier))))
             locked_nets |= tier
         for ext in (".kicad_pro", ".kicad_dru"):
             s = cur[:-len(".kicad_pcb")] + ext
@@ -282,6 +314,9 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--passes", type=int, default=8)
     ap.add_argument("--opt", type=int, default=10)
+    ap.add_argument("--timeout", type=int, default=900)
+    ap.add_argument("--tier-only", action="store_true",
+                    help="route/lock the critical tiers without a residual pass")
     a = ap.parse_args()
     if a.measure:
         print(json.dumps(measure(a.board, seed=a.seed, passes=a.passes, opt=a.opt),
@@ -289,7 +324,9 @@ def main():
     else:
         out = a.out or a.board[:-len(".kicad_pcb")] + "-tiered.kicad_pcb"
         print(json.dumps(route_tiered(a.board, out, passes=a.passes, opt=a.opt,
-                                      seed=a.seed), indent=1, default=str))
+                                      seed=a.seed, timeout=a.timeout,
+                                      include_residual=not a.tier_only),
+                         indent=1, default=str))
 
 
 if __name__ == "__main__":
