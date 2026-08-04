@@ -211,24 +211,35 @@ def _fill_worker(out, rail_nets=()):
     local_signal = cec_fr.synthesize_local_signal_links(
         bd, lock=True, netclass_resolver=resolver)
     normalization = {"tracks": 0, "vias": 0}
-    pickup_prune = {"vias": 0, "stubs": 0, "detail": []}
     if (pickup["vias"] or local_footprint["linked"] or bypass["linked"]
             or local_signal["linked"]):
         normalization = cec_fr.normalize_netclass_geometry(bd, out)
         for zone in bd.Zones():
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
-        pickup_prune = cec_fr.prune_redundant_dangling_pickups(
-            bd, pickup_item_ids, discover_nets=tuple(rail_nets))
-        # Do not touch SWIG-owned zone objects after Remove(): pruning is the
-        # final in-process mutation, and deleting same-net copper needs no
-        # antipad refill.  A later worker may refill if another stage needs it.
+    bd.BuildConnectivity()
+    local_rail = cec_fr.synthesize_lastmile(
+        bd, max_mm=8.0, cap=80, netclass_resolver=resolver,
+        include_nets=tuple(rail_nets) + ("GND",), lock=True)
+    rail_normalization = {"tracks": 0, "vias": 0}
+    if local_rail["closed"]:
+        rail_normalization = cec_fr.normalize_netclass_geometry(bd, out)
+        for zone in bd.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    pickup_prune = cec_fr.prune_redundant_dangling_pickups(
+        bd, pickup_item_ids, discover_nets=tuple(rail_nets))
+    # Do not touch SWIG-owned zone objects after Remove(): pruning is the
+    # final in-process mutation, and deleting same-net copper needs no
+    # antipad refill. A later worker may refill if another stage needs it.
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
             "same_footprint_links": local_footprint,
             "local_power_bypass": bypass,
             "local_signal_links": local_signal,
             "normalization": normalization,
+            "local_rail_finish": local_rail,
+            "rail_normalization": rail_normalization,
             "pickup_prune": pickup_prune}
 
 
@@ -702,6 +713,7 @@ def main():
                 "%d guarded same-footprint links; "
                 "%d guarded local power links; "
                 "%d guarded local signal links; "
+                "%d guarded rail/ground gaps closed; "
                 "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
@@ -709,6 +721,7 @@ def main():
                    pour_report["pre_route_finish"]["same_footprint_links"]["linked"],
                    pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
                    pour_report["pre_route_finish"]["local_signal_links"]["linked"],
+                   pour_report["pre_route_finish"]["local_rail_finish"]["closed"],
                    pour_report["uuid_normalization"]["rewritten"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({

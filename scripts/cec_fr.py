@@ -4290,7 +4290,7 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
 
 
 def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40,
-                        netclass_resolver=None):
+                        netclass_resolver=None, include_nets=None, lock=False):
     """LAST-MILE COMPLETER (2026-07-23, from the s120 residual measurement: 13 of
     30 unconnected gaps were <=5mm same-net pad/via/track gaps FR left unclosed in
     dense clusters -- including BOTH GND criticals, each a stranded pad sitting
@@ -4308,7 +4308,9 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     seats MUST be collision-checked at those dimensions: validating the
     router-default 0.6/0.3 mm land and enlarging it later can turn a legal seat
     beside a fine-pitch pad into an unqualified via-in-pad.  Returns
-    {closed, legs, refused, far, cross_layer}."""
+    {closed, legs, refused, far, cross_layer}. ``include_nets`` limits work to
+    an explicit net-name allowlist; ``lock`` preserves pre-route closures in
+    the global router. Both default to historical post-route behaviour."""
     from collections import Counter, defaultdict
     conn = board.GetConnectivity()
     all_cu = list(board.GetEnabledLayers().CuStack())
@@ -4354,6 +4356,8 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
         width_mode[nc_] = ws.most_common(1)[0][0] if ws else _nm(min_w)
     net_names = {code: info.GetNetname()
                  for code, info in board.GetNetInfo().NetsByNetcode().items()}
+    include = None if include_nets is None else {
+        str(net) for net in include_nets}
 
     def _contract_width(nc_):
         spec = (netclass_resolver(net_names.get(nc_, ""))
@@ -4427,7 +4431,9 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
 
     n_closed = n_legs = n_ref = n_far = n_cross = 0
     for nc_, items in by_net.items():
-        if len(items) < 2 or nc_ in kelvin_nc:
+        if (len(items) < 2 or nc_ in kelvin_nc
+                or (include is not None
+                    and net_names.get(nc_, "") not in include)):
             continue
         # Transitive clusters via the engine. SWIG re-proxies connected items,
         # so Python object identity is unstable; raw child UUID is also unsafe
@@ -4535,6 +4541,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                     v.SetDrill(_nm(dr_))
                     v.SetWidth(_nm(di_))
                     v.SetNetCode(nc_)
+                    v.SetLocked(bool(lock))
                     board.Add(v)
                 else:
                     _, ls_, le_, w_, lay_ = op
@@ -4544,6 +4551,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                     tr.SetWidth(w_)
                     tr.SetLayer(lay_)
                     tr.SetNetCode(nc_)
+                    tr.SetLocked(bool(lock))
                     board.Add(tr)
                     n_legs += 1
             n_closed += 1

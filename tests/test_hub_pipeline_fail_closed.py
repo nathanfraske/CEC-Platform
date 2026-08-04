@@ -131,6 +131,9 @@ class TestHubAcceptance(unittest.TestCase):
             def GetTracks(self):
                 return []
 
+            def BuildConnectivity(self):
+                pass
+
         board = Board()
         filler = mock.Mock()
         pickup = {"pads": 3, "vias": 3, "stubs": 2, "pofv": 1,
@@ -141,6 +144,8 @@ class TestHubAcceptance(unittest.TestCase):
                   "ignored": 7, "detail": []}
         same_footprint = {"groups": 4, "linked": 4, "legs": 4,
                           "refused": 0, "ignored": 8, "detail": []}
+        rail_finish = {"closed": 0, "legs": 0, "refused": 0,
+                       "far": 0, "cross_layer": 0}
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
                 mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
                 mock.patch.object(cec_fr, "synthesize_power_pickups",
@@ -151,6 +156,8 @@ class TestHubAcceptance(unittest.TestCase):
                                   return_value=bypass) as local_bypass, \
                 mock.patch.object(cec_fr, "synthesize_local_signal_links",
                                   return_value=signal) as local_signal, \
+                mock.patch.object(cec_fr, "synthesize_lastmile",
+                                  return_value=rail_finish) as finish_rail, \
                 mock.patch.object(cec_fr, "_project_netclass_resolver",
                                   return_value="resolver") as resolver, \
                 mock.patch.object(cec_fr, "normalize_netclass_geometry",
@@ -170,6 +177,9 @@ class TestHubAcceptance(unittest.TestCase):
             board, lock=True, netclass_resolver="resolver")
         local_signal.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
+        finish_rail.assert_called_once_with(
+            board, max_mm=8.0, cap=80, netclass_resolver="resolver",
+            include_nets=("/PWR", "GND"), lock=True)
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
         prune.assert_called_once_with(board, set(), discover_nets=("/PWR",))
         self.assertEqual(filler.Fill.call_count, 2)
@@ -178,6 +188,7 @@ class TestHubAcceptance(unittest.TestCase):
         self.assertEqual(result["same_footprint_links"], same_footprint)
         self.assertEqual(result["local_power_bypass"], bypass)
         self.assertEqual(result["local_signal_links"], signal)
+        self.assertEqual(result["local_rail_finish"], rail_finish)
 
     def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
         import cec_fresh_wave
