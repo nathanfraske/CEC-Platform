@@ -501,6 +501,55 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertEqual(second["neckdown_split_tracks"], 0)
             self.assertEqual(after, before)
 
+    def test_duplicate_board_item_uuids_are_repaired_without_geometry_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "duplicate-uuids.kicad_pcb")
+            board = pcbnew.CreateEmptyBoard()
+            net = pcbnew.NETINFO_ITEM(board, "SIG")
+            board.Add(net)
+
+            first = pcbnew.FOOTPRINT(board)
+            first.SetReference("U1")
+            first.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            pad = pcbnew.PAD(first)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 0.5))
+            pad.SetPosition(first.GetPosition())
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            first.Add(pad)
+            board.Add(first)
+
+            # The raw copy constructor preserves every persistent UUID.  This
+            # models the generated-reference defect; FOOTPRINT.Duplicate would
+            # correctly regenerate them and therefore cannot create the fixture.
+            second = pcbnew.FOOTPRINT(first)
+            second.SetReference("U2")
+            second.SetPosition(pcbnew.VECTOR2I_MM(20.0, 10.0))
+            board.Add(second)
+            pcbnew.SaveBoard(path, board)
+
+            def geometry(board_obj):
+                return {fp.GetReference(): (
+                    fp.GetPosition().x, fp.GetPosition().y,
+                    fp.GetOrientationDegrees(), fp.GetLayer(),
+                    [(p.GetNumber(), p.GetNetname(), p.GetPosition().x,
+                      p.GetPosition().y, p.GetSize().x, p.GetSize().y)
+                     for p in fp.Pads()])
+                    for fp in board_obj.GetFootprints()}
+
+            before = geometry(pcbnew.LoadBoard(path))
+            report = cec_fr.ensure_unique_board_file_uuids(path)
+            after = geometry(pcbnew.LoadBoard(path))
+            self.assertGreater(report["duplicate_ids_before"], 0)
+            self.assertGreater(report["rewritten"], 0)
+            self.assertEqual(report["duplicate_ids_after"], 0)
+            self.assertEqual(after, before)
+            self.assertEqual(
+                cec_fr.ensure_unique_board_file_uuids(path)["rewritten"], 0)
+
     def test_ses_import_reads_netclasses_from_staged_source_project(self):
         with tempfile.TemporaryDirectory() as directory:
             source = self._board(directory)

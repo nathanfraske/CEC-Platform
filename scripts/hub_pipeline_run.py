@@ -136,14 +136,24 @@ def _conformance(final, cfg, log):
     return n_fail, sub
 
 
-def _reposition_worker(P, pinned_refs, ref_pcb, out):
-    """Phase 1 (spawn subprocess): copy the reference, reposition the synth components, rip the
-    committed routing. ORDER: move footprints BEFORE any Remove() (a Remove invalidates later SWIG
-    iterators). After Remove() this process's pcbnew state is corrupt, so the zone FILL is a SEPARATE
-    process (_fill_worker)."""
-    import pcbnew
+def _copy_reference_worker(ref_pcb, out):
+    """Copy the oracle and make every persistent board-item UUID unambiguous."""
     import shutil
+    import cec_fr
+
     shutil.copy(ref_pcb, out)
+    return cec_fr.ensure_unique_board_file_uuids(out)
+
+
+def _reposition_worker(P, pinned_refs, out):
+    """Phase 2 (spawn subprocess): reposition components and rip committed routing.
+
+    ``_copy_reference_worker`` has already staged and UUID-normalized *out*.
+    ORDER: move footprints BEFORE any Remove() (a Remove invalidates later SWIG
+    iterators). After Remove() this process's pcbnew state is corrupt, so the
+    zone FILL is a SEPARATE process (_fill_worker).
+    """
+    import pcbnew
     bd = pcbnew.LoadBoard(out)
     # cand.P is in a 0-origin synth frame, but the committed board's OUTLINE sits at (x0,y0) (the Hub
     # at (70,90)). Offset by the board-edge origin so the repositioned parts land INSIDE the outline --
@@ -336,8 +346,9 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     with its real net classes / layer stackup / mounts / logo -- then reposition each synth component,
     rip the committed routing, and FILL the zones fresh at the new positions (so the GND plane
     connects). Refs the synth does not model (M*/LOGO/FID/TP) keep their committed (correct) positions.
-    Runs in FOUR isolated spawn subprocesses (reposition+rip, strip pours, repour, then fill). Remove operations
-    invalidate later SWIG state in that process, so each mutating phase is isolated."""
+    Runs in FIVE isolated spawn subprocesses (copy+UUID normalization,
+    reposition+rip, strip pours, repour, then fill). Remove operations invalidate
+    later SWIG state in that process, so each mutating phase is isolated."""
     import multiprocessing as mp
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
@@ -352,8 +363,10 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
 
     ctx = mp.get_context("spawn")
     with ctx.Pool(1) as pool:
+        uuid_report = pool.apply(_copy_reference_worker, (ref, dst))
+    with ctx.Pool(1) as pool:
         moved = pool.apply(
-            _reposition_worker, (dict(cand.P), tuple(pinned_refs), ref, dst))
+            _reposition_worker, (dict(cand.P), tuple(pinned_refs), dst))
     slab_nets = _hub_pour_nets()
     with ctx.Pool(1) as pool:
         pool.apply(_prepare_repour_worker, (dst, slab_nets))
@@ -361,6 +374,7 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
         pour_report = pool.apply(_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
         finish_report = pool.apply(_fill_worker, (dst, slab_nets))
+    pour_report["uuid_normalization"] = uuid_report
     pour_report["pre_route_finish"] = finish_report
     return out, moved, pour_report
 
@@ -663,10 +677,12 @@ def main():
             _, nmoved, pour_report = materialize_onto_reference(
                 cand, REF, mat, pinned_refs=cand_cfg.pins)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
-                "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups)"
+                "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
+                "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
-                   pour_report["pre_route_finish"]["power_pickups"]["vias"]))
+                   pour_report["pre_route_finish"]["power_pickups"]["vias"],
+                   pour_report["uuid_normalization"]["rewritten"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({
                 "rank": rank, "board": os.path.relpath(mat, S.ROOT),

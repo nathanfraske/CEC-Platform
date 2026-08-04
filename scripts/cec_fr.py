@@ -3225,15 +3225,41 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     conn = board.GetConnectivity()
     all_cu = list(board.GetEnabledLayers().CuStack())
     # per-net item sweep -----------------------------------------------------
-    by_net = defaultdict(list)                    # nc -> [(uuid, kind, obj)]
+    def _item_key(kind, obj):
+        """Proxy-stable identity that stays unique with cloned child UUIDs."""
+        if kind == "pad":
+            p = obj.GetPosition()
+            try:
+                ref = obj.GetParentFootprint().GetReference()
+            except Exception:                           # noqa: BLE001
+                ref = ""
+            return (kind, ref, obj.GetNumber(), p.x, p.y)
+        if kind == "via":
+            p = obj.GetPosition()
+            return (kind, obj.m_Uuid.AsString(), p.x, p.y)
+        s, e = obj.GetStart(), obj.GetEnd()
+        return (kind, obj.m_Uuid.AsString(), obj.GetLayer(),
+                s.x, s.y, e.x, e.y, obj.GetWidth())
+
+    def _connected_kind(obj):
+        klass = obj.GetClass()
+        if klass == "PAD":
+            return "pad"
+        if klass == "PCB_VIA":
+            return "via"
+        if klass in ("PCB_TRACK", "PCB_ARC"):
+            return "trk"
+        return None
+
+    by_net = defaultdict(list)                    # nc -> [(identity, kind, obj)]
     for fp in board.GetFootprints():
         for p in fp.Pads():
             if p.GetNetCode() > 0:
-                by_net[p.GetNetCode()].append((p.m_Uuid.AsString(), "pad", p))
+                by_net[p.GetNetCode()].append((_item_key("pad", p), "pad", p))
     for t in board.GetTracks():
         if t.GetNetCode() > 0:
             k = "via" if t.GetClass() == "PCB_VIA" else "trk"
-            by_net[t.GetNetCode()].append((t.m_Uuid.AsString(), k, t))
+            by_net[t.GetNetCode()].append((_item_key(k, t), k, t))
     width_mode = {}
     for nc_, items in by_net.items():
         ws = Counter(o.GetWidth() for u, k, o in items if k == "trk")
@@ -3280,7 +3306,10 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     for nc_, items in by_net.items():
         if len(items) < 2 or nc_ in kelvin_nc:
             continue
-        # transitive clusters via the engine (uuid-keyed: SWIG re-proxies) ----
+        # Transitive clusters via the engine. SWIG re-proxies connected items,
+        # so Python object identity is unstable; raw child UUID is also unsafe
+        # because generated footprint clones can share it. Use the composite
+        # physical identity above, which remains stable across proxies.
         uu = {u: (k, o) for u, k, o in items}
         seen, clusters = set(), []
         for u, k, o in items:
@@ -3292,7 +3321,10 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                 for ci in conn.GetConnectedItems(o):
                     if ci.GetNetCode() != nc_:
                         continue
-                    cu = ci.m_Uuid.AsString()
+                    ck = _connected_kind(ci)
+                    if ck is None:
+                        continue
+                    cu = _item_key(ck, ci)
                     if cu in uu and cu not in seen:
                         seen.add(cu)
                         members.append((cu, uu[cu][0], uu[cu][1]))
@@ -4732,6 +4764,91 @@ def normalize_track_width(board, *, tol_mm: float = 0.005) -> int:
     return fixed
 
 
+_BOARD_UUID_RE = re.compile(
+    r'(\(uuid\s+)("?)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})("?)(\))')
+
+
+def ensure_unique_board_file_uuids(board_path):
+    """Atomically repair duplicate persistent UUID declarations in a PCB file.
+
+    Some generated reference boards contain footprint copies made with a raw
+    copy constructor.  The footprint instances differ, but their pads, fields,
+    and graphics retain the template UUIDs.  KiCad routes the geometry, while
+    JSON DRC identifies child items by that ambiguous UUID and can consequently
+    attribute a ratsnest endpoint to the wrong reference or even the wrong net.
+
+    KiCad PCB files declare each persistent item as ``(uuid <value>)``; external
+    references (for example group membership) use a different key.  Preserve
+    the first declaration and deterministically replace every later occurrence
+    with UUIDv5 derived from the original value and occurrence index.  This is
+    text-level by design: replacing several live pcbnew footprint objects in one
+    process invalidates SWIG iterators.  The rewrite is atomic, idempotent, and
+    changes no electrical, physical, library, or schematic-link field.  Returns
+    a compact audit report and fails closed if uniqueness is not achieved.
+    """
+    import uuid as _uuid
+    from collections import Counter
+
+    with open(board_path, "r", encoding="utf-8") as source:
+        original = source.read()
+    matches = list(_BOARD_UUID_RE.finditer(original))
+    declared = [match.group(3).lower() for match in matches]
+    counts = Counter(declared)
+    duplicate_ids = {value for value, count in counts.items() if count > 1}
+    if not duplicate_ids:
+        return {"duplicate_ids_before": 0, "rewritten": 0,
+                "duplicate_ids_after": 0, "status": "ok"}
+
+    used = set(declared)
+    seen = Counter()
+
+    def replacement(match):
+        value = match.group(3).lower()
+        seen[value] += 1
+        if seen[value] == 1:
+            return match.group(0)
+        salt = seen[value]
+        while True:
+            fresh = str(_uuid.uuid5(
+                _uuid.NAMESPACE_OID,
+                "cec-board-item:%s:%d" % (value, salt)))
+            salt += 1
+            if fresh not in used:
+                used.add(fresh)
+                break
+        return "%s%s%s%s%s" % (
+            match.group(1), match.group(2), fresh,
+            match.group(4), match.group(5))
+
+    rewritten = _BOARD_UUID_RE.sub(replacement, original)
+    final_ids = [match.group(3).lower()
+                 for match in _BOARD_UUID_RE.finditer(rewritten)]
+    remaining = sorted(value for value, count in Counter(final_ids).items()
+                       if count > 1)
+    if remaining:
+        raise RuntimeError(
+            "persistent board-item UUID collision remains after rewrite: %s"
+            % remaining[:8])
+
+    directory = os.path.dirname(os.path.abspath(board_path)) or "."
+    fd, temporary = tempfile.mkstemp(
+        prefix=".%s.uuid-" % os.path.basename(board_path), dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as target:
+            target.write(rewritten)
+            target.flush()
+            os.fsync(target.fileno())
+        os.chmod(temporary, os.stat(board_path).st_mode)
+        os.replace(temporary, board_path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return {"duplicate_ids_before": len(duplicate_ids),
+            "rewritten": len(declared) - len(set(declared)),
+            "duplicate_ids_after": 0, "status": "repaired"}
+
+
 def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     """Raise imported tracks/vias to their assigned netclass geometry.
 
@@ -6005,6 +6122,12 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         except Exception as _ge:                        # noqa: BLE001 -- fail-safe
             print(f"[cec_fr] inner GND fill skipped ({_ge})", file=sys.stderr)
     pcbnew.SaveBoard(out_path, board)
+    _uuid_report = ensure_unique_board_file_uuids(out_path)
+    if _uuid_report["rewritten"]:
+        print("[cec_fr] repaired %d duplicate board-item UUID occurrence(s) "
+              "across %d repeated ID(s)"
+              % (_uuid_report["rewritten"],
+                 _uuid_report["duplicate_ids_before"]), file=sys.stderr)
     # The routed artifact is a deliverable, not a naked board file. Preserve
     # its netclasses and custom rules under the routed basename before any
     # fresh-load cleanup or independent DRC step sees it.

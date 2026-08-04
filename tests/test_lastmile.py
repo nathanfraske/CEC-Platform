@@ -72,6 +72,44 @@ class TestLastmile(unittest.TestCase):
         segs = [t for t in b.GetTracks() if t.GetClass() != "PCB_VIA"]
         self.assertTrue(segs, "a closure must lay real copper")
 
+    def test_cloned_same_net_pad_uuids_do_not_collapse_clusters(self):
+        import pcbnew
+        import cec_fr
+
+        b = pcbnew.BOARD()
+        b.SetCopperLayerCount(4)
+        net = pcbnew.NETINFO_ITEM(b, "/A")
+        b.Add(net)
+        first = pcbnew.FOOTPRINT(b)
+        first.SetReference("U1")
+        first.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad = pcbnew.PAD(first)
+        pad.SetPadName("1")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+        pad.SetPosition(first.GetPosition())
+        front = pcbnew.LSET()
+        front.AddLayer(pcbnew.F_Cu)
+        pad.SetLayerSet(front)
+        pad.SetNet(net)
+        first.Add(pad)
+        b.Add(first)
+
+        # The copy constructor preserves the child UUID, reproducing the Hub
+        # reference's cloned-footprint defect on two pads of the same net.
+        second = pcbnew.FOOTPRINT(first)
+        second.SetReference("U2")
+        second.SetPosition(pcbnew.VECTOR2I_MM(7.0, 5.0))
+        b.Add(second)
+        pads = [p for fp in b.GetFootprints() for p in fp.Pads()]
+        self.assertEqual(pads[0].m_Uuid.AsString(), pads[1].m_Uuid.AsString())
+
+        b.BuildConnectivity()
+        result = cec_fr.synthesize_lastmile(b)
+        self.assertEqual(result["closed"], 1)
+        self.assertTrue(list(b.GetTracks()))
+
     def test_arbitrary_offset_uses_only_canonical_angles(self):
         import cec_fr
         b = _board([(5, 5, "/A"), (8, 7, "/A")])
