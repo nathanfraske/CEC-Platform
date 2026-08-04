@@ -1,6 +1,8 @@
 {
  "board": "pcie-8pin-3port",
+ "candidate_role": "diagnostic-reference",
  "commit": "cfd230db",
+ "freshness_checked": "2026-08-03T19:54:40",
  "grade": {
   "diffpair_ok": false,
   "drc": 9999,
@@ -18,11 +20,16 @@
   "unconnected": 9999
  },
  "label": "periph-left-compact-s710",
+ "mezzanine_contract_ok": null,
  "reason": "first candidate",
+ "release_accepted": false,
+ "route_gate_passed": false,
  "routed": false,
  "schema": 1,
- "schematic_match": 0.9556,
- "schematic_parts": 90,
+ "schematic_exact": false,
+ "schematic_match": 0.977,
+ "schematic_parts": 87,
+ "schematic_status": "stale",
  "sort_key": [
   1,
   Infinity

@@ -33,6 +33,7 @@ sys.path.insert(0, HERE)
 ROOT = os.path.dirname(HERE)
 
 import cec_synth_pipeline as csp                       # noqa: E402
+import cec_score                                       # noqa: E402
 import cec_mezz_contract as mezz                       # noqa: E402
 import cec_beta_manifest                              # noqa: E402
 from cec_placement_session import PlacementSession     # noqa: E402
@@ -67,8 +68,8 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
         png = cec_render.render(routed, png, side="top", no_bodies=True)
         if png:
             cec_render.render(routed, png.replace("-top.png", "-top-bodies.png"), side="top")
-        # HEX PANEL (owner ask 2026-07-15): the dash tile = 3x2 array -- front/back
-        # renders | L1/L4 plots | In1/In2 plots, aligned orientation, ruled dividers.
+        # STACK PANEL: front/back renders plus every copper layer. Six-layer
+        # boards render a 4x2 tile so In3/In4 are visible during the wave too.
         hexp = cec_render.hex_panel(routed,
                                     os.path.join(work_root, board, f"{label}-hex.png"),
                                     side_pngs={"top": png})
@@ -1081,7 +1082,7 @@ def _prev_best_key(pub_dir):
 
 CANDIDATE_DIR = "candidate"
 CANDIDATE_META = "candidate.json"
-_CANDIDATE_README = """# `candidate/`: the current best routed board for this module
+_CANDIDATE_README = """# `candidate/`: the current best diagnostic board for this module
 
 ONE board file, kept current by the wave (owner directive 2026-07-25: "the current
 best should be placed into a candidate folder per board and kept current with only
@@ -1091,6 +1092,12 @@ one board ideally so we have a reference").
 of the best board the wave has ever published for this module, with `candidate.json`
 recording where it came from and how it graded. Open it to see the real current
 state of the layout without digging through `build/fresh-wave-*/`.
+
+IMPORTANT: `candidate/` is a diagnostic-reference channel, not a release-acceptance
+channel. A routed board remains here when its route gate fails so reviewers can see
+and improve the best failure. `candidate.json` therefore records
+`candidate_role: diagnostic-reference`, `release_accepted: false`, and the distinct
+`route_gate_passed` result. Only the aggregate release pipeline may accept a board.
 
 RULES the wave enforces on every publish:
   * SCHEMATIC FRESHNESS outranks score: a winner matching more of the CURRENT
@@ -1275,6 +1282,9 @@ def refresh_candidate_metadata(board):
     match = _schematic_match(pcb_path, want)
     exact = match is not None and abs(match - 1.0) <= 1e-9
     meta.update({
+        "candidate_role": "diagnostic-reference",
+        "release_accepted": False,
+        "route_gate_passed": bool((meta.get("grade") or {}).get("gate")),
         "schematic_match": (round(match, 4) if match is not None else None),
         "schematic_exact": exact,
         "schematic_parts": (len(want) if want else None),
@@ -1283,6 +1293,36 @@ def refresh_candidate_metadata(board):
         "freshness_checked": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "mezzanine_contract_ok": _mezz_contract_status(pcb_path),
     })
+    # Refresh the numbers from the PCB reviewers actually open. This is still
+    # metadata-only: candidate copper is never edited here. Older metadata may
+    # predate post-publish hygiene rescoring, so incomplete legacy gate evidence
+    # stays fail-closed.
+    if meta.get("routed"):
+        grade = dict(meta.get("grade") or {})
+        probe = {
+            **grade,
+            "sort_key": meta.get("sort_key"),
+            "foreign": grade.get("foreign") or {},
+            "thermal": meta.get("thermal") or {},
+            "rails": grade.get("rails") or {},
+            "gate_terms": meta.get("gate_terms") or {},
+            "reasons": [],
+        }
+        try:
+            _rescore_published(probe, pcb_path)
+            grade.update({k: probe.get(k) for k in
+                          ("gate", "kelvin_ok", "diffpair_ok", "drc", "drc_types",
+                           "unconnected", "unconn_critical", "foreign", "thermal_ok",
+                           "rails")})
+            meta["grade"] = grade
+            meta["sort_key"] = list(
+                probe.get("sort_key") or meta.get("sort_key") or [])
+            meta["route_gate_passed"] = bool(probe.get("gate"))
+            meta["live_score_checked"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            meta.pop("live_score_error", None)
+        except Exception as exc:                           # noqa: BLE001 -- fail closed
+            meta["route_gate_passed"] = False
+            meta["live_score_error"] = f"{type(exc).__name__}: {exc}"
     tmp_path = meta_path + ".tmp"
     with open(tmp_path, "w") as fh:
         json.dump(meta, fh, indent=1, sort_keys=True, default=str)
@@ -1388,6 +1428,9 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
         meta = {
             "schema": 1,
             "board": board,
+            "candidate_role": "diagnostic-reference",
+            "release_accepted": False,
+            "route_gate_passed": bool(best.get("gate")),
             "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "reason": why,
             "routed": routed_now,
@@ -1406,7 +1449,8 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
             "mezzanine_contract_ok": mech_now,
             "grade": {k: best.get(k) for k in
                       ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
-                       "unconn_critical", "foreign", "thermal_ok", "rails")},
+                       "unconn_critical", "drc_types", "foreign", "thermal_ok",
+                       "rails")},
             "thermal": best.get("thermal"),
         }
         try:                                               # provenance, best-effort
@@ -1424,6 +1468,90 @@ def _candidate_update(board, published_pcb, best, *, out_root=None):
         print(f"[wave] {board} candidate update skipped ({type(e).__name__}: {e})",
               flush=True)
         return None
+
+
+def _rescore_published(best, published_pcb):
+    """Re-score the exact saved artifact after every publish-time copper repair.
+
+    The route oracle originally graded the work-board, then publish hygiene and
+    fab repair mutated a copy before it reached ``candidate/``.  A connectivity
+    repair is supposed to be topology-preserving, but accepting that promise as
+    evidence allowed candidate.json to disagree with the board a reviewer opened.
+    This pass makes the saved PCB authoritative: DRC, ratlines, pair gates, and
+    the failure-tier sort key are rebuilt from one fresh score.  Non-copper oracle
+    terms (placement, pours, thermal, etc.) remain the values already adjudicated;
+    if their complete gate-term record is absent the aggregate gate fails closed.
+    """
+    if not (published_pcb and os.path.isfile(str(published_pcb))):
+        return best
+    before = {k: best.get(k) for k in
+              ("gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected")}
+    rules = cec_score.Rules.from_board(str(published_pcb))
+    metrics = cec_score.score(str(published_pcb), rules)
+    unconn_nets = sorted(metrics.detail.get("unconn_nets") or [])
+    crit, sig = csp._classify_unconnected(unconn_nets, rules)
+    best.update({
+        "routed": str(published_pcb),
+        "gates_pass": bool(metrics.gates_pass),
+        "kelvin_ok": bool(metrics.kelvin_ok),
+        "diffpair_ok": bool(metrics.diffpair_ok),
+        "drc": int(metrics.drc),
+        "drc_clean": metrics.drc == 0,
+        "drc_finishing_only": metrics.drc == 0,
+        "drc_types": dict(metrics.drc_types),
+        "unconnected": int(metrics.unconnected),
+        "unconn_nets": unconn_nets,
+        "unconn_critical": crit,
+        "unconn_signal": sig,
+        "routing_complete": metrics.unconnected == 0,
+        "vias": int(metrics.vias),
+        "tracks": int(metrics.tracks),
+        "length": round(float(metrics.length), 2),
+    })
+
+    gate_terms = dict(best.get("gate_terms") or {})
+    if gate_terms:
+        gate_terms["gates_pass"] = bool(metrics.gates_pass)
+        gate_terms["routing_complete"] = metrics.unconnected == 0
+        best["gate_terms"] = gate_terms
+        try:
+            best["gate"] = bool(csp._route_oracle_accepts(gate_terms))
+        except ValueError:
+            # A partial/legacy verdict cannot prove the complete conjunction.
+            best["gate"] = False
+    else:
+        best["gate"] = False
+
+    rails = best.get("rails") or {}
+    rails_refused = max(0, int(rails.get("total", 0)) - int(rails.get("laid", 0)))
+    safety_fails = ((0 if metrics.kelvin_ok else 1)
+                    + (0 if metrics.diffpair_ok else 1) + rails_refused)
+    foreign = best.get("foreign") or {}
+    foreign_total = int(foreign.get("tracks", 0)) + int(foreign.get("vias", 0))
+    thermal = best.get("thermal") or {}
+    dT = thermal.get("dT")
+    dT = float(dT) if dT is not None else 1e6
+    if best["gate"]:
+        silk = best.get("silk_score") or {}
+        silk_key = silk.get("score_per_fp")
+        silk_key = float(silk_key) if silk_key is not None else 99.0
+        best["sort_key"] = (0, round(dT, 1), metrics.vias,
+                            round(silk_key, 1), round(metrics.length, 1), 0)
+    else:
+        best["sort_key"] = (1, safety_fails, len(crit), foreign_total,
+                            metrics.unconnected, metrics.drc, round(dT, 1))
+
+    after = {k: best.get(k) for k in before}
+    if before != after:
+        note = ("published-artifact rescore after hygiene: "
+                f"gate {before['gate']}->{after['gate']}, "
+                f"kelvin {before['kelvin_ok']}->{after['kelvin_ok']}, "
+                f"diff {before['diffpair_ok']}->{after['diffpair_ok']}, "
+                f"DRC {before['drc']}->{after['drc']}, "
+                f"unconnected {before['unconnected']}->{after['unconnected']}")
+        best.setdefault("reasons", []).append(note)
+        print(f"[wave] {note}", flush=True)
+    return best
 
 
 def _new_best_thermal(best, pub_dir, board_params, *, solve=None, env=None):
@@ -1673,6 +1801,16 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         except Exception as _fe:                            # noqa: BLE001
             print(f"[wave] {board} fab repair skipped ({type(_fe).__name__}: {_fe})",
                   flush=True)
+    if src and os.path.isfile(str(dst)):
+        try:
+            _rescore_published(best, dst)
+        except Exception as _re:                            # noqa: BLE001 -- fail closed
+            best["gate"] = False
+            best.setdefault("reasons", []).append(
+                "published-artifact rescore ERROR (gate forced false): "
+                f"{type(_re).__name__}: {_re}")
+            print(f"[wave] {board} published rescore ERROR; gate forced false "
+                  f"({type(_re).__name__}: {_re})", flush=True)
     new_best = _new_best_thermal(best, pub_dir, _bp)
     # CURRENT-BEST REFERENCE (owner directive 2026-07-25): mirror the published
     # winner into beta/<board>/candidate/ so every module has ONE stable, current
@@ -1695,8 +1833,8 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                         "pruned": len(pruned_rows)} if pruned_rows else None,
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
-                        "unconn_critical", "foreign", "thermal_ok", "thermal", "rails",
-                        "sort_key", "reasons")},
+                        "unconn_critical", "drc_types", "foreign", "thermal_ok",
+                        "thermal", "rails", "sort_key", "reasons")},
               "ranking": ([{"label": v["label"], "gate": v.get("gate"),
                             "sort_key": v.get("sort_key")} for v in results]
                           + [{"label": r["label"], "pruned": True,

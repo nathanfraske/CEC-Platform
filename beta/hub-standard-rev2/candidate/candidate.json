@@ -1,10 +1,18 @@
 {
  "board": "hub-standard-rev2",
- "commit": "d838d8f",
- "freshness_checked": "2026-08-03T18:36:18",
+ "candidate_role": "diagnostic-reference",
+ "commit": "e426ccb",
+ "freshness_checked": "2026-08-03T19:54:35",
  "grade": {
   "diffpair_ok": true,
-  "drc": 90,
+  "drc": 112,
+  "drc_types": {
+   "clearance": 9,
+   "copper_edge_clearance": 62,
+   "hole_clearance": 4,
+   "shorting_items": 16,
+   "via_dangling": 21
+  },
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -13,41 +21,44 @@
   },
   "gate": false,
   "kelvin_ok": true,
-  "rails": null,
+  "rails": {},
   "thermal_ok": false,
   "unconn_critical": [
    "GND"
   ],
-  "unconnected": 38
+  "unconnected": 40
  },
- "label": "plain-compact-s0-polish",
+ "label": "periph-right-compact-s23",
+ "live_score_checked": "2026-08-03T19:54:37",
  "mezzanine_contract_ok": true,
- "reason": "matches more of the current schematic (100% vs 96% of 119 parts)",
+ "reason": "sort_key [1, 0, 1, 0, 40, 113, 1000000.0] < [1, 0, 1, 0, 41, 75, 1000000.0]",
+ "release_accepted": false,
+ "route_gate_passed": false,
  "routed": true,
  "schema": 1,
- "schematic_exact": false,
- "schematic_match": 0.9917,
+ "schematic_exact": true,
+ "schematic_match": 1.0,
  "schematic_parts": 120,
- "schematic_status": "stale",
+ "schematic_status": "exact",
  "sort_key": [
   1,
   0,
   1,
   0,
-  38,
-  90,
-  1000000.0
+  40,
+  112,
+  24.3
  ],
- "source": "../../../../tmp/cec-fresh-publish-20260803-r4/hub-standard-rev2/20260803T1800-plain-compact-s0-polish.kicad_pcb",
+ "source": "../../../../tmp/cec-cross-wave2-hub/hub-standard-rev2/20260803T1924-periph-right-compact-s23.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
   "backend": "auto",
   "cooling": "still-air (no case)",
-  "dT": 21.04,
-  "error": "INJECTION INCOMPLETE: 9/12 configured net(s) injected no current (/+5V_HOLD, /5VSB_RAW, /PSU_5V, /PSU_5V_KVM, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4). Requested nets that are absent or electrically open exclude their Joule heat from dT, so a pass would be vacuous. Remove a genuinely inapplicable net from the board-specific scenario, or close the rail circuit.",
+  "dT": 24.34,
+  "error": "INJECTION INCOMPLETE: 8/12 configured net(s) injected no current (/+5V_HOLD, /PSU_5V, /PSU_5V_KVM, /USB_VBUS, /VCC_P1, /VCC_P2, /VCC_P3, /VCC_P4). Requested nets that are absent or electrically open exclude their Joule heat from dT, so a pass would be vacuous. Remove a genuinely inapplicable net from the board-specific scenario, or close the rail circuit.",
   "gate_dt": 30.0,
   "grid_mm": 0.4,
-  "max_T": 71.04,
+  "max_T": 74.34,
   "nets_absent": [
    "/+5V_HOLD",
    "/PSU_5V",
@@ -58,13 +69,12 @@
    "/VCC_P4"
   ],
   "nets_dropped": {
-   "/5VSB_RAW": "src/sink on disconnected copper islands (open circuit -- no current injected)",
    "/USB_VBUS": "src/sink on disconnected copper islands (open circuit -- no current injected)"
   },
-  "nets_injected": 3,
+  "nets_injected": 4,
   "nets_requested": 12,
   "ok": false
  },
- "updated": "2026-08-03T18:01:14",
- "wave_out_root": "../../../../tmp/cec-fresh-publish-20260803-r4"
+ "updated": "2026-08-03T19:24:37",
+ "wave_out_root": "../../../../tmp/cec-cross-wave2-hub"
 }

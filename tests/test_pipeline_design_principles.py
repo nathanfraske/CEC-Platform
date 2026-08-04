@@ -20,6 +20,86 @@ import cec_fab_check as DFM  # noqa: E402
 import cec_fr  # noqa: E402
 import cec_impedance as SI  # noqa: E402
 import cec_pcb  # noqa: E402
+import cec_score  # noqa: E402
+
+
+class CopperCrossingAcceptanceTest(unittest.TestCase):
+    """Prove that apparent over-under crossings are legal, while a real
+    same-layer, different-net crossing can never pass the route gate."""
+
+    @staticmethod
+    def _mm(value):
+        return pcbnew.FromMM(value)
+
+    def _board(self, directory, *, over_under):
+        path = os.path.join(directory, "crossing.kicad_pcb")
+        board = pcbnew.CreateEmptyBoard()
+        for (x1, y1), (x2, y2) in (
+                ((0, 0), (20, 0)), ((20, 0), (20, 20)),
+                ((20, 20), (0, 20)), ((0, 20), (0, 0))):
+            edge = pcbnew.PCB_SHAPE(board, pcbnew.SHAPE_T_SEGMENT)
+            edge.SetStart(pcbnew.VECTOR2I(self._mm(x1), self._mm(y1)))
+            edge.SetEnd(pcbnew.VECTOR2I(self._mm(x2), self._mm(y2)))
+            edge.SetLayer(board.GetLayerID("Edge.Cuts"))
+            edge.SetWidth(self._mm(0.1))
+            board.Add(edge)
+        net_a = pcbnew.NETINFO_ITEM(board, "A")
+        net_b = pcbnew.NETINFO_ITEM(board, "B")
+        board.Add(net_a)
+        board.Add(net_b)
+
+        def pad(ref, x, y, net):
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference(ref)
+            pos = pcbnew.VECTOR2I(self._mm(x), self._mm(y))
+            footprint.SetPosition(pos)
+            item = pcbnew.PAD(footprint)
+            item.SetPadName("1")
+            item.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+            item.SetSize(pcbnew.VECTOR2I(self._mm(1.0), self._mm(1.0)))
+            item.SetDrillSize(pcbnew.VECTOR2I(self._mm(0.5), self._mm(0.5)))
+            item.SetPosition(pos)
+            item.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+            item.SetLayerSet(pcbnew.PAD.PTHMask())
+            item.SetNet(net)
+            footprint.Add(item)
+            board.Add(footprint)
+
+        def track(net, start, end, layer):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I(self._mm(start[0]), self._mm(start[1])))
+            item.SetEnd(pcbnew.VECTOR2I(self._mm(end[0]), self._mm(end[1])))
+            item.SetWidth(self._mm(0.25))
+            item.SetLayer(board.GetLayerID(layer))
+            item.SetNet(net)
+            board.Add(item)
+
+        pad("A1", 3, 10, net_a)
+        pad("A2", 17, 10, net_a)
+        pad("B1", 10, 3, net_b)
+        pad("B2", 10, 17, net_b)
+        track(net_a, (3, 10), (17, 10), "F.Cu")
+        track(net_b, (10, 3), (10, 17), "B.Cu" if over_under else "F.Cu")
+        pcbnew.SaveBoard(path, board)
+        return path
+
+    def test_same_layer_different_net_crossing_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, over_under=False)
+            metrics = cec_score.score(
+                path, rules=cec_score.Rules(require_unconnected_zero=False))
+            self.assertFalse(metrics.gates_pass, metrics.detail)
+            self.assertGreater(metrics.drc_types.get("tracks_crossing", 0), 0,
+                               metrics.drc_types)
+
+    def test_different_layer_over_under_crossing_is_not_a_drc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, over_under=True)
+            metrics = cec_score.score(
+                path, rules=cec_score.Rules(require_unconnected_zero=False))
+            self.assertTrue(metrics.gates_pass, metrics.detail)
+            self.assertEqual(metrics.drc_types.get("tracks_crossing", 0), 0,
+                             metrics.drc_types)
 
 
 class ProfileAwareImpedanceTest(unittest.TestCase):

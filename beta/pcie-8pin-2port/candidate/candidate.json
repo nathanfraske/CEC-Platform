@@ -1,9 +1,17 @@
 {
  "board": "pcie-8pin-2port",
+ "candidate_role": "diagnostic-reference",
  "commit": "124bda53",
+ "freshness_checked": "2026-08-03T19:54:38",
  "grade": {
   "diffpair_ok": true,
-  "drc": 9,
+  "drc": 13,
+  "drc_types": {
+   "clearance": 4,
+   "hole_clearance": 4,
+   "solder_mask_bridge": 2,
+   "track_width": 3
+  },
   "foreign": {
    "pours": 4,
    "status": "ok",
@@ -12,7 +20,7 @@
   },
   "gate": false,
   "kelvin_ok": true,
-  "rails": null,
+  "rails": {},
   "thermal_ok": false,
   "unconn_critical": [
    "GND"
@@ -20,19 +28,25 @@
   "unconnected": 9
  },
  "label": "periph-right-compact-s809",
+ "live_score_checked": "2026-08-03T19:54:39",
+ "mezzanine_contract_ok": null,
  "reason": "sort_key [1, 0, 1, 0, 9, 9, 1000000.0] < [1, 0, 1, 0, 21, 5, 1000000.0]",
+ "release_accepted": false,
+ "route_gate_passed": false,
  "routed": true,
  "schema": 1,
- "schematic_match": 0.9474,
- "schematic_parts": 76,
+ "schematic_exact": false,
+ "schematic_match": 0.9726,
+ "schematic_parts": 73,
+ "schematic_status": "stale",
  "sort_key": [
   1,
   0,
   1,
   0,
   9,
-  9,
-  1000000.0
+  13,
+  457.4
  ],
  "source": "build/fresh-wave-night/pcie-8pin-2port/20260726T0721-periph-right-compact-s809.kicad_pcb",
  "thermal": {

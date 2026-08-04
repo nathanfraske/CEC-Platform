@@ -4879,6 +4879,103 @@ def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
     return report
 
 
+def collapse_redundant_pth_transitions(board, *, clearance_mm=0.20):
+    """Remove Freerouting's PTH-pad -> track -> via -> other-layer-track dogbone.
+
+    A plated through-hole pad already spans every enabled copper layer. When a
+    through via has exactly two incident same-net tracks and one returns to a
+    same-net PTH pad, the via is a redundant layer transition: move that short
+    pad-side track onto the continuation layer and remove the via. Geometry is
+    unchanged. The repair stays conservative: locked copper, vias touching a
+    same-net zone, and a relayered stub that would collide with foreign copper
+    are left alone.
+    """
+    clearance = int(float(clearance_mm) * 1e6)
+    tracks = [t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"]
+    vias = [t for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
+    pads = [(fp, pad) for fp in board.GetFootprints() for pad in fp.Pads()]
+
+    by_endpoint = {}
+    for track in tracks:
+        for point in (track.GetStart(), track.GetEnd()):
+            by_endpoint.setdefault((point.x, point.y, track.GetNetCode()), []).append(track)
+
+    def _other_end(track, point):
+        return track.GetEnd() if track.GetStart() == point else track.GetStart()
+
+    def _pth_at(point, netcode, layer_a, layer_b):
+        for footprint, pad in pads:
+            if (pad.GetNetCode() == netcode
+                    and pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH
+                    and pad.IsOnLayer(layer_a) and pad.IsOnLayer(layer_b)
+                    and pad.HitTest(point)):
+                return footprint, pad
+        return None
+
+    def _via_has_zone(via):
+        pos, netcode = via.GetPosition(), via.GetNetCode()
+        for zone in board.Zones():
+            if zone.GetNetCode() != netcode or not zone.IsOnCopperLayer():
+                continue
+            try:
+                if zone.Outline().Collide(pos, 0):
+                    return True
+            except Exception:                              # noqa: BLE001
+                return True                                # uncertainty -> keep it
+        return False
+
+    def _foreign_collision(stub, target_layer, netcode):
+        old_layer = stub.GetLayer()
+        stub.SetLayer(target_layer)
+        try:
+            shape = stub.GetEffectiveShape(target_layer)
+            for item in board.GetTracks():
+                if item.GetNetCode() == netcode:
+                    continue
+                if (item.IsOnLayer(target_layer)
+                        and shape.Collide(item.GetEffectiveShape(target_layer), clearance)):
+                    return True
+            for _footprint, pad in pads:
+                if (pad.GetNetCode() != netcode and pad.IsOnLayer(target_layer)
+                        and shape.Collide(pad.GetEffectiveShape(target_layer), clearance)):
+                    return True
+            return False
+        finally:
+            stub.SetLayer(old_layer)
+
+    removed = []
+    for via in list(vias):
+        if via.IsLocked() or _via_has_zone(via):
+            continue
+        point = via.GetPosition()
+        incident = by_endpoint.get((point.x, point.y, via.GetNetCode()), [])
+        if len(incident) != 2 or any(track.IsLocked() for track in incident):
+            continue
+        a, b = incident
+        if a.GetLayer() == b.GetLayer():
+            continue
+        chosen = None
+        for stub, continuation in ((a, b), (b, a)):
+            pad_end = _other_end(stub, point)
+            owner = _pth_at(pad_end, via.GetNetCode(), stub.GetLayer(),
+                            continuation.GetLayer())
+            if owner and not _foreign_collision(stub, continuation.GetLayer(),
+                                                via.GetNetCode()):
+                chosen = (stub, continuation, owner, pad_end)
+                break
+        if chosen is None:
+            continue
+        stub, continuation, (footprint, pad), _pad_end = chosen
+        old_name = board.GetLayerName(stub.GetLayer())
+        new_name = board.GetLayerName(continuation.GetLayer())
+        stub.SetLayer(continuation.GetLayer())
+        board.Delete(via)
+        removed.append({"ref": footprint.GetReference(), "pad": pad.GetPadName(),
+                        "net": stub.GetNetname(), "from": old_name, "to": new_name,
+                        "stub_mm": round(stub.GetLength() / 1e6, 3)})
+    return {"removed": len(removed), "detail": removed}
+
+
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
                fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
                kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:
@@ -4930,6 +5027,11 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             if _doomed:
                 print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
+    if os.environ.get("CEC_COLLAPSE_THT_TRANSITIONS", "1") != "0":
+        _pth_fix = collapse_redundant_pth_transitions(board)
+        if _pth_fix["removed"]:
+            print("[cec_fr] collapsed %d redundant PTH layer-transition via(s): %s"
+                  % (_pth_fix["removed"], _pth_fix["detail"][:8]), file=sys.stderr)
     # POUR LAY MOVED (2026-07-24 trace #2, the owner's "fixes did not land"
     # class): pours are laid ONCE at the single post-conversion site just
     # before fix_annular below. The lay that used to sit HERE ran before the

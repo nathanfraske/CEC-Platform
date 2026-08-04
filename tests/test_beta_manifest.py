@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Regression gates for the one-source current BETA product set."""
+import json
 import os
 import re
 import sys
@@ -81,6 +82,23 @@ class TestCurrentBetaManifest(unittest.TestCase):
         import cec_fresh_wave
         with self.assertRaisesRegex(ValueError, "not a current"):
             cec_fresh_wave.run_board("eps-8pin", [0], 1, 1, "/tmp/no", "/tmp/no")
+
+    def test_candidates_are_explicitly_diagnostic_not_release_acceptance(self):
+        checked = 0
+        for board in manifest.CURRENT_BETA_BOARDS:
+            project = manifest.BY_BOARD[board]
+            path = os.path.join(ROOT, "beta", project["directory"],
+                                "candidate", "candidate.json")
+            if not os.path.isfile(path):
+                continue
+            with open(path, encoding="utf-8") as handle:
+                metadata = json.load(handle)
+            self.assertEqual(metadata.get("candidate_role"),
+                             "diagnostic-reference", board)
+            self.assertIs(metadata.get("release_accepted"), False, board)
+            self.assertIsInstance(metadata.get("route_gate_passed"), bool, board)
+            checked += 1
+        self.assertGreater(checked, 0, "fixture set should exercise candidate metadata")
 
 
 if __name__ == "__main__":

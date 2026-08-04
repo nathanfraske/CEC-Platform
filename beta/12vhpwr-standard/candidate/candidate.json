@@ -1,10 +1,17 @@
 {
  "board": "12vhpwr-standard",
+ "candidate_role": "diagnostic-reference",
  "commit": "1d9e84f",
- "freshness_checked": "2026-08-03T00:11:51",
+ "freshness_checked": "2026-08-03T19:54:30",
  "grade": {
   "diffpair_ok": true,
   "drc": 30,
+  "drc_types": {
+   "clearance": 14,
+   "copper_edge_clearance": 1,
+   "hole_clearance": 4,
+   "track_dangling": 11
+  },
   "foreign": {
    "pours": 0,
    "status": "na",
@@ -13,7 +20,7 @@
   },
   "gate": false,
   "kelvin_ok": false,
-  "rails": null,
+  "rails": {},
   "thermal_ok": false,
   "unconn_critical": [
    "/FAN_12V",
@@ -22,13 +29,17 @@
   "unconnected": 102
  },
  "label": "plain-compact-s0",
+ "live_score_checked": "2026-08-03T19:54:31",
+ "mezzanine_contract_ok": null,
  "reason": "matches more of the current schematic (100% vs 80% of 106 parts)",
+ "release_accepted": false,
+ "route_gate_passed": false,
  "routed": true,
  "schema": 1,
- "schematic_exact": true,
- "schematic_match": 1.0,
- "schematic_parts": 106,
- "schematic_status": "exact",
+ "schematic_exact": false,
+ "schematic_match": 0.9208,
+ "schematic_parts": 101,
+ "schematic_status": "stale",
  "sort_key": [
   1,
   1,
@@ -36,7 +47,7 @@
   0,
   102,
   30,
-  1000000.0
+  36.3
  ],
  "source": "build/final-review/fresh/12vhpwr-standard/20260802T2350-plain-compact-s0.kicad_pcb",
  "thermal": {

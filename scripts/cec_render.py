@@ -59,7 +59,8 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
             # root). Build artifacts live at arbitrary depths, so rewrite to the absolute
             # repo lib in the DISPOSABLE copy -- bodies render from anywhere.
             root = os.path.dirname(HERE)
-            doc = open(tmp).read().replace("${KIPRJMOD}/../../lib/", root + "/lib/")
+            with open(tmp) as fh:
+                doc = fh.read().replace("${KIPRJMOD}/../../lib/", root + "/lib/")
             if no_bodies:
                 # strip 3D model references (owner ask 2026-07-08: bodies hide the
                 # copper/pads during wave review) -- s-expr (model ...) blocks removed
@@ -85,7 +86,8 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
                         k += 1
                     i = k + 1
                 doc = "".join(out_doc)
-            open(tmp, "w").write(doc)
+            with open(tmp, "w") as fh:
+                fh.write(doc)
             src = tmp
         r = subprocess.run(["kicad-cli", "pcb", "render", "-o", str(out_png),
                             "--side", side, src],
@@ -129,11 +131,14 @@ if __name__ == "__main__":
 
 
 def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
-    """Owner ask 2026-07-15: the per-variant dash tile as a 3x2 array --
+    """Per-variant dash tile showing every copper layer in stack order.
+
+    Four-layer boards retain the original 3x2 layout; six-layer boards use a
+    4x2 layout so the later In3/In4 pair cannot disappear from wave review:
     col 1: FRONT render over BACK render (back mirrored into front orientation so
            features align across the row -- and labeled as such on-tile),
-    col 2: F.Cu plot over B.Cu plot (layer 1 / layer 4, board coordinates),
-    col 3: In1.Cu over In2.Cu (the inner pair),
+    col 2: outer copper (L1 F.Cu over the bottom copper layer),
+    later columns: inner copper paired in physical stack order,
     cells butted together with distinct divider rules. Returns out_png or None.
     Plots via kicad-cli svg + rsvg-convert (both in the routing container)."""
     import subprocess
@@ -142,7 +147,15 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
         from PIL import Image, ImageDraw, ImageOps
     except Exception:                                   # noqa: BLE001
         return None
-    wd = tempfile.mkdtemp(prefix="cec_hex_")
+    # Keep only the composed review tile. Temporary SVG/PNG layer plots used to
+    # leak one cec_hex_* directory per routed variant and slowly consume the
+    # workstation during long wave chains.
+    wd_owner = tempfile.TemporaryDirectory(prefix="cec_hex_")
+    wd = wd_owner.name
+    def finish(value):
+        wd_owner.cleanup()
+        return value
+
     tiles = {}
     # 1. side renders (reuse if the caller already made them)
     for side in ("top", "bottom"):
@@ -150,37 +163,41 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
         if not p or not os.path.isfile(p):
             p = os.path.join(wd, side + ".png")
             if not render(board_path, p, side=side, no_bodies=True):
-                return None
+                return finish(None)
         tiles[side] = p
-    # 2. layer plots -- inner layer names RESOLVED from the board (the 24-pin
-    # renames In1/In2 -> GND/PWR_RT; the hardcoded stock names plotted EMPTY
+    # 2. layer plots -- all copper names RESOLVED from the board (the 24-pin
+    # renames internals to GND/SIG2/PWR/GND2; hardcoded stock names plotted EMPTY
     # tiles, read as "L2 not filled as a ground plane" -- owner report
     # 2026-07-19; the plane measured 85% filled)
     try:
         import pcbnew as _pn
         _bl = _pn.LoadBoard(board_path)
-        _lname = {"l1": _bl.GetLayerName(_pn.F_Cu), "l4": _bl.GetLayerName(_pn.B_Cu),
-                  "l2": _bl.GetLayerName(_pn.In1_Cu), "l3": _bl.GetLayerName(_pn.In2_Cu)}
+        _copper_ids = list(_bl.GetEnabledLayers().CuStack())
+        _lname = {f"l{i + 1}": _bl.GetLayerName(layer_id)
+                  for i, layer_id in enumerate(_copper_ids)}
     except Exception:                                       # noqa: BLE001
-        _lname = {"l1": "F.Cu", "l4": "B.Cu", "l2": "In1.Cu", "l3": "In2.Cu"}
-    for key, layer in (("l1", _lname["l1"]), ("l4", _lname["l4"]),
-                       ("l2", _lname["l2"]), ("l3", _lname["l3"])):
+        _lname = {"l1": "F.Cu", "l2": "In1.Cu", "l3": "In2.Cu",
+                  "l4": "In3.Cu", "l5": "In4.Cu", "l6": "B.Cu"}
+    if len(_lname) not in (2, 4, 6):
+        return finish(None)
+    for key, layer in _lname.items():
         svg = os.path.join(wd, key + ".svg")
         r = subprocess.run(["kicad-cli", "pcb", "export", "svg", "--layers",
                             layer + ",Edge.Cuts", "--page-size-mode", "2",
                             "--exclude-drawing-sheet", "-o", svg, board_path],
                            capture_output=True, text=True, timeout=timeout)
         if r.returncode != 0 or not os.path.isfile(svg):
-            return None
+            return finish(None)
         png = os.path.join(wd, key + ".png")
         subprocess.run(["rsvg-convert", "-w", "900", "-o", png, svg],
                        capture_output=True, timeout=timeout)
         if not os.path.isfile(png):
-            return None
+            return finish(None)
         tiles[key] = png
 
     def board_crop(p):
-        im = Image.open(p).convert("RGB")
+        with Image.open(p) as source:
+            im = source.convert("RGB")
         # crop the render's grey margins: board pixels are the non-background extent
         import numpy as _np
         a = _np.asarray(im).astype(int)
@@ -193,31 +210,40 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
 
     top = board_crop(tiles["top"])
     bot = ImageOps.mirror(board_crop(tiles["bottom"]))     # into FRONT orientation
-    l1 = board_crop(tiles["l1"]); l4 = board_crop(tiles["l4"])
-    l2 = board_crop(tiles["l2"]); l3 = board_crop(tiles["l3"])
     CW = 760
     def fit(im):
         return im.resize((CW, int(im.height * CW / im.width)))
-    cols = [(fit(top), fit(bot)), (fit(l1), fit(l4)), (fit(l2), fit(l3))]
+    copper_count = len(_lname)
+    copper_pairs = [(1, copper_count)]
+    copper_pairs.extend((i, i + 1) for i in range(2, copper_count, 2))
+    cols = [(fit(top), fit(bot))] + [
+        (fit(board_crop(tiles[f"l{upper}"])),
+         fit(board_crop(tiles[f"l{lower}"])))
+        for upper, lower in copper_pairs
+    ]
     rowh = [max(c[0].height for c in cols), max(c[1].height for c in cols)]
     DIV = 5
-    W = CW * 3 + DIV * 4
+    W = CW * len(cols) + DIV * (len(cols) + 1)
     H = sum(rowh) + DIV * 3 + 26
     out = Image.new("RGB", (W, H), (16, 18, 22))
     d = ImageDraw.Draw(out)
-    labels = [("FRONT", "BACK (mirrored to front orientation)"),
-              ("L1 F.Cu", "L4 B.Cu"), ("L2 In1", "L3 In2")]
+    labels = [("FRONT", "BACK (mirrored to front orientation)")] + [
+        (f"L{upper} {_lname[f'l{upper}']}",
+         f"L{lower} {_lname[f'l{lower}']}")
+        for upper, lower in copper_pairs
+    ]
     for ci, (imt, imb) in enumerate(cols):
         x = DIV + ci * (CW + DIV)
         out.paste(imt, (x, DIV))
         out.paste(imb, (x, DIV + rowh[0] + DIV))
         d.text((x + 4, DIV + 2), labels[ci][0], fill=(255, 210, 90))
         d.text((x + 4, DIV + rowh[0] + DIV + 2), labels[ci][1], fill=(255, 210, 90))
-    for i in range(4):                                    # vertical rules
+    for i in range(len(cols) + 1):                         # vertical rules
         x = i * (CW + DIV)
         d.rectangle([x, 0, x + DIV - 1, H], fill=(90, 95, 105))
     for y in (0, DIV + rowh[0], DIV + rowh[0] + DIV + rowh[1]):
         d.rectangle([0, y, W, y + DIV - 1], fill=(90, 95, 105))
     d.text((DIV + 4, H - 20), os.path.basename(board_path), fill=(170, 175, 185))
     out.save(out_png)
-    return out_png
+    out.close()
+    return finish(out_png)

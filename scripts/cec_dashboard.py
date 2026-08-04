@@ -6,8 +6,8 @@
 #  cec_dashboard -- BOARD BROWSER + high-res ANALYZER.
 # ============================================================================
 # Owner directive (2026-06-30): the dashboard is ONE thing done well -- a full
-# high-res board browser + analyzer. No live-run auto-tracking, no per-layer
-# raster fallback, no agentic/seat/convergence panels. Just:
+# high-res board browser + analyzer. No live-run auto-tracking and no
+# agentic/seat/convergence panels. Just:
 #
 #   1. BOARD BROWSER -- every archived board lives in its own TIMESTAMPED dir
 #      under build/board-archive/<YYYYmmddTHHMM>-<name>/ holding the snapshotted
@@ -63,6 +63,18 @@ SOLVE = {"ambient": 50.0, "grid_mm": 0.2, "h_eff": 15.0}   # board_thermal_confi
 PANEL_W = 1400                # final_board_w; total PNG >= ~1772px (board + 372px legend) -> the >=1600px ask
 GATE_DT = 30.0               # dT-over-ambient PASS gate
 WX_NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|wxWidgets")
+
+# Full six-layer stack, in physical order. The wave renderer and archive analyzer
+# must both expose In3/In4 added during the six-layer migration; showing only the
+# historical F/B/In1/In2 subset makes projected crossings impossible to audit.
+COPPER_PLOTS = (
+    ("plotf", "plot-f.svg", "F.Cu,Edge.Cuts,F.Silkscreen"),
+    ("plot1", "plot-in1.svg", "In1.Cu,Edge.Cuts"),
+    ("plot2", "plot-in2.svg", "In2.Cu,Edge.Cuts"),
+    ("plot3", "plot-in3.svg", "In3.Cu,Edge.Cuts"),
+    ("plot4", "plot-in4.svg", "In4.Cu,Edge.Cuts"),
+    ("plotb", "plot-b.svg", "B.Cu,Edge.Cuts,B.Silkscreen"),
+)
 
 # The 3 key boards the archive is seeded with (newest under a glob is taken).
 SEED_BOARDS = [
@@ -215,7 +227,9 @@ def _watcher(poll_s=15):
 #  here (this branch runs inside the routing container).
 # ============================================================================
 def _analyze_in_container(board, detail_png, current_png, width,
-                          render_png=None, plotf_svg=None, plotb_svg=None):
+                          render_png=None, plotf_svg=None, plot1_svg=None,
+                          plot2_svg=None, plot3_svg=None, plot4_svg=None,
+                          plotb_svg=None):
     """Solve the 2.5D field ONCE (board_thermal_config -> _prepare_filled -> solve at the SOLVE recipe),
     draw the TEMPERATURE panel + the CURRENT cross-check panel from that one field, evaluate the
     gates, and (owner ask 2026-07-07) export the raytraced top RENDER + the front/back copper
@@ -233,16 +247,16 @@ def _analyze_in_container(board, detail_png, current_png, width,
             cec_render.render(board, render_png, side="top", timeout=300)  # silk stripped
         except Exception:                                           # noqa: BLE001
             pass
-    for svg, layers, mirror in ((plotf_svg, "F.Cu,Edge.Cuts,F.Silkscreen", False),
-                                (plotb_svg, "B.Cu,Edge.Cuts,B.Silkscreen", False)):
+    plot_paths = {"plotf": plotf_svg, "plot1": plot1_svg, "plot2": plot2_svg,
+                  "plot3": plot3_svg, "plot4": plot4_svg, "plotb": plotb_svg}
+    for panel, _filename, layers in COPPER_PLOTS:
+        svg = plot_paths[panel]
         if not svg:
             continue
         try:
             cmd = ["kicad-cli", "pcb", "export", "svg", "--mode-single", "-o", svg,
                    "--layers", layers, "--page-size-mode", "2",
                    "--exclude-drawing-sheet", board]
-            if mirror:
-                cmd.insert(-1, "--mirror")
             subprocess.run(cmd, capture_output=True, timeout=300)
         except Exception:                                           # noqa: BLE001
             pass
@@ -383,6 +397,7 @@ def archive_board(pcb_path, name):
                board.kicad_pcb   (+ .kicad_pro/.kicad_dru/.kicad_prl siblings if present)
                detail.png        TEMPERATURE panel (smooth field + translucent copper)
                current.png       per-net CURRENT cross-check panel
+               plot-*.svg        all six copper layers in stack order
                summary.json      {name, timestamp, gates, thermal, verdict}
 
     The host snapshots + mkdir's (host-owned); the container writes the PNGs (root, world-readable) into
@@ -407,8 +422,8 @@ def archive_board(pcb_path, name):
     detail = os.path.join(adir, "detail.png")
     current = os.path.join(adir, "current.png")
     render = os.path.join(adir, "render.png")
-    plotf = os.path.join(adir, "plot-f.svg")
-    plotb = os.path.join(adir, "plot-b.svg")
+    plots = {panel: os.path.join(adir, filename)
+             for panel, filename, _layers in COPPER_PLOTS}
     rel = lambda p: "/workspace/" + os.path.relpath(p, ROOT)       # noqa: E731
     summary = {"schema": 1, "id": aid, "name": name, "timestamp": ts,
                "ts_human": time.strftime("%Y-%m-%d %H:%M"), "epoch": time.time(),
@@ -419,7 +434,9 @@ def archive_board(pcb_path, name):
         cp = _container_run(
             ["python3", "scripts/cec_dashboard.py", "--analyze-board",
              "--board", rel(snap), "--detail", rel(detail), "--current", rel(current),
-             "--render", rel(render), "--plotf", rel(plotf), "--plotb", rel(plotb),
+             "--render", rel(render),
+             *[arg for panel, _filename, _layers in COPPER_PLOTS
+               for arg in (f"--{panel}", rel(plots[panel]))],
              "--width", str(PANEL_W)],
             timeout=900, env={"CEC_SHUNT_GAP": "1", "CEC_THERMAL_GPU_AMG": "1"})
         res = _parse_last_json(cp.stdout)
@@ -439,10 +456,9 @@ def archive_board(pcb_path, name):
         summary["panels"]["current"] = "current.png"
     if os.path.exists(render):
         summary["panels"]["render"] = "render.png"
-    if os.path.exists(plotf):
-        summary["panels"]["plotf"] = "plot-f.svg"
-    if os.path.exists(plotb):
-        summary["panels"]["plotb"] = "plot-b.svg"
+    for panel, filename, _layers in COPPER_PLOTS:
+        if os.path.exists(plots[panel]):
+            summary["panels"][panel] = filename
     summary["verdict"], summary["failing"] = _verdict(summary["gates"], summary["thermal"])
 
     with open(os.path.join(adir, "summary.json"), "w") as fh:
@@ -518,7 +534,7 @@ def _enqueue_seed():
 
 # ---------------------------------------------------------------- http
 def _img_path(aid, panel):
-    """Traversal-safe archive image path for (id, panel), or None. Besides the five built-in
+    """Traversal-safe archive image path for (id, panel), or None. Besides the built-in
     panels, an entry's summary.json may register EXTRA panels (ad-hoc studies, e.g. a
     worst-case-current thermal solve) as {key: filename}; the filename must be a bare
     .png/.svg basename inside that entry's own archive dir."""
@@ -526,7 +542,7 @@ def _img_path(aid, panel):
     if not re.match(r"^[A-Za-z0-9T_-]+$", aid):
         return None
     fn = {"detail": "detail.png", "current": "current.png", "render": "render.png",
-          "plotf": "plot-f.svg", "plotb": "plot-b.svg"}.get(panel)
+          **{key: filename for key, filename, _layers in COPPER_PLOTS}}.get(panel)
     if not fn:
         with _archive_lock:
             s = _archive_by_id.get(aid) or {}
@@ -749,24 +765,29 @@ const PANEL_LABEL={
  current:'CURRENT cross-check (A) — heat should track current',
  render:'RENDER — raytraced top view',
  plotf:'PLOT — front copper (F.Cu + Edge.Cuts + silkscreen)',
+ plot1:'PLOT — L2 internal copper (In1.Cu)',
+ plot2:'PLOT — L3 internal copper (In2.Cu)',
+ plot3:'PLOT — L4 internal copper (In3.Cu)',
+ plot4:'PLOT — L5 internal copper (In4.Cu)',
  plotb:'PLOT — back copper (B.Cu + Edge.Cuts + silkscreen)'};
 function buildPanels(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
  if(!cur){st.innerHTML='<div id="empty">no board selected</div>';return;}
  const have=cur.panels||{};
- const KNOWN=['detail','current','render','plotf','plotb'];
+ const PLOTS=['plotf','plot1','plot2','plot3','plot4','plotb'];
+ const KNOWN=['detail','current','render',...PLOTS];
  const extras=Object.keys(have).filter(k=>!KNOWN.includes(k)).sort();
  // studies (worst-case solves etc.) are thermal panels: show them RIGHT UNDER the
  // temperature panel, not buried after the render/plots at the bottom of the stack
- const want = mode==='all'?['detail',...extras,'current','render','plotf','plotb']
-            : mode==='plot'?['plotf','plotb']
+ const want = mode==='all'?['detail',...extras,'current','render',...PLOTS]
+            : mode==='plot'?PLOTS
             : mode==='detail'?['detail',...extras]
             : [mode];
  let any=false;
  for(const pn of want){
   if(!have[pn]) continue;
   any=true;
-  const w=document.createElement('div'); w.className='panel'+(pn==='plotf'||pn==='plotb'?' plot':'');
+  const w=document.createElement('div'); w.className='panel'+(PLOTS.includes(pn)?' plot':'');
   const im=document.createElement('img'); im.src=`/img?id=${encodeURIComponent(cur.id)}&panel=${pn}&v=${cur.epoch||0}`;
   const cap=document.createElement('div'); cap.className='cap';
   cap.textContent=PANEL_LABEL[pn]||('STUDY — '+pn.replace(/-/g,' '));
@@ -875,14 +896,16 @@ def main():
     ap.add_argument("--detail", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--current", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--render", default=None, help=argparse.SUPPRESS)
-    ap.add_argument("--plotf", default=None, help=argparse.SUPPRESS)
-    ap.add_argument("--plotb", default=None, help=argparse.SUPPRESS)
+    for panel, _filename, _layers in COPPER_PLOTS:
+        ap.add_argument(f"--{panel}", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--width", type=int, default=PANEL_W, help=argparse.SUPPRESS)
     a = ap.parse_args()
 
     if a.analyze_board:                                            # container half: solve, panels, render, plots, gates
         _analyze_in_container(a.board, a.detail, a.current, a.width,
-                              render_png=a.render, plotf_svg=a.plotf, plotb_svg=a.plotb)
+                              render_png=a.render,
+                              **{f"{panel}_svg": getattr(a, panel)
+                                 for panel, _filename, _layers in COPPER_PLOTS})
         return
 
     os.makedirs(ARCHIVE_ROOT, exist_ok=True)

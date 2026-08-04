@@ -1,10 +1,14 @@
 {
  "board": "eps-8pin-rev3",
+ "candidate_role": "diagnostic-reference",
  "commit": "1d9e84f",
- "freshness_checked": "2026-08-03T00:13:22",
+ "freshness_checked": "2026-08-03T19:54:33",
  "grade": {
   "diffpair_ok": true,
   "drc": 4,
+  "drc_types": {
+   "hole_clearance": 4
+  },
   "foreign": {
    "pours": 4,
    "status": "ok",
@@ -13,7 +17,7 @@
   },
   "gate": false,
   "kelvin_ok": true,
-  "rails": null,
+  "rails": {},
   "thermal_ok": false,
   "unconn_critical": [
    "GND"
@@ -21,7 +25,11 @@
   "unconnected": 27
  },
  "label": "periph-right-dataflow-s1-polish",
+ "live_score_checked": "2026-08-03T19:54:34",
+ "mezzanine_contract_ok": null,
  "reason": "first candidate",
+ "release_accepted": false,
+ "route_gate_passed": false,
  "routed": true,
  "schema": 1,
  "schematic_exact": true,
@@ -35,7 +43,7 @@
   0,
   27,
   4,
-  1000000.0
+  13.5
  ],
  "source": "build/final-review/eps-fresh/eps-8pin-rev3/20260802T2351-periph-right-dataflow-s1-polish.kicad_pcb",
  "thermal": {

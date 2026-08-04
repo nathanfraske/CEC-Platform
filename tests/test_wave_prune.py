@@ -11,6 +11,8 @@
 import os
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -91,6 +93,53 @@ class TestPruneDecision(unittest.TestCase):
         r2, _ = W._prune_variants(list(reversed(variants)), rows, 2)
         self.assertEqual({f"{v[0]}" for v in r1}, {f"{v[0]}" for v in r2},
                          "equal keys tie-break by label, order-independent")
+
+
+class TestPublishedRescore(unittest.TestCase):
+    def test_saved_artifact_metrics_replace_pre_repair_grade(self):
+        best = {
+            "gate": False, "gates_pass": False, "kelvin_ok": True,
+            "diffpair_ok": True, "drc": 29, "unconnected": 95,
+            "sort_key": (1, 0, 2, 0, 95, 29, 1e6),
+            "foreign": {"tracks": 0, "vias": 0},
+            "thermal": {"ok": False, "dT": None},
+            "rails": {"total": 4, "laid": 4},
+            "gate_terms": {"gates_pass": False, "routing_complete": False,
+                           "foreign_ok": True, "thermal_ok": False},
+            "reasons": [],
+        }
+        metrics = SimpleNamespace(
+            gates_pass=False, kelvin_ok=True, diffpair_ok=True, drc=31,
+            unconnected=97, drc_types={"tracks_crossing": 1}, vias=6,
+            tracks=12, length=42.25,
+            detail={"unconn_nets": ["GND", "/UART_TX"]},
+        )
+        with mock.patch.object(W.cec_score.Rules, "from_board", return_value=object()), \
+                mock.patch.object(W.cec_score, "score", return_value=metrics), \
+                mock.patch.object(W.csp, "_classify_unconnected",
+                                  return_value=(["GND"], ["/UART_TX"])):
+            W._rescore_published(best, __file__)
+
+        self.assertEqual(best["drc"], 31)
+        self.assertEqual(best["unconnected"], 97)
+        self.assertEqual(best["drc_types"], {"tracks_crossing": 1})
+        self.assertEqual(best["unconn_critical"], ["GND"])
+        self.assertEqual(best["sort_key"], (1, 0, 1, 0, 97, 31, 1e6))
+        self.assertFalse(best["gate"])
+        self.assertIn("published-artifact rescore", best["reasons"][-1])
+
+    def test_missing_complete_gate_record_fails_closed(self):
+        best = {"gate": True, "foreign": {}, "thermal": {}, "reasons": []}
+        metrics = SimpleNamespace(
+            gates_pass=True, kelvin_ok=True, diffpair_ok=True, drc=0,
+            unconnected=0, drc_types={}, vias=0, tracks=0, length=0.0,
+            detail={"unconn_nets": []},
+        )
+        with mock.patch.object(W.cec_score.Rules, "from_board", return_value=object()), \
+                mock.patch.object(W.cec_score, "score", return_value=metrics), \
+                mock.patch.object(W.csp, "_classify_unconnected", return_value=([], [])):
+            W._rescore_published(best, __file__)
+        self.assertFalse(best["gate"], "copper-only score cannot waive missing oracle terms")
 
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (real compile)")
