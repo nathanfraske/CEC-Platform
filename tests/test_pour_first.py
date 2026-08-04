@@ -23,6 +23,7 @@ from cec_slab_pour import (  # noqa: E402
     Grid,
     _nowhere_zone_verdict,
     _prep_overunder_net,
+    _terminal_reachable_zone_keys,
     connector_manifolds,
     footprint_copper_boxes,
     pourfirst_conv_split,
@@ -424,6 +425,20 @@ class TestNowhereReaperVerdict(unittest.TestCase):
 
     def test_gnd_never_reaped(self):
         self.assertFalse(_nowhere_zone_verdict("", "GND", 0))
+
+
+class TestFloatingZoneComponents(unittest.TestCase):
+    def test_transit_polygon_in_terminal_component_survives(self):
+        adjacency = {
+            "pad_end": {"transit"},
+            "transit": {"pad_end", "far_end"},
+            "far_end": {"transit"},
+            "orphan_a": {"orphan_b"},
+            "orphan_b": {"orphan_a"},
+        }
+        self.assertEqual(
+            _terminal_reachable_zone_keys(adjacency, {"pad_end"}),
+            {"pad_end", "transit", "far_end"})
 
 
 class TestEnumerateWinning(unittest.TestCase):

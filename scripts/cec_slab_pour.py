@@ -2392,6 +2392,30 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
     return {"corridors": corridors, "report": report}
 
 
+def _terminal_reachable_zone_keys(adjacency, terminal_keys):
+    """Return every zone in a zone-to-zone component that reaches copper.
+
+    KiCad reports zone connectivity one item at a time.  A routed-object pour
+    is deliberately made from several abutting zone polygons, so an interior
+    polygon can touch only its two neighbouring zones while a polygon at the
+    end of the component reaches a pad, via, or track.  Judging each polygon
+    independently therefore dismantles a valid corridor from the middle.
+
+    Keep the graph walk pure so the component rule has regression teeth
+    without depending on pcbnew/SWIG object construction in unit tests.
+    """
+    adjacency = {key: set(rows) for key, rows in adjacency.items()}
+    live = {key for key in terminal_keys if key in adjacency}
+    stack = list(live)
+    while stack:
+        key = stack.pop()
+        for other in adjacency.get(key, ()):
+            if other in adjacency and other not in live:
+                live.add(other)
+                stack.append(other)
+    return live
+
+
 def cleanup_floating_zones(board_path):
     """FLOATING-ZONE CLEANUP (owner requirement 2026-07-24): remove copper
     zones whose connectivity cluster contains NO pad, via, or track -- pure
@@ -2427,27 +2451,60 @@ def cleanup_floating_zones(board_path):
               "rule DISABLED for this pass (never delete on unmeasured "
               "evidence)", file=sys.stderr)
     conn = board.GetConnectivity()
-    doomed = []
-    for z in board.Zones():
-        if z.GetIsRuleArea() or not z.GetNetname():
-            continue
+    zones = [z for z in board.Zones()
+             if not z.GetIsRuleArea() and z.GetNetname()]
+
+    def _zone_key(zone):
+        try:
+            return str(zone.m_Uuid)
+        except Exception:                              # noqa: BLE001
+            try:
+                return str(zone.GetUuid())
+            except Exception:                          # noqa: BLE001
+                # SWIG wrappers are stable for this fresh load. This fallback
+                # is process-local and is never serialized.
+                return "swig:%d" % id(zone)
+
+    by_key = {_zone_key(z): z for z in zones}
+    empty = set()
+    adjacency = {key: set() for key in by_key}
+    terminals = set()
+    for key, z in by_key.items():
         # ZERO-FILL zones are dead by definition (measured on the s510
         # winner: a `pourplan:` outline whose fill was fully carved away
         # survived as a phantom "pour connected to nothing") -- but ONLY once a
         # fill has actually run in this cycle, per the note above.
         try:
             if filled_now and z.GetFilledArea() == 0:
-                doomed.append(z)
+                empty.add(key)
                 continue
         except Exception:                              # noqa: BLE001
             pass
         try:
             items = list(conn.GetConnectedItems(z))
         except Exception:                              # noqa: BLE001
+            # Connectivity uncertainty must never authorize copper deletion.
+            terminals.add(key)
             continue
-        if not any(it.GetClass() in ("PAD", "PCB_VIA", "PCB_TRACK")
-                   for it in items):
-            doomed.append(z)
+        for item in items:
+            klass = item.GetClass()
+            if klass in ("PAD", "PCB_VIA", "PCB_TRACK"):
+                terminals.add(key)
+            elif klass == "ZONE":
+                other = _zone_key(item)
+                if other in adjacency and other not in empty:
+                    adjacency[key].add(other)
+                    adjacency[other].add(key)
+
+    # Zero-fill polygons cannot conduct and therefore cannot bridge two live
+    # parts of the graph. Remove them before walking terminal reachability.
+    for key in empty:
+        adjacency.pop(key, None)
+    for rows in adjacency.values():
+        rows.difference_update(empty)
+    live = _terminal_reachable_zone_keys(adjacency, terminals)
+    doomed = [z for key, z in by_key.items()
+              if key in empty or key not in live]
     for z in doomed:
         board.Remove(z)
     # Save when anything changed -- including a fill with no removals, so the
