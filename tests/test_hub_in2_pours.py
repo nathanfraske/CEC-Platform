@@ -337,9 +337,85 @@ class TestPickupOwnNetExempt(unittest.TestCase):
 
         tracks = [item for item in board.GetTracks()
                   if item.GetClass() == "PCB_TRACK"]
-        self.assertEqual((result["groups"], result["linked"]), (1, 1))
+        self.assertEqual((result["groups"], result["linked"],
+                          result["refused"]), (1, 1, 0))
         self.assertTrue(tracks)
         self.assertEqual(tracks[0].GetNetname(), "+5VSB")
+
+    def test_same_footprint_filter_limits_preselected_topology(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U1")
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("1")
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("2")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I(int(1e6), int(1e6)))
+        second.SetPosition(pcbnew.VECTOR2I(int(7e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); footprint.Add(second)
+
+        skipped = cec_fr.synthesize_same_footprint_links(
+            board, include_nets={"+5VSB"}, include_refs={"U2"})
+        self.assertEqual((skipped["groups"], skipped["linked"]), (0, 0))
+        self.assertFalse(list(board.GetTracks()))
+
+        selected = cec_fr.synthesize_same_footprint_links(
+            board, include_nets={"+5VSB"}, include_refs={"U1"})
+        self.assertEqual((selected["groups"], selected["linked"]), (1, 1))
+
+    def test_same_footprint_uses_guarded_bridge_when_face_is_blocked(self):
+        import math
+        import pcbnew
+        import cec_fr
+        from unittest import mock
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U1")
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("1")
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("2")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I(int(1e6), int(1e6)))
+        second.SetPosition(pcbnew.VECTOR2I(int(7e6), int(2.5e6)))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); footprint.Add(second)
+        guarded = cec_fr._guarded_profiled_lastmile_legs
+
+        def block_long_face_route(board_, start, end, width, layer, *args,
+                                  **kwargs):
+            if (layer == pcbnew.F_Cu
+                    and math.hypot(end.x - start.x, end.y - start.y)
+                    > int(1.5e6)):
+                return None
+            return guarded(board_, start, end, width, layer, *args, **kwargs)
+
+        with mock.patch.object(
+                cec_fr, "_guarded_profiled_lastmile_legs",
+                side_effect=block_long_face_route):
+            result = cec_fr.synthesize_same_footprint_links(board)
+
+        self.assertEqual((result["groups"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        self.assertEqual(result["vias"], 2)
+        items = [item for item in board.GetTracks()
+                 if item.GetNetname() == "+5VSB"]
+        self.assertTrue(any(item.GetClass() == "PCB_VIA" for item in items))
+        self.assertTrue(any(item.GetClass() != "PCB_VIA"
+                            and item.GetLayer() != pcbnew.F_Cu
+                            for item in items))
+        self.assertTrue(all(item.IsLocked() for item in items))
 
     def test_same_footprint_diff_pair_leg_waits_for_atomic_pair_router(self):
         import pcbnew

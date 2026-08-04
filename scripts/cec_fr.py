@@ -3409,9 +3409,10 @@ def _profiled_lastmile_path(points, w, start_escape=None, end_escape=None):
 
     ``start_escape`` and ``end_escape`` are ``(width_nm, budget_nm)`` pairs.
     Width changes occur at deterministic graph-distance boundaries, never in
-    the middle of an unsplit track.  Overlapping endpoint budgets intentionally
-    keep the intervening short gap narrow; normalize_netclass_geometry applies
-    the identical bounded escape doctrine after the copper is added.
+    the middle of an unsplit track.  Callers cap high-current endpoint budgets
+    so two fine-pitch escapes cannot consume an entire local power link;
+    normalize_netclass_geometry applies the identical bounded doctrine after
+    the copper is added.
     """
     import math as _math
 
@@ -3680,7 +3681,8 @@ def synthesize_local_power_bypass_links(
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
         class_mm = class_width / MM
-        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
+        limit = 0.75 if class_mm >= 0.5 else 1.5
+        budget = _nm(max(0.6, min(limit, 1.5 * class_mm)))
         return local_width, budget
 
     def _pad_key(pad):
@@ -3811,7 +3813,7 @@ def synthesize_local_power_bypass_links(
 
 def synthesize_same_footprint_links(
         board, *, max_mm=3.0, min_w=0.2, clearance=0.20, lock=True,
-        netclass_resolver=None):
+        netclass_resolver=None, include_nets=None, include_refs=None):
     """Close duplicated same-net SMD pins locally before global routing.
 
     Multi-pin power switches, regulators, and buffers commonly expose two or
@@ -3826,14 +3828,21 @@ def synthesize_same_footprint_links(
     come from the project's real netclass. THT pins remain plane/pour policy's
     responsibility. Kelvin nets remain excluded; duplicated differential-pair
     lands are synthesized only as an atomic two-leg breakout. Every collision
-    or missing common layer refuses closed. Returns
-    ``{groups, linked, legs, refused, ignored, detail}``.
+    or missing common layer refuses closed. ``include_nets`` optionally limits
+    synthesis to an explicit net-name allowlist, allowing a pre-pour caller to
+    establish only topology that must precede shaped copper. ``include_refs``
+    applies the same explicit allowlist to footprint references. Returns
+    ``{groups, linked, legs, vias, refused, ignored, detail}``.
     """
     import math as _math
     from collections import defaultdict
 
     all_cu = set(board.GetEnabledLayers().CuStack())
     kelvin = {net for pair in _board_kelvin_pairs(board) for net in pair}
+    wanted = (None if include_nets is None
+              else {str(net) for net in include_nets})
+    wanted_refs = (None if include_refs is None
+                   else {str(ref) for ref in include_refs})
 
     def _pad_key(pad):
         pos = pad.GetPosition()
@@ -3879,7 +3888,14 @@ def synthesize_same_footprint_links(
         if minor >= class_width:
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
-        budget = _nm(max(0.6, min(1.5, 1.5 * class_width / MM)))
+        # Power copper must establish a class-width throat between duplicated
+        # fine-pitch pins.  The former 1.5 mm budget at both ends could overlap
+        # across a 2-3 mm local link and leave its entire 2.5 A path at 0.2 mm.
+        # A 0.75 mm cap still clears the package perimeter while preserving a
+        # thermally meaningful full-width middle section; guarded geometry
+        # refuses the link if that flare cannot fit.
+        limit = 0.75 if class_width >= _nm(0.5) else 1.5
+        budget = _nm(max(0.6, min(limit, 1.5 * class_width / MM)))
         return local_width, budget
 
     groups = []
@@ -3891,6 +3907,9 @@ def synthesize_same_footprint_links(
                 continue
         except Exception:                               # noqa: BLE001
             pass
+        if (wanted_refs is not None
+                and str(footprint.GetReference()) not in wanted_refs):
+            continue
         by_net = defaultdict(list)
         for pad in footprint.Pads():
             if (pad.GetNetCode() > 0 and pad.GetNetname()
@@ -3898,6 +3917,8 @@ def synthesize_same_footprint_links(
                 by_net[pad.GetNetname()].append(pad)
         paired_names = set()
         for net in sorted(by_net):
+            if wanted is not None and net not in wanted:
+                continue
             mate = _pair_mate(net)
             if (not mate or mate not in by_net or net >= mate
                     or len(by_net[net]) != 2 or len(by_net[mate]) != 2):
@@ -3906,12 +3927,27 @@ def synthesize_same_footprint_links(
                                 mate, by_net[mate]))
             paired_names.update((net, mate))
         for net, pads in by_net.items():
-            if len(pads) >= 2 and net not in kelvin and not _pairish(net):
+            if wanted is not None and net not in wanted:
+                ignored += 1
+            elif len(pads) >= 2 and net not in kelvin and not _pairish(net):
                 groups.append((footprint.GetReference(), net, pads))
             elif net not in paired_names:
                 ignored += 1
 
-    linked = legs_added = refused = 0
+    plane_ids = {board.GetLayerID(name) for name in plane_layers(board)}
+    plane_ids.discard(-1)
+    bridge_lays = [
+        layer for layer in all_cu
+        if layer != pcbnew.F_Cu and layer not in plane_ids
+        and not any(role in board.GetLayerName(layer).upper()
+                    for role in ("GND", "PWR"))]
+    bridge_lays.sort(key=lambda layer: (
+        0 if "SIG" in board.GetLayerName(layer).upper() else
+        1 if board.GetLayerName(layer).upper().startswith("IN") else
+        2 if layer == pcbnew.B_Cu else 3,
+        layer))
+
+    linked = legs_added = vias_added = refused = 0
     detail = []
     for reference, net, pads in sorted(groups, key=lambda row: (row[0], row[1])):
         spec = _spec(net)
@@ -3923,10 +3959,11 @@ def synthesize_same_footprint_links(
         group_links = 0
         while True:
             if group_links >= len(pads) - 1:
-                refused += 1
-                detail.append({"ref": reference, "net": net,
-                               "status": "refused",
-                               "reason": "connectivity did not converge"})
+                # Every selected edge joins two distinct connectivity roots,
+                # so n-1 emitted links are a complete spanning tree even when
+                # pcbnew has not refreshed its connectivity cache yet.  The
+                # former branch mislabeled every successful ordinary group as
+                # a refusal on the following pass.
                 break
             board.BuildConnectivity()
             connectivity = board.GetConnectivity()
@@ -3989,10 +4026,25 @@ def synthesize_same_footprint_links(
                         start_escape=_escape(pads[left], class_width),
                         end_escape=_escape(pads[right], class_width))
                     if path:
-                        selected = (distance, left, right, layer, path)
+                        selected = (distance, left, right, layer, path, None)
                         break
                 if selected:
                     break
+                if bridge_lays:
+                    ops = _lastmile_bridge(
+                        board, (start.x, start.y), _layers(pads[left]),
+                        (end.x, end.y), _layers(pads[right]),
+                        class_width, pads[left].GetNetCode(), bridge_lays,
+                        local_clearance,
+                        drill=float(spec.get("via_drill") or 0.3),
+                        dia=float(spec.get("via_diameter") or 0.6),
+                        leg_ok=lambda a, b, half: _edge_leg_clear(
+                            board, a, b, half),
+                        start_escape=_escape(pads[left], class_width),
+                        end_escape=_escape(pads[right], class_width))
+                    if ops:
+                        selected = (distance, left, right, None, None, ops)
+                        break
                 blocked.add(pair_key)
             if selected is None:
                 missing = len(roots) - 1
@@ -4002,21 +4054,53 @@ def synthesize_same_footprint_links(
                                "remaining_components": len(roots)})
                 break
 
-            distance, left, right, layer, path = selected
-            for start, end, width in path:
-                track = pcbnew.PCB_TRACK(board)
-                track.SetStart(start); track.SetEnd(end); track.SetWidth(width)
-                track.SetLayer(layer); track.SetNetCode(pads[left].GetNetCode())
-                track.SetLocked(bool(lock)); board.Add(track)
-                legs_added += 1
+            distance, left, right, layer, path, bridge_ops = selected
+            if bridge_ops:
+                used_layers = set()
+                for op in bridge_ops:
+                    if op[0] == "via":
+                        _, at, drill, diameter = op
+                        via = pcbnew.PCB_VIA(board)
+                        via.SetPosition(at)
+                        via.SetDrill(_nm(drill))
+                        via.SetWidth(_nm(diameter))
+                        via.SetNetCode(pads[left].GetNetCode())
+                        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                        via.SetLocked(bool(lock))
+                        board.Add(via)
+                        vias_added += 1
+                    else:
+                        _, start, end, width, op_layer = op
+                        track = pcbnew.PCB_TRACK(board)
+                        track.SetStart(start); track.SetEnd(end)
+                        track.SetWidth(width); track.SetLayer(op_layer)
+                        track.SetNetCode(pads[left].GetNetCode())
+                        track.SetLocked(bool(lock)); board.Add(track)
+                        used_layers.add(op_layer)
+                        legs_added += 1
+                layer_names = [board.GetLayerName(value)
+                               for value in sorted(used_layers)]
+                path_legs = sum(op[0] == "trk" for op in bridge_ops)
+            else:
+                for start, end, width in path:
+                    track = pcbnew.PCB_TRACK(board)
+                    track.SetStart(start); track.SetEnd(end); track.SetWidth(width)
+                    track.SetLayer(layer); track.SetNetCode(pads[left].GetNetCode())
+                    track.SetLocked(bool(lock)); board.Add(track)
+                    legs_added += 1
+                layer_names = [board.GetLayerName(layer)]
+                path_legs = len(path)
             linked += 1
             group_links += 1
             detail.append({"ref": reference, "net": net,
                            "from": str(pads[left].GetNumber()),
                            "to": str(pads[right].GetNumber()),
                            "distance_mm": round(distance, 3),
-                           "layer": board.GetLayerName(layer),
-                           "legs": len(path), "status": "linked"})
+                           "layers": layer_names,
+                           "legs": path_legs,
+                           "vias": (sum(op[0] == "via" for op in bridge_ops)
+                                    if bridge_ops else 0),
+                           "status": "linked"})
 
     # USB-C and similar reversible connectors interleave the duplicate lands
     # of the two pair legs along one pad row.  Joining either net alone can
@@ -4026,8 +4110,6 @@ def synthesize_same_footprint_links(
     # standard reversible-connector breakout topology.  Both guarded plans
     # must succeed before either is emitted.
     pair_linked = pair_legs = pair_refused = 0
-    plane_ids = {board.GetLayerID(name) for name in plane_layers(board)}
-    plane_ids.discard(-1)
     for reference, net_a, pads_a, net_b, pads_b in pair_groups:
         board.BuildConnectivity()
         connectivity = board.GetConnectivity()
@@ -4194,7 +4276,7 @@ def synthesize_same_footprint_links(
                            "status": "linked"})
 
     return {"groups": len(groups) + 2 * len(pair_groups),
-            "linked": linked, "legs": legs_added,
+            "linked": linked, "legs": legs_added, "vias": vias_added,
             "refused": refused, "ignored": ignored,
             "pair_groups": len(pair_groups), "pair_linked": pair_linked,
             "pair_legs": pair_legs, "pair_refused": pair_refused,
@@ -4643,7 +4725,8 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
         class_mm = class_width / MM
-        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
+        limit = 0.75 if class_mm >= 0.5 else 1.5
+        budget = _nm(max(0.6, min(limit, 1.5 * class_mm)))
         return (local_width, budget)
 
     def _anchors(kind, obj, class_width):
@@ -6541,7 +6624,12 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             size = pad.GetSize()
             minor = min(size.x, size.y) / MM
             if target > 0 and minor < target - tol_mm:
-                limit = max(0.6, min(1.5, 1.5 * target))
+                # A power-class escape must not remain narrow long enough for
+                # the budgets from two nearby pins to overlap across the whole
+                # link.  Keep the historical 1.5 mm signal allowance, but cap
+                # >=0.5 mm class copper at 0.75 mm per endpoint.
+                cap = 0.75 if target >= 0.5 else 1.5
+                limit = max(0.6, min(cap, 1.5 * target))
                 local_width = min(target, max(board_min_width, minor / 2.0))
                 fine_pads[net].append((pad, layers, limit, local_width))
 

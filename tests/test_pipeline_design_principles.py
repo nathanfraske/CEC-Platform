@@ -400,7 +400,7 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
                              [0.20, 1.00])
             narrow_mm = sum(t.GetLength() / 1e6 for t in local
                             if round(t.GetWidth() / 1e6, 2) == 0.20)
-            self.assertAlmostEqual(narrow_mm, 1.5, places=3)
+            self.assertAlmostEqual(narrow_mm, 0.75, places=3)
             self.assertEqual([round(t.GetWidth() / 1e6, 2) for t in remote],
                              [1.00])
             before = [(t.GetStart().x, t.GetEnd().x, t.GetWidth())
