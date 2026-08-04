@@ -106,7 +106,11 @@ _page_rev = str(int(time.time()))   # server-start stamp: stale browser tabs sel
 # every intermediate would churn renders/GPU solves. CEC_DASH_WATCH adds extra
 # repo-relative globs (comma-separated) without a code edit.
 WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb",
-               "build/fresh-wave-loop/**/*.kicad_pcb"] + [
+               "build/fresh-wave-loop/**/*.kicad_pcb",
+               # The router overwrites exactly one scored progress board per
+               # iteration. Unlike worker fanout, this is small and already
+               # ranked, so it belongs in the analyzed wave timeline.
+               "build/hub-closure-wave*/route-cand*/*-progress.kicad_pcb"] + [
     g.strip() for g in os.environ.get("CEC_DASH_WATCH", "").split(",") if g.strip()]
 _watch_seen = {}              # path -> mtime already enqueued
 _watch_status = {"globs": list(WATCH_GLOBS), "enqueued": 0, "last_scan": None}

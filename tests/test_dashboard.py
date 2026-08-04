@@ -51,6 +51,11 @@ class TestDashboard(unittest.TestCase):
                           for _panel, _filename, layers in dashboard.COPPER_PLOTS],
                          ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"])
 
+    def test_ranked_hub_route_progress_is_auto_archived(self):
+        self.assertIn(
+            "build/hub-closure-wave*/route-cand*/*-progress.kicad_pcb",
+            dashboard.WATCH_GLOBS)
+
     def test_route_angle_quality_is_visible(self):
         self.assertIn("unlocked_off45_tracks", dashboard.PAGE)
         self.assertIn("off-45", dashboard.PAGE)
