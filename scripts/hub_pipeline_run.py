@@ -272,54 +272,6 @@ def _prepare_repour_worker(out, nets):
             "asks_without_bootstrap_zone": missing}
 
 
-def _prepour_local_worker(out, rail_nets=()):
-    """Lay short, placement-dependent copper before shaped-rail allocation.
-
-    Local bypass/control links and duplicate-pad pair ties are physical board
-    objects, not work for a global autorouter.  They must exist before the
-    pour solver builds its foreign-copper masks; adding them after the slabs
-    were filled made the pipeline obstruct its own shortest legal escapes.
-
-    The remaining hand-authored zones (notably GND) are freshly filled first.
-    Do not run the general rail/GND last-mile pass here: without final rail
-    fill it creates speculative bridge barrels that can exhaust the shaped
-    pour solver's legal via ledger.  Rail completion remains in the post-pour
-    worker, where connectivity is evaluated against real copper.  This worker
-    never synthesizes rail pickups from absent fill.
-    """
-    import pcbnew
-    import cec_fr
-
-    board = pcbnew.LoadBoard(out)
-    for zone in board.Zones():
-        zone.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-
-    resolver = cec_fr._project_netclass_resolver(out)
-    same_footprint = cec_fr.synthesize_same_footprint_links(
-        board, lock=True, netclass_resolver=resolver)
-    bypass = cec_fr.synthesize_local_power_bypass_links(
-        board, lock=True, netclass_resolver=resolver)
-    local_signal = cec_fr.synthesize_local_signal_links(
-        board, lock=True, netclass_resolver=resolver)
-    normalization = {"tracks": 0, "vias": 0}
-    if (same_footprint["linked"] or bypass["linked"]
-            or local_signal["linked"]):
-        normalization = cec_fr.normalize_netclass_geometry(board, out)
-        for zone in board.Zones():
-            zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-
-    board.Save(out)
-    return {"same_footprint_links": same_footprint,
-            "local_power_bypass": bypass,
-            "local_signal_links": local_signal,
-            "normalization": normalization,
-            "local_rail_finish": {"closed": 0, "legs": 0, "refused": 0,
-                                  "far": 0, "cross_layer": 0},
-            "rail_normalization": {"tracks": 0, "vias": 0}}
-
-
 def _is_pipeline_rail_zone_name(name):
     """Return whether *name* identifies copper owned by the synthesis pipeline."""
     return str(name or "").startswith(PIPELINE_RAIL_ZONE_PREFIXES)
@@ -426,10 +378,10 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     with its real net classes / layer stackup / mounts / logo -- then reposition each synth component,
     rip the committed routing, and FILL the zones fresh at the new positions (so the GND plane
     connects). Refs the synth does not model (M*/LOGO/FID/TP) keep their committed (correct) positions.
-    Runs in SIX isolated spawn subprocesses (copy+UUID normalization,
-    reposition+rip, strip pours, local copper, repour, then fill). Remove
-    operations invalidate later SWIG state in that process, so each mutating
-    phase is isolated."""
+    Runs in FIVE isolated spawn subprocesses (copy+UUID normalization,
+    reposition+rip, strip pours, repour, then fill). Remove operations
+    invalidate later SWIG state in that process, so each mutating phase is
+    isolated."""
     import multiprocessing as mp
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
@@ -452,13 +404,10 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     with ctx.Pool(1) as pool:
         pool.apply(_prepare_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:
-        prepour_report = pool.apply(_prepour_local_worker, (dst, slab_nets))
-    with ctx.Pool(1) as pool:
         pour_report = pool.apply(_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
         finish_report = pool.apply(_fill_worker, (dst, slab_nets))
     pour_report["uuid_normalization"] = uuid_report
-    pour_report["prepour_local"] = prepour_report
     pour_report["pre_route_finish"] = finish_report
     return out, moved, pour_report
 
@@ -774,8 +723,6 @@ def main():
             mat = os.path.abspath(os.path.join(a.out, "hub-cand%d.kicad_pcb" % rank))
             _, nmoved, pour_report = materialize_onto_reference(
                 cand, REF, mat, pinned_refs=cand_cfg.pins)
-            prepour_finish = pour_report["prepour_local"]
-            postpour_finish = pour_report["pre_route_finish"]
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
                 "%d guarded same-footprint links; "
@@ -785,15 +732,11 @@ def main():
                 "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
-                   postpour_finish["power_pickups"]["vias"],
-                   prepour_finish["same_footprint_links"]["linked"]
-                   + postpour_finish["same_footprint_links"]["linked"],
-                   prepour_finish["local_power_bypass"]["linked"]
-                   + postpour_finish["local_power_bypass"]["linked"],
-                   prepour_finish["local_signal_links"]["linked"]
-                   + postpour_finish["local_signal_links"]["linked"],
-                   prepour_finish["local_rail_finish"]["closed"]
-                   + postpour_finish["local_rail_finish"]["closed"],
+                   pour_report["pre_route_finish"]["power_pickups"]["vias"],
+                   pour_report["pre_route_finish"]["same_footprint_links"]["linked"],
+                   pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
+                   pour_report["pre_route_finish"]["local_signal_links"]["linked"],
+                   pour_report["pre_route_finish"]["local_rail_finish"]["closed"],
                    pour_report["uuid_normalization"]["rewritten"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({
