@@ -179,7 +179,7 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
     """Build the Freerouting invocation for THIS platform.
 
     Freerouting 1.7.0 is a Java/Swing app that touches AWT at startup, so it needs a display.
-      * Linux, no $DISPLAY: wrap in `xvfb-run -a` (a virtual X server) -- if xvfb-run is
+      * Linux: wrap in an isolated `xvfb-run` (a virtual X server) -- if xvfb-run is
         missing on headless Linux, FR will throw HeadlessException (route-prereqs flags it).
       * Linux WITH $DISPLAY, macOS, Windows: run `java` directly -- the native windowing
         system (X / Quartz / Win32) provides the display. There is NO xvfb on Windows and
@@ -210,11 +210,19 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
     # Linux: ALWAYS prefer xvfb-run when available, even if $DISPLAY is set. The routing container
     # leaks a forwarded display (WSLg sets DISPLAY=:99 with a mounted X11 socket), and the old
     # `not $DISPLAY` guard then took the native-window path -> Freerouting popped a real Swing window
-    # on the host desktop. Headless is the correct default for the compute plane; xvfb-run -a starts
-    # its own virtual server and overrides the leaked DISPLAY. CEC_FR_USE_DISPLAY=1 opts a Linux
-    # desktop dev back into the visible window. Windows/macOS are unaffected (native path below).
+    # on the host desktop. Headless is the correct default for the compute plane. Each concurrent
+    # route also needs its OWN auth file: Debian's xvfb-run otherwise defaults to ./.Xauthority,
+    # so sixteen workers overwrite one another's cookies and sporadically fail with "Authorization
+    # required". A PID-derived starting display avoids the companion auto-server-number race; -a
+    # still advances safely if a stale socket exists. Both artifacts live in the disposable route
+    # workdir. CEC_FR_USE_DISPLAY=1 opts a Linux desktop dev back into the visible window.
     if sys.platform.startswith("linux") and shutil.which("xvfb-run") and os.environ.get("CEC_FR_USE_DISPLAY") != "1":
-        return ["xvfb-run", "-a"] + base
+        pid = os.getpid()
+        server_num = 1000 + (pid % 50000)
+        auth_path = os.path.join(os.path.abspath(workdir or _TMP),
+                                 ".cec-fr-xauth-%d" % pid)
+        return ["xvfb-run", "-a", "-n", str(server_num),
+                "-f", auth_path] + base
     return base
 
 # ---------------------------------------------------------------------------
