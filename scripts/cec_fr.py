@@ -3198,7 +3198,6 @@ def prune_redundant_dangling_pickups(
     def _pickup_stubs(via):
         """Short surface pad-to-barrel legs with pickup topology."""
         point = via.GetPosition()
-        radius = via.GetWidth(via.TopLayer()) // 2
         out = []
         for track in tracks:
             if (track.GetClass() == "PCB_VIA"
@@ -3208,9 +3207,9 @@ def prune_redundant_dangling_pickups(
                 continue
             start, end = track.GetStart(), track.GetEnd()
             start_hit = _math.hypot(start.x - point.x,
-                                    start.y - point.y) <= radius + tol
+                                    start.y - point.y) <= tol
             end_hit = _math.hypot(end.x - point.x,
-                                  end.y - point.y) <= radius + tol
+                                  end.y - point.y) <= tol
             if start_hit == end_hit:
                 continue
             source = end if start_hit else start
@@ -3409,10 +3408,10 @@ def _profiled_lastmile_path(points, w, start_escape=None, end_escape=None):
 
     ``start_escape`` and ``end_escape`` are ``(width_nm, budget_nm)`` pairs.
     Width changes occur at deterministic graph-distance boundaries, never in
-    the middle of an unsplit track.  Callers cap high-current endpoint budgets
-    so two fine-pitch escapes cannot consume an entire local power link;
-    normalize_netclass_geometry applies the identical bounded doctrine after
-    the copper is added.
+    the middle of an unsplit track.  When two fine-pitch escapes face each
+    other on a >=0.5 mm class, their budgets are reduced proportionally to
+    reserve a full-width throat.  This prevents overlapping pad allowances
+    from silently consuming an entire high-current local link.
     """
     import math as _math
 
@@ -3421,6 +3420,8 @@ def _profiled_lastmile_path(points, w, start_escape=None, end_escape=None):
     total = sum(lengths)
     if total <= 0:
         return []
+    start_escape, end_escape = _reserve_power_throat(
+        total, w, start_escape, end_escape)
     start_cut = (min(total, float(start_escape[1]))
                  if start_escape else 0.0)
     end_cut = (max(0.0, total - float(end_escape[1]))
@@ -3457,6 +3458,34 @@ def _profiled_lastmile_path(points, w, start_escape=None, end_escape=None):
     return out
 
 
+def _reserve_power_throat(total_nm, class_width_nm,
+                          start_escape=None, end_escape=None):
+    """Bound opposing power escapes so some class-width copper remains.
+
+    A single pad escape may legitimately run farther along a lightly loaded
+    branch (for example a supervisor-divider feed).  The hazardous case is a
+    short link with fine-pitch lands at *both* ends: overlapping allowances can
+    make the complete current path narrow.  Reserve 25% of short links, capped
+    at 0.25 mm, as a class-width throat.  Guarded synthesis then either proves
+    that flare against real neighboring copper or refuses closed.
+    """
+    if (float(class_width_nm) < _nm(0.5)
+            or start_escape is None or end_escape is None):
+        return start_escape, end_escape
+    start_budget = max(0.0, float(start_escape[1]))
+    end_budget = max(0.0, float(end_escape[1]))
+    combined = start_budget + end_budget
+    if combined <= 0:
+        return start_escape, end_escape
+    throat = min(float(_nm(0.25)), max(0.0, float(total_nm) * 0.25))
+    available = max(0.0, float(total_nm) - throat)
+    if combined <= available + 1e-6:
+        return start_escape, end_escape
+    scale = available / combined
+    return ((int(start_escape[0]), int(round(start_budget * scale))),
+            (int(end_escape[0]), int(round(end_budget * scale))))
+
+
 def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
                          *, start_escape=None, end_escape=None,
                          grid_mm=0.5, margin_mm=2.0):
@@ -3476,6 +3505,9 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
     if start_escape is None and end_escape is None:
         return None
 
+    direct_distance = ((T.x - S.x) ** 2 + (T.y - S.y) ** 2) ** 0.5
+    start_escape, end_escape = _reserve_power_throat(
+        direct_distance, w, start_escape, end_escape)
     step = max(1, _nm(grid_mm))
     margin = _nm(margin_mm)
     x_lo = (min(S.x, T.x) - margin) // step * step
@@ -3681,8 +3713,7 @@ def synthesize_local_power_bypass_links(
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
         class_mm = class_width / MM
-        limit = 0.75 if class_mm >= 0.5 else 1.5
-        budget = _nm(max(0.6, min(limit, 1.5 * class_mm)))
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
         return local_width, budget
 
     def _pad_key(pad):
@@ -3888,14 +3919,10 @@ def synthesize_same_footprint_links(
         if minor >= class_width:
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
-        # Power copper must establish a class-width throat between duplicated
-        # fine-pitch pins.  The former 1.5 mm budget at both ends could overlap
-        # across a 2-3 mm local link and leave its entire 2.5 A path at 0.2 mm.
-        # A 0.75 mm cap still clears the package perimeter while preserving a
-        # thermally meaningful full-width middle section; guarded geometry
-        # refuses the link if that flare cannot fit.
-        limit = 0.75 if class_width >= _nm(0.5) else 1.5
-        budget = _nm(max(0.6, min(limit, 1.5 * class_width / MM)))
+        # _reserve_power_throat() reduces opposing budgets just enough to keep
+        # a thermally meaningful class-width middle section; guarded geometry
+        # refuses the link if that flare cannot fit beside the package pins.
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_width / MM)))
         return local_width, budget
 
     groups = []
@@ -4725,8 +4752,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             return None
         local_width = min(class_width, max(_nm(min_w), minor // 2))
         class_mm = class_width / MM
-        limit = 0.75 if class_mm >= 0.5 else 1.5
-        budget = _nm(max(0.6, min(limit, 1.5 * class_mm)))
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
         return (local_width, budget)
 
     def _anchors(kind, obj, class_width):
@@ -6624,12 +6650,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             size = pad.GetSize()
             minor = min(size.x, size.y) / MM
             if target > 0 and minor < target - tol_mm:
-                # A power-class escape must not remain narrow long enough for
-                # the budgets from two nearby pins to overlap across the whole
-                # link.  Keep the historical 1.5 mm signal allowance, but cap
-                # >=0.5 mm class copper at 0.75 mm per endpoint.
-                cap = 0.75 if target >= 0.5 else 1.5
-                limit = max(0.6, min(cap, 1.5 * target))
+                limit = max(0.6, min(1.5, 1.5 * target))
                 local_width = min(target, max(board_min_width, minor / 2.0))
                 fine_pads[net].append((pad, layers, limit, local_width))
 
@@ -6785,12 +6806,10 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
                 at_b = mid >= length - keep_b - 1e-6
                 narrow = at_a or at_b
                 if narrow:
-                    allowed = [row["current"]]
-                    if at_a and budget_a[1] is not None:
-                        allowed.append(budget_a[1])
-                    if at_b and budget_b[1] is not None:
-                        allowed.append(budget_b[1])
-                    width = min(allowed)
+                    # Normalization may preserve an already narrow imported
+                    # escape, but it must never *create* one by shrinking valid
+                    # class-width copper synthesized earlier in the pipeline.
+                    width = row["current"]
                 else:
                     width = max(row["current"], row["target"])
                 pieces.append((point_at(lo), point_at(hi), width, narrow))

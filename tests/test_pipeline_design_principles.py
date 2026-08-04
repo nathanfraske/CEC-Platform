@@ -400,7 +400,7 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
                              [0.20, 1.00])
             narrow_mm = sum(t.GetLength() / 1e6 for t in local
                             if round(t.GetWidth() / 1e6, 2) == 0.20)
-            self.assertAlmostEqual(narrow_mm, 0.75, places=3)
+            self.assertAlmostEqual(narrow_mm, 1.5, places=3)
             self.assertEqual([round(t.GetWidth() / 1e6, 2) for t in remote],
                              [1.00])
             before = [(t.GetStart().x, t.GetEnd().x, t.GetWidth())
@@ -417,6 +417,47 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             ok, detail = C.CHECKERS["netclass-geometry-conformance"](
                 pcbnew.LoadBoard(path), path, {})[:2]
             self.assertTrue(ok, detail)
+
+    def test_normalizer_never_shrinks_existing_power_copper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "wide-escape.kicad_pcb")
+            pro = path[:-len(".kicad_pcb")] + ".kicad_pro"
+            board = pcbnew.CreateEmptyBoard()
+            net = pcbnew.NETINFO_ITEM(board, "PWR")
+            board.Add(net)
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("U1")
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+            pad.SetLayerSet(layers); pad.SetNet(net); fp.Add(pad); board.Add(fp)
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            track.SetEnd(pcbnew.VECTOR2I_MM(11.0, 10.0))
+            track.SetWidth(pcbnew.FromMM(1.0))
+            track.SetLayer(pcbnew.F_Cu); track.SetNet(net); board.Add(track)
+            pcbnew.SaveBoard(path, board)
+            with open(pro, "w", encoding="utf-8") as handle:
+                json.dump({"net_settings": {
+                    "classes": [
+                        {"name": "Default", "track_width": 0.20},
+                        {"name": "Power", "track_width": 1.00},
+                    ],
+                    "netclass_assignments": {"PWR": "Power"},
+                    "netclass_patterns": [],
+                }}, handle)
+
+            result = cec_fr.normalize_netclass_geometry(board, path)
+
+            tracks = [item for item in board.GetTracks()
+                      if item.GetClass() == "PCB_TRACK"]
+            self.assertEqual(len(tracks), 1)
+            self.assertEqual(tracks[0].GetWidth(), pcbnew.FromMM(1.0))
+            self.assertEqual(result["neckdown_narrowed_sections"], 0)
 
     def test_power_width_neckdown_is_bounded_at_constrained_pth_pad(self):
         with tempfile.TemporaryDirectory() as directory:

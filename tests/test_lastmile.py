@@ -127,11 +127,11 @@ class TestLastmile(unittest.TestCase):
         import pcbnew
         import cec_fr
 
-        points = [pcbnew.VECTOR2I_MM(0, 0), pcbnew.VECTOR2I_MM(2, 0)]
+        points = [pcbnew.VECTOR2I_MM(0, 0), pcbnew.VECTOR2I_MM(0.779, 0)]
         legs = cec_fr._profiled_lastmile_path(
             points, int(1.0e6),
-            start_escape=(int(0.20e6), int(0.75e6)),
-            end_escape=(int(0.20e6), int(0.75e6)))
+            start_escape=(int(0.20e6), int(1.5e6)),
+            end_escape=(int(0.20e6), int(1.5e6)))
 
         widths = [width for _a, _b, width in legs]
         self.assertEqual(widths, [int(0.20e6), int(1.0e6), int(0.20e6)])

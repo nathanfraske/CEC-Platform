@@ -546,9 +546,12 @@ class TestPickupOwnNetExempt(unittest.TestCase):
             via.SetNet(net); b.Add(via)
             return via
 
-        # The later local-link pass joins both surface pads.  Only the left
+        # The later local-link pass joins both surface pads.  Its bend touches
+        # the annulus of the right pickup without terminating at the barrel
+        # centre, reproducing the C14/U6 Wave-48 topology.  Only the left
         # pickup lands in the shaped In2 rail; the right one is redundant.
-        add_track((5.0, 2.5), (7.0, 2.5))
+        add_track((5.0, 2.5), (6.7, 3.3))
+        add_track((6.7, 3.3), (7.0, 2.5))
         valid_stub = add_track((5.0, 2.5), (5.0, 3.3))
         valid_via = add_via((5.0, 3.3))
         dead_stub = add_track((7.0, 2.5), (7.0, 3.3))
