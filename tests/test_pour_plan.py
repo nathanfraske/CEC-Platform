@@ -433,6 +433,26 @@ class TestViaInPadExclusionRealBoard(unittest.TestCase):
         p = added[0].GetPosition()
         self.assertAlmostEqual(p.x / MM, 13.0, places=2)
 
+    def test_overunder_ledger_accounts_for_existing_barrel_diameter(self):
+        import tempfile
+        import pcbnew
+        import cec_fr
+        board, _nc = self._board(tempfile.mkdtemp(prefix="cec_via_ledger_"))
+        other = pcbnew.NETINFO_ITEM(board, "+OTHER")
+        board.Add(other)
+        old = pcbnew.PCB_VIA(board)
+        old.SetPosition(pcbnew.VECTOR2I(int(20.0 * MM), int(10.0 * MM)))
+        old.SetDrill(int(0.6 * MM))
+        old.SetWidth(int(1.2 * MM))
+        old.SetNetCode(other.GetNetCode())
+        old.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        board.Add(old)
+        added = cec_fr.add_overunder_vias(
+            board, [{"net": "+5V_TEST", "x_mm": 21.1, "y_mm": 10.0}])
+        self.assertEqual(added, [],
+                         "1.2mm and 0.9mm barrels need 1.25mm centres at "
+                         "0.20mm copper clearance")
+
     def test_force_vias_clear_a_long_shunt_pad(self):
         # the s464 root cause class: a LONG shunt pad swallowed the fixed
         # 1.6mm outboard base -> in-pad force vias. The fixed base pushes

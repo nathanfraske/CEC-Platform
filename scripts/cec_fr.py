@@ -3470,25 +3470,29 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
     geometry here preserves the declared via net across save/reload and lets
     that later fill cut the correct antipad.
 
-    Re-checks the 0.85mm any-net barrel ledger against the board's CURRENT
-    via set (defense in depth -- synthesize_overunder_pours already
+    Re-checks a diameter-aware any-net barrel ledger against the board's
+    CURRENT via set: the two copper radii plus 0.20mm clearance (defense in
+    depth -- synthesize_overunder_pours already
     ledger-filters at generation time against this same board object, so
     this is a second, cheap pass, not the first one). Each *via_list* entry
     is {"net", "x_mm", "y_mm"}. Returns the added PCB_VIA objects."""
     for zone in board.Zones():
         zone.UnFill()
 
+    f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     existing = []
     for t in board.GetTracks():
         if t.GetClass() == "PCB_VIA":
             p = t.GetPosition()
-            existing.append((p.x / MM, p.y / MM))
-    f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+            existing.append((p.x / MM, p.y / MM,
+                             t.GetWidth(f_cu) / MM))
     added = []
     skipped_pad = 0
     for v in via_list:
         x, y = v["x_mm"], v["y_mm"]
-        if any((x - qx) ** 2 + (y - qy) ** 2 < 0.85 ** 2 for (qx, qy) in existing):
+        if any((x - qx) ** 2 + (y - qy) ** 2
+               < ((dia + qdia) / 2.0 + 0.20) ** 2
+               for (qx, qy, qdia) in existing):
             continue
         nc = board.GetNetcodeFromNetname(v["net"])
         if nc <= 0:
@@ -3508,7 +3512,7 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         via.SetLayerPair(f_cu, b_cu)
         board.Add(via)
         added.append(via)
-        existing.append((x, y))
+        existing.append((x, y, dia))
     if skipped_pad:
         print(f"[cec_fr] add_overunder_vias: {skipped_pad} via(s) REFUSED "
               "in-pad (assembly-class exclusion, owner ruling 2026-07-25 -- "

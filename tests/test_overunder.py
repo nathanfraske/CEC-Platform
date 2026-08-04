@@ -206,7 +206,20 @@ class TestBridgesToVias(unittest.TestCase):
         for v in conflicted:
             self.assertGreaterEqual(
                 (v["x_mm"] - centre["x_mm"]) ** 2
-                + (v["y_mm"] - centre["y_mm"]) ** 2, 0.85 ** 2)
+                + (v["y_mm"] - centre["y_mm"]) ** 2, 1.10 ** 2)
+
+    def test_default_ledger_enforces_barrel_edge_clearance(self):
+        grid = _G(30, 20)
+        bridges = [(10, 10, "A", "B", 1.0, 0.0)]
+        req_w = {"A": 1.2, "B": 1.2}
+        baseline = bridges_to_vias(bridges, req_w, grid)
+        self.assertEqual(len(baseline), 2)
+        seat = min(baseline, key=lambda v: v["y_mm"])
+        existing = [(seat["x_mm"], seat["y_mm"] - 1.0)]
+        revised = bridges_to_vias(bridges, req_w, grid, existing=existing)
+        self.assertEqual(len(revised), 1,
+                         "1.0mm centres leave only 0.10mm between 0.9mm "
+                         "barrels and must be rejected")
 
 
 class TestRectRealization(unittest.TestCase):

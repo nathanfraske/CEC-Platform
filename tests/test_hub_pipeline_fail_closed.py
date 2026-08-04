@@ -141,6 +141,27 @@ class TestHubAcceptance(unittest.TestCase):
             with self.subTest(values=values):
                 self.assertFalse(H._acceptance_terms(*values)[1])
 
+    def test_pre_route_gate_refuses_contact_faults_not_expected_open_copper(self):
+        types = {"clearance": 2, "via_dangling": 31,
+                 "isolated_copper": 7, "copper_edge_clearance": 2}
+        loci = [{"type": kind, "where": kind} for kind in types]
+        with mock.patch.object(H.cec_score, "drc_types",
+                               return_value=(types, loci)):
+            result = H._pre_route_materialization_gate("fixture.kicad_pcb")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["fatal"], {"clearance": 2})
+        self.assertEqual(result["loci"],
+                         [{"type": "clearance", "where": "clearance"}])
+
+    def test_pre_route_gate_allows_expected_unrouted_findings(self):
+        types = {"via_dangling": 31, "isolated_copper": 7,
+                 "copper_edge_clearance": 2}
+        with mock.patch.object(H.cec_score, "drc_types",
+                               return_value=(types, [])):
+            result = H._pre_route_materialization_gate("fixture.kicad_pcb")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["fatal"], {})
+
     def test_conformance_exception_is_a_failure(self):
         messages = []
         cfg = type("Cfg", (), {"params": {}})()

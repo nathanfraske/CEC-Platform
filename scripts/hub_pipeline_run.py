@@ -356,6 +356,28 @@ def _acceptance_terms(route_verdict, conformance_fail, physics_flags,
     return terms, all(terms.values())
 
 
+_PRE_ROUTE_FATAL_DRC = frozenset({
+    "clearance", "shorting_items", "tracks_crossing", "hole_clearance",
+})
+
+
+def _pre_route_materialization_gate(board_path):
+    """Refuse electrically invalid synthesized copper before routing.
+
+    An unrouted board legitimately contains dangling bridge barrels and
+    isolated partial rail zones, so those cannot be release gates yet.  Copper
+    contact/clearance faults are never made legitimate by routing and only
+    waste every parallel seed.  Return a compact, auditable result from one
+    DRC run.
+    """
+    types, loci = cec_score.drc_types(board_path)
+    fatal = {kind: count for kind, count in types.items()
+             if kind in _PRE_ROUTE_FATAL_DRC and count}
+    details = [row for row in loci if row.get("type") in fatal]
+    return {"ok": not fatal, "fatal": fatal, "types": types,
+            "loci": details[:20]}
+
+
 def _reference_intake():
     """Run intake on the candidate while explicitly binding its parent schematic."""
     import cec_constraints
@@ -490,7 +512,8 @@ def main():
         os.environ.setdefault("CEC_VLLM_REVIEWER_MODEL", sel["manager_model"])
 
     report = {"board": a.board, "hours": a.hours, "seats": sel, "stages": [],
-              "placements": [], "routes": [], "policy_ok": None, "ref_intake": None}
+              "placements": [], "materializations": [], "routes": [],
+              "policy_ok": None, "ref_intake": None}
     log("=== FULL HUB PIPELINE (place -> route -> check), budget %.2f h ===" % a.hours)
 
     # The runner copies the candidate's footprint inventory before moving the
@@ -603,6 +626,17 @@ def main():
                 "%d rails -> %d %s polygons, %d bridge vias)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"]))
+            pre_route = _pre_route_materialization_gate(mat)
+            report["materializations"].append({
+                "rank": rank, "board": os.path.relpath(mat, S.ROOT),
+                "pour_report": pour_report, "pre_route_gate": pre_route,
+            })
+            if not pre_route["ok"]:
+                log("  cand%d: PRE-ROUTE MATERIALIZATION REFUSED -- %s; %s"
+                    % (rank, pre_route["fatal"], pre_route["loci"][:4]))
+                continue
+            log("  cand%d: pre-route copper-contact gate PASS (%s)"
+                % (rank, pre_route["types"]))
             remaining = deadline - time.time()
             slots = max(1, len(topK) - rank)
             opt = int(max(15, min(50, remaining / slots / 8)))   # per-seed opt seconds within budget

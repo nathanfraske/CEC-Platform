@@ -1067,7 +1067,29 @@ def realize_overunder(path_cells, layer_rcells, grid, *, min_area_mm2=0.5):
     return out
 
 
-def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
+VIA_R = 0.45             # add_overunder_vias default barrel dia 0.9 / 2
+PAD_MARGIN = 0.20        # minimum copper clearance beyond the barrel radius
+VIA_LEDGER_MM = 2 * VIA_R + PAD_MARGIN
+
+
+def _via_ledger_hit(placed, x, y, ledger_mm=VIA_LEDGER_MM):
+    """Return true when a 0.9-mm bridge barrel would violate the ledger.
+
+    Two-element entries are legacy 0.9-mm bridge-via centres.  A third value
+    carries an existing barrel's radius, allowing larger board vias to expand
+    the required centre distance instead of being treated like points.
+    """
+    for q in placed:
+        qx, qy = q[:2]
+        qr = float(q[2]) if len(q) > 2 else VIA_R
+        required = max(float(ledger_mm), VIA_R + qr + PAD_MARGIN)
+        if (x - qx) ** 2 + (y - qy) ** 2 < required ** 2:
+            return True
+    return False
+
+
+def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2,
+                    ledger_mm=VIA_LEDGER_MM,
                     existing=()):
     """A via-array LINE across each bridge, perpendicular to the path's
     local travel direction, spaced *pitch_mm* apart and spanning the WIDER
@@ -1075,8 +1097,10 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
     transition line at 1.2mm pitch', owner v2 design step 4).
 
     Skips any spot within *ledger_mm* of an entry in *existing* (mm tuples)
-    OR of a spot this call already placed for an earlier bridge (the 0.85mm
-    any-net barrel ledger, applied cumulatively). *req_w* maps a layer name
+    OR of a spot this call already placed for an earlier bridge.  The default
+    is the two 0.9-mm barrel radii plus 0.20-mm copper clearance, applied
+    cumulatively.  Existing tuples may include a third radius value so larger
+    barrels expand the ledger. *req_w* maps a layer name
     to its required width in mm (missing entries fall back to the 1.2mm
     floor). Returns [{'x_mm':, 'y_mm':}] -- the caller stamps 'net'."""
     placed = list(existing)
@@ -1093,16 +1117,11 @@ def bridges_to_vias(bridges, req_w, grid, *, pitch_mm=1.2, ledger_mm=0.85,
             off = (k - (n_v - 1) / 2.0) * pitch_mm
             vx = round(cx + perp[0] * off, 3)
             vy = round(cy + perp[1] * off, 3)
-            if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
-                  for (qx, qy) in placed):
+            if _via_ledger_hit(placed, vx, vy, ledger_mm):
                 continue
             placed.append((vx, vy))
             out.append({"x_mm": vx, "y_mm": vy})
     return out
-
-
-VIA_R = 0.45             # add_overunder_vias default barrel dia 0.9 / 2
-PAD_MARGIN = 0.20        # minimum copper clearance beyond the barrel radius
 
 
 def _pad_hit(pad_boxes, x, y, r):
@@ -1276,7 +1295,7 @@ def vias_for_current(amps, *, redundancy=1):
 
 
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
-                   ledger_mm=0.85, n_needed=None, pad_allow=None):
+                   ledger_mm=VIA_LEDGER_MM, n_needed=None, pad_allow=None):
     """Via positions for ONE compact field: a roughly square ARRAY centred on
     the transition (owner ruling 2026-07-25 -- a layer change is one via array,
     not a fence across the corridor), each slot checked against the barrel
@@ -1340,8 +1359,7 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
             break
         vx = round(cx + perp[0] * sp + dx * sa, 3)
         vy = round(cy + perp[1] * sp + dy * sa, 3)
-        if any((vx - qx) ** 2 + (vy - qy) ** 2 < ledger_mm ** 2
-               for (qx, qy) in list(placed) + out):
+        if _via_ledger_hit(list(placed) + out, vx, vy, ledger_mm):
             continue
         if (_pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN)
                 and not (pad_allow and pad_allow(vx, vy))):
@@ -1428,7 +1446,8 @@ def _l_simplify(cells, free, grid):
 def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                             existing_vias=(), f_admit=None, free_masks=None,
                             clip_masks=None, holes_out=None,
-                            pitch_mm=1.2, ledger_mm=0.85, pad_allow=None,
+                            pitch_mm=1.2, ledger_mm=VIA_LEDGER_MM,
+                            pad_allow=None,
                             strict_bridges=False):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
     stays the search's; the copper is DRAWN geometry -- one straight capsule
@@ -1902,12 +1921,14 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     for (x0, y0, x1, y1) in shunt_neighborhoods(board):
         grid.stamp_box(shunt_mask, x0, y0, x1, y1)
 
-    # existing board vias, once -- the 0.85mm any-net barrel ledger seed
+    # Existing board vias, once.  Preserve each radius so a larger barrel
+    # expands the generated bridge-via clearance ledger.
     existing_vias_mm = []
     for t in board.GetTracks():
         if t.GetClass() == "PCB_VIA":
             p = t.GetPosition()
-            existing_vias_mm.append((p.x / MM, p.y / MM))
+            existing_vias_mm.append(
+                (p.x / MM, p.y / MM, t.GetWidth(pcbnew.F_Cu) / MM / 2.0))
 
     pour_dicts, via_list, report = [], [], {}
 
