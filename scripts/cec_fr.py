@@ -5505,7 +5505,11 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         if _nw:
             print("[fr] normalized %d sub-minimum track width(s)" % _nw,
                   file=sys.stderr)
-        _ng = normalize_netclass_geometry(board, out_path)
+        # The output sidecar is copied only after this import returns. Resolve
+        # netclasses from the staged source project that already exists, or
+        # every candidate is scored with skinny SES geometry and widened only
+        # at the final release choke point (candidate and shipped DRC diverge).
+        _ng = normalize_netclass_geometry(board, board_path)
         if _ng.get("tracks") or _ng.get("vias"):
             print("[fr] normalized netclass geometry: %d track(s), %d via(s)"
                   % (_ng.get("tracks", 0), _ng.get("vias", 0)), file=sys.stderr)

@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -271,6 +272,27 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertEqual(widths, [0.25, 0.25])
             self.assertAlmostEqual(via.GetWidth(via.TopLayer()) / 1e6, 0.60)
             self.assertAlmostEqual(via.GetDrillValue() / 1e6, 0.30)
+
+    def test_ses_import_reads_netclasses_from_staged_source_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = self._board(directory)
+            ses = os.path.join(directory, "candidate.ses")
+            output = os.path.join(directory, "candidate.kicad_pcb")
+            with open(ses, "w", encoding="utf-8") as handle:
+                handle.write("(session candidate)\n")
+
+            self.assertFalse(os.path.exists(
+                output[:-len(".kicad_pcb")] + ".kicad_pro"))
+            with mock.patch.object(pcbnew, "ImportSpecctraSES",
+                                   return_value=True), \
+                    mock.patch.object(cec_fr, "normalize_netclass_geometry",
+                                      return_value={"tracks": 0, "vias": 0}) as normalize:
+                cec_fr.import_ses(source, ses, output, fill_zones=False,
+                                  power_pours=(), kelvin_taps=False)
+
+            self.assertTrue(os.path.exists(output))
+            self.assertEqual(normalize.call_count, 1)
+            self.assertEqual(normalize.call_args.args[1], source)
 
 
 if __name__ == "__main__":
