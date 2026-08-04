@@ -286,6 +286,27 @@ def _repour_worker(out, nets):
                       for net, row in report.items()}}
 
 
+def _stage_reference_sidecars(ref, dst):
+    """Stage and rebind the project files required by pcbnew netclass lookup."""
+    import shutil
+    import cec_fr
+
+    src_base = ref[:-len(".kicad_pcb")]
+    dst_base = dst[:-len(".kicad_pcb")]
+    copied = []
+    for ext in (".kicad_pro", ".kicad_dru"):
+        candidates = [src_base + ext,
+                      os.path.join(os.path.dirname(os.path.dirname(ref)),
+                                   "hub-standard-rev2" + ext)]
+        source = next((path for path in candidates if os.path.isfile(path)), None)
+        if source:
+            target = dst_base + ext
+            shutil.copy2(source, target)
+            copied.append(target)
+    cec_fr.rebind_project_metadata(dst)
+    return copied
+
+
 def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     """Materialize a synth placement onto the REFERENCE board's stackup (the owner's 'base stackup =
     committed Hub'). build_board's from-scratch output is NOT DSN-exportable (KiCad's Specctra
@@ -296,9 +317,17 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     Runs in FOUR isolated spawn subprocesses (reposition+rip, strip pours, repour, then fill). Remove operations
     invalidate later SWIG state in that process, so each mutating phase is isolated."""
     import multiprocessing as mp
-    import shutil
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
+
+    # Stage the project and custom-rule sidecars BEFORE the first pcbnew worker
+    # loads the copied board.  Netclass lookup is project-backed: staging these
+    # only after pickup synthesis made every pre-route pickup use KiCad's
+    # 0.6/0.3-mm defaults, after which the final normalizer enlarged/moved it.
+    # The candidate-local files are authoritative; the parent project is only
+    # a compatibility fallback for older reference snapshots.
+    _stage_reference_sidecars(ref, dst)
+
     ctx = mp.get_context("spawn")
     with ctx.Pool(1) as pool:
         moved = pool.apply(
@@ -310,20 +339,6 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
         pour_report = pool.apply(_repour_worker, (dst, slab_nets))
     with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
         pool.apply(_fill_worker, (dst,))
-    src_base = ref[:-len(".kicad_pcb")]
-    dst_base = dst[:-len(".kicad_pcb")]
-    for ext in (".kicad_pro", ".kicad_dru"):
-        candidates = [src_base + ext,
-                      os.path.join(os.path.dirname(os.path.dirname(ref)),
-                                   "hub-standard-rev2" + ext)]
-        source = next((path for path in candidates if os.path.isfile(path)), None)
-        if source:
-            shutil.copy(source, dst_base + ext)
-    # The sidecars above may originate from an older project basename. Bind
-    # the materialized candidate to the actual filename that all downstream
-    # headless DRC/render/route stages will open.
-    import cec_fr
-    cec_fr.rebind_project_metadata(dst)
     return out, moved, pour_report
 
 

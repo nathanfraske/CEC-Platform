@@ -50,6 +50,33 @@ class TestHubParamsConformance(unittest.TestCase):
                              "hub asks stay post-route additive (no eviction)")
 
 
+class TestHubMaterializationSidecars(unittest.TestCase):
+    def test_sidecars_are_staged_and_rebound_before_board_workers(self):
+        import hub_pipeline_run as hub
+
+        with tempfile.TemporaryDirectory() as tmp:
+            candidate = os.path.join(tmp, "candidate", "hub-standard-rev2-candidate.kicad_pcb")
+            output = os.path.join(tmp, "wave", "hub-cand0.kicad_pcb")
+            os.makedirs(os.path.dirname(candidate))
+            os.makedirs(os.path.dirname(output))
+            open(candidate, "w", encoding="utf-8").close()
+            with open(os.path.splitext(candidate)[0] + ".kicad_pro", "w",
+                      encoding="utf-8") as fh:
+                json.dump({"meta": {"filename": "stale.kicad_pro"}}, fh)
+            with open(os.path.splitext(candidate)[0] + ".kicad_dru", "w",
+                      encoding="utf-8") as fh:
+                fh.write("(version 1)\n")
+
+            copied = hub._stage_reference_sidecars(candidate, output)
+
+            self.assertEqual(len(copied), 2)
+            with open(os.path.splitext(output)[0] + ".kicad_pro",
+                      encoding="utf-8") as fh:
+                project = json.load(fh)
+            self.assertEqual(project["meta"]["filename"], "hub-cand0.kicad_pro")
+            self.assertTrue(os.path.isfile(os.path.splitext(output)[0] + ".kicad_dru"))
+
+
 class TestPourPolygonsPerLayer(unittest.TestCase):
     def _plan(self, layers):
         import cec_pourplan as cp

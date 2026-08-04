@@ -5788,7 +5788,9 @@ def route_once(
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
     Uses a fresh /tmp workdir for DSN/SES intermediates (Freerouting's logs/ stays
-    in /tmp).  Never raises for a routing failure — catches and returns
+    in /tmp).  Owned workdirs are removed by default; set
+    ``CEC_FR_KEEP_INTERMEDIATES=1`` for an explicitly debug-retained DSN/SES.
+    Never raises for a routing failure — catches and returns
     ``Candidate(ok=False, err=...)``.  Does raise for programmer errors such as a
     missing input board.
 
@@ -6015,11 +6017,11 @@ def route_once(
         )
     finally:
         if _own_wd:
-            # Keep intermediates: the caller may want to inspect dsn/ses.
-            # Only clean up if the run succeeded (board is in out_path already).
-            # Actually — always leave workdir if it holds a .ses, clean otherwise.
-            ses_exists = os.path.isfile(os.path.join(workdir, "board.ses"))
-            if not ses_exists:
+            # A wave can launch hundreds of workers.  Retaining every successful
+            # DSN/SES in /tmp silently consumes the host disk even though the
+            # imported PCB is already durable in out_path.  Debug retention is
+            # therefore explicit rather than the production default.
+            if os.environ.get("CEC_FR_KEEP_INTERMEDIATES", "0") != "1":
                 shutil.rmtree(workdir, ignore_errors=True)
 
 
