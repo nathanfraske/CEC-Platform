@@ -3133,7 +3133,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             "skipped_detail": skipped_detail[:32]}
 
 
-def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
+def prune_redundant_dangling_pickups(
+        board, pickup_item_ids, *, discover_nets=(), tol_mm=0.02,
+        max_stub_mm=1.5):
     """Remove a generated pickup only when later local copper supersedes it.
 
     Pickup synthesis intentionally precedes the local bypass/link passes: doing
@@ -3143,33 +3145,30 @@ def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
     survive the final shaped fill, KiCad then reports a dangling via even though
     the cluster has another valid stack transition.
 
-    Limit pruning to the exact items created by the pickup pass.  An adjacent
-    pickup is removable only when (1) its barrel contacts copper on at most one
-    layer after the final fill, (2) it owns exactly one generated stub, and (3)
-    KiCad's real connected component contains another proven multilayer anchor
-    (a non-dangling via or a plated through pad).  Via-in-pad pickups, router
-    vias, bridge fields, hand-authored copper, and the cluster's only transition
-    therefore fail closed and remain untouched.
+    Limit pruning to exact items created by the final pickup pass plus the
+    short SMD-pad-to-barrel topology on explicitly named discovery nets. The
+    latter recovers bootstrap pickups created in the earlier repour process,
+    whose UUIDs cannot cross the process boundary. An adjacent pickup is
+    removable only when (1) its barrel contacts copper on at most one layer
+    after the final fill, (2) it owns exactly one short surface-pad stub, and
+    (3) KiCad's real connected component contains another proven multilayer
+    anchor (a non-dangling via or a plated through pad). Via-in-pad pickups,
+    router vias, bridge fields, hand-authored copper, and the cluster's only
+    transition therefore fail closed and remain untouched.
     """
     import math as _math
 
     wanted = {str(value) for value in (pickup_item_ids or ())}
-    if not wanted:
+    discover = {str(net) for net in (discover_nets or ())}
+    if not wanted and not discover:
         return {"vias": 0, "stubs": 0, "detail": []}
 
     tracks = list(board.GetTracks())
     tracks_by_id = {item.m_Uuid.AsString(): item for item in tracks}
     pads = [pad for fp in board.GetFootprints() for pad in fp.Pads()]
-    pickup_tracks = [item for item in tracks
-                     if item.m_Uuid.AsString() in wanted
-                     and item.GetClass() != "PCB_VIA"]
-    pickup_vias = [item for item in tracks
-                   if item.m_Uuid.AsString() in wanted
-                   and item.GetClass() == "PCB_VIA"]
-    if not pickup_vias:
-        return {"vias": 0, "stubs": 0, "detail": []}
 
     tol = int(float(tol_mm) * MM)
+    max_stub = int(float(max_stub_mm) * MM)
     zones = []
     for zone in board.Zones():
         if zone.GetIsRuleArea() or not zone.IsOnCopperLayer():
@@ -3195,6 +3194,46 @@ def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
             near_x, near_y = start.x, start.y
         return _math.hypot(point.x - near_x, point.y - near_y) <= (
             track.GetWidth() // 2 + int(extra) + tol)
+
+    def _pickup_stubs(via):
+        """Short surface pad-to-barrel legs with pickup topology."""
+        point = via.GetPosition()
+        radius = via.GetWidth(via.TopLayer()) // 2
+        out = []
+        for track in tracks:
+            if (track.GetClass() == "PCB_VIA"
+                    or track.GetNetCode() != via.GetNetCode()
+                    or track.GetLength() > max_stub
+                    or not via.IsOnLayer(track.GetLayer())):
+                continue
+            start, end = track.GetStart(), track.GetEnd()
+            start_hit = _math.hypot(start.x - point.x,
+                                    start.y - point.y) <= radius + tol
+            end_hit = _math.hypot(end.x - point.x,
+                                  end.y - point.y) <= radius + tol
+            if start_hit == end_hit:
+                continue
+            source = end if start_hit else start
+            if any(pad.GetNetCode() == via.GetNetCode()
+                   and pad.GetAttribute() == pcbnew.PAD_ATTRIB_SMD
+                   and pad.IsOnLayer(track.GetLayer())
+                   and pad.HitTest(source, track.GetWidth() // 2 + tol)
+                   for pad in pads):
+                out.append(track)
+        return out
+
+    pickup_vias = []
+    stub_cache = {}
+    for item in tracks:
+        if item.GetClass() != "PCB_VIA":
+            continue
+        item_id = item.m_Uuid.AsString()
+        stubs = _pickup_stubs(item)
+        if item_id in wanted or (item.GetNetname() in discover and len(stubs) == 1):
+            pickup_vias.append(item)
+            stub_cache[item_id] = stubs
+    if not pickup_vias:
+        return {"vias": 0, "stubs": 0, "detail": []}
 
     def _contact_layers(via, *, ignored_ids=()):
         ignored = set(ignored_ids)
@@ -3223,7 +3262,7 @@ def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
                              if via.IsOnLayer(layer))
         for zone_net, layer, poly in zones:
             if (zone_net == net and via.IsOnLayer(layer)
-                    and poly.Collide(point, tol)):
+                    and poly.Collide(point, radius + tol)):
                 found.add(layer)
         return found
 
@@ -3233,11 +3272,7 @@ def prune_redundant_dangling_pickups(board, pickup_item_ids, *, tol_mm=0.02):
     detail = []
     for via in pickup_vias:
         via_id = via.m_Uuid.AsString()
-        stubs = [track for track in pickup_tracks
-                 if (track.GetNetCode() == via.GetNetCode()
-                     and via.IsOnLayer(track.GetLayer())
-                     and _point_on_track(via.GetPosition(), track,
-                                         via.GetWidth(via.TopLayer()) // 2))]
+        stubs = stub_cache.get(via_id, ())
         # No-stub pickups are intentional POFV. Multiple stubs are no longer a
         # simple removable leaf, so both cases remain for explicit diagnosis.
         if len(stubs) != 1:

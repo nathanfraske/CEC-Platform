@@ -165,7 +165,7 @@ class TestHubAcceptance(unittest.TestCase):
         local_signal.assert_called_once_with(
             board, lock=True, netclass_resolver="resolver")
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
-        prune.assert_called_once_with(board, set())
+        prune.assert_called_once_with(board, set(), discover_nets=("/PWR",))
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)

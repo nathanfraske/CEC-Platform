@@ -334,7 +334,7 @@ class TestPickupOwnNetExempt(unittest.TestCase):
             track.SetStart(pcbnew.VECTOR2I(*(int(v * 1e6) for v in start)))
             track.SetEnd(pcbnew.VECTOR2I(*(int(v * 1e6) for v in end)))
             track.SetWidth(int(0.3e6)); track.SetLayer(pcbnew.F_Cu)
-            track.SetNet(net); b.Add(track)
+            track.SetNet(net); track.SetLocked(True); b.Add(track)
             return track
 
         def add_via(at):
@@ -356,14 +356,18 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         for x, y in ((4.0, 3.0), (6.0, 3.0), (6.0, 4.0), (4.0, 4.0)):
             outline.Append(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
         b.Add(zone); pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+        # The normalizer may re-key the fine pad-to-via stub while retaining
+        # its generated lock state; the original pickup via UUID remains the
+        # provenance root.
         pickup_ids = {item.m_Uuid.AsString()
-                      for item in (valid_stub, valid_via, dead_stub, dead_via)}
+                      for item in (valid_stub, valid_via, dead_via)}
         valid_stub_id = valid_stub.m_Uuid.AsString()
         valid_via_id = valid_via.m_Uuid.AsString()
         dead_stub_id = dead_stub.m_Uuid.AsString()
         dead_via_id = dead_via.m_Uuid.AsString()
 
-        result = cec_fr.prune_redundant_dangling_pickups(b, pickup_ids)
+        result = cec_fr.prune_redundant_dangling_pickups(
+            b, pickup_ids, discover_nets=("+5VSB",))
 
         remaining = {item.m_Uuid.AsString() for item in b.GetTracks()}
         self.assertEqual((result["vias"], result["stubs"]), (1, 1))

@@ -216,7 +216,7 @@ def _fill_worker(out, rail_nets=()):
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
         pickup_prune = cec_fr.prune_redundant_dangling_pickups(
-            bd, pickup_item_ids)
+            bd, pickup_item_ids, discover_nets=tuple(rail_nets))
         # Do not touch SWIG-owned zone objects after Remove(): pruning is the
         # final in-process mutation, and deleting same-net copper needs no
         # antipad refill.  A later worker may refill if another stage needs it.
