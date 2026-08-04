@@ -2219,21 +2219,45 @@ def _pad_band(fp, rot):
     return ((min(xs), max(xs)), (min(ys), max(ys)))
 
 
+def _pad_copper_band(fp, rot):
+    """Rotated local AABB of all electrical pad copper, not just centres.
+
+    Edge-seated connector bodies may intentionally overhang the outline, but
+    their copper may not.  A centre band cannot prove that for elongated shield
+    tabs or large power barrels.  Rotate every corner of cec_pcb's parsed local
+    pad boxes so the edge seat is based on the same copper extent KiCad checks.
+    """
+    import cec_pcb
+
+    boxes = cec_pcb.local_pad_boxes(fp)
+    if not boxes:
+        return _pad_band(fp, rot)
+    xs, ys = [], []
+    for x0, y0, x1, y1 in boxes:
+        for lx, ly in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+            dx, dy = cec_pcb._rot(lx, ly, rot)
+            xs.append(dx)
+            ys.append(dy)
+    return ((min(xs), max(xs)), (min(ys), max(ys)))
+
+
 _ROLE_EDGE = {"power_in": "top", "power_out": "bottom", "host": "right", "usb": "right"}
 
 
-def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8,
+def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5,
+                 pad_margin=1.8, copper_edge_margin=0.65,
                  lane_center=0.0, pack_right_top=False,
                  edge_override=None, role_overrides=None):
     """Place connector anchors at board edges. The edge a connector goes to is, by default, its
     role's generic edge (power_in->top, power_out->bottom, host/usb->right); MV2's *edge_override*
     {ref: 'top'|'bottom'|'left'|'right'} REPLACES that per connector -- it is a per-board INPUT
     (derived from the reference oracle by edge-binning, or a spec line), NOT a baked rule, and it is
-    what lets a real board spread its connectors over several edges (the Hub's RJ-45 on top,
+    what lets a real board spread its connectors over several edges (the Hub's RJ-45 on the left,
     power-in on the right, USB on the bottom). With *overhang* != 'none' a connector is seated by its
-    PAD BAND at the edge so its body/courtyard hangs OFF-board (pads on-board) -- the area lever the
-    condensed boards use, and what lets two tall cable connectors fit a short board. 'none' seats the
-    whole courtyard on-board. Honors user pins last. Returns {ref:(x,y,rot)}."""
+    actual rotated PAD COPPER extent at the edge so its body/courtyard hangs OFF-board while every
+    electrical land retains ``copper_edge_margin``. This is the area lever the condensed boards use,
+    and what lets two tall cable connectors fit a short board. 'none' seats the whole courtyard
+    on-board. Honors user pins last. Returns {ref:(x,y,rot)}."""
     edge_override = edge_override or {}
     _VALID_EDGES = ("top", "bottom", "left", "right")
     roles = defaultdict(list)            # ref -> edge (role-default, then per-board override)
@@ -2306,16 +2330,19 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
                         rot = flip
             cx, cy, hw, hh = _courtyard_info(fp, rot)
             (pxl, pxh), (pyl, pyh) = _pad_band(fp, rot)
+            (cxl, cxh), (cyl, cyh) = _pad_copper_band(fp, rot)
             along = (2 * hw) if horiz else (2 * hh)              # COURTYARD extent along the edge
             coff = cx if horiz else cy                           # courtyard centre offset along edge
             if horiz:                                            # perpendicular (edge) coord
                 if oh:
-                    perp = (pad_margin - pyl) if edge == "top" else (H - pad_margin - pyh)
+                    perp = ((copper_edge_margin - cyl) if edge == "top"
+                            else (H - copper_edge_margin - cyh))
                 else:
                     perp = (margin + hh - cy) if edge == "top" else (H - margin - hh - cy)
             else:
                 if oh:
-                    perp = (W - pad_margin - pxh) if edge == "right" else (pad_margin - pxl)
+                    perp = ((W - copper_edge_margin - cxh) if edge == "right"
+                            else (copper_edge_margin - cxl))
                 else:
                     perp = (W - margin - hw - cx) if edge == "right" else (margin + hw - cx)
             # rot MUST travel WITH the item (owner catch 2026-07-23, "the 24 pin

@@ -57,6 +57,29 @@ class TestEdgeSeatRotation(unittest.TestCase):
         self.assertGreaterEqual(y + by[0], -0.25, "J3 pads off-board top")
         self.assertLessEqual(y + by[1], H + 0.25, "J3 pads off-board bottom")
 
+    def test_hub_edge_seats_use_rotated_copper_not_pad_centres(self):
+        import cec_fresh_wave as w
+
+        session, params = w._build_session(
+            "hub-standard-rev2", 86.1, 74.1, "plain", "dataflow", 97)
+        compiled = session.compile()
+        edges = params["edge_override"]
+        for ref, edge in edges.items():
+            if ref not in compiled.P:
+                continue
+            x, y, rot = compiled.P[ref]
+            (xlo, xhi), (ylo, yhi) = csp._pad_copper_band(
+                session.nl.comps[ref].footprint, rot)
+            with self.subTest(ref=ref, edge=edge):
+                if edge == "left":
+                    self.assertGreaterEqual(x + xlo, 0.64)
+                elif edge == "right":
+                    self.assertLessEqual(x + xhi, 86.1 - 0.64)
+                elif edge == "top":
+                    self.assertGreaterEqual(y + ylo, 0.64)
+                elif edge == "bottom":
+                    self.assertLessEqual(y + yhi, 74.1 - 0.64)
+
     def test_full_pipeline_compile_pads_in_bounds(self):
         # the END-TO-END regression: a full wave-config compile (PlacementSession
         # with the board's real _board_params -- pins, roles, tucks, movers, the
