@@ -546,6 +546,28 @@ class TestRectRealization(unittest.TestCase):
                 self.assertTrue(any(poly.covers(Point(*via)) for poly in copper),
                                 "%s must land every transition barrel" % layer)
 
+    def test_bridge_landing_is_not_cut_back_to_centerline_clip(self):
+        from shapely.geometry import Point, Polygon
+        from cec_slab_pour import realize_overunder_rects
+        g = _G(20, 9)
+        bridge = (4, 10, "In2.Cu", "B.Cu", 1.0, 0.0)
+        clip = np.zeros((g.ny, g.nx), bool)
+        clip[4, 10] = True
+
+        polys, vias, _notes = realize_overunder_rects(
+            [[(4, 10, "In2.Cu"), (4, 10, "B.Cu")]], [bridge],
+            {"In2.Cu": 4.0, "B.Cu": 4.0}, g,
+            clip_masks={"In2.Cu": clip, "B.Cu": clip},
+            strict_bridges=True)
+
+        self.assertTrue(vias)
+        for layer in ("In2.Cu", "B.Cu"):
+            copper = [Polygon(coords).buffer(0)
+                      for coords in polys.get(layer, ())]
+            for via in vias:
+                self.assertTrue(any(poly.covers(Point(*via)) for poly in copper),
+                                "%s landing was clipped off a barrel" % layer)
+
     def test_strict_f_bridge_rejects_search_draw_admission_mismatch(self):
         from cec_slab_pour import realize_overunder_rects
         g = _G(30, 9)

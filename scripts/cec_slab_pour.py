@@ -1558,6 +1558,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     from shapely.geometry import LineString, Point, box as _sbox
     from shapely.ops import unary_union
     lay_geoms = {}
+    landing_geoms = {}
     notes = []
     admit = (unary_union([_sbox(*b) for b in f_admit])
              if f_admit else None)
@@ -1704,7 +1705,13 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
             # same mask as the search above, and pad/graphic/edge obstacles have
             # already reseated the individual barrels.  Clipping this landing
             # back to the path mask can strand the outer rows of the field.
-            lay_geoms.setdefault(lay, []).append(cover)
+            # Keep the pad-aware bridge landing separate from route lanes.
+            # The corridor clip is a centreline/width guard; applying it to a
+            # field that deliberately reseated barrels around pads removes
+            # copper from outer rows and creates one-layer dangling vias. The
+            # compact cover is already pad/via/edge checked slot-by-slot, and
+            # KiCad's filler performs the final exact foreign-copper carve.
+            landing_geoms.setdefault(lay, []).append(cover)
     out = {}
     for lay, gs in lay_geoms.items():
         u = unary_union([g for g in gs if not g.is_empty])
@@ -1713,6 +1720,8 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
             allowed = unary_union([_sbox(*rect)
                                    for rect in _mask_rects(clip, grid)])
             u = u.intersection(allowed)
+        if landing_geoms.get(lay):
+            u = unary_union([u] + landing_geoms[lay])
         polys = []
         for g in getattr(u, "geoms", [u]):
             if g.geom_type != "Polygon" or g.area < 0.4:
