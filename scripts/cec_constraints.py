@@ -2999,6 +2999,22 @@ def _chk_netclass_geom(board, path, ctx):
     tol = _param("netclass-geometry-conformance", "tol_mm", 0.001)
     sense = _sense_nets(board)            # SHARED force+sense: track width checker-exempt
     pair_nets = {net for _kind, p, n in _coupled_pair_names(board) for net in (p, n)}
+    # The final geometry normalizer owns the narrowly-scoped physical exception
+    # to a class minimum: <=1.5 mm from a fine-pitch SMD pad, or <=2.5 mm from a
+    # constrained PTH escape whose full class width would collide with a foreign
+    # pad.  Re-run that exact classifier on a throwaway board and exempt only the
+    # UUIDs it proves legal.  This keeps conformance aligned with fabrication
+    # normalization without duplicating (and eventually drifting from) its graph
+    # distance and collision logic.  Any classifier error fails closed below.
+    legal_neckdowns = set()
+    try:
+        import cec_fr
+        probe = pcbnew.LoadBoard(path)
+        neckdown_report = cec_fr.normalize_netclass_geometry(
+            probe, path, tol_mm=tol)
+        legal_neckdowns.update(neckdown_report.get("legal_neckdown_uuids") or ())
+    except Exception:                                    # noqa: BLE001
+        legal_neckdowns = set()
     bad = collections.defaultdict(lambda: collections.Counter())
     for t in board.GetTracks():
         net = t.GetNetname()
@@ -3018,6 +3034,8 @@ def _chk_netclass_geom(board, path, ctx):
                 or minima.get("track_width")
             if net in sense:
                 continue                  # deliberate ~0.25mm Kelvin stub on the force net
+            if t.m_Uuid.AsString() in legal_neckdowns:
+                continue                  # bounded, classifier-proven pin escape
             if w and _mm(t.GetWidth()) < w - tol:
                 bad[(net, cls)]["track"] += 1
     if bad:
@@ -3031,8 +3049,9 @@ def _chk_netclass_geom(board, path, ctx):
                    for (net, cls), cnt in bad.items() for k, n in cnt.items()]
         return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
     return True, ("all tracks/vias meet assigned track/diff/via minima (%d classes; "
-                  "%d physical pair net(s); sense-stub exemption on %d net(s))" %
-                  (len(classes), len(pair_nets), len(sense)))
+                  "%d physical pair net(s); sense-stub exemption on %d net(s); "
+                  "%d bounded pin-neckdown track(s))" %
+                  (len(classes), len(pair_nets), len(sense), len(legal_neckdowns)))
 
 
 # bom-field-lint: assembly-irrelevant refs + the DOCUMENTED-open sourcing gaps.

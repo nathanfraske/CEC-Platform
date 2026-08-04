@@ -3107,21 +3107,269 @@ def _canonical_45_xy_paths(start, end):
     return paths
 
 
+def _offset_manhattan_xy_paths(start, end, offsets_mm=(0.5, 0.8, 1.2, 1.8)):
+    """Deterministic same-layer doglegs around a blocked endpoint rectangle.
+
+    Freerouting residuals often sit on opposite sides of a package body, LED
+    shine-through cutout, or dense pin row.  The shortest canonical paths all
+    cross that obstacle.  These candidates walk just outside the endpoint
+    bounding rectangle, retain only 0/90-degree legs, and remain subject to the
+    ordinary foreign-copper and board-edge guards.  They are attempted only
+    after every shortest path refuses, so they do not add unnecessary jogs.
+    """
+    sx, sy = start
+    tx, ty = end
+    paths = []
+
+    def _add(points):
+        cleaned = []
+        for point in points:
+            if not cleaned or cleaned[-1] != point:
+                cleaned.append(point)
+        candidate = tuple(cleaned)
+        if len(candidate) >= 2 and candidate not in paths:
+            paths.append(candidate)
+
+    for offset_mm in offsets_mm:
+        delta = _nm(offset_mm)
+        for y in (min(sy, ty) - delta, max(sy, ty) + delta):
+            _add(((sx, sy), (sx, y), (tx, y), (tx, ty)))
+        for x in (min(sx, tx) - delta, max(sx, tx) + delta):
+            _add(((sx, sy), (x, sy), (x, ty), (tx, ty)))
+    return paths
+
+
 def _guarded_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok):
     """Choose the first collision- and edge-safe canonical path S -> T."""
-    for xy_path in _canonical_45_xy_paths((S.x, S.y), (T.x, T.y)):
+    profiled = _guarded_profiled_lastmile_legs(
+        board, S, T, w, lay, clearance_nm, nc, leg_ok)
+    if profiled is not None:
+        return [(a, b) for a, b, _width in profiled]
+    return None
+
+
+def _profiled_lastmile_path(points, w, start_escape=None, end_escape=None):
+    """Split a canonical path at bounded endpoint neck-down transitions.
+
+    ``start_escape`` and ``end_escape`` are ``(width_nm, budget_nm)`` pairs.
+    Width changes occur at deterministic graph-distance boundaries, never in
+    the middle of an unsplit track.  Overlapping endpoint budgets intentionally
+    keep the intervening short gap narrow; normalize_netclass_geometry applies
+    the identical bounded escape doctrine after the copper is added.
+    """
+    import math as _math
+
+    lengths = [_math.hypot(b.x - a.x, b.y - a.y)
+               for a, b in zip(points, points[1:])]
+    total = sum(lengths)
+    if total <= 0:
+        return []
+    start_cut = (min(total, float(start_escape[1]))
+                 if start_escape else 0.0)
+    end_cut = (max(0.0, total - float(end_escape[1]))
+               if end_escape else total)
+    out = []
+    walked = 0.0
+    for (a, b), length in zip(zip(points, points[1:]), lengths):
+        if length <= 0:
+            continue
+        cuts = [0.0, length]
+        for boundary in (start_cut, end_cut):
+            local = boundary - walked
+            if 1e-6 < local < length - 1e-6:
+                cuts.append(local)
+        cuts = sorted(set(cuts))
+
+        def _at(offset):
+            fraction = max(0.0, min(1.0, offset / length))
+            return pcbnew.VECTOR2I(
+                int(round(a.x + (b.x - a.x) * fraction)),
+                int(round(a.y + (b.y - a.y) * fraction)))
+
+        for lo, hi in zip(cuts, cuts[1:]):
+            midpoint = walked + (lo + hi) / 2.0
+            width = int(w)
+            if start_escape and midpoint <= start_cut + 1e-6:
+                width = min(width, int(start_escape[0]))
+            if end_escape and midpoint >= end_cut - 1e-6:
+                width = min(width, int(end_escape[0]))
+            pa, pb = _at(lo), _at(hi)
+            if pa != pb:
+                out.append((pa, pb, width))
+        walked += length
+    return out
+
+
+def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
+                         *, start_escape=None, end_escape=None,
+                         grid_mm=0.5, margin_mm=2.0):
+    """Bounded deterministic Manhattan maze for a stubborn local gap.
+
+    The lattice includes both exact endpoint axes and the escape-budget axes,
+    so the result never needs an arbitrary-angle first/last segment.  A start
+    neck-down is allowed only while accumulated path length remains inside its
+    budget.  Once an end neck-down begins, every subsequent hop must reduce
+    Manhattan distance to the endpoint; its remaining graph length is therefore
+    proven inside that budget.  Every hop is checked against real board edges
+    and foreign copper before it enters the queue.
+    """
+    import heapq as _heapq
+    import itertools as _itertools
+
+    if start_escape is None and end_escape is None:
+        return None
+
+    step = max(1, _nm(grid_mm))
+    margin = _nm(margin_mm)
+    x_lo = (min(S.x, T.x) - margin) // step * step
+    x_hi = ((max(S.x, T.x) + margin + step - 1) // step) * step
+    y_lo = (min(S.y, T.y) - margin) // step * step
+    y_hi = ((max(S.y, T.y) + margin + step - 1) // step) * step
+    xs = set(range(int(x_lo), int(x_hi + step), int(step)))
+    ys = set(range(int(y_lo), int(y_hi + step), int(step)))
+    xs.update((S.x, T.x)); ys.update((S.y, T.y))
+    for point, escape in ((S, start_escape), (T, end_escape)):
+        if escape:
+            budget = int(escape[1])
+            xs.update((point.x - budget, point.x + budget))
+            ys.update((point.y - budget, point.y + budget))
+    xs, ys = sorted(xs), sorted(ys)
+    xi = {x: i for i, x in enumerate(xs)}
+    yi = {y: i for i, y in enumerate(ys)}
+    start_node = (xi[S.x], yi[S.y])
+    target_node = (xi[T.x], yi[T.y])
+    direct_manhattan = abs(T.x - S.x) + abs(T.y - S.y)
+    path_limit = direct_manhattan + 2 * margin
+
+    def _point(node):
+        return pcbnew.VECTOR2I(xs[node[0]], ys[node[1]])
+
+    def _to_target(node):
+        p = _point(node)
+        return abs(T.x - p.x) + abs(T.y - p.y)
+
+    # state = (x-index, y-index, previous direction, start-narrow, end-narrow)
+    start_state = (start_node[0], start_node[1], -1,
+                   bool(start_escape), False)
+    best = {start_state: 0.0}
+    travelled = {start_state: 0.0}
+    previous = {}
+    serial = _itertools.count()
+    heap = [(_to_target(start_node), 0.0, 0.0, next(serial), start_state)]
+    final_state = None
+    directions = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    clear_cache = {}
+
+    def _hop_clear(A, B, width):
+        ends = sorted(((A.x, A.y), (B.x, B.y)))
+        key = (ends[0], ends[1], int(width))
+        if key not in clear_cache:
+            clear_cache[key] = bool(
+                leg_ok(A, B, width // 2)
+                and _tap_foreign_clear(board, A, B, width, lay,
+                                       clearance_nm, {nc}))
+        return clear_cache[key]
+
+    while heap:
+        _priority, cost, distance, _serial, state = _heapq.heappop(heap)
+        if cost != best.get(state) or distance != travelled.get(state):
+            continue
+        ix_, iy_, old_dir, start_narrow, end_narrow = state
+        node = (ix_, iy_)
+        if node == target_node:
+            final_state = state
+            break
+        current_to_target = _to_target(node)
+        for direction, (dx, dy) in enumerate(directions):
+            nx, ny = ix_ + dx, iy_ + dy
+            if not (0 <= nx < len(xs) and 0 <= ny < len(ys)):
+                continue
+            next_node = (nx, ny)
+            next_to_target = _to_target(next_node)
+            if end_narrow and next_to_target >= current_to_target:
+                continue
+            A, B = _point(node), _point(next_node)
+            length = abs(B.x - A.x) + abs(B.y - A.y)
+            new_distance = distance + length
+            if length <= 0 or new_distance > path_limit:
+                continue
+
+            next_start = False
+            next_end = end_narrow
+            width = int(w)
+            if (start_narrow and start_escape
+                    and new_distance <= float(start_escape[1]) + 1e-6):
+                next_start = True
+                width = min(width, int(start_escape[0]))
+            if (end_escape and current_to_target <= float(end_escape[1]) + 1e-6
+                    and next_to_target < current_to_target):
+                next_end = True
+                width = min(width, int(end_escape[0]))
+
+            if not _hop_clear(A, B, width):
+                continue
+            turn = 0 if old_dir in (-1, direction) else _nm(0.2)
+            new_cost = cost + length + turn
+            new_state = (nx, ny, direction, next_start, next_end)
+            if new_cost >= best.get(new_state, float("inf")):
+                continue
+            best[new_state] = new_cost
+            travelled[new_state] = new_distance
+            previous[new_state] = (state, width)
+            heuristic = next_to_target
+            _heapq.heappush(heap, (new_cost + heuristic, new_cost,
+                                   new_distance, next(serial), new_state))
+
+    if final_state is None:
+        return None
+    rev = []
+    state = final_state
+    while state != start_state:
+        prior, width = previous[state]
+        rev.append((_point((prior[0], prior[1])),
+                    _point((state[0], state[1])), width))
+        state = prior
+    rev.reverse()
+
+    # Collapse raster runs only when both direction and qualified width match.
+    out = []
+    for A, B, width in rev:
+        if out:
+            P, Q, old_width = out[-1]
+            same_axis = ((P.x == Q.x == A.x == B.x)
+                         or (P.y == Q.y == A.y == B.y))
+            if same_axis and Q == A and old_width == width:
+                out[-1] = (P, B, width)
+                continue
+        out.append((A, B, width))
+    return out
+
+
+def _guarded_profiled_lastmile_legs(board, S, T, w, lay, clearance_nm, nc,
+                                     leg_ok, *, start_escape=None,
+                                     end_escape=None, allow_maze=True):
+    """Choose a guarded canonical path with optional bounded pin neck-downs."""
+    xy_paths = _canonical_45_xy_paths((S.x, S.y), (T.x, T.y))
+    xy_paths += _offset_manhattan_xy_paths((S.x, S.y), (T.x, T.y))
+    for xy_path in xy_paths:
         points = [pcbnew.VECTOR2I(x, y) for x, y in xy_path]
-        legs = list(zip(points, points[1:]))
-        if all(leg_ok(a, b, w // 2)
-               and _tap_foreign_clear(board, a, b, w, lay,
-                                      clearance_nm, {nc})
-               for a, b in legs):
+        legs = _profiled_lastmile_path(
+            points, w, start_escape=start_escape, end_escape=end_escape)
+        if all(leg_ok(a, b, width // 2)
+               and _tap_foreign_clear(board, a, b, width, lay,
+                                       clearance_nm, {nc})
+               for a, b, width in legs):
             return legs
+    if allow_maze:
+        return _maze_lastmile_legs(
+            board, S, T, w, lay, clearance_nm, nc, leg_ok,
+            start_escape=start_escape, end_escape=end_escape)
     return None
 
 
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
-                     *, drill=0.3, dia=0.6, leg_ok=None):
+                     *, drill=0.3, dia=0.6, leg_ok=None,
+                     start_escape=None, end_escape=None):
     """Over-the-top closure for a dense-field gap: seat a through-via just off
     each end (skipped when the end already spans layers -- a via/THT anchor),
     run the bridge leg on an EMPTY non-plane layer (In2/B.Cu -- the F escape
@@ -3143,7 +3391,7 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
     ex_vias = [(t.GetPosition().x, t.GetPosition().y)
                for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
 
-    def _seat(end, lays, lay_b):
+    def _seat(end, lays, lay_b, escape):
         ex, ey = end
         if lay_b in lays:
             return (end, [])                      # via/THT/track-on-bridge: direct
@@ -3158,22 +3406,25 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                     continue
                 S = pcbnew.VECTOR2I(int(ex), int(ey))
                 V = pcbnew.VECTOR2I(vx, vy)
-                if not (leg_ok(S, V, w // 2)
-                        and leg_ok(V, V, _nm(dia) // 2)):
+                if not leg_ok(V, V, _nm(dia) // 2):
                     continue
-                if not _tap_foreign_clear(board, S, V, w, lay_e,
-                                          clearance_nm, {nc}):
+                stub_legs = _guarded_profiled_lastmile_legs(
+                    board, S, V, w, lay_e, clearance_nm, nc, leg_ok,
+                    start_escape=escape, allow_maze=False)
+                if not stub_legs:
                     continue
                 if not _via_spot_clear(board, V, _nm(dia), clearance_nm,
                                        {nc}, drill_nm=_nm(drill),
                                        net_code=nc):
                     continue
-                return ((vx, vy), [("trk", S, V, w, lay_e), ("via", V)])
+                stub_ops = [("trk", a, b, width, lay_e)
+                            for a, b, width in stub_legs]
+                return ((vx, vy), stub_ops + [("via", V)])
         return None
 
     for lay_b in bridge_lays:
-        sa = _seat(A, al, lay_b)
-        sb = _seat(B, bl, lay_b)
+        sa = _seat(A, al, lay_b, start_escape)
+        sb = _seat(B, bl, lay_b, end_escape)
         if sa is None or sb is None:
             continue
         (pa, ops_a), (pb, ops_b) = sa, sb
@@ -3267,18 +3518,53 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     net_names = {code: info.GetNetname()
                  for code, info in board.GetNetInfo().NetsByNetcode().items()}
 
-    def _anchors(kind, obj):
-        """[(x, y, frozenset(layer_ids))] -- the connectable points of an item."""
+    def _contract_width(nc_):
+        spec = (netclass_resolver(net_names.get(nc_, ""))
+                if netclass_resolver is not None else {}) or {}
+        name = (net_names.get(nc_, "") or "").upper()
+        pairish = (bool(re.search(r"_(?:P|N)$", name))
+                   or name.endswith(("CAN_H", "CAN_L", "CAN_H_BUS",
+                                      "CAN_L_BUS"))
+                   or "USB_D" in name)
+        width = float((spec.get("diff_pair_width") if pairish else None)
+                      or spec.get("track_width") or 0)
+        return spec, max(width_mode.get(nc_, _nm(min_w)), _nm(width))
+
+    # Existing local pickup stubs can outnumber class-width trunks.  The width
+    # used for collision qualification must still be the final project contract;
+    # only the bounded endpoint portions below may use a pin escape width.
+    for _nc in by_net:
+        _spec, width_mode[_nc] = _contract_width(_nc)
+
+    def _pin_escape(kind, obj, class_width):
+        """Return the same bounded fine-pitch escape used by normalization."""
+        if kind != "pad":
+            return None
+        try:
+            if int(obj.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                return None
+        except Exception:                                  # noqa: BLE001
+            return None
+        minor = min(obj.GetSize().x, obj.GetSize().y)
+        if minor >= class_width:
+            return None
+        local_width = min(class_width, max(_nm(min_w), minor // 2))
+        class_mm = class_width / MM
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
+        return (local_width, budget)
+
+    def _anchors(kind, obj, class_width):
+        """[(x, y, layers, escape)] -- connectable points of an item."""
         if kind == "pad":
             ls = frozenset(l for l in obj.GetLayerSet().CuStack() if l in all_cu)
             p = obj.GetPosition()
-            return [(p.x, p.y, ls)]
+            return [(p.x, p.y, ls, _pin_escape(kind, obj, class_width))]
         if kind == "via":
             p = obj.GetPosition()
-            return [(p.x, p.y, frozenset(all_cu))]
+            return [(p.x, p.y, frozenset(all_cu), None)]
         s, e = obj.GetStart(), obj.GetEnd()
         ls = frozenset((obj.GetLayer(),))
-        return [(s.x, s.y, ls), (e.x, e.y, ls)]
+        return [(s.x, s.y, ls, None), (e.x, e.y, ls, None)]
 
     # plane layers carry the solid fills -- a foreign lastmile track there would
     # slot the plane (gnd-plane-continuity); exclude them from candidate layers
@@ -3332,7 +3618,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                 pass
             anc = []
             for mu, mk, mo in members:
-                anc.extend(_anchors(mk, mo))
+                anc.extend(_anchors(mk, mo, width_mode[nc_]))
             clusters.append(anc)
         if len(clusters) < 2:
             continue
@@ -3351,13 +3637,13 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
         pairs = []
         for i in range(len(clusters)):
             for j in range(i + 1, len(clusters)):
-                for (ax, ay, al) in clusters[i]:
-                    for (bx, by_, bl) in clusters[j]:
+                for (ax, ay, al, ae) in clusters[i]:
+                    for (bx, by_, bl, be) in clusters[j]:
                         d = ((ax - bx) ** 2 + (ay - by_) ** 2) ** 0.5 / 1e6
                         if d <= max_mm:
                             com = (al & bl) - plane_ids
                             pairs.append((d, i, j, (ax, ay), (bx, by_),
-                                          com, al, bl))
+                                          com, al, bl, ae, be))
         if not pairs:
             n_far += len(clusters) - 1
             continue
@@ -3366,7 +3652,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                               if l not in plane_ids and l != pcbnew.F_Cu),
                              reverse=True)
         tries = {}
-        for d, i, j, A, B, com, al, bl in pairs:
+        for d, i, j, A, B, com, al, bl, ae, be in pairs:
             if n_closed >= cap:
                 break
             ri, rj = _find(i), _find(j)
@@ -3376,7 +3662,7 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             if tries.get(key, 0) >= 4:
                 continue
             tries[key] = tries.get(key, 0) + 1
-            w = width_mode[nc_]
+            spec, w = _contract_width(nc_)
             S = pcbnew.VECTOR2I(int(A[0]), int(A[1]))
             T = pcbnew.VECTOR2I(int(B[0]), int(B[1]))
             ops = None
@@ -3385,21 +3671,22 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             # already emits octilinear routes, and a free-angle shortcut creates
             # hard-to-read diagonal stubs and acute copper joins.
             for lay in sorted(com, reverse=True):
-                legs = _guarded_lastmile_legs(
-                    board, S, T, w, lay, _nm(clearance), nc_, _lm_leg_ok)
+                legs = _guarded_profiled_lastmile_legs(
+                    board, S, T, w, lay, _nm(clearance), nc_, _lm_leg_ok,
+                    start_escape=ae, end_escape=be)
                 if legs:
-                    ops = [("trk", a, b, w, lay) for a, b in legs]
+                    ops = [("trk", a, b, width, lay)
+                           for a, b, width in legs]
                     break
             if ops is None:
                 # over-the-top: stub+via each end, bridge on an empty layer
-                spec = (netclass_resolver(net_names.get(nc_, ""))
-                        if netclass_resolver is not None else {}) or {}
                 bridge_dia = float(spec.get("via_diameter") or 0.6)
                 bridge_drill = float(spec.get("via_drill") or 0.3)
                 ops = _lastmile_bridge(board, A, al, B, bl, w, nc_,
                                        bridge_lays, _nm(clearance),
                                        drill=bridge_drill, dia=bridge_dia,
-                                       leg_ok=_lm_leg_ok)
+                                       leg_ok=_lm_leg_ok,
+                                       start_escape=ae, end_escape=be)
             if ops is None:
                 n_ref += 1
                 continue
@@ -5189,6 +5476,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     return {"tracks": track_fixed, "vias": via_fixed, "status": "ok",
             "neckdown_sections": neckdown_sections,
             "neckdown_split_tracks": split_tracks,
+            "legal_neckdown_uuids": sorted(handled),
             "sense_exempt_nets": sorted(direct_sense)}
 
 

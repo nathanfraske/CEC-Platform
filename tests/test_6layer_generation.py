@@ -170,6 +170,33 @@ class SixLayerGenerationTest(unittest.TestCase):
             self.assertEqual(summary["diff"], 0, summary)
             self.assertEqual(summary["allowed_pofv"], 1, summary)
 
+    def test_pofv_containment_tolerates_only_round_trip_quantization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("UQ")
+            centre = pcbnew.VECTOR2I_MM(10.0, 10.0)
+            fp.SetPosition(centre)
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("1")
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(1.5, 0.6))
+            pad.SetPosition(centre)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            fp.Add(pad)
+            board.Add(fp)
+
+            quantized = pcbnew.VECTOR2I(centre.x, centre.y + 50)
+            overhang = pcbnew.VECTOR2I(centre.x, centre.y + 5_000)
+            self.assertTrue(FAB._pad_contains_circle(
+                pad, quantized, pcbnew.FromMM(0.3)))
+            self.assertFalse(FAB._pad_contains_circle(
+                pad, overhang, pcbnew.FromMM(0.3)))
+
     def test_smd_via_guards_block_partial_lands_but_keep_pofv_core_open(self):
         """The router must not rediscover U2.3's narrow-pad via escape.
 

@@ -72,6 +72,45 @@ class TestLastmile(unittest.TestCase):
         segs = [t for t in b.GetTracks() if t.GetClass() != "PCB_VIA"]
         self.assertTrue(segs, "a closure must lay real copper")
 
+    def test_profiled_path_neckdown_is_bounded_at_both_ends(self):
+        import pcbnew
+        import cec_fr
+
+        points = [pcbnew.VECTOR2I_MM(0, 0), pcbnew.VECTOR2I_MM(4, 0)]
+        legs = cec_fr._profiled_lastmile_path(
+            points, int(1.0e6),
+            start_escape=(int(0.25e6), int(1.5e6)),
+            end_escape=(int(0.25e6), int(1.5e6)))
+        self.assertEqual([width for _a, _b, width in legs],
+                         [int(0.25e6), int(1.0e6), int(0.25e6)])
+        self.assertEqual(legs[0][0], points[0])
+        self.assertEqual(legs[-1][1], points[-1])
+
+    def test_fine_pitch_power_gap_uses_local_neckdowns(self):
+        """A class-width trunk must not make a physically routable SMD pin
+        escape look blocked; only the <=1.5 mm endpoint prefixes may narrow."""
+        import pcbnew
+        import cec_fr
+
+        b = _board([(5, 5, "/POWER"), (7, 5, "/POWER"),
+                    (6, 5.9, "/BLOCK")])
+        power_pads = [p for fp in b.GetFootprints() for p in fp.Pads()
+                      if p.GetNetname() == "/POWER"]
+        for pad in power_pads:
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+        b.BuildConnectivity()
+
+        with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None):
+            result = cec_fr.synthesize_lastmile(
+                b, netclass_resolver=lambda net: {
+                    "track_width": 1.0 if net == "/POWER" else 0.25})
+        self.assertEqual(result["closed"], 1)
+        power_tracks = [t for t in b.GetTracks()
+                        if t.GetNetname() == "/POWER"]
+        self.assertTrue(power_tracks)
+        self.assertLessEqual(max(t.GetWidth() for t in power_tracks),
+                             int(0.25e6))
+
     def test_cloned_same_net_pad_uuids_do_not_collapse_clusters(self):
         import pcbnew
         import cec_fr
@@ -155,6 +194,18 @@ class TestLastmile(unittest.TestCase):
         self.assertEqual(r["closed"], 1,
                          "blocked straight must fall through to L/bridge")
 
+    def test_blocked_straight_takes_guarded_same_layer_detour(self):
+        import cec_fr
+
+        b = _board([(5, 5, "/A"), (9, 5, "/A"), (7, 5, "/BLOCK")])
+        with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None):
+            result = cec_fr.synthesize_lastmile(b)
+        self.assertEqual(result["closed"], 1)
+        tracks = [t for t in b.GetTracks() if t.GetNetname() == "/A"]
+        self.assertGreaterEqual(len(tracks), 3,
+                                "the closure should route around the blocker")
+        self.assertTrue(any(t.GetStart().y != t.GetEnd().y for t in tracks))
+
     def test_edge_hugging_gap_refused(self):
         # pads 0.3mm from the outline: any leg would violate the 0.5 edge rule
         import cec_fr
@@ -182,8 +233,15 @@ class TestLastmile(unittest.TestCase):
         b.Add(fp)
         with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None):
             result = cec_fr.synthesize_lastmile(b)
-        self.assertEqual(result["closed"], 0,
-                         "post-route last-mile must honor reverse-LED holes")
+        self.assertEqual(result["closed"], 1,
+                         "a guarded dogleg may route around the LED hole")
+        tracks = [t for t in b.GetTracks() if t.GetNetname() == "/A"]
+        self.assertTrue(tracks)
+        self.assertTrue(all(
+            cec_fr._edge_leg_clear(b, t.GetStart(), t.GetEnd(),
+                                   t.GetWidth() // 2)
+            for t in tracks),
+            "post-route last-mile must honor reverse-LED holes")
 
     def test_bridge_uses_final_netclass_via_geometry(self):
         """A bridge seat must be judged at the size it will ship, not at the

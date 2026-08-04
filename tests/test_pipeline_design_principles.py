@@ -412,6 +412,11 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
                      if t.GetClass() == "PCB_TRACK"]
             self.assertEqual(second["neckdown_split_tracks"], 0)
             self.assertEqual(after, before)
+            self.assertTrue(second["legal_neckdown_uuids"])
+            pcbnew.SaveBoard(path, board)
+            ok, detail = C.CHECKERS["netclass-geometry-conformance"](
+                pcbnew.LoadBoard(path), path, {})[:2]
+            self.assertTrue(ok, detail)
 
     def test_power_width_neckdown_is_bounded_at_constrained_pth_pad(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -500,6 +505,11 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
                      if t.GetClass() == "PCB_TRACK"]
             self.assertEqual(second["neckdown_split_tracks"], 0)
             self.assertEqual(after, before)
+            self.assertTrue(second["legal_neckdown_uuids"])
+            pcbnew.SaveBoard(path, board)
+            ok, detail = C.CHECKERS["netclass-geometry-conformance"](
+                pcbnew.LoadBoard(path), path, {})[:2]
+            self.assertTrue(ok, detail)
 
     def test_duplicate_board_item_uuids_are_repaired_without_geometry_change(self):
         with tempfile.TemporaryDirectory() as directory:

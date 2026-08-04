@@ -243,11 +243,14 @@ def pofv_dimensions(profile, diameter_mm, drill_mm):
     return True, "POFV dimensions accepted"
 
 
-def _pad_contains_circle(pad, at, radius_nm):
+def _pad_contains_circle(pad, at, radius_nm, tolerance_nm=1_000):
     """Conservative containment for standard SMD pad shapes.
 
     The full via land, not only its centre, must fit in the component pad.
-    Custom shapes fail closed.
+    Custom shapes fail closed.  ``tolerance_nm`` covers coordinate quantization
+    across the Specctra round-trip (measured 12--50 nm on exactly centred Hub
+    POFV pickups); the 1 um default is orders below PCB imaging/drill resolution
+    and still rejects a physically meaningful overhang.
     """
     pos = pad.GetPosition()
     dx = float(at.x - pos.x)
@@ -260,6 +263,7 @@ def _pad_contains_circle(pad, at, radius_nm):
     hx = float(sz.x) / 2.0
     hy = float(sz.y) / 2.0
     r = float(radius_nm)
+    tol = max(0.0, float(tolerance_nm))
     shape = int(pad.GetShape())
 
     try:
@@ -269,20 +273,21 @@ def _pad_contains_circle(pad, at, radius_nm):
 
     if shape in (int(pcbnew.PAD_SHAPE_RECT),
                  int(pcbnew.PAD_SHAPE_ROUNDRECT)):
-        return abs(lx) + r <= hx and abs(ly) + r <= hy
+        return abs(lx) + r <= hx + tol and abs(ly) + r <= hy + tol
     if shape == int(pcbnew.PAD_SHAPE_CIRCLE):
-        return math.hypot(lx, ly) + r <= min(hx, hy)
+        return math.hypot(lx, ly) + r <= min(hx, hy) + tol
     if shape == int(pcbnew.PAD_SHAPE_OVAL):
         inner = min(hx, hy) - r
-        if inner < 0:
+        if inner < -tol:
             return False
+        inner = max(0.0, inner)
         if hx >= hy:
             seg = max(0.0, hx - hy)
             qx = max(-seg, min(seg, lx))
-            return math.hypot(lx - qx, ly) <= inner
+            return math.hypot(lx - qx, ly) <= inner + tol
         seg = max(0.0, hy - hx)
         qy = max(-seg, min(seg, ly))
-        return math.hypot(lx, ly - qy) <= inner
+        return math.hypot(lx, ly - qy) <= inner + tol
     return False
 
 
