@@ -132,10 +132,16 @@ class TestHubAcceptance(unittest.TestCase):
         filler = mock.Mock()
         pickup = {"pads": 3, "vias": 3, "stubs": 2, "pofv": 1,
                   "skipped": 0, "skipped_detail": []}
+        bypass = {"pairs": 2, "linked": 2, "legs": 4, "refused": 0,
+                  "ignored": 1, "detail": []}
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
                 mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
                 mock.patch.object(cec_fr, "synthesize_power_pickups",
                                   return_value=pickup) as synth, \
+                mock.patch.object(cec_fr, "synthesize_local_power_bypass_links",
+                                  return_value=bypass) as local_bypass, \
+                mock.patch.object(cec_fr, "_project_netclass_resolver",
+                                  return_value="resolver") as resolver, \
                 mock.patch.object(cec_fr, "normalize_netclass_geometry",
                                   return_value={"tracks": 2, "vias": 0}) as normalize:
             result = H._fill_worker("fixture.kicad_pcb", ("/PWR",))
@@ -143,10 +149,14 @@ class TestHubAcceptance(unittest.TestCase):
         synth.assert_called_once_with(
             board, (), plane_nets=("GND",), filled_zone_nets=("/PWR",),
             lock=True)
+        resolver.assert_called_once_with("fixture.kicad_pcb")
+        local_bypass.assert_called_once_with(
+            board, lock=True, netclass_resolver="resolver")
         normalize.assert_called_once_with(board, "fixture.kicad_pcb")
         self.assertEqual(filler.Fill.call_count, 2)
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)
+        self.assertEqual(result["local_power_bypass"], bypass)
 
     def test_dedicated_runner_uses_live_size_specific_mezzanine_pins(self):
         import cec_fresh_wave

@@ -201,14 +201,18 @@ def _fill_worker(out, rail_nets=()):
     pickup = cec_fr.synthesize_power_pickups(
         bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets),
         lock=True)
+    bypass = cec_fr.synthesize_local_power_bypass_links(
+        bd, lock=True,
+        netclass_resolver=cec_fr._project_netclass_resolver(out))
     normalization = {"tracks": 0, "vias": 0}
-    if pickup["vias"]:
+    if pickup["vias"] or bypass["linked"]:
         normalization = cec_fr.normalize_netclass_geometry(bd, out)
         for zone in bd.Zones():
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
+            "local_power_bypass": bypass,
             "normalization": normalization}
 
 
@@ -678,10 +682,12 @@ def main():
                 cand, REF, mat, pinned_refs=cand_cfg.pins)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
+                "%d guarded local power links; "
                 "%d duplicate UUID occurrence(s) repaired)"
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
                    pour_report["pre_route_finish"]["power_pickups"]["vias"],
+                   pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
                    pour_report["uuid_normalization"]["rewritten"]))
             pre_route = _pre_route_materialization_gate(mat)
             report["materializations"].append({

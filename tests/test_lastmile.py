@@ -56,6 +56,41 @@ def _board(pads, edge=None):
     return b
 
 
+def _bypass_board():
+    """Power bypass C1/U1 plus a Default-class signal RC C2/U2."""
+    import pcbnew
+
+    board = pcbnew.BOARD()
+    board.SetCopperLayerCount(6)
+    nets = {}
+    for name in ("GND", "/POWER", "/SENSE"):
+        nets[name] = pcbnew.NETINFO_ITEM(board, name)
+        board.Add(nets[name])
+    front = pcbnew.LSET()
+    front.AddLayer(pcbnew.F_Cu)
+
+    def add(ref, pads):
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference(ref)
+        for number, x, y, net in pads:
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName(str(number))
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+            pad.SetLayerSet(front)
+            pad.SetNet(nets[net])
+            footprint.Add(pad)
+        board.Add(footprint)
+
+    add("C1", ((1, 5, 5, "/POWER"), (2, 5, 6, "GND")))
+    add("U1", ((1, 9, 5, "/POWER"),))
+    add("C2", ((1, 5, 10, "/SENSE"), (2, 5, 11, "GND")))
+    add("U2", ((1, 9, 10, "/SENSE"),))
+    return board
+
+
 class TestLastmile(unittest.TestCase):
     def setUp(self):
         try:
@@ -262,6 +297,52 @@ class TestLastmile(unittest.TestCase):
         self.assertTrue(bridge.called)
         self.assertEqual(bridge.call_args.kwargs["dia"], 0.8)
         self.assertEqual(bridge.call_args.kwargs["drill"], 0.4)
+
+    def test_local_power_bypass_links_only_power_class_and_locks(self):
+        import cec_fr
+
+        board = _bypass_board()
+        resolve = lambda net: {  # noqa: E731 - compact test resolver
+            "name": "Power" if net == "/POWER" else "Default",
+            "track_width": 1.0 if net == "/POWER" else 0.25,
+            "clearance": 0.25,
+        }
+        result = cec_fr.synthesize_local_power_bypass_links(
+            board, netclass_resolver=resolve)
+
+        self.assertEqual((result["pairs"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        power = [track for track in board.GetTracks()
+                 if track.GetNetname() == "/POWER"]
+        signal = [track for track in board.GetTracks()
+                  if track.GetNetname() == "/SENSE"]
+        self.assertTrue(power)
+        self.assertFalse(signal, "Default-class signal RC capacitors are not "
+                                 "pre-routed as power bypasses")
+        self.assertTrue(all(track.IsLocked() for track in power))
+        self.assertIn(int(1.0e6), {track.GetWidth() for track in power},
+                      "the middle of a 4 mm power link keeps class width")
+        self.assertIn(int(0.2e6), {track.GetWidth() for track in power},
+                      "fine SMD endpoints use bounded neck-downs")
+
+    def test_local_power_bypass_is_idempotent(self):
+        import cec_fr
+
+        board = _bypass_board()
+        resolve = lambda net: {  # noqa: E731 - compact test resolver
+            "track_width": 1.0 if net == "/POWER" else 0.25,
+            "clearance": 0.25,
+        }
+        first = cec_fr.synthesize_local_power_bypass_links(
+            board, netclass_resolver=resolve)
+        count = len(list(board.GetTracks()))
+        second = cec_fr.synthesize_local_power_bypass_links(
+            board, netclass_resolver=resolve)
+
+        self.assertEqual(first["linked"], 1)
+        self.assertEqual(second["linked"], 0)
+        self.assertEqual(len(list(board.GetTracks())), count)
+        self.assertEqual(second["detail"][0]["status"], "already-connected")
 
     def test_wave_plumbing(self):
         import cec_fresh_wave as w

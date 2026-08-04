@@ -3367,6 +3367,187 @@ def _guarded_profiled_lastmile_legs(board, S, T, w, lay, clearance_nm, nc,
     return None
 
 
+def synthesize_local_power_bypass_links(
+        board, *, max_mm=5.0, min_class_width=0.5, min_w=0.2,
+        clearance=0.25, lock=True, netclass_resolver=None):
+    """Pre-route short local supply links that the global router must preserve.
+
+    A two-terminal fitted ``C*`` footprint with exactly one GND pad is a local
+    bypass/bulk capacitor only when its other rail belongs to a power-width
+    netclass.  Pair that rail pad with the nearest same-net SMD pad on an IC or
+    reverse-mount LED (``U*``/``DL*``) within *max_mm*, then lay a guarded
+    same-layer 0/45/90 path.  The class-width trunk and bounded fine-pad
+    neck-downs use the same geometry contract as :func:`synthesize_lastmile`
+    and :func:`normalize_netclass_geometry`.
+
+    This deliberately ignores Default-class RC/filter capacitors and every
+    connector/passive destination.  It is therefore a local power-integrity
+    primitive, not a generic pre-router that could freeze arbitrary signal
+    topology.  Collision, board-edge, and internal-cutout refusal is fail
+    closed.  Returns ``{pairs, linked, legs, refused, ignored, detail}``.
+    """
+    import math as _math
+
+    all_cu = set(board.GetEnabledLayers().CuStack())
+
+    def _layers(pad):
+        return frozenset(layer for layer in pad.GetLayerSet().CuStack()
+                         if layer in all_cu)
+
+    def _spec(net):
+        if netclass_resolver is not None:
+            return dict(netclass_resolver(net) or {})
+        try:
+            item = board.GetNetInfo().GetNetItem(net)
+            klass = item.GetNetClassSlow()
+            return {
+                "name": klass.GetName(),
+                "track_width": klass.GetTrackWidth() / MM,
+                "clearance": klass.GetClearance() / MM,
+            }
+        except Exception:                                # noqa: BLE001
+            return {}
+
+    def _escape(pad, class_width):
+        try:
+            if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                return None
+        except Exception:                                # noqa: BLE001
+            return None
+        minor = min(pad.GetSize().x, pad.GetSize().y)
+        if minor >= class_width:
+            return None
+        local_width = min(class_width, max(_nm(min_w), minor // 2))
+        class_mm = class_width / MM
+        budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
+        return local_width, budget
+
+    def _pad_key(pad):
+        pos = pad.GetPosition()
+        try:
+            ref = pad.GetParentFootprint().GetReference()
+        except Exception:                                # noqa: BLE001
+            ref = ""
+        return ref, str(pad.GetNumber()), pos.x, pos.y
+
+    def _already_connected(source, target):
+        target_key = _pad_key(target)
+        try:
+            return any(item.GetClass() == "PAD"
+                       and _pad_key(item) == target_key
+                       for item in board.GetConnectivity().GetConnectedItems(source))
+        except Exception:                                # noqa: BLE001
+            return False
+
+    loads_by_net = {}
+    capacitors = []
+    ignored = 0
+    for fp in board.GetFootprints():
+        ref = str(fp.GetReference() or "")
+        try:
+            if fp.IsDNP():
+                continue
+        except Exception:                                # noqa: BLE001
+            pass
+        pads = list(fp.Pads())
+        if ref.startswith(("U", "DL")):
+            for pad in pads:
+                if (pad.GetNetCode() > 0
+                        and pad.GetAttribute() == pcbnew.PAD_ATTRIB_SMD):
+                    loads_by_net.setdefault(pad.GetNetname(), []).append(
+                        (ref, pad))
+        if not ref.startswith("C") or len(pads) != 2:
+            continue
+        ground = [pad for pad in pads if pad.GetNetname() == "GND"]
+        rail = [pad for pad in pads
+                if pad.GetNetCode() > 0 and pad.GetNetname() != "GND"]
+        if len(ground) != 1 or len(rail) != 1:
+            ignored += 1
+            continue
+        spec = _spec(rail[0].GetNetname())
+        class_mm = float(spec.get("track_width") or 0.0)
+        if class_mm < float(min_class_width):
+            ignored += 1
+            continue
+        capacitors.append((ref, rail[0], spec, _nm(class_mm)))
+
+    pairs = linked = legs_added = refused = 0
+    detail = []
+    for cap_ref, cap_pad, spec, class_width in sorted(capacitors):
+        cap_pos = cap_pad.GetPosition()
+        cap_layers = _layers(cap_pad)
+        candidates = []
+        for load_ref, load_pad in loads_by_net.get(cap_pad.GetNetname(), ()):
+            common = cap_layers & _layers(load_pad)
+            if not common:
+                continue
+            load_pos = load_pad.GetPosition()
+            distance = _math.hypot(load_pos.x - cap_pos.x,
+                                   load_pos.y - cap_pos.y) / MM
+            if 1e-9 < distance <= float(max_mm):
+                candidates.append((distance, load_ref,
+                                   str(load_pad.GetNumber()), load_pad,
+                                   sorted(common)))
+        candidates.sort(key=lambda row: (row[0], row[1], row[2]))
+        if not candidates:
+            refused += 1
+            detail.append({"cap": cap_ref, "net": cap_pad.GetNetname(),
+                           "status": "refused", "reason": "no local IC/LED pad"})
+            continue
+        pairs += 1
+        board.BuildConnectivity()
+        if any(_already_connected(cap_pad, row[3]) for row in candidates):
+            detail.append({"cap": cap_ref, "net": cap_pad.GetNetname(),
+                           "status": "already-connected"})
+            continue
+
+        net_code = cap_pad.GetNetCode()
+        local_clearance = _nm(max(float(clearance),
+                                  float(spec.get("clearance") or 0.0)))
+        selected = None
+        for distance, load_ref, load_number, load_pad, common in candidates[:4]:
+            target = load_pad.GetPosition()
+            for layer in common:
+                path = _guarded_profiled_lastmile_legs(
+                    board, cap_pos, target, class_width, layer,
+                    local_clearance, net_code,
+                    lambda start, end, half: _edge_leg_clear(
+                        board, start, end, half),
+                    start_escape=_escape(cap_pad, class_width),
+                    end_escape=_escape(load_pad, class_width))
+                if path:
+                    selected = (distance, load_ref, load_number, layer, path)
+                    break
+            if selected:
+                break
+        if selected is None:
+            refused += 1
+            detail.append({"cap": cap_ref, "net": cap_pad.GetNetname(),
+                           "status": "refused", "reason": "no guarded path"})
+            continue
+
+        distance, load_ref, load_number, layer, path = selected
+        for start, end, width in path:
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(start)
+            track.SetEnd(end)
+            track.SetWidth(width)
+            track.SetLayer(layer)
+            track.SetNetCode(net_code)
+            track.SetLocked(bool(lock))
+            board.Add(track)
+            legs_added += 1
+        linked += 1
+        detail.append({"cap": cap_ref, "load": load_ref,
+                       "pad": load_number, "net": cap_pad.GetNetname(),
+                       "distance_mm": round(distance, 3),
+                       "layer": board.GetLayerName(layer),
+                       "legs": len(path), "status": "linked"})
+
+    return {"pairs": pairs, "linked": linked, "legs": legs_added,
+            "refused": refused, "ignored": ignored, "detail": detail}
+
+
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                      *, drill=0.3, dia=0.6, leg_ok=None,
                      start_escape=None, end_escape=None):
