@@ -382,6 +382,40 @@ class TestRectRealization(unittest.TestCase):
             clear = Point((col + 0.5) * g.cell, (3 + 0.5) * g.cell)
             self.assertTrue(any(poly.covers(clear) for poly in copper))
 
+    def test_l_simplification_cannot_leave_final_corridor_and_fragment(self):
+        from scipy import ndimage
+        from shapely.geometry import Point, Polygon
+        from shapely.ops import unary_union
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(12, 12)
+        # A connected staircase whose free-space L lies far outside its final
+        # reserved corridor.  Simplifying against free space alone and then
+        # intersecting with this clip leaves separate start/end islands.
+        cells = [(1, 1), (1, 2), (2, 2), (2, 3), (3, 3), (3, 4),
+                 (4, 4), (4, 5), (5, 5), (5, 6), (6, 6), (6, 7),
+                 (7, 7), (7, 8), (8, 8)]
+        free = np.ones((g.ny, g.nx), bool)
+        spine = np.zeros_like(free)
+        for row, col in cells:
+            spine[row, col] = True
+        clip = ndimage.binary_dilation(
+            spine, structure=ndimage.generate_binary_structure(2, 1),
+            iterations=1)
+
+        polys, _vias, _notes = realize_overunder_rects(
+            [[(row, col, "In3.Cu") for row, col in cells]], [],
+            {"In3.Cu": 1.2}, g,
+            free_masks={"In3.Cu": free}, clip_masks={"In3.Cu": clip})
+        copper = unary_union([Polygon(coords).buffer(0)
+                              for coords in polys["In3.Cu"]])
+        self.assertEqual(copper.geom_type, "Polygon",
+                         "search-proven corridor must remain one component")
+        for row, col in (cells[0], cells[-1]):
+            point = Point(g.x0 + (col + 0.5) * g.cell,
+                          g.y0 + (row + 0.5) * g.cell)
+            self.assertTrue(copper.covers(point))
+
     def test_f_bridge_landing_covers_every_barrel_on_both_layers(self):
         from shapely.geometry import Point, Polygon
         from cec_slab_pour import realize_overunder_rects

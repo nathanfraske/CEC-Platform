@@ -1486,7 +1486,17 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
              if f_admit else None)
     for chain in chains:
         for (lay, cells) in _chain_runs(chain):
-            cells = _l_simplify(cells, (free_masks or {}).get(lay), grid)
+            simplify_mask = (free_masks or {}).get(lay)
+            final_mask = (clip_masks or {}).get(lay)
+            if simplify_mask is not None and final_mask is not None:
+                # The clean L is a new route, not just a prettier rendering of
+                # the old staircase.  It must therefore remain inside the
+                # final admitted corridor that clips the vector geometry
+                # below.  Checking only broad free space can choose an L that
+                # is legal in isolation but then gets cut into disconnected
+                # islands by the old staircase-shaped clip mask.
+                simplify_mask = simplify_mask & final_mask
+            cells = _l_simplify(cells, simplify_mask, grid)
             pts = _run_polyline(cells, grid)
             half = max(0.3, reqw.get(lay, 1.2) / 2.0)
             # SQUARE CAPS / MITRED JOINS, same reason as cec_pour_plan._capsule
