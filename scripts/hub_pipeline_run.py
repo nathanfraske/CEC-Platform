@@ -28,6 +28,7 @@ import cec_seats                        # noqa: E402  (the cloud/local residency
 
 REF = "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"
 REF_SCH = "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch"
+HUB_INITIAL_FR_PASSES = max(4, int(os.environ.get("CEC_HUB_FR_PASSES", "12")))
 
 # The synth-relevant PCB-geometry conformance subset (post-route HARD gate). Cable-only checkers
 # (high-current-corridor-keepout) self-N/A on the cable-less Hub -- that is correct, not a miss.
@@ -561,12 +562,12 @@ def main():
             max_iters = 3
             fr_timeout = _route_iteration_timeout(remaining, max_iters)
             log("ROUTE cand%d (%s/s%d residual=%d size %.0fx%.0f) "
-                "opt_time=%ds passes=20 seed_timeout=%ds"
+                "opt_time=%ds passes=%d seed_timeout=%ds"
                 % (rank, cand.strat, cand.seed, cand.residual, sw, sh, opt,
-                   fr_timeout))
+                   HUB_INITIAL_FR_PASSES, fr_timeout))
             spec, name = cec_router.board_spec(
                 mat, os.path.abspath(os.path.join(a.out, "route-cand%d" % rank)),
-                seeds=(0, 1, 2, 3), passes=20, opt_time=opt,
+                seeds=(0, 1, 2, 3), passes=HUB_INITIAL_FR_PASSES, opt_time=opt,
                 max_iters=max_iters, kmax=2, fr_timeout=fr_timeout)
             # CONTROL PLANE: judge+fix tiers per the resolved residency (cloud Claude / local broker /
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
