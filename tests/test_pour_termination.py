@@ -315,6 +315,20 @@ class LSimplifyTest(unittest.TestCase):
         self.assertEqual(out, stair,
                          "with both L corners blocked the search's own walk must stand")
 
+    def test_alternate_L_preserves_source_and_destination(self):
+        """If H-then-V is blocked, V-then-H must not reverse/drop endpoints."""
+        import cec_slab_pour as sp
+        free = self._free()
+        free[1][5] = False                 # block only horizontal-then-vertical
+        stair = [(1, 1), (2, 1), (2, 2), (3, 2),
+                 (3, 3), (4, 3), (4, 4), (5, 4),
+                 (5, 5), (6, 5), (6, 6), (6, 7), (6, 8)]
+        out = sp._l_simplify(stair, free, None)
+        self.assertEqual(out[0], stair[0])
+        self.assertEqual(out[-1], stair[-1])
+        self.assertIn((6, 1), out)          # the legal alternate corner
+        self.assertTrue(all(free[r][c] for r, c in out))
+
     def test_straight_run_is_untouched(self):
         import cec_slab_pour as sp
         run = [(2, 0), (2, 1), (2, 2), (2, 3)]

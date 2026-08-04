@@ -1317,21 +1317,28 @@ def _l_simplify(cells, free, grid):
     (r0, c0), (r1, c1) = cells[0], cells[-1]
     if r0 == r1 or c0 == c1:
         return cells                                    # already straight
-    for corner in ((r0, c1), (r1, c0)):
-        leg = []
-        rr, cc = corner
-        for c in range(min(c0, cc), max(c0, cc) + 1):
-            leg.append((r0 if rr == r0 else r1, c))
-        for r in range(min(r0, r1), max(r0, r1) + 1):
-            leg.append((r, cc))
+    def _inclusive(a, b):
+        """Ordered inclusive integer walk from *a* to *b*."""
+        step = 1 if b >= a else -1
+        return range(a, b + step, step)
+
+    # Preserve traversal order and, critically, both original endpoints.
+    # The former second-corner construction started at (r1,c0), then walked
+    # back to (r0,c0), and ended at (r1,c0).  Its geometry could pass the
+    # free-mask check while silently dropping the real destination terminal;
+    # the search reported path_found even though the realized pour stopped
+    # millimetres short of its connector manifold.  Spell the two candidates
+    # as ordered horizontal-then-vertical / vertical-then-horizontal walks.
+    candidates = [
+        ([(r0, c) for c in _inclusive(c0, c1)]
+         + [(r, c1) for r in _inclusive(r0, r1)][1:]),
+        ([(r, c0) for r in _inclusive(r0, r1)]
+         + [(r1, c) for c in _inclusive(c0, c1)][1:]),
+    ]
+    for leg in candidates:
         try:
             if all(free[r][c] for (r, c) in leg):
-                seen, out = set(), []
-                for rc in leg:
-                    if rc not in seen:
-                        seen.add(rc)
-                        out.append(rc)
-                return out
+                return leg
         except (IndexError, TypeError):
             continue
     return cells
