@@ -1567,6 +1567,64 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     return out, via_pts, notes
 
 
+def _clip_pours_around_generated_vias(pours, vias, *, clearance_mm=0.3):
+    """Subtract every foreign-net generated barrel from the returned outlines.
+
+    Each net is solved in sequence so a later net can avoid earlier bridge
+    barrels, but an earlier outline cannot know where a later bridge will land.
+    KiCad's filler would clear that barrel in the filled copper, yet the saved
+    zone outline would still contain it -- precisely the phantom-slab contract
+    failure the materialization conformance gate is meant to reject. Resolve
+    the batch symmetrically after all via locations are known.
+    """
+    if not pours or not vias:
+        return list(pours), 0
+
+    from shapely.geometry import Point, Polygon
+    from shapely.ops import unary_union
+
+    cuts_by_owner = {}
+    for via in vias:
+        owner = via.get("net")
+        if not owner:
+            continue
+        cut = Point(float(via["x_mm"]), float(via["y_mm"])).buffer(
+            VIA_R + float(clearance_mm), resolution=12)
+        cuts_by_owner.setdefault(owner, []).append(cut)
+    all_owners = tuple(cuts_by_owner)
+
+    out = []
+    clipped = 0
+    for row in pours:
+        foreign = [cut for owner in all_owners if owner != row.get("net")
+                   for cut in cuts_by_owner[owner]]
+        if not foreign:
+            out.append(row)
+            continue
+        geom = Polygon(row["polygon"], row.get("holes") or ()).buffer(0)
+        result = geom.difference(unary_union(foreign))
+        pieces = [result] if result.geom_type == "Polygon" else list(
+            getattr(result, "geoms", ()))
+        valid = [piece for piece in pieces
+                 if piece.geom_type == "Polygon" and piece.area >= 0.4]
+        if result.equals(geom):
+            out.append(row)
+            continue
+        clipped += 1
+        for piece in valid:
+            revised = dict(row)
+            revised["polygon"] = [(round(x, 3), round(y, 3))
+                                  for x, y in piece.exterior.coords]
+            holes = [[(round(x, 3), round(y, 3)) for x, y in ring.coords]
+                     for ring in piece.interiors]
+            if holes:
+                revised["holes"] = holes
+            else:
+                revised.pop("holes", None)
+            out.append(revised)
+    return out, clipped
+
+
 def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
                         shunt_mask, clearance_mm=0.3, manifolds=()):
     """Shared per-net SEARCH PREP for the over-under machinery -- extracted
@@ -2015,6 +2073,16 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         print(f"[cec_slab_pour] over-under: {net} -> {segs} lane segment(s) "
               f"on {sorted(realized.keys())}, {len(bridges)} bridge(s), "
               f"{len(net_vias)} via(s)", file=sys.stderr)
+
+    # A sequential solve knows about earlier barrels but not later ones. Clip
+    # every outline against the complete generated-via batch before any caller
+    # can materialize it, so ask ordering cannot decide whether a foreign via
+    # is hidden inside a saved pour outline.
+    pour_dicts, _via_clipped = _clip_pours_around_generated_vias(
+        pour_dicts, via_list, clearance_mm=clearance_mm)
+    if _via_clipped:
+        print("[cec_slab_pour] over-under: clipped %d pour outline(s) around "
+              "foreign bridge vias" % _via_clipped, file=sys.stderr)
 
     return pour_dicts, via_list, report
 

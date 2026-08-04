@@ -216,6 +216,29 @@ class TestRectRealization(unittest.TestCase):
     boundary -- never the dilated-cell smear (3-cell bridge disks +
     closing) that read as the owner's amorphous blobs / via lines."""
 
+    def test_generated_via_batch_clips_prior_foreign_pour_symmetrically(self):
+        from shapely.geometry import Point, Polygon
+        from cec_slab_pour import _clip_pours_around_generated_vias
+
+        pours = [
+            {"net": "A", "layer": "In3.Cu", "provenance": "overunder",
+             "polygon": [(0, 0), (10, 0), (10, 5), (0, 5)]},
+            {"net": "B", "layer": "In3.Cu", "provenance": "overunder",
+             "polygon": [(0, 0), (10, 0), (10, 5), (0, 5)]},
+        ]
+        vias = [{"net": "A", "x_mm": 2.0, "y_mm": 2.0},
+                {"net": "B", "x_mm": 8.0, "y_mm": 2.0}]
+        clipped, count = _clip_pours_around_generated_vias(pours, vias)
+        self.assertEqual(count, 2)
+        copper = {}
+        for row in clipped:
+            copper.setdefault(row["net"], []).append(
+                Polygon(row["polygon"], row.get("holes") or ()))
+        self.assertTrue(any(p.covers(Point(2, 2)) for p in copper["A"]))
+        self.assertFalse(any(p.covers(Point(8, 2)) for p in copper["A"]))
+        self.assertTrue(any(p.covers(Point(8, 2)) for p in copper["B"]))
+        self.assertFalse(any(p.covers(Point(2, 2)) for p in copper["B"]))
+
     def _routed(self):
         import numpy as np
         from cec_slab_pour import realize_overunder_rects
