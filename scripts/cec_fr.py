@@ -781,6 +781,50 @@ def plane_tht_exclusion_nets(board, min_fill_ratio=0.5):
     return nets
 
 
+def filled_tht_exclusion_pins(board):
+    """THT pins already connected by real filled inner-layer copper.
+
+    Plane-sized-net classification is useful for reporting, but is the wrong
+    granularity for routing policy. A sparse routed-object rail may legitimately
+    cover three connector pins while leaving a fourth pin on the same net
+    outside its copper. Exclude only the individual pins whose centres are in
+    saved same-net fill on an inner copper layer. This preserves routability for
+    every uncovered THT pin while avoiding redundant surface routes to barrels
+    that already pierce their rail or ground plane.
+
+    Returns ``{dsn_pin_token: net_name}`` so callers can audit both the exact
+    excluded pins and the affected nets.
+    """
+    inner_layers = set(board.GetEnabledLayers().CuStack())
+    inner_layers.discard(pcbnew.F_Cu)
+    inner_layers.discard(pcbnew.B_Cu)
+    filled = {}
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or not zone.GetNetname():
+            continue
+        for layer in zone.GetLayerSet().CuStack():
+            if layer not in inner_layers:
+                continue
+            try:
+                poly = zone.GetFilledPolysList(layer)
+            except Exception:                           # noqa: BLE001
+                continue
+            if poly and poly.OutlineCount() > 0:
+                filled.setdefault(zone.GetNetname(), []).append(poly)
+
+    pins = {}
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            net = pad.GetNetname()
+            pad_reach = min(pad.GetSize().x, pad.GetSize().y) // 2
+            if (not net or pad.GetAttribute() == pcbnew.PAD_ATTRIB_SMD
+                    or not any(poly.Collide(pad.GetPosition(), pad_reach)
+                               for poly in filled.get(net, ()))):
+                continue
+            pins[f"{footprint.GetReference()}-{pad.GetPadName()}"] = net
+    return pins
+
+
 def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
 
@@ -860,19 +904,14 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
     # board (params plane_tht_exclude -> _oracle_env): default-off keeps the
     # frozen golden's DSN byte-identical.
     if os.environ.get("CEC_PLANE_THT_EXCLUDE", "0") == "1":
-        _pnets = plane_tht_exclusion_nets(board)
-        if _pnets:
-            _tht = set()
-            for fp in board.GetFootprints():
-                for p in fp.Pads():
-                    if (p.GetNetname() in _pnets
-                            and p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD):
-                        _tht.add(f"{fp.GetReference()}-{p.GetPadName()}")
-            if _tht:
-                n = _dsn_exclude_pins(dsn_path, _tht)
-                print(f"[cec_fr] plane-THT policy: excluded {len(_tht)} THT pad(s) on "
-                      f"plane net(s) {sorted(_pnets)} ({n} DSN token(s) removed) -- "
-                      "the plane fill is their connection", file=sys.stderr)
+        _tht_by_pin = filled_tht_exclusion_pins(board)
+        if _tht_by_pin:
+            _tht = set(_tht_by_pin)
+            _pnets = sorted(set(_tht_by_pin.values()))
+            n = _dsn_exclude_pins(dsn_path, _tht)
+            print(f"[cec_fr] plane-THT policy: excluded {len(_tht)} THT pad(s) on "
+                  f"filled net(s) {_pnets} ({n} DSN token(s) removed) -- "
+                  "saved inner-layer fill is their connection", file=sys.stderr)
     return dsn_path
 
 

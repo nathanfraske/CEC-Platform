@@ -6,7 +6,8 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-from cec_fr import plane_tht_exclusion_nets  # noqa: E402
+from cec_fr import (filled_tht_exclusion_pins,
+                    plane_tht_exclusion_nets)  # noqa: E402
 
 
 class _Box:
@@ -41,6 +42,41 @@ class PlaneThtPolicyTest(unittest.TestCase):
         board = _Board([_Zone("PWR", 0), _Zone("RULE", 9000, rule=True)])
 
         self.assertEqual(plane_tht_exclusion_nets(board), set())
+
+    def test_sparse_rail_excludes_only_the_tht_pin_in_real_inner_fill(self):
+        try:
+            import pcbnew
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        board = pcbnew.BOARD()
+        board.SetCopperLayerCount(4)
+        net = pcbnew.NETINFO_ITEM(board, "+5VSB")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("J1")
+        for number, x in (("1", 5.0), ("2", 15.0)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+            pad.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+            pad.SetSize(pcbnew.VECTOR2I(int(1.5e6), int(1.5e6)))
+            pad.SetDrillSize(pcbnew.VECTOR2I(int(0.8e6), int(0.8e6)))
+            pad.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(5e6)))
+            pad.SetLayerSet(pcbnew.PAD.PTHMask())
+            pad.SetNet(net)
+            footprint.Add(pad)
+        board.Add(footprint)
+        zone = pcbnew.ZONE(board)
+        zone.SetNet(net)
+        zone.SetLayer(pcbnew.In1_Cu)
+        outline = zone.Outline(); outline.NewOutline()
+        for x, y in ((2, 2), (8, 2), (8, 8), (2, 8)):
+            outline.Append(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
+        board.Add(zone)
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+
+        self.assertEqual(filled_tht_exclusion_pins(board), {"J1-1": "+5VSB"})
 
 
 if __name__ == "__main__":
