@@ -274,6 +274,32 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
         self.assertEqual(via.GetDrillValue(), int(0.4e6))
 
+    def test_pickup_neckdown_fits_narrow_power_pad(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        pad = next(iter(next(iter(b.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I(int(1.0e6), int(0.4e6)))
+        power = pcbnew.NETCLASS("Power")
+        power.SetTrackWidth(int(1.0e6))
+        power.SetViaDiameter(int(0.8e6))
+        power.SetViaDrill(int(0.4e6))
+        b.GetNetInfo().GetNetItem("+5VSB").SetNetClass(power)
+        pours = [{"net": "+5VSB", "layer": "In2.Cu",
+                  "polygon": [(0.0, 0.0), (10.0, 0.0),
+                              (10.0, 5.0), (0.0, 5.0)]}]
+
+        result = cec_fr.synthesize_power_pickups(b, pours)
+        stub = next(t for t in b.GetTracks()
+                    if t.GetClass() == "PCB_TRACK")
+        via = next(t for t in b.GetTracks()
+                   if t.GetClass() == "PCB_VIA")
+        self.assertEqual((result["vias"], result["stubs"]), (1, 1))
+        self.assertEqual(stub.GetWidth(), int(0.2e6))
+        self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
+        self.assertEqual(via.GetDrillValue(), int(0.4e6))
+
     def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
         import pcbnew
         import cec_fr

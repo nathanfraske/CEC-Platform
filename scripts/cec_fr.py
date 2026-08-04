@@ -2867,7 +2867,21 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                 netclass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
                 local_dia = max(float(dia), netclass.GetViaDiameter() / MM)
                 local_drill = max(float(drill), netclass.GetViaDrill() / MM)
-                local_stub_w = max(float(stub_w), netclass.GetTrackWidth() / MM)
+                class_stub_w = max(float(stub_w), netclass.GetTrackWidth() / MM)
+                # The pickup starts at an SMD pin.  A class-width 1.0 mm power
+                # stub cannot enter a 0.4 mm IC pad without consuming adjacent
+                # pins; use the same bounded neck-down doctrine enforced later
+                # by normalize_netclass_geometry.  Half the pad minor dimension
+                # leaves copper/mask room on both sides, while the board minimum
+                # prevents an unfabricably thin escape.
+                try:
+                    board_min_w = board.GetDesignSettings().m_TrackMinWidth / MM
+                except Exception:                       # noqa: BLE001
+                    board_min_w = 0.2
+                pad_minor = min(pad.GetSize().x, pad.GetSize().y) / MM
+                local_stub_w = min(
+                    class_stub_w,
+                    max(float(board_min_w or 0.2), pad_minor / 2.0))
             except Exception:                            # noqa: BLE001
                 local_dia, local_drill, local_stub_w = dia, drill, stub_w
             via_spacing = max(0.85, local_dia + 0.25)
