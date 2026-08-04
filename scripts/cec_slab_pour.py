@@ -1708,8 +1708,31 @@ def _clip_pours_around_generated_vias(pours, vias, *, clearance_mm=0.3):
     return out, clipped
 
 
+def _stamp_generated_via_keepouts(mask, grid, vias, net, clearance_mm=0.3):
+    """Reserve earlier generated through-vias in a later rail's search mask.
+
+    Over-under nets are solved sequentially without adding their barrels to the
+    board between solves.  ``rasterize`` therefore cannot see an earlier net's
+    bridge field.  If a later path crosses one, the final symmetric via clip
+    cuts a gap through an otherwise valid corridor.  Stamp those real planned
+    barrels as foreign copper before erosion so the later route detours around
+    them instead of being severed after the fact.
+    """
+    stamped = 0
+    for via in vias or ():
+        if via.get("net") == net:
+            continue
+        radius = float(via.get("radius_mm", VIA_R)) + float(clearance_mm)
+        x, y = float(via["x_mm"]), float(via["y_mm"])
+        grid.stamp_box(mask, x - radius, y - radius,
+                       x + radius, y + radius)
+        stamped += 1
+    return stamped
+
+
 def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
-                        shunt_mask, clearance_mm=0.3, manifolds=()):
+                        shunt_mask, clearance_mm=0.3, manifolds=(),
+                        generated_vias=()):
     """Shared per-net SEARCH PREP for the over-under machinery -- extracted
     2026-07-25 (pre-FR corridor reservation, docs/slab-pour-design-2026-07-24.md
     priority ruling) so `synthesize_overunder_pours` (post-route realization)
@@ -1752,6 +1775,8 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     for lay in layers:
         lay_id = board.GetLayerID(lay)
         fmask, anc = rasterize(board, nc, lay_id, grid, clearance_mm)
+        _stamp_generated_via_keepouts(
+            fmask, grid, generated_vias, net, clearance_mm)
         w = req_width_mm(amps, lay, board=board) if amps > 0 else 1.2
         rc = max(1, int(round(w / (2.0 * grid.cell))))
         eroded = ndimage.binary_erosion(~fmask, structure=st,
@@ -1793,6 +1818,8 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
             break
         fmask, anc = rasterize(board, nc, board.GetLayerID(extra),
                                grid, clearance_mm)
+        _stamp_generated_via_keepouts(
+            fmask, grid, generated_vias, net, clearance_mm)
         helped = [k for k in uncov if (anc & (clab == k)).any()]
         if not helped:
             continue
@@ -1995,6 +2022,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                 (p.x / MM, p.y / MM, t.GetWidth(pcbnew.F_Cu) / MM / 2.0))
 
     pour_dicts, via_list, report = [], [], {}
+    planned_bridge_vias = []
 
     # v3.1 stage 0: connector manifolds -- LAID FIRST (they lead the dict
     # list) and handed to every net's search as attach targets.
@@ -2029,7 +2057,8 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         prep, _why = _prep_overunder_net(
             board, net, nc, list(a.get("layers") or (a.get("layer", "F.Cu"),)),
             grid, net_currents=net_currents, shunt_mask=shunt_mask,
-            clearance_mm=clearance_mm, manifolds=man_by_net.get(net, ()))
+            clearance_mm=clearance_mm, manifolds=man_by_net.get(net, ()),
+            generated_vias=planned_bridge_vias)
         if prep is None:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "reason": _why}
@@ -2149,6 +2178,10 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         for v in net_vias:
             v["net"] = net
             existing_vias_mm.append((v["x_mm"], v["y_mm"]))
+            planned_bridge_vias.append({"net": net,
+                                        "x_mm": v["x_mm"],
+                                        "y_mm": v["y_mm"],
+                                        "radius_mm": VIA_R})
         via_list.extend(net_vias)
 
         report[net] = {"path_found": True, "segments": segs,

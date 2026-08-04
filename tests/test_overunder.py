@@ -20,7 +20,12 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-from cec_slab_pour import Grid, bridges_to_vias, route_overunder  # noqa: E402
+from cec_slab_pour import (  # noqa: E402
+    Grid,
+    _stamp_generated_via_keepouts,
+    bridges_to_vias,
+    route_overunder,
+)
 
 
 class _G(Grid):
@@ -38,6 +43,20 @@ def _uniform(lay, r, c):
 
 
 class TestRouteOverunder(unittest.TestCase):
+    def test_earlier_foreign_bridge_via_is_reserved_for_later_net(self):
+        grid = _G(12, 12)
+        mask = np.zeros((grid.ny, grid.nx), bool)
+        prior = [{"net": "RAIL_A", "x_mm": 4.0, "y_mm": 4.0,
+                  "radius_mm": 0.45}]
+
+        self.assertEqual(
+            _stamp_generated_via_keepouts(mask, grid, prior, "RAIL_B"), 1)
+        self.assertTrue(mask.any(), "foreign planned barrel must block search")
+        own_mask = np.zeros_like(mask)
+        self.assertEqual(
+            _stamp_generated_via_keepouts(own_mask, grid, prior, "RAIL_A"), 0)
+        self.assertFalse(own_mask.any(), "same-net barrel remains an anchor")
+
     def test_straight_single_layer_path(self):
         # layer A fully open; layer B fully impassable (never a bridge
         # target) -- the only possible connection is a pure single-layer
