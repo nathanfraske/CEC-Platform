@@ -165,6 +165,21 @@ class TestHubAcceptance(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             H._route_iteration_timeout(20, 3)
 
+    def test_route_parallelism_uses_compute_but_reserves_memory(self):
+        gib = 1024**3
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CEC_HUB_ROUTE_WORKERS", None)
+            self.assertEqual(H._hub_route_parallelism(32, 23 * gib), 16)
+            self.assertEqual(H._hub_route_parallelism(8, 8 * gib), 4)
+            self.assertEqual(H._hub_route_parallelism(2, 3 * gib), 1)
+
+    def test_route_parallelism_override_cannot_exceed_safe_ceiling(self):
+        gib = 1024**3
+        with mock.patch.dict(os.environ, {"CEC_HUB_ROUTE_WORKERS": "12"}):
+            self.assertEqual(H._hub_route_parallelism(32, 23 * gib), 12)
+        with mock.patch.dict(os.environ, {"CEC_HUB_ROUTE_WORKERS": "99"}):
+            self.assertEqual(H._hub_route_parallelism(32, 23 * gib), 16)
+
     def test_closure_prefers_smallest_equally_legal_outline(self):
         def candidate(score, residual=0, crossings=0):
             return SimpleNamespace(

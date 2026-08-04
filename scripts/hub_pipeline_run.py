@@ -392,6 +392,35 @@ def _route_iteration_timeout(remaining_s, max_iters, reserve_s=30):
     return max(5, int(usable // int(max_iters)))
 
 
+def _hub_route_parallelism(cpu_count=None, available_memory_bytes=None):
+    """Choose parallel Freerouting seeds without oversubscribing RAM.
+
+    The pinned router is effectively single-core per JVM but uses about
+    0.7-0.8 GiB on the live Hub. Use half the logical CPUs (leaving headroom
+    for KiCad, scoring, Xvfb, and the OS), reserve 4 GiB, and budget a full
+    GiB per JVM. ``CEC_HUB_ROUTE_WORKERS`` can lower or request a higher count,
+    but the same resource ceilings and the 16-worker safety cap still apply.
+    """
+    cpus = max(1, int(cpu_count if cpu_count is not None else (os.cpu_count() or 1)))
+    if available_memory_bytes is None:
+        try:
+            with open("/proc/meminfo", encoding="utf-8") as fh:
+                mem_kib = next(int(line.split()[1]) for line in fh
+                               if line.startswith("MemAvailable:"))
+            available_memory_bytes = mem_kib * 1024
+        except (OSError, StopIteration, ValueError):
+            available_memory_bytes = 5 * 1024**3
+    reserve = 4 * 1024**3
+    per_worker = 1024**3
+    by_cpu = max(1, cpus // 2)
+    by_memory = max(1, int((int(available_memory_bytes) - reserve) // per_worker))
+    ceiling = max(1, min(16, by_cpu, by_memory))
+    requested = os.environ.get("CEC_HUB_ROUTE_WORKERS")
+    if requested is None:
+        return ceiling
+    return max(1, min(ceiling, int(requested)))
+
+
 def _closure_placement_key(row):
     """Rank legal, corridor-clean Hub placements by minimum board area.
 
@@ -561,14 +590,17 @@ def main():
             opt = int(max(15, min(50, remaining / slots / 8)))   # per-seed opt seconds within budget
             max_iters = 3
             fr_timeout = _route_iteration_timeout(remaining, max_iters)
+            route_workers = _hub_route_parallelism()
+            route_seeds = tuple(range(route_workers))
             log("ROUTE cand%d (%s/s%d residual=%d size %.0fx%.0f) "
-                "opt_time=%ds passes=%d seed_timeout=%ds"
+                "opt_time=%ds passes=%d seed_timeout=%ds parallel_seeds=%d"
                 % (rank, cand.strat, cand.seed, cand.residual, sw, sh, opt,
-                   HUB_INITIAL_FR_PASSES, fr_timeout))
+                   HUB_INITIAL_FR_PASSES, fr_timeout, route_workers))
             spec, name = cec_router.board_spec(
                 mat, os.path.abspath(os.path.join(a.out, "route-cand%d" % rank)),
-                seeds=(0, 1, 2, 3), passes=HUB_INITIAL_FR_PASSES, opt_time=opt,
-                max_iters=max_iters, kmax=2, fr_timeout=fr_timeout)
+                seeds=route_seeds, passes=HUB_INITIAL_FR_PASSES, opt_time=opt,
+                max_iters=max_iters, kmax=2, max_workers=route_workers,
+                fr_timeout=fr_timeout)
             # CONTROL PLANE: judge+fix tiers per the resolved residency (cloud Claude / local broker /
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
             # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
