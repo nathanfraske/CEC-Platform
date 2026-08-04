@@ -230,6 +230,31 @@ class SixLayerGenerationTest(unittest.TestCase):
             self.assertTrue(all(z.GetDoNotAllowVias() for z in zones))
             self.assertTrue(all(not z.GetDoNotAllowZoneFills() for z in zones))
 
+    def test_back_copper_logo_guard_does_not_block_front_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("LOGO1")
+            fp.SetValue("CEC_Logo_Copper")
+            shape = pcbnew.PCB_SHAPE(fp)
+            shape.SetShape(pcbnew.SHAPE_T_RECT)
+            shape.SetStart(pcbnew.VECTOR2I_MM(8.0, 8.0))
+            shape.SetEnd(pcbnew.VECTOR2I_MM(12.0, 11.0))
+            shape.SetLayer(pcbnew.B_Cu)
+            fp.Add(shape)
+            board.Add(fp)
+            pcbnew.SaveBoard(path, board)
+
+            guards = cec_fr.decorative_copper_keepouts(path)
+            self.assertEqual(len(guards), 1)
+            self.assertEqual(guards[0]["layers"], ("B.Cu",))
+            self.assertFalse(guards[0]["allow_tracks"])
+            self.assertFalse(guards[0]["allow_vias"])
+            self.assertFalse(guards[0]["block_fills"])
+            self.assertLessEqual(guards[0]["x0"], 7.7)
+            self.assertGreaterEqual(guards[0]["x1"], 12.3)
+
     def test_non_through_via_fails_profile_gate(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._board(directory, "jlcpcb_6l_pofv_high_current")

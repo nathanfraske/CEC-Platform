@@ -3198,6 +3198,33 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                               ab.GetRight(), ab.GetBottom()))
         except Exception:                           # noqa: BLE001
             continue
+    _cutouts = []
+    for _fp in board.GetFootprints():
+        for _dw in _fp.GraphicalItems():
+            try:
+                if board.GetLayerName(_dw.GetLayer()) != "Edge.Cuts":
+                    continue
+                cb = _dw.GetBoundingBox()
+                _cutouts.append((cb.GetLeft(), cb.GetTop(),
+                                 cb.GetRight(), cb.GetBottom()))
+            except Exception:                       # noqa: BLE001
+                continue
+
+    def _segment_hits_box(S, T, box, margin):
+        x0, y0, x1, y1 = box
+        x0, y0, x1, y1 = (x0 - margin, y0 - margin,
+                          x1 + margin, y1 + margin)
+        if (max(S.x, T.x) < x0 or min(S.x, T.x) > x1
+                or max(S.y, T.y) < y0 or min(S.y, T.y) > y1):
+            return False
+        dx, dy = T.x - S.x, T.y - S.y
+        if dx == 0 and dy == 0:
+            return True
+        corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+        sides = [dy * (cx - S.x) - dx * (cy - S.y)
+                 for cx, cy in corners]
+        return not (all(side > 0 for side in sides)
+                    or all(side < 0 for side in sides))
 
     def _lm_leg_ok(S, T, half_nm):
         if _bb.GetWidth() <= 0 or _bb.GetHeight() <= 0:
@@ -3207,18 +3234,15 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             if not (_bb.GetLeft() + m <= q.x <= _bb.GetRight() - m
                     and _bb.GetTop() + m <= q.y <= _bb.GetBottom() - m):
                 return False
-        for (x0, y0, x1, y1) in _arcs:
-            x0, y0, x1, y1 = x0 - m, y0 - m, x1 + m, y1 + m
-            # segment-vs-box overlap (separating axis on the AABB)
-            if max(S.x, T.x) < x0 or min(S.x, T.x) > x1 \
-                    or max(S.y, T.y) < y0 or min(S.y, T.y) > y1:
-                continue
-            dx, dy = T.x - S.x, T.y - S.y
-            if dx == 0 and dy == 0:
+        for box in _arcs:
+            if _segment_hits_box(S, T, box, m):
                 return False
-            corners = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
-            sides = [dy * (cx - S.x) - dx * (cy - S.y) for cx, cy in corners]
-            if not (all(s > 0 for s in sides) or all(s < 0 for s in sides)):
+        # Reverse-mount LED windows and other footprint-local apertures are
+        # real routed-board holes too.  Route-time edge keepouts protect them
+        # from Freerouting, but last-mile runs after those temporary rule areas
+        # are discarded and must carry the same geometry itself.
+        for box in _cutouts:
+            if _segment_hits_box(S, T, box, m):
                 return False
         return True
 
@@ -6053,6 +6077,55 @@ def smd_via_keepouts(board_path, *, edge_margin_mm=0.01, quad_segs=8):
     return out
 
 
+def decorative_copper_keepouts(board_path, *, clearance_mm=0.30):
+    """Reserve copper artwork on only the layers where that artwork exists.
+
+    A logo is legitimate exposed copper, but a routed via through it merges the
+    decorative island into an electrical net and creates a real clearance fault.
+    The previous reactive repair needed one failed routing iteration before it
+    learned this every wave.  Emit a no-track/no-via rule area around each LOGO
+    footprint's copper graphics up front.  A B.Cu logo does not block legal F.Cu
+    routing over it; a B.Cu rule area is sufficient to reject every through-via.
+    """
+    board = pcbnew.LoadBoard(board_path)
+    enabled = set(_fab.enabled_copper_layers(board))
+    out = []
+    for fp in board.GetFootprints():
+        identity = (fp.GetReference() + " " + fp.GetValue()).upper()
+        if "LOGO" not in identity:
+            continue
+        boxes = {}
+        for item in fp.GraphicalItems():
+            try:
+                layer = board.GetLayerName(item.GetLayer())
+                if layer not in enabled:
+                    continue
+                bb = item.GetBoundingBox()
+            except Exception:                            # noqa: BLE001
+                continue
+            row = (bb.GetLeft() / MM, bb.GetTop() / MM,
+                   bb.GetRight() / MM, bb.GetBottom() / MM)
+            if layer in boxes:
+                old = boxes[layer]
+                row = (min(old[0], row[0]), min(old[1], row[1]),
+                       max(old[2], row[2]), max(old[3], row[3]))
+            boxes[layer] = row
+        for layer, (x0, y0, x1, y1) in sorted(boxes.items()):
+            out.append({
+                "name": "decorative_%s_%s" % (
+                    fp.GetReference().lower(), layer.replace(".", "")),
+                "x0": round(x0 - clearance_mm, 3),
+                "y0": round(y0 - clearance_mm, 3),
+                "x1": round(x1 + clearance_mm, 3),
+                "y1": round(y1 + clearance_mm, 3),
+                "layers": (layer,),
+                "allow_tracks": False,
+                "allow_vias": False,
+                "block_fills": False,
+            })
+    return out
+
+
 def bake_hints(
     board_path: str,
     out_path: str,
@@ -6455,6 +6528,14 @@ def route_once(
             # Candidate wrapper records this stage failure, so a missing Shapely
             # dependency or malformed pad can never degrade to an unguarded route.
             raise RuntimeError("SMD via guards unavailable: %s" % _e) from _e
+        try:
+            _dg = decorative_copper_keepouts(board_path)
+            if _dg:
+                hints = list(hints) + _dg
+                print("[cec_fr] decorative copper guards: %d layer-specific "
+                      "rule area(s)" % len(_dg), file=sys.stderr)
+        except Exception as _e:                            # noqa: BLE001
+            raise RuntimeError("decorative copper guards unavailable: %s" % _e) from _e
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 

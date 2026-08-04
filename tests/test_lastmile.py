@@ -127,6 +127,26 @@ class TestLastmile(unittest.TestCase):
                          "edge-hugging closure must be refused (the +4 "
                          "copper_edge regression class)")
 
+    def test_internal_edge_cutout_is_not_crossed(self):
+        import pcbnew
+        import cec_fr
+
+        b = _board([(5, 5, "/A"), (9, 5, "/A")],
+                   edge=(0, 0, 20, 10))
+        fp = pcbnew.FOOTPRINT(b)
+        fp.SetReference("DL1")
+        cut = pcbnew.PCB_SHAPE(fp)
+        cut.SetShape(pcbnew.SHAPE_T_RECT)
+        cut.SetStart(pcbnew.VECTOR2I_MM(6.0, 4.0))
+        cut.SetEnd(pcbnew.VECTOR2I_MM(8.0, 6.0))
+        cut.SetLayer(pcbnew.Edge_Cuts)
+        fp.Add(cut)
+        b.Add(fp)
+        with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None):
+            result = cec_fr.synthesize_lastmile(b)
+        self.assertEqual(result["closed"], 0,
+                         "post-route last-mile must honor reverse-LED holes")
+
     def test_bridge_uses_final_netclass_via_geometry(self):
         """A bridge seat must be judged at the size it will ship, not at the
         smaller router default that normalize_netclass_geometry later grows."""
