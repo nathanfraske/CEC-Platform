@@ -170,6 +170,66 @@ class SixLayerGenerationTest(unittest.TestCase):
             self.assertEqual(summary["diff"], 0, summary)
             self.assertEqual(summary["allowed_pofv"], 1, summary)
 
+    def test_smd_via_guards_block_partial_lands_but_keep_pofv_core_open(self):
+        """The router must not rediscover U2.3's narrow-pad via escape.
+
+        A 0.6 mm Default-class land cannot fit in the 0.6 mm-tall oval once
+        its full radius is considered, while the centre of a 2 mm square is a
+        valid, declared POFV site.  The baked rule areas block vias only.
+        """
+        from shapely.geometry import Point, Polygon
+        from shapely.ops import unary_union
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+
+            def add_smd(ref, x, size, shape):
+                fp = pcbnew.FOOTPRINT(board)
+                fp.SetReference(ref)
+                pos = pcbnew.VECTOR2I_MM(x, 10.0)
+                fp.SetPosition(pos)
+                pad = pcbnew.PAD(fp)
+                pad.SetPadName("1")
+                pad.SetShape(shape)
+                pad.SetSize(pcbnew.VECTOR2I_MM(*size))
+                pad.SetPosition(pos)
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetLayerSet(pcbnew.PAD.SMDMask())
+                pad.SetNet(net)
+                fp.Add(pad)
+                board.Add(fp)
+
+            add_smd("USMALL", 9.0, (1.95, 0.6), pcbnew.PAD_SHAPE_OVAL)
+            add_smd("UBIG", 14.0, (2.0, 2.0), pcbnew.PAD_SHAPE_RECT)
+            pcbnew.SaveBoard(path, board)
+
+            guards = cec_fr.smd_via_keepouts(path)
+            self.assertTrue(guards)
+            geom = unary_union([Polygon(g["polygon"], g.get("holes") or ())
+                                for g in guards])
+            self.assertTrue(geom.covers(Point(9.0, 10.0)),
+                            "a via cannot fit anywhere in the narrow oval")
+            self.assertFalse(geom.covers(Point(14.0, 10.0)),
+                             "the fully-contained POFV core must stay open")
+            self.assertTrue(geom.covers(Point(14.85, 10.0)),
+                            "a partial land at the large pad edge is forbidden")
+            self.assertTrue(all(g["allow_tracks"] and not g["allow_vias"]
+                                and not g["block_fills"] for g in guards))
+            self.assertTrue(all(set(g["layers"]) == {"F.Cu", "B.Cu"}
+                                for g in guards))
+
+            hinted = os.path.join(directory, "hinted.kicad_pcb")
+            cec_fr.bake_hints(path, hinted, keepouts=guards)
+            baked = pcbnew.LoadBoard(hinted)
+            zones = [z for z in baked.Zones()
+                     if z.GetZoneName().startswith("SMD_VIA_GUARD_")]
+            self.assertEqual(len(zones), len(guards))
+            self.assertTrue(all(not z.GetDoNotAllowTracks() for z in zones))
+            self.assertTrue(all(z.GetDoNotAllowVias() for z in zones))
+            self.assertTrue(all(not z.GetDoNotAllowZoneFills() for z in zones))
+
     def test_non_through_via_fails_profile_gate(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._board(directory, "jlcpcb_6l_pofv_high_current")

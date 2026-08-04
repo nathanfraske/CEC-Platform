@@ -5623,6 +5623,170 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
 # ---------------------------------------------------------------------------
 # bake_hints
 # ---------------------------------------------------------------------------
+def _project_netclass_resolver(board_path):
+    """Return a ``net name -> class dict`` resolver for *board_path*.
+
+    KiCad's DSN exporter carries the class table, but Freerouting may choose its
+    own via geometry and :func:`normalize_netclass_geometry` subsequently raises
+    that geometry to the class contract.  Pre-route via exclusions therefore
+    have to use the *eventual* class diameter rather than Freerouting's smaller
+    temporary land.  An absent/broken project fails to the ordinary 0.6/0.3 mm
+    router geometry instead of silently emitting no protection.
+    """
+    fallback = {"name": "Default", "via_diameter": 0.6, "via_drill": 0.3}
+    pro_path = (board_path[:-len(".kicad_pcb")] + ".kicad_pro"
+                if board_path.endswith(".kicad_pcb") else "")
+    try:
+        with open(pro_path, encoding="utf-8") as source:
+            ns = (json.load(source).get("net_settings") or {})
+        classes = {c.get("name"): c for c in (ns.get("classes") or ())
+                   if c.get("name")}
+        assignments = ns.get("netclass_assignments") or {}
+        patterns = [(row.get("netclass"), row.get("pattern"))
+                    for row in (ns.get("netclass_patterns") or ())
+                    if row.get("netclass") in classes and row.get("pattern")]
+    except Exception:                                      # noqa: BLE001
+        classes, assignments, patterns = {}, {}, []
+
+    default = classes.get("Default") or fallback
+
+    def resolve(net):
+        chosen = assignments.get(net)
+        if isinstance(chosen, list):
+            chosen = chosen[0] if chosen else None
+        if chosen in classes:
+            return classes[chosen]
+        for name, pattern in patterns:
+            if fnmatch.fnmatchcase(net, pattern):
+                return classes[name]
+        return default
+
+    return resolve
+
+
+def _shapely_pad_polygon(pad):
+    """Return a cleaned exact copper polygon for one surface pad, or ``None``.
+
+    ``GetEffectivePolygon`` includes rotation, round-rect radii, and custom pad
+    primitives.  Falling back to an oriented size rectangle is conservative:
+    it may reserve a little extra via space, but cannot permit a via/pad overlap.
+    """
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    polys = []
+    try:
+        layers = list(pad.GetLayerSet().CuStack())
+        shape = pad.GetEffectivePolygon(layers[0])
+        for oi in range(shape.OutlineCount()):
+            outline = shape.Outline(oi)
+            pts = [(outline.CPoint(i).x / MM, outline.CPoint(i).y / MM)
+                   for i in range(outline.PointCount())]
+            if len(pts) >= 3:
+                polys.append(Polygon(pts))
+    except Exception:                                      # noqa: BLE001
+        polys = []
+    if polys:
+        geom = unary_union(polys).buffer(0)
+        if not geom.is_empty:
+            return geom
+
+    try:
+        pos, size = pad.GetPosition(), pad.GetSize()
+        hx, hy = size.x / (2 * MM), size.y / (2 * MM)
+        if hx <= 0 or hy <= 0:
+            return None
+        geom = Polygon(((-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)))
+        from shapely import affinity
+        geom = affinity.rotate(geom, pad.GetOrientationDegrees(), origin=(0, 0))
+        return affinity.translate(geom, pos.x / MM, pos.y / MM)
+    except Exception:                                      # noqa: BLE001
+        return None
+
+
+def smd_via_keepouts(board_path, *, edge_margin_mm=0.01, quad_segs=8):
+    """Build via-only rule-area hints that prevent illegal SMD via-in-pad.
+
+    For a via land of radius *r*, the forbidden centre region is the pad copper
+    dilated by *r*, less any pad core eroded by *r* that can contain an approved
+    POFV land in full.  This is the same physical distinction enforced after
+    routing by ``via-on-pad``: a qualified, fully-contained same-net POFV may
+    remain possible, while edge overlaps and pads too narrow for the via are
+    reserved from Freerouting.  All pad regions are unioned before emission so
+    a real board gets a handful of rule areas, not hundreds of independent
+    zones.  The areas block vias only; traces and zone fills retain pad access.
+    """
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    board = pcbnew.LoadBoard(board_path)
+    resolve = _project_netclass_resolver(board_path)
+    profile_name = _fab.board_profile_name(board)
+    profile = _fab.PROFILES.get(profile_name)
+    forbidden = []
+    pad_count = 0
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            try:
+                if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                    continue
+            except Exception:                            # noqa: BLE001
+                continue
+            geom = _shapely_pad_polygon(pad)
+            if geom is None or geom.is_empty:
+                continue
+            spec = resolve(pad.GetNetname() or "")
+            dia = max(0.01, float(spec.get("via_diameter") or 0.6))
+            drill = max(0.01, float(spec.get("via_drill") or 0.3))
+            radius = dia / 2.0
+            # A small positive margin turns boundary/tessellation ambiguity into
+            # deterministic avoidance.  It is via-only, so it cannot strand the
+            # trace that must terminate on this pad.
+            outer = geom.buffer(radius + max(0.0, edge_margin_mm),
+                                quad_segs=quad_segs, join_style=1)
+            safe = None
+            dim_ok, _why = _fab.pofv_dimensions(profile, dia, drill)
+            if dim_ok:
+                safe = geom.buffer(-radius, quad_segs=quad_segs, join_style=1)
+            if safe is not None and not safe.is_empty:
+                outer = outer.difference(safe)
+            if not outer.is_empty:
+                forbidden.append(outer)
+                pad_count += 1
+
+    if not forbidden:
+        return []
+    merged = unary_union(forbidden).buffer(0)
+    pieces = ([merged] if merged.geom_type == "Polygon" else
+              [g for g in getattr(merged, "geoms", ())
+               if g.geom_type == "Polygon"])
+    # The pipeline permits through vias only, so every routed via occupies both
+    # surfaces.  Emitting the same geometry on all six layers bloats the DSN by
+    # 3x without adding protection; one surface hit is sufficient, and both
+    # surfaces cover SMD pads on either side.
+    enabled = set(_fab.enabled_copper_layers(board))
+    layers = tuple(layer for layer in ("F.Cu", "B.Cu") if layer in enabled)
+    out = []
+    for i, piece in enumerate(pieces):
+        if piece.is_empty or piece.area < 1e-6:
+            continue
+        polygon = list(piece.exterior.coords)[:-1]
+        holes = [list(ring.coords)[:-1] for ring in piece.interiors]
+        if len(polygon) < 3:
+            continue
+        out.append({
+            "name": "SMD_VIA_GUARD_%03d" % i,
+            "polygon": polygon,
+            "holes": holes,
+            "layers": layers,
+            "allow_tracks": True,
+            "allow_vias": False,
+            "block_fills": False,
+            "source_pads": pad_count,
+        })
+    return out
+
+
 def bake_hints(
     board_path: str,
     out_path: str,
@@ -5643,8 +5807,9 @@ def bake_hints(
     is equally important because those rings are often the only route to a
     foreign pad deliberately excluded from the pour.
 
-    The keepout is a rule-area ZONE (DoNotAllowTracks + DoNotAllowVias +
-    DoNotAllowCopperPour) that Freerouting will see in the exported DSN and avoid.
+    The keepout is a rule-area ZONE that Freerouting will see in the exported
+    DSN and avoid.  Tracks, vias, and fills are blocked by default; individual
+    hints may set ``allow_tracks``, ``allow_vias``, or ``block_fills=False``.
     The outline is appended **in-place** into ``z.Outline()`` to avoid the SWIG
     alias pitfall (see cec_route.py zone() for the full explanation).
 
@@ -5690,7 +5855,7 @@ def bake_hints(
 
             z = pcbnew.ZONE(board)
             z.SetIsRuleArea(True)
-            z.SetDoNotAllowTracks(True)
+            z.SetDoNotAllowTracks(not bool(ko.get("allow_tracks", False)))
             # allow_vias=True keeps FOREIGN F.Cu tracks out of the corridor while letting a boxed-in pad
             # (e.g. an INA238's GND/+3V3 pin sitting in the Kelvin corridor) via DOWN to an inner plane --
             # without it, a tracks+vias keepout strands the sensor's own power. A foreign net can't place a
@@ -6005,6 +6170,25 @@ def route_once(
                 _reserve_pins = []
                 print(f"[cec_fr] pour-corridor reservation FAILED ({_e}) -- "
                       "routing unreserved", file=sys.stderr)
+        # VIA-IN-PAD PREVENTION (2026-08-04): Freerouting treats an SMD pin as a
+        # convenient layer-transition site and can put a via land partly inside
+        # a narrow pad.  KiCad DRC does not report that manufacturing defect; the
+        # post-route via-on-pad gate correctly rejects it, but repeated waves had
+        # no way to learn.  Bake exact, netclass-sized VIA-ONLY guards around all
+        # SMD lands.  Trace access and fills remain legal, and a fully-contained
+        # POFV core stays open on a declared profile.
+        try:
+            _vg = smd_via_keepouts(board_path)
+            if _vg:
+                hints = list(hints) + _vg
+                print("[cec_fr] SMD via guards: %d merged rule area(s) over %d "
+                      "surface pad(s)" % (len(_vg), _vg[0].get("source_pads", 0)),
+                      file=sys.stderr)
+        except Exception as _e:                            # noqa: BLE001
+            # Manufacturing protection is a hard input contract.  The caller's
+            # Candidate wrapper records this stage failure, so a missing Shapely
+            # dependency or malformed pad can never degrade to an unguarded route.
+            raise RuntimeError("SMD via guards unavailable: %s" % _e) from _e
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
 
