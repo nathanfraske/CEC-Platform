@@ -22,6 +22,7 @@ import cec_slab_pour  # noqa: E402
 from cec_slab_pour import (  # noqa: E402
     Grid,
     _nowhere_zone_verdict,
+    _pcb_item_identity,
     _prep_overunder_net,
     _terminal_reachable_zone_keys,
     _zone_components,
@@ -429,6 +430,24 @@ class TestNowhereReaperVerdict(unittest.TestCase):
 
 
 class TestFloatingZoneComponents(unittest.TestCase):
+    def test_item_identity_uses_uuid_value_not_swig_wrapper_address(self):
+        class FakeUuid:
+            def __init__(self, value):
+                self.value = value
+
+            def __str__(self):
+                return "<same reused SWIG proxy>"
+
+            def AsString(self):
+                return self.value
+
+        class FakeItem:
+            def __init__(self, value):
+                self.m_Uuid = FakeUuid(value)
+
+        self.assertNotEqual(_pcb_item_identity(FakeItem("zone-a")),
+                            _pcb_item_identity(FakeItem("zone-b")))
+
     def test_transit_polygon_in_terminal_component_survives(self):
         adjacency = {
             "pad_end": {"transit"},

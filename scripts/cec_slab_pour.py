@@ -2394,13 +2394,27 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3):
 
 def _pcb_item_identity(item):
     """Stable process-local identity for a KiCad board item."""
-    try:
-        return str(item.m_Uuid)
-    except Exception:                                  # noqa: BLE001
+    for uuid_getter in (lambda: item.m_Uuid, lambda: item.GetUuid()):
         try:
-            return str(item.GetUuid())
+            uuid = uuid_getter()
         except Exception:                              # noqa: BLE001
-            return "swig:%d" % id(item)
+            continue
+        # ``str(KIID)`` is SWIG's proxy representation, including the address
+        # of a short-lived wrapper.  Those wrappers are repeatedly allocated
+        # and their addresses are reused while walking connectivity, which can
+        # collapse unrelated copper objects onto the same graph node.  Extract
+        # the UUID value owned by KiCad instead.
+        for value_getter in (getattr(uuid, "AsString", None),
+                             getattr(uuid, "AsStdString", None)):
+            if value_getter is None:
+                continue
+            try:
+                value = str(value_getter())
+                if value:
+                    return value
+            except Exception:                          # noqa: BLE001
+                continue
+    return "swig:%d" % id(item)
 
 
 def _zone_components(adjacency):
