@@ -34,12 +34,14 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pcbnew
 
 import cec_fr
+import cec_process_pool
 import cec_score
 import cec_toolchain as _tc
 
@@ -1250,16 +1252,44 @@ def _accepts(before, after) -> tuple[bool, str]:
 
 
 def _spawn_apply(func, args):
-    """Run one pcbnew operation in a fresh interpreter.
+    """Run one pcbnew operation in a bounded fresh interpreter.
 
     KiCad's Python proxies can become invalid after a board is saved/reloaded in
     the same process.  The production staged router already uses this boundary;
     certificate repair follows the same rule so long unattended waves do not
-    accumulate stale SWIG state.
+    accumulate stale SWIG state.  A raw ``multiprocessing.Pool`` context can
+    wait forever during ``__exit__`` after the result has been delivered (the
+    parent waits on a futex while the idle child waits on its task pipe).  Use
+    the pipeline's finite coordinator and shutdown guard for this one-shot
+    worker as well.
     """
 
-    with mp.get_context("spawn").Pool(1) as pool:
-        return pool.apply(func, args)
+    raw_timeout = os.environ.get("CEC_CERTIFICATE_WORKER_TIMEOUT_S", "300")
+    try:
+        wall_timeout_s = max(1.0, float(raw_timeout))
+    except (TypeError, ValueError):
+        wall_timeout_s = 300.0
+    pool = ProcessPoolExecutor(
+        max_workers=1, mp_context=mp.get_context("spawn"))
+    forced_shutdown = False
+    future = None
+    try:
+        future = pool.submit(func, *args)
+        completed = cec_process_pool.watched_as_completed(
+            pool, {future: None}, wall_timeout_s=wall_timeout_s,
+            poll_s=min(1.0, wall_timeout_s))
+        for done in completed:
+            return done.result()
+        raise cec_process_pool.WorkerPoolStalled(
+            "certificate worker returned no completion")
+    except BaseException:
+        forced_shutdown = True
+        if future is not None:
+            future.cancel()
+        raise
+    finally:
+        cec_process_pool.shutdown_process_pool(
+            pool, force=forced_shutdown, grace_s=2.0)
 
 
 def _plan_worker(board_path, completion, drc_data, limit):

@@ -6,12 +6,57 @@ import sys
 import json
 import tempfile
 import unittest
+from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest import mock
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
+
+
+class TestCertificateWorkerLifecycle(unittest.TestCase):
+    def test_spawn_apply_uses_bounded_shutdown_after_result(self):
+        import cec_certificate_repair as repair
+
+        future = Future()
+        future.set_result({"status": "ok"})
+        pool = mock.Mock()
+        pool._processes = {}
+        pool.submit.return_value = future
+        with mock.patch.object(
+                repair, "ProcessPoolExecutor", return_value=pool), \
+                mock.patch.object(
+                    repair.cec_process_pool, "shutdown_process_pool",
+                    return_value={"clean": True}) as shutdown:
+            result = repair._spawn_apply(str, ("value",))
+        self.assertEqual(result, {"status": "ok"})
+        pool.submit.assert_called_once_with(str, "value")
+        shutdown.assert_called_once_with(
+            pool, force=False, grace_s=2.0)
+
+    def test_spawn_apply_forces_shutdown_when_worker_stalls(self):
+        import cec_certificate_repair as repair
+
+        future = Future()
+        pool = mock.Mock()
+        pool._processes = {}
+        pool.submit.return_value = future
+        with mock.patch.object(
+                repair, "ProcessPoolExecutor", return_value=pool), \
+                mock.patch.object(
+                    repair.cec_process_pool, "watched_as_completed",
+                    side_effect=repair.cec_process_pool.WorkerPoolStalled(
+                        "stalled")), \
+                mock.patch.object(
+                    repair.cec_process_pool, "shutdown_process_pool",
+                    return_value={"clean": True}) as shutdown:
+            with self.assertRaisesRegex(
+                    repair.cec_process_pool.WorkerPoolStalled, "stalled"):
+                repair._spawn_apply(str, ("value",))
+        self.assertTrue(future.cancelled())
+        shutdown.assert_called_once_with(
+            pool, force=True, grace_s=2.0)
 
 
 class TestCertificateRepairPolicy(unittest.TestCase):
