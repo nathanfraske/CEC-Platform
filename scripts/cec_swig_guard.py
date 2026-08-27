@@ -92,18 +92,22 @@ def pin() -> bool:
     but it must run BEFORE the capsule would be dropped, so callers import this
     right after ``import pcbnew``.
     """
-    if _PINNED:
-        return True
     try:
         mods = [m for name, m in list(sys.modules.items())
                 if name.startswith(_RUNTIME_PREFIX) and m is not None]
         for m in mods:
             cap = getattr(m, _CAPSULE_ATTR, None)
-            if cap is not None:
+            # A later-loaded SWIG extension may replace the runtime module's
+            # capsule after an earlier caller pinned the old one. Re-scan on
+            # every call and retain every distinct current object; returning
+            # early merely made the guard report success while the active type
+            # table remained destructible.
+            if cap is not None and not any(cap is obj for obj in _PINNED):
                 _PINNED.append(cap)
             # Hold the module too: the capsule is reachable only through it, and
             # a dropped sys.modules entry would take the capsule with it.
-            _PINNED.append(m)
+            if not any(m is obj for obj in _PINNED):
+                _PINNED.append(m)
     except Exception:                                      # noqa: BLE001
         return False
     return bool(_PINNED)

@@ -16,4 +16,5 @@
   (lib (name "cec-Diode_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Diode_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Connector_Screw")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_Screw.pretty")(options "")(descr "CEC reviewed XFCN high-current screw-terminal footprints; prototype qualification gated"))
 )

@@ -745,8 +745,19 @@ class PourPlan:
 # --------------------------------------------------------------------------- module helpers
 def _ask_spec(ask, prepared, bbox, margin):
     """Resolve a placer/router ask -> a PourSpec, or None if it can't derive a box. region_hint
-    given -> that box; else auto-derive from the net's pads (default). Clamped to `bbox`."""
-    net = ask["net"]
+    given -> that box; else auto-derive from the net's pads (default). Clamped to `bbox`.
+
+    KiCad expands a child-sheet net such as ``/PSU_5V_KVM`` to its full
+    hierarchical spelling on the PCB.  Board-class asks intentionally use the
+    stable leaf spelling, so resolve one unambiguous ``/.../<leaf>`` match and
+    emit the PCB's canonical name.  Ambiguous suffixes fail closed."""
+    requested_net = ask["net"]
+    net = requested_net
+    if net not in prepared:
+        leaf = "/" + str(net).lstrip("/")
+        matches = sorted(n for n in prepared if str(n).endswith(leaf))
+        if len(matches) == 1:
+            net = matches[0]
     region = ask.get("region_hint")
     bx0, by0, bx1, by1 = bbox
     if region:

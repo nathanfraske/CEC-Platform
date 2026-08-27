@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "board": "hub-standard-rev2",
+  "params": {
+    "critical_route_nets": [
+      "BLACKOUT_SENSE",
+      "COMP_THRESH",
+      "PWR_FAIL_INT"
+    ],
+    "automatic_pin_escape_tier": true,
+    "require_complete_current_injection": true,
+    "pre_route_craft_admission": true,
+    "placement_craft_repair_trials": 48,
+    "placement_craft_repair_rounds": 3,
+    "placement_craft_optimize_clean_margin": true,
+    "placement_craft_clean_margin_max_cells": 3,
+    "decoupler_cell_pre_route": true,
+    "post_route_corner_chamfer": true,
+    "route_chamfer_min_mm": 0.15,
+    "route_chamfer_max_mm": 0.6,
+    "route_chamfer_max_width_mm": 1.0,
+    "route_chamfer_clearance_mm": 0.2,
+    "post_route_teardrops": "release",
+    "teardrop_target_kinds": [
+      "pth",
+      "via"
+    ],
+    "teardrop_max_track_to_target_ratio": 0.75,
+    "teardrop_max_length_mm": 1.0,
+    "teardrop_max_width_mm": 2.0,
+    "teardrop_length_ratio": 0.5,
+    "teardrop_width_ratio": 1.0,
+    "certificate_repair": true,
+    "certificate_repair_max_targets": 2,
+    "certificate_repair_max_windows": 8,
+    "certificate_repair_max_blockers_per_window": 4,
+    "certificate_repair_max_detour_ratio": 2.0,
+    "certificate_repair_deep_retry": false,
+    "certificate_repair_timeout_s": 180,
+    "placement_route_repair_trials": 16,
+    "placement_route_repair_rounds": 2,
+    "placement_route_repair_full_evals": 4,
+    "placement_route_aware_shortlist": 6,
+    "placement_route_aware_grid_mm": 0.5,
+    "placement_route_aware_iters": 3,
+    "outline_compaction": {
+      "enabled": true,
+      "step_mm": 2.0,
+      "max_steps": 4,
+      "minimum_edge_margin_mm": 0.5,
+      "fallback_steps_mm": [3.0, 6.0]
+    },
+    "plateau_family_patience": 3
+  }
+}

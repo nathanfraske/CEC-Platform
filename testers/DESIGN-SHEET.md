@@ -1,5 +1,10 @@
 # PSU tester board family — exhaustive design sheet (pipeline input)
 
+> **STOP WORK — mandatory gate (2026-08-10).** Do not advance, copy, route,
+> fabricate, or order any Tester design until
+> `docs/tester-stop-work-reconciliation-gate-2026-08-10.md` is explicitly
+> released under its Section 4 evidence and owner-decision requirements.
+
 STATUS: DRAFT v0 (2026-07-16). The design contract for every board under
 `testers/` — floorplan zones, per-component placement rules, routing
 standards, stackup, and the gates the platform pipeline enforces. Package-

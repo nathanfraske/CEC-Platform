@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "release_status": "PROTOTYPE_BLOCKED",
+  "updated": "2026-08-12",
+  "authority": "docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md",
+  "note": "This file is fail-closed. Only objective evidence may change a gate to passed; ECAD completion alone is not qualification.",
+  "gates": {
+    "owner_ratification": {"passed": false, "evidence": []},
+    "incoming_t34069_measurements": {"passed": false, "evidence": []},
+    "incoming_ttr32100127_0600_measurements": {"passed": false, "evidence": []},
+    "computational_electrothermal_screen": {
+      "passed": false,
+      "evidence": ["docs/standard-xfcn-electrothermal-validation-2026-08-12.md"]
+    },
+    "representative_coupon_electrical_test": {"passed": false, "evidence": []},
+    "fastener_and_torque_release": {"passed": false, "evidence": []},
+    "contact_interface_finish_release": {
+      "passed": false,
+      "evidence": ["docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md"]
+    },
+    "jlc_tht_process_confirmation": {"passed": false, "evidence": []}
+  }
+}

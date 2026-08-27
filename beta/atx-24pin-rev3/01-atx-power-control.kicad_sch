@@ -2316,6 +2316,446 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-Connector_Screw:XFCN_T34069"
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "TB"
+				(at 0 4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "XFCN T34069"
+				(at 0 -4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Connector_Screw:XFCN_T34069_THT_M3_40A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "XFCN side-clamp PCB soldering terminal; M3; four THT legs, all one electrical node. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern and clamp datum remain incoming-sample gates."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "XFCN"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "T34069"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C481452"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "JLC Library" "Extended; manualWeld / Wave Soldering"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Current Rating" "40 A manufacturer-stated; qualification required"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Thread Torque" "0.5 N*m"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "CAD Status" "LCSC/EasyEDA footprint and native 3D model; sample verification required"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "XFCN T34069 C481452 screw terminal side clamp M3 40A THT"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "XFCN_T34069_THT*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "XFCN_T34069_0_1"
+				(rectangle
+					(start -2.54 1.27)
+					(end 2.54 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy 0 2.54) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0 0)
+					(radius 0.762)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "XFCN_T34069_1_1"
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-Connector_Screw:XFCN_TTR32100127-0600"
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "TB"
+				(at 0 4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TTR32100127-0600"
+				(at 0 -4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_THT_M3_60A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "XFCN right-angle threaded PCB soldering terminal; M3; two THT legs, both one electrical node. Manufacturer states 60 A and 1.0 N*m thread torque. JLC Extended, THT manual/wave assembly. Native 3D CAD is unavailable; project model is a datasheet-derived collision envelope."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "XFCN"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "TTR32100127-0600"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C45384691"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "JLC Library" "Extended; manualWeld / Wave Soldering"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Current Rating" "60 A manufacturer-stated; qualification required"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Thread Torque" "1.0 N*m"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "CAD Status" "LCSC/EasyEDA footprint; project-authored datasheet-envelope STEP; sample verification required"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "XFCN TTR32100127-0600 C45384691 threaded terminal right angle M3 60A THT"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "XFCN_TTR32100127-0600_THT*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "XFCN_TTR32100127-0600_0_1"
+				(rectangle
+					(start -2.54 1.27)
+					(end 2.54 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 1.27) (xy -1.27 2.54) (xy 0 1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0 0)
+					(radius 0.762)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "XFCN_TTR32100127-0600_1_1"
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(text "ATX INTERPOSER + CONTROL SIGNALS"
 		(exclude_from_sim no)
@@ -2330,7 +2770,7 @@
 		(uuid "21fff87c-2f37-439b-a0c1-6ace9f73a96b")
 	)
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_T34069")
 		(at 149.86 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2340,14 +2780,19 @@
 		(fields_autoplaced yes)
 		(uuid "9a1c11f2-6ca8-4061-9a6e-f7c0f1d533a8")
 		(property "Reference" "TB4" (at 153.67 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 153.67 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 3.3V (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "XFCN T34069" (at 153.67 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_THT_M3_40A" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN PCB soldering terminal with an M3 threaded side face and supplied screw/pressure washer; four THT legs, all one electrical node. The external daughterboard or conductor requires an M3 clearance hole and is clamped against the threaded face. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern, screw-axis datum, washer envelope, and joint stack remain incoming-sample gates." (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "T34069" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C481452" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "40 A manufacturer-stated; qualification required" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "0.5 N*m" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint and native 3D model; sample verification required" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 149.86 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6b4e1e73-0df7-4e5d-bc4b-1e5e8f261371"))
 		(instances
 			(project "24pin-module"
@@ -2381,32 +2826,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
-		(at 260.35 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "81ebb45d-5a36-456d-b591-a224cb2379dd")
-		(property "Reference" "TB7" (at 264.16 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 264.16 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (2 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 260.35 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "1294c7bf-3275-4588-ae84-71cfec100e65"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "TB7") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-vendor:R_Small")
 		(at 149.86 91.44 0)
@@ -2507,34 +2927,9 @@
 			)
 		)
 	)
+
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
-		(at 113.03 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "1428c3a5-6468-42ae-9252-1026a90cf344")
-		(property "Reference" "TB3" (at 116.84 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 116.84 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 5V (2 of 2) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 113.03 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "282189e1-a8d4-4beb-ae7d-08cdc9e867c8"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "TB3") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_TTR32100127-0600")
 		(at 223.52 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2544,14 +2939,19 @@
 		(fields_autoplaced yes)
 		(uuid "504406bd-f492-48b3-8112-c3f6b5a791ea")
 		(property "Reference" "TB6" (at 227.33 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 227.33 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (1 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "TTR32100127-0600" (at 227.33 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_THT_M3_60A" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN right-angle threaded PCB soldering terminal; M3; two THT legs, both one electrical node. Manufacturer states 60 A and 1.0 N*m thread torque. JLC Extended, THT manual/wave assembly. Native 3D CAD is unavailable; project model is a datasheet-derived collision envelope." (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TTR32100127-0600" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C45384691" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "60 A manufacturer-stated; qualification required" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "1.0 N*m" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint; project-authored datasheet-envelope STEP; sample verification required" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf" (at 223.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "5b3c1b12-fe55-4dd6-afda-01af29e80310"))
 		(instances
 			(project "24pin-module"
@@ -2559,34 +2959,9 @@
 			)
 		)
 	)
+
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
-		(at 297.18 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "afb10bfc-6b23-4fd2-814b-87d1a4e59ed7")
-		(property "Reference" "TB8" (at 300.99 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 300.99 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (3 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 297.18 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "45bf3a1c-74e1-46e4-a423-3af768eec476"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "TB8") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_T34069")
 		(at 76.2 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2596,14 +2971,19 @@
 		(fields_autoplaced yes)
 		(uuid "a3fed740-8478-4cba-8c9f-6e509c4970a9")
 		(property "Reference" "TB2" (at 80.01 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 80.01 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 5V (1 of 2) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "XFCN T34069" (at 80.01 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_THT_M3_40A" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN PCB soldering terminal with an M3 threaded side face and supplied screw/pressure washer; four THT legs, all one electrical node. The external daughterboard or conductor requires an M3 clearance hole and is clamped against the threaded face. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern, screw-axis datum, washer envelope, and joint stack remain incoming-sample gates." (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "T34069" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C481452" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "40 A manufacturer-stated; qualification required" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "0.5 N*m" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint and native 3D model; sample verification required" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 76.2 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "04f8f560-65ae-4c06-ae30-ae6855c329c0"))
 		(instances
 			(project "24pin-module"
@@ -2611,34 +2991,9 @@
 			)
 		)
 	)
+
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
-		(at 370.84 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8d4d14c9-539c-4124-8bb6-926c49a6e48e")
-		(property "Reference" "TB10" (at 374.65 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 374.65 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 3.3V (second 3.3V joint, iteration-7 count: 24.0A basis > 18.32A allowable/joint) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 370.84 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "26ecfc77-44f1-4753-88a9-f3737e8af097"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "TB10") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_T34069")
 		(at 39.37 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2648,14 +3003,19 @@
 		(fields_autoplaced yes)
 		(uuid "a092b298-f492-4ee1-8dc8-e1cd5fc0c27f")
 		(property "Reference" "TB1" (at 43.18 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 43.18 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 12V (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "XFCN T34069" (at 43.18 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_THT_M3_40A" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN PCB soldering terminal with an M3 threaded side face and supplied screw/pressure washer; four THT legs, all one electrical node. The external daughterboard or conductor requires an M3 clearance hole and is clamped against the threaded face. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern, screw-axis datum, washer envelope, and joint stack remain incoming-sample gates." (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "T34069" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C481452" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "40 A manufacturer-stated; qualification required" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "0.5 N*m" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint and native 3D model; sample verification required" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 39.37 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "9fe89250-80fc-4ff0-b6b6-2d784570a105"))
 		(instances
 			(project "24pin-module"
@@ -2664,7 +3024,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_TTR32100127-0600")
 		(at 334.01 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2674,14 +3034,19 @@
 		(fields_autoplaced yes)
 		(uuid "11dcfe20-7088-4974-9ef3-d8e30eb0f101")
 		(property "Reference" "TB9" (at 337.82 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 337.82 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (4 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "TTR32100127-0600" (at 337.82 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_THT_M3_60A" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN right-angle threaded PCB soldering terminal; M3; two THT legs, both one electrical node. Manufacturer states 60 A and 1.0 N*m thread torque. JLC Extended, THT manual/wave assembly. Native 3D CAD is unavailable; project model is a datasheet-derived collision envelope." (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TTR32100127-0600" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C45384691" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "60 A manufacturer-stated; qualification required" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "1.0 N*m" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint; project-authored datasheet-envelope STEP; sample verification required" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf" (at 334.01 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "8f9872d0-bf0e-4c5d-871a-26cd475320c1"))
 		(instances
 			(project "24pin-module"
@@ -2700,12 +3065,13 @@
 		(fields_autoplaced yes)
 		(uuid "9102699c-245b-469d-a621-3459c7dd9b8e")
 		(property "Reference" "J_SIG1" (at 43.18 153.67 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "SSQ-104-03-G-S" (at 43.18 156.21 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://www.samtec.com/products/ssq-104-03-g-s" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Vertical 1x4 socket; mates the daughterboard TSW-104-12-G-S-RA long-tail right-angle header pin-for-pin." (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "SSQ-102-03-G-D" (at 43.18 156.21 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://suddendocs.samtec.com/prints/ssq-1xx-xx-xxx-x-xx-xxx-xx-x-mkt.pdf" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Mates TSW-102-16-G-D-RA; 1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND. First-article mated-transform and engagement check required." (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samtec" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "SSQ-104-03-G-S" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SSQ-102-03-G-D" (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "2x2 2.54 mm vertical female socket, 8.51 mm body and 10.01 mm lead-style -03 tail; double-row odd/even-by-column pin geometry." (at 39.37 162.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "bfc88fce-6e83-4aa0-bdef-0a645a8f45d8"))
 		(pin "2" (uuid "f345105a-94cb-4fbc-8544-19041c7c5255"))
 		(pin "3" (uuid "025656c2-f448-4e4a-b5ef-91b81657d9ef"))
@@ -2717,7 +3083,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:Keystone_3586_Blade_Clip")
+		(lib_id "cec-Connector_Screw:XFCN_T34069")
 		(at 186.69 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2727,14 +3093,19 @@
 		(fields_autoplaced yes)
 		(uuid "c6472de3-8e96-4bdc-b01c-74c0f49d4201")
 		(property "Reference" "TB5" (at 190.5 125.73 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TE 63969-1" (at 190.5 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63969-1" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C2961150" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Output daughterboard blade clip, ratified joint 5VSB (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "XFCN T34069" (at 190.5 128.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_THT_M3_40A" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "XFCN PCB soldering terminal with an M3 threaded side face and supplied screw/pressure washer; four THT legs, all one electrical node. The external daughterboard or conductor requires an M3 clearance hole and is clamped against the threaded face. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern, screw-axis datum, washer envelope, and joint stack remain incoming-sample gates." (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XFCN" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "T34069" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C481452" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "JLC Library" "Extended; manualWeld / Wave Soldering" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Current Rating" "40 A manufacturer-stated; qualification required" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Thread Torque" "0.5 N*m" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "CAD Status" "LCSC/EasyEDA footprint and native 3D model; sample verification required" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 186.69 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6b4b0c76-f941-4004-8438-58269ef9ce3e"))
 		(instances
 			(project "24pin-module"
@@ -3207,8 +3578,7 @@
 		(stroke (width 0) (type default)) (uuid "686a3752-2be4-4a2c-b968-0d2a79c7131a"))
 	(wire (pts (xy 76.2 130.81) (xy 76.2 134.62))
 		(stroke (width 0) (type default)) (uuid "bf4dd18f-379c-449e-adcb-5d4abbc6f883"))
-	(wire (pts (xy 113.03 130.81) (xy 113.03 134.62))
-		(stroke (width 0) (type default)) (uuid "22b17ec8-e52e-4882-9611-ee80556c8808"))
+
 	(wire (pts (xy 39.37 195.58) (xy 39.37 191.77))
 		(stroke (width 0) (type default)) (uuid "1991c6a3-1595-42fa-8ed0-ab06ad0a209e"))
 	(wire (pts (xy 76.2 195.58) (xy 76.2 191.77))
@@ -3281,8 +3651,7 @@
 		(stroke (width 0) (type default)) (uuid "25506cdd-d2db-4707-a38d-b3f27cd67b39"))
 	(wire (pts (xy 149.86 93.98) (xy 149.86 97.79))
 		(stroke (width 0) (type default)) (uuid "99c62d1c-cd12-4ebe-8346-25a3ef2c204f"))
-	(wire (pts (xy 370.84 130.81) (xy 370.84 134.62))
-		(stroke (width 0) (type default)) (uuid "4c24d033-4945-41e9-8e89-f01b58782302"))
+
 	(wire (pts (xy 149.86 130.81) (xy 149.86 134.62))
 		(stroke (width 0) (type default)) (uuid "61c58459-1e6e-4709-9e42-7b3a159345a9"))
 	(wire (pts (xy 193.04 91.44) (xy 196.85 91.44))
@@ -3347,10 +3716,8 @@
 		(stroke (width 0) (type default)) (uuid "7a45278f-b582-4b5b-a4a2-72fceeced6aa"))
 	(wire (pts (xy 223.52 130.81) (xy 223.52 134.62))
 		(stroke (width 0) (type default)) (uuid "d0b5492e-7bec-4d99-b548-2234dedb3433"))
-	(wire (pts (xy 260.35 130.81) (xy 260.35 134.62))
-		(stroke (width 0) (type default)) (uuid "797bb412-f203-4817-baa3-587ae4e86d38"))
-	(wire (pts (xy 297.18 130.81) (xy 297.18 134.62))
-		(stroke (width 0) (type default)) (uuid "66d78e9f-6c0d-4fd3-b005-c241f54ea350"))
+
+
 	(wire (pts (xy 334.01 130.81) (xy 334.01 134.62))
 		(stroke (width 0) (type default)) (uuid "a2d50e26-8937-41f3-b5bc-600726145f3f"))
 	(wire (pts (xy 151.13 172.72) (xy 151.13 176.53))
@@ -3397,7 +3764,7 @@
 	(label "NEG12V_ADC" (at 389.89 153.67 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a29ecfc8-9705-4d83-8661-a7772666e621"))
 	(label "NEG12V_ADC" (at 370.84 204.47 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d0334a0a-8160-4c66-8168-257b22eea0b1"))
 	(label "SENSE3V3_HI" (at 149.86 85.09 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b8886237-e76d-41d7-9309-1d60c18edb8e"))
-	(label "SENSE3V3_LO" (at 370.84 134.62 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "639254a9-9251-4e22-a057-398876f58770"))
+
 	(label "SENSE3V3_LO" (at 149.86 134.62 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b83bd984-a4ef-40d0-9967-86400504393b"))
 	(label "SENSE5VSB_LO" (at 186.69 134.62 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "36eb582a-3b56-4bd0-b3d7-e4c685b5c710"))
 	(label "SENSE5V_HI" (at 113.03 85.09 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "bfcf9d73-2632-4347-9719-b93787326337"))
@@ -3607,24 +3974,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5V_MAIN")
-		(at 113.03 134.62 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "77d0c2ee-ce47-4df7-8d45-bcd514fd1c63")
-		(property "Reference" "#PWR109" (at 113.03 132.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 113.03 139.7 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "3b5d0a3c-cf59-4c2b-86a3-27bf74667c5c"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "#PWR109") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 39.37 204.47 0)
@@ -3823,42 +4173,8 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 260.35 134.62 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "1511fc05-8f95-4c32-bff8-a873e601d98a")
-		(property "Reference" "#PWR121" (at 260.35 132.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 260.35 139.7 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "f5cec0fb-d685-4b3e-87e8-ac089f888f16"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "#PWR121") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 297.18 134.62 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "ddce4a85-6884-4dd0-970e-cceebea6fa7a")
-		(property "Reference" "#PWR122" (at 297.18 132.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 297.18 139.7 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "52f38441-f1af-4bba-9df1-8ab45e86d387"))
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f/5112a01e-6252-5698-98eb-e15adee5767f" (reference "#PWR122") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 334.01 134.62 0)

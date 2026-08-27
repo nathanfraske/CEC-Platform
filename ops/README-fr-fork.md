@@ -231,3 +231,20 @@ checks a `CecOptions` flag that defaults to stock behavior).
   `build/fr-fork/freerouting-1.7.0-cec2.jar`. The script builds in a disposable
   `%TEMP%` directory, validates both the JDK and JAR hashes, and removes the
   downloaded toolchain and Gradle cache when finished.
+
+# cec3 addendum (2026-08-04) — `freerouting-1.7.0-cec3`
+
+The fully guarded six-layer Hub exports a DSN larger than 512 KiB. Freerouting
+1.7.0's generated scanner can refill and grow its buffer, but its hand-written
+`next_string()` helper read the initial array directly and crashed at byte
+524,288 before routing began. cec3 applies the incremental
+`scripts/patches/freerouting-1.7.0-cec3.patch` after the cumulative cec2 patch.
+The helper now refills and grows the existing buffer in place, preserving every
+scanner position; it does not raise a fixed size ceiling or remove PCB guards.
+
+- Linux/WSL build: `scripts/build-freerouting-cec3.sh`
+- OpenJDK build pin: 17
+- JAR SHA-256:
+  `202136e7e73d5aa3e2a852bab186f71b67289a4068dee0804cb9c7b2efd8c7f7`
+- Exact Hub proof: a 549,907-byte DSN completed parser, route, SES import, and
+  KiCad board save with the cec3 artifact; cec2 failed at index 524,288.

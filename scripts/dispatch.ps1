@@ -73,8 +73,8 @@ $env:PATH = "$(Split-Path -Parent $py);$env:PATH"   # kicad-cli sits beside pyth
 Ensure-Java
 
 if (-not $env:CEC_FREEROUTING_JAR) {
-  foreach ($c in @((Join-Path $env:USERPROFILE ".cache\cec\freerouting-1.7.0-cec2.jar"),
-                   (Join-Path $env:TEMP "fr_1.7.0-cec2.jar"))) {
+  foreach ($c in @((Join-Path $env:USERPROFILE ".cache\cec\freerouting-1.7.0-cec3.jar"),
+                   (Join-Path $env:TEMP "fr_1.7.0-cec3.jar"))) {
     if (Test-Path $c) { $env:CEC_FREEROUTING_JAR = $c; break }
   }
 }

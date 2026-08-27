@@ -93,7 +93,8 @@ def _export_netlist_text(sch_path):
             raise RuntimeError(
                 f"kicad-cli sch export netlist failed for {sch_path} "
                 f"(rc={r.returncode}): {r.stderr.strip()}")
-        return open(out, encoding="utf-8").read()
+        with open(out, encoding="utf-8") as exported:
+            return exported.read()
     finally:
         if os.path.exists(out):
             os.unlink(out)

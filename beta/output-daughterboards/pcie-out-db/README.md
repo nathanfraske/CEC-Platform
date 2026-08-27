@@ -1,5 +1,11 @@
 # PCIe 8-pin output daughterboard (per-cable) — BETA-1
 
+> **XFCN PROTOTYPE SUPERSESSION (2026-08-12):** the live authority uses one
+> +12V and one GND TTR32100127-0600 daughterboard bolt land, each with a
+> 3.4 mm plated M3 clearance hole. The compact live outline is
+> **27.5 × 20.0 mm** (11.3% less area than the 31.0 × 20.01 mm predecessor).
+> The blade-era material below is retained only as historical provenance.
+
 Passive connector-daughterboard for **one** PCIe 8-pin cable's OUTPUT side,
 per spec **§2.8 v1.4.0**. **One design, shared unmodified by both the
 2-port and 3-port SKUs** (the same board is instantiated once per cable —

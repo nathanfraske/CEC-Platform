@@ -68,9 +68,13 @@ class FabricationProfileTest(unittest.TestCase):
             "hub-standard-rev2")
         self.assertEqual(currents["/PSU_5V_KVM"], 2.5)
         self.assertEqual(currents["/+5V_HOLD"], 0.5)
+        self.assertEqual(currents["/LOGIC_REG_IN"], 0.5)
         self.assertEqual(
-            terminals["/PSU_5V"],
-            {"refs_src": ["U5"], "refs_sink": ["U11"]})
+            terminals["+5V_SYS"],
+            {"refs_src": ["J6P"], "refs_sink": ["U7"]})
+        self.assertEqual(
+            terminals["/USB_VBUS"],
+            {"refs_src": ["J_USB"], "refs_sink": ["U11"]})
         self.assertEqual(
             terminals["/PSU_5V_KVM"],
             {"refs_src": ["U11"], "refs_sink": ["U7"]})
@@ -78,6 +82,12 @@ class FabricationProfileTest(unittest.TestCase):
             terminals["+5VSB"],
             {"refs_src": ["U7"],
              "refs_sink": ["F1", "F2", "F3", "F4"]})
+        self.assertEqual(
+            terminals["/+5V_HOLD"],
+            {"refs_src": ["D1"], "refs_sink": ["RJ_HOLD"]})
+        self.assertEqual(
+            terminals["/LOGIC_REG_IN"],
+            {"refs_src": ["RJ_HOLD"], "refs_sink": ["U3"]})
         for index in range(1, 5):
             self.assertEqual(
                 terminals[f"/VCC_P{index}"],
@@ -89,10 +99,13 @@ class FabricationProfileTest(unittest.TestCase):
             ROOT, "beta", "hub-standard-rev2", "candidate",
             "hub-standard-rev2-candidate.kicad_pcb")
         currents, _, terminals, _ = TOV.board_thermal_config(board)
-        self.assertIn("/POWER INPUT + SOURCE SELECTION/PSU_5V", currents)
+        self.assertIn("+5V_SYS", currents)
+        self.assertIn("/USB_VBUS", currents)
         self.assertIn("/HOLD-UP + 3V3 REGULATOR/+5V_HOLD", currents)
+        self.assertIn("/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN", currents)
         self.assertIn("/CAN + FOUR MODULE PORTS + STACK/VCC_P4", currents)
-        self.assertNotIn("/PSU_5V", currents)
+        self.assertNotIn("/5VSB_RAW", currents)
+        self.assertNotIn("/POWER INPUT + SOURCE SELECTION/PSU_5V", currents)
         self.assertEqual(set(currents), set(terminals))
 
 

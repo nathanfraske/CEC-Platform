@@ -14,6 +14,7 @@ Two properties matter and both are asserted in BOTH directions:
 import os
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -83,6 +84,182 @@ class PowerLayerPolicyTest(unittest.TestCase):
         os.environ.pop("CEC_POWER_POUR_LAYERS")
         self.assertEqual(pp.power_layer_order()[0], "In2.Cu")
 
+    def test_parallel_bundle_requires_full_aggregate_capacity(self):
+        ask = {"parallel_layers": ("B.Cu", "F.Cu"),
+               "parallel_layer_fraction": 0.50}
+        bundle = pp.parallel_layer_bundle(
+            ask, 48.75, ("F.Cu", "In2.Cu", "B.Cu"))
+        self.assertAlmostEqual(1.0, bundle["aggregate_capacity_fraction"])
+        ask["parallel_layer_fraction"] = 0.49
+        with self.assertRaises(ValueError):
+            pp.parallel_layer_bundle(
+                ask, 48.75, ("F.Cu", "In2.Cu", "B.Cu"))
+
+    def test_geometry_basis_margin_is_not_reapplied(self):
+        with mock.patch.object(pp, "req_width_mm", return_value=6.3) as width:
+            result = pp.required_widths_from_geometry_basis(
+                {"F.Cu": 24.375}, ("F.Cu",), object())
+        self.assertEqual(result, {"F.Cu": 6.3})
+        self.assertEqual(width.call_args.kwargs["margin"], 1.0)
+
+    def test_compiler_and_planner_share_resolved_bundle_oracle(self):
+        asks = [{"net": "/PWR", "parallel_layers": ("B.Cu", "F.Cu"),
+                 "parallel_layer_fraction": 0.50,
+                 "parallel_min_amps": 20.0}]
+        board = mock.Mock()
+        board.GetFileName.return_value = "generic-power-board.kicad_pcb"
+        with mock.patch.object(
+                pp._fab, "enabled_copper_layers",
+                return_value=("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")), \
+             mock.patch.object(pp, "_net_currents", return_value={}), \
+             mock.patch.object(pp, "_design_current_amps",
+                               return_value=48.75):
+            result = pp.declared_parallel_bundles(board, asks)
+        self.assertEqual(("B.Cu", "F.Cu"), result["/PWR"]["layers"])
+        self.assertEqual(48.75, result["/PWR"]["design_current_A"])
+        self.assertEqual(24.375, result["/PWR"]["per_layer_amps"])
+
+    def test_bundle_oracle_honors_current_threshold(self):
+        asks = [{"net": "/AUX", "parallel_layers": ("B.Cu", "F.Cu"),
+                 "parallel_min_amps": 20.0}]
+        with mock.patch.object(pp._fab, "enabled_copper_layers",
+                               return_value=("F.Cu", "B.Cu")), \
+             mock.patch.object(pp, "_net_currents", return_value={}), \
+             mock.patch.object(pp, "_design_current_amps",
+                               return_value=5.0):
+            self.assertEqual({}, pp.declared_parallel_bundles(
+                mock.Mock(), asks))
+
+
+class PriorityPowerAskPolicyTest(unittest.TestCase):
+    def test_per_net_parallel_contract_survives_ask_merge(self):
+        import cec_current_topology
+        import cec_synth_pipeline as csp
+
+        pours = [{"net": "/PWR", "layer": "F.Cu",
+                  "parallel_layers": ("B.Cu", "F.Cu"),
+                  "parallel_layer_fraction": 0.50,
+                  "parallel_min_amps": 20.0},
+                 {"net": "/PWR", "layer": "B.Cu"}]
+        with mock.patch.object(cec_current_topology,
+                               "board_current_domains", return_value={}):
+            asks, _domains = csp._priority_power_asks(
+                mock.Mock(), pours, "generic.kicad_pcb")
+        self.assertEqual(1, len(asks))
+        self.assertEqual(("F.Cu", "B.Cu"), asks[0]["layers"])
+        self.assertEqual(("B.Cu", "F.Cu"), asks[0]["parallel_layers"])
+        self.assertEqual(0.50, asks[0]["parallel_layer_fraction"])
+
+    def test_conflicting_parallel_contracts_fail_closed(self):
+        import cec_synth_pipeline as csp
+
+        pours = [{"net": "/PWR", "layer": "F.Cu",
+                  "parallel_layer_fraction": 0.50},
+                 {"net": "/PWR", "layer": "B.Cu",
+                  "parallel_layer_fraction": 0.75}]
+        with self.assertRaisesRegex(ValueError, "conflicting"):
+            csp._priority_power_asks(mock.Mock(), pours, "generic.kicad_pcb")
+
+
+class PlacementParallelReservationTest(unittest.TestCase):
+    def test_string_board_path_reaches_current_contract_authority(self):
+        import cec_slab_pour
+        import cec_synth_pipeline as csp
+
+        contract = {"amps": 39.0, "margin_included": False,
+                    "geometry_margin": 1.25,
+                    "source": "board_design_basis"}
+        with mock.patch.object(cec_slab_pour, "_board_thermal_config",
+                               return_value=({}, None, {}, None)), \
+             mock.patch.object(csp, "spec_net_current_contract",
+                               return_value=contract) as authority:
+            amps, margins, _domains, chosen = (
+                cec_slab_pour.resolve_pour_current_contracts(
+                    "/tmp/pcie-8pin-2port.kicad_pcb",
+                    [{"net": "/SENSEC1_LO"}]))
+
+        authority.assert_called_once_with(
+            "/tmp/pcie-8pin-2port.kicad_pcb", "/SENSEC1_LO")
+        self.assertEqual(39.0, amps["/SENSEC1_LO"])
+        self.assertEqual(1.25, margins["/SENSEC1_LO"])
+        self.assertEqual(48.75, chosen["/SENSEC1_LO"]["effective_A"])
+
+    def test_reservation_uses_margin_inclusive_per_layer_current_once(self):
+        import cec_synth_pipeline as csp
+
+        cfg = mock.Mock()
+        cfg.pcb = "pcie-8pin-2port.kicad_pcb"
+        cfg.board = "pcie-8pin-2port"
+        cfg.params = {
+            "stackup_profile": "jlcpcb_6l_pofv_high_current",
+            "power_parallel_layers": ("B.Cu", "F.Cu"),
+            "power_parallel_fraction": 0.50,
+            "power_parallel_min_amps": 20.0,
+        }
+        chosen = {"/PWR": {"effective_A": 48.75}}
+        with mock.patch(
+                "cec_slab_pour.resolve_pour_current_contracts",
+                return_value=({"/PWR": 39.0}, {"/PWR": 1.25}, {}, chosen)), \
+             mock.patch("cec_slab_pour.req_width_mm",
+                        side_effect=lambda amps, _layer, **kw: amps / 4.0) as width:
+            rows = csp._parallel_power_placement_margins(cfg, ("/PWR",))
+
+        self.assertAlmostEqual(24.375, rows["/PWR"]["per_layer_current_A"])
+        self.assertAlmostEqual(6.09375, rows["/PWR"]["required_widths_mm"]["F.Cu"])
+        self.assertAlmostEqual(6.09375 / 2.0 + 0.30,
+                               rows["/PWR"]["margin_mm"])
+        self.assertTrue(all(call.kwargs["margin"] == 1.0
+                            for call in width.call_args_list))
+
+    def test_unset_parallel_policy_preserves_historical_geometry(self):
+        import cec_synth_pipeline as csp
+
+        cfg = mock.Mock()
+        cfg.params = {}
+        self.assertEqual({}, csp._parallel_power_placement_margins(
+            cfg, ("/PWR",)))
+
+    def test_pour_boxes_expand_only_the_declared_net(self):
+        import cec_synth_pipeline as csp
+
+        plan = mock.Mock()
+        plan.evac_boxes.return_value = [
+            ("/PWR", 10.0, 20.0, 30.0, 40.0),
+            ("/AUX", 1.0, 2.0, 3.0, 4.0),
+        ]
+        with mock.patch("cec_pourplan.PourPlan.from_placement",
+                        return_value=plan):
+            boxes = csp._pour_boxes_unified(
+                {}, mock.Mock(), {}, 100.0, 100.0,
+                margin_by_net={"/PWR": {"margin_mm": 3.5}})
+        self.assertEqual(("/PWR", 7.5, 22.5, 27.5, 42.5), boxes[0])
+        self.assertEqual(("/AUX", 1.0, 2.0, 3.0, 4.0), boxes[1])
+
+    def test_owning_pass_uses_same_parallel_power_boxes_as_evac(self):
+        import cec_synth_pipeline as csp
+
+        cfg = mock.Mock()
+        cfg.params = {"pour_asks": [{"net": "/HI"}]}
+        expected_margins = {"/HI": {"margin_mm": 3.5}}
+        expected_boxes = [("/HI", 1.0, 9.0, 2.0, 8.0)]
+        topo = [{"hi": "/HI", "lo": "/LO"}]
+        with mock.patch.object(
+                csp, "_parallel_power_placement_margins",
+                return_value=expected_margins) as margins, \
+             mock.patch.object(
+                 csp, "_pour_boxes_unified",
+                 return_value=expected_boxes) as boxes:
+            actual_boxes, actual_margins = \
+                csp._parallel_power_placement_boxes(
+                    cfg, topo, {"U1": (1, 2, 0)}, "netlist", {}, 10, 10)
+
+        margins.assert_called_once_with(cfg, ("/HI", "/LO"))
+        boxes.assert_called_once_with(
+            {"U1": (1, 2, 0)}, "netlist", {}, 10, 10,
+            asks=({"net": "/HI"},), margin_by_net=expected_margins)
+        self.assertEqual(expected_boxes, actual_boxes)
+        self.assertEqual(expected_margins, actual_margins)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -111,22 +288,36 @@ class SpecNetCurrentTest(unittest.TestCase):
             self.assertLessEqual(amps * 1.25, joints * 18.32 + 0.01,
                                  f"{net}: {amps}A at 125% exceeds its {joints} ratified joint(s)")
 
-    def test_logic_rail_is_bounded_by_its_source_not_the_bus(self):
-        """+3V3 is TLV75533-fed (500mA max), not the high-current rail."""
+    def test_logic_rail_routes_to_component_budget_not_source_capacity(self):
+        """Regulator capacity is checked separately from downstream loading."""
+        import cec_power_budget
+
         f = self.csp.spec_net_current
-        self.assertEqual(f("atx-24pin-rev3", "+3V3"), 0.50)
+        expected = (cec_power_budget.budget(
+            "atx-24pin-rev3")["required_mA"] / 1000.0)
+        self.assertAlmostEqual(f("atx-24pin-rev3", "+3V3"), expected)
         self.assertNotEqual(f("atx-24pin-rev3", "+3V3"),
                             f("atx-24pin-rev3", "/SENSE3V3_HI"))
 
-    def test_current_beta_regulator_source_limits(self):
+    def test_current_beta_component_budgets_include_margin_once(self):
+        import cec_power_budget
+
         f = self.csp.spec_net_current
-        self.assertEqual(f("12vhpwr-standard", "+3V3"), 0.50)
-        self.assertEqual(f("hub-standard-rev2", "+3V3"), 1.76)
+        for board in ("12vhpwr-standard", "hub-standard-rev2"):
+            expected = cec_power_budget.budget(board)["required_mA"] / 1000.0
+            self.assertAlmostEqual(f(board, "+3V3"), expected)
+            contract = self.csp.spec_net_current_contract(board, "+3V3")
+            self.assertTrue(contract["margin_included"])
+            self.assertEqual(contract["geometry_margin"], 1.0)
+            self.assertEqual(contract["source"], "component_power_budget")
 
     def test_committed_candidate_filename_resolves_board_table(self):
-        self.assertEqual(self.csp.spec_net_current(
+        import cec_power_budget
+
+        self.assertAlmostEqual(self.csp.spec_net_current(
             "beta/atx-24pin-rev3/candidate/atx-24pin-rev3-candidate.kicad_pcb",
-            "+3V3"), 0.50)
+            "+3V3"), cec_power_budget.budget(
+                "atx-24pin-rev3")["required_mA"] / 1000.0)
 
     def test_cable_boards_keep_the_owner_per_cable_basis(self):
         f = self.csp.spec_net_current

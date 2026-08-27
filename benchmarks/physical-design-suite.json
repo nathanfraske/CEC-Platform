@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "suite": "current-beta-physical-design",
+  "revision_policy": "Only hierarchical boards under beta/ are admissible. Archived, legacy, flat, and build-output boards are excluded.",
+  "cases": [
+    {
+      "id": "hub-standard-rev2-current-beta",
+      "board": "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb",
+      "root_schematic": "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch",
+      "required_sheets": [
+        "01-power-input-selection.kicad_sch",
+        "02-holdup-3v3.kicad_sch",
+        "03-mcu-usb.kicad_sch",
+        "04-can-module-ports.kicad_sch",
+        "05-kvm-aux-sensors.kicad_sch",
+        "06-status-leds.kicad_sch"
+      ],
+      "expected_copper_layers": 6,
+      "expected_profile": "jlcpcb_6l_pofv_signal",
+      "expected_routing_layers": ["F.Cu", "In2.Cu", "In3.Cu", "B.Cu"],
+      "tags": ["hub", "hierarchical", "usb", "pdn", "mezzanine", "six-layer"]
+    },
+    {
+      "id": "12vhpwr-standard-current-beta",
+      "board": "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb",
+      "root_schematic": "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch",
+      "required_sheets": [
+        "01-input.kicad_sch",
+        "02-lanes.kicad_sch",
+        "03-output.kicad_sch",
+        "04-ina.kicad_sch",
+        "05-mcu.kicad_sch",
+        "06-can.kicad_sch",
+        "07-ldo.kicad_sch",
+        "08-usb.kicad_sch",
+        "09-hub-link.kicad_sch",
+        "10-temp.kicad_sch",
+        "11-rail-ref.kicad_sch"
+      ],
+      "expected_copper_layers": 6,
+      "expected_profile": "jlcpcb_6l_pofv_high_current",
+      "expected_routing_layers": ["F.Cu", "In2.Cu", "In3.Cu", "B.Cu"],
+      "tags": ["12vhpwr", "hierarchical", "high-current", "kelvin", "six-layer"]
+    },
+    {
+      "id": "eps-8pin-rev3-current-beta",
+      "board": "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_pcb",
+      "root_schematic": "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_sch",
+      "required_sheets": [
+        "01-hub-can.kicad_sch",
+        "02-regulator-mcu.kicad_sch",
+        "03-sensing.kicad_sch",
+        "04-cable-power.kicad_sch",
+        "05-usb-service.kicad_sch"
+      ],
+      "expected_copper_layers": 6,
+      "expected_profile": "jlcpcb_6l_pofv_high_current",
+      "expected_routing_layers": ["F.Cu", "In2.Cu", "In3.Cu", "B.Cu"],
+      "tags": ["eps", "rev3", "hierarchical", "high-current", "kelvin", "six-layer"]
+    },
+    {
+      "id": "atx-24pin-rev3-current-beta",
+      "board": "beta/atx-24pin-rev3/24pin-module.kicad_pcb",
+      "root_schematic": "beta/atx-24pin-rev3/24pin-module.kicad_sch",
+      "required_sheets": [
+        "01-atx-power-control.kicad_sch",
+        "02-power-usb.kicad_sch",
+        "03-regulator-mcu.kicad_sch",
+        "04-hub-can-stack.kicad_sch",
+        "05-rail-sensing.kicad_sch"
+      ],
+      "expected_copper_layers": 6,
+      "expected_profile": "jlcpcb_6l_pofv_high_current",
+      "expected_routing_layers": ["F.Cu", "In2.Cu", "In3.Cu", "B.Cu"],
+      "tags": ["atx", "24pin", "rev3", "hierarchical", "dead-bug", "mezzanine", "six-layer"]
+    }
+  ]
+}

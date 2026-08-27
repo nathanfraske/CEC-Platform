@@ -1827,6 +1827,932 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:TPS2121RUXR"
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.524 1.524)
+					)
+				)
+			)
+			(property "Value" "TPS2121RUXR"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.524 1.524)
+					)
+				)
+			)
+			(property "Footprint" "cec-Package_DFN_QFN:RUX0012A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/gpn/tps2121"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_locked" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "TPS2121RUXR"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "RUX0012A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "TPS2121RUXR_0_1"
+				(polyline
+					(pts
+						(xy -12.7 25.4) (xy -12.7 -25.4)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -12.7 -25.4) (xy 12.7 -25.4)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 12.7 25.4) (xy -12.7 25.4)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 12.7 -25.4) (xy 12.7 25.4)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin power_in line
+					(at 17.78 20.32 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -17.78 -7.62 0)
+					(length 5.08)
+					(name "IN2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -17.78 -2.54 0)
+					(length 5.08)
+					(name "CP2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -17.78 -20.32 0)
+					(length 5.08)
+					(name "OV2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 17.78 7.62 180)
+					(length 5.08)
+					(name "OV1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -17.78 7.62 0)
+					(length 5.08)
+					(name "PR1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -17.78 20.32 0)
+					(length 5.08)
+					(name "IN1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 17.78 17.78 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 17.78 2.54 180)
+					(length 5.08)
+					(name "ST"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 17.78 -10.16 180)
+					(length 5.08)
+					(name "ILM"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 17.78 -5.08 180)
+					(length 5.08)
+					(name "SS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 17.78 -20.32 180)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:USBLC6-2SC6"
+			(pin_names
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "U"
+				(at 0.635 5.715 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "USBLC6-2SC6"
+				(at 0.635 3.81 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6"
+				(at 1.016 -6.731 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(justify left)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf"
+				(at 1.016 -8.636 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(hide yes)
+				)
+			)
+			(property "Description" "Very low capacitance ESD protection diode, 2 data-line, SOT-666"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "usb ethernet video"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "SOT?666*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "USBLC6-2SC6_0_0"
+				(circle
+					(center -1.524 0)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center -0.508 2.032)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center -0.508 -4.572)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0.508 2.032)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0.508 -4.572)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 1.524 -2.54)
+					(radius 0.0001)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "USBLC6-2SC6_0_1"
+				(polyline
+					(pts
+						(xy -2.54 0) (xy 2.54 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.54 -2.54) (xy 2.54 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.032 0.508) (xy -1.016 0.508) (xy -1.524 1.524) (xy -2.032 0.508)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.032 -3.048) (xy -1.016 -3.048)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.016 1.524) (xy -2.032 1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.016 -4.064) (xy -2.032 -4.064) (xy -1.524 -3.048) (xy -1.016 -4.064)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -0.508 -1.143) (xy -0.508 -0.762) (xy 0.508 -0.762)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy -0.508 2.032) (xy 0.508 2.032) (xy 0 1.524) (xy 0 -4.064) (xy -0.508 -4.572) (xy 0.508 -4.572)
+						(xy 0 -5.08)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 -1.778) (xy -0.508 -1.778) (xy 0 -0.762) (xy 0.508 -1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 1.524) (xy 2.032 1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.016 -3.048) (xy 2.032 -3.048)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.032 0.508) (xy 1.016 0.508) (xy 1.524 1.524) (xy 2.032 0.508)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 2.032 -4.064) (xy 1.016 -4.064) (xy 1.524 -3.048) (xy 2.032 -4.064)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "USBLC6-2SC6_1_1"
+				(rectangle
+					(start -2.54 2.794)
+					(end 2.54 -5.334)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy -0.508 2.032) (xy -1.524 2.032) (xy -1.524 -4.572) (xy -0.508 -4.572)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.508 -4.572) (xy 1.524 -4.572) (xy 1.524 2.032) (xy 0.508 2.032)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "I/O1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 2.54)
+					(name "I/O2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 5.08 270)
+					(length 2.54)
+					(name "VBUS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -7.62 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 2.54)
+					(name "I/O1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 -2.54 180)
+					(length 2.54)
+					(name "I/O2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(text "USB-C SERVICE INGRESS"
 		(exclude_from_sim no)
@@ -1905,31 +2831,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:D_Schottky")
-		(at 127 93.98 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "fa35d9ab-8a33-4bcf-a31b-8216ed1a5598")
-		(property "Reference" "D2" (at 127 87.63 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "SS34" (at 127 90.17 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 127 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 127 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "MDD" (at 127 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "SS34" (at 127 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C8678" (at 127 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "c74dee09-3b95-4a5e-ad89-88de37dae26b"))
-		(pin "2" (uuid "c196c453-c8e6-4f4e-9f2c-f7b36ce0dd04"))
-		(instances
-			(project "eps-8pin-rev3"
-				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "D2") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-vendor:C_Small")
 		(at 233.68 93.98 0)
@@ -2007,8 +2909,7 @@
 	)
 	(wire (pts (xy 180.34 91.44) (xy 180.34 87.63))
 		(stroke (width 0) (type default)) (uuid "0483f8f7-dd24-46c7-9e95-7589d5c638d9"))
-	(wire (pts (xy 123.19 93.98) (xy 119.38 93.98))
-		(stroke (width 0) (type default)) (uuid "a098986a-20bc-4930-86c0-a41790a74aa6"))
+
 	(wire (pts (xy 88.9 83.82) (xy 92.71 83.82))
 		(stroke (width 0) (type default)) (uuid "cb0eb0ab-9932-4ece-be62-ae88129bfcc5"))
 	(wire (pts (xy 73.66 132.08) (xy 73.66 128.27))
@@ -2027,8 +2928,7 @@
 		(stroke (width 0) (type default)) (uuid "375a5d64-6727-4411-9f7c-26964f6a387d"))
 	(wire (pts (xy 233.68 91.44) (xy 233.68 87.63))
 		(stroke (width 0) (type default)) (uuid "7544a81e-ad25-4d68-ba92-a6e364744e96"))
-	(wire (pts (xy 130.81 93.98) (xy 134.62 93.98))
-		(stroke (width 0) (type default)) (uuid "2fb1d763-1a00-42e1-b770-59c8930bb4d8"))
+
 	(wire (pts (xy 88.9 78.74) (xy 92.71 78.74))
 		(stroke (width 0) (type default)) (uuid "0d053f07-c2cb-49d8-ab57-39e82cdb0a16"))
 	(wire (pts (xy 88.9 78.74) (xy 92.71 78.74))
@@ -2063,7 +2963,7 @@
 	(label "USB_CC2" (at 127 128.27 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e4237370-c261-483f-9363-af587a5f00d3"))
 	(label "USB_D_N" (at 92.71 93.98 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "174f0576-9bb1-4703-bf70-e0bf09e34ecb"))
 	(label "USB_D_P" (at 92.71 99.06 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "047658ca-8308-406f-9768-bd08e7d5b9df"))
-	(label "VBUS" (at 134.62 93.98 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9ffdaf82-6f12-4c2c-a7e1-7fc793da366c"))
+
 	(label "VBUS" (at 92.71 78.74 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7aad6a56-8ed0-4851-bcaf-85aec6bc7f8a"))
 	(hierarchical_label "USB_CC1"
 		(shape output)
@@ -2113,24 +3013,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 119.38 93.98 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "8b28f5f0-54d0-49ce-ac45-3b06e75902b0")
-		(property "Reference" "#PWR502" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 119.38 99.06 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "1af09627-c8c6-41f5-bf39-353343ca73cc"))
-		(instances
-			(project "eps-8pin-rev3"
-				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR502") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 180.34 100.33 0)
@@ -2241,6 +3124,763 @@
 	)
 	(no_connect (at 88.9 106.68) (uuid "3c069a93-fcd0-4ea6-8409-8bbedfbd5116"))
 	(no_connect (at 88.9 109.22) (uuid "d8516553-4b45-479e-9058-c6a611ca3fac"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 250.19 35.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "18974a5c-fade-4d73-aab3-59f4ad70ccc0")
+		(property "Reference" "F1" (at 250.19 20.32 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "750mA/16V PTC" (at 250.19 52.07 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_1206_3216Metric" (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C371166.pdf" (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Littelfuse" (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "1206L075/16WR" (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C371166" (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "750mA hold, 1.5A trip, 16V resettable PTC on USB VBUS ingress." (at 250.19 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "da2c1453-b8d1-486c-aed0-be1e83dba1a4"))
+		(pin "2" (uuid "a22afb7d-0963-47f8-8da8-b2f7973624f7"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "F1") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 250.19 33.02) (xy 250.19 29.21))
+		(stroke (width 0) (type default)) (uuid "6556c097-e260-4d27-876b-f3a26788d885"))
+	(label "VBUS" (at 250.19 29.21 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c2b0c141-494b-498f-95d9-8ce896d0c3a0"))
+	(wire (pts (xy 250.19 38.1) (xy 250.19 41.91))
+		(stroke (width 0) (type default)) (uuid "ba3fa685-146d-43e4-9393-cdc72695cc63"))
+	(label "VBUS_FUSED" (at 250.19 41.91 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "5279834b-d8fd-4016-b85d-20694841bcea"))
+	(symbol
+		(lib_id "cec-vendor:TPS2121RUXR")
+		(at 275.59 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a5bcc597-6306-4566-b1b8-40bf73076bad")
+		(property "Reference" "U4" (at 275.59 54.61 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS2121RUXR" (at 275.59 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TPS2121RUXR" (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C485916" (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Protected USB/RJ45 service-power mux; OUT is the board +5VSB rail." (at 275.59 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "8cfd4d48-c2ce-41f9-a39b-c19ae053c690"))
+		(pin "10" (uuid "89890b63-e1f6-421a-906a-e491a99b54f3"))
+		(pin "11" (uuid "48ec51ce-155e-4842-85d6-029e08934383"))
+		(pin "12" (uuid "42c007e2-c160-40ed-894d-66d5cda2bf84"))
+		(pin "2" (uuid "70479529-a3b5-4d8d-9d4b-cb3d0100beb8"))
+		(pin "3" (uuid "43046b89-bac1-4545-a3f2-dbaa39602e8b"))
+		(pin "4" (uuid "d1ce7921-b750-4d12-aeb9-b426f0b9cef6"))
+		(pin "5" (uuid "7c0ae9e2-b056-4662-b287-5043878d7b23"))
+		(pin "6" (uuid "3a94abd0-9009-4753-a78c-52ff493cc471"))
+		(pin "7" (uuid "7f8ffd96-d2e9-41ac-a473-4460d1200fac"))
+		(pin "8" (uuid "e385495b-0f1e-4ff6-b25a-7398c590e768"))
+		(pin "9" (uuid "67a0b214-640c-403c-9969-d616b9b9ff5d"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "U4") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 293.37 49.53) (xy 297.18 49.53))
+		(stroke (width 0) (type default)) (uuid "7488e42e-7a1b-489d-9eb5-ee67b96c3291"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 297.18 49.53 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7670274e-9f27-438b-9429-d1890021f7a0")
+		(property "Reference" "#PWR541" (at 297.18 46.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 297.18 58.42 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f78b0eb0-d7e0-4b06-b120-acdfd46a7c03"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR541") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 293.37 52.07) (xy 297.18 52.07))
+		(stroke (width 0) (type default)) (uuid "598a9912-e5d2-4023-a468-39f2ca0ddd81"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 297.18 52.07 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "81ae3d4f-2cbf-4466-ad55-ac66392109eb")
+		(property "Reference" "#PWR542" (at 297.18 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 297.18 55.88 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "d2f14c85-0eaf-4172-b5fe-ee4b927af083"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR542") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 257.81 77.47) (xy 254 77.47))
+		(stroke (width 0) (type default)) (uuid "bae53903-de2b-4d16-8d40-a92e622fd569"))
+	(label "VBUS_FUSED" (at 254 77.47 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "64800b72-4dbc-42d1-aa08-978d2ecde778"))
+	(wire (pts (xy 257.81 72.39) (xy 254 72.39))
+		(stroke (width 0) (type default)) (uuid "0100234e-bcbc-416f-9172-e431b605fd73"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 254 72.39 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "184a3e38-7e1e-40ec-8fe7-ce078e73a33e")
+		(property "Reference" "#PWR543" (at 254 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 254 78.74 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7fefef38-6ac9-4547-94eb-d237ce329811"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR543") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 257.81 90.17) (xy 254 90.17))
+		(stroke (width 0) (type default)) (uuid "d5ad5314-d63b-444e-ab6b-cdff87b551cd"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 254 90.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "de05e6ba-d0a1-48fa-9e10-f6124c57f4d6")
+		(property "Reference" "#PWR544" (at 254 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 254 93.98 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "5ad5f319-4532-45ef-a01f-af6e0c34fb39"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR544") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 293.37 90.17) (xy 297.18 90.17))
+		(stroke (width 0) (type default)) (uuid "d25672b7-0464-495a-9fb0-87e38a971f8e"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 297.18 90.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4b9b846d-a90e-4d33-a4c5-14256b96d754")
+		(property "Reference" "#PWR545" (at 297.18 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 297.18 93.98 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f53ee280-1238-408b-8210-1b8c9a4cd84e"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR545") (unit 1))
+			)
+		)
+	)
+	(no_connect (at 293.37 67.31) (uuid "96600ff3-386e-40ba-a8e2-517a0f360d6f"))
+	(wire (pts (xy 293.37 62.23) (xy 297.18 62.23))
+		(stroke (width 0) (type default)) (uuid "484eca4f-886f-43c6-8c10-e633b75a8a2b"))
+	(label "U4_OV1" (at 297.18 62.23 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d01c5c0e-2942-4d24-9627-656f76f2bfc0"))
+	(wire (pts (xy 257.81 62.23) (xy 254 62.23))
+		(stroke (width 0) (type default)) (uuid "619c6ddc-05f4-4669-9d47-2bba119ae00a"))
+	(label "U4_PR1" (at 254 62.23 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "971c9bd3-04e9-4ba8-a4ce-ae5128fa8bc1"))
+	(wire (pts (xy 257.81 49.53) (xy 254 49.53))
+		(stroke (width 0) (type default)) (uuid "d7d6a58d-c1ff-48b6-93c0-35809062c141"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 254 49.53 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "d3156bd7-c091-4dd1-92db-8be84791968a")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 254 49.53 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 293.37 80.01) (xy 297.18 80.01))
+		(stroke (width 0) (type default)) (uuid "3e5876d0-6d0d-4835-a7e0-e37a9085e298"))
+	(label "U4_ILIM" (at 297.18 80.01 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f1cbf3a4-38ac-47a2-9514-20dfd862f5f2"))
+	(wire (pts (xy 293.37 74.93) (xy 297.18 74.93))
+		(stroke (width 0) (type default)) (uuid "8ca11163-5e2b-479e-9c44-2cc3f6ed0080"))
+	(label "U4_SS" (at 297.18 74.93 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "bc1157de-3f1a-4ab3-baea-22d14be922f1"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 314.96 44.45 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c9bc5ef0-8cee-426a-8eaf-3db7ec4d80cb")
+		(property "Reference" "R14" (at 314.96 29.21 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100kOhm" (at 314.96 57.15 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25741.html" (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1003TCE" (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25741" (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 ILIM = 100k, approximately 1.24A typical." (at 314.96 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "7c127563-4f78-4483-b3be-37c3ba549b8a"))
+		(pin "2" (uuid "57612a25-155f-462a-83d2-60c56c96fd82"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "R14") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 314.96 41.91) (xy 314.96 38.1))
+		(stroke (width 0) (type default)) (uuid "e2cd23ac-3be9-4647-b710-35e079543223"))
+	(label "U4_ILIM" (at 314.96 38.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "de4939a6-3329-475f-ac8a-5627f3dfa307"))
+	(wire (pts (xy 314.96 46.99) (xy 314.96 50.8))
+		(stroke (width 0) (type default)) (uuid "191cec53-ce59-4a81-8bd9-55352ff33c5a"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 314.96 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "00170244-d9f3-4094-9653-667ab2e3590b")
+		(property "Reference" "#PWR5420" (at 314.96 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 314.96 54.61 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "439abf23-c060-4f7c-8499-2ff9b3594fe6"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR5420") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 314.96 64.77 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cd67bc40-f61b-48ca-a594-e09d19c4617c")
+		(property "Reference" "R15" (at 314.96 45.72 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "43.2kOhm" (at 314.96 80.01 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25894.html" (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF4322TCE" (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25894" (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 OV1 top; 43.2k/10k gives 5.639V nominal and 5.287..5.948V at specified extremes." (at 314.96 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "b0725a40-7595-4b11-9001-e92fdafca52e"))
+		(pin "2" (uuid "6e8889b6-9cd8-4509-b01c-9a0d50de0d9c"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "R15") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 314.96 62.23) (xy 314.96 58.42))
+		(stroke (width 0) (type default)) (uuid "2d4a8acd-6513-4fa3-ba77-b90550e0bab4"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 314.96 58.42 0)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "76563f05-fc44-41de-afa6-7c4969259be0")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 314.96 58.42 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 314.96 67.31) (xy 314.96 71.12))
+		(stroke (width 0) (type default)) (uuid "934f8637-ce3a-4017-a998-be5c6d03a16c"))
+	(label "U4_OV1" (at 314.96 71.12 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "5296a77b-fc80-4380-b587-a1a62ba19c92"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 314.96 80.01 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "0dc49269-7ce2-4e58-8ff2-f3bd7bd2073d")
+		(property "Reference" "R16" (at 314.96 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kOhm" (at 314.96 92.71 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25744.html" (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 OV1 divider bottom." (at 314.96 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "db2e39ce-845e-48ce-9a93-cf0d2dd971dc"))
+		(pin "2" (uuid "c03687a3-4275-45d9-8702-c8489230b67e"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "R16") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 314.96 77.47) (xy 314.96 73.66))
+		(stroke (width 0) (type default)) (uuid "4745b2f6-fe91-4d96-bd95-12bcd672298e"))
+	(label "U4_OV1" (at 314.96 73.66 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7c87ed82-5e2c-4a2d-b872-f52bb21ac384"))
+	(wire (pts (xy 314.96 82.55) (xy 314.96 86.36))
+		(stroke (width 0) (type default)) (uuid "6692096c-7b8f-4070-b2e6-95a88c36371d"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 314.96 86.36 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6274a0a1-b3c7-423b-b249-85742e8c1de7")
+		(property "Reference" "#PWR5422" (at 314.96 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 314.96 90.17 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "10b0f1d2-2cea-48b4-a3c4-7f0c6f3c6290"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR5422") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 314.96 100.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6732f968-eca3-4580-a7e7-f34ce0868b21")
+		(property "Reference" "R17" (at 314.96 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100kOhm" (at 314.96 115.57 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25741.html" (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1003TCE" (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25741" (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 PR1 divider top." (at 314.96 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "d336ca21-af68-4855-986a-f7d20bd584b8"))
+		(pin "2" (uuid "ef4cbed2-f064-4d1e-99bf-f8f2e739ccca"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "R17") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 314.96 97.79) (xy 314.96 93.98))
+		(stroke (width 0) (type default)) (uuid "18aaacd0-e902-4d0b-865f-2259e8a8afb1"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 314.96 93.98 0)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "c13538ae-10c1-4bb4-9214-5f1a9f687736")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 314.96 93.98 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 314.96 102.87) (xy 314.96 106.68))
+		(stroke (width 0) (type default)) (uuid "23bda57e-04f5-4450-b777-dad01047e16c"))
+	(label "U4_PR1" (at 314.96 106.68 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "60b00c0d-8ab1-426e-947e-476ff42b72fb"))
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 314.96 115.57 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2076c060-1862-4d39-b7bb-1eb946ecdfe6")
+		(property "Reference" "R18" (at 314.96 100.33 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "33kOhm" (at 314.96 130.81 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25779.html" (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF3302TCE" (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25779" (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 PR1 divider bottom; approximately 4.27V validity threshold." (at 314.96 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "d2bade5c-5780-4d57-b8fc-e6b23fafbfb9"))
+		(pin "2" (uuid "308f0e18-23f8-427a-895e-75fa1ba4d8a2"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "R18") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 314.96 113.03) (xy 314.96 109.22))
+		(stroke (width 0) (type default)) (uuid "36c3f9f9-7997-41a3-a5ba-f9d465ce9959"))
+	(label "U4_PR1" (at 314.96 109.22 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "202b4549-f9fb-471f-b607-5f0842fb4f75"))
+	(wire (pts (xy 314.96 118.11) (xy 314.96 121.92))
+		(stroke (width 0) (type default)) (uuid "30aea6e5-693c-40da-aabd-e934ef8078d4"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 314.96 121.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2ec51536-c414-47b5-b3a4-1fc647d9ed3d")
+		(property "Reference" "#PWR5424" (at 314.96 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 314.96 125.73 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "9bc38452-844c-44e2-bb2c-c0fcbe1ecbed"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR5424") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 245.11 64.77 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d5f08916-c392-4427-9008-67bf781ca83a")
+		(property "Reference" "C42" (at 245.11 48.26 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "2.2uF" (at 245.11 80.01 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL10A225KO8NNN.do" (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL10A225KO8NNNC" (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C23630" (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 soft-start capacitor." (at 245.11 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "4a23f9a0-0cdb-46b0-a4dd-d9620ca689e4"))
+		(pin "2" (uuid "51eeebdf-9608-4a2c-aea7-8e295718f04a"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "C42") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 245.11 62.23) (xy 245.11 58.42))
+		(stroke (width 0) (type default)) (uuid "5827f6af-7b6e-477f-8d4b-a2c0ef3d8abd"))
+	(label "U4_SS" (at 245.11 58.42 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c7ad97bb-3fdd-426d-a47d-efbd53c10dd1"))
+	(wire (pts (xy 245.11 67.31) (xy 245.11 71.12))
+		(stroke (width 0) (type default)) (uuid "5bc39350-0887-4931-ae7a-d096de9c43ea"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 245.11 71.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f0f944ea-dd2b-4d11-9aaa-9ce4deb1be6f")
+		(property "Reference" "#PWR560" (at 245.11 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 245.11 66.04 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7c4657b1-73bd-4d2f-a258-88f9ac74c6d3"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR560") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 245.11 90.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8b800363-86e1-4122-828f-a4a3f81983fe")
+		(property "Reference" "C43" (at 245.11 73.66 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100nF" (at 245.11 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do" (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 IN2 local high-frequency bypass; place at IN2 and GND." (at 245.11 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "5618695d-e17e-4fea-9958-23e14270c09d"))
+		(pin "2" (uuid "2a3fcf49-33c3-4b40-a8fd-d20aed90b121"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "C43") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 245.11 87.63) (xy 245.11 83.82))
+		(stroke (width 0) (type default)) (uuid "a7a47539-777f-4013-a2e6-471ddd5df66e"))
+	(label "VBUS_FUSED" (at 245.11 83.82 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "8254dd91-2793-442f-a81f-5d4f319a4169"))
+	(wire (pts (xy 245.11 92.71) (xy 245.11 96.52))
+		(stroke (width 0) (type default)) (uuid "d51456b3-dded-4f2f-bb68-b2ee9af64aec"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 245.11 96.52 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "164a755a-bb78-4678-86a3-5c4781d1fcc1")
+		(property "Reference" "#PWR561" (at 245.11 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 245.11 118.11 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f304daf2-2b94-4c83-80c4-15a66c85c284"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR561") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 245.11 105.41 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1d37409d-19d7-47bc-9e71-749aee4ccc62")
+		(property "Reference" "C44" (at 245.11 90.17 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10uF" (at 245.11 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do" (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL21A106KAYNNNE" (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C15850" (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 IN2 local bulk bypass; place at IN2 and GND." (at 245.11 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "a72ece60-90be-4d97-9a36-76023f1683a0"))
+		(pin "2" (uuid "15ae0444-d04b-4f9e-907b-e3058056ef96"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "C44") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 245.11 102.87) (xy 245.11 99.06))
+		(stroke (width 0) (type default)) (uuid "70eefaa0-546f-43bc-961b-dc690267c288"))
+	(label "VBUS_FUSED" (at 245.11 99.06 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d5813579-7832-4c08-ad13-80a530f7d12b"))
+	(wire (pts (xy 245.11 107.95) (xy 245.11 111.76))
+		(stroke (width 0) (type default)) (uuid "7fc5229f-94f3-457b-9dcf-4e3d2b3b43fb"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 245.11 111.76 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "acfbeec2-4122-4e99-83e3-33c145f6c8ca")
+		(property "Reference" "#PWR562" (at 245.11 109.22 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 245.11 123.19 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "390fbb89-0de3-4f0c-b49d-c4cb7f88f896"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR562") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 224.79 105.41 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cb4f6665-33ca-4345-8f59-3700401cf810")
+		(property "Reference" "C45" (at 224.79 90.17 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10uF" (at 224.79 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do" (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL21A106KAYNNNE" (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C15850" (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 IN1 local bypass; place at IN1 and GND." (at 224.79 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "c392c813-a22d-42c4-bd81-54a8cbb1bb6c"))
+		(pin "2" (uuid "f072d46a-e944-45f1-9c81-66a40e4da65b"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "C45") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 224.79 102.87) (xy 224.79 99.06))
+		(stroke (width 0) (type default)) (uuid "8276e5b1-1c7e-42c5-8a5e-6239ca233a8c"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 224.79 99.06 0)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "3a3377bb-e9f6-42df-8989-1ff836b50b38")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 224.79 99.06 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 224.79 107.95) (xy 224.79 111.76))
+		(stroke (width 0) (type default)) (uuid "9030abed-d685-4111-8672-0d94f0f9a29f"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 224.79 111.76 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e94bd204-6793-436f-adbf-6ea49c6e0c5b")
+		(property "Reference" "#PWR563" (at 224.79 109.22 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 224.79 115.57 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "9c045324-f0b4-4c93-ad62-33c65901ebe1"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR563") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 250.19 129.54 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "453d9383-d6bd-463e-bb39-3e5a6edb9941")
+		(property "Reference" "#FLG551" (at 250.19 109.22 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 250.19 144.78 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 250.19 129.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 250.19 129.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "9005404d-ee6c-4cdd-9e0c-9aa52247343d"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#FLG551") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 250.19 129.54) (xy 250.19 133.35))
+		(stroke (width 0) (type default)) (uuid "4c882292-7a40-48bd-bc41-70660d9c0491"))
+	(label "VBUS_FUSED" (at 250.19 133.35 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "bd90a64e-23b4-4401-87af-073ccfcf545e"))
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 275.59 129.54 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ea6049c1-b37d-40d7-a919-d3db0e47d9c6")
+		(property "Reference" "#FLG552" (at 275.59 114.3 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 275.59 144.78 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 275.59 129.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 275.59 129.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "e5604ec1-408a-43e6-8e7f-fbf38aaf57cd"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#FLG552") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 275.59 129.54) (xy 275.59 133.35))
+		(stroke (width 0) (type default)) (uuid "dbafbaba-3e67-450f-b43d-3a30f2e563b4"))
+	(global_label "VCC_RJ45"
+		(shape passive)
+		(at 275.59 133.35 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "5ec342e3-f69d-4b51-8ac8-9342859f42a2")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 275.59 133.35 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:USBLC6-2SC6")
+		(at 190.5 134.62 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "183bc0ed-babb-4eeb-9753-235a925cb474")
+		(property "Reference" "D3" (at 190.5 119.38 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USBLC6-2SC6" (at 190.5 154.94 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf" (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UMW" (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "USBLC6-2SC6" (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2687116" (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Low-capacitance USB D+/D- ESD array with VBUS reference." (at 190.5 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "3cea551a-28c5-4716-9709-6267076a286b"))
+		(pin "2" (uuid "4732f3e0-c5f6-41a1-911a-acb07376d587"))
+		(pin "3" (uuid "b2aab859-aac4-4723-8699-c1a72347fed6"))
+		(pin "4" (uuid "f11ac31d-3ae9-4640-a464-46b5e6403a09"))
+		(pin "5" (uuid "81257d9b-2d34-4483-b6cf-6164f11fa2ea"))
+		(pin "6" (uuid "8075673a-93ac-4c17-8e76-ee594df31bfc"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "D3") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 185.42 134.62) (xy 181.61 134.62))
+		(stroke (width 0) (type default)) (uuid "62f2a034-e2a8-4d9d-bbaf-d2c5dd6e50eb"))
+	(label "USB_D_P" (at 181.61 134.62 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "768caf06-012a-4493-8641-b66fb7f147f1"))
+	(wire (pts (xy 195.58 134.62) (xy 199.39 134.62))
+		(stroke (width 0) (type default)) (uuid "c7a0b4bc-e4b9-4c49-9ba6-919f68b259ca"))
+	(label "USB_D_P" (at 199.39 134.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "bde0bb95-aae9-4ee3-9c86-b24291d04fa3"))
+	(wire (pts (xy 185.42 137.16) (xy 181.61 137.16))
+		(stroke (width 0) (type default)) (uuid "02190c46-ecf5-45fe-ba64-3e3f0d69dcfc"))
+	(label "USB_D_N" (at 181.61 137.16 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "96b678ff-b621-4ca4-85bc-a955071e8ab4"))
+	(wire (pts (xy 195.58 137.16) (xy 199.39 137.16))
+		(stroke (width 0) (type default)) (uuid "dad64c19-e7cb-4c4f-9049-e5dff2983903"))
+	(label "USB_D_N" (at 199.39 137.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7a29eb03-d2ba-4c0a-89df-09f7564143db"))
+	(wire (pts (xy 190.5 129.54) (xy 190.5 125.73))
+		(stroke (width 0) (type default)) (uuid "32f81386-a755-4849-a281-303d0e94fbd8"))
+	(label "VBUS" (at 190.5 125.73 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e6257314-cf2f-434e-a3d5-f4865c452574"))
+	(wire (pts (xy 190.5 142.24) (xy 190.5 146.05))
+		(stroke (width 0) (type default)) (uuid "409b175b-17e8-4a61-8815-04af65ab2bbf"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 190.5 146.05 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6331f107-e757-4b9d-b4c8-f700dc212969")
+		(property "Reference" "#PWR540" (at 190.5 143.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 190.5 152.4 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "82ebfde6-b692-4acd-8187-41d9d6b7f5b6"))
+		(instances
+			(project "eps-8pin-rev3"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/a18073cb-af35-5864-98f8-48efb88e5d99" (reference "#PWR540") (unit 1))
+			)
+		)
+	)
 	(sheet_instances
 		(path "/a18073cb-af35-5864-98f8-48efb88e5d99"
 			(page "6")

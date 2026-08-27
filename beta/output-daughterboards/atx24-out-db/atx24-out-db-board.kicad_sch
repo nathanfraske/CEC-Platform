@@ -626,7 +626,7 @@
 			(property "Value" "CEC_CONN_1x4" (at 0 -10.16 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
 			(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
 			(property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
-			(property "Description" "Generic connector, single row, 01x04 -- the iteration-5 24-pin signal stub (blade-fit memo addendum 5): the CEC_CONN_2x5's 4 live circuits (-12V/PS_ON#/PWR_OK/GND) as a 1x4 blind-mate pair (daughterboard: right-angle Dupont-class pin header, pins down past the bottom edge; main board: vertical female socket, entry up); the 2x5's 6 reserved sense-return positions move to DNP solder pads (OQ-88 provision form only, decision unchanged)." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(property "Description" "Generic connector, single row, 01x04 -- the four live ATX control circuits (-12V/PS_ON#/PWR_OK/GND) as a 1x4 blind-mate pair (daughterboard: right-angle pin header, pins down past the bottom edge; main board: vertical female socket, entry up). The former SR1-SR6 no-net sense-return provision pads are retired by the XFCN integration; any future remote-sense/contact-health monitor requires explicit nets, protected ADC inputs, and a defined mating path." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
 			(property "ki_keywords" "connector" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
 			(property "ki_fp_filters" "Connector*:*_1x??_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
 			(symbol "CEC_CONN_1x4_1_1"
@@ -1428,6 +1428,259 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-Connector_Screw:XFCN_TTR32100127-0600_DB_BoltPad"
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TTR32100127-0600 DB M3 PAD"
+				(at 0 -4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Non-BOM two-sided exposed-copper M3 clearance pad for a daughterboard bolted to TTR32100127-0600 threaded face. Screw passes through the daughterboard. Provisional until sample-fit and screw-engagement validation."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "XFCN_TTR32100127-0600_Daughterboard_BoltPad*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "XFCN_TTR32100127-0600_DB_BoltPad_0_1"
+				(rectangle
+					(start -2.54 1.27)
+					(end 2.54 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 0 0)
+					(radius 0.762)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "XFCN_TTR32100127-0600_DB_BoltPad_1_1"
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-Connector_Screw:XFCN_T34069_DB_BoltPad"
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "T34069 DB M3 PAD"
+				(at 0 -4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Connector_Screw:XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Non-BOM two-sided exposed-copper M3 bolt land for a daughterboard fastened against the threaded side face of T34069. The supplied screw and washer pass through a 3.4 mm daughterboard clearance hole; screw-axis height and washer/contact geometry remain provisional until incoming-sample validation."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "XFCN_T34069_Daughterboard_BoltPad*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "XFCN_T34069_DB_BoltPad_0_1"
+				(rectangle
+					(start -2.54 1.27)
+					(end 2.54 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 -1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27)
+					)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "XFCN_T34069_DB_BoltPad_1_1"
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(symbol
 		(lib_id "cec:CEC_ATX_24")
@@ -1476,23 +1729,22 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 25.4 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_T34069_DB_BoltPad")
+		(at 25.4 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d60ee8e9-59f0-46a8-8178-81b0a3c5e26f")
-		(property "Reference" "J10" (at 25.4 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 25.4 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J10" (at 25.4 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "T34069 DB M3 PAD" (at 25.4 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL" (at 25.4 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 25.4 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 bolt land for a daughterboard fastened against the threaded side face of T34069. The supplied screw and washer pass through a 3.4 mm daughterboard clearance hole; screw-axis height and washer/contact geometry remain provisional until incoming-sample validation." (at 25.4 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 25.4 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 25.4 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "2fd72446-837f-4e29-8ada-86ec24d27e66"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1501,23 +1753,22 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 53.34 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_T34069_DB_BoltPad")
+		(at 53.34 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3abbad50-3d56-45f1-87fd-9b2b4a6b0504")
-		(property "Reference" "J11" (at 53.34 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 53.34 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J11" (at 53.34 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "T34069 DB M3 PAD" (at 53.34 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL" (at 53.34 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 53.34 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 bolt land for a daughterboard fastened against the threaded side face of T34069. The supplied screw and washer pass through a 3.4 mm daughterboard clearance hole; screw-axis height and washer/contact geometry remain provisional until incoming-sample validation." (at 53.34 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 53.34 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 53.34 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "0b59c180-92db-444d-a947-55fc354e98ae"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1525,49 +1776,24 @@
 			)
 		)
 	)
+
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 68.58 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_T34069_DB_BoltPad")
+		(at 96.52 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "a4971af4-1091-4da3-aac6-61793eb786ea")
-		(property "Reference" "J12" (at 68.58 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 68.58 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "8a4f2720-978d-4ffd-984a-349f083f6703"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J12") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 96.52 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3273d4d8-83d2-44d4-a16c-f6ae2dc66241")
-		(property "Reference" "J13" (at 96.52 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 96.52 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J13" (at 96.52 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "T34069 DB M3 PAD" (at 96.52 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL" (at 96.52 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 96.52 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 bolt land for a daughterboard fastened against the threaded side face of T34069. The supplied screw and washer pass through a 3.4 mm daughterboard clearance hole; screw-axis height and washer/contact geometry remain provisional until incoming-sample validation." (at 96.52 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 96.52 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 96.52 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "94406a78-b21e-4306-b26e-d0d5a3ab9d01"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1575,49 +1801,24 @@
 			)
 		)
 	)
+
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 111.76 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_T34069_DB_BoltPad")
+		(at 139.7 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "4ab1ed57-d72b-49f0-8194-fafb85651052")
-		(property "Reference" "J14" (at 111.76 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 111.76 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 111.76 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "c0014860-5e2c-4718-a117-fa151ad6c91b"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J14") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 139.7 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "220f7ae5-8a86-42c9-bcb6-7ce47e1f7a23")
-		(property "Reference" "J15" (at 139.7 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 139.7 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 139.7 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J15" (at 139.7 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "T34069 DB M3 PAD" (at 139.7 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL" (at 139.7 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf" (at 139.7 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 bolt land for a daughterboard fastened against the threaded side face of T34069. The supplied screw and washer pass through a 3.4 mm daughterboard clearance hole; screw-axis height and washer/contact geometry remain provisional until incoming-sample validation." (at 139.7 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 139.7 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_T34069_C481452.pdf" (at 139.7 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "58fef3b6-0d56-4024-a073-4877ea8d7624"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1626,23 +1827,22 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 167.64 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_TTR32100127-0600_DB_BoltPad")
+		(at 167.64 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "46a56e5c-5b0c-4fd8-b03e-70a40ce1913c")
-		(property "Reference" "J16" (at 167.64 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 167.64 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J16" (at 167.64 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TTR32100127-0600 DB M3 PAD" (at 167.64 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL" (at 167.64 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf" (at 167.64 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 clearance pad for a daughterboard bolted to TTR32100127-0600 threaded face. Screw passes through the daughterboard. Provisional until sample-fit and screw-engagement validation." (at 167.64 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 167.64 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf" (at 167.64 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "970e664a-1a6d-4e67-9054-386b12d6a1e0"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1650,74 +1850,25 @@
 			)
 		)
 	)
+
+
 	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 182.88 127 0)
+		(lib_id "cec-Connector_Screw:XFCN_TTR32100127-0600_DB_BoltPad")
+		(at 213.36 125.73 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "024d65c6-4a93-4fbf-8ff3-4c18c13febce")
-		(property "Reference" "J17" (at 182.88 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 182.88 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "a84683fb-2eb2-43a7-af0c-36674ce8ee6c"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J17") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 198.12 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "924982ba-5fe8-4f31-b8bf-c1eada180138")
-		(property "Reference" "J18" (at 198.12 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 198.12 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "fd0747ce-1efc-4a5c-b87e-2c8291cad8ee"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J18") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 213.36 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f4f7b686-b5fe-4b1a-b6b8-45230b191b66")
-		(property "Reference" "J19" (at 213.36 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 213.36 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 213.36 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J19" (at 213.36 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TTR32100127-0600 DB M3 PAD" (at 213.36 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Screw:XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL" (at 213.36 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf" (at 213.36 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Non-BOM two-sided exposed-copper M3 clearance pad for a daughterboard bolted to TTR32100127-0600 threaded face. Screw passes through the daughterboard. Provisional until sample-fit and screw-engagement validation." (at 213.36 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Integration Note" "Prototype XFCN interface; TE blade architecture remains the ratified fallback until owner ratification and qualification" (at 213.36 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Source Drawing" "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf" (at 213.36 125.73 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "d3ed36ca-1fb1-433f-919f-b642b07265ec"))
 		(instances
 			(project "atx24-out-db-board"
@@ -1736,12 +1887,13 @@
 		(fields_autoplaced yes)
 		(uuid "fc2b8954-09f3-4311-8752-4bec6724f245")
 		(property "Reference" "J20" (at 203.2 35.56 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TSW-104-12-G-S-RA" (at 203.2 66.04 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Horizontal_LongPin" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://www.samtec.com/products/tsw-104-12-g-s-ra" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "TSW-102-16-G-D-RA" (at 203.2 66.04 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_PinHeader_2.54mm:Samtec_TSW-102-16-G-D-RA_2x02_P2.54mm_Horizontal" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://suddendocs.samtec.com/catalog_english/tsw_th.pdf" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samtec" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "TSW-104-12-G-S-RA" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "1x4 2.54mm RIGHT-ANGLE TSW header with 14.99mm E dimension -- blind-mate signal stub, pins down past the bottom edge parallel to the blades, mating the main board's vertical 1x4 female socket in the same drop (owner, 2026-07-05; memo addendum 5). The exact TSW-104-12-G-S-RA ordering code is valid in the Samtec TSW series; consigned assembly is acceptable. Keyed-JST-PH (S4B/B4B-PH-K-S, the Hub J_KVM family) is the demoted cabled fallback if the blind-mate tolerance fails the fit check." (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TSW-102-16-G-D-RA" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "2x2 2.54 mm right-angle male signal header. Lead style -16 gives 8.13 mm mating length, satisfying the documented >=6.4 mm blind-mate minimum; double-row odd/even-by-column pin geometry." (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Mates SSQ-102-03-G-D; 1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND. First-article mated-transform and engagement check required." (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "dbde6907-8c33-464a-bf8f-56a9bb08cb99"))
 		(pin "2" (uuid "fe4a0d9d-de8f-4333-95a4-afa78db019c1"))
 		(pin "3" (uuid "4a1b6f14-5ffc-466e-9523-49c4b457e2ca"))
@@ -1762,8 +1914,7 @@
 		(stroke (width 0) (type default)) (uuid "89165017-a0ac-4c3f-965f-1d3d82f00949"))
 	(wire (pts (xy 96.52 129.54) (xy 96.52 133.35))
 		(stroke (width 0) (type default)) (uuid "25ae9035-8ad5-4eac-95a8-90b352289acb"))
-	(wire (pts (xy 111.76 129.54) (xy 111.76 133.35))
-		(stroke (width 0) (type default)) (uuid "1f997d57-62b5-4a20-9f72-89004672b87a"))
+
 	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
 		(stroke (width 0) (type default)) (uuid "a1702055-4380-459a-a345-a38321e46299"))
 	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
@@ -1782,10 +1933,8 @@
 		(stroke (width 0) (type default)) (uuid "6df3e2ba-e340-438c-83a3-394388294333"))
 	(wire (pts (xy 167.64 129.54) (xy 167.64 133.35))
 		(stroke (width 0) (type default)) (uuid "a1c14b23-1279-4f83-9674-bbdac255eb10"))
-	(wire (pts (xy 182.88 129.54) (xy 182.88 133.35))
-		(stroke (width 0) (type default)) (uuid "9e83de70-5d97-45c0-bfe8-164104405926"))
-	(wire (pts (xy 198.12 129.54) (xy 198.12 133.35))
-		(stroke (width 0) (type default)) (uuid "41bc097f-ae21-48c1-b61b-7d370e778e14"))
+
+
 	(wire (pts (xy 213.36 129.54) (xy 213.36 133.35))
 		(stroke (width 0) (type default)) (uuid "ae9ea14c-3c29-432c-8a28-a618dd8dd8eb"))
 	(wire (pts (xy 198.12 55.88) (xy 194.31 55.88))
@@ -1802,8 +1951,7 @@
 		(stroke (width 0) (type default)) (uuid "bb386177-429d-4b00-a4bb-8e331cb745c1"))
 	(wire (pts (xy 53.34 129.54) (xy 53.34 133.35))
 		(stroke (width 0) (type default)) (uuid "4bc3b521-b420-4bf9-9542-decfeca9f8d0"))
-	(wire (pts (xy 68.58 129.54) (xy 68.58 133.35))
-		(stroke (width 0) (type default)) (uuid "58d8304d-4f49-47b0-ac00-448ecdb9da03"))
+
 	(wire (pts (xy 88.9 40.64) (xy 92.71 40.64))
 		(stroke (width 0) (type default)) (uuid "7d69d077-2642-4386-83d5-30a33e6c2d71"))
 	(wire (pts (xy 198.12 53.34) (xy 194.31 53.34))
@@ -1932,24 +2080,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 111.76 133.35 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "10075bf0-b48a-4584-8a31-1a32a0854978")
-		(property "Reference" "#PWR06" (at 111.76 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 111.76 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "dd93a780-e5ea-413b-b5a6-436b1459245f"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR06") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 76.2 69.85 0)
@@ -2112,42 +2243,8 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 182.88 133.35 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "f1c1e769-bc97-4633-921f-2e4f07b3d322")
-		(property "Reference" "#PWR16" (at 182.88 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 182.88 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "e6fea919-dbda-49ba-895f-5e22532361d1"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR16") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 198.12 133.35 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "bbf77bfc-352a-4511-8797-5971e6a0a087")
-		(property "Reference" "#PWR17" (at 198.12 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 198.12 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "48ec4100-126d-43c7-b4ff-f3f49d43ac6c"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR17") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 213.36 133.35 0)
@@ -2292,24 +2389,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5V")
-		(at 68.58 133.35 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "866ce7ef-187f-443b-a7a5-aed64f9c4752")
-		(property "Reference" "#PWR26" (at 68.58 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V" (at 68.58 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "65c96b1e-8c93-4d0d-970d-5c486bb334a3"))
-		(instances
-			(project "atx24-out-db-board"
-				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR26") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 92.71 50.8 180)

@@ -67,6 +67,13 @@ def board_fab_profile(board_path, board_hint=None):
     board properties until the generator writes it.
     """
     hint = board_hint or os.environ.get("CEC_THERMAL_BOARD_HINT") or board_path
+    normalized_hint = str(hint or "").lower()
+    if any(name in normalized_hint for name in
+           ("atx24-out-db", "eps-out-db", "pcie-out-db")):
+        # These compact bolted daughterboards intentionally retain their
+        # dedicated 4-layer stackups; do not inherit similarly named 6-layer
+        # Standard-main-board policy from profile_for_board_hint().
+        return None
     if board_path and os.path.isfile(board_path):
         try:
             import pcbnew
@@ -79,6 +86,10 @@ def board_fab_profile(board_path, board_hint=None):
 
 
 def board_dielectric_config(board_path, board_hint=None):
+    hint = board_hint or os.environ.get("CEC_THERMAL_BOARD_HINT") or board_path
+    if any(name in str(hint or "").lower() for name in
+           ("atx24-out-db", "eps-out-db", "pcie-out-db")):
+        return dict(t2.DEFAULT_DIELECTRIC_MM)
     profile = board_fab_profile(board_path, board_hint=board_hint)
     return fab.dielectric_mm(profile) if profile else None
 
@@ -158,6 +169,43 @@ def board_thermal_config(board_path, board_hint=None):
             or os.path.basename(board_path)).lower()
     profile_name = board_fab_profile(board_path, board_hint=board_hint)
     profile_stackup = fab.stackup_oz(profile_name) if profile_name else None
+    if "atx24-out-db" in name:
+        nc = {"+12V": 20.0, "+5V": 37.5, "+3V3": 30.0,
+              "+5VSB": 7.5, "GND": 72.5}
+        ov = {
+            "+12V": {"refs_src": ["J10"], "refs_sink": ["J1"],
+                      "source_layers": ["F.Cu"]},
+            "+5V": {"refs_src": ["J11"], "refs_sink": ["J1"],
+                     "source_layers": ["F.Cu"]},
+            "+3V3": {"refs_src": ["J13"], "refs_sink": ["J1"],
+                      "source_layers": ["F.Cu"]},
+            "+5VSB": {"refs_src": ["J15"], "refs_sink": ["J1"],
+                       "source_layers": ["F.Cu"]},
+            "GND": {"refs_src": ["J1"], "refs_sink": ["J16", "J19"],
+                    "sink_layers": ["F.Cu"]},
+        }
+        return nc, {"F.Cu": 2.0, "In1.Cu": 2.0,
+                    "In2.Cu": 2.0, "B.Cu": 2.0}, ov, None
+    if "eps-out-db" in name:
+        nc = {"+12V": 65.0, "GND": 65.0}
+        ov = {
+            "+12V": {"refs_src": ["J13", "J14"], "refs_sink": ["J1"],
+                      "source_layers": ["F.Cu"]},
+            "GND": {"refs_src": ["J1"], "refs_sink": ["J10", "J11"],
+                    "sink_layers": ["F.Cu"]},
+        }
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0,
+                    "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+    if "pcie-out-db" in name:
+        nc = {"+12V": 48.75, "GND": 48.75}
+        ov = {
+            "+12V": {"refs_src": ["J10"], "refs_sink": ["J1"],
+                      "source_layers": ["F.Cu"]},
+            "GND": {"refs_src": ["J1"], "refs_sink": ["J13"],
+                    "sink_layers": ["F.Cu"]},
+        }
+        return nc, {"F.Cu": 2.0, "In1.Cu": 1.0,
+                    "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         # The current BETA sheet renamed lane 6's pre-shunt node to /FAN_12V
@@ -214,42 +262,45 @@ def board_thermal_config(board_path, board_hint=None):
         # explicit source/sink map. Currents remain the existing §2.5/OQ-2
         # design basis: 2.5 A on every mutually-exclusive shared-bus stage,
         # 0.5 A per protected port and on the held logic reservoir, and 0.5 A
-        # on USB VBUS. The map below follows the
-        # exported rev2 netlist's actual cascade:
+        # on USB VBUS. The map below follows the rev3 dead-bug stack cascade:
         #
-        #   U5 OUT -> U11 IN1 -> U11 OUT -> U7 IN2 -> U7 OUT
-        #          -> F1..F4 -> J2..J5
+        #   J6P +5V_SYS ---------------------> U7 IN1
+        #   J_USB USB_VBUS -> U11 IN1 --+
+        #   J_KVM/F5 KVM_5V_IN -> U11 IN2 +-> U11 OUT -> U7 IN2
+        #   U7 OUT -> +5VSB -> F1..F4 -> J2..J5
+        #   +5VSB -> D1 -> +5V_HOLD -> RJ_HOLD -> LOGIC_REG_IN -> U3
         #
         # Stackup comes only from the approved fabrication profile. For the
         # Hub that is JLC06161H-3313: 1 oz outer and 0.5 oz inner copper.
         # cooling=None keeps the still-air bound until the enclosure is known.
         board_nets = _board_net_names(board_path)
         net = lambda short: _resolve_hierarchical_net(short, board_nets)  # noqa: E731
-        nc = {net("+5VSB"): 2.5, net("/5VSB_RAW"): 2.5,
-              net("/PSU_5V"): 2.5, net("/PSU_5V_KVM"): 2.5,
-              net("/MAIN_5V_RAW"): 2.5, net("/+5V_HOLD"): 0.5,
-              net("/USB_VBUS"): 0.5,
+        nc = {net("+5VSB"): 2.5, net("+5V_SYS"): 2.5,
+              net("/PSU_5V_KVM"): 2.5, net("/+5V_HOLD"): 0.5,
+              net("/LOGIC_REG_IN"): 0.5,
+              net("/USB_VBUS"): 0.5, net("/KVM_5V_IN"): 1.1,
               net("/VCC_P1"): 0.5, net("/VCC_P2"): 0.5,
               net("/VCC_P3"): 0.5, net("/VCC_P4"): 0.5,
               net("GND"): 2.5}
-        # rev2 anatomy: the A4 consolidation makes J_PWR the ONE 3-pin power-in
-        # (MAIN_5V / GND / 5VSB) -- there is no J1/J_5V on this board (measured
-        # 2026-07-23; the first entry draft used the alpha names and every net
-        # dropped "no src/sink terminals").
+        # Rev3 anatomy: the segmented mezzanine is the only system-power entry.
+        # J_PWR and its redundant first mux stage were retired; service USB and
+        # NanoKVM remain mutually isolated backups through U11.
         ov = {
-            net("/5VSB_RAW"): {"refs_src": ["J_PWR"], "refs_sink": ["U5"]},
-            net("/PSU_5V"): {"refs_src": ["U5"], "refs_sink": ["U11"]},
+            net("+5V_SYS"): {"refs_src": ["J6P"], "refs_sink": ["U7"]},
+            net("/USB_VBUS"): {"refs_src": ["J_USB"], "refs_sink": ["U11"]},
+            net("/KVM_5V_IN"): {"refs_src": ["F5"], "refs_sink": ["U11"]},
             net("/PSU_5V_KVM"): {"refs_src": ["U11"], "refs_sink": ["U7"]},
-            net("/MAIN_5V_RAW"): {"refs_src": ["J_PWR"], "refs_sink": ["U7"]},
             net("+5VSB"): {"refs_src": ["U7"], "refs_sink": ["F1", "F2", "F3", "F4"]},
-            net("/+5V_HOLD"): {"refs_src": ["D1"], "refs_sink": ["U3"]},
-            net("/USB_VBUS"): {"refs_src": ["J_USB"], "refs_sink": ["U5"]},
+            net("/+5V_HOLD"): {"refs_src": ["D1"],
+                                "refs_sink": ["RJ_HOLD"]},
+            net("/LOGIC_REG_IN"): {"refs_src": ["RJ_HOLD"],
+                                    "refs_sink": ["U3"]},
             net("/VCC_P1"): {"refs_src": ["F1"], "refs_sink": ["J2"]},
             net("/VCC_P2"): {"refs_src": ["F2"], "refs_sink": ["J3"]},
             net("/VCC_P3"): {"refs_src": ["F3"], "refs_sink": ["J4"]},
             net("/VCC_P4"): {"refs_src": ["F4"], "refs_sink": ["J5"]},
             net("GND"): {"refs_src": ["J2", "J3", "J4", "J5", "U1"],
-                         "refs_sink": ["J_PWR"]},
+                         "refs_sink": ["J6P"]},
         }
         return nc, profile_stackup, ov, None
     return None, profile_stackup, None, None
@@ -1443,6 +1494,79 @@ def _layer_mask(polys, res):
         if a.shape[0] >= 3:
             m |= Path(a).contains_points(pts)
     return m.reshape(ny, nx)
+
+
+def draw_current_density_diagnostic(res, out_png, title="PCB"):
+    """Render per-layer current flow and ranked copper-neck coordinates.
+
+    This consumes only solver output, so the same diagnostic applies to every
+    board family. Copper boundaries are the exact masks used by the field
+    solve; marked links retain net, layer, transported current, and local J.
+    """
+    if plt is None:
+        raise RuntimeError("matplotlib is required to render current density")
+    from matplotlib.colors import LogNorm
+
+    fields = getattr(res, "layer_current_density", None) or {}
+    if not fields:
+        raise RuntimeError("solver result has no spatial current-density field")
+    xmin, ymin, xmax, ymax = res.extent_mm
+    extent = [xmin, xmax, ymax, ymin]
+    layer_order = [name for name in t2.STACK_ORDER if name in fields]
+    ncols = 2
+    nrows = max(1, int(np.ceil(len(layer_order) / ncols)))
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(12.8, 4.6 * nrows), constrained_layout=True)
+    axes = np.atleast_1d(axes).ravel()
+    positive_parts = [field[field > 0] for field in fields.values()
+                      if np.any(field > 0)]
+    positive = np.concatenate(positive_parts) if positive_parts else np.array([])
+    jmin = max(float(np.percentile(positive, 2.0)), 0.1) if positive.size else 0.1
+    jmax = max(float(positive.max()), jmin * 10.0) if positive.size else 1.0
+    last_image = None
+    for axis, layer in zip(axes, layer_order):
+        field = fields[layer]
+        last_image = axis.imshow(
+            np.ma.masked_less_equal(field, 0.0), origin="upper", extent=extent,
+            aspect="equal", cmap="turbo", norm=LogNorm(vmin=jmin, vmax=jmax))
+        copper = (getattr(res, "layer_copper_mask", None) or {}).get(layer)
+        if copper is not None and copper.any() and (~copper).any():
+            axis.contour(copper.astype(float), levels=[0.5], colors="black",
+                         linewidths=0.35, origin="upper", extent=extent)
+        records = [row for row in (getattr(res, "current_bottlenecks", None) or [])
+                   if row.get("kind") == "sheet" and row.get("layer") == layer]
+        seen = []
+        for row in records:
+            x, y = float(row["x_mm"]), float(row["y_mm"])
+            if any((x - px) ** 2 + (y - py) ** 2 < 2.0 ** 2 for px, py in seen):
+                continue
+            seen.append((x, y))
+            axis.plot(x, y, marker="x", markersize=5, color="black")
+            axis.annotate(
+                f"{row['net']} {row['J_A_per_mm2']:.0f} A/mm^2\n"
+                f"I={row['current_A']:.1f} A @ ({x:.1f}, {y:.1f})",
+                (x, y), xytext=(4, 4), textcoords="offset points", fontsize=6.5,
+                color="black", bbox={"facecolor": "white", "alpha": 0.78,
+                                     "edgecolor": "none", "pad": 1.0})
+            if len(seen) >= 3:
+                break
+        axis.set_title(f"{layer} - peak {float(field.max()):.1f} A/mm^2")
+        axis.set_xlabel("Board X (mm)")
+        axis.set_ylabel("Board Y (mm)")
+        axis.set_xlim(xmin, xmax)
+        axis.set_ylim(ymax, ymin)
+    for axis in axes[len(layer_order):]:
+        axis.set_visible(False)
+    if last_image is not None:
+        fig.colorbar(last_image, ax=list(axes[:len(layer_order)]), shrink=0.82,
+                     label="Planar current density (A/mm^2, log scale)")
+    fig.suptitle(
+        f"{title} - current-density / copper-neck diagnostic\n"
+        "black outlines are solved copper boundaries; x marks rank constriction links",
+        fontsize=12)
+    fig.savefig(out_png, dpi=150, facecolor="white")
+    plt.close(fig)
+    return out_png
 
 
 def _track_mask_for_layer(board, lid, res):

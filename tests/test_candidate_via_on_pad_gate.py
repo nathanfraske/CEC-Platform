@@ -45,7 +45,10 @@ class CandidateViaOnPadGateTest(unittest.TestCase):
                     mock.patch.object(cec_router.cec_score, "objective",
                                       side_effect=lambda m, _w: m.objective), \
                     mock.patch("cec_constraints.via_on_pad_summary",
-                               side_effect=summaries):
+                               side_effect=summaries), \
+                    mock.patch("cec_constraints.high_speed_pair_summary",
+                               return_value={"applicable": False, "ok": True,
+                                             "violations": []}):
                 ranked = cec_router._candidate_pool(candidates, None, {})
 
         self.assertIs(ranked[0][0], candidates[1])
@@ -64,11 +67,50 @@ class CandidateViaOnPadGateTest(unittest.TestCase):
                     mock.patch.object(cec_router.cec_score, "objective",
                                       return_value=1), \
                     mock.patch("cec_constraints.via_on_pad_summary",
-                               side_effect=RuntimeError("checker unavailable")):
+                               side_effect=RuntimeError("checker unavailable")), \
+                    mock.patch("cec_constraints.high_speed_pair_summary",
+                               return_value={"applicable": False, "ok": True,
+                                             "violations": []}):
                 cec_router._candidate_pool([candidate], None, {})
 
         self.assertFalse(metrics.gates_pass)
         self.assertIn("checker unavailable", metrics.detail["via_on_pad"]["error"])
+
+    def test_physical_pair_quality_breaks_equal_open_count_ties(self):
+        with tempfile.TemporaryDirectory() as directory:
+            poor = os.path.join(directory, "poor.kicad_pcb")
+            sound = os.path.join(directory, "sound.kicad_pcb")
+            for path, text in ((poor, "poor"), (sound, "sound")):
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(text)
+            candidates = [types.SimpleNamespace(ok=True, board=poor),
+                          types.SimpleNamespace(ok=True, board=sound)]
+            poor_m, sound_m = _metrics(1), _metrics(10)
+            clean_vop = {"same": 0, "diff": 0, "allowed_pofv": 0,
+                         "same_detail": [], "diff_detail": []}
+            pair_rows = [
+                {"applicable": True, "ok": False,
+                 "violations": ["USB skew", "USB coupling"]},
+                {"applicable": True, "ok": True, "violations": []},
+            ]
+            clean_field = {"applicable": True, "ok": True,
+                           "blocking_count": 0, "violations": []}
+            with mock.patch.object(cec_router.cec_score, "score",
+                                   side_effect=[poor_m, sound_m]), \
+                    mock.patch.object(cec_router.cec_score, "objective",
+                                      side_effect=lambda m, _w: m.objective), \
+                    mock.patch("cec_constraints.via_on_pad_summary",
+                               return_value=clean_vop), \
+                    mock.patch("cec_constraints.high_speed_pair_summary",
+                               side_effect=pair_rows), \
+                    mock.patch("cec_field_coupling.field_coupling_summary",
+                               return_value=clean_field):
+                ranked = cec_router._candidate_pool(candidates, None, {})
+
+        self.assertIs(ranked[0][0], candidates[1])
+        self.assertFalse(poor_m.gates_pass)
+        self.assertEqual(poor_m.detail["external_gate_reasons"],
+                         ["USB skew", "USB coupling"])
 
 
 if __name__ == "__main__":

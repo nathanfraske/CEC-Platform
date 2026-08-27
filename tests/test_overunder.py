@@ -24,9 +24,13 @@ from cec_slab_pour import (  # noqa: E402
     Grid,
     _stamp_generated_pour_keepouts,
     _stamp_generated_via_keepouts,
+    bridge_via_reservations,
     bridges_to_vias,
     field_via_line,
+    prune_unseeded_pour_components,
+    power_bridge_cost,
     route_overunder,
+    synthesize_overunder_pours,
     terminal_clusters,
 )
 
@@ -46,6 +50,99 @@ def _uniform(lay, r, c):
 
 
 class TestRouteOverunder(unittest.TestCase):
+    def test_high_current_bridge_cost_prices_physical_via_field(self):
+        self.assertEqual(power_bridge_cost(0.5, 1.25, {"F.Cu": 1}), 8.0)
+        cost = power_bridge_cost(
+            39.0, 1.25, {"F.Cu": 10, "B.Cu": 10, "In3.Cu": 123})
+        self.assertEqual(cost, 46.0)
+
+    def test_high_bridge_cost_keeps_route_on_preferred_open_layer(self):
+        ny, nx = 12, 40
+        passable = {"A": np.ones((ny, nx), bool),
+                    "B": np.ones((ny, nx), bool)}
+        anchors = {"A": np.zeros((ny, nx), bool),
+                   "B": np.zeros((ny, nx), bool)}
+        anchors["A"][5:7, 1:3] = True
+        anchors["A"][5:7, 37:39] = True
+        clab = np.zeros((ny, nx), int)
+        clab[5:7, 1:3] = 1
+        clab[5:7, 37:39] = 2
+
+        path_cells, bridges, ok, bottleneck = route_overunder(
+            ["A", "B"], passable, anchors, clab, 2,
+            bias_fn=lambda layer, _r, _c: 1.0 if layer == "A" else 0.1,
+            bridge_cost=46.0)
+
+        self.assertTrue(ok, bottleneck)
+        self.assertEqual(bridges, [])
+        self.assertTrue(path_cells["A"].any())
+        self.assertFalse(path_cells["B"].any())
+
+    def test_unseeded_split_pour_is_pruned_before_materialization(self):
+        class Box:
+            def __init__(self, x0, y0, x1, y1):
+                self.v = [int(q * 1e6) for q in (x0, y0, x1, y1)]
+            def GetLeft(self): return self.v[0]
+            def GetTop(self): return self.v[1]
+            def GetRight(self): return self.v[2]
+            def GetBottom(self): return self.v[3]
+        class Pad:
+            def GetNetname(self): return "RAIL"
+            def GetBoundingBox(self): return Box(0.8, 0.8, 1.2, 1.2)
+            def IsOnLayer(self, _layer): return True
+        class Footprint:
+            def Pads(self): return [Pad()]
+        class Board:
+            def GetFootprints(self): return [Footprint()]
+            def GetTracks(self): return []
+            def GetLayerID(self, layer): return layer
+
+        pours = [
+            {"net": "RAIL", "layer": "F.Cu", "name": "seed",
+             "polygon": [(0, 0), (2, 0), (2, 2), (0, 2)]},
+            {"net": "RAIL", "layer": "F.Cu", "name": "same-layer",
+             "polygon": [(2, 0), (4, 0), (4, 2), (2, 2)]},
+            {"net": "RAIL", "layer": "B.Cu", "name": "via-linked",
+             "polygon": [(3, 0), (5, 0), (5, 2), (3, 2)]},
+            {"net": "RAIL", "layer": "F.Cu", "name": "point-only",
+             "polygon": [(4, 2), (5, 2), (5, 3), (4, 3)]},
+            {"net": "RAIL", "layer": "F.Cu", "name": "orphan",
+             "polygon": [(8, 0), (9, 0), (9, 1), (8, 1)]},
+        ]
+        kept, report = prune_unseeded_pour_components(
+            Board(), pours,
+            [{"net": "RAIL", "x_mm": 3.5, "y_mm": 1.0}])
+
+        self.assertEqual([row["name"] for row in kept],
+                         ["seed", "same-layer", "via-linked"])
+        self.assertEqual(report["removed"], 2)
+        self.assertEqual([row["name"] for row in report["detail"]],
+                         ["point-only", "orphan"])
+
+    def test_subcell_pad_anchors_do_not_merge_through_touched_empty_cell(self):
+        class Box:
+            def __init__(self, x0, y0, x1, y1):
+                self.v = [int(q * 1e6) for q in (x0, y0, x1, y1)]
+            def GetLeft(self): return self.v[0]
+            def GetTop(self): return self.v[1]
+            def GetRight(self): return self.v[2]
+            def GetBottom(self): return self.v[3]
+        class Pad:
+            def __init__(self, x):
+                self.box = Box(x - 0.05, 0.45, x + 0.05, 0.55)
+            def GetNetCode(self): return 7
+            def GetBoundingBox(self): return self.box
+        class Footprint:
+            def Pads(self): return [Pad(0.99), Pad(2.01)]
+        class Board:
+            def GetFootprints(self): return [Footprint()]
+            def GetTracks(self): return []
+
+        labels, count = terminal_clusters(Board(), 7, _G(4, 2, cell=1.0))
+
+        self.assertEqual(count, 2)
+        self.assertNotEqual(labels[0, 0], labels[0, 2])
+
     def test_existing_track_merges_guarded_pad_and_pickup_terminals(self):
         class Point:
             def __init__(self, x, y):
@@ -110,6 +207,36 @@ class TestRouteOverunder(unittest.TestCase):
         self.assertEqual(_stamp_generated_pour_keepouts(
             other_layer, grid, prior, "RAIL_B", "F.Cu"), 0)
         self.assertFalse(other_layer.any(), "other-layer copper is not foreign")
+
+    def test_one_net_invocation_carries_prior_allocation_into_search(self):
+        class Net:
+            def GetNetname(self): return "RAIL_B"
+        class NetInfo:
+            def NetsByNetcode(self): return {7: Net()}
+        class Board:
+            def GetNetInfo(self): return NetInfo()
+            def GetTracks(self): return []
+
+        prior_pours = [{"net": "RAIL_A", "layer": "In3.Cu",
+                        "polygon": [(3.0, 3.0), (5.0, 3.0),
+                                    (5.0, 5.0), (3.0, 5.0)]}]
+        prior_vias = [{"net": "RAIL_A", "x_mm": 4.0, "y_mm": 4.0,
+                       "radius_mm": 0.45}]
+        with mock.patch("cec_slab_pour.Grid", return_value=_G(12, 12)), \
+                mock.patch("cec_slab_pour._board_thermal_config",
+                           return_value=None), \
+                mock.patch("cec_slab_pour.shunt_neighborhoods",
+                           return_value=[]), \
+                mock.patch("cec_slab_pour._prep_overunder_net",
+                           return_value=(None, "bounded test stop")) as prep:
+            _pours, _vias, report = synthesize_overunder_pours(
+                Board(), [{"net": "RAIL_B", "layers": ("In3.Cu",)}],
+                reserved_pours=prior_pours, reserved_vias=prior_vias)
+
+        self.assertFalse(report["RAIL_B"]["path_found"])
+        self.assertEqual(prep.call_args.kwargs["generated_pours"],
+                         prior_pours)
+        self.assertEqual(prep.call_args.kwargs["generated_vias"], prior_vias)
 
     def test_compact_field_cannot_reseat_outside_admitted_corridor(self):
         grid = _G(12, 12)
@@ -295,6 +422,18 @@ class TestRouteOverunder(unittest.TestCase):
 
 
 class TestBridgesToVias(unittest.TestCase):
+    def test_exact_field_reservation_spans_every_routing_layer(self):
+        rows = bridge_via_reservations(
+            [{"net": "+5V", "x_mm": 10.0, "y_mm": 20.0}],
+            ("F.Cu", "In2.Cu", "In3.Cu", "B.Cu"))
+        self.assertEqual(len(rows), 4)
+        self.assertEqual({row["layer"] for row in rows},
+                         {"F.Cu", "In2.Cu", "In3.Cu", "B.Cu"})
+        self.assertTrue(all(row["kind"] == "bridge_via" for row in rows))
+        self.assertTrue(all((row["x0"], row["y0"], row["x1"], row["y1"])
+                            == (9.35, 19.35, 10.65, 20.65)
+                            for row in rows))
+
     def test_ledger_skips_close_existing_via(self):
         grid = _G(30, 20)
         # a bridge at cell (10, 10) travelling along +x -> its via LINE is
@@ -362,6 +501,14 @@ class TestRectRealization(unittest.TestCase):
         self.assertFalse(any(p.covers(Point(8, 2)) for p in copper["A"]))
         self.assertTrue(any(p.covers(Point(8, 2)) for p in copper["B"]))
         self.assertFalse(any(p.covers(Point(2, 2)) for p in copper["B"]))
+        for rows in copper.values():
+            for polygon in rows:
+                rings = [polygon.exterior] + list(polygon.interiors)
+                self.assertTrue(all(
+                    abs(x1 - x0) < 1e-9 or abs(y1 - y0) < 1e-9
+                    for ring in rings
+                    for (x0, y0), (x1, y1) in zip(
+                        ring.coords, list(ring.coords)[1:])))
 
     def _routed(self):
         import numpy as np
@@ -598,6 +745,103 @@ class TestRectRealization(unittest.TestCase):
         self.assertEqual(field.call_count, 2)
         self.assertEqual(vias, [shifted_via])
         self.assertTrue(any("field reseated" in note for note in notes), notes)
+
+    def test_rect_realization_forwards_current_sized_via_count(self):
+        """Corridor width must not silently override the ampacity model."""
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(12, 8)
+        bridge = (4, 5, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        seats = [((5 + 0.5) * g.cell, (4 + 0.5 + j) * g.cell)
+                 for j in (-1, 0, 1)]
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                return_value=(seats, 0)) as field:
+            realize_overunder_rects(
+                [[(4, 5, "In2.Cu"), (4, 5, "B.Cu")]], [bridge],
+                # A deliberately wide corridor would request many vias under
+                # the obsolete width heuristic.
+                {"In2.Cu": 8.0, "B.Cu": 8.0}, g,
+                free_masks=masks, bridge_via_count=3,
+                strict_bridges=True)
+
+        self.assertEqual(field.call_args.kwargs["n_needed"], 3)
+
+    def test_partial_current_rated_field_is_reseated_as_one_atomic_unit(self):
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(12, 8)
+        bridge = (4, 5, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        partial = [((5 + 0.5) * g.cell, (4 + 0.5) * g.cell)]
+        complete = [((4 + 0.5 + j) * g.cell, (4 + 0.5) * g.cell)
+                    for j in (-1, 0, 1)]
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                side_effect=[(partial, 0), (complete, 1)]) as field:
+            _polys, vias, notes = realize_overunder_rects(
+                [[(4, 5, "In2.Cu"), (4, 5, "B.Cu")]], [bridge],
+                {"In2.Cu": 1.6, "B.Cu": 1.6}, g,
+                free_masks=masks, bridge_via_count=3,
+                strict_bridges=True)
+
+        self.assertEqual(field.call_count, 2)
+        self.assertEqual(vias, complete)
+        self.assertTrue(any("field reseated" in note for note in notes), notes)
+
+    def test_blocked_bridge_field_searches_past_one_package_width(self):
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(24, 16)
+        bridge = (8, 10, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        shifted_via = ((5 + 0.5) * g.cell, (8 + 0.5) * g.cell)
+        # Initial field + four cardinal probes at each of radii 1..4 fail.
+        # The first radius-five probe (left) is a legal landing.
+        outcomes = [([], 0)] * 17 + [([shifted_via], 1)]
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                side_effect=outcomes) as field:
+            _polys, vias, notes = realize_overunder_rects(
+                [[(8, 10, "In2.Cu"), (8, 10, "B.Cu")]], [bridge],
+                {"In2.Cu": 1.6, "B.Cu": 1.6}, g,
+                free_masks=masks, strict_bridges=True)
+
+        self.assertEqual(field.call_count, 18)
+        self.assertEqual(vias, [shifted_via])
+        self.assertTrue(any("(8,5)" in note for note in notes), notes)
+
+    def test_blocked_bridge_field_can_reseat_through_a_qualified_dogleg(self):
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(24, 16)
+        bridge = (8, 10, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        shifted_via = ((9 + 0.5) * g.cell, (7 + 0.5) * g.cell)
+        # Initial field plus every cardinal probe through radius eight fails;
+        # the first diagonal pocket, one up and one left, succeeds.
+        outcomes = [([], 0)] * 33 + [([shifted_via], 1)]
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                side_effect=outcomes) as field:
+            polys, vias, notes = realize_overunder_rects(
+                [[(8, 10, "In2.Cu"), (8, 10, "B.Cu")]], [bridge],
+                {"In2.Cu": 1.6, "B.Cu": 1.6}, g,
+                free_masks=masks, strict_bridges=True)
+
+        self.assertEqual(field.call_count, 34)
+        self.assertEqual(vias, [shifted_via])
+        self.assertTrue(any("Manhattan spur" in note for note in notes), notes)
+        self.assertTrue(polys["In2.Cu"])
 
 
 if __name__ == "__main__":

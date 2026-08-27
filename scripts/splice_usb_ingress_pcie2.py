@@ -53,8 +53,9 @@ BOM = {
                     "defense layer 2 (spec v1.6.0 Sec 6.14)."),
     "R14": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1003TCE", LCSC="C25741",
                 Note="U4 ILIM strap -> ~1.24A typical (I_LIM=65.2/R_kOhm^0.861)."),
-    "R15": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF4702TCE", LCSC="C25792",
-                Note="U4 OV1 divider top (IN1 side)."),
+    "R15": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF4322TCE", LCSC="C25894",
+                Datasheet="https://www.lcsc.com/product-detail/C25894.html",
+                Note="U4 OV1 top: 43.2k/10k gives 5.639V nominal and stays below the 6.0V regulator absolute maximum at tolerance extremes."),
     "R16": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1002TCE", LCSC="C25744",
                 Note="U4 OV1 divider bottom (GND side) -> ~6.04V typical cutoff."),
     "R17": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1003TCE", LCSC="C25741",
@@ -67,6 +68,9 @@ BOM = {
                 Note="U4 IN2 (VBUS) bypass."),
     "C44": dict(Manufacturer="Samsung", MPN="CL21A106KAYNNNE", LCSC="C15850",
                 Note="U4 IN2 (VBUS) bulk (additional to the existing C9 on the same node)."),
+    "C45": dict(Manufacturer="Samsung", MPN="CL21A106KAYNNNE", LCSC="C15850",
+                Datasheet="https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
+                Note="U4 OUT (VCC_RJ45) local X5R bypass; place directly at OUT and GND."),
 }
 
 FP_R0402 = "cec-Resistor_SMD:R_0402_1005Metric"
@@ -154,7 +158,7 @@ if __name__ == "__main__":
 
     # ---------- 5. R15/R16 (OV1 divider 47k/10k) ----------
     RX2, RY2, RY3 = sc.gsnap(300.0), sc.gsnap(60.0), sc.gsnap(75.0)
-    blob.append(cec_sch.emit_symbol("R15", "cec-vendor", "R_Small", "47kΩ", RX2, RY2,
+    blob.append(cec_sch.emit_symbol("R15", "cec-vendor", "R_Small", "43.2kΩ", RX2, RY2,
                                      sorted(r_pins.keys()), PROJECT, USB_PATH, fp=FP_R0402, props=BOM["R15"]))
     blob.append(sc.wire_and_global_label(r_pins, "R15", "1", RX2, RY2, GLOBAL_VCC_RJ45))
     blob.append(sc.wire_and_label(r_pins, "R15", "2", RX2, RY2, "U4_OV1"))
@@ -174,8 +178,9 @@ if __name__ == "__main__":
     blob.append(sc.wire_and_label(r_pins, "R18", "1", RX4, RY5, "U4_PR1"))
     blob.append(sc.wire_and_power(r_pins, "R18", "2", RX4, RY5, "GND", PROJECT, USB_PATH, "#PWR7109"))
 
-    # ---------- 7. C42 (SS 2.2uF), C43 (IN2 bypass 100nF), C44 (IN2 bulk 10uF) ----------
-    CX, CY1, CY2, CY3 = sc.gsnap(250.0), sc.gsnap(60.0), sc.gsnap(90.0), sc.gsnap(105.0)
+    # ---------- 7. C42 (SS), C43/C44 (IN2), C45 (OUT) ----------
+    CX, CX_OUT = sc.gsnap(250.0), sc.gsnap(230.0)
+    CY1, CY2, CY3 = sc.gsnap(60.0), sc.gsnap(90.0), sc.gsnap(105.0)
     blob.append(cec_sch.emit_symbol("C42", "cec-vendor", "C_Small", "2.2uF", CX, CY1,
                                      sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0603, props=BOM["C42"]))
     blob.append(sc.wire_and_label(c_pins, "C42", "1", CX, CY1, "U4_SS"))
@@ -188,6 +193,10 @@ if __name__ == "__main__":
                                      sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0805, props=BOM["C44"]))
     blob.append(sc.wire_and_label(c_pins, "C44", "1", CX, CY3, "VBUS"))
     blob.append(sc.wire_and_power(c_pins, "C44", "2", CX, CY3, "GND", PROJECT, USB_PATH, "#PWR7112"))
+    blob.append(cec_sch.emit_symbol("C45", "cec-vendor", "C_Small", "10uF", CX_OUT, CY3,
+                                     sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0805, props=BOM["C45"]))
+    blob.append(sc.wire_and_global_label(c_pins, "C45", "1", CX_OUT, CY3, GLOBAL_VCC_RJ45))
+    blob.append(sc.wire_and_power(c_pins, "C45", "2", CX_OUT, CY3, "GND", PROJECT, USB_PATH, "#PWR7113"))
 
     # ---------- 8. PWR_FLAG drivers for VBUS and VCC_RJ45 (power_in typed IN1/IN2) ----------
     FX1, FY1 = sc.gsnap(250.0), sc.gsnap(120.0)

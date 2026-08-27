@@ -22,7 +22,7 @@
 "100Ω","R14","cec-Resistor_SMD:R_0402_1005Metric","C106233"
 "10kΩ","R2,R15,R16,R20,R21,R24,R27","cec-Resistor_SMD:R_0402_1005Metric","C25744"
 "0Ω","R22,R23","cec-Resistor_SMD:R_0402_1005Metric","C17168"
-"47kΩ","R26","cec-Resistor_SMD:R_0402_1005Metric","C25792"
+"43.2kΩ","R26","cec-Resistor_SMD:R_0402_1005Metric","C25894"
 "33kΩ","R29","cec-Resistor_SMD:R_0402_1005Metric","C25779"
 "47kΩ","R5","cec-Resistor_SMD:R_0402_1005Metric","C728561"
 "10kΩ","R6","cec-Resistor_SMD:R_0402_1005Metric","C190095"

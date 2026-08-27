@@ -18,6 +18,40 @@ FIXED_DEVICE_RULES = (
 )
 
 
+def reference_affinity(cap_ref, owner_ref):
+    """Whether two reference designators declare the same numbered cell.
+
+    C30 beside U30 is a common schematic convention and the placement side of
+    the pipeline has always used it as its strongest deterministic ownership
+    tie-break.  Keep the rule deliberately narrow: both refs must end in the
+    same decimal number.  Callers additionally apply it only to single-supply
+    owners; a multi-rail selector such as U4 cannot unambiguously own C4 by
+    name alone.  Boards without this convention continue to use the ordinary
+    topology/value/distance matcher.
+    """
+    cap = re.search(r"(\d+)$", str(cap_ref or ""))
+    owner = re.search(r"(\d+)$", str(owner_ref or ""))
+    return bool(cap and owner and cap.group(1) == owner.group(1))
+
+
+def local_bypass_technology(value, footprint):
+    """Whether a capacitor may own a selected-device local bypass role.
+
+    Local bypass ownership is a high-frequency placement/routing contract, not
+    a generic capacitance-on-the-rail query.  A bulk electrolytic, polymer or
+    tantalum reservoir may be essential to the PDN, but it cannot substitute
+    for the ceramic at the IC pins.  Unknown footprints remain eligible for
+    legacy/imported designs; known bulk technologies fail closed.
+    """
+    text = "%s %s" % (value or "", footprint or "")
+    normalized = text.lower().replace("-", "_")
+    bulk_tokens = (
+        "cp_elec", "cp_radial", "capacitor_tht", "supercap",
+        "tantalum", "polymer",
+    )
+    return not any(token in normalized for token in bulk_tokens)
+
+
 def capacitance_f(value):
     """Parse compact PCB/schematic capacitance notation into farads."""
     text = (value or "").strip().lower().replace("µ", "u").replace("μ", "u")

@@ -34,6 +34,7 @@ URL = os.environ.get("BENCH_URL", "http://localhost:8080/v1").rstrip("/")   # br
 MODEL = os.environ.get("BENCH_MODEL", "cec-manager-fast")
 MAX_TOKENS = int(os.environ.get("BENCH_MAX_TOKENS", "4000"))
 TIMEOUT = float(os.environ.get("BENCH_TIMEOUT", "900"))
+NOTHINK = os.environ.get("BENCH_NOTHINK", "0").lower() not in {"", "0", "false", "no"}
 
 # The 3 differentiated manager contexts (the correct call differs per context).
 CTX = {
@@ -63,6 +64,11 @@ def call(user):
                "response_format": {"type": "json_schema",
                                    "json_schema": {"name": "verdict", "schema": J.VERDICT_SCHEMA,
                                                    "strict": True}}}
+    if NOTHINK:
+        # Match bounded production seats such as cec_wave_intents: a reasoning
+        # model is being judged on its final structured decision, not on how
+        # much hidden chain-of-thought it can spend before reaching the schema.
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     req = urllib.request.Request(URL + "/chat/completions", json.dumps(payload).encode(),
                                  {"Content-Type": "application/json", "X-CEC-Client": "CEC-Platform"})
     t0 = time.time()

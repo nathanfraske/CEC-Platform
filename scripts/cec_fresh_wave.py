@@ -25,16 +25,54 @@ import copy
 import glob
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
 ROOT = os.path.dirname(HERE)
+
+
+def _reexec_workspace_python():
+    """Run an executable wave in the repository's managed Python runtime.
+
+    The route-awareness CUDA stack is deliberately installed once, in
+    ``.venv``.  A direct ``python3 scripts/cec_fresh_wave.py`` invocation must
+    therefore select that runtime just like the canonical full-pipeline entry
+    point does; otherwise a healthy accelerator silently degrades to the CPU
+    backend for the entire wave.  Importers and controlled interpreter-ablation
+    tests are unaffected.
+    """
+    if os.environ.get("CEC_KEEP_CALLER_PYTHON") == "1":
+        return
+    workspace = os.path.join(ROOT, ".venv")
+    candidate = os.path.join(workspace, "bin", "python")
+    same = os.path.realpath(sys.prefix) == os.path.realpath(workspace)
+    if os.path.isfile(candidate) and os.access(candidate, os.X_OK) and not same:
+        os.execv(candidate, [candidate, os.path.abspath(__file__), *sys.argv[1:]])
+
+
+# Select the managed runtime before importing wx/pcbnew or any CUDA-aware
+# pipeline module.  Besides making acceleration available, this avoids loading
+# KiCad's SWIG bindings twice around the exec boundary.
+if __name__ == "__main__":
+    _reexec_workspace_python()
+
+# KiCad's SWIG layer repeatedly registers the same wx image handlers in every
+# placement/authority worker. At wx's debug level that emits thousands of
+# non-actionable lines per wave and needlessly grows unattended journals.
+try:
+    import wx
+    wx.Log.SetLogLevel(wx.LOG_Error)
+except Exception:                                      # noqa: BLE001
+    pass
+
+sys.path.insert(0, HERE)
 
 import cec_synth_pipeline as csp                       # noqa: E402
 import cec_score                                       # noqa: E402
+import cec_fr                                          # noqa: E402
 import cec_mezz_contract as mezz                       # noqa: E402
 import cec_beta_manifest                              # noqa: E402
 from cec_placement_session import PlacementSession     # noqa: E402
@@ -50,6 +88,25 @@ def _wlog(title, **kw):
             cec_worklog.log(title, **kw)
         except Exception:                              # noqa: BLE001
             pass
+
+
+def _completion_guidance_from_env():
+    """Load optional prior-route evidence for the next placement wave.
+
+    The report is advisory input only. Every proposed move still passes the
+    normal materialized placement and route authorities before adoption.
+    """
+    path = os.environ.get("CEC_PLACEMENT_COMPLETION_REPORT", "").strip()
+    if not path:
+        return None
+    try:
+        if os.path.getsize(path) > 32 * 1024 * 1024:
+            raise ValueError("completion report exceeds 32 MiB")
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return payload if isinstance(payload, dict) else None
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
 
 
 def _snapshot(board, label, v, work_root, *, best=False, dual=False):
@@ -340,6 +397,40 @@ BOARD_PARAMS = {
     # stack ALIGNMENT CONTRACT with the 24-pin (MEZZ_HUB_24PIN, dead-bug flip,
     # segmented form -- J6P/J6C/J6D + the one provisioned M2).
     "hub-standard-rev2": {"wave_fr_timeout": 1500,
+                          # Progressive route effort: candidate probes stay
+                          # shallow; only the selected close winner earns this
+                          # genuinely deeper polish. The unattended manager's
+                          # CLI controls the probe (10/12 by default).
+                          "polish_passes": 24,
+                          "polish_opt": 30,
+                          "polish_unconnected_max": 40,
+                          # Functional safety/control intent is explicit. These
+                          # nets look like ordinary low-speed signals to a
+                          # generic router, but together they are the selected-
+                          # 5VSB dropout chain that must remain reachable before
+                          # the hold-up reservoir discharges. Leaf selectors are
+                          # resolved against the hierarchical PCB names and fail
+                          # closed if absent or ambiguous.
+                          "critical_route_nets": (
+                              "BLACKOUT_SENSE", "COMP_THRESH",
+                              "PWR_FAIL_INT"),
+                          # When the priority preflight names a blocked launch,
+                          # spend bounded placement effort on the named blocker
+                          # before allocating a multi-minute FR worker. Each
+                          # accepted move must improve the full route-capacity
+                          # key and preserve device/decoupler adjacency.
+                          "placement_route_repair_trials": 16,
+                          "placement_route_repair_rounds": 2,
+                          "placement_route_repair_full_evals": 4,
+                          # Route-aware two-stage placement tournament. All
+                          # variants get the cheap 1.0 mm CPU proof; only this
+                          # bounded shortlist gets the authoritative .5 mm
+                          # CUDA proof before the final route allocation. This
+                          # spends tens of seconds to avoid spending 4-25
+                          # minutes on a geometrically inferior FR candidate.
+                          "placement_route_aware_shortlist": 6,
+                          "placement_route_aware_grid_mm": 0.5,
+                          "placement_route_aware_iters": 3,
                           # RECALIBRATED 100 -> 150 (wall probe 2026-07-23):
                           # the first fix-wave killed variants flat at togo
                           # 104-112, and the full-effort probe routed that
@@ -370,9 +461,7 @@ BOARD_PARAMS = {
                                "layers": ("In3.Cu",), "shape": "rect",
                                "priority": 2, "provenance": "placer_ask",
                                "evac": False}
-                              for n in ("+5VSB", "/5VSB_RAW", "/PSU_5V",
-                                        "/PSU_5V_KVM",
-                                        "/MAIN_5V_RAW",
+                              for n in ("+5VSB", "+5V_SYS", "/PSU_5V_KVM",
                                         "/+5V_HOLD", "/VCC_P1", "/VCC_P2",
                                         "/VCC_P3", "/VCC_P4")],
                           # Treat each power pour as a routed object. The old
@@ -384,6 +473,13 @@ BOARD_PARAMS = {
                           # not a pour request: at 0.5A its 1.0mm Power-class
                           # ordinary route is ample and avoids a pointless plane.
                           "overunder": True,
+                          # The routed-object contract is incomplete unless
+                          # Freerouting receives the solved corridor as a real
+                          # keepout. Without this flag, post-route realization
+                          # can refill around foreign tracks and appear DRC-clean
+                          # while those tracks still cut through the rail's
+                          # reserved outline. This is a hard Hub release gate.
+                          "pour_reserve": True,
                           # + the pickup stitch: SMD pads the route never
                           # reached get stub+via into the covering flood /
                           # GND plane at import (rung part 2 -- the floods
@@ -399,26 +495,51 @@ BOARD_PARAMS = {
                           # In2/B leg -> back down); measured on s120: 8
                           # closed, unconn 30->22, zero new DRC of any class.
                           "lastmile": True,
-                          # LED-ring daisy links measure 7-10mm -- just past
-                          # the 5mm default reach; GND is down to one short gap.
-                          "lastmile_max_mm": 8.0,
+                          # Post-route connectivity is measured between copper
+                          # islands, not between the two objects KiCad happens
+                          # to cite in its ratline.  Wave 68 proved several
+                          # apparently sub-mm residuals had nearest connectable
+                          # islands 18-45mm apart.  The bounded guarded maze at
+                          # 50mm closed four of those (23 -> 19) with an
+                          # identical DRC-type/count vector after plane refill;
+                          # at 50mm no residual cluster remained distance-only.
+                          "lastmile_max_mm": 50.0,
+                          # Four nearest-anchor attempts are enough to rank the
+                          # parallel fanout. Wave 68 proved that eight attempts
+                          # on the selected board close two more legal bridges
+                          # with the exact same DRC vector. Keep that measured
+                          # depth, but pay for it once after selection instead
+                          # of in every one of the 16 route workers.
+                          "lastmile_attempts": 4,
+                          "lastmile_final_attempts": 8,
+                          # Exhaustive whole-board exact maze completion is a
+                          # winner-only expense. Ordinary probes retain the
+                          # measured 50mm canonical/bridge pass; the selected
+                          # deep polish may brute-force low-risk control nets
+                          # across the full Hub diagonal and must report every
+                          # refusal explicitly.
+                          "lastmile_final_winner": True,
+                          "lastmile_final_max_mm": 100.0,
+                          "lastmile_final_maze_max_mm": 100.0,
+                          "lastmile_final_maze_margin_mm": 8.0,
                           # In2 remains a real signal layer in the approved
                           # six-layer profile. The legacy flag stays enabled for
                           # compatibility with four-layer seed boards only.
                           "inner_power_routing": True,
                           **mating_frame_pins(86.0, 74.0, MEZZ_HUB_24PIN,
                                               "hub-standard-rev2"),
-                          # The 16x17.5 mm hold-up capacitor is a mechanical
-                          # macro, not a jellybean. Its previously free early
-                          # seat changed when mezz anchors moved and could land
-                          # against J6D. Pin the multiseed-clean seat so the
-                          # hold-up current loop and mechanical clearance are
-                          # both deterministic.
+                          # Only true mechanical/UI datums are hard-pinned.
+                          # Large electrical parts remain movable so the craft
+                          # placer can jointly satisfy their mechanical body
+                          # clearance and current-loop locality.  C1 used to be
+                          # pinned here; after the mezzanine frame moved that
+                          # stale seat made the hold-up capacitor 30.3 mm from
+                          # its nearest +5V_HOLD device and rendered every
+                          # otherwise-clean placement inadmissible.
                           "anchor_pins": {
                               **mating_frame_pins(
                                   86.0, 74.0, MEZZ_HUB_24PIN,
                                   "hub-standard-rev2")["anchor_pins"],
-                              "C1": (63.8, 42.0, 0.0),
                               # Top-side debug access near the upper-right
                               # edge; no second-side PCBA operation for two
                               # buttons that are used only while disassembled.
@@ -438,7 +559,7 @@ BOARD_PARAMS = {
                           # courtyard (top -13.0, pads -5.26, >=1.2mm inside the edge).
                           "mcu_slim_axis": "y",  # sideways pack: antenna column stays clean for the edge seat
                           "respect_antenna_keepout": False,   # W9/D-6a: no Wi-Fi ever
-                          "anchor_roles": {"J_PWR": "power_in", "J_USB": "usb",
+                          "anchor_roles": {"J_USB": "usb",
                                            "J2": "host", "J3": "host",
                                            "J4": "host", "J5": "host",
                                            "J_KVM": "host",
@@ -452,7 +573,38 @@ BOARD_PARAMS = {
                           # courtyards require the 74mm edge.
                           "edge_override": {"J2": "left", "J3": "left", "J4": "left",
                                             "J5": "left", "J_USB": "bottom",
-                                            "J_KVM": "bottom", "J_PWR": "right"},
+                                            "J_KVM": "bottom"},
+                          # Connector-local high-speed cell. The USBLC6 is a
+                          # flow-through part: rotate it so the reversible
+                          # Type-C pair enters one pin row and leaves the other,
+                          # while the CC pull-downs flank (rather than block)
+                          # the differential breakout corridor. Coordinates
+                          # are in J_USB's local frame and follow any future
+                          # edge/orientation transform of the connector.
+                          "anchor_local_placements": {
+                              "D6": {"owner": "J_USB", "offset": (0.85, -8.425),
+                                     "rotation": 270.0},
+                              # Keep the two CC pull-downs symmetric outside
+                              # the connector's VBUS banks.  The former -2.25
+                              # mm X offset put R9 directly under the left
+                              # VBUS escape; four legal router searches then
+                              # had no path between the reversible connector's
+                              # two power-pad clusters.  The symmetric flank
+                              # preserves the differential corridor and leaves
+                              # room for a two-via SIG2 VBUS bridge.
+                              # CC1's A5 land exits between the left VBUS bank
+                              # and the connector body.  The prior seat still
+                              # overlapped J_USB's courtyard and aimed the
+                              # resistor across that bank.  Move it 0.425 mm
+                              # inward: the body clears the connector and
+                              # A5 gains a proved 0/45/90 escape.  CC2 keeps its
+                              # established seat because the reversible pin
+                              # field is not geometrically mirror-symmetric.
+                              "R9": {"owner": "J_USB", "offset": (-3.45, -6.25),
+                                     "rotation": 90.0},
+                              "R10": {"owner": "J_USB", "offset": (3.45, -5.825),
+                                      "rotation": 90.0},
+                          },
                           # Centerpiece (owner: "the center logo and LEDs"): six LEDs
                           # (DL1-5,DL7) plus their six dedicated 100nF bypass capacitors
                           # form one rigid macro. Each capacitor is 2.95mm above its LED:
@@ -460,12 +612,27 @@ BOARD_PARAMS = {
                           # remaining close to the opposite-diagonal VDD/GND pads.
                           # Logo = BACK copper, outward after the dead-bug flip.
                           "rigid_groups": [{"score": "center", "logo": True, "offsets": {
-                              "DL1": (-0.08, -10.42, 0), "DL2": (7.42, -4.32, 0),
+                              # Rotate the serial-data lands tangentially
+                              # around the physical chain.  Identical 0-degree
+                              # rotations aimed three DIN/DOUT links through
+                              # the logo/LED apertures and made the two outer
+                              # gaps 13.74/14.27 mm.  These orientations retain
+                              # the exact ring centres while reducing every
+                              # inter-LED data span below 8 mm.
+                              "DL1": (-0.08, -10.42, 90), "DL2": (7.42, -4.32, 90),
                               "DL3": (9.92, 5.68, 0), "DL4": (-0.08, 7.68, 0),
-                              "DL5": (-10.08, 5.68, 0), "DL7": (-7.08, -4.32, 0),
-                              "C29": (-0.08, -7.47, 0), "C30": (7.42, -1.37, 0),
+                              "DL5": (-10.08, 5.68, 270), "DL7": (-7.08, -4.32, 270),
+                              # Rotating the rectangular reverse LEDs swaps
+                              # their courtyard axes.  Keep each bypass cap
+                              # outside that real courtyard and aim its +5VSB
+                              # land back at pad 4; every rail-pad span remains
+                              # <=2.5 mm on the four rotated LEDs.  DL3/DL4
+                              # retain their already legal inner seats so the
+                              # ring/logo macro does not claim extra board
+                              # area merely for visual radial spacing.
+                              "C29": (2.92, -11.92, 270), "C30": (8.67, -8.57, 0),
                               "C31": (9.92, 8.63, 0), "C32": (-0.08, 10.63, 0),
-                              "C33": (-10.08, 8.63, 0), "C34": (-7.08, -1.37, 0)}}],
+                              "C33": (-11.33, 9.93, 180), "C34": (-10.08, -2.07, 90)}}],
                           "logo_at": "ring",
                           "logo_side": "back",
                           "fixed_back_refs": (),
@@ -484,6 +651,7 @@ BOARD_PARAMS = {
                          # (cec_staged_fr). Precision-first stays the architecture
                          # per the owner's blind-AB ruling (important routes only).
                          "wave_precision": True,
+                         "wave_pair_grid": True,
                          # straight-through power path (owner): 12V-2x6 IN top, OUT
                          # bottom -- J3/J4 defeat the net-role classifier (both stacked
                          # at origin, measured), so pin them explicitly.
@@ -664,10 +832,170 @@ for _board_name in ("eps-8pin-rev3",
     _p["power_pour_layers"] = ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu")
     _p["thermal_board_hint"] = _board_name
 
+# PCIe cable interposers use mixed-net edge headers and one Kelvin shunt per
+# cable.  A bounding-box pour is not a valid implementation of that topology:
+# it blankets the header's GND row, forces antipad throats, and used to leave a
+# stale slab behind whenever the terminal row moved.  Give both SKUs the same
+# routed-object pour flow.  The placement solve freezes the current corridors
+# first, reserves their exact geometry from the signal router, and the import
+# stage replaces (rather than accumulates) the generated force-net zones.
+for _board_name in ("pcie-8pin-2port", "pcie-8pin-3port"):
+    _p = BOARD_PARAMS[_board_name]
+    _p.update({
+        # Four true corner mounts leave the board centre available to routing
+        # and restore the mechanically symmetric four-screw pattern.  The MCU
+        # macro solver below then co-optimizes the radio plus its owned local
+        # passives and rotates the antenna outward at a board edge instead of
+        # letting an ordinary free-IC placement consume central routing area.
+        "mount_holes": "4_corner",
+        "mcu_cluster_seat": True,
+        "mcu_slim_axis": "x",
+        "mcu_antenna_edge": "left",
+        "antenna_overhang": 5.0,
+        "respect_antenna_keepout": True,
+        "inner_power_routing": True,
+        "rail_alt_layer": "In3.Cu",
+        "slab_pour": True,
+        "overunder": True,
+        "pour_reserve": True,
+        "pour_first": True,
+        "pour_plan": True,
+        "power_pickup": True,
+        "plane_tht_exclude": True,
+        "lastmile": True,
+        # Keep the ordinary import pass local, then spend whole-board exact
+        # maze effort on the selected/polish context.  This is the same
+        # low-risk completion contract used on the Hub: differential,
+        # Kelvin/sense, ground, clock, and power-width nets remain owned by
+        # their specialized compilers, while ordinary GPIO/status/control
+        # ratlines are not allowed to survive merely because their component
+        # islands are more than the historical 5 mm apart.
+        "lastmile_max_mm": 8.0,
+        "lastmile_attempts": 4,
+        "lastmile_final_attempts": 8,
+        "lastmile_final_winner": True,
+        "lastmile_final_max_mm": 100.0,
+        "lastmile_final_maze_max_mm": 100.0,
+        "lastmile_final_maze_margin_mm": 8.0,
+        # At the 39 A cable design basis, the 1.25 geometry margin makes a
+        # single 2 oz outer conductor wider than the compact board permits.
+        # Route one obstacle-cleared geometry on both outers and prove each
+        # layer for half of the margin-inclusive 48.75 A geometry basis. This
+        # is 125% aggregate capacity versus the 39 A cable rating; the 25%
+        # reserve also covers current-share mismatch. The exact 0.51 probe no
+        # longer fits, so increasing this fraction would be a false contract.
+        "power_parallel_layers": ("B.Cu", "F.Cu"),
+        "power_parallel_fraction": 0.50,
+        "power_parallel_min_amps": 20.0,
+        # Cable mouths are mechanically fixed to the top edge and outward
+        # orientation, but their coordinate ALONG that edge is not a mating
+        # datum. Let the exact parallel-pour solver slide only that declared
+        # degree of freedom when a current corridor is otherwise impossible.
+        # The generic repair engine retains the smallest improving slide and
+        # still requires final courtyard/electrical-craft closure.
+        "power_corridor_anchor_slides": {
+            "J_IN1": {"axis": "x", "step_mm": 4.0, "max_mm": 12.0},
+            "J_IN2": {"axis": "x", "step_mm": 4.0, "max_mm": 12.0},
+        },
+        "power_corridor_placement_rounds": 4,
+        "power_corridor_placement_trials": 96,
+        "power_corridor_placement_step_mm": 4.0,
+        "power_corridor_placement_max_mm": 8.0,
+        # Service ports share the right edge with the removable output
+        # terminal/daughterboard interface.  Preserve at least 1 mm between
+        # their physical courtyards in both axes so a cable shell cannot foul
+        # insertion or removal.  The repair is footprint/edge driven and is
+        # reusable by any board that declares this mechanical margin.
+        "service_interface_clearance_mm": 1.0,
+    })
+
+# The two-port layout has a mechanically clear upper-left service pocket.
+# Keep BOOT/RESET together there on the assembly side; the generic corner-seat
+# solver still derives exact coordinates from courtyards, mounts, and
+# fiducials, so this is a board intent rather than a coordinate special case.
+BOARD_PARAMS["pcie-8pin-2port"]["button_pair_corner"] = "top_left"
+BOARD_PARAMS["pcie-8pin-2port"]["button_pair_corner_inset_mm"] = 10.0
+BOARD_PARAMS["pcie-8pin-2port"]["button_pair_target_mm"] = (9.0, 14.0)
+
+# The two-port board's lower component band follows the removable terminal
+# edge, so retaining the original 55.7 mm outline after that band was packed
+# left an unearned strip of laminate.  Ask the generic outline-floor search to
+# test height-only reductions and move only footprints that explicitly belong
+# to the receding bottom edge.  J5 sits above the automatic 15 mm band but must
+# follow it to preserve the declared terminal/service-port clearance.  The
+# generic collision-graph repacker may evacuate only the new local overlaps,
+# preserving bypass cells and intentional connector body overhang.  Exact
+# materialization still rejects any pad, courtyard, craft, route-authority, or
+# service-clearance blocker.  A 0.5 mm sweep retains assembly margin instead of
+# skipping the true physical floor.  The admitted 50.2 mm candidate still left
+# 4.85 mm below the terminal courtyards; extend the bounded search to 46.5 mm,
+# where the 0.5 mm lattice can test 46.7 mm with about 1.35 mm of courtyard
+# margin.  This is a measured search bound, not a forced board dimension.
+BOARD_PARAMS["pcie-8pin-2port"]["outline_compaction"] = {
+    "enabled": True,
+    "step_mm": 0.5,
+    "max_steps": 15,
+    "minimum_height_mm": 46.5,
+    "shrink_axes": ("height",),
+    # Fiducials are optical registration features, not mechanical datums.
+    # Keep them available to the generic corner reseater when an outline or
+    # route corridor changes; never inherit a prior rigid edge-follow claim.
+    "edge_follow_exclude_refs": ("FID1", "FID2", "FID3"),
+    "edge_follow": (
+        {
+            "edge": "bottom", "refs": ("H3", "H4"),
+            "mode": "rigid",
+        },
+        {
+            "edge": "bottom", "margin_mm": 15.0, "refs": ("J5",),
+            "exclude_refs": ("H3", "H4", "FID1", "FID2", "FID3"),
+            "mode": "contain", "clearance_mm": 0.05,
+        },
+    ),
+    # Preserve the already admitted macro topology while discovering its
+    # outline floor.  A fresh global placement remains available as a separate
+    # deliberate search mode instead of being conflated with edge compaction.
+    "include_incremental": True,
+    "include_fresh_placement": False,
+    "repack_collisions": True,
+    "repack_max_steps": 8,
+    "repack_beam_width": 32,
+    "repack_max_variants": 4,
+    "repack_clearance_mm": 0.10,
+    # Outline variants receive the cheap physical/craft screen.  Only the
+    # selected smallest legal candidate pays for exact power authority and
+    # important-route proof at the canonical placement boundary.
+    "probe_route_repair_trials": 0,
+    # Compare hard route feasibility before area, then use soft congestion
+    # only after area.  This makes the result the smallest routable outline,
+    # rather than simply the smallest mechanically legal outline.
+    "probe_route_preflight": True,
+}
+
+# The current-path anchors come from the XFCN integration authority, not a
+# second set of coordinates in the placer.  Pinning only J_IN/RS while leaving
+# the replacement terminals movable let the generic edge packer collapse a
+# valid 12 mm pair into overlapping 4.7 mm seats on the first full run.
+import cec_xfcn_contract as _xfcn_contract             # noqa: E402
+for _board_name, _project_name in (
+        ("pcie-8pin-2port", "pcie2-main"),
+        ("pcie-8pin-3port", "pcie3-main")):
+    BOARD_PARAMS[_board_name]["anchor_pins"] = (
+        _xfcn_contract.power_path_anchor_placements(
+            _xfcn_contract.PROJECTS[_project_name]))
+    _channel_count = 2 if _board_name == "pcie-8pin-2port" else 3
+    # The input-to-shunt conductors are the pin-escape-critical commodities.
+    # Claim their corridors before the downstream distribution paths when all
+    # have the same design current.  This is topology intent, not a planner
+    # special case, and any future board can declare its own ordering.
+    BOARD_PARAMS[_board_name]["power_route_priority_nets"] = tuple(
+        [f"/SENSEC{n}_HI" for n in range(1, _channel_count + 1)]
+        + [f"/SENSEC{n}_LO" for n in range(1, _channel_count + 1)])
+
 BOARD_PARAMS["hub-standard-rev2"]["stackup_profile"] = \
     "jlcpcb_6l_pofv_signal"
 BOARD_PARAMS["hub-standard-rev2"]["power_pour_layers"] = \
-    ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu")
+    ("In3.Cu", "B.Cu", "F.Cu")
 BOARD_PARAMS["hub-standard-rev2"]["thermal_board_hint"] = \
     "hub-standard-rev2"
 
@@ -818,8 +1146,11 @@ def _intents_for(board):
 
 
 def _board_params(board):
-    """The BOARD_PARAMS + board-manifest placement_directives merge (shared by the serial
-    and parallel candidate paths)."""
+    """Resolve the shared board contract for serial and parallel paths.
+
+    Legacy ``BOARD_PARAMS`` and manifest directives remain compatibility
+    inputs; the declarative board-local policy is authoritative over both.
+    """
     # Several placement contracts contain nested maps (anchor_pins,
     # mount_pos_override, role_keepouts).  A shallow copy lets a size sweep
     # accidentally mutate the process-global BOARD_PARAMS declaration.
@@ -836,6 +1167,13 @@ def _board_params(board):
                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
         except Exception:                                  # noqa: BLE001
             pass
+    import cec_board_policy
+    p = cec_board_policy.merge_params(p, board, board_hint=board)
+    # Pin-access ownership is a generic routing stage, not a Hub-only feature.
+    # Boards may explicitly opt out while migrating, but an absent policy must
+    # not hand dense IC launches straight to the global router and hope that a
+    # late last-mile pass can recover them after congestion is established.
+    p.setdefault("automatic_pin_escape_tier", True)
     # thermal config resolves by BOARD NAME, not the variant filename (wave variants
     # are plain-<strat>-s<seed>.kicad_pcb -> basename keying missed, the solve ran
     # configless and the new-best stamp mirage-FAILED dT~0 on its first live target,
@@ -872,10 +1210,6 @@ def _placement_params(board, W, H):
             # The legacy absolute U1 pin was a small-frame placer workaround,
             # not a mechanical datum. Let each sweep solve the MCU honestly.
             anchors.pop("U1", None)
-        elif board == "hub-standard-rev2" and "C1" in anchors:
-            # C1 is a real 21x17mm mechanical macro. Keep its power-entry seat
-            # relative to the right edge/vertical center as width is swept.
-            anchors["C1"] = (W - 22.2, H / 2.0 + 5.0, 0.0)
         p["anchor_pins"] = anchors
     return p
 
@@ -933,7 +1267,119 @@ def _build_session(board, W, H, iname, strat, seed, proposal=None, *,
     return s, _p
 
 
-def _place_variant(board, W, H, iname, strat, seed, proposal=None):
+def _nested_craft_worker_budget(outer_workers, *, cpu_count=None):
+    """Bound each candidate's inner craft pool to one share of the CPUs.
+
+    Candidate placement and exact craft evaluation are both process-parallel.
+    Without a nested budget, ``N`` outer candidates each start the full
+    16-worker inner pool and oversubscribe even a large workstation.  Compute
+    allocation changes latency only; proposal construction and deterministic
+    admission keys remain identical.
+    """
+    cpus = max(1, int(cpu_count if cpu_count is not None
+                      else (os.cpu_count() or 1)))
+    outer = max(1, int(outer_workers or 1))
+    return max(1, min(csp.MAX_PLACEMENT_CRAFT_EVAL_WORKERS,
+                      cpus // outer))
+
+
+def _route_repair_required(evidence, *, completion_hint_count=0):
+    """Whether measured placement evidence requires bounded route repair.
+
+    Critical pair, Kelvin, and route-quality refusals are placement failures
+    even when ordinary pin-access and congestion counters are zero.  Omitting
+    them from the dispatch predicate let a CAN launch reach detailed routing
+    with no legal coupled portal although the exact repair engine and blocker
+    evidence already existed.
+    """
+    evidence = evidence if isinstance(evidence, dict) else {}
+    counters = (
+        "critical_pin_access_blocked_count",
+        "critical_pair_refused_count",
+        "critical_kelvin_refused_count",
+        "critical_route_quality_refused_count",
+        "critical_unroutable_count",
+        "future_critical_corridor_conflicts",
+        "future_overflow_units",
+    )
+    return (int(completion_hint_count or 0) > 0 or any(
+        int(evidence.get(key, 0) or 0) > 0 for key in counters))
+
+
+def _persist_pourfirst_state(params, placed_board):
+    """Publish ephemeral pour-first authority beside a resumable placement."""
+    state_path = str((params or {}).get("pourfirst_state") or "")
+    if not state_path or not placed_board or not os.path.isfile(state_path):
+        return None
+    with open(state_path, encoding="utf-8") as source:
+        state = json.load(source)
+    base = str(placed_board)[:-len(".kicad_pcb")]
+    skeleton = str(state.get("skeleton") or "")
+    if skeleton and os.path.isfile(skeleton):
+        stable_skeleton = base + ".pourfirst-skeleton.kicad_pcb"
+        shutil.copy2(skeleton, stable_skeleton)
+        cec_fr.copy_project_sidecars(skeleton, stable_skeleton)
+        state["skeleton"] = stable_skeleton
+    stable_state = base + ".pourfirst-state.json"
+    temporary = stable_state + ".tmp-%s" % os.getpid()
+    with open(temporary, "w", encoding="utf-8") as destination:
+        json.dump(state, destination, indent=2, sort_keys=True, default=str)
+        destination.write("\n")
+    os.replace(temporary, stable_state)
+    params["pourfirst_state"] = stable_state
+    return stable_state
+
+
+def _pourfirst_resume_state_status(params):
+    """Validate the authority needed to route a persisted placement."""
+    params = params or {}
+    if not params.get("pour_first"):
+        return {"ok": True, "applicable": False}
+    path = str(params.get("pourfirst_state") or "")
+    if not path:
+        return {"ok": False, "applicable": True,
+                "reason": "missing_pourfirst_state"}
+    try:
+        with open(path, encoding="utf-8") as source:
+            state = json.load(source)
+    except Exception as exc:                              # noqa: BLE001
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "unreadable_pourfirst_state",
+                "error": "%s: %s" % (type(exc).__name__, exc)}
+    required = ("pours", "vias", "frozen_nets", "corridors",
+                "exclude_pins", "reserve_report", "placements")
+    missing = [key for key in required if key not in state]
+    if missing:
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "incomplete_pourfirst_state",
+                "missing": missing}
+    if state.get("placement_scope") != "complete":
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "non_authoritative_pourfirst_placement_scope",
+                "placement_scope": state.get("placement_scope")}
+    frozen = list(state.get("frozen_nets") or ())
+    if not frozen:
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "empty_pourfirst_authority"}
+    if any(str((row or {}).get("provenance") or "") == "uniform_stamp"
+           for row in state.get("pours") or ()):
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "legacy_uniform_stamp_authority"}
+    reserved = state.get("reserve_report") or {}
+    missing_reservations = sorted(
+        net for net in frozen
+        if not (reserved.get(net) or {}).get("reserved"))
+    if missing_reservations or not state.get("corridors"):
+        return {"ok": False, "applicable": True, "path": path,
+                "reason": "incomplete_pourfirst_reservation",
+                "nets": missing_reservations}
+    return {"ok": True, "applicable": True, "path": path,
+            "schema": state.get("schema"), "frozen_nets": frozen,
+            "placement_scope": state.get("placement_scope")}
+
+
+def _place_variant(board, W, H, iname, strat, seed, proposal=None,
+                   work_root=None, craft_workers=None):
     """PRUNE PHASE 1 (roadmap throughput lever 1, owner GO 2026-07-17): compile the
     PLACEMENT only (seconds) and return the cheap production key -- the same
     csp._candidate_sort_key place_candidates ranks by (residual, corridor-aware,
@@ -947,17 +1393,228 @@ def _place_variant(board, W, H, iname, strat, seed, proposal=None):
     try:
         s, _p = _build_session(board, W, H, iname, strat, seed, proposal,
                                pourfirst_artifact=False)
+        pourfirst_report = copy.deepcopy(
+            getattr(s, "pourfirst_report", None))
+        if (s.cfg and (s.cfg.params or {}).get("pour_first")
+                and (pourfirst_report or {}).get("error")):
+            # A prune-side infrastructure/closure error is deliberately
+            # fail-open in the *selection* sense: its row must reach the full
+            # grade retry.  Continuing craft repair and future-route analysis
+            # cannot make the already-invalid freeze rankable and used to
+            # duplicate minutes of work before that guaranteed retry.  Return
+            # the diagnostic error row immediately; _prune_variants retains
+            # all such rows by contract.
+            return {
+                "label": label, "iname": iname, "strat": strat,
+                "seed": seed, "place_key": None,
+                "error": "pour-first: %s" % pourfirst_report["error"],
+                "pourfirst": pourfirst_report,
+                "place_wall_s": round(time.monotonic() - t0, 1),
+            }
+        if s.cfg and craft_workers is not None:
+            # A board may explicitly request a smaller pool.  The wave owns
+            # only the default allocation and never widens a declared limit.
+            s.cfg.params.setdefault("placement_craft_eval_workers",
+                                    max(1, int(craft_workers)))
         with csp._oracle_env(s.cfg.params if s.cfg else None):
             cand = s.compile()
-        key = csp._candidate_sort_key(cand)
+            placed = None
+            if work_root:
+                placed = os.path.join(work_root, board,
+                                      f"{label}-placed.kicad_pcb")
+                os.makedirs(os.path.dirname(placed), exist_ok=True)
+                s.materialize(placed, cand=cand)
+                _persist_pourfirst_state(s.cfg.params, placed)
+        craft_repair = None
+        craft_trials = int((s.cfg.params if s.cfg else {}).get(
+            # Electrical craft admission is a general pipeline contract, not a
+            # Hub-only option.  A board without a local policy previously got
+            # the detector but not its bounded monotonic repair, so the EPS
+            # trial rejected three otherwise usable placements for an orphaned
+            # rail bulk capacitor without ever attempting the repair that was
+            # already implemented.  Boards may still override this budget.
+            "placement_craft_repair_trials", 48) or 0)
+        if placed and s.cfg and craft_trials > 0:
+            with csp._oracle_env(s.cfg.params):
+                repaired, craft_repair = csp.repair_placement_craft_epochs(
+                    s.cfg, cand, max_trials=craft_trials,
+                    rounds=int(s.cfg.params.get(
+                        "placement_craft_repair_rounds", 2)),
+                    epochs=int(s.cfg.params.get(
+                        # The epoch engine stops immediately on a clean gate
+                        # or a certified plateau.  Two epochs cut off the PCIe
+                        # multi-rail cell while every epoch was still making a
+                        # monotonic improvement; use the already-enforced hard
+                        # ceiling so hard cells get a finite continuation,
+                        # never an unattended open loop.
+                        "placement_craft_repair_epochs", 4)))
+            if craft_repair.get("changed"):
+                cand = repaired
+                with csp._oracle_env(s.cfg.params):
+                    if s.cfg.params.get("pour_first"):
+                        csp.pour_first_stage(
+                            s, label=label, artifact=False,
+                            candidate=cand)
+                        if (s.pourfirst_report or {}).get("error"):
+                            raise RuntimeError(
+                                "post-craft pour-first regeneration failed: %s"
+                                % s.pourfirst_report["error"])
+                        cand = getattr(s, "pourfirst_candidate", cand)
+                    s.materialize(placed, cand=cand)
+                    _persist_pourfirst_state(s.cfg.params, placed)
+        # Compile placement evidence under the same scoped route recipe used by
+        # the later detailed route. Previously this call happened after the
+        # recipe context closed, so the placer never saw CEC_POUR_RESERVE even
+        # though Freerouting did.
+        with csp._oracle_env(s.cfg.params if s.cfg else None):
+            future_route = _future_route_preflight(
+                placed, critical_nets=tuple(
+                    (s.cfg.params if s.cfg else {}).get(
+                        "critical_route_nets", ()) or ())) if placed else None
+        route_repair = None
+        completion_guidance = _completion_guidance_from_env()
+        completion_hint_count = 0
+        if completion_guidance:
+            try:
+                import cec_completion_evidence
+                completion_hint_count = int(
+                    cec_completion_evidence.placement_hints(
+                        completion_guidance,
+                        critical_nets=tuple((s.cfg.params if s.cfg else {}).get(
+                            "critical_route_nets", ()) or ())).get(
+                                "hint_count", 0) or 0)
+            except Exception:                              # noqa: BLE001
+                completion_hint_count = 0
+        repair_trials = int(os.environ.get(
+            "CEC_PLACEMENT_ROUTE_REPAIR_TRIALS",
+            (s.cfg.params if s.cfg else {}).get(
+                # Exact route-aware placement is a pipeline invariant, just
+                # like craft repair. Leaving the default at zero meant
+                # ordinary boards measured critical failures but never acted.
+                "placement_route_repair_trials", 48) or 0))
+        if (placed and s.cfg and repair_trials > 0
+                and _route_repair_required(
+                    future_route,
+                    completion_hint_count=completion_hint_count)):
+            # The placed board and Candidate stay coupled: the grade phase
+            # reuses this file, so an accepted repair must be materialized here
+            # rather than merely recorded as a better abstract placement.
+            cand.route_preflight = dict(future_route)
+            with csp._oracle_env(s.cfg.params):
+                repaired, route_repair = csp.repair_route_preflight_iterative(
+                    s.cfg, cand,
+                    max_trials=repair_trials,
+                    rounds=int(os.environ.get(
+                        "CEC_PLACEMENT_ROUTE_REPAIR_ROUNDS",
+                        s.cfg.params.get(
+                            "placement_route_repair_rounds", 2))),
+                    full_evals=int(os.environ.get(
+                        "CEC_PLACEMENT_ROUTE_REPAIR_FULL_EVALS",
+                        s.cfg.params.get(
+                            "placement_route_repair_full_evals", 4))),
+                    grid_mm=float(os.environ.get(
+                        "CEC_WAVE_FUTURE_GRID_MM", "1.0")),
+                    iters=int(os.environ.get(
+                        "CEC_WAVE_FUTURE_ITERS", "4")),
+                    backend="auto", multiresolution=False,
+                    completion_report=completion_guidance)
+            if route_repair.get("changed"):
+                cand = repaired
+                with csp._oracle_env(s.cfg.params):
+                    s.materialize(placed, cand=cand)
+                future_route = dict(cand.route_preflight or {})
+        base_key = list(csp._candidate_sort_key(cand))
+        # Physical craft is ranked before route capacity.  A placement with a
+        # stranded functional part or a selected bypass capacitor outside its
+        # device limit cannot become releasable merely because it is easier to
+        # route, so do not spend the routed shortlist on that false summit.
+        craft = (csp.placement_craft_evidence(placed, cfg=s.cfg)
+                 if placed else None)
+        craft_key = list(csp.placement_craft_key(craft))
+        import cec_route_preflight
+        # Use the exact same fail-closed fanout/access/reachability/capacity
+        # definition as the core placer. A missing proof therefore cannot look
+        # better merely because its tuple is shorter than a measured candidate.
+        future_key = list(cec_route_preflight.placement_evidence_key(
+            future_route))
+        key = base_key[:1] + craft_key + future_key + base_key[1:]
         return {"label": label, "iname": iname, "strat": strat, "seed": seed,
                 "place_key": [float(k) for k in key],
+                "place_key_base": [float(k) for k in base_key],
+                "place_craft_key": [float(k) for k in craft_key],
+                "placement_craft": craft,
+                "craft_repair": craft_repair,
                 "residual": cand.residual, "corridor_cross": cand.corridor_cross,
+                "placed": placed,
+                "future_route": future_route,
+                "route_repair": route_repair,
+                "cfg_params": copy.deepcopy(s.cfg.params),
+                "intent_log": list(s.log),
+                "pourfirst": copy.deepcopy(
+                    getattr(s, "pourfirst_report", None)),
                 "place_wall_s": round(time.monotonic() - t0, 1)}
     except Exception as e:                                  # noqa: BLE001 -- fail-open
         return {"label": label, "iname": iname, "strat": strat, "seed": seed,
                 "place_key": None, "error": "%s: %s" % (type(e).__name__, e),
                 "place_wall_s": round(time.monotonic() - t0, 1)}
+
+
+def _future_route_preflight(placed_board, *, critical_nets=(), grid_mm=None,
+                            iters=None, multiresolution=None, backend=None):
+    """Cheap, deterministic future-capacity proof used by placement pruning.
+
+    This is the same hard foreign-copper/layer-aware negotiated router exposed
+    by the dashboard, run at a deliberately coarse grid and four iterations.
+    It does not lay copper.  Its role is to stop a visually compact placement
+    from winning the prune phase when its remaining pin topology already
+    contains unreachable connections or severe shared-corridor overuse.
+    """
+    if not placed_board or not os.path.isfile(str(placed_board)):
+        return None
+    try:
+        import cec_route_preflight
+        grid = (float(os.environ.get("CEC_WAVE_FUTURE_GRID_MM", "1.0"))
+                if grid_mm is None else float(grid_mm))
+        # Future-capacity evidence needs at least one negotiation pass.  An
+        # access-only zero-iteration request otherwise returns no congestion
+        # state and used to fail later with an opaque NoneType error.
+        route_iters = max(
+            1, (int(os.environ.get("CEC_WAVE_FUTURE_ITERS", "4"))
+                if iters is None else int(iters)))
+        use_multiresolution = (
+            os.environ.get("CEC_WAVE_FUTURE_MULTIRESOLUTION", "0") != "0"
+            if multiresolution is None else bool(multiresolution))
+        has_multiresolution = hasattr(
+            cec_route_preflight, "analyze_multiresolution")
+        analyzer = (cec_route_preflight.analyze_multiresolution
+                    if use_multiresolution and has_multiresolution
+                    else cec_route_preflight.analyze)
+        route_backend = (backend if backend is not None else
+                         ("auto" if use_multiresolution
+                          and has_multiresolution else "cpu"))
+        analyze_kwargs = {
+            "grid_mm": grid, "iters": route_iters,
+            "backend": route_backend,
+            **({} if use_multiresolution and has_multiresolution
+               else {"run_congestion": True,
+                     "run_future_congestion": True}),
+        }
+        analyze_kwargs.setdefault("run_future_congestion", True)
+        # Preserve compatibility with analysis adapters that predate declared
+        # route intent; an empty declaration carries no information and should
+        # not force every dashboard/test double to grow the new keyword.
+        if critical_nets:
+            analyze_kwargs["critical_nets"] = tuple(critical_nets)
+        report = analyzer(str(placed_board), **analyze_kwargs)
+        evidence = cec_route_preflight.compact_placement_evidence(report)
+        return {
+            "grid_mm": grid,
+            "iters": route_iters,
+            "multiresolution_enabled": use_multiresolution,
+            **evidence,
+        }
+    except Exception as exc:                              # noqa: BLE001
+        return {"error": "%s: %s" % (type(exc).__name__, exc)}
 
 
 def _prune_variants(variants, placed_rows, k):
@@ -1002,8 +1659,96 @@ def _prune_variants(variants, placed_rows, k):
     return route, pruned
 
 
+def _refine_route_aware_shortlist(variants, placed_rows, shortlist_k, *,
+                                  grid_mm=0.5, iters=3):
+    """Coarse tournament followed by equal-resolution physical re-ranking.
+
+    It is invalid to compare a .5 mm congestion residual directly with an
+    unrefined 1.0 mm residual: the denser grid naturally has a different cell
+    count and capacity scale.  Therefore the ordinary coarse key first chooses
+    a bounded shortlist (retaining the existing error and intent-class floors),
+    every measurable member of that shortlist receives the SAME fine proof,
+    and only those rows proceed to the final prune.  A fine-analysis failure is
+    marked unkeyed so the existing fail-open rule routes it.
+    """
+    if shortlist_k <= 0 or len(variants) <= shortlist_k:
+        shortlist, coarse_pruned = list(variants), []
+    else:
+        shortlist, coarse_pruned = _prune_variants(
+            variants, placed_rows, shortlist_k)
+        for row in coarse_pruned:
+            row["prune_stage"] = "coarse-route-aware-shortlist"
+    by_label = {row.get("label"): row for row in placed_rows}
+    refined = 0
+    failed = 0
+    started = time.monotonic()
+    import cec_route_preflight
+    future_key_len = len(cec_route_preflight.placement_evidence_key(None))
+    for iname, strat, seed, _proposal in shortlist:
+        label = f"{iname}-{strat}-s{seed}"
+        row = by_label.get(label)
+        if row is None or row.get("place_key") is None:
+            continue
+        placed = row.get("placed")
+        if not placed or not os.path.isfile(str(placed)):
+            row["place_key"] = None
+            row["route_awareness_refine_error"] = "placed board is unavailable"
+            failed += 1
+            continue
+        params = row.get("cfg_params") or {}
+        fine = _future_route_preflight(
+            str(placed), critical_nets=tuple(
+                params.get("critical_route_nets", ()) or ()),
+            grid_mm=grid_mm, iters=iters,
+            multiresolution=False, backend="auto")
+        row["future_route_coarse"] = copy.deepcopy(row.get("future_route"))
+        row["route_awareness_refine"] = {
+            "grid_mm": float(grid_mm), "iters": int(iters),
+            "backend": (fine or {}).get("backend"),
+            "service": copy.deepcopy(
+                (fine or {}).get("route_awareness_service") or {}),
+        }
+        if not isinstance(fine, dict) or fine.get("error"):
+            row["place_key"] = None                    # fail-open: route it
+            row["route_awareness_refine_error"] = (
+                (fine or {}).get("error") if isinstance(fine, dict)
+                else "missing fine route-awareness proof")
+            failed += 1
+            continue
+        base_key = row.get("place_key_base")
+        craft_key = row.get("place_craft_key")
+        if craft_key is None:
+            craft = csp.placement_craft_evidence(str(placed), cfg=None)
+            craft_key = list(csp.placement_craft_key(craft))
+            row["placement_craft"] = craft
+            row["place_craft_key"] = [float(k) for k in craft_key]
+        if base_key is None:
+            old_key = list(row.get("place_key") or ())
+            craft_len = len(csp.placement_craft_key(None))
+            base_key = (old_key[:1]
+                        + old_key[1 + craft_len + future_key_len:]
+                        if len(old_key) > craft_len + future_key_len else old_key)
+        fine_key = list(cec_route_preflight.placement_evidence_key(fine))
+        row["place_key"] = [float(k) for k in (
+            list(base_key)[:1] + list(craft_key) + fine_key
+            + list(base_key)[1:])]
+        row["future_route"] = fine
+        refined += 1
+    return shortlist, coarse_pruned, {
+        "enabled": True,
+        "shortlist_requested": int(shortlist_k),
+        "shortlist_actual": len(shortlist),
+        "coarse_pruned": len(coarse_pruned),
+        "refined": refined,
+        "failed": failed,
+        "grid_mm": float(grid_mm),
+        "iters": int(iters),
+        "wall_s": round(time.monotonic() - started, 3),
+    }
+
+
 def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None,
-                   polish=False):
+                   polish=False, placed_row=None, coord_nets=None):
     """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
     it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
     not fork-safe, the cec_fr.generate_batch precedent).
@@ -1023,13 +1768,23 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     # route, e.g. a golden run).
     _env_prev = {k: os.environ.get(k) for k in ("CEC_FR_SEED_AXIS",
                                                 "CEC_FR_PLATEAU_KILL",
-                                                "CEC_FR_PLATEAU_FLOOR")}
+                                                "CEC_FR_PLATEAU_FLOOR",
+                                                "CEC_FR_PLATEAU_GRACES")}
     os.environ["CEC_FR_SEED_AXIS"] = "1"
     # Plateau-kill (external stage-0 pre-kill on the cec2 CEC_PASS telemetry): a
     # candidate whose failed-count sits flat for 4 passes is a loser -- kill the
     # JVM, grade it failed, spend the wall-clock on live candidates instead.
     os.environ.setdefault("CEC_FR_PLATEAU_KILL", "4")
-    s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+    reuse_placed = bool(placed_row and placed_row.get("placed")
+                        and os.path.isfile(str(placed_row.get("placed"))))
+    if reuse_placed:
+        _p = copy.deepcopy(placed_row.get("cfg_params") or
+                           _placement_params(board, W, H))
+        s = None
+    else:
+        s, _p = _build_session(board, W, H, iname, strat, seed, proposal)
+    if _p.get("lastmile_final_winner"):
+        _p["lastmile_final"] = bool(polish)
     # PLATEAU FLOOR (probe 2026-07-23: a togo-34 hub "plateau" recovered to
     # unconn 7 with the kill off -- the flat streak fires on FR's normal
     # terminal-grind/rip-up phases, discarding boards in the winner band). A
@@ -1038,24 +1793,95 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     # 24-pin winners 146-158 vs collapse 190-230 -> wave_plateau_floor.
     os.environ.setdefault("CEC_FR_PLATEAU_FLOOR",
                           str(int(_p.get("wave_plateau_floor", 100))))
-    out = os.path.join(work_root, board, f"{label}.kicad_pcb")
-    v = s.grade(out=out, keep=True,
-                passes=(int(passes) if polish
-                        else int(_p.get("wave_passes", passes))),
-                opt=(int(opt) if polish
-                     else int(_p.get("wave_opt", opt))),
-                fr_timeout=(2 * int(_p.get("wave_fr_timeout", 900)) if polish
-                            else int(_p.get("wave_fr_timeout", 900))),
-                seed=seed,              # pin FR seed: wave-to-wave comparability
-                unconn_finish_tol=0,
-                # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
-                # gate-clean candidate (all other terms green) -- a published best
-                # always has a REAL solve behind it.
-                thermal="lazy",
-                # owner blind verdict 2026-07-09: PRECISION-FIRST ON (kelvin taps +
-                # coupled pairs deterministic + locked, refused pairs solo-tiered,
-                # FR residual-only). wave_precision=False in params restores bare.
-                precision=bool(_p.get("wave_precision", True)))
+    os.environ.setdefault("CEC_FR_PLATEAU_GRACES",
+                          str(int(_p.get("wave_plateau_graces", 1))))
+    out = (str(placed_row["placed"]) if reuse_placed else
+           os.path.join(work_root, board, f"{label}.kicad_pcb"))
+    if reuse_placed:
+        resume_state = _pourfirst_resume_state_status(_p)
+        if not resume_state.get("ok"):
+            for _ek, _ev in _env_prev.items():
+                if _ev is None:
+                    os.environ.pop(_ek, None)
+                else:
+                    os.environ[_ek] = _ev
+            return {
+                "label": label, "placed": out, "placement_reused": True,
+                "gate": False, "gates_pass": False,
+                "routing_complete": False, "routed": None,
+                "failure_stage": "pourfirst_resume_state",
+                "error": ("resumed routing refused: %s" %
+                          resume_state.get("reason")),
+                "pourfirst_resume_state": resume_state,
+                "wall_s": round(time.monotonic() - t0, 1),
+            }
+    grade_kw = dict(
+        passes=(int(passes) if polish
+                else int(_p.get("wave_passes", passes))),
+        opt=(int(opt) if polish else int(_p.get("wave_opt", opt))),
+        fr_timeout=(2 * int(_p.get("wave_fr_timeout", 900)) if polish
+                    else int(_p.get("wave_fr_timeout", 900))),
+        seed=seed, unconn_finish_tol=0, thermal="lazy",
+        precision=bool(_p.get("wave_precision", True)),
+        # The route pipeline reserves complete decoupler cells before any
+        # signal tier.  Let that mandatory, fail-closed stage own local
+        # dogbones and via-in-pad ground returns; placement admission still
+        # blocks missing/distant capacitors and every nonlocal defect.
+        allow_route_access_repair=bool(
+            _p.get("pre_route_decoupler_repair", True)))
+    if reuse_placed:
+        cfg = csp.Config.load(board, params=_p)
+        route_input = out
+        protect_nets = ()
+        coordination = None
+        if coord_nets:
+            try:
+                import shutil
+                import cec_coord_hints
+                coordinated = os.path.join(
+                    work_root, board, f"{label}-coordinated.kicad_pcb")
+                coordination = cec_coord_hints.stub_board(
+                    out, coordinated, k=min(8, len(set(coord_nets))),
+                    iters=8, grid_mm=0.75, backend="auto",
+                    preferred_nets=set(coord_nets))
+                protect_nets = tuple(coordination.get("nets") or ())
+                if protect_nets:
+                    for ext in (".kicad_pro", ".kicad_dru"):
+                        source = out[:-len(".kicad_pcb")] + ext
+                        if os.path.isfile(source):
+                            shutil.copy(
+                                source,
+                                coordinated[:-len(".kicad_pcb")] + ext)
+                    route_input = coordinated
+            except Exception as exc:                       # noqa: BLE001
+                coordination = {"error": "%s: %s" %
+                                (type(exc).__name__, exc), "nets": []}
+        with csp._oracle_env(_p):
+            v = csp.route_oracle_grade(
+                route_input, cfg=cfg, route=True, keep=True,
+                protect_nets=protect_nets, **grade_kw)
+        v["intent_log"] = list(placed_row.get("intent_log") or ())
+        v["placement_reused"] = True
+        v["future_route"] = copy.deepcopy(
+            placed_row.get("future_route"))
+        v["route_repair"] = copy.deepcopy(
+            placed_row.get("route_repair"))
+        v["placement_craft"] = copy.deepcopy(
+            placed_row.get("placement_craft"))
+        v["place_craft_key"] = copy.deepcopy(
+            placed_row.get("place_craft_key"))
+        v["craft_repair"] = copy.deepcopy(
+            placed_row.get("craft_repair"))
+        if coordination is not None:
+            v["coordination"] = {
+                "nets": list(protect_nets),
+                "negotiation": coordination.get("negotiation"),
+                "compiled": coordination.get("compiled"),
+                "error": coordination.get("error"),
+            }
+    else:
+        v = s.grade(out=out, keep=True, **grade_kw)
+        v["placement_reused"] = False
     _inc = (v.get("incursion") or {})
     if _inc and (_inc.get("n_parts", 0) or _inc.get("n_tracks", 0) or _inc.get("n_vias", 0)):
         print(f"[wave] {board} {label}: POUR INCURSION parts={_inc.get('n_parts')} "
@@ -1066,7 +1892,8 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
     v["wall_s"] = round(time.monotonic() - t0, 1)
     # POUR-FIRST per-net report rides the verdict into the wave log/report
     # (path_found / segments / bridges / layers / bottleneck per net)
-    _pfr = getattr(s, "pourfirst_report", None)
+    _pfr = ((placed_row or {}).get("pourfirst") if reuse_placed else
+            getattr(s, "pourfirst_report", None))
     if _pfr is not None:
         v["pourfirst"] = _pfr
         print(f"[wave] {board} {label}: pour-first paths "
@@ -1524,6 +2351,7 @@ def _rescore_published(best, published_pcb):
         "vias": int(metrics.vias),
         "tracks": int(metrics.tracks),
         "length": round(float(metrics.length), 2),
+        "route_quality": dict(metrics.detail.get("route_quality") or {}),
     })
 
     gate_terms = dict(best.get("gate_terms") or {})
@@ -1636,6 +2464,49 @@ def _wave_workers():
         return 1
 
 
+def _polish_decision(best, board_params, wave_passes, wave_opt):
+    """Return ``(run, reason)`` for the serial winner-polish route.
+
+    A polish is useful only when it adds effort to a close, routed candidate.
+    Re-running 16/20 after every candidate already received 40/60 consumed
+    13--22 serial minutes per Hub wave and repeatedly worsened connectivity.
+    """
+    if not board_params.get("wave_polish", True):
+        return False, "disabled by board policy"
+    unconnected = best.get("unconnected")
+    if unconnected is None or best.get("error"):
+        return False, "winner has no successful route verdict"
+    if int(unconnected) == 0:
+        return False, "winner is already connected"
+    limit = int(board_params.get("polish_unconnected_max", 40))
+    if int(unconnected) > limit:
+        return False, "winner is not within the polish band (%d > %d)" % (
+            int(unconnected), limit)
+    regular_passes = int(board_params.get("wave_passes", wave_passes))
+    regular_opt = int(board_params.get("wave_opt", wave_opt))
+    polish_passes = int(board_params.get("polish_passes", 16))
+    polish_opt = int(board_params.get("polish_opt", 20))
+    if polish_passes <= regular_passes and polish_opt <= regular_opt:
+        return False, ("polish adds no effort (%d/%d after %d/%d)" %
+                       (polish_passes, polish_opt, regular_passes, regular_opt))
+    return True, "adds effort to a close routed winner"
+
+
+def _coord_polish_enabled(board_params):
+    """Whether a deep wave may bind negotiated corridors as protected stubs.
+
+    The 2026-08-05 Hub control compiled seven legal stubs but regressed the
+    selected placement from 25/8 (unconnected/DRC) to 31/14 at higher effort.
+    Congestion analysis remains active; hard copper constraints stay opt-in
+    until a pinned, same-effort A/B proves them for a board.  The environment
+    override is intended for precisely those experiments.
+    """
+    env = os.environ.get("CEC_WAVE_COORD_POLISH")
+    if env is not None:
+        return env == "1"
+    return bool(board_params.get("wave_coord_polish", False))
+
+
 def run_board(board, seeds, passes, opt, out_root, work_root):
     if board not in cec_beta_manifest.WAVE_BOARDS:
         raise ValueError(
@@ -1645,7 +2516,35 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     W, H = BOARD_WH.get(board, (100.0, 44.0))
     if os.environ.get("CEC_BOARD_W"):
         W = float(os.environ["CEC_BOARD_W"])                # A/B knob (owner 2026-07-12)
+    if os.environ.get("CEC_BOARD_H"):
+        H = float(os.environ["CEC_BOARD_H"])
     workers = _wave_workers()
+    # One CUDA owner is inherited by every spawned placement/grade worker via
+    # CEC_COORD_SERVICE_SOCKET.  Coarse problems remain local CPU work; only
+    # route-awareness tensors above the measured crossover enter this serial
+    # queue.  Startup is fail-open because CUDA is an accelerator, never a
+    # correctness dependency.
+    route_service = None
+    try:
+        import cec_route_awareness_service
+        route_service = cec_route_awareness_service.ensure_service()
+        if route_service.get("enabled"):
+            print("[wave] route-awareness CUDA owner: pid=%s prewarm=%ss "
+                  "cache=%sMiB" % (
+                      route_service.get("pid"),
+                      route_service.get("prewarm_s"),
+                      round(float(route_service.get(
+                          "cache_limit_bytes", 0)) / (1024 * 1024), 1)),
+                  flush=True)
+    except Exception as exc:                              # noqa: BLE001
+        os.environ.pop("CEC_COORD_SERVICE_SOCKET", None)
+        route_service = {
+            "enabled": False,
+            "error": "%s: %s" % (type(exc).__name__, exc),
+        }
+        print("[wave] route-awareness CUDA owner unavailable; deterministic "
+              "local backend remains active (%s)" % route_service["error"],
+              flush=True)
     _wlog(f"wave started: {board}", tag="wave",
           detail=f"{len(_intents_for(board))} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, "
                  f"passes {passes}/opt {opt}, workers {workers}")
@@ -1676,11 +2575,16 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     # placement-phase ERROR routes anyway (fail-open), and CEC_WAVE_PRUNE=0 restores
     # the route-everything wave byte-identically.
     pruned_rows = []
+    placed_rows = []
+    aware_report = None
     prune_k = int(os.environ.get("CEC_WAVE_PRUNE", "4"))
     if prune_k > 0 and len(variants) > prune_k:
         _t0p = time.monotonic()
+        active_outer_workers = min(max(1, workers), len(variants))
+        craft_workers = _nested_craft_worker_budget(active_outer_workers)
         if workers <= 1:
-            placed_rows = [_place_variant(board, W, H, i, st, sd, prop)
+            placed_rows = [_place_variant(board, W, H, i, st, sd, prop,
+                                          work_root, craft_workers)
                            for i, st, sd, prop in variants]
         else:
             import concurrent.futures as _cf
@@ -1689,12 +2593,64 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
             with _cf.ProcessPoolExecutor(max_workers=workers, mp_context=_ctx) as _pool:
                 placed_rows = list(_pool.map(
                     _place_variant,
-                    *zip(*[(board, W, H, i, st, sd, prop) for i, st, sd, prop in variants])))
-        variants, pruned_rows = _prune_variants(variants, placed_rows, prune_k)
+                    *zip(*[(board, W, H, i, st, sd, prop, work_root,
+                            craft_workers)
+                           for i, st, sd, prop in variants])))
+        aware_default = int(_bp.get(
+            "placement_route_aware_shortlist", 0) or 0)
+        aware_k = int(os.environ.get(
+            "CEC_WAVE_AWARE_SHORTLIST", str(aware_default)))
+        aware_allowed = (bool((route_service or {}).get("enabled")) or
+                         os.environ.get(
+                             "CEC_WAVE_AWARE_WITHOUT_SERVICE", "0") == "1")
+        if aware_k > prune_k and aware_allowed:
+            aware_grid = float(os.environ.get(
+                "CEC_WAVE_AWARE_GRID_MM",
+                str(_bp.get("placement_route_aware_grid_mm", 0.5))))
+            aware_iters = int(os.environ.get(
+                "CEC_WAVE_AWARE_ITERS",
+                str(_bp.get("placement_route_aware_iters", 3))))
+            variants, coarse_pruned, aware_report = (
+                _refine_route_aware_shortlist(
+                    variants, placed_rows, aware_k,
+                    grid_mm=aware_grid, iters=aware_iters))
+            pruned_rows.extend(coarse_pruned)
+            print("[wave] %s route-aware shortlist: %s/%s fine proofs at "
+                  "%smm x %s iterations; %s coarse candidate(s) retired "
+                  "[%ss]" % (
+                      board, aware_report["refined"],
+                      aware_report["shortlist_actual"], aware_grid,
+                      aware_iters, aware_report["coarse_pruned"],
+                      aware_report["wall_s"]), flush=True)
+        variants, final_pruned = _prune_variants(
+            variants, placed_rows, prune_k)
+        for row in final_pruned:
+            row["prune_stage"] = ("fine-route-aware-final"
+                                  if aware_report else "coarse-final")
+        pruned_rows.extend(final_pruned)
+        for row in pruned_rows:
+            placed = row.get("placed")
+            if not placed:
+                continue
+            base = (str(placed)[:-len(".kicad_pcb")]
+                    if str(placed).endswith(".kicad_pcb") else str(placed))
+            for path in (str(placed), base + ".kicad_pro", base + ".kicad_dru"):
+                try:
+                    if os.path.isfile(path):
+                        os.remove(path)
+                except OSError:
+                    pass
         print(f"[wave] {board} prune: routing {len(variants)}/{len(placed_rows)} "
               f"variant(s) by cheap placement key ({len(pruned_rows)} pruned, recorded "
               f"in the report; CEC_WAVE_PRUNE=0 routes all) "
               f"[{round(time.monotonic() - _t0p, 1)}s]", flush=True)
+
+    placed_by_label = {row.get("label"): row for row in placed_rows
+                       if row.get("placed") and
+                       os.path.isfile(str(row.get("placed")))}
+
+    def _placed_row(iname, strat, seed):
+        return placed_by_label.get(f"{iname}-{strat}-s{seed}")
 
     def _consume(v):
         _was_best = (not results or
@@ -1715,7 +2671,8 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         for iname, strat, seed, prop in variants:
             try:
                 _consume(_grade_variant(board, W, H, iname, strat, seed, passes, opt,
-                                        work_root, proposal=prop))
+                                        work_root, proposal=prop,
+                                        placed_row=_placed_row(iname, strat, seed)))
             except Exception as e:                              # noqa: BLE001
                 print(f"[wave] {board} {iname}-{strat}-s{seed}: ERROR {type(e).__name__}: {e}",
                       flush=True)
@@ -1725,7 +2682,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         ctx = mp.get_context("spawn")                          # pcbnew is NOT fork-safe
         with cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
             futs = {pool.submit(_grade_variant, board, W, H, iname, strat, seed,
-                                passes, opt, work_root, prop): (iname, strat, seed)
+                                passes, opt, work_root, prop, False,
+                                _placed_row(iname, strat, seed)):
+                    (iname, strat, seed)
                     for iname, strat, seed, prop in variants}
             for fut in cf.as_completed(futs):
                 iname, strat, seed = futs[fut]
@@ -1743,20 +2702,35 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     # where wave-effort bests land 30+ (the s70/s120 ladder). One extra route
     # per wave, winner-only; adopted only when it actually sorts better.
     polish_info = None
-    if _bp.get("wave_polish", True) and best.get("unconnected") is not None:
+    _polish, _polish_reason = _polish_decision(best, _bp, passes, opt)
+    if _polish:
         _mt = [t for t in variants
                if f"{t[0]}-{t[1]}-s{t[2]}" == best.get("label")]
         if _mt:
             _pi, _ps, _pseed, _pprop = _mt[0]
             try:
+                _coord_enabled = _coord_polish_enabled(_bp)
                 pv = _grade_variant(board, W, H, _pi, _ps, _pseed,
                                     int(_bp.get("polish_passes", 16)),
                                     int(_bp.get("polish_opt", 20)),
-                                    work_root, proposal=_pprop, polish=True)
+                                    work_root, proposal=_pprop, polish=True,
+                                    placed_row=_placed_row(_pi, _ps, _pseed),
+                                    coord_nets=((best.get("unconn_nets") or ())
+                                                if _coord_enabled else ()))
                 polish_info = {"label": pv.get("label"),
                                "unconnected": pv.get("unconnected"),
                                "drc": pv.get("drc"),
                                "sort_key": pv.get("sort_key"),
+                               "route_s": pv.get("route_s"),
+                               "route_stage_s": pv.get("route_stage_s"),
+                               "wall_s": pv.get("wall_s"),
+                               "unconn_nets": pv.get("unconn_nets"),
+                               "unconn_signature_sha256":
+                                   pv.get("unconn_signature_sha256"),
+                               "coordination": pv.get("coordination"),
+                               "coordination_policy":
+                                   ("reactive-hard-stubs"
+                                    if _coord_enabled else "diagnostic-only"),
                                "adopted": False}
                 if tuple(pv.get("sort_key") or (9,)) \
                         < tuple(best.get("sort_key") or (9,)):
@@ -1771,6 +2745,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                 polish_info = {"error": f"{type(e).__name__}: {e}"}
                 print(f"[wave] {board} polish ERROR {polish_info['error']}",
                       flush=True)
+    else:
+        polish_info = {"skipped": True, "reason": _polish_reason}
+        print(f"[wave] {board} polish skipped: {_polish_reason}", flush=True)
     # publish ONLY the winner (routed board if the route produced one, else the placement)
     pub_dir = os.path.join(out_root, board)
     os.makedirs(pub_dir, exist_ok=True)
@@ -1810,11 +2787,15 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
             and os.path.isfile(str(dst)):
         try:
             import cec_fab_repair
-            _fr = cec_fab_repair.repair(str(dst), apply=True)
-            if _fr.get("track_width") or _fr.get("backtracks") or _fr.get("priority"):
-                print("[wave] %s fab repair: %d width, %d backtrack, %d priority"
-                      % (board, _fr["track_width"], _fr["backtracks"],
-                         _fr["priority"]), flush=True)
+            _fr = cec_fab_repair.repair_admitted(str(dst))
+            print("[wave] %s fab repair admission: chosen=%s adopted=%s "
+                  "drc %s->%s unconnected %s->%s topology %s->%s"
+                  % (board, _fr.get("chosen"), _fr.get("adopted"),
+                     _fr["baseline"].get("drc"), _fr["after"].get("drc"),
+                     _fr["baseline"].get("unconnected"),
+                     _fr["after"].get("unconnected"),
+                     _fr["baseline"].get("route_advisory"),
+                     _fr["after"].get("route_advisory")), flush=True)
         except Exception as _fe:                            # noqa: BLE001
             print(f"[wave] {board} fab repair skipped ({type(_fe).__name__}: {_fe})",
                   flush=True)
@@ -1834,8 +2815,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     # board to open -- the reason beta/ looked stale was that every routed
     # artifact lived only under build/. Runs after the hygiene chain and after
     # the thermal stamp, so the reference carries the reviewed artifact + its grade.
-    _candidate_update(board, dst if (src and os.path.isfile(str(src))) else None,
-                      best, out_root=out_root)
+    candidate_path = _candidate_update(
+        board, dst if (src and os.path.isfile(str(src))) else None,
+        best, out_root=out_root)
     if new_best:
         _th = best.get("thermal") or {}
         print(f"[wave] {board} NEW BEST -> thermal: ok={_th.get('ok')} "
@@ -1845,20 +2827,79 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     report = {"board": board, "ts": ts, "W": W, "H": H, "passes": passes, "opt": opt,
               "published": os.path.relpath(dst, ROOT) if src else None,
               "new_best": new_best,
+              # This is the durable improvement signal for loop managers.
+              # ``new_best`` above is only relative to reports in this output
+              # directory and must never be mistaken for canonical admission.
+              "candidate_updated": bool(candidate_path),
+              "candidate": (os.path.relpath(candidate_path, ROOT)
+                            if candidate_path else None),
               "polish": polish_info,
               "prune": {"k": prune_k, "routed": len(results),
                         "pruned": len(pruned_rows)} if pruned_rows else None,
+              "route_awareness": {
+                  "service": {key: (route_service or {}).get(key)
+                              for key in ("enabled", "pid", "prewarm_s",
+                                          "cache_limit_bytes", "gpu", "error")},
+                  "tournament": aware_report,
+              },
               "best": {k: best.get(k) for k in
                        ("label", "gate", "kelvin_ok", "diffpair_ok", "drc", "unconnected",
                         "unconn_critical", "drc_types", "foreign", "thermal_ok",
-                        "thermal", "rails", "sort_key", "reasons")},
+                        "thermal", "rails", "sort_key", "reasons", "route_s",
+                        "route_stage_s", "wall_s", "placement_reused",
+                        "future_route", "route_repair", "completion_report",
+                        "placement_craft", "place_craft_key",
+                        "craft_repair",
+                        "error", "route_quality", "gate_terms",
+                        "stage_trace", "blockers", "blocker_summary",
+                        "blocker_evidence",
+                        "unconn_nets",
+                        "unconn_signature", "unconn_signature_sha256",
+                        "coordination")},
               "ranking": ([{"label": v["label"], "gate": v.get("gate"),
-                            "sort_key": v.get("sort_key")} for v in results]
+                            "sort_key": v.get("sort_key"),
+                            "unconnected": v.get("unconnected"),
+                            "drc": v.get("drc"), "route_s": v.get("route_s"),
+                            "wall_s": v.get("wall_s"),
+                            "route_stage_s": v.get("route_stage_s"),
+                            "placement_reused": v.get("placement_reused"),
+                            "future_route": v.get("future_route"),
+                            "route_repair": v.get("route_repair"),
+                            "placement_craft": v.get("placement_craft"),
+                            "place_craft_key": v.get("place_craft_key"),
+                            "craft_repair": v.get("craft_repair"),
+                            "completion_report": v.get("completion_report"),
+                            "error": v.get("error"),
+                            "reasons": v.get("reasons"),
+                            "route_quality": v.get("route_quality"),
+                            "gate_terms": v.get("gate_terms"),
+                            "stage_trace": v.get("stage_trace"),
+                            "blockers": v.get("blockers"),
+                            "blocker_summary": v.get("blocker_summary"),
+                            "blocker_evidence": v.get("blocker_evidence"),
+                            "unconn_nets": v.get("unconn_nets"),
+                            "unconn_signature": v.get("unconn_signature"),
+                            "unconn_signature_sha256":
+                                v.get("unconn_signature_sha256"),
+                            "coordination": v.get("coordination")}
+                           for v in results]
                           + [{"label": r["label"], "pruned": True,
                               "place_key": r.get("place_key"),
+                              "place_craft_key": r.get("place_craft_key"),
+                              "placement_craft": r.get("placement_craft"),
+                              "craft_repair": r.get("craft_repair"),
+                              "future_route": r.get("future_route"),
+                              "route_repair": r.get("route_repair"),
                               "error": r.get("error")} for r in pruned_rows])}
+    # Wave evidence contains exact placement-craft certificates and blocker
+    # traces. Pretty-print indentation inflated a representative six-variant
+    # PCIe report from about 3.9 MiB of evidence to 10.4 MiB without adding any
+    # information, and unattended loops multiplied that waste. Keep the same
+    # lossless JSON schema in compact form; dashboard/readers parse JSON rather
+    # than depending on whitespace.
     with open(os.path.join(pub_dir, f"{ts}-wave-report.json"), "w") as fh:
-        json.dump(report, fh, indent=2, default=str)
+        json.dump(report, fh, separators=(",", ":"), default=str)
+        fh.write("\n")
     print(f"[wave] {board} BEST={best['label']} gate={best.get('gate')} -> {dst}", flush=True)
     _wlog(f"wave done: {board} best={best['label']} gate={best.get('gate')}", tag="wave",
           detail=f"kelvin={best.get('kelvin_ok')} unconn={best.get('unconnected')} "

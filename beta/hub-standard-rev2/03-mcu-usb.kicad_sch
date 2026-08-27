@@ -3965,8 +3965,8 @@
 	(label "USB_D_P" (at 193.04 86.36 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d17c1d7b-b365-4d7e-aaf1-ad57b85cf77b"))
 	(label "USB_VBUS" (at 115.57 87.63 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "18cacccd-b4ee-4929-aeca-f3deabd70a77"))
 	(label "USB_VBUS" (at 76.2 81.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7b370196-4517-4b9f-9b9f-5994b4aff823"))
-	(hierarchical_label "5VSB_SENSE"
-		(shape output)
+	(hierarchical_label "PWR_SOURCE_STATUS"
+		(shape input)
 		(at 154.94 104.14 180)
 		(effects (font (size 1.27 1.27)) (justify right))
 		(uuid "a5db76ed-6282-45a3-819c-234c29b8eb60")
@@ -4043,7 +4043,7 @@
 		(effects (font (size 1.27 1.27)) (justify left))
 		(uuid "f628dba7-79c6-4a5b-ae75-1f10062f403c")
 	)
-	(hierarchical_label "MAIN_5V_SENSE"
+	(hierarchical_label "5V_SYS_SENSE"
 		(shape output)
 		(at 154.94 101.6 180)
 		(effects (font (size 1.27 1.27)) (justify right))

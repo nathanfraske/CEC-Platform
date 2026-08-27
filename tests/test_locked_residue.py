@@ -62,6 +62,18 @@ def _trk(b, net, p0, p1, *, locked, wmm=2.0):
     return t
 
 
+def _via(b, net, x, y, *, locked, diameter_mm=0.9, drill_mm=0.5):
+    v = pcbnew.PCB_VIA(b)
+    v.SetPosition(VECTOR2I(MM(x), MM(y)))
+    v.SetWidth(MM(diameter_mm))
+    v.SetDrill(MM(drill_mm))
+    v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+    v.SetNet(net)
+    v.SetLocked(locked)
+    b.Add(v)
+    return v
+
+
 def _save(b):
     fd, path = tempfile.mkstemp(suffix=".kicad_pcb")
     os.close(fd)
@@ -109,6 +121,27 @@ class TestPartialLockedKeepouts(unittest.TestCase):
             os.unlink(p)
         self.assertEqual(ko, [], "fully-owned nets are locked_copper_keepouts' business")
 
+    def test_pad_window_never_erases_locked_via_barrel(self):
+        b = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(b, "/PARTIAL", 1)
+        b.Add(net)
+        fp = _fp(b, "U1")
+        _pad(fp, "1", net, 10.0, 10.0)
+        _pad(fp, "2", net, 20.0, 10.0)
+        _trk(b, net, (10.0, 10.0), (15.0, 10.0), locked=True,
+             wmm=0.25)
+        _via(b, net, 20.0, 10.0, locked=True)
+        path = _save(b)
+        try:
+            rows = cec_fr.partial_locked_keepouts(path)
+        finally:
+            os.unlink(path)
+
+        self.assertTrue(_covers(rows, 20.0, 10.0, "F.Cu"), rows)
+        self.assertTrue(_covers(rows, 20.0, 10.0, "B.Cu"), rows)
+        self.assertTrue(any(row["name"].startswith("lockedvia-part-")
+                            for row in rows), rows)
+
     def test_unlocked_copper_ignored(self):
         b = pcbnew.CreateEmptyBoard()
         n = pcbnew.NETINFO_ITEM(b, "/X", 1)
@@ -122,6 +155,38 @@ class TestPartialLockedKeepouts(unittest.TestCase):
             self.assertEqual(cec_fr.partial_locked_keepouts(p), [])
         finally:
             os.unlink(p)
+
+    def test_fully_owned_keepouts_include_unlocked_physical_copper(self):
+        b = pcbnew.CreateEmptyBoard()
+        owned = pcbnew.NETINFO_ITEM(b, "/OWNED", 1)
+        other = pcbnew.NETINFO_ITEM(b, "/OTHER", 2)
+        b.Add(owned)
+        b.Add(other)
+        owned_fp = _fp(b, "U1")
+        _pad(owned_fp, "1", owned, 40.0, 40.0)
+        other_fp = _fp(b, "U2")
+        _pad(other_fp, "1", other, 40.0, 30.0)
+        _trk(b, owned, (5.0, 5.0), (15.0, 5.0), locked=True)
+        _trk(b, owned, (20.0, 5.0), (30.0, 5.0), locked=False)
+        _trk(b, other, (5.0, 20.0), (15.0, 20.0), locked=False)
+        p = _save(b)
+        try:
+            owned_rows = cec_fr.locked_copper_keepouts(
+                p, only_nets={"/OWNED"})
+            legacy_rows = cec_fr.locked_copper_keepouts(p)
+        finally:
+            os.unlink(p)
+
+        self.assertTrue(_covers(owned_rows, 10.0, 5.0))
+        self.assertTrue(_covers(owned_rows, 25.0, 5.0),
+                        "owned unlocked copper must remain a foreign obstacle")
+        self.assertTrue(_covers(owned_rows, 40.0, 40.0),
+                        "DSN-excluded owned pads must remain physical obstacles")
+        self.assertFalse(_covers(owned_rows, 10.0, 20.0))
+        self.assertFalse(_covers(owned_rows, 40.0, 30.0))
+        self.assertTrue(_covers(legacy_rows, 10.0, 5.0))
+        self.assertFalse(_covers(legacy_rows, 25.0, 5.0),
+                         "no ownership set retains locked-only semantics")
 
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")

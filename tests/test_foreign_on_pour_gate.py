@@ -131,11 +131,9 @@ class TestForeignOnPourGate(unittest.TestCase):
 class TestForeignOnPourScope(unittest.TestCase):
     def test_shared_bus_boards_are_na(self):
         # 12VHPWR (per-pin off shared J3/J4) packs its lanes with the sense chain by design
-        # -> N/A, identical to high-current-corridor-keepout. NOTE (re-baselined 2026-07-07):
-        # the 24-pin rev3 used to be the second shared-bus exemplar, but the owner's new rev3
-        # PCB (beta D-5a output-daughterboard architecture, J4 dropped) carries REAL per-rail
-        # pour corridors -- the checker legitimately reads it APPLICABLE now; it is asserted
-        # clean in test_new_24pin_rev3_is_applicable_and_clean below.
+        # -> N/A, identical to high-current-corridor-keepout. Current 24-pin
+        # rev3 is separately asserted N/A below because its shared sense-rail
+        # zones are not per-cable high-current corridors.
         tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp)
         checked = 0
@@ -152,15 +150,19 @@ class TestForeignOnPourScope(unittest.TestCase):
         self.assertGreaterEqual(checked, 1, "at least one shared-bus board must be exercised")
 
     @unittest.skipUnless(HAVE and os.path.isfile(ATX), "pcbnew + atx-24pin-rev3 required")
-    def test_new_24pin_rev3_is_applicable_and_clean(self):
-        # The owner's rev3 PCB (2026-07 beta): per-rail J3->shunt->out-field corridors with
-        # actual pours -> the foreign-on-pour gate APPLIES and the committed board is clean.
+    def test_current_24pin_rev3_shared_rails_are_not_per_cable_pours(self):
+        # Current rev3 has intentional shared SENSE12V/5V/3V3 rail zones, not
+        # the retired output-daughterboard's per-cable SENSEC corridors. The
+        # foreign-on-high-current-pour rule is therefore genuinely N/A; do not
+        # reinterpret ordinary sense zones as synthetic corridor slabs merely
+        # to make this checker applicable.
         tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp)
         p = _fresh_copy(ATX, tmp)
         s = K.foreign_on_pour_summary(p)
-        self.assertTrue(s["applicable"])
-        self.assertGreaterEqual(s["n_pours"], 2)
+        self.assertFalse(s["applicable"])
+        self.assertEqual(s["status"], "na")
+        self.assertEqual(s["n_pours"], 0)
         self.assertEqual((s["n_tracks"], s["n_vias"]), (0, 0), s)
 
 

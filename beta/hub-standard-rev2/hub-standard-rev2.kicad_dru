@@ -6,41 +6,32 @@
 # under-width power trace on its own. The track_width (min ...) rule below
 # makes DRC actually catch a hairline on the Power class.
 #
-# Sizing basis (see LAYOUT-GUIDE.md): the 5VSB trunk worst case is ~3A
+# Sizing basis (see LAYOUT-GUIDE.md): the +5VSB trunk worst case is ~3A
 # (4 ports x ~0.5A module + the Hub's own LEDs + MCU, with the firmware LED
-# cap holding the total under the JST-XH / connector rating, OQ-2). The trunk
-# (J1 power-in -> U5 mux -> +5VSB star) carries that full ~3A and is POURED
-# (or routed >=1.5mm at 1oz) -- verified by pour copper area (IPC-2152), NOT by
-# a per-track floor. Each RJ-45 VCC branch carries only one module (~0.5A).
+# cap holding the total under the mezzanine/contact rating, OQ-2). In rev3 the
+# primary path is J6P +5V_SYS -> U7 -> +5VSB; the USB/KVM fallback is
+# J_USB/J_KVM -> U11 -> U7. The selected trunk is POURED (or routed >=1.5mm
+# at 1oz) and is verified from physical board copper, never solver geometry.
+# Each RJ-45 VCC branch carries only one module (~0.5A).
 # The 0.5mm Power floor below is a safety net against accidental hairlines on
 # the distribution, not the trunk sizing mechanism.
 #
-# NOTE (2026-06-04): this rule only bites if the Power netclass actually
-# captures the rail nets. The .kicad_pro netclass patterns were missing the
-# root-sheet "/" prefix, so /5VSB_RAW, /+5V_HOLD and /USB_VBUS silently fell
-# into Default and this rule never fired (DRC read clean while the trunk was
-# 0.4mm). Patterns fixed; with the class applied, DRC now flags the under-width
-# power traces -- /5VSB_RAW (the ~3A trunk: pour or >=1.5mm), plus /USB_VBUS and
-# /+5V_HOLD (raise to >=0.5mm). Clear these in the GUI routing/pour pass; do
-# NOT raise the floor to hide the trunk -- pour the trunk instead.
+# NOTE: hierarchical rail names must remain captured by the Power netclass.
+# Candidate intake and post-route gates verify the class assignment, explicit
+# physical zones, filled copper area, pickup connectivity, and branch width.
 
-# NO width floor on the FLOODED power rails (+5VSB / PSU_5V / MAIN_5V_RAW /
-# USB_VBUS). Same reasoning as the EPS DRU's /SENSEC* exemption: these rails are
-# carried by post-route additive In2 slabs (the 2026-07-23 hub power rung), and a
-# TRACK floor false-flags the thin pickup stubs the flood backs. The rung landed
-# without this rule being updated to match, so the board read 20 track_width
-# ERRORS that are not ampacity faults -- measured floods on the s272 candidate:
-# +5VSB 478mm2, /PSU_5V 238mm2, /MAIN_5V_RAW 87mm2, /USB_VBUS 15mm2 on In2.
-# Ampacity holds without even counting the flood: IPC-2221 puts 0.3mm of 1oz
-# outer copper at ~1.55A, and /USB_VBUS -- the thinnest-flooded and worst-flagged
-# net -- is fused at 1.1A hold by F5. The floor still applies to any other
-# Power-class net, where a track IS the only conductor.
+# The selected-source rails are zone-backed. Their short pad pickup segments
+# are exempt from the generic track-only floor because physical zone coverage
+# is checked separately and fail-closed. An unrouted board, an unfilled zone,
+# solver-only filler, or an isolated/floating zone cannot satisfy that gate.
+# All other Power-class nets retain the 0.5mm track floor.
 (rule "Power min width"
 	(constraint track_width (min 0.5mm))
 	(condition "A.NetClass == 'Power'
 	            && A.NetName != '+5VSB'
-	            && A.NetName != '/PSU_5V'
-	            && A.NetName != '/MAIN_5V_RAW'
+	            && A.NetName != '+5V_SYS'
+	            && A.NetName != '/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM'
+	            && A.NetName != '/KVM_5V_IN'
 	            && A.NetName != '/USB_VBUS'"))
 
 # USB 2.0 Full-Speed pair (ESP32-S3 native USB, GPIO19/20 <-> USB-C J6).
@@ -76,7 +67,7 @@
 # Match only the four drawing-qualified J_USB lands instead of every pad in the
 # connector; because this is hole_clearance it cannot relax copper-to-copper
 # spacing.
-(rule usbc_vendor_land_hole_clearance
+(rule fab_qualified_usbc_vendor_land_hole_clearance
   (condition "(A.memberOfFootprint('J_USB')
                 && A.Pad_Type == 'SMD'
                 && (A.Pad_Number == 'A4' || A.Pad_Number == 'A9'
@@ -92,6 +83,6 @@
 # 3.4x3.0mm optical aperture. Pad copper is 0.30mm from the routed aperture;
 # scope that fab-qualified distance to the six LED lands only. Routed copper
 # gets no exception and is held out by edge_cutout_* route keepouts.
-(rule reverse_led_vendor_aperture_clearance
+(rule fab_qualified_reverse_led_vendor_aperture_clearance
   (condition "A.memberOfFootprint('DL*') || B.memberOfFootprint('DL*')")
   (constraint edge_clearance (min 0.25mm)))

@@ -200,6 +200,31 @@ class ToolFailureGateTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "netlist export failed"):
                     view._export_netlist()
 
+    def test_materialization_reuses_one_valid_process_netlist_export(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sch = os.path.join(directory, "fixture.kicad_sch")
+            with open(sch, "w", encoding="utf-8") as handle:
+                handle.write("(kicad_sch)\n")
+            cfg = S.Config(board="fixture", dir=directory, sch=sch)
+
+            def export(args, **_kw):
+                out = args[args.index("-o") + 1]
+                with open(out, "w", encoding="utf-8") as handle:
+                    handle.write("(export (components))\n")
+                return self._completed(returncode=0)
+
+            with mock.patch.object(S.tempfile, "gettempdir",
+                                   return_value=directory), \
+                    mock.patch.object(S._tc, "kicad_cli",
+                                      return_value="kicad-cli"), \
+                    mock.patch.object(S.subprocess, "run",
+                                      side_effect=export) as run:
+                first = S._ensure_netlist_path(cfg)
+                second = S._ensure_netlist_path(cfg)
+
+            self.assertEqual(first, second)
+            self.assertEqual(run.call_count, 1)
+
     def test_draft_board_does_not_skip_erc(self):
         erc = mock.Mock(return_value={
             "sheets": [{"violations": [{

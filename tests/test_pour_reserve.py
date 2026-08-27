@@ -24,6 +24,7 @@ from cec_slab_pour import (  # noqa: E402
     _mask_rects,
     corridor_masks,
     corridors_to_keepouts,
+    rectilinear_rows_to_rectangles,
     reservation_from_search,
     route_overunder,
 )
@@ -96,6 +97,29 @@ class TestMaskRects(unittest.TestCase):
         self.assertAlmostEqual(x1, 28 * grid.cell)
         self.assertAlmostEqual(y0, 4 * grid.cell)
         self.assertAlmostEqual(y1, 7 * grid.cell)
+
+
+class TestExactReservationRectangles(unittest.TestCase):
+    def test_notched_corridor_is_covered_without_bbox_regression(self):
+        from shapely.geometry import Polygon, box
+        from shapely.ops import unary_union
+
+        source = box(0.0, 0.0, 10.0, 4.0).difference(
+            box(4.0, 0.0, 6.0, 2.0))
+        rows = rectilinear_rows_to_rectangles([{
+            "net": "PWR", "layer": "F.Cu",
+            "x0": 0.0, "y0": 0.0, "x1": 10.0, "y1": 4.0,
+            "polygon": list(source.exterior.coords),
+        }])
+        cover = unary_union([
+            box(row["x0"], row["y0"], row["x1"], row["y1"])
+            for row in rows])
+
+        self.assertLess(cover.symmetric_difference(source).area, 1e-8)
+        self.assertFalse(cover.covers(Polygon([
+            (4.1, 0.1), (5.9, 0.1), (5.9, 1.9), (4.1, 1.9),
+        ])))
+        self.assertGreaterEqual(len(rows), 2)
 
 
 class TestCorridorReservation(unittest.TestCase):

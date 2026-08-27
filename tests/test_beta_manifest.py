@@ -29,6 +29,16 @@ class TestCurrentBetaManifest(unittest.TestCase):
         self.assertFalse(any("candidate" in schematic or "old-revisions" in schematic
                              for _board, _directory, schematic in found))
 
+    def test_standard_main_scope_is_manifest_owned_and_includes_hub(self):
+        self.assertIn("hub-standard-rev2", manifest.STANDARD_MAIN_BOARDS)
+        self.assertEqual(len(manifest.STANDARD_MAIN_BOARDS), 6)
+        found = audit.discover_projects(
+            os.path.join(ROOT, "beta"), boards=manifest.STANDARD_MAIN_BOARDS)
+        self.assertEqual([board for board, _directory, _schematic in found], [
+            board for board in manifest.CURRENT_BETA_BOARDS
+            if board in manifest.STANDARD_MAIN_BOARDS
+        ])
+
     def test_large_current_roots_are_functional_hierarchies(self):
         roots = {
             "hub-standard-rev2": 6,

@@ -2,6 +2,7 @@
 """Physical and electrical teeth for the segmented Hub/24-pin mezzanine."""
 
 import os
+import tempfile
 import sys
 import unittest
 
@@ -14,6 +15,7 @@ except ImportError as exc:  # pragma: no cover
     raise unittest.SkipTest("KiCad pcbnew required") from exc
 
 import cec_constraints as C  # noqa: E402
+import cec_sync_pcb_from_schematic as SYNC  # noqa: E402
 import cec_synth_pipeline as SP  # noqa: E402
 from cec_fresh_wave import MEZZ_HUB_24PIN  # noqa: E402
 
@@ -22,6 +24,8 @@ ATX = os.path.join(ROOT, "beta", "atx-24pin-rev3", "candidate",
                    "atx-24pin-rev3-candidate.kicad_pcb")
 HUB = os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
                    "hub-standard-rev2-candidate.kicad_pcb")
+HUB_SCHEMATIC = os.path.join(ROOT, "beta", "hub-standard-rev2",
+                             "hub-standard-rev2.kicad_sch")
 
 
 class MezzanineContractTest(unittest.TestCase):
@@ -84,6 +88,25 @@ class MezzanineContractTest(unittest.TestCase):
             positions, components, protected={"H1"})
         self.assertEqual(dropped, ())
         self.assertIn("H1", positions)
+
+    def test_schematic_sync_restores_explicit_board_only_ground_lug(self):
+        board = pcbnew.LoadBoard(HUB)
+        lug = next(fp for fp in board.GetFootprints()
+                   if fp.GetReference() == "H1")
+        for pad in lug.Pads():
+            pad.SetNetCode(0)
+        with tempfile.TemporaryDirectory() as td:
+            target = os.path.join(td, "hub.kicad_pcb")
+            pcbnew.SaveBoard(target, board)
+            report = SYNC.synchronize(
+                HUB_SCHEMATIC, target,
+                extra_pad_nets={("H1", "1"): "GND"})
+            synced = pcbnew.LoadBoard(target)
+            synced_lug = next(fp for fp in synced.GetFootprints()
+                              if fp.GetReference() == "H1")
+            self.assertEqual(report["pads_reassigned"], 9)
+            self.assertTrue(all(pad.GetNetname() == "GND"
+                                for pad in synced_lug.Pads()))
 
 
 if __name__ == "__main__":

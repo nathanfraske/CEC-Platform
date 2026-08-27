@@ -1,5 +1,9 @@
 # Blade slot deck — module docking field
 
+> **STOP WORK — mandatory gate (2026-08-10).** This design must not advance or
+> be fabricated until `docs/tester-stop-work-reconciliation-gate-2026-08-10.md`
+> is explicitly released.
+
 DRAFT — no schematic yet. Design basis: sketch §12 (slot-in bundles),
 scripts/check_output_daughterboards.py (keying proofs — EXTEND to this board),
 blade-fit-check-2026-07-04.md addenda (the authoritative per-family mating

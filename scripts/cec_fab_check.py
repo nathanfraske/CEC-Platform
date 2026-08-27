@@ -30,6 +30,7 @@ import argparse
 import collections
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -70,6 +71,7 @@ PROFILES = {
         "min_drill": 0.20,
         "min_via_diameter": 0.45,
         "min_hole_to_hole": 0.50,    # different nets, centre-to-centre edge gap
+        "min_hole_clearance": 0.20,  # copper land/track to drilled hole edge
         "min_copper_edge": 0.20,
         "min_silk_width": 0.15,
         "min_sliver": 0.10,          # copper/mask sliver a process can hold
@@ -78,21 +80,44 @@ PROFILES = {
 }
 
 
-def profile_rules(prof, copper_oz):
-    """The binding numbers for this copper weight."""
+def profile_rules(prof, copper_oz, process_profile=None):
+    """Return the binding fab numbers for copper and assembly process.
+
+    ``prof`` describes the vendor's ordinary subtractive process.  A board
+    may additionally declare an assembly process such as filled-and-capped
+    via-in-pad.  Treating every such board as ordinary through-hole work made
+    the independent checker reject geometry that its selected process exists
+    to fabricate.  The overlay is deliberately data-driven and is activated
+    only by a known fabrication profile.
+    """
     k = "2oz" if copper_oz >= 2 else "1oz"
-    return {
+    rules = {
         "track": prof["min_track_%s" % k],
         "clearance": prof["min_clearance_%s" % k],
         "annular": prof["min_annular"],
         "drill": prof["min_drill"],
         "via": prof["min_via_diameter"],
         "h2h": prof["min_hole_to_hole"],
+        "hole_clearance": prof["min_hole_clearance"],
         "edge": prof["min_copper_edge"],
         "silk": prof["min_silk_width"],
         "sliver": prof["min_sliver"],
         "aspect": prof["max_plated_aspect"],
     }
+    if isinstance(process_profile, str):
+        process_profile = cec_fab.get_profile(process_profile)
+    if process_profile and process_profile.get("pofv"):
+        preferred = cec_fab.preferred_pofv_geometry(process_profile)
+        if not preferred:
+            raise ValueError("POFV profile has no valid preferred geometry")
+        diameter, _preferred_drill = preferred
+        rules.update({
+            "annular": float(process_profile["pofv_annular_min_mm"]),
+            "drill": float(process_profile["pofv_drill_min_mm"]),
+            "via": float(diameter),
+            "h2h": float(process_profile["pofv_hole_to_hole_min_mm"]),
+        })
+    return rules
 
 
 def board_outer_copper_oz(board_path):
@@ -105,7 +130,93 @@ def board_outer_copper_oz(board_path):
     return cec_fab.stackup_oz(name)["F.Cu"]
 
 
-def write_fab_dru(path, r):
+QUALIFIED_RULE_PREFIX = "fab_qualified_"
+QUALIFIED_CONSTRAINTS = {
+    "clearance", "hole_clearance", "edge_clearance",
+    "physical_clearance", "solder_mask_clearance", "silk_clearance",
+}
+
+
+def extract_qualified_fab_rules(dru_path):
+    """Extract explicitly named, footprint-scoped manufacturer exceptions.
+
+    The fab audit intentionally replaces ordinary board intent rules.  A
+    vendor land can nevertheless require a drawing-qualified exception (for
+    example, an SMD land beside its own locating NPTH).  Import only rules
+    using the public ``fab_qualified_`` convention, with an explicit condition,
+    footprint scope, and a clearance-family constraint.  Broad or unrelated
+    design exceptions never cross this boundary.
+    """
+    if not dru_path or not os.path.isfile(dru_path):
+        return []
+    with open(dru_path, encoding="utf-8", errors="replace") as source:
+        text = source.read()
+    blocks = []
+    index = 0
+    while True:
+        start = text.find("(rule", index)
+        if start < 0:
+            break
+        depth = 0
+        quote = False
+        escape = False
+        end = None
+        for cursor in range(start, len(text)):
+            char = text[cursor]
+            if quote:
+                if escape:
+                    escape = False
+                elif char == "\\":
+                    escape = True
+                elif char == '"':
+                    quote = False
+                continue
+            if char == '"':
+                quote = True
+            elif char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0:
+                    end = cursor + 1
+                    break
+        if end is None:
+            break
+        block = text[start:end]
+        index = end
+        header = block[len("(rule"):].lstrip()
+        if header.startswith('"'):
+            name = header[1:].split('"', 1)[0]
+        else:
+            name = header.split(None, 1)[0].rstrip(")")
+        if not name.startswith(QUALIFIED_RULE_PREFIX):
+            continue
+        if "(condition" not in block or "memberOfFootprint" not in block:
+            continue
+        constraints = set()
+        marker = "(constraint "
+        offset = 0
+        while True:
+            at = block.find(marker, offset)
+            if at < 0:
+                break
+            token = block[at + len(marker):].split(None, 1)[0]
+            constraints.add(token.rstrip(")"))
+            offset = at + len(marker)
+        if not constraints or not constraints.issubset(QUALIFIED_CONSTRAINTS):
+            continue
+        minima = {
+            match.group(1): float(match.group(2))
+            for match in re.finditer(
+                r"\(constraint\s+(\w+)\s+\(min\s+([0-9.]+)mm",
+                block)
+        }
+        blocks.append({"name": name, "text": block,
+                       "minima": minima})
+    return blocks
+
+
+def write_fab_dru(path, r, *, qualified_rules=()):
     """A .kicad_dru encoding the FAB's limits, not ours."""
     with open(path, "w") as fh:
         fh.write(
@@ -113,7 +224,16 @@ def write_fab_dru(path, r):
             "# GENERATED by cec_fab_check -- a FAB HOUSE capability profile.\n"
             "# This deliberately replaces the board's own intent rules: the\n"
             "# question here is not 'does it meet our spec' but 'can it be\n"
-            "# built'. Do not commit this beside a board.\n"
+            "# built'. Do not commit this beside a board.\n")
+        # KiCad applies the first matching custom constraint.  Put qualified
+        # footprint rules ahead of the global fab floor so their deliberately
+        # narrow manufacturer-land condition can win for those items only.
+        for row in qualified_rules or ():
+            fh.write(
+                "\n# Board-local manufacturer-land exception admitted by "
+                "the fab_qualified_ contract.\n")
+            fh.write(str(row["text"]).rstrip() + "\n")
+        fh.write(
             '(rule "fab min track"\n'
             "\t(constraint track_width (min %smm)))\n"
             '(rule "fab min clearance"\n'
@@ -124,12 +244,14 @@ def write_fab_dru(path, r):
             "\t(constraint hole_size (min %smm)))\n"
             '(rule "fab hole to hole"\n'
             "\t(constraint hole_to_hole (min %smm)))\n"
+            '(rule "fab copper to hole"\n'
+            "\t(constraint hole_clearance (min %smm)))\n"
             '(rule "fab copper to edge"\n'
             "\t(constraint edge_clearance (min %smm)))\n"
             '(rule "fab silk width"\n'
             "\t(constraint text_thickness (min %smm)))\n"
             % (r["track"], r["clearance"], r["annular"], r["drill"],
-               r["h2h"], r["edge"], r["silk"]))
+               r["h2h"], r["hole_clearance"], r["edge"], r["silk"]))
 
 
 def run_fab_drc(board_path, r):
@@ -141,7 +263,39 @@ def run_fab_drc(board_path, r):
         pro = os.path.splitext(board_path)[0] + ".kicad_pro"
         if os.path.exists(pro):
             shutil.copyfile(pro, base + ".kicad_pro")
-        write_fab_dru(base + ".kicad_dru", r)
+        source_dru = os.path.splitext(board_path)[0] + ".kicad_dru"
+        qualified_rules = extract_qualified_fab_rules(source_dru)
+        # KiCad takes the stricter of board-setup minima and custom rules.
+        # Merely writing a process-specific DRU therefore left a stale 0.50 mm
+        # ordinary-via floor in force.  Normalize the disposable audit copy to
+        # exactly the same resolved fab contract before invoking the geometry
+        # engine; the source board is never modified.
+        import pcbnew
+        audit_board = pcbnew.LoadBoard(base + ".kicad_pcb")
+        if audit_board is None:
+            raise RuntimeError("KiCad could not load temporary fab board")
+        settings = audit_board.GetDesignSettings()
+        settings.m_TrackMinWidth = pcbnew.FromMM(r["track"])
+        settings.m_MinClearance = pcbnew.FromMM(r["clearance"])
+        settings.m_ViasMinSize = pcbnew.FromMM(r["via"])
+        settings.m_MinThroughDrill = pcbnew.FromMM(r["drill"])
+        settings.m_ViasMinAnnularWidth = pcbnew.FromMM(r["annular"])
+        settings.m_HoleToHoleMin = pcbnew.FromMM(r["h2h"])
+        # Board-setup minima are an independent lower bound beneath custom
+        # rules.  Lower only the disposable copy to the smallest explicitly
+        # qualified footprint floor; the unconditional fab rule below still
+        # enforces the ordinary value everywhere else.
+        qualified_hole_floor = min(
+            [float(r["hole_clearance"])] + [
+                float((row.get("minima") or {}).get(
+                    "hole_clearance", r["hole_clearance"]))
+                for row in qualified_rules])
+        settings.m_HoleClearance = pcbnew.FromMM(qualified_hole_floor)
+        settings.m_CopperEdgeClearance = pcbnew.FromMM(r["edge"])
+        settings.m_MinSilkTextThickness = pcbnew.FromMM(r["silk"])
+        pcbnew.SaveBoard(base + ".kicad_pcb", audit_board)
+        write_fab_dru(
+            base + ".kicad_dru", r, qualified_rules=qualified_rules)
         out = os.path.join(work, "drc.json")
         subprocess.run(
             ["kicad-cli", "pcb", "drc", "--severity-error", "--format", "json",
@@ -310,9 +464,18 @@ def artifact_scan(board_path, r):
 
 def check(board_path, prof_key, copper_oz, do_artifacts=True):
     prof = PROFILES[prof_key]
-    r = profile_rules(prof, copper_oz)
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    if board is None:
+        return {"board": os.path.relpath(board_path),
+                "profile": prof["name"],
+                "error": "KiCad could not load board"}
+    process_name = cec_fab.board_profile_name(board)
+    process_profile = cec_fab.get_profile(process_name) if process_name else None
+    r = profile_rules(prof, copper_oz, process_profile)
     viol, unconn = run_fab_drc(board_path, r)
     rep = {"board": os.path.relpath(board_path), "profile": prof["name"],
+           "fabrication_profile": process_name,
            "copper_oz": copper_oz, "rules": r}
     if viol is None:
         rep["error"] = "DRC did not produce a report"
@@ -329,6 +492,23 @@ def check(board_path, prof_key, copper_oz, do_artifacts=True):
     return rep
 
 
+def blocking_count(rep):
+    """Return the number of fabrication blockers in a completed report.
+
+    Every artifact class detected by this checker is a manufacturing gate,
+    including acute copper notches.  Treat an unavailable artifact scan as a
+    blocker too; reporting ``FAB OK`` after the independent artifact authority
+    crashed is a fail-open result.
+    """
+    if rep.get("error") or rep.get("artifact_error"):
+        return 1
+    return (int(rep.get("drc_total", 0))
+            + len(rep.get("slivers") or ())
+            + len(rep.get("islands") or ())
+            + len(rep.get("drill_aspect") or ())
+            + len(rep.get("acid_traps") or ()))
+
+
 def summarise(rep):
     if "error" in rep:
         return "%-46s ERROR %s" % (os.path.basename(rep["board"])[:46], rep["error"])
@@ -336,7 +516,7 @@ def summarise(rep):
     n_i = len(rep.get("islands", []))
     n_a = len(rep.get("acid_traps", []))
     n_d = len(rep.get("drill_aspect", []))
-    blocking = rep["drc_total"] + n_s + n_i + n_d
+    blocking = blocking_count(rep)
     return ("%-46s fab_drc=%-4d unconn=%-4d slivers=%-3d islands=%-3d "
             "drill_aspect=%-3d acid_traps=%-3d %s"
             % (os.path.basename(rep["board"])[:46], rep["drc_total"],
@@ -370,8 +550,7 @@ def main():
         rep = check(bp, a.profile, copper_oz, not a.no_artifacts)
         reps.append(rep)
         print(summarise(rep), flush=True)
-        if (rep.get("drc_total", 0) or rep.get("slivers") or rep.get("islands")
-                or rep.get("drill_aspect")):
+        if blocking_count(rep):
             bad += 1
         if not a.quiet:
             for k, n in sorted((rep.get("drc") or {}).items(), key=lambda kv: -kv[1]):

@@ -45,7 +45,7 @@ fi
 # FR-version aware (FR-01): FR 1.x needs java 17+; FR 2.2.x is compiled for java 25.
 # On Linux with an older java, cec_fr falls back automatically to the hash-pinned
 # official jpackage app-image (bundled JRE 25), so java<25 is a note there, not a failure.
-FRV="${CEC_FR_VERSION:-1.7.0-cec2}"
+FRV="${CEC_FR_VERSION:-1.7.0-cec3}"
 case "$FRV" in 1.*) jneed=17 ;; *) jneed=25 ;; esac
 if command -v java >/dev/null 2>&1; then
   jver="$(java -version 2>&1 | head -1)"

@@ -32,7 +32,7 @@
 # whole framework runs end-to-end with no LLM (reproducible + testable). The tiered LLM
 # realisation plugs sub-agent verdicts into those same callable slots -- see
 # make_subagent_policy() and scripts/README-cec_pcb.md ("automated routing system").
-import os, re, sys, json, time, shutil, copy, tempfile
+import os, re, sys, json, time, shutil, copy, tempfile, contextlib
 from dataclasses import dataclass, field, asdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -78,6 +78,7 @@ class Spec:
     board: str                                       # floorplan .kicad_pcb (input; never overwritten)
     out: str                                         # where the routed candidate is written
     rules: object = None                             # cec_score.Rules (default: from_board)
+    source_schematic: str = ""                       # canonical hierarchy root for generated boards
     netclasses: list = field(default_factory=list)   # [(name, track, via_d, via_dr, prio, kw...)] for cec_pcb.netclass
     patterns: list = field(default_factory=list)     # [(netclass, pattern)...]
     dru_rules: list = field(default_factory=list)    # [(name, constraint, condition)...] for cec_pcb.write_dru
@@ -88,6 +89,8 @@ class Spec:
     max_workers: object = None                       # parallel FR workers (None = min(seeds, nproc))
     opt_spread: int = 0                              # >0: sweep FR opt_time from this floor -> opt_time across seeds
     seeds: tuple = (0, 1, 2)
+    precision: bool = False                          # pre-route locked Kelvin/pair copper
+    precision_pair_grid: bool = False                # obstacle-aware coupled-pair A* tier
     power_pours: list = field(default_factory=list)  # additive same-net high-current pours laid
                                                      # AFTER each FR route (see cec_fr.add_power_pours);
                                                      # [] = none. Each: {net, polygon[(x,y) mm], layer?, ...}
@@ -138,6 +141,10 @@ class DecisionLog:
         return {"drc": m.drc, "unconnected": m.unconnected, "tracks": m.tracks, "vias": m.vias,
                 "length": round(m.length, 2), "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
                 "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass,
+                "route_quality": {
+                    key: ((getattr(m, "detail", {}) or {}).get(
+                        "route_quality") or {}).get(key, 0)
+                    for key in ("issue_count", "blocking_count", "advisory_count")},
                 # R-02: the violation-type breakdown rides the same DRC run as the metrics
                 "drc_types": getattr(m, "drc_types", {}),
                 # FR-04 plane-carving finding: mm of signal copper on a ground/power plane layer
@@ -198,6 +205,100 @@ def _persist_iteration_best(spec, region, iteration, best, scored):
         handle.write("\n")
     os.replace(metrics_tmp, metrics_out)
     return board_out
+
+
+def _refine_selected_lastmile(board_path, rules, *, verbose=False,
+                              include_nets=None):
+    """Spend expanded guarded last-mile effort once, on the selected route.
+
+    Parallel Freerouting candidates already receive
+    ``CEC_LASTMILE_ATTEMPTS`` during import.  Dense boards can opt into a
+    larger ``CEC_LASTMILE_FINAL_ATTEMPTS`` budget without multiplying that
+    expensive search by every worker. ``include_nets`` optionally isolates an
+    exact residual-net group so independent high-budget hypotheses can be
+    evaluated in parallel without repeatedly searching unrelated failures.
+    The refined artifact is adopted only
+    when it closes at least one connection, introduces no DRC regression, and
+    preserves the Kelvin/differential-pair gates.
+    """
+    final_attempts = int(os.environ.get("CEC_LASTMILE_FINAL_ATTEMPTS", "0") or 0)
+    candidate_attempts = int(os.environ.get("CEC_LASTMILE_ATTEMPTS", "4") or 4)
+    if final_attempts <= candidate_attempts:
+        return {"enabled": False, "reason": "no expanded final budget"}
+
+    import pcbnew
+
+    before = cec_score.score(board_path, rules)
+    stem = (board_path[:-len(".kicad_pcb")]
+            if board_path.endswith(".kicad_pcb") else board_path)
+    trial = stem + "-lastmile-refine.kicad_pcb"
+    shutil.copy2(board_path, trial)
+    cec_fr.copy_project_sidecars(board_path, trial)
+    report = {"enabled": True, "candidate_attempts": candidate_attempts,
+              "final_attempts": final_attempts, "before_unconnected": before.unconnected,
+              "before_drc": before.drc, "adopted": False}
+    if include_nets is not None:
+        report["include_nets"] = sorted(str(net) for net in include_nets)
+    try:
+        board = pcbnew.LoadBoard(trial)
+        board.BuildConnectivity()
+        result = cec_fr.synthesize_lastmile(
+            board,
+            max_mm=float(os.environ.get("CEC_LASTMILE_MAX_MM", "5.0")),
+            netclass_resolver=cec_fr._project_netclass_resolver(trial),
+            attempts_per_pair=final_attempts,
+            include_nets=include_nets,
+            maze_max_mm=float(os.environ.get(
+                "CEC_LASTMILE_MAZE_MAX_MM", "5.0")))
+        report["result"] = result
+        if not result.get("closed"):
+            report["reason"] = "expanded search closed no additional gap"
+            return report
+        cec_fr.normalize_netclass_geometry(board, trial)
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        pcbnew.SaveBoard(trial, board)
+        cec_fr.ensure_unique_board_file_uuids(trial)
+        after = cec_score.score(trial, rules)
+        report.update({"after_unconnected": after.unconnected,
+                       "after_drc": after.drc,
+                       "kelvin_ok": after.kelvin_ok,
+                       "diffpair_ok": after.diffpair_ok})
+        safe = (after.unconnected < before.unconnected
+                and after.drc <= before.drc
+                and (not before.kelvin_ok or after.kelvin_ok)
+                and (not before.diffpair_ok or after.diffpair_ok))
+        if not safe:
+            report["reason"] = "refinement failed no-regression adoption gate"
+            return report
+        shutil.copy2(trial, board_path)
+        cec_fr.copy_project_sidecars(trial, board_path)
+        report["adopted"] = True
+        report["reason"] = "additional guarded gaps closed"
+        if verbose:
+            print("[route] selected-board lastmile refinement: "
+                  f"unconn {before.unconnected}->{after.unconnected}, "
+                  f"drc {before.drc}->{after.drc} (adopted)")
+        return report
+    except Exception as exc:                             # noqa: BLE001
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        report["reason"] = "refinement error; original retained"
+        if verbose:
+            print("[route] selected-board lastmile refinement skipped "
+                  f"({report['error']})")
+        return report
+    finally:
+        for path in [trial,
+                     stem + "-lastmile-refine.kicad_pro",
+                     stem + "-lastmile-refine.kicad_dru",
+                     stem + "-lastmile-refine.kicad_prl",
+                     stem + "-lastmile-refine.pourplan.json",
+                     stem + "-lastmile-refine.railreport.json"]:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 # ---- corpus archive --------------------------------------------------------------------------
@@ -458,6 +559,10 @@ def default_planner(board, spec):
     # connectors/mounts). CEC_NO_EDGE_KEEPOUT=1 disables.
     if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
         hints += cec_fr.edge_keepout(board)
+    # Global fiducials carry local copper-clearance and optical working-field
+    # requirements that Specctra/FR does not preserve for no-net pads.  Reserve
+    # their real courtyard on the owning outer layer before every route wave.
+    hints += cec_fr.fiducial_keepouts(board)
     return Plan(regions=[Region(name="all", nets=[], hints=hints)], contracts=[])
 
 
@@ -613,7 +718,9 @@ def targeted_repair(board_path, *, tier="worker"):
         y = round(src["pos"]["y"], 3)
         nets = [n for n in re.findall(r"\[([^\]]+)\]", descs) if n not in ("", "<no net>")]
         is_part = ("courtyard" in descs.lower()) or ("Pad" in descs and refs)
-        if is_part and refs:                            # part conflict -> MANAGER-tier nudge
+        assembly_fixed = any(ref.upper().startswith(("FID", "H", "MK"))
+                             for ref in refs)
+        if is_part and refs and not assembly_fixed:     # part conflict -> MANAGER-tier nudge
             if tier != "manager":
                 continue
             return {"type": "place_nudge", "ref": sorted(set(refs))[0], "delta": (0.4, 0.4),
@@ -938,7 +1045,7 @@ def _vital_keepouts_from_rules(board, rules):
                                     layers=layers)
 
 
-def _candidate_pool(cands, rules, weights):
+def _candidate_pool(cands, rules, weights, protected_contract=None):
     """Score ok candidates, sort best-first by (gates_pass desc, objective asc).
     Content-hash dedupe BEFORE scoring (R-01 adjunct): FR is deterministic, so identical
     params yield byte-identical boards; scoring (a full DRC) is the expensive step.
@@ -953,6 +1060,21 @@ def _candidate_pool(cands, rules, weights):
     for c in cands:
         if not (c.ok and c.board):
             continue
+        if protected_contract:
+            try:
+                actual = cec_fr.copper_geometry_signature(
+                    c.board, protected_contract.get("nets") or ())
+            except Exception as exc:                       # noqa: BLE001
+                c.ok = False
+                c.err = "critical copper verification failed: %s: %s" % (
+                    type(exc).__name__, exc)
+                continue
+            if actual.get("sha256") != protected_contract.get("sha256"):
+                c.ok = False
+                c.err = ("critical copper ownership changed: expected %s got %s"
+                         % (protected_contract.get("sha256"),
+                            actual.get("sha256")))
+                continue
         h = _tc.sha256_file(c.board)
         if h in seen:
             scored.append((c, seen[h]))     # reuse the duplicate's metrics, skip the DRC
@@ -976,6 +1098,61 @@ def _candidate_pool(cands, rules, weights):
             m.detail["via_on_pad"] = {
                 "error": "%s: %s" % (type(exc).__name__, exc)}
             m.gates_pass = False
+        try:
+            # Pair quality is a release constraint, so it must participate in
+            # candidate selection rather than first appearing after the final
+            # merge. Otherwise the loop repeatedly chose the fewest-ratline Hub
+            # route even when a sibling had materially better USB skew,
+            # coupling, reference coverage, or transition-via symmetry.
+            import cec_constraints
+            pair = cec_constraints.high_speed_pair_summary(c.board)
+            m.detail["high_speed_pair"] = pair
+            if pair.get("applicable") and not pair.get("ok"):
+                m.gates_pass = False
+        except Exception as exc:                           # noqa: BLE001
+            m.detail["high_speed_pair"] = {
+                "applicable": True, "ok": False,
+                "error": "%s: %s" % (type(exc).__name__, exc),
+                "violations": ["checker unavailable"]}
+            m.gates_pass = False
+        try:
+            # Clearance DRC is blind to field coupling.  Fold the same generic
+            # aggressor/victim geometry authority used at final release into
+            # candidate selection, otherwise the swarm preferentially keeps a
+            # short route that has a long switch-node/sense-line broadside run
+            # and discovers the EMC failure only after the wave is over.
+            import cec_field_coupling
+            field = cec_field_coupling.field_coupling_summary(c.board)
+            m.detail["field_coupling"] = field
+            if field.get("applicable") and not field.get("ok"):
+                m.gates_pass = False
+        except Exception as exc:                           # noqa: BLE001
+            m.detail["field_coupling"] = {
+                "applicable": True, "ok": False,
+                "error": "%s: %s" % (type(exc).__name__, exc),
+                "violations": ["checker unavailable"]}
+            m.gates_pass = False
+        external = []
+        vop_detail = m.detail.get("via_on_pad", {})
+        if "error" in vop_detail:
+            external.append("via-on-pad checker failed: %s" % vop_detail["error"])
+        elif int(vop_detail.get("same_net", 0)) or int(vop_detail.get("diff_net", 0)):
+            external.append(
+                "via-on-pad: %d same-net and %d different-net overlap(s)" %
+                (int(vop_detail.get("same_net", 0)),
+                 int(vop_detail.get("diff_net", 0))))
+        pair_detail = m.detail.get("high_speed_pair", {})
+        if pair_detail.get("applicable") and not pair_detail.get("ok"):
+            external.extend(pair_detail.get("violations") or [
+                "high-speed-pair checker failed: %s" %
+                pair_detail.get("error", "unknown error")])
+        field_detail = m.detail.get("field_coupling", {})
+        if field_detail.get("applicable") and not field_detail.get("ok"):
+            external.extend(field_detail.get("violations") or [
+                "field-coupling checker failed: %s" %
+                field_detail.get("error", "unknown error")])
+        if external:
+            m.detail["external_gate_reasons"] = external
         seen[h] = m
         scored.append((c, m))
     def _key(cm):
@@ -983,7 +1160,14 @@ def _candidate_pool(cands, rules, weights):
         vop = m.detail.get("via_on_pad", {})
         faults = (int(vop.get("same_net", 0)) + int(vop.get("diff_net", 0))
                   if "error" not in vop else 10**9)
-        return (0 if m.gates_pass else 1, faults,
+        pair = m.detail.get("high_speed_pair", {})
+        pair_faults = (len(pair.get("violations") or ())
+                       if "error" not in pair else 10**9)
+        field = m.detail.get("field_coupling", {})
+        field_faults = (len(field.get("violations") or ())
+                        if "error" not in field else 10**9)
+        return (0 if m.gates_pass else 1, faults, int(m.unconnected),
+                pair_faults, field_faults,
                 cec_score.objective(m, weights))
 
     scored.sort(key=_key)
@@ -1048,6 +1232,7 @@ def independent_drc(final, rules, *, weights=None):
     verdict = {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
                "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
                "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
+               "route_quality": m.detail.get("route_quality", {}),
                "objective": round(cec_score.objective(m, weights), 2)}
     # VIA-ON-PAD gate (cec_constraints.via_on_pad_summary): a via whose copper overlaps a pad is a
     # fault KiCad DRC does NOT flag by default -- SAME-net = via-in-pad (needs tent/fill), DIFF-net =
@@ -1182,6 +1367,27 @@ def independent_drc(final, rules, *, weights=None):
             "error": "%s: %s" % (type(_e).__name__, _e)}
         verdict["gates_pass"] = False
         reasons.append("actual laid-pour incursion gate crashed (fail-closed): %s: %s"
+                       % (type(_e).__name__, _e))
+
+    # Routed electromagnetic field-coupling gate.  KiCad DRC cannot see a
+    # legal-clearance switch-node trace running alongside a sense line, nor
+    # can a stackup label prove that the copper between two layers is an
+    # unbroken shield.  Preserve the complete interaction evidence in the
+    # independent verdict and fail closed if the checker itself is unavailable.
+    try:
+        import cec_field_coupling
+        field = cec_field_coupling.field_coupling_summary(final)
+        verdict["field_coupling"] = field
+        if field.get("applicable") and not field.get("ok"):
+            verdict["gates_pass"] = False
+            reasons.extend(reason for reason in field.get("violations", ())
+                           if reason not in reasons)
+    except Exception as _e:                              # noqa: BLE001
+        verdict["field_coupling"] = {
+            "applicable": True, "ok": False,
+            "error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("field-coupling gate crashed (fail-closed): %s: %s"
                        % (type(_e).__name__, _e))
 
     # Aggregate EVERY ratified deterministic hard/strong constraint. The older
@@ -1431,6 +1637,11 @@ def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_pro
             hints = list(hints) + cec_fr.edge_keepout(base)
         except Exception:                                    # noqa: BLE001
             pass
+        # Keep the assembly-fiducial optical/clearance field in the precision
+        # corridor reroute too.  The no-net fiducial pad's local clearance is
+        # not represented in Specctra, so omitting this after pass 1 can
+        # reintroduce a KiCad-only DRC failure beside an otherwise clean route.
+        hints = list(hints) + cec_fr.fiducial_keepouts(base)
         hinted = os.path.join(wd, "hinted.kicad_pcb")
         cec_fr.bake_hints(base, hinted, keepouts=hints, copy_pro=True)
 
@@ -1558,7 +1769,9 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     if os.environ.get("CEC_SKIP_INTAKE") != "1":
         try:
             import cec_constraints
-            gate = cec_constraints.intake_gate(board0)
+            intake_ctx = ({"sch": spec.source_schematic}
+                          if spec.source_schematic else None)
+            gate = cec_constraints.intake_gate(board0, intake_ctx)
         except Exception as e:
             raise RuntimeError("route intake gate failed closed: %s: %s"
                                % (type(e).__name__, e)) from e
@@ -1579,7 +1792,210 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     rules = spec.rules or cec_score.Rules.from_board(board0)
     spec_to_dru(spec)                                    # rules the candidates + DRC will see
     log = DecisionLog()
-    plan = planner(board0, spec)
+    route_base = board0
+    # Locked copper is an executable ownership contract even when a caller did
+    # not request a fresh precision synthesis pass.  Materialization can already
+    # have completed pair, Kelvin, bypass, and connector-local cells.  FR 1.7.0
+    # may discard plain ``fix`` wires unless their nets are explicitly promoted
+    # to ``protect``; starting from an empty list here made protection depend on
+    # the route entry point instead of the board artifact itself.
+    try:
+        preowned_nets = set(cec_fr.owned_locked_nets(board0))
+    except Exception as exc:                              # noqa: BLE001
+        raise RuntimeError("locked-copper ownership intake failed closed: %s: %s"
+                           % (type(exc).__name__, exc)) from exc
+    protect_nets = tuple(sorted(preowned_nets))
+    skip_locked_taps = bool(preowned_nets)
+    if spec.precision:
+        # Precision copper must be part of every region's base board, protected
+        # in every spawned Freerouting worker, and retained by the final serial
+        # merge.  The older route_oracle_grade path already had this discipline;
+        # the production route() loop previously bypassed it entirely.
+        import cec_precision_route
+        route_base = os.path.join(work_dir, "precision-base.kicad_pcb")
+        try:
+            precision_report = cec_precision_route.precision_route(
+                board0, route_base, verbose=verbose,
+                pair_grid=spec.precision_pair_grid)
+        except Exception as exc:
+            raise RuntimeError("precision pre-route failed closed: %s: %s"
+                               % (type(exc).__name__, exc)) from exc
+        protect_nets = tuple(sorted(
+            preowned_nets | set(precision_report.get("locked_nets") or ())))
+        skip_locked_taps = (skip_locked_taps
+                            or bool(precision_report.get("n_locked_segments")))
+        if verbose:
+            routed_pairs = len((precision_report.get("pairs") or {}).get("routed") or ())
+            refused_pairs = len((precision_report.get("pairs") or {}).get("refused") or ())
+            print("[route] precision base: %d locked segment(s), %d protected net(s), "
+                  "pairs routed=%d refused=%d" % (
+                      precision_report.get("n_locked_segments", 0), len(protect_nets),
+                      routed_pairs, refused_pairs))
+        # A deterministic pair may refuse a geometrically blocked placement.
+        # Do not throw that important net into the ordinary residual soup. Give
+        # only the refused pair(s) a high-effort, uncontended staged-FR pass,
+        # protect the result, and require the independent pair-physics gate to
+        # pass before any general routing is allowed to start.
+        refused = [row for row in
+                   (precision_report.get("pairs") or {}).get("refused", ())
+                   if row.get("p") and row.get("n")]
+        if refused:
+            import cec_pair_fallback
+            tier_groups = [sorted({row["p"], row["n"]})
+                           for row in refused]
+            tier_nets = sorted({net for group in tier_groups for net in group})
+            effort_passes = max(
+                [16] + [int(region.fr_params.get("passes", 0) or 0)
+                        for region in (spec.regions or ())])
+            effort_opt = max(
+                [30] + [int(region.fr_params.get("opt_time", 0) or 0)
+                        for region in (spec.regions or ())])
+            effort_timeout = max(
+                [900] + [int(region.fr_params.get("timeout", 0) or 0)
+                         for region in (spec.regions or ())])
+            fallback = cec_pair_fallback.route_atomic_pairs(
+                route_base, work_dir, tier_groups=tier_groups,
+                passes=effort_passes, opt=effort_opt,
+                timeout=effort_timeout, verbose=verbose,
+                pre_locked_nets=protect_nets,
+                hints=[hint for region in (spec.regions or ())
+                       for hint in (region.hints or ())],
+                skip_locked_taps=skip_locked_taps,
+                seed=(spec.seeds[0] if spec.seeds else 0),
+                artifact_prefix="critical-tier-base")
+            if not fallback.get("ok"):
+                raise RuntimeError(
+                    "critical staged fallback failed pair-physics gate: %s"
+                    % fallback.get("error", "unknown failure"))
+            route_base = fallback["board"]
+            protect_nets = tuple(sorted(set(protect_nets) | set(tier_nets)))
+            skip_locked_taps = True
+            precision_report["staged_fallback"] = fallback
+    elif protect_nets and verbose:
+        print("[route] protected base: %d fully-owned locked net(s); "
+              "fresh precision synthesis disabled" % len(protect_nets))
+    # Board-declared functional criticality is the second precision tier.
+    # Pair/impedance and power-width rules cannot tell that a nominally slow
+    # comparator/interlock/reset net is safety-critical.  The placement policy
+    # therefore exports explicit selectors. Prove their launches on the
+    # uncontended board, route them alone at elevated effort, require complete
+    # connectivity with no structural-DRC regression, and only then expose the
+    # remaining nets to the general router.
+    critical_route_priority = {"enabled": False, "selectors": []}
+    declared_critical_nets = set()
+    raw_critical = os.environ.get("CEC_CRITICAL_ROUTE_NETS_JSON", "").strip()
+    if raw_critical:
+        import cec_route_preflight
+        import cec_staged_fr
+
+        try:
+            selectors = json.loads(raw_critical)
+            if not isinstance(selectors, list):
+                raise TypeError("critical-route selector payload must be a list")
+        except Exception as exc:                           # noqa: BLE001
+            raise RuntimeError("critical-route policy is invalid: %s: %s"
+                               % (type(exc).__name__, exc)) from exc
+        preflight = cec_route_preflight.analyze(
+            route_base, iters=0, run_congestion=False,
+            critical_nets=selectors)
+        evidence = cec_route_preflight.compact_placement_evidence(preflight)
+        declaration = ((preflight.get("criticality") or {})
+                       .get("declaration") or {})
+        if not declaration.get("ok"):
+            raise RuntimeError(
+                "critical-route selectors failed closed: unresolved=%s ambiguous=%s"
+                % (declaration.get("unresolved"),
+                   declaration.get("ambiguous")))
+        if evidence.get("critical_pair_refused_count", 0):
+            raise RuntimeError(
+                "critical-route placement refused its precision pair(s): %s"
+                % ((preflight.get("critical_routes") or {})
+                   .get("refused")))
+        if evidence.get("critical_pin_access_blocked_count", 0):
+            blocked = [row for row in
+                       ((preflight.get("pin_access") or {}).get("blocked") or ())
+                       if row.get("critical")]
+            raise RuntimeError(
+                "critical-route placement has %d blocked launch pad(s): %s"
+                % (evidence["critical_pin_access_blocked_count"],
+                   [(row.get("ref"), row.get("pad"), row.get("net"))
+                    for row in blocked[:8]]))
+        declared_critical_nets = set(declaration.get("resolved") or ())
+        pair_nets = {net for pair in (rules.diff_pairs or ()) for net in pair}
+        control_nets = sorted(
+            declared_critical_nets - pair_nets - set(protect_nets))
+        critical_route_priority = {
+            "enabled": True, "selectors": list(selectors),
+            "declaration": declaration, "preflight": evidence,
+            "routed_nets": control_nets,
+        }
+        if control_nets:
+            critical_base = os.path.join(
+                work_dir, "critical-control-base.kicad_pcb")
+            before = cec_score.score(route_base, rules)
+            effort_passes = max(
+                [16] + [int(region.fr_params.get("passes", 0) or 0)
+                        for region in (spec.regions or ())])
+            effort_opt = max(
+                [30] + [int(region.fr_params.get("opt_time", 0) or 0)
+                        for region in (spec.regions or ())])
+            effort_timeout = max(
+                [900] + [int(region.fr_params.get("timeout", 0) or 0)
+                         for region in (spec.regions or ())])
+            staged = cec_staged_fr.route_tiered(
+                route_base, critical_base, tiers=[control_nets],
+                passes=effort_passes, opt=effort_opt,
+                timeout=effort_timeout, verbose=verbose,
+                pre_locked_nets=protect_nets,
+                hints=[hint for region in (spec.regions or ())
+                       for hint in (region.hints or ())],
+                skip_locked_taps=skip_locked_taps,
+                include_residual=False)
+            cec_fr.copy_project_sidecars(route_base, critical_base)
+            after = cec_score.score(critical_base, rules)
+            stranded = sorted(
+                set(control_nets) & set(after.detail.get("unconn_nets") or ()))
+            if after.drc > before.drc or stranded:
+                raise RuntimeError(
+                    "critical-control tier failed closed: drc %d->%d, "
+                    "unconnected=%s" % (before.drc, after.drc, stranded))
+            route_base = critical_base
+            protect_nets = tuple(sorted(
+                set(protect_nets) | set(control_nets)))
+            skip_locked_taps = True
+            critical_route_priority.update({
+                "staged": staged,
+                "drc_before": before.drc, "drc_after": after.drc,
+                "unconnected_after": stranded,
+            })
+            if verbose:
+                print("[route] critical-control tier: routed and protected %d "
+                      "net(s), structural DRC %d->%d"
+                      % (len(control_nets), before.drc, after.drc))
+    # Snapshot the exact fully-owned *critical* geometry every residual
+    # candidate must preserve. Other completed local cells are still protected
+    # from FR, but a same-net post-route rail/zone may legitimately subsume one
+    # of their short pickup tracks. Exact identity is reserved for differential,
+    # Kelvin, and high-current safety copper. Partially-owned Kelvin nets remain
+    # governed by their topology gate because the residual must extend them.
+    protected_owned_nets = set(cec_fr.owned_locked_nets(route_base))
+    critical_exact_nets = {
+        net for pair in (list(rules.diff_pairs or ())
+                         + list(rules.kelvin_pairs or ()))
+        for net in pair}
+    critical_exact_nets |= set(rules.nets_12v or ())
+    critical_exact_nets |= declared_critical_nets
+    if spec.precision:
+        for row in ((precision_report.get("pairs") or {}).get("routed") or ()):
+            critical_exact_nets |= {row.get("p"), row.get("n")}
+    critical_exact_nets.discard(None)
+    contract_nets = tuple(sorted(protected_owned_nets & critical_exact_nets))
+    protected_contract = (cec_fr.copper_geometry_signature(
+        route_base, contract_nets) if contract_nets else None)
+    if verbose and protected_contract:
+        print("[route] critical copper contract: %d item(s) on %d fully-owned net(s)"
+              % (protected_contract["items"], len(contract_nets)))
+    plan = planner(route_base, spec)
     if verbose:
         print(f"[route] plan: {len(plan.regions)} region(s): {[r.name for r in plan.regions]}")
 
@@ -1587,11 +2003,11 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     for region in plan.regions:
         # a fresh working copy of the floorplan for this region (never the committed board)
         rboard = os.path.join(work_dir, f"{region.name}.kicad_pcb")
-        shutil.copy(board0, rboard)
-        for ext in (".kicad_pro", ".kicad_dru"):
-            s = board0[:-len(".kicad_pcb")] + ext
-            if os.path.exists(s):
-                shutil.copy(s, rboard[:-len(".kicad_pcb")] + ext)
+        shutil.copy(route_base, rboard)
+        # Preserve executable placement ownership data as well as KiCad's
+        # project/rule files.  A region board without its renamed pour plan
+        # silently re-derived an empty Hub power contract at import.
+        cec_fr.copy_project_sidecars(route_base, rboard)
         state = RegionState(region, rboard, spec.seeds)
         history = []
         g_best = None
@@ -1637,8 +2053,12 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
                                           power_pours=_pours,
                                           out_dir=outd, params=_mkparams,
-                                          max_workers=spec.max_workers)
-            scored = _candidate_pool(cands, rules, spec.weights)
+                                          max_workers=spec.max_workers,
+                                          protect_nets=protect_nets,
+                                          skip_locked_taps=skip_locked_taps)
+            scored = _candidate_pool(
+                cands, rules, spec.weights,
+                protected_contract=protected_contract)
             best = scored[0] if scored else None
             if best:                                     # so the worker can target a rip-up at this candidate's loci
                 state.last_candidate = best[0].board
@@ -1688,13 +2108,15 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         log.finalize(board=None, verdict={"gates_pass": False, "reasons": ["no region routed"]})
         return None, log
 
-    merged = serial_merge(board0, routed, plan.contracts, spec.out + ".merged.kicad_pcb")
+    merged = serial_merge(route_base, routed, plan.contracts, spec.out + ".merged.kicad_pcb")
     # spec.out is the router's OWN candidate output dir (build/route/...), not a committed
     # board -- always overwrite it (the one-shot guard is for committed floorplans). This
     # makes the route re-runnable to the same --out without a stale-file crash.
     write_once(spec.out, force=True)
     shutil.copy(merged, spec.out)
     cec_fr.copy_project_sidecars(merged, spec.out)
+    selected_lastmile = _refine_selected_lastmile(
+        spec.out, rules, verbose=verbose)
     # NOTE: ROUTE-UNDER now runs AFTER the TWO-PASS CORRIDOR below (not here). TPC rips + re-routes
     # every foreign track from scratch, so any pre-TPC layer-swap would be discarded; worse, the
     # pre-TPC swap relayers the USB diff pair onto the In2 plane, and protecting THAT messy multi-layer
@@ -1822,11 +2244,57 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     _do_under = (_ru == "1") if _ru is not None else board_has_sensec_corridors(spec.out)
     if _do_under:
         _run_route_under(spec.out, rules, verbose=verbose)
+    # CERTIFICATE-DRIVEN STRUCTURAL CLOSURE.  The route-oracle entry point
+    # already used this guarded subprocess, but the production route-swarm
+    # bridge stopped at its selected-board last-mile result.  Reuse that
+    # result's exact refusal certificates here; the helper protects authored
+    # copper and adopts only a strict full-board improvement.  Unconnected-only
+    # boards still bypass surgery and feed placement/congestion learning.
+    certificate_repair = {"schema": 1, "changed": False,
+                          "skipped": "not_applicable"}
+    if os.environ.get("CEC_CERTIFICATE_REPAIR", "1") != "0":
+        try:
+            pre_certificate = cec_score.score(spec.out, rules)
+            completion = (selected_lastmile or {}).get("result") or {}
+            if pre_certificate.drc > 0 and completion.get("refused_details"):
+                import cec_synth_pipeline as _csp
+                repaired_path, certificate_repair = \
+                    _csp._route_oracle_certificate_repair(
+                        spec.out, {"final_completion": completion}, work_dir,
+                        max_targets=1, verbose=verbose)
+                if repaired_path != spec.out:
+                    shutil.copy2(repaired_path, spec.out)
+                    cec_fr.copy_project_sidecars(repaired_path, spec.out)
+            elif pre_certificate.drc <= 0:
+                certificate_repair["skipped"] = "no_structural_drc"
+            else:
+                certificate_repair["skipped"] = "no_refusal_certificates"
+        except Exception as exc:                           # noqa: BLE001
+            certificate_repair = {
+                "schema": 1, "changed": False,
+                "error": "%s: %s" % (type(exc).__name__, exc)}
     final_norm = normalize_final_artifact_geometry(spec.out)
     if verbose and final_norm.get("changed"):
         print("[route] final-artifact geometry normalized: %s" % final_norm)
     verdict = independent_drc(spec.out, rules, weights=spec.weights)
+    if protected_contract:
+        final_contract = cec_fr.copper_geometry_signature(
+            spec.out, protected_contract.get("nets") or ())
+        contract_ok = (final_contract.get("sha256")
+                       == protected_contract.get("sha256"))
+        verdict["critical_copper_contract"] = {
+            "ok": contract_ok,
+            "expected": protected_contract,
+            "actual": final_contract,
+        }
+        if not contract_ok:
+            verdict["gates_pass"] = False
+            verdict.setdefault("reasons", []).append(
+                "critical copper ownership changed after residual routing")
     verdict["final_geometry_normalization"] = final_norm
+    verdict["critical_route_priority"] = critical_route_priority
+    verdict["selected_lastmile_refinement"] = selected_lastmile
+    verdict["certificate_repair"] = certificate_repair
     # tidy the merge intermediates (the candidate lives at spec.out now)
     import glob as _glob
     for f in _glob.glob(merged[:-len(".kicad_pcb")] + ".*"):
@@ -1895,7 +2363,8 @@ def find_board(board):
 
 def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, threads=1,
                kmax=2, max_iters=4, max_workers=None, opt_spread=0,
-               fr_timeout=600):
+               fr_timeout=600, precision=False, precision_pair_grid=False,
+               source_schematic=None):
     """Build a single-region Spec for a board (the small-/single-board path: one region,
     all nets, vital-area keep-outs derived from the 12V nets). The larger multi-region path
     is driven by populating spec.regions/contracts (e.g. from an Opus planner sub-agent)."""
@@ -1904,30 +2373,46 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     name = os.path.basename(os.path.dirname(board_path)) or "board"
     out = os.path.join(out_dir, f"{name}-routed.kicad_pcb")
     rules = cec_score.Rules.from_board(board_path)
-    spec = Spec(board=board_path, out=out, rules=rules, seeds=tuple(seeds), Kmax=kmax,
+    spec = Spec(board=board_path, out=out, rules=rules,
+                source_schematic=str(source_schematic or ""),
+                seeds=tuple(seeds), Kmax=kmax,
                 max_iters=max_iters, max_workers=max_workers, opt_spread=opt_spread,
+                precision=bool(precision), precision_pair_grid=bool(precision_pair_grid),
                 weights=dict(cec_score.DEFAULT_WEIGHTS))
-    # CORRIDOR keepout DEFAULT-OFF (close-the-loop 2026-06-26): it forces foreign signals around the
-    # high-current corridors (pours fill solid) but STRANDS the sense taps on a placement that isn't
-    # corridor-clean (kelvin true->false) -- so it must not be on by default (this is the LIVE hints path
-    # for every route() caller; the default_planner copy is the no-regions fallback). CEC_OVD_CORRIDOR_KEEPOUT=1
-    # enables it (for use only with the corridor-packing placer). EDGE keepout is SAFE + always-on (FR has no
-    # edge-clearance awareness, ~100% of a fresh route's DRC); CEC_NO_EDGE_KEEPOUT=1 disables.
-    _hints = []
-    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
-        _hints += _vital_keepouts_from_rules(board_path, rules)
-    # TAP-CHANNEL keepout (2026-06-28): reserve each F.Cu inner-edge Kelvin tap channel so pass-1 FR
-    # routes TRANSITING foreign (a comparator /DETC*, +3V3, I2C) AROUND/UNDER it rather than through the
-    # notch at tap height -- otherwise the post-route tap refuses itself (kelvin_ok=False) on an otherwise
-    # geometrically-clean placement and TPC (which needs a kelvin-ok pass-1) never runs. F.Cu only, so a
-    # B.Cu crossing (which does not clip the F.Cu tap) is the intended escape. CEC_TAP_CHANNEL_KEEPOUT=1.
-    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
-        try:
-            _hints += cec_fr.tap_channel_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs)
-        except Exception as e:                               # noqa: BLE001 -- keepout is best-effort
-            print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
-    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
-        _hints += cec_fr.edge_keepout(board_path)
+    # One compiled pour plan must own BOTH the pre-route reservation and the
+    # post-route copper.  The production route-swarm path used to bypass the
+    # placement sidecar here and call derive_power_pours() on a PCB that quite
+    # correctly had no materialized power zones yet.  On the Hub that silently
+    # dropped all eight In3 rail asks: FR routed through their future corridors,
+    # and the finalizer could neither add the intended copper nor close its pad
+    # islands.  Reuse the oracle's signature/recipe-validated sidecar loader so
+    # every entry point consumes the same current-BETA plan.  Keep a defensive
+    # legacy fallback for standalone callers that cannot import the pipeline.
+    try:
+        import cec_synth_pipeline as _csp
+        _hints, _power_pours, _plan_rules = _csp._oracle_hints_pours(board_path)
+        rules = _plan_rules
+        spec.rules = rules
+    except Exception as e:                                   # noqa: BLE001 -- compatibility fallback
+        print(f"[route] compiled pour plan unavailable; using geometry fallback "
+              f"({type(e).__name__}: {e})")
+        _hints = []
+        if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+            _hints += _vital_keepouts_from_rules(board_path, rules)
+        if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+            try:
+                _hints += cec_fr.tap_channel_keepouts(
+                    board_path, kelvin_pairs=rules.kelvin_pairs)
+            except Exception as tap_e:                       # noqa: BLE001 -- best effort
+                print(f"[route] tap-channel keepout skipped "
+                      f"({type(tap_e).__name__}: {tap_e})")
+        if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+            _hints += cec_fr.edge_keepout(board_path)
+        _power_pours = cec_fr.derive_power_pours(board_path)
+    # board_spec() is the production path used by hub_pipeline_run.py (it does
+    # not pass through default_planner()).  Preserve each no-net assembly
+    # fiducial's KiCad-local clearance/optical field in every generated route.
+    _hints += cec_fr.fiducial_keepouts(board_path)
     # Materialized pipeline pours predate this route call. Reserve their actual
     # saved signal-layer outlines so Freerouting cannot lay foreign copper in a
     # region the independent laid-pour gate will necessarily reject.
@@ -1936,11 +2421,10 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
                            hints=_hints,
                            fr_params={"passes": passes, "opt_time": opt_time,
                                       "threads": threads, "timeout": fr_timeout})]
-    # High-current nets get a real copper POUR laid AFTER each FR route (additive same-net,
-    # so it can't strand the Kelvin sense that shares the net). Auto-derived from geometry --
-    # the bbox of each cable net's THT connector + shunt pads -- so it's general across the
-    # interposer family (EPS/PCIe) and a no-op on boards with no such nets.
-    spec.power_pours = cec_fr.derive_power_pours(board_path)
+    # The exact same polygons supplied to the reservation path are realized
+    # after routing.  This invariant is what prevents visually plausible but
+    # electrically fictional slab fills.
+    spec.power_pours = _power_pours
     return spec, name
 
 
@@ -2144,6 +2628,11 @@ def gr02_repair_battery(board_path, out_path, *, blocked_net=None,
     import pcbnew
     import shutil as _sh
     _sh.copy(board_path, out_path)
+    # GR-02 candidates must be graded under the same project netclasses and
+    # custom rules as their source.  A naked board copy silently falls back to
+    # embedded/default geometry, so a locally clean arm can be a false pass
+    # once the routed artifact is reunited with its .kicad_pro/.kicad_dru.
+    cec_fr.copy_project_sidecars(board_path, out_path)
     board = pcbnew.LoadBoard(out_path)
     if blocked_net is None:
         unconn = sorted(_unconnected_net_set(board_path))
@@ -2363,6 +2852,18 @@ def main(argv=None):
     ap.add_argument("--opt-spread", type=int, default=0,
                     help="parallel opt-time SWEEP: spread FR opt_time from this floor (s) -> --opt-time across the "
                          "seeds (0 = off; makes the deterministic-FR candidates genuinely different)")
+    ap.add_argument("--precision", action=argparse.BooleanOptionalAction,
+                    default=False,
+                    help="re-prove and protect precision/Kelvin/pair copper before routing")
+    ap.add_argument("--precision-pair-grid",
+                    action=argparse.BooleanOptionalAction, default=False,
+                    help="use the exact coupled-grid differential-pair router")
+    ap.add_argument("--placement-policy", default=None,
+                    help="apply the named board's placement/oracle route policy to an existing "
+                         "materialized .kicad_pcb (for example hub-standard-rev2)")
+    ap.add_argument("--source-schematic", default=None,
+                    help="authoritative root .kicad_sch for a renamed/derived PCB; used by "
+                         "the intake and schematic/PCB authority gates")
     ap.add_argument("--out", default="build/route", help="output dir for the routed board + log")
     ap.add_argument("--render", action="store_true", help="also write a top render PNG")
     ap.add_argument("--judge", choices=("default", "local"), default="default",
@@ -2376,25 +2877,57 @@ def main(argv=None):
 
     seeds = tuple(int(s) for s in str(a.seeds).split(",") if s.strip() != "")
     out_dir = a.out if os.path.isabs(a.out) else os.path.join(ROOT, a.out)
-    spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes, opt_time=a.opt_time,
-                            threads=a.threads, kmax=a.kmax, max_iters=a.max_iters,
-                            max_workers=(a.max_workers or None), opt_spread=a.opt_spread)
-    manager = worker = None
-    if a.judge == "local":
-        import cec_judge_local
-        if cec_judge_local.available():
-            if a.swarm > 0:
-                manager = cec_judge_local.make_manager_swarm(spec, panel=a.swarm, verbose=not a.quiet)
-                worker = cec_judge_local.make_worker_swarm(spec, fanout=a.swarm, verbose=not a.quiet)
-                print(f"[route] judge tier: LOCAL SWARM (manager panel + worker swarm, size={a.swarm}; "
-                      f"{cec_judge_local.MODEL})")
+    policy_context = contextlib.nullcontext()
+    if a.placement_policy:
+        import pcbnew
+        import cec_fresh_wave
+        import cec_synth_pipeline
+
+        # The policy owns recipe compilation as well as the route invocation.
+        # Entering it only after board_spec() meant CLI runs compiled a generic
+        # pour/reservation plan and then routed with Hub policy parameters.  In
+        # other words, the placer/router agreed on priorities but not on the
+        # physical corridors those priorities reserved.  Resolve the input
+        # independently so the environment can surround the entire build.
+        policy_board_path = find_board(a.board)
+        policy_board = pcbnew.LoadBoard(policy_board_path)
+        outline = policy_board.GetBoardEdgesBoundingBox()
+        width = outline.GetWidth() / 1e6
+        height = outline.GetHeight() / 1e6
+        policy_params = cec_fresh_wave._placement_params(  # noqa: SLF001
+            a.placement_policy, width, height)
+        policy_context = cec_synth_pipeline._oracle_env(policy_params)
+        print("[route] placement policy: %s at %.3fx%.3f mm"
+              % (a.placement_policy, width, height))
+    with policy_context:
+        spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes,
+                                opt_time=a.opt_time, threads=a.threads, kmax=a.kmax,
+                                max_iters=a.max_iters,
+                                max_workers=(a.max_workers or None),
+                                opt_spread=a.opt_spread,
+                                precision=a.precision,
+                                precision_pair_grid=a.precision_pair_grid,
+                                source_schematic=a.source_schematic)
+        manager = worker = None
+        if a.judge == "local":
+            import cec_judge_local
+            if cec_judge_local.available():
+                if a.swarm > 0:
+                    manager = cec_judge_local.make_manager_swarm(
+                        spec, panel=a.swarm, verbose=not a.quiet)
+                    worker = cec_judge_local.make_worker_swarm(
+                        spec, fanout=a.swarm, verbose=not a.quiet)
+                    print(f"[route] judge tier: LOCAL SWARM (manager panel + worker swarm, "
+                          f"size={a.swarm}; {cec_judge_local.MODEL})")
+                else:
+                    manager = cec_judge_local.make_manager(spec, verbose=not a.quiet)
+                    print(f"[route] manager judge tier: LOCAL vLLM "
+                          f"({cec_judge_local.VLLM_URL}, {cec_judge_local.MODEL})")
             else:
-                manager = cec_judge_local.make_manager(spec, verbose=not a.quiet)
-                print(f"[route] manager judge tier: LOCAL vLLM ({cec_judge_local.VLLM_URL}, {cec_judge_local.MODEL})")
-        else:
-            print(f"[route] --judge local requested but vLLM unreachable at {cec_judge_local.VLLM_URL} "
-                  f"-> using the deterministic manager/worker")
-    final, log = route(spec.board, spec, manager=manager, worker=worker, verbose=not a.quiet)
+                print(f"[route] --judge local requested but vLLM unreachable at "
+                      f"{cec_judge_local.VLLM_URL} -> using the deterministic manager/worker")
+        final, log = route(spec.board, spec, manager=manager, worker=worker,
+                           verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
     # SB-01: durable ledger line in the sibling cec-runs repo. FAIL-SAFE -- a missing
     # ledger repo degrades to a warning; it must never break a route run.

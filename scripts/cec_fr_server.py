@@ -61,7 +61,8 @@ SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 
 # env knobs a client may forward into its job (allow-list -- never arbitrary env)
 ENV_ALLOW = ("CEC_FR_SEED_AXIS", "CEC_FR_NOECHO", "CEC_FR_MAXSTALL",
-             "CEC_FR_PLATEAU_KILL", "CEC_FR_PLATEAU_FLOOR")
+             "CEC_FR_PLATEAU_KILL", "CEC_FR_PLATEAU_FLOOR",
+             "CEC_FR_PLATEAU_GRACES")
 
 TERMINAL = ("COMPLETED", "FAILED", "CANCELLED")
 
@@ -396,7 +397,7 @@ def main(argv=None):
 
     # fork-version metadata for /status, WITHOUT importing pcbnew in the server
     # process: read FR_VERSION the same way cec_fr does (env override wins).
-    meta = {"fr_version": os.environ.get("CEC_FR_VERSION", "1.7.0-cec2"),
+    meta = {"fr_version": os.environ.get("CEC_FR_VERSION", cec_fr.FR_VERSION),
             "workers": args.workers}
     store = JobStore(args.data)
     workers = Workers(store, args.workers)

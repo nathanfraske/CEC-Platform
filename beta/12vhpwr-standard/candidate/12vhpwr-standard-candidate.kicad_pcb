@@ -12406,7 +12406,7 @@
 				)
 			)
 		)
-		(property "Value" "47kΩ"
+		(property "Value" "43.2kΩ"
 			(at 0 1.17 0)
 			(layer "F.SilkS")
 			(uuid "8854ab90-e484-44d9-97cd-c816b02f52c9")

@@ -1,0 +1,65 @@
+{
+  "checked_at": "2026-08-12",
+  "note": "Identity and assembly-class snapshot only. Refresh stock and price at BOM freeze.",
+  "parts": [
+    {
+      "manufacturer": "XFCN",
+      "mpn": "T34069",
+      "lcsc_jlc_code": "C481452",
+      "lcsc_url": "https://www.lcsc.com/product-detail/C481452.html",
+      "jlc_url": "https://jlcpcb.com/partdetail/Xfcn-T34069/C481452",
+      "lcsc_attributes": {
+        "package": "Through Hole",
+        "terminal_type": "Side",
+        "appearance": "Plug-in type (with screw)",
+        "current_rating_A": 40,
+        "thread": "M3",
+        "number_of_legs": 4,
+        "adjacent_pin_spacing_mm": 5,
+        "catalog_height_above_board_mm": 9,
+        "plating": "Tin"
+      },
+      "jlc_attributes": {
+        "componentLibraryType": "expand",
+        "display_class": "Extended",
+        "assemblyMode": "manualWeld",
+        "display_assembly_type": "Wave Soldering",
+        "pcba_type": ["Economic", "Standard"]
+      },
+      "easyeda_cad": {
+        "symbol": true,
+        "footprint": true,
+        "native_3d": true
+      }
+    },
+    {
+      "manufacturer": "XFCN",
+      "mpn": "TTR32100127-0600",
+      "lcsc_jlc_code": "C45384691",
+      "lcsc_url": "https://www.lcsc.com/product-detail/C45384691.html",
+      "jlc_url": "https://jlcpcb.com/partdetail/Xfcn-Ttr321001270600/C45384691",
+      "lcsc_attributes": {
+        "package": "Through Hole,Right Angle,10x9mm",
+        "terminal_type": "Side",
+        "appearance": "Plug-in type",
+        "current_rating_A": 60,
+        "thread": "M3",
+        "number_of_legs": 2,
+        "catalog_body_height_mm": 12.7,
+        "plating": "Tin"
+      },
+      "jlc_attributes": {
+        "componentLibraryType": "expand",
+        "display_class": "Extended",
+        "assemblyMode": "manualWeld",
+        "display_assembly_type": "Wave Soldering",
+        "pcba_type": ["Economic", "Standard"]
+      },
+      "easyeda_cad": {
+        "symbol": true,
+        "footprint": true,
+        "native_3d": false
+      }
+    }
+  ]
+}

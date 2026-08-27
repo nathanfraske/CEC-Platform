@@ -11,9 +11,12 @@
 # exactly ONE compact via field at the defined crossing point; (4) the
 # verifier rejects a deliberately-thin corridor (min-width invariant);
 # (5) the route_overunder fallback fires ONLY on planner failure.
+import math
 import os
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -26,6 +29,157 @@ from test_pour_first import _LAY, _Board, _FP, _Pad, _wall  # noqa: E402
 MM = 1e6
 B_CU = [_LAY["B.Cu"]]
 IN2_CU = [_LAY["In2.Cu"]]
+
+
+def test_power_net_order_preserves_current_priority_and_declared_peer_order():
+    amps = {
+        "/HEAVY": 60.0,
+        "/C1_HI": 39.0,
+        "/C1_LO": 39.0,
+        "/C2_HI": 39.0,
+        "/UNDECLARED": 39.0,
+        "/LIGHT": 5.0,
+    }
+
+    order = cec_pour_plan.power_net_order(
+        amps,
+        amps.__getitem__,
+        priority_nets=("/C2_HI", "/C1_HI", "/C1_LO"),
+    )
+
+    assert order == [
+        "/HEAVY", "/C2_HI", "/C1_HI", "/C1_LO", "/UNDECLARED", "/LIGHT",
+    ]
+
+
+def test_power_net_order_reads_isolated_environment_policy():
+    amps = {"/A": 10.0, "/B": 10.0}
+    with mock.patch.dict(
+            os.environ, {"CEC_POWER_ROUTE_PRIORITY_NETS": "/B,/A"},
+            clear=False):
+        assert cec_pour_plan.power_net_order(amps, amps.__getitem__) == [
+            "/B", "/A"]
+
+
+def test_broad_relief_minimizer_recovers_small_mixed_rank_cut():
+    ranked = tuple("ABCDEFGHIJK")
+
+    def exact_oracle(removed):
+        removed = set(removed)
+        if {"A", "K"}.issubset(removed):
+            return {
+                "owners": list(removed),
+                "length_mm": float(len(removed)),
+                "path_mm": [[0.0, 0.0], [1.0, 0.0]],
+            }
+        return None
+
+    cuts = cec_pour_plan._greedy_minimized_relief_sets(
+        ranked, exact_oracle, exact_oracle(ranked))
+
+    assert cuts
+    assert set(cuts[0]["owners"]) == {"A", "K"}
+    assert cuts[0]["searched_from_owner_count"] == 11
+
+
+def test_exact_clearance_clash_evidence_names_physical_owner():
+    realized = cec_pour_plan._box(0.0, 0.0, 2.0, 2.0)
+    records = [{
+        "geometry": cec_pour_plan._box(1.0, 1.0, 3.0, 3.0),
+        "owner": "U7", "kind": "footprint", "detail": "pad 3",
+        "net": "/FOREIGN",
+    }, {
+        "geometry": cec_pour_plan._box(5.0, 5.0, 6.0, 6.0),
+        "owner": "C9", "kind": "footprint", "detail": "pad 1",
+        "net": "/OTHER",
+    }]
+
+    clashes = cec_pour_plan._exact_clearance_clash_evidence(
+        realized, records)
+
+    assert clashes == [{
+        "owner": "U7", "kind": "footprint", "detail": "pad 3",
+        "net": "/FOREIGN", "intersection_area_mm2": 1.0,
+        "intersection_bounds_mm": [1.0, 1.0, 2.0, 2.0],
+    }]
+
+
+def test_exact_bundle_neck_does_not_unguard_exact_obstacle():
+    region = cec_pour_plan._box(0.0, 0.0, 10.0, 10.0)
+    obstacle = cec_pour_plan._box(4.0, 0.0, 6.0, 10.0)
+    approach = region
+
+    exact = cec_pour_plan._LayerSpace(
+        region, [obstacle], 3.0, approach=approach,
+        half_neck=cec_pour_plan.W_NECK / 2.0, neck_unguard=0.0)
+
+    assert not exact.ok_line((2.0, 5.0), (8.0, 5.0))
+
+
+def test_outer_pour_obstacles_include_foreign_component_courtyard():
+    class Courtyard:
+        def __init__(self, bounds):
+            self._box = cec_pour_plan._box(*bounds)
+            self._bbox = type("BBox", (), {
+                "GetLeft": lambda _self: int(bounds[0] * MM),
+                "GetTop": lambda _self: int(bounds[1] * MM),
+                "GetRight": lambda _self: int(bounds[2] * MM),
+                "GetBottom": lambda _self: int(bounds[3] * MM),
+            })()
+
+        def OutlineCount(self):
+            return 1
+
+        def BBox(self):
+            return self._bbox
+
+    class BodyFP(_FP):
+        def __init__(self, ref, pads, bounds):
+            super().__init__(ref, pads)
+            self._courtyard = Courtyard(bounds)
+
+        def IsFlipped(self):
+            return False
+
+        def GetCourtyard(self, _layer):
+            return self._courtyard
+
+    board = _Board(30, 20, [
+        BodyFP("U7", [_Pad("/FOREIGN", 2, 11.0, 11.0)],
+               (10.0, 10.0, 12.0, 12.0)),
+        BodyFP("U8", [_Pad("+RAIL", 1, 16.0, 11.0)],
+               (15.0, 10.0, 17.0, 12.0)),
+        BodyFP("J9", [_Pad("/FOREIGN", 2, 21.0, 11.0)],
+               (20.0, 10.0, 22.0, 12.0)),
+    ], {1: "+RAIL", 2: "/FOREIGN"})
+
+    records = cec_pour_plan._geo_obstacle_records(
+        board, 1, ("F.Cu",), 0.2, 0.1)["F.Cu"]
+    bodies = [row for row in records
+              if row["kind"] == "footprint_body"]
+
+    assert [row["owner"] for row in bodies] == ["U7"]
+    assert tuple(round(value, 3)
+                 for value in bodies[0]["geometry"].bounds) == (
+                     9.7, 9.7, 12.3, 12.3)
+
+
+def test_neck_main_clip_preserves_small_reserved_via_hole():
+    region = cec_pour_plan._box(0.0, 0.0, 10.0, 10.0)
+    obstacle = cec_pour_plan._box(4.5, 4.5, 5.5, 5.5)
+    space = cec_pour_plan._LayerSpace(
+        region, [obstacle], 3.0, approach=region,
+        half_neck=cec_pour_plan.W_NECK / 2.0, neck_unguard=0.0)
+    corridor = SimpleNamespace(ga=SimpleNamespace(), gb=SimpleNamespace())
+    state = {"reqw": {"B.Cu": 6.0}, "spaces": {"B.Cu": space}}
+
+    part = cec_pour_plan._cand_from_path(
+        corridor, state, "B.Cu", [(3.0, 4.0), (7.0, 4.0)], 0,
+        None, space=space)
+
+    assert part is not None
+    assert part["main"].intersection(obstacle).area <= 1e-9
+    assert part["spine"].intersection(obstacle).area <= 1e-9
 
 
 def _tht_col(net, nc, x, ys):
@@ -54,8 +208,10 @@ class TestStraightCorridor(unittest.TestCase):
 
     def test_open_board_is_one_straight_corridor_no_fields(self):
         board = self._board()
+        collect = {}
         pours, vias, rep = plan_pours(
-            board, [{"net": "+5V_MAIN", "layers": ("In2.Cu",)}])
+            board, [{"net": "+5V_MAIN", "layers": ("In2.Cu",)}],
+            collect=collect)
         e = rep["+5V_MAIN"]
         self.assertTrue(e["path_found"], e)
         self.assertEqual(e["corridors"], 1)
@@ -70,10 +226,14 @@ class TestStraightCorridor(unittest.TestCase):
                         [d.get("name") for d in mine])
         self.assertTrue(any(str(d.get("name", "")).startswith("manifold:")
                             for d in mine), "stage-0 manifolds still lead")
+        self.assertEqual(
+            set(collect), {"_grid", "+5V_MAIN"},
+            "collect is a legacy per-net state map; global diagnostics must "
+            "not masquerade as a net entry")
 
     def test_wall_forces_one_bend_on_the_corner_graph(self):
         board = self._board(with_wall=True)
-        _p, _v, rep = plan_pours(
+        pours, _v, rep = plan_pours(
             board, [{"net": "+5V_MAIN", "layers": ("In2.Cu",)}])
         e = rep["+5V_MAIN"]
         self.assertTrue(e["path_found"], e)
@@ -82,6 +242,279 @@ class TestStraightCorridor(unittest.TestCase):
         self.assertLessEqual(e["bends"], 2, "corner-graph path stays "
                                             "purposeful (L-ish), never a "
                                             "cell-walk staircase")
+        for pour in pours:
+            self.assertEqual(
+                cec_pour_plan._diagonal_edges(pour["polygon"]), [],
+                "%s must have exact 90-degree boundaries" %
+                pour.get("name", pour.get("net")))
+
+    def test_output_contract_rejects_diagonal_pour_edges(self):
+        with self.assertRaisesRegex(RuntimeError, "non-Manhattan"):
+            cec_pour_plan._assert_manhattan_pours([{
+                "net": "/BAD", "layer": "B.Cu", "name": "test:/BAD",
+                "polygon": [(0, 0), (2, 1), (2, 2), (0, 2), (0, 0)],
+            }])
+
+    def test_future_decoupler_via_column_blocks_every_spanned_layer(self):
+        primitive = {
+            "kind": "via", "net": "+3V3", "net_code": 7,
+            "owner": "U1", "cap": "C1", "at_mm": [10.0, 12.0],
+            "diameter_mm": 0.35,
+            "layer_ids": [_LAY["F.Cu"], _LAY["B.Cu"]],
+        }
+        out = {"F.Cu": [], "B.Cu": []}
+        cec_pour_plan._append_access_primitive_records(
+            out, [primitive],
+            {"F.Cu": _LAY["F.Cu"], "B.Cu": _LAY["B.Cu"]},
+            3, 0.20, 0.0)
+        self.assertEqual([len(out[layer]) for layer in out], [1, 1])
+        self.assertEqual(
+            {out[layer][0]["kind"] for layer in out},
+            {"future_decoupler_access"})
+        self.assertEqual(
+            {out[layer][0]["owner"] for layer in out}, {"C1"})
+        self.assertAlmostEqual(
+            (out["F.Cu"][0]["geometry"].bounds[2]
+             - out["F.Cu"][0]["geometry"].bounds[0]) / 2.0,
+            0.35 / 2.0 + 0.20, places=6)
+
+        ground_portal = dict(
+            primitive, net="GND", net_code=3, owner="U2", cap=None,
+            pad="8", purpose="ground_plane_access")
+        attributed = {"F.Cu": [], "B.Cu": []}
+        cec_pour_plan._append_access_primitive_records(
+            attributed, [ground_portal],
+            {"F.Cu": _LAY["F.Cu"], "B.Cu": _LAY["B.Cu"]},
+            7, 0.20, 0.0)
+        self.assertEqual(
+            {attributed[layer][0]["owner"] for layer in attributed},
+            {"U2"})
+        self.assertEqual(
+            {attributed[layer][0]["detail"] for layer in attributed},
+            {"ground-plane-access:U2.8 via"})
+
+        own_net = {"F.Cu": [], "B.Cu": []}
+        cec_pour_plan._append_access_primitive_records(
+            own_net, [primitive],
+            {"F.Cu": _LAY["F.Cu"], "B.Cu": _LAY["B.Cu"]},
+            7, 0.20, 0.0)
+        self.assertEqual(own_net, {"F.Cu": [], "B.Cu": []})
+
+    def test_priority_access_reserves_complete_bypass_cell(self):
+        bypass = {
+            "kind": "via", "net": "GND", "owner": "U1", "cap": "C1",
+            "purpose": "bypass_cell",
+        }
+        supply = {
+            "kind": "track", "net": "+3V3", "owner": "U1", "cap": "C1",
+            "purpose": "bypass_cell",
+        }
+        portal = {
+            "kind": "via", "net": "GND", "owner": "U2", "pad": "8",
+            "purpose": "ground_plane_access",
+        }
+
+        immutable, deferred = cec_pour_plan._priority_access_primitives(
+            [portal, bypass, supply])
+
+        self.assertEqual(immutable, (bypass, supply))
+        self.assertEqual(deferred, (portal,))
+
+    def test_future_kelvin_reservation_blocks_only_foreign_rails(self):
+        reservation = {
+            "name": "tap_RS2_U11", "purpose": "future_kelvin_tap",
+            "net": "/SENSEC2_LO", "source_ref": "RS2",
+            "target_ref": "U11", "x0": 10.0, "y0": 4.0,
+            "x1": 18.0, "y1": 5.0, "layers": ("F.Cu",),
+        }
+        foreign = {"F.Cu": [], "B.Cu": []}
+        count = cec_pour_plan._append_owned_rect_reservation_records(
+            foreign, [reservation], "/SENSEC2_HI",
+            kind="future_kelvin_tap")
+        self.assertEqual(count, 1)
+        self.assertEqual(len(foreign["F.Cu"]), 1)
+        self.assertEqual(foreign["F.Cu"][0]["net"], "/SENSEC2_LO")
+        self.assertEqual(foreign["F.Cu"][0]["owner"], "U11")
+        self.assertEqual(foreign["F.Cu"][0]["kind"],
+                         "future_kelvin_tap")
+
+        own = {"F.Cu": [], "B.Cu": []}
+        own_count = cec_pour_plan._append_owned_rect_reservation_records(
+            own, [reservation], "/SENSEC2_LO",
+            kind="future_kelvin_tap")
+        self.assertEqual(own_count, 0)
+        self.assertEqual(own, {"F.Cu": [], "B.Cu": []})
+
+    def test_power_reservation_halo_keeps_foreign_owned_route_notch(self):
+        rows = [{
+            "net": "/SENSEC2_HI", "layer": "F.Cu",
+            "polygon": [(0.0, 0.0), (8.0, 0.0),
+                        (8.0, 4.0), (0.0, 4.0)],
+            "x0": 0.0, "y0": 0.0, "x1": 8.0, "y1": 4.0,
+        }]
+        future = [{
+            "net": "/SENSEC2_LO", "layers": ("F.Cu",),
+            "x0": 3.0, "y0": 1.0, "x1": 6.0, "y1": 3.0,
+        }]
+        clipped, count, dropped = (
+            cec_pour_plan._sp.clip_reservations_around_owned_routes(
+                rows, future))
+        self.assertEqual((count, dropped), (1, 0))
+        source = cec_pour_plan.Polygon(rows[0]["polygon"])
+        notch = cec_pour_plan._box(3.0, 1.0, 6.0, 3.0)
+        cover = cec_pour_plan.unary_union([
+            cec_pour_plan.Polygon(row["polygon"]) for row in clipped])
+        self.assertLessEqual(cover.intersection(notch).area, 1e-9)
+        self.assertLessEqual(
+            cover.symmetric_difference(source.difference(notch)).area,
+            1e-9)
+
+        own, own_count, own_dropped = (
+            cec_pour_plan._sp.clip_reservations_around_owned_routes(
+                rows, [dict(future[0], net="/SENSEC2_HI")]))
+        self.assertEqual((own_count, own_dropped), (0, 0))
+        self.assertEqual(own, rows)
+
+    def test_diagonal_clip_uses_one_inside_elbow_not_a_staircase(self):
+        poly = cec_pour_plan.Polygon(
+            [(0, 0), (5, 0), (5, 5), (3, 5), (2, 4), (0, 4)])
+        emitted = cec_pour_plan._emit_rectilinear(poly)
+        self.assertEqual([], cec_pour_plan._diagonal_edges(
+            emitted.exterior.coords))
+        self.assertLessEqual(len(emitted.exterior.coords),
+                             len(poly.exterior.coords) + 1)
+        self.assertTrue(poly.buffer(1e-6).covers(emitted))
+
+    def test_rectilinear_barrel_restore_is_additive_and_manhattan(self):
+        original = cec_pour_plan._box(0, 0, 4, 4)
+        rect = cec_pour_plan._box(0, 0, 3.7, 4)
+        barrel = cec_pour_plan.Point(3.7, 2).buffer(0.2)
+        restored = cec_pour_plan._restore_rectilinear_barrels(
+            rect, original, [barrel], region=original)
+        self.assertIsNotNone(restored)
+        self.assertTrue(restored.buffer(0.01).covers(barrel))
+        self.assertEqual([], cec_pour_plan._diagonal_edges(
+            restored.exterior.coords))
+
+    def test_rectilinear_barrel_restore_respects_foreign_clearance(self):
+        original = cec_pour_plan._box(0, 0, 4, 4)
+        rect = cec_pour_plan._box(0, 0, 3.7, 4)
+        barrel = cec_pour_plan.Point(3.7, 2).buffer(0.2)
+        forbidden = cec_pour_plan._box(3.75, 1.5, 4.0, 2.5)
+        self.assertIsNone(cec_pour_plan._restore_rectilinear_barrels(
+            rect, original, [barrel], forbidden=forbidden,
+            region=original))
+
+    def test_assignment_never_trades_a_valid_route_for_lower_cost_open(self):
+        class Group:
+            native = {"B.Cu", "F.Cu"}
+
+        cor = cec_pour_plan._Corridor("/PWR", Group(), Group())
+        cor.cands = [{
+            "layer": "B.Cu",
+            "bundle_layers": ("B.Cu", "F.Cu"),
+            "bundle_parts": {
+                "B.Cu": {"poly": cec_pour_plan._box(0, 0, 2, 20)},
+                "F.Cu": {"poly": cec_pour_plan._box(0, 0, 2, 20)},
+            },
+            "poly": cec_pour_plan._box(0, 0, 2, 20),
+            "bends": 100,
+            "length": 1000.0,
+        }]
+        nets = {"/PWR": {"corridors": [cor]}}
+        cec_pour_plan._assign_layers(nets, ["/PWR"])
+        self.assertIsNotNone(
+            cor.pick,
+            "route completion must dominate every route-quality cost")
+
+    def test_endpoint_alternates_optimize_success_not_only_failure(self):
+        """A routable default endpoint must not freeze a needless dogleg."""
+        space = cec_pour_plan._LayerSpace(
+            cec_pour_plan._box(0, 0, 30, 20), [], 0.5)
+        default_b = (24.0, 13.0)
+        aligned_b = (24.0, 10.0)
+        default, bends0 = cec_pour_plan._find_path(
+            space, (4.0, 10.0), default_b)
+        chosen, bends = cec_pour_plan._path_with_alternates(
+            space, (4.0, 10.0), (), default_b, (aligned_b,))
+        self.assertIsNotNone(default)
+        self.assertEqual(bends0, 1)
+        self.assertEqual(bends, 0)
+        self.assertEqual(chosen[-1], aligned_b,
+                         "joint endpoint selection should align the landing "
+                         "with the trunk instead of accepting a routable L")
+
+    def test_broad_terminal_projection_adds_exact_straight_pair(self):
+        """Overlapping width-eroded terminals must not become a C staircase."""
+        a = cec_pour_plan._Group(1)
+        b = cec_pour_plan._Group(2)
+        for g, bbox in ((a, (0.0, 0.0, 10.0, 6.0)),
+                        (b, (2.0, 14.0, 12.0, 20.0))):
+            g.bbox = bbox
+            g.cx = (bbox[0] + bbox[2]) / 2.0
+            g.cy = (bbox[1] + bbox[3]) / 2.0
+            g.native = {"F.Cu"}
+            g.attach = cec_pour_plan._box(*bbox)
+        space = cec_pour_plan._LayerSpace(
+            cec_pour_plan._box(-2, -2, 14, 22), [], 2.0)
+        pairs = cec_pour_plan._projection_aligned_pairs(
+            a, b, "F.Cu", {"reqw": {"F.Cu": 4.0},
+                             "region": cec_pour_plan._box(-2, -2, 14, 22)},
+            space)
+        self.assertTrue(pairs)
+        self.assertTrue(all(abs(pa[0] - pb[0]) <= 1e-6
+                            for pa, pb in pairs))
+        chosen, bends = cec_pour_plan._path_with_alternates(
+            space, (2.0, 2.0), (), (10.0, 18.0), (), pairs)
+        self.assertEqual(bends, 0)
+        self.assertEqual(chosen[0][0], chosen[-1][0])
+
+    def test_orthogonal_cleanup_flattens_shallow_patch_band(self):
+        # Three same-net rectangles whose lower edges differ by 0.15/0.07 mm:
+        # the exact real-board mechanism behind the visible shunt-pad dip.
+        shape = cec_pour_plan.unary_union([
+            cec_pour_plan._box(0, 0, 4, 10.00),
+            cec_pour_plan._box(4, 0, 8, 10.15),
+            cec_pour_plan._box(8, 0, 12, 10.08),
+        ])
+        clean, stats = cec_pour_plan._orthogonal_cleanup(
+            shape, 0.2, region=cec_pour_plan._box(-1, -1, 13, 12))
+        pts = list(clean.exterior.coords)
+        minx, _miny, maxx, _maxy = clean.bounds
+        micro_vertical = [
+            (a, b) for a, b in zip(pts, pts[1:])
+            if abs(a[0] - b[0]) <= 1e-6
+            and minx + 1e-6 < a[0] < maxx - 1e-6
+            and 1e-6 < abs(a[1] - b[1]) <= 0.25]
+        self.assertEqual(micro_vertical, [])
+        self.assertGreaterEqual(stats["micro_fills"], 2)
+        self.assertGreater(clean.area, shape.area)
+
+    def test_orthogonal_cleanup_fills_only_clear_inside_elbow(self):
+        shape = cec_pour_plan._poly_of([
+            (0, 0), (10, 0), (10, 4), (6, 4),
+            (6, 8), (0, 8), (0, 0),
+        ])
+        region = cec_pour_plan._box(-1, -1, 11, 9)
+        clean, stats = cec_pour_plan._orthogonal_cleanup(
+            shape, 8.0, region=region, allow_elbow_fills=True)
+        self.assertTrue(clean.equals(cec_pour_plan._box(0, 0, 10, 8)))
+        self.assertEqual(stats["elbow_fills"], 1)
+        blocked, stats2 = cec_pour_plan._orthogonal_cleanup(
+            shape, 8.0, forbidden=cec_pour_plan._box(7, 5, 8, 6),
+            region=region, allow_elbow_fills=True)
+        self.assertEqual(blocked, shape)
+        self.assertEqual(stats2["elbow_fills"], 0)
+
+    def test_default_cleanup_preserves_large_placement_hook(self):
+        shape = cec_pour_plan._poly_of([
+            (0, 0), (10, 0), (10, 4), (6, 4),
+            (6, 8), (0, 8), (0, 0),
+        ])
+        clean, stats = cec_pour_plan._orthogonal_cleanup(
+            shape, 8.0, region=cec_pour_plan._box(-1, -1, 11, 9))
+        self.assertTrue(clean.equals(shape))
+        self.assertEqual(stats["elbow_fills"], 0)
 
 
 class TestOverlapForcesLayers(unittest.TestCase):
@@ -249,6 +682,8 @@ class TestPourTermination(unittest.TestCase):
     def test_patch_clips_at_pad_inner_edge_not_mid_gap(self):
         import cec_slab_pour
         patches = cec_slab_pour.guaranteed_shunt_patches(self._rs_board())
+        self.assertEqual({patch["priority"] for patch in patches}, {3})
+        self.assertEqual({patch["owner_ref"] for patch in patches}, {"RS1"})
         by_net = {d["net"]: d["polygon"] for d in patches}
         hi_xs = [q[0] for q in by_net["/S_HI"]]
         lo_xs = [q[0] for q in by_net["/S_LO"]]
@@ -267,6 +702,55 @@ class TestPourTermination(unittest.TestCase):
         gx0, gy0, gx1, gy1 = halves[0]["gap"]
         self.assertAlmostEqual(gx0, 10.6, places=3)
         self.assertAlmostEqual(gx1, 15.4, places=3)
+
+    def test_patch_margin_stops_before_foreign_pad(self):
+        import cec_slab_pour
+        blocker = _FP("C1", [_Pad("GND", 3, 7.0, 10.0,
+                                   layers=[_LAY["F.Cu"]])])
+        patches = cec_slab_pour.guaranteed_shunt_patches(
+            self._rs_board(extra_fps=(blocker,)))
+        hi = next(row for row in patches if row["net"] == "/S_HI")
+        xs = [point[0] for point in hi["polygon"]]
+        self.assertTrue(hi["obstacle_limited"])
+        self.assertLess(hi["patch_margin_mm"], 4.5)
+        self.assertGreaterEqual(min(xs), 7.0 + 0.6 + 0.20)
+        self.assertEqual(hi["foreign_clearance_mm"], 0.20)
+
+    def test_patch_margin_stops_before_foreign_component_courtyard(self):
+        import cec_slab_pour
+
+        class Courtyard:
+            def __init__(self):
+                self._bbox = type("BBox", (), {
+                    "GetLeft": lambda _self: int(6.0 * MM),
+                    "GetTop": lambda _self: int(9.0 * MM),
+                    "GetRight": lambda _self: int(8.0 * MM),
+                    "GetBottom": lambda _self: int(11.0 * MM),
+                })()
+
+            def OutlineCount(self):
+                return 1
+
+            def BBox(self):
+                return self._bbox
+
+        class BodyFP(_FP):
+            def IsFlipped(self):
+                return False
+
+            def GetCourtyard(self, _layer):
+                return Courtyard()
+
+        blocker = BodyFP("C1", [
+            _Pad("GND", 3, 6.5, 10.0, layers=[_LAY["F.Cu"]])])
+        patches = cec_slab_pour.guaranteed_shunt_patches(
+            self._rs_board(extra_fps=(blocker,)))
+        hi = next(row for row in patches if row["net"] == "/S_HI")
+        xs = [point[0] for point in hi["polygon"]]
+
+        self.assertTrue(hi["obstacle_limited"])
+        self.assertGreaterEqual(min(xs), 8.0 + 0.20)
+        self.assertEqual(hi["foreign_clearance_mm"], 0.20)
 
     def test_planned_vias_stay_out_of_pads_and_gap(self):
         # a corridor arriving from the GAP side (TB trunk at x=32) must
@@ -657,6 +1141,198 @@ class TestWidthInfeasibleDiag(unittest.TestCase):
             _sbox(0, 0, 10, 10), [_sbox(4, 4, 6, 6)], 20.0)
         self.assertIsNone(sp._prep, "an obstacle inflated past the region "
                                     "span must yield EMPTY free space")
+
+
+class TestOverlapViaDistribution(unittest.TestCase):
+    def test_terminal_pofv_seed_is_same_net_profile_qualified(self):
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "In2.Cu", "F.Cu", 1.0, 0.0, "terminal")
+        st = {
+            "board": object(), "nc": 7,
+            "pad_box_records": [{
+                "owner": "RS1", "pad": "2", "net": "/RAIL",
+                "box": (2.5, 2.5, 3.5, 3.5),
+            }, {
+                "owner": "U1", "pad": "4", "net": "/OTHER",
+                "box": (2.0, 2.0, 3.0, 3.0),
+            }],
+        }
+        with mock.patch.object(
+                cec_pour_plan, "_pofv_spot_allowed",
+                side_effect=lambda _st, point: point == (3.0, 3.0)), \
+                mock.patch.object(
+                    cec_pour_plan._sp, "via_clear_of_foreign_tracks",
+                    return_value=True):
+            self.assertEqual(
+                cec_pour_plan._field_terminal_pofv_seed(
+                    "/RAIL", field, st, G(), ()), [(3.0, 3.0)])
+            self.assertEqual(
+                cec_pour_plan._field_terminal_pofv_seed(
+                    "/RAIL", field, st, G(), ((3.1, 3.0),)), [])
+            self.assertEqual(
+                cec_pour_plan._field_terminal_pofv_seed(
+                    "/RAIL", field, st, G(), (),
+                    allowed_refs={"U1"}), [])
+
+    def test_layer_satellite_requires_pad_owned_copper_or_via_seed(self):
+        from shapely.geometry import box
+
+        component = box(0.0, 0.0, 2.0, 2.0)
+        group = SimpleNamespace(
+            native={"F.Cu"}, attach=box(3.0, 3.0, 4.0, 4.0))
+        st = {"served": [group], "own_pours": []}
+        field = (0, 0, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        self.assertFalse(cec_pour_plan._component_physical_seeded(
+            component, "B.Cu", st, [field], [[]]))
+        self.assertTrue(cec_pour_plan._component_physical_seeded(
+            component, "B.Cu", st, [field], [[(1.0, 1.0)]]))
+        group.native.add("B.Cu")
+        group.attach = box(1.0, 1.0, 3.0, 3.0)
+        self.assertTrue(cec_pour_plan._component_physical_seeded(
+            component, "B.Cu", st, [], []))
+
+    def test_empty_terminal_field_is_seeded_from_proven_overlap(self):
+        from shapely.geometry import Point, box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        overlap = box(0.0, 0.0, 20.0, 8.0)
+        seeded, moved, _before, _after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, [], overlap, G(), (), (), target_count=6)
+        self.assertEqual(len(seeded), 6)
+        self.assertEqual(moved, 6)
+        self.assertTrue(all(overlap.covers(Point(p)) for p in seeded))
+        xs = sorted({x for x, _y in seeded})
+        ys = sorted({y for _x, y in seeded})
+        self.assertEqual(len(xs) * len(ys), len(seeded))
+
+    def test_narrow_overlap_retries_via_lattice_at_fine_phase(self):
+        from shapely.geometry import Point, box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        # After barrel-edge erosion this leaves x=1.50..1.70. The ordinary
+        # globally phased 1.2 mm lattice has no x sample there; the bounded
+        # 0.4 mm phase retry has x=1.6 and enough y extent for two barrels.
+        overlap = box(1.05, 0.0, 2.15, 5.0)
+        seeded, moved, _before, _after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, [], overlap, G(), (), (), target_count=2)
+        self.assertEqual(len(seeded), 2)
+        self.assertEqual(moved, 2)
+        self.assertTrue(all(overlap.covers(Point(point))
+                            for point in seeded))
+        self.assertTrue(all(abs(x - 1.6) < 1e-6 for x, _y in seeded))
+
+    def test_field_via_count_uses_margin_inclusive_layer_current(self):
+        st = {"layer_amps": {"F.Cu": 24.375, "B.Cu": 24.375}}
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        self.assertEqual(
+            cec_pour_plan._field_via_need(st, field, 3.2),
+            cec_pour_plan._sp.vias_for_current(24.375, margin=1.0))
+        self.assertEqual(
+            cec_pour_plan._field_via_minimum(st, field),
+            math.ceil(24.375 / cec_pour_plan._sp.VIA_AMPS))
+
+    def test_terminal_field_becomes_uniform_overlap_lattice(self):
+        from shapely.geometry import Point, box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        original = [(2.0, 2.0), (3.0, 2.0), (2.0, 3.0),
+                    (3.0, 3.0), (2.0, 4.0), (3.0, 4.0)]
+        overlap = box(0.0, 0.0, 20.0, 8.0)
+        spread, moved, before, after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, original, overlap, G(), (), ())
+        self.assertEqual(len(spread), len(original),
+                         "distribution must not add arbitrary drill count")
+        self.assertGreater(moved, 0)
+        self.assertGreater(after, before + 2.0,
+                           "the lattice should spread beyond the compact field")
+        self.assertEqual(len({x for x, _y in spread}), 3)
+        self.assertEqual(len({y for _x, y in spread}), 2)
+        xs = sorted({x for x, _y in spread})
+        ys = sorted({y for _x, y in spread})
+        self.assertEqual(set(spread), {(x, y) for x in xs for y in ys},
+                         "every cell in the rectangular lattice must exist")
+        self.assertAlmostEqual(xs[1] - xs[0], xs[2] - xs[1])
+        self.assertAlmostEqual(xs[1] - xs[0], ys[1] - ys[0],
+                               msg="lattice pitch should be isotropic")
+        self.assertTrue(all(overlap.covers(Point(p)) for p in spread))
+
+    def test_blocked_target_never_creates_staggered_near_lattice(self):
+        from shapely.geometry import box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        original = [(2.0, 2.0), (3.0, 2.0), (2.0, 3.0),
+                    (3.0, 3.0), (2.0, 4.0), (3.0, 4.0)]
+        # A pad removes some attractive central grid points. The old nearest-
+        # legal assignment displaced only the affected point and emitted a
+        # stagger; the replacement must translate or resize the WHOLE grid.
+        blocked = ((8.0, 8.0, 10.0, 10.0),)
+        spread, _moved, _before, _after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, original, box(0.0, 0.0, 18.0, 18.0), G(), blocked, ())
+        xs = sorted({x for x, _y in spread})
+        ys = sorted({y for _x, y in spread})
+        self.assertEqual(len(xs) * len(ys), len(spread))
+        self.assertEqual(set(spread), {(x, y) for x in xs for y in ys})
+        if len(xs) > 2:
+            self.assertEqual(len({round(xs[i + 1] - xs[i], 6)
+                                  for i in range(len(xs) - 1)}), 1)
+        if len(ys) > 2:
+            self.assertEqual(len({round(ys[i + 1] - ys[i], 6)
+                                  for i in range(len(ys) - 1)}), 1)
+
+    def test_field_must_reseat_when_new_overlap_no_longer_covers_it(self):
+        from shapely.geometry import Point, box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "terminal")
+        original = [(1.2, 1.2), (3.6, 1.2), (1.2, 3.6), (3.6, 3.6)]
+        moved_overlap = box(10.0, 10.0, 20.0, 20.0)
+        spread, moved, _before, _after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, original, moved_overlap, G(), (), ())
+        self.assertGreater(moved, 0)
+        self.assertNotEqual(spread, original)
+        self.assertTrue(all(moved_overlap.covers(Point(p)) for p in spread))
+
+    def test_crossing_field_remains_compact_at_defined_transition(self):
+        from shapely.geometry import box
+
+        class G:
+            x0 = y0 = 0.0
+            cell = 1.0
+
+        field = (2, 2, "F.Cu", "B.Cu", 1.0, 0.0, "crossing")
+        original = [(2.0, 2.0), (3.0, 2.0), (2.0, 3.0), (3.0, 3.0)]
+        spread, moved, _before, _after = \
+            cec_pour_plan._spread_field_over_overlap(
+                field, original, box(0, 0, 20, 8), G(), (), ())
+        self.assertEqual(spread, original)
+        self.assertEqual(moved, 0)
 
 
 if __name__ == "__main__":

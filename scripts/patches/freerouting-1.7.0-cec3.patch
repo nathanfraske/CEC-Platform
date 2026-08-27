@@ -1,0 +1,69 @@
+diff --git a/src/main/java/app/freerouting/designforms/specctra/SpecctraDsnFileReader.java b/src/main/java/app/freerouting/designforms/specctra/SpecctraDsnFileReader.java
+index 55b361c..951a673 100644
+--- a/src/main/java/app/freerouting/designforms/specctra/SpecctraDsnFileReader.java
++++ b/src/main/java/app/freerouting/designforms/specctra/SpecctraDsnFileReader.java
+@@ -1673,6 +1673,38 @@ class SpecctraDsnFileReader implements IJFlexScanner {
+     return next_string(ignoreNewline, ' ');
+   }
+ 
++  /**
++   * Make a character available to the hand-written string scanner.
++   *
++   * <p>The generated DFA refills {@code zzBuffer} itself, but {@link #next_string(boolean, char)}
++   * reads that buffer directly.  On a DSN larger than the initial 512 KiB, a net token can begin at
++   * the old buffer boundary and the direct reader used to index one character past the array before
++   * the DFA had a chance to refill it.  Grow in place here so the scanner positions remain valid.
++   */
++  private boolean ensureStringInput(int index) {
++    try {
++      while (index >= zzEndRead) {
++        if (zzAtEOF) {
++          return false;
++        }
++        if (zzEndRead >= zzBuffer.length) {
++          char[] newBuffer = new char[Math.max(zzBuffer.length * 2, index + 1)];
++          System.arraycopy(zzBuffer, 0, newBuffer, 0, zzEndRead);
++          zzBuffer = newBuffer;
++        }
++        int numRead = zzReader.read(zzBuffer, zzEndRead, zzBuffer.length - zzEndRead);
++        if (numRead < 0) {
++          zzAtEOF = true;
++          return false;
++        }
++        zzEndRead += numRead;
++      }
++      return true;
++    } catch (java.io.IOException exception) {
++      throw new IllegalStateException("Unable to refill Specctra string input", exception);
++    }
++  }
++
+   public String next_string(boolean ignoreNewline, char leading) {
+     stringBuffer.setLength(0);
+     int i = 0;
+@@ -1688,11 +1720,15 @@ class SpecctraDsnFileReader implements IJFlexScanner {
+     }
+     skipLeading.add(new Character(leading));
+ 
+-    while ((zzMarkedPos + i < zzBuffer.length)
++    while (ensureStringInput(zzMarkedPos + i)
+         && (skipLeading.contains(zzBuffer[zzMarkedPos + i]))) {
+       i++;
+     }
+ 
++    if (!ensureStringInput(zzMarkedPos + i)) {
++      return "";
++    }
++
+     boolean skipLastChar = false;
+     List<Character> stopAt = null;
+     if (zzBuffer[zzMarkedPos + i] == 34) {
+@@ -1705,7 +1741,7 @@ class SpecctraDsnFileReader implements IJFlexScanner {
+     }
+ 
+     // read the actual string until we have a space/tab/new line
+-    while ((zzMarkedPos + i < zzBuffer.length) && (!stopAt.contains(zzBuffer[zzMarkedPos + i]))) {
++    while (ensureStringInput(zzMarkedPos + i) && (!stopAt.contains(zzBuffer[zzMarkedPos + i]))) {
+       stringBuffer.append(zzBuffer[zzMarkedPos + i]);
+       i++;
+     }

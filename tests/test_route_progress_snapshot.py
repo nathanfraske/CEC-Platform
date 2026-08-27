@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from types import SimpleNamespace
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,6 +17,14 @@ import cec_router  # noqa: E402
 
 
 class TestRouteProgressSnapshot(unittest.TestCase):
+    def test_selected_lastmile_refinement_is_inert_without_expanded_budget(self):
+        with mock.patch.dict(os.environ, {
+                "CEC_LASTMILE_ATTEMPTS": "4",
+                "CEC_LASTMILE_FINAL_ATTEMPTS": "4"}, clear=False):
+            result = cec_router._refine_selected_lastmile(
+                "not-read.kicad_pcb", SimpleNamespace())
+        self.assertFalse(result["enabled"])
+
     def test_best_candidate_and_metrics_are_overwritten_durably(self):
         metrics = SimpleNamespace(
             drc=3, unconnected=4, tracks=5, vias=6, length=7.0,

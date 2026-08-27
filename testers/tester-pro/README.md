@@ -1,5 +1,10 @@
 # Tester Pro — main board
 
+> **STOP WORK — mandatory gate (2026-08-10).** This design must not advance,
+> inherit present Standard cells, or be fabricated until
+> `docs/tester-stop-work-reconciliation-gate-2026-08-10.md` is explicitly
+> released.
+
 DRAFT — no schematic yet. Design basis: docs/psu-tester-exploration-2026-07-14.md
 (§6 tier ruling), docs/psu-tester-architecture-sketch-2026-07-16.md (REV B),
 docs/psu-tester-bom-draft-2026-07-16.md, testers/DESIGN-SHEET.md.

@@ -42,7 +42,10 @@ import argparse
 import json
 import math
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -226,6 +229,149 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
         b.Save(board_path)
     rep["applied"] = bool(apply)
     return rep
+
+
+def _admission_snapshot(metrics):
+    quality = (metrics.detail.get("route_quality") or {})
+    return {
+        "drc": int(metrics.drc),
+        "unconnected": int(metrics.unconnected),
+        "kelvin_ok": bool(metrics.kelvin_ok),
+        "diffpair_ok": bool(metrics.diffpair_ok),
+        "route_blocking": int(quality.get("blocking_count", 0)),
+        "route_advisory": int(quality.get("advisory_count", 0)),
+    }
+
+
+def _score_isolated(board_path):
+    """Score in a fresh process so KiCad SWIG registry state cannot leak."""
+    code = (
+        "import json,sys;sys.path.insert(0,sys.argv[2]);import cec_score;"
+        "m=cec_score.score(sys.argv[1]);q=m.detail.get('route_quality') or {};"
+        "print('CEC_FAB_SCORE='+json.dumps({"
+        "'drc':int(m.drc),'unconnected':int(m.unconnected),"
+        "'kelvin_ok':bool(m.kelvin_ok),'diffpair_ok':bool(m.diffpair_ok),"
+        "'route_blocking':int(q.get('blocking_count',0)),"
+        "'route_advisory':int(q.get('advisory_count',0)),"
+        "'objective':float(cec_score.objective(m))},sort_keys=True))")
+    proc = subprocess.run(
+        [sys.executable, "-c", code, os.path.abspath(board_path), HERE],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    marker = next((line[len("CEC_FAB_SCORE="):]
+                   for line in reversed(proc.stdout.splitlines())
+                   if line.startswith("CEC_FAB_SCORE=")), None)
+    if proc.returncode or marker is None:
+        raise RuntimeError("isolated score failed rc=%d: %s" %
+                           (proc.returncode, (proc.stderr or proc.stdout)[-1200:]))
+    return json.loads(marker)
+
+
+def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
+    argv = [sys.executable, os.path.abspath(__file__), candidate,
+            "--apply", "--sliver", str(sliver_mm), "--json", report_path]
+    if not kwargs.get("do_priority", True):
+        argv.append("--no-priority")
+    if not kwargs.get("do_starved", True):
+        argv.append("--no-starved")
+    proc = subprocess.run(argv, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+    if proc.returncode or not os.path.isfile(report_path):
+        raise RuntimeError("isolated repair failed rc=%d: %s" %
+                           (proc.returncode, (proc.stderr or proc.stdout)[-1200:]))
+    with open(report_path, encoding="utf-8") as handle:
+        rows = json.load(handle)
+    if not rows:
+        raise RuntimeError("isolated repair produced no report")
+    return rows[0]
+
+
+def repair_admitted(board_path, *, sliver_mm=0.10):
+    """Try repair slices transactionally and publish only a no-regression winner.
+
+    The old wave publisher applied every repair in one mutation and only scored
+    afterwards.  Forensic replay on the Hub showed why that is insufficient:
+    segment cleanup safely removed two route artifacts, while zone-priority
+    deconfliction in the same call created one new unconnected item.  A single
+    combined artifact made the safe improvement inseparable from the regression.
+
+    Evaluate a conservative copper-cleanup slice and the full slice on isolated
+    copies, require DRC/connectivity/pair-gate non-regression, and choose the
+    lexicographically cleanest accepted result.  The original board remains
+    byte-for-byte available until a winner is selected.
+    """
+    baseline_row = _score_isolated(board_path)
+    baseline = {k: baseline_row[k] for k in (
+        "drc", "unconnected", "kelvin_ok", "diffpair_ok",
+        "route_blocking", "route_advisory")}
+    parent = os.path.dirname(os.path.abspath(board_path)) or "."
+    work = tempfile.mkdtemp(prefix=".cec-fab-admit-", dir=parent)
+    stem = os.path.splitext(os.path.basename(board_path))[0]
+    variants = []
+    try:
+        for name, kwargs in (
+                ("copper_cleanup", {"do_priority": False,
+                                    "do_starved": False}),
+                ("full", {})):
+            candidate = os.path.join(work, "%s-%s.kicad_pcb" % (stem, name))
+            shutil.copy2(board_path, candidate)
+            for ext in (".kicad_pro", ".kicad_dru", ".kicad_prl"):
+                source = board_path[:-len(".kicad_pcb")] + ext
+                if os.path.isfile(source):
+                    shutil.copy2(source, candidate[:-len(".kicad_pcb")] + ext)
+            try:
+                report_path = os.path.join(work, "%s-%s-repair.json" %
+                                           (stem, name))
+                changes = _repair_isolated(
+                    candidate, sliver_mm=sliver_mm, kwargs=kwargs,
+                    report_path=report_path)
+                score_row = _score_isolated(candidate)
+                snapshot = {k: score_row[k] for k in (
+                    "drc", "unconnected", "kelvin_ok", "diffpair_ok",
+                    "route_blocking", "route_advisory")}
+                safe = (snapshot["drc"] <= baseline["drc"]
+                        and snapshot["unconnected"] <= baseline["unconnected"]
+                        and (not baseline["kelvin_ok"] or snapshot["kelvin_ok"])
+                        and (not baseline["diffpair_ok"] or snapshot["diffpair_ok"])
+                        and snapshot["route_blocking"] <= baseline["route_blocking"])
+                variants.append({
+                    "name": name, "path": candidate, "changes": changes,
+                    "metrics": snapshot, "safe": bool(safe),
+                    "objective": float(score_row["objective"]),
+                })
+            except Exception as exc:                         # noqa: BLE001
+                variants.append({"name": name, "path": candidate,
+                                 "safe": False,
+                                 "error": "%s: %s" %
+                                          (type(exc).__name__, exc)})
+
+        safe_variants = [row for row in variants if row.get("safe")]
+        # Prefer real topology cleanup, then electrical closure, then the
+        # ordinary weighted objective.  Include the unchanged baseline as the
+        # stable fallback so a neutral rewrite is never published gratuitously.
+        baseline_key = (baseline["route_blocking"], baseline["route_advisory"],
+                        baseline["drc"], baseline["unconnected"],
+                        float(baseline_row["objective"]), "baseline")
+        chosen = None
+        chosen_key = baseline_key
+        for row in safe_variants:
+            snap = row["metrics"]
+            key = (snap["route_blocking"], snap["route_advisory"],
+                   snap["drc"], snap["unconnected"], row["objective"], row["name"])
+            if key < chosen_key:
+                chosen, chosen_key = row, key
+        if chosen is not None:
+            shutil.copy2(chosen["path"], board_path)
+        return {
+            "board": os.path.relpath(board_path),
+            "baseline": baseline,
+            "variants": [{k: v for k, v in row.items() if k != "path"}
+                         for row in variants],
+            "adopted": chosen is not None,
+            "chosen": chosen["name"] if chosen is not None else "baseline",
+            "after": chosen["metrics"] if chosen is not None else baseline,
+        }
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def main():

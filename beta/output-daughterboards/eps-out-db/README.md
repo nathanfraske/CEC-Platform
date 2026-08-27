@@ -1,5 +1,11 @@
 # EPS 8-pin output daughterboard (per-cable) — BETA-1
 
+> **XFCN PROTOTYPE SUPERSESSION (2026-08-12):** the live authority uses four
+> T34069 daughterboard bolt lands, each with a 3.4 mm plated M3 clearance
+> hole, arranged `GND / +12V / +12V / GND`. The compact live outline is
+> **28.0 × 18.5 mm** (9.2% less area than the 28.5 × 20.01 mm predecessor).
+> The blade-era material below is retained only as historical provenance.
+
 Passive connector-daughterboard for **one** EPS 8-pin cable's OUTPUT side,
 per spec **§2.8 v1.4.0** and `docs/standard-tier-review/SYNTHESIS-beta-plan.md`
 §D-5a. **One design, instantiated per cable** — the EPS module populates 2

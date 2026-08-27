@@ -22,6 +22,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -37,11 +38,22 @@ class TestHubParamsConformance(unittest.TestCase):
                         "hub must free In2 (2026-06-14 stackup ruling: one "
                         "inner GND plane, In2 = signal)")
 
+    def test_signal_layer_is_not_a_power_pour_fallback(self):
+        self.assertEqual(self.p.get("power_pour_layers"),
+                         ("In3.Cu", "B.Cu", "F.Cu"))
+        self.assertNotIn("In2.Cu", self.p.get("power_pour_layers", ()),
+                         "Hub In2 is the high-speed signal layer above GND1, "
+                         "not spare territory for a power corridor")
+
+    def test_pour_corridors_are_reserved_before_freerouting(self):
+        self.assertTrue(self.p.get("pour_reserve"),
+                        "routed-object pours must become Freerouting keepouts "
+                        "before ordinary signals are routed")
+
     def test_pour_asks_live_on_in3(self):
         asks = self.p.get("pour_asks") or []
         self.assertEqual({a["net"] for a in asks}, {
-            "+5VSB", "/5VSB_RAW", "/PSU_5V", "/PSU_5V_KVM",
-            "/MAIN_5V_RAW", "/+5V_HOLD",
+            "+5VSB", "+5V_SYS", "/PSU_5V_KVM", "/+5V_HOLD",
             "/VCC_P1", "/VCC_P2", "/VCC_P3", "/VCC_P4",
         })
         for a in asks:
@@ -50,6 +62,47 @@ class TestHubParamsConformance(unittest.TestCase):
                              "six-layer In3 power layer")
             self.assertFalse(a.get("evac", True),
                              "hub asks stay post-route additive (no eviction)")
+
+    def test_short_ask_resolves_current_hierarchical_net_name(self):
+        import cec_pourplan
+
+        prepared = {
+            "/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM": [
+                ("U1", 10.0, 10.0, False),
+                ("J1", 20.0, 12.0, True),
+            ]
+        }
+        spec = cec_pourplan._ask_spec(
+            {"net": "/PSU_5V_KVM", "layers": ("In3.Cu",),
+             "provenance": "placer_ask", "evac": False},
+            prepared, (0.0, 0.0, 30.0, 20.0), 1.0)
+        self.assertIsNotNone(spec)
+        self.assertEqual(spec.net,
+                         "/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM")
+        self.assertEqual(spec.layers, ("In3.Cu",))
+
+    def test_overunder_asks_are_not_dropped_before_lane_synthesis(self):
+        import cec_fr
+
+        derived = {"net": "+12V", "provenance": "derived"}
+        asked = {"net": "+5VSB", "provenance": "placer_ask"}
+        rail = {"net": "+5V_SYS", "provenance": "rail_compiler"}
+        now, deferred = cec_fr.partition_prebond_pours(
+            [derived, asked, rail], overunder=True)
+        self.assertEqual(now, [derived, rail])
+        self.assertEqual(deferred, [asked])
+        now, deferred = cec_fr.partition_prebond_pours(
+            [derived, asked, rail], overunder=False)
+        self.assertEqual(now, [derived, asked, rail])
+        self.assertEqual(deferred, [])
+
+    def test_complete_rail_contract_owns_surface_pads(self):
+        import cec_slab_pour
+
+        with mock.patch.dict(os.environ, {
+                "CEC_OVERUNDER": "1", "CEC_POWER_PICKUP": "1"}):
+            self.assertTrue(cec_slab_pour._reservation_owns_pad(
+                object(), []))
 
 
 class TestHubMaterializationSidecars(unittest.TestCase):
@@ -80,6 +133,36 @@ class TestHubMaterializationSidecars(unittest.TestCase):
 
 
 class TestOverunderViaNetPersistence(unittest.TestCase):
+    def test_bridge_via_cannot_pierce_foreign_critical_track(self):
+        try:
+            import pcbnew
+            import cec_fr
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        mm = lambda value: int(round(value * 1e6))
+        board = pcbnew.CreateEmptyBoard()
+        board.SetCopperLayerCount(6)
+        rail = pcbnew.NETINFO_ITEM(board, "+5V_TEST")
+        pair = pcbnew.NETINFO_ITEM(board, "/USB_D_N")
+        board.Add(rail)
+        board.Add(pair)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I(mm(5.0), mm(10.0)))
+        track.SetEnd(pcbnew.VECTOR2I(mm(25.0), mm(10.0)))
+        track.SetWidth(mm(0.2))
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetNet(pair)
+        track.SetLocked(True)
+        board.Add(track)
+
+        added = cec_fr.add_overunder_vias(board, [
+            {"net": "+5V_TEST", "x_mm": 15.0, "y_mm": 10.0},
+            {"net": "+5V_TEST", "x_mm": 15.0, "y_mm": 13.0},
+        ])
+        self.assertEqual(len(added), 1)
+        self.assertAlmostEqual(added[0].GetPosition().y / 1e6, 13.0)
+
     def test_stale_filled_ground_plane_cannot_steal_rail_via_net(self):
         try:
             import pcbnew
@@ -159,7 +242,7 @@ class TestOverunderInternalCutoutRaster(unittest.TestCase):
         # An unrelated rail must see all apertures. +5VSB itself owns an LED
         # pad around each aperture and is deliberately allowed a filler-clipped
         # local terminal approach; field-via seating remains blocked for it.
-        nc = board.GetNetcodeFromNetname("/MAIN_5V_RAW")
+        nc = board.GetNetcodeFromNetname("+5V_SYS")
         foreign, _anchors = cec_slab_pour.rasterize(
             board, nc, board.GetLayerID("In3.Cu"), grid)
         cutouts = [item for fp in board.GetFootprints()
@@ -171,6 +254,19 @@ class TestOverunderInternalCutoutRaster(unittest.TestCase):
             self.assertTrue(
                 foreign[grid.iy(center.y / 1e6), grid.ix(center.x / 1e6)],
                 "internal Edge.Cuts aperture must be foreign to the pour search")
+
+        # Owning a surface pad exempts only that pad's copper layer.  The old
+        # footprint-wide exemption also erased the physical through-cutout on
+        # B.Cu/inner copper, so the raster accepted a rail that KiCad split
+        # during exact zone fill.
+        own_nc = board.GetNetcodeFromNetname("+5VSB")
+        own_inner, _anchors = cec_slab_pour.rasterize(
+            board, own_nc, board.GetLayerID("In3.Cu"), grid)
+        for item in cutouts:
+            center = item.GetBoundingBox().GetCenter()
+            self.assertTrue(
+                own_inner[grid.iy(center.y / 1e6), grid.ix(center.x / 1e6)],
+                "surface-pad ownership must not erase a through-cutout on inner copper")
 
 
 class TestPourPolygonsPerLayer(unittest.TestCase):
@@ -237,6 +333,102 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                          "stitched -- 0 here = the own-pad false-refusal")
         self.assertEqual(r["skipped"], 0)
 
+    def test_large_power_land_keeps_full_requested_pickup_width(self):
+        """A neck-down is a physical exception, never the default launch."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        pours = [{"net": "+5VSB", "layer": "In2.Cu",
+                  "polygon": [(0.0, 0.0), (10.0, 0.0),
+                              (10.0, 5.0), (0.0, 5.0)]}]
+        result = cec_fr.synthesize_power_pickups(
+            board, pours, stub_w=1.0, lock=True)
+        tracks = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+
+        self.assertEqual((result["stubs"], result["skipped"]), (1, 0))
+        self.assertEqual(len(tracks), 1)
+        self.assertEqual(tracks[0].GetWidth(), pcbnew.FromMM(1.0))
+        self.assertTrue(tracks[0].IsLocked())
+
+    def test_surface_linked_local_cell_still_gets_one_stack_pickup(self):
+        """Local same-net copper is not proof of an inner-layer portal."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        first_fp = next(iter(board.GetFootprints()))
+        first_fp.SetReference("C_LOCAL")
+        first = next(iter(first_fp.Pads()))
+        first.SetPadName("1")
+        net = first.GetNet()
+
+        owner = pcbnew.FOOTPRINT(board)
+        owner.SetReference("U_LOCAL")
+        owner.SetPosition(pcbnew.VECTOR2I_MM(7.0, 2.5))
+        second = pcbnew.PAD(owner)
+        second.SetPadName("1")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        second.SetPosition(owner.GetPosition())
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers)
+        second.SetNet(net)
+        owner.Add(second)
+        board.Add(owner)
+
+        local = pcbnew.PCB_TRACK(board)
+        local.SetStart(first.GetPosition())
+        local.SetEnd(second.GetPosition())
+        local.SetWidth(pcbnew.FromMM(0.3))
+        local.SetLayer(pcbnew.F_Cu)
+        local.SetNet(net)
+        local.SetLocked(True)
+        board.Add(local)
+
+        result = cec_fr.synthesize_power_pickups(
+            board, [{"net": "+5VSB", "layer": "In2.Cu",
+                     "polygon": [(0.0, 0.0), (10.0, 0.0),
+                                 (10.0, 5.0), (0.0, 5.0)]}],
+            lock=True)
+        vias = [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+
+        self.assertEqual((result["vias"], result["skipped"]), (1, 0))
+        self.assertEqual(len(vias), 1,
+                         "one portal promotes the whole connected cell")
+
+    def test_pickup_extends_guarded_search_beyond_legacy_rays(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.GetParentFootprint().SetPosition(pcbnew.VECTOR2I_MM(1.0, 2.5))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(1.0, 2.5))
+        foreign = pcbnew.NETINFO_ITEM(board, "/FOREIGN")
+        board.Add(foreign)
+        blocker = pcbnew.PCB_TRACK(board)
+        blocker.SetStart(pcbnew.VECTOR2I_MM(1.3, 2.5))
+        blocker.SetEnd(pcbnew.VECTOR2I_MM(1.9, 2.5))
+        blocker.SetWidth(pcbnew.FromMM(0.2))
+        blocker.SetLayer(pcbnew.In2_Cu)
+        blocker.SetNet(foreign)
+        board.Add(blocker)
+        pours = [{"net": "+5VSB", "layer": "In2.Cu",
+                  "polygon": [(1.0, 2.1), (10.0, 2.1),
+                              (10.0, 2.9), (1.0, 2.9)]}]
+
+        result = cec_fr.synthesize_power_pickups(board, pours)
+        vias = [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+
+        self.assertEqual((result["vias"], result["skipped"]), (1, 0))
+        self.assertGreater(vias[0].GetPosition().x - pad.GetPosition().x,
+                           pcbnew.FromMM(1.2))
+
     def test_declared_pofv_profile_prefers_contained_via_in_pad(self):
         import pcbnew
         import cec_fr
@@ -253,7 +445,7 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual((r["vias"], r["pofv"], r["stubs"]), (1, 1, 0))
         self.assertEqual(vias[0].GetPosition(), pad.GetPosition())
 
-    def test_pickup_uses_power_netclass_geometry_before_clearance(self):
+    def test_pickup_uses_profile_pofv_geometry_not_power_via_geometry(self):
         import pcbnew
         import cec_fr
 
@@ -272,8 +464,328 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         result = cec_fr.synthesize_power_pickups(b, pours)
         via = next(t for t in b.GetTracks() if t.GetClass() == "PCB_VIA")
         self.assertEqual((result["vias"], result["pofv"]), (1, 1))
-        self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
-        self.assertEqual(via.GetDrillValue(), int(0.4e6))
+        self.assertEqual(via.GetWidth(via.TopLayer()), int(0.35e6))
+        self.assertEqual(via.GetDrillValue(), int(0.25e6))
+
+    def test_compact_same_net_pad_bank_shares_qualified_pofv(self):
+        """A tiny package land may neck to its adjacent, POFV-capable peer.
+
+        The recovery must be topology based: the same board without the mate's
+        qualified via remains skipped by the existing fail-closed contract.
+        """
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U_TEST")
+        tiny = next(iter(footprint.Pads()))
+        tiny.SetPadName("6")
+        tiny.SetSize(pcbnew.VECTOR2I_MM(0.60, 0.20))
+
+        anchor = pcbnew.PAD(footprint)
+        anchor.SetPadName("7")
+        anchor.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        anchor.SetShape(pcbnew.PAD_SHAPE_RECT)
+        anchor.SetSize(pcbnew.VECTOR2I_MM(1.05, 0.40))
+        anchor.SetPosition(pcbnew.VECTOR2I(
+            tiny.GetPosition().x + pcbnew.FromMM(0.90),
+            tiny.GetPosition().y))
+        layers = pcbnew.LSET()
+        layers.AddLayer(pcbnew.F_Cu)
+        anchor.SetLayerSet(layers)
+        anchor.SetNet(tiny.GetNet())
+        footprint.Add(anchor)
+
+        result = cec_fr.synthesize_power_pickups(
+            board, [{"net": "+5VSB", "layers": ("In3.Cu",)}],
+            lock=True)
+        vias = [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+        links = [item for item in board.GetTracks()
+                 if item.GetClass() == "PCB_TRACK"]
+
+        self.assertEqual((result["pads"], result["vias"], result["pofv"],
+                          result["stubs"], result["skipped"]),
+                         (2, 1, 1, 1, 0))
+        self.assertEqual(result["cluster_recovered"], 1)
+        self.assertEqual(result["cluster_links"][0]["from_pad"], "6")
+        self.assertEqual(result["cluster_links"][0]["to_pad"], "7")
+        self.assertEqual(vias[0].GetPosition(), anchor.GetPosition())
+        self.assertEqual(links[0].GetWidth(), pcbnew.FromMM(0.20))
+        self.assertEqual(
+            {(point.x, point.y)
+             for point in (links[0].GetStart(), links[0].GetEnd())},
+            {(point.x, point.y)
+             for point in (tiny.GetPosition(), anchor.GetPosition())})
+        self.assertTrue(all(item.IsLocked() for item in vias + links))
+
+    def test_authority_pin_can_share_nearby_decoupler_pofv(self):
+        """A current terminal may use its local bypass pad as the portal.
+
+        The terminal filter deliberately excludes the capacitor from ordinary
+        pickup enumeration; recovery must still discover the compact cell,
+        prove the POFV independently, and commit the link transactionally.
+        """
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        switch = next(iter(board.GetFootprints()))
+        switch.SetReference("U_SWITCH")
+        source = next(iter(switch.Pads()))
+        source.SetPadName("2")
+        source.SetSize(pcbnew.VECTOR2I_MM(1.05, 0.40))
+
+        cap = pcbnew.FOOTPRINT(board); cap.SetReference("C_IN")
+        mate = pcbnew.PAD(cap); mate.SetPadName("1")
+        mate.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        mate.SetShape(pcbnew.PAD_SHAPE_RECT)
+        mate.SetSize(pcbnew.VECTOR2I_MM(0.90, 0.95))
+        mate.SetPosition(pcbnew.VECTOR2I(
+            source.GetPosition().x - pcbnew.FromMM(1.30),
+            source.GetPosition().y))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        mate.SetLayerSet(layers); mate.SetNet(source.GetNet())
+        cap.Add(mate); board.Add(cap)
+
+        real_spot_clear = cec_fr._via_spot_clear
+
+        def only_decoupler_portal(board_arg, at, *args, **kwargs):
+            if at == mate.GetPosition():
+                return real_spot_clear(board_arg, at, *args, **kwargs)
+            return False
+
+        with mock.patch.object(
+                cec_fr, "_via_spot_clear",
+                side_effect=only_decoupler_portal):
+            result = cec_fr.synthesize_power_pickups(
+                board, [{"net": "+5VSB", "layers": ("In3.Cu",)}],
+                terminal_refs_by_net={"+5VSB": {"U_SWITCH"}}, lock=True)
+
+        vias = [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+        self.assertEqual((result["skipped"], result["cluster_recovered"],
+                          result["pofv"]), (0, 1, 1))
+        self.assertEqual(vias[0].GetPosition(), mate.GetPosition())
+        self.assertEqual(result["cluster_links"][0]["to_ref"], "C_IN")
+        self.assertEqual(result["cluster_links"][0]["anchor_type"],
+                         "PCB_VIA")
+
+    def test_compact_pad_bank_shares_offset_component_portal(self):
+        """A duplicate pin may share a sibling's guarded offset dogbone.
+
+        The portal is deliberately not inside either package land.  A foreign
+        inner-layer obstruction prevents every new through barrel around the
+        orphan pin while leaving the short same-layer pin-bank link legal.
+        Recovery must follow the sibling's real connectivity component rather
+        than require a via-in-pad coincidence.
+        """
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U_BANK")
+        orphan = next(iter(footprint.Pads()))
+        orphan.SetPadName("8")
+        orphan.SetSize(pcbnew.VECTOR2I_MM(1.05, 0.40))
+        net = orphan.GetNet()
+        power = pcbnew.NETCLASS("Power")
+        power.SetTrackWidth(pcbnew.FromMM(1.0))
+        power.SetViaDiameter(pcbnew.FromMM(0.8))
+        power.SetViaDrill(pcbnew.FromMM(0.4))
+        net.SetNetClass(power)
+
+        mate = pcbnew.PAD(footprint)
+        mate.SetPadName("1")
+        mate.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        mate.SetShape(pcbnew.PAD_SHAPE_RECT)
+        mate.SetSize(pcbnew.VECTOR2I_MM(1.05, 0.40))
+        mate.SetPosition(pcbnew.VECTOR2I(
+            orphan.GetPosition().x - pcbnew.FromMM(1.35),
+            orphan.GetPosition().y))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        mate.SetLayerSet(layers)
+        mate.SetNet(net)
+        footprint.Add(mate)
+
+        portal = pcbnew.PCB_VIA(board)
+        portal.SetPosition(pcbnew.VECTOR2I_MM(0.5, 2.5))
+        portal.SetWidth(pcbnew.FromMM(0.8))
+        portal.SetDrill(pcbnew.FromMM(0.4))
+        portal.SetNet(net)
+        portal.SetLocked(True)
+        board.Add(portal)
+        local = pcbnew.PCB_TRACK(board)
+        local.SetStart(mate.GetPosition())
+        local.SetEnd(portal.GetPosition())
+        local.SetWidth(pcbnew.FromMM(1.0))
+        local.SetLayer(pcbnew.F_Cu)
+        local.SetNet(net)
+        local.SetLocked(True)
+        board.Add(local)
+
+        foreign = pcbnew.NETINFO_ITEM(board, "/INNER_BLOCKER")
+        board.Add(foreign)
+        blocker = pcbnew.PCB_TRACK(board)
+        blocker.SetStart(pcbnew.VECTOR2I_MM(5.0, -1.0))
+        blocker.SetEnd(pcbnew.VECTOR2I_MM(5.0, 6.0))
+        blocker.SetWidth(pcbnew.FromMM(6.0))
+        blocker.SetLayer(pcbnew.In2_Cu)
+        blocker.SetNet(foreign)
+        board.Add(blocker)
+
+        result = cec_fr.synthesize_power_pickups(
+            board, [{"net": "+5VSB", "layer": "In3.Cu",
+                     "polygon": [(-1.0, -1.0), (10.0, -1.0),
+                                 (10.0, 6.0), (-1.0, 6.0)]}],
+            plane_nets=(), lock=True)
+        links = [item for item in board.GetTracks()
+                 if item.GetClass() == "PCB_TRACK"
+                 and item.GetNetCode() == net.GetNetCode()
+                 and item.m_Uuid.AsString() != local.m_Uuid.AsString()]
+
+        self.assertEqual((result["pads"], result["vias"],
+                          result["cluster_recovered"], result["skipped"]),
+                         (1, 0, 1, 0))
+        self.assertEqual(len(links), 1)
+        self.assertEqual(links[0].GetWidth(), pcbnew.FromMM(0.40))
+        self.assertEqual(result["cluster_links"][0]["anchor_type"],
+                         "PCB_VIA")
+        self.assertEqual(result["cluster_links"][0]["anchor_portal"],
+                         portal.m_Uuid.AsString())
+
+    def test_pickup_refusal_records_guard_stage_counts(self):
+        """A refusal certificate identifies the exhausted physical gates."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        foreign = pcbnew.NETINFO_ITEM(board, "/BLOCK_ALL_VIAS")
+        board.Add(foreign)
+        blocker = pcbnew.PCB_TRACK(board)
+        blocker.SetStart(pcbnew.VECTOR2I_MM(5.0, -1.0))
+        blocker.SetEnd(pcbnew.VECTOR2I_MM(5.0, 6.0))
+        blocker.SetWidth(pcbnew.FromMM(7.0))
+        blocker.SetLayer(pcbnew.In2_Cu)
+        blocker.SetNet(foreign)
+        board.Add(blocker)
+
+        result = cec_fr.synthesize_power_pickups(
+            board, [{"net": "+5VSB", "layer": "In2.Cu",
+                     "polygon": [(0.0, 0.0), (10.0, 0.0),
+                                 (10.0, 5.0), (0.0, 5.0)]}],
+            plane_nets=())
+        guard = result["skipped_detail"][0]["guard_summary"]
+
+        self.assertEqual(result["skipped"], 1)
+        self.assertGreater(guard["probes"], 0)
+        self.assertEqual(guard["placed"], 0)
+        self.assertGreater(guard["via_spot_clearance"], 0)
+
+    def test_enclosed_power_terminal_gets_guarded_escape_fanout(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U_ESCAPE")
+        pad = next(iter(footprint.Pads()))
+        pad.SetPadName("2")
+        pickup = cec_fr.synthesize_power_pickups(
+            board, [{"net": "+5VSB", "layers": ("In3.Cu",)}], lock=True)
+        self.assertEqual((pickup["pofv"], pickup["skipped"]), (1, 0))
+
+        result = cec_fr.synthesize_power_escape_fanouts(
+            board,
+            [{"net": "+5VSB", "polygon": [
+                (0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (0.0, 5.0)]}],
+            [{"ref": "U_ESCAPE", "pad": "2", "net": "+5VSB"}],
+            stub_w=0.6, lock=True)
+        vias = [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+        tracks = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+
+        self.assertEqual((result["placed"], result["refused"]), (1, 0))
+        self.assertEqual(len(vias), 2)
+        self.assertEqual(len(tracks), 2)
+        self.assertEqual(
+            sorted(round(track.GetWidth() / cec_fr.MM, 3)
+                   for track in tracks), [0.6, 0.6])
+        self.assertEqual(len(result["detail"][0]["track_uuids"]), 2)
+        self.assertGreater(result["detail"][0]["offset_mm"], 0.8)
+        self.assertTrue(all(item.IsLocked() for item in vias + tracks))
+
+    def test_escape_fanout_refuses_terminal_without_qualified_pofv(self):
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U_ESCAPE")
+        pad = next(iter(footprint.Pads()))
+        pad.SetPadName("2")
+        result = cec_fr.synthesize_power_escape_fanouts(
+            board,
+            [{"net": "+5VSB", "polygon": [
+                (0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (0.0, 5.0)]}],
+            [{"ref": "U_ESCAPE", "pad": "2", "net": "+5VSB"}])
+
+        self.assertEqual((result["placed"], result["refused"]), (0, 1))
+        self.assertEqual(result["refused_detail"][0]["reason"],
+                         "no qualified POFV anchor")
+
+    def test_adjacent_fine_pitch_power_pads_can_each_receive_pofv(self):
+        import pcbnew
+        import cec_fr
+
+        b = self._one_pad_board()
+        b.SetCopperLayerCount(6)
+        props = b.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        b.SetProperties(props)
+        footprint = next(iter(b.GetFootprints()))
+        first = next(iter(footprint.Pads()))
+        first.SetSize(pcbnew.VECTOR2I_MM(0.40, 0.40))
+        second = pcbnew.PAD(footprint)
+        second.SetPadName("2")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I_MM(0.40, 0.40))
+        second.SetPosition(pcbnew.VECTOR2I(
+            first.GetPosition().x + pcbnew.FromMM(0.50),
+            first.GetPosition().y))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers)
+        second.SetNet(first.GetNet())
+        footprint.Add(second)
+
+        result = cec_fr.synthesize_power_pickups(
+            b, [{"net": "+5VSB", "layers": ("In3.Cu",)}])
+        vias = [item for item in b.GetTracks()
+                if item.GetClass() == "PCB_VIA"]
+        self.assertEqual((result["vias"], result["pofv"]), (2, 2))
+        self.assertEqual({(item.GetPosition().x, item.GetPosition().y)
+                          for item in vias},
+                         {(first.GetPosition().x, first.GetPosition().y),
+                          (second.GetPosition().x, second.GetPosition().y)})
 
     def test_pickup_neckdown_fits_narrow_power_pad(self):
         import pcbnew
@@ -292,12 +804,16 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                               (10.0, 5.0), (0.0, 5.0)]}]
 
         result = cec_fr.synthesize_power_pickups(b, pours)
-        stub = next(t for t in b.GetTracks()
-                    if t.GetClass() == "PCB_TRACK")
+        stubs = [t for t in b.GetTracks()
+                 if t.GetClass() == "PCB_TRACK"]
         via = next(t for t in b.GetTracks()
                    if t.GetClass() == "PCB_VIA")
-        self.assertEqual((result["vias"], result["stubs"]), (1, 1))
-        self.assertEqual(stub.GetWidth(), int(0.2e6))
+        self.assertEqual((result["vias"], result["stubs"]), (1, 2))
+        self.assertEqual({stub.GetWidth() for stub in stubs},
+                         {int(0.2e6), int(1.0e6)})
+        narrow_length = sum(stub.GetLength() for stub in stubs
+                            if stub.GetWidth() == int(0.2e6))
+        self.assertLessEqual(narrow_length, int(0.6e6))
         self.assertEqual(via.GetWidth(via.TopLayer()), int(0.8e6))
         self.assertEqual(via.GetDrillValue(), int(0.4e6))
 
@@ -369,6 +885,37 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         selected = cec_fr.synthesize_same_footprint_links(
             board, include_nets={"+5VSB"}, include_refs={"U1"})
         self.assertEqual((selected["groups"], selected["linked"]), (1, 1))
+
+    def test_connector_power_bank_uses_bounded_wider_local_span(self):
+        """Repeated connector power lands remain one local bank even when
+        they span farther than a compact IC's ordinary join limit."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("J1")
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("A4")
+        first.SetPosition(pcbnew.VECTOR2I_MM(5.0, 2.5))
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("B4")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        second.SetPosition(pcbnew.VECTOR2I_MM(9.5, 2.5))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); footprint.Add(second)
+
+        result = cec_fr.synthesize_same_footprint_links(
+            board, netclass_resolver=lambda _net: {
+                "track_width": 1.0, "clearance": 0.2,
+                "via_diameter": 0.8, "via_drill": 0.4})
+
+        self.assertEqual((result["groups"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        self.assertTrue(list(board.GetTracks()))
 
     def test_same_footprint_uses_guarded_bridge_when_face_is_blocked(self):
         import math
@@ -581,25 +1128,151 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertNotIn(dead_via_id, remaining)
         self.assertNotIn(dead_stub_id, remaining)
 
+    def test_just_generated_pofv_is_removed_when_final_fill_does_not_land(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pad.GetPosition())
+        via.SetWidth(pcbnew.FromMM(0.35))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetNet(pad.GetNet())
+        board.Add(via)
+        via_id = via.m_Uuid.AsString()
+        footprint = next(iter(board.GetFootprints()))
+        other = pcbnew.PAD(footprint)
+        other.SetPadName("2")
+        other.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        other.SetShape(pcbnew.PAD_SHAPE_RECT)
+        other.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+        other.SetPosition(pcbnew.VECTOR2I(
+            pad.GetPosition().x + pcbnew.FromMM(0.5),
+            pad.GetPosition().y))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        other.SetLayerSet(layers); other.SetNet(pad.GetNet())
+        footprint.Add(other)
+        surface_link = pcbnew.PCB_TRACK(board)
+        surface_link.SetStart(pad.GetPosition())
+        surface_link.SetEnd(other.GetPosition())
+        surface_link.SetWidth(pcbnew.FromMM(0.2))
+        surface_link.SetLayer(pcbnew.F_Cu)
+        surface_link.SetNet(pad.GetNet())
+        board.Add(surface_link)
+        surface_link_id = surface_link.m_Uuid.AsString()
+
+        # Bootstrap pickups are created before the fresh over-under zones in a
+        # separate pcbnew process, so their UUIDs cannot be carried into the
+        # final-fill pruner. The explicit rail discovery scope is the ownership
+        # proof for that materialization-only case.
+        result = cec_fr.prune_redundant_dangling_pickups(
+            board, set(), discover_pofv_nets=("+5VSB",))
+
+        remaining = {item.m_Uuid.AsString() for item in board.GetTracks()}
+        self.assertEqual((result["vias"], result["stubs"],
+                          result["unlanded_pofv"]), (1, 0, 1))
+        self.assertNotIn(via_id, remaining)
+        self.assertIn(surface_link_id, remaining)
+        self.assertEqual(result["detail"][0]["replacement"],
+                         "none-unlanded-pofv")
+
+    def test_file_cleanup_reconciles_pofv_after_zone_reaper(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pad.GetPosition())
+        via.SetWidth(pcbnew.FromMM(0.35))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetNet(pad.GetNet())
+        via.SetLocked(True)
+        board.Add(via)
+        via_id = via.m_Uuid.AsString()
+
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "post-reaper.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            result = cec_fr.prune_post_cleanup_power_pickups(
+                path, ("+5VSB",))
+            saved = pcbnew.LoadBoard(path)
+            remaining = {item.m_Uuid.AsString()
+                         for item in saved.GetTracks()}
+
+        self.assertEqual((result["vias"], result["stubs"],
+                          result["unlanded_pofv"]), (1, 0, 1))
+        self.assertNotIn(via_id, remaining)
+        self.assertEqual(result["detail"][0]["replacement"],
+                         "none-unlanded-pofv")
+
+    def test_generated_zone_and_locked_via_cannot_keep_each_other_alive(self):
+        import pcbnew
+        import cec_fr
+
+        board = pcbnew.BOARD()
+        board.SetCopperLayerCount(4)
+        net = pcbnew.NETINFO_ITEM(board, "+RAIL")
+        board.Add(net)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        via.SetWidth(pcbnew.FromMM(0.9))
+        via.SetDrill(pcbnew.FromMM(0.5))
+        via.SetNet(net)
+        via.SetLocked(True)
+        board.Add(via)
+        zone = pcbnew.ZONE(board)
+        zone.SetNet(net)
+        zone.SetLayer(pcbnew.F_Cu)
+        zone.SetZoneName("pourfirst:+RAIL:dead")
+        outline = zone.Outline(); outline.NewOutline()
+        for x, y in ((4, 4), (6, 4), (6, 6), (4, 6)):
+            outline.Append(pcbnew.VECTOR2I_MM(x, y))
+        board.Add(zone)
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "dead-pair.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            report = cec_fr.settle_generated_power_artifact(
+                path, ("+RAIL",))
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertTrue(report["converged"])
+        self.assertEqual(len(saved.GetTracks()), 0)
+        self.assertEqual(len(saved.Zones()), 0)
+
     def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
         import pcbnew
         import cec_fr
 
         b = self._one_pad_board()
+        fp = next(iter(b.GetFootprints()))
+        pad = next(iter(fp.Pads()))
+        fp.SetPosition(pcbnew.VECTOR2I_MM(8.0, 4.5))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(8.0, 4.5))
         net = b.GetNetInfo().GetNetItem("+5VSB")
         zone = pcbnew.ZONE(b)
         zone.SetNet(net)
         zone.SetLayer(pcbnew.In2_Cu)
         outline = zone.Outline()
         outline.NewOutline()
-        # L shape: the pad at (5, 2.5) is inside the 0..10 x 0..5 bbox,
-        # but outside real copper above the 1 mm bottom bar.
+        # L shape: the pad at (8, 4.5) is inside the 0..10 x 0..5 bbox,
+        # but outside real copper and beyond the bounded 3 mm pickup reach.
         for x, y in ((0, 0), (10, 0), (10, 1),
                      (1, 1), (1, 5), (0, 5)):
             outline.Append(pcbnew.VECTOR2I_MM(x, y))
         b.Add(zone)
         pcbnew.ZONE_FILLER(b).Fill(b.Zones())
-        pad = next(iter(next(iter(b.GetFootprints())).Pads()))
         self.assertTrue(zone.GetBoundingBox().Contains(pad.GetPosition()))
         self.assertFalse(zone.GetFilledPolysList(pcbnew.In2_Cu).Contains(
             pad.GetPosition()))
@@ -678,6 +1351,38 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertNotIn("In1.Cu", lays2,
                          "a power-kind inner must stay out")
 
+    def test_fiducial_keepout_owns_only_its_assembly_side(self):
+        import pcbnew
+        import cec_fr
+
+        board = pcbnew.CreateEmptyBoard()
+        fiducial = pcbnew.FOOTPRINT(board)
+        fiducial.SetReference("FID1")
+        fiducial.SetLayer(pcbnew.F_Cu)
+        fiducial.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+        pad = pcbnew.PAD(fiducial)
+        pad.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        layers = pcbnew.LSET()
+        layers.AddLayer(pcbnew.F_Cu)
+        layers.AddLayer(pcbnew.F_Mask)
+        pad.SetLayerSet(layers)
+        pad.SetPosition(fiducial.GetPosition())
+        fiducial.Add(pad)
+        board.Add(fiducial)
+
+        keepouts = cec_fr.fiducial_keepouts("", board=board)
+
+        self.assertEqual(len(keepouts), 1)
+        keepout = keepouts[0]
+        self.assertEqual(keepout["name"], "assembly_fiducial_FID1")
+        self.assertEqual(keepout["layers"], ("F.Cu",))
+        self.assertFalse(keepout["allow_vias"])
+        self.assertTrue(keepout["block_fills"])
+        self.assertLess(keepout["x0"], 10.0)
+        self.assertGreater(keepout["x1"], 10.0)
+
     def test_old_empty_exempt_set_refuses_own_pad(self):
         # The root-cause reproduction: the guard itself, called the OLD way
         # (empty exempt set), collides the stub with its own pad.
@@ -698,17 +1403,38 @@ class TestPickupOwnNetExempt(unittest.TestCase):
 
 
 class TestLaidPipelinePourKeepouts(unittest.TestCase):
-    def test_hub_reserves_generated_signal_layer_pours_only(self):
+    def test_post_cleanup_scope_includes_pre_materialized_rail_zones(self):
+        import cec_fr
+
+        class Zone:
+            def __init__(self, name, net, rule=False):
+                self.name, self.net, self.rule = name, net, rule
+            def GetIsRuleArea(self): return self.rule
+            def GetZoneName(self): return self.name
+            def GetNetname(self): return self.net
+        class Board:
+            def Zones(self):
+                return [Zone("overunder:/RAIL_A", "/RAIL_A"),
+                        Zone("manifold:J1:/RAIL_B", "/RAIL_B"),
+                        Zone("hand-authored-signal", "/SIG"),
+                        Zone("overunder:/RULE", "/RULE", rule=True)]
+
+        self.assertEqual(
+            cec_fr._pipeline_power_pickup_nets(
+                Board(), ({"net": "/RAIL_C"},)),
+            {"GND", "/RAIL_A", "/RAIL_B", "/RAIL_C"})
+
+    def test_current_hub_candidate_contains_no_pre_topology_pours(self):
         import cec_fr
 
         board = os.path.join(
             ROOT, "beta", "hub-standard-rev2", "candidate",
             "hub-standard-rev2-candidate.kicad_pcb")
         hints = cec_fr.laid_pipeline_pour_keepouts(board)
-        self.assertTrue(hints)
-        self.assertTrue(all(h["name"].startswith("laid-pour:") for h in hints))
-        self.assertTrue(all(tuple(h["layers"]) != ("PWR",) for h in hints))
-        self.assertTrue(all(len(h.get("polygon") or ()) >= 3 for h in hints))
+        self.assertEqual(
+            hints, [],
+            "the rev3 J_PWR retirement changed connectivity, so the reference "
+            "must not carry pre-topology copper into a new route wave")
 
     def test_baked_keepout_preserves_nonrectangular_outline(self):
         import pcbnew
@@ -841,6 +1567,63 @@ class TestRouteArtifactContracts(unittest.TestCase):
             ROOT, "beta", "hub-standard-rev2", "candidate",
             "hub-standard-rev2-candidate.kicad_pcb"))
 
+    def test_route_once_backstops_fiducial_guard_for_custom_planners(self):
+        import cec_fr
+
+        source = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        with tempfile.TemporaryDirectory() as work, \
+                mock.patch.object(cec_fr, "ensure_jar", return_value="fake.jar"), \
+                mock.patch.object(cec_fr, "smd_via_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "decorative_copper_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "bake_hints") as bake, \
+                mock.patch.object(cec_fr, "export_dsn"), \
+                mock.patch.object(cec_fr, "run_freerouting"), \
+                mock.patch.object(cec_fr, "import_ses"):
+            candidate = cec_fr.route_once(
+                source, os.path.join(work, "out.kicad_pcb"),
+                hints=(), workdir=work)
+
+        self.assertTrue(candidate.ok)
+        names = {str(hint.get("name", ""))
+                 for hint in bake.call_args.kwargs["keepouts"]}
+        self.assertTrue(any(name.startswith("assembly_fiducial_")
+                            for name in names))
+
+    def test_route_once_excludes_and_propagates_completed_net_contract(self):
+        import cec_fr
+        import cec_fr02
+
+        source = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        with tempfile.TemporaryDirectory() as work, \
+                mock.patch.object(cec_fr, "ensure_jar", return_value="fake.jar"), \
+                mock.patch.object(cec_fr, "smd_via_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "decorative_copper_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "locked_copper_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "partial_locked_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "owned_locked_nets", return_value=set()), \
+                mock.patch.object(cec_fr, "bake_hints"), \
+                mock.patch.object(cec_fr, "export_dsn"), \
+                mock.patch.object(cec_fr, "run_freerouting"), \
+                mock.patch.object(cec_fr02, "force_protect_in_dsn") as protect, \
+                mock.patch.object(cec_fr02, "exclude_net_pins_in_dsn",
+                                  return_value=1) as exclude, \
+                mock.patch.object(cec_fr, "import_ses") as import_ses:
+            candidate = cec_fr.route_once(
+                source, os.path.join(work, "out.kicad_pcb"),
+                completed_nets={"GND"}, workdir=work)
+
+        self.assertTrue(candidate.ok)
+        protect.assert_called_once_with(
+            os.path.join(work, "board.dsn"), ["GND"])
+        exclude.assert_called_once_with(
+            os.path.join(work, "board.dsn"), ["GND"])
+        self.assertEqual(import_ses.call_args.kwargs["completed_nets"],
+                         {"GND"})
+
     def test_reverse_led_aperture_waiver_is_pad_only_and_geometry_bounded(self):
         import cec_score
 
@@ -871,9 +1654,10 @@ class TestRouteArtifactContracts(unittest.TestCase):
         import cec_score
 
         board = self._hub_board()
-        npth = {"description": "NPTH pad of J_USB"}
-        a4 = {"description": "Pad A4 [/USB_VBUS] of J_USB on F.Cu"}
-        a5 = {"description": "Pad A5 [/USB_CC1] of J_USB on F.Cu"}
+        board.FindFootprintByReference("J_USB").SetReference("J99")
+        npth = {"description": "NPTH pad of J99"}
+        a4 = {"description": "Pad A4 [/USB_VBUS] of J99 on F.Cu"}
+        a5 = {"description": "Pad A5 [/USB_CC1] of J99 on F.Cu"}
         qualified = {
             "type": "hole_clearance",
             "description": "Hole clearance violation (actual 0.2005 mm)",
@@ -909,11 +1693,32 @@ class TestRouteArtifactContracts(unittest.TestCase):
                 json.dump({"meta": {"filename": "stale.kicad_pro", "version": 3}}, fh)
             with open(os.path.splitext(src)[0] + ".kicad_dru", "w", encoding="utf-8") as fh:
                 fh.write("(version 1)\n")
+            with open(os.path.splitext(src)[0] + ".pourplan.json", "w",
+                      encoding="utf-8") as fh:
+                json.dump({"board_sig": "owned", "specs": []}, fh)
+            with open(os.path.splitext(src)[0] + ".railreport.json", "w",
+                      encoding="utf-8") as fh:
+                json.dump({"laid": 2}, fh)
+            with open(os.path.splitext(src)[0] + ".pourfirst-state.json", "w",
+                      encoding="utf-8") as fh:
+                json.dump({"placement_scope": "complete",
+                           "frozen_nets": ["+VIN"]}, fh)
             cec_fr.copy_project_sidecars(src, dst)
             with open(os.path.splitext(dst)[0] + ".kicad_pro", encoding="utf-8") as fh:
                 pro = json.load(fh)
             self.assertEqual(pro["meta"]["filename"], "renamed.kicad_pro")
             self.assertTrue(os.path.isfile(os.path.splitext(dst)[0] + ".kicad_dru"))
+            with open(os.path.splitext(dst)[0] + ".pourplan.json",
+                      encoding="utf-8") as fh:
+                self.assertEqual(json.load(fh)["board_sig"], "owned")
+            with open(os.path.splitext(dst)[0] + ".railreport.json",
+                      encoding="utf-8") as fh:
+                self.assertEqual(json.load(fh)["laid"], 2)
+            with open(os.path.splitext(dst)[0] + ".pourfirst-state.json",
+                      encoding="utf-8") as fh:
+                self.assertEqual(
+                    json.load(fh)["frozen_nets"], ["+VIN"])
+
 
 
 if __name__ == "__main__":

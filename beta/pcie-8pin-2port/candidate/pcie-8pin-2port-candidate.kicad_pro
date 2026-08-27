@@ -41,7 +41,7 @@
         "pads": {
           "drill": 0.8,
           "height": 1.27,
-          "width": 2.54
+          "width": 1.27
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -269,7 +269,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "20260726T0721-periph-right-compact-s809.kicad_pro",
+    "filename": "20260811T0253-plain-compact-s0.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -523,6 +523,7 @@
       "netlist": "",
       "plot": "",
       "specctra_dsn": "",
+      "step": "",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -531,13 +532,7 @@
     "bus_aliases": {},
     "legacy_lib_dir": "",
     "legacy_lib_list": [],
-    "top_level_sheets": [
-      {
-        "filename": "20260726T0721-periph-right-compact-s809.kicad_sch",
-        "name": "20260726T0721-periph-right-compact-s809",
-        "uuid": "00000000-0000-0000-0000-000000000000"
-      }
-    ]
+    "top_level_sheets": []
   },
   "sheets": [],
   "text_variables": {},

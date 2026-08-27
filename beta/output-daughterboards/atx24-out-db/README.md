@@ -1,5 +1,22 @@
 # 24-pin ATX output daughterboard — BETA-1
 
+> **XFCN PROTOTYPE SUPERSESSION (2026-08-12):** the live schematic and PCB now
+> use four XFCN T34069 M3 bolt pads for `+12V`, `+5V`, `+3V3`, and `+5VSB`,
+> plus two XFCN TTR32100127-0600 M3 bolt pads for `GND`. The TE blade history
+> below remains as design provenance, not current implementation authority.
+> The former PCB-only `SR1`–`SR6` pads were no-net placeholders, did not form a
+> measurement circuit, and are retired. A future connector-health/remote-sense
+> feature must be introduced as a complete schematic, mating, ADC-protection,
+> and firmware contract rather than as anonymous copper provisions. See
+> `docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md`.
+> The live compact outline is **54.0 × 21.3 mm** (11.8% less area than the
+> 61.0 × 21.38 mm predecessor). The four control circuits now use a compact
+> **Samtec TSW-102-16-G-D-RA 2×2 right-angle male**, mating the main board's
+> **SSQ-102-03-G-D 2×2 vertical socket**. Pin order is Samtec odd/even by
+> column: 1=`-12V`, 2=`PS_ON#`, 3=`PWR_OK`, 4=`GND`. The `-16` style's
+> 8.13 mm mating length satisfies the calculated ≥6.4 mm engagement floor;
+> first-article alignment and engagement remain required.
+
 Passive connector-daughterboard for the 24-pin ATX module's OUTPUT side, per
 spec **§2.8 v1.4.0** (`CEC-Platform-Ground-Truth-Spec.md`) and the owner
 ruling `docs/standard-tier-review/SYNTHESIS-beta-plan.md` §D-5a. Mates with

@@ -55,8 +55,14 @@ def find_symbol_block(txt, ref):
     # instance in these files (BOM child refs aren't used here), but guard anyway
     blocks = []
     for pm in starts:
-        # the property always sits inside the nearest preceding "\t(symbol\n"
-        sidx = txt.rindex("\t(symbol\n", 0, pm)
+        # KiCad emits indented blocks, while cec_sch.emit_symbol() may emit a
+        # top-level block at column zero.  Accept either representation; a
+        # literal "\t(symbol\n" search makes later generated symbols invisible
+        # to every surgical repair using this helper.
+        openers = list(re.finditer(r'(?m)^[\t ]*(?=\(symbol\s*$)', txt[:pm]))
+        if not openers:
+            continue
+        sidx = openers[-1].start()
         blk = carve_from_marker(txt, sidx)
         if pm < sidx + len(blk):
             blocks.append((sidx, blk))
@@ -110,9 +116,20 @@ def remove_terminal_at(txt, x, y):
     placement at exactly (x, y). Returns (new_txt, kind, info) where kind is
     'label' (info=old net name) or 'power' (info=(ref, value))."""
     idx = _unique_at(txt, x, y)
-    lab_i = txt.rfind('\t(label "', 0, idx)
-    hlab_i = txt.rfind('\t(hierarchical_label "', 0, idx)
-    sym_i = txt.rfind("\t(symbol\n", 0, idx)
+    # Generated sheets in this repository legitimately mix KiCad-indented
+    # blocks with compact cec_sch.emit_* blocks whose opening parenthesis is at
+    # column zero.  Looking only for a literal leading tab can therefore skip
+    # the actual label and misidentify the preceding component as the terminal
+    # element.  That turns harmless orphan cleanup into component deletion.
+    # Locate the last top-level opener irrespective of indentation instead.
+    def last_top_level(tag):
+        matches = list(re.finditer(
+            r'(?m)^[\t ]*(?=\(' + re.escape(tag) + r'(?:\s|"))', txt[:idx]))
+        return matches[-1].start() if matches else -1
+
+    lab_i = last_top_level("label")
+    hlab_i = last_top_level("hierarchical_label")
+    sym_i = last_top_level("symbol")
     start = max(lab_i, hlab_i, sym_i)
     if start < 0:
         raise SystemExit(f"REFUSE: no enclosing (label/(hierarchical_label/(symbol before ({x},{y})")
@@ -123,10 +140,10 @@ def remove_terminal_at(txt, x, y):
         raise SystemExit(f"REFUSE: terminal block at ({x},{y}) is not uniquely matched")
     new_txt = txt.replace(blk, "", 1)
     if start == lab_i:
-        m = re.match(r'\t\(label "([^"]*)"', blk)
+        m = re.match(r'\s*\(label "([^"]*)"', blk)
         return new_txt, "label", (m.group(1) if m else None)
     elif start == hlab_i:
-        m = re.match(r'\t\(hierarchical_label "([^"]*)"', blk)
+        m = re.match(r'\s*\(hierarchical_label "([^"]*)"', blk)
         return new_txt, "hierarchical_label", (m.group(1) if m else None)
     else:
         refm = re.search(r'\(property "Reference" "([^"]+)"', blk)
@@ -151,10 +168,12 @@ def remove_wire_between(txt, x1, y1, x2, y2):
             idx = txt.find(needle2)
             if idx < 0:
                 continue
-            start = txt.rfind("\t(wire", 0, idx)
+            openers = list(re.finditer(r'(?m)^[\t ]*(?=\(wire(?:\s|$))', txt[:idx]))
+            start = openers[-1].start() if openers else -1
         else:
-            start = idx - 1
-        if start < 0 or txt[start] != "\t":
+            line = txt.rfind("\n", 0, idx) + 1
+            start = line
+        if start < 0:
             continue
         blk = carve_from_marker(txt, start)
         if not (start <= idx < start + len(blk)):
@@ -170,7 +189,8 @@ def remove_pin_stub(txt, pins, ref, num, ox, oy):
     power-symbol) sits at its end, computed from its pin table + placement.
     Returns (new_txt, kind, info) as remove_terminal_at."""
     ax, ay, dx, dy = pin_pt(pins, num, ox, oy)
-    bx, by = gsnap(*stub_end(ax, ay, dx, dy))
+    bx, by = stub_end(ax, ay, dx, dy)
+    bx, by = gsnap(bx), gsnap(by)
     txt = remove_wire_between(txt, ax, ay, bx, by)
     return remove_terminal_at(txt, bx, by)
 

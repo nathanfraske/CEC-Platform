@@ -1,70 +1,73 @@
 {
  "board": "pcie-8pin-2port",
  "candidate_role": "diagnostic-reference",
- "commit": "124bda53",
- "freshness_checked": "2026-08-03T19:54:38",
+ "commit": "0baf560",
+ "freshness_checked": "2026-08-11T02:58:39",
  "grade": {
-  "diffpair_ok": true,
-  "drc": 13,
+  "diffpair_ok": false,
+  "drc": 4,
   "drc_types": {
-   "clearance": 4,
-   "hole_clearance": 4,
-   "solder_mask_bridge": 2,
-   "track_width": 3
+   "hole_clearance": 4
   },
   "foreign": {
-   "pours": 4,
-   "status": "ok",
-   "tracks": 0,
-   "vias": 0
+   "pours": 0,
+   "status": "error",
+   "tracks": 9999,
+   "vias": 9999
   },
   "gate": false,
-  "kelvin_ok": true,
-  "rails": {},
-  "thermal_ok": false,
+  "kelvin_ok": false,
+  "rails": null,
+  "thermal_ok": true,
   "unconn_critical": [
+   "/SENSEC1_HI",
+   "/SENSEC1_LO",
+   "/SENSEC2_HI",
+   "/SENSEC2_LO",
+   "/USB_D_N",
+   "/USB_D_P",
    "GND"
   ],
-  "unconnected": 9
+  "unconnected": 201
  },
- "label": "periph-right-compact-s809",
- "live_score_checked": "2026-08-03T19:54:39",
+ "label": "plain-compact-s0",
  "mezzanine_contract_ok": null,
- "reason": "sort_key [1, 0, 1, 0, 9, 9, 1000000.0] < [1, 0, 1, 0, 21, 5, 1000000.0]",
+ "reason": "matches more of the current schematic (100% vs 97% of 74 parts)",
  "release_accepted": false,
  "route_gate_passed": false,
  "routed": true,
  "schema": 1,
- "schematic_exact": false,
- "schematic_match": 0.9726,
- "schematic_parts": 73,
- "schematic_status": "stale",
+ "schematic_exact": true,
+ "schematic_match": 1.0,
+ "schematic_parts": 74,
+ "schematic_status": "exact",
  "sort_key": [
   1,
-  0,
-  1,
-  0,
-  9,
-  13,
-  457.4
+  2,
+  7,
+  19998,
+  201,
+  4,
+  1000000.0
  ],
- "source": "build/fresh-wave-night/pcie-8pin-2port/20260726T0721-periph-right-compact-s809.kicad_pcb",
+ "source": "build/full-pipeline/unattended-20260810/pcie-fresh-fixed/pcie-8pin-2port/20260811T0253-plain-compact-s0.kicad_pcb",
  "thermal": {
   "ambient": 50.0,
+  "analysis_geometry_sha256": "75eb0b514ef3497c8a17de4f40734e360f392af18204eb3195202341fbfd81fb",
   "backend": "auto",
   "cooling": "still-air (no case)",
-  "dT": 457.35,
-  "error": "INJECTION INCOMPLETE: 1/5 configured net(s) injected no current (/SENSEC2_LO) -- their Joule heat is EXCLUDED from dT, a pass would be vacuous (close the rail circuits first)",
+  "dT": 9.22,
   "gate_dt": 30.0,
+  "geometry_source": "source-declared-copper-only:v1",
   "grid_mm": 0.4,
-  "max_T": 507.35,
-  "nets_dropped": {
-   "/SENSEC2_LO": "src/sink on disconnected copper islands (open circuit -- no current injected)"
-  },
-  "nets_injected": 4,
-  "nets_requested": 5,
-  "ok": false
+  "injection_complete": true,
+  "injection_modeled": true,
+  "max_T": 59.22,
+  "nets_injected": 1,
+  "nets_requested": 1,
+  "ok": true,
+  "source_geometry_sha256": "75eb0b514ef3497c8a17de4f40734e360f392af18204eb3195202341fbfd81fb"
  },
- "updated": "2026-07-26T07:23:21",
- "wave_out_root": "build/fresh-wave-night"
+ "updated": "2026-08-11T02:58:39",
+ "wave_out_root": "build/full-pipeline/unattended-20260810/pcie-fresh-fixed"
 }

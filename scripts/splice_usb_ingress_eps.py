@@ -83,6 +83,10 @@ FP_C0603 = "cec-Capacitor_SMD:C_0603_1608Metric"
 FP_C0805 = "cec-Capacitor_SMD:C_0805_2012Metric"
 
 if __name__ == "__main__":
+    raise SystemExit(
+        "REFUSE: this historical helper targets archived beta/eps-8pin. "
+        "Use splice_usb_ingress_eps_rev3.py for the manifest-current EPS product."
+    )
     txt = open(USB_SCH).read()
     if '(property "Reference" "U4"' in txt:
         raise SystemExit("REFUSE: U4 already present in 07-usb-flash.kicad_sch -- splice already applied?")

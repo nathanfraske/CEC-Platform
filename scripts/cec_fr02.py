@@ -131,19 +131,54 @@ def _ring_offsets(ring):
     return out
 
 
-def _find_clear_spot(board, x, y, layer_id, net_code, horiz, half):
-    """The declared-tolerance nudge: spiral within NUDGE_MM, else None
+def _find_clear_spot(board, x, y, layer_id, net_code, horiz, half, *,
+                     width_mm=STUB_W_MM, nudge_mm=NUDGE_MM):
+    """The declared-tolerance nudge: spiral within ``nudge_mm``, else None
     (fail with the spot named -- never a creative detour; FR-03's bound).
     Legality = the WHOLE stub extent (see _stub_is_clear)."""
     import pcbnew
-    r = pcbnew.FromMM(CLEAR_MM + STUB_W_MM)
+    r = pcbnew.FromMM(CLEAR_MM + float(width_mm))
     step = pcbnew.FromMM(0.25)
-    for ring in range(0, int(pcbnew.FromMM(NUDGE_MM) / step) + 1):
+    for ring in range(0, int(pcbnew.FromMM(float(nudge_mm)) / step) + 1):
         for dx, dy in _ring_offsets(ring):
             nx, ny = x + dx * step, y + dy * step
             if _stub_is_clear(board, nx, ny, horiz, half, layer_id, net_code, r):
                 return nx, ny
     return None
+
+
+def find_clear_waypoint_mm(board, net_name, layer_name, at_mm, *,
+                           stub_len_mm=STUB_LEN_MM, width_mm=STUB_W_MM,
+                           nudge_mm=NUDGE_MM):
+    """Return the exact legal stub centre near ``at_mm``, or ``None``.
+
+    Coordination uses this same full-segment check before selecting a negotiated
+    corridor cell.  That closes the old semantic gap where the grid router called
+    a cell calm but the intent compiler later rejected its physical copper extent.
+    The shorter coordination stub is still protected copper and still receives
+    the ordinary clearance check; this helper does not waive DRC geometry.
+    """
+    import math
+    import pcbnew
+    vals = (float(stub_len_mm), float(width_mm), float(nudge_mm))
+    if (not all(math.isfinite(v) for v in vals) or vals[0] <= 0 or
+            vals[1] <= 0 or vals[2] < 0):
+        raise ValueError("stub length/width must be positive and nudge non-negative")
+    net = board.FindNet(net_name)
+    if net is None:
+        return None
+    layer_id = board.GetLayerID(layer_name)
+    if layer_id < 0:
+        return None
+    x, y = pcbnew.FromMM(float(at_mm[0])), pcbnew.FromMM(float(at_mm[1]))
+    horiz = _net_airwire_dir(board, net_name)
+    half = pcbnew.FromMM(vals[0] / 2.0)
+    spot = _find_clear_spot(
+        board, x, y, layer_id, net.GetNetCode(), horiz, half,
+        width_mm=vals[1], nudge_mm=vals[2])
+    if spot is None:
+        return None
+    return [round(pcbnew.ToMM(spot[0]), 6), round(pcbnew.ToMM(spot[1]), 6)]
 
 
 # ------------------------------------------------------------ compilation --
@@ -168,7 +203,6 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
     import pcbnew
     board = pcbnew.LoadBoard(board_path)
     stubs, claims, failures = [], [], []
-    half = pcbnew.FromMM(STUB_LEN_MM / 2)
     for intent in intents:
         net_name = intent["net"]
         net = board.FindNet(net_name)
@@ -177,6 +211,14 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
             continue
         layers = intent.get("layers") or ["F.Cu"]
         horiz = _net_airwire_dir(board, net_name)
+        stub_len_mm = float(intent.get("stub_len_mm", STUB_LEN_MM))
+        width_mm = float(intent.get("width_mm", STUB_W_MM))
+        nudge_mm = float(intent.get("nudge_mm", NUDGE_MM))
+        if stub_len_mm <= 0 or width_mm <= 0 or nudge_mm < 0:
+            failures.append({"net": net_name,
+                             "why": "invalid stub length/width/nudge"})
+            continue
+        half = pcbnew.FromMM(stub_len_mm / 2)
         placed = []
         for i, wp in enumerate(intent.get("waypoints", [])):
             if "at_mm" in wp and not allow_at_mm:
@@ -192,10 +234,11 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
                 failures.append({"net": net_name, "waypoint": wp, "why": str(e)})
                 continue
             spot = _find_clear_spot(board, x, y, layer_id, net.GetNetCode(),
-                                    horiz, half)
+                                    horiz, half, width_mm=width_mm,
+                                    nudge_mm=nudge_mm)
             if spot is None:
                 failures.append({"net": net_name, "waypoint": wp,
-                                 "why": "no clear spot within %.1f mm" % NUDGE_MM})
+                                 "why": "no clear spot within %.1f mm" % nudge_mm})
                 continue
             x, y = spot
             # stub PERPENDICULAR to the dominant airwire direction (bench-proven
@@ -205,7 +248,7 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
             t = pcbnew.PCB_TRACK(board)
             t.SetStart(p1)
             t.SetEnd(p2)
-            t.SetWidth(pcbnew.FromMM(intent.get("width_mm", STUB_W_MM)))
+            t.SetWidth(pcbnew.FromMM(width_mm))
             t.SetLayer(layer_id)
             t.SetNet(net)
             t.SetLocked(True)

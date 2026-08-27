@@ -50,6 +50,11 @@ PROFILES = {
         "pofv_drill_max_mm": 0.50,
         "pofv_drill_preferred_mm": (0.25, 0.35),
         "pofv_annular_min_mm": 0.05,
+        # Edge-to-edge finished-hole separation for the selected filled and
+        # capped process.  Keep this beside the drill/annular limits so the
+        # router, board setup and independent fab audit cannot quietly use
+        # three different process assumptions.
+        "pofv_hole_to_hole_min_mm": 0.25,
     },
     "jlcpcb_6l_pofv_high_current": {
         "vendor": "jlcpcb",
@@ -71,6 +76,7 @@ PROFILES = {
         "pofv_drill_max_mm": 0.50,
         "pofv_drill_preferred_mm": (0.25, 0.35),
         "pofv_annular_min_mm": 0.05,
+        "pofv_hole_to_hole_min_mm": 0.25,
     },
 }
 
@@ -146,7 +152,8 @@ def profile_for_board_hint(board_path_or_hint):
         return "jlcpcb_6l_pofv_signal"
     high_current_tokens = (
         "12vhpwr", "12v2x6", "atx-24pin", "atx24", "24pin",
-        "eps", "pcie-2port", "pcie-3port", "pcie2", "pcie3",
+        "eps", "pcie-2port", "pcie-3port", "pcie-8pin-2port",
+        "pcie-8pin-3port", "pcie2", "pcie3",
     )
     if any(token in hint for token in high_current_tokens):
         return "jlcpcb_6l_pofv_high_current"
@@ -210,6 +217,25 @@ def enabled_copper_layers(board):
         return tuple(out)
 
 
+def copper_layer_role(board=None, layer="F.Cu", *, hint=None,
+                      profile_name=None):
+    """Return the declared stackup role for one canonical copper layer."""
+    profile_name = profile_name or active_profile_name(board, hint=hint)
+    if not profile_name:
+        return None
+    if layer not in COPPER_LAYERS:
+        raise ValueError("not a copper layer: %r" % layer)
+    return dict(zip(COPPER_LAYERS,
+                    get_profile(profile_name)["roles"]))[layer]
+
+
+def copper_layer_allows_power(board=None, layer="F.Cu", *, hint=None,
+                              profile_name=None):
+    """Whether the selected fabrication role explicitly admits power."""
+    return "PWR" in str(copper_layer_role(
+        board, layer, hint=hint, profile_name=profile_name) or "")
+
+
 def routing_layers(board, *, hint=None, include_power=True):
     """Enabled non-plane layers legal for ordinary through-via routing."""
     enabled = set(enabled_copper_layers(board))
@@ -224,6 +250,35 @@ def routing_layers(board, *, hint=None, include_power=True):
     # every other enabled copper layer may route.
     return tuple(layer for layer in COPPER_LAYERS
                  if layer in enabled and layer != "In1.Cu")
+
+
+def referenced_signal_layers(board, *, hint=None):
+    """Signal layers with an immediately adjacent dedicated GND reference.
+
+    Ordinary routing may use every non-plane layer, including a mixed/power
+    layer when policy allows it.  USB/CAN and other controlled-impedance pairs
+    are stricter: the layer role must explicitly contain ``SIG`` and at least
+    one physically adjacent copper layer must be the dedicated ``GND`` role.
+    """
+    enabled = set(enabled_copper_layers(board))
+    profile_name = active_profile_name(board, hint=hint)
+    if not profile_name:
+        # Historical boards use In1 as the reference plane.  The two outer
+        # layers are the only portable assumption without a declared stackup.
+        return tuple(layer for layer in ("F.Cu", "B.Cu") if layer in enabled)
+    roles = dict(zip(COPPER_LAYERS, get_profile(profile_name)["roles"]))
+    out = []
+    for index, layer in enumerate(COPPER_LAYERS):
+        if layer not in enabled or "SIG" not in roles.get(layer, ""):
+            continue
+        adjacent = []
+        if index:
+            adjacent.append(COPPER_LAYERS[index - 1])
+        if index + 1 < len(COPPER_LAYERS):
+            adjacent.append(COPPER_LAYERS[index + 1])
+        if any(roles.get(other) == "GND" for other in adjacent):
+            out.append(layer)
+    return tuple(out)
 
 
 def pofv_dimensions(profile, diameter_mm, drill_mm):
@@ -241,6 +296,59 @@ def pofv_dimensions(profile, diameter_mm, drill_mm):
         return False, "annular ring %.3fmm is below POFV minimum %.3fmm" % (
             annular, profile["pofv_annular_min_mm"])
     return True, "POFV dimensions accepted"
+
+
+def preferred_pofv_geometry(profile):
+    """Return the smallest declared preferred ``(diameter, drill)`` in mm.
+
+    Netclass via geometry describes an ordinary routed barrel.  It must not be
+    reused for a fine-pitch via-in-pad, whose land instead comes from the
+    board's explicitly selected filled-and-capped process.  Derive the land
+    from the preferred drill and the profile annular-ring floor so synthesis,
+    normalization, and conformance share one fabrication authority.
+    """
+    if not profile or not profile.get("pofv"):
+        return None
+    drills = tuple(float(value) for value in
+                   (profile.get("pofv_drill_preferred_mm") or ()))
+    if not drills:
+        drills = (float(profile["pofv_drill_min_mm"]),)
+    annular = float(profile["pofv_annular_min_mm"])
+    for drill in sorted(drills):
+        diameter = drill + 2.0 * annular
+        ok, _why = pofv_dimensions(profile, diameter, drill)
+        if ok:
+            return diameter, drill
+    return None
+
+
+def board_legal_through_via_geometry(board, diameter_mm, drill_mm):
+    """Clamp an ordinary through-via request to project DRC minima.
+
+    Fabrication capability is never permission to violate the board's design
+    rules.  Every generator that creates a through via should pass its desired
+    geometry through this common boundary so precision portals, decoupler
+    returns, and later route cells cannot silently disagree about the legal
+    drill or annular ring.
+    """
+    settings = board.GetDesignSettings()
+
+    def setting_mm(name, default_mm):
+        raw = getattr(settings, name, int(round(float(default_mm) * MM)))
+        return float(raw) / MM
+
+    minimum_diameter = setting_mm("m_ViasMinSize", 0.50)
+    minimum_drill = setting_mm("m_MinThroughDrill", 0.20)
+    minimum_annular = setting_mm("m_ViasMinAnnularWidth", 0.10)
+    drill = max(float(drill_mm), minimum_drill)
+    diameter = max(
+        float(diameter_mm), minimum_diameter,
+        drill + 2.0 * minimum_annular)
+    return diameter, drill, {
+        "board_min_diameter_mm": round(minimum_diameter, 3),
+        "board_min_drill_mm": round(minimum_drill, 3),
+        "board_min_annular_mm": round(minimum_annular, 3),
+    }
 
 
 def _pad_contains_circle(pad, at, radius_nm, tolerance_nm=1_000):

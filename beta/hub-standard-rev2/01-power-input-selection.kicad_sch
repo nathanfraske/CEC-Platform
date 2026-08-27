@@ -9,7 +9,7 @@
 		(date "2026-07-02")
 		(rev "BETA-1")
 		(company "CEC")
-		(comment 1 "Three TPS2121 stages, protected inputs, current limits, OV...")
+		(comment 1 "Two TPS2121 stages: +5V_SYS primary, protected USB/KVM backup...")
 	)
 	(lib_symbols
 		(symbol "cec-vendor:R_Small"
@@ -1693,7 +1693,7 @@
 		(effects (font (size 2.2 2.2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
 		(uuid "437dae64-07ed-4c87-b001-8a2b036c6f85")
 	)
-	(text "Three TPS2121 stages, protected inputs, current limits, OV thresholds and local reservoirs."
+	(text "Two TPS2121 stages: stack +5V_SYS primary, protected USB/KVM backup, OV/current limits and local reservoirs."
 		(exclude_from_sim no)
 		(at 26.67 41.91 0)
 		(effects (font (size 1.15 1.15) (color 21 96 61 1)) (justify left top))
@@ -1744,68 +1744,8 @@
 		(effects (font (size 1.6 1.6) (thickness 0.35) (bold yes) (color 21 96 61 1)) (justify left top))
 		(uuid "6a8e738d-22a7-48d5-887a-074ee70b3eb5")
 	)
-	(symbol
-		(lib_id "cec-vendor:R_Small")
-		(at 39.37 171.45 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "477aad8b-6261-4a89-af90-cae23dbc4469")
-		(property "Reference" "R_ILIM1" (at 41.402 170.18 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "27kΩ" (at 41.402 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "UNI-ROYAL" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0402WGF2702TCE" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C25771" (at 39.37 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "74ef66e5-f99c-46fd-8aeb-10854ae82650"))
-		(pin "2" (uuid "9a88b4ff-9278-4c42-93b8-7cb200dad089"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "R_ILIM1") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TPS2121RUXR")
-		(at 237.49 72.39 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "48e2f0e4-2484-4f09-b602-0c38af02ed8f")
-		(property "Reference" "U5" (at 252.73 46.99 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "TPS2121RUXR" (at 252.73 44.45 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Texas Instruments" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "TPS2121RUXR" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C485916" (at 237.49 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "12133fcc-3a7b-4bf6-a392-f5e62d32011d"))
-		(pin "2" (uuid "11f63cbb-4a9b-4260-a2f7-5955eea430b7"))
-		(pin "3" (uuid "db2fb6b9-8038-4d7b-84b3-383c7f37323b"))
-		(pin "4" (uuid "2fb44c28-e305-431e-a8f5-60d66c7e4671"))
-		(pin "5" (uuid "d2009f98-f51f-4e88-b70f-94b2f2f7bd60"))
-		(pin "6" (uuid "c2d651c9-8e27-421f-9626-cb4c6d283603"))
-		(pin "7" (uuid "f05b41cc-5bef-4b10-9d03-c39c194c5137"))
-		(pin "8" (uuid "62e27707-271e-4c2c-a2b3-446267d1798c"))
-		(pin "9" (uuid "4101df55-7e42-41e0-8d17-3cafa6a9a35f"))
-		(pin "10" (uuid "a94df337-2e19-45a4-b137-bde5d29e488d"))
-		(pin "11" (uuid "f1fdabd5-daee-4315-b5b4-75ca5f0518c4"))
-		(pin "12" (uuid "94d5460d-9165-49bb-b0ba-7eb028123298"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "U5") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-vendor:C_Small")
 		(at 39.37 217.17 0)
@@ -1832,58 +1772,8 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 39.37 107.95 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d3978b56-3091-4769-ab9c-dff17202ca2e")
-		(property "Reference" "C9" (at 40.64 106.68 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "1uF" (at 40.64 109.22 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL10A105KB8NNN.do" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Samsung" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "CL10A105KB8NNNC" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C15849" (at 39.37 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "89197c46-0ab2-4d0c-b648-ce82051c76a7"))
-		(pin "2" (uuid "18581df1-50b3-47d9-9389-36d5a9efaaa4"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "C9") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 370.84 107.95 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "09053227-24d4-4230-9c5a-855745e37651")
-		(property "Reference" "C_SS1" (at 372.11 106.68 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "2.2uF" (at 372.11 109.22 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Samsung" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "CL10A225KO8NNNC" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C23630" (at 370.84 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "fac9e87f-35eb-48a5-aba5-6be9194cf4f6"))
-		(pin "2" (uuid "dad37af2-26e2-4a41-a98f-44d6dd434f89"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "C_SS1") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-vendor:TPS2121RUXR")
 		(at 303.53 72.39 0)
@@ -1994,33 +1884,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec:CEC_PWR_IN_3P")
-		(at 39.37 72.39 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "fa81548b-64f3-401e-bab1-860f73cf0721")
-		(property "Reference" "J_PWR" (at 44.45 63.5 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "PWR_IN" (at 44.45 66.04 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Connector_JST:JST_XH_S3B-XH-A_1x03_P2.50mm_Horizontal" (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "CEC consolidated Hub power-in (A4, beta-lock-register 2026-07-03): replaces the separate J_5VSB + J_5V 2-pin connectors with one 3-pin JST XH, GND-center so any misinsertion is benign. Pin 1 MAIN_5V, pin 2 GND, pin 3 5VSB." (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "JST" (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "S3B-XH-A(LF)(SN)" (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C157928" (at 39.37 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "5a9a4015-a16b-4fd8-9125-8fb4deb0d4c1"))
-		(pin "2" (uuid "85276951-72ca-49be-a4b5-46207a5fec80"))
-		(pin "3" (uuid "9f1f9eff-80a7-4d2d-ae01-ba3d7bda62ae"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "J_PWR") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-vendor:PESD5V0S1UL")
 		(at 105.41 72.39 0)
@@ -2038,7 +1902,7 @@
 		(property "MPN" "SMAJ5.0A" (at 105.41 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "MDD (Microdiode Semiconductor)" (at 105.41 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C113952" (at 105.41 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry." (at 105.41 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "Stack-power TVS: J6P receives the consolidated +5V_SYS rail from the 24-pin rev3 selector; 5V working, clamps line transients before U7." (at 105.41 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "4e9430a7-1fa6-4ce5-9b60-648fab0d8451"))
 		(pin "2" (uuid "986816e6-c618-4c47-9b2e-22364701cbd2"))
 		(instances
@@ -2047,32 +1911,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:PESD5V0S1UL")
-		(at 171.45 72.39 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "8088ad6c-23fe-49eb-bd85-452a28d1498c")
-		(property "Reference" "D9" (at 171.45 66.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "SMAJ5.0A" (at 171.45 68.58 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C113952.pdf" (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "SMAJ5.0A" (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "MDD (Microdiode Semiconductor)" (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C113952" (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "Power-entry TVS (owner GO 2026-07-15): the J_PWR feed arrives over a chassis cable from the 24-pin; 5V working, clamps line transients. DETECT-pin ESD posture extended to the power entry." (at 171.45 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "5c4161e1-11de-410f-a5f0-daabac251eba"))
-		(pin "2" (uuid "04ea23f5-8eb6-4b3d-8388-4c28c69d5dd5"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "D9") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-vendor:TPS2121RUXR")
 		(at 369.57 72.39 0)
@@ -2212,58 +2051,8 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:R_Small")
-		(at 149.86 171.45 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "ebe245b1-5466-466b-afea-962100b536a1")
-		(property "Reference" "R33" (at 151.892 170.18 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "47kΩ" (at 151.892 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "UNI-ROYAL" (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0402WGF4702TCE" (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C25792" (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "U5 OV1 divider top (5VSB_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage." (at 149.86 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "e9101a5a-3652-4d65-919d-2d3e77466576"))
-		(pin "2" (uuid "aedaa1ee-9b21-4b26-8d5f-aa9305070ec1"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "R33") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:R_Small")
-		(at 186.69 171.45 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "b4fed2c1-cfce-4b37-a4a3-9125fd394580")
-		(property "Reference" "R34" (at 188.722 170.18 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "10kΩ" (at 188.722 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "UNI-ROYAL" (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0402WGF1002TCE" (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C25744" (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "U5 OV1 divider bottom (GND side) -> ~6.04V typical cutoff -- same owner ruling as R33." (at 186.69 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "92dda6a9-5598-4070-8832-cc83e7cf49cb"))
-		(pin "2" (uuid "30a2162b-e895-4c19-8fa7-9de48ba0c4a0"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "R34") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-vendor:R_Small")
 		(at 223.52 171.45 0)
@@ -2275,13 +2064,13 @@
 		(fields_autoplaced yes)
 		(uuid "097bc609-582d-4d19-8da5-af4a955795e8")
 		(property "Reference" "R35" (at 225.552 170.18 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "47kΩ" (at 225.552 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "43.2kΩ" (at 225.552 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25894.html" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0402WGF4702TCE" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C25792" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "U7 OV1 divider top (MAIN_5V_RAW side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage." (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF4322TCE" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25894" (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U7 OV1 divider top (+5V_SYS side): 43.2k/10k gives 5.639V nominal and 5.287..5.948V at 1%/VREF extremes; dynamic margin remains a qualification gate." (at 223.52 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "e00f44d8-06c5-4491-8651-94b0e43e0170"))
 		(pin "2" (uuid "9ef0d5b9-daef-4861-b5c3-235ea4e0fce1"))
 		(instances
@@ -2327,13 +2116,13 @@
 		(fields_autoplaced yes)
 		(uuid "3b45384a-8e91-4734-b43d-bbe1e63ec89c")
 		(property "Reference" "R37" (at 299.212 170.18 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "47kΩ" (at 299.212 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "43.2kΩ" (at 299.212 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.lcsc.com/product-detail/C25894.html" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0402WGF4702TCE" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C25792" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "U11 OV1 divider top (PSU_5V side) -- owner ruling 2026-07-24, docs/owner-queue.md commit 8c8ca46f (Finding 3): same 47k/10k ~6.04V posture as the module package, on every hub TPS2121 stage." (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF4322TCE" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25894" (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U11 OV1 divider top (USB_VBUS side): 43.2k/10k gives 5.639V nominal and 5.287..5.948V at 1%/VREF extremes; dynamic margin remains a qualification gate." (at 297.18 171.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6e8d0a5f-ceb0-4d66-bf34-b24b79dc9e7b"))
 		(pin "2" (uuid "f1647a90-adb9-4352-9515-ebccd0e983a8"))
 		(instances
@@ -2368,32 +2157,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 186.69 107.95 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "2f1d8986-6e64-47e5-b542-b16123c75ca0")
-		(property "Reference" "C24" (at 187.96 106.68 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "1uF" (at 187.96 109.22 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL10A105KB8NNN.do" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Samsung" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "CL10A105KB8NNNC" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C15849" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "U5 OUT local bypass; dedicated low-ESR X5R ceramic placed at the TPS2121 pin" (at 186.69 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "62fdfeb7-eb65-4518-9c64-248515477710"))
-		(pin "2" (uuid "5a2b1782-3bb5-42b1-bf9c-8b3e46883f61"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "C24") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-vendor:C_Small")
 		(at 223.52 107.95 0)
@@ -2514,18 +2278,12 @@
 		(stroke (width 0) (type default)) (uuid "6a91df61-a5cb-4bd0-a91f-30b7ac306db1"))
 	(wire (pts (xy 321.31 54.61) (xy 325.12 54.61))
 		(stroke (width 0) (type default)) (uuid "d8268cf2-a706-4d2a-912d-b2fc97bc20cb"))
-	(wire (pts (xy 39.37 105.41) (xy 39.37 101.6))
-		(stroke (width 0) (type default)) (uuid "8dbdc1cd-fd5f-4a84-bb2d-5dd4c791fd06"))
-	(wire (pts (xy 167.64 72.39) (xy 163.83 72.39))
-		(stroke (width 0) (type default)) (uuid "c629d038-8e22-4484-b13e-17598cbbdf28"))
-	(wire (pts (xy 31.75 74.93) (xy 27.94 74.93))
-		(stroke (width 0) (type default)) (uuid "7b2d3ce9-cae8-41be-90ed-c2bc3ccdd5a8"))
-	(wire (pts (xy 149.86 168.91) (xy 149.86 165.1))
-		(stroke (width 0) (type default)) (uuid "ddd7ca0a-eac0-4fc1-9f2b-22344962976e"))
-	(wire (pts (xy 219.71 64.77) (xy 215.9 64.77))
-		(stroke (width 0) (type default)) (uuid "dcd64857-a1a1-4d18-a15d-807f643b8f8c"))
-	(wire (pts (xy 219.71 52.07) (xy 215.9 52.07))
-		(stroke (width 0) (type default)) (uuid "37c12af2-9a07-4f40-95d2-1a3e0312d664"))
+
+
+
+
+
+
 	(wire (pts (xy 113.03 105.41) (xy 113.03 101.6))
 		(stroke (width 0) (type default)) (uuid "e3154a20-92a6-49e1-bbdf-83bb644d98dd"))
 	(wire (pts (xy 149.86 105.41) (xy 149.86 101.6))
@@ -2536,24 +2294,18 @@
 		(stroke (width 0) (type default)) (uuid "bd96083e-cb6a-448a-9449-4d29a01e4229"))
 	(wire (pts (xy 101.6 72.39) (xy 97.79 72.39))
 		(stroke (width 0) (type default)) (uuid "f9d96c22-a4c4-4aef-8808-21d1c4348348"))
-	(wire (pts (xy 31.75 69.85) (xy 27.94 69.85))
-		(stroke (width 0) (type default)) (uuid "73343812-838f-493e-befe-cac1b86c083f"))
+
 	(wire (pts (xy 223.52 168.91) (xy 223.52 165.1))
 		(stroke (width 0) (type default)) (uuid "3a384747-486d-47b0-9583-01bc5756a644"))
 	(wire (pts (xy 285.75 64.77) (xy 281.94 64.77))
 		(stroke (width 0) (type default)) (uuid "1428c31c-f695-403b-be51-c6423ee0fd3e"))
 	(wire (pts (xy 285.75 52.07) (xy 281.94 52.07))
 		(stroke (width 0) (type default)) (uuid "33c53d30-28f3-463c-8594-7c00d85974b3"))
-	(wire (pts (xy 39.37 168.91) (xy 39.37 165.1))
-		(stroke (width 0) (type default)) (uuid "cec095a3-b1e1-40af-98ba-3113355cfc85"))
-	(wire (pts (xy 255.27 82.55) (xy 259.08 82.55))
-		(stroke (width 0) (type default)) (uuid "71e45213-d695-4d96-b07c-07beb32936c2"))
-	(wire (pts (xy 370.84 110.49) (xy 370.84 114.3))
-		(stroke (width 0) (type default)) (uuid "9f1917eb-8c2a-47b4-bd02-47cb1bdafb92"))
-	(wire (pts (xy 255.27 77.47) (xy 259.08 77.47))
-		(stroke (width 0) (type default)) (uuid "1e33d1ae-ae0b-4caf-9e7d-575397df9a63"))
-	(wire (pts (xy 186.69 105.41) (xy 186.69 101.6))
-		(stroke (width 0) (type default)) (uuid "31769f7d-ac52-428d-90dc-fae2d38fa98e"))
+
+
+
+
+
 	(wire (pts (xy 223.52 105.41) (xy 223.52 101.6))
 		(stroke (width 0) (type default)) (uuid "12e9558d-6234-43fc-818c-4a68ef1ce5fd"))
 	(wire (pts (xy 297.18 168.91) (xy 297.18 165.1))
@@ -2562,10 +2314,8 @@
 		(stroke (width 0) (type default)) (uuid "5ff038d3-0c13-4282-89cd-429057159f01"))
 	(wire (pts (xy 351.79 52.07) (xy 347.98 52.07))
 		(stroke (width 0) (type default)) (uuid "a5e55a1e-cb36-46e5-b8bf-fc2a84757809"))
-	(wire (pts (xy 255.27 52.07) (xy 259.08 52.07))
-		(stroke (width 0) (type default)) (uuid "d2276beb-a10e-4076-b507-b446a0baceca"))
-	(wire (pts (xy 255.27 54.61) (xy 259.08 54.61))
-		(stroke (width 0) (type default)) (uuid "39fd9800-dbd1-420d-846d-7480ef1c929d"))
+
+
 	(wire (pts (xy 260.35 105.41) (xy 260.35 101.6))
 		(stroke (width 0) (type default)) (uuid "1a4bbb4f-b016-430e-82e7-01a596c0645a"))
 	(wire (pts (xy 334.01 105.41) (xy 334.01 101.6))
@@ -2576,12 +2326,9 @@
 		(stroke (width 0) (type default)) (uuid "4985096a-f440-48cf-a016-441e44a31305"))
 	(wire (pts (xy 285.75 80.01) (xy 281.94 80.01))
 		(stroke (width 0) (type default)) (uuid "bae893db-071d-41cd-86a8-bea67fe4610e"))
-	(wire (pts (xy 149.86 173.99) (xy 149.86 177.8))
-		(stroke (width 0) (type default)) (uuid "6ac2cd10-3a95-4dc8-82a1-fb236bbfdb47"))
-	(wire (pts (xy 186.69 168.91) (xy 186.69 165.1))
-		(stroke (width 0) (type default)) (uuid "91919edc-3f61-47aa-a2b4-621fcd782641"))
-	(wire (pts (xy 255.27 64.77) (xy 259.08 64.77))
-		(stroke (width 0) (type default)) (uuid "d3f25d7a-b7ac-4fb2-815a-120f8fd785df"))
+
+
+
 	(wire (pts (xy 76.2 168.91) (xy 76.2 165.1))
 		(stroke (width 0) (type default)) (uuid "c4bd3420-27f2-4c2f-9705-47dbab5025e2"))
 	(wire (pts (xy 321.31 82.55) (xy 325.12 82.55))
@@ -2610,14 +2357,12 @@
 		(stroke (width 0) (type default)) (uuid "7c238d0d-d4d9-4336-820a-bcf9c71d241d"))
 	(wire (pts (xy 387.35 77.47) (xy 391.16 77.47))
 		(stroke (width 0) (type default)) (uuid "1953b253-6230-4492-be9c-4ccfdeb37154"))
-	(wire (pts (xy 219.71 80.01) (xy 215.9 80.01))
-		(stroke (width 0) (type default)) (uuid "c2efff0d-f3ca-410e-af68-91b5da3fb9bc"))
+
 	(wire (pts (xy 113.03 110.49) (xy 113.03 114.3))
 		(stroke (width 0) (type default)) (uuid "b7b33d3c-9bb8-409c-9542-5443a2d5639c"))
 	(wire (pts (xy 149.86 110.49) (xy 149.86 114.3))
 		(stroke (width 0) (type default)) (uuid "7c990bb0-665f-44fc-9902-dd0efab948ff"))
-	(wire (pts (xy 186.69 110.49) (xy 186.69 114.3))
-		(stroke (width 0) (type default)) (uuid "d907ac3c-078c-4b08-9540-e8d33b1f6df5"))
+
 	(wire (pts (xy 223.52 110.49) (xy 223.52 114.3))
 		(stroke (width 0) (type default)) (uuid "776995f2-4971-4ed6-b49b-8d784e5ef3b7"))
 	(wire (pts (xy 260.35 110.49) (xy 260.35 114.3))
@@ -2626,28 +2371,22 @@
 		(stroke (width 0) (type default)) (uuid "16637dbd-b180-4695-adee-b3b368c3aa3b"))
 	(wire (pts (xy 334.01 110.49) (xy 334.01 114.3))
 		(stroke (width 0) (type default)) (uuid "fe1a978e-5e0e-4e30-9126-1361250e7509"))
-	(wire (pts (xy 39.37 110.49) (xy 39.37 114.3))
-		(stroke (width 0) (type default)) (uuid "68522e45-5597-41db-a00c-c9a69335065d"))
-	(wire (pts (xy 370.84 105.41) (xy 370.84 101.6))
-		(stroke (width 0) (type default)) (uuid "cc6e52df-2798-46a8-8bc0-8e9b76745425"))
+
+
 	(wire (pts (xy 39.37 138.43) (xy 39.37 142.24))
 		(stroke (width 0) (type default)) (uuid "62c7254c-d08f-4003-b11e-763b7f6125ea"))
 	(wire (pts (xy 76.2 133.35) (xy 76.2 129.54))
 		(stroke (width 0) (type default)) (uuid "06016660-f33b-45c3-b9a0-90dab956a07f"))
 	(wire (pts (xy 109.22 72.39) (xy 113.03 72.39))
 		(stroke (width 0) (type default)) (uuid "1b5c600a-bf7d-4d3d-97c6-ef70f2efd9ce"))
-	(wire (pts (xy 175.26 72.39) (xy 179.07 72.39))
-		(stroke (width 0) (type default)) (uuid "bfff716c-59be-441b-a515-7370164f51a2"))
-	(wire (pts (xy 31.75 72.39) (xy 27.94 72.39))
-		(stroke (width 0) (type default)) (uuid "9b8b5259-ba25-4f2c-97c3-a9dbe0876901"))
-	(wire (pts (xy 186.69 173.99) (xy 186.69 177.8))
-		(stroke (width 0) (type default)) (uuid "4f0bc36e-9752-44f5-9ae6-1e409cb89096"))
+
+
+
 	(wire (pts (xy 260.35 173.99) (xy 260.35 177.8))
 		(stroke (width 0) (type default)) (uuid "c6995acb-fe79-4ed3-9f0c-b3fbdf1d7b7f"))
 	(wire (pts (xy 334.01 173.99) (xy 334.01 177.8))
 		(stroke (width 0) (type default)) (uuid "76352506-1635-49f3-8efb-99f0f8e2a578"))
-	(wire (pts (xy 39.37 173.99) (xy 39.37 177.8))
-		(stroke (width 0) (type default)) (uuid "67285188-ff0c-4f26-ae81-842d678aa460"))
+
 	(wire (pts (xy 76.2 173.99) (xy 76.2 177.8))
 		(stroke (width 0) (type default)) (uuid "f772e24a-f6ce-46e5-a287-85572b4ef276"))
 	(wire (pts (xy 113.03 173.99) (xy 113.03 177.8))
@@ -2658,12 +2397,9 @@
 		(stroke (width 0) (type default)) (uuid "c4aee1f3-797c-4700-bb2f-de5927046a6a"))
 	(wire (pts (xy 351.79 92.71) (xy 347.98 92.71))
 		(stroke (width 0) (type default)) (uuid "f19baef2-62ce-48c4-ab9e-b286a8e45cbb"))
-	(wire (pts (xy 255.27 92.71) (xy 259.08 92.71))
-		(stroke (width 0) (type default)) (uuid "29651449-73b8-478e-bace-33bdb814c6ae"))
-	(wire (pts (xy 219.71 74.93) (xy 215.9 74.93))
-		(stroke (width 0) (type default)) (uuid "8dd8da79-7eba-4250-aea9-41399e289732"))
-	(wire (pts (xy 219.71 92.71) (xy 215.9 92.71))
-		(stroke (width 0) (type default)) (uuid "baa4bc0b-32db-439a-8811-4f2aaa7e1f80"))
+
+
+
 	(wire (pts (xy 321.31 92.71) (xy 325.12 92.71))
 		(stroke (width 0) (type default)) (uuid "48d07343-dc50-4c0a-af02-60cd58fc7dc3"))
 	(wire (pts (xy 285.75 74.93) (xy 281.94 74.93))
@@ -2672,51 +2408,54 @@
 		(stroke (width 0) (type default)) (uuid "2a1f6dc5-1453-4c4d-9a84-f99b23d1fd04"))
 	(wire (pts (xy 24.13 234.95) (xy 24.13 245.11))
 		(stroke (width 0) (type default)) (uuid "1ac95819-7bfe-4e3d-9418-c92ebe2fd59f"))
-	(wire (pts (xy 44.45 234.95) (xy 44.45 245.11))
-		(stroke (width 0) (type default)) (uuid "00e220b3-7998-49b0-908e-1164b16d57fd"))
+
 	(wire (pts (xy 64.77 234.95) (xy 64.77 245.11))
 		(stroke (width 0) (type default)) (uuid "b033ad73-5161-4e93-80be-417f1420371b"))
 	(wire (pts (xy 85.09 234.95) (xy 85.09 245.11))
 		(stroke (width 0) (type default)) (uuid "babed265-b4d6-48b7-b817-ee4e519e04d6"))
 	(wire (pts (xy 105.41 234.95) (xy 105.41 245.11))
 		(stroke (width 0) (type default)) (uuid "76135b28-5ceb-4fde-b572-1953883b715e"))
-	(wire (pts (xy 125.73 234.95) (xy 125.73 245.11))
-		(stroke (width 0) (type default)) (uuid "e1168e7c-fa8e-4d6a-9244-80f499b80a91"))
+
 	(wire (pts (xy 146.05 234.95) (xy 146.05 245.11))
 		(stroke (width 0) (type default)) (uuid "8f9ff684-c63f-44c3-b050-adf0ceaa7604"))
 	(wire (pts (xy 166.37 234.95) (xy 166.37 245.11))
 		(stroke (width 0) (type default)) (uuid "4a805cdd-48d0-47bf-9acf-b197090701ca"))
-	(label "5VSB_RAW" (at 163.83 72.39 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ba178c91-ff43-4349-aae1-448ecbed6c2b"))
-	(label "5VSB_RAW" (at 27.94 74.93 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "e0696b63-2e7e-4f89-8265-2b90c6d164c3"))
-	(label "5VSB_RAW" (at 149.86 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "cdc12cdc-cade-4c5c-82cd-e7f5a7b3ffc6"))
-	(label "5VSB_RAW" (at 215.9 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "46bbe9ad-91d7-4244-a0ae-6e58141a57e1"))
-	(label "5VSB_RAW" (at 215.9 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "83aac819-d331-405f-91fc-94f41405b927"))
+
+
+
+
+
 	(label "KVM_5V_IN" (at 149.86 101.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "636669b9-22f4-4487-bfbd-9bf95de1b20a"))
 	(label "KVM_5V_IN" (at 347.98 80.01 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "0c30f4dd-ecfa-4044-88a1-061ea5a0f926"))
-	(label "MAIN_5V_RAW" (at 97.79 72.39 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7289ddd6-f86b-480f-9fe0-fcc1c9ee8957"))
-	(label "MAIN_5V_RAW" (at 27.94 69.85 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "eeb65eaa-1fd7-449e-8b79-6544cee8e5e4"))
-	(label "MAIN_5V_RAW" (at 223.52 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "99eab36e-ccbd-480c-84e0-0fb7c917655c"))
-	(label "MAIN_5V_RAW" (at 281.94 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8a386527-cc19-4383-9819-1dd26d4f1cd2"))
-	(label "MAIN_5V_RAW" (at 281.94 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7155a0c7-a565-4ac6-8b98-7876f86a865e"))
-	(label "Net-(U5-ILM)" (at 39.37 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7f0bc4e7-4a12-4298-8f7f-07cbc3ac9a53"))
-	(label "Net-(U5-ILM)" (at 259.08 82.55 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "115f1204-1717-47a6-8935-50ae857aeb7c"))
-	(label "Net-(U5-SS)" (at 370.84 114.3 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ff57bc78-73cf-4a7e-a3c0-827541503bb0"))
-	(label "Net-(U5-SS)" (at 259.08 77.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "bc1e5bc9-bb85-460c-bac1-5bf0309f1caf"))
-	(label "PSU_5V" (at 186.69 101.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c6c045bf-253e-413f-a1a2-5f09c821c18a"))
-	(label "PSU_5V" (at 223.52 101.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "796816be-eaeb-4192-b810-2bfa3f1f0e26"))
-	(label "PSU_5V" (at 297.18 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fb90cefe-9e63-4e82-aa80-964d6a61f3aa"))
-	(label "PSU_5V" (at 347.98 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "56a23015-ec37-4fed-83ad-27d4518d798c"))
-	(label "PSU_5V" (at 347.98 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "c76c42ff-287d-4d33-ae8d-9d9a73ce7474"))
-	(label "PSU_5V" (at 259.08 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b3b217d6-8683-4796-bb49-635640b495d8"))
-	(label "PSU_5V" (at 259.08 54.61 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f0880803-c157-4b57-8d9b-32192e179bce"))
+	(label "+5V_SYS" (at 97.79 72.39 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7289ddd6-f86b-480f-9fe0-fcc1c9ee8957"))
+
+	(label "+5V_SYS" (at 223.52 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "99eab36e-ccbd-480c-84e0-0fb7c917655c"))
+	(label "+5V_SYS" (at 281.94 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8a386527-cc19-4383-9819-1dd26d4f1cd2"))
+	(label "+5V_SYS" (at 281.94 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7155a0c7-a565-4ac6-8b98-7876f86a865e"))
+
+
+
+
+
+	(hierarchical_label "USB_VBUS"
+		(shape input)
+		(at 223.52 101.6 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "796816be-eaeb-4192-b810-2bfa3f1f0e26")
+	)
+	(label "USB_VBUS" (at 297.18 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fb90cefe-9e63-4e82-aa80-964d6a61f3aa"))
+	(label "USB_VBUS" (at 347.98 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "56a23015-ec37-4fed-83ad-27d4518d798c"))
+	(label "USB_VBUS" (at 347.98 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "c76c42ff-287d-4d33-ae8d-9d9a73ce7474"))
+
+
 	(label "PSU_5V_KVM" (at 260.35 101.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9b2a84d9-a8bd-48b8-a51f-ce9ac67d7363"))
 	(label "PSU_5V_KVM" (at 334.01 101.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "60edd296-0d69-416f-95ca-1aefe10bf6e9"))
 	(label "PSU_5V_KVM" (at 391.16 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a1adc111-be99-4ca8-9148-b1d7cf38f926"))
 	(label "PSU_5V_KVM" (at 391.16 54.61 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "329f05b3-6a9a-476e-8994-982299a97fa2"))
 	(label "PSU_5V_KVM" (at 281.94 80.01 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "71aae3b8-10f9-4dc9-9a74-213d1ffde37b"))
-	(label "U5_OV1" (at 149.86 177.8 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "bd43a9ca-f6f9-424c-9f77-efe48be0a38d"))
-	(label "U5_OV1" (at 186.69 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "77b22129-d15a-4fbf-adbe-9b7c6f19ce99"))
-	(label "U5_OV1" (at 259.08 64.77 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "32a39ec9-d323-4115-89da-e12c6b859090"))
+
+
+
 	(label "U7_ILM" (at 76.2 165.1 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d5fd8da9-244d-4fdf-b66d-c693a1460551"))
 	(label "U7_ILM" (at 325.12 82.55 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "53f2f9d3-d6ac-40a9-8873-386deb5e8612"))
 	(label "U7_OV1" (at 223.52 177.8 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "93d292ac-4f58-434e-a4de-890a8d640d77"))
@@ -2731,36 +2470,21 @@
 	(label "U11_OV1" (at 391.16 64.77 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "542c0ff2-8847-4193-902b-1707cc407fa6"))
 	(label "U11_SS" (at 76.2 142.24 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b8e22302-1614-4051-8394-fa5d1909ae63"))
 	(label "U11_SS" (at 391.16 77.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6ca66830-c475-4554-a2fd-8f37069af3e3"))
-	(label "5VSB_RAW" (at 44.45 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b342a572-69ba-4591-a577-526aa6a029f1"))
+
 	(label "KVM_5V_IN" (at 85.09 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a5d2461a-5072-4ac8-a750-650cb0196df5"))
-	(label "MAIN_5V_RAW" (at 105.41 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c0d00b51-7553-4e29-87f9-57d9aabf1451"))
-	(label "PSU_5V" (at 125.73 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "60c37dfa-35f5-4fb6-a5da-33a6ea17aa46"))
+	(label "+5V_SYS" (at 105.41 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c0d00b51-7553-4e29-87f9-57d9aabf1451"))
+
 	(label "PSU_5V_KVM" (at 146.05 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "69ed2e4d-ea1b-4fa0-ad0e-02540632ba65"))
 	(label "USB_VBUS" (at 166.37 234.95 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "dcf58fb4-050e-4f9f-a05d-3e5710fb6084"))
-	(hierarchical_label "5VSB_RAW"
-		(shape output)
-		(at 39.37 101.6 0)
-		(effects (font (size 1.27 1.27)) (justify left))
-		(uuid "37e1bedf-e1e5-4349-9be2-4dffbfcc6c43")
-	)
+
 	(hierarchical_label "KVM_5V_IN"
-		(shape output)
+		(shape input)
 		(at 113.03 101.6 0)
 		(effects (font (size 1.27 1.27)) (justify left))
 		(uuid "db6da2c8-7bd3-46f7-b6c9-0fefc3aa2923")
 	)
-	(hierarchical_label "MAIN_5V_RAW"
-		(shape output)
-		(at 297.18 101.6 0)
-		(effects (font (size 1.27 1.27)) (justify left))
-		(uuid "209d8b62-1ebe-43b5-9c01-15e46dc92984")
-	)
-	(hierarchical_label "USB_VBUS"
-		(shape output)
-		(at 215.9 80.01 180)
-		(effects (font (size 1.27 1.27)) (justify right))
-		(uuid "a5316191-8a31-4d20-9d71-548cdd266f94")
-	)
+
+
 	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 39.37 212.09 180)
@@ -2869,24 +2593,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 186.69 114.3 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "826b5cb3-2e3f-41d2-bc20-0d3dcc582824")
-		(property "Reference" "#PWR107" (at 186.69 111.76 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 186.69 119.38 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "2a7faf7a-5e27-46fd-82b1-43ced0eff4da"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR107") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 223.52 114.3 0)
@@ -2959,42 +2666,8 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 39.37 114.3 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "0b58c00a-87e2-4998-9a87-db81d83cd99a")
-		(property "Reference" "#PWR112" (at 39.37 111.76 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 39.37 119.38 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "164af5e7-1fc6-4404-a0d5-98ea4d8fbb09"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR112") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 370.84 101.6 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "37167ac8-035f-4a74-b580-a11b60f91f43")
-		(property "Reference" "#PWR113" (at 370.84 99.06 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 370.84 96.52 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "a950bf56-3eec-4198-8ded-a9ea6b92df7f"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR113") (unit 1))
-			)
-		)
-	)
+
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 39.37 142.24 0)
@@ -3049,60 +2722,9 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 179.07 72.39 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b83a3c1b-1e29-47ba-a6a7-a02f5f45bdae")
-		(property "Reference" "#PWR117" (at 179.07 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 179.07 77.47 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "e616e556-e862-434d-a257-0c464fc76ee5"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR117") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 27.94 72.39 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b5a5929e-9b21-4b0a-a01f-25b5fac28e43")
-		(property "Reference" "#PWR118" (at 27.94 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 27.94 77.47 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "5e7d730b-ddc1-420d-99ef-ffca5db3aa8f"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR118") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 186.69 177.8 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "94c1e765-dafc-4e97-90eb-7356b37b8091")
-		(property "Reference" "#PWR119" (at 186.69 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 186.69 182.88 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "52f180ae-bafb-487f-9457-c148a01bba09"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR119") (unit 1))
-			)
-		)
-	)
+
+
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 260.35 177.8 0)
@@ -3139,24 +2761,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 39.37 177.8 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "0ce8da69-1234-4640-948b-b5b736dc5bbe")
-		(property "Reference" "#PWR122" (at 39.37 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 39.37 182.88 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "fb7b6416-ab2d-4bc8-a9ae-f0af35c7bb05"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR122") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 76.2 177.8 0)
@@ -3247,60 +2852,9 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 259.08 92.71 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "fde53d98-5740-4069-a6ac-12a86e452249")
-		(property "Reference" "#PWR128" (at 259.08 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 259.08 97.79 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "d612dc1e-bb50-4e4c-ae21-f4d71d2d1921"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR128") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 215.9 74.93 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "4868a0f5-1602-4539-a6c0-26b7fb597624")
-		(property "Reference" "#PWR129" (at 215.9 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 215.9 82.55 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "cca567ab-63fa-4187-90bc-bd34e4d2870c"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR129") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 215.9 92.71 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "1f891796-8810-40fd-84a6-32852c43fdf3")
-		(property "Reference" "#PWR130" (at 215.9 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 215.9 97.79 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "c079fc4e-3ba5-4afb-a40b-40be6a0c8f91"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#PWR130") (unit 1))
-			)
-		)
-	)
+
+
+
 	(symbol
 		(lib_id "cec-power:GND")
 		(at 325.12 92.71 0)
@@ -3391,24 +2945,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 44.45 245.11 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "6772c2a8-3c59-4436-8104-77c91ca5e686")
-		(property "Reference" "#FLG136" (at 44.45 242.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 44.45 231.14 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "8ba8fae9-1ffd-44ef-a03f-48a8b513ed3e"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#FLG136") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
 		(at 64.77 234.95 180)
@@ -3481,24 +3018,7 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 125.73 245.11 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "eb41f97a-1825-4cc5-adcd-20f141702ab2")
-		(property "Reference" "#FLG141" (at 125.73 242.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 125.73 231.14 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "09aa79dc-9a4e-4aad-b3a2-c51fdeeb29a1"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/9daaae06-73bf-5bca-abe1-db72cea97d80" (reference "#FLG141") (unit 1))
-			)
-		)
-	)
+
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
 		(at 146.05 245.11 0)
@@ -3535,9 +3055,28 @@
 			)
 		)
 	)
-	(no_connect (at 255.27 69.85) (uuid "136ef69f-c93e-4d20-a1ec-9e56dcc75aae"))
-	(no_connect (at 321.31 69.85) (uuid "5492c09c-a218-4133-9d37-6a76e8b73ec8"))
+
+
 	(no_connect (at 387.35 69.85) (uuid "a6efab48-cd3b-42cf-a969-4e962608eb73"))
+	(global_label "+5V_SYS"
+		(shape passive)
+		(at 297.18 101.6 0)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "3e65e051-5ce2-42f2-9fbd-83d5ff7ca74c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 297.18 101.6 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 321.31 69.85) (xy 325.12 69.85))
+		(stroke (width 0) (type default)) (uuid "06d29a60-c9ba-46e4-a7bf-2eee825a5fff"))
+	(hierarchical_label "PWR_SOURCE_STATUS"
+		(shape output)
+		(at 325.12 69.85 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "448f719d-864d-4595-ad39-bb2e2b455ed8")
+	)
 	(sheet_instances
 		(path "/9daaae06-73bf-5bca-abe1-db72cea97d80"
 			(page "2")

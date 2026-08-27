@@ -149,6 +149,13 @@ class TestLaidPourIncursion(unittest.TestCase):
         self.assertEqual(clipped, 1)
         self.assertFalse(any(shape.covers(Point(5, 5)) for shape in shapes))
         self.assertTrue(any(shape.covers(Point(2, 2)) for shape in shapes))
+        for shape in shapes:
+            rings = [shape.exterior] + list(shape.interiors)
+            self.assertTrue(all(
+                abs(x1 - x0) < 1e-9 or abs(y1 - y0) < 1e-9
+                for ring in rings
+                for (x0, y0), (x1, y1) in zip(
+                    ring.coords, list(ring.coords)[1:])))
 
     def test_declared_internal_power_plane_is_not_a_reserved_pour(self):
         board = pcbnew.BOARD()

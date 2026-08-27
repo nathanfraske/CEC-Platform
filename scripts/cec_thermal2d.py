@@ -203,6 +203,14 @@ class ThermalResult:
     # traces + pads (so the dashboard per-layer overlay shows trace hotspots, not
     # just zones). std-layer name -> (ny,nx) bool.
     layer_copper_mask: dict = field(default_factory=dict)
+    # Electrical-field diagnostics retained from the final rho(T) pass.  Earlier
+    # versions reduced these fields to one scalar maxJ per net, which made a
+    # localized filled-zone neck indistinguishable from a uniformly loaded
+    # plane in renders and reports.
+    layer_current_density: dict = field(default_factory=dict)  # std layer -> J [A/mm^2]
+    net_layer_current_density: dict = field(default_factory=dict)  # net -> std layer -> J
+    copper_joule_density: Optional[np.ndarray] = None  # areal copper loss [W/m^2]
+    current_bottlenecks: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)
 
     def summary(self) -> str:
@@ -359,7 +367,14 @@ def _collect_vertical_links(verts, present_layers, z_centers, t_plating_m):
             R = _barrel_segment_R(v["drill_mm"], z_centers[a], z_centers[b], t_plating_m)
             if R is None or R <= 0:
                 continue
-            pair_conductance[(a, b)] += 1.0 / R
+            # A physical barrel is distributed around the drill circumference.
+            # ``_collect_vertical_connectors`` may represent that circumference
+            # with several grid cells; each cell owns only its stated fraction
+            # of the total barrel conductance.  The old centroid-only model
+            # forced the entire layer-transfer current through one copper cell,
+            # manufacturing a false current-density/thermal pinch at every PTH.
+            fraction = max(float(v.get("conductance_fraction", 1.0)), 0.0)
+            pair_conductance[(a, b)] += fraction / R
     return [(a, b, 1.0 / G) for (a, b), G in pair_conductance.items() if G > 0]
 
 
@@ -379,8 +394,9 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
         A cell omitted / >=1 behaves as a full plane cell. The face conductance
         between two cells uses min(frac_a, frac_b) (series neck).
     pad_cells_by_ref: optional dict ref -> list[(phys_layer, cell_id)]; cells of one
-        pad are tied together by a near-short so a multi-cell pad is one equipotential
-        contact patch (prevents an artificial intra-pad gradient under area injection).
+        pad are tied together by a near-short *within each copper layer* so a
+        multi-cell pad face is one equipotential contact patch.  Different layers
+        remain connected only by modeled plated barrels/vias.
     link_R_scale: optional callable (cell_a_id, cell_b_id, layer)->float multiplier on
         the link resistance (the rho(T) Picard temperature factor). None == 1.0.
     Returns dict(V, links, nodes, node_of, sheetR).
@@ -448,18 +464,24 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
                 R = R0 / max(fr, 1e-3) * rscale(ca, cb, lid)
                 add(a, b, 1.0 / R); links.append((a, b, R, lid))
 
-    # pad equipotential: tie a multi-cell pad's own cells with a near-short so the
-    # injected current spreads across the whole contact patch (no intra-pad gradient).
+    # Pad equipotential: tie a multi-cell pad's own cells with a near-short on the
+    # SAME physical copper layer so injection spreads across the contact patch.
+    # Never short layers together here: PTH/via barrels below are the only legal
+    # vertical conductor, and bypassing them makes high-current PTH solves optimistic.
     if pad_cells_by_ref:
         for ref, cl in pad_cells_by_ref.items():
-            present = [(p, c) for (p, c) in cl if (p, c) in node_of]
-            if len(present) < 2:
-                continue
-            base = node_of[present[0]]
-            for (p, c) in present[1:]:
-                nb = node_of[(p, c)]
-                Gbig = 1e6
-                add(base, nb, Gbig)        # near-short, not added to links (no heat)
+            by_layer = {}
+            for p, c in cl:
+                if (p, c) in node_of:
+                    by_layer.setdefault(p, []).append(c)
+            for p, cells in by_layer.items():
+                if len(cells) < 2:
+                    continue
+                base = node_of[(p, cells[0])]
+                for c in cells[1:]:
+                    nb = node_of[(p, c)]
+                    Gbig = 1e6
+                    add(base, nb, Gbig)    # no heat: ideal metal contact face
 
     # vertical via / PTH barrel links -- ONLY at real connectors, between
     # adjacent same-net copper layers.
@@ -786,6 +808,90 @@ def _joule_from_solution(sol, grid: Grid, width_frac=None, oz_by_layer=None):
     return q, maxK / 1e3, maxJ / 1e6, total   # K->A/mm, J->A/mm^2
 
 
+def _current_field_from_solution(sol, grid: Grid, width_frac=None,
+                                 oz_by_layer=None, total_current_A=0.0,
+                                 net=""):
+    """Retain spatial in-plane current density and rank constriction links.
+
+    The electrical solve is link based.  A filled-zone pinch is therefore most
+    honestly exposed at the same link faces: ``I / (local width * copper
+    thickness)``.  Each face value is painted onto its two adjacent cells using
+    a max reduction so a one-cell neck cannot be blurred away by averaging.
+
+    Returns ``(layer_maps, records)`` where maps use standard KiCad layer names
+    and records contain physical coordinates suitable for reports/overlays.
+    Vertical barrel links are retained as records (with their current and loss)
+    but are not mixed into the planar J maps because their cross-section is an
+    annular plating wall rather than a copper-sheet face.
+    """
+    V = sol["V"]
+    nodes = sol["nodes"]
+    width_frac = width_frac or {}
+    oz_by_layer = oz_by_layer or {}
+    maps = {}
+    records = []
+    denom = max(abs(float(total_current_A)), 1e-12)
+
+    for a, b, R, lid in sol["links"]:
+        dV = float(V[a] - V[b])
+        current = dV / R
+        abs_current = abs(current)
+        la, ca = nodes[a]
+        lb, cb = nodes[b]
+        ya, xa = divmod(ca, grid.nx)
+        yb, xb = divmod(cb, grid.nx)
+        x_mm = grid.xmin + ((xa + xb) / 2.0 + 0.5) * grid.grid_mm
+        y_mm = grid.ymin + ((ya + yb) / 2.0 + 0.5) * grid.grid_mm
+        power_W = current * current * R
+
+        if lid is None:
+            records.append({
+                "net": net,
+                "kind": "barrel",
+                "layer": "%s->%s" % (STD_CU_LAYERS.get(la, str(la)),
+                                        STD_CU_LAYERS.get(lb, str(lb))),
+                "x_mm": x_mm,
+                "y_mm": y_mm,
+                "current_A": abs_current,
+                "current_share": abs_current / denom,
+                "joule_W": power_W,
+                "J_A_per_mm2": None,
+                "effective_width_mm": None,
+            })
+            continue
+
+        wm = width_frac.get(lid)
+        wfa = wfb = 1.0
+        if wm is not None:
+            wfa = float(wm[ya, xa]) if wm[ya, xa] > 0 else 1.0
+            wfb = float(wm[yb, xb]) if wm[yb, xb] > 0 else 1.0
+        frac = max(min(wfa, wfb), 1e-3)
+        width_mm = grid.grid_mm * frac
+        thickness_mm = max(float(oz_by_layer.get(lid, 1.0)), 1e-6) * OZ_M * 1e3
+        area_mm2 = max(width_mm * thickness_mm, 1e-12)
+        J = abs_current / area_mm2
+        std = STD_CU_LAYERS.get(lid, str(lid))
+        field = maps.setdefault(std, np.zeros((grid.ny, grid.nx)))
+        field[ya, xa] = max(field[ya, xa], J)
+        field[yb, xb] = max(field[yb, xb], J)
+        records.append({
+            "net": net,
+            "kind": "sheet",
+            "layer": std,
+            "x_mm": x_mm,
+            "y_mm": y_mm,
+            "orientation": "x" if ya == yb else "y",
+            "current_A": abs_current,
+            "current_share": abs_current / denom,
+            "joule_W": power_W,
+            "J_A_per_mm2": J,
+            "effective_width_mm": width_mm,
+            "copper_thickness_mm": thickness_mm,
+        })
+
+    return maps, records
+
+
 # ============================== thermal solve ==============================
 def _build_lateral(klat, grid: Grid):
     """Assemble the (constant) lateral-conduction sparse operator and the diag of
@@ -1074,14 +1180,43 @@ def _collect_vertical_connectors(board, grid: Grid, grid_layer_for_phys):
     # physical z-order of enabled std layers (for via spans)
     by_net = {}
 
+    def barrel_cells(x_mm, y_mm, drill_mm):
+        """Grid cells sampling the plated drill circumference, not its void.
+
+        A barrel's conductance is a cylindrical wall.  Collapsing it onto the
+        drill centroid creates an artificial one-cell neck in the connected
+        copper planes.  Angular sampling followed by de-duplication preserves
+        its spatial circumference at any mesh while the per-cell fractions
+        below preserve the exact analytical total conductance.
+        """
+        radius = max(drill_mm / 2.0, grid.grid_mm / 2.0)
+        circumference = 2.0 * math.pi * radius
+        samples = max(8, int(math.ceil(circumference / grid.grid_mm * 2.0)))
+        cells = set()
+        for i in range(samples):
+            angle = 2.0 * math.pi * i / samples
+            cxy = grid.cell_of_xy(x_mm + radius * math.cos(angle),
+                                  y_mm + radius * math.sin(angle))
+            if cxy is not None:
+                cells.add(grid.idx(*cxy))
+        if not cells:
+            cxy = grid.cell_of_xy(x_mm, y_mm)
+            if cxy is not None:
+                cells.add(grid.idx(*cxy))
+        return sorted(cells)
+
     def add(net, x_mm, y_mm, drill_mm, span_std):
-        cxy = grid.cell_of_xy(x_mm, y_mm)
-        if cxy is None or drill_mm <= 0 or len(span_std) < 2:
+        if drill_mm <= 0 or len(span_std) < 2:
             return
-        ix, iy = cxy
-        c = grid.idx(ix, iy)
-        by_net.setdefault(net, {}).setdefault(c, []).append(
-            {"drill_mm": drill_mm, "span": span_std})
+        cells = barrel_cells(x_mm, y_mm, drill_mm)
+        if not cells:
+            return
+        fraction = 1.0 / len(cells)
+        for c in cells:
+            by_net.setdefault(net, {}).setdefault(c, []).append(
+                {"drill_mm": drill_mm, "span": span_std,
+                 "conductance_fraction": fraction,
+                 "barrel_center_mm": (x_mm, y_mm)})
 
     # --- vias ---
     for t in board.GetTracks():
@@ -1399,6 +1534,26 @@ def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True):
     return out
 
 
+def _terminal_cells_for_refs(pad_map, net, refs, allowed_layers=None):
+    """Return pad injection cells for ``refs``, optionally on selected layers.
+
+    A plated through-hole is electrically present on every copper layer, but an
+    external clamp, spring contact, or bolt terminal initially introduces current
+    through only the copper face it physically touches.  Treating every PTH layer
+    as a simultaneous current source is therefore optimistic for constriction and
+    current-transfer heating.  ``allowed_layers`` uses the solver's standard layer
+    names (for example ``{"F.Cu"}``) and keeps the old all-layer behavior when it is
+    omitted.
+    """
+    allowed = None if allowed_layers is None else set(allowed_layers)
+    return [
+        (std, cell)
+        for ref in refs
+        for (std, cell) in pad_map.get(net, {}).get(ref, [])
+        if allowed is None or std in allowed
+    ]
+
+
 def _default_src_sink(net, pad_map):
     """Pass-through interposer heuristic. The OUTPUT side is either the classic J_OUT*
     header or (D-5a beta boards) the TB* FASTON blade field -- without the TB alternative a
@@ -1530,6 +1685,7 @@ def solve_board_thermal(board_path,
                         verbose=False,
                         include_traces=True,
                         area_injection=True,
+                        ideal_pad_faces=False,
                         rho_T=True,
                         shunt_R_ohm=None,
                         r_contact_mohm=0.0,
@@ -1560,6 +1716,15 @@ def solve_board_thermal(board_path,
         effective-width sheet conductance -> grid-independent R/Joule). Default True.
     area_injection:  inject each terminal's current over its REAL pad footprint
         cells (kills the centroid maxJ point singularity). Default True.
+    ideal_pad_faces: tie cells within a pad face with a numerical near-short.
+        Default False because the pad copper sheet is already rasterized and its
+        finite spreading resistance is physical; the ideal tie can also make
+        large high-current pad systems ill-conditioned. Kept only for controlled
+        legacy comparisons.
+    src_sink_override: per-net terminal refs, optionally constrained to the
+        physical contact face with ``source_layers`` / ``sink_layers`` standard
+        layer names.  Omitting the layer keys preserves the historical all-layer
+        PTH injection used for soldered connector pins.
     rho_T:           temperature-dependent copper resistivity rho(T) via an outer
         Picard loop (R *= 1 + ALPHA_CU*(T_link-20)). +2..+12C, one-signed. Default True.
     shunt_R_ohm:     dict ref->ohm (or a single float applied to every RS* shunt) ->
@@ -1703,6 +1868,9 @@ def solve_board_thermal(board_path,
 
     Q = np.zeros((grid.ny, grid.nx))
     per_net_maxK, per_net_maxJ = {}, {}
+    net_layer_current_density = {}
+    current_bottlenecks = []
+    copper_joule_Q = np.zeros((grid.ny, grid.nx))
     total_joule = 0.0
     component_W = 0.0
     net_currents_resolved = {}
@@ -1748,6 +1916,8 @@ def solve_board_thermal(board_path,
 
         Q = np.zeros((grid.ny, grid.nx))
         per_net_maxK, per_net_maxJ = {}, {}
+        net_layer_current_density = {}
+        current_bottlenecks = []
         total_joule = 0.0
         for net, I in net_currents.items():
             # WALL-CLOCK BUDGET (2026-07-23, the dashboard-analyzer pathology:
@@ -1790,12 +1960,14 @@ def solve_board_thermal(board_path,
             if src_sink_override and net in src_sink_override:
                 ov = src_sink_override[net]
                 if isinstance(ov, dict):
-                    src = [(std_to_phys[s], c)
-                           for r in ov.get("refs_src", [])
-                           for (s, c) in pad_map.get(net, {}).get(r, [])]
-                    sink = [(std_to_phys[s], c)
-                            for r in ov.get("refs_sink", [])
-                            for (s, c) in pad_map.get(net, {}).get(r, [])]
+                    src_std = _terminal_cells_for_refs(
+                        pad_map, net, ov.get("refs_src", []),
+                        ov.get("source_layers"))
+                    sink_std = _terminal_cells_for_refs(
+                        pad_map, net, ov.get("refs_sink", []),
+                        ov.get("sink_layers"))
+                    src = [(std_to_phys[s], c) for (s, c) in src_std]
+                    sink = [(std_to_phys[s], c) for (s, c) in sink_std]
                 else:
                     src, sink = ov
             else:
@@ -1819,7 +1991,7 @@ def solve_board_thermal(board_path,
 
             # pad equipotential groups for this net (multi-cell pads)
             pcells = None
-            if area_injection:
+            if area_injection and ideal_pad_faces:
                 groups = pad_map.get(net, {}).get("__pads__", {})
                 pcells = {k: [(std_to_phys[s], c) for (s, c) in v
                               if std_to_phys[s] in masks]
@@ -1894,13 +2066,23 @@ def solve_board_thermal(board_path,
                 continue
             q, maxK, maxJ, tW = _joule_from_solution(
                 sol, grid, width_frac=wfrac_by_layer, oz_by_layer=oz_by_layer)
+            jmaps, jrecords = _current_field_from_solution(
+                sol, grid, width_frac=wfrac_by_layer, oz_by_layer=oz_by_layer,
+                total_current_A=I, net=net)
             total_joule += tW
             per_net_maxK[net] = maxK
             per_net_maxJ[net] = maxJ
+            net_layer_current_density[net] = jmaps
+            current_bottlenecks.extend(jrecords)
             net_currents_resolved[net] = I
             net_drop_reasons.pop(net, None)         # geometry is outer-invariant; keep exact
             for lid, qg in q.items():
                 Q += qg
+
+        # Keep copper-only loss separate from lumped contact/component heat.
+        # The previous renderer showed only their combined temperature field,
+        # hiding whether a hotspot came from a zone neck or an interface model.
+        copper_joule_Q = Q.copy()
 
         # ---- discrete component heat sources (shunt I^2R, contact R, fixed parts) --
         comp_cell_W = {}
@@ -1967,6 +2149,26 @@ def solve_board_thermal(board_path,
             else:
                 acc |= m
 
+    layer_current_density = {}
+    for _net, by_layer in net_layer_current_density.items():
+        for std, field_J in by_layer.items():
+            acc = layer_current_density.get(std)
+            if acc is None:
+                layer_current_density[std] = field_J.copy()
+            else:
+                np.maximum(acc, field_J, out=acc)
+
+    def _bottleneck_rank(row):
+        # A real plane pinch combines high density with a material fraction of
+        # the net current.  The share term suppresses harmless single-cell edge
+        # noise while retaining unavoidable terminal spreading constrictions.
+        J = row.get("J_A_per_mm2") or 0.0
+        share = row.get("current_share") or 0.0
+        return (J * max(share, 0.01), row.get("joule_W", 0.0), J)
+
+    current_bottlenecks = sorted(
+        current_bottlenecks, key=_bottleneck_rank, reverse=True)[:512]
+
     res = ThermalResult(
         T=T, max_T=float(T.max()), ambient=ambient, grid_mm=grid_mm,
         extent_mm=(xmin, ymin, xmax, ymax),
@@ -1977,6 +2179,10 @@ def solve_board_thermal(board_path,
         nets_absent=dict(nets_absent),
         copper_mask=copper_any,
         layer_copper_mask=layer_copper_mask,
+        layer_current_density=layer_current_density,
+        net_layer_current_density=net_layer_current_density,
+        copper_joule_density=copper_joule_Q,
+        current_bottlenecks=current_bottlenecks,
         meta={"stackup_oz": stackup_oz, "dielectric_mm": dielectric_mm,
               "h_eff": h_eff,
               "gnd_inner_layers": list(gnd_inner_layers),
@@ -1985,7 +2191,8 @@ def solve_board_thermal(board_path,
               "c_nat": c_nat, "eps_rad": eps_rad, "backend": backend,
               "n_vias": n_vias, "n_pth": n_pth, "n_tracks": n_trk,
               "copper_joule_W": total_joule, "component_W": component_W,
-              "include_traces": include_traces, "area_injection": area_injection,
+               "include_traces": include_traces, "area_injection": area_injection,
+               "ideal_pad_faces": ideal_pad_faces,
               "rho_T": rho_T, "g_mount_W_per_K": g_mount_W_per_K,
               "net_currents": net_currents})
     return res

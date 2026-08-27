@@ -117,6 +117,30 @@ class ParallelBridgeTest(unittest.TestCase):
         self.assertIn("M", [k["name"] for k in kept],
                       "removing the only bridge would strand a terminal")
 
+    def test_bridge_covering_an_extra_physical_terminal_is_not_dropped(self):
+        """A connected remainder is insufficient if one bolt/pin vanished.
+
+        This models repeated same-net lands in a connector footprint.  The
+        trunk and the local manifold overlap, but only the manifold reaches
+        the second physical land.  Removing it leaves one internally
+        connected copper component while silently uncovering a terminal.
+        """
+        trunk = z("pourplan:/N", "/N", "F.Cu", rect(0, 0, 12, 6))
+        manifold = z(
+            "manifold:TB:/N", "/N", "F.Cu", rect(8, 0, 24, 6))
+        pads = [
+            ("/N", 2.0, 3.0, "F.Cu"),
+            ("/N", 20.0, 3.0, "F.Cu"),
+        ]
+
+        kept, dropped = sp.drop_redundant_layers(
+            [trunk, manifold], pads=pads, vias=[])
+
+        self.assertEqual({row["name"] for row in kept}, {
+            "pourplan:/N", "manifold:TB:/N"})
+        self.assertFalse(any(
+            row["name"] == "manifold:TB:/N" for row, _why in dropped))
+
     def test_ampacity_floor_outranks_tidiness(self):
         f = z("f", "/N", "F.Cu", rect(0, 0, 40, 4))
         a = z("a", "/N", "In2.Cu", rect(0, 0, 40, 4))
@@ -125,6 +149,37 @@ class ParallelBridgeTest(unittest.TestCase):
         kept, _ = sp.drop_redundant_layers([f, a], pads=pads, vias=vias,
                                            min_layers={"/N": 2})
         self.assertEqual(len(kept), 2)
+
+    def test_parallel_floor_counts_distinct_layers_not_zone_fragments(self):
+        f_manifest = z("f-manifold", "/N", "F.Cu", rect(0, 0, 10, 6))
+        f_trunk = z("f-trunk", "/N", "F.Cu", rect(0, 0, 40, 6))
+        b_trunk = z("b-trunk", "/N", "B.Cu", rect(0, 0, 40, 6))
+        pads = [("/N", 2.0, 3.0, None), ("/N", 38.0, 3.0, None)]
+        vias = [{"net": "/N", "x_mm": 5.0, "y_mm": 3.0}]
+
+        kept, _ = sp.drop_redundant_layers(
+            [f_manifest, f_trunk, b_trunk], pads=pads, vias=vias,
+            min_layers={"/N": 2})
+
+        self.assertEqual(
+            {row["layer"] for row in kept}, {"F.Cu", "B.Cu"})
+
+    def test_declared_parallel_layers_keep_each_complete_solution_trunk(self):
+        f_manifest = z("manifold:J:/N", "/N", "F.Cu", rect(0, 0, 40, 6))
+        f_trunk = z("pourplan:/N", "/N", "F.Cu", rect(0, 0, 40, 6))
+        b_trunk = z("pourplan:/N", "/N", "B.Cu", rect(0, 0, 40, 6))
+        pads = [("/N", 2.0, 3.0, None), ("/N", 38.0, 3.0, None)]
+        vias = [{"net": "/N", "x_mm": 5.0, "y_mm": 3.0}]
+
+        kept, _ = sp.drop_redundant_layers(
+            [f_manifest, f_trunk, b_trunk], pads=pads, vias=vias,
+            min_layers={"/N": 2},
+            required_layers={"/N": ("F.Cu", "B.Cu")})
+
+        trunks = [row for row in kept
+                  if row["name"].startswith("pourplan:")]
+        self.assertEqual({row["layer"] for row in trunks},
+                         {"F.Cu", "B.Cu"})
 
     def test_a_broken_net_is_left_alone(self):
         """Never tidy a net whose connectivity proof does not already hold."""

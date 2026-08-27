@@ -39,10 +39,19 @@ def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
     midpoint that is neither overused nor inside a pin-escape region (we pin the net
     to the calm part of ITS OWN corridor -- never to a conflict cell)."""
     import re
+    import pcbnew
     import cec_coord_router as ccr
-    conns, H, W, foreign = ccr.build_problem(board_path, grid_mm=grid_mm)
+    import cec_fr02
+    conns, H, W, foreign, stackup = ccr.build_problem(
+        board_path, grid_mm=grid_mm, detailed=True)
+    blocked_cells = stackup.pop("_blocked_cells_by_conn", ())
     res = ccr.route_problem(conns, H, W, grid_mm=grid_mm, iters=iters,
-                            foreign_cells=foreign, backend=backend)
+                            foreign_cells=foreign, backend=backend,
+                            blocked_cells_by_conn=blocked_cells,
+                            L=len(stackup["layer_names"]),
+                            layer_names=stackup["layer_names"],
+                            allowed_layers=stackup["allowed_layers_by_conn"],
+                            cost_mode="fixed")
     usage = res["usage"]
     cap = ccr._capacity(grid_mm)
     # escape mask: cells within escape_radius of any terminal (pin-escape domain)
@@ -73,6 +82,13 @@ def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
             scored.append((contended, i, net, path))
     scored.sort(key=lambda t: -t[0])
     x0, y0 = _grid_origin(board_path)
+    physical_board = pcbnew.LoadBoard(board_path)
+    # A protected 0.6 mm mark is long enough to bind the negotiated corridor
+    # but small enough to fit dense fanout.  It retains the compiler's exact
+    # full-segment clearance check and may move by at most one grid cell.
+    coord_stub_len_mm = 0.6
+    coord_stub_width_mm = 0.22
+    coord_nudge_mm = grid_mm
     intents, seen_nets = [], set()
     for contended, i, net, path in scored:
         if net in seen_nets or len(intents) >= k:
@@ -80,21 +96,39 @@ def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
         mid = len(path) // 2
         # calm cell of its own corridor nearest the midpoint
         cand = sorted(range(len(path)), key=lambda j: abs(j - mid))
-        wp_cell = next(((l, y, x) for j in cand
-                        for (l, y, x) in [path[j]]
-                        if not _over(l, y, x) and (y, x) not in term), None)
-        if wp_cell is None:
+        waypoint = None
+        for j in cand:
+            l, y, x = path[j]
+            if _over(l, y, x) or (y, x) in term:
+                continue
+            layer_name = stackup["layer_names"][l]
+            at_mm = [x0 + (x + 0.5) * grid_mm,
+                     y0 + (y + 0.5) * grid_mm]
+            clear_at = cec_fr02.find_clear_waypoint_mm(
+                physical_board, net, layer_name, at_mm,
+                stub_len_mm=coord_stub_len_mm,
+                width_mm=coord_stub_width_mm,
+                nudge_mm=coord_nudge_mm)
+            if clear_at is not None:
+                waypoint = (l, clear_at)
+                break
+        if waypoint is None:
             continue
-        l, y, x = wp_cell
+        l, clear_at = waypoint
         intents.append({"net": net,
-                        "layers": ["B.Cu" if l else "F.Cu"],
-                        "waypoints": [{"at_mm": [round(x0 + (x + 0.5) * grid_mm, 3),
-                                                 round(y0 + (y + 0.5) * grid_mm, 3)]}],
+                        "layers": [stackup["layer_names"][l]],
+                        "waypoints": [{"at_mm": [round(clear_at[0], 3),
+                                                 round(clear_at[1], 3)]}],
+                        "stub_len_mm": coord_stub_len_mm,
+                        "width_mm": coord_stub_width_mm,
+                        "nudge_mm": coord_nudge_mm,
                         "_contended_cells": contended})
         seen_nets.add(net)
     return {"intents": intents, "negotiation": {
         "residual": res["residual_overuse"], "residual_escaped": res["residual_overuse_escaped"],
-        "iters": res["iters_used"], "backend": res["backend"], "wall_s": res["wall_s"]}}
+        "iters": res["iters_used"], "backend": res["backend"], "wall_s": res["wall_s"],
+        "layers": stackup["layer_names"], "cost_mode": res["cost_mode"],
+        "congestion": res["congestion"]}}
 
 
 def stub_board(board_path, out_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",

@@ -152,218 +152,6 @@
 			(outputdirectory "")
 		)
 	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "0268ff9e-6e29-40e0-af84-d51645bf040f")
-		(at 196 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB2"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "2fe8994e-3664-4796-a0a3-c23870a8da94")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "39bdd1ae-b87a-4c08-95fb-cb58a0314a39")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "b347903b-feb3-408b-a686-0c7c525b195b")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "c31a94d1-3f0b-4b9a-9cb1-1425fb84f2e0")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "c2bc5232-8858-4c06-b5d6-11966ef0fa38")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "f9df9c39-0c12-4cf2-959b-4b88a6f8ae5c")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "61f5caa4-b02b-472c-b4d5-9e1b2d1d4417")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 5V (1 of 2) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "f2cc5757-10fa-415c-bcf9-29240ce7b9ac")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/86fee3ba-8b31-469c-81c8-ad2308046c7c")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "2a1863d3-5e0e-4906-999e-0e024d590ac7")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "1b537a3b-1126-42a3-8cb2-a5a12caee6c7")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "8388d2a6-587a-467c-97d4-c9c628d38b76")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "aefaed0e-97e4-431e-8bd9-ba9a4bf4f6d3")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "5babdf10-ff26-4967-ab0e-1396567dd796")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "3aeac399-fe26-442e-87e4-110b28a5fa13")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "+5V_MAIN")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "4b631b88-13d1-4769-ba9c-877140cfb97c")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "+5V_MAIN")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "38c34ee2-a22a-4331-9d94-6ab534ced52b")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 		(layer "F.Cu")
 		(uuid "03f0ff0a-ee14-4542-b3c2-535c3dc263ae")
@@ -501,218 +289,6 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Resistor_SMD.3dshapes/R_0402_1005Metric.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "0c7d84bc-25b9-468c-a4d0-8b2983e4d420")
-		(at 237.375 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB10"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "b34b5a9c-985a-49d0-9b77-ca5a1b3ead77")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "53a9d0e4-8916-4929-b666-483295402f35")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "9cb03ae4-6569-44fc-9664-60c489c0f6e9")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "ba895397-1ac9-4600-afed-91a53c106efe")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "f56c2181-c324-46cd-9fcc-2a1732fbb340")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "fa1aa13d-ce99-4966-97ba-5b738f2db4c2")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "ad3cb3a4-7f03-4fcc-abd9-93ced93d51f6")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 3.3V (second 3.3V joint, iteration-7 count: 24.0A basis > 18.32A allowable/joint) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "52d7a760-535e-4524-9471-80af255a6a3f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/954c3bc4-6f73-41f7-b4a8-a644b229c737")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "47addc40-211b-4d40-8ba0-1161fa956b7e")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "5abc58a7-fa1b-4e3e-901a-114e15b0c2da")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "f4c2cd78-d3a0-4378-9d16-cccc047ee1c1")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "3167b567-846a-4714-a90b-6c74c76187b0")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "9f8ca990-c02a-4a5f-9dca-2e3a1791daf9")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "68fa34c7-42c0-43fd-b2af-8ae32567dbc3")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE3V3_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "6ab37fb1-4223-4c40-8d59-26b4cd2684d6")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE3V3_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "fff26248-9eb5-44ca-b53d-34c2359b925d")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1802,6 +1378,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -1969,430 +1546,6 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Button_Switch_SMD.3dshapes/TS-1088-AR02016.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "1c0f563e-947c-4b47-96f9-d691f870fdf3")
-		(at 205.875 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB4"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "8f89b127-0e1b-4bac-9359-3446e16e85e3")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "85290f2e-25b6-4754-8fc9-a68a9adc920e")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "f7004a20-43a7-478f-b315-f22f2be8ea10")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "8d3a1106-ca85-4779-99ab-9cb2c1c43988")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "ec2e093b-6ac2-404e-9c26-3cb8d8474311")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "c90beceb-8a4d-4298-b0a2-2dba98ada835")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "bc0fdde3-900f-4326-a8b2-430352267f6f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 3.3V (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "a002a5c1-734f-40a9-a75f-c37f0c568c8a")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/16b3e84e-37f3-4257-bdc9-ef91f9a5aa93")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "5cf4f13d-d83b-44d3-a938-da65607fdce8")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "cdfc6b5e-e334-42fb-9f46-47a66a3bd2d6")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "f5cd1e6e-7416-41bf-9e2b-16dd9375c5c1")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "58679b26-be02-4131-906d-daf142f9cb74")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "cc68d0c1-2f01-45ac-b674-532f6eb2aa88")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "c6809db4-3fa2-41f6-aac7-275380a07dd2")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE3V3_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "547909c3-704a-4a30-a0d5-b540c1688b22")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE3V3_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "a1246c03-71b1-46f8-b366-fd54e86c8cef")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "1f37d514-7d21-456f-a6c5-f6c7615ef825")
-		(at 221.625 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB7"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "115a0672-d153-46e8-b885-f636e486f1f7")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "c72f6844-9a02-46f4-8039-e9e105f6e24e")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "9e43df45-078f-4493-b34f-1a03ddb61341")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "57b916f7-3105-4f6b-9ccf-0c6708edd784")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "56c1ca92-dd42-4193-aafe-24a8e3759cee")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "a8eb0e6b-5807-4eb8-9489-f0844079de4d")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "07c7709f-3e96-4e1a-b83a-0e566476c74f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (2 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "34c187d9-21dd-469e-8fce-3e16423d4dfe")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/226eea97-7c31-4696-9cd5-2126679cf482")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "6fdb0ce0-1457-49cf-924f-8eb41d605f70")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "379b1fbb-453c-4092-b2ec-8ecc45ac91e7")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "5f948ea7-5b52-4673-ba50-9828dacab5fa")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "6bea4482-9fb0-4da1-8ad9-4bdc2ecace5e")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "05d39c4b-cad7-45b4-b4f8-f5c3ffeb8ec6")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "00cc383f-d1ab-4073-888c-9e8ac72d5552")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "5df58514-2199-4271-9269-683210f99c73")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "6bb99cb4-f86a-461b-90e8-cbb865209fa3")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -2792,6 +1945,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -4140,226 +3294,6 @@
 				(xyz 0 0 0)
 			)
 		)
-	)
-	(footprint "cec-Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
-		(layer "F.Cu")
-		(uuid "2e1c6ba0-f32b-4a23-bbf3-3b944d67b07e")
-		(at 242.295 81.565)
-		(descr "Through hole straight pin header, 2x05, 2.54mm pitch, double rows -- 24-pin ATX daughterboard signal stub (PWR_OK/PS_ON#/-12V/GND-ref/reserved), §2.8 v1.4.0 posts+signal-header hybrid, output-daughterboard-study-2026-07-04.md §8.5")
-		(tags "Through hole pin header THT 2x05 2.54mm double row")
-		(property "Reference" "J_SIG1"
-			(at -1.77 -2.77 0)
-			(layer "F.SilkS")
-			(uuid "48f3ea81-cf53-40e1-b4bb-18050420f9d1")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "CEC_CONN_2x5"
-			(at -1.77 12.93 0)
-			(layer "F.Fab")
-			(uuid "5e1b63e1-b988-4db0-a765-0eacfa89bb3e")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "7e567ebc-100a-4649-b27c-e55cdafc5733")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "e26e1a92-e90b-4bbd-924c-36d22c19dccb")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "24-pin output daughterboard signal stub (spec Sec 2.8 v1.4.0, output-daughterboard-study-2026-07-04.md Sec 8.5 posts+signal-header hybrid). Pin map derived from the CURRENT flat J4 netlist (verified 2026-07-04): 1=PS_ON#, 2=PWR_OK, 3=-12V, 4=GND (local reference). Pins 5-10 reserved/spare -- no remote-sense or 5VSB-sense net exists on this board's J4 today, so none is invented here. Sense-return contacts (study Sec 5) are NOT added: decision box (e) is still OPEN with the owner."
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "4e819fb5-abc3-424d-8443-623a99f891da")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Connector*:*_2x??_*")
-		(path "/d218231f-1e82-4ff7-8a6f-e33dff409913")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "3" "5" "7" "9" "2" "4" "6" "8" "10")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_rect
-			(start -1.77 -1.77)
-			(end 4.31 11.93)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.SilkS")
-			(uuid "87cfeb48-00ac-4e13-a5c3-74fe30e7fa64")
-		)
-		(fp_rect
-			(start -2.17 -2.17)
-			(end 4.71 12.33)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "9f3d2a63-3c9b-47e1-b668-3c98d450fe84")
-		)
-		(fp_rect
-			(start -1.77 -1.77)
-			(end 4.31 11.93)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "ba27abcc-b5df-4e89-b4df-8ab9289311cf")
-		)
-		(pad "1" thru_hole rect
-			(at 0 0)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/ATX_PSON")
-			(pinfunction "Pin_1_1")
-			(pintype "passive")
-			(uuid "73b553f7-1157-4b54-9591-9c854c223da3")
-		)
-		(pad "2" thru_hole circle
-			(at 2.54 0)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/ATX_PWROK")
-			(pinfunction "Pin_2_2")
-			(pintype "passive")
-			(uuid "299a841d-5f52-47ee-aff5-7a67c3af287b")
-		)
-		(pad "3" thru_hole circle
-			(at 0 2.54)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/ATX_NEG12V")
-			(pinfunction "Pin_3_3")
-			(pintype "passive")
-			(uuid "8a463d76-a058-4b0e-9e38-0edb622e28af")
-		)
-		(pad "4" thru_hole circle
-			(at 2.54 2.54)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "Pin_4_4")
-			(pintype "passive")
-			(uuid "99fd2b75-80ec-4508-879f-27b2ac6a3897")
-		)
-		(pad "5" thru_hole circle
-			(at 0 5.08)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_5-Pad5)")
-			(pinfunction "Pin_5_5")
-			(pintype "passive+no_connect")
-			(uuid "833b6ac0-da89-4f1e-9382-c447ad38c5f3")
-		)
-		(pad "6" thru_hole circle
-			(at 2.54 5.08)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_6-Pad6)")
-			(pinfunction "Pin_6_6")
-			(pintype "passive+no_connect")
-			(uuid "95c5819b-fe12-4aa5-84e2-d0aa449bbddb")
-		)
-		(pad "7" thru_hole circle
-			(at 0 7.62)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_7-Pad7)")
-			(pinfunction "Pin_7_7")
-			(pintype "passive+no_connect")
-			(uuid "29a74204-171e-4647-b94c-7ce68376bda6")
-		)
-		(pad "8" thru_hole circle
-			(at 2.54 7.62)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_8-Pad8)")
-			(pinfunction "Pin_8_8")
-			(pintype "passive+no_connect")
-			(uuid "55cc7819-3f62-46b4-9c64-d765fb9b322b")
-		)
-		(pad "9" thru_hole circle
-			(at 0 10.16)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_9-Pad9)")
-			(pinfunction "Pin_9_9")
-			(pintype "passive+no_connect")
-			(uuid "03117abe-5077-4cf3-aa59-bae426003c05")
-		)
-		(pad "10" thru_hole circle
-			(at 2.54 10.16)
-			(size 1.7 1.7)
-			(drill 1)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "unconnected-(J_SIG1-Pin_10-Pad10)")
-			(pinfunction "Pin_10_10")
-			(pintype "passive+no_connect")
-			(uuid "0bf8b5cb-8619-4d29-b193-92463d51d14c")
-		)
-		(embedded_fonts no)
 	)
 	(footprint "cec-Capacitor_SMD:C_0603_1608Metric"
 		(layer "F.Cu")
@@ -5932,6 +4866,239 @@
 			)
 		)
 	)
+	(footprint "cec-Connector_Screw:XFCN_T34069_THT_M3_40A"
+		(layer "F.Cu")
+		(uuid "4dd3b212-b12e-49f5-8cbc-6994cf93954c")
+		(at 216.5 74.39 90)
+		(descr "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.")
+		(tags "XFCN T34069 C481452 screw terminal M3 40A THT threaded side face")
+		(property "Reference" "TB1"
+			(at 1.375 -4.65 90)
+			(layer "F.SilkS")
+			(uuid "293df8b6-a85d-41bf-b504-0c1ab7f38d4a")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "XFCN T34069"
+			(at 1.375 4.65 90)
+			(layer "F.Fab")
+			(uuid "8a762200-c7a4-4c77-9bb7-32e99813aaa0")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8b48e51e-c76b-4c60-9642-50f4ffd8029f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "e09785b5-4faa-45d2-b054-802455781613")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0c8f57e7-0eac-4b14-b6b9-11a3602f177c")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "T34069"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "358677f1-60a6-4711-9104-4f94d5b810a6")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C481452"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "b46cef08-0868-4100-bf6d-ae5913f57850")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "40 A; M3; 0.5 N*m max thread torque"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "70155135-3181-44e6-9a0f-732314491526")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start 5.95 -3.15)
+			(end 5.95 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "893b08b9-4c5b-4e8c-985d-1ef4c26f1808")
+		)
+		(fp_line
+			(start -3.2 -3.15)
+			(end 5.95 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "853342a2-a457-4503-9d6b-385927b4fd17")
+		)
+		(fp_line
+			(start 5.95 3.15)
+			(end -3.2 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "9c547dd4-2ccf-4739-8a46-c64f517ece95")
+		)
+		(fp_line
+			(start -3.2 3.15)
+			(end -3.2 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "c13ff79b-cba3-47a8-a2ab-d7668f30d1d7")
+		)
+		(fp_rect
+			(start -3.45 -3.45)
+			(end 6.2 3.45)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "74aa09c9-f88e-47f9-9619-ce6f9b3bcbac")
+		)
+		(fp_rect
+			(start -3.125 -3.15)
+			(end 5.875 3.15)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "21e3a18a-8a50-4b56-bb1b-1fa12e3fb1d0")
+		)
+		(fp_text user "DB DATUM: SAMPLE"
+			(at 1.375 -0.8 90)
+			(layer "F.Fab")
+			(uuid "1d4bc844-bd25-450b-bbc5-a91a79324b6b")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(fp_text user "${REFERENCE}"
+			(at 1.375 0 90)
+			(layer "F.Fab")
+			(uuid "3cf86dcc-0e52-46fa-bff3-0e4ae032e6ee")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE12V_LO")
+			(uuid "b98ad623-a68c-4a85-9de6-bc30aa7dd776")
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE12V_LO")
+			(uuid "c3120400-6c58-4bbd-ad41-b6345d5296a8")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE12V_LO")
+			(uuid "9785ce67-687f-4689-afaa-efc22050461a")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE12V_LO")
+			(uuid "c94e203a-4497-491f-a095-902fe66e888b")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_T34069_native.step"
+			(offset
+				(xyz 1.375 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "cec-Capacitor_SMD:C_0402_1005Metric"
 		(layer "F.Cu")
 		(uuid "4fb6b2c2-fc56-42a9-8ff8-b3ddd259ba62")
@@ -6657,6 +5824,239 @@
 			)
 		)
 	)
+	(footprint "cec-Connector_Screw:XFCN_T34069_THT_M3_40A"
+		(layer "F.Cu")
+		(uuid "57ffc3ce-0510-4bc8-941c-b3c3df6cb3ca")
+		(at 208.5 74.39 90)
+		(descr "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.")
+		(tags "XFCN T34069 C481452 screw terminal M3 40A THT threaded side face")
+		(property "Reference" "TB2"
+			(at 1.375 -4.65 90)
+			(layer "F.SilkS")
+			(uuid "839274b7-7fb2-4941-9a4e-e9f8d235e782")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "XFCN T34069"
+			(at 1.375 4.65 90)
+			(layer "F.Fab")
+			(uuid "9ae91bdc-215b-47bf-983f-0daa1df92bc9")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "6f08c6b5-3046-4e33-b3d9-312d2596faed")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "f905b4cc-94f5-4aa6-9485-62c377a02e2f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "47b11a6d-59fd-4e03-8588-8b83e59ca800")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "T34069"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "e0b19feb-95d8-4771-af17-3e875c93e91a")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C481452"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "6ba1c13d-0620-4fc0-94ef-3e2946f8be2d")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "40 A; M3; 0.5 N*m max thread torque"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "16f5de8b-ee8d-4683-9e86-b7ec1f8d9233")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start 5.95 -3.15)
+			(end 5.95 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "e59cb69a-ccc8-4dd1-ae34-7b0baed7f73b")
+		)
+		(fp_line
+			(start -3.2 -3.15)
+			(end 5.95 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "b6cfa39f-777f-402f-88e3-340b9a6473d6")
+		)
+		(fp_line
+			(start 5.95 3.15)
+			(end -3.2 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "1c6d368a-8e0d-40ae-9ad2-d8f4743d122b")
+		)
+		(fp_line
+			(start -3.2 3.15)
+			(end -3.2 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "5bccd474-e6b0-4692-9d3e-76e38ac5cade")
+		)
+		(fp_rect
+			(start -3.45 -3.45)
+			(end 6.2 3.45)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "b6fb6731-d933-492e-ace8-94f51fbc893a")
+		)
+		(fp_rect
+			(start -3.125 -3.15)
+			(end 5.875 3.15)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "ce7789e0-0df1-4410-9f8c-4ab70cfa990a")
+		)
+		(fp_text user "DB DATUM: SAMPLE"
+			(at 1.375 -0.8 90)
+			(layer "F.Fab")
+			(uuid "0a4a84a1-59bf-4df7-9e81-5bb2290f8464")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(fp_text user "${REFERENCE}"
+			(at 1.375 0 90)
+			(layer "F.Fab")
+			(uuid "651bbf42-a639-4d99-8d99-299f5b3230ec")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "+5V_MAIN")
+			(uuid "f94b991f-46eb-41c3-882d-107804733286")
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "+5V_MAIN")
+			(uuid "7e825c70-f558-467d-b6d2-8cda701d6cfd")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "+5V_MAIN")
+			(uuid "8fb4872c-1810-4efd-9ec2-877106254684")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "+5V_MAIN")
+			(uuid "e6595374-9eaf-43b1-be21-5a2c8ad59a77")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_T34069_native.step"
+			(offset
+				(xyz 1.375 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "cec-Capacitor_SMD:C_0402_1005Metric"
 		(layer "F.Cu")
 		(uuid "5881b63b-538e-427b-89bd-4e87c98513a2")
@@ -7090,218 +6490,6 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Capacitor_SMD.3dshapes/C_0402_1005Metric.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "6203d542-c1c0-4005-b56d-89120f7c1074")
-		(at 200.625 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB3"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "1e9e9657-e4aa-489b-9ec5-3f811eaade9d")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "1039f174-9e2f-446a-a125-7a62f5e2d972")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "c33a1d60-a03a-450e-bfd1-bd4a2b82cac5")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "1e8ea655-83f0-47fd-90a8-15a7bc917080")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "6104d3ce-9593-4dfa-a181-75c1f91c228e")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "01aaec7b-030a-4cbc-b940-ecdeaac135e7")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "818d4a0a-301c-49bb-bf19-e4c73f17e4e4")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 5V (2 of 2) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "386289c9-d4f3-4905-b29a-8a4d632671b5")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/59856d5a-ee9d-4b97-9455-d887bf23caac")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "3748697a-301c-41f5-92bc-cf8ff6f2f320")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "6d3b8072-75c8-4427-ae15-c5bebe5f1cf3")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "788cc245-f485-49ac-87bd-ee8d6e8d108f")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "4915c132-2481-435a-bed3-0709fbb9d5f4")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "e1b8acf5-aabb-4365-8da0-e70455e63a81")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "cca59f77-6204-4925-9361-77a657c38837")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "+5V_MAIN")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "03bcd05b-30b9-4d8e-8013-7fb0f8914716")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "+5V_MAIN")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "ff717770-c912-45ca-8837-adf8ea5ae257")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -9091,6 +8279,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -9556,6 +8745,261 @@
 			)
 		)
 	)
+	(footprint "cec-Connector_Screw:XFCN_TTR32100127-0600_THT_M3_60A"
+		(layer "F.Cu")
+		(uuid "7e3b9811-00d5-4b7f-84f4-abad02c62a8c")
+		(at 234.5 74.39)
+		(descr "XFCN TTR32100127-0600 / LCSC C45384691 right-angle threaded-face PCB soldering terminal, M3, 60 A manufacturer rating, two THT legs. The screw clamps an external conductor against the terminal face; both solder legs are one electrical node. The manufacturer drawing gives 2.0 x 1.5 mm slots on 9.0 mm centers; imported package tolerances and the daughterboard screw-axis datum remain sample gates.")
+		(tags "XFCN TTR32100127-0600 C45384691 screw terminal M3 60A THT right angle threaded face")
+		(property "Reference" "TB9"
+			(at 0 -2.75 0)
+			(layer "F.SilkS")
+			(uuid "2769a661-0e0b-441b-aba6-737b29509a71")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "TTR32100127-0600"
+			(at 0 5.8 0)
+			(layer "F.Fab")
+			(uuid "eff9d258-4494-41d4-b75f-db758ae75eff")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "1f9193b5-6184-4019-a6c3-d2c38f56c2af")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0dd14712-1584-4c14-b48d-22f3ecffdd91")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "7cf3c909-7ec4-4794-9327-f407d00629d6")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "TTR32100127-0600"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "89daf403-c4ea-499e-9d2a-4fa82b2e3f24")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C45384691"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "244f3a16-0dc3-44a1-afb4-ab835bd0dda9")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "60 A; M3; 1.0 N*m max thread torque"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "19606201-effe-4553-b7fd-0c9624acc7f0")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -5 -1.5)
+			(end -5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "a873e46b-dec6-4e6c-a7cc-285963bdec40")
+		)
+		(fp_line
+			(start -5 -1.5)
+			(end 5 -1.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "167deb15-34c2-4549-8316-d745bc89b7c5")
+		)
+		(fp_line
+			(start -5 4.5)
+			(end -4 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "1dc6dd56-1a9f-4859-8eb0-6fe913646c88")
+		)
+		(fp_line
+			(start -4 2.5)
+			(end 4 2.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "fd840fa7-8d96-4fd4-8058-f783719cdc39")
+		)
+		(fp_line
+			(start -4 4.5)
+			(end -4 2.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "1c0630a0-847a-46a5-9a1f-a0ec663692c2")
+		)
+		(fp_line
+			(start 4 2.5)
+			(end 4 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "469f894b-2045-437b-bbfb-b78c0332186b")
+		)
+		(fp_line
+			(start 4 4.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "3bbd9840-ba72-40a3-979d-ce166ce11341")
+		)
+		(fp_line
+			(start 5 -1.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "4dc7aa79-c72a-4dac-b7a4-b362caf8f3b2")
+		)
+		(fp_rect
+			(start -5.25 -1.75)
+			(end 5.25 4.75)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "81d24627-f4a3-41b2-827f-e1478b0a95e2")
+		)
+		(fp_rect
+			(start -5 -1.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "9946a659-6358-4e27-b63d-155bdc1bea8f")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0.75 0)
+			(layer "F.Fab")
+			(uuid "bf70013b-10a4-43d9-8051-704959f1d3cd")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(fp_text user "THREADED FACE"
+			(at 0 3.5 0)
+			(layer "F.Fab")
+			(uuid "494855df-0469-4905-b10c-35e8eec751a6")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -4.5 0 90)
+			(size 3 2.3)
+			(drill oval 2 1.5)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "GND")
+			(uuid "06497e72-19ad-4196-9e6f-3f90b6a842d8")
+		)
+		(pad "1" thru_hole oval
+			(at 4.5 0 90)
+			(size 3 2.3)
+			(drill oval 2 1.5)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "GND")
+			(uuid "d81bcfbd-d38e-4aea-9511-ca21d332b6ae")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_TTR32100127-0600_envelope.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "cec-Button_Switch_SMD:TS-1088-AR02016"
 		(layer "F.Cu")
 		(uuid "7fee85ab-02b7-467a-95d8-f4d2314cf6e1")
@@ -9612,6 +9056,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -9779,218 +9224,6 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Button_Switch_SMD.3dshapes/TS-1088-AR02016.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "80e682e9-b494-458d-aa3f-a858a03db48d")
-		(at 211.125 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB5"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "2bc76296-af84-49b5-909b-42b6952edaf3")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "21bc360f-691a-410b-acb2-c8db1c838a7d")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "9759097b-2583-492b-b4ea-d827841205a3")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "65c0b6b6-6433-49b4-9f2c-aeb955cc17ba")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "3cbfd729-7147-4e57-bdab-6115d65e10db")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "8f4ec0f1-e58b-45cb-92f0-b3d236ded982")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "3e999dbe-a6fa-40b8-b9db-6a966e0ce87e")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 5VSB (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "84956f05-0b92-4374-9b2d-15c8805dbcaa")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/db14f724-9d6f-4dc5-85ca-080e7e3335b0")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "fb8c787c-aac2-414c-a2ba-91646283fd2d")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "ea4e6810-95ef-4f5e-9718-80ea6a5618e1")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "a3827ac4-acbb-46b1-a8ae-c5474a25a5b3")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "6f1b2805-2dc9-465e-87e9-a2d7fbb2875e")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "e667d254-82d3-4dac-9c4a-c4fa9a0ce37c")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "9881021b-95a0-4cd2-8918-0c779e8d6130")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE5VSB_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "77d48c35-de66-4d38-b196-9779dc621a3a")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE5VSB_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "71c057fe-af41-4d85-b6a0-34f113fb5a02")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -10298,218 +9531,6 @@
 			)
 		)
 	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "84c90f5b-a5bc-4876-989e-48fe3dc9d889")
-		(at 232.125 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB9"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "21d9d6e9-100b-42c4-85c5-3adb207fd7d1")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "ccfa20f4-c793-4d15-a301-d713c16a4ecd")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "7a451c0f-363f-4b3c-864f-bf70c3417e3a")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "ff2f74c8-2e5e-4d23-a2cc-aa133f81b69e")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "b5bb6ede-5463-4f0e-8534-154df98c6bcb")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "950ae393-192f-4a27-9cc2-0df52aca34ad")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "2ebdfeb7-c0b5-4ece-9f29-c63277e2b84f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (4 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "96974e89-1d65-4aa3-a5d1-a6eef9b8e3ea")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/ced86148-a007-4fef-bcc9-e9259a3d48c2")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "82dc9999-eac8-494f-b556-eeb1f22c47e9")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "6c2d64bd-f811-47e3-a20a-4ec95e7fdb39")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "84e3f362-fe75-493c-af4b-672058664ff7")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "50504113-994e-4378-a512-275495e23f73")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "97e1df3d-a955-40b1-bc0c-f7a637835a96")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "e19e5572-1a4c-469d-a40c-c4bc074e841b")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "d561b930-d9b4-4f1e-b030-74b2992061fd")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "6009b671-b384-4fdc-b8f1-ccf9f2120c0a")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "cec-Diode_SMD:D_SMA"
 		(layer "F.Cu")
 		(uuid "8af84670-83e8-41b7-80cc-0ea18e8a1105")
@@ -10779,6 +9800,261 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Diode_SMD.3dshapes/D_SMA.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
+	(footprint "cec-Connector_Screw:XFCN_TTR32100127-0600_THT_M3_60A"
+		(layer "F.Cu")
+		(uuid "8b0a96c5-f19c-4344-a461-364b18519c2e")
+		(at 190 74.39)
+		(descr "XFCN TTR32100127-0600 / LCSC C45384691 right-angle threaded-face PCB soldering terminal, M3, 60 A manufacturer rating, two THT legs. The screw clamps an external conductor against the terminal face; both solder legs are one electrical node. The manufacturer drawing gives 2.0 x 1.5 mm slots on 9.0 mm centers; imported package tolerances and the daughterboard screw-axis datum remain sample gates.")
+		(tags "XFCN TTR32100127-0600 C45384691 screw terminal M3 60A THT right angle threaded face")
+		(property "Reference" "TB6"
+			(at 0 -2.75 0)
+			(layer "F.SilkS")
+			(uuid "efcf213c-d265-44f9-827d-a009787a7464")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "TTR32100127-0600"
+			(at 0 5.8 0)
+			(layer "F.Fab")
+			(uuid "994d3782-a4b2-4828-b0c5-660d59c7aab2")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "fcf0755e-7b70-4590-b956-29241bb22871")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "041184e3-fbf1-47c2-ae1c-edb4c94ebce3")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "3208272f-1194-4a7c-a3ba-6a7f12783e48")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "TTR32100127-0600"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bc6c96a7-af3c-421c-afd9-27cfc7909205")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C45384691"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "1609e4c0-e44e-4cdd-b5cb-7a677dfa8bdf")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "60 A; M3; 1.0 N*m max thread torque"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "36b96c6f-9e7a-47dc-8ca6-4bc071514bbb")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -5 -1.5)
+			(end -5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "2d893c03-0520-4975-91f6-57d7c59bc867")
+		)
+		(fp_line
+			(start -5 -1.5)
+			(end 5 -1.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "ac2f8ee6-26df-44c5-aa47-0fc7b3bfb2df")
+		)
+		(fp_line
+			(start -5 4.5)
+			(end -4 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "b8f479bd-40ed-4b16-9cb0-3bbe7a8ec0f1")
+		)
+		(fp_line
+			(start -4 2.5)
+			(end 4 2.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "33524c8d-8d3a-4d95-ba6b-8db89a01d842")
+		)
+		(fp_line
+			(start -4 4.5)
+			(end -4 2.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "ee506adc-e92d-4088-938a-05eb475825f1")
+		)
+		(fp_line
+			(start 4 2.5)
+			(end 4 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "495037ed-dce1-4849-8d6a-432a7f0c3e83")
+		)
+		(fp_line
+			(start 4 4.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "dcb29fbe-e1ae-4f13-a96e-5ee564028d41")
+		)
+		(fp_line
+			(start 5 -1.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "eacb594f-4330-4c36-99db-5abf79846e24")
+		)
+		(fp_rect
+			(start -5.25 -1.75)
+			(end 5.25 4.75)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "aa12e34f-b5fd-42b5-bbec-4158e5a9546b")
+		)
+		(fp_rect
+			(start -5 -1.5)
+			(end 5 4.5)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "c0fc6d56-9406-41ee-8105-4ea979cb005e")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0.75 0)
+			(layer "F.Fab")
+			(uuid "e5d81957-b8cb-41c3-94db-3c134d4c9daf")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(fp_text user "THREADED FACE"
+			(at 0 3.5 0)
+			(layer "F.Fab")
+			(uuid "117055e6-8b46-448e-ac8f-7c479415ff7d")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -4.5 0 90)
+			(size 3 2.3)
+			(drill oval 2 1.5)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "GND")
+			(uuid "58ec075d-801c-446a-b5ae-e08c2187e80d")
+		)
+		(pad "1" thru_hole oval
+			(at 4.5 0 90)
+			(size 3 2.3)
+			(drill oval 2 1.5)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "GND")
+			(uuid "c9c025f7-026f-4158-a5c6-875d04571a89")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_TTR32100127-0600_envelope.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -12241,6 +11517,149 @@
 				(xyz 0 0 0)
 			)
 		)
+	)
+	(footprint "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"
+		(layer "F.Cu")
+		(uuid "a8151bc5-ecbc-43ac-9727-6148b7ed58f9")
+		(at 242.295 81.565)
+		(descr "Samtec SSQ-102-03-G-D exact 2x2 2.54 mm vertical THT female socket. Manufacturer drawing gives a 5.59 x 4.95 x 8.51 mm body for two double-row positions and 10.01 mm lead-style -03 tails. Pads follow Samtec odd/even-by-column numbering: 1/2 left column, 3/4 right column. First-article mated-transform verification is mandatory.")
+		(tags "Samtec SSQ 102 03 G D 2x2 vertical socket blind mate")
+		(property "Reference" "J_SIG1"
+			(at 1.27 -2.1 0)
+			(layer "F.SilkS")
+			(uuid "65a188df-fb4f-4e81-83d9-82d266eab5d7")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "SSQ-102-03-G-D"
+			(at 1.27 4.6 0)
+			(layer "F.Fab")
+			(uuid "a9cb16ea-b1ea-456f-a26e-d0fdc704550d")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+			)
+		)
+		(property "Datasheet" "https://suddendocs.samtec.com/prints/ssq-1xx-xx-xxx-x-xx-xxx-xx-x-mkt.pdf"
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "b2768add-623c-454d-8326-ea516dffa018")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "e1af8041-73ad-4428-a6af-0405e1603b60")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -1.38 -1.32)
+			(end -1.38 0)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "e53cf2d6-669e-4ce6-9c13-bd795ba3b8ba")
+		)
+		(fp_line
+			(start -1.38 -1.32)
+			(end 0 -1.32)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "873638af-da64-4368-84f0-2e0b1904ae3d")
+		)
+		(fp_rect
+			(start -1.775 -1.455)
+			(end 4.315 3.995)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "6b761e09-0d18-480b-82b8-1d2e2f1aac5f")
+		)
+		(fp_rect
+			(start -1.525 -1.205)
+			(end 4.065 3.745)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "0a734068-f9a8-4896-9fae-79a2b56f29e6")
+		)
+		(fp_text user "PIN 1"
+			(at -2.05 0 90)
+			(layer "F.Fab")
+			(uuid "e9321e1a-2f28-45f7-b3b5-7234a8b5b5b9")
+			(effects
+				(font
+					(size 0.65 0.65)
+					(thickness 0.1)
+				)
+			)
+		)
+		(pad "1" thru_hole rect
+			(at 0 0)
+			(size 1.7 1.7)
+			(drill 1)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V")
+			(uuid "c8bee155-2890-4e80-9787-0985d79d1432")
+		)
+		(pad "2" thru_hole circle
+			(at 0 2.54)
+			(size 1.7 1.7)
+			(drill 1)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PSON")
+			(uuid "59724227-f5f8-4491-a0e7-b26690608893")
+		)
+		(pad "3" thru_hole circle
+			(at 2.54 0)
+			(size 1.7 1.7)
+			(drill 1)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK")
+			(uuid "d3079002-ae36-4b5f-a6b0-5e6a84d997d0")
+		)
+		(pad "4" thru_hole circle
+			(at 2.54 2.54)
+			(size 1.7 1.7)
+			(drill 1)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "GND")
+			(uuid "bac3a3c3-fb82-4115-8f90-116aac852ddd")
+		)
+		(embedded_fonts no)
 	)
 	(footprint "cec-Capacitor_SMD:C_0402_1005Metric"
 		(layer "F.Cu")
@@ -14560,6 +13979,472 @@
 			)
 		)
 	)
+	(footprint "cec-Connector_Screw:XFCN_T34069_THT_M3_40A"
+		(layer "F.Cu")
+		(uuid "cbedba26-83e8-42d1-89ba-66bfe854ce52")
+		(at 200.5 74.39 90)
+		(descr "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.")
+		(tags "XFCN T34069 C481452 screw terminal M3 40A THT threaded side face")
+		(property "Reference" "TB4"
+			(at 1.375 -4.65 90)
+			(layer "F.SilkS")
+			(uuid "7eb3e8f4-3f5c-4f09-b1fc-8e02fff2f859")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "XFCN T34069"
+			(at 1.375 4.65 90)
+			(layer "F.Fab")
+			(uuid "3919b0a6-4feb-4819-9d4f-9908d2d0ac3e")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "447267c4-d35d-4b0d-8caf-6bbec2fc18ee")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0f06cb2b-1ab9-4920-a0aa-4e3c439ad58b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "b1ad963c-222b-4557-9ae3-735a5213a117")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "T34069"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "8a765268-308f-40c3-9409-4c495ee07426")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C481452"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "26024c56-5979-4f29-beb6-1bc62774df23")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "40 A; M3; 0.5 N*m max thread torque"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "c82b988f-6dd9-4b02-93f2-fefb2f02dc85")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start 5.95 -3.15)
+			(end 5.95 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "087ab742-a8e4-4346-9122-d740e97e49f7")
+		)
+		(fp_line
+			(start -3.2 -3.15)
+			(end 5.95 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "e46b8730-0e1b-4259-8247-43d93a19c4dd")
+		)
+		(fp_line
+			(start 5.95 3.15)
+			(end -3.2 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "d8c3e8d9-5e7e-4150-a0d2-5ef9b56f0699")
+		)
+		(fp_line
+			(start -3.2 3.15)
+			(end -3.2 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "98d28807-cdfe-4d3e-b171-4fea0f69edd2")
+		)
+		(fp_rect
+			(start -3.45 -3.45)
+			(end 6.2 3.45)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "fd6fa121-43f4-4d62-9163-f956060e5e04")
+		)
+		(fp_rect
+			(start -3.125 -3.15)
+			(end 5.875 3.15)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "42b7c315-0513-4bbe-abf1-a01bed798417")
+		)
+		(fp_text user "DB DATUM: SAMPLE"
+			(at 1.375 -0.8 90)
+			(layer "F.Fab")
+			(uuid "a1d1beb6-7fd1-4b34-9410-93093b242e54")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(fp_text user "${REFERENCE}"
+			(at 1.375 0 90)
+			(layer "F.Fab")
+			(uuid "c1df7ccd-f36e-4463-ad16-9eaf966103c8")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE3V3_LO")
+			(uuid "71550dc3-114f-4247-a364-ed0a3a1e5d8f")
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE3V3_LO")
+			(uuid "3eb12d81-7bb5-432e-80de-8d89083e7bed")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE3V3_LO")
+			(uuid "d98a0f41-5ab1-49a9-9e3f-94b57021e3ac")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE3V3_LO")
+			(uuid "ddb1e732-923f-404a-b802-030e938414eb")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_T34069_native.step"
+			(offset
+				(xyz 1.375 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
+	(footprint "cec-Connector_Screw:XFCN_T34069_THT_M3_40A"
+		(layer "F.Cu")
+		(uuid "cd2e48ef-0c30-4163-8715-bb5befe816cc")
+		(at 224.5 74.39 90)
+		(descr "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.")
+		(tags "XFCN T34069 C481452 screw terminal M3 40A THT threaded side face")
+		(property "Reference" "TB5"
+			(at 1.375 -4.65 90)
+			(layer "F.SilkS")
+			(uuid "dc4f8cfa-d97e-4e4e-ac29-36de2653667c")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Value" "XFCN T34069"
+			(at 1.375 4.65 90)
+			(layer "F.Fab")
+			(uuid "85a6618f-55da-4ede-af58-27854657b610")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "438933fc-c395-4efd-bd09-af9c41c29bfb")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "bf4260ff-0ef9-4d4e-9dc7-3f5132be07e1")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XFCN"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "5f4cd8cd-5487-4b4a-9b59-7f7ba7cb8deb")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "MPN" "T34069"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "a4157acb-cbe6-4e05-b31f-8bdbf0f26cb6")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "LCSC" "C481452"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "d0551fb2-79ae-4ca0-80d7-00c01b4ecfc9")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Rating" "40 A; M3; 0.5 N*m max thread torque"
+			(at 0 0 90)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "0a554af7-1843-4535-8028-17ab3a7b14fc")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(attr through_hole)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start 5.95 -3.15)
+			(end 5.95 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "1266c326-f3c2-4314-81f8-b712ee43083a")
+		)
+		(fp_line
+			(start -3.2 -3.15)
+			(end 5.95 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "804202ff-5fb4-4697-8556-90bb74bd618b")
+		)
+		(fp_line
+			(start 5.95 3.15)
+			(end -3.2 3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "4891d23b-79f1-4c6b-b1b6-6629aac31718")
+		)
+		(fp_line
+			(start -3.2 3.15)
+			(end -3.2 -3.15)
+			(stroke
+				(width 0.2)
+				(type solid)
+			)
+			(layer "F.SilkS")
+			(uuid "87e8f4ed-69c3-46ad-a0a5-3400d35d8db1")
+		)
+		(fp_rect
+			(start -3.45 -3.45)
+			(end 6.2 3.45)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.CrtYd")
+			(uuid "826addf5-bf09-4a41-a86f-bb4d8039bf96")
+		)
+		(fp_rect
+			(start -3.125 -3.15)
+			(end 5.875 3.15)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(fill no)
+			(layer "F.Fab")
+			(uuid "6c53e9f4-c3bd-4e2c-9746-d17afbdc18de")
+		)
+		(fp_text user "DB DATUM: SAMPLE"
+			(at 1.375 -0.8 90)
+			(layer "F.Fab")
+			(uuid "61dd1734-b3a9-4a03-a794-667dc3886e0a")
+			(effects
+				(font
+					(size 0.7 0.7)
+					(thickness 0.1)
+				)
+			)
+		)
+		(fp_text user "${REFERENCE}"
+			(at 1.375 0 90)
+			(layer "F.Fab")
+			(uuid "a59f4f10-6c59-41b3-b0e7-6a8e2169278e")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE5VSB_LO")
+			(uuid "413abce8-ae9e-4996-a3d6-0c7b1ee209a6")
+		)
+		(pad "1" thru_hole oval
+			(at -2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE5VSB_LO")
+			(uuid "43376827-4455-45df-b446-4280dc9ea1d7")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 -2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE5VSB_LO")
+			(uuid "86ffd578-9afc-4dab-b0e5-0955dc650418")
+		)
+		(pad "1" thru_hole oval
+			(at 2.5 2.75 90)
+			(size 3 2)
+			(drill oval 2 1.2)
+			(layers "*.Cu" "*.Mask")
+			(remove_unused_layers no)
+			(net "/SENSE5VSB_LO")
+			(uuid "571fe31f-181b-4e2a-bb13-9d86ed60c4a7")
+		)
+		(embedded_fonts no)
+		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_T34069_native.step"
+			(offset
+				(xyz 1.375 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 		(layer "F.Cu")
 		(uuid "d0a4269a-8ffb-49c1-8f42-70f2adb572ca")
@@ -16212,430 +16097,6 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "e7ce7d1f-6d69-4123-aab6-3ddffa281170")
-		(at 226.875 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB8"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "9dc1a1f7-cc4c-4c83-9329-c757b8e24ce1")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "136de751-a929-40e8-9227-1c6a92e1408b")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "0c92f524-f9df-40ac-bd37-1d6ff0eda8a2")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "5242e4e0-d0eb-4dd9-b13e-b3e1696ef031")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "e4b31831-39ea-4763-a2ff-8bf9b17d2d41")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "86aecb46-d5d4-429d-8746-520082f0349f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "9bf668e0-9218-432f-a9df-5f5cf9b0f6f7")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (3 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "32eaf4d4-6f1c-4e05-8498-955f7d0fe5af")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/5e203f8a-7629-42e1-9308-3489990498f8")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "6189f8ad-3239-45ae-a375-4525a4dd73d2")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "1f4af34c-ee64-4525-a357-7da963f5322a")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "9c189942-68b6-436a-810d-9868f48383bc")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "568b897f-4f86-4ab7-8ade-da041ea04668")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "5beb4b5b-8440-433f-86b3-c93da093cdac")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "048075d8-f13d-4966-ba53-99780ee10046")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "825c7d9c-ef70-4892-bb73-a62b097f7ab8")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "de263a9b-fbc2-45e2-bcc5-6a7bbb60d735")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "f624797f-c23b-49e5-ac37-f965bbe26c5d")
-		(at 216.375 74.385)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB6"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "0d7b449d-52f2-4a2c-8aa8-626f6e0d69dc")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "19c9dfec-3786-4389-9a22-f9942e99d781")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "58674b84-8c04-4feb-b17e-586d1c1a08a1")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "b385c177-af86-4d35-80f0-d040e2d40508")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "e598d261-a27b-4354-99ad-7fdd7edf69b5")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "5a4ac6a8-2497-41bf-9996-27eecfaace90")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "398bc767-ee86-4aeb-b082-4f95fb816817")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint GND (1 of 4) (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "095d83ba-f5b9-425b-af94-4e2d9fb8f180")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/5adcc472-dc50-4656-a5bb-bc649be30d3b")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "19f4310c-8496-41f2-a0cb-4505a514b479")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "58dee56c-36d9-4092-9da1-a4aa82e25aa9")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "39fbd6a8-604d-4a0c-bda4-70ad7bd2f244")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "963af66a-2402-48f7-89e2-f8c23df04cb7")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "84924f85-0724-4ab2-acad-b5f40beb27ac")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "db8a57a2-9c00-4f6c-8006-4df206d3e245")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "4379db2f-c49c-475d-8b90-03a684d19e87")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "GND")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "48b9b3fd-5210-462a-8dd7-e111893ff4d0")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "cec-Package_TO_SOT_SMD:SOT-23-6"
 		(layer "F.Cu")
 		(uuid "f6dff3be-f5ec-421e-b58c-4a6dcfdd47d6")
@@ -17175,218 +16636,6 @@
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/../../lib/3dmodels/Capacitor_SMD.3dshapes/C_0402_1005Metric.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
-	(footprint "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
-		(layer "F.Cu")
-		(uuid "f922bc14-2d0c-4e44-942e-a159b080da83")
-		(at 157.4 56)
-		(descr "TE 63969-1 FASTON .250/.205 PC-BOARD-MOUNTED RECEPTACLE (vertical/top entry) -- brass, tin over copper (or nickel), AUTHORITATIVE SOURCE lib/datasheets/TE_63969_customer_drawing_revE.pdf (ENG_CD_63969 rev E, 08MAY24) + app spec 114-2156 + product spec 108-1706. DESIGNED MATE for the platform's TE 63951-1 tab: dwg note 3 'MATING TAB THK IS 0.81+/-0.025' (our tab's 0.77-0.83 is the DESIGN CENTRE, not an acceptance-band ceiling -- kills the Keystone-clip #1 fit item by construction); tab width 6.35/5.21. Ratings (108-1706): 22.9A base rated current measured at <=30degC rise (the platform's own margin-policy method), 600VAC, <=1mOhm termination, -40..105degC; mate <=26N (63968-1 LIF) / <=44N (this std part), unmate >=13/18N per joint. ORIENTATION READING CHAIN (rev E, owner-verified iteration 7 -- the fit memo addendum 7 carries the full chain): (1) the front view and Section B-B share the part's long axis, 12.19 total = 8.38 body + 3.81 solder tails = the VERTICAL mating axis when mounted (matches TE parametrics: profile height 8.38 above board, 3.81 below); (2) the end view / Section A-A is the horizontal cross-section: two vertical MATING ROLLS side by side spanning 7.42 ALONG THE TAB-WIDTH AXIS with a 1.40 slit between their crowns, backed by the 0.41 CANTILEVERED FLOOR plate -- the descending blade is gripped between floor and rolls, its bottom edge leading ('slots as an EDGE into the slot', owner); (3) third-angle adjacency: the end view shares the front view's vertical sheet axis, so the 5.08+/-0.08 tail spacing (front view) lies along the SAME axis as the 7.42 tab-width span -- THE TWO PCB HOLES RUN ALONG THE TAB WIDTH. Local frame here = the CEC main-board mating orientation: tab-width axis = local +Y (perpendicular to the daughterboard wall line); the two Ø1.40+/-0.05 holes at (0, +/-2.54) are therefore PLAN-CONGRUENT with the mating 63951-1 tab's own Ø1.40/5.08 leg holes in the blade's vertical plane (the owner's 'aligned in the same way as the blade's holes'). Body plan: 7.42 along Y (rolls span, assumed symmetric about the hole midpoint -- verify at sample); across-thickness depth along X is UN-DIMENSIONED on rev E -- drawn here at the 3.7mm proportional estimate from the 8:1 Section A-A (band 3.4-3.7; constructive upper bound ~4.0 with rest-gap uncertainty). THE DEPTH IS THE ROW-PITCH FLOOR DRIVER (est 3.7 + 0.5 bare-brass air gap = the 4.2mm pitch floor) AND IS THE #1 OQ-86 SAMPLE ITEM for this part: measure it before fab; if it exceeds 4.0mm the atx24 row must fall back to the 6.3mm (3-lattice) pitch. Pad 2.4/drill 1.40 (finished hole per dwg 'RECOMMENDED P.C.B. HOLES'; 114-2156 3.5C allows plated or unplated; tails clinched outward 20deg min per its Fig 4). Durability 6 mate cycles (matches the not-for-constant-swapping posture); retention detent: FASTON rolls engage the tab's Ø1.78 detent hole, which the 63951-1 HAS -- but at the platform's nominal 12.41mm float the hole rides ~0.5mm ABOVE the receptacle top, so detent engagement is NOT established: retention may be spring-friction only, sample-measured (memo addendum 7).")
-		(property "Reference" "TB1"
-			(at 0 -5 0)
-			(layer "F.SilkS")
-			(uuid "e85c3a31-6d4b-45b9-8016-a193681077b4")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "TE 63969-1"
-			(at 0 5.2 0)
-			(layer "F.Fab")
-			(uuid "123c8284-51c4-4efa-bb0a-d1a85587c3f6")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "782e32d5-e4ad-497a-b91f-79fbabf6141d")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "a5f7ac68-6bc4-4c0f-b697-fa8700395e27")
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TE Connectivity"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "41c20d8c-4eea-4134-af65-39e5c4187a1f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "63969-1"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "62624ecc-365e-4df3-8039-12b3c6bf330f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC" "C2961150"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "ac620c4b-43ac-422e-a8a4-0029be49979f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Note" "Output daughterboard blade clip, ratified joint 12V (spec Sec 2.8 v1.4.0); mates with the TE 63849-1 tab on the daughterboard side. [2026-07-05 iteration 5: clip part swapped Keystone 3586 (SMD) -> Keystone 3557 bare top-entry clip (THT, UL 30A@500VAC, catalog M55 p.41; LCSC carriage: 3557-10/C3205403 in the fuse-holder category, variant UNVERIFIED -- DigiKey/Mouser carry 3557 directly, consigned fallback; 3586 stays vendored as the SMD fallback pending the OQ-86 sample). Rotated: slot axis perpendicular to the daughterboard wall line, legs ALONG the clip row (3.4mm pitch, verified from the catalog mounting details). Mates the TE 63951-1 right-angle tab descending blade-down from the daughterboard -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda 3-5.] [2026-07-06 iteration 7: mate swapped Keystone 3557 -> TE 63969-1 FASTON .250 PCB receptacle (owner-ratified; the DESIGNED mate for the 63951-1 blade -- 0.81mm thickness at its design centre per rev-E dwg note 3, vertical top entry, 22.9A @30degC rise per TE 108-1706; ORIENTATION per owner: the two O1.40 PCB holes at 5.08mm pitch run PERPENDICULAR to the daughterboard wall line, plan-congruent with the blade tab's own leg holes -- reading chain in blade-fit-check-2026-07-04.md addendum 7; 63968-1 = same-land low-insertion-force fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth; Keystone 3557/3586 retired to vendored fallbacks; joint counts re-ratified at 22.9A/125%: 24pin 10, pcie 3/polarity/cable, eps unchanged).]"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "9dd0eaee-415c-422e-9de7-fa65dff976cf")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "Keystone_3586*")
-		(path "/a495bf5b-b55c-4098-93dd-bc1fc53e237b")
-		(sheetname "/")
-		(sheetfile "24pin-module.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1")
-			)
-		)
-		(attr through_hole)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -1.95 -3.81)
-			(end -1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "a43d241d-6a0e-4922-963d-bbb2e6220f58")
-		)
-		(fp_line
-			(start 1.95 -3.81)
-			(end 1.95 3.81)
-			(stroke
-				(width 0.15)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "2a0cf69a-240b-4334-aba1-216f841413d4")
-		)
-		(fp_poly
-			(pts
-				(xy -2.1 -3.96) (xy 2.1 -3.96) (xy 2.1 3.96) (xy -2.1 3.96)
-			)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.CrtYd")
-			(uuid "456f116c-0640-40a9-b9c7-0fe0dc8b3b15")
-		)
-		(fp_line
-			(start 0 -3.71)
-			(end 0 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "493e262c-3ae8-4ef3-9712-98c3b1ffc755")
-		)
-		(fp_rect
-			(start -1.85 -3.71)
-			(end 1.85 3.71)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "F.Fab")
-			(uuid "2eac1991-00b4-49cf-adea-66716d462d69")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 90)
-			(layer "F.Fab")
-			(uuid "c0b85877-17a6-4cbd-8442-0ad76d983b36")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-			)
-		)
-		(pad "1" thru_hole circle
-			(at 0 -2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE12V_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "9ec0da05-2139-4f1c-b91b-d0bcf005c103")
-		)
-		(pad "1" thru_hole circle
-			(at 0 2.54)
-			(size 2.4 2.4)
-			(drill 1.4)
-			(layers "*.Cu" "*.Mask")
-			(remove_unused_layers no)
-			(net "/SENSE12V_LO")
-			(pinfunction "~_1")
-			(pintype "passive")
-			(uuid "1c71e4ef-6cff-4fc2-ba72-e89def204418")
-		)
-		(embedded_fonts no)
-		(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -18258,38 +17507,6 @@
 		(uuid "c38f8b8b-e473-4103-b720-8a953f9e9653")
 	)
 	(segment
-		(start 81.75 74.75)
-		(end 81.75 78.05)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "/SENSE12V_HI")
-		(uuid "2d66a891-52b0-42c0-a52b-f2f1cbe897c0")
-	)
-	(segment
-		(start 81.725 74.725)
-		(end 81.75 74.75)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "/SENSE12V_HI")
-		(uuid "30e0ed06-7e80-41fa-8d4c-005d358f6bfd")
-	)
-	(segment
-		(start 81.725 71.75)
-		(end 81.725 74.725)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "/SENSE12V_HI")
-		(uuid "678628ee-32c6-473d-9523-ff727862924f")
-	)
-	(segment
-		(start 79.7875 74.75)
-		(end 81.75 74.75)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "/SENSE12V_HI")
-		(uuid "fe3d45bc-0eee-4a13-97a0-5a0f2cad5b66")
-	)
-	(segment
 		(start 151.75 125.5)
 		(end 151.5 125.75)
 		(width 0.2)
@@ -18360,6 +17577,38 @@
 		(layer "F.Cu")
 		(net "+5V_MAIN")
 		(uuid "c0708ee4-13ab-4050-a31c-a1e37aab53f6")
+	)
+	(segment
+		(start 81.75 74.75)
+		(end 81.75 78.05)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "/SENSE12V_HI")
+		(uuid "2d66a891-52b0-42c0-a52b-f2f1cbe897c0")
+	)
+	(segment
+		(start 81.725 74.725)
+		(end 81.75 74.75)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "/SENSE12V_HI")
+		(uuid "30e0ed06-7e80-41fa-8d4c-005d358f6bfd")
+	)
+	(segment
+		(start 81.725 71.75)
+		(end 81.725 74.725)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "/SENSE12V_HI")
+		(uuid "678628ee-32c6-473d-9523-ff727862924f")
+	)
+	(segment
+		(start 79.7875 74.75)
+		(end 81.75 74.75)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "/SENSE12V_HI")
+		(uuid "fe3d45bc-0eee-4a13-97a0-5a0f2cad5b66")
 	)
 	(segment
 		(start 82.25 76.75)
@@ -18650,36 +17899,36 @@
 		(filled_polygon
 			(layer "B.Cu")
 			(pts
-				(xy 69.443039 72.769685) (xy 69.488794 72.822489) (xy 69.5 72.874) (xy 69.5 90.75) (xy 69.5 102.376)
-				(xy 69.480315 102.443039) (xy 69.427511 102.488794) (xy 69.376 102.5) (xy 68.006092 102.5) (xy 67.958639 102.490561)
-				(xy 67.846104 102.443947) (xy 67.611785 102.381161) (xy 67.371289 102.3495) (xy 67.371288 102.3495)
-				(xy 66.128712 102.3495) (xy 66.128711 102.3495) (xy 65.888214 102.381161) (xy 65.653895 102.443947)
-				(xy 65.541361 102.490561) (xy 65.493908 102.5) (xy 64 102.5) (xy 64 99.878711) (xy 64.3995 99.878711)
-				(xy 64.3995 100.121288) (xy 64.431161 100.361785) (xy 64.493947 100.596104) (xy 64.586773 100.820205)
-				(xy 64.586776 100.820212) (xy 64.708064 101.030289) (xy 64.708066 101.030292) (xy 64.708067 101.030293)
-				(xy 64.855733 101.222736) (xy 64.855739 101.222743) (xy 65.027256 101.39426) (xy 65.027262 101.394265)
-				(xy 65.219711 101.541936) (xy 65.429788 101.663224) (xy 65.6539 101.756054) (xy 65.888211 101.818838)
-				(xy 66.068586 101.842584) (xy 66.128711 101.8505) (xy 66.128712 101.8505) (xy 67.371289 101.8505)
-				(xy 67.419388 101.844167) (xy 67.611789 101.818838) (xy 67.8461 101.756054) (xy 68.070212 101.663224)
-				(xy 68.280289 101.541936) (xy 68.472738 101.394265) (xy 68.644265 101.222738) (xy 68.791936 101.030289)
-				(xy 68.913224 100.820212) (xy 69.006054 100.5961) (xy 69.068838 100.361789) (xy 69.1005 100.121288)
-				(xy 69.1005 99.878712) (xy 69.068838 99.638211) (xy 69.006054 99.4039) (xy 68.913224 99.179788)
-				(xy 68.791936 98.969711) (xy 68.644265 98.777262) (xy 68.64426 98.777256) (xy 68.472743 98.605739)
-				(xy 68.472736 98.605733) (xy 68.280293 98.458067) (xy 68.280292 98.458066) (xy 68.280289 98.458064)
-				(xy 68.070212 98.336776) (xy 68.070205 98.336773) (xy 67.846104 98.243947) (xy 67.611785 98.181161)
-				(xy 67.371289 98.1495) (xy 67.371288 98.1495) (xy 66.128712 98.1495) (xy 66.128711 98.1495) (xy 65.888214 98.181161)
-				(xy 65.653895 98.243947) (xy 65.429794 98.336773) (xy 65.429785 98.336777) (xy 65.219706 98.458067)
-				(xy 65.027263 98.605733) (xy 65.027256 98.605739) (xy 64.855739 98.777256) (xy 64.855733 98.777263)
-				(xy 64.708067 98.969706) (xy 64.586777 99.179785) (xy 64.586773 99.179794) (xy 64.493947 99.403895)
-				(xy 64.431161 99.638214) (xy 64.3995 99.878711) (xy 64 99.878711) (xy 64 95.678711) (xy 64.3995 95.678711)
-				(xy 64.3995 95.921288) (xy 64.431161 96.161785) (xy 64.493947 96.396104) (xy 64.586773 96.620205)
-				(xy 64.586776 96.620212) (xy 64.708064 96.830289) (xy 64.708066 96.830292) (xy 64.708067 96.830293)
-				(xy 64.855733 97.022736) (xy 64.855739 97.022743) (xy 65.027256 97.19426) (xy 65.027262 97.194265)
-				(xy 65.219711 97.341936) (xy 65.429788 97.463224) (xy 65.6539 97.556054) (xy 65.888211 97.618838)
-				(xy 66.068586 97.642584) (xy 66.128711 97.6505) (xy 66.128712 97.6505) (xy 67.371289 97.6505) (xy 67.419388 97.644167)
-				(xy 67.611789 97.618838) (xy 67.8461 97.556054) (xy 68.070212 97.463224) (xy 68.280289 97.341936)
-				(xy 68.472738 97.194265) (xy 68.644265 97.022738) (xy 68.791936 96.830289) (xy 68.913224 96.620212)
-				(xy 69.006054 96.3961) (xy 69.068838 96.161789) (xy 69.1005 95.921288) (xy 69.1005 95.678712) (xy 69.068838 95.438211)
+				(xy 69.443039 72.769685) (xy 69.488794 72.822489) (xy 69.5 72.874) (xy 69.5 102.376) (xy 69.480315 102.443039)
+				(xy 69.427511 102.488794) (xy 69.376 102.5) (xy 68.006092 102.5) (xy 67.958639 102.490561) (xy 67.846104 102.443947)
+				(xy 67.611785 102.381161) (xy 67.371289 102.3495) (xy 67.371288 102.3495) (xy 66.128712 102.3495)
+				(xy 66.128711 102.3495) (xy 65.888214 102.381161) (xy 65.653895 102.443947) (xy 65.541361 102.490561)
+				(xy 65.493908 102.5) (xy 64 102.5) (xy 64 99.878711) (xy 64.3995 99.878711) (xy 64.3995 100.121288)
+				(xy 64.431161 100.361785) (xy 64.493947 100.596104) (xy 64.586773 100.820205) (xy 64.586776 100.820212)
+				(xy 64.708064 101.030289) (xy 64.708066 101.030292) (xy 64.708067 101.030293) (xy 64.855733 101.222736)
+				(xy 64.855739 101.222743) (xy 65.027256 101.39426) (xy 65.027262 101.394265) (xy 65.219711 101.541936)
+				(xy 65.429788 101.663224) (xy 65.6539 101.756054) (xy 65.888211 101.818838) (xy 66.068586 101.842584)
+				(xy 66.128711 101.8505) (xy 66.128712 101.8505) (xy 67.371289 101.8505) (xy 67.419388 101.844167)
+				(xy 67.611789 101.818838) (xy 67.8461 101.756054) (xy 68.070212 101.663224) (xy 68.280289 101.541936)
+				(xy 68.472738 101.394265) (xy 68.644265 101.222738) (xy 68.791936 101.030289) (xy 68.913224 100.820212)
+				(xy 69.006054 100.5961) (xy 69.068838 100.361789) (xy 69.1005 100.121288) (xy 69.1005 99.878712)
+				(xy 69.068838 99.638211) (xy 69.006054 99.4039) (xy 68.913224 99.179788) (xy 68.791936 98.969711)
+				(xy 68.644265 98.777262) (xy 68.64426 98.777256) (xy 68.472743 98.605739) (xy 68.472736 98.605733)
+				(xy 68.280293 98.458067) (xy 68.280292 98.458066) (xy 68.280289 98.458064) (xy 68.070212 98.336776)
+				(xy 68.070205 98.336773) (xy 67.846104 98.243947) (xy 67.611785 98.181161) (xy 67.371289 98.1495)
+				(xy 67.371288 98.1495) (xy 66.128712 98.1495) (xy 66.128711 98.1495) (xy 65.888214 98.181161) (xy 65.653895 98.243947)
+				(xy 65.429794 98.336773) (xy 65.429785 98.336777) (xy 65.219706 98.458067) (xy 65.027263 98.605733)
+				(xy 65.027256 98.605739) (xy 64.855739 98.777256) (xy 64.855733 98.777263) (xy 64.708067 98.969706)
+				(xy 64.586777 99.179785) (xy 64.586773 99.179794) (xy 64.493947 99.403895) (xy 64.431161 99.638214)
+				(xy 64.3995 99.878711) (xy 64 99.878711) (xy 64 95.678711) (xy 64.3995 95.678711) (xy 64.3995 95.921288)
+				(xy 64.431161 96.161785) (xy 64.493947 96.396104) (xy 64.586773 96.620205) (xy 64.586776 96.620212)
+				(xy 64.708064 96.830289) (xy 64.708066 96.830292) (xy 64.708067 96.830293) (xy 64.855733 97.022736)
+				(xy 64.855739 97.022743) (xy 65.027256 97.19426) (xy 65.027262 97.194265) (xy 65.219711 97.341936)
+				(xy 65.429788 97.463224) (xy 65.6539 97.556054) (xy 65.888211 97.618838) (xy 66.068586 97.642584)
+				(xy 66.128711 97.6505) (xy 66.128712 97.6505) (xy 67.371289 97.6505) (xy 67.419388 97.644167) (xy 67.611789 97.618838)
+				(xy 67.8461 97.556054) (xy 68.070212 97.463224) (xy 68.280289 97.341936) (xy 68.472738 97.194265)
+				(xy 68.644265 97.022738) (xy 68.791936 96.830289) (xy 68.913224 96.620212) (xy 69.006054 96.3961)
+				(xy 69.068838 96.161789) (xy 69.1005 95.921288) (xy 69.1005 95.678712) (xy 69.068838 95.438211)
 				(xy 69.006054 95.2039) (xy 68.913224 94.979788) (xy 68.791936 94.769711) (xy 68.644265 94.577262)
 				(xy 68.64426 94.577256) (xy 68.472743 94.405739) (xy 68.472736 94.405733) (xy 68.280293 94.258067)
 				(xy 68.280292 94.258066) (xy 68.280289 94.258064) (xy 68.070212 94.136776) (xy 68.070205 94.136773)

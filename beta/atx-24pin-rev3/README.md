@@ -1,5 +1,13 @@
 # atx-24pin-rev3 — current hierarchical BETA
 
+> **CURRENT OUTPUT INTERFACE (2026-08-12):** the live schematic/PCB replaces
+> the blade-era TB field with four XFCN T34069 rail terminals and two
+> TTR32100127-0600 GND terminals. `J_SIG1` is now the exact Samtec
+> **SSQ-102-03-G-D 2×2 vertical socket**, mating daughterboard
+> **TSW-102-16-G-D-RA**. Pin order is 1=`-12V`, 2=`PS_ON#`, 3=`PWR_OK`,
+> 4=`GND` using Samtec odd/even-by-column numbering. The older 2×5/1×4 and
+> blade descriptions below are retained only as dated design provenance.
+
 > **CURRENT STATUS (2026-08-03):** `24pin-module.kicad_sch` plus its five
 > functional leaves is the authoritative source. The direct Hub RJ-45 `J1` is
 > removed; the segmented `J6P/J6C/J6D` mezzanine owns the Hub data/detect/stack

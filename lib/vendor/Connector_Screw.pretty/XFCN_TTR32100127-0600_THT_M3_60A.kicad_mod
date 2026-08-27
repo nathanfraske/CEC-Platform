@@ -1,0 +1,250 @@
+(footprint "XFCN_TTR32100127-0600_THT_M3_60A"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "XFCN TTR32100127-0600 / LCSC C45384691 right-angle threaded-face PCB soldering terminal, M3, 60 A manufacturer rating, two THT legs. The screw clamps an external conductor against the terminal face; both solder legs are one electrical node. The manufacturer drawing gives 2.0 x 1.5 mm slots on 9.0 mm centers; imported package tolerances and the daughterboard screw-axis datum remain sample gates.")
+	(tags "XFCN TTR32100127-0600 C45384691 screw terminal M3 60A THT right angle threaded face")
+	(property "Reference" "REF**"
+		(at 0 -2.75 0)
+		(layer "F.SilkS")
+		(uuid "acfe5f9c-c083-4ab9-a7d4-271c585133e8")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "XFCN_TTR32100127-0600"
+		(at 0 5.8 0)
+		(layer "F.Fab")
+		(uuid "b0f26b64-5516-4af5-adfa-8742957193ea")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.lcsc.com/datasheet/C45384691.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "c48ed4fb-77a9-48db-ba77-e70d4989d149")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "de0a40ad-9c60-4c51-88b4-6383e5d7f720")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Manufacturer" "XFCN"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8095b99b-740b-45c7-9332-47a45f47eb39")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "MPN" "TTR32100127-0600"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "23b83b5f-23c5-45bc-bead-b7e0a3fc63dc")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC" "C45384691"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a8523a85-5407-42d8-8b9f-03b6d6439322")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Rating" "60 A; M3; 1.0 N*m max thread torque"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "94f17b7b-35e1-4cd4-975b-3897b99a9c36")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -5 -1.5)
+		(end -5 4.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f3366a7d-4f04-4b5a-b975-19e5537ce4d1")
+	)
+	(fp_line
+		(start -5 -1.5)
+		(end 5 -1.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b5995cb1-6e6c-4350-9e34-db854b6f05cf")
+	)
+	(fp_line
+		(start -5 4.5)
+		(end -4 4.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "4b824d91-6cf7-432d-b6d9-ba4f04e6a343")
+	)
+	(fp_line
+		(start -4 2.5)
+		(end 4 2.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "801b19c6-4a48-4890-8850-4bb870b1240e")
+	)
+	(fp_line
+		(start -4 4.5)
+		(end -4 2.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "a28a140c-1aa5-4339-879f-13020b0f6acd")
+	)
+	(fp_line
+		(start 4 2.5)
+		(end 4 4.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "6fb7e5f8-a6f5-4fbe-a491-384fd67b05a9")
+	)
+	(fp_line
+		(start 4 4.5)
+		(end 5 4.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "d0602c72-3fae-43de-96a9-048301f1056e")
+	)
+	(fp_line
+		(start 5 -1.5)
+		(end 5 4.5)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "4cbdaa05-c739-49d5-aabd-f934351bd2f9")
+	)
+	(fp_rect
+		(start -5.25 -1.75)
+		(end 5.25 4.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "1743ee00-de27-4f39-aeb7-1803f73d083b")
+	)
+	(fp_rect
+		(start -5 -1.5)
+		(end 5 4.5)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "50aea25a-7a6c-4186-bf6e-9b84813b0176")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0.75 0)
+		(layer "F.Fab")
+		(uuid "c92ea640-5c23-46fb-bc89-3f93b3e171fd")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(fp_text user "THREADED FACE"
+		(at 0 3.5 0)
+		(layer "F.Fab")
+		(uuid "8729566f-85d1-40d9-919e-eb003a688bb4")
+		(effects
+			(font
+				(size 0.7 0.7)
+				(thickness 0.1)
+			)
+		)
+	)
+	(pad "1" thru_hole oval
+		(at -4.5 0 90)
+		(size 3 2.3)
+		(drill oval 2 1.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "5cda6306-6eaa-4ae3-848e-640bd0302537")
+	)
+	(pad "1" thru_hole oval
+		(at 4.5 0 90)
+		(size 3 2.3)
+		(drill oval 2 1.5)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "52cce007-b7c5-48b5-87d6-d12aa89d7df8")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_TTR32100127-0600_envelope.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

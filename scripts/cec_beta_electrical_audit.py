@@ -12,6 +12,7 @@ It does not claim transient, EMC, thermal, firmware, or assembly sign-off.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -114,6 +115,7 @@ SOURCES = {
     "C17168": "https://www.lcsc.com/product-detail/C17168.html",
     "C545549": "https://www.lcsc.com/product-detail/C545549.html",
     "C15850": "https://www.lcsc.com/product-detail/C15850.html",
+    "C1779": "https://product.samsungsem.com/mlcc/CL21A475KAQNNN.do",
     "C29936": "https://www.lcsc.com/product-detail/C29936.html",
     "C1525": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
     "SN74LVC1G17": "https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf",
@@ -154,6 +156,7 @@ PACKAGE_RULES = (
     ("CL10A105KB8NNNC", "C_0603_1608Metric"),
     ("CL10A225KO8NNNC", "C_0603_1608Metric"),
     ("CL21A106KAYNNNE", "C_0805_2012Metric"),
+    ("CL21A475KAQNNNE", "C_0805_2012Metric"),
     ("CL10B105KA8NNNC", "C_0603_1608Metric"),
     ("CL05B104KO5NNNC", "C_0402_1005Metric"),
     ("0402WGF0000TCE", "R_0402_1005Metric"),
@@ -233,8 +236,51 @@ def _finding(board: str, severity: str, code: str, message: str, ref: str = ""):
     }
 
 
-def discover_projects(beta_root: str) -> list[tuple[str, str, str]]:
-    return list(cec_beta_manifest.project_paths(beta_root))
+def discover_projects(beta_root: str, boards=None) -> list[tuple[str, str, str]]:
+    return list(cec_beta_manifest.project_paths(beta_root, boards=boards))
+
+
+def _source_digest(root_sch: str, inventory: dict) -> tuple[str, list[str]]:
+    """Fingerprint the complete hierarchy used to produce an audit result."""
+    directory = os.path.dirname(root_sch)
+    paths = {os.path.abspath(root_sch)}
+    for rec in inventory.values():
+        sheet = rec.get("sheet")
+        if sheet:
+            paths.add(os.path.abspath(os.path.join(directory, sheet)))
+    digest = hashlib.sha256()
+    relative = []
+    for path in sorted(paths):
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        relative.append(rel)
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\0")
+        with open(path, "rb") as handle:
+            digest.update(handle.read())
+        digest.update(b"\0")
+    return digest.hexdigest(), relative
+
+
+def _implementation_digest() -> tuple[str, list[str]]:
+    """Fingerprint audit logic and its board-specific numerical contracts."""
+    paths = [
+        os.path.abspath(__file__),
+        os.path.join(HERE, "cec_beta_manifest.py"),
+        os.path.join(HERE, "cec_hub_holdup.py"),
+        os.path.join(HERE, "cec_power_budget.py"),
+        os.path.join(HERE, "cec_normalize_verified_lcsc_parts.py"),
+    ]
+    digest = hashlib.sha256()
+    relative = []
+    for path in sorted(paths):
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        relative.append(rel)
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\0")
+        with open(path, "rb") as handle:
+            digest.update(handle.read())
+        digest.update(b"\0")
+    return digest.hexdigest(), relative
 
 
 def export_netlist(schematic: str) -> tuple[dict[str, str], dict[str, list[tuple[str, str]]]]:
@@ -349,7 +395,10 @@ def _require_distinct(findings, board, ref, pins, a, b, purpose):
 
 
 def _fitted(rec: dict) -> bool:
-    return rec.get("on_board", True) and not rec.get("dnp", False)
+    # A missing inventory record is not a fitted component.  Treating the
+    # default empty mapping as fitted produces false blockers in absence
+    # checks (for example, retired designators that have been removed).
+    return bool(rec) and rec.get("on_board", True) and not rec.get("dnp", False)
 
 
 CAPACITOR_SPECS = {
@@ -361,6 +410,7 @@ CAPACITOR_SPECS = {
     "C29936": {"farads": 1e-6, "dielectric": "X7R", "package": "0603"},
     "C15849": {"farads": 1e-6, "dielectric": "X5R", "package": "0603"},
     "C15850": {"farads": 10e-6, "dielectric": "X5R", "package": "0805"},
+    "C1779": {"farads": 4.7e-6, "dielectric": "X5R", "package": "0805"},
     "C96446": {"farads": 10e-6, "dielectric": "X5R", "package": "0603"},
 }
 
@@ -595,6 +645,15 @@ def check_passives(board, inventory, pins_by_ref):
                 "; ".join(reasons) + "; stability and transient behavior require an approved capacitor network",
                 ref,
             ))
+        else:
+            findings.append(_finding(
+                board, "INFO", "LP5907_CAP_NETWORK",
+                f"nominal input-node capacitance is {input_total * 1e6:.3g} uF and "
+                f"output-node capacitance is {output_total * 1e6:.3g} uF; the output is "
+                "within the documented 10 uF application range and input nominal "
+                "capacitance is not below output nominal capacitance",
+                ref,
+            ))
 
     modern_supply_outputs = set()
     for ref, rec in sorted(inventory.items()):
@@ -673,13 +732,31 @@ def check_passives(board, inventory, pins_by_ref):
         supply_net = pins_by_ref.get(mcu_ref, {}).get(supply_pin)
         feeding = [ref for ref, _input, output in ldos if output == supply_net]
         if feeding:
-            findings.append(_finding(
-                board, "BLOCKER", "REGULATOR_HEADROOM_UNPROVEN",
-                f"{','.join(feeding)} is rated for 250 mA, but the repository does not contain "
-                f"a reviewed worst-case {supply_net} load budget for {value}, sensing, CAN, "
-                "and housekeeping loads under the required wireless-disabled firmware mode",
-                mcu_ref,
-            ))
+            if board not in cec_power_budget.LOADS:
+                findings.append(_finding(
+                    board, "BLOCKER", "REGULATOR_HEADROOM_UNPROVEN",
+                    f"{','.join(feeding)} is rated for 250 mA, but the repository does not contain "
+                    f"a reviewed worst-case {supply_net} load budget for {value}, sensing, CAN, "
+                    "and housekeeping loads under the required wireless-disabled firmware mode",
+                    mcu_ref,
+                ))
+            else:
+                required_mA = cec_power_budget.budget(board)["required_mA"]
+                if required_mA >= 250.0:
+                    findings.append(_finding(
+                        board, "BLOCKER", "REGULATOR_HEADROOM",
+                        f"{','.join(feeding)} is rated for 250 mA, but the reviewed worst-case "
+                        f"wireless-disabled load including 20% margin is {required_mA:.3f} mA",
+                        mcu_ref,
+                    ))
+                else:
+                    findings.append(_finding(
+                        board, "INFO", "REGULATOR_LOAD_MARGIN",
+                        f"{','.join(feeding)} is rated for 250 mA; the reviewed worst-case "
+                        f"wireless-disabled load including 20% margin is {required_mA:.3f} mA "
+                        f"({(250.0 - required_mA) / 250.0 * 100.0:.1f}% remaining)",
+                        mcu_ref,
+                    ))
         if (supply_net not in modern_supply_outputs and
                 not any(cap["farads"] >= 22e-6 for cap in caps_by_rail.get(supply_net, []))):
             findings.append(_finding(
@@ -1318,7 +1395,27 @@ def _check_tps2121_ovp(board, inventory, pins_by_ref):
                 elif has_six_volt_regulator:
                     findings.append(_finding(
                         board, "INFO", "OVP_WINDOW", message, ref))
+                    dynamic_margin = 6.0 - trip_max
+                    # Static threshold arithmetic is necessary but does not
+                    # bound source overshoot or TPS2121 response delay.  Keep a
+                    # separate qualification finding whenever the remaining
+                    # absolute-maximum margin is too small to absorb those
+                    # effects; do not silently promote a near-limit divider to
+                    # full OVP sign-off.
+                    if dynamic_margin < 0.150:
+                        findings.append(_finding(
+                            board, "WARN", "OVP_DYNAMIC_MARGIN",
+                            message + f"; only {dynamic_margin * 1e3:.0f} mV remains to the "
+                            "6.0 V absolute maximum, so transient overshoot and trip delay "
+                            "still require analysis and bench validation",
+                            ref))
                 else:
+                    input_headroom = trip_min - 5.25
+                    message += (
+                        f"; lower tolerance bound leaves {input_headroom * 1e3:.0f} mV "
+                        "above the allowed 5.25 V source maximum, so nuisance-trip and "
+                        "source-transient behavior remain a qualification item"
+                    )
                     findings.append(_finding(
                         board, "WARN", "OVP_THRESHOLD", message, ref))
             else:
@@ -1527,17 +1624,13 @@ def check_board_specific(board, inventory, pins_by_ref):
                 "obsolete L2 boost reservation is absent from the authoritative hierarchy", "L2"))
 
         priority_contract = {
-            "U5": {
-                "1": "/PSU_5V", "2": "/USB_VBUS", "3": "GND",
-                "6": "/5VSB_RAW", "7": "/5VSB_RAW", "8": "/PSU_5V",
-            },
             "U11": {
                 "1": "/PSU_5V_KVM", "2": "/KVM_5V_IN", "3": "GND",
-                "6": "/PSU_5V", "7": "/PSU_5V", "8": "/PSU_5V_KVM",
+                "6": "/USB_VBUS", "7": "/USB_VBUS", "8": "/PSU_5V_KVM",
             },
             "U7": {
                 "1": "+5VSB", "2": "/PSU_5V_KVM", "3": "GND",
-                "6": "/MAIN_5V_RAW", "7": "/MAIN_5V_RAW", "8": "+5VSB",
+                "6": "+5V_SYS", "7": "+5V_SYS", "8": "+5VSB",
             },
         }
         contract_ok = True
@@ -1549,22 +1642,30 @@ def check_board_specific(board, inventory, pins_by_ref):
                     findings.append(_finding(
                         board, "BLOCKER", "HUB_SOURCE_PRIORITY",
                         f"pin {pin} is {actual.get(pin)!r}, expected {net!r} for "
-                        "MAIN_5V > 5VSB > USB > KVM fixed priority",
+                        "+5V_SYS > USB > KVM fixed priority",
                         mux_ref,
                     ))
         if contract_ok:
             findings.append(_finding(
                 board, "INFO", "HUB_SOURCE_PRIORITY",
-                "CAD proves MAIN_5V > 5VSB > USB > KVM fixed priority with CP2 low on all three TPS2121 stages",
+                "CAD proves +5V_SYS > USB > KVM fixed priority with CP2 low on both TPS2121 stages",
             ))
 
+        for retired_ref in ("J_PWR", "U5"):
+            if _fitted(inventory.get(retired_ref, {})):
+                findings.append(_finding(
+                    board, "BLOCKER", "HUB_JPWR_RETIRED",
+                    "rev3 stack power supersedes J_PWR and its redundant first mux stage",
+                    retired_ref,
+                ))
+
         mux_bypass_contract = {
-            # One capacitor per physical mux power pin.  C24/C25 and C26/C28
+            # One capacitor per physical mux power pin.  C26/C28
             # intentionally duplicate shared electrical rails because the PCB
             # must place one local part at each different TPS2121 package.
-            "C9": "/5VSB_RAW", "C10": "/USB_VBUS", "C24": "/PSU_5V",
-            "C25": "/PSU_5V", "C22": "/KVM_5V_IN", "C26": "/PSU_5V_KVM",
-            "C27": "/MAIN_5V_RAW", "C28": "/PSU_5V_KVM", "C15": "+5VSB",
+            "C25": "/USB_VBUS", "C22": "/KVM_5V_IN",
+            "C26": "/PSU_5V_KVM", "C27": "+5V_SYS",
+            "C28": "/PSU_5V_KVM", "C15": "+5VSB",
         }
         mux_caps_ok = True
         for cap_ref, rail in mux_bypass_contract.items():
@@ -1585,17 +1686,88 @@ def check_board_specific(board, inventory, pins_by_ref):
         if mux_caps_ok:
             findings.append(_finding(
                 board, "INFO", "HUB_TPS2121_LOCAL_BYPASS",
-                "all nine U5/U11/U7 IN1, IN2, and OUT pins have explicit one-per-pin exact ceramic selections; placement distance is gated after regeneration",
+                "all six U11/U7 IN1, IN2, and OUT rails have explicit one-per-pin exact ceramic selections; placement distance is gated after regeneration",
             ))
 
     if board == "eps-8pin-rev3":
         d2 = pins_by_ref.get("D2", {})
-        has_mux = any("TPS2121" in rec["value"] and not rec["dnp"] for rec in inventory.values())
+        has_mux = any("TPS2121" in rec.get("value", "") and not rec.get("dnp", False)
+                      for rec in inventory.values())
         if ("VBUS" in (d2.get("2") or "") and "5VSB" in (d2.get("1") or "") and not has_mux):
             findings.append(_finding(
                 board, "BLOCKER", "LEGACY_USB_ORING",
                 "D2 directly Schottky-ORs USB VBUS into +5VSB; the approved TPS2121 plus fuse ingress change is absent",
                 "D2"))
+
+        # A mere TPS2121 reference must not make the old diode defect disappear.
+        # Prove the complete source-to-load chain and its exact selected fuse;
+        # this closes the historical hole where a partial splice could satisfy
+        # LEGACY_USB_ORING without actually protecting +5VSB.
+        issues = []
+        mux_ref = next((ref for ref, rec in inventory.items()
+                        if _fitted(rec) and "TPS2121" in rec.get("value", "")), None)
+        if not mux_ref:
+            issues.append("no fitted TPS2121 mux")
+        else:
+            mux = pins_by_ref.get(mux_ref, {})
+            expected = {
+                "1": "+5VSB", "8": "+5VSB", "7": "VCC_RJ45",
+                "3": "GND", "4": "GND", "12": "GND",
+            }
+            for pin, net in expected.items():
+                if not _same_net(mux.get(pin), net):
+                    issues.append(f"{mux_ref}.{pin}={mux.get(pin)!r}, expected {net}")
+            if _nc(mux.get("2")):
+                issues.append(f"{mux_ref}.2 has no protected USB input net")
+
+        fuse = inventory.get("F1", {})
+        fuse_pins = pins_by_ref.get("F1", {})
+        if (not _fitted(fuse) or
+                fuse.get("props", {}).get("MPN") != "1206L075/16WR" or
+                fuse.get("props", {}).get("LCSC") != "C371166"):
+            issues.append("F1 is not the exact selected 1206L075/16WR / C371166 PTC")
+        elif mux_ref:
+            fuse_nets = tuple(fuse_pins.values())
+            if not any(_same_net(net, "VBUS") for net in fuse_nets):
+                issues.append("F1 does not take USB VBUS on one side")
+            if not any(_same_net(net, pins_by_ref[mux_ref].get("2"))
+                       for net in fuse_nets):
+                issues.append(f"F1 does not feed {mux_ref}.IN2")
+
+        if not _same_net(pins_by_ref.get("J1", {}).get("1"), "VCC_RJ45"):
+            issues.append("J1.1 is not isolated on the TPS2121 IN1 source net")
+        if not any(_same_net(pins_by_ref.get("J5", {}).get(pin), "VBUS")
+                   for pin in ("A4", "A9", "B4", "B9")):
+            issues.append("J5 VBUS pins are not on the protected ingress source")
+        if _fitted(inventory.get("D2", {})):
+            issues.append("legacy D2 USB-to-+5VSB ORing diode is still fitted")
+
+        esd = inventory.get("D3", {})
+        esd_pins = pins_by_ref.get("D3", {})
+        if (not _fitted(esd) or esd.get("props", {}).get("MPN") != "USBLC6-2SC6" or
+                esd.get("props", {}).get("LCSC") != "C2687116"):
+            issues.append("D3 is not the exact selected USBLC6-2SC6 / C2687116 USB ESD array")
+        else:
+            for pin in ("1", "6"):
+                if not _same_net(esd_pins.get(pin), "USB_D_P"):
+                    issues.append(f"D3.{pin} is not on USB_D_P")
+            for pin in ("3", "4"):
+                if not _same_net(esd_pins.get(pin), "USB_D_N"):
+                    issues.append(f"D3.{pin} is not on USB_D_N")
+            if not _same_net(esd_pins.get("5"), "VBUS"):
+                issues.append("D3.5 VBUS reference is not on connector-side VBUS")
+            if not _same_net(esd_pins.get("2"), "GND"):
+                issues.append("D3.2 is not grounded")
+
+        if issues:
+            findings.append(_finding(
+                board, "BLOCKER", "EPS_USB_INGRESS",
+                "; ".join(issues), mux_ref or "U4"))
+        else:
+            findings.append(_finding(
+                board, "INFO", "EPS_USB_INGRESS",
+                "CAD proves J1.1 -> TPS2121 IN1, USB VBUS -> exact 750mA/16V PTC -> IN2, TPS2121 OUT -> +5VSB, and exact D+/D- ESD coverage",
+                mux_ref))
 
     if board == "argb-standard":
         j1 = inventory.get("J1")
@@ -1782,16 +1954,20 @@ def check_pour_current_contract():
     return findings
 
 
-def audit(beta_root: str):
-    projects = discover_projects(beta_root)
+def audit(beta_root: str, boards=None, *, scope_name="current-beta"):
+    projects = discover_projects(beta_root, boards=boards)
+    implementation_sha256, implementation_files = _implementation_digest()
     all_boards = {}
     findings = []
     for board, _directory, schematic in projects:
         components, nets = export_netlist(schematic)
         inventory = cec_sch_gates.inventory(schematic)
         pins = pin_map(nets)
+        digest, source_files = _source_digest(schematic, inventory)
         all_boards[board] = {
             "root": os.path.relpath(schematic, ROOT),
+            "source_sha256": digest,
+            "source_files": source_files,
             "components": len(components),
             "inventory": inventory,
             "pins": pins,
@@ -1811,11 +1987,18 @@ def audit(beta_root: str):
         board_summaries[board] = {
             "components": all_boards[board]["components"],
             "inventory_records": len(all_boards[board]["inventory"]),
+            "source_sha256": all_boards[board]["source_sha256"],
+            "source_files": all_boards[board]["source_files"],
             "blockers": sum(f["severity"] == "BLOCKER" for f in local),
             "warnings": sum(f["severity"] == "WARN" for f in local),
         }
     return {
-        "scope": "authoritative BETA KiCad project roots; candidate copies excluded",
+        "scope": scope_name,
+        "scope_boards": [board for board, _directory, _schematic in projects],
+        "scope_source": "scripts/cec_beta_manifest.py",
+        "audit_implementation_sha256": implementation_sha256,
+        "audit_implementation_files": implementation_files,
+        "candidate_policy": "authoritative root schematics only; candidate PCB copies excluded",
         "projects": len(projects),
         "sources": SOURCES,
         "summary": dict(sorted(severities.items())),
@@ -1830,10 +2013,17 @@ def audit(beta_root: str):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--beta-root", default=os.path.join(ROOT, "beta"))
+    parser.add_argument(
+        "--scope", choices=("current-beta", "standard-main"),
+        default="current-beta",
+        help="manifest-owned schematic scope to audit",
+    )
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--json-out")
     args = parser.parse_args(argv)
-    report = audit(args.beta_root)
+    boards = (cec_beta_manifest.STANDARD_MAIN_BOARDS
+              if args.scope == "standard-main" else None)
+    report = audit(args.beta_root, boards=boards, scope_name=args.scope)
     if args.json_out:
         os.makedirs(os.path.dirname(os.path.abspath(args.json_out)), exist_ok=True)
         with open(args.json_out, "w", encoding="utf-8", newline="\n") as handle:

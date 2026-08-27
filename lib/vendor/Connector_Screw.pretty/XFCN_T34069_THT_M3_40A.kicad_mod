@@ -1,0 +1,226 @@
+(footprint "XFCN_T34069_THT_M3_40A"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.")
+	(tags "XFCN T34069 C481452 screw terminal M3 40A THT threaded side face")
+	(property "Reference" "REF**"
+		(at 1.375 -4.65 0)
+		(layer "F.SilkS")
+		(uuid "2a227599-0a31-4b7c-8452-ca2a704df2a6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "XFCN_T34069"
+		(at 1.375 4.65 0)
+		(layer "F.Fab")
+		(uuid "173a630e-3a08-45a1-9eed-08c70205cf3d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.lcsc.com/datasheet/C481452.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "07a17ebe-ca7d-44e1-9181-3d2c21f75186")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bd4f1ab1-3eca-4bea-9720-ac46027ca2db")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Manufacturer" "XFCN"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "d3854ec1-a649-4960-8635-3d29eec24de0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "MPN" "T34069"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bb5e9b27-5a7b-4b49-9a2c-dda4291c86fe")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC" "C481452"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "6e5b22bc-b74a-4ec9-a84a-c6f0a68c0610")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Rating" "40 A; M3; 0.5 N*m max thread torque"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "720754e1-7933-4abb-b2c1-eb64a9c2f7a7")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -3.2 -3.15)
+		(end 5.95 -3.15)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "9dab567f-3849-4669-bd88-73cc42fa5ac8")
+	)
+	(fp_line
+		(start -3.2 3.15)
+		(end -3.2 -3.15)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "3976dc6a-2b1b-4c43-9fb2-237999db3448")
+	)
+	(fp_line
+		(start 5.95 -3.15)
+		(end 5.95 3.15)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f49355c7-ced2-4837-8a14-17127f238f3b")
+	)
+	(fp_line
+		(start 5.95 3.15)
+		(end -3.2 3.15)
+		(stroke
+			(width 0.2)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b45d1100-bd66-4ffa-a069-64802a56ce3d")
+	)
+	(fp_rect
+		(start -3.45 -3.45)
+		(end 6.2 3.45)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "23d59002-786d-4831-9348-69285b753827")
+	)
+	(fp_rect
+		(start -3.125 -3.15)
+		(end 5.875 3.15)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "da57cfd0-8640-4078-b4af-bee7472f0f9c")
+	)
+	(fp_text user "DB DATUM: SAMPLE"
+		(at 1.375 -0.8 0)
+		(layer "F.Fab")
+		(uuid "9a6efc31-8c7d-405e-afd5-0eeb49b9c287")
+		(effects
+			(font
+				(size 0.7 0.7)
+				(thickness 0.1)
+			)
+		)
+	)
+	(fp_text user "${REFERENCE}"
+		(at 1.375 0 0)
+		(layer "F.Fab")
+		(uuid "f31ba41a-e1e4-407a-8bea-54a749610430")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" thru_hole oval
+		(at -2.5 -2.75)
+		(size 3 2)
+		(drill oval 2 1.2)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "2c93f209-df8d-472a-b313-314086c76024")
+	)
+	(pad "1" thru_hole oval
+		(at -2.5 2.75)
+		(size 3 2)
+		(drill oval 2 1.2)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "7ea2301f-a230-4740-9d51-c008a8f1bcaa")
+	)
+	(pad "1" thru_hole oval
+		(at 2.5 -2.75)
+		(size 3 2)
+		(drill oval 2 1.2)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "4515507c-a151-4bdd-8c94-3e1f744f3c81")
+	)
+	(pad "1" thru_hole oval
+		(at 2.5 2.75)
+		(size 3 2)
+		(drill oval 2 1.2)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "de21d877-192e-4272-a390-5faeec035b9b")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Screw.3dshapes/XFCN_T34069_native.step"
+		(offset
+			(xyz 1.375 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

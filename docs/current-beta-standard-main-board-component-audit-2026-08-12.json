@@ -1,0 +1,601 @@
+{
+  "scope": "standard-main",
+  "scope_boards": [
+    "12vhpwr-standard",
+    "atx-24pin-rev3",
+    "eps-8pin-rev3",
+    "hub-standard-rev2",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+  ],
+  "scope_source": "scripts/cec_beta_manifest.py",
+  "audit_implementation_sha256": "98d58c8f5c44d24ebacf207bea69d2c83ee5629c04e4fdbdea3ff78d88d7727d",
+  "audit_implementation_files": [
+    "scripts/cec_beta_electrical_audit.py",
+    "scripts/cec_beta_manifest.py",
+    "scripts/cec_hub_holdup.py",
+    "scripts/cec_normalize_verified_lcsc_parts.py",
+    "scripts/cec_power_budget.py"
+  ],
+  "candidate_policy": "authoritative root schematics only; candidate PCB copies excluded",
+  "projects": 6,
+  "sources": {
+    "TPS2121": "https://www.ti.com/lit/ds/symlink/tps2121.pdf",
+    "LP5907": "https://www.ti.com/lit/ds/symlink/lp5907.pdf",
+    "TLV62569": "https://www.ti.com/lit/ds/symlink/tlv62569.pdf",
+    "TLV755P": "https://www.ti.com/lit/ds/symlink/tlv755p.pdf",
+    "VLS252010HBX-2R2M-1": "https://product.tdk.com/en/search/inductor/inductor/smd/info?part_no=VLS252010HBX-2R2M-1",
+    "INA180": "https://www.ti.com/lit/ds/symlink/ina180.pdf",
+    "INA181": "https://www.ti.com/lit/ds/symlink/ina181.pdf",
+    "INA238": "https://www.ti.com/lit/ds/symlink/ina238.pdf",
+    "INA240": "https://www.ti.com/lit/ds/symlink/ina240.pdf",
+    "TLV7011": "https://www.ti.com/lit/ds/symlink/tlv7011.pdf",
+    "TJA1051": "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf",
+    "74AHCT244": "https://assets.nexperia.com/documents/data-sheet/74AHC_AHCT244.pdf",
+    "ESP32-C6-MINI-1": "https://documentation.espressif.com/esp32-c6-mini-1_mini-1u_datasheet_en.pdf",
+    "ESP32-C6-DevKitC-1": "https://dl.espressif.com/dl/schematics/esp32-c6-devkitc-1-schematics.pdf",
+    "ESP32-S3-MINI-1": "https://documentation.espressif.com/esp32-s3-mini-1_mini-1u_datasheet_en.pdf",
+    "ESP32-S3-WROOM-1": "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf",
+    "SN74AHCT1G08": "https://www.ti.com/lit/ds/symlink/sn74ahct1g08.pdf",
+    "TPS3839": "https://www.ti.com/lit/ds/symlink/tps3839.pdf",
+    "AO3400A": "https://www.aosmd.com/res/datasheets/AO3400A.pdf",
+    "AO4407A": "https://www.aosmd.com/res/datasheets/AO4407A.pdf",
+    "MF72": "https://www.lcsc.com/datasheet/C122780.pdf",
+    "2920L700": "https://www.lcsc.com/datasheet/C207092.pdf",
+    "REF3030": "https://www.ti.com/lit/ds/symlink/ref3030.pdf",
+    "C2687116": "https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf",
+    "C5261083": "https://www.lcsc.com/datasheet/C5261083.pdf",
+    "C319148": "https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf",
+    "C5736265": "https://www.lcsc.com/product-detail/wifi-modules_espressif-systems-esp32-c6-mini-1-n4_C5736265.html",
+    "C38695": "https://www.lcsc.com/product-detail/C38695.html",
+    "C80670": "https://www.lcsc.com/product-detail/C80670.html",
+    "C141836": "https://www.lcsc.com/product-detail/C141836.html",
+    "C487318": "https://www.lcsc.com/product-detail/C487318.html",
+    "C138063": "https://www.lcsc.com/product-detail/C138063.html",
+    "C2480": "https://www.lcsc.com/product-detail/C2480.html",
+    "C404027": "https://www.lcsc.com/product-detail/C404027.html",
+    "C88527": "https://www.lcsc.com/product-detail/C88527.html",
+    "C27009": "https://www.lcsc.com/product-detail/C27009.html",
+    "C25741": "https://www.lcsc.com/product-detail/C25741.html",
+    "C132339": "https://www.lcsc.com/product-detail/C132339.html",
+    "C485916": "https://www.lcsc.com/product-detail/C485916.html",
+    "C2058784": "https://www.lcsc.com/product-detail/C2058784.html",
+    "C702117": "https://www.lcsc.com/product-detail/C702117.html",
+    "C2868250": "https://www.lcsc.com/product-detail/C2868250.html",
+    "C2683360": "https://www.lcsc.com/product-detail/C2683360.html",
+    "C113952": "https://www.lcsc.com/product-detail/C113952.html",
+    "C192764": "https://www.lcsc.com/product-detail/C192764.html",
+    "C96446": "https://www.lcsc.com/product-detail/C96446.html",
+    "C15849": "https://www.lcsc.com/product-detail/C15849.html",
+    "C23630": "https://www.lcsc.com/product-detail/C23630.html",
+    "C17168": "https://www.lcsc.com/product-detail/C17168.html",
+    "C545549": "https://www.lcsc.com/product-detail/C545549.html",
+    "C15850": "https://www.lcsc.com/product-detail/C15850.html",
+    "C1779": "https://product.samsungsem.com/mlcc/CL21A475KAQNNN.do",
+    "C29936": "https://www.lcsc.com/product-detail/C29936.html",
+    "C1525": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+    "SN74LVC1G17": "https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf"
+  },
+  "summary": {
+    "INFO": 42,
+    "WARN": 17
+  },
+  "boards": {
+    "12vhpwr-standard": {
+      "components": 102,
+      "inventory_records": 102,
+      "source_sha256": "f7d9c20b4d873741cf6293cc3e900bb6e220688292471aba495d74fd8dc2421a",
+      "source_files": [
+        "beta/12vhpwr-standard/01-input.kicad_sch",
+        "beta/12vhpwr-standard/02-lanes.kicad_sch",
+        "beta/12vhpwr-standard/03-output.kicad_sch",
+        "beta/12vhpwr-standard/04-ina.kicad_sch",
+        "beta/12vhpwr-standard/05-mcu.kicad_sch",
+        "beta/12vhpwr-standard/06-can.kicad_sch",
+        "beta/12vhpwr-standard/07-ldo.kicad_sch",
+        "beta/12vhpwr-standard/08-usb.kicad_sch",
+        "beta/12vhpwr-standard/09-hub-link.kicad_sch",
+        "beta/12vhpwr-standard/10-temp.kicad_sch",
+        "beta/12vhpwr-standard/11-rail-ref.kicad_sch",
+        "beta/12vhpwr-standard/12vhpwr-standard-module.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 3
+    },
+    "atx-24pin-rev3": {
+      "components": 122,
+      "inventory_records": 123,
+      "source_sha256": "ee28db36aff7642b5ab21ce2608cba5b3de184ff61e33889c6ef3020f36a2d9a",
+      "source_files": [
+        "beta/atx-24pin-rev3/01-atx-power-control.kicad_sch",
+        "beta/atx-24pin-rev3/02-power-usb.kicad_sch",
+        "beta/atx-24pin-rev3/03-regulator-mcu.kicad_sch",
+        "beta/atx-24pin-rev3/04-hub-can-stack.kicad_sch",
+        "beta/atx-24pin-rev3/05-rail-sensing.kicad_sch",
+        "beta/atx-24pin-rev3/24pin-module.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 2
+    },
+    "eps-8pin-rev3": {
+      "components": 63,
+      "inventory_records": 63,
+      "source_sha256": "af23a3311ddbc9ce804ad9e7d1111365c6c74a6ed1836e11eda3a5d9bd593553",
+      "source_files": [
+        "beta/eps-8pin-rev3/01-hub-can.kicad_sch",
+        "beta/eps-8pin-rev3/02-regulator-mcu.kicad_sch",
+        "beta/eps-8pin-rev3/03-sensing.kicad_sch",
+        "beta/eps-8pin-rev3/04-cable-power.kicad_sch",
+        "beta/eps-8pin-rev3/05-usb-service.kicad_sch",
+        "beta/eps-8pin-rev3/eps-8pin-rev3.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 3
+    },
+    "hub-standard-rev2": {
+      "components": 109,
+      "inventory_records": 109,
+      "source_sha256": "dc2a8d59c72989c44ef0d2941e649747ada0747bce62b52d85cd1613843d0fc5",
+      "source_files": [
+        "beta/hub-standard-rev2/01-power-input-selection.kicad_sch",
+        "beta/hub-standard-rev2/02-holdup-3v3.kicad_sch",
+        "beta/hub-standard-rev2/03-mcu-usb.kicad_sch",
+        "beta/hub-standard-rev2/04-can-module-ports.kicad_sch",
+        "beta/hub-standard-rev2/05-kvm-aux-sensors.kicad_sch",
+        "beta/hub-standard-rev2/06-status-leds.kicad_sch",
+        "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 3
+    },
+    "pcie-8pin-2port": {
+      "components": 69,
+      "inventory_records": 70,
+      "source_sha256": "ccaffdb13a263632d1b87337fd737113cc6e347e21539990103e69f2b1a7bcd4",
+      "source_files": [
+        "beta/pcie-8pin-2port/01-hub-link.kicad_sch",
+        "beta/pcie-8pin-2port/02-can.kicad_sch",
+        "beta/pcie-8pin-2port/03-ldo.kicad_sch",
+        "beta/pcie-8pin-2port/04-mcu.kicad_sch",
+        "beta/pcie-8pin-2port/05-sensing.kicad_sch",
+        "beta/pcie-8pin-2port/06-cable-power.kicad_sch",
+        "beta/pcie-8pin-2port/07-usb-flash.kicad_sch",
+        "beta/pcie-8pin-2port/pcie8pin-2port-module.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 3
+    },
+    "pcie-8pin-3port": {
+      "components": 79,
+      "inventory_records": 80,
+      "source_sha256": "95b4a4305e220124e8a993eefcac164f6cb52475db07d86568c118f53a8d7826",
+      "source_files": [
+        "beta/pcie-8pin-3port/01-hub-link.kicad_sch",
+        "beta/pcie-8pin-3port/02-can.kicad_sch",
+        "beta/pcie-8pin-3port/03-ldo.kicad_sch",
+        "beta/pcie-8pin-3port/04-mcu.kicad_sch",
+        "beta/pcie-8pin-3port/05-sensing.kicad_sch",
+        "beta/pcie-8pin-3port/06-cable-power.kicad_sch",
+        "beta/pcie-8pin-3port/07-usb-flash.kicad_sch",
+        "beta/pcie-8pin-3port/pcie8pin-3port-module.kicad_sch"
+      ],
+      "blockers": 0,
+      "warnings": 3
+    }
+  },
+  "findings": [
+    {
+      "board": "12vhpwr-standard",
+      "severity": "WARN",
+      "code": "DNP_IN_BOM",
+      "ref": "FL1",
+      "message": "DNP part remains in the source BOM and must be filtered by assembly variant"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "WARN",
+      "code": "DNP_IN_BOM",
+      "ref": "J2",
+      "message": "DNP part remains in the source BOM and must be filtered by assembly variant"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U5",
+      "message": "CAD proves R26=43200 ohm and R27=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U5",
+      "message": "CAD proves R59=43200 ohm and R69=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U6",
+      "message": "CAD proves R55=43200 ohm and R56=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "WARN",
+      "code": "ESP32_REFERENCE_BULK_DEVIATION",
+      "ref": "U1",
+      "message": "ESP32-C6-MINI-1-N4 peripheral schematic shows 22 uF plus 100 nF on the module supply, but +3V3 has no nominal >=22 uF capacitor; do not add it until the regulator and total output-capacitance conflict is resolved"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "WARN",
+      "code": "LP5907_EFFECTIVE_CAPACITANCE",
+      "ref": "U3",
+      "message": "C1/C2 meet the nominal topology, but CAD does not prove the LP5907 minimum 0.7 uF effective capacitance after tolerance, DC bias, and temperature"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "WARN",
+      "code": "HOLDUP_BENCH_OPEN",
+      "ref": "",
+      "message": "topology and bounded paper model pass, but OQ-56 still must measure slow-brownout behavior, capacitor ESR/aging/temperature, source decay, load shed, and durable-commit latency"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "WARN",
+      "code": "OVP_THRESHOLD",
+      "ref": "U11",
+      "message": "CAD proves R37=43200 ohm and R38=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; lower tolerance bound leaves 37 mV above the allowed 5.25 V source maximum, so nuisance-trip and source-transient behavior remain a qualification item"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "WARN",
+      "code": "OVP_THRESHOLD",
+      "ref": "U7",
+      "message": "CAD proves R35=43200 ohm and R36=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; lower tolerance bound leaves 37 mV above the allowed 5.25 V source maximum, so nuisance-trip and source-transient behavior remain a qualification item"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "WARN",
+      "code": "ESP32_REFERENCE_BULK_DEVIATION",
+      "ref": "U1",
+      "message": "ESP32-C6-MINI-1-N4 peripheral schematic shows 22 uF plus 100 nF on the module supply, but +3V3 has no nominal >=22 uF capacitor; do not add it until the regulator and total output-capacitance conflict is resolved"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "WARN",
+      "code": "LP5907_EFFECTIVE_CAPACITANCE",
+      "ref": "U3",
+      "message": "C1/C2 meet the nominal topology, but CAD does not prove the LP5907 minimum 0.7 uF effective capacitance after tolerance, DC bias, and temperature"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "WARN",
+      "code": "ESP32_REFERENCE_BULK_DEVIATION",
+      "ref": "U1",
+      "message": "ESP32-C6-MINI-1-N4 peripheral schematic shows 22 uF plus 100 nF on the module supply, but +3V3 has no nominal >=22 uF capacitor; do not add it until the regulator and total output-capacitance conflict is resolved"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "WARN",
+      "code": "LP5907_EFFECTIVE_CAPACITANCE",
+      "ref": "U3",
+      "message": "C1/C2 meet the nominal topology, but CAD does not prove the LP5907 minimum 0.7 uF effective capacitance after tolerance, DC bias, and temperature"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "WARN",
+      "code": "OVP_DYNAMIC_MARGIN",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 9 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "ESP32_REVIEWED_REGULATOR_NETWORK",
+      "ref": "U1",
+      "message": "ESP32-S3-MINI-1-N4R2 is fed by the reviewed regulator topology with 11.9 uF nominal distributed capacitance on +3V3"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "FAN_SWITCH_TOPOLOGY",
+      "ref": "",
+      "message": "fan header, flyback diode, low-side MOSFET, gate bias, and tach path are distinct and correct"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U5",
+      "message": "CAD proves R26=43200 ohm and R27=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "REGULATOR_CAP_NETWORK",
+      "ref": "U16",
+      "message": "TLV75533PDRVR nominal input/output capacitor network is inside the reviewed datasheet range"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "",
+      "message": "reviewed worst-case rail load including 20% margin is 212.327 mA; conservative source capacity is 500 mA (57.5% remaining)"
+    },
+    {
+      "board": "12vhpwr-standard",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "3 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 16 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "ESP32_REVIEWED_REGULATOR_NETWORK",
+      "ref": "U1",
+      "message": "ESP32-C6-MINI-1-N4 is fed by the reviewed regulator topology with 17.6 uF nominal distributed capacitance on +3V3"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U5",
+      "message": "CAD proves R59=43200 ohm and R69=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U6",
+      "message": "CAD proves R55=43200 ohm and R56=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "REGULATOR_CAP_NETWORK",
+      "ref": "U3",
+      "message": "TLV75533PDRVR nominal input/output capacitor network is inside the reviewed datasheet range"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "",
+      "message": "reviewed worst-case rail load including 20% margin is 204.838 mA; conservative source capacity is 500 mA (59.0% remaining)"
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "6 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    },
+    {
+      "board": "atx-24pin-rev3+hub-standard-rev2",
+      "severity": "INFO",
+      "code": "MEZZ_MATCH",
+      "ref": "",
+      "message": "segmented J6P/J6C/J6D pin roles match across both boards"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 8 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "EPS_USB_INGRESS",
+      "ref": "U4",
+      "message": "CAD proves J1.1 -> TPS2121 IN1, USB VBUS -> exact 750mA/16V PTC -> IN2, TPS2121 OUT -> +5VSB, and exact D+/D- ESD coverage"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "LP5907_CAP_NETWORK",
+      "ref": "U3",
+      "message": "nominal input-node capacitance is 11.1 uF and output-node capacitance is 6.5 uF; the output is within the documented 10 uF application range and input nominal capacitance is not below output nominal capacitance"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "U1",
+      "message": "U3 is rated for 250 mA; the reviewed worst-case wireless-disabled load including 20% margin is 200.772 mA (19.7% remaining)"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "3 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "BUCK_OUTPUT_SETPOINT",
+      "ref": "U3",
+      "message": "CAD proves R39/R40 feedback divider; nominal output is 3.318 V on +3V3"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 5 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "ESP32_REVIEWED_REGULATOR_NETWORK",
+      "ref": "U1",
+      "message": "ESP32-S3-WROOM-1 is fed by the reviewed regulator topology with 20.3 uF nominal distributed capacitance on +3V3"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "HOLDUP_SOURCE_DROPOUT_ORDER",
+      "ref": "",
+      "message": "U8 watches final selected +5VSB ahead of D1 and asserts PWR_FAIL_INT; nominal trip 4.355 V, bounded 4.060..4.663 V, at least 60 mV ahead of the reviewed buck regulation floor"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "HOLDUP_SUDDEN_LOSS_BUDGET",
+      "ref": "",
+      "message": "C1 minimum 3760uF, 4.15V conservative reservoir start, 3.45V regulation floor, 85% conversion and 195.654mA load produce 13.17ms; the 10ms trigger-to-durable-commit budget retains 3.17ms"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "HUB_L2_RETIRED",
+      "ref": "L2",
+      "message": "obsolete L2 boost reservation is absent from the authoritative hierarchy"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "HUB_SOURCE_PRIORITY",
+      "ref": "",
+      "message": "CAD proves +5V_SYS > USB > KVM fixed priority with CP2 low on both TPS2121 stages"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "HUB_TPS2121_LOCAL_BYPASS",
+      "ref": "",
+      "message": "all six U11/U7 IN1, IN2, and OUT rails have explicit one-per-pin exact ceramic selections; placement distance is gated after regeneration"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "REGULATOR_CAP_NETWORK",
+      "ref": "U3",
+      "message": "TLV62569DBVR nominal input/output capacitor network is inside the reviewed datasheet range"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "",
+      "message": "reviewed worst-case rail load including 20% margin is 195.654 mA; conservative source capacity is 1760 mA (88.9% remaining)"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "6 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 8 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "INFO",
+      "code": "LP5907_CAP_NETWORK",
+      "ref": "U3",
+      "message": "nominal input-node capacitance is 11.1 uF and output-node capacitance is 6.5 uF; the output is within the documented 10 uF application range and input nominal capacitance is not below output nominal capacitance"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "U1",
+      "message": "U3 is rated for 250 mA; the reviewed worst-case wireless-disabled load including 20% margin is 202.752 mA (18.9% remaining)"
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "3 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "INFO",
+      "code": "DEVICE_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "schematic provides 11 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "INFO",
+      "code": "LP5907_CAP_NETWORK",
+      "ref": "U3",
+      "message": "nominal input-node capacitance is 11.1 uF and output-node capacitance is 6.8 uF; the output is within the documented 10 uF application range and input nominal capacitance is not below output nominal capacitance"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "INFO",
+      "code": "OVP_WINDOW",
+      "ref": "U4",
+      "message": "CAD proves R15=43200 ohm and R16=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "INFO",
+      "code": "REGULATOR_LOAD_MARGIN",
+      "ref": "U1",
+      "message": "U3 is rated for 250 mA; the reviewed worst-case wireless-disabled load including 20% margin is 204.840 mA (18.1% remaining)"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "severity": "INFO",
+      "code": "TPS2121_BYPASS_COVERAGE",
+      "ref": "",
+      "message": "3 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated"
+    }
+  ]
+}

@@ -142,6 +142,67 @@ class _Board:
 
 @unittest.skipUnless(HAVE, "needs pcbnew (run in the routing container)")
 class CoveredSkip(unittest.TestCase):
+    def test_known_out_of_range_input_is_named_placement_refusal(self):
+        """A router-excluded INA input may never disappear behind a distance filter."""
+        w = _Board()
+        far = _fp(w.b, "U99", "INA238")
+        _pad_smd(far, "10", w.hi, 30.0, 30.0, 0.8, 0.8)
+        _pad_smd(far, "9", w.lo, 30.0, 31.0, 0.8, 0.8)
+
+        report = cec_fr.synthesize_kelvin_taps(
+            w.b, kelvin_pairs=PAIR, max_ic_mm=9.0)
+
+        hi = report.get("refused", {}).get(HI) or []
+        lo = report.get("refused", {}).get(LO) or []
+        self.assertTrue(any("RS1->U99.10 OUT-OF-RANGE" in row
+                            for row in hi), report)
+        self.assertTrue(any("RS1->U99.9 OUT-OF-RANGE" in row
+                            for row in lo), report)
+        details = {row["target_pad"]: row
+                   for row in report["refused_details"]
+                   if row["target_ref"] == "U99"}
+        self.assertGreater(details["10"]["required_closer_mm"], 0.0)
+        self.assertGreater(details["9"]["required_closer_mm"], 0.0)
+
+    def test_pending_foreign_tap_crossing_is_detected_before_lay(self):
+        w = _Board()
+        pending = [
+            ([VECTOR2I(MM(10), MM(10)), VECTOR2I(MM(20), MM(10))],
+             w.hi.GetNetCode(), HI, "hi-leg", pcbnew.F_Cu)]
+        crossing = [VECTOR2I(MM(15), MM(5)), VECTOR2I(MM(15), MM(15))]
+        clear = [VECTOR2I(MM(15), MM(12)), VECTOR2I(MM(20), MM(12))]
+
+        self.assertIn("pending Kelvin leg", cec_fr._tap_pending_collider(
+            crossing, w.lo.GetNetCode(), pcbnew.F_Cu, pending,
+            MM(0.25), MM(0.20)))
+        self.assertIsNone(cec_fr._tap_pending_collider(
+            clear, w.lo.GetNetCode(), pcbnew.F_Cu, pending,
+            MM(0.25), MM(0.20)))
+        self.assertIsNone(cec_fr._tap_pending_collider(
+            crossing, w.hi.GetNetCode(), pcbnew.F_Cu, pending,
+            MM(0.25), MM(0.20)), "same-net overlap is coalesced later")
+
+    def test_future_power_reservation_blocks_only_foreign_current_net(self):
+        path = [VECTOR2I(MM(10), MM(10)),
+                VECTOR2I(MM(20), MM(10))]
+        reservation = {
+            "x0": 14.0, "y0": 9.5, "x1": 16.0, "y1": 10.5,
+            "layer": "F.Cu", "net": HI, "name": "future-hi",
+        }
+
+        foreign = cec_fr._tap_reservation_hits(
+            path, [reservation], net=LO, layer="F.Cu",
+            width_nm=MM(0.25), clearance_nm=MM(0.20))
+        own = cec_fr._tap_reservation_hits(
+            path, [reservation], net=HI, layer="F.Cu",
+            width_nm=MM(0.25), clearance_nm=MM(0.20))
+
+        self.assertEqual(len(foreign), 1)
+        self.assertEqual(foreign[0]["kind"],
+                         "future_power_reservation")
+        self.assertEqual(foreign[0]["net"], HI)
+        self.assertEqual(own, [], "same-net tap must merge into its pour")
+
     def test_covered_pair_skips_synthesis_entirely(self):
         """Authored (locked, pad-contacting) taps on both legs -> nothing laid, both
         legs reported covered -- the s464 double-lay class is dead."""
@@ -238,6 +299,16 @@ class CanonicalOrRefuse(unittest.TestCase):
         self.assertTrue(ref, "HI must be refused: %s" % rep)
         self.assertIn("CANONICAL-REFUSED", ref[0])
         self.assertIn("R99", ref[0], "the refusal must NAME the blocking item: %s" % ref)
+        details = [row for row in rep["refused_details"]
+                   if row.get("net") == HI]
+        self.assertEqual(len(details), 1, rep)
+        self.assertEqual(details[0]["reason"], ref[0])
+        self.assertEqual(details[0]["reason_kind"], "kelvin_path_blocked")
+        self.assertIn("R99", details[0]["blocker_refs"])
+        blocker = next(row for row in details[0]["blocker_details"]
+                       if row.get("ref") == "R99")
+        self.assertEqual(blocker["path_kind"], "canonical")
+        self.assertEqual(len(blocker["leg_start_mm"]), 2)
 
     def test_legacy_board_keeps_the_fallback_ladder(self):
         """Same blocked-canonical geometry WITHOUT locked copper (the eps golden

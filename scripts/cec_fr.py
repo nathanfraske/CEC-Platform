@@ -49,7 +49,7 @@ import urllib.request
 import json
 import fnmatch
 from dataclasses import dataclass, field
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 
 # ---------------------------------------------------------------------------
 # Suppress the benign pcbnew startup noise (assert "m_choices" / "No enum choices"
@@ -73,6 +73,208 @@ import cec_fab_profile as _fab                           # noqa: E402
 
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
+
+ENDPOINT_NECKDOWN_GROUP = "CEC_LOCAL_ENDPOINT_NECKDOWN"
+ENDPOINT_NECKDOWN_RULE_BEGIN = "# BEGIN CEC LOCAL ENDPOINT NECKDOWN"
+ENDPOINT_NECKDOWN_RULE_END = "# END CEC LOCAL ENDPOINT NECKDOWN"
+
+
+def group_endpoint_neckdowns(board, items, full_width):
+    """Own generated sub-class endpoint copper in one portable rule group.
+
+    Fine-pitch pads can be narrower than their netclass trunk.  The router may
+    taper only the bounded pad-local prefix; grouping those exact generated
+    tracks keeps the project netclass unchanged and makes the exception follow
+    the copper through board renames and candidate copies.
+    """
+    narrow = [
+        item for item in items
+        if item.GetClass() in ("PCB_TRACK", "PCB_ARC")
+        and item.GetWidth() < int(full_width)]
+    if not narrow:
+        return None
+    group = next((candidate for candidate in board.Groups()
+                  if candidate.GetName() == ENDPOINT_NECKDOWN_GROUP), None)
+    if group is None:
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(ENDPOINT_NECKDOWN_GROUP)
+        board.Add(group)
+    for item in narrow:
+        if not group.ContainsItem(item):
+            group.AddItem(item)
+    return {
+        "group": ENDPOINT_NECKDOWN_GROUP,
+        "tracks": len(narrow),
+        "min_width_mm": round(min(item.GetWidth() for item in narrow) / MM, 3),
+        "max_length_mm": round(max(item.GetLength() for item in narrow) / MM, 3),
+    }
+
+
+def _endpoint_neckdown_widths(report):
+    """Extract widths from either a stage summary or decoupler-cell report."""
+    widths = []
+    direct = (report or {}).get("endpoint_neckdown") or {}
+    if direct.get("group") == ENDPOINT_NECKDOWN_GROUP:
+        widths.append(float(direct["min_width_mm"]))
+    for row in (report or {}).get("cells", ()):
+        evidence = (row.get("supply") or {}).get("endpoint_neckdown") or {}
+        if evidence.get("group") == ENDPOINT_NECKDOWN_GROUP:
+            widths.append(float(evidence["min_width_mm"]))
+    return widths
+
+
+def ensure_endpoint_neckdown_rule(board_path, report):
+    """Install a width exception scoped to the generated endpoint group only."""
+    widths = _endpoint_neckdown_widths(report)
+    if not widths:
+        return {"applicable": False, "written": False}
+    minimum = min(widths)
+    stem = (board_path[:-len(".kicad_pcb")]
+            if board_path.endswith(".kicad_pcb") else board_path)
+    path = stem + ".kicad_dru"
+    text = ""
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    if not text.strip():
+        text = "(version 1)\n"
+    block = (
+        "\n%s\n"
+        "# Short, guarded neckdowns at fine-pitch endpoints only.\n"
+        "(rule \"CEC guarded local endpoint neckdown\"\n"
+        "  (condition \"A.Type == 'Track' && "
+        "A.memberOfGroup('%s')\")\n"
+        "  (constraint track_width (min %.3fmm)))\n"
+        "%s\n" % (ENDPOINT_NECKDOWN_RULE_BEGIN,
+                    ENDPOINT_NECKDOWN_GROUP, minimum,
+                    ENDPOINT_NECKDOWN_RULE_END))
+    start = text.find(ENDPOINT_NECKDOWN_RULE_BEGIN)
+    end = text.find(ENDPOINT_NECKDOWN_RULE_END)
+    if start >= 0 and end >= start:
+        end += len(ENDPOINT_NECKDOWN_RULE_END)
+        updated = text[:start] + block.strip("\n") + text[end:]
+    else:
+        updated = text.rstrip() + block
+    written = updated != text
+    if written:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(updated)
+    return {"applicable": True, "written": written, "path": path,
+            "group": ENDPOINT_NECKDOWN_GROUP,
+            "min_width_mm": round(minimum, 3)}
+
+
+def reconcile_endpoint_neckdown_groups(board, *, netclass_resolver):
+    """Recover bounded endpoint taper fragments lost during route transforms.
+
+    SES import, duplicate-UUID repair, and echo reconciliation can split or
+    replace one generated taper segment without carrying PCB_GROUP membership
+    to the replacement.  Recover only a short sub-class track that terminates
+    on a same-net fine-pitch SMD pad and whose other end joins either the
+    already-owned taper group or a full-width trunk.  This is a geometric
+    ownership reconstruction, not a net-name or coordinate waiver.
+    """
+    group = next((candidate for candidate in board.Groups()
+                  if candidate.GetName() == ENDPOINT_NECKDOWN_GROUP), None)
+    if group is None:
+        return {"schema": 1, "applicable": False, "recovered": 0,
+                "reason": "no_generated_endpoint_group"}
+    tracks = [item for item in board.GetTracks()
+              if item.GetClass() in ("PCB_TRACK", "PCB_ARC")]
+    endpoint_index = {}
+    for item in tracks:
+        for point in (item.GetStart(), item.GetEnd()):
+            endpoint_index.setdefault((point.x, point.y), []).append(item)
+    pads_by_net = {}
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            if pad.GetNetCode() > 0:
+                pads_by_net.setdefault(pad.GetNetCode(), []).append(pad)
+
+    def contract_width(item):
+        spec = (netclass_resolver(item.GetNetname() or "") or {})
+        value = float(spec.get("track_width") or 0.0)
+        by_layer = spec.get("track_width_by_layer_mm") or {}
+        value = max(value, float(by_layer.get(
+            board.GetLayerName(item.GetLayer())) or 0.0))
+        return _nm(value)
+
+    def fine_pad_at(item, point, full_width):
+        for pad in pads_by_net.get(item.GetNetCode(), ()):
+            try:
+                if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                    continue
+            except Exception:                            # noqa: BLE001
+                continue
+            if min(pad.GetSize().x, pad.GetSize().y) >= full_width:
+                continue
+            if not pad.IsOnLayer(item.GetLayer()):
+                continue
+            try:
+                if pad.GetEffectiveShape(item.GetLayer()).Contains(point):
+                    return True
+            except Exception:                            # noqa: BLE001
+                if pad.HitTest(point):
+                    return True
+        return False
+
+    recovered = []
+    changed = True
+    while changed:
+        changed = False
+        for item in tracks:
+            if group.ContainsItem(item):
+                continue
+            full_width = contract_width(item)
+            if full_width <= 0 or item.GetWidth() >= full_width:
+                continue
+            class_mm = full_width / MM
+            max_length = max(0.6, min(1.5, 1.5 * class_mm))
+            if item.GetLength() / MM > max_length + 1e-6:
+                continue
+            start, end = item.GetStart(), item.GetEnd()
+            support_ends = []
+            if fine_pad_at(item, start, full_width):
+                support_ends.append(end)
+            if fine_pad_at(item, end, full_width):
+                support_ends.append(start)
+            if not support_ends:
+                continue
+            # A short track can sit entirely inside an elongated pad.  Try
+            # both physical directions: choosing the first pad-contained end
+            # alone can look toward the pad centre and miss the owned taper
+            # that actually continues from the opposite end.
+            supported = False
+            for support_end in support_ends:
+                support = [other for other in endpoint_index.get(
+                    (support_end.x, support_end.y), ()) if other is not item
+                           and other.GetNetCode() == item.GetNetCode()]
+                if any(group.ContainsItem(other)
+                       or other.GetWidth() >= full_width for other in support):
+                    supported = True
+                    break
+            if not supported:
+                continue
+            group.AddItem(item)
+            recovered.append({
+                "uuid": item.m_Uuid.AsString(),
+                "net": item.GetNetname() or "",
+                "width_mm": round(item.GetWidth() / MM, 3),
+                "length_mm": round(item.GetLength() / MM, 3),
+            })
+            changed = True
+    widths = [item.GetWidth() / MM for item in tracks
+              if group.ContainsItem(item)]
+    return {"schema": 1, "applicable": True,
+            "group": ENDPOINT_NECKDOWN_GROUP,
+            "recovered": len(recovered), "items": recovered,
+            "tracks": len(widths),
+            "min_width_mm": round(min(widths), 3) if widths else None}
+
+# Per-process import diagnostics. route_once consumes and removes the entry
+# immediately after import_ses returns, so parallel spawn workers never share
+# mutable state and repeated routes cannot inherit a stale completion verdict.
+_IMPORT_REPORTS = {}
 
 # ---------------------------------------------------------------------------
 # SHUNT-GAP notch (owner-ratified 2026-06-28) -- the un-poured channel the high-current pours leave
@@ -114,6 +316,28 @@ def _pourfirst_state():
         print(f"[cec_fr] pour-first state UNREADABLE ({e}) -- {p!r} ignored, "
               "falling back to the live pour machinery", file=sys.stderr)
         return {}
+
+
+def _frozen_power_state_parts(state):
+    """Return ``(pours_to_lay, vias_to_lay, owned_nets)`` for a freeze.
+
+    Schema 2 carries an explicit physical ownership list.  An explicit empty
+    list is meaningful (the anchor planner deferred every rail), while legacy
+    states retain their historical report-key inference.  A pre-laid state
+    owns its nets and reservation but has no import-time geometry to add.
+    """
+    state = state or {}
+    stored_pours = list(state.get("pours") or ())
+    stored_vias = list(state.get("vias") or ())
+    if "frozen_nets" in state:
+        nets = set(state.get("frozen_nets") or ())
+    else:
+        nets = ({d.get("net") for d in stored_pours if d.get("net")}
+                | set((state.get("report") or {}).keys()))
+    if state.get("prelaid"):
+        return [], [], nets
+    return ([d for d in stored_pours if d.get("net") in nets],
+            [d for d in stored_vias if d.get("net") in nets], nets)
 
 
 def _shunt_gap_on():
@@ -242,7 +466,7 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
 # CEC_GOLDEN_SYNTH re-freeze) -- stock 1.7.0 and this fork produce IDENTICAL
 # golden metrics to the decimal (kelvin/unconn/drc/thermal; only elapsed_s
 # differs), logs build/golden-{stock-control,cec1-flip2}.log.
-FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec2")  # cec2 = cec1 + noecho/maxstall/progress (2026-07-14)
+FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0-cec3")  # cec3 = cec2 + DSN reader refill (2026-08-04)
 
 # Hash pins (sha256). The 2.2.4 jar digest matches the official GitHub release-asset
 # digest (verified 2026-06-10); 1.7.0 is the hash of the jar the banked baseline ran on.
@@ -279,6 +503,22 @@ FR_RELEASES = {
         "min_java": 17,
         "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec2.jar",
                         "build/fr-fork/freerouting-1.7.0-cec2.jar"),
+        "supports_seed": True,
+        "supports_noecho": True,
+        "supports_maxstall": True,
+        "supports_progress": True,
+    },
+    # cec3 (2026-08-04): cec2 plus a position-safe refill for the hand-written
+    # Specctra string reader. Upstream's generated DFA can grow its buffer, but
+    # next_string() bypassed that path and crashed at exactly 512 KiB on the
+    # fully guarded six-layer Hub DSN. The incremental patch is applied after
+    # cec2 by scripts/build-freerouting-cec3.sh. The hash below is reproduced
+    # with Ubuntu's OpenJDK 17.0.19 toolchain.
+    "1.7.0-cec3": {
+        "jar_sha256": "202136e7e73d5aa3e2a852bab186f71b67289a4068dee0804cb9c7b2efd8c7f7",
+        "min_java": 17,
+        "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec3.jar",
+                        "build/fr-fork/freerouting-1.7.0-cec3.jar"),
         "supports_seed": True,
         "supports_noecho": True,
         "supports_maxstall": True,
@@ -524,7 +764,37 @@ def plane_layers(board) -> list:
 
 PIPELINE_POUR_PREFIXES = (
     "slab:", "overunder:", "pourfirst:", "pourplan:", "patch:", "manifold:",
+    "orthofill:",
 )
+
+
+def _pipeline_power_pickup_nets(board, power_pours=()):
+    """Explicit rail-net scope for post-cleanup generated-pickup repair.
+
+    Dedicated routes can receive their pipeline pours in either of two ways:
+    as ``power_pours`` passed to :func:`import_ses`, or already materialized on
+    the source board.  The latter is the Hub flow.  Looking only at the import
+    argument silently reduced its cleanup scope to GND, leaving a POFV dangling
+    whenever the nowhere reaper removed that rail's last supporting island.
+
+    Pipeline zone names are the ownership marker already used by router
+    reservation and nowhere-zone cleanup.  Reuse that marker here; arbitrary
+    hand-authored signal zones and vias never enter the discovery scope.
+    """
+    nets = {str(p.get("net")) for p in (power_pours or ())
+            if p.get("net")}
+    for zone in board.Zones():
+        try:
+            if zone.GetIsRuleArea():
+                continue
+            name = str(zone.GetZoneName() or "")
+            net = str(zone.GetNetname() or "")
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if net and name.startswith(PIPELINE_POUR_PREFIXES):
+            nets.add(net)
+    nets.add("GND")
+    return nets
 
 
 def laid_pipeline_pour_keepouts(board_path):
@@ -589,7 +859,13 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
         text = handle.read()
     done = []
     for name in layer_names:
-        pat = re.compile(r"(\(layer\s+" + re.escape(name) + r"\s*\(\s*type\s+)signal(\s*\))")
+        # Specctra tokens may be bare or quoted.  More importantly, callers
+        # must pass the board-visible layer alias (for example ``PWR``), not
+        # KiCad's canonical ``In3.Cu`` name.  Matching both token forms keeps
+        # this primitive useful for aliases containing spaces as well.
+        token = r'(?:"' + re.escape(name) + r'"|' + re.escape(name) + r')'
+        pat = re.compile(r"(\(layer\s+" + token
+                         + r"\s*\(\s*type\s+)signal(\s*\))")
         text, n = pat.subn(r"\1power\2", text)
         if n:
             done.append(name)
@@ -921,10 +1197,32 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
 def _plateau_floor_disables(best_togo, floor):
     """Plateau-floor semantics (probe 2026-07-23): a flat streak whose best togo
     sits AT/UNDER the floor is FR's normal terminal grind / rip-up phase, not a
-    collapse -- the kill is disabled for the rest of the run so the board
-    finishes and grades (the killed togo-34 hub board re-routed to unconn 7 =
-    the best hub result ever). floor<=0 = feature off (historical behavior)."""
+    collapse.  This predicate identifies the recovery band; the caller grants a
+    bounded number of streak windows before re-arming the kill. floor<=0 =
+    feature off (historical behavior)."""
     return floor > 0 and best_togo <= floor
+
+
+def _plateau_floor_grants_grace(best_togo, floor, used, limit):
+    """Whether a low-togo plateau earns one more bounded streak window."""
+    return (_plateau_floor_disables(best_togo, floor)
+            and int(used) < max(0, int(limit)))
+
+
+def _plateau_at_terminal_pass(pass_no, requested_passes, streak_window=1):
+    """Return true only once the requested terminal pass is actually reached.
+
+    Older logic treated the final *streak window* as terminal.  Combined with a
+    low-togo recovery grace, that re-armed another flat window near the end and
+    let a proven plateau consume almost the complete pass budget.  The SES needs
+    protection only when Freerouting has reached the literal requested pass;
+    before then a bounded plateau kill still saves real work. ``streak_window``
+    remains accepted for API compatibility but no longer broadens the terminal
+    range.
+    """
+    del streak_window
+    return (pass_no is not None and
+            int(pass_no) >= int(requested_passes))
 
 
 def _kill_fr_tree(proc):
@@ -945,6 +1243,54 @@ def _kill_fr_tree(proc):
         proc.kill()
     except Exception:
         pass
+
+
+def _xvfb_display_authority(cmd):
+    """Return the isolated X display/auth pair carried by an xvfb-run command."""
+    args = list(cmd or ())
+    if not args or os.path.basename(str(args[0])) != "xvfb-run":
+        return None
+    try:
+        display = ":%d" % int(args[args.index("-n") + 1])
+        authority = str(args[args.index("-f") + 1])
+    except (ValueError, IndexError, TypeError):
+        return None
+    return display, authority
+
+
+def _fr_headless_exception_dialog(cmd):
+    """Detect FreeRouting's otherwise invisible fatal Swing exception dialog.
+
+    The legacy GUI exception handler can catch a worker exception, show a modal
+    ``Exception Occurred`` JOptionPane under Xvfb, and leave the JVM alive
+    forever.  From the caller that looks like a silent route until the full
+    timeout.  Query only the private X server named in this invocation; failure
+    to inspect it is non-fatal and falls back to the ordinary deadline.
+    """
+    display_auth = _xvfb_display_authority(cmd)
+    if display_auth is None or not shutil.which("xwininfo"):
+        return False
+    display, authority = display_auth
+    env = os.environ.copy()
+    env.update({"DISPLAY": display, "XAUTHORITY": authority})
+    try:
+        probe = subprocess.run(
+            ["xwininfo", "-root", "-tree"], env=env,
+            capture_output=True, text=True, timeout=2, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return '"Exception Occurred"' in (probe.stdout or "")
+
+
+def _raise_on_fr_headless_exception(proc, cmd, *, dsn_path, jar):
+    """Fail a candidate immediately when its hidden GUI reports a fatal error."""
+    if not _fr_headless_exception_dialog(cmd):
+        return
+    _kill_fr_tree(proc)
+    raise RuntimeError(
+        "cec_fr.run_freerouting: hidden Freerouting exception dialog "
+        "detected under Xvfb; candidate rejected immediately "
+        f"(dsn={dsn_path!r}, jar={jar!r})")
 
 
 class _RestUnavailable(Exception):
@@ -1209,16 +1555,22 @@ def run_freerouting(
         # kelvin TRUE in 145s -- the best hub board ever; FR's rip-up phases go
         # flat-then-recover, so a flat streak at LOW togo is the normal terminal
         # grind, not a collapse. With CEC_FR_PLATEAU_FLOOR=<n>, a plateau whose
-        # togo is <= n DISABLES the kill for the rest of the run (the board is
-        # nearly routed -- worth finishing + grading); above the floor the kill
-        # fires as before (the 24-pin's true collapses sit flat at 190-230 from
-        # early passes). Default 0 = floor off, exactly the historical behavior.
+        # togo <= n earns a bounded number of extra streak windows (the board is
+        # nearly routed -- worth a limited recovery attempt); after those windows
+        # the kill is armed again. Above the floor it fires as before (the 24-pin's
+        # true collapses sit flat at 190-230 from early passes). Default 0 = floor
+        # off, exactly the historical behavior.
         _pfloor = 0
         _pfe = os.environ.get("CEC_FR_PLATEAU_FLOOR", "")
         if _pfe.isdigit():
             _pfloor = int(_pfe)
         _best, _streak, _killed, _lines = None, 0, False, []
-        _pk_disabled = False
+        _graces_used = 0
+        try:
+            _grace_limit = max(0, int(os.environ.get(
+                "CEC_FR_PLATEAU_GRACES", "1")))
+        except ValueError:
+            _grace_limit = 1
         _t0 = time.monotonic()
         import select as _select
         def _next_line():
@@ -1233,6 +1585,8 @@ def run_freerouting(
                     return proc.stdout.readline()
                 if proc.poll() is not None:
                     return ""
+                _raise_on_fr_headless_exception(
+                    proc, cmd, dsn_path=dsn_path, jar=jar)
         try:
             while True:
                 _ln = _next_line()
@@ -1243,6 +1597,7 @@ def run_freerouting(
                     print("[fr] " + _ln.strip(), flush=True)
                     m_f = re.search(r"failed=(\d+)", _ln)
                     m_g = re.search(r"togo=(\d+)", _ln)
+                    m_p = re.search(r"pass=(\d+)", _ln)
                     if m_f and m_g:
                         # IMPROVEMENT = either counter dropping (wave-11 calibration,
                         # 2026-07-15: failed= is the stable hard-core retry set and
@@ -1255,20 +1610,43 @@ def run_freerouting(
                             _best = (_cur[0] if _best is None else min(_best[0], _cur[0]),
                                      _cur[1] if _best is None else min(_best[1], _cur[1]))
                             _streak = 0
-                        elif _f > 0 and not _pk_disabled:
+                        elif _f > 0:
                             _streak += 1
                             if _streak >= _k:
-                                if _plateau_floor_disables(_best[0], _pfloor):
-                                    _pk_disabled = True
+                                if _plateau_at_terminal_pass(
+                                        int(m_p.group(1)) if m_p else None,
+                                        passes, _k):
+                                    _streak = 0
+                                    print("[cec_fr] plateau reached the requested "
+                                          "terminal pass -- allowing SES "
+                                          "finalization (no route time remains to "
+                                          "save)", flush=True)
+                                elif _plateau_floor_grants_grace(
+                                        _best[0], _pfloor,
+                                        _graces_used, _grace_limit):
+                                    _graces_used += 1
+                                    _streak = 0
                                     print(f"[cec_fr] plateau at togo/failed={_best} is "
-                                          f"WITHIN the floor ({_pfloor}) -- terminal "
-                                          f"grind, kill disabled; running to completion",
+                                          f"WITHIN the floor ({_pfloor}) -- bounded "
+                                          f"recovery grace {_graces_used}/{_grace_limit}; "
+                                          f"kill remains armed",
                                           flush=True)
                                 else:
                                     _killed = True
                                     _kill_fr_tree(proc)
                                     break
             proc.wait(timeout=30)
+        except BaseException:
+            # KeyboardInterrupt/SystemExit must obey the same process-tree
+            # contract as a timeout.  Without this, stopping a coordinator
+            # reparented the xvfb wrapper and a CPU-hot Java router to PID 1.
+            if proc.poll() is None:
+                _kill_fr_tree(proc)
+                try:
+                    proc.wait(timeout=15)
+                except Exception:
+                    pass
+            raise
         finally:
             if _own_workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
@@ -1292,20 +1670,35 @@ def run_freerouting(
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, text=True,
                                     start_new_session=(os.name == "posix"), **_blk_kw)
-            try:
-                _out, _err = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired as exc:
+            _deadline = time.monotonic() + timeout
+            while True:
+                _remaining = _deadline - time.monotonic()
+                if _remaining <= 0:
+                    _kill_fr_tree(proc)
+                    try:
+                        proc.communicate(timeout=15)
+                    except Exception:
+                        pass
+                    raise RuntimeError(
+                        f"cec_fr.run_freerouting: timed out after {timeout}s "
+                        f"(dsn={dsn_path!r}, jar={jar!r})")
+                try:
+                    _out, _err = proc.communicate(
+                        timeout=min(10.0, _remaining))
+                    break
+                except subprocess.TimeoutExpired:
+                    _raise_on_fr_headless_exception(
+                        proc, cmd, dsn_path=dsn_path, jar=jar)
+            result = subprocess.CompletedProcess(cmd, proc.returncode,
+                                                 _out or "", _err or "")
+        except BaseException:
+            if "proc" in locals() and proc.poll() is None:
                 _kill_fr_tree(proc)
                 try:
                     proc.communicate(timeout=15)
                 except Exception:
                     pass
-                raise RuntimeError(
-                    f"cec_fr.run_freerouting: timed out after {timeout}s "
-                    f"(dsn={dsn_path!r}, jar={jar!r})"
-                ) from exc
-            result = subprocess.CompletedProcess(cmd, proc.returncode,
-                                                 _out or "", _err or "")
+            raise
         finally:
             if _own_workdir:
                 try:
@@ -1667,6 +2060,600 @@ def enforce_pour_termination(board, *, refill=True):
     return changed + len(doomed)
 
 
+def _non_manhattan_ring_edges(points, tol_mm=1e-6):
+    """Return diagonal boundary edges from a generated pour ring."""
+    pts = list(points or ())
+    if len(pts) < 2:
+        return []
+    if pts[0] != pts[-1]:
+        pts.append(pts[0])
+    return [(a, b) for a, b in zip(pts, pts[1:])
+            if abs(float(b[0]) - float(a[0])) > tol_mm
+            and abs(float(b[1]) - float(a[1])) > tol_mm]
+
+
+def _assert_manhattan_power_pours(pours):
+    """Sink-side invariant: additive power-zone outlines are rectilinear.
+
+    Enforcing this where every generated pour becomes KiCad copper prevents a
+    new producer from reintroducing a diagonal centerline and relying on a
+    later raster approximation. Such an approximation is not cosmetic: it can
+    change width, clearance, or via coverage.
+    """
+    bad = []
+    for pour in pours:
+        rings = [("outline", pour.get("polygon") or ())]
+        rings.extend(("hole", ring) for ring in (pour.get("holes") or ()))
+        for kind, ring in rings:
+            edges = _non_manhattan_ring_edges(ring)
+            if edges:
+                bad.append((pour.get("name") or pour.get("net") or "unnamed",
+                            pour.get("layer", "F.Cu"), kind, len(edges)))
+    if bad:
+        sample = ", ".join("%s@%s/%s:%d" % item for item in bad[:6])
+        raise ValueError("add_power_pours refused non-Manhattan geometry: %s"
+                         % sample)
+
+
+def _zone_outline_geometry(zone):
+    """Return a zone's authored outline as Shapely geometry.
+
+    Filled copper is deliberately not used here: the fill contains local pad
+    antipads and thermal details, while this cleanup is concerned with the
+    authored slab boundary that the router and dashboard reserve.
+    """
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    outline = zone.Outline()
+    parts = []
+    for oi in range(outline.OutlineCount()):
+        contour = outline.Outline(oi)
+        ext = [(contour.CPoint(k).x / MM, contour.CPoint(k).y / MM)
+               for k in range(contour.PointCount())]
+        holes = []
+        for hi in range(outline.HoleCount(oi)):
+            ring = outline.Hole(oi, hi)
+            holes.append([(ring.CPoint(k).x / MM, ring.CPoint(k).y / MM)
+                          for k in range(ring.PointCount())])
+        if len(ext) >= 3:
+            geom = Polygon(ext, holes).buffer(0)
+            if not geom.is_empty:
+                parts.append(geom)
+    return unary_union(parts) if parts else Polygon()
+
+
+def _orthogonal_fill_additions(geometry, *, forbidden=None, region=None,
+                               micro_step_mm=0.25,
+                               allow_corner_fills=False,
+                               max_corner_fraction=0.35,
+                               max_passes=24):
+    """Return safe additive rectangles that regularize an orthogonal union.
+
+    A routed corridor and its landing/manifold zones often meet as an L. The
+    path search must conservatively avoid a whole THT pad field, but a finished
+    zone does not: KiCad can make the exact local antipads around those pads.
+    Carrying the path-search envelope into the final outline therefore leaves
+    large, artificial rectangular bites, plus sub-grid edge steps where clipped
+    pieces almost align.
+
+    By default this helper fixes only sub-grid edge mismatches. Large reflex
+    corners are valuable placement/routing pockets in a pour-first flow and
+    are preserved even when they are electrically floodable. A caller may
+    explicitly opt into corner flooding; those proposals still have to stay
+    inside the board, miss hard reservations, remain connected, and stay below
+    the bounded area fraction. The helper never subtracts copper.
+    """
+    from shapely.geometry import box as _box
+
+    stats = {"micro_fills": 0, "corner_fills": 0, "added_mm2": 0.0}
+    if geometry is None or geometry.is_empty:
+        return [], stats
+    union = geometry.buffer(0)
+    forbidden = forbidden.buffer(0) if forbidden is not None else None
+    additions = []
+
+    def _parts(g):
+        return [p for p in getattr(g, "geoms", [g])
+                if p.geom_type == "Polygon" and not p.is_empty]
+
+    def _clean_ring(coords):
+        pts = [(float(x), float(y)) for x, y in list(coords)[:-1]]
+        changed = True
+        while changed and len(pts) >= 4:
+            changed = False
+            out = []
+            for i, cur in enumerate(pts):
+                prv = pts[i - 1]
+                nxt = pts[(i + 1) % len(pts)]
+                if ((abs(prv[0] - cur[0]) <= 1e-6 and
+                     abs(cur[0] - nxt[0]) <= 1e-6) or
+                    (abs(prv[1] - cur[1]) <= 1e-6 and
+                     abs(cur[1] - nxt[1]) <= 1e-6)):
+                    changed = True
+                    continue
+                out.append(cur)
+            pts = out
+        return pts
+
+    for _pass in range(max_passes):
+        candidates = []
+        for component in _parts(union):
+            pts = _clean_ring(component.exterior.coords)
+            for i, vertex in enumerate(pts):
+                prv = pts[i - 1]
+                nxt = pts[(i + 1) % len(pts)]
+                leg1_h = abs(prv[1] - vertex[1]) <= 1e-6
+                leg1_v = abs(prv[0] - vertex[0]) <= 1e-6
+                leg2_h = abs(nxt[1] - vertex[1]) <= 1e-6
+                leg2_v = abs(nxt[0] - vertex[0]) <= 1e-6
+                if not ((leg1_h and leg2_v) or (leg1_v and leg2_h)):
+                    continue
+                dx = abs(prv[0] - nxt[0])
+                dy = abs(prv[1] - nxt[1])
+                if dx <= 1e-6 or dy <= 1e-6:
+                    continue
+                proposal = _box(min(prv[0], vertex[0], nxt[0]),
+                                min(prv[1], vertex[1], nxt[1]),
+                                max(prv[0], vertex[0], nxt[0]),
+                                max(prv[1], vertex[1], nxt[1]))
+                addition = proposal.difference(union)
+                if addition.is_empty or addition.area <= 1e-6:
+                    continue                         # convex corner
+                # A local fill may be large (the three-pad connector corner
+                # measured 21% of its corridor), but it may not silently turn
+                # a U-shaped territory into a board-sized rectangle.
+                if addition.area > max_corner_fraction * component.area:
+                    continue
+                if region is not None and not region.buffer(1e-6).covers(addition):
+                    continue
+                if (forbidden is not None and not forbidden.is_empty and
+                        forbidden.intersection(addition).area > 1e-6):
+                    continue
+                merged = union.union(addition).buffer(0)
+                if len(_parts(merged)) != len(_parts(union)):
+                    continue
+                kind = ("micro_fills" if min(dx, dy) <= micro_step_mm + 1e-6
+                        else "corner_fills")
+                if kind == "corner_fills" and not allow_corner_fills:
+                    continue
+                # Resolve tiny edge mismatches first, then larger clear elbows.
+                candidates.append((0 if kind == "micro_fills" else 1,
+                                   addition.area, kind, addition, merged))
+        if not candidates:
+            break
+        _rank, area, kind, addition, union = min(
+            candidates, key=lambda item: (item[0], item[1]))
+        additions.extend(_parts(addition))
+        stats[kind] += 1
+        stats["added_mm2"] += area
+    stats["added_mm2"] = round(stats["added_mm2"], 3)
+    return additions, stats
+
+
+def _reconcile_patch_corridor_exterior(corridor, patch, *, protected=None,
+                                       contact_pads=(), forbidden=None,
+                                       region=None,
+                                       max_trim_mm=0.5,
+                                       max_add_fraction=0.35,
+                                       min_pad_contact_fraction=0.5,
+                                       min_pad_contact_mm=0.5):
+    """Align a rectangular terminal patch with the corridor run it extends.
+
+    A terminal landing commonly overlaps the end of an already verified wide
+    corridor.  If the landing extends past the corridor on one axis while its
+    *margin* ends a few tenths of a millimetre past the corridor on the other,
+    the authored union acquires the two-axis exterior staircase highlighted in
+    review.  This is not a routing bend and it is not the intentional inside
+    placement pocket: it is disagreement between two same-net producers.
+
+    For each exterior side, this helper projects the corridor's existing
+    boundary run through the landing and evaluates both compactly shaving the
+    landing back to that run and projecting the run through the landing. The
+    smallest safe simplification wins, so placement area is not consumed just
+    to make copper look regular. It fails closed if removed copper contains a protected
+    via/track, reduces a pad's solid corridor overlap below a bounded contact
+    throat, crosses a hard reservation or the board edge, or changes
+    component/hole topology. The pad itself remains copper; the pad guard is
+    about its zone-to-pad interface, not requiring the zone to duplicate the
+    entire land. The returned additions can be emitted as ordinary
+    ``orthofill:`` zones; the returned patch geometry replaces only the
+    rectangular ``patch:`` outline.
+    """
+    from shapely.geometry import LineString, box as _box
+
+    stats = {"reconciled": 0, "added_mm2": 0.0, "trimmed_mm2": 0.0}
+    if (corridor is None or corridor.is_empty or patch is None or
+            patch.is_empty or getattr(patch, "geom_type", "") != "Polygon" or
+            patch.interiors):
+        return patch, [], stats
+    pbox = _box(*patch.bounds)
+    if patch.symmetric_difference(pbox).area > 1e-6:
+        return patch, [], stats
+
+    protected = protected.buffer(0) if protected is not None else None
+    forbidden = forbidden.buffer(0) if forbidden is not None else None
+    original = corridor.union(patch).buffer(0)
+
+    def _parts(g):
+        return [p for p in getattr(g, "geoms", [g])
+                if p.geom_type == "Polygon" and not p.is_empty]
+
+    def _vertices(g):
+        total = 0
+        for part in _parts(g):
+            pts = list(part.exterior.coords)[:-1]
+            changed = True
+            while changed and len(pts) >= 4:
+                changed = False
+                clean = []
+                for i, cur in enumerate(pts):
+                    prv, nxt = pts[i - 1], pts[(i + 1) % len(pts)]
+                    if ((abs(prv[0] - cur[0]) <= 1e-6 and
+                         abs(cur[0] - nxt[0]) <= 1e-6) or
+                        (abs(prv[1] - cur[1]) <= 1e-6 and
+                         abs(cur[1] - nxt[1]) <= 1e-6)):
+                        changed = True
+                        continue
+                    clean.append(cur)
+                pts = clean
+            total += len(pts)
+        return total
+
+    def _intervals(cut, vertical):
+        out = []
+        for seg in getattr(cut, "geoms", [cut]):
+            if seg.is_empty or seg.geom_type not in ("LineString", "LinearRing"):
+                continue
+            b = seg.bounds
+            lo, hi = ((b[1], b[3]) if vertical else (b[0], b[2]))
+            if hi - lo > 1e-6:
+                out.append((lo, hi))
+        return out
+
+    px0, py0, px1, py1 = patch.bounds
+    span = max(corridor.bounds[2] - corridor.bounds[0],
+               corridor.bounds[3] - corridor.bounds[1],
+               px1 - px0, py1 - py0, 1.0)
+    limit = max(abs(v) for v in corridor.bounds + patch.bounds) + span + 10.0
+    proposals = []
+
+    def _consider(component, side):
+        cx0, cy0, cx1, cy1 = component.bounds
+        probe = max(1e-5, min(1e-3, span * 1e-5))
+        if side in ("right", "left"):
+            edge = cx1 if side == "right" else cx0
+            protrusion = (px1 - edge if side == "right" else edge - px0)
+            overlap_primary = (px0 < edge - 1e-6 if side == "right"
+                               else px1 > edge + 1e-6)
+            if protrusion <= 1e-6 or not overlap_primary:
+                return
+            xprobe = edge - probe if side == "right" else edge + probe
+            cut = component.intersection(
+                LineString([(xprobe, -limit), (xprobe, limit)]))
+            runs = _intervals(cut, True)
+            for run0, run1 in runs:
+                if min(run1, py1) - max(run0, py0) <= 1e-6:
+                    continue
+                low_excess = max(0.0, run0 - py0)
+                high_excess = max(0.0, py1 - run1)
+                if max(low_excess, high_excess) > max_trim_mm + 1e-6:
+                    continue
+                clipped = patch.intersection(_box(-limit, run0, limit, run1))
+                xlo, xhi = ((edge, px1) if side == "right" else (px0, edge))
+                extension = _box(xlo, run0, xhi, run1).difference(corridor)
+                _score_candidate(clipped, extension)
+                compact_x0, compact_x1 = ((-limit, edge)
+                                          if side == "right"
+                                          else (edge, limit))
+                compact = patch.intersection(
+                    _box(compact_x0, run0, compact_x1, run1))
+                _score_candidate(compact, patch.difference(patch))
+        else:
+            edge = cy1 if side == "bottom" else cy0
+            protrusion = (py1 - edge if side == "bottom" else edge - py0)
+            overlap_primary = (py0 < edge - 1e-6 if side == "bottom"
+                               else py1 > edge + 1e-6)
+            if protrusion <= 1e-6 or not overlap_primary:
+                return
+            yprobe = edge - probe if side == "bottom" else edge + probe
+            cut = component.intersection(
+                LineString([(-limit, yprobe), (limit, yprobe)]))
+            runs = _intervals(cut, False)
+            for run0, run1 in runs:
+                if min(run1, px1) - max(run0, px0) <= 1e-6:
+                    continue
+                low_excess = max(0.0, run0 - px0)
+                high_excess = max(0.0, px1 - run1)
+                if max(low_excess, high_excess) > max_trim_mm + 1e-6:
+                    continue
+                clipped = patch.intersection(_box(run0, -limit, run1, limit))
+                ylo, yhi = ((edge, py1) if side == "bottom" else (py0, edge))
+                extension = _box(run0, ylo, run1, yhi).difference(corridor)
+                _score_candidate(clipped, extension)
+                compact_y0, compact_y1 = ((-limit, edge)
+                                          if side == "bottom"
+                                          else (edge, limit))
+                compact = patch.intersection(
+                    _box(run0, compact_y0, run1, compact_y1))
+                _score_candidate(compact, patch.difference(patch))
+
+    def _score_candidate(clipped, extension):
+        if (clipped.is_empty or
+                getattr(clipped, "geom_type", "") != "Polygon"):
+            return
+        extension_area = 0.0 if extension.is_empty else extension.area
+        if extension_area > max_add_fraction * max(corridor.area, 1e-6):
+            return
+        if (extension_area > 1e-6 and region is not None and
+                not region.buffer(1e-6).covers(extension)):
+            return
+        if (extension_area > 1e-6 and forbidden is not None and
+                not forbidden.is_empty and
+                forbidden.intersection(extension).area > 1e-6):
+            return
+        candidate = corridor.union(clipped).union(extension).buffer(0)
+        removed = original.difference(candidate)
+        if (protected is not None and not protected.is_empty and
+                protected.intersection(removed).area > 1e-6):
+            return
+        for pad in contact_pads:
+            old_contact = original.intersection(pad)
+            if (old_contact.is_empty or old_contact.area <= 1e-6 or
+                    removed.intersection(pad).area <= 1e-6):
+                continue
+            new_contact = candidate.intersection(pad)
+            if (new_contact.is_empty or
+                    new_contact.area <
+                    min_pad_contact_fraction * old_contact.area - 1e-6):
+                return
+            contact_parts = _parts(new_contact)
+            if len(contact_parts) != 1:
+                return
+            bx0, by0, bx1, by1 = contact_parts[0].bounds
+            if min(bx1 - bx0, by1 - by0) < min_pad_contact_mm - 1e-6:
+                return
+        if (len(_parts(candidate)) != len(_parts(original)) or
+                sum(len(p.interiors) for p in _parts(candidate)) !=
+                sum(len(p.interiors) for p in _parts(original))):
+            return
+        improvement = _vertices(original) - _vertices(candidate)
+        if improvement < 2:
+            return
+        proposals.append((-improvement,
+                          extension_area + removed.area,
+                          clipped, extension, removed, candidate))
+
+    # The helper is deliberately local: every corridor component is examined,
+    # but only the single best simplification of this one patch is returned.
+    for component in _parts(corridor):
+        for side in ("right", "left", "bottom", "top"):
+            _consider(component, side)
+    if not proposals:
+        return patch, [], stats
+    _rank, _changed, clipped, extension, removed, _candidate = min(proposals)
+    additions = _parts(extension)
+    stats.update({"reconciled": 1,
+                  "added_mm2": round(sum(g.area for g in additions), 3),
+                  "trimmed_mm2": round(removed.area, 3)})
+    return clipped, additions, stats
+
+
+def _replace_zone_outline(zone, geometry):
+    """Replace one KiCad zone outline in-place with verified Shapely geometry."""
+    parts = [p for p in getattr(geometry, "geoms", [geometry])
+             if p.geom_type == "Polygon" and not p.is_empty]
+    if len(parts) != 1:
+        return False
+    outline = zone.Outline()
+    outline.RemoveAllContours()
+    part = parts[0]
+    oi = outline.NewOutline()
+    for x, y in list(part.exterior.coords)[:-1]:
+        outline.Append(_nm(x), _nm(y))
+    for ring in part.interiors:
+        hi = outline.NewHole(oi)
+        for x, y in list(ring.coords)[:-1]:
+            outline.Append(_nm(x), _nm(y), oi, hi)
+    zone.UnFill()
+    return True
+
+
+def regularize_power_pour_boundaries(board, zones=None, *, fill=False):
+    """Add bounded ``orthofill:`` zones to clean final pipeline-pour unions.
+
+    This is intentionally an artifact/sink check, after shunt clipping. It can
+    therefore repairs neither a proxy centerline nor a pre-clip polygon: it
+    sees the exact zone outlines consumed by KiCad and the dashboard. The
+    default policy is placement-preserving: flatten shallow edge mismatches,
+    but retain every larger hook/pocket. Foreign routed copper, foreign non-GND
+    pours, rule areas, and shunt gaps are hard blockers in either mode.
+    """
+    try:
+        from shapely.geometry import LineString, Point, box as _box
+        from shapely.ops import unary_union
+    except ImportError:
+        return {"groups": 0, "zones_added": 0, "micro_fills": 0,
+                "corner_fills": 0, "exterior_reconciliations": 0,
+                "added_mm2": 0.0, "trimmed_mm2": 0.0}
+
+    selected = [z for z in (list(zones) if zones is not None else list(board.Zones()))
+                if not z.GetIsRuleArea() and z.GetNetname() != "GND" and
+                (zones is not None or
+                 (z.GetZoneName() or "").startswith(PIPELINE_POUR_PREFIXES))]
+    groups = {}
+    for zone in selected:
+        for lid in zone.GetLayerSet().CuStack():
+            groups.setdefault((zone.GetNetname(), int(lid)), []).append(zone)
+    if not groups:
+        return {"groups": 0, "zones_added": 0, "micro_fills": 0,
+                "corner_fills": 0, "exterior_reconciliations": 0,
+                "added_mm2": 0.0, "trimmed_mm2": 0.0}
+
+    bb = board.GetBoardEdgesBoundingBox()
+    region = _box(bb.GetLeft() / MM, bb.GetTop() / MM,
+                  bb.GetRight() / MM, bb.GetBottom() / MM)
+    gaps = shunt_pour_forbidden(board)
+    made = []
+    edited = 0
+    total = {"groups": 0, "zones_added": 0, "micro_fills": 0,
+             "corner_fills": 0, "exterior_reconciliations": 0,
+             "added_mm2": 0.0, "trimmed_mm2": 0.0}
+
+    for (net, lid), seed_zones in sorted(groups.items()):
+        layer = pcbnew.LayerName(lid)
+        # ``zones`` scopes the nets/layers to regularize, not the geometry.
+        # Same-net copper already on the board participates in the physical
+        # union and must therefore participate in the boundary decision too.
+        own_zones = [z for z in board.Zones()
+                     if not z.GetIsRuleArea() and z.GetNetname() == net and
+                     z.IsOnLayer(lid)]
+        if not own_zones:
+            own_zones = seed_zones
+        blockers = []
+        protected_parts = []
+        contact_pads = []
+        for glayers, rect, _ref, gap_net in gaps:
+            if layer in glayers and (gap_net is None or gap_net == net):
+                blockers.append(_box(*rect))
+        # A pad may project past the zone boundary because the pad itself is
+        # copper. Its bounding box supplies a conservative contact-throat
+        # proof; vias and tracks below remain strict no-trim geometry.
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if pad.GetNetname() != net or not pad.IsOnLayer(lid):
+                    continue
+                bbp = pad.GetBoundingBox()
+                contact_pads.append(_box(
+                    bbp.GetLeft() / MM, bbp.GetTop() / MM,
+                    bbp.GetRight() / MM, bbp.GetBottom() / MM))
+        # Non-GND foreign zones are authored power/reservation territories.
+        # The GND plane is excluded: it is expected to yield locally to every
+        # higher-priority power pour.
+        for other in board.Zones():
+            if other in own_zones or other.GetNetname() in ("", "GND", net):
+                continue
+            if other.IsOnLayer(lid):
+                blockers.append(_zone_outline_geometry(other))
+        # Existing foreign routes are hard reservations. Unlike pads, KiCad
+        # cannot turn a route-long crossing into a harmless local antipad.
+        for track in board.GetTracks():
+            if track.GetNetname() == "" or not track.IsOnLayer(lid):
+                continue
+            # PCB_VIA::GetWidth() without a layer is an asserted API misuse in
+            # KiCad 10; its per-layer diameter is the relevant reservation.
+            width = (track.GetWidth(lid) if track.Type() == pcbnew.PCB_VIA_T
+                     else track.GetWidth())
+            own_track = track.GetNetname() == net
+            radius = max(0.01, width / MM / 2.0 +
+                         (0.0 if own_track else 0.3))
+            try:
+                start, end = track.GetStart(), track.GetEnd()
+                geom = LineString([(start.x / MM, start.y / MM),
+                                   (end.x / MM, end.y / MM)]).buffer(
+                                       radius, cap_style=1, join_style=1)
+            except Exception:                            # noqa: BLE001
+                pos = track.GetPosition()
+                geom = Point(pos.x / MM, pos.y / MM).buffer(radius)
+            (protected_parts if own_track else blockers).append(geom)
+        for area in board.Zones():
+            if area.GetIsRuleArea() and area.IsOnLayer(lid):
+                blockers.append(_zone_outline_geometry(area))
+        forbidden = unary_union([g for g in blockers if not g.is_empty]) \
+            if blockers else None
+        protected = unary_union(
+            [g for g in protected_parts if not g.is_empty]) \
+            if protected_parts else None
+
+        # Reconcile producer boundaries before the generic micro-band pass.
+        # ``orthofill:`` belongs to the corridor on repeat calls, making this
+        # transformation idempotent. Manifolds remain independent because
+        # their envelope may intentionally reserve a connector insertion area.
+        corridor_zones = [z for z in own_zones
+                          if (z.GetZoneName() or "").startswith(
+                              ("pourplan:", "orthofill:"))]
+        patch_zones = [z for z in own_zones
+                       if (z.GetZoneName() or "").startswith("patch:")]
+        corridor = unary_union(
+            [_zone_outline_geometry(z) for z in corridor_zones]).buffer(0) \
+            if corridor_zones else None
+        reconcile_additions = []
+        reconciled_here = 0
+        if corridor is not None and not corridor.is_empty:
+            for patch_zone in patch_zones:
+                patch_geom = _zone_outline_geometry(patch_zone)
+                new_patch, new_additions, rstats = \
+                    _reconcile_patch_corridor_exterior(
+                        corridor, patch_geom, protected=protected,
+                        contact_pads=contact_pads,
+                        forbidden=forbidden, region=region)
+                if not rstats["reconciled"]:
+                    continue
+                if not _replace_zone_outline(patch_zone, new_patch):
+                    continue
+                edited += 1
+                reconciled_here += rstats["reconciled"]
+                total["exterior_reconciliations"] += rstats["reconciled"]
+                total["trimmed_mm2"] += rstats["trimmed_mm2"]
+                total["added_mm2"] += rstats["added_mm2"]
+                reconcile_additions.extend(new_additions)
+                corridor = corridor.union(unary_union(new_additions)).buffer(0)
+
+        own = unary_union(
+            [_zone_outline_geometry(z) for z in own_zones] +
+            reconcile_additions).buffer(0)
+        micro_additions, stats = _orthogonal_fill_additions(
+            own, forbidden=forbidden, region=region)
+        additions = reconcile_additions + micro_additions
+        if not additions and not reconciled_here:
+            continue
+        total["groups"] += 1
+        total["micro_fills"] += stats["micro_fills"]
+        total["corner_fills"] += stats["corner_fills"]
+        total["added_mm2"] += stats["added_mm2"]
+        priority = max(int(z.GetAssignedPriority()) for z in own_zones) + 1
+        existing_indices = sum(
+            (z.GetZoneName() or "").startswith("orthofill:")
+            for z in own_zones)
+        for index, geom in enumerate(additions, existing_indices + 1):
+            z = pcbnew.ZONE(board)
+            ls = pcbnew.LSET()
+            ls.AddLayer(lid)
+            z.SetLayerSet(ls)
+            z.SetNetCode(board.GetNetcodeFromNetname(net))
+            z.SetAssignedPriority(priority + index - 1)
+            z.SetMinThickness(_nm(0.25))
+            z.SetIslandRemovalMode(0)
+            z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+            z.SetZoneName("orthofill:%s:%s:%d" % (net, layer, index))
+            outline = z.Outline()
+            oi = outline.NewOutline()
+            for x, y in list(geom.exterior.coords)[:-1]:
+                outline.Append(_nm(x), _nm(y))
+            for ring in geom.interiors:
+                hi = outline.NewHole(oi)
+                for x, y in list(ring.coords)[:-1]:
+                    outline.Append(_nm(x), _nm(y), oi, hi)
+            board.Add(z)
+            made.append(z)
+            total["zones_added"] += 1
+    total["added_mm2"] = round(total["added_mm2"], 3)
+    total["trimmed_mm2"] = round(total["trimmed_mm2"], 3)
+    if fill and (made or edited):
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    if made or edited:
+        print("[cec_fr] orthogonal pour cleanup: %d zone(s), "
+              "%d micro + %d corner + %d exterior reconcile(s), "
+              "%.3f mm2 added / %.3f mm2 empty margin trimmed" %
+              (total["zones_added"], total["micro_fills"],
+               total["corner_fills"], total["exterior_reconciliations"],
+               total["added_mm2"], total["trimmed_mm2"]),
+              file=sys.stderr, flush=True)
+    return total
+
+
 def add_power_pours(board, pours, *, fill: bool = False):
     """Lay additive same-net copper pours on an ALREADY-ROUTED board.
 
@@ -1697,6 +2684,9 @@ def add_power_pours(board, pours, *, fill: bool = False):
     list of added ZONE objects. If *fill* is True, all zones are re-filled here
     (UnFill first -- re-filling in one process can segfault this KiCad-10 SWIG build).
     """
+    pours = list(pours)
+    _assert_manhattan_power_pours(pours)
+
     # SHUNT-ONLY TOP -- ENFORCED AT THE CHOKE POINT (owner rule 2026-07-24;
     # third traced bypass: materialize landing patches, the import list, AND
     # the router's pass-2 re-derivation each lay pours independently, so a
@@ -1709,6 +2699,11 @@ def add_power_pours(board, pours, *, fill: bool = False):
         _f_nbs = _cslb3.shunt_neighborhoods(board)
     except Exception:                                  # noqa: BLE001
         _f_nbs = []
+    try:
+        _f_power_transit = _fab.copper_layer_allows_power(
+            board, "F.Cu")
+    except Exception:                                  # noqa: BLE001
+        _f_power_transit = False
     # POUR TERMINATION AT THE SHUNT PAD (owner ruling 2026-07-24, implemented
     # 2026-07-25). The ruling was recorded in docs/slab-pour-design-2026-07-24.md
     # and never written: commit 1f803c0f added nine lines of prose and no code, so
@@ -1724,6 +2719,12 @@ def add_power_pours(board, pours, *, fill: bool = False):
         _gaps = []
     _clipped = 0
     added = []
+    # KiCad reports equal-priority intersecting zone outlines even when both
+    # zones are on the same net. Preserve every named/provenance zone, but give
+    # successive pieces of one net/layer deterministic priorities. Electrical
+    # behavior is unchanged (same-net copper unions); names remain available
+    # to the reapers and audit views.
+    _same_net_layer_priorities = {}
     for p in pours:
         net = p["net"]
         # v3.1 CONNECTOR MANIFOLDS are the ONE named admit through the
@@ -1732,7 +2733,8 @@ def add_power_pours(board, pours, *, fill: bool = False):
         # manifold is the connector's OWN pin field + margin, pad-anchored
         # by construction, not signal-fabric decoration).
         _is_manifold = str(p.get("name") or "").startswith("manifold:")
-        if p.get("layer", "F.Cu") == "F.Cu" and _f_nbs and not _is_manifold:
+        if (p.get("layer", "F.Cu") == "F.Cu" and _f_nbs
+                and not _is_manifold and not _f_power_transit):
             _xs = [q[0] for q in p.get("polygon") or ()]
             _ys = [q[1] for q in p.get("polygon") or ()]
             if _xs and not any(
@@ -1754,7 +2756,13 @@ def add_power_pours(board, pours, *, fill: bool = False):
         ls.AddLayer(lid)
         z.SetLayerSet(ls)
         z.SetNetCode(nc)
-        z.SetAssignedPriority(int(p.get("priority", 2)))
+        _priority_key = (net, p.get("layer", "F.Cu"))
+        _used = _same_net_layer_priorities.setdefault(_priority_key, set())
+        _assigned_priority = int(p.get("priority", 2))
+        while _assigned_priority in _used:
+            _assigned_priority += 1
+        _used.add(_assigned_priority)
+        z.SetAssignedPriority(_assigned_priority)
         z.SetMinThickness(_nm(p.get("min_thickness", 0.25)))
         z.SetIslandRemovalMode(int(p.get("island_removal", 0)))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
@@ -1803,11 +2811,55 @@ def add_power_pours(board, pours, *, fill: bool = False):
         print(f"[cec_fr] pour termination: {_clipped} pour outline(s) clipped out of "
               f"{len(_gaps)} shunt tap gap(s) -- the gap belongs to the taps",
               file=sys.stderr)
+    # Final-boundary authority: clipping and same-net zone union can create
+    # shallow steps or retain the path search's board-sized THT avoidance
+    # envelope. Regularize the exact emitted union, not its centerline proxy.
+    if added:
+        regularize_power_pour_boundaries(board, added, fill=False)
     if fill and added:
         for z in board.Zones():
             z.UnFill()
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     return added
+
+
+def replace_generated_power_pours(board, pours, *, managed_nets=None,
+                                  fill=False):
+    """Replace the complete generated pour set for selected force nets.
+
+    ``add_power_pours`` intentionally remains additive for landing patches and
+    authored supplemental copper.  A final cable-corridor lay is different: it
+    is the authority for the whole ``*_HI``/``*_LO`` zone set, so retaining an
+    older placement's zones creates doubled or displaced slabs.  This bounded
+    helper removes zones only on the explicitly managed nets and then routes
+    every replacement through :func:`add_power_pours`, preserving its solid-pad
+    and shunt-gap choke-point rules.
+    """
+    pours = [dict(pour) for pour in (pours or ())]
+    targets = ({str(net) for net in managed_nets if str(net)}
+               if managed_nets is not None else
+               {str(pour.get("net")) for pour in pours
+                if str(pour.get("net") or "").endswith(("_HI", "_LO"))})
+    doomed = [zone for zone in list(board.Zones())
+              if zone.GetNetname() in targets]
+    for zone in doomed:
+        board.Remove(zone)
+    # Replacement is deliberately closed over ``targets``.  Route import can
+    # carry supplemental GND/logic-rail zones in the same list; re-adding those
+    # here on every force-pour refresh would merely move the duplication bug to
+    # a different net family.  Callers add non-managed supplemental pours once
+    # through the ordinary additive path.
+    replacements = [pour for pour in pours if pour.get("net") in targets]
+    added = add_power_pours(board, replacements, fill=False)
+    if fill and (doomed or added):
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    return {
+        "managed_nets": sorted(targets),
+        "removed": len(doomed),
+        "added": len(added),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1953,20 +3005,21 @@ def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
             has_tht = any(it[3] for it in entries)
             if not has_tht:
                 continue                          # not a cable high-current net -> skip
-            tht_pts, shunt_pts = [], []
+            tht_entries, shunt_pts = [], []
             for ref, px, py, is_tht in entries:
                 if ref in shunt_refs:
                     shunt_pts.append((px, py))
                 elif is_tht:
-                    tht_pts.append((px, py))
-            if not (tht_pts or shunt_pts):
+                    tht_entries.append((ref, px, py))
+            if not (tht_entries or shunt_pts):
                 continue
             # PER-CLUSTER FAN-IN (escalated review 2026-07-08): the ATX-24's interleaved
             # pinout puts one rail's pins in 2-3 groups across the header; one bbox over all
             # of them spanned the board and overlapped the neighbor rails' pours on the same
             # layer (mass unconnected + foreign-on-pour). One sub-pour per pin x-cluster,
             # each converging on the shunt, keeps the copper a fan instead of a blanket.
-            clusters = _x_clusters(tht_pts) or [[]]
+            clusters = _terminal_aware_x_clusters(
+                tht_entries, padcount) or [[]]
             _lanes_on = os.environ.get("CEC_POUR_LANES", "0") == "1"
             for cluster in clusters:
                 if _lanes_on and cluster:
@@ -2089,6 +3142,37 @@ def _x_clusters(pts, gap_mm=8.0):
     return out
 
 
+def _terminal_aware_x_clusters(entries, padcount, gap_mm=8.0):
+    """Cluster PTH points without splitting one monolithic power terminal.
+
+    ``entries`` are ``(ref, x, y)``.  When every physical pad of a footprint
+    belongs to this one net, the footprint is one metal conductor and its pads
+    form an indivisible seed even when their pitch exceeds the ordinary
+    connector-pin gap.  Mixed-net headers retain the historical pointwise
+    clustering, so an interleaved ATX rail cannot become a board-wide blanket.
+    """
+    by_ref = {}
+    for ref, x, y in entries:
+        by_ref.setdefault(ref, []).append((x, y))
+    seeds = []
+    for ref, points in by_ref.items():
+        if int(padcount.get(ref, 0)) == len(points):
+            seeds.append(list(points))
+        else:
+            seeds.extend([[point] for point in points])
+    seeds.sort(key=lambda group: (min(point[0] for point in group),
+                                  max(point[0] for point in group)))
+    clusters = []
+    for group in seeds:
+        if (not clusters or
+                min(point[0] for point in group) -
+                max(point[0] for point in clusters[-1]) > gap_mm):
+            clusters.append(list(group))
+        else:
+            clusters[-1].extend(group)
+    return [sorted(cluster) for cluster in clusters]
+
+
 def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None,
                       layers=("F.Cu", "B.Cu")):
     """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
@@ -2165,8 +3249,14 @@ def _force_corridor_hints(board, board_path, *, kelvin_pairs=None, nets_12v=None
     hints = []
     for net in sorted(force_nets):
         entries = pads_by_net.get(net, [])
-        tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
-               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+        tht_entries = []
+        for fp in board.GetFootprints():
+            ref = fp.GetReference()
+            for pad in fp.Pads():
+                if (pad.GetNetname() == net and
+                        pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH):
+                    pos = pad.GetPosition()
+                    tht_entries.append((ref, pos.x / MM, pos.y / MM))
         # the 2-pad shunt footprint straddling this net. STRADDLE-FIRST (escalated review
         # 2026-07-08): the shunt is the 2-pad footprint whose pads sit on BOTH members of
         # the net's kelvin pair (prefer RS*) -- the old any-2-pad-on-the-net rule grabbed a
@@ -2201,7 +3291,7 @@ def _force_corridor_hints(board, board_path, *, kelvin_pairs=None, nets_12v=None
                      for p in fp.Pads() if p.GetNetname() == net]
             shunt_centre_y = fp.GetPosition().y / MM
             shunt_flipped = fp.IsFlipped()
-        if not tht or not shunt:
+        if not tht_entries or not shunt:
             continue                                         # not a cable-connector high-current net
         # PER-PAIR LAYER (dual-sided): a flipped chain's pour lives on B.Cu -- reserve THAT,
         # never F.Cu-only (the oracle's F-only lever was inverted for back chains). INNER-POUR
@@ -2218,7 +3308,8 @@ def _force_corridor_hints(board, board_path, *, kelvin_pairs=None, nets_12v=None
         # PER-CLUSTER FAN-IN (escalated review 2026-07-08): one box per connector pin
         # x-cluster, each converging on the shunt column -- never one bbox over an
         # interleaved rail's whole pin spread (the 5V box spanned the board).
-        for ci, cluster in enumerate(_x_clusters(tht)):
+        for ci, cluster in enumerate(_terminal_aware_x_clusters(
+                tht_entries, npads)):
             txs = [x for x, _ in cluster]
             tys = [y for _, y in cluster]
             tcy = sum(tys) / len(tys)
@@ -2254,15 +3345,63 @@ def _fp_bbox_no_text(fp):
             return fp.GetBoundingBox()
 
 
-def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_refs=("J", "H"),
-                 layers=None):
+def fiducial_keepouts(board_path, *, board=None, margin=0.0):
+    """Return route/fill keepouts for global assembly fiducials.
+
+    Freerouting imports an unconnected fiducial pad as ordinary no-net copper,
+    but it does not preserve the pad's larger local-clearance override.  It can
+    therefore leave a route that is legal to its global class rules yet fails
+    KiCad DRC against the fiducial (the Hub FID1/EN 0.5023 mm vs 0.6000 mm
+    failure).  Use the footprint's real no-text bounding box, which includes
+    its courtyard/optical working field, as a rule area on the fiducial's own
+    outer layer.  Inner and opposite-side routing remains available.
+
+    These are assembly constraints, so vias and zone fills are blocked along
+    with tracks.  The helper is self-gating and works for both ``FID*`` refs and
+    library footprints whose name contains ``Fiducial``.
+    """
+    own = board if board is not None else pcbnew.LoadBoard(board_path)
+    hints = []
+    for fp in own.GetFootprints():
+        ref = str(fp.GetReference() or "")
+        try:
+            lib_name = str(fp.GetFPID().GetLibItemName() or "")
+        except Exception:                              # noqa: BLE001
+            lib_name = ""
+        if not (ref.upper().startswith("FID")
+                or "FIDUCIAL" in lib_name.upper()):
+            continue
+        layer = own.GetLayerName(fp.GetLayer())
+        if layer not in ("F.Cu", "B.Cu"):
+            layer = "B.Cu" if fp.IsFlipped() else "F.Cu"
+        bbox = _fp_bbox_no_text(fp)
+        pad = max(0.0, float(margin))
+        hints.append({
+            "name": "assembly_fiducial_%s" % (ref or len(hints) + 1),
+            "x0": round(bbox.GetLeft() / MM - pad, 3),
+            "y0": round(bbox.GetTop() / MM - pad, 3),
+            "x1": round(bbox.GetRight() / MM + pad, 3),
+            "y1": round(bbox.GetBottom() / MM + pad, 3),
+            "layers": (layer,),
+            "allow_vias": False,
+            "block_fills": True,
+        })
+    return hints
+
+
+def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None,
+                 edge_refs=("J", "H"), layers=None,
+                 access_windows=False):
     """Route-time board-EDGE keepout (lever B, 2026-06-17). Freerouting has NO board-edge-clearance
     awareness -- the standard ExportSpecctraDSN gives it only the outline, so it routes signal tracks hard
     against Edge.Cuts (measured: ~100% of a routed CEC board's DRC is copper_edge_clearance, incl. a 67mm
     track run along the perimeter). Reserve a *margin*-wide strip just inside each board edge so FR keeps
-    tracks off it. The strip EXCLUDES the (inflated) bounding boxes of edge-resident footprints -- connectors
-    J* + mounts H* (and anything whose footprint name says Mounting/Conn/RJ45/USB) -- whose pads legitimately
-    sit at the edge and must stay routable. allow_vias=False (no copper of any kind in the strip);
+    tracks off it. By default the strip is continuous: a body overhang is not
+    permission for unrelated copper to use a footprint-wide edge channel, and
+    normal edge connectors launch from pad centres already seated inward of the
+    strip. ``access_windows=True`` restores the legacy footprint-bounding-box
+    openings for an explicitly audited board whose conductive lands truly lie
+    inside the strip. allow_vias=False (no copper of any kind in the strip);
     block_fills=False so the high-current pours still fill to their own edge clamp. Returns bake_hints-ready
     rects; SELF-GATING (a board with no outline / all-edge parts yields fewer/no strips). Stack with
     corridor_keepouts in the same hints list.
@@ -2307,12 +3446,15 @@ def edge_keepout(board_path, *, margin=1.25, clearance=0.8, board=None, edge_ref
         name = str(fp.GetFPID().GetLibItemName()).upper()
         return any(k in name for k in ("MOUNTING", "CONN", "RJ45", "USB", "JST", "MOLEX"))
 
-    allow = []                                              # inflated bboxes that may touch the edge
-    for fp in own.GetFootprints():
-        if _edge_resident(fp):
-            fb = _fp_bbox_no_text(fp)
-            allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
-                          fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
+    allow = []                                              # audited legacy access openings
+    if access_windows:
+        for fp in own.GetFootprints():
+            if _edge_resident(fp):
+                fb = _fp_bbox_no_text(fp)
+                allow.append((fb.GetLeft() / MM - clearance,
+                              fb.GetTop() / MM - clearance,
+                              fb.GetRight() / MM + clearance,
+                              fb.GetBottom() / MM + clearance))
 
     def _subtract(a0, a1, spans):                          # 1-D: [a0,a1] minus the exclude spans
         cuts = sorted(s for s in spans if s[1] > a0 and s[0] < a1)
@@ -2521,6 +3663,21 @@ def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, d
     return {"pads": n_p, "vias": n_v, "stubs": n_s}
 
 
+def partition_prebond_pours(pours, *, overunder=False):
+    """Return ``(bond_now, deferred)`` for the import pre-bond stage.
+
+    A placer-owned over-under ask is an instruction to synthesize a connected
+    lane, not copper that can already prove a bond. Keeping this decision pure
+    makes the stage-ordering contract independently testable.
+    """
+    pours = list(pours or ())
+    if not overunder:
+        return pours, []
+    deferred = [p for p in pours if p.get("provenance") == "placer_ask"]
+    bond_now = [p for p in pours if p.get("provenance") != "placer_ask"]
+    return bond_now, deferred
+
+
 def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
                           clearance=0.25):
     """POUR-BOND GUARANTEE (2026-07-23, owner catch on s218: 23 mirror-layer
@@ -2699,7 +3856,13 @@ def synthesize_pour_bonds(board, pours, *, drill=0.5, dia=0.9, max_per=3,
         # only if its rect intersects a shunt neighborhood, and the kept rect
         # EXPANDS to the neighborhood so the force-via arrays sit INSIDE the
         # pour (the owner's outside-the-pour barrels catch).
-        if lay == "F.Cu" and d.get("provenance") != "slab":
+        try:
+            _f_power_transit = _fab.copper_layer_allows_power(
+                board, "F.Cu")
+        except Exception:                              # noqa: BLE001
+            _f_power_transit = False
+        if (lay == "F.Cu" and d.get("provenance") != "slab"
+                and not _f_power_transit):
             # slab dicts are exempt: already shunt-restricted AND shaved --
             # the rect expand below would REPLACE the shaved polygon with the
             # neighborhood rectangle (traced 2026-07-24, the owner's
@@ -2890,7 +4053,10 @@ def _edge_leg_clear(board, start, end, half_width_nm, *, edge_mm=0.5):
 
 def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                              filled_zone_nets=(), stub_w=0.3, offset=0.8,
-                             drill=0.3, dia=0.6, lock=False):
+                             drill=0.3, dia=0.6, lock=False,
+                             max_offset=3.0,
+                             cluster_link_max=2.0,
+                             terminal_refs_by_net=None):
     """POWER-PICKUP STITCH (2026-07-23, the hub power rung's missing piece --
     measured on the rung probe: additive floods laid but the hub's power pads
     are SMD, and a pour on another layer cannot reach an F.Cu pad without a
@@ -2904,8 +4070,18 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     profile, a fully-contained same-net via at the pad centre is preferred; the
     guarded offset stub remains the fallback. With ``lock=True`` only the
     synthesized pickup items are fixed in the DSN; the rest of each power net
-    remains routable. Returns
-    {pads, vias, stubs, pofv, skipped}.
+    remains routable.
+
+    A compact same-footprint same-net pad bank may legitimately share one
+    qualified POFV.  After the ordinary per-pad search, a pad that cannot fit a
+    barrel may be joined to a nearby sibling pad only when that sibling already
+    contains a fabrication-qualified same-net through via.  The local neck is
+    still edge-, foreign-copper-, and pair-overlap-guarded.  This is deliberately
+    not a generic "skip the pickup" escape: without a proven POFV anchor, the
+    original fail-closed refusal remains.
+
+    Returns {pads, vias, stubs, pofv, skipped, cluster_recovered,
+    cluster_links}.
 
     ``filled_zone_nets`` is the post-fill form of the contract. Those nets
     are eligible only where their *actual filled polygon* contains the future
@@ -2913,6 +4089,11 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     lets a second pass connect surface rail pads after shaped pours exist
     without treating the empty space between over-under lanes as copper."""
     import math as _math
+    terminal_refs_by_net = {
+        str(net): {str(ref) for ref in refs}
+        for net, refs in dict(terminal_refs_by_net or {}).items()
+        if refs is not None
+    }
     nets_nc = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
     # target polygons per net: the ask/derived pour rects + any same-net ZONE
     # outline (the GND inner plane) -- coverage is tested on the OUTLINE bbox
@@ -2950,7 +4131,8 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     continue
     if not polys:
         return {"pads": 0, "vias": 0, "stubs": 0, "pofv": 0,
-                "skipped": 0}
+                "skipped": 0, "cluster_recovered": 0,
+                "cluster_links": []}
     def _filled_at(net, at):
         """Whether *at* is in real, already-filled same-net copper."""
         if net not in exact_nets:
@@ -2961,18 +4143,75 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
     # proxy, which is ambiguous at rotated and oval lands.
     board.BuildConnectivity()
     connectivity = board.GetConnectivity()
-    touched = set()
+    # A surface trace touching a pad is not, by itself, a pickup.  Treat the
+    # complete same-net copper component as already promoted only when that
+    # component contains a stack-spanning portal (a via or a through-hole
+    # pad).  This distinction matters for complete local bypass cells: their
+    # short locked rail link is intentional, but it must not suppress the one
+    # via that promotes the whole cell to an inner power trunk.
+    def _pickup_component(pad):
+        try:
+            connected = list(connectivity.GetConnectedItems(pad))
+        except Exception:                              # noqa: BLE001
+            connected = []
+        items = [pad] + [item for item in connected
+                         if item.GetNetCode() == pad.GetNetCode()]
+        identities = []
+        portal = False
+        for item in items:
+            try:
+                identities.append(item.m_Uuid.AsString())
+            except Exception:                          # noqa: BLE001
+                identities.append("proxy:%d" % id(item))
+            kind = item.GetClass()
+            if kind == "PCB_VIA":
+                portal = True
+            elif kind == "PAD":
+                try:
+                    portal = portal or (
+                        item.GetAttribute() != pcbnew.PAD_ATTRIB_SMD)
+                except Exception:                      # noqa: BLE001
+                    pass
+        return tuple(sorted(set(identities))), portal
+
+    promoted_components = set()
     tracks = [t for t in board.GetTracks()]
-    # via-spacing ledger (the s218 clipping class): never seat a pickup barrel
-    # within 0.85mm of ANY existing or just-placed via
-    _pk_vias = [(t.GetPosition().x, t.GetPosition().y)
+    # Via-spacing ledger. Ordinary pickup barrels retain the calibrated 0.85mm
+    # exclusion. A declared POFV process uses its actual land/drill dimensions:
+    # adjacent fine-pitch pins may legitimately be closer than 0.85mm, but
+    # their copper lands and finished holes must still retain explicit gaps.
+    _pk_vias = [(t.GetPosition().x, t.GetPosition().y,
+                 t.GetWidth(t.TopLayer()) / MM,
+                 t.GetDrillValue() / MM)
                 for t in tracks if t.GetClass() == "PCB_VIA"]
+    profile_name = _fab.board_profile_name(board)
+    profile = _fab.get_profile(profile_name) if profile_name else None
+    pofv_geometry = _fab.preferred_pofv_geometry(profile)
+
+    def _pofv_crowded(at, candidate_dia, candidate_drill):
+        for qx, qy, existing_dia, existing_drill in _pk_vias:
+            # 0.15mm copper-to-copper and 0.25mm finished-hole edge gaps.
+            # The latter is the limiting 0.50mm pitch case for two 0.25mm
+            # drills; unlike the old centre-only 0.85mm rule, the calculation
+            # remains conservative as either barrel grows.
+            centre_floor = max(
+                (candidate_dia + existing_dia) / 2.0 + 0.15,
+                (candidate_drill + existing_drill) / 2.0 + 0.25)
+            if ((at.x - qx) ** 2 + (at.y - qy) ** 2
+                    < _nm(centre_floor) ** 2):
+                return True
+        return False
     n_p = n_v = n_s = n_pofv = n_skip = 0
     skipped_detail = []
+    skipped_candidates = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             net = pad.GetNetname()
             if net not in polys:
+                continue
+            if (net in terminal_refs_by_net
+                    and str(fp.GetReference() or "")
+                    not in terminal_refs_by_net[net]):
                 continue
             if pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
                 continue                       # THT pierces the stack natively
@@ -2982,15 +4221,9 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                       if b[0] <= px <= b[2] and b[1] <= py <= b[3]]
             if not boxes and net not in requested:
                 continue                       # no covering pour -> not ours
-            try:
-                pad_uuid = pad.m_Uuid.AsString()
-                hit = any(item.m_Uuid.AsString() != pad_uuid
-                          and item.GetNetCode() == pad.GetNetCode()
-                          for item in connectivity.GetConnectedItems(pad))
-            except Exception:                            # noqa: BLE001
-                hit = False
-            if hit:
-                continue                       # FR/locked copper reached it
+            component_key, has_portal = _pickup_component(pad)
+            if has_portal or component_key in promoted_components:
+                continue               # this entire local component pierces
             nc = nets_nc.get(net)
             if nc is None:
                 continue
@@ -3003,22 +4236,32 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                 local_dia = max(float(dia), netclass.GetViaDiameter() / MM)
                 local_drill = max(float(drill), netclass.GetViaDrill() / MM)
                 class_stub_w = max(float(stub_w), netclass.GetTrackWidth() / MM)
-                # The pickup starts at an SMD pin.  A class-width 1.0 mm power
-                # stub cannot enter a 0.4 mm IC pad without consuming adjacent
-                # pins; use the same bounded neck-down doctrine enforced later
-                # by normalize_netclass_geometry.  Half the pad minor dimension
-                # leaves copper/mask room on both sides, while the board minimum
-                # prevents an unfabricably thin escape.
+                local_clearance = max(
+                    0.25, netclass.GetClearance() / MM)
+                # The pickup starts at an SMD pin.  Preserve the full class
+                # width whenever the land can physically accept it.  Only a
+                # genuinely narrower land receives the same bounded pin
+                # neck-down enforced later by normalize_netclass_geometry.
+                # The former unconditional ``minor / 2`` rule needlessly
+                # narrowed even large fuse and connector lands, then locked
+                # the resulting under-class launch into the priority contract.
                 try:
                     board_min_w = board.GetDesignSettings().m_TrackMinWidth / MM
                 except Exception:                       # noqa: BLE001
                     board_min_w = 0.2
                 pad_minor = min(pad.GetSize().x, pad.GetSize().y) / MM
-                local_stub_w = min(
-                    class_stub_w,
-                    max(float(board_min_w or 0.2), pad_minor / 2.0))
+                local_stub_w = (
+                    class_stub_w if pad_minor >= class_stub_w - 0.001 else
+                    min(class_stub_w, max(
+                        float(board_min_w or 0.2), pad_minor / 2.0)))
             except Exception:                            # noqa: BLE001
-                local_dia, local_drill, local_stub_w = dia, drill, stub_w
+                local_dia, local_drill = float(dia), float(drill)
+                class_stub_w = local_stub_w = float(stub_w)
+                local_clearance = 0.25
+            # Generation is intentionally stricter than the 1.5 mm legacy
+            # normalization ceiling: an injected rail must flare promptly and
+            # present a real class-width throat before its plane-entry via.
+            neck_budget_mm = 0.6
             via_spacing = max(0.85, local_dia + 0.25)
 
             # VIA-IN-PAD FIRST. The centralized fabrication check proves the
@@ -3026,24 +4269,30 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
             # and full-land containment. The all-layer collision probe then
             # applies the ordinary through-via clearance contract. Refusal at
             # either gate preserves the established adjacent-via fallback.
-            if (_filled_at(net, pos)
-                    and not any((pos.x - qx) ** 2 + (pos.y - qy) ** 2 < _nm(via_spacing) ** 2
-                        for qx, qy in _pk_vias)
+            if pofv_geometry:
+                pofv_dia, pofv_drill = pofv_geometry
+            else:
+                pofv_dia = pofv_drill = 0.0
+            if (pofv_geometry
+                    and _filled_at(net, pos)
+                    and not _pofv_crowded(pos, pofv_dia, pofv_drill)
                     and _edge_leg_clear(board, pos, pos,
-                                       _nm(local_dia) // 2)
-                    and _via_spot_clear(board, pos, _nm(local_dia), _nm(0.25),
-                                        {nc}, drill_nm=_nm(local_drill),
-                                        net_code=nc)):
+                                       _nm(pofv_dia) // 2)
+                    and _via_spot_clear(board, pos, _nm(pofv_dia), _nm(0.25),
+                                        {nc}, drill_nm=_nm(pofv_drill),
+                                        net_code=nc,
+                                        contained_layers={lay_id})):
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(pos)
-                v.SetDrill(_nm(local_drill))
-                v.SetWidth(_nm(local_dia))
+                v.SetDrill(_nm(pofv_drill))
+                v.SetWidth(_nm(pofv_dia))
                 v.SetNetCode(nc)
                 v.SetLocked(bool(lock))
                 board.Add(v)
-                _pk_vias.append((pos.x, pos.y))
+                _pk_vias.append((pos.x, pos.y, pofv_dia, pofv_drill))
                 tracks.append(v)
                 n_v += 1; n_p += 1; n_pofv += 1
+                promoted_components.add(component_key)
                 continue
 
             if not boxes:
@@ -3051,16 +4300,44 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                 # through a fabrication-qualified via in pad. An adjacent via
                 # has no proven future-pour coverage yet, so do not guess one.
                 n_skip += 1
-                skipped_detail.append({"ref": fp.GetReference(),
-                                       "pad": pad.GetPadName(), "net": net,
-                                       "reason": "no proven covering copper"})
+                detail = {"ref": fp.GetReference(),
+                          "pad": pad.GetPadName(), "net": net,
+                          "reason": "no proven covering copper"}
+                skipped_detail.append(detail)
+                skipped_candidates.append((detail, fp, pad, component_key))
                 continue
 
             placed = False
-            for off_mm in (offset, offset + 0.4, offset - 0.25):
+            guard_summary = {
+                "probes": 0,
+                "outside_pour": 0,
+                "outside_filled_copper": 0,
+                "barrel_spacing": 0,
+                "no_guarded_path": 0,
+                "edge_clearance": 0,
+                "via_spot_clearance": 0,
+                "placed": 0,
+            }
+            # Preserve the historical three probes first so already-working
+            # boards are bit-for-bit stable. Dense Hub layouts can leave the
+            # only legal through-barrel slot between those eight radial rays,
+            # or just beyond 1.2 mm. Continue with a bounded inter-cardinal
+            # search rather than reporting a false no-slot result. Every new
+            # candidate still passes filled-copper, all-layer via, edge,
+            # foreign-copper, and pair-overlap guards below.
+            _radii = [offset, offset + 0.4, offset - 0.25]
+            _radii.extend((1.6, 2.0, 2.5, 3.0))
+            _radii = [r for i, r in enumerate(_radii)
+                      if r > 0 and r <= float(max_offset)
+                      and all(abs(r - q) > 1e-6 for q in _radii[:i])]
+            _angles = (0, 90, 180, 270, 45, 135, 225, 315,
+                       22.5, 67.5, 112.5, 157.5,
+                       202.5, 247.5, 292.5, 337.5)
+            for off_mm in _radii:
                 if placed:
                     break
-                for ang in (0, 90, 180, 270, 45, 135, 225, 315):
+                for ang in _angles:
+                    guard_summary["probes"] += 1
                     a = _math.radians(ang)
                     at = pcbnew.VECTOR2I(int(pos.x + _math.cos(a) * _nm(off_mm)),
                                          int(pos.y + _math.sin(a) * _nm(off_mm)))
@@ -3068,11 +4345,14 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     if not any(b[0] + local_dia / 2 <= ax <= b[2] - local_dia / 2
                                and b[1] + local_dia / 2 <= ay <= b[3] - local_dia / 2
                                for b in boxes):
+                        guard_summary["outside_pour"] += 1
                         continue               # via must sit inside the pour
                     if not _filled_at(net, at):
+                        guard_summary["outside_filled_copper"] += 1
                         continue               # bbox hit but no real filled copper
                     if any((at.x - qx) ** 2 + (at.y - qy) ** 2 < _nm(via_spacing) ** 2
-                           for qx, qy in _pk_vias):
+                           for qx, qy, _vdia, _vdrill in _pk_vias):
+                        guard_summary["barrel_spacing"] += 1
                         continue               # barrel spacing (never stack)
                     # CALIBRATED GUARDS (rung probes v2/v3: pair-overlap alone
                     # laid 9 shorts; whole-stub-at-via-diameter placed 0 of 5 --
@@ -3090,18 +4370,36 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     # foreign In2 track AND a B.Cu track at the same spot --
                     # the freed inner carries FR tracks now. Plane zones are
                     # ignored by design: the filler's antipads handle them.)
-                    if not (_tap_foreign_clear(board, pos, at, _nm(local_stub_w),
-                                               lay_id, _nm(0.25), {nc})
-                            and _edge_leg_clear(board, pos, at,
-                                               _nm(local_stub_w) // 2)
-                            and _edge_leg_clear(board, at, at,
-                                               _nm(local_dia) // 2)
-                            and _via_spot_clear(board, at, _nm(local_dia),
-                                                _nm(0.25), {nc},
-                                                drill_nm=_nm(local_drill),
-                                                net_code=nc)
-                            and _tap_pair_overlap_clear(board, pos, at, _nm(local_stub_w),
-                                                        lay_id, nc, set())):
+                    # Route the pickup with the same two-width state machine as
+                    # every other power last-mile.  Only the pad-local prefix
+                    # may neck down; the path must flare to class width before
+                    # it reaches the plane-entry via.  The previous single
+                    # narrow segment was a generic source of locked current
+                    # bottlenecks on fine-pitch switches and regulators.
+                    legs_nm = _guarded_profiled_lastmile_legs(
+                        board, pos, at, _nm(class_stub_w), lay_id,
+                        _nm(local_clearance), nc,
+                        lambda leg_start, leg_end, half: (
+                            _edge_leg_clear(
+                                board, leg_start, leg_end, half)
+                            and _tap_pair_overlap_clear(
+                                board, leg_start, leg_end, half * 2,
+                                lay_id, nc, set())),
+                        start_escape=(
+                            (_nm(local_stub_w), _nm(neck_budget_mm))
+                            if local_stub_w < class_stub_w - 0.001 else None),
+                        allow_maze=True, maze_margin_mm=2.0)
+                    if not legs_nm:
+                        guard_summary["no_guarded_path"] += 1
+                        continue
+                    if not _edge_leg_clear(board, at, at,
+                                           _nm(local_dia) // 2):
+                        guard_summary["edge_clearance"] += 1
+                        continue
+                    if not _via_spot_clear(
+                            board, at, _nm(local_dia), _nm(0.25), {nc},
+                            drill_nm=_nm(local_drill), net_code=nc):
+                        guard_summary["via_spot_clearance"] += 1
                         continue
                     v = pcbnew.PCB_VIA(board)
                     v.SetPosition(at)
@@ -3110,32 +4408,461 @@ def synthesize_power_pickups(board, power_pours, *, plane_nets=("GND",),
                     v.SetNetCode(nc)
                     v.SetLocked(bool(lock))
                     board.Add(v)
-                    _pk_vias.append((at.x, at.y))
-                    tr = pcbnew.PCB_TRACK(board)
-                    tr.SetStart(pos)
-                    tr.SetEnd(at)
-                    tr.SetWidth(_nm(local_stub_w))
-                    tr.SetLayer(lay_id)
-                    tr.SetNetCode(nc)
-                    tr.SetLocked(bool(lock))
-                    board.Add(tr)
-                    tracks.append(tr)
-                    n_v += 1; n_s += 1; n_p += 1
+                    _pk_vias.append((at.x, at.y, local_dia, local_drill))
+                    for leg_start, leg_end, leg_width in legs_nm:
+                        tr = pcbnew.PCB_TRACK(board)
+                        tr.SetStart(leg_start)
+                        tr.SetEnd(leg_end)
+                        tr.SetWidth(int(leg_width))
+                        tr.SetLayer(lay_id)
+                        tr.SetNetCode(nc)
+                        tr.SetLocked(bool(lock))
+                        board.Add(tr)
+                        tracks.append(tr)
+                        n_s += 1
+                    n_v += 1; n_p += 1
+                    promoted_components.add(component_key)
                     placed = True
+                    guard_summary["placed"] += 1
                     break
             if not placed:
                 n_skip += 1
-                skipped_detail.append({"ref": fp.GetReference(),
-                                       "pad": pad.GetPadName(), "net": net,
-                                       "reason": "no guarded via slot in filled copper"})
+                detail = {"ref": fp.GetReference(),
+                          "pad": pad.GetPadName(), "net": net,
+                          "reason": "no guarded via slot in filled copper",
+                          "guard_summary": guard_summary}
+                skipped_detail.append(detail)
+                skipped_candidates.append((detail, fp, pad, component_key))
+
+    # COMPACT PAD-BANK RECOVERY.  Fine-pitch regulators and load switches often
+    # expose one electrical node on a tiny control/current-limit land beside a
+    # larger power land. Requiring a separate through barrel in every land is
+    # both unnecessary and, for sub-0.35 mm lands, physically impossible. Share
+    # an already-proven stack portal through a short surface neck, but only
+    # within one net. Same-footprint duplicate pins remain preferred, but a
+    # nearby bypass/bulk pad may also host a newly qualified POFV. This is the
+    # ordinary regulator/load-switch input cell: pin -> decoupler -> one stack
+    # portal. Every cross-footprint candidate remains distance bounded and the
+    # link plus prospective barrel must both pass the exact guards before
+    # either is committed. Requiring a dedicated via beside every 0.4 mm power
+    # land makes already-routed inner signal copper permanently enclose an
+    # otherwise valid cell.
+    cluster_links = []
+    unresolved = []
+    # Pickups added above change the graph. Rebuild once before asking whether
+    # a sibling's complete local component owns a stack portal; otherwise
+    # recovery depends on footprint/pad iteration order.
+    board.BuildConnectivity()
+    connectivity = board.GetConnectivity()
+    for detail, fp, pad, component_key in skipped_candidates:
+        # A later member of the same pre-existing local copper component may
+        # have found the guarded portal.  Do not report the earlier member as
+        # refused: connectivity, not pad iteration order, owns this result.
+        if component_key in promoted_components:
+            n_skip -= 1
+            continue
+        net = pad.GetNetname()
+        nc = pad.GetNetCode()
+        start = pad.GetPosition()
+        pad_layers = {int(layer) for layer in pad.GetLayerSet().CuStack()}
+        anchors = []
+        for mate_fp in board.GetFootprints():
+          for mate in mate_fp.Pads():  # noqa: E111 - aligned below by patch context
+            try:
+                same_pad = mate.m_Uuid.AsString() == pad.m_Uuid.AsString()
+            except Exception:                           # noqa: BLE001
+                same_pad = mate is pad
+            if (same_pad or mate.GetNetCode() != nc
+                    or mate.GetAttribute() != pcbnew.PAD_ATTRIB_SMD):
+                continue
+            common_layers = sorted(
+                pad_layers.intersection(
+                    int(layer) for layer in mate.GetLayerSet().CuStack()))
+            if not common_layers:
+                continue
+            end = mate.GetPosition()
+            distance_mm = _math.hypot(end.x - start.x,
+                                      end.y - start.y) / MM
+            if distance_mm <= 1e-6 or distance_mm > float(cluster_link_max):
+                continue
+            try:
+                connected = list(connectivity.GetConnectedItems(mate))
+            except Exception:                           # noqa: BLE001
+                connected = []
+            portals = []
+            for portal in [mate] + connected:
+                if portal.GetNetCode() != nc:
+                    continue
+                kind = portal.GetClass()
+                stack_spanning = kind == "PCB_VIA"
+                if kind == "PAD":
+                    try:
+                        stack_spanning = (
+                            portal.GetAttribute() != pcbnew.PAD_ATTRIB_SMD)
+                    except Exception:                   # noqa: BLE001
+                        stack_spanning = False
+                if not stack_spanning:
+                    continue
+                # For an exact post-fill rail, prove that the portal actually
+                # lands in filled copper. For a pre-fill requested pour,
+                # _filled_at intentionally represents the established future
+                # pour contract used by the ordinary pickup path above.
+                if not _filled_at(net, portal.GetPosition()):
+                    continue
+                try:
+                    portal_id = portal.m_Uuid.AsString()
+                except Exception:                       # noqa: BLE001
+                    portal_id = "proxy:%d" % id(portal)
+                portals.append((kind, portal_id, portal))
+            planned_pofv = None
+            if (not portals and pofv_geometry
+                    and _filled_at(net, end)):
+                pofv_dia, pofv_drill = pofv_geometry
+                mate_layer = int(mate.GetLayer())
+                blocking, allowed = _fab.via_at_pad_conflicts(
+                    board, end, _nm(pofv_dia), _nm(pofv_drill), nc)
+                if (blocking is None and allowed
+                        and not _pofv_crowded(
+                            end, pofv_dia, pofv_drill)
+                        and _edge_leg_clear(
+                            board, end, end, _nm(pofv_dia) // 2)
+                        and _via_spot_clear(
+                            board, end, _nm(pofv_dia), _nm(0.25), {nc},
+                            drill_nm=_nm(pofv_drill), net_code=nc,
+                            contained_layers={mate_layer})):
+                    planned_pofv = (pofv_dia, pofv_drill)
+                    portals.append((
+                        "PLANNED_POFV",
+                        "planned:%s-%s" % (
+                            mate_fp.GetReference(), mate.GetPadName()),
+                        mate))
+            for portal_kind, portal_id, portal in sorted(
+                    portals, key=lambda row: (row[0], row[1])):
+                anchors.append((
+                                0 if mate_fp.GetReference() == fp.GetReference()
+                                else 1,
+                                distance_mm, mate_fp.GetReference(),
+                                mate.GetPadName(), mate,
+                                portal_kind, portal_id, portal,
+                                common_layers,
+                                (planned_pofv if portal_kind == "PLANNED_POFV"
+                                 else None)))
+                break
+        recovered = False
+        for (_same_fp_rank, distance_mm, mate_ref, _mate_name, mate,
+             portal_kind, portal_id, portal, common_layers,
+             planned_pofv) in sorted(
+                anchors, key=lambda candidate: candidate[:4]):
+            end = mate.GetPosition()
+            try:
+                board_min_w = board.GetDesignSettings().m_TrackMinWidth / MM
+            except Exception:                           # noqa: BLE001
+                board_min_w = 0.2
+            pad_minor = min(pad.GetSize().x, pad.GetSize().y) / MM
+            mate_minor = min(mate.GetSize().x, mate.GetSize().y) / MM
+            try:
+                klass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+                clearance = max(0.25, klass.GetClearance() / MM)
+                class_width = max(float(board_min_w or 0.2),
+                                  klass.GetTrackWidth() / MM)
+            except Exception:                           # noqa: BLE001
+                clearance = 0.25
+                class_width = 0.3
+            preferred = int(pad.GetLayer())
+            layer_id = (preferred if preferred in common_layers
+                        else common_layers[0])
+            # Prefer the full land-limited width; step down only when the
+            # wider local neck is physically blocked. This is a bounded
+            # pin-escape exception, not permission to carry the whole rail at
+            # the board minimum.
+            max_link_w = max(float(board_min_w or 0.2),
+                             min(class_width, pad_minor, mate_minor))
+            width_candidates = []
+            for width in (max_link_w, min(max_link_w, 0.3),
+                          float(board_min_w or 0.2)):
+                if width > 0 and not any(
+                        abs(width - prior) <= 1e-6
+                        for prior in width_candidates):
+                    width_candidates.append(width)
+            link_w = next((width for width in width_candidates
+                           if (_tap_foreign_clear(
+                                   board, start, end, _nm(width), layer_id,
+                                   _nm(clearance), {nc})
+                               and _edge_leg_clear(
+                                   board, start, end, _nm(width) // 2)
+                               and _tap_pair_overlap_clear(
+                                   board, start, end, _nm(width), layer_id,
+                                   nc, set()))), None)
+            if link_w is None:
+                continue
+            if planned_pofv is not None:
+                pofv_dia, pofv_drill = planned_pofv
+                via = pcbnew.PCB_VIA(board)
+                via.SetPosition(end)
+                via.SetDrill(_nm(pofv_drill))
+                via.SetWidth(_nm(pofv_dia))
+                via.SetNetCode(nc)
+                via.SetLocked(bool(lock))
+                board.Add(via)
+                portal_id = via.m_Uuid.AsString()
+                portal_kind = "PCB_VIA"
+                _pk_vias.append((end.x, end.y, pofv_dia, pofv_drill))
+                n_v += 1
+                n_pofv += 1
+            link = pcbnew.PCB_TRACK(board)
+            link.SetStart(start)
+            link.SetEnd(end)
+            link.SetWidth(_nm(link_w))
+            link.SetLayer(layer_id)
+            link.SetNetCode(nc)
+            link.SetLocked(bool(lock))
+            board.Add(link)
+            tracks.append(link)
+            n_s += 1
+            n_p += 1
+            n_skip -= 1
+            cluster_links.append({
+                "ref": fp.GetReference(),
+                "from_pad": pad.GetPadName(),
+                "to_ref": mate_ref,
+                "to_pad": mate.GetPadName(),
+                "net": net,
+                "layer": board.GetLayerName(layer_id),
+                "width_mm": round(link_w, 6),
+                "length_mm": round(distance_mm, 6),
+                "anchor_portal": portal_id,
+                "anchor_type": portal_kind,
+                # Compatibility for existing dashboard/report consumers.
+                "anchor_via": (portal_id if portal_kind == "PCB_VIA"
+                               else None),
+                "uuid": link.m_Uuid.AsString(),
+            })
+            promoted_components.add(component_key)
+            recovered = True
+            break
+        if not recovered:
+            unresolved.append(detail)
+    skipped_detail = unresolved
     return {"pads": n_p, "vias": n_v, "stubs": n_s,
             "pofv": n_pofv, "skipped": n_skip,
+            "cluster_recovered": len(cluster_links),
+            "cluster_links": cluster_links[:32],
             "skipped_detail": skipped_detail[:32]}
 
 
+def synthesize_power_escape_fanouts(
+        board, power_pours, terminals, *, stub_w=0.3, drill=0.3, dia=0.6,
+        lock=False, max_offset=3.5):
+    """Escape an enclosed, POFV-anchored rail terminal to open stack space.
+
+    A via can be fabrication-legal inside a fine-pitch power pad yet remain
+    topologically trapped on every inner layer by the package's surrounding
+    pins and barrels.  The routed-power solver reports the stranded terminal;
+    this bounded repair lays one narrow surface neck to a guarded through-via
+    farther from the package, then lets the ordinary width-aware lane spread
+    from that new anchor.
+
+    Only explicitly named ``terminals`` are considered, and each must already
+    contain a fabrication-qualified same-net POFV.  Candidate barrels must be
+    inside the declared rail territory and pass the ordinary all-layer via,
+    foreign-copper, edge, pair-overlap, and barrel-spacing guards.  Therefore
+    this cannot turn an arbitrary unconnected pad into an optimistic route.
+    """
+    import math as _math
+
+    wanted = {(str(row.get("ref") or ""), str(row.get("pad") or ""),
+               str(row.get("net") or ""))
+              for row in (terminals or ()) if row.get("ref") is not None}
+    if not wanted:
+        return {"placed": 0, "refused": 0, "detail": []}
+
+    territories = {}
+    for row in power_pours or ():
+        net = row.get("net")
+        polygon = row.get("polygon") or ()
+        if not net or not polygon:
+            continue
+        xs = [point[0] for point in polygon]
+        ys = [point[1] for point in polygon]
+        territories.setdefault(net, []).append(
+            (min(xs), min(ys), max(xs), max(ys)))
+
+    vias = [item for item in board.GetTracks()
+            if item.GetClass() == "PCB_VIA"]
+    via_ledger = [
+        (item.GetPosition().x, item.GetPosition().y,
+         item.GetWidth(item.TopLayer()) / MM,
+         item.GetDrillValue() / MM)
+        for item in vias
+    ]
+    placed = []
+    refused = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            key = (fp.GetReference(), pad.GetPadName(), pad.GetNetname())
+            if key not in wanted:
+                continue
+            net = pad.GetNetname()
+            nc = pad.GetNetCode()
+            if (pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+                    or nc <= 0 or not territories.get(net)):
+                refused.append({"ref": key[0], "pad": key[1], "net": net,
+                                "reason": "terminal or rail territory unavailable"})
+                continue
+
+            # Prove that the reported land really owns a qualified POFV.  A
+            # remote via connected only by unknown copper is not enough.
+            anchor_via = None
+            for item in vias:
+                if item.GetNetCode() != nc:
+                    continue
+                blocking, allowed = _fab.via_at_pad_conflicts(
+                    board, item.GetPosition(), item.GetWidth(item.TopLayer()),
+                    item.GetDrillValue(), nc)
+                if blocking is None and any(
+                        record.get("ref") == fp.GetReference()
+                        and record.get("pad") == pad.GetPadName()
+                        for record in allowed):
+                    anchor_via = item
+                    break
+            if anchor_via is None:
+                refused.append({"ref": key[0], "pad": key[1], "net": net,
+                                "reason": "no qualified POFV anchor"})
+                continue
+
+            try:
+                klass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+                local_dia = max(float(dia), klass.GetViaDiameter() / MM)
+                local_drill = max(float(drill), klass.GetViaDrill() / MM)
+                class_stub_w = max(float(stub_w),
+                                   klass.GetTrackWidth() / MM)
+                clearance = max(0.25, klass.GetClearance() / MM)
+            except Exception:                           # noqa: BLE001
+                local_dia, local_drill = float(dia), float(drill)
+                class_stub_w, clearance = float(stub_w), 0.25
+            try:
+                board_min_w = board.GetDesignSettings().m_TrackMinWidth / MM
+            except Exception:                           # noqa: BLE001
+                board_min_w = 0.2
+            pad_minor = min(pad.GetSize().x, pad.GetSize().y) / MM
+            local_stub_w = (
+                class_stub_w if pad_minor >= class_stub_w - 0.001 else
+                min(class_stub_w, max(
+                    float(board_min_w or 0.2), pad_minor / 2.0)))
+            # Use a prompt 0.6 mm flare for newly generated power injection.
+            # The final normalizer's 1.5 mm limit is a compatibility ceiling
+            # for imported copper, not a target for fresh synthesis.
+            neck_budget_mm = 0.6
+            via_spacing = max(0.85, local_dia + 0.25)
+
+            start = pad.GetPosition()
+            layer_id = int(pad.GetLayer())
+            centre = fp.GetPosition()
+            away = _math.degrees(_math.atan2(
+                start.y - centre.y, start.x - centre.x)) % 360.0
+            # Barrel seats are a two-dimensional resource.  The old 15-degree
+            # / sparse-radius star could report no slot even though a legal
+            # grid seat existed between two rays.  Use a bounded deterministic
+            # polar lattice fine enough to cover the 0.5 mm routing grid.
+            angles = list(range(0, 360, 5))
+            angles.sort(key=lambda angle: (
+                min((angle - away) % 360.0, (away - angle) % 360.0), angle))
+            radii = tuple(round(value / 10.0, 3) for value in range(
+                8, int(round(float(max_offset) * 10.0)) + 1, 2))
+            made = False
+            for off_mm in radii:
+                if off_mm > float(max_offset):
+                    continue
+                for angle in angles:
+                    rad = _math.radians(angle)
+                    at = pcbnew.VECTOR2I(
+                        int(start.x + _math.cos(rad) * _nm(off_mm)),
+                        int(start.y + _math.sin(rad) * _nm(off_mm)))
+                    ax, ay = at.x / MM, at.y / MM
+                    if not any(
+                            x0 + local_dia / 2.0 <= ax <= x1 - local_dia / 2.0
+                            and y0 + local_dia / 2.0 <= ay <= y1 - local_dia / 2.0
+                            for x0, y0, x1, y1 in territories[net]):
+                        continue
+                    if any((at.x - qx) ** 2 + (at.y - qy) ** 2
+                           < _nm(max(
+                               via_spacing,
+                               (local_dia + qdia) / 2.0 + 0.15,
+                               (local_drill + qdrill) / 2.0 + 0.25)) ** 2
+                           for qx, qy, qdia, qdrill in via_ledger):
+                        continue
+                    # Search the same width-state path used by guarded
+                    # last-mile synthesis.  A straight radial candidate can
+                    # have a legal narrow launch but an illegal full-width
+                    # flare; a short dogleg may still reach the exact same
+                    # qualified barrel without extending the neck-down.
+                    legs_nm = _guarded_profiled_lastmile_legs(
+                        board, start, at, _nm(class_stub_w), layer_id,
+                        _nm(clearance), nc,
+                        lambda a, b, half: (
+                            _edge_leg_clear(board, a, b, half)
+                            and _tap_pair_overlap_clear(
+                                board, a, b, half * 2, layer_id, nc, set())),
+                        start_escape=(_nm(local_stub_w),
+                                      _nm(neck_budget_mm)),
+                        allow_maze=True, maze_margin_mm=2.0)
+                    if not (legs_nm
+                            and _edge_leg_clear(
+                                board, at, at, _nm(local_dia) // 2)
+                            and _via_spot_clear(
+                                board, at, _nm(local_dia), _nm(clearance),
+                                {nc}, drill_nm=_nm(local_drill), net_code=nc)):
+                        continue
+                    via = pcbnew.PCB_VIA(board)
+                    via.SetPosition(at)
+                    via.SetDrill(_nm(local_drill))
+                    via.SetWidth(_nm(local_dia))
+                    via.SetNetCode(nc)
+                    via.SetLocked(bool(lock))
+                    board.Add(via)
+                    tracks = []
+                    for leg_start, leg_end, leg_width_nm in legs_nm:
+                        track = pcbnew.PCB_TRACK(board)
+                        track.SetStart(leg_start)
+                        track.SetEnd(leg_end)
+                        track.SetWidth(int(leg_width_nm))
+                        track.SetLayer(layer_id)
+                        track.SetNetCode(nc)
+                        track.SetLocked(bool(lock))
+                        board.Add(track)
+                        tracks.append(track)
+                    vias.append(via)
+                    via_ledger.append((at.x, at.y, local_dia, local_drill))
+                    placed.append({
+                        "ref": key[0], "pad": key[1], "net": net,
+                        "at_mm": [round(ax, 6), round(ay, 6)],
+                        "offset_mm": round(off_mm, 6), "angle_deg": angle,
+                        "stub_width_mm": round(local_stub_w, 6),
+                        "trunk_width_mm": round(class_stub_w, 6),
+                        "neck_budget_mm": round(neck_budget_mm, 6),
+                        "escape_legs": len(legs_nm),
+                        "via_diameter_mm": round(local_dia, 6),
+                        "via_drill_mm": round(local_drill, 6),
+                        "anchor_via": anchor_via.m_Uuid.AsString(),
+                        "via_uuid": via.m_Uuid.AsString(),
+                        "track_uuid": tracks[0].m_Uuid.AsString(),
+                        "track_uuids": [track.m_Uuid.AsString()
+                                        for track in tracks],
+                    })
+                    made = True
+                    break
+                if made:
+                    break
+            if not made:
+                refused.append({"ref": key[0], "pad": key[1], "net": net,
+                                "reason": "no guarded escape via slot"})
+    return {"placed": len(placed), "refused": len(refused),
+            "detail": placed, "refused_detail": refused}
+
+
 def prune_redundant_dangling_pickups(
-        board, pickup_item_ids, *, discover_nets=(), tol_mm=0.02,
-        max_stub_mm=1.5):
+        board, pickup_item_ids, *, discover_nets=(), discover_pofv_nets=(),
+        tol_mm=0.02, max_stub_mm=1.5):
     """Remove a generated pickup only when later local copper supersedes it.
 
     Pickup synthesis intentionally precedes the local bypass/link passes: doing
@@ -3148,7 +4875,10 @@ def prune_redundant_dangling_pickups(
     Limit pruning to exact items created by the final pickup pass plus the
     short SMD-pad-to-barrel topology on explicitly named discovery nets. The
     latter recovers bootstrap pickups created in the earlier repour process,
-    whose UUIDs cannot cross the process boundary. An adjacent pickup is
+    whose UUIDs cannot cross the process boundary. A just-generated POFV whose
+    full land survives only on its containing surface pad is removed outright:
+    it never reached the intended plane and otherwise becomes a pre-route
+    dangling barrel. An adjacent pickup is
     removable only when (1) its barrel contacts copper on at most one layer
     after the final fill, (2) it owns exactly one short surface-pad stub, and
     (3) KiCad's real connected component contains another proven multilayer
@@ -3160,8 +4890,10 @@ def prune_redundant_dangling_pickups(
 
     wanted = {str(value) for value in (pickup_item_ids or ())}
     discover = {str(net) for net in (discover_nets or ())}
-    if not wanted and not discover:
-        return {"vias": 0, "stubs": 0, "detail": []}
+    discover_pofv = {str(net) for net in (discover_pofv_nets or ())}
+    if not wanted and not discover and not discover_pofv:
+        return {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
+                "detail": []}
 
     tracks = list(board.GetTracks())
     tracks_by_id = {item.m_Uuid.AsString(): item for item in tracks}
@@ -3228,11 +4960,20 @@ def prune_redundant_dangling_pickups(
             continue
         item_id = item.m_Uuid.AsString()
         stubs = _pickup_stubs(item)
-        if item_id in wanted or (item.GetNetname() in discover and len(stubs) == 1):
+        discovered_pofv = False
+        if item.GetNetname() in discover_pofv:
+            blocking, allowed = _fab.via_at_pad_conflicts(
+                board, item.GetPosition(), item.GetWidth(item.TopLayer()),
+                item.GetDrillValue(), item.GetNetCode())
+            discovered_pofv = blocking is None and bool(allowed)
+        if (item_id in wanted
+                or (item.GetNetname() in discover and len(stubs) == 1)
+                or discovered_pofv):
             pickup_vias.append(item)
             stub_cache[item_id] = stubs
     if not pickup_vias:
-        return {"vias": 0, "stubs": 0, "detail": []}
+        return {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
+                "detail": []}
 
     def _contact_layers(via, *, ignored_ids=()):
         ignored = set(ignored_ids)
@@ -3269,15 +5010,35 @@ def prune_redundant_dangling_pickups(
     connectivity = board.GetConnectivity()
     doomed = []
     detail = []
+    unlanded_pofv = 0
     for via in pickup_vias:
         via_id = via.m_Uuid.AsString()
         stubs = stub_cache.get(via_id, ())
-        # No-stub pickups are intentional POFV. Multiple stubs are no longer a
-        # simple removable leaf, so both cases remain for explicit diagnosis.
+        contact_layers = _contact_layers(via)
+        if via_id in wanted or via.GetNetname() in discover_pofv:
+            blocking, allowed = _fab.via_at_pad_conflicts(
+                board, via.GetPosition(), via.GetWidth(via.TopLayer()),
+                via.GetDrillValue(), via.GetNetCode())
+            if blocking is None and allowed and len(contact_layers) <= 1:
+                # Remove only the unlanded barrel. A later surface link may
+                # terminate at the same pad centre and resemble a pickup stub;
+                # that copper remains useful and is not owned by this POFV.
+                doomed.append((via, None))
+                pos = via.GetPosition()
+                detail.append({
+                    "net": via.GetNetname(),
+                    "at_mm": [round(pos.x / MM, 6),
+                              round(pos.y / MM, 6)],
+                    "replacement": "none-unlanded-pofv",
+                })
+                unlanded_pofv += 1
+                continue
+        # Multiple stubs are no longer a simple removable leaf, so they remain
+        # for explicit diagnosis.
         if len(stubs) != 1:
             continue
         stub_ids = {stub.m_Uuid.AsString() for stub in stubs}
-        if len(_contact_layers(via)) > 1:
+        if len(contact_layers) > 1:
             continue
         try:
             component = list(connectivity.GetConnectedItems(via))
@@ -3310,10 +5071,181 @@ def prune_redundant_dangling_pickups(
                        "at_mm": [round(pos.x / MM, 6), round(pos.y / MM, 6)],
                        "replacement": replacement})
 
+    removed_stubs = 0
     for via, stub in doomed:
-        board.Remove(stub)
+        if stub is not None:
+            board.Remove(stub)
+            removed_stubs += 1
         board.Remove(via)
-    return {"vias": len(doomed), "stubs": len(doomed), "detail": detail}
+    return {"vias": len(doomed), "stubs": removed_stubs,
+            "unlanded_pofv": unlanded_pofv, "detail": detail}
+
+
+def prune_post_cleanup_power_pickups(board_path, power_nets):
+    """Reconcile generated rail pickups after file-based zone reaping.
+
+    ``cleanup_floating_zones`` and ``reap_nowhere_zones`` intentionally run in
+    a fresh pcbnew process after the routed board has been saved.  A qualified
+    POFV can therefore be valid when the import-side fill runs, then become a
+    one-layer dangling barrel when the reaper removes the only rail island
+    beneath it.  The in-memory pickup pruner cannot predict that later state.
+
+    Reload the actual post-cleanup artifact and discover pickups only on the
+    explicitly synthesized power/ground nets.  The underlying pruner remains
+    fail-closed: a POFV is removed only when its full land is contained by a
+    same-net SMD pad and it contacts copper on no more than one layer; an
+    offset pickup additionally requires another proven multilayer anchor in
+    the same connected component.  Refill after removal so zone clearances and
+    connectivity describe the board that is subsequently scored and shipped.
+    """
+    nets = tuple(sorted({str(net) for net in (power_nets or ()) if net}))
+    if not nets:
+        return {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
+                "detail": []}
+    board = pcbnew.LoadBoard(board_path)
+    report = prune_redundant_dangling_pickups(
+        board, (), discover_nets=nets, discover_pofv_nets=nets)
+    if report["vias"] or report["stubs"]:
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        pcbnew.SaveBoard(board_path, board)
+    return report
+
+
+def prune_dead_zone_via_pairs(board_path, power_nets, *, tol_mm=0.02):
+    """Remove generated rail barrels sustained only by one copper-zone layer.
+
+    A locked bridge via and an isolated generated zone can falsely keep one
+    another alive: zone cleanup treats the via as a terminal, while the via
+    sweep treats the zone as a connection.  Neither object actually reaches a
+    pad, a track, or a second copper layer, so KiCad reports both
+    ``via_dangling`` and ``isolated_copper``.  Break that cycle using physical
+    liveness, scoped to explicitly synthesized rail nets.  Lock state is not a
+    liveness proof here because bridge-field vias are intentionally locked.
+
+    A via survives when it contacts any same-net pad/track or filled same-net
+    zone copper on two or more layers.  Hand-authored signal nets and valid
+    two-layer bridge barrels are therefore outside the removal class.
+    """
+    nets = {str(net) for net in (power_nets or ()) if str(net)}
+    if not nets:
+        return {"vias": 0, "detail": []}
+    board = pcbnew.LoadBoard(board_path)
+    try:
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    except Exception:                                  # noqa: BLE001
+        return {"vias": 0, "detail": [],
+                "error": "zone fill unavailable; liveness not measured"}
+    tracks = list(board.GetTracks())
+    pads = [pad for fp in board.GetFootprints() for pad in fp.Pads()]
+    tol = int(float(tol_mm) * MM)
+
+    def _point_on_track(point, track, extra=0):
+        dx = track.GetEnd().x - track.GetStart().x
+        dy = track.GetEnd().y - track.GetStart().y
+        length_sq = dx * dx + dy * dy
+        if length_sq:
+            along = max(0.0, min(
+                1.0, ((point.x - track.GetStart().x) * dx
+                      + (point.y - track.GetStart().y) * dy) / length_sq))
+            nx = track.GetStart().x + along * dx
+            ny = track.GetStart().y + along * dy
+        else:
+            nx, ny = track.GetStart().x, track.GetStart().y
+        return math.hypot(point.x - nx, point.y - ny) <= (
+            track.GetWidth() // 2 + int(extra) + tol)
+
+    doomed = []
+    detail = []
+    for via in tracks:
+        if via.GetClass() != "PCB_VIA" or via.GetNetname() not in nets:
+            continue
+        point = via.GetPosition()
+        radius = via.GetWidth(via.TopLayer()) // 2
+        pad_or_track = any(
+            pad.GetNetCode() == via.GetNetCode()
+            and pad.HitTest(point, radius + tol)
+            for pad in pads)
+        if not pad_or_track:
+            pad_or_track = any(
+                other.GetClass() != "PCB_VIA"
+                and other.GetNetCode() == via.GetNetCode()
+                and via.IsOnLayer(other.GetLayer())
+                and _point_on_track(point, other, radius)
+                for other in tracks if other is not via)
+        if pad_or_track:
+            continue
+        zone_layers = set()
+        for zone in board.Zones():
+            if (zone.GetIsRuleArea() or not zone.IsOnCopperLayer()
+                    or zone.GetNetCode() != via.GetNetCode()):
+                continue
+            for layer in zone.GetLayerSet().CuStack():
+                if not via.IsOnLayer(layer):
+                    continue
+                try:
+                    poly = zone.GetFilledPolysList(layer)
+                    if poly and poly.Collide(point, radius + tol):
+                        zone_layers.add(layer)
+                except Exception:                       # noqa: BLE001
+                    continue
+        if len(zone_layers) > 1:
+            continue
+        doomed.append(via)
+        detail.append({
+            "uuid": via.m_Uuid.AsString(),
+            "net": via.GetNetname(),
+            "at_mm": [round(point.x / MM, 6), round(point.y / MM, 6)],
+            "zone_layers": [board.GetLayerName(layer)
+                            for layer in sorted(zone_layers)],
+        })
+    for via in doomed:
+        board.Remove(via)
+    if doomed:
+        pcbnew.SaveBoard(board_path, board)
+    return {"vias": len(doomed), "detail": detail}
+
+
+def settle_generated_power_artifact(board_path, power_nets, *, max_rounds=4):
+    """Alternate via and zone liveness cleanup to a bounded fixed point."""
+    import cec_power_artifact_worker
+
+    nets = sorted({str(net) for net in (power_nets or ()) if str(net)})
+
+    def _phase(name):
+        command = [sys.executable, cec_power_artifact_worker.__file__,
+                   name, board_path, "--nets-json", json.dumps(nets)]
+        process = subprocess.run(
+            command, capture_output=True, text=True, timeout=120)
+        if process.stderr:
+            print(process.stderr.rstrip(), file=sys.stderr)
+        if process.returncode:
+            raise RuntimeError(
+                "power artifact %s phase failed (%d): %s" % (
+                    name, process.returncode,
+                    (process.stderr or process.stdout or "no diagnostic")[-2000:]))
+        lines = [line for line in process.stdout.splitlines() if line.strip()]
+        if not lines:
+            raise RuntimeError("power artifact %s phase returned no report" % name)
+        return json.loads(lines[-1])
+
+    rounds = []
+    for index in range(max(1, int(max_rounds))):
+        vias = _phase("via")
+        floating = int(_phase("floating").get("removed", 0))
+        nowhere = int(_phase("nowhere").get("removed", 0))
+        row = {"round": index + 1, "dead_zone_vias": vias,
+               "floating_zones": int(floating or 0),
+               "nowhere_items": int(nowhere or 0)}
+        rounds.append(row)
+        if not (vias.get("vias") or floating or nowhere):
+            break
+    return {"schema": 1, "rounds": rounds,
+            "converged": not bool(
+                rounds[-1]["dead_zone_vias"].get("vias")
+                or rounds[-1]["floating_zones"]
+                or rounds[-1]["nowhere_items"])}
 
 
 def _canonical_45_xy_paths(start, end):
@@ -3394,10 +5326,14 @@ def _offset_manhattan_xy_paths(start, end, offsets_mm=(0.5, 0.8, 1.2, 1.8)):
     return paths
 
 
-def _guarded_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok):
+def _guarded_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
+                           *, allow_maze=True, maze_margin_mm=2.0,
+                           foreign_cache=None):
     """Choose the first collision- and edge-safe canonical path S -> T."""
     profiled = _guarded_profiled_lastmile_legs(
-        board, S, T, w, lay, clearance_nm, nc, leg_ok)
+        board, S, T, w, lay, clearance_nm, nc, leg_ok,
+        allow_maze=allow_maze, maze_margin_mm=maze_margin_mm,
+        foreign_cache=foreign_cache)
     if profiled is not None:
         return [(a, b) for a, b, _width in profiled]
     return None
@@ -3488,7 +5424,7 @@ def _reserve_power_throat(total_nm, class_width_nm,
 
 def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
                          *, start_escape=None, end_escape=None,
-                         grid_mm=0.5, margin_mm=2.0):
+                         grid_mm=0.5, margin_mm=2.0, foreign_cache=None):
     """Bounded deterministic Manhattan maze for a stubborn local gap.
 
     The lattice includes both exact endpoint axes and the escape-budget axes,
@@ -3502,12 +5438,19 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
     import heapq as _heapq
     import itertools as _itertools
 
-    if start_escape is None and end_escape is None:
-        return None
-
     direct_distance = ((T.x - S.x) ** 2 + (T.y - S.y) ** 2) ** 0.5
-    start_escape, end_escape = _reserve_power_throat(
-        direct_distance, w, start_escape, end_escape)
+    # Do not scale escape budgets against straight-line distance here.  A maze
+    # exists specifically because the straight path is obstructed; legal
+    # fine-pitch fanouts may need to run away from both pads before a wide
+    # trunk can cross the open channel.  The former pre-scaling discarded that
+    # fanout before search and made a finer grid useless.  Instead retain the
+    # physical endpoint budgets and carry proof of an explicit full-width
+    # throat in the search state.
+    required_throat = 0
+    if (float(w) >= _nm(0.5)
+            and start_escape is not None and end_escape is not None):
+        required_throat = int(min(
+            float(_nm(0.25)), max(0.0, direct_distance * 0.25)))
     step = max(1, _nm(grid_mm))
     margin = _nm(margin_mm)
     x_lo = (min(S.x, T.x) - margin) // step * step
@@ -3537,9 +5480,10 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
         p = _point(node)
         return abs(T.x - p.x) + abs(T.y - p.y)
 
-    # state = (x-index, y-index, previous direction, start-narrow, end-narrow)
+    # state = (x-index, y-index, previous direction, start-narrow,
+    #          end-narrow, proven-consecutive-wide-run-nm)
     start_state = (start_node[0], start_node[1], -1,
-                   bool(start_escape), False)
+                   bool(start_escape), False, 0)
     best = {start_state: 0.0}
     travelled = {start_state: 0.0}
     previous = {}
@@ -3548,10 +5492,8 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
     final_state = None
     directions = ((1, 0), (-1, 0), (0, 1), (0, -1))
     clear_cache = {}
-    foreign_zones, foreign_copper = _layer_foreign_shapes(
-        board, lay, {nc})
-    foreign_zones = _bucket_foreign_shapes(foreign_zones)
-    foreign_copper = _bucket_foreign_shapes(foreign_copper)
+    foreign_zones, foreign_copper = _foreign_shape_indexes(
+        board, lay, {nc}, cache=foreign_cache)
 
     def _hop_clear(A, B, width):
         ends = sorted(((A.x, A.y), (B.x, B.y)))
@@ -3568,11 +5510,17 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
         _priority, cost, distance, _serial, state = _heapq.heappop(heap)
         if cost != best.get(state) or distance != travelled.get(state):
             continue
-        ix_, iy_, old_dir, start_narrow, end_narrow = state
+        ix_, iy_, old_dir, start_narrow, end_narrow, wide_run = state
         node = (ix_, iy_)
-        if node == target_node:
+        if node == target_node and wide_run >= required_throat:
             final_state = state
             break
+        if node == target_node:
+            # Reaching the endpoint through overlapping narrow allowances is
+            # not a partial success.  Expanding back out from the target can
+            # manufacture a full-width dead-end spur and then return, falsely
+            # claiming that the throat lies in series with the connection.
+            continue
         current_to_target = _to_target(node)
         for direction, (dx, dy) in enumerate(directions):
             nx, ny = ix_ + dx, iy_ + dy
@@ -3595,16 +5543,23 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
                     and new_distance <= float(start_escape[1]) + 1e-6):
                 next_start = True
                 width = min(width, int(start_escape[0]))
-            if (end_escape and current_to_target <= float(end_escape[1]) + 1e-6
+            if (end_escape and not next_start
+                    and wide_run >= required_throat
+                    and current_to_target <= float(end_escape[1]) + 1e-6
                     and next_to_target < current_to_target):
                 next_end = True
                 width = min(width, int(end_escape[0]))
+
+            next_wide_run = wide_run
+            if not next_start and not next_end:
+                next_wide_run = min(required_throat, wide_run + length)
 
             if not _hop_clear(A, B, width):
                 continue
             turn = 0 if old_dir in (-1, direction) else _nm(0.2)
             new_cost = cost + length + turn
-            new_state = (nx, ny, direction, next_start, next_end)
+            new_state = (nx, ny, direction, next_start, next_end,
+                         int(next_wide_run))
             if new_cost >= best.get(new_state, float("inf")):
                 continue
             best[new_state] = new_cost
@@ -3641,8 +5596,12 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
 
 def _guarded_profiled_lastmile_legs(board, S, T, w, lay, clearance_nm, nc,
                                      leg_ok, *, start_escape=None,
-                                     end_escape=None, allow_maze=True):
+                                     end_escape=None, allow_maze=True,
+                                     maze_margin_mm=2.0,
+                                     foreign_cache=None):
     """Choose a guarded canonical path with optional bounded pin neck-downs."""
+    foreign_zones, foreign_copper = _foreign_shape_indexes(
+        board, lay, {nc}, cache=foreign_cache)
     xy_paths = _canonical_45_xy_paths((S.x, S.y), (T.x, T.y))
     xy_paths += _offset_manhattan_xy_paths((S.x, S.y), (T.x, T.y))
     for xy_path in xy_paths:
@@ -3650,14 +5609,17 @@ def _guarded_profiled_lastmile_legs(board, S, T, w, lay, clearance_nm, nc,
         legs = _profiled_lastmile_path(
             points, w, start_escape=start_escape, end_escape=end_escape)
         if all(leg_ok(a, b, width // 2)
-               and _tap_foreign_clear(board, a, b, width, lay,
-                                       clearance_nm, {nc})
+               and _snapshot_foreign_clear(
+                   a, b, width, clearance_nm,
+                   foreign_zones, foreign_copper)
                for a, b, width in legs):
             return legs
     if allow_maze:
         return _maze_lastmile_legs(
             board, S, T, w, lay, clearance_nm, nc, leg_ok,
-            start_escape=start_escape, end_escape=end_escape)
+            start_escape=start_escape, end_escape=end_escape,
+            margin_mm=maze_margin_mm,
+            foreign_cache=foreign_cache)
     return None
 
 
@@ -3670,9 +5632,10 @@ def synthesize_local_power_bypass_links(
     bypass/bulk capacitor only when its other rail belongs to a power-width
     netclass.  Pair that rail pad with the nearest same-net SMD pad on an IC or
     reverse-mount LED (``U*``/``DL*``) within *max_mm*, then lay a guarded
-    same-layer 0/45/90 path.  The class-width trunk and bounded fine-pad
-    neck-downs use the same geometry contract as :func:`synthesize_lastmile`
-    and :func:`normalize_netclass_geometry`.
+    same-layer 0/45/90 path, or a guarded two-via bridge on a non-plane signal
+    layer when the package pin row blocks the face route.  The class-width
+    trunk and bounded fine-pad neck-downs use the same geometry contract as
+    :func:`synthesize_lastmile` and :func:`normalize_netclass_geometry`.
 
     This deliberately ignores Default-class RC/filter capacitors and every
     connector/passive destination.  It is therefore a local power-integrity
@@ -3683,6 +5646,18 @@ def synthesize_local_power_bypass_links(
     import math as _math
 
     all_cu = set(board.GetEnabledLayers().CuStack())
+    plane_ids = {board.GetLayerID(name) for name in plane_layers(board)}
+    plane_ids.discard(-1)
+    bridge_lays = [
+        layer for layer in all_cu
+        if layer != pcbnew.F_Cu and layer not in plane_ids
+        and not any(role in board.GetLayerName(layer).upper()
+                    for role in ("GND", "PWR"))]
+    bridge_lays.sort(key=lambda layer: (
+        0 if "SIG" in board.GetLayerName(layer).upper() else
+        1 if board.GetLayerName(layer).upper().startswith("IN") else
+        2 if layer == pcbnew.B_Cu else 3,
+        layer))
 
     def _layers(pad):
         return frozenset(layer for layer in pad.GetLayerSet().CuStack()
@@ -3765,7 +5740,7 @@ def synthesize_local_power_bypass_links(
             continue
         capacitors.append((ref, rail[0], spec, _nm(class_mm)))
 
-    pairs = linked = legs_added = refused = 0
+    pairs = linked = legs_added = vias_added = refused = 0
     detail = []
     for cap_ref, cap_pad, spec, class_width in sorted(capacitors):
         cap_pos = cap_pad.GetPosition()
@@ -3810,8 +5785,24 @@ def synthesize_local_power_bypass_links(
                     start_escape=_escape(cap_pad, class_width),
                     end_escape=_escape(load_pad, class_width))
                 if path:
-                    selected = (distance, load_ref, load_number, layer, path)
+                    selected = (distance, load_ref, load_number,
+                                [("trk", start, end, width, layer)
+                                 for start, end, width in path])
                     break
+            if selected is None and bridge_lays:
+                ops = _lastmile_bridge(
+                    board, (cap_pos.x, cap_pos.y), cap_layers,
+                    (target.x, target.y), _layers(load_pad),
+                    class_width, net_code, bridge_lays, local_clearance,
+                    drill=float(spec.get("via_drill") or 0.3),
+                    dia=float(spec.get("via_diameter") or 0.6),
+                    seat_limit=48,
+                    leg_ok=lambda start, end, half: _edge_leg_clear(
+                        board, start, end, half),
+                    start_escape=_escape(cap_pad, class_width),
+                    end_escape=_escape(load_pad, class_width))
+                if ops:
+                    selected = (distance, load_ref, load_number, ops)
             if selected:
                 break
         if selected is None:
@@ -3820,31 +5811,52 @@ def synthesize_local_power_bypass_links(
                            "status": "refused", "reason": "no guarded path"})
             continue
 
-        distance, load_ref, load_number, layer, path = selected
-        for start, end, width in path:
-            track = pcbnew.PCB_TRACK(board)
-            track.SetStart(start)
-            track.SetEnd(end)
-            track.SetWidth(width)
-            track.SetLayer(layer)
-            track.SetNetCode(net_code)
-            track.SetLocked(bool(lock))
-            board.Add(track)
-            legs_added += 1
+        distance, load_ref, load_number, ops = selected
+        used_layers = set()
+        link_vias = 0
+        for op in ops:
+            if op[0] == "via":
+                _, at, drill, diameter = op
+                via = pcbnew.PCB_VIA(board)
+                via.SetPosition(at)
+                via.SetDrill(_nm(drill))
+                via.SetWidth(_nm(diameter))
+                via.SetNetCode(net_code)
+                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                via.SetLocked(bool(lock))
+                board.Add(via)
+                vias_added += 1
+                link_vias += 1
+            else:
+                _, start, end, width, layer = op
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(start)
+                track.SetEnd(end)
+                track.SetWidth(width)
+                track.SetLayer(layer)
+                track.SetNetCode(net_code)
+                track.SetLocked(bool(lock))
+                board.Add(track)
+                used_layers.add(layer)
+                legs_added += 1
         linked += 1
         detail.append({"cap": cap_ref, "load": load_ref,
                        "pad": load_number, "net": cap_pad.GetNetname(),
                        "distance_mm": round(distance, 3),
-                       "layer": board.GetLayerName(layer),
-                       "legs": len(path), "status": "linked"})
+                       "layers": [board.GetLayerName(layer)
+                                  for layer in sorted(used_layers)],
+                       "legs": sum(op[0] == "trk" for op in ops),
+                       "vias": link_vias, "status": "linked"})
 
     return {"pairs": pairs, "linked": linked, "legs": legs_added,
-            "refused": refused, "ignored": ignored, "detail": detail}
+            "vias": vias_added, "refused": refused, "ignored": ignored,
+            "detail": detail}
 
 
 def synthesize_same_footprint_links(
         board, *, max_mm=3.0, min_w=0.2, clearance=0.20, lock=True,
-        netclass_resolver=None, include_nets=None, include_refs=None):
+        connector_power_max_mm=6.0, netclass_resolver=None,
+        include_nets=None, include_refs=None):
     """Close duplicated same-net SMD pins locally before global routing.
 
     Multi-pin power switches, regulators, and buffers commonly expose two or
@@ -3858,8 +5870,12 @@ def synthesize_same_footprint_links(
     0/45/90 last-mile geometry. Width, clearance, and bounded pad neck-downs
     come from the project's real netclass. THT pins remain plane/pour policy's
     responsibility. Kelvin nets remain excluded; duplicated differential-pair
-    lands are synthesized only as an atomic two-leg breakout. Every collision
-    or missing common layer refuses closed. ``include_nets`` optionally limits
+    lands are synthesized only as an atomic two-leg breakout. A connector's
+    repeated power lands may span farther than a compact IC package, so
+    power-class groups on connector footprints receive the bounded
+    ``connector_power_max_mm`` limit; signals and non-connectors retain
+    ``max_mm``. Every collision or missing common layer refuses closed.
+    ``include_nets`` optionally limits
     synthesis to an explicit net-name allowlist, allowing a pre-pour caller to
     establish only topology that must precede shaped copper. ``include_refs``
     applies the same explicit allowlist to footprint references. Returns
@@ -3925,6 +5941,17 @@ def synthesize_same_footprint_links(
         budget = _nm(max(0.6, min(1.5, 1.5 * class_width / MM)))
         return local_width, budget
 
+    def _is_connector(reference, pads):
+        if str(reference).upper().startswith("J"):
+            return True
+        try:
+            name = str(pads[0].GetParentFootprint().GetFPID()
+                       .GetLibItemName()).upper()
+        except Exception:                               # noqa: BLE001
+            name = ""
+        return any(token in name for token in (
+            "CONN", "USB", "RJ45", "MOLEX", "JST", "HEADER"))
+
     groups = []
     pair_groups = []
     ignored = 0
@@ -3980,6 +6007,20 @@ def synthesize_same_footprint_links(
         spec = _spec(net)
         width_mm = float(spec.get("track_width") or min_w)
         class_width = _nm(max(float(min_w), width_mm))
+
+        def _group_width(layer):
+            by_layer = spec.get("track_width_by_layer_mm") or {}
+            layer_name = _fab.COPPER_LAYER_IDS.get(
+                int(layer), board.GetLayerName(int(layer)))
+            return _nm(max(
+                float(min_w), width_mm,
+                float(by_layer.get(layer_name) or 0.0)))
+
+        connector_power = _is_connector(reference, pads) and width_mm >= 0.5
+        group_max_mm = float(max_mm)
+        if connector_power:
+            group_max_mm = max(group_max_mm,
+                               float(connector_power_max_mm))
         local_clearance = _nm(max(float(clearance),
                                   float(spec.get("clearance") or 0.0)))
         blocked = set()
@@ -4038,26 +6079,20 @@ def synthesize_same_footprint_links(
                         continue
                     a, b = pads[left].GetPosition(), pads[right].GetPosition()
                     distance = _math.hypot(b.x - a.x, b.y - a.y) / MM
-                    if distance <= float(max_mm):
+                    if distance <= group_max_mm:
                         candidates.append((distance, left, right, pair_key,
                                            sorted(common)))
             candidates.sort(key=lambda row: (row[0], row[1], row[2]))
             selected = None
             for distance, left, right, pair_key, common in candidates:
                 start, end = pads[left].GetPosition(), pads[right].GetPosition()
-                for layer in common:
-                    path = _guarded_profiled_lastmile_legs(
-                        board, start, end, class_width, layer,
-                        local_clearance, pads[left].GetNetCode(),
-                        lambda a, b, half: _edge_leg_clear(board, a, b, half),
-                        start_escape=_escape(pads[left], class_width),
-                        end_escape=_escape(pads[right], class_width))
-                    if path:
-                        selected = (distance, left, right, layer, path, None)
-                        break
-                if selected:
-                    break
-                if bridge_lays:
+                # A repeated power bank on a high-pin-count connector usually
+                # has signal pins between its two lands. Prefer perpendicular
+                # dogbones plus an inner-signal-layer bridge so the surface
+                # pin-breakout corridor stays available to coupled/high-speed
+                # routing. Ordinary IC-local groups still prefer the shorter
+                # same-layer connection and use a bridge only as fallback.
+                if connector_power and bridge_lays:
                     ops = _lastmile_bridge(
                         board, (start.x, start.y), _layers(pads[left]),
                         (end.x, end.y), _layers(pads[right]),
@@ -4065,10 +6100,46 @@ def synthesize_same_footprint_links(
                         local_clearance,
                         drill=float(spec.get("via_drill") or 0.3),
                         dia=float(spec.get("via_diameter") or 0.6),
+                        seat_limit=48,
                         leg_ok=lambda a, b, half: _edge_leg_clear(
                             board, a, b, half),
-                        start_escape=_escape(pads[left], class_width),
-                        end_escape=_escape(pads[right], class_width))
+                        start_escape=_escape(
+                            pads[left], _group_width(min(_layers(pads[left])))),
+                        end_escape=_escape(
+                            pads[right], _group_width(min(_layers(pads[right])))),
+                        width_for_layer=_group_width)
+                    if ops:
+                        selected = (distance, left, right, None, None, ops)
+                        break
+                for layer in common:
+                    layer_width = _group_width(layer)
+                    path = _guarded_profiled_lastmile_legs(
+                        board, start, end, layer_width, layer,
+                        local_clearance, pads[left].GetNetCode(),
+                        lambda a, b, half: _edge_leg_clear(board, a, b, half),
+                        start_escape=_escape(pads[left], layer_width),
+                        end_escape=_escape(pads[right], layer_width))
+                    if path:
+                        selected = (distance, left, right, layer, path, None)
+                        break
+                if selected:
+                    break
+                if bridge_lays and not connector_power:
+                    ops = _lastmile_bridge(
+                        board, (start.x, start.y), _layers(pads[left]),
+                        (end.x, end.y), _layers(pads[right]),
+                        class_width, pads[left].GetNetCode(), bridge_lays,
+                        local_clearance,
+                        drill=float(spec.get("via_drill") or 0.3),
+                        dia=float(spec.get("via_diameter") or 0.6),
+                        seat_limit=48,
+                        leg_ok=lambda a, b, half: _edge_leg_clear(
+                            board, a, b, half),
+                        start_escape=_escape(
+                            pads[left], _group_width(min(_layers(pads[left])))),
+                        end_escape=_escape(
+                            pads[right], _group_width(min(_layers(pads[right])))),
+                        width_for_layer=_group_width)
                     if ops:
                         selected = (distance, left, right, None, None, ops)
                         break
@@ -4223,6 +6294,15 @@ def synthesize_same_footprint_links(
                     start_escape=start_escape, end_escape=end_escape,
                     allow_maze=False)
                 if not section:
+                    if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                        print("[fr] pair fanout leg refused", net,
+                              board.GetLayerName(layer), "sign", sign,
+                              "offset_mm", round(offset / MM, 3),
+                              [round(source.x / MM, 6),
+                               round(source.y / MM, 6)], "->",
+                              [round(target.x / MM, 6),
+                               round(target.y / MM, 6)],
+                              file=sys.stderr)
                     return None
                 legs.extend(section)
             return legs
@@ -4238,13 +6318,134 @@ def synthesize_same_footprint_links(
                 [start, end], width,
                 start_escape=_escape(pads[0], width),
                 end_escape=_escape(pads[1], width))
-            if all(_edge_leg_clear(board, source, target, leg_width // 2)
-                   and _tap_foreign_clear(
-                       board, source, target, leg_width, layer,
-                       local_clearance, {pads[0].GetNetCode()})
-                   for source, target, leg_width in legs):
-                return legs
-            return None
+            checks = []
+            for source, target, leg_width in legs:
+                edge_clear = _edge_leg_clear(
+                    board, source, target, leg_width // 2)
+                foreign_clear = _tap_foreign_clear(
+                    board, source, target, leg_width, layer,
+                    local_clearance, {pads[0].GetNetCode()})
+                check = {
+                    "from_mm": [round(source.x / MM, 6),
+                                round(source.y / MM, 6)],
+                    "to_mm": [round(target.x / MM, 6),
+                              round(target.y / MM, 6)],
+                    "width_mm": round(leg_width / MM, 6),
+                    "edge_clear": bool(edge_clear),
+                    "foreign_clear": bool(foreign_clear),
+                }
+                if not foreign_clear:
+                    zones, copper = _identified_foreign_shape_indexes(
+                        board, layer, {pads[0].GetNetCode()})
+                    check["foreign_blockers"] = _snapshot_foreign_blockers(
+                        source, target, leg_width, local_clearance,
+                        zones, copper)
+                checks.append(check)
+            return ((legs if all(row["edge_clear"]
+                                 and row["foreign_clear"]
+                                 for row in checks) else None), {
+                "net": net,
+                "pads": [str(pad.GetNumber()) for pad in pads],
+                "layer": board.GetLayerName(layer),
+                "checks": checks,
+            })
+
+        def _plans_mutually_clear(plan_a, plan_b):
+            """True when two not-yet-emitted pair fanouts do not overlap.
+
+            Each candidate is independently guarded against copper already on
+            the board.  That proof cannot see its sibling candidate because
+            both plans are intentionally selected before either is committed.
+            Check their actual swept copper shapes together here; the
+            high-speed pair gate separately enforces the requested electrical
+            gap after the complete route is assembled.
+            """
+            for a0, a1, aw in plan_a:
+                a_shape = pcbnew.SHAPE_SEGMENT(a0, a1, int(aw))
+                for b0, b1, bw in plan_b:
+                    b_shape = pcbnew.SHAPE_SEGMENT(b0, b1, int(bw))
+                    if a_shape.Collide(b_shape, 0):
+                        return False
+            return True
+
+        def _plan_topology_clear(net, plan, layer):
+            """Reject a local fanout that doubles back over owned copper.
+
+            Foreign-clearance admission deliberately ignores the candidate's
+            own net.  That is electrically correct, but it allowed a new
+            duplicate-pad leg to leave a land in the same direction as the
+            already-owned long route, overlap it briefly, and then peel away.
+            Treat all existing and proposed same-net incident rays as one
+            graph and require an opening of at least 89 degrees whenever a
+            proposed ray participates.  A straight continuation is 180
+            degrees and a right-angle package escape is legal; a covered
+            pseudo-stub is 0 degrees and is refused before copper is emitted.
+            """
+            proposed = []
+            vertices = set()
+            for start, end, _width in plan:
+                if start == end:
+                    continue
+                a = (int(start.x), int(start.y))
+                b = (int(end.x), int(end.y))
+                proposed.append((a, b))
+                vertices.update((a, b))
+
+            existing = []
+            for item in board.GetTracks():
+                if (item.GetClass() != "PCB_TRACK"
+                        or int(item.GetLayer()) != int(layer)
+                        or item.GetNetname() != net
+                        or item.GetStart() == item.GetEnd()):
+                    continue
+                existing.append(((int(item.GetStart().x),
+                                  int(item.GetStart().y)),
+                                 (int(item.GetEnd().x),
+                                  int(item.GetEnd().y))))
+
+            def on_segment(point, a, b):
+                cross = ((b[0] - a[0]) * (point[1] - a[1])
+                         - (b[1] - a[1]) * (point[0] - a[0]))
+                if cross:
+                    return False
+                return (min(a[0], b[0]) <= point[0] <= max(a[0], b[0])
+                        and min(a[1], b[1]) <= point[1] <= max(a[1], b[1]))
+
+            for at in vertices:
+                rays = []
+                for a, b in proposed:
+                    if at == a:
+                        rays.append((b[0] - a[0], b[1] - a[1], True))
+                    elif at == b:
+                        rays.append((a[0] - b[0], a[1] - b[1], True))
+                for a, b in existing:
+                    if not on_segment(at, a, b):
+                        continue
+                    if at != a:
+                        rays.append((a[0] - at[0], a[1] - at[1], False))
+                    if at != b:
+                        rays.append((b[0] - at[0], b[1] - at[1], False))
+                for index, first in enumerate(rays):
+                    for second in rays[index + 1:]:
+                        if not (first[2] or second[2]):
+                            continue
+                        n1 = math.hypot(first[0], first[1])
+                        n2 = math.hypot(second[0], second[1])
+                        if not n1 or not n2:
+                            continue
+                        cosine = ((first[0] * second[0]
+                                   + first[1] * second[1]) / (n1 * n2))
+                        if cosine > math.cos(math.radians(89.0)) + 1e-12:
+                            if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                                print("[fr] pair fanout topology reject",
+                                      net, board.GetLayerName(layer),
+                                      [round(at[0] / 1e6, 6),
+                                       round(at[1] / 1e6, 6)],
+                                      "cos=%.6f" % cosine,
+                                      "rays", first, second,
+                                      file=sys.stderr)
+                            return False
+            return True
 
         selected = None
         layer_order = sorted(common,
@@ -4252,23 +6453,63 @@ def synthesize_same_footprint_links(
         # Parallel package rows (for example a flow-through USB protector)
         # need only two short, parallel ties.  Try that lower-discontinuity
         # topology before the reversible-connector U breakout.
+        direct_attempts = []
         for layer in layer_order:
-            plan_a = _direct_plan(net_a, pads_a, layer)
-            plan_b = _direct_plan(net_b, pads_b, layer)
-            if plan_a and plan_b:
-                selected = (layer, plan_a, plan_b)
+            plan_a, evidence_a = _direct_plan(net_a, pads_a, layer)
+            plan_b, evidence_b = _direct_plan(net_b, pads_b, layer)
+            mutually_clear = bool(
+                plan_a and plan_b and _plans_mutually_clear(plan_a, plan_b))
+            topology_a = bool(
+                plan_a and _plan_topology_clear(net_a, plan_a, layer))
+            topology_b = bool(
+                plan_b and _plan_topology_clear(net_b, plan_b, layer))
+            direct_attempts.append({
+                "layer": board.GetLayerName(layer),
+                "members": [evidence_a, evidence_b],
+                "mutually_clear": mutually_clear,
+                "topology_clear": {net_a: topology_a, net_b: topology_b},
+            })
+            if (plan_a and plan_b and mutually_clear
+                    and topology_a and topology_b):
+                selected = [
+                    (net_a, pads_a,
+                     [("trk", a, b, width, layer)
+                      for a, b, width in plan_a]),
+                    (net_b, pads_b,
+                     [("trk", a, b, width, layer)
+                      for a, b, width in plan_b]),
+                ]
                 break
         if selected is None and single_row:
             for layer in layer_order:
-                for sign_a, sign_b in ((-1, 1), (1, -1)):
+                # Opposite sides are the compact default, but both selected
+                # lands may already launch in the same direction.  In that
+                # case forcing one duplicate closure onto the opposite side
+                # creates a covered backtrack.  Search nested same-side lanes
+                # as well; exact mutual-shape and topology admission below
+                # decides whether their differing offsets are genuinely safe.
+                for sign_a, sign_b in ((-1, 1), (1, -1),
+                                       (-1, -1), (1, 1)):
                     for offset_a in offset_choices:
                         plan_a = _u_plan(net_a, pads_a, sign_a, offset_a, layer)
                         if not plan_a:
                             continue
                         for offset_b in offset_choices:
                             plan_b = _u_plan(net_b, pads_b, sign_b, offset_b, layer)
-                            if plan_b:
-                                selected = (layer, plan_a, plan_b)
+                            if (plan_b
+                                    and _plans_mutually_clear(plan_a, plan_b)
+                                    and _plan_topology_clear(
+                                        net_a, plan_a, layer)
+                                    and _plan_topology_clear(
+                                        net_b, plan_b, layer)):
+                                selected = [
+                                    (net_a, pads_a,
+                                     [("trk", a, b, width, layer)
+                                      for a, b, width in plan_a]),
+                                    (net_b, pads_b,
+                                     [("trk", a, b, width, layer)
+                                      for a, b, width in plan_b]),
+                                ]
                                 break
                         if selected:
                             break
@@ -4276,30 +6517,252 @@ def synthesize_same_footprint_links(
                         break
                 if selected:
                     break
+        if selected is None and single_row and bridge_lays:
+            # Four interleaved pair lands can be topologically impossible to
+            # close on one surface.  Under an explicitly declared POFV
+            # process, transition all four lands symmetrically in pad and join
+            # the two members as opposite-side U paths on one signal layer.
+            # This keeps layer sets, via counts, delay and return paths matched;
+            # without POFV authority this fallback simply does not exist.
+            profile_name = _fab.board_profile_name(board)
+            profile = _fab.PROFILES.get(profile_name)
+            # This is the rare fine-pitch escape where the profile's preferred
+            # drill may not fit the land.  Use the profile's explicit minimum
+            # drill plus its annular-ring floor; dimensions are still checked
+            # by the central POFV authority for every actual pad.
+            pofv = ((float(profile["pofv_drill_min_mm"])
+                     + 2.0 * float(profile["pofv_annular_min_mm"]),
+                     float(profile["pofv_drill_min_mm"]))
+                    if profile and profile.get("pofv") else None)
+            gnd = board.FindNet("GND")
+            if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                print("[fr] paired POFV fallback", reference,
+                      profile_name, pofv,
+                      [board.GetLayerName(value) for value in bridge_lays],
+                      bool(gnd), file=sys.stderr)
+            if pofv and gnd is not None:
+                via_dia, via_drill = pofv
+                pair_clearance = max(pair_clearances.values())
+                exact_clearance = max(0, pair_clearance - 1)
+
+                def _probe(net, pads, plan, layer, probes):
+                    nc = pads[0].GetNetCode()
+                    # KiCad SHAPE::Collide treats exact tangency as a hit;
+                    # clearance DRC treats the published minimum as legal.
+                    # Remove one database unit (1 nm) so an exact 0.200 mm
+                    # fine-pitch field is admitted while anything physically
+                    # below the rule remains rejected by a huge margin.
+                    for pad in pads:
+                        at = pad.GetPosition()
+                        if not _via_spot_clear(
+                                board, at, _nm(via_dia), exact_clearance,
+                                {nc}, drill_nm=_nm(via_drill), net_code=nc,
+                                contained_layers=(pcbnew.F_Cu,)):
+                            if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                                blocking, allowed = _fab.via_at_pad_conflicts(
+                                    board, at, _nm(via_dia),
+                                    _nm(via_drill), nc)
+                                # Match the point-like 1 nm probe used by the
+                                # actual via admission test.  A 10 um debug
+                                # segment could report a blocker that the real
+                                # geometry check correctly admits at the fab
+                                # minimum, sending investigations down the
+                                # wrong path.
+                                probe = pcbnew.VECTOR2I(at.x + 1, at.y)
+                                layer_clear = {
+                                    board.GetLayerName(lid):
+                                    _tap_foreign_clear(
+                                        board, at, probe, _nm(via_dia), lid,
+                                        exact_clearance, {nc})
+                                    for lid in board.GetEnabledLayers().CuStack()
+                                    if lid != pcbnew.F_Cu}
+                                blockers = {}
+                                for lid in board.GetEnabledLayers().CuStack():
+                                    if lid == pcbnew.F_Cu:
+                                        continue
+                                    zones, copper = _identified_foreign_shape_indexes(
+                                        board, lid, {nc})
+                                    blockers[board.GetLayerName(lid)] = (
+                                        _snapshot_foreign_blockers(
+                                            at, probe, _nm(via_dia),
+                                            exact_clearance, zones, copper))
+                                print("[fr] paired POFV via refused", net,
+                                      pad.GetNumber(),
+                                      (blocking.GetNetname()
+                                       if blocking is not None else None),
+                                      allowed, layer_clear, blockers,
+                                      file=sys.stderr)
+                            return False
+                        via = pcbnew.PCB_VIA(board)
+                        via.SetPosition(at); via.SetWidth(_nm(via_dia))
+                        via.SetDrill(_nm(via_drill)); via.SetNetCode(nc)
+                        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                        board.Add(via); probes.append(via)
+                    for a, b, width in plan:
+                        if (not _edge_leg_clear(board, a, b, width // 2)
+                                or not _tap_foreign_clear(
+                                    board, a, b, width, layer,
+                                    exact_clearance, {nc})):
+                            if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                                print("[fr] paired POFV track refused", net,
+                                      board.GetLayerName(layer), file=sys.stderr)
+                            return False
+                        track = pcbnew.PCB_TRACK(board)
+                        track.SetStart(a); track.SetEnd(b)
+                        track.SetWidth(width); track.SetLayer(layer)
+                        track.SetNetCode(nc); board.Add(track)
+                        probes.append(track)
+                    return True
+
+                def _return_ops(probes):
+                    """Prove one nearby GND barrel at each pad-bank end."""
+                    gnd_code = gnd.GetNetCode()
+                    ordered = sorted(
+                        (pad.GetPosition() for pad in pads_all),
+                        key=lambda point: point.x if axis_x else point.y)
+                    out = []
+                    for center in (ordered[0], ordered[-1]):
+                        nearest = min((math.hypot(
+                            item.GetPosition().x - center.x,
+                            item.GetPosition().y - center.y)
+                            for item in board.GetTracks()
+                            if item.GetClass() == "PCB_VIA"
+                            and item.GetNetname() == "GND"),
+                            default=float("inf"))
+                        if nearest <= _nm(1.50):
+                            continue
+                        accepted = None
+                        base = math.pi / 2 if axis_x else 0.0
+                        for radius in (0.80, 1.00, 1.20, 1.40):
+                            for step in range(8):
+                                angle = base + step * math.pi / 4
+                                at = pcbnew.VECTOR2I(
+                                    center.x + int(round(
+                                        _nm(radius) * math.cos(angle))),
+                                    center.y + int(round(
+                                        _nm(radius) * math.sin(angle))))
+                                if (not _edge_leg_clear(
+                                        board, at, at, _nm(0.30))
+                                        or not _via_spot_clear(
+                                            board, at, _nm(0.60),
+                                            exact_clearance, {gnd_code},
+                                            drill_nm=_nm(0.30),
+                                            net_code=gnd_code)):
+                                    continue
+                                via = pcbnew.PCB_VIA(board)
+                                via.SetPosition(at); via.SetWidth(_nm(0.60))
+                                via.SetDrill(_nm(0.30))
+                                via.SetNetCode(gnd_code)
+                                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                                board.Add(via); probes.append(via)
+                                accepted = ("gnd_via", at, 0.30, 0.60)
+                                break
+                            if accepted:
+                                break
+                        if accepted is None:
+                            return None
+                        out.append(accepted)
+                    return out
+
+                for layer in bridge_lays:
+                    for sign_a, sign_b in ((-1, 1), (1, -1)):
+                        for offset_a in offset_choices:
+                            plan_a = _u_plan(
+                                net_a, pads_a, sign_a, offset_a, layer)
+                            if not plan_a:
+                                continue
+                            for offset_b in offset_choices:
+                                plan_b = _u_plan(
+                                    net_b, pads_b, sign_b, offset_b, layer)
+                                if (not plan_b
+                                        or not _plans_mutually_clear(
+                                            plan_a, plan_b)):
+                                    continue
+                                if os.environ.get("CEC_PAIR_DEBUG") == "1":
+                                    print("[fr] paired POFV candidate", reference,
+                                          board.GetLayerName(layer), sign_a,
+                                          round(offset_a / MM, 3),
+                                          round(offset_b / MM, 3),
+                                          file=sys.stderr)
+                                probes = []
+                                ok = (_probe(net_a, pads_a, plan_a,
+                                             layer, probes)
+                                      and _probe(net_b, pads_b, plan_b,
+                                                 layer, probes))
+                                return_ops = (_return_ops(probes) if ok
+                                              else None)
+                                ok = ok and return_ops is not None
+                                for item in reversed(probes):
+                                    board.Remove(item)
+                                if not ok:
+                                    continue
+                                via_ops_a = [("via", pad.GetPosition(),
+                                              via_drill, via_dia)
+                                             for pad in pads_a]
+                                via_ops_b = [("via", pad.GetPosition(),
+                                              via_drill, via_dia)
+                                             for pad in pads_b]
+                                selected = [
+                                    (net_a, pads_a, via_ops_a + return_ops + [
+                                        ("trk", a, b, width, layer)
+                                        for a, b, width in plan_a]),
+                                    (net_b, pads_b, via_ops_b + [
+                                        ("trk", a, b, width, layer)
+                                        for a, b, width in plan_b]),
+                                ]
+                                break
+                            if selected:
+                                break
+                        if selected:
+                            break
+                    if selected:
+                        break
         if selected is None:
             refused += 2
             pair_refused += 2
             detail.append({"ref": reference, "nets": [net_a, net_b],
                            "status": "refused",
-                           "reason": "no atomic guarded pair fanout"})
+                           "reason": "no atomic guarded pair fanout",
+                           "direct_attempts": direct_attempts})
             continue
-        layer, plan_a, plan_b = selected
-        for net, pads, path in ((net_a, pads_a, plan_a),
-                                (net_b, pads_b, plan_b)):
-            for start, end, width in path:
+        for net, pads, ops in selected:
+            used_layers = set()
+            pair_vias = return_vias = 0
+            for op in ops:
+                if op[0] in ("via", "gnd_via"):
+                    _, at, drill, diameter = op
+                    via = pcbnew.PCB_VIA(board)
+                    via.SetPosition(at); via.SetDrill(_nm(drill))
+                    via.SetWidth(_nm(diameter))
+                    if op[0] == "gnd_via":
+                        via.SetNetCode(board.FindNet("GND").GetNetCode())
+                        return_vias += 1
+                    else:
+                        via.SetNetCode(pads[0].GetNetCode())
+                        pair_vias += 1
+                    via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                    via.SetLocked(bool(lock)); board.Add(via)
+                    vias_added += 1
+                    continue
+                _, start, end, width, op_layer = op
                 track = pcbnew.PCB_TRACK(board)
                 track.SetStart(start); track.SetEnd(end); track.SetWidth(width)
-                track.SetLayer(layer); track.SetNetCode(pads[0].GetNetCode())
+                track.SetLayer(op_layer)
+                track.SetNetCode(pads[0].GetNetCode())
                 track.SetLocked(bool(lock)); board.Add(track)
-                legs_added += 1
-                pair_legs += 1
+                used_layers.add(op_layer)
+                legs_added += 1; pair_legs += 1
             linked += 1
             pair_linked += 1
             detail.append({"ref": reference, "net": net,
                            "from": str(pads[0].GetNumber()),
                            "to": str(pads[1].GetNumber()),
-                           "layer": board.GetLayerName(layer),
-                           "legs": len(path), "atomic_pair": True,
+                           "layers": [board.GetLayerName(value)
+                                      for value in sorted(used_layers)],
+                           "legs": sum(op[0] == "trk" for op in ops),
+                           "vias": pair_vias,
+                           "return_vias": return_vias,
+                           "atomic_pair": True,
                            "status": "linked"})
 
     return {"groups": len(groups) + 2 * len(pair_groups),
@@ -4313,7 +6776,7 @@ def synthesize_same_footprint_links(
 def synthesize_local_signal_links(
         board, *, max_mm=5.0, max_refs=3, min_power_width=0.5,
         min_w=0.2, clearance=0.20, lock=True,
-        netclass_resolver=None):
+        netclass_resolver=None, include_nets=None):
     """Pre-route topology-proven private IC programming networks.
 
     A local threshold divider, soft-start capacitor, or current-limit resistor
@@ -4324,6 +6787,12 @@ def synthesize_local_signal_links(
     remaining follower to the already-connected local cluster with guarded
     same-layer 0/45/90 copper.  This is the routing counterpart of the placer's
     low-fanout functional ownership rule and contains no board/refdes list.
+
+    ``include_nets`` optionally restricts the topology-derived candidates to
+    an exact set.  This supports a fail-driven second materialization pass:
+    only private networks that the finished pour actually refused are allowed
+    to reserve pre-pour copper, so unrelated control cells cannot partition a
+    wide-rail solve.
 
     Distributed rails, buses, connector nets, high-speed pairs, and every
     cross-layer-only case remain the global router's responsibility.  All
@@ -4414,9 +6883,14 @@ def synthesize_local_signal_links(
         2 if layer == pcbnew.B_Cu else 3,
         layer))
 
+    selected_nets = (None if include_nets is None
+                     else {str(net) for net in include_nets})
     networks = linked = legs_added = vias_added = refused = ignored = 0
     detail = []
     for net, rows in sorted(pads_by_net.items()):
+        if selected_nets is not None and net not in selected_nets:
+            ignored += 1
+            continue
         refs = sorted({ref for ref, _pad in rows})
         owners = [ref for ref in refs if ref.startswith("U")]
         followers = [ref for ref in refs if ref.startswith(("R", "C"))]
@@ -4502,6 +6976,7 @@ def synthesize_local_signal_links(
                         local_clearance,
                         drill=float(spec.get("via_drill") or 0.3),
                         dia=float(spec.get("via_diameter") or 0.6),
+                        seat_limit=48,
                         leg_ok=lambda start, end, half: _edge_leg_clear(
                             board, start, end, half),
                         start_escape=_escape(source_pad, class_width),
@@ -4561,9 +7036,249 @@ def synthesize_local_signal_links(
             "detail": detail}
 
 
+def _ranked_bridge_seat_pairs(seats_a, seats_b, minimum_separation_nm):
+    """Return deterministic qualified seat pairs, not just the first pair.
+
+    Each seat is ``((x, y), ops)``. ``ops`` is empty when the endpoint is
+    already present on the bridge layer; two non-empty rows each introduce a
+    new barrel and therefore must satisfy the drill-to-drill separation.
+
+    Rank the *complete* escape, not only the distance between its two vias.
+    The old via-to-via-only ranking pulled both seats inward across connector
+    pin fields because that made the inner-layer bridge artificially short,
+    even when the two face-layer stubs became longer and crossed the breakout
+    corridor.  Full copper length naturally prefers perpendicular dogbones at
+    the two power banks and removes the same inward/diagonal bias on every
+    footprint.
+    """
+    import math as _math
+
+    def _stub_length(ops):
+        total = 0.0
+        for op in ops:
+            if not op or op[0] != "trk" or len(op) < 3:
+                continue
+            start, end = op[1], op[2]
+            try:
+                total += _math.hypot(end.x - start.x, end.y - start.y)
+            except AttributeError:
+                # Synthetic unit-test rows may use opaque placeholders. They
+                # carry no geometry and therefore contribute no route length.
+                continue
+        return total
+
+    rows = []
+    minimum2 = int(minimum_separation_nm) ** 2
+    for ia, (pa, ops_a) in enumerate(seats_a):
+        for ib, (pb, ops_b) in enumerate(seats_b):
+            distance2 = ((int(pa[0]) - int(pb[0])) ** 2
+                         + (int(pa[1]) - int(pb[1])) ** 2)
+            if ops_a and ops_b and distance2 < minimum2:
+                continue
+            total_length = (_stub_length(ops_a) + _stub_length(ops_b)
+                            + _math.sqrt(distance2))
+            rows.append((total_length, distance2,
+                         len(ops_a) + len(ops_b), ia, ib,
+                         (pa, ops_a), (pb, ops_b)))
+    rows.sort(key=lambda row: row[:5])
+    return [(row[5], row[6]) for row in rows]
+
+
+def _multilayer_maze_lastmile_ops(
+        board, S, T, nc, layers, clearance_nm, leg_ok, *,
+        width_for_layer, drill=0.3, dia=0.6,
+        start_layers=None, end_layers=None, grid_mm=0.5,
+        margin_mm=4.0, max_vias=2, foreign_cache=None):
+    """Bounded deterministic via-enabled Manhattan maze.
+
+    The ordinary last-mile maze is intentionally single-layer and the
+    historical bridge chooses one bridge layer end to end.  Dense fixed pin
+    fields can make every individual layer discontinuous while a legal route
+    exists by changing layers inside the corridor.  Search that state space
+    directly, but keep the operation tightly bounded:
+
+    * non-plane signal layers are supplied explicitly by the caller;
+    * every planar hop uses the existing exact edge/foreign-copper guards;
+    * every transition is a through via checked on all enabled copper layers;
+    * at most ``max_vias`` intermediate barrels are permitted; and
+    * the raster window and path length are both finite.
+
+    Returns ordinary last-mile operations or ``None``.  It never mutates the
+    board; the caller retains transactional full-board admission authority.
+    """
+
+    import heapq as _heapq
+    import itertools as _itertools
+
+    layers = tuple(sorted(set(int(layer) for layer in layers)))
+    if len(layers) < 2:
+        return None
+    start_layers = tuple(sorted(set(int(layer) for layer in
+                                    (start_layers or layers)) & set(layers)))
+    end_layers = set(int(layer) for layer in (end_layers or layers)) & \
+        set(layers)
+    if not start_layers or not end_layers:
+        return None
+
+    step = max(1, _nm(grid_mm))
+    margin = max(step, _nm(margin_mm))
+    x_lo = (min(S.x, T.x) - margin) // step * step
+    x_hi = ((max(S.x, T.x) + margin + step - 1) // step) * step
+    y_lo = (min(S.y, T.y) - margin) // step * step
+    y_hi = ((max(S.y, T.y) + margin + step - 1) // step) * step
+    xs = set(range(int(x_lo), int(x_hi + step), int(step)))
+    ys = set(range(int(y_lo), int(y_hi + step), int(step)))
+    xs.update((S.x, T.x)); ys.update((S.y, T.y))
+    xs, ys = sorted(xs), sorted(ys)
+    xi = {x: index for index, x in enumerate(xs)}
+    yi = {y: index for index, y in enumerate(ys)}
+    start_xy = (xi[S.x], yi[S.y])
+    target_xy = (xi[T.x], yi[T.y])
+    direct = abs(T.x - S.x) + abs(T.y - S.y)
+    path_limit = direct + 4 * margin
+    via_penalty = _nm(3.0)
+    serial = _itertools.count()
+    directions = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    layer_shapes = {
+        layer: _foreign_shape_indexes(
+            board, layer, {nc}, cache=foreign_cache)
+        for layer in layers
+    }
+    hop_cache = {}
+    via_cache = {}
+
+    def _point(ix_, iy_):
+        return pcbnew.VECTOR2I(xs[ix_], ys[iy_])
+
+    def _heuristic(ix_, iy_):
+        point = _point(ix_, iy_)
+        return abs(T.x - point.x) + abs(T.y - point.y)
+
+    def _hop_clear(layer, A, B):
+        ends = sorted(((A.x, A.y), (B.x, B.y)))
+        width = int(width_for_layer(layer))
+        key = (layer, ends[0], ends[1], width)
+        if key not in hop_cache:
+            zones, copper = layer_shapes[layer]
+            hop_cache[key] = bool(
+                leg_ok(A, B, width // 2)
+                and _snapshot_foreign_clear(
+                    A, B, width, clearance_nm, zones, copper))
+        return hop_cache[key]
+
+    def _via_clear(point):
+        key = (point.x, point.y)
+        if key not in via_cache:
+            via_cache[key] = bool(
+                leg_ok(point, point, _nm(dia) // 2)
+                and _via_spot_clear(
+                    board, point, _nm(dia), clearance_nm, {nc},
+                    drill_nm=_nm(drill), net_code=nc))
+        return via_cache[key]
+
+    # state = (x index, y index, layer, previous planar direction,
+    #          intermediate via count).  Direction -1 is the launch state;
+    # -2 follows a via and prevents zero-length via ping-pong.
+    best = {}
+    travelled = {}
+    previous = {}
+    heap = []
+    for layer in start_layers:
+        state = (start_xy[0], start_xy[1], layer, -1, 0)
+        best[state] = 0.0
+        travelled[state] = 0.0
+        _heapq.heappush(
+            heap, (_heuristic(*start_xy), 0.0, 0.0,
+                   next(serial), state))
+
+    final_state = None
+    while heap:
+        _rank, cost, distance, _serial, state = _heapq.heappop(heap)
+        if cost != best.get(state) or distance != travelled.get(state):
+            continue
+        ix_, iy_, layer, old_direction, via_count = state
+        if (ix_, iy_) == target_xy and layer in end_layers:
+            final_state = state
+            break
+        point = _point(ix_, iy_)
+        for direction, (dx, dy) in enumerate(directions):
+            nx, ny = ix_ + dx, iy_ + dy
+            if not (0 <= nx < len(xs) and 0 <= ny < len(ys)):
+                continue
+            target = _point(nx, ny)
+            length = abs(target.x - point.x) + abs(target.y - point.y)
+            new_distance = distance + length
+            if length <= 0 or new_distance > path_limit:
+                continue
+            if not _hop_clear(layer, point, target):
+                continue
+            turn = 0 if old_direction in (-2, -1, direction) else _nm(0.2)
+            new_cost = cost + length + turn
+            new_state = (nx, ny, layer, direction, via_count)
+            if new_cost >= best.get(new_state, float("inf")):
+                continue
+            best[new_state] = new_cost
+            travelled[new_state] = new_distance
+            previous[new_state] = (state, ("trk", point, target,
+                                           int(width_for_layer(layer)),
+                                           layer))
+            _heapq.heappush(
+                heap, (new_cost + _heuristic(nx, ny), new_cost,
+                       new_distance, next(serial), new_state))
+
+        if via_count >= max(0, int(max_vias)) or old_direction == -2:
+            continue
+        if not _via_clear(point):
+            continue
+        for target_layer in layers:
+            if target_layer == layer:
+                continue
+            new_cost = cost + via_penalty
+            new_state = (ix_, iy_, target_layer, -2, via_count + 1)
+            if new_cost >= best.get(new_state, float("inf")):
+                continue
+            best[new_state] = new_cost
+            travelled[new_state] = distance
+            previous[new_state] = (
+                state, ("via", point, drill, dia))
+            _heapq.heappush(
+                heap, (new_cost + _heuristic(ix_, iy_), new_cost,
+                       distance, next(serial), new_state))
+
+    if final_state is None:
+        return None
+    reversed_ops = []
+    state = final_state
+    while state not in {
+            (start_xy[0], start_xy[1], layer, -1, 0)
+            for layer in start_layers}:
+        prior, operation = previous[state]
+        reversed_ops.append(operation)
+        state = prior
+    reversed_ops.reverse()
+
+    # Collapse collinear raster runs only when layer and qualified width match.
+    operations = []
+    for operation in reversed_ops:
+        if operation[0] == "trk" and operations and \
+                operations[-1][0] == "trk":
+            _kind, A, B, width, layer = operations[-1]
+            _, C, D, new_width, new_layer = operation
+            same_axis = ((A.x == B.x == C.x == D.x)
+                         or (A.y == B.y == C.y == D.y))
+            if (B == C and same_axis and width == new_width
+                    and layer == new_layer):
+                operations[-1] = ("trk", A, D, width, layer)
+                continue
+        operations.append(operation)
+    return operations
+
+
 def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                      *, drill=0.3, dia=0.6, leg_ok=None,
-                     start_escape=None, end_escape=None):
+                     start_escape=None, end_escape=None, seat_limit=1,
+                     allow_maze=True, maze_margin_mm=2.0,
+                     foreign_cache=None, width_for_layer=None):
     """Over-the-top closure for a dense-field gap: seat a through-via just off
     each end (skipped when the end already spans layers -- a via/THT anchor),
     run the bridge leg on an EMPTY non-plane layer (In2/B.Cu -- the F escape
@@ -4579,17 +7294,40 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
         def leg_ok(_S, _T, _half):
             return True
 
+    def _layer_width(layer):
+        if width_for_layer is None:
+            return int(w)
+        return int(width_for_layer(layer))
+
     # existing via positions (ANY net): the foreign guard exempts same-net
     # vias, but a seat drilled hole-to-hole against one is a hole_clearance
     # hit regardless of net -- keep every synthesized seat 0.85mm off any barrel
     ex_vias = [(t.GetPosition().x, t.GetPosition().y)
                for t in board.GetTracks() if t.GetClass() == "PCB_VIA"]
 
-    def _seat(end, lays, lay_b, escape):
+    def _seats(end, lays, lay_b, escape):
         ex, ey = end
         if lay_b in lays:
-            return (end, [])                      # via/THT/track-on-bridge: direct
+            return [(end, [])]                    # via/THT/track-on-bridge: direct
         lay_e = min(lays)
+        stub_width = _layer_width(lay_e)
+        seats = []
+        # Prefer a zero-length escape when the selected fabrication contract
+        # explicitly qualifies a same-net via-in-pad (POFV) or an ordinary
+        # track-end barrel.  The centralized guard proves drill, annular ring,
+        # complete SMD-land containment, assembly exclusions, and foreign
+        # copper on every enabled layer.  If any part fails, this candidate is
+        # absent and the historical offset dogbone sweep remains authoritative.
+        origin = pcbnew.VECTOR2I(int(ex), int(ey))
+        if (not any((origin.x - qx) ** 2 + (origin.y - qy) ** 2
+                    < _nm(0.05) ** 2 for qx, qy in ex_vias)
+                and leg_ok(origin, origin, _nm(dia) // 2)
+                and _via_spot_clear(
+                    board, origin, _nm(dia), clearance_nm, {nc},
+                    drill_nm=_nm(drill), net_code=nc)):
+            seats.append((end, [("via", origin)]))
+            if len(seats) >= max(1, int(seat_limit)):
+                return seats
         # Fine-pitch controllers often need to clear the full package body or
         # its first passive ring before a legal through-via can land.  Keep the
         # sweep bounded, but do not assume every viable seat is within 1.2 mm
@@ -4607,8 +7345,9 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                 if not leg_ok(V, V, _nm(dia) // 2):
                     continue
                 stub_legs = _guarded_profiled_lastmile_legs(
-                    board, S, V, w, lay_e, clearance_nm, nc, leg_ok,
-                    start_escape=escape, allow_maze=False)
+                    board, S, V, stub_width, lay_e, clearance_nm, nc, leg_ok,
+                    start_escape=escape, allow_maze=False,
+                    foreign_cache=foreign_cache)
                 if not stub_legs:
                     continue
                 if not _via_spot_clear(board, V, _nm(dia), clearance_nm,
@@ -4617,41 +7356,84 @@ def _lastmile_bridge(board, A, al, B, bl, w, nc, bridge_lays, clearance_nm,
                     continue
                 stub_ops = [("trk", a, b, width, lay_e)
                             for a, b, width in stub_legs]
-                return ((vx, vy), stub_ops + [("via", V)])
-        return None
+                seats.append(((vx, vy), stub_ops + [("via", V)]))
+                if len(seats) >= max(1, int(seat_limit)):
+                    return seats
+        return seats
 
     for lay_b in bridge_lays:
-        sa = _seat(A, al, lay_b, start_escape)
-        sb = _seat(B, bl, lay_b, end_escape)
-        if sa is None or sb is None:
+        bridge_width = _layer_width(lay_b)
+        seats_a = _seats(A, al, lay_b, start_escape)
+        seats_b = _seats(B, bl, lay_b, end_escape)
+        if not seats_a or not seats_b:
             continue
-        (pa, ops_a), (pb, ops_b) = sa, sb
-        if ops_a and ops_b:                       # both seats synthesized: keep
-            if ((pa[0] - pb[0]) ** 2 + (pa[1] - pb[1]) ** 2
-                    < _nm(0.85) ** 2):            # their drills apart too
+        for (pa, ops_a), (pb, ops_b) in _ranked_bridge_seat_pairs(
+                seats_a, seats_b, _nm(0.85)):
+            S = pcbnew.VECTOR2I(int(pa[0]), int(pa[1]))
+            T = pcbnew.VECTOR2I(int(pb[0]), int(pb[1]))
+            legs = _guarded_lastmile_legs(
+                board, S, T, bridge_width, lay_b, clearance_nm, nc, leg_ok,
+                allow_maze=allow_maze, maze_margin_mm=maze_margin_mm,
+                foreign_cache=foreign_cache)
+            if legs is None:
                 continue
-        S = pcbnew.VECTOR2I(int(pa[0]), int(pa[1]))
-        T = pcbnew.VECTOR2I(int(pb[0]), int(pb[1]))
-        legs = _guarded_lastmile_legs(
-            board, S, T, w, lay_b, clearance_nm, nc, leg_ok)
-        if legs is None:
-            continue
-        ops = list(ops_a) + list(ops_b)
-        for (ls_, le_) in legs:
-            ops.append(("trk", ls_, le_, w, lay_b))
-        # normalize the stub ops' width/layer tuple shape
-        out = []
-        for op in ops:
-            if op[0] == "via":
-                out.append(("via", op[1], drill, dia))
-            else:
-                out.append(op)
-        return out
+            ops = list(ops_a) + list(ops_b)
+            for (ls_, le_) in legs:
+                ops.append(("trk", ls_, le_, bridge_width, lay_b))
+            # normalize the stub ops' width/layer tuple shape
+            out = []
+            for op in ops:
+                if op[0] == "via":
+                    out.append(("via", op[1], drill, dia))
+                else:
+                    out.append(op)
+            return out
+
+    # A fixed pin field may disconnect every individual bridge layer even
+    # though a legal path exists by changing layers *inside* the corridor.
+    # Reuse the proven endpoint dogbones, then run a bounded 3D maze over the
+    # non-plane signal layers.  Through-via seats make all bridge layers
+    # reachable at an endpoint; an endpoint already present on bridge copper
+    # exposes only its actual layer set.
+    if allow_maze and len(bridge_lays) >= 2:
+        seat_layer = bridge_lays[0]
+        seats_a = _seats(A, al, seat_layer, start_escape)
+        seats_b = _seats(B, bl, seat_layer, end_escape)
+        for (pa, ops_a), (pb, ops_b) in _ranked_bridge_seat_pairs(
+                seats_a, seats_b, _nm(0.85)):
+            start_has_via = any(op[0] == "via" for op in ops_a)
+            end_has_via = any(op[0] == "via" for op in ops_b)
+            start_access = (bridge_lays if start_has_via else
+                            [layer for layer in bridge_lays if layer in al])
+            end_access = (bridge_lays if end_has_via else
+                          [layer for layer in bridge_lays if layer in bl])
+            route_ops = _multilayer_maze_lastmile_ops(
+                board,
+                pcbnew.VECTOR2I(int(pa[0]), int(pa[1])),
+                pcbnew.VECTOR2I(int(pb[0]), int(pb[1])),
+                nc, bridge_lays, clearance_nm, leg_ok,
+                width_for_layer=_layer_width,
+                drill=drill, dia=dia,
+                start_layers=start_access, end_layers=end_access,
+                margin_mm=maze_margin_mm, max_vias=2,
+                foreign_cache=foreign_cache)
+            if route_ops is None:
+                continue
+            out = []
+            for op in list(ops_a) + route_ops + list(ops_b):
+                if op[0] == "via":
+                    out.append(("via", op[1], drill, dia))
+                else:
+                    out.append(op)
+            return out
     return None
 
 
 def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40,
-                        netclass_resolver=None, include_nets=None, lock=False):
+                        netclass_resolver=None, include_nets=None,
+                        exclude_nets=(), lock=False,
+                        attempts_per_pair=4, maze_max_mm=5.0,
+                        maze_margin_mm=2.0, terminal_refs_by_net=None):
     """LAST-MILE COMPLETER (2026-07-23, from the s120 residual measurement: 13 of
     30 unconnected gaps were <=5mm same-net pad/via/track gaps FR left unclosed in
     dense clusters -- including BOTH GND criticals, each a stranded pad sitting
@@ -4665,13 +7447,27 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
     fat width, so the track_width DRC posture matches FR's own copper). Every leg
     is foreign-collision-guarded (_tap_foreign_clear, own-net exempt); refuses
     loudly, never forces. Cross-layer-only gaps are counted, not attempted.
-    ``netclass_resolver`` supplies the final project via dimensions.  Bridge
+    ``attempts_per_pair`` bounds how many nearest anchor combinations are
+    collision-qualified for one component pair; increasing it changes only
+    the refusal search budget, never the geometry guards. ``netclass_resolver``
+    supplies the final project via dimensions.  Bridge
     seats MUST be collision-checked at those dimensions: validating the
     router-default 0.6/0.3 mm land and enlarging it later can turn a legal seat
     beside a fine-pitch pad into an unqualified via-in-pad.  Returns
-    {closed, legs, refused, far, cross_layer}. ``include_nets`` limits work to
-    an explicit net-name allowlist; ``lock`` preserves pre-route closures in
-    the global router. Both default to historical post-route behaviour."""
+    {closed, legs, refused, far, cross_layer}. ``maze_max_mm`` bounds the
+    expensive 0.5 mm-grid detour search independently from ``max_mm``. Long
+    eligible gaps still receive every canonical and via-bridge attempt, but
+    cannot accidentally turn a last-mile pass into a whole-board maze search.
+    ``include_nets`` limits work to an explicit net-name allowlist.
+    ``exclude_nets`` is the stage-ownership boundary: a net already completed
+    by a higher-priority topology compiler is never extended by this finishing
+    pass, even if stale connectivity metadata still exposes more than one
+    cluster after SES import or zone refill.
+    ``terminal_refs_by_net`` optionally scopes a net's component graph to the
+    named source/sink footprints and copper already connected to those pads;
+    local-load leaves are not promoted into priority-route terminals.
+    ``lock`` preserves pre-route closures in the global router. Both default
+    to historical post-route behaviour."""
     from collections import Counter, defaultdict
     conn = board.GetConnectivity()
     all_cu = list(board.GetEnabledLayers().CuStack())
@@ -4702,16 +7498,53 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
             return "trk"
         return None
 
+    terminal_refs_by_net = {
+        str(net): {str(ref) for ref in refs}
+        for net, refs in (terminal_refs_by_net or {}).items()}
+    authority_connected = defaultdict(set)
+    if terminal_refs_by_net:
+        for fp in board.GetFootprints():
+            ref = str(fp.GetReference() or "")
+            for pad in fp.Pads():
+                net_name = str(pad.GetNetname() or "")
+                if ref not in terminal_refs_by_net.get(net_name, set()):
+                    continue
+                authority_connected[net_name].add(_item_key("pad", pad))
+                try:
+                    for item in conn.GetConnectedItems(pad):
+                        kind = _connected_kind(item)
+                        if (kind is not None
+                                and item.GetNetCode() == pad.GetNetCode()):
+                            authority_connected[net_name].add(
+                                _item_key(kind, item))
+                except Exception:                       # noqa: BLE001
+                    pass
+
     by_net = defaultdict(list)                    # nc -> [(identity, kind, obj)]
     for fp in board.GetFootprints():
+        ref = str(fp.GetReference() or "")
         for p in fp.Pads():
             if p.GetNetCode() > 0:
+                selected = terminal_refs_by_net.get(str(p.GetNetname() or ""))
+                if selected is not None and ref not in selected:
+                    continue
                 by_net[p.GetNetCode()].append((_item_key("pad", p), "pad", p))
     for t in board.GetTracks():
         if t.GetNetCode() > 0:
             k = "via" if t.GetClass() == "PCB_VIA" else "trk"
-            by_net[t.GetNetCode()].append((_item_key(k, t), k, t))
+            key = _item_key(k, t)
+            selected = terminal_refs_by_net.get(str(t.GetNetname() or ""))
+            if (selected is not None
+                    and key not in authority_connected.get(
+                        str(t.GetNetname() or ""), set())):
+                continue
+            by_net[t.GetNetCode()].append((key, k, t))
     width_mode = {}
+    try:
+        import cec_current_topology
+        current_domains = cec_current_topology.board_current_domains(board)
+    except Exception:                                  # noqa: BLE001
+        current_domains = {}
     for nc_, items in by_net.items():
         ws = Counter(o.GetWidth() for u, k, o in items if k == "trk")
         width_mode[nc_] = ws.most_common(1)[0][0] if ws else _nm(min_w)
@@ -4719,8 +7552,9 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                  for code, info in board.GetNetInfo().NetsByNetcode().items()}
     include = None if include_nets is None else {
         str(net) for net in include_nets}
+    exclude = {str(net) for net in (exclude_nets or ())}
 
-    def _contract_width(nc_):
+    def _contract_width(nc_, layer=None):
         spec = (netclass_resolver(net_names.get(nc_, ""))
                 if netclass_resolver is not None else {}) or {}
         name = (net_names.get(nc_, "") or "").upper()
@@ -4730,6 +7564,17 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                    or "USB_D" in name)
         width = float((spec.get("diff_pair_width") if pairish else None)
                       or spec.get("track_width") or 0)
+        if layer is not None:
+            by_layer = spec.get("track_width_by_layer_mm") or {}
+            layer_name = _fab.COPPER_LAYER_IDS.get(
+                int(layer), board.GetLayerName(int(layer)))
+            width = max(width, float(by_layer.get(layer_name) or 0.0))
+        # Aggregate source-to-sink ampacity is owned by the priority power
+        # compiler and its independent rated-subgraph signoff. Last-mile is a
+        # terminal completion pass: applying the complete net current to every
+        # capacitor/LED/logic spur makes a 4.4 mm "leaf" on a 0.56 mm land and
+        # recreates board-spanning slabs. Netclass remains the local branch
+        # contract; an undersized aggregate path still fails signoff.
         return spec, max(width_mode.get(nc_, _nm(min_w)), _nm(width))
 
     # Existing local pickup stubs can outnumber class-width trunks.  The width
@@ -4755,18 +7600,37 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
         budget = _nm(max(0.6, min(1.5, 1.5 * class_mm)))
         return (local_width, budget)
 
+    def _anchor_owner(kind, obj):
+        owner = {"kind": kind, "net": obj.GetNetname() or ""}
+        if kind == "pad":
+            try:
+                owner.update({
+                    "ref": obj.GetParentFootprint().GetReference(),
+                    "pad": str(obj.GetNumber()),
+                })
+            except Exception:                           # noqa: BLE001
+                pass
+        else:
+            try:
+                owner["uuid"] = obj.m_Uuid.AsString()
+            except Exception:                           # noqa: BLE001
+                pass
+        return owner
+
     def _anchors(kind, obj, class_width):
-        """[(x, y, layers, escape)] -- connectable points of an item."""
+        """[(x, y, layers, escape, owner)] -- connectable item points."""
+        owner = _anchor_owner(kind, obj)
         if kind == "pad":
             ls = frozenset(l for l in obj.GetLayerSet().CuStack() if l in all_cu)
             p = obj.GetPosition()
-            return [(p.x, p.y, ls, _pin_escape(kind, obj, class_width))]
+            return [(p.x, p.y, ls, _pin_escape(kind, obj, class_width), owner)]
         if kind == "via":
             p = obj.GetPosition()
-            return [(p.x, p.y, frozenset(all_cu), None)]
+            return [(p.x, p.y, frozenset(all_cu), None, owner)]
         s, e = obj.GetStart(), obj.GetEnd()
         ls = frozenset((obj.GetLayer(),))
-        return [(s.x, s.y, ls, None), (e.x, e.y, ls, None)]
+        return [(s.x, s.y, ls, None, owner),
+                (e.x, e.y, ls, None, owner)]
 
     # plane layers carry the solid fills -- a foreign lastmile track there would
     # slot the plane (gnd-plane-continuity); exclude them from candidate layers
@@ -4791,8 +7655,12 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                 kelvin_nc.add(_kc)
 
     n_closed = n_legs = n_ref = n_far = n_cross = 0
+    closed_details, refused_details, far_details = [], [], []
+    endpoint_neckdowns = []
+    refused_seen = set()
     for nc_, items in by_net.items():
         if (len(items) < 2 or nc_ in kelvin_nc
+                or net_names.get(nc_, "") in exclude
                 or (include is not None
                     and net_names.get(nc_, "") not in include)):
             continue
@@ -4841,43 +7709,71 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
         pairs = []
         for i in range(len(clusters)):
             for j in range(i + 1, len(clusters)):
-                for (ax, ay, al, ae) in clusters[i]:
-                    for (bx, by_, bl, be) in clusters[j]:
+                for (ax, ay, al, ae, ao) in clusters[i]:
+                    for (bx, by_, bl, be, bo) in clusters[j]:
                         d = ((ax - bx) ** 2 + (ay - by_) ** 2) ** 0.5 / 1e6
                         if d <= max_mm:
                             com = (al & bl) - plane_ids
                             pairs.append((d, i, j, (ax, ay), (bx, by_),
-                                          com, al, bl, ae, be))
+                                          com, al, bl, ae, be, ao, bo))
         if not pairs:
             n_far += len(clusters) - 1
+            nearest = None
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    for ax, ay, _al, _ae, _ao in clusters[i]:
+                        for bx, by_, _bl, _be, _bo in clusters[j]:
+                            distance = math.hypot(ax - bx, ay - by_) / MM
+                            nearest = distance if nearest is None else min(
+                                nearest, distance)
+            far_details.append({
+                "net": net_names.get(nc_, ""),
+                "clusters": len(clusters),
+                "nearest_gap_mm": (round(nearest, 4)
+                                   if nearest is not None else None),
+                "search_limit_mm": float(max_mm),
+                "reason": "outside_completion_distance_budget",
+            })
             continue
         pairs.sort(key=lambda p: p[0])
         bridge_lays = sorted((l for l in all_cu
                               if l not in plane_ids and l != pcbnew.F_Cu),
                              reverse=True)
+        # The board does not mutate until a closure for this net is accepted.
+        # Reuse exact per-layer foreign-copper snapshots across its canonical,
+        # seat, and maze attempts.  A successful closure adds only own-net
+        # copper, which is exempt for the remainder of this net.  The cache is
+        # deliberately per-net so copper added for one net is visible when the
+        # next net begins.
+        foreign_cache = {}
         tries = {}
-        for d, i, j, A, B, com, al, bl, ae, be in pairs:
+        for d, i, j, A, B, com, al, bl, ae, be, ao, bo in pairs:
             if n_closed >= cap:
                 break
             ri, rj = _find(i), _find(j)
             if ri == rj:
                 continue
             key = (min(ri, rj), max(ri, rj))
-            if tries.get(key, 0) >= 4:
+            if tries.get(key, 0) >= max(1, int(attempts_per_pair)):
                 continue
             tries[key] = tries.get(key, 0) + 1
             spec, w = _contract_width(nc_)
             S = pcbnew.VECTOR2I(int(A[0]), int(A[1]))
             T = pcbnew.VECTOR2I(int(B[0]), int(B[1]))
             ops = None
+            allow_maze = d <= max(0.0, float(maze_max_mm))
             # Same-layer canonical 0/45/90 path first, emptier layers before
             # congested F. Never introduce arbitrary-angle copper here: raw FR
             # already emits octilinear routes, and a free-angle shortcut creates
             # hard-to-read diagonal stubs and acute copper joins.
             for lay in sorted(com, reverse=True):
+                spec, w = _contract_width(nc_, lay)
                 legs = _guarded_profiled_lastmile_legs(
                     board, S, T, w, lay, _nm(clearance), nc_, _lm_leg_ok,
-                    start_escape=ae, end_escape=be)
+                    start_escape=ae, end_escape=be,
+                    allow_maze=allow_maze,
+                    maze_margin_mm=maze_margin_mm,
+                    foreign_cache=foreign_cache)
                 if legs:
                     ops = [("trk", a, b, width, lay)
                            for a, b, width in legs]
@@ -4890,10 +7786,37 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                                        bridge_lays, _nm(clearance),
                                        drill=bridge_drill, dia=bridge_dia,
                                        leg_ok=_lm_leg_ok,
-                                       start_escape=ae, end_escape=be)
+                                       start_escape=ae, end_escape=be,
+                                       seat_limit=max(
+                                           1, int(attempts_per_pair)),
+                                       allow_maze=allow_maze,
+                                       maze_margin_mm=maze_margin_mm,
+                                       foreign_cache=foreign_cache,
+                                       width_for_layer=lambda layer: (
+                                           _contract_width(nc_, layer)[1]))
             if ops is None:
                 n_ref += 1
+                refusal_key = (net_names.get(nc_, ""), min(ri, rj),
+                               max(ri, rj))
+                if refusal_key not in refused_seen:
+                    refused_seen.add(refusal_key)
+                    certificate = _lastmile_refusal_certificate(
+                        board, S, T, w, _nm(clearance), nc_,
+                        sorted(set(com) | set(bridge_lays)),
+                        endpoint_a=ao, endpoint_b=bo,
+                        maze_searched=allow_maze,
+                        maze_margin_mm=maze_margin_mm,
+                        attempts_per_pair=attempts_per_pair)
+                    refused_details.append({
+                        "net": net_names.get(nc_, ""),
+                        "distance_mm": round(float(d), 4),
+                        "same_layer_candidates": len(com),
+                        "maze_searched": bool(allow_maze),
+                        "reason": "no_exact_clear_canonical_via_or_maze_path",
+                        "certificate": certificate,
+                    })
                 continue
+            added_tracks = []
             for op in ops:
                 if op[0] == "via":
                     _, at, dr_, di_ = op
@@ -4914,11 +7837,288 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                     tr.SetNetCode(nc_)
                     tr.SetLocked(bool(lock))
                     board.Add(tr)
+                    added_tracks.append(tr)
                     n_legs += 1
+            # Compare every generated leg with the final contract on its own
+            # layer.  Only the pad-local tapered prefix is grouped; the full-
+            # width throat and ordinary class-width route remain unqualified.
+            per_width = {}
+            for track in added_tracks:
+                full_width = _contract_width(nc_, track.GetLayer())[1]
+                if track.GetWidth() < full_width:
+                    per_width.setdefault(full_width, []).append(track)
+            closure_neckdowns = []
+            for full_width, tracks in per_width.items():
+                evidence = group_endpoint_neckdowns(
+                    board, tracks, full_width)
+                if evidence:
+                    closure_neckdowns.append(evidence)
+                    endpoint_neckdowns.extend(tracks)
             n_closed += 1
+            detail = {
+                "net": net_names.get(nc_, ""),
+                "distance_mm": round(float(d), 4),
+                "legs": sum(1 for op in ops if op[0] != "via"),
+                "vias": sum(1 for op in ops if op[0] == "via"),
+                "maze_eligible": bool(allow_maze),
+            }
+            if closure_neckdowns:
+                detail["endpoint_neckdown"] = {
+                    "group": ENDPOINT_NECKDOWN_GROUP,
+                    "tracks": sum(row["tracks"] for row in closure_neckdowns),
+                    "min_width_mm": min(
+                        row["min_width_mm"] for row in closure_neckdowns),
+                    "max_length_mm": max(
+                        row["max_length_mm"] for row in closure_neckdowns),
+                }
+            closed_details.append(detail)
             root[_find(j)] = _find(i)
+    endpoint_summary = None
+    if endpoint_neckdowns:
+        endpoint_summary = {
+            "group": ENDPOINT_NECKDOWN_GROUP,
+            "tracks": len(endpoint_neckdowns),
+            "min_width_mm": round(
+                min(item.GetWidth() for item in endpoint_neckdowns) / MM, 3),
+            "max_length_mm": round(
+                max(item.GetLength() for item in endpoint_neckdowns) / MM, 3),
+        }
     return {"closed": n_closed, "legs": n_legs, "refused": n_ref,
-            "far": n_far, "cross_layer": n_cross}
+            "far": n_far, "cross_layer": n_cross,
+            "endpoint_neckdown": endpoint_summary,
+            "aggregate_current_domains": {
+                net: {
+                    "amps": domain.get("amps"),
+                    "authority_refs": list(domain.get("authority_refs") or ()),
+                }
+                for net, domain in sorted(current_domains.items())
+                if domain.get("complete")},
+            "closed_details": closed_details[:64],
+            "refused_details": refused_details[:64],
+            "far_details": far_details[:64]}
+
+
+def _ordinary_final_completion_nets(board, netclass_resolver):
+    """Low-risk nets eligible for exhaustive post-router completion.
+
+    Differential/high-speed, Kelvin/sense, clock, ground, and power-width nets
+    remain owned by their specialized topology and geometry gates. Ordinary
+    GPIO/status/soft-start/LED/control nets may use the deterministic exact
+    maze because leaving one as a ratline is never an acceptable final board.
+    """
+    kelvin = {net for pair in _board_kelvin_pairs(board) for net in pair}
+    out = []
+    for _code, info in board.GetNetInfo().NetsByNetcode().items():
+        name = info.GetNetname() or ""
+        if not name or name in kelvin:
+            continue
+        upper = name.upper()
+        if upper.startswith("UNCONNECTED-"):
+            continue
+        spec = (netclass_resolver(name) or {})
+        width = float(spec.get("track_width") or 0.0)
+        # KiCad stores non-zero *default values* for the differential-pair
+        # width/gap fields on every netclass, including the ordinary Default
+        # class.  Their presence therefore does not mean this particular net
+        # is a member of a pair.  Classify from the net identity here (the
+        # design-principle grader independently verifies declared pairs).
+        pairish = (bool(re.search(r"_(?:P|N)$", upper))
+                   or upper.endswith(("CAN_H", "CAN_L", "CAN_H_BUS",
+                                      "CAN_L_BUS"))
+                   or "USB_D" in upper or "PCIE" in upper
+                   or "SGMII" in upper)
+        ground = (upper == "GND" or upper.endswith("/GND")
+                  or upper.startswith("GND_"))
+        power = (ground or upper.startswith("+")
+                 or width >= 0.5
+                 or any(token in upper for token in (
+                     "VBUS", "VCC", "VDD", "_5V", "_3V3", "_12V")))
+        sensitive = ("SENSE" in upper or "KELVIN" in upper
+                     or "CAN_MID" in upper
+                     or "XTAL" in upper or "CLOCK" in upper
+                     or upper.endswith(("_CLK", "_MCLK")))
+        if not pairish and not power and not sensitive:
+            out.append(name)
+    return tuple(sorted(set(out)))
+
+
+def synthesize_pipeline_zone_island_bridges(
+        board, *, netclass_resolver=None, max_gap_mm=5.0,
+        sample_radius_mm=1.0, sample_step_mm=0.2, attempt_cap=32,
+        min_power_width=0.5, lock=False):
+    """Join split filled islands of one pipeline-owned power zone.
+
+    A shaped over-under zone can fill as two legitimate copper islands when a
+    foreign obstacle clips its narrow elbow.  The pre-fill pour-bond planner
+    sees one zone dictionary and can bond each island to a *different* layer
+    segment, while KiCad still has two disconnected electrical components.
+    Object-level connectivity masks this because both islands share one ZONE
+    object.  Inspect the filled polygon outlines directly and add a guarded
+    same-layer class-width bridge only when:
+
+    * the zone is pipeline-owned and its net is power-width;
+    * two filled outlines are at most ``max_gap_mm`` apart; and
+    * an exact foreign-copper/edge-qualified 0/45/90 route exists.
+
+    The bounded samples stay within one millimetre of the two nearest outline
+    boundaries.  This is an island repair, not a general zone router; ordinary
+    user zones, planes, signals, and distant islands are untouched.
+    """
+    import math as _math
+
+    def _spec(net):
+        if netclass_resolver is not None:
+            return dict(netclass_resolver(net) or {})
+        try:
+            klass = board.GetNetInfo().GetNetItem(net).GetNetClassSlow()
+            return {"track_width": klass.GetTrackWidth() / MM,
+                    "clearance": klass.GetClearance() / MM}
+        except Exception:                              # noqa: BLE001
+            return {}
+
+    added = legs_added = refused = ignored = 0
+    detail = []
+    for zone in board.Zones():
+        name = str(zone.GetZoneName() or "")
+        if (zone.GetIsRuleArea()
+                or not name.startswith(PIPELINE_POUR_PREFIXES)):
+            continue
+        layers = list(zone.GetLayerSet().CuStack())
+        if len(layers) != 1 or not zone.IsFilled():
+            ignored += 1
+            continue
+        layer = layers[0]
+        polys = zone.GetFilledPolysList(layer)
+        count = int(polys.OutlineCount())
+        if count < 2:
+            continue
+        spec = _spec(zone.GetNetname())
+        width_mm = float(spec.get("track_width") or 0.0)
+        if width_mm < float(min_power_width):
+            ignored += count - 1
+            continue
+        clearance_nm = _nm(max(0.20, float(spec.get("clearance") or 0.0)))
+        width_nm = _nm(width_mm)
+        outlines = [polys.COutline(index) for index in range(count)]
+        root = list(range(count))
+
+        def _find(index):
+            while root[index] != index:
+                root[index] = root[root[index]]
+                index = root[index]
+            return index
+
+        edge_rows = []
+        for i in range(count):
+            for j in range(i + 1, count):
+                a = pcbnew.VECTOR2I()
+                b = pcbnew.VECTOR2I()
+                try:
+                    if not outlines[i].NearestPoints(outlines[j], a, b):
+                        continue
+                except Exception:                       # noqa: BLE001
+                    continue
+                gap = _math.hypot(a.x - b.x, a.y - b.y) / MM
+                if gap <= float(max_gap_mm):
+                    edge_rows.append((gap, i, j, a, b))
+        edge_rows.sort(key=lambda row: (row[0], row[1], row[2]))
+
+        for gap, i, j, nearest_a, nearest_b in edge_rows:
+            ri, rj = _find(i), _find(j)
+            if ri == rj:
+                continue
+
+            def _samples(outline, near):
+                radius = float(sample_radius_mm)
+                step = max(0.05, float(sample_step_mm))
+                n = int(_math.ceil(radius / step))
+                rows = []
+                for ix in range(-n, n + 1):
+                    for iy in range(-n, n + 1):
+                        if _math.hypot(ix * step, iy * step) > radius + 1e-9:
+                            continue
+                        point = pcbnew.VECTOR2I(
+                            int(round(near.x + _nm(ix * step))),
+                            int(round(near.y + _nm(iy * step))))
+                        try:
+                            inside = outline.PointInside(point)
+                        except Exception:                # noqa: BLE001
+                            inside = False
+                        if inside:
+                            rows.append(point)
+                return rows
+
+            samples_a = _samples(outlines[i], nearest_a)
+            samples_b = _samples(outlines[j], nearest_b)
+            pairs = sorted(
+                ((_math.hypot(a.x - b.x, a.y - b.y), a, b)
+                 for a in samples_a for b in samples_b
+                 if _math.hypot(a.x - b.x, a.y - b.y)
+                 <= _nm(float(max_gap_mm))),
+                key=lambda row: (row[0], row[1].x, row[1].y,
+                                 row[2].x, row[2].y))
+            chosen = None
+            for _distance, start, end in pairs[:max(1, int(attempt_cap))]:
+                legs = _guarded_profiled_lastmile_legs(
+                    board, start, end, width_nm, layer, clearance_nm,
+                    zone.GetNetCode(),
+                    lambda a, b, half: _edge_leg_clear(board, a, b, half))
+                if legs:
+                    chosen = legs
+                    break
+            if chosen is None:
+                refused += 1
+                detail.append({"net": zone.GetNetname(), "layer":
+                               board.GetLayerName(layer),
+                               "islands": [i, j], "gap_mm": round(gap, 3),
+                               "status": "refused"})
+                continue
+            for start, end, width in chosen:
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(start)
+                track.SetEnd(end)
+                track.SetWidth(width)
+                track.SetLayer(layer)
+                track.SetNetCode(zone.GetNetCode())
+                track.SetLocked(bool(lock))
+                board.Add(track)
+                legs_added += 1
+            root[_find(j)] = _find(i)
+            added += 1
+            detail.append({"net": zone.GetNetname(), "layer":
+                           board.GetLayerName(layer), "islands": [i, j],
+                           "gap_mm": round(gap, 3), "legs": len(chosen),
+                           "status": "linked"})
+    return {"added": added, "legs": legs_added, "refused": refused,
+            "ignored": ignored, "detail": detail}
+
+
+def repair_post_cleanup_zone_islands(board_path, *, netclass_resolver=None):
+    """Repair split pipeline pours on the actual post-cleanup artifact.
+
+    The first island pass in :func:`import_ses` necessarily runs before pour
+    termination and the fresh-load cleanup/reaper.  Those stages refill or
+    remove copper and can therefore split a previously single-outline shaped
+    rail.  Re-open the deliverable after every zone-mutating stage has
+    finished, apply the same guarded island rule to those final filled
+    polygons, then refill and save only when a bridge was added.
+
+    This deliberately remains a narrow power-zone repair: the underlying
+    helper ignores hand-authored zones, signal-width nets, and gaps without an
+    edge- and foreign-copper-qualified octilinear path.
+    """
+    board = pcbnew.LoadBoard(board_path)
+    resolver = (netclass_resolver
+                if netclass_resolver is not None
+                else _project_netclass_resolver(board_path))
+    report = synthesize_pipeline_zone_island_bridges(
+        board, netclass_resolver=resolver)
+    if report["added"]:
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        pcbnew.SaveBoard(board_path, board)
+    return report
 
 
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
@@ -5082,6 +8282,8 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
                              t.GetWidth(f_cu) / MM))
     added = []
     skipped_pad = 0
+    skipped_track = 0
+    import cec_slab_pour
     for v in via_list:
         x, y = v["x_mm"], v["y_mm"]
         if any((x - qx) ** 2 + (y - qy) ** 2
@@ -5092,6 +8294,16 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         if nc <= 0:
             continue
         at = pcbnew.VECTOR2I(_nm(x), _nm(y))
+        # Defense in depth at the materialization boundary.  Frozen
+        # pour-first state can outlive later critical-pair routing, and old
+        # state files predate the exact field-via gate in the planner.  A
+        # routed-power via may be omitted (and the candidate rejected for an
+        # honest open) but may never be drilled through foreign signal copper.
+        if not cec_slab_pour.via_clear_of_foreign_tracks(
+                board, nc, x, y, diameter_mm=dia,
+                clearance_mm=cec_slab_pour.PAD_MARGIN):
+            skipped_track += 1
+            continue
         # assembly-class via-in-pad exclusion (owner ruling 2026-07-25) --
         # defense in depth: the v4 planner reseats field vias beside pads
         # upstream, so a refusal here marks an upstream miss, loudly.
@@ -5116,6 +8328,10 @@ def add_overunder_vias(board, via_list, *, drill=0.5, dia=0.9):
         print(f"[cec_fr] add_overunder_vias: {skipped_pad} via(s) REFUSED "
               "in-pad (assembly-class exclusion, owner ruling 2026-07-25 -- "
               "upstream should have reseated)", file=sys.stderr)
+    if skipped_track:
+        print(f"[cec_fr] add_overunder_vias: {skipped_track} via(s) REFUSED "
+              "through foreign routed copper (critical-route ownership "
+              "boundary)", file=sys.stderr)
     return added
 
 
@@ -5212,7 +8428,7 @@ def _via_pad_excluded(board, at, dia_nm, drill_nm=None, net_code=None):
 
 
 def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
-                    drill_nm=None, net_code=None):
+                    drill_nm=None, net_code=None, contained_layers=()):
     """True iff a THROUGH-via of diameter dia_nm at *at* has no foreign-net
     pad/track/via within clearance_nm on ANY enabled copper layer. A through
     barrel exists on every layer of the stack, so a single-layer probe is a
@@ -5227,6 +8443,7 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
     -- pickups, force vias, lastmile, tap doglegs -- inherits it."""
     if _via_pad_excluded(board, at, dia_nm, drill_nm, net_code) is not None:
         return False
+    contained_layers = {int(layer) for layer in (contained_layers or ())}
     # Copper graphics have no net code, so the ordinary foreign-net scan below
     # cannot see them.  A through via piercing exposed logo/artwork copper is
     # nevertheless a real short/clearance fault.  Probe exact graphical shapes
@@ -5237,12 +8454,25 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
             try:
                 if item.GetLayer() not in board.GetEnabledLayers().CuStack():
                     continue
+                if int(item.GetLayer()) in contained_layers:
+                    continue
                 if item.GetEffectiveShape().Collide(circ, clearance_nm):
                     return False
             except Exception:                           # noqa: BLE001
                 continue
-    probe = pcbnew.VECTOR2I(at.x + 10000, at.y)
+    # SHAPE_SEGMENT has no point-only overload.  Use a one-database-unit
+    # centreline rather than the historical 10 um ray: that ray made a legal
+    # via exactly at minimum clearance appear 10 um closer to whichever
+    # foreign object happened to lie in +X.  One nanometre is below every fab
+    # resolution while retaining a valid non-zero shape for KiCad.
+    probe = pcbnew.VECTOR2I(at.x + 1, at.y)
     for lid in board.GetEnabledLayers().CuStack():
+        if int(lid) in contained_layers:
+            # The fabrication gate above proved that this via land is wholly
+            # contained by an existing same-net surface pad. It cannot worsen
+            # that layer's already-established copper clearance. Other layers
+            # still receive the full through-via collision probe.
+            continue
         if not _tap_foreign_clear(board, at, probe, dia_nm, lid,
                                   clearance_nm, exempt_codes):
             return False
@@ -5284,6 +8514,18 @@ def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_code
                     return False
             except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
                 continue
+        # Copper artwork has no net code, but it is still physical copper.
+        # Direct post-route helpers bypass the decorative DSN keepout, so they
+        # must treat footprint graphics (logos, shields, custom copper) as
+        # foreign obstacles just as the via guard does.
+        for item in fp.GraphicalItems():
+            try:
+                if item.GetLayer() != layer_id:
+                    continue
+                if item.GetEffectiveShape().Collide(seg, clearance_nm):
+                    return False
+            except Exception:                       # noqa: BLE001
+                continue
     for t in board.GetTracks():
         if t.GetNetCode() in sense_codes:
             continue
@@ -5300,7 +8542,7 @@ def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_code
     return True
 
 
-def _layer_foreign_shapes(board, layer_id, sense_codes):
+def _layer_foreign_shapes(board, layer_id, sense_codes, *, identified=False):
     """Snapshot exact foreign-copper shapes for one guarded path search.
 
     ``_tap_foreign_clear`` is the authoritative one-shot guard, but a bounded
@@ -5319,12 +8561,20 @@ def _layer_foreign_shapes(board, layer_id, sense_codes):
     zones = []
     copper = []
 
-    def _append(rows, shape):
+    def _net_name(obj):
+        try:
+            return obj.GetNetname() or ""
+        except Exception:                              # noqa: BLE001
+            return ""
+
+    layer_name = board.GetLayerName(layer_id)
+
+    def _append(rows, shape, identity=None):
         try:
             box = shape.BBox()
         except Exception:                              # noqa: BLE001
             box = None
-        rows.append((shape, box))
+        rows.append((shape, box, identity) if identified else (shape, box))
 
     for zone in board.Zones():
         if zone.GetIsRuleArea() or zone.GetNetCode() in sense_codes:
@@ -5334,7 +8584,9 @@ def _layer_foreign_shapes(board, layer_id, sense_codes):
         if layer_id not in zone.GetLayerSet().CuStack():
             continue
         try:
-            _append(zones, zone.Outline())
+            _append(zones, zone.Outline(), {
+                "kind": "zone", "net": _net_name(zone),
+                "name": zone.GetZoneName() or "", "layer": layer_name})
         except Exception:                              # noqa: BLE001
             # Preserve the historical guard's behavior for malformed/engine
             # specific outlines: it also skips only the outline that cannot be
@@ -5346,7 +8598,18 @@ def _layer_foreign_shapes(board, layer_id, sense_codes):
                     or layer_id not in pad.GetLayerSet().CuStack()):
                 continue
             try:
-                _append(copper, pad.GetEffectiveShape(layer_id))
+                _append(copper, pad.GetEffectiveShape(layer_id), {
+                    "kind": "pad", "ref": fp.GetReference(),
+                    "pad": str(pad.GetNumber()), "net": _net_name(pad),
+                    "layer": layer_name})
+            except Exception:                          # noqa: BLE001
+                continue
+        for item in fp.GraphicalItems():
+            try:
+                if item.GetLayer() == layer_id:
+                    _append(copper, item.GetEffectiveShape(), {
+                        "kind": "footprint_graphic", "ref": fp.GetReference(),
+                        "layer": layer_name})
             except Exception:                          # noqa: BLE001
                 continue
     for track in board.GetTracks():
@@ -5358,10 +8621,58 @@ def _layer_foreign_shapes(board, layer_id, sense_codes):
         elif track.GetLayer() != layer_id:
             continue
         try:
-            _append(copper, track.GetEffectiveShape(layer_id))
+            is_via = track.GetClass() == "PCB_VIA"
+            identity = {
+                "kind": ("via" if is_via else "track"),
+                "net": _net_name(track), "layer": layer_name,
+                # Placement materialization deliberately locks synthesized
+                # local-cell copper.  Retaining that bit lets a later refusal
+                # certificate distinguish a movable generated cell tail from
+                # unrelated board routing without relying on UUIDs or refs.
+                "locked": bool(track.IsLocked())}
+            if not is_via:
+                identity["from_mm"] = [
+                    round(track.GetStart().x / MM, 6),
+                    round(track.GetStart().y / MM, 6)]
+                identity["to_mm"] = [
+                    round(track.GetEnd().x / MM, 6),
+                    round(track.GetEnd().y / MM, 6)]
+                identity["width_mm"] = round(track.GetWidth() / MM, 6)
+            else:
+                identity["at_mm"] = [
+                    round(track.GetPosition().x / MM, 6),
+                    round(track.GetPosition().y / MM, 6)]
+                identity["diameter_mm"] = round(
+                    track.GetWidth(layer_id) / MM, 6)
+            try:
+                identity["uuid"] = track.m_Uuid.AsString()
+            except Exception:                          # noqa: BLE001
+                pass
+            _append(copper, track.GetEffectiveShape(layer_id), identity)
         except Exception:                              # noqa: BLE001
             continue
     return zones, copper
+
+
+def _foreign_shape_indexes(board, layer_id, sense_codes, *, cache=None):
+    """Return exact, bucket-indexed foreign shapes for a layer/net context.
+
+    ``cache`` is intentionally supplied by the caller instead of being global:
+    a board is mutable and a module-level cache would become stale after any
+    synthesized copper.  The key includes the exempt net set so a snapshot can
+    never be reused under a broader clearance exemption.  Bounding boxes only
+    select possible collisions; :func:`_snapshot_foreign_clear` still performs
+    KiCad's exact ``Collide`` test on every selected shape.
+    """
+    key = (int(layer_id), tuple(sorted(int(code) for code in sense_codes)))
+    if cache is not None and key in cache:
+        return cache[key]
+    zones, copper = _layer_foreign_shapes(board, layer_id, set(sense_codes))
+    indexed = (_bucket_foreign_shapes(zones),
+               _bucket_foreign_shapes(copper))
+    if cache is not None:
+        cache[key] = indexed
+    return indexed
 
 
 def _bucket_foreign_shapes(rows, *, cell_nm=None, max_cells=4096):
@@ -5371,7 +8682,8 @@ def _bucket_foreign_shapes(rows, *, cell_nm=None, max_cells=4096):
     cell = int(cell_nm or _nm(2.0))
     buckets = defaultdict(list)
     global_rows = []
-    for index, (_shape, box) in enumerate(rows):
+    for index, row in enumerate(rows):
+        box = row[1]
         if box is None:
             global_rows.append(index)
             continue
@@ -5441,6 +8753,183 @@ def _snapshot_foreign_clear(S, T, width_nm, clearance_nm, zones, copper):
     return True
 
 
+def _identified_foreign_shape_indexes(board, layer_id, sense_codes):
+    """Exact foreign-shape indexes retaining JSON-safe obstruction identity."""
+    zones, copper = _layer_foreign_shapes(
+        board, layer_id, set(sense_codes), identified=True)
+    return _bucket_foreign_shapes(zones), _bucket_foreign_shapes(copper)
+
+
+def _snapshot_foreign_blockers(S, T, width_nm, clearance_nm, zones, copper,
+                               *, limit=16):
+    """Return the exact foreign objects colliding with a candidate segment."""
+    segment = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    try:
+        segment_box = segment.BBox()
+        clearance_box = segment_box.GetInflated(clearance_nm)
+    except Exception:                                  # noqa: BLE001
+        segment_box = clearance_box = None
+    hits = []
+    for rows, query_box, extra, contact in (
+            (zones, segment_box, 0, "copper_overlap"),
+            (copper, clearance_box, clearance_nm, "clearance")):
+        for row in _indexed_shape_rows(rows, query_box):
+            shape, box = row[0], row[1]
+            identity = row[2] if len(row) > 2 else None
+            try:
+                if ((box is None or query_box is None
+                     or box.Intersects(query_box))
+                        and shape.Collide(segment, extra)):
+                    hit = dict(identity or {"kind": "unidentified_copper"})
+                    hit["contact"] = contact
+                    if hit not in hits:
+                        hits.append(hit)
+            except Exception:                          # noqa: BLE001
+                continue
+    return hits[:max(0, int(limit))]
+
+
+def _lastmile_refusal_certificate(
+        board, S, T, width_nm, clearance_nm, net_code, layer_ids, *,
+        endpoint_a=None, endpoint_b=None, maze_searched=False,
+        maze_margin_mm=2.0, attempts_per_pair=4, ray_mm=1.25,
+        start_escape=None, end_escape=None):
+    """Explain a bounded last-mile refusal using exact geometry identities.
+
+    This certificate intentionally does *not* claim that a net is impossible.
+    It records what the bounded canonical/maze/via search tried, plus exact
+    objects that block the direct segment and octilinear endpoint escape rays.
+    That is sufficient for deterministic placement repair without pretending
+    the sampled rays form a mathematical min-cut.
+    """
+    from collections import Counter
+
+    def _identity_key(row):
+        return json.dumps(row, sort_keys=True, separators=(",", ":"))
+
+    endpoints = []
+    escape_by_label = {"a": start_escape, "b": end_escape}
+    for label, point, owner in (("a", S, endpoint_a or {}),
+                                ("b", T, endpoint_b or {})):
+        row = dict(owner)
+        row.update({"endpoint": label,
+                    "x_mm": round(point.x / MM, 6),
+                    "y_mm": round(point.y / MM, 6)})
+        escape = escape_by_label[label]
+        if escape is not None:
+            row["neckdown_width_mm"] = round(float(escape[0]) / MM, 6)
+            row["neckdown_budget_mm"] = round(float(escape[1]) / MM, 6)
+        endpoints.append(row)
+
+    directions = (("E", 1, 0), ("NE", 1, -1), ("N", 0, -1),
+                  ("NW", -1, -1), ("W", -1, 0), ("SW", -1, 1),
+                  ("S", 0, 1), ("SE", 1, 1))
+    ray_nm = _nm(ray_mm)
+    layer_rows = []
+    all_hits = Counter()
+    identities = {}
+    for layer_id in sorted(set(int(layer) for layer in layer_ids)):
+        zones, copper = _identified_foreign_shape_indexes(
+            board, layer_id, {net_code})
+        direct_hits = _snapshot_foreign_blockers(
+            S, T, width_nm, clearance_nm, zones, copper)
+        for hit in direct_hits:
+            key = _identity_key(hit)
+            identities[key] = hit
+            all_hits[key] += 1
+        escape_rows = []
+        for label, start in (("a", S), ("b", T)):
+            endpoint_escape = escape_by_label[label]
+            probe_width = (int(endpoint_escape[0])
+                           if endpoint_escape is not None else width_nm)
+            clear_rays = []
+            edge_blocked = []
+            ray_details = []
+            blockers = Counter()
+            local_identities = {}
+            for name, dx, dy in directions:
+                norm = math.sqrt(float(dx * dx + dy * dy))
+                finish = pcbnew.VECTOR2I(
+                    int(start.x + ray_nm * dx / norm),
+                    int(start.y + ray_nm * dy / norm))
+                if not _edge_leg_clear(
+                        board, start, finish, probe_width // 2):
+                    edge_blocked.append(name)
+                    ray_details.append({
+                        "direction": name,
+                        "status": "board_edge_blocked",
+                        "length_mm": round(ray_nm / MM, 6),
+                        "blockers": [],
+                    })
+                    continue
+                hits = _snapshot_foreign_blockers(
+                    start, finish, probe_width, clearance_nm, zones, copper)
+                if not hits:
+                    clear_rays.append(name)
+                    ray_details.append({
+                        "direction": name,
+                        "status": "clear",
+                        "length_mm": round(ray_nm / MM, 6),
+                        "blockers": [],
+                    })
+                    continue
+                ray_details.append({
+                    "direction": name,
+                    "status": "foreign_copper_blocked",
+                    "length_mm": round(ray_nm / MM, 6),
+                    "blockers": hits,
+                })
+                for hit in hits:
+                    key = _identity_key(hit)
+                    identities[key] = hit
+                    local_identities[key] = hit
+                    blockers[key] += 1
+                    all_hits[key] += 1
+            escape_rows.append({
+                "endpoint": label,
+                "probe_width_mm": round(probe_width / MM, 6),
+                "clear_rays": clear_rays,
+                "edge_blocked_rays": edge_blocked,
+                "ray_details": ray_details,
+                "foreign_blocked_ray_count": int(sum(blockers.values())),
+                "blockers": [
+                    {**local_identities[key], "hit_count": int(count)}
+                    for key, count in blockers.most_common(12)],
+            })
+        layer_rows.append({
+            "layer": board.GetLayerName(layer_id),
+            "direct_edge_clear": bool(_edge_leg_clear(
+                board, S, T, width_nm // 2)),
+            "direct_blockers": direct_hits,
+            "endpoint_escape": escape_rows,
+        })
+    return {
+        "schema": 1,
+        "conclusion": "bounded_search_exhausted_not_global_impossibility",
+        "net": board.GetNetInfo().GetNetItem(net_code).GetNetname(),
+        "width_mm": round(width_nm / MM, 6),
+        "clearance_mm": round(clearance_nm / MM, 6),
+        "endpoints": endpoints,
+        "search": {
+            "canonical_octilinear": True,
+            "same_layer_maze": bool(maze_searched),
+            "maze_margin_mm": float(maze_margin_mm),
+            "via_bridge": True,
+            "multilayer_via_maze": bool(
+                maze_searched
+                and len(set(int(layer) for layer in layer_ids)) >= 2),
+            "attempts_per_cluster_pair": int(attempts_per_pair),
+            "escape_probe_mm": float(ray_mm),
+            "endpoint_neckdowns": bool(
+                start_escape is not None or end_escape is not None),
+        },
+        "layers": layer_rows,
+        "dominant_blockers": [
+            {**identities[key], "hit_count": int(count)}
+            for key, count in all_hits.most_common(16)],
+    }
+
+
 def _tap_pair_overlap_clear(board, S, T, width_nm, layer_id, own_code, sense_codes):
     """True iff the segment S->T does not PLOW THROUGH a sense pad of a DIFFERENT sense net.
     The foreign guard (_tap_foreign_clear) deliberately ignores ALL sense-net copper (the partner
@@ -5464,6 +8953,41 @@ def _tap_pair_overlap_clear(board, S, T, width_nm, layer_id, own_code, sense_cod
             except Exception:                       # noqa: BLE001
                 continue
     return True
+
+
+def _tap_pending_collider(path, own_code, layer_id, pending, width_nm,
+                          clearance_nm):
+    """Name an already-planned foreign Kelvin leg that *path* would hit.
+
+    Kelvin candidates are deliberately decided before any are materialized so
+    duplicate same-net launches can be coalesced.  The old implementation also
+    made every different-net in-call candidate invisible, allowing two valid
+    individual tap paths to cross and leaving DRC to discover the short later.
+    Same-net overlap remains legal and is pruned by the existing coalescer;
+    different-net copper must satisfy the ordinary board clearance now, while
+    the fallback ladder can still try another guarded shape.
+    """
+    for other_path, other_code, other_net, _label, other_layer in pending:
+        if other_code == own_code or other_layer != layer_id:
+            continue
+        for start, end in zip(path, path[1:]):
+            if start == end:
+                continue
+            candidate = pcbnew.SHAPE_SEGMENT(start, end, width_nm)
+            for other_start, other_end in zip(other_path, other_path[1:]):
+                if other_start == other_end:
+                    continue
+                other = pcbnew.SHAPE_SEGMENT(
+                    other_start, other_end, width_nm)
+                try:
+                    if candidate.Collide(other, clearance_nm):
+                        return "pending Kelvin leg [%s]" % other_net
+                except Exception:                       # noqa: BLE001
+                    # SWIG shape overloads differ across KiCad releases. The
+                    # downstream exact DRC remains fail closed if an older
+                    # binding cannot perform this pre-materialization probe.
+                    continue
+    return None
 
 
 def _canonical_tap_path(S, T, ux, uy, *, run_pref_mm=0.9, run_min_mm=0.3, gap_mm=None):
@@ -5537,14 +9061,71 @@ def _locked_pad_contact(board, pad, *, tracks=None):
     return False
 
 
-def _tap_leg_collider(board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_code):
-    """NAME the first item that blocks leg S->T (the refuse-loud half of canonical-or-
-    refuse): the same Collide() geometry as _tap_foreign_clear/_tap_pair_overlap_clear,
-    but returning WHAT collided ("pad U12.7 [GND]" / "track [/THRESH]" / "sense pad
-    RS3.1 [/SENSE3V3_HI]") so a refusal reports the blocking item the pour/placement
-    rung must fix. Cold path -- runs only when a leg is already known refused."""
+def _tap_shape_bbox_mm(shape):
+    """Return a small JSON-safe bounding box for an exact KiCad shape."""
+    try:
+        box = shape.BBox()
+        return [round(box.GetX() / MM, 6), round(box.GetY() / MM, 6),
+                round((box.GetX() + box.GetWidth()) / MM, 6),
+                round((box.GetY() + box.GetHeight()) / MM, 6)]
+    except Exception:                                  # noqa: BLE001
+        return None
+
+
+def _tap_leg_collider_detail(board, S, T, width_nm, layer_id, clr_nm,
+                             sense_codes, own_code, *, include_sense=True):
+    """Describe the first exact-copper obstruction on one Kelvin tap leg.
+
+    This is the certificate-producing twin of :func:`_tap_foreign_clear`.
+    Keep its obstacle classes and clearances in lock-step with that guard so a
+    refused route never loses the physical reason that made it fail.  The
+    returned coordinates are intentionally generic: downstream placement can
+    move a named foreign footprint away from the blocked leg, or move an
+    endpoint normal to immutable zone/track copper, without knowing a board or
+    reference designator in advance.
+    """
     seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
     near_nm = _nm(0.02)
+    layer_name = board.GetLayerName(layer_id)
+
+    def detail(kind, label, *, ref=None, pad=None, net=None, shape=None,
+               position=None):
+        row = {
+            "kind": kind, "label": label, "layer": layer_name,
+            "net": str(net or ""),
+        }
+        if ref:
+            row["ref"] = str(ref)
+        if pad is not None:
+            row["pad"] = str(pad)
+        if position is not None:
+            row["position_mm"] = [round(position.x / MM, 6),
+                                  round(position.y / MM, 6)]
+        if shape is not None:
+            bounds = _tap_shape_bbox_mm(shape)
+            if bounds is not None:
+                row["bbox_mm"] = bounds
+        return row
+
+    # Pipeline-owned poured copper is an immutable route authority at this
+    # stage.  It is checked before ordinary items, matching
+    # _tap_foreign_clear's no-incursion contract.
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or zone.GetNetCode() in sense_codes:
+            continue
+        if not (zone.GetZoneName() or "").startswith(PIPELINE_POUR_PREFIXES):
+            continue
+        if layer_id not in zone.GetLayerSet().CuStack():
+            continue
+        try:
+            outline = zone.Outline()
+            if outline.Collide(seg, 0):
+                name = zone.GetZoneName() or "pipeline pour"
+                return detail(
+                    "zone", "zone %s [%s]" % (name, zone.GetNetname()),
+                    net=zone.GetNetname(), shape=outline)
+        except Exception:                              # noqa: BLE001
+            continue
     for fp in board.GetFootprints():
         ref = fp.GetReference()
         for p in fp.Pads():
@@ -5553,11 +9134,36 @@ def _tap_leg_collider(board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_
                 continue
             try:
                 if nc in sense_codes:
-                    if nc != own_code and p.GetEffectiveShape(layer_id).Collide(seg, near_nm):
-                        return "sense pad %s.%s [%s]" % (ref, p.GetPadName(), p.GetNetname())
+                    if (include_sense and nc != own_code
+                            and p.GetEffectiveShape(layer_id).Collide(
+                                seg, near_nm)):
+                        shape = p.GetEffectiveShape(layer_id)
+                        label = "sense pad %s.%s [%s]" % (
+                            ref, p.GetPadName(), p.GetNetname())
+                        return detail(
+                            "sense_pad", label, ref=ref, pad=p.GetPadName(),
+                            net=p.GetNetname(), shape=shape,
+                            position=p.GetPosition())
                 elif p.GetEffectiveShape(layer_id).Collide(seg, clr_nm):
-                    return "pad %s.%s [%s]" % (ref, p.GetPadName(), p.GetNetname())
+                    shape = p.GetEffectiveShape(layer_id)
+                    label = "pad %s.%s [%s]" % (
+                        ref, p.GetPadName(), p.GetNetname())
+                    return detail(
+                        "pad", label, ref=ref, pad=p.GetPadName(),
+                        net=p.GetNetname(), shape=shape,
+                        position=p.GetPosition())
             except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+        for item in fp.GraphicalItems():
+            try:
+                if item.GetLayer() != layer_id:
+                    continue
+                shape = item.GetEffectiveShape()
+                if shape.Collide(seg, clr_nm):
+                    return detail(
+                        "footprint_copper", "footprint copper %s" % ref,
+                        ref=ref, shape=shape)
+            except Exception:                       # noqa: BLE001
                 continue
     for t in board.GetTracks():
         if t.GetNetCode() in sense_codes:
@@ -5568,16 +9174,164 @@ def _tap_leg_collider(board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_
         elif t.GetLayer() != layer_id:
             continue
         try:
-            if t.GetEffectiveShape(layer_id).Collide(seg, clr_nm):
+            shape = t.GetEffectiveShape(layer_id)
+            if shape.Collide(seg, clr_nm):
                 kind = "via" if t.Type() == pcbnew.PCB_VIA_T else "track"
-                return "%s [%s]" % (kind, t.GetNetname())
+                if kind == "via":
+                    position = t.GetPosition()
+                else:
+                    start, end = t.GetStart(), t.GetEnd()
+                    position = pcbnew.VECTOR2I(
+                        (start.x + end.x) // 2, (start.y + end.y) // 2)
+                return detail(
+                    kind, "%s [%s]" % (kind, t.GetNetname()),
+                    net=t.GetNetname(), shape=shape, position=position)
         except Exception:                           # noqa: BLE001
             continue
     return None
 
 
-def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=9.0,
-                           clearance=0.2):
+def _tap_leg_collider(board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_code):
+    """NAME the first item that blocks leg S->T (legacy string API)."""
+    row = _tap_leg_collider_detail(
+        board, S, T, width_nm, layer_id, clr_nm, sense_codes, own_code)
+    return row.get("label") if row else None
+
+
+def _tap_reservation_hits(path, reservations, *, net, layer,
+                          width_nm, clearance_nm, limit=24):
+    """Return exact future-copper intersections for one Kelvin polyline.
+
+    Pour-first reservations are still abstract while the precision ladder is
+    running, so the ordinary board-copper collider cannot see them.  Inflate
+    each foreign-net rectangle by the proposed tap half-width plus clearance
+    and use exact segment/AABB clipping.  Same-net territory is intentionally
+    exempt: the Kelvin trace is meant to merge into its own current copper.
+    """
+    if path is None or len(path) < 2 or not reservations:
+        return []
+
+    def segment_hits_rect(px, py, qx, qy, rectangle):
+        x0, y0, x1, y1 = rectangle
+        dx, dy = qx - px, qy - py
+        lo, hi = 0.0, 1.0
+        for p, q in ((-dx, px - x0), (dx, x1 - px),
+                     (-dy, py - y0), (dy, y1 - py)):
+            if abs(p) <= 1e-15:
+                if q < 0.0:
+                    return False
+                continue
+            ratio = q / p
+            if p < 0.0:
+                lo = max(lo, ratio)
+            else:
+                hi = min(hi, ratio)
+            if lo > hi:
+                return False
+        return True
+
+    inflation = (float(width_nm) / 2.0 + float(clearance_nm)) / MM
+    points = [(point.x / MM, point.y / MM) for point in path]
+    hits = []
+    seen = set()
+    for row in reservations or ():
+        if not isinstance(row, dict):
+            continue
+        owner_net = str(row.get("net") or "")
+        owner_layer = str(row.get("layer") or "F.Cu")
+        if owner_net == str(net) or owner_layer != str(layer):
+            continue
+        if not all(row.get(key) is not None
+                   for key in ("x0", "y0", "x1", "y1")):
+            continue
+        x0, x1 = sorted((float(row["x0"]), float(row["x1"])))
+        y0, y1 = sorted((float(row["y0"]), float(row["y1"])))
+        rectangle = (x0 - inflation, y0 - inflation,
+                     x1 + inflation, y1 + inflation)
+        for index, ((px, py), (qx, qy)) in enumerate(
+                zip(points, points[1:])):
+            if (max(px, qx) < rectangle[0]
+                    or min(px, qx) > rectangle[2]
+                    or max(py, qy) < rectangle[1]
+                    or min(py, qy) > rectangle[3]):
+                continue
+            if not segment_hits_rect(px, py, qx, qy, rectangle):
+                continue
+            signature = (
+                owner_net, owner_layer, index,
+                round(x0, 6), round(y0, 6),
+                round(x1, 6), round(y1, 6))
+            if signature in seen:
+                continue
+            seen.add(signature)
+            hits.append({
+                "kind": "future_power_reservation",
+                "owner": str(row.get("name") or row.get("kind")
+                             or owner_net),
+                "net": owner_net,
+                "layer": owner_layer,
+                "leg_index": int(index),
+                "leg_start_mm": [round(px, 6), round(py, 6)],
+                "leg_end_mm": [round(qx, 6), round(qy, 6)],
+                "reservation_bounds_mm": [
+                    round(x0, 6), round(y0, 6),
+                    round(x1, 6), round(y1, 6)],
+                "required_clearance_mm": round(inflation, 6),
+            })
+            if len(hits) >= int(limit):
+                return hits
+    return hits
+
+
+def _tap_path_refusal_certificate(board, path, width_nm, layer_id, clr_nm,
+                                  sense_codes, own_code, *, path_kind,
+                                  pending=None, include_sense=True,
+                                  reservations=(), own_net=None):
+    """Capture every blocked leg of one rejected Kelvin path candidate."""
+    if path is None:
+        return {
+            "path_kind": str(path_kind),
+            "reason": "no canonical geometry",
+            "points_mm": [], "blocked_legs": [],
+        }
+    points = [[round(point.x / MM, 6), round(point.y / MM, 6)]
+              for point in path]
+    blocked = []
+    for index, (start, end) in enumerate(zip(path, path[1:])):
+        if start == end:
+            continue
+        collider = _tap_leg_collider_detail(
+            board, start, end, width_nm, layer_id, clr_nm,
+            sense_codes, own_code, include_sense=include_sense)
+        if collider:
+            blocked.append({
+                **collider,
+                "leg_index": int(index),
+                "leg_start_mm": points[index],
+                "leg_end_mm": points[index + 1],
+            })
+    pending_label = _tap_pending_collider(
+        path, own_code, layer_id, pending or (), width_nm, clr_nm)
+    if pending_label:
+        blocked.append({
+            "kind": "pending_kelvin", "label": pending_label,
+            "layer": board.GetLayerName(layer_id), "net": "",
+        })
+    blocked.extend(_tap_reservation_hits(
+        path, reservations, net=own_net,
+        layer=board.GetLayerName(layer_id),
+        width_nm=width_nm, clearance_nm=clr_nm))
+    return {
+        "path_kind": str(path_kind), "points_mm": points,
+        "blocked_legs": blocked,
+        "reason": (blocked[0].get("label") if blocked
+                   else "collider unresolved"),
+    }
+
+
+def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25,
+                           layer="F.Cu", max_ic_mm=9.0,
+                           clearance=0.2, avoid=()):
     """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
     2-pad shunt's INNER edge (the sense point facing the other terminal) to each seated current-sense
     IC's matching input pad on that net -- HI-inner -> IN+ (the *_HI pad), LO-inner -> IN- (the *_LO
@@ -5606,9 +9360,12 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
           the tap yields to foreign copper, it never plows through it; a refused tap re-surfaces the
           inner_tap placement directive so the seat can re-open the channel).
 
-    SELF-GATING: a board with no 2-pad straddle shunt, or no INA input pad on a sense net within
-    max_ic_mm of the shunt (shared-bus 24-pin / filtered 12VHPWR lanes), lays nothing and is a no-op.
-    Pass an already-loaded *board* (additive, in place). Returns a report dict
+    SELF-GATING: a board with no 2-pad straddle shunt or no recognised INA input
+    pad on a sense net lays nothing and is a no-op (shared-bus 24-pin / filtered
+    12VHPWR lanes). A recognised INA input beyond ``max_ic_mm`` is different:
+    Freerouting deliberately excludes that pad, so silently ignoring it would
+    guarantee an open circuit. Such a pad is a named placement refusal. Pass an
+    already-loaded *board* (additive, in place). Returns a report dict
     {taps, by_net: {net: ["RSn->Uk.pad", ...]}, refused: {net: [...]}, covered: {net: [...]}}.
 
     BLUEPRINT KELVIN TAP DISCIPLINE (owner ruling 2026-07-25, recorded at the end of
@@ -5652,8 +9409,63 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
     if f_cu < 0:
         raise KeyError(f"cec_fr.synthesize_kelvin_taps: layer {layer!r} not found")
     clr_nm = _nm(clearance)
-    laid, report, refused, covered = [], {}, {}, {}
+    laid, report, refused, refused_details, covered = [], {}, {}, [], {}
     pending = []                                              # decide-then-lay: guard sees no in-call taps
+
+    def future_power_clear(path, net, layer_id):
+        return not _tap_reservation_hits(
+            path, avoid, net=net, layer=board.GetLayerName(layer_id),
+            width_nm=_nm(width), clearance_nm=clr_nm, limit=1)
+
+    def record_path_refusal(*, net, reason, source_ref, target_ref,
+                            target_pad, source_position, tap_start,
+                            target_position, mode, attempts,
+                            inward_vector=None):
+        blockers = []
+        for attempt in attempts:
+            for blocker in attempt.get("blocked_legs") or ():
+                blockers.append({
+                    **blocker,
+                    "path_kind": str(attempt.get("path_kind") or ""),
+                })
+        row = {
+            "net": str(net), "reason": str(reason),
+            "reason_kind": "kelvin_path_blocked",
+            "mode": str(mode),
+            "source_ref": str(source_ref),
+            "target_ref": str(target_ref),
+            "target_pad": str(target_pad),
+            "source_position_mm": [
+                round(source_position.x / MM, 6),
+                round(source_position.y / MM, 6)],
+            "tap_start_position_mm": [
+                round(tap_start.x / MM, 6),
+                round(tap_start.y / MM, 6)],
+            "target_position_mm": [
+                round(target_position.x / MM, 6),
+                round(target_position.y / MM, 6)],
+            "current_distance_mm": round(math.hypot(
+                (target_position.x - source_position.x) / MM,
+                (target_position.y - source_position.y) / MM), 6),
+            "max_distance_mm": round(float(max_ic_mm), 6),
+            "width_mm": round(float(width), 6),
+            "clearance_mm": round(float(clearance), 6),
+            "path_attempts": list(attempts),
+            "blocker_refs": sorted({
+                str(row.get("ref")) for row in blockers
+                if row.get("ref")}),
+            "blocker_details": blockers,
+        }
+        if (isinstance(inward_vector, (list, tuple))
+                and len(inward_vector) >= 2):
+            ux, uy = float(inward_vector[0]), float(inward_vector[1])
+            row["inward_vector"] = [round(ux, 9), round(uy, 9)]
+            row["target_inward_mm"] = round(
+                ((target_position.x - tap_start.x) / MM) * ux
+                + ((target_position.y - tap_start.y) / MM) * uy, 6)
+            row["canonical_min_inward_mm"] = 0.3
+        refused_details.append(row)
+
     for hi, lo in kelvin_pairs:
         # the shunt is the footprint straddling BOTH halves with EXACTLY 2 pads (same test as
         # derive_power_pours -- a differential INA is multi-pad and so excluded).
@@ -5695,7 +9507,9 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             nc = board.GetNetcodeFromNetname(net)
             # each seated current-sense IC's input pad on THIS net, chosen by PIN FUNCTION
             # (HI->IN+, LO->IN-) -- not nearest-by-distance (defence 1). INA238/228 + the §6.13
-            # INA181 detection amp both tap the shunt; skip a stray INA farther than max_ic_mm.
+            # INA181 detection amp both tap the shunt. A recognised input
+            # beyond max_ic_mm is a placement refusal: broad routing excludes
+            # the pad, so silently skipping it would guarantee an open circuit.
             ic_pad = {}                                       # ref -> pad (the IN+/IN- pad)
             ic_fp = {}                                        # ref -> footprint
             for r, p, fp in pads_by_net.get(net, []):
@@ -5706,6 +9520,28 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                     continue                                  # not the IN+/IN- pad of a known part
                 d = math.hypot((p.GetPosition().x - pc.x) / MM, (p.GetPosition().y - pc.y) / MM)
                 if d > max_ic_mm:
+                    if want is not None and p.GetPadName() == want:
+                        reason = (
+                            "%s->%s.%s OUT-OF-RANGE: %.3fmm > %.3fmm"
+                            % (sh, r, p.GetPadName(), d,
+                               float(max_ic_mm)))
+                        refused.setdefault(net, []).append(reason)
+                        refused_details.append({
+                            "net": net, "reason": reason,
+                            "source_ref": sh, "target_ref": r,
+                            "target_pad": p.GetPadName(),
+                            "source_position_mm": [
+                                round(pc.x / MM, 6),
+                                round(pc.y / MM, 6)],
+                            "target_position_mm": [
+                                round(p.GetPosition().x / MM, 6),
+                                round(p.GetPosition().y / MM, 6)],
+                            "current_distance_mm": round(d, 6),
+                            "max_distance_mm": round(
+                                float(max_ic_mm), 6),
+                            "required_closer_mm": round(
+                                d - float(max_ic_mm), 6),
+                        })
                     continue
                 ic_fp[r] = fp
                 if r not in ic_pad:
@@ -5732,6 +9568,10 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 # clean; falls through to straight, then doglegs, then refusal.
                 _gap = math.hypot((other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM)
                 canon = _canonical_tap_path(S, T, _ux, _uy, gap_mm=_gap)
+                canon_pending = (
+                    _tap_pending_collider(
+                        canon, nc, lay_id, pending, _nm(width), clr_nm)
+                    if canon is not None else None)
                 if canon is not None:
                     legs = list(zip(canon, canon[1:]))
                     if all(a != b for a, b in legs) and \
@@ -5739,7 +9579,8 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                                               sense_codes) and
                            _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
                                                    sense_codes)
-                           for a, b in legs):
+                           for a, b in legs) and not canon_pending \
+                            and future_power_clear(canon, net, lay_id):
                         pending.append((canon, nc, net, lbl + " (canonical)", lay_id))
                         continue
                 if locked_mode:
@@ -5749,24 +9590,33 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                     # blocking item so the pour/placement rung fixes the real
                     # conflict instead of this pass papering over it with bent
                     # copper on the owner's shunt-zoom renders.
+                    attempt = _tap_path_refusal_certificate(
+                        board, canon, _nm(width), lay_id, clr_nm,
+                        sense_codes, nc, path_kind="canonical",
+                        pending=pending, reservations=avoid,
+                        own_net=net)
                     if canon is None:
                         why = ("no canonical geometry (IC not inward of the shunt "
                                "pad's inner edge)")
                     else:
-                        why = None
-                        for a, b in zip(canon, canon[1:]):
-                            if a == b:
-                                continue
-                            why = _tap_leg_collider(board, a, b, _nm(width), lay_id,
-                                                    clr_nm, sense_codes, nc)
-                            if why:
-                                break
-                        why = why or "canonical leg blocked (collider unresolved)"
-                    refused.setdefault(net, []).append(
-                        lbl + " CANONICAL-REFUSED: " + why)
+                        why = (attempt.get("reason") or canon_pending or
+                               "canonical leg blocked (collider unresolved)")
+                    reason = lbl + " CANONICAL-REFUSED: " + why
+                    refused.setdefault(net, []).append(reason)
+                    record_path_refusal(
+                        net=net, reason=reason, source_ref=sh,
+                        target_ref=r, target_pad=p.GetPadName(),
+                        source_position=pc, tap_start=S,
+                        target_position=T, mode="canonical_locked",
+                        attempts=[attempt], inward_vector=(_ux, _uy))
                     continue
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
-                if _tap_foreign_clear(board, S, T, _nm(width), lay_id, clr_nm, sense_codes):
+                if (_tap_foreign_clear(
+                        board, S, T, _nm(width), lay_id, clr_nm, sense_codes)
+                        and not _tap_pending_collider(
+                            [S, T], nc, lay_id, pending,
+                            _nm(width), clr_nm)
+                        and future_power_clear([S, T], net, lay_id)):
                     pending.append(([S, T], nc, net, lbl, lay_id))
                     continue
                 # BENT-TAP FALLBACK (the ina238-lo-tap-refusal fix, 2026-07-07): the INA238's
@@ -5777,20 +9627,46 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 # cross the shunt's HI pad, which the foreign guard deliberately ignores).
                 # Still via-free single-layer F.Cu (§6.8) -- only the shape bends.
                 bent = None
-                for path in _dogleg_candidates(S, T):
+                dogleg_paths = _dogleg_candidates(S, T)
+                for path in dogleg_paths:
                     legs = list(zip(path, path[1:]))
                     if all(a != b for a, b in legs) and \
                        all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
                                               sense_codes) and
                            _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
                                                    sense_codes)
-                           for a, b in legs):
+                           for a, b in legs) and not _tap_pending_collider(
+                               path, nc, lay_id, pending,
+                               _nm(width), clr_nm) \
+                            and future_power_clear(path, net, lay_id):
                         bent = path
                         break
                 if bent is not None:
                     pending.append((bent, nc, net, lbl + " (bent)", lay_id))
                 else:
                     refused.setdefault(net, []).append(lbl)
+                    attempts = [_tap_path_refusal_certificate(
+                        board, canon, _nm(width), lay_id, clr_nm,
+                        sense_codes, nc, path_kind="canonical",
+                        pending=pending, reservations=avoid,
+                        own_net=net)]
+                    attempts.append(_tap_path_refusal_certificate(
+                        board, [S, T], _nm(width), lay_id, clr_nm,
+                        sense_codes, nc, path_kind="straight",
+                        pending=pending, include_sense=False,
+                        reservations=avoid, own_net=net))
+                    attempts.extend(_tap_path_refusal_certificate(
+                        board, path, _nm(width), lay_id, clr_nm,
+                        sense_codes, nc, path_kind="dogleg-%02d" % index,
+                        pending=pending, reservations=avoid,
+                        own_net=net)
+                        for index, path in enumerate(dogleg_paths))
+                    record_path_refusal(
+                        net=net, reason=lbl, source_ref=sh,
+                        target_ref=r, target_pad=p.GetPadName(),
+                        source_position=pc, tap_start=S,
+                        target_position=T, mode="legacy_ladder",
+                        attempts=attempts, inward_vector=(_ux, _uy))
             # VBUS BRIDGE: the INA238/228 ties Vbus (pad 8) to the SAME LO net as IN- (pad 9),
             # 0.5mm below it INSIDE the reserved tap channel -- FR is kept out of the channel,
             # so bridge the two same-net pads with a stub here (what a hand layout does). Only
@@ -5808,12 +9684,54 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                     if vb is None:
                         continue
                     A, B = p.GetPosition(), vb.GetPosition()
-                    if _tap_pair_overlap_clear(board, A, B, _nm(width), lay_id, nc, sense_codes):
+                    if (_tap_pair_overlap_clear(
+                            board, A, B, _nm(width), lay_id, nc,
+                            sense_codes)
+                            and future_power_clear([A, B], net, lay_id)):
                         pending.append(([A, B], nc, net,
                                         "%s.9->%s.8 (vbus bridge)" % (r, r), lay_id))
-    # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
+    # Coalesce covered in-call legs before they become locked copper.  A shunt
+    # may feed two monitor ICs on the same terminal; decide-then-lay correctly
+    # keeps one candidate from blocking another, but historically emitted their
+    # identical/collinear launch legs twice.  Connectivity and DRC both passed,
+    # leaving a connected pseudo-stub/backtrack at the shared launch.  Keep the
+    # longest collinear segment and drop only segments whose complete copper is
+    # already covered on the same net/layer.  Endpoint-on-interior remains a
+    # valid physical connection and is independently checked by the Kelvin gate.
+    planned = []
     for path, nc, net, lbl, p_lay in pending:
+        report.setdefault(net, []).append(lbl)
         for A, B in zip(path, path[1:]):
+            if A != B:
+                planned.append((A, B, nc, net, p_lay, lbl))
+
+    def _covered_by(candidate, survivor):
+        A, B, nc, _net, layer_id, _lbl = candidate
+        C, D, snc, _snet, slayer, _slbl = survivor
+        if nc != snc or layer_id != slayer:
+            return False
+        vx, vy = D.x - C.x, D.y - C.y
+        if vx == 0 and vy == 0:
+            return False
+        for P in (A, B):
+            if vx * (P.y - C.y) - vy * (P.x - C.x) != 0:
+                return False
+            dot = (P.x - C.x) * vx + (P.y - C.y) * vy
+            if dot < 0 or dot > vx * vx + vy * vy:
+                return False
+        return True
+
+    planned.sort(key=lambda row: (
+        -((row[1].x - row[0].x) ** 2 + (row[1].y - row[0].y) ** 2),
+        row[3], row[4], row[0].x, row[0].y, row[1].x, row[1].y, row[5]))
+    survivors = []
+    for segment in planned:
+        if any(_covered_by(segment, present) for present in survivors):
+            continue
+        survivors.append(segment)
+
+    # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
+    for A, B, nc, _net, p_lay, _lbl in survivors:
             t = pcbnew.PCB_TRACK(board)
             t.SetStart(A)
             t.SetEnd(B)
@@ -5822,10 +9740,12 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             t.SetNetCode(nc)
             board.Add(t)
             laid.append(t)
-        report.setdefault(net, []).append(lbl)
     return {"taps": sum(len(v) for v in report.values()),
-            "by_net": report, "refused": refused, "covered": covered,
-            "segments": len(laid)}
+            "by_net": report, "refused": refused,
+            "refused_details": refused_details, "covered": covered,
+            "segments": len(laid),
+            "segments_pruned": len(planned) - len(survivors),
+            "future_power_reservation_count": len(avoid or ())}
 
 
 def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
@@ -5942,6 +9862,14 @@ def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.
                 x0, y0, x1, y1 = clipped
                 hints.append({"name": f"tap_{sh}_{r}", "x0": round(x0, 2), "y0": round(y0, 2),
                               "x1": round(x1, 2), "y1": round(y1, 2),
+                              # Ownership is deliberately carried with the
+                              # geometry.  Route keepout consumers ignore
+                              # these extra fields, while the exact power
+                              # planner uses them to block only FOREIGN rails:
+                              # the matching sense pour may legally merge into
+                              # its own Kelvin channel.
+                              "net": net, "purpose": "future_kelvin_tap",
+                              "source_ref": sh, "target_ref": r,
                               "layers": (("B.Cu",) if (sh_fp2 is not None and sh_fp2.IsFlipped())
                                           else ("F.Cu",)),
                               "allow_vias": False, "block_fills": False})
@@ -6042,7 +9970,9 @@ def _relayer_segment_inband(board, t, clip, target_layer, *, drill=0.3, dia=0.6)
 def _rm_tmp_board(path):
     """Remove a temp board and every project sidecar created beside it."""
     base = path[:-len(".kicad_pcb")] if path.endswith(".kicad_pcb") else path
-    for p in (path, base + ".kicad_pro", base + ".kicad_dru", base + ".kicad_prl"):
+    for p in (path, base + ".kicad_pro", base + ".kicad_dru", base + ".kicad_prl",
+              base + ".pourplan.json", base + ".railreport.json",
+              base + ".pourfirst-state.json"):
         try:
             os.remove(p)
         except OSError:
@@ -6073,11 +10003,24 @@ def rebind_project_metadata(board_path):
 
 
 def copy_project_sidecars(src_board, dst_board):
-    """Copy ``.kicad_pro``/``.kicad_dru`` with a renamed board and rebind it."""
+    """Copy all board-owned route sidecars with a renamed board.
+
+    ``.pourplan.json`` is executable placement/routing ownership data, not a
+    disposable report.  Dropping it while cec_router made a named candidate
+    caused import to re-derive an empty plan and stranded the Hub power tree.
+    Keep it beside every board copy just like the KiCad project/rule files.
+    ``.railreport.json`` is retained as provenance/ranking evidence as well.
+    ``.pourfirst-state.json`` is executable full-board current ownership: it
+    must follow a renamed placement so resumed and independently derived route
+    artifacts retain the same exact reservations instead of silently falling
+    back to corridor guesses or refusing for missing authority.
+    """
     src_base = src_board[:-len(".kicad_pcb")] if src_board.endswith(".kicad_pcb") else src_board
     dst_base = dst_board[:-len(".kicad_pcb")] if dst_board.endswith(".kicad_pcb") else dst_board
     copied = []
-    for ext in (".kicad_pro", ".kicad_dru"):
+    for ext in (".kicad_pro", ".kicad_dru",
+                ".pourplan.json", ".railreport.json",
+                ".pourfirst-state.json"):
         src, dst = src_base + ext, dst_base + ext
         if os.path.isfile(src):
             if os.path.abspath(src) != os.path.abspath(dst):
@@ -6403,6 +10346,32 @@ def normalize_track_width(board, *, tol_mm: float = 0.005) -> int:
     return fixed
 
 
+def prune_degenerate_tracks(board, *, max_length_mm: float = 0.001) -> int:
+    """Remove straight copper segments too short to carry geometry.
+
+    DSN/SES coordinate quantization can emit a nominal ``PCB_TRACK`` whose
+    endpoints differ by only a few nanometres.  Such an item cannot bridge two
+    distinct connectivity clusters, but KiCad still expands its width for DRC
+    and can report a real foreign-net clearance error at that point.  Limit the
+    sanitizer to at most one micrometre by default; ordinary necks and stubs
+    remain untouched and visible to the normal design gates.
+    """
+    limit = max(0.0, float(max_length_mm)) * MM
+    removed = 0
+    for item in list(board.GetTracks()):
+        if item.GetClass() != "PCB_TRACK":
+            continue
+        try:
+            start, end = item.GetStart(), item.GetEnd()
+            length = math.hypot(end.x - start.x, end.y - start.y)
+        except Exception:                                  # noqa: BLE001
+            continue
+        if length <= limit:
+            board.Remove(item)
+            removed += 1
+    return removed
+
+
 _BOARD_UUID_RE = re.compile(
     r'(\(uuid\s+)("?)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-'
     r'[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})("?)(\))')
@@ -6488,12 +10457,19 @@ def ensure_unique_board_file_uuids(board_path):
             "duplicate_ids_after": 0, "status": "repaired"}
 
 
-def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
+def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001,
+                                preserve_nets=()):
     """Raise imported tracks/vias to their assigned netclass geometry.
 
     Freerouting's SES may ignore or round class-specific widths and via sizes.
     Every undersized ordinary feature is raised to the contract; oversized
-    copper is retained.  The one physical exception is a bounded pin neck-down
+    copper is retained.  Pre-existing locked items are immutable stage
+    contracts and are never resized here: they were admitted before the SES
+    round trip, and widening a locked local branch can create a short while
+    making its UUID/provenance impossible to reconcile.  Any undersized locked
+    current path remains visible to the independent current-path gate instead
+    of being silently edited after detailed routing.  The one physical
+    exception for ordinary imported copper is a bounded pin neck-down
     at an SMD pad whose minor dimension is narrower than the class track width.
     A 1.0 mm power class cannot physically enter a 0.4 mm fine-pitch pad at full
     width.  Imported narrow copper is therefore preserved for at most 1.5 mm of
@@ -6505,8 +10481,13 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     These are local escapes, never permission for a long skinny power route.
     Direct INA2xx Kelvin nets are excluded because those names can share a force
     rail while their sense stub is intentionally thin; the dedicated Kelvin and
-    high-current-pour gates own that topology.
+    high-current-pour gates own that topology.  ``preserve_nets`` extends that
+    ownership contract to nets whose exact copper geometry was already proved
+    by an earlier precision stage.  Neither their tracks nor vias are resized;
+    widening one member of a routed differential pair after corridor proof
+    would invalidate the proof even if the nominal netclass had drifted.
     """
+    preserve_nets = {str(net) for net in (preserve_nets or ()) if str(net)}
     pro_path = (board_path[:-len(".kicad_pcb")] + ".kicad_pro"
                 if board_path.endswith(".kicad_pcb") else "")
     if not pro_path or not os.path.isfile(pro_path):
@@ -6568,16 +10549,22 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
     original_items = list(board.GetTracks())
     track_rows = []
     by_net = defaultdict(list)
+    preserved_locked_tracks = 0
+    preserved_locked_vias = 0
     for item in original_items:
         if item.GetClass() != "PCB_TRACK":
             continue
         net = item.GetNetname() or ""
+        if net in preserve_nets:
+            continue
         spec = resolve(net)
         target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
                        or spec.get("track_width") or 0)
         current = item.GetWidth() / MM
         if net in direct_sense or target <= 0:
             continue
+        if item.IsLocked() and current < target - tol_mm:
+            preserved_locked_tracks += 1
         s, e = item.GetStart(), item.GetEnd()
         length = item.GetLength() / MM
         if length <= 1e-9:
@@ -6587,6 +10574,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             "layer": item.GetLayer(), "start": (s.x, s.y), "end": (e.x, e.y),
             "length": length, "current": current, "target": target,
             "undersized": current < target - tol_mm,
+            "locked": bool(item.IsLocked()),
         }
         track_rows.append(row)
         by_net[net].append(row)
@@ -6772,6 +10760,17 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             keep_b = max(0.0, min(length, budget_b[0]))
             if keep_a <= 1e-6 and keep_b <= 1e-6:
                 continue
+            # Classification and mutation are separate authorities.  A locked
+            # item is immutable, but a UUID is also the checker exemption unit.
+            # Exempting a whole 3 mm segment because its first 1.5 mm touched a
+            # fine pad silently waived the unbounded remainder.  Therefore a
+            # locked item is legal only when its entire length lies inside the
+            # union of its endpoint neck-down budgets.
+            if row["locked"]:
+                if keep_a + keep_b + 1e-6 >= length:
+                    handled.add(row["uuid"])
+                    neckdown_sections += 1
+                continue
             handled.add(row["uuid"])
 
             # Replace one long segment with [narrow prefix] [class-width body]
@@ -6832,10 +10831,15 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
 
     track_fixed = widened_sections + narrowed_sections
     via_fixed = 0
+    qualified_pofv = 0
     for item in original_items:
         net = item.GetNetname() or ""
+        if net in preserve_nets:
+            continue
         spec = resolve(net)
         if item.GetClass() == "PCB_TRACK":
+            if item.IsLocked():
+                continue
             if item.m_Uuid.AsString() in handled:
                 continue
             target = float((spec.get("diff_pair_width") if is_pair_net(net) else None)
@@ -6850,6 +10854,20 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             target_drill = float(spec.get("via_drill") or 0)
             dia = item.GetWidth(item.TopLayer()) / MM
             drill = item.GetDrillValue() / MM
+            if item.IsLocked():
+                if (dia < target_dia - tol_mm
+                        or drill < target_drill - tol_mm):
+                    preserved_locked_vias += 1
+                continue
+            blocking, allowed = _fab.via_at_pad_conflicts(
+                board, item.GetPosition(), item.GetWidth(item.TopLayer()),
+                item.GetDrillValue(), item.GetNetCode())
+            if blocking is None and allowed:
+                # A filled/capped via whose full land is contained by a
+                # same-net SMD pad follows the declared fabrication profile,
+                # not the ordinary routed-via size in its electrical class.
+                qualified_pofv += 1
+                continue
             new_dia = max(dia, target_dia)
             new_drill = max(drill, target_drill)
             if new_dia > dia + tol_mm or new_drill > drill + tol_mm:
@@ -6860,8 +10878,12 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001):
             "neckdown_sections": neckdown_sections,
             "neckdown_split_tracks": split_tracks,
             "neckdown_narrowed_sections": narrowed_sections,
+            "qualified_pofv_vias": qualified_pofv,
+            "preserved_locked_tracks": preserved_locked_tracks,
+            "preserved_locked_vias": preserved_locked_vias,
             "legal_neckdown_uuids": sorted(handled),
-            "sense_exempt_nets": sorted(direct_sense)}
+            "sense_exempt_nets": sorted(direct_sense),
+            "preserved_nets": sorted(preserve_nets)}
 
 
 def normalize_via_annular(board, *, min_annular: float = 0.10,
@@ -6896,6 +10918,17 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
         drill = t.GetDrillValue()
         if (dia - drill) // 2 >= lo:
             continue
+        # A fabrication-profile-qualified POFV intentionally follows the
+        # process-specific 0.35/0.25 geometry rather than the ordinary board
+        # via minima.  Growing it here would undo the locked-via SES restore
+        # below and can push the land outside a narrow SMD pad.  Use the same
+        # exact dimension/net/full-containment proof as conformance and score;
+        # an uncontained or undeclared small via still receives the historical
+        # annular repair.
+        blocking, allowed = _fab.via_at_pad_conflicts(
+            board, t.GetPosition(), dia, drill, t.GetNetCode())
+        if blocking is None and allowed:
+            continue
         new_drill = dia - want_gap
         if new_drill >= floor:
             t.SetDrill(new_drill)
@@ -6909,44 +10942,266 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
+def owned_locked_nets_board(board) -> set:
+    """Return nets fully terminated by locked copper on an in-memory board.
+
+    Keeping this predicate available before a board is saved lets the precision
+    router refuse a nominally successful pair when a reversible connector's
+    duplicate A/B lands, or an inline flow-through package, still has a loose
+    physical pad.  That is the same ownership condition used at the later DSN
+    boundary; important-route admission must not use a weaker definition.
+    """
+    locked_items = {}
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            continue
+        n = t.GetNetname() or ""
+        if n:
+            locked_items.setdefault(n, []).append(t)
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for pd in fp.Pads():
+            n = pd.GetNetname() or ""
+            if n in locked_items:
+                pads_by_net.setdefault(n, []).append(pd)
+
+    def touches(pad, item):
+        """Exact same-net copper contact, not an endpoint approximation.
+
+        A routed segment may legitimately pass through a duplicate SMD land,
+        and a THT barrel reaches every copper layer without a surface-track
+        endpoint at its centre.  Endpoint-only ownership mislabeled both as
+        ratlines and was the root of the protected USB duplicate-pad refusal.
+        Use KiCad's effective pad shape against the actual track/via land on
+        every common layer, which is the electrical geometry the connectivity
+        engine and DRC see.
+        """
+        pad_layers = {int(layer) for layer in pad.GetLayerSet().CuStack()}
+        if item.Type() == pcbnew.PCB_VIA_T:
+            at = item.GetPosition()
+            common = pad_layers & {
+                int(layer) for layer in board.GetEnabledLayers().CuStack()}
+            for layer in common:
+                try:
+                    circle = pcbnew.SHAPE_CIRCLE(
+                        at, int(item.GetWidth(layer)) // 2)
+                    if pad.GetEffectiveShape(layer).Collide(circle, 0):
+                        return True
+                except Exception:                       # noqa: BLE001
+                    continue
+            return False
+        layer = int(item.GetLayer())
+        if layer not in pad_layers:
+            return False
+        try:
+            segment = pcbnew.SHAPE_SEGMENT(
+                item.GetStart(), item.GetEnd(), int(item.GetWidth()))
+            return bool(pad.GetEffectiveShape(layer).Collide(segment, 0))
+        except Exception:                               # noqa: BLE001
+            return False
+
+    owned = set()
+    for n, pads in pads_by_net.items():
+        items = locked_items.get(n, ())
+        if items and all(any(touches(pad, item) for item in items)
+                         for pad in pads):
+            owned.add(n)
+    return owned
+
+
 def owned_locked_nets(board_path: str) -> set:
     """Read-only: nets FULLY OWNED by locked copper (every pad on the net touched by
     a locked track endpoint, pad half-extent + 0.15mm) -- the ownership test
     reconcile_locked_nets enforces after the route, exposed pre-route so the DSN can
     EXCLUDE those nets from Freerouting entirely (owner 2026-07-12: "the router is
     still touching the force copper")."""
-    board = pcbnew.LoadBoard(board_path)
-    locked_pts = {}
-    for t in board.GetTracks():
-        if not t.IsLocked():
+    return owned_locked_nets_board(pcbnew.LoadBoard(board_path))
+
+
+def locked_pour_authority_nets_board(board, *, min_width_mm=0.75,
+                                     min_trunk_length_mm=3.0,
+                                     min_total_length_mm=5.0) -> set:
+    """Return locked nets that legitimately suppress broad pour synthesis.
+
+    A single locked item is not whole-net ownership.  Local bypass links and
+    pin fanouts are deliberately locked before global routing, yet their
+    shared rail still needs a trunk/pour.  Treat a net as pour-authoritative
+    only when every pad is covered, or when it carries substantial wide locked
+    track geometry characteristic of an authored/compiled current trunk.
+    Vias do not contribute length.
+    """
+    authority = set(owned_locked_nets_board(board))
+    minimum_width = pcbnew.FromMM(float(min_width_mm))
+    minimum_trunk = float(min_trunk_length_mm)
+    minimum_total = float(min_total_length_mm)
+    wide_lengths = {}
+    widest_segment = {}
+    for item in board.GetTracks():
+        if (not item.IsLocked()
+                or item.Type() == pcbnew.PCB_VIA_T
+                or item.GetWidth() < minimum_width):
             continue
-        n = t.GetNetname() or ""
-        if t.Type() == pcbnew.PCB_VIA_T:
-            p_ = t.GetPosition()
-            locked_pts.setdefault(n, []).append((p_.x, p_.y))
+        net = item.GetNetname() or ""
+        if not net:
+            continue
+        try:
+            length = item.GetLength() / 1e6
+        except Exception:                                # noqa: BLE001
+            start, end = item.GetStart(), item.GetEnd()
+            length = math.hypot(
+                end.x - start.x, end.y - start.y) / 1e6
+        wide_lengths[net] = wide_lengths.get(net, 0.0) + length
+        widest_segment[net] = max(widest_segment.get(net, 0.0), length)
+    authority.update(
+        net for net, total in wide_lengths.items()
+        if total >= minimum_total
+        or widest_segment.get(net, 0.0) >= minimum_trunk)
+    return authority
+
+
+def locked_pour_authority_nets(board_path: str, **kwargs) -> set:
+    """Path wrapper for :func:`locked_pour_authority_nets_board`."""
+    return locked_pour_authority_nets_board(
+        pcbnew.LoadBoard(board_path), **kwargs)
+
+
+def _copper_geometry_rows(board_path: str, nets, *, locked_only=False):
+    """Return normalized copper rows used by exact and prefix contracts."""
+    selected = {str(net) for net in (nets or ()) if net}
+    board = pcbnew.LoadBoard(board_path)
+    rows = []
+    for item in board.GetTracks():
+        net = item.GetNetname() or ""
+        if net not in selected or (locked_only and not item.IsLocked()):
+            continue
+        if item.Type() == pcbnew.PCB_VIA_T:
+            pos = item.GetPosition()
+            row = (
+                "via", net, int(pos.x), int(pos.y),
+                board.GetLayerName(item.TopLayer()),
+                board.GetLayerName(item.BottomLayer()),
+                int(item.GetWidth(item.TopLayer())),
+                int(item.GetDrillValue()),
+            )
         else:
-            s_, e_ = t.GetStart(), t.GetEnd()
-            locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
-    pads_by_net = {}
-    for fp in board.GetFootprints():
-        for pd in fp.Pads():
-            n = pd.GetNetname() or ""
-            if n in locked_pts:
-                pos = pd.GetPosition()
-                sz = pd.GetSize()
-                pads_by_net.setdefault(n, []).append(
-                    (pos.x, pos.y, max(sz.x, sz.y) / 2 + int(0.15e6)))
-    owned = set()
-    for n, pads in pads_by_net.items():
-        pts = locked_pts.get(n, [])
-        if pts and all(any((px - x) ** 2 + (py - y) ** 2 <= r * r for x, y in pts)
-                       for px, py, r in pads):
-            owned.add(n)
-    return owned
+            start, end = item.GetStart(), item.GetEnd()
+            a = (int(start.x), int(start.y))
+            b = (int(end.x), int(end.y))
+            if b < a:
+                a, b = b, a
+            row = (
+                "track", net, board.GetLayerName(item.GetLayer()),
+                a[0], a[1], b[0], b[1], int(item.GetWidth()),
+                int(item.Type()),
+            )
+        rows.append(row)
+    rows.sort()
+    return selected, rows
+
+
+def copper_geometry_signature(board_path: str, nets) -> dict:
+    """Return a stable geometry fingerprint for the selected copper nets.
+
+    UUIDs and file ordering are deliberately excluded: DSN/SES round-trips may
+    rewrite either without changing the route.  Coordinates, layer, width,
+    drill, and normalized segment direction are the ownership contract.  The
+    caller uses this to prove that broad routing and later finishing stages did
+    not silently replace already-authoritative critical/local copper.
+    """
+    import hashlib
+
+    selected, rows = _copper_geometry_rows(board_path, nets)
+    by_net = {}
+    for row in rows:
+        net = row[1]
+        by_net[net] = by_net.get(net, 0) + 1
+    payload = json.dumps(rows, separators=(",", ":"), ensure_ascii=True)
+    return {
+        "schema": 1,
+        "sha256": hashlib.sha256(payload.encode("utf-8")).hexdigest(),
+        "nets": sorted(selected),
+        "items": len(rows),
+        "items_by_net": {net: by_net.get(net, 0) for net in sorted(selected)},
+    }
+
+
+def copper_geometry_prefix_contract(board_path: str, nets) -> dict:
+    """Capture immutable locked copper while allowing same-net extensions.
+
+    Fully-owned routes use :func:`copper_geometry_signature`: no later stage
+    may add or remove anything on those nets.  A Kelvin/current prefix can be
+    intentionally partial, so the residual router may add copper but must not
+    delete or reshape any locked primitive already admitted by the precision
+    tier.  Individual row digests make that subset relationship stable across
+    UUID and file-order rewrites.
+    """
+    import collections
+    import hashlib
+
+    selected, rows = _copper_geometry_rows(
+        board_path, nets, locked_only=True)
+    members = collections.Counter()
+    by_net = collections.Counter()
+    digest_net = {}
+    for row in rows:
+        payload = json.dumps(row, separators=(",", ":"), ensure_ascii=True)
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        members[digest] += 1
+        by_net[row[1]] += 1
+        digest_net[digest] = row[1]
+    return {
+        "schema": 1,
+        "mode": "locked_geometry_subset",
+        "nets": sorted(selected),
+        "items": len(rows),
+        "items_by_net": {net: by_net.get(net, 0)
+                         for net in sorted(selected)},
+        "members": dict(sorted(members.items())),
+        "member_nets": {digest: digest_net[digest]
+                        for digest in sorted(digest_net)},
+    }
+
+
+def check_copper_geometry_prefix(board_path: str, contract) -> dict:
+    """Prove every primitive in a locked-prefix contract still exists."""
+    import collections
+    import hashlib
+
+    expected = dict(contract or {})
+    selected, rows = _copper_geometry_rows(
+        board_path, expected.get("nets") or ())
+    actual = collections.Counter()
+    actual_by_net = collections.Counter()
+    for row in rows:
+        payload = json.dumps(row, separators=(",", ":"), ensure_ascii=True)
+        actual[hashlib.sha256(payload.encode("utf-8")).hexdigest()] += 1
+        actual_by_net[row[1]] += 1
+    missing = {}
+    missing_by_net = collections.Counter()
+    member_nets = expected.get("member_nets") or {}
+    for digest, count in (expected.get("members") or {}).items():
+        deficit = int(count) - int(actual.get(digest, 0))
+        if deficit > 0:
+            missing[digest] = deficit
+            missing_by_net[member_nets.get(digest, "")] += deficit
+    return {
+        "schema": 1,
+        "mode": "locked_geometry_subset",
+        "applicable": bool(expected.get("items")),
+        "ok": not missing,
+        "expected_items": int(expected.get("items") or 0),
+        "actual_items_on_nets": len(rows),
+        "actual_items_by_net": {net: actual_by_net.get(net, 0)
+                                for net in sorted(selected)},
+        "missing_items": sum(missing.values()),
+        "missing_by_net": {net: count for net, count in
+                           sorted(missing_by_net.items()) if net},
+        "missing_members": dict(sorted(missing.items())),
+    }
 
 
 def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float = 0.2):
-    """Rule-area keepout rects over LOCKED copper, per layer (owner defect report
+    """Rule-area keepout rects over owned copper, per layer (owner defect report
     2026-07-14: FR "is routing through the locked routes, and not layer changing
     around it" -- MEASURED on the wave-9 winner: 154/157 shorting, 91/94 clearance,
     75/75 tracks_crossing violations touch locked-copper space). Mechanism: the
@@ -6958,16 +11213,25 @@ def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float 
 
     Scope: *only_nets* (pass the fully-owned set) -- a PARTIALLY-locked net (e.g.
     /FAN_12V) must NOT contribute: FR still legitimately routes its remainder and
-    needs access to its pads. Same-layer rects merge only when the union stays
-    TIGHT (union area <= 1.15x the sum) so a dense cell collapses to a few zones
-    but a diagonal pair can never over-cover a foreign channel/pad."""
+    needs access to its pads.  When a fully-owned set is supplied, every physical
+    track/via on those nets is guarded, not only items carrying KiCad's LOCKED
+    flag, plus every physical pad on those nets.  Plane-access and via-in-pad
+    stages deliberately leave some generated vias unlocked, and DSN pin
+    exclusion removes the owned pads from Freerouting's obstacle model too;
+    omitting either made the residual router collide with invisible copper.
+    Without *only_nets*, the historical locked-only behavior is retained.
+    Same-layer rects merge only when the union stays TIGHT (union area <= 1.15x
+    the sum) so a dense cell collapses to a few zones but a diagonal pair can
+    never over-cover a foreign channel/pad."""
     board = pcbnew.LoadBoard(board_path)
     cl = int(clearance * 1e6)
     per_layer = {}
     for t in board.GetTracks():
-        if not t.IsLocked():
-            continue
-        if only_nets is not None and (t.GetNetname() or "") not in only_nets:
+        net = t.GetNetname() or ""
+        if only_nets is None:
+            if not t.IsLocked():
+                continue
+        elif net not in only_nets:
             continue
         bb = t.GetBoundingBox()
         box = [bb.GetLeft() - cl, bb.GetTop() - cl, bb.GetRight() + cl, bb.GetBottom() + cl]
@@ -6978,6 +11242,19 @@ def locked_copper_keepouts(board_path: str, *, only_nets=None, clearance: float 
             lays = (board.GetLayerName(t.GetLayer()),)
         for ly in lays:
             per_layer.setdefault(ly, []).append(list(box))
+    if only_nets is not None:
+        selected = set(only_nets)
+        for footprint in board.GetFootprints():
+            for pad in footprint.Pads():
+                net = pad.GetNetname() or ""
+                if not net or net not in selected:
+                    continue
+                bb = pad.GetBoundingBox()
+                box = [bb.GetLeft() - cl, bb.GetTop() - cl,
+                       bb.GetRight() + cl, bb.GetBottom() + cl]
+                for layer_id in pad.GetLayerSet().CuStack():
+                    layer = board.GetLayerName(layer_id)
+                    per_layer.setdefault(layer, []).append(list(box))
 
     out = []
     for ly, boxes in sorted(per_layer.items()):
@@ -7056,7 +11333,7 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
     board = pcbnew.LoadBoard(board_path)
     cl = int(clearance * 1e6)
     ex = set(exclude_nets or ())
-    locked_pts, locked_boxes = {}, {}
+    locked_pts, locked_boxes, locked_via_boxes = {}, {}, {}
     for t in board.GetTracks():
         if not t.IsLocked():
             continue
@@ -7069,22 +11346,34 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
                       for lid in t.GetLayerSet().CuStack())
                 if t.Type() == pcbnew.PCB_VIA_T
                 else (board.GetLayerName(t.GetLayer()),))
-        for ly in lays:
-            locked_boxes.setdefault(n, {}).setdefault(ly, []).append(box)
         if t.Type() == pcbnew.PCB_VIA_T:
+            # A pad-access window exists to let the residual route attach to a
+            # partially-owned net.  It must never erase the obstacle occupied
+            # by an immutable through barrel.  A via is physical copper on
+            # every layer it spans, even when it sits inside (or immediately
+            # beside) one of those access windows.  Keep its land in a
+            # separate, non-windowed ledger; otherwise a foreign inner-layer
+            # trace can be routed through the apparently empty window and the
+            # SES import reintroduces a hard short at the locked via.
+            for ly in lays:
+                locked_via_boxes.setdefault(n, {}).setdefault(
+                    ly, []).append(box)
             p_ = t.GetPosition()
             locked_pts.setdefault(n, []).append((p_.x, p_.y))
         else:
+            for ly in lays:
+                locked_boxes.setdefault(n, {}).setdefault(
+                    ly, []).append(box)
             s_, e_ = t.GetStart(), t.GetEnd()
             locked_pts.setdefault(n, []).extend([(s_.x, s_.y), (e_.x, e_.y)])
-    if not locked_boxes:
+    if not locked_boxes and not locked_via_boxes:
         return []
     win = int(window_mm * 1e6)
     windows = {}                                 # net -> [window rects around uncovered pads]
     for fp in board.GetFootprints():
         for pd in fp.Pads():
             n = pd.GetNetname() or ""
-            if n not in locked_boxes:
+            if n not in locked_boxes and n not in locked_via_boxes:
                 continue
             pos = pd.GetPosition()
             sz = pd.GetSize()
@@ -7100,14 +11389,28 @@ def partial_locked_keepouts(board_path: str, *, exclude_nets=(), clearance: floa
             windows.setdefault(n, []).append(
                 [pos.x - w, pos.y - w, pos.x + w, pos.y + w])
     out = []
-    for n in sorted(locked_boxes):
-        for ly, boxes in sorted(locked_boxes[n].items()):
+    for n in sorted(set(locked_boxes) | set(locked_via_boxes)):
+        for ly, source_boxes in sorted(locked_boxes.get(n, {}).items()):
+            boxes = list(source_boxes)
             for wrect in windows.get(n, ()):
                 boxes = [rb for b in boxes for rb in _box_minus_window(b, wrect)]
             for k, (x0, y0, x1, y1) in enumerate(_merge_tight_boxes(boxes)):
                 out.append({"name": "lockedcu-part-%s-%d" % (ly.replace(".", ""), len(out)),
                             "x0": x0 / 1e6, "y0": y0 / 1e6,
                             "x1": x1 / 1e6, "y1": y1 / 1e6, "layers": (ly,)})
+        # Do not merge these boxes into the windowed track pieces: such a
+        # merge could span the very access aperture the split representation
+        # is preserving.  Via boxes may merge with one another when their
+        # physical lands overlap, but they are never window-subtracted.
+        for ly, boxes in sorted(locked_via_boxes.get(n, {}).items()):
+            for x0, y0, x1, y1 in _merge_tight_boxes(boxes):
+                out.append({
+                    "name": "lockedvia-part-%s-%d" % (
+                        ly.replace(".", ""), len(out)),
+                    "x0": x0 / 1e6, "y0": y0 / 1e6,
+                    "x1": x1 / 1e6, "y1": y1 / 1e6,
+                    "layers": (ly,),
+                })
     return out
 
 
@@ -7121,6 +11424,26 @@ def _coupled_pair_partners(a: str, b: str) -> bool:
             if a.endswith(x) and b.endswith(y) and a[:-len(x)] == b[:-len(y)]:
                 return True
     return False
+
+
+def coupled_pair_nets(board_or_path) -> set:
+    """Return conventional coupled-pair members present on a board.
+
+    This complements project netclass declarations.  CAN_H/CAN_L and legacy
+    DP/DM names are frequently electrically paired without being assigned to a
+    KiCad differential-pair class, but post-route cosmetic finishing must still
+    leave them symmetric.
+    """
+    board = (pcbnew.LoadBoard(board_or_path)
+             if isinstance(board_or_path, str) else board_or_path)
+    names = sorted({item.GetNetname() for item in board.GetNetInfo().NetsByNetcode().values()
+                    if item.GetNetname()})
+    paired = set()
+    for i, left in enumerate(names):
+        for right in names[i + 1:]:
+            if _coupled_pair_partners(left, right):
+                paired.update((left, right))
+    return paired
 
 
 def locked_mutual_collisions(board_path: str, *, clearance: float = 0.2):
@@ -7167,6 +11490,329 @@ def locked_mutual_collisions(board_path: str, *, clearance: float = 0.2):
                                  "x_mm": round(pa.x / 1e6, 2),
                                  "y_mm": round(pa.y / 1e6, 2)})
     return hits
+
+
+def chamfer_unlocked_right_angles(
+        board_or_path, out_path=None, *, max_chamfer_mm=0.60,
+        min_chamfer_mm=0.15, max_width_mm=1.0, clearance_mm=0.20,
+        exclude_nets=(), junction_tol_mm=0.02):
+    """Replace legal generated 90-degree corners with short 45-degree bends.
+
+    Freerouting's Manhattan search is fast and deterministic, but its accepted
+    paths can retain visually harsh staircase corners.  This is deliberately a
+    *finishing* pass rather than a free-angle router:
+
+    * only two unlocked, same-net/same-layer/same-width axis-aligned tracks may
+      meet at the corner;
+    * pad launches, vias, T-junctions, locked/authored copper, wide trunks, and
+      caller-declared sensitive nets are immutable;
+    * the replacement diagonal must pass the same exact foreign-copper,
+      pipeline-pour, artwork, and board-edge guards as other post-route copper;
+    * endpoints, width, layer, and net identity are preserved.
+
+    The caller may additionally wrap this exact geometry proof in a whole-board
+    connectivity/DRC transaction.  Returns a JSON-safe evidence report and
+    saves only when a path or ``out_path`` was supplied.
+    """
+    board = (pcbnew.LoadBoard(board_or_path)
+             if isinstance(board_or_path, str) else board_or_path)
+    excluded = {str(net) for net in (exclude_nets or ()) if net}
+    max_width = _nm(max_width_mm) if max_width_mm is not None else None
+    d_max, d_min = _nm(max_chamfer_mm), _nm(min_chamfer_mm)
+    clearance = _nm(clearance_mm)
+    junction_tol = _nm(junction_tol_mm)
+    tracks = [item for item in board.GetTracks()
+              if item.GetClass() == "PCB_TRACK"]
+    vias = [item for item in board.GetTracks()
+            if item.GetClass() == "PCB_VIA"]
+    pads = [pad for footprint in board.GetFootprints()
+            for pad in footprint.Pads()]
+
+    by_endpoint = {}
+    for track in tracks:
+        key_tail = (track.GetNetCode(), track.GetLayer())
+        for point in (track.GetStart(), track.GetEnd()):
+            by_endpoint.setdefault(
+                (point.x, point.y, *key_tail), []).append(track)
+
+    def _other_end(track, corner):
+        return track.GetEnd() if track.GetStart() == corner else track.GetStart()
+
+    def _axis_kind(track):
+        start, end = track.GetStart(), track.GetEnd()
+        if start.y == end.y and start.x != end.x:
+            return "h"
+        if start.x == end.x and start.y != end.y:
+            return "v"
+        return None
+
+    def _point_on_body(track, point):
+        start, end = track.GetStart(), track.GetEnd()
+        if ((abs(start.x - point.x) <= junction_tol
+             and abs(start.y - point.y) <= junction_tol)
+                or (abs(end.x - point.x) <= junction_tol
+                    and abs(end.y - point.y) <= junction_tol)):
+            return False
+        vx, vy = end.x - start.x, end.y - start.y
+        length2 = vx * vx + vy * vy
+        if not length2:
+            return False
+        ratio = ((point.x - start.x) * vx + (point.y - start.y) * vy) / length2
+        if not 0.0 < ratio < 1.0:
+            return False
+        px, py = start.x + ratio * vx, start.y + ratio * vy
+        return math.hypot(point.x - px, point.y - py) <= junction_tol
+
+    detail = []
+    skipped = {"locked": 0, "sensitive": 0, "wide": 0,
+               "junction": 0, "launch": 0, "short": 0,
+               "clearance": 0}
+    right_angles = 0
+    # Stable order makes the finishing output independent of pcbnew container
+    # iteration order and keeps neighboring-corner shortening reproducible.
+    for key in sorted(by_endpoint):
+        x, y, net_code, layer = key
+        incident = by_endpoint[key]
+        if len(incident) != 2:
+            if len(incident) > 2:
+                skipped["junction"] += 1
+            continue
+        first, second = incident
+        kinds = {_axis_kind(first), _axis_kind(second)}
+        if kinds != {"h", "v"}:
+            continue
+        right_angles += 1
+        corner = pcbnew.VECTOR2I(x, y)
+        net_name = first.GetNetname() or ""
+        if first.IsLocked() or second.IsLocked():
+            skipped["locked"] += 1
+            continue
+        if net_name in excluded:
+            skipped["sensitive"] += 1
+            continue
+        if (first.GetWidth() != second.GetWidth()
+                or (max_width is not None and first.GetWidth() > max_width)):
+            skipped["wide"] += 1
+            continue
+        # A centerline crossing is an electrical branch even when it does not
+        # contribute an endpoint to the map.  Never cut that junction.
+        if any(track.GetNetCode() == net_code and track.GetLayer() == layer
+               and track not in (first, second)
+               and _point_on_body(track, corner) for track in tracks):
+            skipped["junction"] += 1
+            continue
+        # Pad/via corners are launches or layer transitions, not cosmetic
+        # staircase bends.  Leave their topology exact.
+        if (any(via.GetNetCode() == net_code
+                and math.hypot(via.GetPosition().x - x,
+                               via.GetPosition().y - y) <= junction_tol
+                for via in vias)
+                or any(pad.IsOnLayer(layer) and pad.HitTest(corner)
+                       for pad in pads)):
+            skipped["launch"] += 1
+            continue
+
+        far_a, far_b = _other_end(first, corner), _other_end(second, corner)
+        len_a = int(round(math.hypot(far_a.x - x, far_a.y - y)))
+        len_b = int(round(math.hypot(far_b.x - x, far_b.y - y)))
+        distance = min(d_max, int(0.40 * len_a), int(0.40 * len_b))
+        if distance < d_min:
+            skipped["short"] += 1
+            continue
+
+        def _inset(far):
+            return pcbnew.VECTOR2I(
+                x + (distance if far.x > x else -distance if far.x < x else 0),
+                y + (distance if far.y > y else -distance if far.y < y else 0))
+
+        inset_a, inset_b = _inset(far_a), _inset(far_b)
+        width = first.GetWidth()
+        if (not _edge_leg_clear(board, inset_a, inset_b, width // 2)
+                or not _tap_foreign_clear(
+                    board, inset_a, inset_b, width, layer, clearance,
+                    {net_code})):
+            skipped["clearance"] += 1
+            continue
+
+        if first.GetStart() == corner:
+            first.SetStart(inset_a)
+        else:
+            first.SetEnd(inset_a)
+        if second.GetStart() == corner:
+            second.SetStart(inset_b)
+        else:
+            second.SetEnd(inset_b)
+        diagonal = pcbnew.PCB_TRACK(board)
+        diagonal.SetStart(inset_a)
+        diagonal.SetEnd(inset_b)
+        diagonal.SetWidth(width)
+        diagonal.SetLayer(layer)
+        diagonal.SetNetCode(net_code)
+        board.Add(diagonal)
+        detail.append({
+            "net": net_name, "layer": board.GetLayerName(layer),
+            "corner_mm": [round(x / MM, 4), round(y / MM, 4)],
+            "chamfer_mm": round(distance / MM, 4),
+            "width_mm": round(width / MM, 4),
+        })
+
+    target = out_path or (board_or_path if isinstance(board_or_path, str) else None)
+    if target is not None and detail:
+        pcbnew.SaveBoard(target, board)
+    return {"schema": 1, "right_angles": right_angles,
+            "chamfered": len(detail), "detail": detail,
+            "skipped": skipped}
+
+
+def _recommended_teardrop_targets(
+        board, *, target_kinds=("pth", "via"), exclude_nets=(),
+        max_track_to_target_ratio=0.75, junction_tol_mm=0.02):
+    """Return conservative pad/via targets and JSON-safe evidence.
+
+    A teardrop is recommended only where at least one same-net track actually
+    terminates on a materially larger target.  SMD pads are opt-in because
+    fine-pitch escape fields normally value clearance and impedance continuity
+    more than filleting; PTH lands and ordinary through vias are the default
+    mechanically useful cases.  Sensitive nets are excluded by the caller.
+    """
+    kinds = {str(kind).lower() for kind in (target_kinds or ())}
+    excluded = {str(net) for net in (exclude_nets or ()) if net}
+    tol = _nm(junction_tol_mm)
+    tracks = [item for item in board.GetTracks()
+              if item.GetClass() == "PCB_TRACK"]
+    vias = [item for item in board.GetTracks()
+            if item.GetClass() == "PCB_VIA"]
+
+    def _endpoint_near(track, point):
+        return any(math.hypot(endpoint.x - point.x,
+                              endpoint.y - point.y) <= tol
+                   for endpoint in (track.GetStart(), track.GetEnd()))
+
+    targets = []
+    if "via" in kinds:
+        for via in vias:
+            net = via.GetNetname() or ""
+            if not net or net in excluded or via.IsLocked():
+                continue
+            incident = [track for track in tracks
+                        if track.GetNetCode() == via.GetNetCode()
+                        and via.IsOnLayer(track.GetLayer())
+                        and _endpoint_near(track, via.GetPosition())]
+            if not incident:
+                continue
+            diameter = min(via.GetWidth(via.TopLayer()),
+                           via.GetWidth(via.BottomLayer()))
+            narrow = min(track.GetWidth() for track in incident)
+            if diameter <= 0 or narrow >= diameter * max_track_to_target_ratio:
+                continue
+            pos = via.GetPosition()
+            targets.append(("via", via, {
+                "kind": "via", "net": net,
+                "at_mm": [round(pos.x / MM, 4), round(pos.y / MM, 4)],
+                "target_mm": round(diameter / MM, 4),
+                "track_mm": round(narrow / MM, 4),
+                "already_enabled": bool(via.GetTeardropsEnabled()),
+            }))
+
+    pad_kinds = kinds & {"pth", "smd"}
+    if pad_kinds:
+        for footprint in board.GetFootprints():
+            for pad in footprint.Pads():
+                is_pth = pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH
+                kind = "pth" if is_pth else "smd"
+                if kind not in pad_kinds:
+                    continue
+                net = pad.GetNetname() or ""
+                if not net or net in excluded:
+                    continue
+                incident = []
+                for track in tracks:
+                    if (track.GetNetCode() != pad.GetNetCode()
+                            or not pad.IsOnLayer(track.GetLayer())):
+                        continue
+                    if any(pad.HitTest(endpoint)
+                           for endpoint in (track.GetStart(), track.GetEnd())):
+                        incident.append(track)
+                if not incident:
+                    continue
+                size = pad.GetSize()
+                target = min(size.x, size.y)
+                narrow = min(track.GetWidth() for track in incident)
+                if target <= 0 or narrow >= target * max_track_to_target_ratio:
+                    continue
+                pos = pad.GetPosition()
+                targets.append((kind, pad, {
+                    "kind": kind, "net": net,
+                    "ref": footprint.GetReference(),
+                    "pad": pad.GetPadName(),
+                    "at_mm": [round(pos.x / MM, 4),
+                              round(pos.y / MM, 4)],
+                    "target_mm": round(target / MM, 4),
+                    "track_mm": round(narrow / MM, 4),
+                    "already_enabled": bool(pad.GetTeardropsEnabled()),
+                }))
+    targets.sort(key=lambda row: (
+        row[0], row[2].get("net", ""), row[2].get("ref", ""),
+        row[2]["at_mm"][0], row[2]["at_mm"][1]))
+    return targets
+
+
+def audit_teardrop_junctions(
+        board_or_path, *, target_kinds=("pth", "via"), exclude_nets=(),
+        max_track_to_target_ratio=0.75, junction_tol_mm=0.02):
+    """Read-only recommendation report for modern KiCad teardrops."""
+    board = (pcbnew.LoadBoard(board_or_path)
+             if isinstance(board_or_path, str) else board_or_path)
+    rows = _recommended_teardrop_targets(
+        board, target_kinds=target_kinds, exclude_nets=exclude_nets,
+        max_track_to_target_ratio=max_track_to_target_ratio,
+        junction_tol_mm=junction_tol_mm)
+    detail = [row[2] for row in rows]
+    counts = {kind: sum(row[0] == kind for row in rows)
+              for kind in ("pth", "via", "smd")}
+    enabled = sum(item.GetTeardropsEnabled() for _kind, item, _row in rows)
+    return {"schema": 1, "candidate_count": len(rows),
+            "already_enabled": int(enabled), "by_kind": counts,
+            "detail": detail}
+
+
+def enable_recommended_teardrops(
+        board_or_path, out_path=None, *, target_kinds=("pth", "via"),
+        exclude_nets=(), max_track_to_target_ratio=0.75,
+        junction_tol_mm=0.02, max_length_mm=1.0, max_width_mm=2.0,
+        length_ratio=0.5, width_ratio=1.0):
+    """Enable modern KiCad teardrops on conservative recommended targets.
+
+    This sets target metadata; KiCad owns the generated copper geometry and its
+    DRC interpretation.  The route oracle wraps the result transactionally and
+    only adopts it when ratlines, DRC, Kelvin, and pair quality remain monotonic.
+    """
+    board = (pcbnew.LoadBoard(board_or_path)
+             if isinstance(board_or_path, str) else board_or_path)
+    rows = _recommended_teardrop_targets(
+        board, target_kinds=target_kinds, exclude_nets=exclude_nets,
+        max_track_to_target_ratio=max_track_to_target_ratio,
+        junction_tol_mm=junction_tol_mm)
+    enabled = []
+    for kind, item, row in rows:
+        if item.GetTeardropsEnabled():
+            continue
+        item.SetTeardropsEnabled(True)
+        item.SetTeardropBestLengthRatio(float(length_ratio))
+        item.SetTeardropBestWidthRatio(float(width_ratio))
+        item.SetTeardropMaxLength(_nm(max_length_mm))
+        item.SetTeardropMaxWidth(_nm(max_width_mm))
+        item.SetTeardropMaxTrackWidth(float(max_track_to_target_ratio))
+        item.SetTeardropAllowSpanTwoTracks(True)
+        item.SetTeardropPreferZoneConnections(False)
+        item.SetTeardropCurved(False)
+        enabled.append(dict(row))
+    target = out_path or (board_or_path if isinstance(board_or_path, str) else None)
+    if target is not None and enabled:
+        pcbnew.SaveBoard(target, board)
+    return {"schema": 1, "candidates": len(rows),
+            "enabled": len(enabled), "detail": enabled,
+            "target_kinds": sorted({str(kind) for kind in target_kinds})}
 
 
 def reconcile_locked_nets(board_path: str, out_path: str = None) -> dict:
@@ -7473,9 +12119,220 @@ def synthesize_missing_layer_junction_vias(
             "refused": refused, "detail": detail}
 
 
+def _snapshot_locked_via_geometry(board):
+    """Capture exact geometry for vias the source board declares immutable.
+
+    KiCad's Specctra SES importer rebuilds existing vias from the session's
+    global via template.  That silently changed locked, fabrication-qualified
+    0.35/0.25 mm POFVs into 0.60/0.30 mm vias on the six-layer Hub.  The larger
+    lands then overhung narrow SMD pads even though the pre-route board passed
+    the same via-on-pad gate.  A locked item is an input contract, so retain its
+    diameter and drill across the lossy DSN/SES interchange.
+
+    Net name plus exact position is stable across the import even when KiCad
+    replaces UUIDs.  Multiple locked vias at one net/position would be an
+    ambiguous source board and are deliberately left out of the snapshot.
+    """
+    rows = {}
+    ambiguous = set()
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_VIA" or not item.IsLocked():
+            continue
+        pos = item.GetPosition()
+        key = (item.GetNetname() or "", int(pos.x), int(pos.y))
+        if key in rows:
+            ambiguous.add(key)
+            continue
+        rows[key] = {
+            "diameter": int(item.GetWidth(item.TopLayer())),
+            "drill": int(item.GetDrillValue()),
+            "top_layer": int(item.TopLayer()),
+            "bottom_layer": int(item.BottomLayer()),
+            "via_type": int(item.GetViaType()),
+        }
+    for key in ambiguous:
+        rows.pop(key, None)
+    return rows
+
+
+def _restore_locked_via_geometry(board, snapshot):
+    """Restore a :func:`_snapshot_locked_via_geometry` after SES import."""
+    restored = []
+    recreated = []
+    relocked = []
+    missing = set(snapshot)
+    by_key = {}
+    ambiguous = set()
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_VIA":
+            continue
+        pos = item.GetPosition()
+        key = (item.GetNetname() or "", int(pos.x), int(pos.y))
+        if key in by_key:
+            ambiguous.add(key)
+            continue
+        by_key[key] = item
+    for key in ambiguous:
+        by_key.pop(key, None)
+
+    for key, source in snapshot.items():
+        item = by_key.get(key)
+        if item is None:
+            net = board.FindNet(key[0])
+            if net is None:
+                continue
+            item = pcbnew.PCB_VIA(board)
+            item.SetPosition(pcbnew.VECTOR2I(key[1], key[2]))
+            item.SetViaType(source.get("via_type", pcbnew.VIATYPE_THROUGH))
+            item.SetLayerPair(source["top_layer"], source["bottom_layer"])
+            item.SetWidth(source["diameter"])
+            item.SetDrill(source["drill"])
+            item.SetNet(net)
+            item.SetLocked(True)
+            board.Add(item)
+            missing.discard(key)
+            recreated.append({
+                "net": key[0],
+                "at_mm": [round(key[1] / MM, 6),
+                          round(key[2] / MM, 6)],
+                "diameter_mm": round(source["diameter"] / MM, 6),
+                "drill_mm": round(source["drill"] / MM, 6),
+            })
+            continue
+        source = snapshot.get(key)
+        missing.discard(key)
+        before = (int(item.GetWidth(item.TopLayer())),
+                  int(item.GetDrillValue()))
+        after = (source["diameter"], source["drill"])
+        if before != after:
+            item.SetWidth(after[0])
+            item.SetDrill(after[1])
+            restored.append({
+                "net": key[0],
+                "at_mm": [round(key[1] / MM, 6), round(key[2] / MM, 6)],
+                "from_mm": [round(before[0] / MM, 6),
+                            round(before[1] / MM, 6)],
+                "to_mm": [round(after[0] / MM, 6),
+                          round(after[1] / MM, 6)],
+            })
+        if not item.IsLocked():
+            item.SetLocked(True)
+            relocked.append({
+                "net": key[0],
+                "at_mm": [round(key[1] / MM, 6), round(key[2] / MM, 6)],
+            })
+    return {
+        "restored": len(restored),
+        "recreated": len(recreated),
+        "relocked": len(relocked),
+        "missing": len(missing),
+        "detail": restored,
+        "recreated_detail": recreated,
+        "relocked_detail": relocked,
+        "missing_keys": sorted(missing),
+    }
+
+
+def _snapshot_footprint_placement(board):
+    """Capture the exact placement authority before a lossy SES round trip.
+
+    Routing backends own copper, not component placement.  Specctra sessions
+    nevertheless carry component transforms, and KiCad's SES importer applies
+    those transforms while importing routes.  That can silently move a part
+    after the placer, courtyard checks, and pour-first solve have all accepted
+    it.  Reference designators are the stable interchange identity here; a
+    duplicate/empty reference is ambiguous and therefore excluded so the
+    restore below can fail closed instead of choosing an arbitrary instance.
+    """
+    rows = {}
+    ambiguous = set()
+    for footprint in board.GetFootprints():
+        ref = str(footprint.GetReference() or "")
+        if not ref or ref in rows:
+            ambiguous.add(ref)
+            continue
+        position = footprint.GetPosition()
+        rows[ref] = {
+            "x": int(position.x),
+            "y": int(position.y),
+            "orientation": float(footprint.GetOrientationDegrees()),
+            "layer": int(footprint.GetLayer()),
+            "locked": bool(footprint.IsLocked()),
+        }
+    for ref in ambiguous:
+        rows.pop(ref, None)
+    return rows
+
+
+def _restore_footprint_placement(board, snapshot):
+    """Restore placer-owned footprint transforms after SES import.
+
+    A side change is refused rather than repaired with ``SetLayer`` because a
+    footprint flip also transforms pad/graphic layers.  Ordinary position,
+    rotation, and lock drift are restored exactly.  Missing references are a
+    destructive interchange failure and are reported to the caller.
+    """
+    by_ref = {}
+    duplicates = set()
+    for footprint in board.GetFootprints():
+        ref = str(footprint.GetReference() or "")
+        if not ref or ref in by_ref:
+            duplicates.add(ref)
+            continue
+        by_ref[ref] = footprint
+    for ref in duplicates:
+        by_ref.pop(ref, None)
+
+    restored = []
+    missing = []
+    side_changed = []
+    for ref, source in sorted((snapshot or {}).items()):
+        footprint = by_ref.get(ref)
+        if footprint is None:
+            missing.append(ref)
+            continue
+        if int(footprint.GetLayer()) != int(source["layer"]):
+            side_changed.append(ref)
+            continue
+        position = footprint.GetPosition()
+        before = {
+            "x": int(position.x),
+            "y": int(position.y),
+            "orientation": float(footprint.GetOrientationDegrees()),
+            "locked": bool(footprint.IsLocked()),
+        }
+        after = {
+            "x": int(source["x"]),
+            "y": int(source["y"]),
+            "orientation": float(source["orientation"]),
+            "locked": bool(source["locked"]),
+        }
+        if before == after:
+            continue
+        footprint.SetPosition(pcbnew.VECTOR2I(after["x"], after["y"]))
+        footprint.SetOrientationDegrees(after["orientation"])
+        footprint.SetLocked(after["locked"])
+        restored.append({
+            "ref": ref,
+            "from_mm": [round(before["x"] / MM, 6),
+                        round(before["y"] / MM, 6),
+                        round(before["orientation"], 6)],
+            "to_mm": [round(after["x"] / MM, 6),
+                      round(after["y"] / MM, 6),
+                      round(after["orientation"], 6)],
+        })
+    return {
+        "restored": len(restored),
+        "missing": missing,
+        "side_changed": side_changed,
+        "detail": restored,
+    }
+
+
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
                fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
-               kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:
+               kelvin_taps: bool = True, skip_locked_taps: bool = False,
+               completed_nets=()) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
     Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
@@ -7497,12 +12354,49 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     with both hard gates still passing.
     """
     board = pcbnew.LoadBoard(board_path)
+    _completed_nets = {str(net) for net in (completed_nets or ()) if net}
+    import_report = {"completed_nets": sorted(_completed_nets)}
+    # Capture pre-materialized pipeline rail ownership before the nowhere
+    # reaper is allowed to remove a now-unreachable zone.  Once that zone is
+    # gone, its name/net marker cannot be recovered from the output artifact.
+    _cleanup_pickup_nets = _pipeline_power_pickup_nets(board, power_pours)
+    _locked_vias = _snapshot_locked_via_geometry(board)
+    _footprint_placement = _snapshot_footprint_placement(board)
     ok = pcbnew.ImportSpecctraSES(board, ses_path)
     if not ok:
         raise RuntimeError(
             f"cec_fr.import_ses: ImportSpecctraSES returned False\n"
             f"  board={board_path!r}\n  ses={ses_path!r}"
         )
+    _placement_fix = _restore_footprint_placement(
+        board, _footprint_placement)
+    if (_placement_fix["missing"] or _placement_fix["side_changed"]):
+        raise RuntimeError(
+            "cec_fr.import_ses: routing backend changed footprint identity "
+            "or board side: %s" % json.dumps(_placement_fix,
+                                              sort_keys=True))
+    if _placement_fix["restored"]:
+        print("[cec_fr] restored %d router-mutated footprint placement(s): %s"
+              % (_placement_fix["restored"],
+                 _placement_fix["detail"][:8]), file=sys.stderr)
+    _locked_via_fix = _restore_locked_via_geometry(board, _locked_vias)
+    if (sum(_locked_via_fix.get(key, 0) for key in
+            ("restored", "recreated", "relocked"))
+            or _locked_via_fix["missing"]):
+        print("[cec_fr] locked-via contract: %d resized, %d recreated, "
+              "%d relocked, %d unresolved; %s"
+              % (_locked_via_fix["restored"],
+                 _locked_via_fix["recreated"],
+                 _locked_via_fix["relocked"],
+                 _locked_via_fix["missing"],
+                 (_locked_via_fix["detail"]
+                  + _locked_via_fix["recreated_detail"]
+                  + _locked_via_fix["relocked_detail"])[:8]),
+              file=sys.stderr)
+    if _locked_via_fix["missing"]:
+        raise RuntimeError(
+            "cec_fr.import_ses: protected via identity unresolved: %s" %
+            _locked_via_fix["missing_keys"][:8])
     # LAYER POLICY, import half (complements the export-side (type power) rewrite):
     # plane layers carry ZONES, never tracks. FR may still drop POWER-classified net
     # segments onto a (type power) layer (Specctra semantics allow it; measured: two
@@ -7635,14 +12529,13 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         _pf = _pourfirst_state()
         _pf_pours, _pf_vias, _pf_nets = [], [], set()
         if _pf and power_pours:
-            _pf_pours = list(_pf.get("pours") or ())
-            _pf_vias = list(_pf.get("vias") or ())
-            _pf_nets = ({d.get("net") for d in _pf_pours}
-                        | set((_pf.get("report") or {}).keys()))
+            _pf_pours, _pf_vias, _pf_nets = (
+                _frozen_power_state_parts(_pf))
             _n_pre = len(power_pours)
             power_pours = [p for p in power_pours
                            if p.get("net") not in _pf_nets]
-            print(f"[cec_fr] pour-first: {len(_pf_pours)} frozen dict(s) for "
+            _mode = "pre-laid" if _pf.get("prelaid") else "frozen"
+            print(f"[cec_fr] pour-first: {len(_pf_pours)} {_mode} dict(s) for "
                   f"{len(_pf_nets)} net(s) pass through SET IN STONE "
                   f"({_n_pre - len(power_pours)} live ask dict(s) superseded)",
                   file=sys.stderr)
@@ -7653,12 +12546,31 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         # Filter once, early; every consumer below sees only the kept pours.
         # (Slab dicts pass through it harmlessly: anchored by construction.)
         if power_pours:
-            power_pours, _pb = synthesize_pour_bonds(board, power_pours)
+            # An explicit over-under ask is not a pre-existing rectangle that
+            # must already be bonded; it is an instruction to BUILD a bonded
+            # routed object.  Filtering that placeholder before the pickup and
+            # conversion stages creates a circular refusal: no bond exists
+            # because the lane/vias have not been synthesized, so the ask is
+            # dropped and can never be synthesized.  This erased the Hub's
+            # +5VSB/+5V_HOLD/PSU_5V_KVM plans after their corridors had already
+            # been reserved, leaving 486 unusable keepout cells. Defer only
+            # explicit placer asks when over-under is active; ordinary derived
+            # rectangles still pass through the original scrap/bond filter.
+            _bond_now, _deferred_ou = partition_prebond_pours(
+                power_pours, overunder=os.environ.get("CEC_OVERUNDER") == "1")
+            _pb = {"planned": 0, "dropped": 0, "scrap": 0, "bonded": 0}
+            _bond_kept = []
+            if _bond_now:
+                _bond_kept, _pb = synthesize_pour_bonds(board, _bond_now)
+            power_pours = list(_bond_kept) + _deferred_ou
             if _pb["planned"] or _pb["dropped"] or _pb.get("scrap"):
                 print(f"[cec_fr] pour bonds: {_pb['planned']} bond via(s) planted, "
                       f"{_pb['dropped']} unbondable + {_pb.get('scrap', 0)} lace-bound "
                       f"pour(s) dropped ({_pb['bonded']} kept by contact/barrel)",
                       file=sys.stderr)
+            if _deferred_ou:
+                print(f"[cec_fr] pour bonds: deferred {len(_deferred_ou)} explicit "
+                      "ask(s) to over-under lane synthesis", file=sys.stderr)
         if _pf_pours:
             # frozen bridge vias precede the lanes (design step 5: the vias
             # are the copper the lanes land on; ledger inside the adder)
@@ -7839,7 +12751,28 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     # rule). Conversion failure keeps rects in power_pours, so the fallback
     # lay is this same line.
     if power_pours:
-        add_power_pours(board, power_pours, fill=False)
+        _managed_force_nets = {
+            str(p.get("net")) for p in power_pours
+            if str(p.get("net") or "").endswith(("_HI", "_LO"))
+        }
+        if _managed_force_nets:
+            _managed_pours = [
+                p for p in power_pours if p.get("net") in _managed_force_nets
+            ]
+            _supplemental_pours = [
+                p for p in power_pours if p.get("net") not in _managed_force_nets
+            ]
+            _replacement = replace_generated_power_pours(
+                board, _managed_pours, managed_nets=_managed_force_nets,
+                fill=False)
+            if _supplemental_pours:
+                add_power_pours(board, _supplemental_pours, fill=False)
+            print("[cec_fr] generated force-pour replacement: "
+                  "%d stale zone(s) -> %d current zone(s)"
+                  % (_replacement["removed"], _replacement["added"]),
+                  file=sys.stderr)
+        else:
+            add_power_pours(board, power_pours, fill=False)
     if fix_annular:
         normalize_via_annular(board)
         _nw = normalize_track_width(board)
@@ -7866,6 +12799,7 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
     if (os.environ.get("CEC_POWER_PICKUP", "0") == "1" and fill_zones):
         _post_nets = {p.get("net") for p in (power_pours or ()) if p.get("net")}
         _post_nets.add("GND")
+        _post_nets -= _completed_nets
         _post_pk = synthesize_power_pickups(
             board, (), plane_nets=(), filled_zone_nets=tuple(_post_nets))
         if _post_pk["vias"] or _post_pk["skipped"]:
@@ -7883,6 +12817,20 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             for z in board.Zones():
                 z.UnFill()
             pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # A single shaped power zone may itself fill as multiple islands.  Bond
+    # planning happens before fill and cannot see that split; repair it against
+    # the real filled polygons before generic last-mile clustering.
+    if (os.environ.get("CEC_ZONE_ISLAND_BRIDGE", "1") != "0" and fill_zones):
+        _zib = synthesize_pipeline_zone_island_bridges(
+            board, netclass_resolver=_project_netclass_resolver(board_path))
+        if _zib["added"] or _zib["refused"]:
+            print("[cec_fr] zone-island bridge: %d link(s), %d leg(s), "
+                  "%d refused" % (_zib["added"], _zib["legs"],
+                                   _zib["refused"]), file=sys.stderr)
+        if _zib["added"]:
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     # LAST-MILE COMPLETER (2026-07-23, recipe-gated): close <=5mm same-net
     # cluster gaps FR left unfinished (measured on the s120 best: 13 of 30
     # residual unconn were such gaps, incl. both GND criticals). MUST run on a
@@ -7893,7 +12841,14 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         board.BuildConnectivity()
         lm = synthesize_lastmile(
             board, max_mm=float(os.environ.get("CEC_LASTMILE_MAX_MM", "5.0")),
-            netclass_resolver=_project_netclass_resolver(board_path))
+            netclass_resolver=_project_netclass_resolver(board_path),
+            exclude_nets=_completed_nets,
+            attempts_per_pair=int(os.environ.get("CEC_LASTMILE_ATTEMPTS", "4")),
+            maze_max_mm=float(os.environ.get(
+                "CEC_LASTMILE_MAZE_MAX_MM", "5.0")),
+            maze_margin_mm=float(os.environ.get(
+                "CEC_LASTMILE_MAZE_MARGIN_MM", "2.0")))
+        import_report["lastmile"] = lm
         print(f"[cec_fr] lastmile: {lm['closed']} gap(s) closed ({lm['legs']} leg(s)), "
               f"{lm['refused']} refused, {lm['far']} far, "
               f"{lm['cross_layer']} cross-layer", file=sys.stderr)
@@ -7912,6 +12867,61 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             for z in board.Zones():
                 z.UnFill()
             pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # FINAL ORDINARY-NET COMPLETION: the ordinary last-mile pass is deliberately
+    # local.  A second opt-in pass is allowed to spend a bounded whole-board
+    # maze search only on non-power, non-differential, non-Kelvin control nets.
+    # It either lays exact collision/edge-qualified copper or records the
+    # searched refusal; it never converts a ratline into an assumed success.
+    if os.environ.get("CEC_LASTMILE_FINAL", "0") == "1" and fill_zones:
+        board.BuildConnectivity()
+        _resolver = _project_netclass_resolver(board_path)
+        _eligible = tuple(
+            net for net in _ordinary_final_completion_nets(board, _resolver)
+            if net not in _completed_nets)
+        _final_limit = float(os.environ.get(
+            "CEC_LASTMILE_FINAL_MAX_MM", "100.0"))
+        _final_lm = synthesize_lastmile(
+            board, max_mm=_final_limit,
+            netclass_resolver=_resolver,
+            include_nets=_eligible,
+            attempts_per_pair=int(os.environ.get(
+                "CEC_LASTMILE_FINAL_ATTEMPTS", "8")),
+            maze_max_mm=float(os.environ.get(
+                "CEC_LASTMILE_FINAL_MAZE_MAX_MM", str(_final_limit))),
+            maze_margin_mm=float(os.environ.get(
+                "CEC_LASTMILE_FINAL_MAZE_MARGIN_MM", "8.0")))
+        _final_lm["eligible_nets"] = list(_eligible)
+        import_report["final_completion"] = _final_lm
+        print("[cec_fr] final ordinary completion: %d gap(s) closed "
+              "(%d leg(s)), %d refused, %d beyond budget"
+              % (_final_lm["closed"], _final_lm["legs"],
+                 _final_lm["refused"], _final_lm["far"]),
+              file=sys.stderr)
+        for _row in (_final_lm.get("refused_details") or ())[:8]:
+            print("[cec_fr] final completion REFUSED: "
+                  f"{_row.get('net')} gap={_row.get('distance_mm')}mm "
+                  f"reason={_row.get('reason')}", file=sys.stderr)
+        if _final_lm["closed"]:
+            _final_ng = normalize_netclass_geometry(board, board_path)
+            if _final_ng.get("tracks") or _final_ng.get("vias"):
+                print("[fr] normalized final-completion geometry: "
+                      "%d track(s), %d via(s)"
+                      % (_final_ng.get("tracks", 0),
+                         _final_ng.get("vias", 0)), file=sys.stderr)
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    # The SES importer can quantize two nominally distinct endpoints onto the
+    # same coordinate (or leave them a few nanometres apart).  The resulting
+    # zero-area copper cannot close connectivity, but its full track width is
+    # still considered by KiCad DRC and can create an otherwise inexplicable
+    # foreign-net clearance error.  Sanitize only after every route/completion
+    # stage has finished so no later producer can reintroduce the artifact.
+    _degenerate = prune_degenerate_tracks(board)
+    import_report["degenerate_tracks_removed"] = _degenerate
+    if _degenerate:
+        print("[fr] removed %d degenerate track segment(s)" % _degenerate,
+              file=sys.stderr)
     # INNER GND FILL (owner ruling 2026-07-25, the companion to the power-layer
     # policy): on a board whose second inner is the SIGNAL layer, the space left
     # between routes becomes reference copper rather than nothing. Last thing
@@ -7964,6 +12974,61 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                 cec_slab_pour.reap_nowhere_zones(out_path)
         except Exception as _ze:                        # noqa: BLE001
             print(f"[cec_fr] zone cleanup skipped ({_ze})", file=sys.stderr)
+    # Zone cleanup above operates on the saved board and can legitimately
+    # remove the only inner-layer island beneath a previously valid generated
+    # pickup.  Reconcile those pickups against the *post-reaper* artifact, not
+    # the stale in-memory fill.  Scope discovery to the opted-in power/ground
+    # rails so hand-authored signal vias are never candidates.
+    if os.environ.get("CEC_POWER_PICKUP", "0") == "1" and fill_zones:
+        try:
+            _pcp = prune_post_cleanup_power_pickups(
+                out_path, _cleanup_pickup_nets)
+            if _pcp["vias"] or _pcp["stubs"]:
+                print("[cec_fr] post-zone-cleanup pickup prune: "
+                      "%d via(s), %d stub(s), %d unlanded POFV(s); %s"
+                      % (_pcp["vias"], _pcp["stubs"],
+                         _pcp["unlanded_pofv"], _pcp["detail"][:8]),
+                      file=sys.stderr)
+        except Exception as _pe:                        # noqa: BLE001
+            print(f"[cec_fr] post-zone-cleanup pickup prune skipped ({_pe})",
+                  file=sys.stderr)
+    # FINAL-ARTIFACT ISLAND REPAIR: cleanup_floating_zones refills the saved
+    # board, pour termination may reshape a rail at that refill, and pickup
+    # pruning can trigger one final refill of its own.  The earlier in-memory
+    # bridge pass cannot certify copper outlines that do not exist yet.  Run
+    # the identical guarded rule only after every zone-mutating stage, so the
+    # artifact handed to DRC/ranking is the artifact that was inspected.
+    if (os.environ.get("CEC_ZONE_ISLAND_BRIDGE", "1") != "0" and fill_zones):
+        try:
+            _final_zib = repair_post_cleanup_zone_islands(out_path)
+            if _final_zib["added"] or _final_zib["refused"]:
+                print("[cec_fr] final-artifact zone-island bridge: "
+                      "%d link(s), %d leg(s), %d refused"
+                      % (_final_zib["added"], _final_zib["legs"],
+                         _final_zib["refused"]), file=sys.stderr)
+        except Exception as _fze:                       # noqa: BLE001
+            print("[cec_fr] final-artifact zone-island bridge skipped "
+                  f"({_fze})", file=sys.stderr)
+    # A bridge attempt may leave a locked via and an isolated zone mutually
+    # sustaining one another without reaching any real terminal.  Settle the
+    # generated power-object graph after *all* bridge/fill mutations so the
+    # deliverable cannot retain that two-item dead cycle.
+    if os.environ.get("CEC_POWER_PICKUP", "0") == "1" and fill_zones:
+        try:
+            _settled = settle_generated_power_artifact(
+                out_path, _cleanup_pickup_nets)
+            _removed = sum(
+                row["dead_zone_vias"].get("vias", 0)
+                + row["floating_zones"] + row["nowhere_items"]
+                for row in _settled["rounds"])
+            if _removed:
+                print("[cec_fr] generated power artifact settled: "
+                      f"{_removed} dead item(s) removed across "
+                      f"{len(_settled['rounds'])} round(s)", file=sys.stderr)
+        except Exception as _se:                       # noqa: BLE001
+            print("[cec_fr] generated power artifact settling skipped "
+                  f"({_se})", file=sys.stderr)
+    _IMPORT_REPORTS[os.path.abspath(out_path)] = import_report
     return out_path
 
 
@@ -8420,6 +13485,8 @@ def route_once(
                                   # cec_fr02 bench; the coord-hints A/B rides this)
     skip_locked_taps: bool = False,  # precision pre-FR taps already laid+locked -> import_ses must
                                      # NOT re-synthesize (double-lay). Plumbed to import_ses.
+    completed_nets=(),            # nets fully owned by an admitted upstream topology stage;
+                                  # remove their pins from residual routing and finishing
 ) -> Candidate:
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
@@ -8438,14 +13505,29 @@ def route_once(
         )
 
     v = version or FR_VERSION
+    _completed = {str(net) for net in (completed_nets or ()) if net}
+    _protected = set(protect_nets or ()) | _completed
     params = {"passes": passes, "opt_time": opt_time, "threads": threads,
-              "fr_version": v}
+              "fr_version": v, "stage_s": {},
+              "completed_nets": sorted(_completed)}
+    _route_started = _stage_started = time.monotonic()
+
+    def _stage_done(name):
+        """Record and stream one monotonic route stage duration."""
+        nonlocal _stage_started
+        now = time.monotonic()
+        elapsed = round(now - _stage_started, 3)
+        params["stage_s"][name] = elapsed
+        _stage_started = now
+        print("[cec_fr] CEC_STAGE stage=%s seconds=%.3f" % (name, elapsed),
+              file=sys.stderr, flush=True)
     _own_wd = workdir is None
     if _own_wd:
         workdir = tempfile.mkdtemp(prefix="cec_fr_once_", dir=_TMP)
 
     try:
         jar = ensure_jar(jar, version=v)
+        _stage_done("ensure_jar")
 
         # 1. Bake hints (keepouts) into a working copy. When locked-protected nets
         # are in play, the FULLY-OWNED nets' locked copper ALSO bakes as rule-area
@@ -8455,9 +13537,9 @@ def route_once(
         # (bake only adds zones; ownership reads tracks+pads, identical either way)
         # so the SAME set drives the keepouts and the pin exclusion below.
         _owned = set()
-        if protect_nets:
+        if _protected:
             try:
-                _owned = owned_locked_nets(board_path)
+                _owned = owned_locked_nets(board_path) | _completed
                 if _owned:
                     _lk = locked_copper_keepouts(board_path, only_nets=_owned)
                     hints = list(hints) + _lk
@@ -8566,6 +13648,45 @@ def route_once(
                 _reserve_pins = []
                 print(f"[cec_fr] pour-corridor reservation FAILED ({_e}) -- "
                       "routing unreserved", file=sys.stderr)
+        # BOARD EDGE: the Specctra outline bounds the routing domain but does
+        # not carry KiCad's copper-to-edge clearance.  Direct route_once()
+        # callers previously depended on their wrapper remembering this
+        # physical rule, unlike the other manufacturing guards compiled at
+        # this boundary.  Add the same width-aware/cutout-aware rule areas
+        # here and deduplicate wrapper-provided copies by stable name.
+        try:
+            _existing_hint_names = {
+                str(hint.get("name", "")) for hint in hints
+                if isinstance(hint, dict)
+            }
+            _eg = [hint for hint in edge_keepout(board_path)
+                   if str(hint.get("name", "")) not in _existing_hint_names]
+            if _eg:
+                hints = list(hints) + _eg
+                print("[cec_fr] board-edge guards: %d rule area(s)" % len(_eg),
+                      file=sys.stderr)
+        except Exception as _e:                            # noqa: BLE001
+            raise RuntimeError("board-edge guards unavailable: %s" % _e) from _e
+
+        # ASSEMBLY FIDUCIALS: make the Specctra translation preserve KiCad's
+        # local no-net-pad clearance even for direct route_once() callers or a
+        # future custom planner.  Planner/factory hints are retained because
+        # they make the intended constraint visible at the control plane; this
+        # boundary de-duplicates them and is the fail-closed backstop.
+        try:
+            _existing_hint_names = {
+                str(hint.get("name", "")) for hint in hints
+                if isinstance(hint, dict)
+            }
+            _fg = [hint for hint in fiducial_keepouts(board_path)
+                   if str(hint.get("name", "")) not in _existing_hint_names]
+            if _fg:
+                hints = list(hints) + _fg
+                print("[cec_fr] assembly fiducial guards: %d layer-specific "
+                      "rule area(s)" % len(_fg), file=sys.stderr)
+        except Exception as _e:                            # noqa: BLE001
+            raise RuntimeError("assembly fiducial guards unavailable: %s" % _e) from _e
+
         # VIA-IN-PAD PREVENTION (2026-08-04): Freerouting treats an SMD pin as a
         # convenient layer-transition site and can put a via land partly inside
         # a narrow pad.  KiCad DRC does not report that manufacturing defect; the
@@ -8593,15 +13714,17 @@ def route_once(
                       "rule area(s)" % len(_dg), file=sys.stderr)
         except Exception as _e:                            # noqa: BLE001
             raise RuntimeError("decorative copper guards unavailable: %s" % _e) from _e
+        _stage_done("prepare_constraints")
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
         bake_hints(board_path, hinted_board, keepouts=hints, copy_pro=True)
+        _stage_done("bake_hints")
 
         # 2. Export DSN
         dsn_path = os.path.join(workdir, "board.dsn")
         export_dsn(hinted_board, dsn_path)
-        if protect_nets:
+        if _protected:
             import cec_fr02
-            cec_fr02.force_protect_in_dsn(dsn_path, list(protect_nets))
+            cec_fr02.force_protect_in_dsn(dsn_path, sorted(_protected))
             # OWNED-NET EXCLUSION (owner 2026-07-12: FR was re-routing the locked
             # lanes/taps at DSN class width -- 2.5mm B.Cu crossings under the bands;
             # reconcile stripped them AFTER, this stops the work happening at all):
@@ -8625,6 +13748,7 @@ def route_once(
             print("[cec_fr] pour-reserve: excluded %d pour-owned pad(s) from "
                   "FR routing (%d DSN token(s) removed)"
                   % (len(_reserve_pins), _nrx), file=sys.stderr)
+        _stage_done("export_dsn")
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
         fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)
@@ -8638,12 +13762,19 @@ def route_once(
             )
         finally:
             shutil.rmtree(fr_wd, ignore_errors=True)
+        _stage_done("freerouting")
 
         # 4. Import SES into the ORIGINAL board (not the hinted copy, so keepout
         #    zones from bake_hints don't clutter the final result). Pour the high-current
         #    nets AFTER the route (additive same-net copper) + fix FR's thin-annular vias.
         import_ses(board_path, ses_path, out_path, power_pours=power_pours,
-                   skip_locked_taps=skip_locked_taps)
+                   skip_locked_taps=skip_locked_taps,
+                   completed_nets=_completed)
+        params["import_report"] = _IMPORT_REPORTS.pop(
+            os.path.abspath(out_path), {})
+        _stage_done("import_ses")
+        params["stage_s"]["total"] = round(
+            time.monotonic() - _route_started, 3)
 
         return Candidate(
             board=out_path,
@@ -8654,6 +13785,8 @@ def route_once(
         )
 
     except Exception as exc:
+        params["stage_s"]["total"] = round(
+            time.monotonic() - _route_started, 3)
         import traceback as _tb
         _trace = _tb.format_exc()
         # Innermost OUR-code frame (skip library frames) -> compact file:line the
@@ -8711,6 +13844,9 @@ def _worker(args: dict) -> Candidate:
         jar=args.get("jar"),
         timeout=args.get("timeout", 600),
         version=args.get("version"),   # None -> the worker's own FR_VERSION pin (env-aware)
+        protect_nets=args.get("protect_nets", ()),
+        skip_locked_taps=bool(args.get("skip_locked_taps", False)),
+        completed_nets=args.get("completed_nets", ()),
     )
 
 
@@ -8734,6 +13870,9 @@ def generate_batch(
     params=None,
     max_workers: int | None = None,
     jar: str | None = None,
+    protect_nets=(),
+    skip_locked_taps: bool = False,
+    completed_nets=(),
 ) -> list[Candidate]:
     """Generate one :class:`Candidate` per seed in *seeds*, in parallel.
 
@@ -8786,6 +13925,9 @@ def generate_batch(
             "seed": s,
             "jar": jar,
             "timeout": p.get("timeout", 600),
+            "protect_nets": list(protect_nets),
+            "skip_locked_taps": bool(skip_locked_taps),
+            "completed_nets": list(completed_nets),
         })
 
     results_by_seed = {}
@@ -8810,10 +13952,25 @@ def generate_batch(
     # worker is fully isolated. Workers take only picklable strings/dicts; _worker is a
     # top-level function -> spawn-picklable.
     import multiprocessing as _mp
+    import cec_process_pool as _pool_guard
     _ctx = _mp.get_context("spawn")
-    with ProcessPoolExecutor(max_workers=n, mp_context=_ctx) as pool:
+    pool = ProcessPoolExecutor(max_workers=n, mp_context=_ctx)
+    forced_shutdown = False
+    future_to_seed = {}
+    try:
         future_to_seed = {pool.submit(_worker, item): item["seed"] for item in work_items}
-        for fut in as_completed(future_to_seed):
+        # route_once owns the per-JVM timeout.  This outer generation watchdog
+        # covers queued waves plus bounded pcbnew import/export and prevents a
+        # dead executor coordinator from surviving after its Java child exits.
+        max_task_timeout = max(
+            (float(item.get("timeout", 600)) for item in work_items),
+            default=600.0)
+        wall_budget = _pool_guard.pool_wall_budget(
+            max_task_timeout, len(work_items), n,
+            cleanup_s=300.0, multiplier=1.5, minimum_s=600.0)
+        for fut in _pool_guard.watched_as_completed(
+                pool, future_to_seed, wall_timeout_s=wall_budget,
+                poll_s=5.0):
             s = future_to_seed[fut]
             try:
                 cand = fut.result()
@@ -8831,6 +13988,25 @@ def generate_batch(
                     err=f"worker raised: {exc}",
                 )
             results_by_seed[s] = cand
+    except _pool_guard.WorkerPoolStalled as exc:
+        forced_shutdown = True
+        for fut, s in future_to_seed.items():
+            if s in results_by_seed:
+                continue
+            p = _resolve_params(s)
+            results_by_seed[s] = Candidate(
+                board="", ses="", seed=s,
+                params={"passes": p.get("passes", 10),
+                        "opt_time": p.get("opt_time", 20),
+                        "threads": p.get("threads", 1),
+                        "executor_watchdog": str(exc)},
+                ok=False,
+                err="worker pool stalled: %s" % exc,
+            )
+    finally:
+        shutdown = _pool_guard.shutdown_process_pool(
+            pool, force=forced_shutdown, grace_s=5.0)
+        print("[cec_fr] batch executor shutdown: %s" % shutdown, flush=True)
 
     # Return in original seed order
     out = [results_by_seed[s] for s in seeds]

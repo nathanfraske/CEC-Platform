@@ -126,7 +126,7 @@ Write-Host "java: $jv"
 $jarProbe = "import os,sys; sys.path.insert(0, os.path.join(r'$repo','scripts')); import cec_fr; print(cec_fr.ensure_jar())"
 $resolvedJar = (& $py -c $jarProbe | Select-Object -Last 1)
 if ($LASTEXITCODE -ne 0 -or -not $resolvedJar -or -not (Test-Path $resolvedJar)) {
-  throw "A hash-verified freerouting-1.7.0-cec2.jar was not found. Build it using ops/README-fr-fork.md, or set an explicit `$env:CEC_FREEROUTING_JAR override."
+  throw "A hash-verified pinned Freerouting jar was not found. Build cec3 using scripts/build-freerouting-cec3.sh in WSL, or set an explicit `$env:CEC_FREEROUTING_JAR override."
 }
 Write-Host "Freerouting jar: $resolvedJar (verified pin or explicit override)"
 

@@ -69,8 +69,9 @@ HARD_RE = re.compile(r"^(J\d|J[A-Z_]|TB\d|RS\d)")
 
 # function targets per segment: per-board ANATOMY refs whose centroid defines the
 # region the segment wants to be near. DETECT: hub port-1 jack J2; 24-pin R1 (the
-# 2.2k DETECT code resistor). Power: hub J_PWR; 24-pin J3 (5VSB arrives there).
-TARGETS = {"J6P": {"hub": ["J_PWR"], "p24": ["J3"]},
+# 2.2k DETECT code resistor). Power: hub U7; 24-pin J3 (+5V_SYS arrives
+# through the J6P stack segment and is selected by U7).
+TARGETS = {"J6P": {"hub": ["U7"],    "p24": ["J3"]},
            "J6C": {"hub": ["U2"],    "p24": ["U2"]},
            "J6D": {"hub": ["J2"],    "p24": ["R1"]}}
 

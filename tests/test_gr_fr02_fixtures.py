@@ -179,6 +179,24 @@ class T3FR02CompilerMechanics(unittest.TestCase):
         self.assertNotAlmostEqual((x1 + x2) / 2 / 1e6, 15.0, places=1,
                                   msg="the stub must sit OFF the blocker")
 
+    def test_preflight_waypoint_and_compiler_share_exact_geometry(self):
+        """A coordinator can preflight a compact protected stub, then hand the
+        returned centre to the compiler without a second-stage rejection."""
+        import cec_fr02
+        work = tempfile.mkdtemp()
+        src = _mk_board(os.path.join(work, "fixture.kicad_pcb"))
+        b = pcbnew.LoadBoard(src)
+        at = cec_fr02.find_clear_waypoint_mm(
+            b, "NETA", "F.Cu", [15, 10], stub_len_mm=0.6,
+            width_mm=0.22, nudge_mm=1.0)
+        self.assertIsNotNone(at)
+        out = os.path.join(work, "directed.kicad_pcb")
+        res = cec_fr02.compile_intents(src, [{
+            "net": "NETA", "layers": ["F.Cu"],
+            "waypoints": [{"at_mm": at}], "stub_len_mm": 0.6,
+            "width_mm": 0.22, "nudge_mm": 0.0}], out)
+        self.assertEqual(len(res["stubs"]), 1, res["failures"])
+
     def test_blocked_beyond_tolerance_fails_named(self):
         """The FR-03 discipline: blocked beyond tolerance = FAIL with the
         spot named, never a creative detour (tolerance shrunk to force it)."""

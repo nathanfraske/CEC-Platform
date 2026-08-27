@@ -81,7 +81,13 @@ def warn(msg):
 # shared helpers
 # ---------------------------------------------------------------------------
 def _spec_text():
-    return open(SPEC).read() if os.path.isfile(SPEC) else ""
+    # The ground-truth specification intentionally contains typographic units,
+    # symbols, and punctuation. Never let a C/ASCII service locale make corpus
+    # governance depend on how the caller launched Python.
+    if not os.path.isfile(SPEC):
+        return ""
+    with open(SPEC, encoding="utf-8") as handle:
+        return handle.read()
 
 
 def _secs_resolve(ref_text, spec_text, where):

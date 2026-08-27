@@ -1,5 +1,10 @@
 # Tester Standard (ST-1000 / ST-1300) — main board
 
+> **STOP WORK — mandatory gate (2026-08-10).** This design must not advance,
+> be copied into another tier, or be fabricated until
+> `docs/tester-stop-work-reconciliation-gate-2026-08-10.md` is explicitly
+> released.
+
 DRAFT — no schematic yet. Design basis: docs/psu-tester-architecture-sketch-2026-07-16.md
 (§11), docs/psu-tester-bom-draft-2026-07-16.md (§3a/3b), testers/DESIGN-SHEET.md.
 

@@ -34,6 +34,10 @@ HUB = os.path.join(ROOT, "old-revisions", "hubs", "hub-standard-alpha",
                    "hub-standard.kicad_pcb")
 HUB_BETA = os.path.join(ROOT, "beta", "hub-standard-rev2", "candidate",
                         "hub-standard-rev2-candidate.kicad_pcb")
+PCIE2_BETA = os.path.join(ROOT, "beta", "pcie-8pin-2port", "candidate",
+                          "pcie-8pin-2port-candidate.kicad_pcb")
+PCIE3_BETA = os.path.join(ROOT, "beta", "pcie-8pin-3port", "candidate",
+                          "pcie-8pin-3port-candidate.kicad_pcb")
 
 
 # ---------------------------------------------------------------------------
@@ -144,15 +148,17 @@ class TestCheckPack(unittest.TestCase):
         self.assertTrue(ok, detail)
         self.assertIn("no placeholder/empty BOM fields", detail)
 
-    def test_hub_candidate_is_refused_when_pin_net_signature_is_stale(self):
+    def test_hub_candidate_matches_current_direct_buck_signature(self):
         board = pcbnew.LoadBoard(HUB_BETA)
         ok, detail = K.CHECKERS["sch-pcb-sync"](board, HUB_BETA, {})[:2]
-        self.assertFalse(ok, detail)
-        # The current direct-buck schematic adds these three physical parts;
-        # the routed candidate must remain rejected until it is regenerated.
-        self.assertIn("L1", detail)
-        self.assertIn("R39", detail)
-        self.assertIn("R40", detail)
+        self.assertTrue(ok, detail)
+        self.assertIn("109 refs", detail)
+
+    def test_pcie2_candidate_matches_current_electrical_signature(self):
+        board = pcbnew.LoadBoard(PCIE2_BETA)
+        ok, detail = K.CHECKERS["sch-pcb-sync"](board, PCIE2_BETA, {})[:2]
+        self.assertTrue(ok, detail)
+        self.assertIn("66 refs", detail)
 
     def test_detect_resistor_hub_vs_module(self):
         hub = pcbnew.LoadBoard(HUB)
@@ -167,6 +173,15 @@ class TestCheckPack(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (run in the routing container)")
 class TestIntakeGate(unittest.TestCase):
+    def test_candidate_erc_resolves_parent_project_schematic(self):
+        expected = os.path.join(
+            ROOT, "beta", "pcie-8pin-3port",
+            "pcie8pin-3port-module.kicad_sch")
+        with mock.patch.object(K, "_erc_errors", return_value=0) as erc:
+            gate = K.intake_gate(PCIE3_BETA)
+        self.assertTrue(gate["ok"], gate["reasons"])
+        erc.assert_called_once_with(expected)
+
     def test_draft_marker_does_not_waive_live_erc(self):
         with mock.patch.object(K, "_erc_errors", return_value=1):
             g = K.intake_gate(EPS)
@@ -206,6 +221,27 @@ class TestIntakeGate(unittest.TestCase):
         g = K.intake_gate(EPS, ctx={"sch": hub_sch})
         self.assertFalse(g["ok"])
         self.assertTrue(any("sch-pcb-sync" in r for r in g["reasons"]), g["reasons"])
+
+    def test_explicit_continuation_defers_only_repairable_route_geometry(self):
+        original = K.CHECKERS["no-foreign-on-high-current-pour"]
+        try:
+            K.CHECKERS["no-foreign-on-high-current-pour"] = (
+                lambda *_args, **_kwargs: (False, "synthetic routed incursion"))
+            with mock.patch.object(K, "_erc_errors", return_value=0):
+                ordinary = K.intake_gate(PCIE2_BETA)
+                continuation = K.intake_gate(
+                    PCIE2_BETA, defer_route_geometry=True)
+        finally:
+            K.CHECKERS["no-foreign-on-high-current-pour"] = original
+
+        self.assertFalse(ordinary["ok"])
+        self.assertTrue(any(
+            "no-foreign-on-high-current-pour" in reason
+            for reason in ordinary["reasons"]))
+        self.assertTrue(continuation["ok"], continuation["reasons"])
+        self.assertEqual(
+            [row["id"] for row in continuation["deferred_to_route"]],
+            ["no-foreign-on-high-current-pour"])
 
 
 if __name__ == "__main__":

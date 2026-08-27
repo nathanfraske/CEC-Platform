@@ -17,9 +17,11 @@ sys.path.insert(0, os.path.join(
 
 
 class _Track:
-    def __init__(self, w_mm, cls="PCB_TRACK"):
+    def __init__(self, w_mm, cls="PCB_TRACK", start=(0.0, 0.0), end=(1.0, 0.0)):
         self._w = int(round(w_mm * 1_000_000))
         self._cls = cls
+        self._start = _Point(*start)
+        self._end = _Point(*end)
 
     def GetClass(self):
         return self._cls
@@ -29,6 +31,18 @@ class _Track:
 
     def SetWidth(self, w):
         self._w = w
+
+    def GetStart(self):
+        return self._start
+
+    def GetEnd(self):
+        return self._end
+
+
+class _Point:
+    def __init__(self, x_mm, y_mm):
+        self.x = int(round(x_mm * 1_000_000))
+        self.y = int(round(y_mm * 1_000_000))
 
 
 class _DS:
@@ -46,6 +60,9 @@ class _Board:
 
     def GetDesignSettings(self):
         return self._ds
+
+    def Remove(self, item):
+        self._t.remove(item)
 
 
 class TrackWidthNormTest(unittest.TestCase):
@@ -95,3 +112,32 @@ class TrackWidthNormTest(unittest.TestCase):
         self.assertEqual(self.fn(b), 1)
         self.assertEqual(inside.GetWidth(), 200000)
         self.assertEqual(outside.GetWidth(), 194000)
+
+
+class DegenerateTrackPruneTest(unittest.TestCase):
+    def setUp(self):
+        import cec_fr
+        self.fn = cec_fr.prune_degenerate_tracks
+
+    def test_nanometre_quantization_artifact_is_removed(self):
+        t = _Track(0.2, start=(0.0, 0.0), end=(0.000001, 0.0))
+        b = _Board([t])
+        self.assertEqual(self.fn(b), 1)
+        self.assertEqual(b.GetTracks(), [])
+
+    def test_zero_length_track_is_removed(self):
+        t = _Track(0.2, start=(4.0, 5.0), end=(4.0, 5.0))
+        b = _Board([t])
+        self.assertEqual(self.fn(b), 1)
+
+    def test_real_short_neck_remains_visible(self):
+        t = _Track(0.2, start=(0.0, 0.0), end=(0.01, 0.0))
+        b = _Board([t])
+        self.assertEqual(self.fn(b), 0)
+        self.assertEqual(b.GetTracks(), [t])
+
+    def test_via_is_never_pruned(self):
+        v = _Track(0.2, cls="PCB_VIA", start=(0.0, 0.0), end=(0.0, 0.0))
+        b = _Board([v])
+        self.assertEqual(self.fn(b), 0)
+        self.assertEqual(b.GetTracks(), [v])

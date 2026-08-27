@@ -47,6 +47,8 @@ class SixLayerGenerationTest(unittest.TestCase):
                              "jlcpcb_6l_pofv_high_current")
             self.assertEqual(FAB.routing_layers(board),
                              ("F.Cu", "In2.Cu", "In3.Cu", "B.Cu"))
+            self.assertEqual(FAB.referenced_signal_layers(board),
+                             ("F.Cu", "In2.Cu", "B.Cu"))
             with open(path, encoding="utf-8") as source:
                 text = source.read()
             self.assertIn("(capping yes)", text)
@@ -196,6 +198,267 @@ class SixLayerGenerationTest(unittest.TestCase):
                 pad, quantized, pcbnew.FromMM(0.3)))
             self.assertFalse(FAB._pad_contains_circle(
                 pad, overhang, pcbnew.FromMM(0.3)))
+
+    def test_locked_pofv_geometry_survives_lossy_router_import(self):
+        """SES must not replace a locked fine POFV with the global via size."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("DLOCK")
+            centre = pcbnew.VECTOR2I_MM(10.0, 10.0)
+            fp.SetPosition(centre)
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("2")
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.55, 0.55))
+            pad.SetPosition(centre)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            fp.Add(pad)
+            board.Add(fp)
+
+            locked = pcbnew.PCB_VIA(board)
+            locked.SetViaType(pcbnew.VIATYPE_THROUGH)
+            locked.SetPosition(centre)
+            locked.SetWidth(pcbnew.FromMM(0.35))
+            locked.SetDrill(pcbnew.FromMM(0.25))
+            locked.SetLayerPair(board.GetLayerID("F.Cu"),
+                                board.GetLayerID("B.Cu"))
+            locked.SetNet(net)
+            locked.SetLocked(True)
+            board.Add(locked)
+
+            snapshot = cec_fr._snapshot_locked_via_geometry(board)
+            self.assertEqual(len(snapshot), 1)
+            # Model KiCad's SES behavior observed on the real Hub: the same
+            # locked barrel returns at Freerouting's global 0.60/0.30 geometry.
+            locked.SetWidth(pcbnew.FromMM(0.60))
+            locked.SetDrill(pcbnew.FromMM(0.30))
+            report = cec_fr._restore_locked_via_geometry(board, snapshot)
+            self.assertEqual(report["restored"], 1, report)
+            self.assertEqual(report["missing"], 0, report)
+            self.assertAlmostEqual(locked.GetWidth(locked.TopLayer()) / 1e6,
+                                   0.35, places=6)
+            self.assertAlmostEqual(locked.GetDrillValue() / 1e6,
+                                   0.25, places=6)
+            self.assertEqual(cec_fr.normalize_via_annular(board), 0)
+            self.assertAlmostEqual(locked.GetWidth(locked.TopLayer()) / 1e6,
+                                   0.35, places=6)
+            self.assertAlmostEqual(locked.GetDrillValue() / 1e6,
+                                   0.25, places=6)
+            self.assertIsNone(cec_fr._via_pad_excluded(
+                board, centre, locked.GetWidth(locked.TopLayer()),
+                locked.GetDrillValue(), net.GetNetCode()))
+
+    def test_locked_via_restore_does_not_rewrite_unlocked_router_vias(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            locked = pcbnew.PCB_VIA(board)
+            locked.SetPosition(pcbnew.VECTOR2I_MM(8.0, 8.0))
+            locked.SetWidth(pcbnew.FromMM(0.35))
+            locked.SetDrill(pcbnew.FromMM(0.25))
+            locked.SetNet(net)
+            locked.SetLocked(True)
+            board.Add(locked)
+            snapshot = cec_fr._snapshot_locked_via_geometry(board)
+
+            unlocked = pcbnew.PCB_VIA(board)
+            unlocked.SetPosition(pcbnew.VECTOR2I_MM(12.0, 12.0))
+            unlocked.SetWidth(pcbnew.FromMM(0.60))
+            unlocked.SetDrill(pcbnew.FromMM(0.30))
+            unlocked.SetNet(net)
+            board.Add(unlocked)
+            report = cec_fr._restore_locked_via_geometry(board, snapshot)
+            self.assertEqual(report["restored"], 0, report)
+            self.assertAlmostEqual(unlocked.GetWidth(unlocked.TopLayer()) / 1e6,
+                                   0.60, places=6)
+
+    def test_locked_via_restore_recreates_omitted_ses_barrel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            centre = pcbnew.VECTOR2I_MM(9.0, 9.0)
+            locked = pcbnew.PCB_VIA(board)
+            locked.SetPosition(centre)
+            locked.SetWidth(pcbnew.FromMM(0.35))
+            locked.SetDrill(pcbnew.FromMM(0.25))
+            locked.SetLayerPair(board.GetLayerID("F.Cu"),
+                                board.GetLayerID("B.Cu"))
+            locked.SetNet(net)
+            locked.SetLocked(True)
+            board.Add(locked)
+            snapshot = cec_fr._snapshot_locked_via_geometry(board)
+            board.Delete(locked)
+
+            report = cec_fr._restore_locked_via_geometry(board, snapshot)
+
+            self.assertEqual(report["recreated"], 1, report)
+            self.assertEqual(report["missing"], 0, report)
+            restored = [item for item in board.GetTracks()
+                        if item.GetClass() == "PCB_VIA"
+                        and item.GetPosition() == centre]
+            self.assertEqual(len(restored), 1)
+            self.assertTrue(restored[0].IsLocked())
+            self.assertAlmostEqual(
+                restored[0].GetWidth(restored[0].TopLayer()) / 1e6,
+                0.35, places=6)
+            self.assertAlmostEqual(
+                restored[0].GetDrillValue() / 1e6, 0.25, places=6)
+
+    def test_locked_via_restore_relocks_router_returned_barrel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            centre = pcbnew.VECTOR2I_MM(11.0, 11.0)
+            via = pcbnew.PCB_VIA(board)
+            via.SetPosition(centre)
+            via.SetWidth(pcbnew.FromMM(0.35))
+            via.SetDrill(pcbnew.FromMM(0.25))
+            via.SetNet(net)
+            via.SetLocked(True)
+            board.Add(via)
+            snapshot = cec_fr._snapshot_locked_via_geometry(board)
+            via.SetLocked(False)
+            via.SetWidth(pcbnew.FromMM(0.60))
+            via.SetDrill(pcbnew.FromMM(0.30))
+
+            report = cec_fr._restore_locked_via_geometry(board, snapshot)
+
+            self.assertEqual(report["restored"], 1, report)
+            self.assertEqual(report["relocked"], 1, report)
+            self.assertEqual(report["missing"], 0, report)
+            self.assertTrue(via.IsLocked())
+
+    def test_scorer_waives_only_profile_qualified_pofv_geometry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("DQ")
+            centre = pcbnew.VECTOR2I_MM(10.0, 10.0)
+            fp.SetPosition(centre)
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("2")
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.55, 0.55))
+            pad.SetPosition(centre)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            fp.Add(pad)
+            board.Add(fp)
+            via = pcbnew.PCB_VIA(board)
+            via.SetPosition(centre)
+            via.SetWidth(pcbnew.FromMM(0.35))
+            via.SetDrill(pcbnew.FromMM(0.25))
+            via.SetNet(net)
+            board.Add(via)
+            pcbnew.SaveBoard(path, board)
+
+            rows = [{
+                "description": "controlled POFV geometry",
+                "items": [{"description": "Via [GND] on F.Cu - B.Cu",
+                           "pos": {"x": 10.0, "y": 10.0}}],
+                "severity": "error",
+                "type": kind,
+            } for kind in (
+                "via_diameter", "annular_width", "drill_out_of_range")]
+            report = os.path.join(directory, "controlled-drc.json")
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump({"violations": rows, "unconnected_items": []}, handle)
+            metrics = cec_score.score(path, drc_json=report)
+            self.assertEqual(metrics.drc, 0, metrics.drc_types)
+
+            # The same generic messages remain structural once the via land no
+            # longer fits fully in the pad; this is not a blanket DRC waiver.
+            board = pcbnew.LoadBoard(path)
+            grown = next(item for item in board.GetTracks()
+                         if item.GetClass() == "PCB_VIA")
+            grown.SetWidth(pcbnew.FromMM(0.60))
+            grown.SetDrill(pcbnew.FromMM(0.30))
+            pcbnew.SaveBoard(path, board)
+            metrics = cec_score.score(path, drc_json=report)
+            self.assertEqual(metrics.drc, 3, metrics.drc_types)
+            self.assertEqual(metrics.drc_types,
+                             {"via_diameter": 1, "annular_width": 1,
+                              "drill_out_of_range": 1})
+
+    def test_scorer_waives_only_bounded_locked_endpoint_neckdown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference("UFINE")
+            centre = pcbnew.VECTOR2I_MM(6.0, 6.0)
+            fp.SetPosition(centre)
+            pad = pcbnew.PAD(fp)
+            pad.SetPadName("1")
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+            pad.SetPosition(centre)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            fp.Add(pad)
+            board.Add(fp)
+
+            junction = pcbnew.VECTOR2I_MM(6.75, 6.0)
+            narrow = pcbnew.PCB_TRACK(board)
+            narrow.SetStart(centre)
+            narrow.SetEnd(junction)
+            narrow.SetWidth(pcbnew.FromMM(0.20))
+            narrow.SetLayer(pcbnew.F_Cu)
+            narrow.SetNet(net)
+            narrow.SetLocked(True)
+            board.Add(narrow)
+            trunk = pcbnew.PCB_TRACK(board)
+            trunk.SetStart(junction)
+            trunk.SetEnd(pcbnew.VECTOR2I_MM(8.0, 6.0))
+            trunk.SetWidth(pcbnew.FromMM(0.50))
+            trunk.SetLayer(pcbnew.F_Cu)
+            trunk.SetNet(net)
+            trunk.SetLocked(True)
+            board.Add(trunk)
+            pcbnew.SaveBoard(path, board)
+
+            row = {
+                "description": (
+                    "Track width (rule 'Power min width' min width "
+                    "0.5000 mm; actual 0.2000 mm)"),
+                "items": [{
+                    "description": "Track [GND] on F.Cu, length 0.7500 mm",
+                    "pos": {"x": 6.0, "y": 6.0},
+                    "uuid": narrow.m_Uuid.AsString(),
+                }],
+                "severity": "error",
+                "type": "track_width",
+            }
+            report = os.path.join(directory, "controlled-neckdown-drc.json")
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump({"violations": [row],
+                           "unconnected_items": []}, handle)
+            metrics = cec_score.score(path, drc_json=report)
+            self.assertEqual(metrics.drc, 0, metrics.drc_types)
+
+            # Lock ownership is part of the proof: an arbitrary router trace
+            # at the same dimensions is not silently excused.
+            board = pcbnew.LoadBoard(path)
+            candidate = next(item for item in board.GetTracks()
+                             if item.m_Uuid.AsString() ==
+                             narrow.m_Uuid.AsString())
+            candidate.SetLocked(False)
+            pcbnew.SaveBoard(path, board)
+            metrics = cec_score.score(path, drc_json=report)
+            self.assertEqual(metrics.drc_types, {"track_width": 1})
 
     def test_smd_via_guards_block_partial_lands_but_keep_pofv_core_open(self):
         """The router must not rediscover U2.3's narrow-pad via escape.

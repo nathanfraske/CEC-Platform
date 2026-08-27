@@ -634,7 +634,7 @@
       },
       {
         "netclass": "Power",
-        "pattern": "*5VSB_RAW"
+        "pattern": "+5V_SYS"
       },
       {
         "netclass": "Power",
@@ -659,14 +659,6 @@
       {
         "netclass": "USB",
         "pattern": "*USB_D_N"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "*MAIN_5V_RAW"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "*PSU_5V"
       },
       {
         "netclass": "Power",

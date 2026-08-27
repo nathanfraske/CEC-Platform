@@ -152,8 +152,10 @@ class T5SharedVerifier(unittest.TestCase):
     def test_locus_resolving_but_absent_from_trace_fails(self):
         import cec_facts
         facts = cec_facts.board_facts(cec_facts.find_board("hub-standard"))
-        self.assertIn("U5", facts["refs"])
-        ok, why = SV.locus_exists("U5", "a trace that never names the part", facts)
+        # U5 belonged to the retired Hub power stage. Use a live reference so
+        # this verifier tooth follows the current BETA topology.
+        self.assertIn("U8", facts["refs"])
+        ok, why = SV.locus_exists("U8", "a trace that never names the part", facts)
         self.assertFalse(ok)
         self.assertIn("absent from trace", why)
 

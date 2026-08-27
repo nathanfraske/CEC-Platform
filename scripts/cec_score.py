@@ -22,8 +22,11 @@
 #   passed, reasons = gate(m)
 #   cost = objective(m)
 # ============================================================================
-import os, sys, json, re, subprocess, tempfile
+import os, sys, json, re, math, subprocess, tempfile
+from collections import defaultdict
 from dataclasses import dataclass, field
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     import pcbnew                       # only the DRC paths need it; the scoring math is pure-python
@@ -207,7 +210,11 @@ def _run_drc(board_path: str, tmp: str) -> dict:
          "--format", "json", "-o", tmp, board_path],
         capture_output=True,
     )
-    with open(tmp) as fh:
+    # KiCad's JSON is UTF-8 and may contain non-ASCII net/reference text.  Do not
+    # inherit Python's process locale here: headless workers and fresh WSL images
+    # commonly run with an ASCII C locale, which made otherwise valid DRC output
+    # impossible to score.
+    with open(tmp, encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -241,7 +248,10 @@ def drc_types(board_path: str) -> tuple[dict, list]:
             pass
     struct = [v for v in d.get("violations", []) if v.get("type") not in COSMETIC_DRC_TYPES]
     try:
-        struct = _drop_impossible_pad_artifacts(struct, pcbnew.LoadBoard(board_path))
+        board = pcbnew.LoadBoard(board_path)
+        struct = _drop_impossible_pad_artifacts(struct, board)
+        struct = _drop_profile_qualified_pofv_geometry(struct, board)
+        struct = _drop_qualified_endpoint_neckdown_geometry(struct, board)
     except Exception:                                      # noqa: BLE001 -- parity filter is best-effort here
         pass
     return _types_loci(struct)
@@ -301,7 +311,7 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
         elif v.get("type") == "hole_clearance":
             # KiCad CLI 10 can ignore an otherwise valid sibling .kicad_dru
             # copper-to-hole exception. Duplicate the XKB drawing-qualified
-            # J_USB exception in the headless scoring path, bounded by all of:
+            # connector exception in the headless scoring path, bounded by all of:
             # exact footprint, exact four SMD lands, the connector's own NPTH,
             # and the declared 0.15 mm floor. Foreign holes, routed copper,
             # other lands, other connectors, and tighter geometry still fail.
@@ -309,13 +319,14 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
             descs = [it.get("description", "") for it in items]
             pad_ms = [_RE_PAD_ITEM.match(x) for x in descs]
             pad_hits = [m for m in pad_ms if m]
-            npth_hits = [x for x in descs if x == "NPTH pad of J_USB"]
+            npth_refs = [re.match(r"^NPTH pad of (\S+)$", x) for x in descs]
+            npth_hits = [m for m in npth_refs if m]
             actual = re.search(r"\bactual\s+([0-9.]+)\s*mm", v.get("description", ""))
             if (len(items) == 2 and len(pad_hits) == 1 and len(npth_hits) == 1
-                    and pad_hits[0].group(2) == "J_USB"
+                    and pad_hits[0].group(2) == npth_hits[0].group(1)
                     and pad_hits[0].group(1) in {"A4", "A9", "B1", "B12"}
                     and actual and float(actual.group(1)) >= 0.15):
-                fp = footprints.get("J_USB")
+                fp = footprints.get(pad_hits[0].group(2))
                 if fp is not None:
                     libname = str(fp.GetFPID().GetLibItemName())
                     if libname == "USB_C_Receptacle_XKB_U262-16XN-4BVC11":
@@ -360,6 +371,182 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
     return out
 
 
+def _drop_profile_qualified_pofv_geometry(struct: list, board) -> list:
+    """Remove generic via-size DRC rows proven legal by the board fab profile.
+
+    KiCad's global minimum via diameter/annular settings cannot express a
+    process-qualified POFV exception.  The pipeline's fabrication contract can:
+    it checks the actual diameter/drill pair, exact full-land containment in a
+    same-net SMD pad, and the declared board profile.  Suppress only those two
+    generic geometry messages for a via that passes that centralized proof.
+    Clearance, shorts, dangling copper, overhanging lands, and ordinary
+    undersized vias remain structural failures.
+    """
+    import cec_fab_profile as fab
+
+    # KiCad 9/10 may report a profile-qualified small POFV drill through the
+    # aggregate ``drill_out_of_range`` code instead of ``via_diameter``.
+    # Apply the exact same containment/process proof; this is not a blanket
+    # drill waiver and ordinary/off-pad undersized barrels still fail.
+    qualified_types = {
+        "via_diameter", "annular_width", "drill_out_of_range"}
+    vias = []
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_VIA":
+            continue
+        pos = item.GetPosition()
+        vias.append((pos.x, pos.y, item))
+
+    def _qualified(row):
+        if row.get("type") not in qualified_types:
+            return False
+        via_items = [item for item in row.get("items", ())
+                     if (item.get("description") or "").startswith("Via [")]
+        if len(via_items) != 1:
+            return False
+        pos = via_items[0].get("pos") or {}
+        try:
+            x = int(round(float(pos["x"]) * 1e6))
+            y = int(round(float(pos["y"]) * 1e6))
+        except (KeyError, TypeError, ValueError):
+            return False
+        matches = [via for vx, vy, via in vias
+                   if abs(vx - x) <= 1_000 and abs(vy - y) <= 1_000]
+        if len(matches) != 1:
+            return False
+        via = matches[0]
+        blocking, allowed = fab.via_at_pad_conflicts(
+            board, via.GetPosition(), via.GetWidth(via.TopLayer()),
+            via.GetDrillValue(), via.GetNetCode())
+        return blocking is None and bool(allowed)
+
+    return [row for row in struct if not _qualified(row)]
+
+
+def _drop_qualified_endpoint_neckdown_geometry(struct: list, board) -> list:
+    """Suppress only bounded, locked fine-pitch launch width findings.
+
+    A board-wide Power-class minimum describes the current-carrying body of a
+    route, but a smaller IC land can require a short manufacturable escape
+    before that body begins.  KiCad custom rules cannot identify the
+    generator-owned endpoint prefix, so prove it from exact board geometry:
+    the complete narrow component must be locked, at/above the board process
+    floor, unbranched, within the same bounded escape budget used by the
+    router, start in a same-net fine-pitch SMD pad, and terminate at a
+    same-net track meeting the declared width.  Anything remote, unlocked,
+    branched, long, below process minimum, or lacking a full-width throat
+    remains a structural DRC failure.
+    """
+    tracks = [item for item in board.GetTracks()
+              if item.GetClass() == "PCB_TRACK"]
+    by_uuid = {item.m_Uuid.AsString(): item for item in tracks}
+    try:
+        board_min = int(board.GetDesignSettings().m_TrackMinWidth)
+    except Exception:                                   # noqa: BLE001
+        board_min = pcbnew.FromMM(0.20)
+
+    def point_key(point):
+        return int(point.x), int(point.y)
+
+    endpoint_index = defaultdict(list)
+    for item in tracks:
+        endpoint_index[(item.GetNetCode(), item.GetLayer(),
+                        point_key(item.GetStart()))].append(item)
+        endpoint_index[(item.GetNetCode(), item.GetLayer(),
+                        point_key(item.GetEnd()))].append(item)
+
+    pads = [pad for fp in board.GetFootprints() for pad in fp.Pads()]
+
+    def qualified(row):
+        if row.get("type") != "track_width":
+            return False
+        items = row.get("items") or ()
+        if len(items) != 1:
+            return False
+        seed = by_uuid.get(str(items[0].get("uuid") or ""))
+        if seed is None or not seed.IsLocked():
+            return False
+        match = re.search(
+            r"\bmin width\s+([0-9.]+)\s*mm", row.get("description", ""))
+        if not match:
+            return False
+        required = pcbnew.FromMM(float(match.group(1)))
+        if (seed.GetWidth() >= required or seed.GetWidth() < board_min):
+            return False
+
+        net_code, layer = seed.GetNetCode(), seed.GetLayer()
+        component = {seed.m_Uuid.AsString(): seed}
+        queue = [seed]
+        while queue:
+            current = queue.pop()
+            for point in (current.GetStart(), current.GetEnd()):
+                for neighbor in endpoint_index.get(
+                        (net_code, layer, point_key(point)), ()):
+                    uid = neighbor.m_Uuid.AsString()
+                    if uid in component:
+                        continue
+                    if (neighbor.IsLocked()
+                            and board_min <= neighbor.GetWidth() < required):
+                        component[uid] = neighbor
+                        queue.append(neighbor)
+        # A bounded endpoint profile has at most two bends and no branches.
+        if len(component) > 4:
+            return False
+        degree = defaultdict(int)
+        for item in component.values():
+            degree[point_key(item.GetStart())] += 1
+            degree[point_key(item.GetEnd())] += 1
+        if any(value > 2 for value in degree.values()):
+            return False
+        length_mm = sum(math.hypot(
+            item.GetEnd().x - item.GetStart().x,
+            item.GetEnd().y - item.GetStart().y) / 1e6
+            for item in component.values())
+        required_mm = required / 1e6
+        budget_mm = max(0.6, min(1.5, 1.5 * required_mm))
+        if length_mm > budget_mm + 0.001:
+            return False
+
+        component_ids = set(component)
+        component_points = {
+            point_key(point)
+            for item in component.values()
+            for point in (item.GetStart(), item.GetEnd())}
+        has_throat = False
+        for key in component_points:
+            for neighbor in endpoint_index.get((net_code, layer, key), ()):
+                if (neighbor.m_Uuid.AsString() not in component_ids
+                        and neighbor.GetWidth() >= required):
+                    has_throat = True
+                    break
+            if has_throat:
+                break
+        if not has_throat:
+            return False
+
+        has_fine_pad = False
+        for pad in pads:
+            if pad.GetNetCode() != net_code:
+                continue
+            try:
+                if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
+                    continue
+                if layer not in set(pad.GetLayerSet().CuStack()):
+                    continue
+            except Exception:                           # noqa: BLE001
+                continue
+            if min(pad.GetSize().x, pad.GetSize().y) >= required:
+                continue
+            shape = pad.GetEffectiveShape(layer)
+            if any(shape.Collide(pcbnew.VECTOR2I(x, y), 0)
+                   for x, y in component_points):
+                has_fine_pad = True
+                break
+        return has_fine_pad
+
+    return [row for row in struct if not qualified(row)]
+
+
 def _parse_net_from_desc(desc: str) -> str | None:
     """Extract net name from a DRC item description like 'Track [/FOO] on F.Cu'."""
     m = re.search(r"\[([^\]]+)\]", desc)
@@ -381,6 +568,38 @@ def _unconnected_nets(unconnected_items: list) -> set:
             if n:
                 nets.add(n)
     return nets
+
+
+def _unconnected_signature(unconnected_items: list):
+    """Stable endpoint-level signature for residual-route plateau tracing."""
+    rows = []
+    for violation in unconnected_items:
+        endpoints = []
+        nets = set()
+        for item in violation.get("items", []):
+            description = str(item.get("description", ""))
+            net = _parse_net_from_desc(description)
+            if net:
+                nets.add(net)
+            pos = item.get("pos") or {}
+            endpoints.append({
+                "description": description,
+                "x": round(float(pos.get("x", 0.0)), 4),
+                "y": round(float(pos.get("y", 0.0)), 4),
+            })
+        endpoints.sort(key=lambda row: (
+            row["description"], row["x"], row["y"]))
+        distance = None
+        if len(endpoints) == 2:
+            distance = round(math.hypot(
+                endpoints[1]["x"] - endpoints[0]["x"],
+                endpoints[1]["y"] - endpoints[0]["y"]), 4)
+        rows.append({"nets": sorted(nets), "endpoints": endpoints,
+                     "distance_mm": distance})
+    rows.sort(key=lambda row: (
+        row["nets"], [(item["description"], item["x"], item["y"])
+                      for item in row["endpoints"]]))
+    return rows
 
 
 def _pair_fault_nets(struct: list, watch_nets: set) -> tuple[set, dict]:
@@ -584,7 +803,8 @@ def _topo_is_vbus_pad(fp, padname: str) -> bool:
 def ina_highz_pad_names(fp) -> frozenset:
     """Footprint pad NAMES that are HIGH-IMPEDANCE INA sense terminals carrying ~0
     current: for the INA226/228/238 VSSOP-10 power monitors the Vin+/Vin-/Vbus pins
-    (pads 10/9/8); for the INA181/240 current-shunt amps the IN+/IN- pins (pads 3/4).
+    (pads 10/9/8); for the INA181 the inputs are 3/4, while the INA240
+    SOIC/TSSOP inputs are 1/8.
     Empty for non-INA parts.
 
     Shared with the electro-thermal solver (cec_thermal2d) so it never injects cable
@@ -596,7 +816,12 @@ def ina_highz_pad_names(fp) -> frozenset:
     if not _topo_is_ina(fp):
         return frozenset()
     s = ((fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
-    if "INA181" in s or "INA240" in s:
+    if "INA240" in s:
+        # INA240 SOIC/TSSOP pinout: IN- = 1, IN+ = 8.  Treating it like the
+        # INA181 (3/4) made the field solver inject cable current into the
+        # filtered Kelvin branches on every per-pin monitor lane.
+        return frozenset({"1", "8"})
+    if "INA181" in s:
         return frozenset({"3", "4"})
     return frozenset({"8", "9", "10"})
 
@@ -855,8 +1080,15 @@ def score(
     all_violations = drc_data.get("violations", [])
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
     struct = _drop_impossible_pad_artifacts(struct, b)
+    struct = _drop_profile_qualified_pofv_geometry(struct, b)
+    struct = _drop_qualified_endpoint_neckdown_geometry(struct, b)
     unconn = drc_data.get("unconnected_items", [])
     unconn_nets = _unconnected_nets(unconn)
+    unconn_signature = _unconnected_signature(unconn)
+    import hashlib
+    unconn_signature_sha256 = hashlib.sha256(json.dumps(
+        unconn_signature, sort_keys=True,
+        separators=(",", ":")).encode("utf-8")).hexdigest()
 
     drc_count   = len(struct)
     unconn_count = len(unconn)
@@ -881,6 +1113,61 @@ def score(
         diff_pairs, "diffpair", m["net_tracks"], unconn_nets, board_net_names,
         fault_nets, fault_types_map
     )
+
+    # ---- connected-but-geometrically-broken protected routes ----
+    # DRC and ratlines cannot see an acute doubled-back trace: the Hub USB
+    # pseudo-stub was connected, clearance-clean, and therefore false-green in
+    # _check_pairs().  Audit exact track junction topology on the already-open
+    # board.  A hit on a protected pair is a hard pair-gate fault; ordinary-net
+    # hits remain ranked evidence through objective().
+    try:
+        import cec_route_quality
+        route_quality = cec_route_quality.analyze_board(
+            b, critical_nets=watch_nets)
+    except Exception as _e:                                  # noqa: BLE001
+        # The scorer remains available for old/non-routing artifacts, but a
+        # protected pair may never pass when its topology could not be audited.
+        route_quality = {
+            "ok": not bool(watch_nets),
+            "issue_count": 0,
+            "blocking_count": (1 if watch_nets else 0),
+            "advisory_count": 0,
+            "critical_nets": sorted(watch_nets),
+            "issues": [],
+            "error": "%s: %s" % (type(_e).__name__, _e),
+        }
+    topology_fault_nets = {
+        row.get("net") for row in route_quality.get("issues", ())
+        if row.get("severity") == "blocking" and row.get("net")}
+    if route_quality.get("error") and watch_nets:
+        topology_reason = (
+            "protected-route topology audit errored (fail-closed): %s"
+            % route_quality["error"])
+        kelvin_ok = False if kelvin_pairs else kelvin_ok
+        diffpair_ok = False if diff_pairs else diffpair_ok
+        if kelvin_pairs:
+            kelvin_reasons = list(kelvin_reasons) + [topology_reason]
+        if diff_pairs:
+            diff_reasons = list(diff_reasons) + [topology_reason]
+    else:
+        for label, pairs, current_ok, reasons in (
+                ("kelvin", kelvin_pairs, kelvin_ok, kelvin_reasons),
+                ("diffpair", diff_pairs, diffpair_ok, diff_reasons)):
+            affected = sorted({net for pair in pairs for net in pair}
+                              & topology_fault_nets)
+            if not affected:
+                continue
+            messages = [
+                "%s topology gate: %s" % (label, row["message"])
+                for row in route_quality.get("issues", ())
+                if row.get("net") in affected
+                and row.get("severity") == "blocking"]
+            if label == "kelvin":
+                kelvin_ok = False
+                kelvin_reasons = list(kelvin_reasons) + messages
+            else:
+                diffpair_ok = False
+                diff_reasons = list(diff_reasons) + messages
 
     # ---- Kelvin four-wire TOPOLOGY (cut-vertex) gate, FOLDED INTO kelvin_ok ----
     # _check_pairs is blind to a current-carrying sense (INA input tied to the connector on the
@@ -923,7 +1210,17 @@ def score(
         "diff_detail":     diff_detail,
         "diff_reasons":    diff_reasons,
         "unconn_nets":     sorted(unconn_nets),
+        "unconn_signature": unconn_signature,
+        "unconn_signature_sha256": unconn_signature_sha256,
+        # Preserve the exact authority used for this score.  Downstream
+        # provenance must not rerun DRC and then try to explain a potentially
+        # different board state.  These JSON rows let every final blocker keep
+        # its KiCad UUIDs and loci from the same signoff observation.
+        "structural_violations": struct,
+        "unconnected_items": unconn,
         "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
+        "route_quality": route_quality,
+        "route_topology_fault_nets": sorted(topology_fault_nets),
         "kelvin_topology_faults":  topo_detail,
         "kelvin_topology_checked": topo_checked,
         "drc_struct_count": drc_count,
@@ -991,6 +1288,13 @@ def gate(m: "Metrics", rules: "Rules | None" = None) -> tuple[bool, list[str]]:
             "(require 0 because require_unconnected_zero=True)"
         )
 
+    # Router-side deterministic gates (via-on-pad, physical high-speed pair,
+    # and future candidate-only folds) may tighten ``m.gates_pass`` after the
+    # core score is built. Preserve their named reasons so the repair tier does
+    # not receive an unexplained false verdict.
+    reasons.extend(str(reason) for reason in
+                   d.get("external_gate_reasons", ()) if reason)
+
     return m.gates_pass, reasons
 
 
@@ -1008,6 +1312,10 @@ DEFAULT_WEIGHTS: dict = {
     # (the FR-04 scorer blind spot, owner-overridden 2026-06-11; normally 0 mm under the
     # cec_fr layer policy, so this prices REGRESSIONS, not routine routing).
     "plane_mm":      50.0,
+    # Electrically legal copper can still contain an acute doubled-back vertex.
+    # Price each non-critical occurrence above two ordinary ratlines; protected
+    # Kelvin/differential nets fail their hard gate separately in score().
+    "route_quality": 250.0,
 }
 
 
@@ -1041,6 +1349,8 @@ def objective(m: "Metrics", weights: dict | None = None) -> float:
         + m.length      * w["length"]
         + m.vias        * w["vias"]
         + getattr(m, "plane_signal_mm", 0.0) * w.get("plane_mm", 0.0)
+        + int((m.detail.get("route_quality") or {}).get(
+            "advisory_count", 0)) * w.get("route_quality", 0.0)
         + (1.0 - m.balance) * abs(w["balance"])
     )
     return cost

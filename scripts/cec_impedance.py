@@ -60,9 +60,20 @@ def stackup_for_board(pcb_path, *, board=None, layer="F.Cu"):
                 "warning": "no declared/inferred fabrication profile"}
     profile = cec_fab.get_profile(profile_name)
     layers = cec_fab.COPPER_LAYERS
-    if layer not in layers:
+    actual_layers = None
+    canonical_layer = layer
+    if layer not in layers and board is not None:
+        try:
+            actual_layers = [board.GetLayerName(layer_id)
+                             for layer_id in board.GetEnabledLayers().CuStack()]
+        except Exception:                              # noqa: BLE001
+            actual_layers = None
+        if actual_layers and layer in actual_layers \
+                and len(actual_layers) == len(layers):
+            canonical_layer = layers[actual_layers.index(layer)]
+    if canonical_layer not in layers:
         raise ValueError("unknown copper layer %r" % layer)
-    index = layers.index(layer)
+    index = layers.index(canonical_layer)
     roles = dict(zip(layers, profile["roles"]))
     candidates = []
     if index > 0:
@@ -80,11 +91,12 @@ def stackup_for_board(pcb_path, *, board=None, layer="F.Cu"):
     return {
         "h_mm": float(dielectric[1]),
         "er": float(dielectric[3]),
-        "t_mm": cec_fab.copper_thickness_mm(profile_name, layer),
+        "t_mm": cec_fab.copper_thickness_mm(profile_name, canonical_layer),
         "profile": profile_name,
         "vendor_stackup": profile["vendor_stackup"],
         "signal_layer": layer,
-        "reference_layer": layers[ref_i],
+        "reference_layer": (actual_layers[ref_i]
+                            if actual_layers is not None else layers[ref_i]),
         "dielectric_material": dielectric[2],
         "source": "cec_fab_profile",
     }
@@ -144,6 +156,9 @@ def _netclasses(pcb_path):
             "width": c.get("wire_width", c.get("track_width")),
             "diff_width": c.get("diff_pair_width"),
             "diff_gap": c.get("diff_pair_gap"),
+            "clearance": c.get("clearance"),
+            "via_diameter": c.get("via_diameter"),
+            "via_drill": c.get("via_drill"),
         }
     pats = {}
     for pa in ns.get("netclass_patterns", []) or []:

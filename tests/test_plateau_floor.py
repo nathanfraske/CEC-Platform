@@ -16,7 +16,9 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-from cec_fr import _plateau_floor_disables            # noqa: E402
+from cec_fr import (_plateau_floor_disables,
+                    _plateau_floor_grants_grace,
+                    _plateau_at_terminal_pass)         # noqa: E402
 
 
 class TestFloorSemantics(unittest.TestCase):
@@ -36,6 +38,24 @@ class TestFloorSemantics(unittest.TestCase):
         self.assertFalse(_plateau_floor_disables(190, 170))
         self.assertFalse(_plateau_floor_disables(230, 100))
 
+    def test_terminal_grind_gets_bounded_not_infinite_grace(self):
+        self.assertTrue(_plateau_floor_grants_grace(34, 100, 0, 2))
+        self.assertTrue(_plateau_floor_grants_grace(34, 100, 1, 2))
+        self.assertFalse(_plateau_floor_grants_grace(34, 100, 2, 2))
+        self.assertFalse(_plateau_floor_grants_grace(190, 100, 0, 2))
+
+    def test_terminal_pass_is_allowed_to_finalize_ses(self):
+        self.assertFalse(_plateau_at_terminal_pass(23, 24))
+        self.assertTrue(_plateau_at_terminal_pass(24, 24))
+        self.assertTrue(_plateau_at_terminal_pass(25, 24))
+        self.assertFalse(_plateau_at_terminal_pass(None, 24))
+        self.assertFalse(_plateau_at_terminal_pass(20, 24, 4))
+        # A four-pass streak window no longer turns passes 21..23 into a
+        # pseudo-terminal range that silently expands low-togo grace.
+        self.assertFalse(_plateau_at_terminal_pass(21, 24, 4))
+        self.assertFalse(_plateau_at_terminal_pass(23, 24, 4))
+        self.assertTrue(_plateau_at_terminal_pass(24, 24, 4))
+
 
 class TestWavePlumbing(unittest.TestCase):
     def test_board_floors_split_winner_vs_collapse_bands(self):
@@ -52,6 +72,7 @@ class TestWavePlumbing(unittest.TestCase):
     def test_env_allow_lists_carry_the_floor(self):
         import cec_fr_server
         self.assertIn("CEC_FR_PLATEAU_FLOOR", cec_fr_server.ENV_ALLOW)
+        self.assertIn("CEC_FR_PLATEAU_GRACES", cec_fr_server.ENV_ALLOW)
 
 
 if __name__ == "__main__":

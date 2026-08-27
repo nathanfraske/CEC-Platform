@@ -1,0 +1,120 @@
+(footprint "XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "PROVISIONAL two-sided exposed-copper M3 bolt pad for a vertical daughterboard fastened to the threaded face of XFCN TTR32100127-0600. Primary current/heat interface is direct flat terminal-face to exposed F.Cu land; the B.Cu washer distributes preload and is not credited as a parallel conductor or thermal path. Do not insert grease, elastomer, thermal pad, or unspecified conforming material. Use a 3.4 mm normal-clearance plated hole. Place the hole center 4.5 mm above the daughterboard bottom-edge datum only as a drawing-envelope starting point, then correct screw-axis height, face flatness/finish, and washer/contact geometry from incoming-part measurement and coupon qualification before release. Add symmetric via stitching outside the measured contact area.")
+	(tags "XFCN TTR32100127-0600 daughterboard bolt pad M3 clearance provisional sample verify")
+	(property "Reference" "REF**"
+		(at 0 -5 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "552e92ae-2d16-44aa-ad61-27e4c02e3edb")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "TTR32100127-0600_M3_BOLT_PAD"
+		(at 0 5 0)
+		(layer "F.Fab")
+		(uuid "0fe8c53f-3904-4114-9692-3c6ea1d2117a")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "c95d5573-44af-4b32-b610-31ce190868b4")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "9e992c67-4f02-4da8-916e-af5fd22e8864")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_rect
+		(start -4.75 -4.25)
+		(end 4.75 4.25)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "ec509e4f-9c5a-49a6-a47d-30b5d5552245")
+	)
+	(fp_rect
+		(start -4.5 -4)
+		(end 4.5 4)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "0af0ff69-b43f-4419-befd-6e1c51f0b6d9")
+	)
+	(fp_text user "M3 THROUGH"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "33cc2924-1c99-41a6-b94e-93bb396bf745")
+		(effects
+			(font
+				(size 0.65 0.65)
+				(thickness 0.1)
+			)
+		)
+	)
+	(fp_text user "EDGE 4.5 mm"
+		(at 0 -4.3 0)
+		(layer "F.Fab")
+		(uuid "3f0d1457-0426-4ae3-aa58-9642abaef608")
+		(effects
+			(font
+				(size 0.6 0.6)
+				(thickness 0.1)
+			)
+		)
+	)
+	(fp_text user "F.Cu: DIRECT TERMINAL CONTACT"
+		(at 0 -3.55 0)
+		(layer "F.Fab")
+		(uuid "fb31b747-e46e-4f9d-b864-33871f79a8d8")
+		(effects
+			(font
+				(size 0.42 0.42)
+				(thickness 0.07)
+			)
+		)
+	)
+	(pad "1" thru_hole roundrect
+		(at 0 0)
+		(size 9 8)
+		(drill 3.4)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(roundrect_rratio 0.08)
+		(uuid "b541e858-e971-4a65-8348-2be08433992d")
+	)
+	(embedded_fonts no)
+)

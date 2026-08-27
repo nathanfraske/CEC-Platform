@@ -260,14 +260,19 @@ class TestCorridorCheckers(unittest.TestCase):
         self.assertIsNone(ok, "keepout is a route-time check on a floorplan: %s" % detail)
 
     def test_corridor_keepout_has_teeth(self):
-        # inject a foreign /DETC1 track running THROUGH band-2 -> the checker must FAIL it
+        # Inject a foreign /DETC1 track through an exact authoritative pour
+        # cell.  A point that is merely inside the old broad corridor band is
+        # intentionally no longer sufficient: concave hook pockets are legal.
         b = pcbnew.LoadBoard(EPS_PCB)
         det = b.FindNet("/DETC1")
+        boxes, _allowed = self.cc._derive_pour_boxes(b, EPS_PCB)
+        _net, layer, x0, x1, y0, y1 = boxes[0]
         t = pcbnew.PCB_TRACK(b)
-        t.SetStart(pcbnew.VECTOR2I(30_000_000, 20_000_000))
-        t.SetEnd(pcbnew.VECTOR2I(50_000_000, 20_000_000))
+        inset = min(0.10, max(0.0, (x1 - x0) / 4.0))
+        t.SetStart(pcbnew.VECTOR2I_MM(x0 + inset, (y0 + y1) / 2.0))
+        t.SetEnd(pcbnew.VECTOR2I_MM(x1 - inset, (y0 + y1) / 2.0))
         t.SetWidth(200_000)
-        t.SetLayer(pcbnew.F_Cu)
+        t.SetLayer(layer)
         t.SetNet(det)
         b.Add(t)
         res = self.cc.CHECKERS["high-current-corridor-keepout"](b, EPS_PCB, {})
@@ -275,11 +280,15 @@ class TestCorridorCheckers(unittest.TestCase):
         self.assertIn("/DETC1", res[1])
 
     def test_corridor_keepout_via_teeth(self):
-        # the VIA code path: a foreign /DETC1 via INSIDE band-2 must FAIL (distinct from the track path)
+        # The VIA code path: a foreign /DETC1 via inside exact copper must
+        # fail, distinct from the track path.
         b = pcbnew.LoadBoard(EPS_PCB)
         det = b.FindNet("/DETC1")
+        boxes, _allowed = self.cc._derive_pour_boxes(b, EPS_PCB)
+        _net, _layer, x0, x1, y0, y1 = boxes[0]
         v = pcbnew.PCB_VIA(b)
-        v.SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))   # inside band-2 (x~[32,48] y~[9,28])
+        v.SetPosition(pcbnew.VECTOR2I_MM(
+            (x0 + x1) / 2.0, (y0 + y1) / 2.0))
         v.SetDrill(300_000)
         v.SetWidth(600_000)
         v.SetNet(det)

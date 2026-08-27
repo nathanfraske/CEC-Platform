@@ -793,8 +793,9 @@ def sanity(board_dir, *, short_amps=0.8, json_out=False):
     # COEXISTENCE LEG (owner GO 2026-07-15, #2: mezzanine + cable feeds): energize
     # EVERY rail simultaneously at nominal. A source that SINKS current is being
     # back-fed -- two supplies fighting through a path that should isolate them
-    # (mux/ORing contract). Same-net parallel feeds (hub J6 + J_PWR via the mux)
-    # pass when the isolation holds; any topology change that breaks it flags here.
+    # (mux/ORing contract). The Hub stack +5V_SYS, service USB, and NanoKVM
+    # sources pass only when the two-stage isolation holds; topology changes that
+    # allow one source to sink current flag here.
     if len(rails) >= 2:
         for state, state_label in mux_states:
             d = build_deck(comps, nets, state=state,

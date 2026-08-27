@@ -2,7 +2,7 @@
  "board": "12vhpwr-standard",
  "candidate_role": "diagnostic-reference",
  "commit": "1d9e84f",
- "freshness_checked": "2026-08-03T19:54:30",
+ "freshness_checked": "2026-08-12T13:44:51",
  "grade": {
   "diffpair_ok": true,
   "drc": 30,
@@ -29,7 +29,7 @@
   "unconnected": 102
  },
  "label": "plain-compact-s0",
- "live_score_checked": "2026-08-03T19:54:31",
+ "live_score_checked": "2026-08-12T13:44:52",
  "mezzanine_contract_ok": null,
  "reason": "matches more of the current schematic (100% vs 80% of 106 parts)",
  "release_accepted": false,

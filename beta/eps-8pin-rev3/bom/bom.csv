@@ -1,25 +1,32 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
 "C1,C2",2,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,,,,
-"C3,C4,C5,C8,C10,C11,C20,C21,C30,C31,C40",11,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,,,,
-"C6,C7,C9",3,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,,,,
+"C3,C4,C5,C8,C10,C11,C20,C21,C30,C31,C40,C43",12,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do,,,U4 IN2 local high-frequency bypass; place at IN2 and GND.
+C42,1,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,https://product.samsungsem.com/mlcc/CL10A225KO8NNN.do,,,U4 soft-start capacitor.
+"C6,C9,C44,C45",4,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do,,,"U4 IN1 local bypass; place at IN1 and GND.,U4 IN2 local bulk bypass; place at IN2 and GND."
+C7,1,4.7uF,C_0805_2012Metric,CL21A475KAQNNNE,Samsung,C1779,,,https://product.samsungsem.com/mlcc/CL21A475KAQNNN.do,,,"LP5907 +3V3 bulk selected so the complete output node is 6.5uF nominal, within the 10uF application range and below the 11.1uF input node."
 D1,1,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,HXY MOSFET,C5261083,,,https://www.lcsc.com/datasheet/C5261083.pdf,,,
-D2,1,SS34,D_SMA,SS34,MDD,C8678,,,,,,
+D3,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf,,,Low-capacitance USB D+/D- ESD array with VBUS reference.
+F1,1,750mA/16V PTC,R_1206_3216Metric,1206L075/16WR,Littelfuse,C371166,,,https://www.lcsc.com/datasheet/C371166.pdf,,,"750mA hold, 1.5A trip, 16V resettable PTC on USB VBUS ingress."
 J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
 J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
 J_IN1,1,C1 PSU,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
 J_IN2,1,C2 PSU,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
-J_OUT1,1,C1 LOAD,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
-J_OUT2,1,C2 LOAD,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
 "R1,R3,R4",3,2.2kΩ,R_0402_1005Metric,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,
+"R14,R17",2,100kOhm,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,https://www.lcsc.com/product-detail/C25741.html,,,"U4 ILIM = 100k, approximately 1.24A typical.,U4 PR1 divider top."
+R15,1,43.2kOhm,R_0402_1005Metric,0402WGF4322TCE,UNI-ROYAL,C25894,,,https://www.lcsc.com/product-detail/C25894.html,,,U4 OV1 top; 43.2k/10k gives 5.639V nominal and 5.287..5.948V at specified extremes.
+R16,1,10kOhm,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,https://www.lcsc.com/product-detail/C25744.html,,,U4 OV1 divider bottom.
+R18,1,33kOhm,R_0402_1005Metric,0402WGF3302TCE,UNI-ROYAL,C25779,,,https://www.lcsc.com/product-detail/C25779.html,,,U4 PR1 divider bottom; approximately 4.27V validity threshold.
 "R2,R10,R19",3,10kΩ,R_0402_1005Metric,0402WGF1002TCE,UNI-ROYAL,C25744,,,https://www.lcsc.com/product-detail/C25744.html,,,10 kohm follows Espressif ESP32-C6-DevKitC-1; GPIO8 must be high with GPIO9 low for joint download boot
 R7,1,100kΩ,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,,,,,
 "R8,R9",2,5.1kΩ,R_0402_1005Metric,0402WGF5101TCE,UNI-ROYAL,C25905,,,,,,
 "RS1,RS2",2,0.5mΩ,R_2512_6332Metric,CSS2H-2512R-L500F,Bourns,,,,https://www.bourns.com/docs/product-datasheets/css2h-2512.pdf,,,"OQ-11 locked selection on the single current EPS product: 0.5mOhm, CSS2H-2512R-L500F. Distributor availability remains a BOM-freeze check."
 SW1,1,BOOT,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,
 SW2,1,RESET,TS-1088-AR02016,TS-1088-AR02016,XUNPU,C720477,,,https://www.lcsc.com/datasheet/C720477.pdf,,,
+"TB11,TB12,TB13,TB14,TB21,TB22,TB23,TB24",8,XFCN T34069,XFCN_T34069_THT_M3_40A,T34069,XFCN,C481452,,,https://www.lcsc.com/datasheet/C481452.pdf,,,"XFCN side-clamp PCB soldering terminal; M3; four THT legs, all one electrical node. Manufacturer states 40 A and 0.5 N*m thread torque. JLC Extended, THT manual/wave assembly. PCB hole pattern and clamp datum remain incoming-sample gates."
 U1,1,ESP32-C6-MINI-1-N4,ESP32-C6-MINI-1,ESP32-C6-MINI-1-N4,Espressif Systems,C5736265,,,https://documentation.espressif.com/esp32-c6-mini-1_mini-1u_datasheet_en.pdf,,,
 "U10,U11",2,INA238,VSSOP-10_3x3mm_P0.5mm,INA238AIDGSR,Texas Instruments,C2868250,,,https://www.ti.com/lit/ds/symlink/ina238.pdf,,,
 U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3/1J,NXP Semiconductors,C38695,,,https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf,,,
 "U20,U21",2,INA181A2IDBVR,SOT-23-6,INA181A2IDBVR,Texas Instruments,C2058784,,,https://www.ti.com/lit/ds/symlink/ina181.pdf,,,
 U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3/NOPB,Texas Instruments,C80670,,,https://www.ti.com/lit/ds/symlink/lp5907.pdf,,,
 "U30,U31",2,TLV7011DBVR,SOT-23-5,TLV7011DBVR,Texas Instruments,C702117,,,https://www.ti.com/lit/ds/symlink/tlv7011.pdf,,,
+U4,1,TPS2121RUXR,RUX0012A,TPS2121RUXR,Texas Instruments,C485916,,,https://www.ti.com/lit/ds/symlink/tps2121.pdf,,,Protected USB/RJ45 service-power mux; OUT is the board +5VSB rail.

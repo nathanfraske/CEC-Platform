@@ -45,9 +45,10 @@ BOM = {
                     "defense layer 2 (spec v1.6.0 Sec 6.14)."),
     "R25": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1003TCE", LCSC="C25741",
                 Note="U5 ILIM strap -> ~1.24A typical (I_LIM=65.2/R_kOhm^0.861)."),
-    "R26": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF4702TCE", LCSC="C25792",
-                Note="U5 OV1 divider top (IN1 side) -- 1% UNI-ROYAL, NOT the 0.1% Yageo "
-                     "R5/R6 precision line elsewhere on this board."),
+    "R26": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF4322TCE", LCSC="C25894",
+                Datasheet="https://www.lcsc.com/product-detail/C25894.html",
+                Note="U5 OV1 top; 43.2k/10k gives 5.639V nominal and 5.287..5.948V "
+                     "at specified resistor/VREF extremes."),
     "R27": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1002TCE", LCSC="C25744",
                 Note="U5 OV1 divider bottom (GND side) -> ~6.04V typical cutoff."),
     "R28": dict(Manufacturer="UNI-ROYAL", MPN="0402WGF1003TCE", LCSC="C25741",
@@ -132,9 +133,9 @@ if __name__ == "__main__":
     blob.append(sc.wire_and_label(r_pins, "R25", "1", RX, RY, "U5_ILM"))
     blob.append(sc.wire_and_power(r_pins, "R25", "2", RX, RY, "GND", PROJECT, USB_PATH, "#PWR8107"))
 
-    # ---------- 5. R26/R27 (OV1 divider 47k/10k) ----------
+    # ---------- 5. R26/R27 (OV1 divider 43.2k/10k) ----------
     RX2, RY2, RY3 = sc.gsnap(305.0), sc.gsnap(50.0), sc.gsnap(65.0)
-    blob.append(cec_sch.emit_symbol("R26", "cec-vendor", "R_Small", "47kΩ", RX2, RY2,
+    blob.append(cec_sch.emit_symbol("R26", "cec-vendor", "R_Small", "43.2kΩ", RX2, RY2,
                                      sorted(r_pins.keys()), PROJECT, USB_PATH, fp=FP_R0402, props=BOM["R26"]))
     blob.append(sc.wire_and_global_label(r_pins, "R26", "1", RX2, RY2, GLOBAL_VCC_RJ45))
     blob.append(sc.wire_and_label(r_pins, "R26", "2", RX2, RY2, "U5_OV1"))

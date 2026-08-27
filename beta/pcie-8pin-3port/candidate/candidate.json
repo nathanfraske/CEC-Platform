@@ -2,7 +2,7 @@
  "board": "pcie-8pin-3port",
  "candidate_role": "diagnostic-reference",
  "commit": "cfd230db",
- "freshness_checked": "2026-08-03T19:54:40",
+ "freshness_checked": "2026-08-12T13:44:50",
  "grade": {
   "diffpair_ok": false,
   "drc": 9999,
@@ -26,10 +26,10 @@
  "route_gate_passed": false,
  "routed": false,
  "schema": 1,
- "schematic_exact": false,
- "schematic_match": 0.977,
- "schematic_parts": 87,
- "schematic_status": "stale",
+ "schematic_exact": true,
+ "schematic_match": 1.0,
+ "schematic_parts": 88,
+ "schematic_status": "exact",
  "sort_key": [
   1,
   Infinity

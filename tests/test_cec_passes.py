@@ -249,6 +249,10 @@ class TestJournal(unittest.TestCase):
 class TestPosEq(unittest.TestCase):
     def test_pos_eq_semantics(self):
         self.assertTrue(_pos_eq((1.0, 2.0, 0.0), (1.0, 2.0, 0.0)))
+        self.assertTrue(_pos_eq((1.0, 2.0, -90.0),
+                                (1.000001, 2.0, 270.0)))
+        self.assertFalse(_pos_eq((1.0, 2.0, -90.0),
+                                 (1.001, 2.0, 270.0)))
         self.assertFalse(_pos_eq((1.0, 2.0, 0.0), (1.0, 2.0, 90.0)))
         self.assertTrue(_pos_eq(None, None))
         self.assertFalse(_pos_eq(None, (1.0, 2.0, 0.0)))

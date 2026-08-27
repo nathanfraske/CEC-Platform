@@ -2861,12 +2861,9 @@
 		(stroke (width 0) (type default)) (uuid "532c5b09-1e7d-4515-9be2-8ca5786f2918"))
 	(wire (pts (xy 152.4 142.24) (xy 152.4 146.05))
 		(stroke (width 0) (type default)) (uuid "432fc919-524f-485b-9e1e-4c14922d3933"))
-	(wire (pts (xy 374.65 101.6) (xy 370.84 101.6))
-		(stroke (width 0) (type default)) (uuid "28caddbc-a191-433b-b4ef-6aa0524a2aa6"))
-	(wire (pts (xy 374.65 104.14) (xy 370.84 104.14))
-		(stroke (width 0) (type default)) (uuid "488f5a3a-9b10-4da7-bfc6-38de0865b41d"))
-	(wire (pts (xy 374.65 106.68) (xy 370.84 106.68))
-		(stroke (width 0) (type default)) (uuid "9c57b980-ab5b-49d0-a0ce-e9a9f71506f1"))
+
+
+
 	(wire (pts (xy 41.91 93.98) (xy 41.91 90.17))
 		(stroke (width 0) (type default)) (uuid "850e35b5-9f09-4db4-837f-69b79f0dc88f"))
 	(wire (pts (xy 80.01 100.33) (xy 76.2 100.33))
@@ -3277,60 +3274,9 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 370.84 101.6 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "4e3b4b8e-13a7-4017-a704-5158e8bceff9")
-		(property "Reference" "#PWR411" (at 370.84 99.06 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 370.84 114.3 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "3a38b77d-0671-4ef9-846d-0691287ec843"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/ad8602a1-e0b5-5e95-bf3a-fe8dcc305b54" (reference "#PWR411") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 370.84 104.14 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "020399e5-fb55-4864-a8f5-cd0ba218a7bc")
-		(property "Reference" "#PWR412" (at 370.84 101.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 370.84 109.22 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "0e3552e4-3619-4a7b-bd75-7b4bb9c44a61"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/ad8602a1-e0b5-5e95-bf3a-fe8dcc305b54" (reference "#PWR412") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 370.84 106.68 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "05999d8a-9373-4375-b3e3-f87e70d6c88e")
-		(property "Reference" "#PWR413" (at 370.84 104.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 370.84 111.76 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "004ad783-c7eb-4032-a046-dab249b13133"))
-		(instances
-			(project "hub-standard-rev2"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8/ad8602a1-e0b5-5e95-bf3a-fe8dcc305b54" (reference "#PWR413") (unit 1))
-			)
-		)
-	)
+
+
+
 	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 41.91 90.17 0)
@@ -3958,6 +3904,45 @@
 	(no_connect (at 290.83 104.14) (uuid "e4a8eb4f-490b-49e9-baa2-2d6324a2518a"))
 	(no_connect (at 290.83 106.68) (uuid "db7cc0e0-5a5a-4d6b-8458-581d6c4e11d8"))
 	(no_connect (at 326.39 104.14) (uuid "6ed2b513-f6b1-4723-b2b2-e9d34c3ec2a2"))
+	(wire (pts (xy 374.65 101.6) (xy 370.84 101.6))
+		(stroke (width 0) (type default)) (uuid "a8995ed0-dc20-4968-956a-d7ad6f28d865"))
+	(global_label "+5V_SYS"
+		(shape passive)
+		(at 370.84 101.6 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "36cbb5f1-9249-4f1b-9c2b-abb321158876")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 370.84 101.6 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 374.65 104.14) (xy 370.84 104.14))
+		(stroke (width 0) (type default)) (uuid "3fefaa0e-f239-4646-8d48-e9598d69ab3e"))
+	(global_label "+5V_SYS"
+		(shape passive)
+		(at 370.84 104.14 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "6b549e3b-fba0-449f-91e2-131918a7219d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 370.84 104.14 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(wire (pts (xy 374.65 106.68) (xy 370.84 106.68))
+		(stroke (width 0) (type default)) (uuid "8f914c92-8ed1-47b1-9b95-57eaa18b4742"))
+	(global_label "+5V_SYS"
+		(shape passive)
+		(at 370.84 106.68 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "f811d644-496c-4c2e-b6be-4baa37622a83")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 370.84 106.68 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
 	(sheet_instances
 		(path "/ad8602a1-e0b5-5e95-bf3a-fe8dcc305b54"
 			(page "5")

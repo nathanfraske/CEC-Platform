@@ -33,6 +33,9 @@ class TestBetaElectricalAudit(unittest.TestCase):
         self.assertAlmostEqual(audit.capacitance_f("4n7"), 4.7e-9)
         self.assertIsNone(audit.capacitance_f("TBD"))
 
+    def test_missing_inventory_record_is_not_fitted(self):
+        self.assertFalse(audit._fitted({}))
+
     def test_local_net_contract_accepts_kicad_hierarchy_qualification(self):
         self.assertTrue(audit._same_net(
             "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD", "/+5V_HOLD"))
@@ -97,6 +100,28 @@ class TestBetaElectricalAudit(unittest.TestCase):
         self.assertIn("wireless-disabled firmware mode", headroom[0]["message"])
         self.assertNotIn("RF TX", headroom[0]["message"])
 
+    def test_lp5907_uses_reviewed_pcie_load_budget(self):
+        inv = {
+            "U1": self._rec("ESP32-C6-MINI-1-N4"),
+            "U3": self._rec("LP5907MFX-3.3/NOPB"),
+            "C1": self._rec("1uF", lcsc="C29936", mpn="CL10B105KA8NNNC"),
+            "C2": self._rec("1uF", lcsc="C29936", mpn="CL10B105KA8NNNC"),
+            "C3": self._rec("100nF", lcsc="C1525", mpn="CL05B104KO5NNNC"),
+        }
+        pins = {
+            "U1": {"3": "+3V3"},
+            "U3": {"1": "+5V", "5": "+3V3"},
+            "C1": {"1": "+5V", "2": "GND"},
+            "C2": {"1": "+3V3", "2": "GND"},
+            "C3": {"1": "+3V3", "2": "GND"},
+        }
+        findings = audit.check_passives("pcie-8pin-2port", inv, pins)
+        self.assertFalse(any(f["code"] == "REGULATOR_HEADROOM_UNPROVEN"
+                             for f in findings))
+        load = [f for f in findings if f["code"] == "REGULATOR_LOAD_MARGIN"]
+        self.assertEqual(len(load), 1)
+        self.assertIn("202.752 mA", load[0]["message"])
+
     def test_tps2121_requires_bypass_on_each_power_node(self):
         inv = {
             "U5": self._rec("TPS2121RUXR"),
@@ -136,6 +161,50 @@ class TestBetaElectricalAudit(unittest.TestCase):
         missing = [f for f in findings if f["code"] == "TPS2121_BYPASS_NODE"]
         self.assertEqual(len(missing), 1)
         self.assertIn("SHARED", missing[0]["message"])
+
+    def test_current_pcie_muxes_keep_distinct_input_and_output_caps(self):
+        for board, root_name in (
+                ("pcie-8pin-2port", "pcie8pin-2port-module.kicad_sch"),
+                ("pcie-8pin-3port", "pcie8pin-3port-module.kicad_sch")):
+            schematic = os.path.join(ROOT, "beta", board, root_name)
+            _components, nets = audit.export_netlist(schematic)
+            inventory = audit.cec_sch_gates.inventory(schematic)
+            findings = audit.check_passives(
+                board, inventory, audit.pin_map(nets))
+            ovp_findings = audit._check_tps2121_ovp(
+                board, inventory, audit.pin_map(nets))
+            self.assertFalse(
+                any(row["code"] == "TPS2121_BYPASS_NODE"
+                    for row in findings),
+                msg="%s lost one of the TPS2121 IN1/IN2/OUT capacitors" % board,
+            )
+            self.assertFalse(
+                any(row["code"] in {"OVP_MARGIN", "OVP_INPUT_WINDOW"}
+                    for row in ovp_findings),
+                msg="%s TPS2121 OV threshold exceeds regulator protection margin" % board,
+            )
+            self.assertTrue(any(row["code"] == "OVP_WINDOW"
+                                for row in ovp_findings))
+            self.assertTrue(any(row["code"] == "OVP_DYNAMIC_MARGIN" and
+                                row["severity"] == "WARN"
+                                for row in ovp_findings))
+
+            self.assertFalse(any(row["code"] == "LP5907_CAP_NETWORK_UNVALIDATED"
+                                 for row in findings))
+            self.assertTrue(any(row["code"] == "LP5907_CAP_NETWORK"
+                                for row in findings))
+            self.assertTrue(any(row["code"] == "REGULATOR_LOAD_MARGIN"
+                                for row in findings))
+
+    def test_pcie_unselected_cmc_is_not_a_board_or_bom_part(self):
+        for board, root_name in (
+                ("pcie-8pin-2port", "pcie8pin-2port-module.kicad_sch"),
+                ("pcie-8pin-3port", "pcie8pin-3port-module.kicad_sch")):
+            inventory = audit.cec_sch_gates.inventory(
+                os.path.join(ROOT, "beta", board, root_name))
+            self.assertTrue(inventory["FL1"]["dnp"])
+            self.assertFalse(inventory["FL1"]["on_board"])
+            self.assertFalse(inventory["FL1"]["in_bom"])
 
     def test_role_normalizes_mating_net_names(self):
         self.assertEqual(audit._role("/+5V_SYS_PORT"), "POWER5")
@@ -324,16 +393,15 @@ class TestBetaElectricalAudit(unittest.TestCase):
                    "on_board": True},
         }
         pins = {
-            "U5": {"1": "/PSU_5V", "2": "/USB_VBUS", "3": "/USB_VBUS",
-                   "6": "/5VSB_RAW", "7": "/5VSB_RAW", "8": "/PSU_5V"},
-            "U11": {"1": "/PSU_5V_KVM", "2": "/KVM_5V_IN", "3": "GND",
-                    "6": "/PSU_5V", "7": "/PSU_5V", "8": "/PSU_5V_KVM"},
+            "U11": {"1": "/PSU_5V_KVM", "2": "/KVM_5V_IN",
+                    "3": "/KVM_5V_IN", "6": "/USB_VBUS",
+                    "7": "/USB_VBUS", "8": "/PSU_5V_KVM"},
             "U7": {"1": "+5VSB", "2": "/PSU_5V_KVM", "3": "GND",
-                   "6": "/MAIN_5V_RAW", "7": "/MAIN_5V_RAW", "8": "+5VSB"},
+                   "6": "+5V_SYS", "7": "+5V_SYS", "8": "+5VSB"},
         }
         findings = audit.check_board_specific("hub-standard-rev2", inv, pins)
         self.assertTrue(any(f["code"] == "HUB_SOURCE_PRIORITY" and
-                            f["severity"] == "BLOCKER" and f["ref"] == "U5"
+                            f["severity"] == "BLOCKER" and f["ref"] == "U11"
                             for f in findings))
 
     def test_legacy_usb_diode_without_mux_is_blocking(self):
@@ -345,6 +413,37 @@ class TestBetaElectricalAudit(unittest.TestCase):
             {"D2": {"1": "+5VSB", "2": "/VBUS"}},
         )
         self.assertTrue(any(f["code"] == "LEGACY_USB_ORING" for f in findings))
+
+    def test_current_eps_has_complete_protected_ingress_and_ldo_margin(self):
+        schematic = os.path.join(
+            ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_sch")
+        _components, nets = audit.export_netlist(schematic)
+        inventory = audit.cec_sch_gates.inventory(schematic)
+        pins = audit.pin_map(nets)
+        findings = (audit.check_passives("eps-8pin-rev3", inventory, pins) +
+                    audit._check_tps2121_ovp("eps-8pin-rev3", inventory, pins) +
+                    audit.check_board_specific("eps-8pin-rev3", inventory, pins))
+        self.assertFalse(any(row["severity"] == "BLOCKER" for row in findings),
+                         msg=[row for row in findings if row["severity"] == "BLOCKER"])
+        self.assertTrue(any(row["code"] == "EPS_USB_INGRESS" and
+                            row["severity"] == "INFO" for row in findings))
+        self.assertTrue(any(row["code"] == "REGULATOR_LOAD_MARGIN"
+                            for row in findings))
+        self.assertTrue(any(row["code"] == "LP5907_CAP_NETWORK"
+                            for row in findings))
+
+    def test_current_12vhpwr_ovp_is_inside_static_input_window(self):
+        schematic = os.path.join(
+            ROOT, "beta", "12vhpwr-standard", "12vhpwr-standard-module.kicad_sch")
+        _components, nets = audit.export_netlist(schematic)
+        inventory = audit.cec_sch_gates.inventory(schematic)
+        findings = audit._check_tps2121_ovp(
+            "12vhpwr-standard", inventory, audit.pin_map(nets))
+        self.assertFalse(any(row["code"] in {"OVP_MARGIN", "OVP_INPUT_WINDOW"}
+                             for row in findings))
+        self.assertTrue(any(row["code"] == "OVP_WINDOW" for row in findings))
+        self.assertTrue(any(row["code"] == "OVP_DYNAMIC_MARGIN" and
+                            row["severity"] == "WARN" for row in findings))
 
     def test_wrong_way_argb_pmos_is_blocking(self):
         inv = {

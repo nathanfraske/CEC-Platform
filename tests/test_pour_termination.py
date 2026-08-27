@@ -109,6 +109,153 @@ class SubtractRectTest(unittest.TestCase):
                                 "a gap crossing the whole pour must leave both sides")
 
 
+class OrthogonalBoundaryCleanupTest(unittest.TestCase):
+    """Final zone unions lose path-search envelopes, but never reservations."""
+
+    def setUp(self):
+        try:
+            from shapely.geometry import box
+            from shapely.ops import unary_union
+        except ImportError:
+            self.skipTest("shapely unavailable")
+        self.box = box
+        self.union = unary_union
+
+    def test_flattens_a_short_final_boundary_step(self):
+        g = self.union([self.box(0, 0, 8, 4),
+                        self.box(8, 0.12, 14, 4)])
+        additions, stats = cec_fr._orthogonal_fill_additions(g)
+        out = self.union([g] + additions)
+        self.assertGreaterEqual(stats["micro_fills"], 1)
+        self.assertTrue(out.covers(self.box(8, 0, 14, 0.12)),
+                        "the final sink must remove the visible 0.12mm dip")
+
+    def test_squares_a_clear_connector_pad_field_corner(self):
+        # The omitted 12x7.5mm quadrant models the PCIe connector corner.
+        # Pads are intentionally absent from `forbidden`: KiCad makes their
+        # exact local antipads instead of carrying this board-sized cutout.
+        g = self.union([self.box(0, 0, 12, 30),
+                        self.box(12, 12.5, 24, 30)])
+        additions, stats = cec_fr._orthogonal_fill_additions(
+            g, allow_corner_fills=True)
+        out = self.union([g] + additions)
+        self.assertGreaterEqual(stats["corner_fills"], 1)
+        self.assertTrue(out.covers(self.box(12, 0, 24, 12.5)))
+
+    def test_hard_reservation_blocks_corner_fill(self):
+        g = self.union([self.box(0, 0, 12, 30),
+                        self.box(12, 12.5, 24, 30)])
+        reserved = self.box(14, 2, 15, 11)
+        additions, stats = cec_fr._orthogonal_fill_additions(
+            g, forbidden=reserved, allow_corner_fills=True)
+        out = self.union([g] + additions)
+        self.assertEqual(stats["corner_fills"], 0)
+        self.assertFalse(out.intersects(reserved))
+
+    def test_default_preserves_large_placement_hook(self):
+        g = self.union([self.box(0, 0, 12, 30),
+                        self.box(12, 12.5, 24, 30)])
+        additions, stats = cec_fr._orthogonal_fill_additions(g)
+        out = self.union([g] + additions)
+        self.assertEqual(stats["corner_fills"], 0)
+        self.assertFalse(out.covers(self.box(12, 0, 24, 12.5)),
+                         "automatic cleanup must preserve placement pockets")
+
+    def test_reconciles_patch_corridor_exterior_not_the_inner_pocket(self):
+        # A wide C corridor plus a terminal patch whose right and lower
+        # endpoints disagree. The old union has the exact two-axis exterior
+        # stair-step highlighted by the reviewer.
+        corridor = self.union([
+            self.box(0, 0, 10, 4),
+            self.box(0, 4, 6, 8),
+            self.box(0, 8, 10, 14),
+        ])
+        patch = self.box(7, 10, 12, 14.4)
+        new_patch, additions, stats = \
+            cec_fr._reconcile_patch_corridor_exterior(corridor, patch)
+        out = self.union([corridor, new_patch] + additions)
+        self.assertEqual(stats["reconciled"], 1)
+        self.assertAlmostEqual(new_patch.bounds[3], 14.0)
+        self.assertAlmostEqual(new_patch.bounds[2], 10.0)
+        self.assertEqual(additions, [],
+                         "the compact landing shave wins over growing the "
+                         "corridor when both preserve contact")
+        self.assertFalse(out.intersects(self.box(10.1, 8.1, 11.9, 13.9)))
+        self.assertFalse(out.intersects(self.box(6.1, 4.1, 9.9, 7.9)),
+                         "the intentional inside placement pocket survives")
+        self.assertAlmostEqual(out.bounds[2], 10.0,
+                               msg="the outer right edge no longer takes a "
+                                   "mid-run step")
+
+    def test_exterior_reconcile_refuses_protected_trim(self):
+        corridor = self.union([
+            self.box(0, 0, 10, 4), self.box(0, 4, 6, 8),
+            self.box(0, 8, 10, 14),
+        ])
+        patch = self.box(7, 10, 12, 14.4)
+        protected = self.box(8, 14.1, 9, 14.3)
+        new_patch, additions, stats = \
+            cec_fr._reconcile_patch_corridor_exterior(
+                corridor, patch, protected=protected)
+        self.assertTrue(new_patch.equals(patch))
+        self.assertEqual(additions, [])
+        self.assertEqual(stats["reconciled"], 0)
+
+    def test_exterior_reconcile_refuses_reserved_extension(self):
+        corridor = self.union([
+            self.box(0, 0, 10, 4), self.box(0, 4, 6, 8),
+            self.box(0, 8, 10, 14),
+        ])
+        patch = self.box(7, 10, 12, 14.4)
+        forbidden = self.box(10.5, 8.5, 11.0, 9.0)
+        pad_needing_extension = self.box(10.2, 10.5, 11.8, 11.5)
+        new_patch, additions, stats = \
+            cec_fr._reconcile_patch_corridor_exterior(
+                corridor, patch, contact_pads=[pad_needing_extension],
+                forbidden=forbidden)
+        self.assertTrue(new_patch.equals(patch))
+        self.assertEqual(additions, [])
+        self.assertEqual(stats["reconciled"], 0)
+
+    def test_exterior_reconcile_keeps_a_bounded_solid_pad_throat(self):
+        corridor = self.union([
+            self.box(0, 0, 10, 4), self.box(0, 4, 6, 8),
+            self.box(0, 8, 10, 14),
+        ])
+        patch = self.box(7, 10, 12, 14.4)
+        pad = self.box(8, 13.2, 9, 14.4)
+        _new_patch, _additions, stats = \
+            cec_fr._reconcile_patch_corridor_exterior(
+                corridor, patch, contact_pads=[pad])
+        self.assertEqual(stats["reconciled"], 1,
+                         "the pad remains copper and retains a 0.8 mm solid "
+                         "zone throat after the unused margin is clipped")
+        shallow_pad = self.box(8, 13.8, 9, 14.4)
+        new_patch2, additions2, stats2 = \
+            cec_fr._reconcile_patch_corridor_exterior(
+                corridor, patch, contact_pads=[shallow_pad])
+        self.assertTrue(new_patch2.equals(patch))
+        self.assertEqual(additions2, [])
+        self.assertEqual(stats2["reconciled"], 0,
+                         "a shave may not leave a sub-0.5 mm pad throat")
+
+    def test_exterior_reconcile_is_idempotent(self):
+        corridor = self.union([
+            self.box(0, 0, 10, 4), self.box(0, 4, 6, 8),
+            self.box(0, 8, 10, 14),
+        ])
+        patch = self.box(7, 10, 12, 14.4)
+        patch1, additions1, stats1 = \
+            cec_fr._reconcile_patch_corridor_exterior(corridor, patch)
+        corridor1 = self.union([corridor] + additions1)
+        patch2, additions2, stats2 = \
+            cec_fr._reconcile_patch_corridor_exterior(corridor1, patch1)
+        self.assertEqual(stats1["reconciled"], 1)
+        self.assertEqual(stats2["reconciled"], 0)
+        self.assertEqual(additions2, [])
+        self.assertTrue(patch2.equals(patch1))
+
+
 class ShuntGapGeometryTest(unittest.TestCase):
     """The gap derivation must be layer-scoped: an inner plane under an SMD shunt
     is correct copper and must never be clipped."""
@@ -223,6 +370,17 @@ class RectilinearPourTest(unittest.TestCase):
             self.assertEqual(self._diag(p), 0,
                              f"pour outline has diagonal edge(s): {p[:8]}... "
                              "-- smoothing must happen on the MASK, never on the polygon")
+
+    def test_power_pour_sink_refuses_diagonal_producer_geometry(self):
+        import cec_fr
+        bad = [{"net": "/PWR", "layer": "B.Cu", "name": "test:/PWR",
+                "polygon": [(0, 0), (3, 1), (3, 3), (0, 3), (0, 0)]}]
+        with self.assertRaisesRegex(ValueError, "non-Manhattan"):
+            cec_fr._assert_manhattan_power_pours(bad)
+        cec_fr._assert_manhattan_power_pours([{
+            "net": "/PWR", "layer": "B.Cu", "name": "test:/PWR",
+            "polygon": [(0, 0), (3, 0), (3, 3), (0, 3), (0, 0)],
+        }])
 
     def test_drop_collinear_preserves_shape(self):
         import cec_slab_pour as sp

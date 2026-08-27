@@ -26,6 +26,7 @@ import cec_router                       # noqa: E402
 import cec_score                        # noqa: E402
 import cec_seats                        # noqa: E402  (the cloud/local residency resolver)
 import cec_constraints                  # noqa: E402
+import cec_outline_compaction            # noqa: E402
 
 REF = "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"
 REF_SCH = "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch"
@@ -52,6 +53,7 @@ CONFORMANCE_REQUIRED_PASS = {
 PIPELINE_RAIL_ZONE_PREFIXES = (
     "slab:", "overunder:", "pourfirst:", "pourplan:", "patch:", "manifold:",
 )
+BOOTSTRAP_ENVELOPE_PREFIX = "bootstrap-envelope:"
 
 
 def _build_seats(sel, spec, log):
@@ -196,60 +198,122 @@ def _fill_worker(out, rail_nets=()):
     """
     import pcbnew
     import cec_fr
+    import cec_precision_route
 
     bd = pcbnew.LoadBoard(out)
     pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    resolver = cec_fr._project_netclass_resolver(out)
+    # Critical coupled geometry owns the freshly filled board before any broad
+    # local fanout.  Even same-footprint power topology is not intrinsically
+    # higher priority: a generated USB-VBUS bank link across J_USB was the exact
+    # obstruction that starved D6's pair flow-through.  Every later helper uses
+    # exact foreign-copper guards, so it must route around the pair or refuse.
+    pre_precision_normalization = {"tracks": 0, "vias": 0}
+    precision = cec_precision_route.precision_route_board(
+        bd, board_path=out, do_kelvin=False, pair_grid=True, verbose=False)
+    if not precision.get("pairs_ok", False):
+        refused = (precision.get("pairs") or {}).get("refused") or []
+        raise RuntimeError("Hub precision pair pre-route refused: %s" % refused[:3])
+    precision_nets = tuple(sorted(precision.get("locked_nets") or ()))
+
+    # Now close same-footprint, private low-speed, and bypass topology.  A
+    # pickup is free to choose another guarded barrel after these short links
+    # exist; a private IC pin usually has only one legal escape direction.  The
+    # previous pickup-first order let a nearby GND/rail stub consume that escape
+    # (Hub U5 OV1 beside its USB bypass was the reproducible case).
+    local_footprint = cec_fr.synthesize_same_footprint_links(
+        bd, lock=True, netclass_resolver=resolver)
+    local_signal = cec_fr.synthesize_local_signal_links(
+        bd, lock=True, netclass_resolver=resolver)
+    bypass = cec_fr.synthesize_local_power_bypass_links(
+        bd, lock=True, netclass_resolver=resolver)
+    normalization = {"tracks": 0, "vias": 0}
+    if (local_footprint["linked"] or bypass["linked"]
+            or local_signal["linked"]):
+        normalization = cec_fr.normalize_netclass_geometry(
+            bd, out, preserve_nets=precision_nets)
+        for zone in bd.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+
     before_pickup = {item.m_Uuid.AsString() for item in bd.GetTracks()}
     pickup = cec_fr.synthesize_power_pickups(
         bd, (), plane_nets=("GND",), filled_zone_nets=tuple(rail_nets),
         lock=True)
-    pickup_item_ids = {item.m_Uuid.AsString() for item in bd.GetTracks()} - before_pickup
-    resolver = cec_fr._project_netclass_resolver(out)
-    local_footprint = cec_fr.synthesize_same_footprint_links(
-        bd, lock=True, netclass_resolver=resolver)
-    bypass = cec_fr.synthesize_local_power_bypass_links(
-        bd, lock=True, netclass_resolver=resolver)
-    local_signal = cec_fr.synthesize_local_signal_links(
-        bd, lock=True, netclass_resolver=resolver)
-    normalization = {"tracks": 0, "vias": 0}
-    if (pickup["vias"] or local_footprint["linked"] or bypass["linked"]
-            or local_signal["linked"]):
-        normalization = cec_fr.normalize_netclass_geometry(bd, out)
+    pickup_item_ids = ({item.m_Uuid.AsString() for item in bd.GetTracks()}
+                       - before_pickup)
+    pickup_normalization = {"tracks": 0, "vias": 0}
+    if pickup["vias"]:
+        pickup_normalization = cec_fr.normalize_netclass_geometry(
+            bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+
+    # A second pass is not redundant: multi-pad GND/rail groups may only
+    # become one proven component after the plane/pour pickups above land.
+    # Critical pair/private fanout already owns its escape copper, so this
+    # phase can consolidate the remaining benign pad banks without starving
+    # fine-pitch signals.
+    post_pickup_footprint = cec_fr.synthesize_same_footprint_links(
+        bd, lock=True, netclass_resolver=resolver)
+    if post_pickup_footprint["linked"]:
+        post_pickup_normalization = cec_fr.normalize_netclass_geometry(
+            bd, out, preserve_nets=precision_nets)
+        for zone in bd.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    else:
+        post_pickup_normalization = {"tracks": 0, "vias": 0}
     bd.BuildConnectivity()
     local_rail = cec_fr.synthesize_lastmile(
         bd, max_mm=8.0, cap=80, netclass_resolver=resolver,
         include_nets=tuple(rail_nets) + ("GND",), lock=True)
     rail_normalization = {"tracks": 0, "vias": 0}
     if local_rail["closed"]:
-        rail_normalization = cec_fr.normalize_netclass_geometry(bd, out)
+        rail_normalization = cec_fr.normalize_netclass_geometry(
+            bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
         pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
     pickup_prune = cec_fr.prune_redundant_dangling_pickups(
-        bd, pickup_item_ids, discover_nets=tuple(rail_nets))
+        bd, pickup_item_ids, discover_nets=tuple(rail_nets),
+        discover_pofv_nets=tuple(rail_nets))
     # Do not touch SWIG-owned zone objects after Remove(): pruning is the
     # final in-process mutation, and deleting same-net copper needs no
     # antipad refill. A later worker may refill if another stage needs it.
     bd.Save(out)
     return {"areas": bd.GetAreaCount(), "power_pickups": pickup,
+            "precision": precision,
             "same_footprint_links": local_footprint,
+            "post_pickup_same_footprint_links": post_pickup_footprint,
             "local_power_bypass": bypass,
             "local_signal_links": local_signal,
+            "pre_precision_normalization": pre_precision_normalization,
             "normalization": normalization,
+            "pickup_normalization": pickup_normalization,
+            "post_pickup_normalization": post_pickup_normalization,
             "local_rail_finish": local_rail,
             "rail_normalization": rail_normalization,
             "pickup_prune": pickup_prune}
 
 
-def _prepare_repour_worker(out, nets):
-    """Bootstrap pickups from generated outlines, then remove inherited rail zones.
+def _cleanup_zones_worker(out):
+    """Remove post-fill copper components with no electrical terminal."""
+    import cec_slab_pour
 
-    The old zones are never accepted as final copper. They are used only as a
-    coverage envelope so the guarded pickup pass can connect SMD rail pads to
-    In3 before the fresh slab solve requires real inner-layer anchors.
+    return cec_slab_pour.cleanup_floating_zones(out)
+
+
+def _prepare_repour_worker(out, nets):
+    """Bootstrap pickups from inherited envelopes, then remove their zones.
+
+    The inherited zones are never accepted as final copper.  They exist only
+    long enough to provide the coverage envelope for guarded SMD-to-In3 pickup
+    placement.  The resulting locked pickup topology is then part of the rail
+    solve, while every inherited zone is removed before fresh over-under copper
+    is synthesized.  Keeping this one coordinated stage prevents unrelated
+    signal copper from partitioning a valid wide-rail solution.
     """
     import pcbnew
     import cec_fr
@@ -263,8 +327,9 @@ def _prepare_repour_worker(out, nets):
     covered = {zone.GetNetname() for zone in old if zone.GetNetname()}
     missing = sorted(set(nets) - covered)
     pickup = cec_fr.synthesize_power_pickups(
-        board, ({"net": net, "layers": ("In3.Cu",)} for net in nets),
-        plane_nets=tuple(nets))
+        board,
+        tuple({"net": net, "layers": ("In3.Cu",)} for net in nets),
+        plane_nets=tuple(nets), lock=True)
     for zone in old:
         board.Remove(zone)
     pcbnew.SaveBoard(out, board)
@@ -272,9 +337,125 @@ def _prepare_repour_worker(out, nets):
             "asks_without_bootstrap_zone": missing}
 
 
+def _neutralize_repour_envelopes_worker(out):
+    """Temporarily mark inherited zones as non-copper pickup envelopes.
+
+    Guarded private-path helpers ignore these names, while the following
+    zone-backed pickup stage still uses their exact geometry before removing
+    them.  No envelope marker can survive materialization.
+    """
+    import pcbnew
+
+    board = pcbnew.LoadBoard(out)
+    old = [zone for zone in board.Zones()
+           if _is_pipeline_rail_zone_name(zone.GetZoneName())]
+    if not old:
+        raise RuntimeError(
+            "six-layer Hub reference contains no pipeline-generated rail zones")
+    for zone in old:
+        name = str(zone.GetZoneName() or "")
+        if not name.startswith(BOOTSTRAP_ENVELOPE_PREFIX):
+            zone.SetZoneName(BOOTSTRAP_ENVELOPE_PREFIX + name)
+    pcbnew.SaveBoard(out, board)
+    return {"zones_neutralized": len(old)}
+
+
+def _preroute_selected_local_signals_worker(out, include_nets):
+    """Reserve only private nets proven blocked by the first filled-pour pass."""
+    import pcbnew
+    import cec_fr
+
+    board = pcbnew.LoadBoard(out)
+    resolver = cec_fr._project_netclass_resolver(out)
+    selected = tuple(sorted({str(net) for net in include_nets if str(net)}))
+    report = cec_fr.synthesize_local_signal_links(
+        board, lock=True, netclass_resolver=resolver,
+        include_nets=set(selected))
+    if report.get("refused"):
+        raise RuntimeError(
+            "selected pre-pour local signals still refused: %s"
+            % [row for row in report.get("detail", ())
+               if row.get("status") == "refused"][:4])
+    pcbnew.SaveBoard(out, board)
+    return {"selected_nets": list(selected), "links": report,
+            "normalization_deferred_to_fill": True}
+
+
+def _preroute_connector_power_worker(out, rail_nets=()):
+    """Claim repeated connector power banks before global rail pickups.
+
+    Reversible and high-pin-count connectors often expose one supply as two
+    separated pad banks.  That fanout is footprint-local topology and owns its
+    escape corridor ahead of unrelated rail pickup barrels.  Running the
+    ordinary guarded same-footprint primitive here lets later bootstrap and
+    over-under stages see the locked copper and route around it. Every repeated
+    non-ground power-class SMD bank is eligible, including unpoured connector
+    supplies such as USB VBUS: the primitive now prefers perpendicular
+    dogbones and an inner-layer bridge for connector banks, preserving the
+    surface precision-pair corridor while establishing the power topology
+    before a laid rail can consume its via seats.
+    """
+    import pcbnew
+    import cec_fr
+
+    board = pcbnew.LoadBoard(out)
+    resolver = cec_fr._project_netclass_resolver(out)
+    rail_nets = {str(net) for net in (rail_nets or ()) if str(net)}
+    connector_refs = set()
+    power_nets = set()
+    for footprint in board.GetFootprints():
+        try:
+            if footprint.IsDNP():
+                continue
+        except Exception:                              # noqa: BLE001
+            pass
+        reference = str(footprint.GetReference() or "")
+        try:
+            library_name = str(footprint.GetFPID().GetLibItemName()).upper()
+        except Exception:                              # noqa: BLE001
+            library_name = ""
+        is_connector = (reference.upper().startswith("J")
+                        or any(token in library_name for token in (
+                            "CONN", "USB", "RJ45", "MOLEX", "JST",
+                            "HEADER")))
+        if not is_connector:
+            continue
+        counts = {}
+        for pad in footprint.Pads():
+            if (pad.GetNetCode() <= 0 or not pad.GetNetname()
+                    or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD):
+                continue
+            counts[pad.GetNetname()] = counts.get(pad.GetNetname(), 0) + 1
+        local_power = {
+            net for net, count in counts.items()
+            if count >= 2 and net.rsplit("/", 1)[-1].upper() != "GND"
+            and float((resolver(net) or {}).get("track_width") or 0.0) >= 0.5
+        }
+        if local_power:
+            connector_refs.add(reference)
+            power_nets.update(local_power)
+
+    if connector_refs and power_nets:
+        result = cec_fr.synthesize_same_footprint_links(
+            board, lock=True, netclass_resolver=resolver,
+            include_refs=connector_refs, include_nets=power_nets)
+    else:
+        result = {"groups": 0, "linked": 0, "legs": 0, "vias": 0,
+                  "refused": 0, "ignored": 0, "pair_groups": 0,
+                  "pair_linked": 0, "pair_legs": 0, "pair_refused": 0,
+                  "detail": []}
+    result["selected_refs"] = sorted(connector_refs)
+    result["selected_nets"] = sorted(power_nets)
+    board.Save(out)
+    return result
+
+
 def _is_pipeline_rail_zone_name(name):
     """Return whether *name* identifies copper owned by the synthesis pipeline."""
-    return str(name or "").startswith(PIPELINE_RAIL_ZONE_PREFIXES)
+    value = str(name or "")
+    if value.startswith(BOOTSTRAP_ENVELOPE_PREFIX):
+        value = value[len(BOOTSTRAP_ENVELOPE_PREFIX):]
+    return value.startswith(PIPELINE_RAIL_ZONE_PREFIXES)
 
 
 def _resolve_board_net_names(board_path, requested):
@@ -321,7 +502,7 @@ def _hub_pour_nets():
 def _repour_worker(out, nets):
     """Lay the Hub's current routed-object power corridors in a fresh process.
 
-    The live Hub contract has ``overunder=True`` because ten mutually exclusive
+    The live Hub contract has ``overunder=True`` because eight mutually exclusive
     same-layer slabs cannot join all rail terminals on this compact board.  Do
     not regress to the superseded fair-share slab solver here: the over-under
     search may bridge to another signal layer with qualified via fields when a
@@ -351,8 +532,17 @@ def _repour_worker(out, nets):
 
 
 def _stage_reference_sidecars(ref, dst):
-    """Stage and rebind the project files required by pcbnew netclass lookup."""
+    """Stage the project and current hierarchical schematic beside a candidate.
+
+    Router intake deliberately requires a sibling root schematic.  Materialized
+    boards used to receive only ``.kicad_pro``/``.kicad_dru`` and therefore
+    failed the same intake gate that protects normal module routes (or required
+    ``CEC_SKIP_INTAKE=1``).  Copy the authoritative root under the candidate's
+    basename and its current child sheets under their referenced names so ERC,
+    netlist freshness, and hierarchy checks run on every generated Hub board.
+    """
     import shutil
+    import glob
     import cec_fr
 
     src_base = ref[:-len(".kicad_pcb")]
@@ -367,22 +557,46 @@ def _stage_reference_sidecars(ref, dst):
             target = dst_base + ext
             shutil.copy2(source, target)
             copied.append(target)
+    schematic_candidates = [
+        src_base + ".kicad_sch",
+        os.path.join(os.path.dirname(os.path.dirname(ref)),
+                     "hub-standard-rev2.kicad_sch"),
+    ]
+    root_schematic = next(
+        (path for path in schematic_candidates if os.path.isfile(path)), None)
+    if root_schematic:
+        target = dst_base + ".kicad_sch"
+        shutil.copy2(root_schematic, target)
+        copied.append(target)
+        root_dir = os.path.dirname(root_schematic)
+        for child in sorted(glob.glob(os.path.join(root_dir, "*.kicad_sch"))):
+            if os.path.abspath(child) == os.path.abspath(root_schematic):
+                continue
+            child_target = os.path.join(os.path.dirname(dst),
+                                        os.path.basename(child))
+            shutil.copy2(child, child_target)
+            copied.append(child_target)
     cec_fr.rebind_project_metadata(dst)
     return copied
 
 
-def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
+def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=(),
+                               params=None):
     """Materialize a synth placement onto the REFERENCE board's stackup (the owner's 'base stackup =
     committed Hub'). build_board's from-scratch output is NOT DSN-exportable (KiCad's Specctra
     exporter silently refuses it), so instead COPY the committed board -- which exports + routes fine,
     with its real net classes / layer stackup / mounts / logo -- then reposition each synth component,
     rip the committed routing, and FILL the zones fresh at the new positions (so the GND plane
     connects). Refs the synth does not model (M*/LOGO/FID/TP) keep their committed (correct) positions.
-    Runs in FIVE isolated spawn subprocesses (copy+UUID normalization,
-    reposition+rip, strip pours, repour, then fill). Remove operations
-    invalidate later SWIG state in that process, so each mutating phase is
-    isolated."""
+    Runs every mutating phase in an isolated spawn subprocess. Remove
+    operations invalidate later SWIG state in that process, so zone stripping,
+    pickup bootstrap, repour, fill, and cleanup may not be collapsed into one
+    worker. ``params`` is the exact candidate board policy and is active while
+    every worker is spawned, so isolated stages inherit the same layer, pickup,
+    and fabrication contract later used by routing."""
     import multiprocessing as mp
+    import shutil
+    from itertools import combinations
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
 
@@ -395,18 +609,141 @@ def materialize_onto_reference(cand, ref_pcb, out, *, pinned_refs=()):
     _stage_reference_sidecars(ref, dst)
 
     ctx = mp.get_context("spawn")
-    with ctx.Pool(1) as pool:
-        uuid_report = pool.apply(_copy_reference_worker, (ref, dst))
-    with ctx.Pool(1) as pool:
-        moved = pool.apply(
-            _reposition_worker, (dict(cand.P), tuple(pinned_refs), dst))
-    slab_nets = _hub_pour_nets()
-    with ctx.Pool(1) as pool:
-        pool.apply(_prepare_repour_worker, (dst, slab_nets))
-    with ctx.Pool(1) as pool:
-        pour_report = pool.apply(_repour_worker, (dst, slab_nets))
-    with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
-        finish_report = pool.apply(_fill_worker, (dst, slab_nets))
+    # multiprocessing "spawn" inherits the process environment, not Python
+    # context. Materialization previously ran outside _oracle_env, so the
+    # repour worker silently fell back to its historic In2-first layer order
+    # while routing later used the current six-layer Hub policy. Keep the one
+    # board contract active across every worker launch.
+    with S._oracle_env(dict(params or {})):
+        with ctx.Pool(1) as pool:
+            uuid_report = pool.apply(_copy_reference_worker, (ref, dst))
+        with ctx.Pool(1) as pool:
+            moved = pool.apply(
+                _reposition_worker, (dict(cand.P), tuple(pinned_refs), dst))
+        slab_nets = _hub_pour_nets()
+        with ctx.Pool(1) as pool:
+            prepare_report = pool.apply(
+                _prepare_repour_worker, (dst, slab_nets))
+        with ctx.Pool(1) as pool:
+            early_connector_power = pool.apply(
+                _preroute_connector_power_worker, (dst, slab_nets))
+        with ctx.Pool(1) as pool:
+            pour_report = pool.apply(_repour_worker, (dst, slab_nets))
+        with ctx.Pool(1) as pool:                      # FRESH process -> clean pcbnew state for fill
+            finish_report = pool.apply(_fill_worker, (dst, slab_nets))
+        finish_report["prepare_repour"] = prepare_report
+        finish_report["early_connector_power"] = early_connector_power
+        with ctx.Pool(1) as pool:
+            finish_report["floating_zones_removed"] = pool.apply(
+                _cleanup_zones_worker, (dst,))
+
+        # A wide pour and a private pin escape are coupled placement problems,
+        # but reserving every control net before the rail solve can partition a
+        # valid high-current tree.  Let the ordinary filled-pour pass identify
+        # the exact private networks it cannot close, then rematerialize once
+        # with only those nets owning pre-pour copper.  The first good board is
+        # retained as a recoverable fallback if the selective retry cannot also
+        # realize every rail.
+        refused_signal_nets = sorted({
+            str(row.get("net"))
+            for row in (finish_report.get("local_signal_links") or {}).get(
+                "detail", ())
+            if row.get("status") == "refused" and row.get("net")
+        })
+        if refused_signal_nets:
+            backup = dst + ".initial-pass-backup"
+            shutil.copy2(dst, backup)
+            retry_audit = {"attempted_nets": refused_signal_nets,
+                           "accepted": False, "subsets": []}
+            try:
+                winner = None
+                ranked_subsets = (
+                    subset
+                    for size in range(len(refused_signal_nets), 0, -1)
+                    for subset in combinations(refused_signal_nets, size)
+                )
+                for subset in ranked_subsets:
+                    subset_audit = {"nets": list(subset), "rails_ok": False}
+                    retry_audit["subsets"].append(subset_audit)
+                    try:
+                        with ctx.Pool(1) as pool:
+                            retry_uuid = pool.apply(
+                                _copy_reference_worker, (ref, dst))
+                        with ctx.Pool(1) as pool:
+                            retry_moved = pool.apply(
+                                _reposition_worker,
+                                (dict(cand.P), tuple(pinned_refs), dst))
+                        with ctx.Pool(1) as pool:
+                            neutralized = pool.apply(
+                                _neutralize_repour_envelopes_worker, (dst,))
+                        with ctx.Pool(1) as pool:
+                            selected_signals = pool.apply(
+                                _preroute_selected_local_signals_worker,
+                                (dst, tuple(subset)))
+                        with ctx.Pool(1) as pool:
+                            retry_prepare = pool.apply(
+                                _prepare_repour_worker, (dst, slab_nets))
+                        with ctx.Pool(1) as pool:
+                            retry_connector = pool.apply(
+                                _preroute_connector_power_worker,
+                                (dst, slab_nets))
+                        with ctx.Pool(1) as pool:
+                            retry_pour = pool.apply(
+                                _repour_worker, (dst, slab_nets))
+                    except Exception as subset_exc:     # noqa: BLE001
+                        subset_audit["error"] = "%s: %s" % (
+                            type(subset_exc).__name__, subset_exc)
+                        continue
+                    subset_audit["rails_ok"] = True
+                    winner = (subset, retry_uuid, retry_moved,
+                              neutralized, retry_prepare, selected_signals,
+                              retry_connector, retry_pour)
+                    break
+                if winner is None:
+                    raise RuntimeError(
+                        "no non-empty refused-signal subset preserved every rail")
+                (selected_subset, retry_uuid, retry_moved, neutralized,
+                 retry_prepare, selected_signals, retry_connector,
+                 retry_pour) = winner
+                with ctx.Pool(1) as pool:
+                    retry_finish = pool.apply(_fill_worker, (dst, slab_nets))
+                retry_finish["prepare_repour"] = retry_prepare
+                retry_finish["pre_pour_zone_envelopes"] = neutralized
+                retry_finish["pre_pour_selected_signals"] = selected_signals
+                retry_finish["early_connector_power"] = retry_connector
+                with ctx.Pool(1) as pool:
+                    retry_finish["floating_zones_removed"] = pool.apply(
+                        _cleanup_zones_worker, (dst,))
+                remaining = [
+                    row for row in (retry_finish.get("local_signal_links") or {}).get(
+                        "detail", ()) if row.get("status") == "refused"
+                ]
+                remaining_nets = {str(row.get("net")) for row in remaining
+                                  if row.get("net")}
+                if remaining_nets.intersection(selected_subset):
+                    raise RuntimeError(
+                        "selected pre-pour signals did not remain connected: %s"
+                        % sorted(remaining_nets.intersection(selected_subset)))
+                retry_audit.update({"accepted": True,
+                                    "selected_nets": list(selected_subset),
+                                    "remaining_refused_nets":
+                                        sorted(remaining_nets),
+                                    "selected": selected_signals})
+                retry_finish["adaptive_local_signal_retry"] = retry_audit
+                retry_pour["uuid_normalization"] = retry_uuid
+                retry_pour["pre_route_finish"] = retry_finish
+                uuid_report, moved = retry_uuid, retry_moved
+                pour_report, finish_report = retry_pour, retry_finish
+            except Exception as exc:                    # noqa: BLE001
+                shutil.copy2(backup, dst)
+                retry_audit["error"] = "%s: %s" % (
+                    type(exc).__name__, exc)
+                finish_report["adaptive_local_signal_retry"] = retry_audit
+            finally:
+                try:
+                    os.remove(backup)
+                except FileNotFoundError:
+                    pass
     pour_report["uuid_normalization"] = uuid_report
     pour_report["pre_route_finish"] = finish_report
     return out, moved, pour_report
@@ -425,13 +762,27 @@ def _acceptance_terms(route_verdict, conformance_fail, physics_flags,
     return terms, all(terms.values())
 
 
+def _physics_route_prerequisite(route_verdict):
+    """Require a DRC-clean, electrically closed topology before FEM.
+
+    Thermal/current injection on disconnected copper is not a degraded solve:
+    source/sink rails are dropped, so the field no longer represents the board
+    load case. Record a fail-closed physics blocker and return the compute to
+    routing instead of spending minutes solving an invalid network.
+    """
+    drc = int(route_verdict.get("drc") or 0)
+    unconnected = int(route_verdict.get("unconnected") or 0)
+    return drc == 0 and unconnected == 0, {
+        "drc": drc, "unconnected": unconnected}
+
+
 _PRE_ROUTE_FATAL_DRC = frozenset({
     "clearance", "shorting_items", "tracks_crossing", "hole_clearance",
     "isolated_copper", "via_dangling", "track_dangling",
 })
 
 
-def _pre_route_materialization_gate(board_path):
+def _pre_route_materialization_gate(board_path, finish_report=None):
     """Refuse electrically invalid synthesized copper before routing.
 
     Ordinary signal ratlines are expected, but synthesized copper must already
@@ -457,6 +808,26 @@ def _pre_route_materialization_gate(board_path):
                         % (row.get("kind", "copper"), row.get("ref", ""),
                            row.get("net", ""), row.get("pour", "pour"))}
                        for row in incursion.get("items", ())[:20])
+    # The additive local helper is deliberately bounded; failure there does
+    # not prove the global multi-layer router cannot close the short bypass.
+    # Wave 77 is the measured counterexample: its C26 helper refusal was later
+    # closed by the router and does not appear in the electrical residuals.
+    # Preserve the refusal as an advisory for placement feedback, but let the
+    # final zero-unconnected + DRC gates decide it.  Bulk caps with no local
+    # IC/LED destination remain ordinary and are not reported here.
+    bypass = (finish_report or {}).get("local_power_bypass") or {}
+    blocked_bypass = [row for row in (bypass.get("detail") or ())
+                      if row.get("status") == "refused"
+                      and row.get("reason") == "no guarded path"]
+    if blocked_bypass:
+        count = len(blocked_bypass)
+        types = dict(types)
+        types["local_power_bypass_deferred"] = count
+        details.extend({
+            "type": "local_power_bypass_deferred",
+            "where": "%s %s deferred to final multi-layer routing"
+                     % (row.get("cap", "cap"), row.get("net", ""))}
+                       for row in blocked_bypass[:20])
     return {"ok": not fatal, "fatal": fatal, "types": types,
             "loci": details[:20]}
 
@@ -500,11 +871,12 @@ def _route_iteration_timeout(remaining_s, max_iters, reserve_s=30):
 def _hub_route_parallelism(cpu_count=None, available_memory_bytes=None):
     """Choose parallel Freerouting seeds without oversubscribing RAM.
 
-    The pinned router is effectively single-core per JVM but uses about
-    0.7-0.8 GiB on the live Hub. Use half the logical CPUs (leaving headroom
-    for KiCad, scoring, Xvfb, and the OS), reserve 4 GiB, and budget a full
-    GiB per JVM. ``CEC_HUB_ROUTE_WORKERS`` can lower or request a higher count,
-    but the same resource ceilings and the 16-worker safety cap still apply.
+    The pinned router is effectively single-core per JVM. Dense protected Hub
+    DSNs measured 2-3 GiB per JVM during wave 140, so budget 3 GiB rather than
+    the earlier optimistic 1 GiB. Use half the logical CPUs (leaving headroom
+    for KiCad, scoring, Xvfb, and the OS), reserve 4 GiB, and enforce the lower
+    of the CPU, memory, and 16-worker ceilings. ``CEC_HUB_ROUTE_WORKERS`` can
+    lower the count but cannot bypass those ceilings.
     """
     cpus = max(1, int(cpu_count if cpu_count is not None else (os.cpu_count() or 1)))
     if available_memory_bytes is None:
@@ -516,7 +888,7 @@ def _hub_route_parallelism(cpu_count=None, available_memory_bytes=None):
         except (OSError, StopIteration, ValueError):
             available_memory_bytes = 5 * 1024**3
     reserve = 4 * 1024**3
-    per_worker = 1024**3
+    per_worker = 3 * 1024**3
     by_cpu = max(1, cpus // 2)
     by_memory = max(1, int((int(available_memory_bytes) - reserve) // per_worker))
     ceiling = max(1, min(16, by_cpu, by_memory))
@@ -546,31 +918,14 @@ def _hub_route_passes(seed_timeout_s, route_workers,
 
 
 def _closure_placement_key(row):
-    """Rank legal, corridor-clean Hub placements by minimum board area.
-
-    A marginal proxy improvement cannot justify a larger PCB when a smaller
-    candidate is equally legal and leaves the same number of pour-corridor
-    crossings.  The larger sweep sizes remain available as fallbacks when they
-    actually improve legality or corridor cleanliness.
-    """
-    cand, width, height = row[:3]
-    return (cand.residual,
-            getattr(cand, "corridor_cross_aware", cand.corridor_cross),
-            cand.corridor_cross,
-            float(width) * float(height),
-            cand.proxy.get("proxy_score", 1e9))
+    """Compatibility alias for the generalized closure ranking."""
+    return cec_outline_compaction.placement_key(row)
 
 
 def _placement_probe_pool(placed, route_candidates, *, fallbacks=2):
-    """Keep ranked fallbacks for placements rejected during materialization.
-
-    ``route_candidates`` limits placements that actually consume router time.
-    A diameter-aware power bridge can still prove the top legal placement
-    unrealizable, so probe two more ranked placements before declaring that no
-    Hub candidate exists.
-    """
-    target = max(1, int(route_candidates))
-    return list(placed[:min(len(placed), target + max(0, int(fallbacks)))])
+    """Compatibility alias for the generalized distinct-probe selector."""
+    return cec_outline_compaction.placement_probe_pool(
+        placed, route_candidates, fallbacks=fallbacks)
 
 
 def main():
@@ -579,6 +934,8 @@ def main():
     ap.add_argument("--board", default="hub-standard-rev2")
     ap.add_argument("--out", default="build/hub-full")
     ap.add_argument("--route-candidates", type=int, default=2, help="how many top placements to route")
+    ap.add_argument("--materialize-only", action="store_true",
+                    help="stop after the compact candidate passes the pre-route copper gate")
     ap.add_argument("--seats", default="auto", choices=["auto", "cloud", "local", "off"],
                     help="control-plane seat residency: auto (overnight-long->local, else cloud) | "
                          "cloud | local | off (deterministic). Owner default: cloud unless --hours>=2.")
@@ -678,7 +1035,15 @@ def main():
         % (W, H, len(cfg.params["edge_override"]), cfg.params.get("antenna_edge"), ref_hpwl))
 
     placed = []
-    for (sw, sh) in [(W, H), (W + 3, H + 3), (W + 6, H + 6)]:
+    outline_policy = dict(cfg.params.get("outline_compaction") or {})
+    outline_sweep = cec_outline_compaction.outline_candidates(
+        W, H, outline_policy)
+    report["outline_compaction"] = {
+        "policy": outline_policy,
+        "nominal": [W, H],
+        "candidates": [[sw, sh] for sw, sh in outline_sweep],
+    }
+    for (sw, sh) in outline_sweep:
         if time.time() > deadline - 120:
             log("budget nearly spent -> stop before placement %.0fx%.0f" % (sw, sh))
             break
@@ -694,18 +1059,36 @@ def main():
         except Exception as e:
             log("  place %.0fx%.0f FAILED: %s" % (sw, sh, e))
             continue
-        b = cs[0]
-        placed.append((b, sw, sh, size_cfg))
-        rec = {"W": sw, "H": sh, "strat": b.strat, "seed": b.seed, "residual": b.residual,
-               "corridor_cross": b.corridor_cross, "proxy_score": b.proxy.get("proxy_score"),
-               "similarity": b.similarity, "hpwl": b.proxy["hpwl"],
-               "hpwl_ratio": round(b.proxy["hpwl"] / ref_hpwl, 3), "hub_terms": b.proxy.get("hub_terms")}
-        report["placements"].append(rec)
+        # HPWL/proxy score cannot prove that wide power lanes or an exact
+        # differential-pair corridor survive materialization.  Retain a small
+        # ranked pool from every size so those cheap physical gates, rather
+        # than the proxy alone, select the placement that reaches the router.
+        # Four candidates is enough to preserve strategy/seed alternatives
+        # without growing disk use or router attempts materially.
+        retained = cs[:4]
+        for within_size_rank, candidate in enumerate(retained):
+            placed.append((candidate, sw, sh, size_cfg))
+            report["placements"].append({
+                "W": sw, "H": sh, "strat": candidate.strat,
+                "seed": candidate.seed, "residual": candidate.residual,
+                "corridor_cross": candidate.corridor_cross,
+                "proxy_score": candidate.proxy.get("proxy_score"),
+                "similarity": candidate.similarity,
+                "hpwl": candidate.proxy["hpwl"],
+                "hpwl_ratio": round(candidate.proxy["hpwl"] / ref_hpwl, 3),
+                "hub_terms": candidate.proxy.get("hub_terms"),
+                "within_size_rank": within_size_rank,
+            })
+        b = retained[0]
+        rec = report["placements"][-len(retained)]
         log("  size %.0fx%.0f: best %s/s%d residual=%d cc=%d sim=%.3f hpwl=%.0f (%.2fx) hub=%s"
             % (sw, sh, b.strat, b.seed, b.residual, b.corridor_cross, b.similarity, b.proxy["hpwl"],
                rec["hpwl_ratio"], b.proxy.get("hub_terms")))
     placed.sort(key=_closure_placement_key)
-    topK = _placement_probe_pool(placed, a.route_candidates)
+    # Materialization is much cheaper than a route wave.  Probe five ranked
+    # fallbacks before declaring the placement sweep unrealizable; only a
+    # candidate that passes can consume one of ``route_candidates``.
+    topK = _placement_probe_pool(placed, a.route_candidates, fallbacks=5)
     log("ROUTE: probe %d top placement(s), route up to %d -> %s"
         % (len(topK), a.route_candidates,
            [(t[0].strat, t[0].seed, t[0].residual) for t in topK]))
@@ -722,9 +1105,11 @@ def main():
         try:
             mat = os.path.abspath(os.path.join(a.out, "hub-cand%d.kicad_pcb" % rank))
             _, nmoved, pour_report = materialize_onto_reference(
-                cand, REF, mat, pinned_refs=cand_cfg.pins)
+                cand, REF, mat, pinned_refs=cand_cfg.pins,
+                params=cand_cfg.params)
             log("  materialized cand%d onto six-layer reference (%d components repositioned; "
                 "%d rails -> %d %s polygons, %d bridge vias; %d guarded pre-route pickups; "
+                "%d early connector-power links; "
                 "%d guarded same-footprint links; "
                 "%d guarded local power links; "
                 "%d guarded local signal links; "
@@ -733,12 +1118,14 @@ def main():
                 % (rank, nmoved, pour_report["rails"], pour_report["polygons"],
                    pour_report["planner"], pour_report["vias"],
                    pour_report["pre_route_finish"]["power_pickups"]["vias"],
+                   pour_report["pre_route_finish"]["early_connector_power"]["linked"],
                    pour_report["pre_route_finish"]["same_footprint_links"]["linked"],
                    pour_report["pre_route_finish"]["local_power_bypass"]["linked"],
                    pour_report["pre_route_finish"]["local_signal_links"]["linked"],
                    pour_report["pre_route_finish"]["local_rail_finish"]["closed"],
                    pour_report["uuid_normalization"]["rewritten"]))
-            pre_route = _pre_route_materialization_gate(mat)
+            pre_route = _pre_route_materialization_gate(
+                mat, pour_report.get("pre_route_finish"))
             report["materializations"].append({
                 "rank": rank, "board": os.path.relpath(mat, S.ROOT),
                 "pour_report": pour_report, "pre_route_gate": pre_route,
@@ -749,6 +1136,15 @@ def main():
                 continue
             log("  cand%d: pre-route copper-contact gate PASS (%s)"
                 % (rank, pre_route["types"]))
+            if a.materialize_only:
+                report["materialize_only"] = True
+                report["elapsed_s"] = round(time.time() - t0, 1)
+                with open(os.path.join(a.out, "report.json"), "w",
+                          encoding="utf-8") as out_file:
+                    json.dump(report, out_file, indent=2, default=str)
+                log("=== DONE in %.0fs. materialized candidate: %s ===" %
+                    (report["elapsed_s"], os.path.relpath(mat, S.ROOT)))
+                return 0
             remaining = deadline - time.time()
             slots = max(1, a.route_candidates - route_attempts)
             opt = int(max(15, min(50, remaining / slots / 8)))   # per-seed opt seconds within budget
@@ -765,7 +1161,9 @@ def main():
                 mat, os.path.abspath(os.path.join(a.out, "route-cand%d" % rank)),
                 seeds=route_seeds, passes=route_passes, opt_time=opt,
                 max_iters=max_iters, kmax=2, max_workers=route_workers,
-                fr_timeout=fr_timeout)
+                fr_timeout=fr_timeout,
+                precision=bool(cand_cfg.params.get("wave_precision", True)),
+                precision_pair_grid=bool(cand_cfg.params.get("wave_pair_grid", True)))
             # CONTROL PLANE: judge+fix tiers per the resolved residency (cloud Claude / local broker /
             # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
             # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
@@ -786,20 +1184,37 @@ def main():
             m = cec_score.score(final, rules)
             n_conf_fail, conf_rows = _conformance(  # synth-relevant geometry gate
                 final, cand_cfg, log)
-            cand_cfg.params["thermal_field"] = True
-            try:
-                th, physics_flags = S.physics(final, cand_cfg)
-                et = {"max_T": round(getattr(th, "max_T", float("nan")), 1),
-                      "max_dT": round(getattr(th, "max_dT", float("nan")), 1),
-                      "calibration": getattr(th, "calibration", "unknown"),
-                      "flags": [{"name": f.name, "where": str(f.where), "detail": f.detail}
-                                for f in physics_flags]}
-            except Exception as e:
-                physics_flags = [S.Flag("Hub physics failed", final, 1.0, S.Kind.MEASURE,
-                                        {"error": "%s: %s" % (type(e).__name__, e)})]
-                et = {"error": "%s: %s" % (type(e).__name__, e),
-                      "flags": [{"name": physics_flags[0].name,
-                                 "detail": physics_flags[0].detail}]}
+            physics_ok, physics_prereq = _physics_route_prerequisite(
+                route_verdict)
+            if not physics_ok:
+                physics_flags = [S.Flag(
+                    "Hub physics blocked by incomplete route", final, 1.0,
+                    S.Kind.MEASURE, physics_prereq)]
+                et = {
+                    "status": "blocked",
+                    "reason": "FEM requires DRC-clean zero-open topology",
+                    **physics_prereq,
+                    "flags": [{"name": physics_flags[0].name,
+                               "where": str(physics_flags[0].where),
+                               "detail": physics_flags[0].detail}],
+                }
+            else:
+                cand_cfg.params["thermal_field"] = True
+                try:
+                    th, physics_flags = S.physics(final, cand_cfg)
+                    et = {"max_T": round(getattr(th, "max_T", float("nan")), 1),
+                          "max_dT": round(getattr(th, "max_dT", float("nan")), 1),
+                          "calibration": getattr(th, "calibration", "unknown"),
+                          "flags": [{"name": f.name, "where": str(f.where),
+                                     "detail": f.detail}
+                                    for f in physics_flags]}
+                except Exception as e:
+                    physics_flags = [S.Flag(
+                        "Hub physics failed", final, 1.0, S.Kind.MEASURE,
+                        {"error": "%s: %s" % (type(e).__name__, e)})]
+                    et = {"error": "%s: %s" % (type(e).__name__, e),
+                          "flags": [{"name": physics_flags[0].name,
+                                     "detail": physics_flags[0].detail}]}
             acceptance, accepted = _acceptance_terms(
                 route_verdict, n_conf_fail, physics_flags,
                 report.get("policy_ok"), (report.get("ref_intake") or {}).get("ok"))

@@ -14,9 +14,124 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+
+
+def _artifact_command(command, artifact, *, timeout, text=False, attempts=2,
+                      validator=None):
+    """Run a renderer command and require its promised artifact.
+
+    KiCad's headless renderer occasionally exits non-zero when another pcbnew
+    process is starting at the same instant (observed in the dashboard's real
+    six-layer test after a large pcbnew batch).  One short retry makes that
+    transient harmless without hiding persistent failures; the final result is
+    returned so callers can surface its diagnostics.
+    """
+    result = None
+    for attempt in range(max(1, int(attempts))):
+        try:
+            os.unlink(str(artifact))
+        except OSError:
+            pass
+        result = subprocess.run(command, capture_output=True, text=text,
+                                timeout=timeout)
+        valid = (validator(str(artifact)) if (
+            result.returncode == 0 and os.path.isfile(str(artifact))
+            and validator is not None) else True)
+        if (result.returncode == 0 and os.path.isfile(str(artifact))
+                and valid):
+            return result
+        if attempt + 1 < max(1, int(attempts)):
+            time.sleep(0.15)
+    return result
+
+
+def _board_render_valid(path):
+    """Reject KiCad's rare exit-0, nearly-empty concurrent render artifact."""
+    try:
+        from PIL import Image
+        import numpy as np
+
+        with Image.open(path) as source:
+            image = source.convert("RGB")
+            image.thumbnail((320, 320))
+            pixels = np.asarray(image, dtype=np.int16)
+        if pixels.ndim != 3 or min(pixels.shape[:2]) < 16:
+            return False
+        # The headless renderer uses a uniform margin. A valid board occupies a
+        # substantial two-dimensional extent even with black soldermask; the
+        # raced artifact observed in parallel dashboard work contains only a
+        # few isolated pads on the otherwise uniform background.
+        background = pixels[0, 0]
+        mask = np.abs(pixels - background).sum(axis=2) > 24
+        ys, xs = np.where(mask)
+        if len(xs) < max(64, int(mask.size * 0.01)):
+            return False
+        extent = ((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1))
+        return extent >= int(mask.size * 0.08)
+    except Exception:                                  # noqa: BLE001
+        # A missing image-validation dependency must not make rendering
+        # unusable; artifact existence/return-code checks remain the fallback.
+        return True
+
+
+def _render_failure(stage, result=None, exc=None):
+    """Keep unattended render failures diagnosable instead of returning a mute None."""
+    detail = ""
+    if exc is not None:
+        detail = "%s: %s" % (type(exc).__name__, exc)
+    elif result is not None:
+        err = result.stderr or result.stdout or ""
+        if isinstance(err, bytes):
+            err = err.decode("utf-8", "replace")
+        detail = "rc=%s %s" % (result.returncode, str(err).strip()[-500:])
+    print("[cec_render] %s failed%s" %
+          (stage, (": " + detail) if detail else ""), file=sys.stderr)
+
+
+def status_banner(image_path, label, *, severity="failure"):
+    """Put review status inside a render so screenshots retain provenance."""
+    if not image_path or not os.path.isfile(str(image_path)):
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        with Image.open(str(image_path)) as source:
+            image = source.convert("RGB")
+        palette = {
+            "failure": ((142, 24, 31), (255, 255, 255)),
+            "warning": ((166, 96, 0), (255, 255, 255)),
+            "candidate": ((20, 92, 63), (255, 255, 255)),
+        }
+        background, foreground = palette.get(
+            str(severity).lower(), palette["warning"])
+        height = max(30, min(72, int(round(image.height * 0.055))))
+        size = max(14, int(round(height * 0.48)))
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", size)
+        except OSError:
+            font = ImageFont.load_default()
+        banner = Image.new("RGB", (image.width, height), background)
+        draw = ImageDraw.Draw(banner)
+        text_value = str(label).strip().upper()
+        box = draw.textbbox((0, 0), text_value, font=font)
+        text_height = box[3] - box[1]
+        draw.text((max(8, height // 4), (height - text_height) // 2 - box[1]),
+                  text_value, fill=foreground, font=font)
+        composed = Image.new("RGB", (image.width, image.height + height), background)
+        composed.paste(banner, (0, 0))
+        composed.paste(image, (0, height))
+        composed.save(str(image_path))
+        composed.close()
+        image.close()
+        banner.close()
+        return str(image_path)
+    except Exception as exc:                              # noqa: BLE001
+        _render_failure("status banner", exc=exc)
+        return None
 
 
 def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, timeout=180):
@@ -59,7 +174,10 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
             # root). Build artifacts live at arbitrary depths, so rewrite to the absolute
             # repo lib in the DISPOSABLE copy -- bodies render from anywhere.
             root = os.path.dirname(HERE)
-            with open(tmp) as fh:
+            # Board text may contain Greek symbols and other UTF-8 labels.  Do
+            # not inherit a process locale that a preceding test or service
+            # launch changed to ASCII.
+            with open(tmp, encoding="utf-8") as fh:
                 doc = fh.read().replace("${KIPRJMOD}/../../lib/", root + "/lib/")
             if no_bodies:
                 # strip 3D model references (owner ask 2026-07-08: bodies hide the
@@ -86,14 +204,19 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
                         k += 1
                     i = k + 1
                 doc = "".join(out_doc)
-            with open(tmp, "w") as fh:
+            with open(tmp, "w", encoding="utf-8") as fh:
                 fh.write(doc)
             src = tmp
-        r = subprocess.run(["kicad-cli", "pcb", "render", "-o", str(out_png),
-                            "--side", side, src],
-                           capture_output=True, timeout=timeout)
-        return str(out_png) if (r.returncode == 0 and os.path.isfile(str(out_png))) else None
-    except Exception:                                      # noqa: BLE001
+        r = _artifact_command(
+            ["kicad-cli", "pcb", "render", "-o", str(out_png),
+             "--side", side, src], out_png, timeout=timeout,
+            validator=_board_render_valid)
+        if r.returncode == 0 and os.path.isfile(str(out_png)):
+            return str(out_png)
+        _render_failure("%s-side board render" % side, r)
+        return None
+    except Exception as exc:                               # noqa: BLE001
+        _render_failure("%s-side board render" % side, exc=exc)
         return None
     finally:
         if tmp:
@@ -118,16 +241,17 @@ def main():
     ap.add_argument("--silk", action="store_true", help="keep silkscreen (default: stripped)")
     ap.add_argument("--no-bodies", action="store_true",
                     help="strip all 3D models from the disposable render copy")
+    ap.add_argument("--hex", action="store_true",
+                    help="render the dashboard review tile with every copper layer")
     ap.add_argument("--timeout", type=int, default=180)
     args = ap.parse_args()
-    out = render(args.board, args.out, side=args.side, no_silk=not args.silk,
-                 no_bodies=args.no_bodies, timeout=args.timeout)
+    if args.hex:
+        out = hex_panel(args.board, args.out, timeout=args.timeout)
+    else:
+        out = render(args.board, args.out, side=args.side, no_silk=not args.silk,
+                     no_bodies=args.no_bodies, timeout=args.timeout)
     print(out or "RENDER FAILED")
     return 0 if out else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
 
 
 def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
@@ -182,16 +306,20 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
         return finish(None)
     for key, layer in _lname.items():
         svg = os.path.join(wd, key + ".svg")
-        r = subprocess.run(["kicad-cli", "pcb", "export", "svg", "--layers",
-                            layer + ",Edge.Cuts", "--page-size-mode", "2",
-                            "--exclude-drawing-sheet", "-o", svg, board_path],
-                           capture_output=True, text=True, timeout=timeout)
+        r = _artifact_command(
+            ["kicad-cli", "pcb", "export", "svg", "--layers",
+             layer + ",Edge.Cuts", "--page-size-mode", "2",
+             "--exclude-drawing-sheet", "-o", svg, board_path],
+            svg, timeout=timeout, text=True)
         if r.returncode != 0 or not os.path.isfile(svg):
+            _render_failure("%s SVG export" % layer, r)
             return finish(None)
         png = os.path.join(wd, key + ".png")
-        subprocess.run(["rsvg-convert", "-w", "900", "-o", png, svg],
-                       capture_output=True, timeout=timeout)
-        if not os.path.isfile(png):
+        rr = _artifact_command(
+            ["rsvg-convert", "-w", "900", "-o", png, svg],
+            png, timeout=timeout)
+        if rr.returncode != 0 or not os.path.isfile(png):
+            _render_failure("%s SVG rasterization" % layer, rr)
             return finish(None)
         tiles[key] = png
 
@@ -247,3 +375,7 @@ def hex_panel(board_path, out_png, *, side_pngs=None, timeout=300):
     out.save(out_png)
     out.close()
     return finish(out_png)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

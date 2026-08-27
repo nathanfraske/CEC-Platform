@@ -4,4 +4,5 @@
   (lib (name "cec-Connector_Blade")(type "KiCad")(uri "${KIPRJMOD}/../../../lib/vendor/Connector_Blade.pretty")(options "")(descr "Vendored, pinned -- TE 63849-1 (unreferenced) + TE 63951-1 FASTON tabs / Keystone blade clips"))
   (lib (name "cec-Connector_Generic")(type "KiCad")(uri "${KIPRJMOD}/../../../lib/vendor/Connector_Generic.pretty")(options "")(descr "Bare THT solder-field footprints, per §2.8 v1.4.0 daughterboard output side"))
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Connector_Screw")(type "KiCad")(uri "${KIPRJMOD}/../../../lib/vendor/Connector_Screw.pretty")(options "")(descr "CEC reviewed XFCN high-current screw-terminal footprints; prototype qualification gated"))
 )

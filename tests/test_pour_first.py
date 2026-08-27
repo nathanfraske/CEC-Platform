@@ -12,6 +12,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -19,6 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_slab_pour  # noqa: E402
+import cec_fr  # noqa: E402
 from cec_slab_pour import (  # noqa: E402
     Grid,
     _nowhere_zone_verdict,
@@ -34,7 +36,10 @@ from cec_slab_pour import (  # noqa: E402
 )
 
 MM = 1e6
-_LAY = {"F.Cu": 0, "In1.Cu": 1, "In2.Cu": 2, "B.Cu": 31}
+# Match KiCad's canonical copper-layer IDs.  The production layer-policy helper
+# deliberately translates only these IDs; invented sequential test IDs make a
+# six-layer fake appear to have only F/B copper and hide its In2 anchors.
+_LAY = {"F.Cu": 0, "In1.Cu": 4, "In2.Cu": 6, "B.Cu": 2}
 _ALL_CU = list(_LAY.values())
 
 
@@ -154,6 +159,13 @@ class _Board:
     def GetLayerID(self, name):
         return _LAY.get(name, -1)
 
+    def GetEnabledLayers(self):
+        class _Enabled:
+            @staticmethod
+            def CuStack():
+                return list(_ALL_CU)
+        return _Enabled()
+
     def GetNetInfo(self):
         return self._ni
 
@@ -248,12 +260,38 @@ class TestConnectorManifolds(unittest.TestCase):
 
     def test_footprint_copper_graphics_are_via_obstacles(self):
         fp = _FP("LOGO1", [], [_Graphic(_LAY["B.Cu"], (4.0, 5.0, 8.0, 9.0)),
+                               _Graphic(_LAY["F.Cu"], (10.0, 11.0, 12.0, 13.0)),
                                _Graphic(99, (20.0, 21.0, 22.0, 23.0))])
         board = _Board(30, 30, [fp], {})
         boxes = footprint_copper_boxes(
             board, is_copper_layer=lambda layer: layer in _ALL_CU)
-        self.assertEqual(boxes, [(4.0, 5.0, 8.0, 9.0)],
+        self.assertEqual(boxes, [(4.0, 5.0, 8.0, 9.0),
+                                 (10.0, 11.0, 12.0, 13.0)],
                          "only actual footprint copper may block the via field")
+        self.assertEqual(
+            footprint_copper_boxes(
+                board, layer_id=_LAY["B.Cu"],
+                is_copper_layer=lambda layer: layer in _ALL_CU),
+            [(4.0, 5.0, 8.0, 9.0)],
+            "layer search must see only artwork on its active copper layer")
+
+    def test_raster_search_blocks_copper_artwork_on_active_layer(self):
+        fp = _FP("LOGO1", [], [_Graphic(_LAY["B.Cu"], (4.0, 5.0, 8.0, 9.0)),
+                               _Graphic(_LAY["F.Cu"], (14.0, 15.0, 18.0, 19.0))])
+        board = _Board(30, 30, [fp], {})
+        grid = Grid(board, 0.8)
+        fake_pcbnew = mock.Mock(
+            Edge_Cuts=44,
+            IsCopperLayer=lambda layer: layer in _ALL_CU)
+
+        with mock.patch.object(cec_slab_pour, "pcbnew", fake_pcbnew):
+            back_foreign, _ = cec_slab_pour.rasterize(
+                board, 1, _LAY["B.Cu"], grid, clearance_mm=0.3)
+
+        self.assertTrue(back_foreign[grid.iy(7.0), grid.ix(6.0)],
+                        "the router must not plan through rear-logo copper")
+        self.assertFalse(back_foreign[grid.iy(17.0), grid.ix(16.0)],
+                         "front artwork must not consume a back-layer corridor")
 
 
 def _attach_scene():
@@ -549,6 +587,38 @@ class TestEnumerateWinning(unittest.TestCase):
             [m1, m2], [], no_path_nets=["/X"])
         self.assertIn(m1, kept)
         self.assertIn(m2, kept)
+
+
+class TestFrozenPowerStateContract(unittest.TestCase):
+    def test_explicit_empty_ownership_does_not_freeze_report_keys(self):
+        state = {
+            "schema": 2,
+            "frozen_nets": [],
+            "pours": [],
+            "vias": [],
+            "report": {
+                "+5VSB": {"path_found": True, "trivial": True,
+                           "groups": {"delegated": 10}},
+            },
+        }
+        pours, vias, nets = cec_fr._frozen_power_state_parts(state)
+        self.assertEqual(pours, [])
+        self.assertEqual(vias, [])
+        self.assertEqual(nets, set())
+
+    def test_prelaid_state_owns_nets_without_duplicate_geometry(self):
+        state = {
+            "schema": 2,
+            "prelaid": True,
+            "frozen_nets": ["+5VSB"],
+            "pours": [{"net": "+5VSB", "polygon": [[0, 0], [1, 0],
+                                                        [1, 1], [0, 1]]}],
+            "vias": [{"net": "+5VSB", "x_mm": 0.5, "y_mm": 0.5}],
+        }
+        pours, vias, nets = cec_fr._frozen_power_state_parts(state)
+        self.assertEqual(pours, [])
+        self.assertEqual(vias, [])
+        self.assertEqual(nets, {"+5VSB"})
 
 
 _IN_CONTAINER = (os.path.exists("/.dockerenv")

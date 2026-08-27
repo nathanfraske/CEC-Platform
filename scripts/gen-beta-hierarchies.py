@@ -48,7 +48,7 @@ CONFIG = {
     "hub-standard-rev2": {
         "live": "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch",
         "archive": "old-revisions/beta/hub-standard-rev2-flat-2026-08-02/hub-standard-rev2.kicad_sch",
-        # The old H2 boost -> second-buck reservation was deliberately never a
+        # The old L2 boost -> second-buck reservation was deliberately never a
         # complete application circuit (its inductor and several mandatory
         # passives were bench-TBD).  It is preserved in the archived flat
         # capture, but carrying the position-only rung in the live BETA wastes
@@ -104,9 +104,9 @@ CONFIG = {
         },
         "leaves": [
             ("01-power-input-selection", "POWER INPUT + SOURCE SELECTION",
-             "Three TPS2121 stages, protected inputs, current limits, OV thresholds and local reservoirs.",
-             rows("J_PWR D8 D9 U5 U7 U11", "C9 C15 C22 C23 C24 C25 C26 C27 C28 C_SS1 C_SS2 C_SS3 C_bulk1",
-                  "R_ILIM1 R_ILIM2 R_ILIM3 R33 R34 R35 R36 R37 R38")),
+             "Two TPS2121 stages: stack +5V_SYS primary, protected USB/KVM backup, OV/current limits and local reservoirs.",
+             rows("D8 U7 U11", "C15 C22 C23 C25 C26 C27 C28 C_SS2 C_SS3 C_bulk1",
+                  "R_ILIM2 R_ILIM3 R35 R36 R37 R38")),
             ("02-holdup-3v3", "HOLD-UP + 3V3 REGULATOR",
              "5VSB loss detection precedes the hold-up diode; shutdown is requested before reservoir or regulator dropout.",
              rows("D1 C1 RJ_HOLD", "U3 L1 C2 C3 U8 C17",
@@ -120,7 +120,7 @@ CONFIG = {
                   "C5 C7 C18 C19 C20 C21 R3 R4 R5 R6 R7 R8")),
             ("05-kvm-aux-sensors", "KVM AUXILIARY + RAIL SENSING",
              "Fused KVM feed, UART, rail dividers and hub temperature sensing.",
-             rows("J_KVM F5 D7 TH1", "C16 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25")),
+             rows("J_KVM F5 D7 TH1", "C16 R15 R16 R19 R20 R21 R22 R23 R24 R25")),
             ("06-status-leds", "STATUS LED CHAIN",
              "Level-shifted, series-damped six-device addressable status ring.",
              rows("U6 R14 DL1 DL2 DL3 DL4 DL5 DL7", "C14 C29 C30 C31 C32 C33 C34")),
@@ -506,7 +506,7 @@ def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
     c.wire(held, c1_top, rj_hold_in)
     c.wire(rj_hold_out, c2_top, vin)
     c.wire(vin, (vin[0] - 4, vin[1]), (vin[0] - 4, en[1]), en)
-    c.wire(sw, l_in)
+    c.wire(sw, (96, sw[1]), l_in)
     c.wire(l_out, c3_top, fb_top)
     c.wire(fb, (116, fb[1]), (116, fb_mid[1]), fb_mid, fb_bot_top)
     c.stamp("+5VSB", *live, 0)
@@ -546,8 +546,9 @@ def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
     th_bot, th_gnd = c.pin("R27", "1"), c.pin("R27", "2")
 
     c.wire(sense, csense, u_sense)
-    c.wire(fail, (78, fail[1]), (78, hyst_out[1]), hyst_out)
-    c.wire(hyst_thresh, (96, hyst_thresh[1]), (96, thresh[1]), thresh, th_node)
+    c.wire(fail, (70, fail[1]), (70, hyst_out[1]), hyst_out)
+    c.wire(hyst_thresh, (96, hyst_thresh[1]), (96, 118),
+           (96, thresh[1]), thresh, th_node)
     c.wire(uvcc, cvcc)
     c.stamp("+5VSB", *r12_hi, 0)
     c.stamp("GND", *r13_gnd, 0); c.stamp("GND", *csense_gnd, 0)
@@ -559,7 +560,7 @@ def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
         c.wire(u_sense, (65, u_sense[1]), (65, 145), (25, 145))
         c.hier("BLACKOUT_SENSE", 25, 145, 180)
     if "PWR_FAIL_INT" in lf.hier_exports:
-        c.wire(fail, (70, fail[1]), (70, 115), (25, 115))
+        c.wire((70, fail[1]), (70, 115), (25, 115))
         c.hier("PWR_FAIL_INT", 25, 115, 180)
     c.use(*[(r, p) for r, pins in {
         "R12": ("1", "2"), "R13": ("1", "2"), "C12": ("1", "2"),
@@ -568,7 +569,7 @@ def _compose_hub_holdup(c: C.Compose, lf: C.Leaf):
     }.items() for p in pins])
     c.region("LIVE 5VSB DROPOUT DETECTOR", 15, 92, 130, 153)
 
-    c.note("The incomplete H2 boost/secondary-buck reservation is archived, not fitted on the live BETA.",
+    c.note("The incomplete L2 boost/secondary-buck reservation is archived, not fitted on the live BETA.",
            150, 184, 1.05)
 
 

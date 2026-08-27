@@ -132,9 +132,14 @@ def _set_properties(text, profile_name):
             text = pat.sub(row.strip(), text, count=1)
         else:
             marker = "\n\t(embedded_fonts no)"
-            if marker not in text:
+            position = text.rfind(marker)
+            if position < 0:
                 raise ValueError("board has no top-level embedded_fonts marker")
-            text = text.replace(marker, "\n" + row + marker, 1)
+            # Generated footprints may themselves use one-tab indentation and
+            # contain ``embedded_fonts``. The board-level marker is the last
+            # one before the root close; first-match insertion silently puts
+            # fabrication authority inside a footprint on those files.
+            text = text[:position] + "\n" + row + text[position:]
     return text
 
 
@@ -149,6 +154,59 @@ def _set_pofv_defaults(text):
                 raise ValueError("board setup lacks solder-mask defaults")
             text = text.replace(marker, marker + "\n\t\t(%s yes)" % name, 1)
     return text
+
+
+def declare_profile(path, profile_name, *, write=True):
+    """Persist an already-realized fabrication contract without moving copper.
+
+    Derived and archived boards may preserve the exact approved six-layer
+    stackup while losing the four top-level CEC properties that authorize POFV.
+    Inferring that authority from a filename would be unsafe.  This operation
+    therefore requires an explicit profile, inserts metadata only, and then
+    runs the complete physical stackup/profile validator before replacing the
+    input.  A four-layer or otherwise mismatched board is refused unchanged.
+    """
+    path = os.path.abspath(path)
+    fab.get_profile(profile_name)
+    board = pcbnew.LoadBoard(path)
+    if board is None:
+        raise ValueError("KiCad could not load %s" % path)
+    declared = fab.board_profile_name(board)
+    if declared and declared != profile_name:
+        raise ValueError(
+            "board declares %r, refusing explicit profile %r" %
+            (declared, profile_name))
+    with open(path, encoding="utf-8") as handle:
+        original = handle.read()
+    updated = _set_properties(original, profile_name)
+    changed = updated != original
+
+    fd, tmp = tempfile.mkstemp(prefix="cec_profile_", suffix=".kicad_pcb",
+                               dir=os.path.dirname(path))
+    os.close(fd)
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(updated)
+        declared_board = pcbnew.LoadBoard(tmp)
+        errors = cec_constraints._fab_profile_errors(
+            declared_board, tmp, profile_name)
+        if errors:
+            raise ValueError(
+                "profile declaration refused: " + "; ".join(errors))
+        if write and changed:
+            os.replace(tmp, path)
+            tmp = None
+        return {
+            "path": path,
+            "profile": profile_name,
+            "vendor_stackup": fab.get_profile(profile_name)["vendor_stackup"],
+            "changed": changed,
+            "written": bool(write and changed),
+            "geometry_changed": False,
+        }
+    finally:
+        if tmp and os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def migrate_board(path, *, board_hint=None, profile_name=None, write=True):
@@ -188,7 +246,11 @@ def migrate_board(path, *, board_hint=None, profile_name=None, write=True):
             _balanced_zone for _balanced_zone in re.findall(
                 r'\(zone[\s\S]*?\n\t\)', text)):
         marker = "\n\t(embedded_fonts no)"
-        text = text.replace(marker, "\n" + _gnd_plane_text(board) + marker, 1)
+        position = text.rfind(marker)
+        if position < 0:
+            raise ValueError("board has no top-level embedded_fonts marker")
+        text = (text[:position] + "\n" + _gnd_plane_text(board)
+                + text[position:])
 
     fd, tmp = tempfile.mkstemp(prefix="cec_6l_", suffix=".kicad_pcb",
                                dir=os.path.dirname(path))

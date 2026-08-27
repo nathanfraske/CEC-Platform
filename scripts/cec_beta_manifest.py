@@ -48,7 +48,11 @@ PROJECTS = (
         "directory": "hub-standard-rev2",
         "project": "hub-standard-rev2",
         "schematic": "hub-standard-rev2.kicad_sch",
-        "pcb": None,
+        # The candidate directory is the current beta placement authority.
+        # Leaving this empty forced every canonical-pipeline invocation to
+        # accept an arbitrary --input-board path, which allowed old probes to
+        # masquerade as the current Hub board.
+        "pcb": "candidate/hub-standard-rev2-candidate.kicad_pcb",
         "wave": True,
     },
     {
@@ -56,7 +60,11 @@ PROJECTS = (
         "directory": "pcie-8pin-2port",
         "project": "pcie8pin-2port-module",
         "schematic": "pcie8pin-2port-module.kicad_sch",
-        "pcb": "pcie8pin-2port-module.kicad_pcb",
+        # The root board predates the current hierarchical source.  The
+        # schematic-derived candidate is the live placement authority; keeping
+        # the old board here made canonical runs report C41-C45/D3/D4/F1 as
+        # missing even after a successful current-source wave published them.
+        "pcb": "candidate/pcie-8pin-2port-candidate.kicad_pcb",
         "wave": True,
     },
     {
@@ -64,7 +72,11 @@ PROJECTS = (
         "directory": "pcie-8pin-3port",
         "project": "pcie8pin-3port-module",
         "schematic": "pcie8pin-3port-module.kicad_sch",
-        "pcb": "pcie8pin-3port-module.kicad_pcb",
+        # The root PCB is an older 58-footprint flat-board artifact.  The
+        # candidate carries the current hierarchical placement (and exposes
+        # any remaining missing refs to intake instead of hiding them behind
+        # the much older root board).
+        "pcb": "candidate/pcie-8pin-3port-candidate.kicad_pcb",
         "wave": True,
     },
     {
@@ -95,12 +107,29 @@ PROJECTS = (
 
 CURRENT_BETA_BOARDS = tuple(p["board"] for p in PROJECTS)
 WAVE_BOARDS = tuple(p["board"] for p in PROJECTS if p["wave"])
+# Boards covered by the Standard main-board electrical review.  Keep this as
+# executable manifest data so a prose review cannot silently omit a current
+# product (the Hub omission that prompted this gate).
+STANDARD_MAIN_BOARDS = (
+    "atx-24pin-rev3",
+    "eps-8pin-rev3",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port",
+    "12vhpwr-standard",
+    "hub-standard-rev2",
+)
 BY_BOARD = {p["board"]: p for p in PROJECTS}
 
 
-def project_paths(beta_root: str):
+def project_paths(beta_root: str, boards=None):
     """Yield ``(board, directory, schematic)`` for declared current projects."""
+    selected = set(CURRENT_BETA_BOARDS if boards is None else boards)
+    unknown = selected - set(CURRENT_BETA_BOARDS)
+    if unknown:
+        raise ValueError(f"unknown current BETA board(s): {', '.join(sorted(unknown))}")
     for project in PROJECTS:
+        if project["board"] not in selected:
+            continue
         directory = os.path.join(beta_root, project["directory"])
         schematic = os.path.join(directory, project["schematic"])
         if not os.path.isfile(schematic):
@@ -118,6 +147,11 @@ def validate(root: str) -> list[str]:
         errors.append("duplicate board key in current BETA manifest")
     if "eps-8pin" in BY_BOARD:
         errors.append("obsolete EPS product key is present; only eps-8pin-rev3 is current")
+    if len(set(STANDARD_MAIN_BOARDS)) != len(STANDARD_MAIN_BOARDS):
+        errors.append("duplicate board key in Standard main-board review scope")
+    for board in STANDARD_MAIN_BOARDS:
+        if board not in BY_BOARD:
+            errors.append(f"Standard main-board review references unknown board: {board}")
     for project in PROJECTS:
         directory = os.path.join(beta_root, project["directory"])
         paths = {

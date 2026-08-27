@@ -237,6 +237,11 @@ VERIFIED = {
         "MPN": "CL21A106KAYNNNE",
         "Datasheet": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
     },
+    "C1779": {
+        "Manufacturer": "Samsung",
+        "MPN": "CL21A475KAQNNNE",
+        "Datasheet": "https://product.samsungsem.com/mlcc/CL21A475KAQNNN.do",
+    },
     "C15849": {
         "Manufacturer": "Samsung",
         "MPN": "CL10A105KB8NNNC",

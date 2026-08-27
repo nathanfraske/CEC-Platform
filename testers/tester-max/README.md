@@ -1,5 +1,10 @@
 # Tester Max — main board
 
+> **STOP WORK — mandatory gate (2026-08-10).** This design must not advance,
+> inherit present Standard/Pro cells, or be fabricated until
+> `docs/tester-stop-work-reconciliation-gate-2026-08-10.md` is explicitly
+> released.
+
 DRAFT — no schematic yet. Design basis: docs/psu-tester-exploration-2026-07-14.md
 (§6 addendum), docs/psu-tester-architecture-sketch-2026-07-16.md (§8/§8a),
 docs/max-part-selection-2026-07-05.md (the digitizer lane of record),

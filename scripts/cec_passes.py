@@ -23,6 +23,7 @@ S1 invariants (do NOT break without the ablation discipline):
   * Turning a lock or a gate on is later fixed-seed ablation work -- one lever at a time --
     NOT a default here.
 """
+import math
 import time
 
 
@@ -68,16 +69,33 @@ class GateFailure(RuntimeError):
 
 # ------------------------------------------------------------------ position equality
 def _pos_eq(a, b):
-    """Positions are (x, y, rot) tuples. Exact equality: a benign re-assignment to the SAME
-    value is not a 'move', a real coordinate change is."""
+    """Physical equality for ``(x, y, rotation)`` placement tuples.
+
+    KiCad and the placement transforms may serialize the same orientation as
+    ``-90`` or ``270`` and can introduce sub-nanometre float noise on an
+    otherwise unchanged coordinate.  Those are not physical moves and must not
+    trip progressive locks.  The tolerance is 10 nm; a real grid move remains
+    many orders of magnitude larger.
+    """
     if a is b:
         return True
     if a is None or b is None:
         return a is b
     try:
-        return tuple(a) == tuple(b)
+        left, right = tuple(a), tuple(b)
     except TypeError:
         return a == b
+    if len(left) == len(right) == 3:
+        try:
+            xy_equal = all(math.isclose(float(left[index]), float(right[index]),
+                                        rel_tol=0.0, abs_tol=1e-5)
+                           for index in (0, 1))
+            angle_delta = ((float(left[2]) - float(right[2]) + 180.0)
+                           % 360.0) - 180.0
+            return xy_equal and abs(angle_delta) <= 1e-6
+        except (TypeError, ValueError):
+            pass
+    return left == right
 
 
 # ------------------------------------------------------------------ Pass declaration

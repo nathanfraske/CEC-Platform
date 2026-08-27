@@ -1,4 +1,3 @@
 "Comment","Designator","Footprint","LCSC Part #"
 "ATX24 OUT FIELD","J1","cec-Connector_Generic:ATX24_Daughterboard_Field_P4.20mm",""
-"TE 63951-1","J10,J11,J12,J13,J14,J15,J16,J17,J18,J19","cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT","C591344"
-"TSW-104-12-G-S-RA","J20","cec-Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Horizontal_LongPin",""
+"TSW-102-16-G-D-RA","J20","cec-Connector_PinHeader_2.54mm:Samtec_TSW-102-16-G-D-RA_2x02_P2.54mm_Horizontal",""

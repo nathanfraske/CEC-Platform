@@ -90,7 +90,7 @@ if ($java) {
 # --- xvfb: NOT needed on Windows ---
 Note "xvfb" "n/a on Windows (Java uses the native display; run the runner in an interactive desktop session)"
 
-# --- Freerouting cec2 jar (required; conventional paths are hash-verified) ---
+# --- Freerouting pinned jar (required; conventional paths are hash-verified) ---
 if ($py) {
   $jarProbe = "import os,sys; sys.path.insert(0, os.path.join(r'$repo','scripts')); import cec_fr; print(cec_fr.ensure_jar())"
   $jarPath = (& $py -c $jarProbe 2>$null | Select-Object -Last 1)
@@ -98,7 +98,7 @@ if ($py) {
     $mode = if ($env:CEC_FREEROUTING_JAR) { "explicit override" } else { "hash verified" }
     Note "freerouting jar" "OK ($mode, $jarPath)"
   } else {
-    Bad "freerouting jar" "missing or hash mismatch; rebuild cec2 using ops/README-fr-fork.md"
+    Bad "freerouting jar" "missing or hash mismatch; rebuild cec3 using scripts/build-freerouting-cec3.sh in WSL"
   }
 } else {
   Bad "freerouting jar" "cannot verify without KiCad python"

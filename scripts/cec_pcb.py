@@ -82,6 +82,7 @@ def local_pads(libid):
 
 _PADSZ_CACHE = {}
 _PADBOX_CACHE = {}
+_PADGEOM_CACHE = {}
 
 
 def local_pad_boxes(libid):
@@ -133,6 +134,38 @@ def local_pad_sizes(libid):
         if num and sz and num.group(1):
             out[num.group(1)] = (float(sz.group(1)), float(sz.group(2)))
     _PADSZ_CACHE[libid] = out
+    return out
+
+
+def local_pad_geometries(libid):
+    """{pad-number: (lx, ly, sx, sy, rotation_deg)} in footprint-local space.
+
+    Unlike :func:`local_pad_sizes`, this retains each pad's own rotation.  It
+    is intended for pad-clear escape and placement checks where replacing a
+    narrow rectangular fine-pitch land with its half-diagonal circle is too
+    conservative: that circle can overlap the neighbouring pin centre and
+    falsely declare every package-exterior escape impossible.
+    """
+    if libid in _PADGEOM_CACHE:
+        return _PADGEOM_CACHE[libid]
+    nick, name = libid.split(":")
+    with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
+        t = handle.read()
+    out = {}
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        if "np_thru_hole" in b.split("\n")[0]:
+            continue
+        num = re.match(r'\(pad "([^"]*)"', b)
+        at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', b)
+        sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if not (num and num.group(1) and at and sz):
+            continue
+        out[num.group(1)] = (
+            float(at.group(1)), float(at.group(2)),
+            float(sz.group(1)), float(sz.group(2)),
+            float(at.group(3) or 0.0))
+    _PADGEOM_CACHE[libid] = out
     return out
 
 
@@ -510,7 +543,8 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         # (x, y) = back copper logo (module convention); (x, y, False) = FRONT logo
         # (hub-rev2 centerpiece: the shine-through CEC mark at the LED-ring center).
         _lflip = logo[2] if len(logo) > 2 else True
-        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=_lflip))
+        fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0,
+                         padnet, code_of, flip=_lflip))
     e = []
     r = float(corner_radius or 0.0)
     if r <= 0:

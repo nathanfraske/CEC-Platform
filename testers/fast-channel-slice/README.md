@@ -1,5 +1,9 @@
 # Fast excursion channel slice (Pro ×1, Max ×2)
 
+> **STOP WORK — mandatory gate (2026-08-10).** This design must not advance or
+> be fabricated until `docs/tester-stop-work-reconciliation-gate-2026-08-10.md`
+> is explicitly released.
+
 DRAFT — no schematic yet. Design basis: sketch §2 (fast channel block), §3
 speed budget, AN104/AN133 lineage (component-research doc §1).
 
