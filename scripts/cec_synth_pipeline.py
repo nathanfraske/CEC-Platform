@@ -24441,6 +24441,8 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
                                      max_targets=1, max_windows=8,
                                      max_blockers_per_window=2,
                                      max_detour_ratio=2.0,
+                                     max_attempts=64,
+                                     wall_budget_s=240.0,
                                      deep_retry=False, timeout_s=180,
                                      verbose=False):
     """Run guarded certificate repair in an isolated production subprocess.
@@ -24467,6 +24469,10 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
     report_path = os.path.join(work_dir, "certificate-repair.json")
     with open(comp_path, "w", encoding="utf-8") as sink:
         _json.dump(reports, sink, indent=1, sort_keys=True, default=str)
+    max_attempts = int(os.environ.get(
+        "CEC_CERTIFICATE_REPAIR_MAX_ATTEMPTS", str(int(max_attempts))))
+    wall_budget_s = float(os.environ.get(
+        "CEC_CERTIFICATE_REPAIR_WALL_BUDGET_S", str(float(wall_budget_s))))
     command = [
         sys.executable,
         os.path.join(os.path.dirname(__file__), "cec_certificate_repair.py"),
@@ -24476,6 +24482,8 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
         "--max-blockers-per-window",
         str(int(max_blockers_per_window)),
         "--max-detour-ratio", str(float(max_detour_ratio)),
+        "--max-attempts", str(int(max_attempts)),
+        "--wall-budget-s", str(float(wall_budget_s)),
     ]
     if not deep_retry:
         command.append("--no-deep-retry")
@@ -29074,6 +29082,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 4)),
                             max_detour_ratio=float(_cert_params.get(
                                 "certificate_repair_max_detour_ratio", 2.0)),
+                            max_attempts=int(_cert_params.get(
+                                "certificate_repair_max_attempts", 64)),
+                            wall_budget_s=float(_cert_params.get(
+                                "certificate_repair_wall_budget_s", 240.0)),
                             deep_retry=bool(_cert_params.get(
                                 "certificate_repair_deep_retry", True)),
                             timeout_s=int(_cert_params.get(

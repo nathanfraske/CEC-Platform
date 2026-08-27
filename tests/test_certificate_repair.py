@@ -60,6 +60,33 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
 
 
 class TestCertificateRepairPolicy(unittest.TestCase):
+    def test_effort_budget_caps_stage_without_consuming_later_reserve(self):
+        import cec_certificate_repair as repair
+
+        budget = repair.RepairEffortBudget(
+            max_attempts=4, wall_budget_s=60, started=10.0)
+        with mock.patch.object(repair.time, "monotonic", return_value=10.0):
+            self.assertTrue(budget.claim("drc", stage_limit=1))
+            self.assertFalse(budget.claim("drc", stage_limit=1))
+            self.assertTrue(budget.claim("negotiation", stage_limit=2))
+        report = budget.report()
+        self.assertEqual(report["attempts_started"], 2)
+        self.assertEqual(report["stage_stops"]["drc"],
+                         "stage_attempt_budget")
+        self.assertIsNone(report["stop_reason"])
+
+    def test_effort_budget_stops_the_whole_ladder_at_wall_limit(self):
+        import cec_certificate_repair as repair
+
+        budget = repair.RepairEffortBudget(
+            max_attempts=10, wall_budget_s=5, started=10.0)
+        with mock.patch.object(repair.time, "monotonic", return_value=15.1):
+            self.assertFalse(budget.claim("via", stage_limit=4))
+        report = budget.report()
+        self.assertEqual(report["stop_reason"], "wall_budget")
+        self.assertEqual(report["stop_stage"], "via")
+        self.assertEqual(report["attempts_started"], 0)
+
     def test_drc_dangling_cleanup_follows_exact_uuid_cascade(self):
         import pcbnew
         import cec_certificate_repair as repair
@@ -523,6 +550,8 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             command = run_mock.call_args.args[0]
             self.assertIn("--max-windows", command)
             self.assertIn("--max-blockers-per-window", command)
+            self.assertIn("--max-attempts", command)
+            self.assertIn("--wall-budget-s", command)
             self.assertIn("--no-deep-retry", command)
 
     def test_production_hook_times_out_without_mutating_caller_board(self):

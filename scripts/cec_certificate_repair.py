@@ -35,7 +35,7 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import pcbnew
@@ -48,6 +48,73 @@ import cec_toolchain as _tc
 
 MM = 1_000_000
 SCHEMA = 1
+
+
+@dataclass
+class RepairEffortBudget:
+    """Bound candidate enumeration without weakening any admission gate.
+
+    The certificate ladder contains several independently bounded searches.
+    Their Cartesian product can still become large on a board with many live
+    DRC identities.  This coordinator gives the *whole* repair transaction a
+    deterministic trial and wall-clock envelope while retaining small,
+    stage-specific reserves for later connectivity negotiation.
+    """
+
+    max_attempts: int = 64
+    wall_budget_s: float = 240.0
+    started: float = field(default_factory=time.monotonic)
+    attempts_started: int = 0
+    stage_attempts: dict[str, int] = field(default_factory=dict)
+    stage_stops: dict[str, str] = field(default_factory=dict)
+    stop_reason: str | None = None
+    stop_stage: str | None = None
+
+    def _global_stop(self, stage: str) -> str | None:
+        if self.stop_reason:
+            return self.stop_reason
+        if self.attempts_started >= max(0, int(self.max_attempts)):
+            self.stop_reason = "global_attempt_budget"
+        elif time.monotonic() - self.started >= max(
+                0.0, float(self.wall_budget_s)):
+            self.stop_reason = "wall_budget"
+        if self.stop_reason:
+            self.stop_stage = stage
+        return self.stop_reason
+
+    def claim(self, stage: str, *, stage_limit: int | None = None) -> bool:
+        """Reserve one candidate trial before copying or mutating a board."""
+
+        if self._global_stop(stage):
+            return False
+        used = int(self.stage_attempts.get(stage, 0))
+        if stage_limit is not None and used >= max(0, int(stage_limit)):
+            self.stage_stops.setdefault(stage, "stage_attempt_budget")
+            return False
+        self.attempts_started += 1
+        self.stage_attempts[stage] = used + 1
+        return True
+
+    def available(self, stage: str) -> bool:
+        """Return whether non-trial stage work remains inside the wall budget."""
+
+        return self._global_stop(stage) is None
+
+    def stage_stop(self, stage: str, fallback: str) -> str:
+        return self.stage_stops.get(stage) or self.stop_reason or fallback
+
+    def report(self) -> dict:
+        return {
+            "schema": 1,
+            "max_attempts": max(0, int(self.max_attempts)),
+            "wall_budget_s": max(0.0, float(self.wall_budget_s)),
+            "attempts_started": int(self.attempts_started),
+            "stage_attempts": dict(sorted(self.stage_attempts.items())),
+            "stage_stops": dict(sorted(self.stage_stops.items())),
+            "stop_reason": self.stop_reason,
+            "stop_stage": self.stop_stage,
+            "wall_s": round(time.monotonic() - self.started, 3),
+        }
 
 
 @dataclass(frozen=True)
@@ -1580,7 +1647,9 @@ def _drc_dangling_cleanup_worker(board_path, max_iterations=8):
 
 def _attempt_atomic_negotiation(board_path, before, window_row, *,
                                 work_dir, token, deep_retry,
-                                max_detour_ratio):
+                                max_detour_ratio, effort=None,
+                                effort_stage="negotiation_cycle",
+                                effort_stage_limit=12):
     """Try one certificate window as an all-or-nothing transaction.
 
     This helper deliberately owns no outer retry policy.  It either publishes
@@ -1594,6 +1663,9 @@ def _attempt_atomic_negotiation(board_path, before, window_row, *,
         variants.append((24, 8.0, 4))
     rows = []
     for variant, (attempt_budget, margin, branch_hops) in enumerate(variants):
+        if (effort is not None and not effort.claim(
+                effort_stage, stage_limit=effort_stage_limit)):
+            break
         trial = os.path.join(
             work_dir, "negotiate-%s-%02d.kicad_pcb" % (token, variant))
         _copy_board_family(board_path, trial)
@@ -1686,6 +1758,8 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                  max_blockers_per_window: int = 2,
                  max_detour_ratio: float = 2.0,
                  deep_retry: bool = True,
+                 max_attempts: int = 64,
+                 wall_budget_s: float = 240.0,
                  lastmile_attempts: tuple[int, ...] = (8, 16),
                  lastmile_margins: tuple[float, ...] = (4.0, 8.0),
                  verbose: bool = False) -> dict:
@@ -1694,6 +1768,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
     started = time.monotonic()
     work = tempfile.mkdtemp(prefix="cec_cert_repair_")
     attempts = []
+    effort = RepairEffortBudget(
+        max_attempts=max_attempts, wall_budget_s=wall_budget_s,
+        started=started)
     try:
         current = os.path.join(work, "current.kicad_pcb")
         _copy_board_family(board_path, current)
@@ -1736,6 +1813,8 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             target = RepairTarget(**target_row)
             adopted_target = False
             for mode, margin in variants:
+                if not effort.claim("blocker_reroute", stage_limit=10):
+                    break
                 trial = os.path.join(work, "trial-%03d.kicad_pcb" % len(attempts))
                 _copy_board_family(current, trial)
                 has_operations, evidence = _spawn_apply(
@@ -1774,6 +1853,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 # second stale removal in the same local neighborhood; refresh
                 # in a future wave from the newly generated certificates.
                 break
+            if ("blocker_reroute" in effort.stage_stops
+                    or effort.stop_reason):
+                break
 
         # Once a proven blocker moves, retry only the connections whose
         # certificates named it.  The ladder increases search breadth without
@@ -1782,6 +1864,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             target_nets = set(accepted[-1]["target"].get("blocked_nets") or ())
             for attempt_budget, margin in zip(lastmile_attempts, lastmile_margins):
                 if not target_nets:
+                    break
+                if not effort.claim(
+                        "blocked_net_completion", stage_limit=2):
                     break
                 trial = os.path.join(work, "close-%03d.kicad_pcb" % len(attempts))
                 _copy_board_family(current, trial)
@@ -1846,6 +1931,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             for target_row in live_targets:
                 target = RepairTarget(**target_row)
                 for mode, margin in variants:
+                    if not effort.claim(
+                            "drc_identity_reroute", stage_limit=16):
+                        break
                     trial = os.path.join(
                         work, "sweep-%02d-%03d.kicad_pcb" %
                         (sweep_round, len(attempts)))
@@ -1896,7 +1984,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 if round_row["accepted"]:
                     break
             if not round_row["accepted"]:
-                drc_sweep["stop"] = "no_admissible_drc_reroute"
+                drc_sweep["stop"] = effort.stage_stop(
+                    "drc_identity_reroute",
+                    "no_admissible_drc_reroute")
                 break
 
         # Track-only surgery cannot resolve a live identity whose routed side
@@ -1931,6 +2021,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 # spreading.
                 offsets = list(_via_offset_candidates(target))[:18]
                 for dx_nm, dy_nm, step_mm, direction in offsets:
+                    if not effort.claim(
+                            "drc_via_relocation", stage_limit=12):
+                        break
                     trial = os.path.join(
                         work, "via-%02d-%03d.kicad_pcb" %
                         (via_round, len(attempts)))
@@ -1989,7 +2082,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 if round_row["accepted"]:
                     break
             if not round_row["accepted"]:
-                via_sweep["stop"] = "no_admissible_via_relocation"
+                via_sweep["stop"] = effort.stage_stop(
+                    "drc_via_relocation",
+                    "no_admissible_via_relocation")
                 break
 
         # Re-run a cheap, board-generic finishing pass after structural
@@ -2008,6 +2103,10 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "final_completion": {},
         }
         for closure_round in range(3):
+            if not effort.claim("broad_canonical_closure", stage_limit=3):
+                closure_sweep["stop"] = effort.stage_stop(
+                    "broad_canonical_closure", "round_budget")
+                break
             target_nets = tuple(sorted(before.get("unconn_nets") or ()))
             if not target_nets:
                 closure_sweep["stop"] = "connectivity_closed"
@@ -2077,10 +2176,16 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         # this stage was disabled by *any* earlier adoption and retained the
         # pre-repair certificates, so a successful DRC repair accidentally
         # prevented the connectivity repair it was meant to enable.
-        fresh_negotiation_plan = _spawn_apply(
-            _negotiation_plan_worker,
-            (current, fresh_completion, max_windows,
-             max_blockers_per_window))
+        if effort.available("fresh_negotiation_plan"):
+            fresh_negotiation_plan = _spawn_apply(
+                _negotiation_plan_worker,
+                (current, fresh_completion, max_windows,
+                 max_blockers_per_window))
+        else:
+            fresh_negotiation_plan = {
+                "schema": 1, "board": os.path.abspath(board_path),
+                "windows": [], "skipped": effort.stop_reason,
+            }
         fresh_negotiation_plan["board"] = os.path.abspath(board_path)
         plan["fresh_negotiation"] = fresh_negotiation_plan
 
@@ -2097,6 +2202,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             for window_row in fresh_negotiation_plan["windows"]:
                 window = NegotiationWindow(**window_row)
                 for attempt_budget, margin, branch_hops in negotiation_variants:
+                    if not effort.claim(
+                            "atomic_negotiation", stage_limit=12):
+                        break
                     trial = os.path.join(
                         work, "negotiate-%03d.kicad_pcb" % len(attempts))
                     _copy_board_family(current, trial)
@@ -2188,6 +2296,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                     break
                 if adopted_window:
                     break
+                if ("atomic_negotiation" in effort.stage_stops
+                        or effort.stop_reason):
+                    break
 
             # A successful displacement changes which ordinary islands can
             # now see each other.  Re-run the same cheap finisher to a bounded
@@ -2199,6 +2310,11 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             if adopted_window:
                 post_negotiation_closure["stop"] = "round_budget"
                 for closure_round in range(2):
+                    if not effort.claim(
+                            "post_negotiation_closure", stage_limit=2):
+                        post_negotiation_closure["stop"] = effort.stage_stop(
+                            "post_negotiation_closure", "round_budget")
+                        break
                     target_nets = tuple(sorted(
                         before.get("unconn_nets") or ()))
                     if not target_nets:
@@ -2285,6 +2401,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                         "no_admissible_negotiation",
             }
             for negotiation_round in range(1, 3):
+                if not effort.available("negotiation_cycle"):
+                    negotiation_sweep["stop"] = effort.stop_reason
+                    break
                 if not adopted_window or before["unconnected"] <= 0:
                     if before["unconnected"] <= 0:
                         negotiation_sweep["stop"] = "connectivity_closed"
@@ -2321,7 +2440,10 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                               (negotiation_round, window_index,
                                len(attempts)),
                         deep_retry=deep_retry,
-                        max_detour_ratio=max_detour_ratio)
+                        max_detour_ratio=max_detour_ratio,
+                        effort=effort,
+                        effort_stage="negotiation_cycle",
+                        effort_stage_limit=12)
                     attempts.extend(result["attempts"])
                     if not result["adopted"]:
                         continue
@@ -2350,6 +2472,11 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 # the first can claim newly opened corridors; the second must
                 # either improve again or prove the fresh fixed point.
                 for closure_round in range(2):
+                    if not effort.claim(
+                            "negotiation_cycle_closure", stage_limit=4):
+                        negotiation_sweep["stop"] = effort.stage_stop(
+                            "negotiation_cycle_closure", "round_budget")
+                        break
                     target_nets = tuple(sorted(
                         before.get("unconn_nets") or ()))
                     if not target_nets:
@@ -2411,25 +2538,32 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         dangling_trial = os.path.join(
             work, "dangling-%03d.kicad_pcb" % len(attempts))
         _copy_board_family(current, dangling_trial)
-        changed, evidence = _spawn_apply(
-            _drc_dangling_cleanup_worker, (dangling_trial, 8))
-        dangling_row = {"stage": "drc_dangling_cascade", **evidence}
-        if changed:
-            dangling_drc = os.path.join(
-                work, "dangling-%03d-drc.json" % len(attempts))
-            _run_drc(dangling_trial, dangling_drc)
-            after = _spawn_apply(
-                _score_worker, (dangling_trial, dangling_drc))
-            ok, decision = _accepts(before, after)
-            dangling_row.update({"after": after, "accepted": ok,
-                                 "decision": decision})
-            if ok:
-                _copy_board_family(dangling_trial, current)
-                before = after
-                accepted.append(dangling_row)
+        if effort.claim("drc_dangling_cascade", stage_limit=1):
+            changed, evidence = _spawn_apply(
+                _drc_dangling_cleanup_worker, (dangling_trial, 8))
+            dangling_row = {"stage": "drc_dangling_cascade", **evidence}
+            if changed:
+                dangling_drc = os.path.join(
+                    work, "dangling-%03d-drc.json" % len(attempts))
+                _run_drc(dangling_trial, dangling_drc)
+                after = _spawn_apply(
+                    _score_worker, (dangling_trial, dangling_drc))
+                ok, decision = _accepts(before, after)
+                dangling_row.update({"after": after, "accepted": ok,
+                                     "decision": decision})
+                if ok:
+                    _copy_board_family(dangling_trial, current)
+                    before = after
+                    accepted.append(dangling_row)
+            else:
+                dangling_row.update({"accepted": False,
+                                     "decision": evidence.get("stop")})
         else:
-            dangling_row.update({"accepted": False,
-                                 "decision": evidence.get("stop")})
+            dangling_row = {
+                "stage": "drc_dangling_cascade", "accepted": False,
+                "decision": effort.stage_stop(
+                    "drc_dangling_cascade", "effort_budget"),
+            }
         attempts.append(dangling_row)
 
         _copy_board_family(current, out_path)
@@ -2450,6 +2584,7 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "drc_sweep": drc_sweep,
             "via_sweep": via_sweep,
             "closure_sweep": closure_sweep,
+            "effort_budget": effort.report(),
             "changed": bool(accepted),
             "wall_s": round(time.monotonic() - started, 3),
         }
@@ -2474,6 +2609,8 @@ def main(argv=None) -> int:
     parser.add_argument("--max-windows", type=int, default=8)
     parser.add_argument("--max-blockers-per-window", type=int, default=2)
     parser.add_argument("--max-detour-ratio", type=float, default=2.0)
+    parser.add_argument("--max-attempts", type=int, default=64)
+    parser.add_argument("--wall-budget-s", type=float, default=240.0)
     parser.add_argument("--no-deep-retry", action="store_true",
                         help="try one precise window geometry instead of two")
     parser.add_argument("--no-negotiate", action="store_true",
@@ -2491,7 +2628,10 @@ def main(argv=None) -> int:
         negotiate=not args.no_negotiate, max_windows=args.max_windows,
         max_blockers_per_window=args.max_blockers_per_window,
         max_detour_ratio=args.max_detour_ratio,
-        deep_retry=not args.no_deep_retry, verbose=args.verbose)
+        deep_retry=not args.no_deep_retry,
+        max_attempts=args.max_attempts,
+        wall_budget_s=args.wall_budget_s,
+        verbose=args.verbose)
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.report:
         Path(args.report).write_text(payload + "\n", encoding="utf-8")
