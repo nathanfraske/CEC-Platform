@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_fr
 import cec_fab_profile as cec_fab
 import cec_score
+import cec_stage_admission
 import cec_pcb as cp
 import cec_toolchain as _tc   # toolchain presence helpers (R-05)
 
@@ -265,12 +266,14 @@ def _refine_selected_lastmile(board_path, rules, *, verbose=False,
                        "after_drc": after.drc,
                        "kelvin_ok": after.kelvin_ok,
                        "diffpair_ok": after.diffpair_ok})
-        safe = (after.unconnected < before.unconnected
-                and after.drc <= before.drc
-                and (not before.kelvin_ok or after.kelvin_ok)
-                and (not before.diffpair_ok or after.diffpair_ok))
+        admission = cec_stage_admission.evaluate(
+            before, after, require_strict=True)
+        report["admission"] = admission
+        safe = (admission["accepted"]
+                and after.unconnected < before.unconnected)
         if not safe:
-            report["reason"] = "refinement failed no-regression adoption gate"
+            report["reason"] = (
+                "refinement rejected: %s" % admission["decision"])
             return report
         shutil.copy2(trial, board_path)
         cec_fr.copy_project_sidecars(trial, board_path)
@@ -1719,7 +1722,8 @@ def _run_route_under(board_path, rules, *, verbose=True):
     pre_m = cec_score.score(board_path, rules)
     post_m = cec_score.score(under, rules)
     # STRICT no-regress gate: kelvin holds AND DRC + unconnected do not get worse.
-    adopt = (post_m.kelvin_ok and post_m.drc <= pre_m.drc and post_m.unconnected <= pre_m.unconnected)
+    admission = cec_stage_admission.evaluate(pre_m, post_m)
+    adopt = bool(post_m.kelvin_ok and admission["accepted"])
     if adopt:
         shutil.copy(under, board_path)
         for ext in (".kicad_pro", ".kicad_dru"):
@@ -1732,7 +1736,7 @@ def _run_route_under(board_path, rules, *, verbose=True):
     r2 = next((ln for ln in out_lines if ln.startswith("R2 clip pass")), "")
     if verbose:
         tag = ("ADOPTED" if adopt
-               else f"NOT adopted (kelvin={post_m.kelvin_ok} drc={post_m.drc} unconn={post_m.unconnected} "
+               else f"NOT adopted ({admission['decision']} kelvin={post_m.kelvin_ok} drc={post_m.drc} unconn={post_m.unconnected} "
                     f"vs pre drc={pre_m.drc} unconn={pre_m.unconnected}); keeping un-swapped")
         print(f"[route] ROUTE-UNDER {tag}: {head}")
         if r2:
@@ -1955,10 +1959,13 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             after = cec_score.score(critical_base, rules)
             stranded = sorted(
                 set(control_nets) & set(after.detail.get("unconn_nets") or ()))
-            if after.drc > before.drc or stranded:
+            admission = cec_stage_admission.evaluate(before, after)
+            if not admission["accepted"] or stranded:
                 raise RuntimeError(
-                    "critical-control tier failed closed: drc %d->%d, "
-                    "unconnected=%s" % (before.drc, after.drc, stranded))
+                    "critical-control tier failed closed: %s, drc %d->%d, "
+                    "unconnected=%s" % (
+                        admission["decision"], before.drc, after.drc,
+                        stranded))
             route_base = critical_base
             protect_nets = tuple(sorted(
                 set(protect_nets) | set(control_nets)))
@@ -1967,6 +1974,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 "staged": staged,
                 "drc_before": before.drc, "drc_after": after.drc,
                 "unconnected_after": stranded,
+                "admission": admission,
             })
             if verbose:
                 print("[route] critical-control tier: routed and protected %d "
@@ -2187,7 +2195,11 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                             break
                         if res.get("repaired") and os.path.exists(rep_out):
                             rm = cec_score.score(rep_out, rules)
-                            if rm.kelvin_ok and rm.unconnected < best_m.unconnected:
+                            repair_admission = cec_stage_admission.evaluate(
+                                best_m, rm, require_strict=True)
+                            if (repair_admission["accepted"]
+                                    and rm.kelvin_ok
+                                    and rm.unconnected < best_m.unconnected):
                                 best_tpc, best_m, cur = rep_out, rm, rep_out
                                 if verbose:
                                     print(f"[route] TPC GR-02 repaired {bn} ({res.get('move')}) "
@@ -2218,12 +2230,21 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                             if verbose:
                                 print(f"[route] TPC recovery re-score: kelvin={rec_m.kelvin_ok} "
                                       f"diffpair={rec_m.diffpair_ok} drc={rec_m.drc} unconn={rec_m.unconnected}")
-                            if rec_m.kelvin_ok and rec_m.unconnected < best_m.unconnected:
+                            recovery_admission = (
+                                cec_stage_admission.evaluate(
+                                    best_m, rec_m, require_strict=True))
+                            if (recovery_admission["accepted"]
+                                    and rec_m.kelvin_ok
+                                    and rec_m.unconnected
+                                    < best_m.unconnected):
                                 best_tpc, best_m, tpc_info = got2, rec_m, info2
                 # adopt the TPC board over pass-1 ONLY if kelvin holds AND it is not strictly worse on
                 # unconnected (the corridor pours/thermal win is the point; a kelvin loss or new
                 # unconnected vs pass-1 means keep pass-1).
-                if best_m.kelvin_ok and best_m.unconnected <= pass1_m.unconnected:
+                tpc_admission = cec_stage_admission.evaluate(
+                    pass1_m, best_m)
+                tpc_info["admission"] = tpc_admission
+                if best_m.kelvin_ok and tpc_admission["accepted"]:
                     shutil.copy(best_tpc, spec.out)
                     cec_fr.copy_project_sidecars(best_tpc, spec.out)
                     if verbose:
@@ -2231,7 +2252,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                               f"unconn={best_m.unconnected}); FR {tpc_info.get('fr_seconds')}s, "
                               f"ripped {tpc_info.get('ripped')}, protected {tpc_info.get('n_protect_upgraded')}")
                 elif verbose:
-                    print(f"[route] TPC NOT adopted (kelvin={best_m.kelvin_ok} unconn={best_m.unconnected} "
+                    print(f"[route] TPC NOT adopted ({tpc_admission['decision']} "
+                          f"kelvin={best_m.kelvin_ok} unconn={best_m.unconnected} "
                           f"vs pass-1 unconn={pass1_m.unconnected}); keeping pass-1")
             elif verbose:
                 print(f"[route] TPC produced no board ({tpc_info.get('error', 'unknown')}); keeping pass-1")

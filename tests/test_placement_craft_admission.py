@@ -32,6 +32,29 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             drc=8, unconnected=15, kelvin_ok=True, diffpair_ok=False)
         self.assertFalse(synth._route_score_monotonic(passing, regressed))
 
+    def test_route_monotonicity_rejects_equal_count_drc_debt_swap(self):
+        baseline = SimpleNamespace(
+            drc=1, unconnected=5, kelvin_ok=True, diffpair_ok=True,
+            detail={"unconn_nets": ["/OPEN"],
+                    "structural_violations": [{
+                        "type": "clearance",
+                        "items": [{"uuid": "old-a"},
+                                  {"uuid": "old-b"}],
+                    }]})
+        swapped = SimpleNamespace(
+            drc=1, unconnected=4, kelvin_ok=True, diffpair_ok=True,
+            detail={"unconn_nets": ["/OPEN"],
+                    "structural_violations": [{
+                        "type": "shorting_items",
+                        "items": [{"uuid": "new-a"},
+                                  {"uuid": "new-b"}],
+                    }]})
+
+        self.assertFalse(synth._route_score_monotonic(baseline, swapped))
+        decision = synth._route_score_admission(baseline, swapped)
+        self.assertEqual(decision["decision"],
+                         "new_structural_drc_identity")
+
     def test_tier_completion_partition_aggregates_adaptive_children(self):
         report = {"tiers": [
             {"completed_nets": ["A"], "incomplete_nets": ["B", "C"]},

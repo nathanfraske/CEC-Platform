@@ -17,6 +17,31 @@ import pcbnew  # noqa: E402
 
 
 class StagedRouterCleanupTests(unittest.TestCase):
+    def test_tier_admission_rejects_the_historical_plus_six_drc_tolerance(self):
+        old_fault = '["clearance","uuid",["old-a","old-b"]]'
+        new_fault = '["shorting_items","uuid",["new-a","new-b"]]'
+        before = {
+            "drc": 1, "drc_types": {"clearance": 1},
+            "unconnected": 12, "unconn_nets": ["/OPEN"],
+            "kelvin_ok": True, "diffpair_ok": True,
+            "structural_drc_identities": [old_fault],
+        }
+        # Numerically this is only +1 DRC and would have passed the former
+        # ``delta <= +6`` tier gate.  It is still a new physical fault.
+        after = {
+            "drc": 2,
+            "drc_types": {"clearance": 1, "shorting_items": 1},
+            "unconnected": 11, "unconn_nets": ["/OPEN"],
+            "kelvin_ok": True, "diffpair_ok": True,
+            "structural_drc_identities": [old_fault, new_fault],
+        }
+
+        result = staged._tier_admission(before, after)
+
+        self.assertFalse(result["accepted"])
+        self.assertIn("drc_regressed", result["reasons"])
+        self.assertIn("new_structural_drc_identity", result["reasons"])
+
     def test_xvfb_invocation_exposes_private_display_and_authority(self):
         self.assertEqual(
             cec_fr._xvfb_display_authority([
@@ -206,8 +231,15 @@ class StagedRouterCleanupTests(unittest.TestCase):
                                       side_effect=run), \
                     mock.patch.object(staged, "_spawn_apply",
                                       side_effect=spawn), \
-                    mock.patch.object(staged, "_structural_count",
-                                      return_value=0), \
+                    mock.patch.object(staged, "_stage_score",
+                                      return_value={
+                                          "drc": 0, "drc_types": {},
+                                          "unconnected": 0,
+                                          "unconn_nets": [],
+                                          "kelvin_ok": True,
+                                          "diffpair_ok": True,
+                                          "structural_drc_identities": [],
+                                      }), \
                     mock.patch.object(staged, "fully_connected_nets",
                                       return_value=({"/CONTROL"}, set())), \
                     mock.patch.object(staged, "foreign_pour_admission",

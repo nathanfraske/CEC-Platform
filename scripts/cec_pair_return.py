@@ -24,6 +24,7 @@ import pcbnew
 import cec_gnd_fanout
 import cec_precision_route
 import cec_score
+import cec_stage_admission
 
 
 MM = 1_000_000
@@ -322,20 +323,19 @@ def _synthesize_once(board_path, out_path, **kwargs):
             report["error"] = "zone refill failed: %s: %s" % (
                 type(error).__name__, error)
         after = cec_score.score(probe)
-        regression = (
-            after.drc > before.drc or
-            after.unconnected > before.unconnected)
+        admission = cec_stage_admission.evaluate(before, after)
+        regression = not admission["accepted"]
         report["admission"] = {
-            "drc_before": int(before.drc), "drc_after": int(after.drc),
+            **admission,
             "drc_types_before": dict(before.drc_types),
             "drc_types_after": dict(after.drc_types),
-            "unconnected_before": int(before.unconnected),
-            "unconnected_after": int(after.unconnected),
             "regression": bool(regression),
         }
         if regression:
             report["ok"] = False
-            report["error"] = "return-via transaction regressed DRC/connectivity"
+            report["error"] = (
+                "return-via transaction rejected: %s"
+                % admission["decision"])
         if report.get("ok"):
             shutil.copy2(probe, out_path)
             for ext in (".kicad_pro", ".kicad_dru"):

@@ -25,6 +25,7 @@ import pcbnew
 
 import cec_fab_profile as fab
 import cec_fr
+import cec_stage_admission
 
 
 MM = 1_000_000
@@ -275,22 +276,12 @@ def fill_and_admit(source, destination, *, required_via_uuids=(),
     pcbnew.SaveBoard(destination, board)
     after = cec_score.score(destination)
     drc_regression = _drc_type_regression(before, after)
-    regression = (
-        bool(drc_regression)
-        or after.unconnected > before.unconnected
-        or (before.kelvin_ok and not after.kelvin_ok)
-        or (before.diffpair_ok and not after.diffpair_ok))
+    admission = cec_stage_admission.evaluate(before, after)
+    regression = not admission["accepted"]
     report.update({
-        "before": {
-            "drc": before.drc,
-            "drc_types": before.drc_types,
-            "unconnected": before.unconnected,
-        },
-        "after": {
-            "drc": after.drc,
-            "drc_types": after.drc_types,
-            "unconnected": after.unconnected,
-        },
+        "before": admission["before"],
+        "after": admission["after"],
+        "admission": admission,
         "drc_regression": drc_regression,
         "rolled_back": bool(regression or not report.get("ok")),
     })
@@ -299,8 +290,7 @@ def fill_and_admit(source, destination, *, required_via_uuids=(),
         cec_fr.copy_project_sidecars(source, destination)
         report["ok"] = False
         if regression:
-            report["reason"] = (
-                "full-board DRC/connectivity/pair regression")
+            report["reason"] = admission["decision"]
     return report
 
 

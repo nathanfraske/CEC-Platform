@@ -246,14 +246,14 @@ def _admission_snapshot(metrics):
 def _score_isolated(board_path):
     """Score in a fresh process so KiCad SWIG registry state cannot leak."""
     code = (
-        "import json,sys;sys.path.insert(0,sys.argv[2]);import cec_score;"
+        "import json,sys;sys.path.insert(0,sys.argv[2]);"
+        "import cec_score,cec_stage_admission;"
         "m=cec_score.score(sys.argv[1]);q=m.detail.get('route_quality') or {};"
-        "print('CEC_FAB_SCORE='+json.dumps({"
-        "'drc':int(m.drc),'unconnected':int(m.unconnected),"
-        "'kelvin_ok':bool(m.kelvin_ok),'diffpair_ok':bool(m.diffpair_ok),"
+        "s=cec_stage_admission.snapshot(m);s.update({"
         "'route_blocking':int(q.get('blocking_count',0)),"
         "'route_advisory':int(q.get('advisory_count',0)),"
-        "'objective':float(cec_score.objective(m))},sort_keys=True))")
+        "'objective':float(cec_score.objective(m))});"
+        "print('CEC_FAB_SCORE='+json.dumps(s,sort_keys=True))")
     proc = subprocess.run(
         [sys.executable, "-c", code, os.path.abspath(board_path), HERE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -300,9 +300,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
     byte-for-byte available until a winner is selected.
     """
     baseline_row = _score_isolated(board_path)
-    baseline = {k: baseline_row[k] for k in (
-        "drc", "unconnected", "kelvin_ok", "diffpair_ok",
-        "route_blocking", "route_advisory")}
+    baseline = dict(baseline_row)
     parent = os.path.dirname(os.path.abspath(board_path)) or "."
     work = tempfile.mkdtemp(prefix=".cec-fab-admit-", dir=parent)
     stem = os.path.splitext(os.path.basename(board_path))[0]
@@ -325,17 +323,19 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
                     candidate, sliver_mm=sliver_mm, kwargs=kwargs,
                     report_path=report_path)
                 score_row = _score_isolated(candidate)
-                snapshot = {k: score_row[k] for k in (
-                    "drc", "unconnected", "kelvin_ok", "diffpair_ok",
-                    "route_blocking", "route_advisory")}
-                safe = (snapshot["drc"] <= baseline["drc"]
-                        and snapshot["unconnected"] <= baseline["unconnected"]
-                        and (not baseline["kelvin_ok"] or snapshot["kelvin_ok"])
-                        and (not baseline["diffpair_ok"] or snapshot["diffpair_ok"])
-                        and snapshot["route_blocking"] <= baseline["route_blocking"])
+                snapshot = dict(score_row)
+                # Import here rather than at module load so dry-run repair
+                # primitives stay usable on hosts without the scoring stack.
+                import cec_stage_admission
+                admission = cec_stage_admission.evaluate(
+                    baseline, snapshot)
+                safe = (admission["accepted"]
+                        and snapshot["route_blocking"]
+                        <= baseline["route_blocking"])
                 variants.append({
                     "name": name, "path": candidate, "changes": changes,
                     "metrics": snapshot, "safe": bool(safe),
+                    "admission": admission,
                     "objective": float(score_row["objective"]),
                 })
             except Exception as exc:                         # noqa: BLE001

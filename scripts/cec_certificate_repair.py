@@ -43,6 +43,7 @@ import pcbnew
 import cec_fr
 import cec_process_pool
 import cec_score
+import cec_stage_admission
 import cec_toolchain as _tc
 
 
@@ -1278,44 +1279,24 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
 
 
 def _metric_row(metrics, drc_data=None) -> dict:
-    row = {
-        "unconnected": int(metrics.unconnected),
-        "unconn_nets": sorted(metrics.detail.get("unconn_nets") or ()),
-        "drc": int(metrics.drc),
-        "kelvin_ok": bool(metrics.kelvin_ok),
-        "diffpair_ok": bool(metrics.diffpair_ok),
+    row = cec_stage_admission.snapshot(metrics)
+    row.update({
         "vias": int(metrics.vias),
         "tracks": int(metrics.tracks),
         "length_mm": round(float(metrics.length), 3),
         "drc_types": dict(metrics.drc_types),
-    }
-    if drc_data is not None:
+    })
+    # Legacy/mocked Metrics may not carry scorer-authoritative violation rows.
+    # Retain the exact raw-DCR fallback for those callers only.
+    if drc_data is not None and not row["structural_drc_identities"]:
         row["structural_drc_identities"] = _structural_drc_identities(
             drc_data)
     return row
 
 
 def _accepts(before, after) -> tuple[bool, str]:
-    if before["kelvin_ok"] and not after["kelvin_ok"]:
-        return False, "kelvin_gate_regressed"
-    if before["diffpair_ok"] and not after["diffpair_ok"]:
-        return False, "diffpair_gate_regressed"
-    if after["unconnected"] > before["unconnected"]:
-        return False, "unconnected_regressed"
-    new_unconnected = (set(after.get("unconn_nets") or ())
-                       - set(before.get("unconn_nets") or ()))
-    if new_unconnected:
-        return False, "new_unconnected_nets"
-    if after["drc"] > before["drc"]:
-        return False, "drc_regressed"
-    before_faults = set(before.get("structural_drc_identities") or ())
-    after_faults = set(after.get("structural_drc_identities") or ())
-    if after_faults - before_faults:
-        return False, "new_structural_drc_identity"
-    if ((after["unconnected"], after["drc"])
-            >= (before["unconnected"], before["drc"])):
-        return False, "no_structural_improvement"
-    return True, "strict_structural_improvement"
+    return cec_stage_admission.accepts(
+        before, after, require_strict=True)
 
 
 def _spawn_apply(func, args):

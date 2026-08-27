@@ -30,6 +30,7 @@ import pcbnew
 import cec_constraints
 import cec_fab_profile
 import cec_fr
+import cec_stage_admission
 
 
 MM = 1_000_000
@@ -2098,14 +2099,12 @@ def _stage_drc_regression(before, after, *, allowed_types=(),
 
 
 def _score_summary(metrics):
-    return {
-        "drc": metrics.drc,
+    summary = cec_stage_admission.snapshot(metrics)
+    summary.update({
         "drc_types": dict(metrics.drc_types),
         "drc_loci": list(getattr(metrics, "drc_loci", ())),
-        "unconnected": metrics.unconnected,
-        "kelvin_ok": metrics.kelvin_ok,
-        "diffpair_ok": metrics.diffpair_ok,
-    }
+    })
+    return summary
 
 
 def synthesize_ground_returns(source, destination, *, max_assignment_mm=3.5,
@@ -2134,11 +2133,11 @@ def synthesize_ground_returns(source, destination, *, max_assignment_mm=3.5,
     stage_drc_regression = _stage_drc_regression(
         before, after, allowed_types=deferred_types,
         generated_nets={"GND"})
+    admission = cec_stage_admission.evaluate(
+        before, after, allowed_new_drc_types=deferred_types)
     regression = (not report.get("ok")
                   or bool(stage_drc_regression)
-                  or after.unconnected > before.unconnected
-                  or (before.kelvin_ok and not after.kelvin_ok)
-                  or (before.diffpair_ok and not after.diffpair_ok))
+                  or not admission["accepted"])
     deferred_drc = {
         kind: after.drc_types.get(kind, 0) - before.drc_types.get(kind, 0)
         for kind in deferred_types
@@ -2146,6 +2145,7 @@ def synthesize_ground_returns(source, destination, *, max_assignment_mm=3.5,
     report.update({
         "before": _score_summary(before),
         "after": _score_summary(after),
+        "admission": admission,
         "drc_regression": stage_drc_regression,
         "drc_reclassification": (
             _drc_regression(before, after, deferred_types)
@@ -2160,7 +2160,8 @@ def synthesize_ground_returns(source, destination, *, max_assignment_mm=3.5,
         report["reason"] = (
             "one or more complete local cells refused"
             if report.get("refused") else
-            "full-board DRC/connectivity/pair regression")
+            (admission["decision"] if not admission["accepted"] else
+             "full-board DRC/connectivity/pair regression"))
     return report
 
 
@@ -2340,14 +2341,17 @@ def synthesize_ground_plane_access(source, destination, *, reach_mm=1.5,
         not report.get("ok") and report.get("generated_item_count")
         and not exact_new_identities)
     report["partial_admission"] = partial_admission
+    allowed_open_nets = set(ripup.get("removed_nets") or ())
+    admission = cec_stage_admission.evaluate(
+        before, after,
+        allow_unconnected_growth=repair_deferred_opens,
+        allowed_new_unconnected_nets=allowed_open_nets,
+        allowed_new_drc_types=deferred_types)
     regression = (
         (not report.get("ok") and not partial_admission)
         or bool(stage_drc_regression)
         or bool(exact_new_identities)
-        or (after.unconnected > before.unconnected
-            and not repair_deferred_opens)
-        or (before.kelvin_ok and not after.kelvin_ok)
-        or (before.diffpair_ok and not after.diffpair_ok))
+        or not admission["accepted"])
     deferred_drc = {
         kind: after.drc_types.get(kind, 0) - before.drc_types.get(kind, 0)
         for kind in deferred_types
@@ -2355,6 +2359,7 @@ def synthesize_ground_plane_access(source, destination, *, reach_mm=1.5,
     report.update({
         "before": _score_summary(before),
         "after": _score_summary(after),
+        "admission": admission,
         "drc_regression": stage_drc_regression,
         "drc_reclassification": (
             _drc_regression(before, after, deferred_types)
@@ -2380,7 +2385,8 @@ def synthesize_ground_plane_access(source, destination, *, reach_mm=1.5,
         report["reason"] = (
             "one or more SMD GND terminals lack guarded plane access"
             if report.get("refused") else
-            "full-board DRC/connectivity/pair regression")
+            (admission["decision"] if not admission["accepted"] else
+             "full-board DRC/connectivity/pair regression"))
     shutil.rmtree(drc_dir, ignore_errors=True)
     return report
 
@@ -2453,12 +2459,15 @@ def synthesize_pre_route(source, destination, *, max_assignment_mm=3.5,
     stage_drc_regression = _stage_drc_regression(
         before, after, allowed_types=deferred_types,
         generated_nets=generated_nets)
+    allowed_open_nets = set(ripup.get("removed_nets") or ())
+    admission = cec_stage_admission.evaluate(
+        before, after,
+        allow_unconnected_growth=repair_deferred_opens,
+        allowed_new_unconnected_nets=allowed_open_nets,
+        allowed_new_drc_types=deferred_types)
     regression = (not report.get("ok")
                   or bool(stage_drc_regression)
-                  or (after.unconnected > before.unconnected
-                      and not repair_deferred_opens)
-                  or (before.kelvin_ok and not after.kelvin_ok)
-                  or (before.diffpair_ok and not after.diffpair_ok))
+                  or not admission["accepted"])
     deferred_drc = {
         kind: after.drc_types.get(kind, 0) - before.drc_types.get(kind, 0)
         for kind in deferred_types
@@ -2466,6 +2475,7 @@ def synthesize_pre_route(source, destination, *, max_assignment_mm=3.5,
     report.update({
         "before": _score_summary(before),
         "after": _score_summary(after),
+        "admission": admission,
         "drc_regression": stage_drc_regression,
         "drc_reclassification": (
             _drc_regression(before, after, deferred_types)
@@ -2487,7 +2497,8 @@ def synthesize_pre_route(source, destination, *, max_assignment_mm=3.5,
         report["reason"] = (
             "one or more complete local cells refused"
             if report.get("refused") else
-            "full-board DRC/connectivity/pair regression")
+            (admission["decision"] if not admission["accepted"] else
+             "full-board DRC/connectivity/pair regression"))
     return report
 
 
@@ -2625,24 +2636,19 @@ def synthesize(source, destination, *, max_assignment_mm=3.5,
         max_assignment_mm=max_assignment_mm,
         ground_reach_mm=ground_reach_mm,
         ground_pin_max_mm=ground_pin_max_mm)
-    regression = (after.drc > before.drc
-                  or after.unconnected > before.unconnected
-                  or (before.kelvin_ok and not after.kelvin_ok)
-                  or (before.diffpair_ok and not after.diffpair_ok))
+    admission = cec_stage_admission.evaluate(before, after)
+    regression = not admission["accepted"]
     report.update({
-        "before": {"drc": before.drc, "unconnected": before.unconnected,
-                   "kelvin_ok": before.kelvin_ok,
-                   "diffpair_ok": before.diffpair_ok},
-        "after": {"drc": after.drc, "unconnected": after.unconnected,
-                  "kelvin_ok": after.kelvin_ok,
-                  "diffpair_ok": after.diffpair_ok},
+        "before": admission["before"],
+        "after": admission["after"],
+        "admission": admission,
         "audit": audit, "rolled_back": bool(regression),
     })
     if regression:
         shutil.copy2(source, destination)
         cec_fr.copy_project_sidecars(source, destination)
         report["ok"] = False
-        report["reason"] = "full-board DRC/connectivity/pair regression"
+        report["reason"] = admission["decision"]
     else:
         report["ok"] = bool(report.get("ok") and audit.get("ok"))
     return report

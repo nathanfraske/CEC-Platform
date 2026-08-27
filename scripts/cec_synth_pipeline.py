@@ -71,6 +71,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 CELL_PITCH_FLOOR = 9.0
 
 import cec_toolchain as _tc  # noqa: E402  -- dependency-free; safe on a KiCad-less box (R-05)
+import cec_stage_admission  # noqa: E402 -- pure structural mutation contract
 
 # cec_score gives the routed-board hard gates (kelvin / diffpair / DRC / unconnected).
 # Import is wrapped so the cascade's non-route stages still work if pcbnew is unavailable.
@@ -24584,6 +24585,11 @@ def _priority_trace_current_domains(board, frozen_nets, board_hint):
     return route_nets, incomplete, domains
 
 
+def _route_score_admission(before, after):
+    """Return the shared structural admission ledger for one route mutation."""
+    return cec_stage_admission.evaluate(before, after)
+
+
 def _route_score_monotonic(before, after):
     """Admit routing progress while rejecting any already-passing regression.
 
@@ -24591,11 +24597,7 @@ def _route_score_monotonic(before, after):
     ``False -> True`` repair just as surely as a real ``True -> False``
     regression. DRC and ratlines remain ordinary non-increasing metrics.
     """
-    return bool(
-        after.drc <= before.drc
-        and after.unconnected <= before.unconnected
-        and (not before.kelvin_ok or after.kelvin_ok)
-        and (not before.diffpair_ok or after.diffpair_ok))
+    return bool(_route_score_admission(before, after)["accepted"])
 
 
 def _tier_completion_partition(staged_report, requested_nets):
@@ -24783,38 +24785,35 @@ def _gnd_fanout_transactionally(board_path, rules=None):
             board_path, rules=rules, drc_json=after_drc_path)
         after_identities = set(
             cec_certificate_repair._structural_drc_identities(after_drc))
-        new_identities = sorted(after_identities - before_identities)
-        regression = bool(
-            after.drc > before.drc or
-            after.unconnected > before.unconnected or
-            new_identities or
-            (before.kelvin_ok and not after.kelvin_ok) or
-            (before.diffpair_ok and not after.diffpair_ok))
+        before_gate = cec_stage_admission.snapshot(before)
+        after_gate = cec_stage_admission.snapshot(after)
+        # The scorer normally carries the same DRC rows in ``detail``.  Keep
+        # the independently captured KiCad identities authoritative too so a
+        # replay/mocked score cannot silently degrade back to a count-only
+        # gate merely because its Metrics object is intentionally compact.
+        before_gate["structural_drc_identities"] = sorted(
+            set(before_gate["structural_drc_identities"])
+            | before_identities)
+        after_gate["structural_drc_identities"] = sorted(
+            set(after_gate["structural_drc_identities"])
+            | after_identities)
+        admission = cec_stage_admission.evaluate(before_gate, after_gate)
+        regression = not admission["accepted"]
         report.update({
             "schema": 1,
             "accepted": not regression,
             "rolled_back": regression,
-            "before": {
-                "drc": int(before.drc),
-                "unconnected": int(before.unconnected),
-                "kelvin_ok": bool(before.kelvin_ok),
-                "diffpair_ok": bool(before.diffpair_ok),
-            },
-            "after": {
-                "drc": int(after.drc),
-                "unconnected": int(after.unconnected),
-                "kelvin_ok": bool(after.kelvin_ok),
-                "diffpair_ok": bool(after.diffpair_ok),
-            },
+            "before": admission["before"],
+            "after": admission["after"],
+            "admission": admission,
             "before_structural_drc_identities": sorted(before_identities),
             "after_structural_drc_identities": sorted(after_identities),
-            "new_structural_drc_identities": new_identities,
+            "new_structural_drc_identities": admission[
+                "new_structural_drc_identities"],
         })
         if regression:
             shutil.copy2(backup, board_path)
-            report["reason"] = (
-                "new_structural_drc_identity" if new_identities else
-                "non_monotonic_connectivity_drc_or_precision")
+            report["reason"] = admission["decision"]
         return report
     except Exception:
         shutil.copy2(backup, board_path)
@@ -24908,7 +24907,8 @@ def _compile_priority_current_prefix(board_path, current_nets, domains,
             exact, out_path,
             {"current_domain_include_nets": list(nets)})
     width_ok = width_result[0] is not False
-    monotonic = _route_score_monotonic(before, after)
+    admission = _route_score_admission(before, after)
+    monotonic = bool(admission["accepted"])
     return {
         "schema": 1,
         "candidate_nets": list(nets),
@@ -24932,6 +24932,7 @@ def _compile_priority_current_prefix(board_path, current_nets, domains,
                    "unconnected": before.unconnected},
         "after": {"drc": after.drc,
                   "unconnected": after.unconnected},
+        "admission": admission,
         "monotonic": monotonic,
         "accepted": bool(monotonic and not unfinished
                          and not authority_open and width_ok),
@@ -25468,25 +25469,7 @@ def _structural_drc_signatures(metrics):
     materially worse.  Prefer KiCad item UUIDs, with a deterministic textual
     fallback for rules that do not expose item identities.
     """
-    signatures = set()
-    detail = getattr(metrics, "detail", {}) or {}
-    for violation in detail.get("structural_violations") or ():
-        kind = str(violation.get("type") or "unknown")
-        items = tuple(sorted(
-            str(item.get("uuid")) for item in (violation.get("items") or ())
-            if item.get("uuid")))
-        if items:
-            identity = (kind, "uuid", items)
-        else:
-            fallback = tuple(sorted(
-                (str(item.get("description") or ""),
-                 round(float((item.get("pos") or {}).get("x") or 0.0), 4),
-                 round(float((item.get("pos") or {}).get("y") or 0.0), 4))
-                for item in (violation.get("items") or ())))
-            identity = (kind, "fallback",
-                        str(violation.get("description") or ""), fallback)
-        signatures.add(identity)
-    return signatures
+    return set(cec_stage_admission.structural_drc_identities(metrics))
 
 
 def _admit_priority_power_candidate(board_path, frozen_nets, baseline):
@@ -25976,19 +25959,18 @@ def _reconcile_locked_nets_transactionally(board_path, rules=None):
     try:
         removed = cec_fr.reconcile_locked_nets(board_path)
         after = cec_score.score(board_path, rules=rules)
-        regression = (after.unconnected > before.unconnected
-                      or after.drc > before.drc)
+        admission = cec_stage_admission.evaluate(before, after)
+        regression = not admission["accepted"]
         report = {
             "schema": 1, "removed": dict(removed or {}),
             "rolled_back": bool(regression),
-            "before": {"unconnected": int(before.unconnected),
-                       "drc": int(before.drc)},
-            "after": {"unconnected": int(after.unconnected),
-                      "drc": int(after.drc)},
+            "before": admission["before"],
+            "after": admission["after"],
+            "admission": admission,
         }
         if regression:
             shutil.copy2(backup, board_path)
-            report["reason"] = "non_monotonic_connectivity_or_drc"
+            report["reason"] = admission["decision"]
         return report
     except Exception:
         shutil.copy2(backup, board_path)
@@ -26061,7 +26043,6 @@ def _prune_structural_dangling_transactionally(board_path, *, rules=None,
     shutil.copy2(board_path, backup)
     before = cec_score.score(board_path, rules=rules)
     before_nets = set(before.detail.get("unconn_nets") or ())
-    before_faults = _structural_drc_signatures(before)
     preserve = {str(uuid) for uuid in (preserve_uuids or ()) if uuid}
     removed = []
     locked = []
@@ -26106,17 +26087,11 @@ def _prune_structural_dangling_transactionally(board_path, *, rules=None,
             })
 
         after = current
-        after_nets = set(after.detail.get("unconn_nets") or ())
-        after_faults = _structural_drc_signatures(after)
-        new_faults = after_faults - before_faults
-        regression = (
-            not removed
-            or after.drc >= before.drc
-            or after.unconnected > before.unconnected
-            or not after_nets.issubset(before_nets)
-            or bool(new_faults)
-            or (before.kelvin_ok and not after.kelvin_ok)
-            or (before.diffpair_ok and not after.diffpair_ok))
+        admission = cec_stage_admission.evaluate(
+            before, after, require_strict=True)
+        after_nets = set(admission["after"]["unconn_nets"])
+        new_faults = set(admission["new_structural_drc_identities"])
+        regression = not removed or not admission["accepted"]
         report = {
             "schema": 1,
             "removed": removed,
@@ -26135,11 +26110,14 @@ def _prune_structural_dangling_transactionally(board_path, *, rules=None,
             },
             "new_structural_drc": [repr(row) for row in
                                    sorted(new_faults, key=repr)],
+            "admission": admission,
             "rolled_back": bool(regression),
         }
         if regression:
             shutil.copy2(backup, board_path)
-            report["reason"] = "non_monotonic_dangling_cleanup"
+            report["reason"] = (
+                admission["decision"] if not admission["accepted"]
+                else "no_dangling_copper_removed")
             return report, before
         return report, after
     except Exception:
@@ -26199,26 +26177,19 @@ def _chamfer_routes_transactionally(board_path, *, rules=None,
         # net).  Endpoint hashes are therefore not a stable topology identity.
         # Preserve the ratline count and exact affected-net set instead; the
         # geometry primitive itself preserves every track endpoint chain.
-        before_nets = sorted(before.detail.get("unconn_nets") or ())
-        after_nets = sorted(after.detail.get("unconn_nets") or ())
-        regression = (
-            after.unconnected != before.unconnected
-            or after_nets != before_nets
-            or after.drc > before.drc
-            or (before.kelvin_ok and not after.kelvin_ok)
-            or (before.diffpair_ok and not after.diffpair_ok))
-        report["after"] = {
-            "unconnected": int(after.unconnected),
-            "drc": int(after.drc),
-            "kelvin_ok": bool(after.kelvin_ok),
-            "diffpair_ok": bool(after.diffpair_ok),
-        }
+        admission = cec_stage_admission.evaluate(
+            before, after, preserve_unconnected=True)
+        before_nets = admission["before"]["unconn_nets"]
+        after_nets = admission["after"]["unconn_nets"]
+        regression = not admission["accepted"]
+        report["after"] = admission["after"]
+        report["admission"] = admission
         report["unconnected_nets_unchanged"] = (
             after_nets == before_nets)
         report["rolled_back"] = bool(regression)
         if regression:
             shutil.copy2(backup, board_path)
-            report["reason"] = "non_monotonic_connectivity_drc_or_pair_quality"
+            report["reason"] = admission["decision"]
             return report, before
         return report, after
     except Exception:
@@ -26255,22 +26226,16 @@ def _teardrops_transactionally(board_path, *, before, rules=None,
             report["rolled_back"] = False
             return report, before
         after = cec_score.score(board_path, rules=rules)
-        before_nets = sorted(before.detail.get("unconn_nets") or ())
-        after_nets = sorted(after.detail.get("unconn_nets") or ())
-        regression = (
-            after.unconnected != before.unconnected
-            or after_nets != before_nets
-            or after.drc > before.drc
-            or (before.kelvin_ok and not after.kelvin_ok)
-            or (before.diffpair_ok and not after.diffpair_ok))
-        report["before"] = {"unconnected": int(before.unconnected),
-                            "drc": int(before.drc)}
-        report["after"] = {"unconnected": int(after.unconnected),
-                           "drc": int(after.drc)}
+        admission = cec_stage_admission.evaluate(
+            before, after, preserve_unconnected=True)
+        regression = not admission["accepted"]
+        report["before"] = admission["before"]
+        report["after"] = admission["after"]
+        report["admission"] = admission
         report["rolled_back"] = bool(regression)
         if regression:
             shutil.copy2(backup, board_path)
-            report["reason"] = "non_monotonic_connectivity_drc_or_pair_quality"
+            report["reason"] = admission["decision"]
             return report, before
         return report, after
     except Exception:
@@ -27465,9 +27430,13 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             _stranded = sorted(
                                 set(_control_nets)
                                 & set(_after.detail.get("unconn_nets") or ()))
-                            if _after.drc > _before.drc or _stranded:
+                            _control_admission = _route_score_admission(
+                                _before, _after)
+                            if (not _control_admission["accepted"]
+                                    or _stranded):
                                 raise RuntimeError(
-                                    "drc %d->%d, unconnected=%s" % (
+                                    "%s, drc %d->%d, unconnected=%s" % (
+                                        _control_admission["decision"],
                                         _before.drc, _after.drc, _stranded))
                         except Exception as _te:         # noqa: BLE001
                             _error = (
@@ -27485,6 +27454,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                         locals().get("_before"), "drc", None),
                                     "drc_after": getattr(
                                         locals().get("_after"), "drc", None),
+                                    "admission": locals().get(
+                                        "_control_admission"),
                                 },
                                 artifact=str(_control_board))
                         route_input = _control_board
@@ -27496,6 +27467,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             "drc_before": _before.drc,
                             "drc_after": _after.drc,
                             "unconnected_after": _stranded,
+                            "admission": _control_admission,
                         })
                         _trace(
                             "critical_control_route", "passed",
@@ -27820,9 +27792,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             _access_pair_regression = bool(
                                 _access_pair_before.get("ok")
                                 and not _access_pair_after.get("ok"))
+                            _access_admission = _route_score_admission(
+                                _access_before, _access_after)
                             _access_monotonic = (
-                                _route_score_monotonic(
-                                    _access_before, _access_after)
+                                _access_admission["accepted"]
                                 and not _access_pair_regression)
                             pre_power_escape_priority.update({
                                 "staged": _access_staged,
@@ -27851,6 +27824,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                         _access_pair_after.get("ok")),
                                 },
                                 "pair_regression": _access_pair_regression,
+                                "admission": _access_admission,
                                 "accepted": bool(_access_monotonic),
                             })
                             if _access_monotonic:
@@ -28085,10 +28059,12 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 _tier_completion_partition(
                                     _distribution_staged,
                                     _distribution_nets))
-                            _distribution_monotonic = (
-                                _route_score_monotonic(
+                            _distribution_admission = (
+                                _route_score_admission(
                                     _distribution_before,
                                     _distribution_after))
+                            _distribution_monotonic = bool(
+                                _distribution_admission["accepted"])
                             priority_distribution_route.update({
                                 "staged": _distribution_staged,
                                 "dangling_cleanup":
@@ -28115,6 +28091,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                     "diffpair_ok":
                                         _distribution_after.diffpair_ok,
                                 },
+                                "admission": _distribution_admission,
                                 "accepted": bool(
                                     _distribution_monotonic),
                             })
@@ -28376,8 +28353,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 _current_exact_board, _current_out, {})
                         _current_width_ok = (
                             _current_width_result[0] is not False)
-                        _current_monotonic = _route_score_monotonic(
+                        _current_admission = _route_score_admission(
                             _current_before, _current_after)
+                        _current_monotonic = bool(
+                            _current_admission["accepted"])
                         priority_current_route.update({
                             "undersized_prefix_prune": _current_prune,
                             "local_pin_access": _current_local,
@@ -28405,6 +28384,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 "drc": _current_after.drc,
                                 "unconnected": _current_after.unconnected,
                             },
+                            "admission": _current_admission,
                             "accepted": bool(
                                 _current_monotonic
                                 and not _current_unfinished
@@ -28596,8 +28576,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 _tier_result.get("completed_nets") or ())
                             _escape_incomplete = set(
                                 _tier_result.get("incomplete_nets") or ())
-                            _escape_monotonic = _route_score_monotonic(
+                            _escape_admission = _route_score_admission(
                                 _escape_before, _escape_after)
+                            _escape_monotonic = bool(
+                                _escape_admission["accepted"])
                             automatic_escape_priority.update({
                                 "staged": _escape_staged,
                                 "completed_nets": sorted(_escape_complete),
@@ -28620,6 +28602,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                     "diffpair_ok":
                                         _escape_after.diffpair_ok,
                                 },
+                                "admission": _escape_admission,
                                 "accepted": bool(_escape_monotonic),
                             })
                             if _escape_monotonic:

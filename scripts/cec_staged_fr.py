@@ -46,26 +46,20 @@ def _carve(text, start):
     return text[start:], len(text)
 
 
-def _structural_count(board_path):
-    """Structural DRC count (shorts/crossings/clearance) via kicad-cli; None on failure.
-    The refuse-loud tier gate's measure -- cheap (~10s) and authoritative."""
-    import json as _j
-    import subprocess as _sp
-    import tempfile as _tf
-    out = _tf.mkstemp(suffix=".json")[1]
-    try:
-        r = _sp.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, board_path],
-                    capture_output=True, text=True, timeout=180)
-        d = _j.load(open(out))
-        return sum(1 for v in d.get("violations", [])
-                   if v["type"] in ("shorting_items", "tracks_crossing", "clearance"))
-    except Exception:                                           # noqa: BLE001
-        return None
-    finally:
-        try:
-            os.unlink(out)
-        except OSError:
-            pass
+def _stage_score(board_path):
+    """Measure one tier artifact with the release scorer.
+
+    Kept as a named boundary so tests and future process isolation can replace
+    the scorer without weakening the admission semantics.
+    """
+    import cec_score
+    return cec_score.score(board_path)
+
+
+def _tier_admission(before, after):
+    """Apply the repository-wide debt-monotonic promotion contract."""
+    import cec_stage_admission
+    return cec_stage_admission.evaluate(before, after)
 
 
 def _dsn_restrict_to_nets(dsn_path, keep_nets):
@@ -454,6 +448,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
     cec_fr.copy_project_sidecars(placed_board, cur)
     locked_nets = set(pre_locked_nets)
     report = {"tiers": [], "work": work, "threads": int(threads)}
+    current_score = None
     t_all = time.monotonic()
     stages = [
         {"tier": set(t), "retry_depth": 0, "retry_parent": None}
@@ -705,31 +700,51 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                             f"[staged-fr] tier {i} REFUSED: incomplete-net "
                             "copper could not be restored", flush=True)
                     continue
-            # REFUSE-LOUD GATE (ladder doctrine): evaluate structural DRC only
-            # after non-authoritative incomplete copper has been removed. This
-            # admits a legal completed subset without allowing a failed net's
-            # speculative fragments to poison or excuse that subset.
-            _pre = _structural_count(cur)
-            _post = _structural_count(nxt)
-            if _pre is not None and _post is not None and _post - _pre > 6:
-                print(f"[staged-fr] tier {i} REFUSED: structural DRC {_pre} -> {_post} "
-                      f"(+{_post - _pre} > 6) -- tier result dropped", flush=True)
-                report["tiers"].append({"tier": sorted(tier), "refused": True,
-                                        "structural_pre": _pre, "structural_post": _post,
-                                        "incomplete_prefix_restore":
-                                            incomplete_prefix_restore,
-                                        "wall_s": round(time.monotonic() - t0, 1)})
-                continue                       # cur unchanged; tier nets stay unrouted
+        # The imported board must be scored under the same project/custom-rule
+        # authority as its parent.  Copy sidecars before DRC, not only after a
+        # candidate has already been admitted.
+        for ext in (".kicad_pro", ".kicad_dru"):
+            source = cur[:-len(".kicad_pcb")] + ext
+            if os.path.isfile(source):
+                shutil.copy2(source, nxt[:-len(".kicad_pcb")] + ext)
+
+        # REFUSE-LOUD GATE (ladder doctrine): evaluate the complete structural
+        # identity ledger only after non-authoritative incomplete copper has
+        # been removed.  The historical ``DRC delta <= +6`` tolerance is the
+        # source of the repair cascade: it explicitly promoted new clearances
+        # and left later stages to chase them.  A tier may close old debt but
+        # may never invent a new DRC identity or newly open net.  Cache the
+        # admitted parent's score so this is no slower than the former two-DRC
+        # count comparison and is cheaper across multiple child retries.
+        if current_score is None:
+            current_score = _stage_score(cur)
+        candidate_score = _stage_score(nxt)
+        stage_admission = _tier_admission(current_score, candidate_score)
+        if not stage_admission["accepted"]:
+            refused_row = {
+                "tier": (sorted(tier) if tier else "RESIDUAL"),
+                "refused": True,
+                "reason": stage_admission["decision"],
+                "admission": stage_admission,
+                "wall_s": round(time.monotonic() - t0, 1),
+            }
+            if not final:
+                refused_row["incomplete_prefix_restore"] = (
+                    incomplete_prefix_restore)
+            report["tiers"].append(refused_row)
+            if verbose:
+                print(
+                    "[staged-fr] tier %d REFUSED: %s -- candidate dropped"
+                    % (i, stage_admission["decision"]), flush=True)
+            continue                       # cur unchanged; tier nets stay unrouted
+        if not final:
             locked_nets |= tier_complete
             nlocked = _spawn_apply(
                 _lock_stage_worker,
                 (nxt, tuple(sorted(locked_nets))))
-        for ext in (".kicad_pro", ".kicad_dru"):
-            s = cur[:-len(".kicad_pcb")] + ext
-            if os.path.isfile(s):
-                shutil.copy(s, nxt[:-len(".kicad_pcb")] + ext)
         row = {"tier": (sorted(tier) if tier else "RESIDUAL"),
                "kept_nets": kept, "stripped_nets": stripped,
+               "admission": stage_admission,
                "wall_s": round(time.monotonic() - t0, 1),
                "retry_depth": retry_depth,
                "retry_parent": stage.get("retry_parent")}
@@ -786,6 +801,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         if verbose:
             print(f"[staged-fr] pass {i}: {row}", flush=True)
         cur = nxt
+        current_score = candidate_score
     shutil.copy2(cur, out_board)
     cec_fr.copy_project_sidecars(cur, out_board)
     report["total_wall_s"] = round(time.monotonic() - t_all, 1)
