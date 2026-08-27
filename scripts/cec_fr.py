@@ -199,7 +199,8 @@ def reconcile_endpoint_neckdown_groups(board, *, netclass_resolver):
             board.GetLayerName(item.GetLayer())) or 0.0))
         return _nm(value)
 
-    def fine_pad_at(item, point, full_width):
+    def fine_pads_at(item, point, full_width):
+        result = []
         for pad in pads_by_net.get(item.GetNetCode(), ()):
             try:
                 if int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD):
@@ -212,57 +213,130 @@ def reconcile_endpoint_neckdown_groups(board, *, netclass_resolver):
                 continue
             try:
                 if pad.GetEffectiveShape(item.GetLayer()).Contains(point):
-                    return True
+                    result.append(pad)
             except Exception:                            # noqa: BLE001
                 if pad.HitTest(point):
-                    return True
-        return False
+                    result.append(pad)
+        return result
 
     recovered = []
-    changed = True
-    while changed:
-        changed = False
-        for item in tracks:
-            if group.ContainsItem(item):
+    eligible = {}
+    eligible_points = {}
+    for item in tracks:
+        if group.ContainsItem(item):
+            continue
+        full_width = contract_width(item)
+        if full_width <= 0 or item.GetWidth() >= full_width:
+            continue
+        uid = item.m_Uuid.AsString()
+        eligible[uid] = (item, full_width)
+        for point in (item.GetStart(), item.GetEnd()):
+            eligible_points.setdefault((point.x, point.y), []).append(uid)
+
+    # Route import may split a taper into two or three sub-class fragments.
+    # Qualify the complete connected component rather than requiring every
+    # fragment to touch both a pad and a full-width throat by itself.
+    unseen = set(eligible)
+    while unseen:
+        seed_uid = min(unseen)
+        queue = [seed_uid]
+        component_ids = set()
+        while queue:
+            uid = queue.pop()
+            if uid in component_ids:
                 continue
-            full_width = contract_width(item)
-            if full_width <= 0 or item.GetWidth() >= full_width:
-                continue
-            class_mm = full_width / MM
-            max_length = max(0.6, min(1.5, 1.5 * class_mm))
-            if item.GetLength() / MM > max_length + 1e-6:
-                continue
-            start, end = item.GetStart(), item.GetEnd()
-            support_ends = []
-            if fine_pad_at(item, start, full_width):
-                support_ends.append(end)
-            if fine_pad_at(item, end, full_width):
-                support_ends.append(start)
-            if not support_ends:
-                continue
-            # A short track can sit entirely inside an elongated pad.  Try
-            # both physical directions: choosing the first pad-contained end
-            # alone can look toward the pad centre and miss the owned taper
-            # that actually continues from the opposite end.
-            supported = False
-            for support_end in support_ends:
-                support = [other for other in endpoint_index.get(
-                    (support_end.x, support_end.y), ()) if other is not item
-                           and other.GetNetCode() == item.GetNetCode()]
-                if any(group.ContainsItem(other)
-                       or other.GetWidth() >= full_width for other in support):
+            component_ids.add(uid)
+            unseen.discard(uid)
+            item, _full_width = eligible[uid]
+            for point in (item.GetStart(), item.GetEnd()):
+                for neighbor_uid in eligible_points.get(
+                        (point.x, point.y), ()):
+                    neighbor, _neighbor_width = eligible[neighbor_uid]
+                    if (neighbor.GetNetCode() == item.GetNetCode()
+                            and neighbor.GetLayer() == item.GetLayer()
+                            and neighbor_uid not in component_ids):
+                        queue.append(neighbor_uid)
+
+        component = [eligible[uid][0] for uid in sorted(component_ids)]
+        if not component or len(component) > 4:
+            continue
+        full_width = max(eligible[uid][1] for uid in component_ids)
+        class_mm = full_width / MM
+        max_length = max(0.6, min(1.5, 1.5 * class_mm))
+        total_length = sum(item.GetLength() / MM for item in component)
+        if total_length > max_length + 1e-6:
+            continue
+        degree = {}
+        points = {}
+        for item in component:
+            for point in (item.GetStart(), item.GetEnd()):
+                key = (point.x, point.y)
+                degree[key] = degree.get(key, 0) + 1
+                points[key] = point
+        if any(value > 2 for value in degree.values()):
+            continue
+
+        pad_contacts = []
+        for key, point in points.items():
+            for pad in fine_pads_at(component[0], point, full_width):
+                pad_contacts.append((key, pad))
+        if not pad_contacts:
+            continue
+
+        supported = False
+        for key, point in points.items():
+            for other in endpoint_index.get(key, ()):
+                uid = other.m_Uuid.AsString()
+                if uid in component_ids:
+                    continue
+                if other.GetNetCode() != component[0].GetNetCode():
+                    continue
+                if (group.ContainsItem(other)
+                        or other.GetWidth() >= full_width):
                     supported = True
                     break
-            if not supported:
+            if supported:
+                break
+
+        # A connector can expose two duplicated fine-pitch contacts of one net
+        # with only a pad-to-pad bridge between them.  It has no full-width
+        # throat by construction; accept only a short unbranched component
+        # whose two boundary ends land on distinct pads of the same footprint.
+        boundary = {key for key, value in degree.items() if value == 1}
+        contact_by_boundary = {}
+        for key, pad in pad_contacts:
+            if key not in boundary:
                 continue
+            try:
+                parent = pad.GetParentFootprint()
+                identity = (parent.GetReference(), pad.GetNumber())
+            except Exception:                           # noqa: BLE001
+                identity = ("", pad.m_Uuid.AsString())
+            contact_by_boundary.setdefault(key, set()).add(identity)
+        bridge_identities = set().union(
+            *contact_by_boundary.values()) if contact_by_boundary else set()
+        bridge_refs = {identity[0] for identity in bridge_identities
+                       if identity[0]}
+        local_pad_bridge = (
+            len(boundary) == 2
+            and boundary <= set(contact_by_boundary)
+            and len(bridge_identities) >= 2
+            and len(bridge_refs) == 1)
+        if not supported and not local_pad_bridge:
+            continue
+
+        reason = "local_pad_bridge" if local_pad_bridge and not supported \
+            else "fine_pad_to_full_width_throat"
+        for item in component:
             group.AddItem(item)
+            item.SetLocked(True)
             recovered.append({
                 "uuid": item.m_Uuid.AsString(),
                 "net": item.GetNetname() or "",
                 "width_mm": round(item.GetWidth() / MM, 3),
                 "length_mm": round(item.GetLength() / MM, 3),
+                "reason": reason,
             })
-            changed = True
     widths = [item.GetWidth() / MM for item in tracks
               if group.ContainsItem(item)]
     return {"schema": 1, "applicable": True,

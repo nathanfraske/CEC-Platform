@@ -401,6 +401,83 @@ class TestLastmile(unittest.TestCase):
         self.assertTrue(group.ContainsItem(inner))
         self.assertTrue(group.ContainsItem(outer))
 
+    def test_split_ungrouped_taper_recovers_as_one_bounded_component(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")])
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        board.Add(group)
+
+        inner = pcbnew.PCB_TRACK(board)
+        inner.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        inner.SetEnd(pcbnew.VECTOR2I_MM(4.5, 5.0))
+        inner.SetWidth(pcbnew.FromMM(0.20))
+        inner.SetLayer(pcbnew.F_Cu); inner.SetNet(net); board.Add(inner)
+        outer = pcbnew.PCB_TRACK(board)
+        outer.SetStart(pcbnew.VECTOR2I_MM(4.5, 5.0))
+        outer.SetEnd(pcbnew.VECTOR2I_MM(4.25, 5.0))
+        outer.SetWidth(pcbnew.FromMM(0.20))
+        outer.SetLayer(pcbnew.F_Cu); outer.SetNet(net); board.Add(outer)
+        trunk = pcbnew.PCB_TRACK(board)
+        trunk.SetStart(pcbnew.VECTOR2I_MM(4.25, 5.0))
+        trunk.SetEnd(pcbnew.VECTOR2I_MM(3.0, 5.0))
+        trunk.SetWidth(pcbnew.FromMM(0.50))
+        trunk.SetLayer(pcbnew.F_Cu); trunk.SetNet(net); board.Add(trunk)
+
+        report = cec_fr.reconcile_endpoint_neckdown_groups(
+            board, netclass_resolver=lambda _net: {"track_width": 0.5})
+
+        self.assertEqual(report["recovered"], 2, report)
+        self.assertTrue(group.ContainsItem(inner))
+        self.assertTrue(group.ContainsItem(outer))
+        self.assertTrue(inner.IsLocked())
+        self.assertTrue(outer.IsLocked())
+
+    def test_same_footprint_fine_pad_bridge_is_owned_without_trunk(self):
+        import pcbnew
+        import cec_fr
+
+        board = pcbnew.BOARD()
+        board.SetCopperLayerCount(4)
+        net = pcbnew.NETINFO_ITEM(board, "/VBUS")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("J1")
+        front = pcbnew.LSET()
+        front.AddLayer(pcbnew.F_Cu)
+        for number, y in (("A4", 5.0), ("B9", 5.3)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.3, 1.15))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, y))
+            pad.SetLayerSet(front)
+            pad.SetNet(net)
+            footprint.Add(pad)
+        board.Add(footprint)
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        board.Add(group)
+        bridge = pcbnew.PCB_TRACK(board)
+        bridge.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        bridge.SetEnd(pcbnew.VECTOR2I_MM(5.0, 5.3))
+        bridge.SetWidth(pcbnew.FromMM(0.20))
+        bridge.SetLayer(pcbnew.F_Cu); bridge.SetNet(net); board.Add(bridge)
+
+        report = cec_fr.reconcile_endpoint_neckdown_groups(
+            board, netclass_resolver=lambda _net: {"track_width": 0.5})
+
+        self.assertEqual(report["recovered"], 1, report)
+        self.assertEqual(report["items"][0]["reason"], "local_pad_bridge")
+        self.assertTrue(group.ContainsItem(bridge))
+        self.assertTrue(bridge.IsLocked())
+
     def test_cloned_same_net_pad_uuids_do_not_collapse_clusters(self):
         import pcbnew
         import cec_fr
