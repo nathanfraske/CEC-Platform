@@ -131,6 +131,7 @@ class RepairTarget:
     drc_types: tuple[str, ...]
     drc_conflict: bool
     priority: tuple
+    sensitive_repair: bool = False
 
 
 @dataclass(frozen=True)
@@ -586,6 +587,75 @@ def plan_repairs(board_path: str, completion: dict | None, *,
     }
 
 
+def plan_sensitive_drc_repairs(board_path: str, drc_data: dict | None, *,
+                               limit: int = 4) -> dict:
+    """Select narrowly recoverable locked measurement copper.
+
+    Priority routing deliberately locks copper after it has passed its
+    electrical checks.  Older staged-router releases could nevertheless lock
+    a newly-created clearance defect because their promotion gate tolerated a
+    bounded DRC increase.  Treating every locked track as movable would erase
+    the meaning of that ownership boundary, so recovery is intentionally
+    limited to an exact live clearance UUID on an ungrouped Kelvin/sense net.
+
+    Coupled pairs, wide current copper, and explicitly grouped geometry remain
+    immutable.  The caller must still prove the replacement with the shared
+    full-board admission contract and must reject any new measurement or route
+    topology fault.
+    """
+
+    board = pcbnew.LoadBoard(board_path)
+    tracks = {_uuid(item): item for item in board.GetTracks()
+              if item.GetClass() == "PCB_TRACK" and _uuid(item)}
+    drc_index = _drc_track_index(drc_data)
+    grouped = {
+        _uuid(item)
+        for group in board.Groups()
+        for item in tracks.values()
+        if group.ContainsItem(item)
+    }
+    targets = []
+    immutable = []
+    for uid, drc_types_raw in sorted(drc_index.items()):
+        item = tracks.get(uid)
+        if item is None or not item.IsLocked():
+            continue
+        net = item.GetNetname() or ""
+        layer = board.GetLayerName(item.GetLayer())
+        width_mm = item.GetWidth() / MM
+        drc_types = tuple(sorted(drc_types_raw))
+        reason = protected_net_reason(
+            net, width_mm=width_mm, layer=layer, locked=False)
+        refusal = None
+        if set(drc_types) - {"clearance"}:
+            refusal = "unsupported_drc_type"
+        elif uid in grouped:
+            refusal = "explicit_group_ownership"
+        elif reason != "kelvin_or_sense":
+            refusal = reason or "authored_locked_copper"
+        if refusal:
+            immutable.append({
+                "uuid": uid, "net": net, "layer": layer,
+                "width_mm": round(width_mm, 6),
+                "drc_types": list(drc_types), "reason": refusal,
+            })
+            continue
+        targets.append(RepairTarget(
+            uuid=uid, net=net, layer=layer,
+            hit_count=max(1, len(drc_types)), blocked_nets=(),
+            reservations=(), drc_types=drc_types, drc_conflict=True,
+            priority=(-len(drc_types), uid), sensitive_repair=True,
+        ))
+    targets.sort(key=lambda row: row.priority)
+    return {
+        "schema": SCHEMA,
+        "board": os.path.abspath(board_path),
+        "targets": [asdict(row) for row in targets[:max(0, int(limit))]],
+        "immutable": immutable,
+        "drc_named_track_count": len(drc_index),
+    }
+
+
 def plan_negotiations(board_path: str, completion: dict | None, *,
                       limit: int = 8,
                       max_blockers_per_window: int = 2) -> dict:
@@ -822,6 +892,7 @@ def _expanded_branch(board, target, *, max_hops: int = 2):
 
 def _lay_ops(board, operations, net_code: int, *, lock: bool = False) -> dict:
     tracks = vias = 0
+    uuids = []
     for op in operations:
         if op[0] == "via":
             _, at, drill, diameter = op
@@ -833,6 +904,7 @@ def _lay_ops(board, operations, net_code: int, *, lock: bool = False) -> dict:
             item.SetNetCode(net_code)
             item.SetLocked(bool(lock))
             board.Add(item)
+            uuids.append(_uuid(item))
             vias += 1
         else:
             _, start, end, width, layer = op
@@ -846,9 +918,11 @@ def _lay_ops(board, operations, net_code: int, *, lock: bool = False) -> dict:
             item.SetNetCode(net_code)
             item.SetLocked(bool(lock))
             board.Add(item)
+            uuids.append(_uuid(item))
             tracks += 1
     board.BuildConnectivity()
-    return {"tracks": tracks, "vias": vias}
+    return {"tracks": tracks, "vias": vias, "uuids": uuids,
+            "locked": bool(lock)}
 
 
 def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
@@ -857,8 +931,22 @@ def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
     item = _find_track(board, target.uuid)
     if item is None:
         return None, {"refusal": "target_track_missing"}
-    if item.IsLocked():
+    if item.IsLocked() and not target.sensitive_repair:
         return None, {"refusal": "target_became_locked"}
+    if target.sensitive_repair and not item.IsLocked():
+        return None, {"refusal": "sensitive_target_lost_lock"}
+    if target.sensitive_repair:
+        intrinsic_reason = protected_net_reason(
+            item.GetNetname() or "", width_mm=item.GetWidth() / MM,
+            layer=board.GetLayerName(item.GetLayer()), locked=False)
+        if (not target.drc_conflict
+                or set(target.drc_types) != {"clearance"}
+                or intrinsic_reason != "kelvin_or_sense"):
+            return None, {"refusal": "sensitive_target_policy_mismatch"}
+        if mode.startswith("branch_"):
+            return None, {"refusal": "sensitive_branch_expansion_forbidden"}
+        if any(group.ContainsItem(item) for group in board.Groups()):
+            return None, {"refusal": "sensitive_target_grouped"}
     branch = (_expanded_branch(board, item)
               if mode.startswith("branch_") else None)
     start = branch["start"] if branch else item.GetStart()
@@ -929,6 +1017,11 @@ def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
     # The source segment must be absent from the collision snapshot; its other
     # same-net copper remains and is correctly exempt.
     removed = branch["tracks"] if branch else [item]
+    if target.sensitive_repair:
+        # Release only the exact DRC-named object selected by the narrow
+        # planner.  Replacement copper is re-locked below before it can leave
+        # this transaction.
+        item.SetLocked(False)
     for old in removed:
         board.Remove(old)
     board.BuildConnectivity()
@@ -982,11 +1075,13 @@ def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
                         if end_escape else None),
         "future_route_reservations": [net for _shape, _extra, net
                                       in reservations],
+        "sensitive_repair": bool(target.sensitive_repair),
     }
     if not operations:
         evidence["refusal"] = "no_exact_clear_local_path"
         return None, evidence
-    evidence["new_geometry"] = _lay_ops(board, operations, net_code)
+    evidence["new_geometry"] = _lay_ops(
+        board, operations, net_code, lock=target.sensitive_repair)
     evidence["new_length_mm"] = round(sum(
         math.hypot(op[2].x - op[1].x, op[2].y - op[1].y) / MM
         for op in operations if op[0] != "via"), 6)
@@ -1342,6 +1437,11 @@ def _spawn_apply(func, args):
 
 def _plan_worker(board_path, completion, drc_data, limit):
     return plan_repairs(board_path, completion, drc_data=drc_data, limit=limit)
+
+
+def _sensitive_plan_worker(board_path, drc_data, limit):
+    return plan_sensitive_drc_repairs(
+        board_path, drc_data, limit=limit)
 
 
 def _negotiation_plan_worker(board_path, completion, limit, max_blockers):
@@ -1970,6 +2070,121 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                     "no_admissible_drc_reroute")
                 break
 
+        # Recover only legacy locked measurement copper that is itself named
+        # by a live clearance identity.  This is intentionally separate from
+        # ordinary blocker repair: the lock is an authorship boundary and may
+        # be crossed only for an exact, ungrouped Kelvin/sense offender.  Each
+        # replacement is re-locked before save and must pass the same strict
+        # identity-aware admission contract as every other stage.
+        sensitive_drc_sweep = {
+            "schema": 1, "rounds": [], "stop": "round_budget"}
+        baseline_topology_clean = not (
+            before.get("kelvin_topology_faults")
+            or before.get("route_topology_fault_nets"))
+        if not baseline_topology_clean:
+            sensitive_drc_sweep["stop"] = "baseline_topology_not_clean"
+        else:
+            sensitive_variants = [
+                ("same_layer", 2.0), ("same_layer", 4.0),
+                ("same_layer", 8.0), ("bridge", 8.0),
+            ]
+            for sensitive_round in range(max(0, int(max_targets))):
+                live_drc_path = os.path.join(
+                    work, "sensitive-%02d-baseline-drc.json" %
+                    sensitive_round)
+                live_drc = _run_drc(current, live_drc_path)
+                sensitive_plan = _spawn_apply(
+                    _sensitive_plan_worker,
+                    (current, live_drc, max_targets))
+                sensitive_targets = list(
+                    sensitive_plan.get("targets") or ())
+                round_row = {
+                    "round": sensitive_round,
+                    "candidate_uuids": [row["uuid"]
+                                        for row in sensitive_targets],
+                    "immutable": sensitive_plan.get("immutable") or [],
+                    "accepted": False,
+                }
+                sensitive_drc_sweep["rounds"].append(round_row)
+                if not sensitive_targets:
+                    sensitive_drc_sweep["stop"] = (
+                        "no_eligible_locked_sensitive_tracks")
+                    break
+                for target_row in sensitive_targets:
+                    target = RepairTarget(**target_row)
+                    for mode, margin in sensitive_variants:
+                        if not effort.claim(
+                                "sensitive_drc_reroute", stage_limit=8):
+                            break
+                        trial = os.path.join(
+                            work, "sensitive-%02d-%03d.kicad_pcb" %
+                            (sensitive_round, len(attempts)))
+                        _copy_board_family(current, trial)
+                        has_operations, evidence = _spawn_apply(
+                            _mutate_worker,
+                            (trial, target_row, mode, margin))
+                        row = {
+                            "stage": "sensitive_drc_reroute",
+                            "round": sensitive_round,
+                            "target": asdict(target), **evidence,
+                        }
+                        if not has_operations:
+                            row.update({
+                                "accepted": False,
+                                "decision": evidence.get("refusal"),
+                            })
+                            attempts.append(row)
+                            continue
+                        try:
+                            _spawn_apply(_refill_worker, (trial,))
+                        except Exception as exc:         # noqa: BLE001
+                            row["refill_warning"] = "%s: %s" % (
+                                type(exc).__name__, exc)
+                        trial_drc = os.path.join(
+                            work, "sensitive-%02d-%03d-drc.json" %
+                            (sensitive_round, len(attempts)))
+                        _run_drc(trial, trial_drc)
+                        after = _spawn_apply(
+                            _score_worker, (trial, trial_drc))
+                        ok, decision = _accepts(before, after)
+                        # The central contract rejects newly introduced
+                        # topology faults.  This stronger local requirement
+                        # also refuses to carry any such ambiguity out of a
+                        # sensitive-recovery transaction.
+                        if (after.get("kelvin_topology_faults")
+                                or after.get("route_topology_fault_nets")):
+                            ok = False
+                            decision = "sensitive_topology_not_clean"
+                        row.update({"after": after, "accepted": ok,
+                                    "decision": decision})
+                        attempts.append(row)
+                        if not ok:
+                            continue
+                        _copy_board_family(trial, current)
+                        before = after
+                        accepted.append(row)
+                        round_row.update({
+                            "accepted": True, "uuid": target.uuid,
+                            "net": target.net, "decision": decision,
+                            "after_drc": after["drc"],
+                            "after_unconnected": after["unconnected"],
+                        })
+                        if verbose:
+                            print(
+                                "[certificate-repair] sensitive DRC sweep "
+                                "accepted %s %s: drc=%s unconnected=%s" %
+                                (target.net, target.uuid, after["drc"],
+                                 after["unconnected"]),
+                                file=sys.stderr, flush=True)
+                        break
+                    if round_row["accepted"]:
+                        break
+                if not round_row["accepted"]:
+                    sensitive_drc_sweep["stop"] = effort.stage_stop(
+                        "sensitive_drc_reroute",
+                        "no_admissible_sensitive_drc_reroute")
+                    break
+
         # Track-only surgery cannot resolve a live identity whose routed side
         # is a locked priority segment and whose other side is a lower-
         # authority unlocked via.  Replan from the current DRC, move only the
@@ -2563,6 +2778,7 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "attempts": attempts,
             "accepted": accepted,
             "drc_sweep": drc_sweep,
+            "sensitive_drc_sweep": sensitive_drc_sweep,
             "via_sweep": via_sweep,
             "closure_sweep": closure_sweep,
             "effort_budget": effort.report(),

@@ -253,6 +253,104 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual([row["uuid"] for row in plan["targets"]], [uid])
         self.assertTrue(plan["targets"][0]["drc_conflict"])
 
+    def test_sensitive_plan_only_releases_exact_ungrouped_sense_clearance(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        nets = {}
+        for name in ("/SENSE1_LO", "/SENSE2_HI", "/USB_D_P", "+12V"):
+            nets[name] = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(nets[name])
+
+        def locked_track(name, y, width=0.25):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(1, y))
+            item.SetEnd(pcbnew.VECTOR2I_MM(5, y))
+            item.SetWidth(pcbnew.FromMM(width))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(nets[name])
+            item.SetLocked(True)
+            board.Add(item)
+            return item
+
+        eligible = locked_track("/SENSE1_LO", 1)
+        grouped = locked_track("/SENSE2_HI", 2)
+        coupled = locked_track("/USB_D_P", 3)
+        wide = locked_track("+12V", 4, width=2.0)
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName("AUTHORED_SENSE")
+        board.Add(group)
+        group.AddItem(grouped)
+        board.BuildConnectivity()
+        drc = {"violations": [{
+            "type": "clearance",
+            "items": [{"description": "Track [test] on F.Cu",
+                       "uuid": repair._uuid(item)}
+                      for item in (eligible, grouped, coupled, wide)],
+        }]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "sensitive-plan.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            plan = repair.plan_sensitive_drc_repairs(path, drc, limit=8)
+
+        self.assertEqual([row["uuid"] for row in plan["targets"]],
+                         [repair._uuid(eligible)])
+        self.assertTrue(plan["targets"][0]["sensitive_repair"])
+        immutable = {row["uuid"]: row["reason"]
+                     for row in plan["immutable"]}
+        self.assertEqual(immutable[repair._uuid(grouped)],
+                         "explicit_group_ownership")
+        # The long-lived KiCad SWIG test process can occasionally reload a
+        # synthetic track without its slash-prefixed net name.  Either label
+        # is fail-closed; the separate policy test above proves that a named
+        # USB pair is classified specifically as coupled copper.
+        self.assertIn(immutable[repair._uuid(coupled)],
+                      ("coupled_pair", "authored_locked_copper"))
+        self.assertEqual(immutable[repair._uuid(wide)],
+                         "wide_or_high_current")
+
+    def test_sensitive_mutation_relocks_every_replacement_object(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SENSE1_LO")
+        board.Add(net)
+        for start, end in [((0, 0), (10, 0)), ((10, 0), (10, 10)),
+                           ((10, 10), (0, 10)), ((0, 10), (0, 0))]:
+            edge = pcbnew.PCB_SHAPE(board)
+            edge.SetShape(pcbnew.SHAPE_T_SEGMENT)
+            edge.SetStart(pcbnew.VECTOR2I_MM(*start))
+            edge.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            edge.SetLayer(pcbnew.Edge_Cuts)
+            board.Add(edge)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I_MM(2, 5))
+        track.SetEnd(pcbnew.VECTOR2I_MM(8, 5))
+        track.SetWidth(pcbnew.FromMM(0.25))
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetNet(net)
+        track.SetLocked(True)
+        board.Add(track)
+        target = repair.RepairTarget(
+            uuid=repair._uuid(track), net="/SENSE1_LO", layer="F.Cu",
+            hit_count=1, blocked_nets=(), reservations=(),
+            drc_types=("clearance",), drc_conflict=True,
+            priority=(-1, repair._uuid(track)), sensitive_repair=True)
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "sensitive-reroute.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._mutate_worker(
+                path, repair.asdict(target), "same_layer", 2.0)
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        self.assertTrue(evidence["sensitive_repair"])
+        self.assertTrue(evidence["new_geometry"]["locked"])
+        self.assertTrue(evidence["new_geometry"]["uuids"])
+        self.assertTrue(all(item.IsLocked() for item in saved.GetTracks()))
+
     def test_drc_named_unlocked_via_is_lower_authority_repair_target(self):
         import pcbnew
         import cec_certificate_repair as repair

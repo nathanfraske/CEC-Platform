@@ -75,6 +75,11 @@ def snapshot(metrics):
         for violation in (detail.get("structural_violations") or ()):
             kind = str(violation.get("type") or "unknown")
             raw_types[kind] = int(raw_types.get(kind, 0)) + 1
+    kelvin_topology = (_value(metrics, "kelvin_topology_faults", None)
+                       or detail.get("kelvin_topology_faults") or ())
+    route_topology_nets = (
+        _value(metrics, "route_topology_fault_nets", None)
+        or detail.get("route_topology_fault_nets") or ())
     return {
         "drc": int(_value(metrics, "drc", 0) or 0),
         "drc_types": {
@@ -86,6 +91,13 @@ def snapshot(metrics):
         "diffpair_ok": bool(_value(metrics, "diffpair_ok", False)),
         "structural_drc_identities": sorted({
             str(identity) for identity in (identities or ())}),
+        "kelvin_topology_faults": sorted({
+            json.dumps(row, sort_keys=True, separators=(",", ":"),
+                       default=str)
+            if not isinstance(row, str) else row
+            for row in kelvin_topology}),
+        "route_topology_fault_nets": sorted({
+            str(net) for net in route_topology_nets if net}),
         "unconn_signature_sha256": str(
             _value(metrics, "unconn_signature_sha256", None)
             or detail.get("unconn_signature_sha256") or ""),
@@ -116,6 +128,12 @@ def evaluate(before, after, *, require_strict=False,
     new_nets = set(new["unconn_nets"])
     old_faults = set(old["structural_drc_identities"])
     new_faults = set(new["structural_drc_identities"])
+    new_kelvin_topology = sorted(
+        set(new["kelvin_topology_faults"])
+        - set(old["kelvin_topology_faults"]))
+    new_route_topology_nets = sorted(
+        set(new["route_topology_fault_nets"])
+        - set(old["route_topology_fault_nets"]))
     allowed_nets = {str(net) for net in allowed_new_unconnected_nets if net}
     allowed_drc = {str(kind) for kind in allowed_new_drc_types if kind}
     all_new_unconnected_nets = sorted(new_nets - old_nets)
@@ -136,6 +154,10 @@ def evaluate(before, after, *, require_strict=False,
         reasons.append("kelvin_gate_regressed")
     if old["diffpair_ok"] and not new["diffpair_ok"]:
         reasons.append("diffpair_gate_regressed")
+    if new_kelvin_topology:
+        reasons.append("new_kelvin_topology_fault")
+    if new_route_topology_nets:
+        reasons.append("new_route_topology_fault_nets")
     if (new["unconnected"] > old["unconnected"]
             and not allow_unconnected_growth):
         reasons.append("unconnected_regressed")
@@ -170,6 +192,8 @@ def evaluate(before, after, *, require_strict=False,
         "new_structural_drc_identities": new_drc_identities,
         "allowed_new_structural_drc_identities": sorted(
             set(all_new_drc_identities) - set(new_drc_identities)),
+        "new_kelvin_topology_faults": new_kelvin_topology,
+        "new_route_topology_fault_nets": new_route_topology_nets,
         # Endpoint hashes remain useful forensic evidence even though they are
         # intentionally not a hard gate (see module docstring).
         "unconn_endpoint_signature_changed": bool(

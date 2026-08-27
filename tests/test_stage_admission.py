@@ -11,7 +11,8 @@ import cec_stage_admission as admission
 
 
 def metric(*, drc=0, unconnected=0, nets=(), faults=(), kelvin=True,
-           diffpair=True, endpoint_hash=""):
+           diffpair=True, endpoint_hash="", kelvin_topology=(),
+           route_topology_nets=()):
     violations = []
     for kind, uuids in faults:
         violations.append({
@@ -25,6 +26,8 @@ def metric(*, drc=0, unconnected=0, nets=(), faults=(), kelvin=True,
             "unconn_nets": list(nets),
             "structural_violations": violations,
             "unconn_signature_sha256": endpoint_hash,
+            "kelvin_topology_faults": list(kelvin_topology),
+            "route_topology_fault_nets": list(route_topology_nets),
         })
 
 
@@ -105,6 +108,19 @@ class StageAdmissionTests(unittest.TestCase):
         self.assertTrue(accepted["accepted"])
         self.assertFalse(refused["accepted"])
         self.assertEqual(refused["decision"], "new_unconnected_nets")
+
+    def test_rejects_new_topology_debt_even_when_boolean_gate_was_already_bad(self):
+        before = metric(drc=1, kelvin=False, diffpair=False)
+        after = metric(
+            drc=0, kelvin=False, diffpair=False,
+            kelvin_topology=({"net": "/SENSE1_LO", "kind": "cycle"},),
+            route_topology_nets=("/USB_D_P",))
+
+        result = admission.evaluate(before, after, require_strict=True)
+
+        self.assertFalse(result["accepted"])
+        self.assertIn("new_kelvin_topology_fault", result["reasons"])
+        self.assertIn("new_route_topology_fault_nets", result["reasons"])
 
     def test_legacy_mapping_and_reason_precedence_remain_compatible(self):
         identity = json.dumps(
