@@ -94,6 +94,16 @@ def _bypass_board():
 
 
 class TestLastmile(unittest.TestCase):
+    def test_board_scale_maze_uses_coarse_grid_unless_explicitly_pinned(self):
+        import cec_fr
+
+        self.assertEqual(cec_fr._adaptive_maze_grid_mm(9_000_000), 0.5)
+        self.assertEqual(cec_fr._adaptive_maze_grid_mm(12_000_000), 0.75)
+        self.assertEqual(cec_fr._adaptive_maze_grid_mm(25_000_000), 1.0)
+        self.assertEqual(cec_fr._adaptive_maze_grid_mm(40_000_000), 1.5)
+        self.assertEqual(
+            cec_fr._adaptive_maze_grid_mm(40_000_000, 0.5), 0.5)
+
     def test_multilayer_maze_changes_layers_inside_fixed_corridor(self):
         import pcbnew
         import cec_fr
@@ -166,11 +176,42 @@ class TestLastmile(unittest.TestCase):
                 break
             start_narrow += math.hypot(b.x - a.x, b.y - a.y) / 1e6
         # A one-millimetre direct link cannot retain the 1.5mm source escape
-        # and a class-width throat.  The maze must detour, consume the real
-        # endpoint budget, and prove the throat before entering the target.
+        # and a class-width throat.  The maze must detour, remain inside the
+        # real endpoint budget, and prove the throat before entering target.
+        # An octilinear hop may end the narrow prefix before (never after) the
+        # exact scalar budget boundary.
         self.assertGreater(total, 1.5)
-        self.assertAlmostEqual(start_narrow, 1.5, places=3)
+        self.assertGreater(start_narrow, 0.0)
+        self.assertLessEqual(start_narrow, 1.5 + 1e-6)
         self.assertGreaterEqual(wide, 0.25)
+
+    def test_local_maze_can_use_exact_45_degree_pin_escape(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 6, 6))
+        start = pcbnew.VECTOR2I_MM(1.0, 1.0)
+        end = pcbnew.VECTOR2I_MM(3.0, 3.0)
+
+        def diagonal_only(_a, _b, _width, _clearance, _zones, _copper):
+            dx = abs(_b.x - _a.x)
+            dy = abs(_b.y - _a.y)
+            return dx > 0 and dx == dy
+
+        with mock.patch.object(
+                cec_fr, "_foreign_shape_indexes", return_value=([], [])), \
+                mock.patch.object(
+                    cec_fr, "_snapshot_foreign_clear",
+                    side_effect=diagonal_only):
+            path = cec_fr._maze_lastmile_legs(
+                board, start, end, pcbnew.FromMM(0.25), pcbnew.F_Cu,
+                pcbnew.FromMM(0.2), 1,
+                lambda _a, _b, _half: True,
+                grid_mm=0.5, margin_mm=1.0)
+
+        self.assertTrue(path)
+        for a, b, _width in path:
+            self.assertEqual(abs(b.x - a.x), abs(b.y - a.y))
 
     def test_bridge_search_keeps_alternate_qualified_seat_pairs(self):
         import cec_fr
@@ -613,6 +654,175 @@ class TestLastmile(unittest.TestCase):
             op for op in operations
             if op[0] == "trk" and op[4] == pcbnew.F_Cu
         ], "qualified endpoint vias need no offset dogbone stubs")
+
+    def test_bridge_uses_declared_pofv_geometry_at_pad_origin(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 8, 4))
+        start = pcbnew.VECTOR2I_MM(1.0, 2.0)
+        end = pcbnew.VECTOR2I_MM(7.0, 2.0)
+        qualified = {(start.x, start.y), (end.x, end.y)}
+        calls = []
+
+        def via_clear(_board, at, diameter, _clearance, _nets, **kwargs):
+            calls.append((at.x, at.y, diameter, kwargs.get("drill_nm")))
+            return ((at.x, at.y) in qualified
+                    and diameter == pcbnew.FromMM(0.35)
+                    and kwargs.get("drill_nm") == pcbnew.FromMM(0.25))
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name",
+                return_value="jlcpcb_6l_pofv_signal"), \
+                mock.patch.object(
+                    cec_fr._fab, "via_at_pad_conflicts",
+                    return_value=(None, [{"ref": "U1", "pad": "1"}])), \
+                mock.patch.object(cec_fr, "_via_spot_clear",
+                               side_effect=via_clear), \
+                mock.patch.object(cec_fr, "_guarded_lastmile_legs",
+                                  return_value=[(start, end)]), \
+                mock.patch.object(
+                    cec_fr, "_guarded_profiled_lastmile_legs",
+                    return_value=None):
+            operations = cec_fr._lastmile_bridge(
+                board, (start.x, start.y), {pcbnew.F_Cu},
+                (end.x, end.y), {pcbnew.F_Cu},
+                pcbnew.FromMM(0.25), 1, [pcbnew.B_Cu],
+                pcbnew.FromMM(0.2), drill=0.3, dia=0.6,
+                leg_ok=lambda _a, _b, _half: True,
+                seat_limit=8, allow_maze=False)
+
+        vias = [op for op in operations if op[0] == "via"]
+        self.assertEqual([(op[2], op[3]) for op in vias],
+                         [(0.25, 0.35), (0.25, 0.35)])
+        self.assertTrue(calls)
+
+    def test_bridge_does_not_use_pofv_geometry_at_bare_endpoint(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 8, 4))
+        settings = board.GetDesignSettings()
+        settings.m_ViasMinSize = pcbnew.FromMM(0.50)
+        settings.m_MinThroughDrill = pcbnew.FromMM(0.30)
+        settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.10)
+        start = pcbnew.VECTOR2I_MM(1.0, 2.0)
+        end = pcbnew.VECTOR2I_MM(7.0, 2.0)
+        calls = []
+
+        def via_clear(_board, at, diameter, _clearance, _nets, **kwargs):
+            calls.append((diameter, kwargs.get("drill_nm")))
+            return True
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name",
+                return_value="jlcpcb_6l_pofv_signal"), \
+                mock.patch.object(
+                    cec_fr._fab, "via_at_pad_conflicts",
+                    return_value=(None, [])), \
+                mock.patch.object(cec_fr, "_via_spot_clear",
+                                  side_effect=via_clear), \
+                mock.patch.object(cec_fr, "_guarded_lastmile_legs",
+                                  return_value=[(start, end)]), \
+                mock.patch.object(
+                    cec_fr, "_guarded_profiled_lastmile_legs",
+                    return_value=None):
+            operations = cec_fr._lastmile_bridge(
+                board, (start.x, start.y), {pcbnew.F_Cu},
+                (end.x, end.y), {pcbnew.F_Cu},
+                pcbnew.FromMM(0.25), 1, [pcbnew.B_Cu],
+                pcbnew.FromMM(0.2), drill=0.20, dia=0.30,
+                leg_ok=lambda _a, _b, _half: True,
+                seat_limit=8, allow_maze=False)
+
+        vias = [op for op in operations if op[0] == "via"]
+        self.assertEqual([(op[2], op[3]) for op in vias],
+                         [(0.30, 0.50), (0.30, 0.50)])
+        self.assertNotIn(
+            (pcbnew.FromMM(0.35), pcbnew.FromMM(0.25)), calls)
+
+    def test_bridge_clamps_offset_vias_to_board_drc_minima(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 8, 4))
+        settings = board.GetDesignSettings()
+        settings.m_ViasMinSize = pcbnew.FromMM(0.50)
+        settings.m_MinThroughDrill = pcbnew.FromMM(0.30)
+        settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.10)
+        start = pcbnew.VECTOR2I_MM(1.0, 2.0)
+        end = pcbnew.VECTOR2I_MM(7.0, 2.0)
+
+        def via_clear(_board, at, diameter, _clearance, _nets, **kwargs):
+            # Refuse endpoint-origin seats so the ordinary offset dogbone
+            # path is exercised.  Only board-legal geometry is accepted.
+            is_origin = ((at.x, at.y) in {
+                (start.x, start.y), (end.x, end.y)})
+            return (not is_origin
+                    and diameter == pcbnew.FromMM(0.50)
+                    and kwargs.get("drill_nm") == pcbnew.FromMM(0.30))
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name", return_value=None), \
+                mock.patch.object(cec_fr, "_via_spot_clear",
+                                  side_effect=via_clear), \
+                mock.patch.object(
+                    cec_fr, "_guarded_profiled_lastmile_legs",
+                    side_effect=lambda _board, a, b, width, *_args,
+                    **_kwargs: [(a, b, width)]), \
+                mock.patch.object(
+                    cec_fr, "_guarded_lastmile_legs",
+                    return_value=[(start, end)]):
+            operations = cec_fr._lastmile_bridge(
+                board, (start.x, start.y), {pcbnew.F_Cu},
+                (end.x, end.y), {pcbnew.F_Cu},
+                pcbnew.FromMM(0.25), 1, [pcbnew.B_Cu],
+                pcbnew.FromMM(0.2), drill=0.20, dia=0.30,
+                leg_ok=lambda _a, _b, _half: True,
+                seat_limit=8, allow_maze=False)
+
+        self.assertIsNotNone(operations)
+        vias = [op for op in operations if op[0] == "via"]
+        self.assertEqual([(op[2], op[3]) for op in vias],
+                         [(0.30, 0.50), (0.30, 0.50)])
+
+    def test_bridge_seat_ladder_clears_passive_ring_and_power_trunk(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 10, 10))
+        start = pcbnew.VECTOR2I_MM(1.0, 3.0)
+        end = pcbnew.VECTOR2I_MM(9.0, 3.0)
+        qualified = {
+            (start.x, start.y + pcbnew.FromMM(3.0)),
+            (end.x, end.y + pcbnew.FromMM(3.0)),
+        }
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name", return_value=None), \
+                mock.patch.object(
+                    cec_fr, "_via_spot_clear",
+                    side_effect=lambda _board, at, *_args, **_kwargs:
+                    (at.x, at.y) in qualified), \
+                mock.patch.object(
+                    cec_fr, "_guarded_profiled_lastmile_legs",
+                    side_effect=lambda _board, a, b, width, *_args,
+                    **_kwargs: [(a, b, width)]), \
+                mock.patch.object(
+                    cec_fr, "_guarded_lastmile_legs",
+                    side_effect=lambda _board, a, b, *_args, **_kwargs:
+                    [(a, b)]):
+            operations = cec_fr._lastmile_bridge(
+                board, (start.x, start.y), {pcbnew.F_Cu},
+                (end.x, end.y), {pcbnew.F_Cu},
+                pcbnew.FromMM(0.25), 1, [pcbnew.B_Cu],
+                pcbnew.FromMM(0.2), drill=0.3, dia=0.6,
+                leg_ok=lambda _a, _b, _half: True,
+                seat_limit=8, allow_maze=False)
+
+        self.assertIsNotNone(operations)
+        vias = [op for op in operations if op[0] == "via"]
+        self.assertEqual({(op[1].x, op[1].y) for op in vias}, qualified)
 
     def test_canonical_path_helper_covers_octants(self):
         import cec_fr
@@ -1081,6 +1291,44 @@ class TestLastmile(unittest.TestCase):
                     start, end, int(0.2e6), int(0.2e6), zones, copper)
                 self.assertEqual(actual, expected)
 
+    def test_maze_shape_snapshot_honors_stricter_zone_local_clearance(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(2, 5, "/A"), (8, 5, "/A")],
+                       edge=(0, 0, 10, 10))
+        foreign = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(foreign)
+        zone = pcbnew.ZONE(board)
+        zone.SetLayer(pcbnew.F_Cu)
+        zone.SetNet(foreign)
+        zone.SetZoneName("pourplan:/BLOCK")
+        zone.SetLocalClearance(int(0.5e6))
+        outline = zone.Outline()
+        outline.NewOutline()
+        for x, y in ((4, 5.35), (6, 5.35), (6, 8), (4, 8)):
+            outline.Append(int(x * 1e6), int(y * 1e6))
+        board.Add(zone)
+
+        start = pcbnew.VECTOR2I_MM(2.0, 5.0)
+        end = pcbnew.VECTOR2I_MM(8.0, 5.0)
+        code = board.GetNetcodeFromNetname("/A")
+        zones, copper = cec_fr._layer_foreign_shapes(
+            board, pcbnew.F_Cu, {code})
+
+        # The route's own 0.20 mm rule would pass this 0.25 mm edge gap;
+        # the foreign zone's explicit 0.50 mm rule is the controlling one.
+        self.assertFalse(cec_fr._snapshot_foreign_clear(
+            start, end, int(0.2e6), int(0.2e6), zones, copper))
+        identified = cec_fr._identified_foreign_shape_indexes(
+            board, pcbnew.F_Cu, {code})
+        blockers = cec_fr._snapshot_foreign_blockers(
+            start, end, int(0.2e6), int(0.2e6), *identified)
+        self.assertTrue(any(
+            row.get("kind") == "zone"
+            and row.get("contact") == "zone_clearance"
+            for row in blockers))
+
     def test_foreign_shape_index_is_reused_only_for_same_layer_and_exempt_net(self):
         import pcbnew
         import cec_fr
@@ -1132,6 +1380,45 @@ class TestLastmile(unittest.TestCase):
             board, pcbnew.B_Cu, {code})
         self.assertFalse(cec_fr._snapshot_foreign_clear(
             start, end, int(0.2e6), int(0.2e6), zones, copper))
+
+    def test_lastmile_guards_apply_board_clearance_to_npth_holes(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/A"), (9, 5, "/A")])
+        board.GetDesignSettings().m_HoleClearance = pcbnew.FromMM(0.25)
+        fixture = pcbnew.FOOTPRINT(board)
+        fixture.SetReference("J1")
+        hole = pcbnew.PAD(fixture)
+        hole.SetNumber("H1")
+        hole.SetAttribute(pcbnew.PAD_ATTRIB_NPTH)
+        hole.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+        hole.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        hole.SetDrillSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        hole.SetPosition(pcbnew.VECTOR2I_MM(7.0, 5.6))
+        fixture.Add(hole)
+        board.Add(fixture)
+
+        start = pcbnew.VECTOR2I_MM(5.0, 5.0)
+        end = pcbnew.VECTOR2I_MM(9.0, 5.0)
+        code = board.GetNetcodeFromNetname("/A")
+        self.assertFalse(cec_fr._tap_foreign_clear(
+            board, start, end, pcbnew.FromMM(0.2), pcbnew.F_Cu,
+            pcbnew.FromMM(0.2), {code}))
+        zones, copper = cec_fr._layer_foreign_shapes(
+            board, pcbnew.F_Cu, {code})
+        self.assertFalse(cec_fr._snapshot_foreign_clear(
+            start, end, pcbnew.FromMM(0.2), pcbnew.FromMM(0.2),
+            zones, copper))
+        identified = cec_fr._identified_foreign_shape_indexes(
+            board, pcbnew.F_Cu, {code})
+        blockers = cec_fr._snapshot_foreign_blockers(
+            start, end, pcbnew.FromMM(0.2), pcbnew.FromMM(0.2),
+            *identified)
+        self.assertTrue(any(
+            row.get("kind") == "npth_hole"
+            and row.get("contact") == "hole_clearance"
+            for row in blockers), blockers)
 
     def test_wave_plumbing(self):
         import cec_fresh_wave as w

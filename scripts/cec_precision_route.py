@@ -196,6 +196,26 @@ def derive_coupled_pairs(board_path, *, board=None):
             _add("CAN", "can", hi, lo, 120.0)
             break
 
+    # Series protection/termination can split a physical CAN pair into named
+    # connector-side legs such as CAN_H_J1/CAN_L_J1.  Those remain a coupled
+    # transmission path even though neither leaf is the core CAN_H/CAN_L net.
+    # Match only a non-empty suffix and require the exact same hierarchy and
+    # suffix on the L member; ambiguous bare CAN_H leaves retain the
+    # fail-closed unique-leaf rule above.
+    for hi in sorted(names):
+        leaf = hi.rsplit("/", 1)[-1]
+        if not leaf.startswith("CAN_H"):
+            continue
+        suffix = leaf[len("CAN_H"):]
+        if not suffix or suffix == "_BUS":
+            continue
+        lo_leaf = "CAN_L" + suffix
+        lo = hi[:-len(leaf)] + lo_leaf
+        if lo not in names:
+            continue
+        pair_name = "CAN" + suffix
+        _add(pair_name, "can", hi, lo, 120.0)
+
     # (c) USB differential -- the non-underscore spellings _P/_N drops
     for p_leaf, n_leaf in (("USB_DP", "USB_DM"), ("USB_D+", "USB_D-")):
         p = ("/" + p_leaf) if ("/" + p_leaf) in names else \
@@ -1462,6 +1482,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
                        preferred_end_direction=None,
                        minimum_end_heading_alignment=0.0,
                        allow_terminal_gap_taper=False,
+                       strict_pair_gap=False,
                        foreign_shape_cache=None,
                        partner_shape_cache=None,
                        blocker_shape_cache=None):
@@ -1584,8 +1605,13 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
     p_direct_admission = member_admission(p_start, p_end, n_code)
     n_direct_admission = member_admission(n_start, n_end, p_code)
     direct_crossing_free = _polys_no_cross(p_direct, n_direct)
+    strict_terminal_gap = bool(
+        strict_pair_gap
+        or (float(minimum_coupled_fraction) > 0.0
+            and not allow_terminal_gap_taper))
     direct_spacing_ok = _pair_min_clear(
-        p_direct, n_direct, -1, -1, width, gap)
+        p_direct, n_direct, -1, -1, width, gap,
+        strict_pair_gap=strict_terminal_gap)
     # A hard reversal cannot be repaired at the portal handoff.  Callers may
     # raise this floor when dissimilar pin fields require a forward taper;
     # otherwise an orthogonal arrival remains a legal assembled-route
@@ -1613,8 +1639,9 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
     solved = None
     paired_ribbon = None
     ribbon_rejections = []
-    for ribbon in _short_pair_ribbon_candidates(
-            pair, p_start, p_end, n_start, n_end):
+    ribbon_domain = (_short_pair_ribbon_candidates(
+        pair, p_start, p_end, n_start, n_end) if allow_detour else ())
+    for ribbon in ribbon_domain:
         if _deadline_expired(deadline):
             break
         p_points, n_points = ribbon["p"], ribbon["n"]
@@ -1706,6 +1733,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
                 3.81 if pair.get("kind") == "usb" else 4.0)),
             max_member_paths=int(detour_member_paths),
             preferred_end_direction=preferred_end_direction,
+            strict_pair_gap=strict_terminal_gap,
             diagnostics=admission["detour"], deadline=deadline)
     else:
         solved = None
@@ -1730,8 +1758,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
             "refused": "paired terminal handoff arrives against trunk heading",
             "admission": admission,
         }
-    if (float(minimum_coupled_fraction) > 0.0
-            and not allow_terminal_gap_taper
+    if (strict_terminal_gap
             and not _pair_min_clear(
                 p_points, n_points, -1, -1, width, gap,
                 strict_pair_gap=True)):
@@ -3943,6 +3970,7 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
                            p_segment_clear=None, n_segment_clear=None,
                            max_detour=2.0, max_member_paths=32,
                            max_skew=None, preferred_end_direction=None,
+                           strict_pair_gap=False,
                            diagnostics=None, deadline=None):
     """Jointly solve the two short endpoint escapes.
 
@@ -4070,7 +4098,8 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
                 crossing_rejected += 1
                 continue
             if not _pair_min_clear(
-                    p_path, n_path, -1, -1, width, gap):
+                    p_path, n_path, -1, -1, width, gap,
+                    strict_pair_gap=bool(strict_pair_gap)):
                 pair_clearance_rejected += 1
                 continue
             n_len = sum(_dist(a, b) for a, b in zip(n_path, n_path[1:]))
@@ -4140,18 +4169,152 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
     return list(p_path), list(n_path)
 
 
-def _pair_escape_budget(pad_a, pad_b, *, floor_mm=4.0,
+def _pair_escape_budget(pad_a, pad_b, *, floor_mm=6.0,
                         cap_mm=12.0):
     """Scale a coupled breakout to the physical pair-pin separation.
 
-    A compact IC pair needs only the historical 4mm neighborhood.  Widely
-    separated connector contacts (for example a modular jack's pins 3 and 6)
-    need room to converge without crossing; a fixed 4mm search falsely proves
-    those legal launches impossible.  Keep the search local and bounded while
-    scaling it to the package geometry rather than a connector name.
+    A compact IC pair needs enough neighborhood for two signal-via lands and
+    their reference-return field after clearing its passive ring.  Widely
+    separated connector contacts need still more room to converge without
+    crossing.  Keep the search local and bounded while scaling it to package
+    geometry rather than a connector name.
     """
     return min(float(cap_mm), max(float(floor_mm),
                                  1.5 * _dist(pad_a, pad_b)))
+
+
+def _return_via_route_rank(delta, route_axis, corridor_half, portal_side):
+    """Prefer flank returns, then package-side, then corridor-side seats.
+
+    A dense pin field can leave no legal via exactly beside a matched signal
+    pair.  Rejecting every axial candidate at screening time creates a false
+    placement failure even when a legal package-side return exists.  Keep the
+    professional flank preference, but retain both axial fallbacks for the
+    later exact fan-in and shared-centreline collision proofs.
+    """
+    route_length = math.hypot(*route_axis) or 1.0
+    route_unit = (route_axis[0] / route_length,
+                  route_axis[1] / route_length)
+    signed_projection = (delta[0] * route_unit[0]
+                         + delta[1] * route_unit[1])
+    absolute_projection = abs(signed_projection)
+    if absolute_projection + 1e-9 < float(corridor_half):
+        route_class = 0
+    else:
+        # The inner ribbon leaves a start portal along +axis and approaches an
+        # end portal along +axis.  Therefore the package side is -axis at the
+        # start and +axis at the end.
+        package_side = (signed_projection < 0.0
+                        if portal_side == "start"
+                        else signed_projection > 0.0)
+        route_class = 1 if package_side else 2
+    return (route_class, round(absolute_projection, 9))
+
+
+def _add_pair_transition_returns(
+        board, center, pair_vector, *, route_axis=None, signal_points=(),
+        portal_side="start", width=0.20, gap=0.20, clearance=0.20,
+        via_diameter_mm=0.60, via_drill_mm=0.30,
+        return_reach_mm=1.50):
+    """Add the minimum exact-clearance GND field for one pair transition.
+
+    Both ordinary paired portals and pad-origin filled/capped transitions need
+    the same return-path contract.  Keeping this as one primitive prevents a
+    later transition strategy from emitting signal barrels without proving
+    that *each* pair member has a nearby reference return.
+    """
+    gnd = board.FindNet("GND")
+    if gnd is None:
+        return [], "board has no GND net"
+    signal_points = tuple(signal_points) or (tuple(center),)
+
+    def existing_gnd_vias():
+        return [item for item in board.GetTracks()
+                if item.GetClass() == "PCB_VIA"
+                and item.GetNetname() == "GND"]
+
+    def covered(points, vias):
+        return [point for point in points if any(
+            math.dist(
+                point,
+                (via.GetPosition().x / MM, via.GetPosition().y / MM))
+            <= float(return_reach_mm) + 1e-9
+            for via in vias)]
+
+    uncovered = [point for point in signal_points
+                 if point not in covered(signal_points, existing_gnd_vias())]
+    if not uncovered:
+        return [], "covered"
+    vx, vy = pair_vector
+    length = math.hypot(vx, vy) or 1.0
+    pair_angle = math.atan2(vy / length, vx / length)
+    if route_axis is not None:
+        route_length = math.hypot(*route_axis) or 1.0
+        route_unit = (route_axis[0] / route_length,
+                      route_axis[1] / route_length)
+    else:
+        route_unit = None
+    bounds = board.GetBoardEdgesBoundingBox()
+    left, top = bounds.GetLeft() / MM, bounds.GetTop() / MM
+    right, bottom = bounds.GetRight() / MM, bounds.GetBottom() / MM
+    gnd_code = int(gnd.GetNetCode())
+    radius_land = float(via_diameter_mm) / 2.0
+    corridor_half = ((2.0 * float(width) + float(gap)) / 2.0
+                     + radius_land + float(clearance))
+    candidates = []
+    # Dense passive rings often leave only an oblique return pocket.  Search a
+    # fine, still-finite field out to the caller's per-member reach instead of
+    # assuming four cardinal/diagonal seats within 1.45 mm of the midpoint.
+    maximum_radius = max(1.45, float(return_reach_mm)
+                         + math.dist(signal_points[0], center))
+    radii = tuple(value / 100.0 for value in range(
+        90, int(math.ceil(100.0 * maximum_radius)) + 1, 15))
+    for radius in radii:
+        for step_index in range(16):
+            angle = pair_angle + step_index * math.pi / 8.0
+            delta = (radius * math.cos(angle), radius * math.sin(angle))
+            route_rank = (_return_via_route_rank(
+                delta, route_unit, corridor_half, portal_side)
+                if route_unit is not None else (0, 0.0))
+            candidates.append((route_rank, radius, step_index, delta))
+    added = []
+    while uncovered:
+        legal = []
+        for route_rank, radius, step_index, delta in sorted(candidates):
+            point = (center[0] + delta[0], center[1] + delta[1])
+            if (point[0] - radius_land < left + 0.5
+                    or point[0] + radius_land > right - 0.5
+                    or point[1] - radius_land < top + 0.5
+                    or point[1] + radius_land > bottom - 0.5):
+                continue
+            at = _v(*point)
+            if not cec_fr._via_spot_clear(
+                    board, at, _nm(via_diameter_mm), _nm(clearance),
+                    {gnd_code}, drill_nm=_nm(via_drill_mm),
+                    net_code=gnd_code):
+                continue
+            hits = [signal for signal in uncovered
+                    if math.dist(signal, point)
+                    <= float(return_reach_mm) + 1e-9]
+            if hits:
+                legal.append((-len(hits), route_rank, radius, step_index,
+                              point, hits))
+        if not legal:
+            return added, (
+                "no legal GND return via within %.2fmm of every pair member"
+                % return_reach_mm)
+        (_neg_hits, _route_rank, _radius, _step, point, hits) = min(legal)
+        via = pcbnew.PCB_VIA(board)
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetPosition(_v(*point))
+        via.SetWidth(_nm(via_diameter_mm))
+        via.SetDrill(_nm(via_drill_mm))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNetCode(gnd_code)
+        board.Add(via)
+        added.append(via)
+        uncovered = [signal for signal in uncovered if signal not in hits]
+    return added, "added"
 
 
 def _paired_portal_candidates(p_start, n_start, p_end, n_end, *,
@@ -4202,7 +4365,7 @@ def _paired_portal_candidates(p_start, n_start, p_end, n_end, *,
         -sign)))
     max_lead = max(1.3, span / 2.0 - 0.5)
     lateral_rows = (0.0, 0.6, -0.6, 1.0, -1.0,
-                    1.5, -1.5, 2.0, -2.0)
+                    1.5, -1.5, 2.0, -2.0, 3.0, -3.0)
 
     def side_rows(side, actual_p, actual_n, budget):
         # At 45 degrees the axial distance needed to converge two pins to the
@@ -4214,9 +4377,15 @@ def _paired_portal_candidates(p_start, n_start, p_end, n_end, *,
             1.3,
             0.5 * (_dist(actual_p, actual_n)
                    - (float(width) + float(gap))) - 0.15)
+        # Include the half-step immediately inside the package-scaled escape
+        # boundary.  Dense via fields often have a narrow legal band at that
+        # edge; sampling only whole millimetres can place one row just inside
+        # the blocker and the next row needlessly beyond the best fan-in.
+        budget_value = round(float(budget), 6)
         leads = sorted({
             value for value in (1.3, 2.0, 3.0, 4.0, 5.0, 6.0,
-                                round(float(budget), 6))
+                                round(budget_value - 0.5, 6),
+                                budget_value)
             if minimum_lead - 1e-9 <= value <= max_lead + 1e-9})
         rows = {1: [], -1: []}
         direction = 1.0 if side == "start" else -1.0
@@ -4874,8 +5043,16 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
     # Through-via lands cannot sit at the narrow trace-pair pitch.  Widen only
     # the two transition portals enough for real annular lands plus clearance;
     # the jointly routed inner ribbon converges back to nominal pair geometry.
-    portal_separation = (max(width + gap,
-                             float(signal_via_diameter_mm) + float(clearance))
+    # Do not place two different-net annular lands at the exact mathematical
+    # clearance boundary.  KiCad's shape collision predicate is inclusive at
+    # that boundary, so the second member would reject the first and every
+    # matched transition field would appear impossible.  The extra 50 um is a
+    # small deterministic manufacturing/search margin localized to the portal;
+    # the ribbon still converges to the specified trace gap after the vias.
+    portal_separation = (max(
+                             width + gap,
+                             float(signal_via_diameter_mm)
+                             + float(clearance) + 0.05)
                          if layer_transition else None)
     portal_plan = _paired_portal_candidates(
         p_start, n_start, p_end, n_end, width=width, gap=gap,
@@ -4884,8 +5061,13 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
     end_spread = _dist(p_end, n_end)
     pinfield_ratio = (max(start_spread, end_spread)
                       / max(min(start_spread, end_spread), 1e-9))
-    minimum_handoff_alignment = (
-        math.cos(math.radians(67.5)) if pinfield_ratio > 2.0 else 0.0)
+    # Dissimilar pin fields are precisely the case in which a connector
+    # dogbone may need to arrive orthogonally at the common trunk.  Treat that
+    # turn as a ranking concern, not a feasibility constraint: the terminal
+    # stub generator still rejects acute/backtracking geometry and chamfers
+    # accepted axis turns before copper is emitted.  A positive hard floor
+    # here made otherwise legal wide-connector fan-ins impossible.
+    minimum_handoff_alignment = 0.0
     # A long board-scale span needs only a narrow beam; A* dominates and two
     # good fan-ins are sufficient.  A short package-to-package edge has little
     # middle corridor but a small finite fan-in combination space, so retain a
@@ -4971,6 +5153,7 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
             detour_member_paths=detour_member_paths,
             preferred_end_direction=preferred_heading,
             minimum_end_heading_alignment=minimum_handoff_alignment,
+            strict_pair_gap=True,
             foreign_shape_cache=foreign_shape_cache,
             partner_shape_cache=partner_shape_cache,
             blocker_shape_cache=blocker_shape_cache)
@@ -4992,121 +5175,15 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
         board.Add(via)
         return via
 
-    def existing_gnd_vias():
-        return [item for item in board.GetTracks()
-                if item.GetClass() == "PCB_VIA"
-                and item.GetNetname() == "GND"]
-
     def add_return_via(center, pair_vector, route_axis=None,
-                       signal_points=()):
-        gnd = board.FindNet("GND")
-        if gnd is None:
-            return [], "board has no GND net"
-        # Return ownership belongs to both signal barrels, not merely their
-        # midpoint.  A single flank via can be within 1.5 mm of the centre yet
-        # leave the far member outside the field-return budget.  Prefer one
-        # site covering both; add the opposite flank only when obstacles make
-        # that impossible.  This is the same bounded geometry for every pair.
-        signal_points = tuple(signal_points) or (tuple(center),)
-
-        def covered(points, vias):
-            return [point for point in points if any(
-                math.dist(
-                    point,
-                    (via.GetPosition().x / MM,
-                     via.GetPosition().y / MM))
-                <= float(return_reach_mm) + 1e-9
-                for via in vias)]
-
-        uncovered = [point for point in signal_points
-                     if point not in covered(signal_points,
-                                             existing_gnd_vias())]
-        if not uncovered:
-            return [], "covered"
-        vx, vy = pair_vector
-        length = math.hypot(vx, vy) or 1.0
-        pair_angle = math.atan2(vy / length, vx / length)
-        if route_axis is not None:
-            route_length = math.hypot(*route_axis) or 1.0
-            route_unit = (route_axis[0] / route_length,
-                          route_axis[1] / route_length)
-        else:
-            route_unit = None
-        bounds = board.GetBoardEdgesBoundingBox()
-        left, top = bounds.GetLeft() / MM, bounds.GetTop() / MM
-        right, bottom = bounds.GetRight() / MM, bounds.GetBottom() / MM
-        gnd_code = int(gnd.GetNetCode())
-        radius_land = float(return_via_diameter_mm) / 2.0
-        corridor_half = ((2.0 * width + gap) / 2.0
-                         + radius_land + float(clearance))
-        candidates = []
-        for radius in (0.90, 1.10, 1.30, 1.45):
-            for step_index in range(8):
-                # Begin on the P/N separation axis, not the route axis. The
-                # historical perpendicular-first order put the first legal
-                # GND via directly in front of a matched pair and made the
-                # subsequently invoked A* start cell a dead end.
-                angle = pair_angle + step_index * math.pi / 4.0
-                delta = (radius * math.cos(angle),
-                         radius * math.sin(angle))
-                route_projection = (abs(
-                    delta[0] * route_unit[0]
-                    + delta[1] * route_unit[1])
-                    if route_unit is not None else 0.0)
-                candidates.append((round(route_projection, 9), radius,
-                                   step_index, delta))
-        added = []
-        while uncovered:
-            legal = []
-            for route_projection, radius, step_index, delta in sorted(
-                    candidates):
-                # The return via may sit beside either member, but never
-                # inside the two-member routing envelope in front of or behind
-                # the portal. If no lateral site exists this portal is not an
-                # atomic transition candidate and must fail closed.
-                if (route_unit is not None
-                        and route_projection + 1e-9 >= corridor_half):
-                    continue
-                point = (center[0] + delta[0], center[1] + delta[1])
-                if (point[0] - radius_land < left + 0.5
-                        or point[0] + radius_land > right - 0.5
-                        or point[1] - radius_land < top + 0.5
-                        or point[1] + radius_land > bottom - 0.5):
-                    continue
-                at = _v(*point)
-                if not cec_fr._via_spot_clear(
-                        board, at, _nm(return_via_diameter_mm),
-                        _nm(clearance), {gnd_code},
-                        drill_nm=_nm(return_via_drill_mm),
-                        net_code=gnd_code):
-                    continue
-                # Keep the distance expression separate from KiCad units so
-                # the rank is deterministic and directly reviewable.
-                hits = [signal for signal in uncovered
-                        if math.dist(signal, point)
-                        <= float(return_reach_mm) + 1e-9]
-                if not hits:
-                    continue
-                legal.append((
-                    -len(hits), route_projection, radius, step_index,
-                    point, hits))
-            if not legal:
-                return added, (
-                    "no legal GND return via within %.2fmm of every pair member"
-                    % return_reach_mm)
-            _neg_hits, _projection, _radius, _step, point, hits = min(legal)
-            at = _v(*point)
-            via = pcbnew.PCB_VIA(board)
-            via.SetViaType(pcbnew.VIATYPE_THROUGH)
-            via.SetPosition(at)
-            via.SetWidth(_nm(return_via_diameter_mm))
-            via.SetDrill(_nm(return_via_drill_mm))
-            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-            via.SetNetCode(gnd_code)
-            board.Add(via)
-            added.append(via)
-            uncovered = [signal for signal in uncovered if signal not in hits]
-        return added, "added"
+                       signal_points=(), portal_side="start"):
+        return _add_pair_transition_returns(
+            board, center, pair_vector, route_axis=route_axis,
+            signal_points=signal_points, portal_side=portal_side,
+            width=width, gap=gap, clearance=clearance,
+            via_diameter_mm=return_via_diameter_mm,
+            via_drill_mm=return_via_drill_mm,
+            return_reach_mm=return_reach_mm)
 
     def screen(rows, label):
         screen_started = time.monotonic()
@@ -5158,6 +5235,8 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                 "blockers": blockers[:8],
                 "reservation_hits": list(
                     report.get("reservation_hits") or ())[:8],
+                "geometry_issues": list(
+                    (report.get("geometry") or {}).get("issues") or ())[:8],
             })
 
         # Breadth before depth: trying every nominally cheap straight fan-in
@@ -5198,7 +5277,8 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                     _return_vias, return_status = add_return_via(
                         row["center"], pair_vector,
                         route_axis=portal_plan["axis"],
-                        signal_points=(row["p"], row["n"]))
+                        signal_points=(row["p"], row["n"]),
+                        portal_side=row["side"])
                     transition_reason = None
                     if p_via is None or n_via is None:
                         transition_reason = (
@@ -5245,6 +5325,9 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                 if not geometry["ok"]:
                     rejection_counts["pair geometry"] = (
                         rejection_counts.get("pair geometry", 0) + 1)
+                    record_rejected(
+                        row, "pair geometry", allow_detour=allow_detour,
+                        report={"geometry": geometry})
                     continue
                 candidate = dict(row)
                 candidate["fanin_length_mm"] = float(
@@ -5416,7 +5499,8 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                     return_vias, return_status = add_return_via(
                         row["center"], pair_vector,
                         route_axis=portal_plan["axis"],
-                        signal_points=(row["p"], row["n"]))
+                        signal_points=(row["p"], row["n"]),
+                        portal_side=row["side"])
                     if return_status not in ("covered", "added"):
                         transition_refused = "%s %s" % (
                             label, return_status)
@@ -5992,6 +6076,215 @@ def _pair_route_failure_certificate(
     }
 
 
+def _route_coupled_endpoint_pofv(
+        board, pair, endpoints, *, target_layer, clearance=0.20,
+        avoid=(), minimum_coupled_fraction=0.0, deadline=None,
+        verbose=False):
+    """Route a pair from qualified pad-origin vias on a referenced layer.
+
+    This fallback is intentionally narrower than a generic via escape: it is
+    available only when an endpoint is an actual same-net SMD land under the
+    board's declared filled/capped POFV profile.  THT endpoints already expose
+    every copper layer.  Signal vias, the local reference-return field, and the
+    complete coupled inner route are one rollback-safe transaction.
+    """
+    profile_name = cec_fab_profile.board_profile_name(board)
+    profile = cec_fab_profile.PROFILES.get(profile_name)
+    preferred = cec_fab_profile.preferred_pofv_geometry(profile)
+    if preferred is None:
+        return {"name": pair["name"], "p": pair["p"], "n": pair["n"],
+                "refused": "board has no declared POFV profile"}
+    layer_id = board.GetLayerID(str(target_layer))
+    if layer_id < 0:
+        return {"name": pair["name"], "p": pair["p"], "n": pair["n"],
+                "refused": "POFV target layer %s absent" % target_layer}
+    requested_diameter, requested_drill = map(float, preferred)
+    ordinary_diameter, ordinary_drill, via_limits = \
+        cec_fab_profile.board_legal_through_via_geometry(
+            board, requested_diameter, requested_drill)
+    # A filled/capped via wholly contained by its assigned endpoint land is
+    # governed by the explicit POFV process, not the ordinary off-pad barrel
+    # rule.  Clamping it to ``m_ViasMinSize`` here made precision routing
+    # disagree with both cec_fr and the decoupler cell, and falsely rejected
+    # legal fine-pitch pad escapes.  ``via_at_pad_conflicts`` below proves the
+    # process dimensions, exact same-net ownership, SMD attribute, and full
+    # land containment before this smaller geometry can be emitted.
+    via_diameter, via_drill = requested_diameter, requested_drill
+    process_ok, process_reason = cec_fab_profile.pofv_dimensions(
+        profile, via_diameter, via_drill)
+    if not process_ok:
+        return {"name": pair["name"], "p": pair["p"], "n": pair["n"],
+                "refused": "declared POFV geometry is invalid: %s" %
+                process_reason}
+    base_ids = {item.m_Uuid.AsString() for item in board.GetTracks()}
+
+    def rollback():
+        for item in list(board.GetTracks()):
+            if item.m_Uuid.AsString() not in base_ids:
+                board.Remove(item)
+
+    def endpoint_pad(net, point):
+        rows = sorted(_pads_on_net(board, net), key=lambda row: (
+            _dist(row[2], point), str(row[0]), str(row[1])))
+        if not rows or _dist(rows[0][2], point) > 0.01:
+            return None
+        return rows[0][3]
+
+    p_start, p_end, n_start, n_end = endpoints
+    stations = (
+        ("start", ((pair["p"], p_start), (pair["n"], n_start))),
+        ("end", ((pair["p"], p_end), (pair["n"], n_end))),
+    )
+    pending_transitions = []
+    for side, members in stations:
+        signal_points = []
+        for net, point in members:
+            pad = endpoint_pad(net, point)
+            if pad is None:
+                rollback()
+                return {"name": pair["name"], "p": pair["p"],
+                        "n": pair["n"],
+                        "refused": "%s endpoint has no exact owning pad" % side}
+            if pad.IsOnLayer(layer_id):
+                continue
+            at = _v(*point)
+            code = int(board.GetNetcodeFromNetname(net))
+            blocking, allowed = cec_fab_profile.via_at_pad_conflicts(
+                board, at, _nm(via_diameter), _nm(via_drill), code)
+            contained_layers = tuple(pad.GetLayerSet().CuStack())
+            # KiCad collision shapes include tangency while the published
+            # clearance is legal.  One database unit preserves exact-minimum
+            # eligibility without admitting any physical underrun.
+            exact_clearance = max(0, _nm(clearance) - 1)
+            if (blocking is not None or not allowed
+                    or not cec_fr._via_spot_clear(
+                        board, at, _nm(via_diameter), exact_clearance,
+                        {code}, drill_nm=_nm(via_drill), net_code=code,
+                        contained_layers=contained_layers)):
+                rollback()
+                return {"name": pair["name"], "p": pair["p"],
+                        "n": pair["n"],
+                        "refused": "%s endpoint POFV is not qualified" % side,
+                        "pofv": {"profile": profile_name, "net": net,
+                                 "point_mm": list(point)}}
+            via = pcbnew.PCB_VIA(board)
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetPosition(at)
+            via.SetWidth(_nm(via_diameter))
+            via.SetDrill(_nm(via_drill))
+            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            via.SetNetCode(code)
+            board.Add(via)
+            signal_points.append(tuple(point))
+        if signal_points:
+            # If one member already reaches the target layer through a THT
+            # land it still belongs to the transition return field.
+            all_points = tuple(tuple(point) for _net, point in members)
+            pair_vector = (all_points[1][0] - all_points[0][0],
+                           all_points[1][1] - all_points[0][1])
+            start_center = ((p_start[0] + n_start[0]) / 2.0,
+                            (p_start[1] + n_start[1]) / 2.0)
+            end_center = ((p_end[0] + n_end[0]) / 2.0,
+                          (p_end[1] + n_end[1]) / 2.0)
+            axis = (end_center[0] - start_center[0],
+                    end_center[1] - start_center[1])
+            center = ((all_points[0][0] + all_points[1][0]) / 2.0,
+                      (all_points[0][1] + all_points[1][1]) / 2.0)
+            return_diameter, return_drill, _return_limits = \
+                cec_fab_profile.board_legal_through_via_geometry(
+                    board, 0.60, 0.30)
+            pending_transitions.append({
+                "side": side, "center": center,
+                "pair_vector": pair_vector, "axis": axis,
+                "all_points": all_points,
+                "signal_at_mm": [list(point) for point in signal_points],
+                "return_diameter": return_diameter,
+                "return_drill": return_drill,
+            })
+    if not pending_transitions:
+        rollback()
+        return {"name": pair["name"], "p": pair["p"], "n": pair["n"],
+                "refused": "pair endpoints already expose target layer"}
+    routed = route_coupled_pair(
+        board, pair, layer=str(target_layer), clearance=float(clearance),
+        verbose=verbose, avoid=avoid, endpoints=endpoints, pair_grid=True,
+        minimum_coupled_fraction=minimum_coupled_fraction,
+        deadline=deadline, allow_layer_transitions=False)
+    if routed.get("refused"):
+        rollback()
+        return {"name": pair["name"], "p": pair["p"], "n": pair["n"],
+                "refused": "qualified endpoint POFV route refused",
+                "inner_refusal": routed,
+                "pofv": {"profile": profile_name,
+                         "diameter_mm": via_diameter,
+                         "drill_mm": via_drill,
+                         "board_limits": via_limits,
+                         "ordinary_via_mm": {
+                             "diameter": ordinary_diameter,
+                             "drill": ordinary_drill},
+                         "qualified_process_exception": bool(
+                             via_diameter + 1e-9 < ordinary_diameter
+                             or via_drill + 1e-9 < ordinary_drill),
+                         "transitions": []}}
+    # Critical copper owns the corridor.  Place stitching infrastructure only
+    # after the pair is known, using the final track geometry as an obstacle;
+    # rollback both if no compliant reference-return field remains.
+    transitions = []
+    for pending in pending_transitions:
+        return_reach = 2.0 if pair.get("kind") == "can" else 1.5
+        return_vias, return_status = _add_pair_transition_returns(
+            board, pending["center"], pending["pair_vector"],
+            route_axis=pending["axis"],
+            signal_points=pending["all_points"],
+            portal_side=pending["side"],
+            width=float(pair["width"]), gap=float(pair["gap"]),
+            clearance=float(clearance),
+            via_diameter_mm=pending["return_diameter"],
+            via_drill_mm=pending["return_drill"],
+            return_reach_mm=return_reach)
+        if return_status not in ("covered", "added"):
+            rollback()
+            return {"name": pair["name"], "p": pair["p"],
+                    "n": pair["n"],
+                    "refused": "routed pair has no legal return field",
+                    "return_refusal": return_status,
+                    "pofv": {"profile": profile_name,
+                             "diameter_mm": via_diameter,
+                             "drill_mm": via_drill,
+                             "board_limits": via_limits,
+                             "ordinary_via_mm": {
+                                 "diameter": ordinary_diameter,
+                                 "drill": ordinary_drill},
+                             "qualified_process_exception": bool(
+                                 via_diameter + 1e-9 < ordinary_diameter
+                                 or via_drill + 1e-9 < ordinary_drill),
+                             "transitions": transitions}}
+        transitions.append({
+            "side": pending["side"],
+            "signal_at_mm": pending["signal_at_mm"],
+            "return_reach_mm": return_reach,
+            "return_status": return_status,
+            "return_vias_at_mm": [[
+                round(via.GetPosition().x / MM, 6),
+                round(via.GetPosition().y / MM, 6)]
+                for via in return_vias],
+        })
+    routed["route_mode"] = "paired-pofv-endpoint-%s" % routed.get(
+        "route_mode", "coupled")
+    routed["pofv"] = {"profile": profile_name,
+                      "diameter_mm": via_diameter,
+                      "drill_mm": via_drill,
+                      "board_limits": via_limits,
+                      "ordinary_via_mm": {
+                          "diameter": ordinary_diameter,
+                          "drill": ordinary_drill},
+                      "qualified_process_exception": bool(
+                          via_diameter + 1e-9 < ordinary_diameter
+                          or via_drill + 1e-9 < ordinary_drill),
+                      "transitions": transitions}
+    return routed
+
+
 def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=False,
                        avoid=(), endpoints=None, pair_grid=False,
                        minimum_coupled_fraction=0.0, deadline=None,
@@ -6134,6 +6427,7 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
     # candidates retain a deep retry after the cheap conventional forms.
     portal_refusal = None
     layer_transition_refusals = []
+    endpoint_pofv_refusals = []
     portal_screen_cache = {}
 
     def phase_deadline(cap_seconds, remaining_fraction):
@@ -6164,6 +6458,8 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         if layer_transition_refusals:
             refusal["layer_transition_fallback"] = \
                 layer_transition_refusals
+        if endpoint_pofv_refusals:
+            refusal["endpoint_pofv_fallback"] = endpoint_pofv_refusals
         return refusal
     start_spread = _dist(P_src, N_src)
     end_spread = _dist(P_dst, N_dst)
@@ -6305,7 +6601,13 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
     # same fallback applies to modular jacks, headers, protection arrays, and
     # future packages without reference-designator exceptions.
     if portal_warranted and not _deadline_expired(deadline):
-        deep_deadline, deep_budget = phase_deadline(4.0, 0.25)
+        # The shallow beam proves cheap direct portals.  Once that fails, the
+        # deep phase owns real dogbones (~0.4--0.6 s each with exact KiCad
+        # shapes) and needs enough breadth to screen both package ends.  The
+        # old four-second cap routinely found a valid start then expired after
+        # only three end candidates.  Retain a finite share so referenced
+        # layer fallbacks still receive most of the pair-wide deadline.
+        deep_deadline, deep_budget = phase_deadline(12.0, 0.35)
         deep_started = time.monotonic()
         portal = _route_coupled_via_portals(
             board, pair, (P_src, P_dst, N_src, N_dst),
@@ -6327,6 +6629,60 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
             portal["portal_search_phase"] = "deep-retry"
             return portal
         portal_refusal = dict(portal_refusal or {}, deep=portal)
+
+    # A surface route can be sealed by the component's own force/sense or
+    # protection copper even though the endpoint land explicitly supports a
+    # filled/capped via-in-pad.  Try that smaller-discontinuity escape before
+    # moving the pair to remote surface portals.  Eligibility is entirely
+    # profile/pad/layer based and the helper owns rollback plus return vias.
+    if (pair_grid and allow_layer_transitions
+            and not _deadline_expired(deadline)):
+        try:
+            pofv_layers = tuple(
+                cec_fab_profile.referenced_signal_layers(
+                    board, hint=board.GetFileName() or ""))
+        except Exception:                              # noqa: BLE001
+            pofv_layers = ()
+        pofv_layers = tuple(candidate for candidate in pofv_layers
+                            if candidate != layer)
+        for target_layer in pofv_layers:
+            if _deadline_expired(deadline):
+                break
+            if deadline is None:
+                pofv_deadline, pofv_budget = None, None
+            else:
+                now = time.monotonic()
+                remaining = max(0.0, float(deadline) - now)
+                # Endpoint POFV is the high-effort escape for a genuinely
+                # sealed pair station.  Preserve a finite quarter of the
+                # pair-wide budget for later ensembles, but do not cap this
+                # exact inner solve below the proven dense-board runtime.
+                pofv_budget = min(75.0, remaining * 0.75)
+                pofv_deadline = min(float(deadline), now + pofv_budget)
+            pofv_started = time.monotonic()
+            pofv_route = _route_coupled_endpoint_pofv(
+                board, pair, (P_src, P_dst, N_src, N_dst),
+                target_layer=target_layer,
+                clearance=(clearance if clearance is not None else 0.2),
+                avoid=reservation_avoid,
+                minimum_coupled_fraction=minimum_coupled_fraction,
+                deadline=pofv_deadline, verbose=verbose)
+            pofv_route["phase_budget_seconds"] = (
+                round(pofv_budget, 6) if pofv_budget is not None else None)
+            pofv_route["phase_wall_seconds"] = round(
+                time.monotonic() - pofv_started, 6)
+            if not pofv_route.get("refused"):
+                pofv_route["portal_search_phase"] = "endpoint-pofv"
+                return pofv_route
+            endpoint_pofv_refusals.append({
+                "layer": target_layer,
+                "reason": pofv_route.get("refused"),
+                "inner_refusal": pofv_route.get("inner_refusal"),
+                "pofv": pofv_route.get("pofv"),
+                "phase_budget_seconds": pofv_route.get(
+                    "phase_budget_seconds"),
+                "phase_wall_seconds": pofv_route.get("phase_wall_seconds"),
+            })
 
     # A professional pair transition is not two independent single-net vias
     # repaired after routing.  If the surface corridor is exhausted, search
@@ -6554,6 +6910,8 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         refused["portal_fallback"] = portal_refusal
     if layer_transition_refusals:
         refused["layer_transition_fallback"] = layer_transition_refusals
+    if endpoint_pofv_refusals:
+        refused["endpoint_pofv_fallback"] = endpoint_pofv_refusals
     refused["failure_certificate"] = _pair_route_failure_certificate(
         pair, (P_src, P_dst, N_src, N_dst),
         layer=layer, width=width, gap=gap,
@@ -6863,9 +7221,46 @@ def _pair_leg_launch_reservations(endpoints, pair, *, launch_mm=3.6,
     return rows
 
 
-def _future_pair_launch_reservations(board, pairs):
-    """Compile name-agnostic F.Cu launch reservations for pending pairs."""
+def _shared_split_support_centers(board, current_pair, future_pair):
+    """Return future endpoint centres shared with a current series cell.
+
+    Back-to-back declared pair segments commonly meet on opposite lands of
+    two identical series components.  A rectangular future-launch reservation
+    around one land pair is deliberately wider than the copper and therefore
+    overlaps the other land pair.  Treating that synthetic overlap as an
+    obstacle makes the current segment impossible even when both physical
+    routes have compatible polarity.  Actual foreign-pad copper still guards
+    the shared cell; only the redundant synthetic endpoint reservation may be
+    suppressed.
+    """
+    if not current_pair or not future_pair:
+        return ()
+    current = _pair_endpoint_stations(board, current_pair)
+    future = _pair_endpoint_stations(board, future_pair)
+    current_refs = {
+        frozenset(str(ref) for ref in station.get("physical_refs") or ())
+        for station in current
+        if station.get("kind") == "split-member-footprints"}
+    current_refs.discard(frozenset())
+    return tuple(
+        tuple(float(value) for value in station["center"])
+        for station in future
+        if station.get("kind") == "split-member-footprints"
+        and frozenset(str(ref) for ref in
+                      station.get("physical_refs") or ()) in current_refs)
+
+
+def _future_pair_launch_reservations(board, pairs, *, current_pair=None,
+                                     diagnostics=None):
+    """Compile name-agnostic F.Cu launch reservations for pending pairs.
+
+    The remote launch of every pending pair remains reserved.  At a shared
+    split-series support cell, however, the broad synthetic box is suppressed
+    because it overlaps the current segment's opposite pads by construction;
+    exact pad copper continues to enforce the real clearance there.
+    """
     reservations = []
+    suppressed = []
     for pair in pairs or ():
         flow = _flow_through_pair_legs(board, pair)
         if flow is not None:
@@ -6878,8 +7273,28 @@ def _future_pair_launch_reservations(board, pairs):
             legs = [(p_ends[0][2], p_ends[1][2],
                      n_ends[0][2], n_ends[1][2])]
         for index, endpoints in enumerate(legs):
-            reservations.extend(_pair_leg_launch_reservations(
-                endpoints, pair, leg_index=index))
+            rows = _pair_leg_launch_reservations(
+                endpoints, pair, leg_index=index)
+            shared_centers = _shared_split_support_centers(
+                board, current_pair, pair)
+            for row in rows:
+                contains_shared = any(
+                    row[0] <= center[0] <= row[2]
+                    and row[1] <= center[1] <= row[3]
+                    for center in shared_centers)
+                if contains_shared:
+                    suppressed.append({
+                        "reservation": row[4],
+                        "future_pair": pair.get("name"),
+                        "reason": "shared_split_support_exact_pads_guard",
+                    })
+                else:
+                    reservations.append(row)
+    if diagnostics is not None:
+        diagnostics.update({
+            "suppressed_shared_support_count": len(suppressed),
+            "suppressed_shared_support": suppressed,
+        })
     return reservations
 
 
@@ -6940,11 +7355,15 @@ def precision_route_board(board, *, board_path=None, kelvin_width=0.25,
             pair_budget_s = max(5.0, float(os.environ.get(
                 "CEC_PRECISION_PAIR_TIMEOUT", "240")))
             pair_deadline = time.monotonic() + pair_budget_s
+            reservation_diagnostics = {}
             future_pair_avoid = _future_pair_launch_reservations(
-                board, pairs_to_route[pair_index + 1:])
+                board, pairs_to_route[pair_index + 1:], current_pair=pair,
+                diagnostics=reservation_diagnostics)
             pair_avoid = tuple(avoid or ()) + tuple(future_pair_avoid)
             pair_schedule[pair_index]["future_launch_reservations"] = len(
                 future_pair_avoid)
+            pair_schedule[pair_index]["future_launch_reservation_policy"] = \
+                reservation_diagnostics
             if {pair["p"], pair["n"]}.issubset(existing_locked_nets):
                 routed_pairs.append({
                     "name": pair["name"], "p": pair["p"], "n": pair["n"],

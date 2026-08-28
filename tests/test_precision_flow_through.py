@@ -369,6 +369,37 @@ class PrecisionFlowThroughTests(unittest.TestCase):
                 "neutral.kicad_pcb", board=Board())
         self.assertFalse(any(row["kind"] == "can" for row in pairs))
 
+    def test_connector_side_can_suffix_is_a_distinct_coupled_pair(self):
+        class Net:
+            def __init__(self, name):
+                self.name = name
+
+            def GetNetname(self):
+                return self.name
+
+        class Nets:
+            def values(self):
+                return [Net("/CAN_H"), Net("/CAN_L"),
+                        Net("/CAN_H_J1"), Net("/CAN_L_J1")]
+
+        class Board:
+            def GetNetInfo(self):
+                return type("I", (), {"NetsByNetcode":
+                                      lambda _self: Nets()})()
+
+        with mock.patch.object(precision, "_netclass_geometry",
+                               return_value={}), \
+                mock.patch.object(
+                    precision.cec_score.Rules, "from_board",
+                    return_value=type("R", (), {"diff_pairs": []})()):
+            pairs = precision.derive_coupled_pairs(
+                "neutral.kicad_pcb", board=Board())
+        self.assertIn({
+            "name": "CAN_J1", "kind": "can",
+            "p": "/CAN_H_J1", "n": "/CAN_L_J1",
+            "width": 0.25, "gap": 0.20, "ztarget": 120.0,
+        }, pairs)
+
     def test_pad_escape_rejects_connected_hairpin_and_ranks_shortest(self):
         direct = [(0.0, 0.0), (10.0, 0.0)]
         monotonic = [(0.0, 0.0), (3.0, 1.0), (10.0, 0.0)]
@@ -536,7 +567,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
     def test_connector_breakout_budget_scales_but_stays_bounded(self):
         self.assertEqual(
             precision._pair_escape_budget((0.0, 0.0), (0.5, 0.0)),
-            4.0)
+            6.0)
         self.assertAlmostEqual(
             precision._pair_escape_budget((0.0, 0.0), (4.58, 0.0)),
             6.87)
@@ -611,6 +642,12 @@ class PrecisionFlowThroughTests(unittest.TestCase):
             self.assertGreater(start_lane * end_lane, 0.0)
             self.assertGreater(start["center"][0], 0.0)
             self.assertLess(end["center"][0], 20.0)
+            self.assertTrue(any(
+                row["lateral_mm"] == 3.0
+                for row in plan["by_sign"][sign]["start"]))
+            self.assertTrue(any(
+                row["lead_mm"] == 5.5
+                for row in plan["by_sign"][sign]["start"]))
 
     def test_transition_portals_widen_for_real_via_lands(self):
         plan = precision._paired_portal_candidates(
@@ -624,6 +661,27 @@ class PrecisionFlowThroughTests(unittest.TestCase):
                 row = plan["by_sign"][sign][side][0]
                 self.assertAlmostEqual(
                     precision._dist(row["p"], row["n"]), 0.70)
+
+    def test_return_via_search_prefers_flank_then_package_side(self):
+        axis = (1.0, 0.0)
+        corridor_half = 0.82
+
+        self.assertEqual(
+            precision._return_via_route_rank(
+                (0.0, 0.9), axis, corridor_half, "start")[0],
+            0)
+        self.assertEqual(
+            precision._return_via_route_rank(
+                (-0.9, 0.0), axis, corridor_half, "start")[0],
+            1)
+        self.assertEqual(
+            precision._return_via_route_rank(
+                (0.9, 0.0), axis, corridor_half, "start")[0],
+            2)
+        self.assertEqual(
+            precision._return_via_route_rank(
+                (0.9, 0.0), axis, corridor_half, "end")[0],
+            1)
 
     def test_dissimilar_pinfield_uses_shallow_portal_beam_before_legacy_fan(self):
         class Board:
@@ -724,8 +782,11 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         board.SetCopperLayerCount(6)
         pair = {"name": "BUS", "kind": "usb", "p": "P", "n": "N",
                 "width": 0.20, "gap": 0.13, "ztarget": 90.0}
-        endpoints = ((3.0, 8.0), (27.0, 8.0),
-                     (3.0, 12.0), (27.0, 12.0))
+        # Deliberately use dissimilar terminal pitches.  The local connector
+        # dogbone may need an orthogonal (subsequently chamfered) handoff; a
+        # spread ratio must not turn that quality preference into a hard ban.
+        endpoints = ((3.0, 9.0), (27.0, 7.0),
+                     (3.0, 11.0), (27.0, 13.0))
         stub = {"route_mode": "paired-terminal-stub", "segments": 2,
                 "length_mm": 2.0, "coupled_len_mm": 2.0,
                 "coupled_coverage_pct": 100.0}
@@ -736,7 +797,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         coupling = {"coverage_pct": 100.0}
 
         with mock.patch.object(precision, "_route_paired_stub",
-                               return_value=stub), \
+                               return_value=stub) as route_stub, \
                 mock.patch.object(precision, "route_coupled_pair",
                                   return_value=middle), \
                 mock.patch.object(precision.cec_fr, "_via_spot_clear",
@@ -761,6 +822,13 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(
             report["route_mode"],
             "paired-portals-atomic-layer-transition")
+        self.assertGreater(report["portal_evidence"]["pinfield_spread_ratio"],
+                           2.0)
+        self.assertEqual(report["portal_evidence"][
+            "minimum_handoff_alignment"], 0.0)
+        self.assertTrue(all(
+            call.kwargs["minimum_end_heading_alignment"] == 0.0
+            for call in route_stub.call_args_list))
         vias = [item for item in board.GetTracks()
                 if item.GetClass() == "PCB_VIA"]
         self.assertEqual(sum(via.GetNetname() in ("P", "N") for via in vias), 4)
@@ -770,6 +838,9 @@ class PrecisionFlowThroughTests(unittest.TestCase):
             for via in vias))
         self.assertEqual(report["portal_evidence"]["signal_via"]["drill_mm"],
                          0.30)
+        self.assertEqual(
+            report["portal_evidence"]["signal_via"]["pair_spacing_mm"],
+            0.75)
         self.assertEqual(len(report["transitions"]), 2)
         for transition in report["transitions"]:
             center = tuple((p + n) / 2.0 for p, n in zip(
@@ -785,6 +856,129 @@ class PrecisionFlowThroughTests(unittest.TestCase):
             for signal in (transition["p_at_mm"], transition["n_at_mm"]):
                 self.assertLessEqual(min(
                     math.dist(signal, ground) for ground in returns), 1.5)
+
+    def test_endpoint_pofv_routes_critical_pair_before_return_field(self):
+        import pcbnew
+
+        board = pcbnew.CreateEmptyBoard()
+        board.SetCopperLayerCount(6)
+        nets = {}
+        for name in ("GND", "P", "N"):
+            net = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(net)
+            nets[name] = net
+
+        def add_pad(ref, number, net_name, point, *, through=False):
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference(ref)
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName(number)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(*point))
+            pad.SetNet(nets[net_name])
+            if through:
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+                pad.SetLayerSet(pcbnew.LSET.AllCuMask())
+            else:
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            footprint.Add(pad)
+            board.Add(footprint)
+
+        add_pad("RP", "1", "P", (3.0, 5.0))
+        add_pad("RN", "1", "N", (3.0, 5.8))
+        add_pad("J1P", "1", "P", (17.0, 5.0), through=True)
+        add_pad("J1N", "1", "N", (17.0, 5.8), through=True)
+        pair = {"name": "BUS", "kind": "can", "p": "P", "n": "N",
+                "width": 0.2, "gap": 0.2}
+        endpoints = ((3.0, 5.0), (17.0, 5.0),
+                     (3.0, 5.8), (17.0, 5.8))
+        events = []
+
+        def routed(*_args, **_kwargs):
+            events.append("route")
+            return {"route_mode": "paired-portals-shared-centreline"}
+
+        def returns(*_args, **_kwargs):
+            events.append("returns")
+            return [], "covered"
+
+        with mock.patch.object(
+                precision.cec_fab_profile, "board_profile_name",
+                return_value="TEST"), \
+                mock.patch.dict(
+                    precision.cec_fab_profile.PROFILES,
+                    {"TEST": {"pofv": True}}, clear=False), \
+                mock.patch.object(
+                    precision.cec_fab_profile, "preferred_pofv_geometry",
+                    return_value=(0.35, 0.25)), \
+                mock.patch.object(
+                    precision.cec_fab_profile,
+                    "board_legal_through_via_geometry",
+                    return_value=(0.5, 0.3, {"test": True})), \
+                mock.patch.object(
+                    precision.cec_fab_profile, "pofv_dimensions",
+                    return_value=(True, "test process qualified")), \
+                mock.patch.object(
+                    precision.cec_fab_profile, "via_at_pad_conflicts",
+                    return_value=(None, [{"qualified": True}])), \
+                mock.patch.object(
+                    precision.cec_fr, "_via_spot_clear", return_value=True), \
+                mock.patch.object(
+                    precision, "route_coupled_pair", side_effect=routed), \
+                mock.patch.object(
+                    precision, "_add_pair_transition_returns",
+                    side_effect=returns):
+            report = precision._route_coupled_endpoint_pofv(
+                board, pair, endpoints, target_layer="In2.Cu")
+
+        self.assertFalse(report.get("refused"), report)
+        self.assertEqual(events, ["route", "returns"])
+        self.assertTrue(report["route_mode"].startswith(
+            "paired-pofv-endpoint-"))
+        signal_vias = [item for item in board.GetTracks()
+                       if item.GetClass() == "PCB_VIA"
+                       and item.GetNetname() in ("P", "N")]
+        self.assertEqual(len(signal_vias), 2)
+        self.assertTrue(all(
+            via.GetWidth() == pcbnew.FromMM(0.35)
+            and via.GetDrillValue() == pcbnew.FromMM(0.25)
+            for via in signal_vias))
+        self.assertTrue(report["pofv"]["qualified_process_exception"])
+
+    def test_future_pair_reservation_suppresses_only_shared_series_endpoint(self):
+        current = {"name": "BUS_IN", "p": "P_IN", "n": "N_IN",
+                   "width": 0.2, "gap": 0.2}
+        future = {"name": "BUS_OUT", "p": "P_OUT", "n": "N_OUT",
+                  "width": 0.2, "gap": 0.2}
+        current_stations = [{
+            "kind": "split-member-footprints", "physical_refs": ["R1", "R2"],
+            "center": [5.0, 5.0]}]
+        future_stations = [{
+            "kind": "split-member-footprints", "physical_refs": ["R2", "R1"],
+            "center": [5.2, 5.0]}]
+        future_endpoints = ((5.0, 4.8), (15.0, 4.8),
+                            (5.0, 5.2), (15.0, 5.2))
+        diagnostics = {}
+
+        def stations(_board, pair):
+            return current_stations if pair is current else future_stations
+
+        with mock.patch.object(precision, "_pair_endpoint_stations",
+                               side_effect=stations), \
+                mock.patch.object(precision, "_flow_through_pair_legs",
+                                  return_value=([future_endpoints], [])):
+            rows = precision._future_pair_launch_reservations(
+                object(), [future], current_pair=current,
+                diagnostics=diagnostics)
+
+        self.assertEqual(len(rows), 1)
+        self.assertIn(":target", rows[0][4])
+        self.assertEqual(
+            diagnostics["suppressed_shared_support_count"], 1)
+        self.assertIn(":source", diagnostics[
+            "suppressed_shared_support"][0]["reservation"])
 
     def test_successful_pair_closes_and_owns_reversible_connector_lands(self):
         import pcbnew
@@ -1407,6 +1601,8 @@ class PrecisionFlowThroughTests(unittest.TestCase):
                                   return_value=True), \
                 mock.patch.object(precision, "_partner_pads_clear",
                                   return_value=True), \
+                mock.patch.object(
+                    precision, "_short_pair_ribbon_candidates") as ribbon, \
                 mock.patch.object(precision, "_joint_endpoint_escape") as solve:
             report = precision._route_paired_stub(
                 Board(), pair, endpoints, allow_detour=False)
@@ -1414,6 +1610,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(report["refused"],
                          "no clear direct paired terminal stub")
         self.assertTrue(report["admission"]["detour"]["skipped"])
+        ribbon.assert_not_called()
         solve.assert_not_called()
 
     def test_paired_stub_reuses_exact_foreign_shape_index(self):

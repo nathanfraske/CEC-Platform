@@ -58,8 +58,219 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
         shutdown.assert_called_once_with(
             pool, force=True, grace_s=2.0)
 
+    def test_spawn_apply_caps_child_to_active_transaction_deadline(self):
+        import cec_certificate_repair as repair
+
+        future = Future()
+        pool = mock.Mock()
+        pool._processes = {}
+        pool.submit.return_value = future
+        token = repair._WORKER_DEADLINE.set(105.0)
+        try:
+            with mock.patch.object(repair.time, "monotonic", return_value=100.0), \
+                    mock.patch.object(
+                        repair, "ProcessPoolExecutor", return_value=pool), \
+                    mock.patch.object(
+                        repair.cec_process_pool, "watched_as_completed",
+                        side_effect=repair.cec_process_pool.WorkerPoolStalled(
+                            "stalled")) as watched, \
+                    mock.patch.object(
+                        repair.cec_process_pool, "shutdown_process_pool",
+                        return_value={"clean": True}):
+                with self.assertRaisesRegex(
+                        repair.cec_process_pool.WorkerPoolStalled, "stalled"):
+                    repair._spawn_apply(str, ("value",), timeout_s=300.0)
+        finally:
+            repair._WORKER_DEADLINE.reset(token)
+        self.assertEqual(watched.call_args.kwargs["wall_timeout_s"], 5.0)
+
+    def test_spawn_apply_refuses_worker_after_transaction_deadline(self):
+        import cec_certificate_repair as repair
+
+        token = repair._WORKER_DEADLINE.set(99.0)
+        try:
+            with mock.patch.object(repair.time, "monotonic", return_value=100.0), \
+                    self.assertRaisesRegex(
+                        repair.cec_process_pool.WorkerPoolStalled,
+                        "wall budget exhausted"):
+                repair._spawn_apply(str, ("value",))
+        finally:
+            repair._WORKER_DEADLINE.reset(token)
+
 
 class TestCertificateRepairPolicy(unittest.TestCase):
+    def test_escape_corridor_promotes_low_hit_stub_on_cheapest_surface_ray(self):
+        import cec_certificate_repair as repair
+
+        certificate = {
+            "layers": [{
+                "layer": "F.Cu",
+                "endpoint_escape": [{
+                    "endpoint": "b",
+                    "clear_rays": [],
+                    "ray_details": [
+                        {
+                            "direction": "E",
+                            "blockers": [
+                                {"kind": "pad", "ref": "U1", "pad": "2"},
+                                {"kind": "track", "uuid": "popular",
+                                 "hit_count": 9},
+                            ],
+                        },
+                        {
+                            "direction": "S",
+                            "blockers": [
+                                {"kind": "track", "uuid": "short-stub",
+                                 "hit_count": 1},
+                            ],
+                        },
+                    ],
+                }],
+            }],
+        }
+        rows = repair._escape_corridor_blocker_rows(
+            certificate, {"b": {"F.Cu"}}, {"b"})
+
+        self.assertEqual([row["uuid"] for row in rows], ["short-stub"])
+        self.assertTrue(rows[0]["escape_corridor"])
+
+    def test_negotiation_schedule_gives_each_net_a_first_window(self):
+        import cec_certificate_repair as repair
+
+        def window(net, priority):
+            return repair.NegotiationWindow(
+                net=net, distance_mm=1.0, width_mm=0.2,
+                clearance_mm=0.2, blocker_uuids=(net + str(priority),),
+                blocker_nets=("/BLOCK",), blocker_hits=1,
+                omitted_movable_blockers=0, fixed_blocker_hits=0,
+                trapped_endpoints=0, endpoints=(), priority=(priority,))
+
+        scheduled = repair._fair_negotiation_window_schedule([
+            window("/I2C_SCL", 0), window("/I2C_SCL", 1),
+            window("/I2C_SCL", 2), window("/VBUS_J5", 3),
+        ], 3)
+
+        self.assertEqual([row.net for row in scheduled],
+                         ["/I2C_SCL", "/VBUS_J5", "/I2C_SCL"])
+
+    def test_open_coupled_pairs_requires_both_members(self):
+        import cec_certificate_repair as repair
+
+        pairs = [
+            {"name": "USB_D", "p": "/USB_D_P", "n": "/USB_D_N"},
+            {"name": "CAN", "p": "/CAN_H", "n": "/CAN_L"},
+        ]
+        selected = repair._open_coupled_pairs(
+            pairs, ["/USB_D_P", "/USB_D_N", "/CAN_H"])
+        self.assertEqual([row["name"] for row in selected], ["USB_D"])
+
+    def test_partial_coupled_pairs_selects_exactly_one_open_member(self):
+        import cec_certificate_repair as repair
+
+        pairs = [
+            {"name": "USB_D", "p": "/USB_D_P", "n": "/USB_D_N"},
+            {"name": "CAN_J1", "p": "/CAN_H_J1", "n": "/CAN_L_J1"},
+            {"name": "CAN", "p": "/CAN_H", "n": "/CAN_L"},
+        ]
+        selected = repair._partial_open_coupled_pairs(
+            pairs, ["/USB_D_P", "/USB_D_N", "/CAN_H_J1"])
+        self.assertEqual([row["name"] for row in selected], ["CAN_J1"])
+
+    def test_split_pair_support_swap_is_identical_bounded_and_polarity_driven(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        nets = {}
+        for name in ("/PAIR_P", "/PAIR_N", "/UP_P", "/UP_N"):
+            net = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(net)
+            nets[name] = net
+
+        def add_support(ref, pair_net, upstream_net, y):
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference(ref)
+            footprint.SetValue("0R")
+            footprint.SetPosition(pcbnew.VECTOR2I_MM(5.0, y))
+            for number, net_name, x in (
+                    ("1", pair_net, 5.0), ("2", upstream_net, 4.0)):
+                pad = pcbnew.PAD(footprint)
+                pad.SetPadName(number)
+                pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+                pad.SetSize(pcbnew.VECTOR2I_MM(0.5, 0.5))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetLayerSet(pcbnew.PAD.SMDMask())
+                pad.SetNet(nets[net_name])
+                footprint.Add(pad)
+            board.Add(footprint)
+            return footprint
+
+        p_support = add_support("R11", "/PAIR_P", "/UP_P", 9.8)
+        n_support = add_support("R12", "/PAIR_N", "/UP_N", 10.2)
+        for net_name, y in (("/UP_P", 9.8), ("/UP_N", 10.2)):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I_MM(4.0, y))
+            track.SetEnd(pcbnew.VECTOR2I_MM(2.0, y))
+            track.SetWidth(pcbnew.FromMM(0.2))
+            track.SetLayer(pcbnew.F_Cu)
+            track.SetNet(nets[net_name])
+            board.Add(track)
+        terminal = pcbnew.FOOTPRINT(board)
+        terminal.SetReference("J1")
+        for number, net_name, y in (
+                ("1", "/PAIR_P", 10.2), ("2", "/PAIR_N", 9.8)):
+            pad = pcbnew.PAD(terminal)
+            pad.SetPadName(number)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.5, 0.5))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(20.0, y))
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(nets[net_name])
+            terminal.Add(pad)
+        board.Add(terminal)
+        pair = {"name": "PAIR", "p": "/PAIR_P", "n": "/PAIR_N",
+                "width": 0.2, "gap": 0.2}
+
+        changed, evidence = repair._swap_reversible_split_pair_station(
+            board, pair)
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["displaced_nets"], ["/UP_N", "/UP_P"])
+        self.assertEqual(evidence["removed_incident_tracks"], 2)
+        self.assertEqual(len(evidence["preserved_anchors"]), 2)
+        self.assertEqual(len(list(board.GetTracks())), 0)
+        self.assertNotEqual(evidence["preferred_signs_before"]["start"],
+                            evidence["preferred_signs_before"]["end"])
+        self.assertEqual(evidence["preferred_signs_after"]["start"],
+                         evidence["preferred_signs_after"]["end"])
+        self.assertAlmostEqual(p_support.GetPosition().y / 1e6, 10.2)
+        self.assertAlmostEqual(n_support.GetPosition().y / 1e6, 9.8)
+
+    def test_coupled_pair_worker_saves_only_complete_atomic_route(self):
+        import cec_certificate_repair as repair
+
+        board = mock.Mock()
+        route = mock.Mock(return_value={
+            "pairs_ok": True,
+            "critical_routes_ok": True,
+            "pairs": {"routed": [{"name": "USB_D"}], "refused": []},
+        })
+        precision = SimpleNamespace(precision_route_board=route)
+        with mock.patch.dict(sys.modules, {"cec_precision_route": precision}), \
+                mock.patch.object(
+                    repair.pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(repair.pcbnew, "SaveBoard") as save:
+            changed, report = repair._coupled_pair_closure_worker(
+                "trial.kicad_pcb", "USB_D", True)
+
+        self.assertTrue(changed, report)
+        save.assert_called_once_with("trial.kicad_pcb", board)
+        self.assertEqual(route.call_args.kwargs["include_pair_names"],
+                         {"USB_D"})
+        self.assertTrue(route.call_args.kwargs["pair_grid"])
+
     def test_effort_budget_caps_stage_without_consuming_later_reserve(self):
         import cec_certificate_repair as repair
 
@@ -86,6 +297,242 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(report["stop_reason"], "wall_budget")
         self.assertEqual(report["stop_stage"], "via")
         self.assertEqual(report["attempts_started"], 0)
+
+    def test_close_negotiation_can_enumerate_surface_first_topology(self):
+        import cec_certificate_repair as repair
+
+        window = repair.NegotiationWindow(
+            net="/OPEN", distance_mm=2.0, width_mm=0.25,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("/BLOCK",), blocker_hits=4,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,),
+            unlock_uuids=("blocker",), local_pin_escape=True)
+        board = mock.Mock()
+        with mock.patch.object(
+                repair.cec_fr, "_project_netclass_resolver",
+                return_value=lambda _net: {}), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    return_value={"closed": 1}) as synthesize:
+            changed, evidence = repair._close_negotiation_target(
+                board, window, board_path="board.kicad_pcb",
+                attempt_budget=12, maze_margin_mm=4.0,
+                prefer_bridge=False)
+
+        self.assertTrue(changed, evidence)
+        self.assertFalse(synthesize.call_args.kwargs["prefer_bridge"])
+
+    def test_close_negotiation_keeps_power_trunk_width_out_of_escape_floor(self):
+        import cec_certificate_repair as repair
+
+        window = repair.NegotiationWindow(
+            net="+3V3", distance_mm=1.5, width_mm=0.50,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("/BLOCK",), blocker_hits=2,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,),
+            unlock_uuids=(), local_pin_escape=True)
+        board = mock.Mock()
+        with mock.patch.object(
+                repair.cec_fr, "_project_netclass_resolver",
+                return_value=lambda _net: {}), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    return_value={"closed": 1}) as synthesize:
+            changed, evidence = repair._close_negotiation_target(
+                board, window, board_path="board.kicad_pcb",
+                attempt_budget=12, maze_margin_mm=4.0)
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(synthesize.call_args.kwargs["min_w"], 0.25)
+        self.assertTrue(synthesize.call_args.kwargs["prefer_bridge"])
+
+    def test_atomic_negotiation_accepts_proven_redundant_blocker_prune(self):
+        import cec_certificate_repair as repair
+
+        window = repair.NegotiationWindow(
+            net="/OPEN", distance_mm=2.0, width_mm=0.25,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("+3V3",), blocker_hits=4,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,))
+        before = {
+            "drc": 0, "unconnected": 2,
+            "unconn_nets": ["/KEEP", "/OPEN"],
+            "structural_drc_identities": [],
+            "kelvin_topology_faults": [],
+            "route_topology_fault_nets": [],
+            "kelvin_ok": True, "diffpair_ok": True,
+        }
+        after = {**before, "unconnected": 1,
+                 "unconn_nets": ["/KEEP"]}
+        calls = []
+
+        def fake_spawn(func, args, **_kwargs):
+            calls.append(func)
+            if func is repair._remove_negotiation_worker:
+                return True, {"stage": "remove_blockers"}, [{"saved": True}]
+            if func is repair._close_negotiation_worker:
+                return True, {"stage": "close_blocked_net"}
+            if func is repair._refill_worker:
+                return True
+            if func is repair._drc_dangling_cleanup_worker:
+                return False, {"stop": "settled", "removed_count": 0}
+            if func is repair._score_worker:
+                return after
+            self.fail("unexpected worker %s" % func.__name__)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family"), \
+                mock.patch.object(repair, "_run_drc", return_value={}), \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn):
+            result = repair._attempt_atomic_negotiation(
+                os.path.join(directory, "board.kicad_pcb"), before,
+                repair.asdict(window), work_dir=directory, token="test",
+                deep_retry=False, max_detour_ratio=2.0)
+
+        self.assertTrue(result["adopted"], result)
+        accepted = result["accepted"]
+        self.assertEqual(accepted["decision"],
+                         "strict_structural_improvement")
+        self.assertTrue(accepted["phases"][
+            "redundant_blocker_prune"]["accepted"])
+        self.assertNotIn(repair._restore_negotiation_worker, calls)
+
+    def test_atomic_negotiation_expands_long_corridor_before_anchor_depth(self):
+        import cec_certificate_repair as repair
+
+        window = repair.NegotiationWindow(
+            net="/OPEN", distance_mm=38.0, width_mm=0.5,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("/BLOCK",), blocker_hits=4,
+            omitted_movable_blockers=0, fixed_blocker_hits=2,
+            trapped_endpoints=0, endpoints=(), priority=(0,))
+        before = {
+            "drc": 0, "unconnected": 1, "unconn_nets": ["/OPEN"],
+            "structural_drc_identities": [], "kelvin_topology_faults": [],
+            "route_topology_fault_nets": [], "kelvin_ok": True,
+            "diffpair_ok": True,
+        }
+        after = {**before, "unconnected": 0, "unconn_nets": []}
+        close_args = []
+
+        def fake_spawn(func, args, **_kwargs):
+            if func is repair._remove_negotiation_worker:
+                return True, {"stage": "remove_blockers"}, [{"saved": True}]
+            if func is repair._close_negotiation_worker:
+                close_args.append(args)
+                if len(close_args) < 3:
+                    return False, {"refusal": "bounded"}
+                return True, {"stage": "close_blocked_net"}
+            if func is repair._refill_worker:
+                return True
+            if func is repair._drc_dangling_cleanup_worker:
+                return False, {"stop": "settled", "removed_count": 0}
+            if func is repair._score_worker:
+                return after
+            self.fail("unexpected worker %s" % func.__name__)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family"), \
+                mock.patch.object(repair, "_run_drc", return_value={}), \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn):
+            result = repair._attempt_atomic_negotiation(
+                os.path.join(directory, "board.kicad_pcb"), before,
+                repair.asdict(window), work_dir=directory, token="breadth",
+                deep_retry=True, max_detour_ratio=2.0)
+
+        self.assertTrue(result["adopted"], result)
+        self.assertEqual(close_args[0][2:4], (12, 4.0))
+        self.assertEqual(close_args[1][2:4], (1, 20.0))
+        self.assertEqual(close_args[2][2:4], (4, 25.0))
+
+    def test_restore_skips_track_fragment_wholly_inside_same_pad(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("C1")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("2")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.5))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+        snapshot = {
+            "requested_uuid": "pad-internal",
+            "removed_uuids": ("pad-internal",),
+            "net": "GND", "net_code": net.GetNetCode(),
+            "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.5),
+            "start": pcbnew.VECTOR2I_MM(5.0, 4.6),
+            "end": pcbnew.VECTOR2I_MM(5.0, 5.4),
+            "start_escape": None, "end_escape": None,
+            "source_length_nm": pcbnew.FromMM(0.8),
+            "relock": True, "endpoint_neckdown_group": False,
+        }
+
+        with mock.patch.object(
+                repair.cec_fr, "_project_netclass_resolver",
+                return_value=lambda _net: {}):
+            changed, evidence = repair._restore_displaced_branch(
+                board, snapshot, board_path="board.kicad_pcb",
+                maze_margin_mm=4.0)
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["mode"], "same_pad_redundant")
+        self.assertEqual(evidence["anchor"], {
+            "ref": "C1", "pad": "2", "layer": "F.Cu"})
+        self.assertEqual(len(list(board.GetTracks())), 0)
+
+    def test_negotiation_coalesces_certificate_named_duplicate_tracks(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        blocked = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        blocker = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(blocked)
+        board.Add(blocker)
+
+        def track():
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(2, 3))
+            item.SetEnd(pcbnew.VECTOR2I_MM(7, 3))
+            item.SetWidth(pcbnew.FromMM(0.2))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(blocker)
+            board.Add(item)
+            return item
+
+        first, second = track(), track()
+        ids = (repair._uuid(first), repair._uuid(second))
+        window = repair.NegotiationWindow(
+            net="/OPEN", distance_mm=5.0, width_mm=0.2,
+            clearance_mm=0.2, blocker_uuids=ids,
+            blocker_nets=("/BLOCK", "/BLOCK"), blocker_hits=2,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,))
+
+        changed, evidence, snapshots = \
+            repair._remove_negotiation_blockers(board, window)
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["removed_tracks"], 2)
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(set(snapshots[0]["removed_uuids"]), set(ids))
+        self.assertEqual(snapshots[0]["source_length_nm"],
+                         pcbnew.FromMM(5.0))
+        self.assertEqual(len(list(board.GetTracks())), 0)
 
     def test_drc_dangling_cleanup_follows_exact_uuid_cascade(self):
         import pcbnew
@@ -172,6 +619,221 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         rows = repair.refusal_certificates(payload)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["certificate"]["net"], "/OPEN")
+
+    def test_trapped_endpoint_promotes_only_foreign_pad_blockers(self):
+        import cec_certificate_repair as repair
+
+        payload = {"unconn_nets": ["/SS"], "final_completion": {
+            "refused_details": [{
+                "net": "/SS", "distance_mm": 8.0,
+                "certificate": {
+                    "net": "/SS",
+                    "endpoints": [{
+                        "endpoint": "b", "kind": "pad", "ref": "U4",
+                        "pad": "11", "x_mm": 7.0, "y_mm": 12.0,
+                    }],
+                    "layers": [{"layer": "F.Cu", "endpoint_escape": [{
+                        "endpoint": "b", "clear_rays": [],
+                        "ray_details": [{
+                            "status": "foreign_copper_blocked",
+                            "blockers": [
+                                {"kind": "pad", "ref": "U4", "pad": "10"},
+                                {"kind": "pad", "ref": "C6", "pad": "1"},
+                            ],
+                        }, {
+                            "status": "foreign_copper_blocked",
+                            "blockers": [{"kind": "pad", "ref": "C6",
+                                          "pad": "1"}],
+                        }],
+                    }]}],
+                },
+            }],
+        }}
+        rows = repair._trapped_foreign_pad_blockers(payload)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["ref"], "C6")
+        self.assertEqual(rows[0]["hit_count"], 2)
+        self.assertEqual(rows[0]["endpoint_ref"], "U4")
+
+    def test_footprint_blocker_is_suppressed_when_another_layer_escapes(self):
+        import cec_certificate_repair as repair
+
+        blocked = {
+            "endpoint": "b", "clear_rays": [],
+            "ray_details": [{
+                "status": "foreign_copper_blocked",
+                "blockers": [{"kind": "pad", "ref": "C6"}],
+            }],
+        }
+        payload = {"final_completion": {"refused_details": [{
+            "net": "/SS", "distance_mm": 8.0,
+            "certificate": {
+                "net": "/SS",
+                "endpoints": [{
+                    "endpoint": "b", "kind": "pad", "ref": "U4",
+                    "pad": "11", "x_mm": 7.0, "y_mm": 12.0,
+                }],
+                "layers": [
+                    {"layer": "F.Cu", "endpoint_escape": [blocked]},
+                    {"layer": "SIG2", "endpoint_escape": [{
+                        "endpoint": "b", "clear_rays": ["N"],
+                        "ray_details": [],
+                    }]},
+                ],
+            },
+        }]}}
+        self.assertEqual(repair._trapped_foreign_pad_blockers(payload), [])
+
+    def test_footprint_plan_admits_only_small_unlocked_smd_support(self):
+        import cec_certificate_repair as repair
+
+        def pad(net):
+            return mock.Mock(IsOnCopperLayer=mock.Mock(return_value=True),
+                             HasHole=mock.Mock(return_value=False),
+                             GetNetCode=mock.Mock(return_value=net))
+
+        cap = mock.Mock()
+        cap.GetReference.return_value = "C6"
+        cap.IsLocked.return_value = False
+        cap.Pads.return_value = [pad(1), pad(2)]
+        board = mock.Mock()
+        board.GetFootprints.return_value = [cap]
+        blocker = {
+            "ref": "C6", "target_net": "/SS",
+            "endpoint_ref": "U4", "endpoint_pad": "11",
+            "endpoint_x_mm": 7.0, "endpoint_y_mm": 12.0,
+            "layer": "F.Cu", "hit_count": 3, "distance_mm": 8.0,
+        }
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(
+                    repair, "_trapped_foreign_pad_blockers",
+                    return_value=[blocker]):
+            plan = repair.plan_footprint_repairs(
+                "board.kicad_pcb", {"unconn_nets": ["/SS"]})
+        self.assertEqual([row["ref"] for row in plan["targets"]], ["C6"])
+        self.assertEqual(plan["immutable"], [])
+
+    def test_footprint_relocation_ladder_contains_quarter_turn_away_seat(self):
+        import cec_certificate_repair as repair
+
+        footprint = mock.Mock()
+        footprint.GetPosition.return_value = SimpleNamespace(
+            x=5_500_000, y=10_500_000)
+        board = mock.Mock()
+        board.FindFootprintByReference.return_value = footprint
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C6", target_net="/SS", endpoint_ref="U4",
+            endpoint_pad="11", endpoint_x_mm=7.0, endpoint_y_mm=12.0,
+            hit_count=2, distance_mm=8.0, priority=(0,)))
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board):
+            rows = repair._footprint_relocation_candidates(
+                "board.kicad_pcb", target)
+        self.assertIn({"rotation_delta_deg": 90.0,
+                       "dx_mm": -0.5, "dy_mm": -0.75}, rows)
+
+    def test_footprint_reseat_preserves_copper_beyond_direct_pad_stub(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIGNAL")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U4")
+        footprint.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("1")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.2))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+
+        def track(start, end):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(*start))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(0.2))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net)
+            item.SetLocked(True)
+            board.Add(item)
+            return item
+
+        pad_stub = track((5, 5), (6, 5))
+        preserved = track((6, 5), (10, 5))
+        pad_stub_uuid = repair._uuid(pad_stub)
+        preserved_uuid = repair._uuid(preserved)
+        target = repair.FootprintRepairTarget(
+            ref="U4", target_net="/SIGNAL", endpoint_ref="U4",
+            endpoint_pad="1", endpoint_x_mm=5.0, endpoint_y_mm=5.0,
+            hit_count=3, distance_mm=4.0, priority=(0,))
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "reseat.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 0.0,
+                    "dx_mm": 0.5,
+                    "dy_mm": 0.0,
+                }, generated_locked_uuids=(pad_stub_uuid, preserved_uuid))
+            saved = pcbnew.LoadBoard(path)
+
+        remaining = {repair._uuid(item) for item in saved.GetTracks()}
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["removed_tracks"], 1)
+        self.assertNotIn(pad_stub_uuid, remaining)
+        self.assertIn(preserved_uuid, remaining)
+        self.assertEqual(evidence["preserved_anchors"][0]["x_mm"], 6.0)
+
+    def test_refusal_named_generated_via_is_relocation_target(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        blocker = pcbnew.NETINFO_ITEM(board, "/VCC")
+        board.Add(blocker)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        via.SetWidth(pcbnew.FromMM(0.6))
+        via.SetDrill(pcbnew.FromMM(0.3))
+        via.SetNet(blocker)
+        via.SetLocked(True)
+        board.Add(via)
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "via.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            uid = repair._uuid(next(iter(saved.GetTracks())))
+            payload = {"unconn_nets": ["/OPEN"], "final_completion": {
+                "refused_details": [{
+                    "net": "/OPEN", "distance_mm": 4.0,
+                    "certificate": {
+                        "net": "/OPEN",
+                        "endpoints": [{
+                            "endpoint": "a", "kind": "pad", "ref": "U1",
+                            "pad": "1", "x_mm": 4.0, "y_mm": 5.0,
+                        }],
+                        "dominant_blockers": [{
+                            "kind": "via", "uuid": uid, "hit_count": 3,
+                        }],
+                    },
+                }],
+            }}
+            denied = repair.plan_congestion_via_repairs(path, payload)
+            allowed = repair.plan_congestion_via_repairs(
+                path, payload, generated_locked_uuids={uid})
+
+        self.assertEqual(denied["targets"], [])
+        self.assertEqual(denied["immutable"][0]["reason"],
+                         "authored_locked_via")
+        self.assertEqual(allowed["targets"][0]["via"]["uuid"], uid)
+        self.assertGreater(allowed["targets"][0]["via"]["away_dx"], 0)
 
     def test_surgery_policy_protects_authored_and_sensitive_copper(self):
         import cec_certificate_repair as repair
@@ -510,6 +1172,503 @@ class TestCertificateRepairPolicy(unittest.TestCase):
                             and row.get("reason") == "coupled_pair"
                             for row in plan["immutable"]), plan)
 
+    def test_generated_locked_blocker_requires_authored_baseline_authority(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        opened = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        blocker = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(opened); board.Add(blocker)
+        item = pcbnew.PCB_TRACK(board)
+        item.SetStart(pcbnew.VECTOR2I_MM(2, 3))
+        item.SetEnd(pcbnew.VECTOR2I_MM(8, 3))
+        item.SetWidth(pcbnew.FromMM(0.25))
+        item.SetLayer(pcbnew.F_Cu)
+        item.SetNet(blocker)
+        item.SetLocked(True)
+        board.Add(item)
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "locked.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            uid = repair._uuid(next(iter(saved.GetTracks())))
+            payload = {"unconn_nets": ["/OPEN"], "final_completion": {
+                "refused_details": [{
+                    "net": "/OPEN", "distance_mm": 6.0,
+                    "certificate": {
+                        "schema": 1, "net": "/OPEN", "width_mm": 0.25,
+                        "clearance_mm": 0.2,
+                        "dominant_blockers": [{
+                            "kind": "track", "uuid": uid, "hit_count": 3,
+                        }],
+                    },
+                }],
+            }}
+            denied = repair.plan_negotiations(path, payload)
+            allowed = repair.plan_negotiations(
+                path, payload, generated_locked_uuids={uid})
+
+        self.assertEqual(denied["windows"], [])
+        self.assertEqual(denied["immutable"][0]["reason"], "locked_copper")
+        self.assertEqual(allowed["windows"][0]["unlock_uuids"], (uid,))
+        self.assertEqual(allowed["generated_locked_authority_count"], 1)
+
+    def test_pofv_vertical_window_names_every_all_layer_track_blocker(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(props)
+        nets = {}
+        for name in ("/OPEN", "/MOVE_A", "/MOVE_B"):
+            nets[name] = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(nets[name])
+
+        owner = pcbnew.FOOTPRINT(board)
+        owner.SetReference("U1")
+        pad = pcbnew.PAD(owner)
+        pad.SetPadName("25")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.4))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(nets["/OPEN"])
+        owner.Add(pad)
+        board.Add(owner)
+
+        anchors = pcbnew.FOOTPRINT(board)
+        anchors.SetReference("J1")
+        for number, net_name, x in (
+                ("1", "/MOVE_A", 2.0), ("2", "/MOVE_B", 3.0)):
+            anchor = pcbnew.PAD(anchors)
+            anchor.SetPadName(number)
+            anchor.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            anchor.SetShape(pcbnew.PAD_SHAPE_RECT)
+            anchor.SetSize(pcbnew.VECTOR2I_MM(0.5, 0.5))
+            anchor.SetPosition(pcbnew.VECTOR2I_MM(x, 2.0))
+            anchor.SetLayerSet(pcbnew.PAD.SMDMask())
+            anchor.SetNet(nets[net_name])
+            anchors.Add(anchor)
+        board.Add(anchors)
+
+        def blocker(net, start, end, locked=False):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(*start))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(0.2))
+            item.SetLayer(pcbnew.B_Cu)
+            item.SetNet(nets[net])
+            item.SetLocked(locked)
+            board.Add(item)
+            return item
+
+        move_a = blocker("/MOVE_A", (4.0, 5.0), (6.0, 5.0))
+        move_b = blocker(
+            "/MOVE_B", (5.0, 4.0), (5.0, 6.0), locked=True)
+        move_a_uuid = repair._uuid(move_a)
+        move_b_uuid = repair._uuid(move_b)
+        certificate = {
+            "schema": 1, "net": "/OPEN", "width_mm": 0.2,
+            "clearance_mm": 0.2,
+            "endpoints": [{
+                "endpoint": "b", "kind": "pad", "ref": "U1", "pad": "25",
+                "x_mm": 5.0, "y_mm": 5.0,
+            }],
+            "dominant_blockers": [],
+        }
+        payload = {"unconn_nets": ["/OPEN"], "final_completion": {
+            "refused_details": [{
+                "net": "/OPEN", "distance_mm": 1.5,
+                "certificate": certificate,
+            }],
+        }}
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "vertical.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            vertical = repair._pofv_endpoint_blocker_rows(
+                saved, certificate)
+            denied = repair.plan_negotiations(path, payload)
+            allowed = repair.plan_negotiations(
+                path, payload,
+                generated_locked_uuids={move_b_uuid})
+
+        self.assertEqual(len(vertical), 1, vertical)
+        self.assertEqual(
+            {row["uuid"] for row in vertical[0]["blockers"]},
+            {move_a_uuid, move_b_uuid})
+        self.assertEqual(denied["windows"], [])
+        self.assertTrue(any(
+            row.get("uuid") == move_b_uuid
+            and row.get("reason") == "locked_copper"
+            and row.get("role") == "vertical_pofv_blocker"
+            for row in denied["immutable"]), denied)
+        self.assertEqual(allowed["pofv_vertical_candidates"], 1)
+        self.assertEqual(len(allowed["windows"]), 1, allowed)
+        window = allowed["windows"][0]
+        self.assertTrue(window["vertical_pofv_escape"])
+        self.assertEqual(set(window["blocker_uuids"]),
+                         {move_a_uuid, move_b_uuid})
+        self.assertEqual(window["unlock_uuids"], (move_b_uuid,))
+        self.assertEqual(window["vertical_blocker_layers"], ("B.Cu",))
+
+    def test_generated_endpoint_neckdown_group_remains_negotiable(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(net)
+        item = pcbnew.PCB_TRACK(board)
+        item.SetStart(pcbnew.VECTOR2I_MM(2, 3))
+        item.SetEnd(pcbnew.VECTOR2I_MM(4, 3))
+        item.SetWidth(pcbnew.FromMM(0.2))
+        item.SetLayer(pcbnew.F_Cu)
+        item.SetNet(net)
+        item.SetLocked(True)
+        board.Add(item)
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(repair.cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        board.Add(group)
+        group.AddItem(item)
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "grouped.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            uid = repair._uuid(next(iter(saved.GetTracks())))
+            payload = {"unconn_nets": ["/OPEN"], "final_completion": {
+                "refused_details": [{
+                    "net": "/OPEN", "distance_mm": 2.0,
+                    "certificate": {
+                        "net": "/OPEN", "width_mm": 0.25,
+                        "clearance_mm": 0.2,
+                        "dominant_blockers": [{
+                            "kind": "track", "uuid": uid, "hit_count": 3,
+                        }],
+                    },
+                }],
+            }}
+            plan = repair.plan_negotiations(
+                path, payload, generated_locked_uuids={uid})
+
+        self.assertEqual(plan["windows"][0]["unlock_uuids"], (uid,))
+
+    def test_generated_local_pin_escape_precedes_residual_power_window(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        nets = {}
+        for name in ("/LOCKED_BLOCK", "/POWER_BLOCK"):
+            nets[name] = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(nets[name])
+
+        def add_track(net, y, locked):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(2, y))
+            item.SetEnd(pcbnew.VECTOR2I_MM(8, y))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(nets[net])
+            item.SetLocked(locked)
+            board.Add(item)
+            return item
+
+        locked = add_track("/LOCKED_BLOCK", 2, True)
+        power = add_track("/POWER_BLOCK", 4, False)
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "priority.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            by_net = {item.GetNetname(): repair._uuid(item)
+                      for item in saved.GetTracks()}
+
+            def detail(net, distance, blocker):
+                return {
+                    "net": net, "distance_mm": distance,
+                    "certificate": {
+                        "schema": 1, "net": net, "width_mm": 0.25,
+                        "clearance_mm": 0.2,
+                        "search": {"escape_probe_mm": 1.25},
+                        "endpoints": [
+                            {"endpoint": "a", "kind": "pad", "ref": "R1",
+                             "pad": "1", "x_mm": 1.0, "y_mm": 2.0},
+                            {"endpoint": "b", "kind": "pad", "ref": "U1",
+                             "pad": "1", "x_mm": 2.5, "y_mm": 2.0},
+                        ],
+                        "dominant_blockers": [{
+                            "kind": "track", "uuid": by_net[blocker],
+                            "hit_count": 2,
+                        }],
+                    },
+                }
+
+            payload = {
+                "unconn_nets": ["/LOCAL", "+3V3"],
+                "final_completion": {"refused_details": [
+                    detail("+3V3", 1.0, "/POWER_BLOCK"),
+                    detail("/LOCAL", 2.0, "/LOCKED_BLOCK"),
+                ]},
+            }
+            plan = repair.plan_negotiations(
+                path, payload,
+                generated_locked_uuids={by_net["/LOCKED_BLOCK"]})
+
+        self.assertEqual([row["net"] for row in plan["windows"]],
+                         ["/LOCAL", "+3V3"])
+        self.assertTrue(plan["windows"][0]["local_pin_escape"])
+
+    def test_surface_trapped_smd_is_pin_escape_even_with_inner_clear_ray(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        pad = mock.Mock()
+        pad.GetNumber.return_value = "5"
+        pad.HasHole.return_value = False
+        pad.IsOnLayer.side_effect = lambda layer: layer == pcbnew.F_Cu
+        footprint = mock.Mock()
+        footprint.Pads.return_value = [pad]
+        board = mock.Mock()
+        board.FindFootprintByReference.return_value = footprint
+        certificate = {
+            "endpoints": [{
+                "endpoint": "b", "kind": "pad", "ref": "U4", "pad": "5",
+            }],
+            "layers": [
+                {"layer": "F.Cu", "endpoint_escape": [{
+                    "endpoint": "b", "clear_rays": [],
+                }]},
+                {"layer": "SIG2", "endpoint_escape": [{
+                    "endpoint": "b", "clear_rays": ["N"],
+                }]},
+            ],
+        }
+        self.assertEqual(
+            repair._surface_trapped_endpoint_labels(board, certificate),
+            {"b"})
+
+    def test_generated_locked_authority_does_not_override_pair_policy(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        opened = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        pair = pcbnew.NETINFO_ITEM(board, "/USB_D_P")
+        board.Add(opened); board.Add(pair)
+        item = pcbnew.PCB_TRACK(board)
+        item.SetStart(pcbnew.VECTOR2I_MM(2, 3))
+        item.SetEnd(pcbnew.VECTOR2I_MM(8, 3))
+        item.SetWidth(pcbnew.FromMM(0.25))
+        item.SetLayer(pcbnew.F_Cu)
+        item.SetNet(pair)
+        item.SetLocked(True)
+        board.Add(item)
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "pair.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            saved = pcbnew.LoadBoard(path)
+            uid = repair._uuid(next(iter(saved.GetTracks())))
+            payload = {"unconn_nets": ["/OPEN"], "final_completion": {
+                "refused_details": [{
+                    "net": "/OPEN", "distance_mm": 6.0,
+                    "certificate": {
+                        "schema": 1, "net": "/OPEN", "width_mm": 0.25,
+                        "clearance_mm": 0.2,
+                        "dominant_blockers": [{
+                            "kind": "track", "uuid": uid, "hit_count": 3,
+                        }],
+                    },
+                }],
+            }}
+            plan = repair.plan_negotiations(
+                path, payload, generated_locked_uuids={uid})
+
+        self.assertEqual(plan["windows"], [])
+        self.assertEqual(plan["immutable"][0]["reason"], "coupled_pair")
+
+    def test_negotiation_plan_prioritizes_trapped_pin_escape(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        blocker_net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(blocker_net)
+        blockers = []
+        for y in (2, 4):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(2, y))
+            item.SetEnd(pcbnew.VECTOR2I_MM(8, y))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(blocker_net)
+            board.Add(item)
+            blockers.append(item)
+
+        def detail(net, item, rays):
+            return {
+                "net": net, "distance_mm": 1.0,
+                "certificate": {
+                    "schema": 1, "net": net, "width_mm": 0.25,
+                    "clearance_mm": 0.2,
+                    "layers": [{"endpoint_escape": [
+                        {"endpoint": "A", "clear_rays": rays},
+                        {"endpoint": "B", "clear_rays": rays},
+                    ]}],
+                    "dominant_blockers": [{
+                        "kind": "track", "uuid": repair._uuid(item),
+                        "hit_count": 2,
+                    }],
+                },
+            }
+
+        payload = {
+            "unconn_nets": ["/FREE", "/TRAPPED"],
+            "final_completion": {"refused_details": [
+                detail("/FREE", blockers[0], ["E"]),
+                detail("/TRAPPED", blockers[1], []),
+            ]},
+        }
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "trapped.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            plan = repair.plan_negotiations(path, payload)
+
+        self.assertEqual([row["net"] for row in plan["windows"]],
+                         ["/TRAPPED", "/FREE"])
+
+    def test_generated_locked_snapshot_is_exact_and_restored_locked(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(net)
+        items = []
+        for x0, x1 in ((1, 2), (2, 3), (3, 4)):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(x0, 2))
+            item.SetEnd(pcbnew.VECTOR2I_MM(x1, 2))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net)
+            item.SetLocked(True)
+            board.Add(item)
+            items.append(item)
+        target = items[1]
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "restore.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            snapshot, refusal = repair._snapshot_displaced_branch(
+                board, repair._uuid(target), max_hops=2,
+                allow_generated_locked=True)
+            self.assertIsNone(refusal)
+            self.assertEqual(snapshot["removed_uuids"],
+                             (repair._uuid(target),))
+            self.assertTrue(snapshot["relock"])
+            board.Remove(target)
+            board.BuildConnectivity()
+            restored, evidence = repair._restore_displaced_branch(
+                board, snapshot, board_path=path, maze_margin_mm=2.0)
+
+        self.assertTrue(restored, evidence)
+        restored_items = [item for item in board.GetTracks()
+                          if item.GetNetname() == "/BLOCK"
+                          and repair._uuid(item) not in {
+                              repair._uuid(items[0]), repair._uuid(items[2])}]
+        self.assertTrue(restored_items)
+        self.assertTrue(all(item.IsLocked() for item in restored_items))
+
+    def test_restore_falls_back_to_live_net_topology_and_relocks(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(net)
+        snapshot_row = {
+            "requested_uuid": "old-segment", "net": "/BLOCK",
+            "net_code": net.GetNetCode(), "layer": pcbnew.F_Cu,
+            "width": pcbnew.FromMM(0.25), "start_escape": None,
+            "end_escape": None, "source_length_nm": 2_000_000,
+            "removed_uuids": ("old-segment",), "relock": True,
+            "start_xy": [pcbnew.FromMM(1), pcbnew.FromMM(2)],
+            "end_xy": [pcbnew.FromMM(3), pcbnew.FromMM(2)],
+        }
+
+        def close_live_net(live_board, **_kwargs):
+            item = pcbnew.PCB_TRACK(live_board)
+            item.SetStart(pcbnew.VECTOR2I_MM(1, 2))
+            item.SetEnd(pcbnew.VECTOR2I_MM(3, 2))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net)
+            live_board.Add(item)
+            return {"closed": 1, "refused": 0,
+                    "closed_details": [{"net": "/BLOCK"}]}
+
+        with mock.patch.object(
+                repair, "_restore_displaced_branch",
+                return_value=(False, {"refusal":
+                                      "displaced_branch_unrestorable"})), \
+                mock.patch.object(
+                    repair.cec_fr, "_project_netclass_resolver",
+                    return_value=lambda _net: {}), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    side_effect=close_live_net):
+            restored, evidence = repair._restore_negotiation_blockers(
+                board, [snapshot_row], board_path="board.kicad_pcb",
+                maze_margin_mm=4.0, max_detour_ratio=2.0)
+
+        self.assertTrue(restored, evidence)
+        self.assertEqual(evidence["restored"][0]["mode"],
+                         "network_lastmile")
+        self.assertEqual(evidence["restored"][0]["branch_refusal"][
+            "refusal"], "displaced_branch_unrestorable")
+        self.assertTrue(all(item.IsLocked() for item in board.GetTracks()))
+
+    def test_restore_can_route_easiest_branch_first(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        def snapshot(net, width_mm, length_mm, x_mm):
+            return {
+                "requested_uuid": net, "net": net, "net_code": 1,
+                "layer": pcbnew.F_Cu,
+                "width": pcbnew.FromMM(width_mm),
+                "start_escape": None, "end_escape": None,
+                "source_length_nm": pcbnew.FromMM(length_mm),
+                "removed_uuids": (net,), "relock": False,
+                "start_xy": [pcbnew.FromMM(x_mm), pcbnew.FromMM(1)],
+                "end_xy": [pcbnew.FromMM(x_mm + length_mm),
+                           pcbnew.FromMM(1)],
+            }
+
+        rows = [snapshot("/WIDE", 0.50, 8.0, 1.0),
+                snapshot("/NARROW", 0.20, 2.0, 12.0)]
+        order = []
+
+        def restore_branch(_board, item, **_kwargs):
+            order.append(item["net"])
+            return True, {"net": item["net"], "mode": "same_layer"}
+
+        board = mock.Mock()
+        with mock.patch.object(
+                repair, "_restore_displaced_branch",
+                side_effect=restore_branch):
+            restored, evidence = repair._restore_negotiation_blockers(
+                board, rows, board_path="board.kicad_pcb",
+                maze_margin_mm=4.0, max_detour_ratio=2.0,
+                order_mode="easiest_first")
+
+        self.assertTrue(restored, evidence)
+        self.assertEqual(order, ["/NARROW", "/WIDE"])
+        self.assertEqual(evidence["order_mode"], "easiest_first")
+
     def test_negotiation_plan_drops_intermediate_refusal_after_final_close(self):
         import cec_certificate_repair as repair
 
@@ -615,6 +1774,78 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(set(merged[0]["removed_uuids"]),
                          {repair._uuid(a), repair._uuid(b), repair._uuid(c)})
 
+    def test_adjacent_generated_blockers_coalesce_without_junction(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(net)
+
+        def track(x0, y0, x1, y1):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(x0, y0))
+            item.SetEnd(pcbnew.VECTOR2I_MM(x1, y1))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net); board.Add(item)
+            return item
+
+        a = track(1, 2, 2, 2)
+        b = track(2, 2, 3, 2)
+        common = {"net": "/BLOCK", "net_code": net.GetNetCode(),
+                  "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.25),
+                  "start_escape": None, "end_escape": None,
+                  "source_length_nm": 1_000_000, "relock": True}
+        rows = [{
+            **common, "requested_uuid": repair._uuid(item),
+            "removed_uuids": (repair._uuid(item),),
+            "_track_objects": (item,),
+        } for item in (a, b)]
+
+        merged, refusal = repair._merge_overlapping_snapshots(
+            rows, board=board)
+        self.assertIsNone(refusal)
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(set(merged[0]["removed_uuids"]),
+                         {repair._uuid(a), repair._uuid(b)})
+        self.assertTrue(merged[0]["relock"])
+
+    def test_adjacent_generated_blockers_do_not_bypass_junction(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(net)
+
+        def track(x0, y0, x1, y1):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(x0, y0))
+            item.SetEnd(pcbnew.VECTOR2I_MM(x1, y1))
+            item.SetWidth(pcbnew.FromMM(0.25))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net); board.Add(item)
+            return item
+
+        a = track(1, 2, 2, 2)
+        b = track(2, 2, 3, 2)
+        track(2, 2, 2, 3)
+        common = {"net": "/BLOCK", "net_code": net.GetNetCode(),
+                  "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.25),
+                  "start_escape": None, "end_escape": None,
+                  "source_length_nm": 1_000_000, "relock": True}
+        rows = [{
+            **common, "requested_uuid": repair._uuid(item),
+            "removed_uuids": (repair._uuid(item),),
+            "_track_objects": (item,),
+        } for item in (a, b)]
+
+        merged, refusal = repair._merge_overlapping_snapshots(
+            rows, board=board)
+        self.assertIsNone(refusal)
+        self.assertEqual(len(merged), 2)
+
     def test_production_hook_adopts_isolated_repair_artifact(self):
         import cec_synth_pipeline as pipeline
 
@@ -651,6 +1882,35 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             self.assertIn("--max-attempts", command)
             self.assertIn("--wall-budget-s", command)
             self.assertIn("--no-deep-retry", command)
+
+    def test_production_hook_forwards_authored_baseline(self):
+        import cec_synth_pipeline as pipeline
+
+        completion = {"final_completion": {"refused_details": [
+            {"net": "/OPEN", "certificate": {"schema": 1,
+             "net": "/OPEN", "dominant_blockers": []}}]}}
+        with tempfile.TemporaryDirectory() as work:
+            source = os.path.join(work, "source.kicad_pcb")
+            baseline = os.path.join(work, "placed.kicad_pcb")
+            for path in (source, baseline):
+                with open(path, "w", encoding="utf-8") as sink:
+                    sink.write(path)
+
+            def run(command, **_kwargs):
+                report = command[command.index("--report") + 1]
+                with open(report, "w", encoding="utf-8") as sink:
+                    json.dump({"schema": 1, "changed": False}, sink)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(pipeline.subprocess, "run",
+                                   side_effect=run) as run_mock:
+                pipeline._route_oracle_certificate_repair(
+                    source, completion, work,
+                    authored_baseline=baseline)
+
+        command = run_mock.call_args.args[0]
+        self.assertEqual(command[command.index("--authored-baseline") + 1],
+                         baseline)
 
     def test_production_hook_times_out_without_mutating_caller_board(self):
         import subprocess

@@ -24444,6 +24444,7 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
                                      max_detour_ratio=2.0,
                                      max_attempts=64,
                                      wall_budget_s=240.0,
+                                     authored_baseline=None,
                                      deep_retry=False, timeout_s=180,
                                      verbose=False):
     """Run guarded certificate repair in an isolated production subprocess.
@@ -24486,6 +24487,8 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
         "--max-attempts", str(int(max_attempts)),
         "--wall-budget-s", str(float(wall_budget_s)),
     ]
+    if authored_baseline:
+        command.extend(["--authored-baseline", authored_baseline])
     if not deep_retry:
         command.append("--no-deep-retry")
     command.append("--quiet")
@@ -24891,6 +24894,8 @@ def _compile_priority_current_prefix(board_path, current_nets, domains,
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.SaveBoard(out_path, board)
     cec_fr.copy_project_sidecars(board_path, out_path)
+    cec_fr.ensure_endpoint_neckdown_rule(
+        out_path, {"local_pin_access": local, "repair": repair})
 
     after = cec_score.score(out_path, rules)
     exact = pcbnew.LoadBoard(out_path)
@@ -28333,6 +28338,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             _current_work.Zones())
                         _pcb_current.SaveBoard(_current_out, _current_work)
                         cec_fr.copy_project_sidecars(route_input, _current_out)
+                        cec_fr.ensure_endpoint_neckdown_rule(
+                            _current_out, {
+                                "local_pin_access": _current_local,
+                                "repair": _current_repair,
+                            })
                         _current_after = cec_score.score(_current_out, rules)
                         _current_exact_board = _pcb_current.LoadBoard(
                             _current_out)
@@ -29056,6 +29066,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             routed,
                             dict(cand.params.get("import_report") or {}),
                             work_dir,
+                            authored_baseline=placed,
                             max_targets=int(_cert_params.get(
                                 "certificate_repair_max_targets", 8)),
                             max_windows=int(_cert_params.get(

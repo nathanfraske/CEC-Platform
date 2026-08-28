@@ -917,6 +917,51 @@ class TestPickupOwnNetExempt(unittest.TestCase):
                           result["refused"]), (1, 1, 0))
         self.assertTrue(list(board.GetTracks()))
 
+    def test_connector_power_bank_owns_elongated_land_neckdowns(self):
+        """A connector bank may flare only after clearing the real land span,
+        and every resulting sub-class prefix must carry the scoped DRC rule
+        ownership used by later candidate copies."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("J1")
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("B4")
+        first.SetSize(pcbnew.VECTOR2I_MM(1.15, 0.30))
+        first.SetPosition(pcbnew.VECTOR2I_MM(3.0, 2.5))
+        second = pcbnew.PAD(footprint)
+        second.SetNumber("B9")
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I_MM(1.15, 0.30))
+        second.SetPosition(pcbnew.VECTOR2I_MM(7.0, 2.5))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNet(net); footprint.Add(second)
+
+        result = cec_fr.synthesize_same_footprint_links(
+            board, min_w=0.2, clearance=0.25,
+            netclass_resolver=lambda _net: {
+                "track_width": 0.5, "clearance": 0.25,
+                "via_diameter": 0.6, "via_drill": 0.3})
+
+        self.assertEqual((result["linked"], result["refused"]), (1, 0))
+        evidence = result["endpoint_neckdown"]
+        self.assertEqual(evidence["group"],
+                         cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        self.assertEqual(evidence["min_width_mm"], 0.2)
+        self.assertGreaterEqual(evidence["max_length_mm"], 1.0)
+        group = next(group for group in board.Groups()
+                     if group.GetName() == cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        narrow = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"
+                  and item.GetWidth() < pcbnew.FromMM(0.5)]
+        self.assertTrue(narrow)
+        self.assertTrue(all(group.ContainsItem(item) for item in narrow))
+
     def test_same_footprint_uses_guarded_bridge_when_face_is_blocked(self):
         import math
         import pcbnew
