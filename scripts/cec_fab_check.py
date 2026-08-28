@@ -254,6 +254,20 @@ def write_fab_dru(path, r, *, qualified_rules=()):
                r["h2h"], r["hole_clearance"], r["edge"], r["silk"]))
 
 
+def qualify_fab_drc_violations(violations, board):
+    """Return only rows that survive the central geometry qualification.
+
+    Qualification is intentionally best-effort in the safe direction: if the
+    shared proof engine is unavailable or raises, retain every KiCad row.
+    """
+    rows = list(violations or ())
+    try:
+        import cec_score
+        return cec_score.qualify_structural_violations(rows, board)
+    except Exception:                                      # noqa: BLE001
+        return rows
+
+
 def run_fab_drc(board_path, r):
     """KiCad's own geometry engine, against the fab profile."""
     work = tempfile.mkdtemp(prefix="fabchk-")
@@ -304,7 +318,14 @@ def run_fab_drc(board_path, r):
         if not os.path.exists(out):
             return None, None
         d = json.load(open(out))
-        return d.get("violations") or [], d.get("unconnected_items") or []
+        violations = d.get("violations") or []
+        # Use the same geometry-proven qualification authority as the route
+        # scorer.  The fab DRU deliberately remains conservative; only rows
+        # that pass the exact POFV/manufacturer-land/endpoint predicates are
+        # removed after KiCad has reported them.  An exception in the proof
+        # path keeps every row, so this audit remains fail-closed.
+        violations = qualify_fab_drc_violations(violations, audit_board)
+        return violations, d.get("unconnected_items") or []
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -322,7 +343,7 @@ def artifact_scan(board_path, r):
     from shapely.ops import unary_union
     b = pcbnew.LoadBoard(board_path)
     out = {"slivers": [], "islands": [], "acid_traps": [],
-           "drill_aspect": []}
+           "covered_acute_junctions": [], "drill_aspect": []}
 
     # --- plated through-hole aspect ratio. KiCad DRC checks drill diameter,
     # not whether a small legal drill is reasonable through this board thickness.
@@ -441,12 +462,13 @@ def artifact_scan(board_path, r):
         c = (round(e_.x / 1e6, 3), round(e_.y / 1e6, 3))
         if a == c:
             continue
-        ends[(a, t.GetLayer(), t.GetNetname())].append(c)
-        ends[(c, t.GetLayer(), t.GetNetname())].append(a)
+        ends[(a, t.GetLayer(), t.GetNetname())].append((c, t))
+        ends[(c, t.GetLayer(), t.GetNetname())].append((a, t))
     for (pt, lid, net), others in ends.items():
         if len(others) != 2:
             continue
-        (x1, y1), (x2, y2) = others[0], others[1]
+        (x1, y1), first = others[0]
+        (x2, y2), second = others[1]
         v1 = (x1 - pt[0], y1 - pt[1])
         v2 = (x2 - pt[0], y2 - pt[1])
         n1 = math.hypot(*v1)
@@ -456,9 +478,44 @@ def artifact_scan(board_path, r):
         cosang = (v1[0] * v2[0] + v1[1] * v2[1]) / (n1 * n2)
         ang = math.degrees(math.acos(max(-1.0, min(1.0, cosang))))
         if ang < 60.0:                                     # industry rule of thumb
-            out["acid_traps"].append(
-                {"net": net, "layer": pcbnew.LayerName(lid),
-                 "angle_deg": round(ang, 1), "at": [pt[0], pt[1]]})
+            query = pcbnew.VECTOR2I(
+                int(round(pt[0] * 1e6)), int(round(pt[1] * 1e6)))
+            anchor_pads = []
+            for fp in b.GetFootprints():
+                for pad in fp.Pads():
+                    if pad.GetNetname() != net or not pad.IsOnLayer(lid):
+                        continue
+                    try:
+                        if pad.GetEffectiveShape(lid).Collide(query, 0):
+                            anchor_pads.append(
+                                "%s.%s" % (fp.GetReference(), pad.GetPadName()))
+                    except Exception:                       # noqa: BLE001
+                        continue
+            anchor_vias = []
+            for item in b.GetTracks():
+                if (item.GetClass() != "PCB_VIA"
+                        or item.GetNetname() != net
+                        or not item.IsOnLayer(lid)):
+                    continue
+                pos = item.GetPosition()
+                if (abs(pos.x - query.x) <= 1_000
+                        and abs(pos.y - query.y) <= 1_000):
+                    anchor_vias.append(item.m_Uuid.AsString())
+            row = {"net": net, "layer": pcbnew.LayerName(lid),
+                   "angle_deg": round(ang, 1), "at": [pt[0], pt[1]],
+                   "track_uuids": sorted((first.m_Uuid.AsString(),
+                                           second.m_Uuid.AsString())),
+                   "anchor_pads": sorted(anchor_pads),
+                   "anchor_vias": sorted(anchor_vias)}
+            if anchor_pads or anchor_vias:
+                # The line-centre angle is not the etched copper boundary when
+                # the complete junction lies in a same-net pad or via annulus:
+                # that solid land fills the alleged notch.  Keep the event as
+                # audit telemetry, but do not call it an acid trap.  Foreign-net
+                # or merely nearby lands never satisfy the exact anchor proof.
+                out["covered_acute_junctions"].append(row)
+            else:
+                out["acid_traps"].append(row)
     return out
 
 

@@ -249,9 +249,7 @@ def drc_types(board_path: str) -> tuple[dict, list]:
     struct = [v for v in d.get("violations", []) if v.get("type") not in COSMETIC_DRC_TYPES]
     try:
         board = pcbnew.LoadBoard(board_path)
-        struct = _drop_impossible_pad_artifacts(struct, board)
-        struct = _drop_profile_qualified_pofv_geometry(struct, board)
-        struct = _drop_qualified_endpoint_neckdown_geometry(struct, board)
+        struct = qualify_structural_violations(struct, board)
     except Exception:                                      # noqa: BLE001 -- parity filter is best-effort here
         pass
     return _types_loci(struct)
@@ -545,6 +543,20 @@ def _drop_qualified_endpoint_neckdown_geometry(struct: list, board) -> list:
         return has_fine_pad
 
     return [row for row in struct if not qualified(row)]
+
+
+def qualify_structural_violations(struct: list, board) -> list:
+    """Apply the central, geometry-proven DRC qualification contract.
+
+    Every consumer that turns KiCad rows into a project or fabrication gate
+    must use this function.  Keeping the sequence in one public entry point
+    prevents an independent audit from counting a process-qualified POFV or
+    manufacturer land that the route scorer has already proved, while each
+    underlying predicate remains fail-closed and geometry bounded.
+    """
+    rows = _drop_impossible_pad_artifacts(list(struct), board)
+    rows = _drop_profile_qualified_pofv_geometry(rows, board)
+    return _drop_qualified_endpoint_neckdown_geometry(rows, board)
 
 
 def _parse_net_from_desc(desc: str) -> str | None:
@@ -1079,9 +1091,7 @@ def score(
 
     all_violations = drc_data.get("violations", [])
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
-    struct = _drop_impossible_pad_artifacts(struct, b)
-    struct = _drop_profile_qualified_pofv_geometry(struct, b)
-    struct = _drop_qualified_endpoint_neckdown_geometry(struct, b)
+    struct = qualify_structural_violations(struct, b)
     unconn = drc_data.get("unconnected_items", [])
     unconn_nets = _unconnected_nets(unconn)
     unconn_signature = _unconnected_signature(unconn)

@@ -2,6 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +12,11 @@ if str(SCRIPTS) not in sys.path:
 
 import cec_fab_check
 import cec_fab_profile
+
+try:
+    import pcbnew
+except ImportError as exc:  # pragma: no cover
+    raise unittest.SkipTest("pcbnew required") from exc
 
 
 class FabCheckProfileTests(unittest.TestCase):
@@ -105,6 +111,58 @@ class FabCheckProfileTests(unittest.TestCase):
             generated = path.read_text(encoding="utf-8")
         self.assertIn("fab_qualified_vendor_land", generated)
         self.assertIn("fab min clearance", generated)
+
+    def test_fab_drc_uses_central_geometry_qualification_fail_closed(self):
+        rows = [{"type": "via_diameter"}, {"type": "clearance"}]
+        board = object()
+        with mock.patch(
+                "cec_score.qualify_structural_violations",
+                return_value=[rows[1]]) as qualify:
+            self.assertEqual(
+                cec_fab_check.qualify_fab_drc_violations(rows, board),
+                [rows[1]])
+            qualify.assert_called_once_with(rows, board)
+        with mock.patch(
+                "cec_score.qualify_structural_violations",
+                side_effect=RuntimeError("proof unavailable")):
+            self.assertEqual(
+                cec_fab_check.qualify_fab_drc_violations(rows, board), rows)
+
+    def test_same_net_pad_copper_covers_acute_track_junction(self):
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIG")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U1")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("1")
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.2, 1.2))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(10, 10))
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+        for end in ((12, 10), (12, 12)):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I_MM(10, 10))
+            track.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            track.SetWidth(pcbnew.FromMM(0.20))
+            track.SetLayer(board.GetLayerID("F.Cu"))
+            track.SetNet(net)
+            board.Add(track)
+
+        rules = cec_fab_check.profile_rules(
+            cec_fab_check.PROFILES["jlcpcb"], 1.0)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "board.kicad_pcb"
+            pcbnew.SaveBoard(str(path), board)
+            report = cec_fab_check.artifact_scan(str(path), rules)
+        self.assertEqual(report["acid_traps"], [])
+        self.assertEqual(len(report["covered_acute_junctions"]), 1)
+        self.assertEqual(report["covered_acute_junctions"][0]["anchor_pads"],
+                         ["U1.1"])
 
 
 if __name__ == "__main__":
