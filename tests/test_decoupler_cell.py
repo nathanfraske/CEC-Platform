@@ -23,6 +23,53 @@ except ImportError:
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")
 class DecouplerCellTests(unittest.TestCase):
+    def test_assigned_cell_order_is_electrical_not_serialization_order(self):
+        class Owner:
+            def __init__(self, pad_count):
+                self._pads = [object()] * pad_count
+
+            def Pads(self):
+                return list(self._pads)
+
+        class Board:
+            owners = {"U2": Owner(8), "U10": Owner(10)}
+
+            def FindFootprintByReference(self, ref):
+                return self.owners.get(ref)
+
+        rows = {
+            "tja-vio": {
+                "cap_ref": "C8",
+                "requirement": {
+                    "ref": "U2", "pin": "5", "return_rail": "+5VSB",
+                },
+            },
+            "tja-vcc": {
+                "cap_ref": "C4",
+                "requirement": {
+                    "ref": "U2", "pin": "3", "return_rail": "GND",
+                },
+            },
+            "ina": {
+                "cap_ref": "C10",
+                "requirement": {
+                    "ref": "U10", "pin": "6", "return_rail": "GND",
+                },
+            },
+        }
+        forward = {key: rows[key] for key in rows}
+        reverse = {key: rows[key] for key in reversed(rows)}
+
+        first = cell._ordered_assigned_cells(Board(), {"assigned": forward})
+        second = cell._ordered_assigned_cells(Board(), {"assigned": reverse})
+
+        self.assertEqual(
+            [row["cap_ref"] for row in first], ["C4", "C8", "C10"])
+        self.assertEqual(
+            [row["cap_ref"] for row in first],
+            [row["cap_ref"] for row in second],
+        )
+
     def test_ground_access_exact_drc_prunes_only_implicated_terminal_group(self):
         class Uuid:
             def __init__(self, value):
@@ -263,6 +310,123 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(missing["U30"]["nearest_ref"], "C30")
         self.assertGreater(missing["U11"]["nearest_mm"], 3.5)
         self.assertGreater(missing["U30"]["nearest_mm"], 3.5)
+
+    def test_tja1051_vio_bypass_is_assigned_between_vio_and_vcc(self):
+        board = pcbnew.BOARD()
+        nets = {}
+        for name in ("GND", "+3V3", "+5VSB"):
+            net = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(net); nets[name] = net
+
+        def footprint(ref, value, pad_rows):
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference(ref); fp.SetValue(value)
+            for number, net_name, x, y in pad_rows:
+                pad = pcbnew.PAD(fp); pad.SetPadName(number)
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+                pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+                pad.SetLayerSet(layers); pad.SetNet(nets[net_name])
+                fp.Add(pad)
+            board.Add(fp)
+            return fp
+
+        footprint("U2", "TJA1051T/3", (
+            ("2", "GND", 10.0, 14.0),
+            ("3", "+5VSB", 10.0, 13.0),
+            ("5", "+3V3", 10.0, 12.0),
+        ))
+        footprint("C4", "100nF", (
+            ("1", "+5VSB", 11.0, 13.0),
+            ("2", "GND", 11.0, 14.0),
+        ))
+        footprint("C8", "100nF", (
+            ("1", "+3V3", 11.0, 12.0),
+            ("2", "+5VSB", 11.0, 13.0),
+        ))
+
+        assignment = cell.cec_constraints._device_bypass_assignment(board)
+        u2 = {row["requirement"]["pin"]: row
+              for row in assignment["assigned"].values()
+              if row["requirement"]["ref"] == "U2"}
+        self.assertEqual(set(u2), {"3", "5"})
+        self.assertEqual(u2["3"]["cap_ref"], "C4")
+        self.assertEqual(u2["5"]["cap_ref"], "C8")
+        self.assertEqual(u2["5"]["requirement"]["return_pin"], "3")
+        self.assertEqual(u2["5"]["requirement"]["return_rail"], "+5VSB")
+
+    def test_rail_to_rail_cell_requires_both_explicit_local_legs(self):
+        board = pcbnew.BOARD()
+        nets = {}
+        for name in ("+3V3", "+5VSB"):
+            net = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(net); nets[name] = net
+
+        def footprint(ref, pad_rows):
+            fp = pcbnew.FOOTPRINT(board); fp.SetReference(ref)
+            for number, net_name, x, y in pad_rows:
+                pad = pcbnew.PAD(fp); pad.SetPadName(number)
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+                pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+                pad.SetLayerSet(layers); pad.SetNet(nets[net_name])
+                fp.Add(pad)
+            board.Add(fp); return fp
+
+        owner = footprint("U2", (
+            ("3", "+5VSB", 10.0, 11.0),
+            ("5", "+3V3", 10.0, 10.0),
+        ))
+        cap = footprint("C8", (
+            ("1", "+3V3", 11.0, 10.0),
+            ("2", "+5VSB", 11.0, 11.0),
+        ))
+        owner_vio = owner.FindPadByNumber("5")
+        owner_vcc = owner.FindPadByNumber("3")
+        cap_vio = cap.FindPadByNumber("1")
+        cap_vcc = cap.FindPadByNumber("2")
+        requirement = {
+            "id": "U2:5:3:100n", "ref": "U2", "pin": "5",
+            "pad": owner_vio, "rail": "+3V3", "kind": "100n",
+            "return_pin": "3", "return_pad": owner_vcc,
+            "return_rail": "+5VSB", "max_mm": 3.5,
+        }
+        assignment = {"requirements": [requirement], "missing": [],
+                      "assigned": {requirement["id"]: {
+                          "requirement": requirement, "cap_ref": "C8",
+                          "distance_mm": 1.0}}}
+
+        def add_track(start_pad, end_pad, net_name):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(start_pad.GetPosition())
+            track.SetEnd(end_pad.GetPosition())
+            track.SetWidth(pcbnew.FromMM(0.25))
+            track.SetLayer(pcbnew.F_Cu)
+            track.SetNetCode(nets[net_name].GetNetCode())
+            board.Add(track)
+
+        add_track(owner_vio, cap_vio, "+3V3")
+        with mock.patch.object(
+                cell.cec_constraints, "_device_bypass_assignment",
+                return_value=assignment):
+            incomplete = cell.audit_board(board)
+        self.assertFalse(incomplete["ok"])
+        self.assertIn("no explicit local +5VSB return copper",
+                      incomplete["refused"][0]["reason"])
+
+        add_track(owner_vcc, cap_vcc, "+5VSB")
+        with mock.patch.object(
+                cell.cec_constraints, "_device_bypass_assignment",
+                return_value=assignment):
+            complete = cell.audit_board(board)
+        self.assertTrue(complete["ok"], complete["refused"])
+        self.assertEqual(complete["cells"][0]["return_path_mm"], 1.0)
+        self.assertIsNone(
+            complete["cells"][0]["cap_ground_return_status"])
 
     def test_missing_assignment_provenance_distinguishes_range_and_bom(self):
         near = cell._missing_assignment_report({

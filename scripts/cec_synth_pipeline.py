@@ -2153,14 +2153,15 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
         if not ref.startswith("C") or ref not in nl.comps:
             continue
         nodes = by_ref.get(ref, ())
-        grounded = [(p, n) for p, n in nodes if _is_gnd_net(n)]
-        powered = [(p, n) for p, n in nodes if n and not _is_gnd_net(n)]
+        connected = [(p, n) for p, n in nodes if n]
+        net_pins = {n: p for p, n in connected}
         farads = cec_device_bypass.capacitance_f(nl.comps[ref].value)
         local_technology = cec_device_bypass.local_bypass_technology(
             nl.comps[ref].value, nl.comps[ref].footprint)
-        if (len(grounded) == 1 and len(powered) == 1
+        if (len(connected) == 2 and len(net_pins) == 2
                 and farads is not None and local_technology):
-            caps.append({"ref": ref, "rail": powered[0][1], "farads": farads})
+            caps.append({"ref": ref, "net_pins": net_pins,
+                         "farads": farads})
 
     requirements = []
     for ref in ic_refs:
@@ -2172,8 +2173,23 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
             rail = pin_net.get((ref, str(pin)))
             if rail and not _is_gnd_net(rail):
                 requirements.append({"ref": ref, "pin": str(pin), "rail": rail,
+                                     "return_rail": "GND",
+                                     "return_pin": None,
                                      "kind": kind, "max_mm": max_mm,
                                      "source": source})
+        for pin, return_pin, kind, max_mm, source in \
+                cec_device_bypass.rail_to_rail_requirements_for_value(
+                    comp.value, project_max_mm):
+            rail = pin_net.get((ref, str(pin)))
+            return_rail = pin_net.get((ref, str(return_pin)))
+            if (rail and return_rail and rail != return_rail
+                    and not _is_gnd_net(rail)):
+                requirements.append({
+                    "ref": ref, "pin": str(pin), "rail": rail,
+                    "return_pin": str(return_pin),
+                    "return_rail": return_rail,
+                    "kind": kind, "max_mm": max_mm, "source": source,
+                })
 
     def _ref_number(ref):
         m = re.search(r"\d+", ref)
@@ -2182,7 +2198,8 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
     compatible = {}
     for i, req in enumerate(requirements):
         compatible[i] = [c for c in caps
-                         if c["rail"] == req["rail"]
+                         if req["rail"] in c["net_pins"]
+                         and req.get("return_rail", "GND") in c["net_pins"]
                          and cec_device_bypass.kind_compatible(req["kind"], c["farads"])]
 
     used = set()
@@ -2210,6 +2227,8 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
         out[cap["ref"]] = {
             "owner": req["ref"], "pin": req["pin"],
             "rail": req["rail"], "kind": req["kind"],
+            "return_pin": req.get("return_pin"),
+            "return_rail": req.get("return_rail", "GND"),
             "max_mm": req["max_mm"], "source": req["source"],
         }
     return out
@@ -9851,6 +9870,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                     cec_device_bypass.requirements_for_value(comp.value, 3.5):
                 if pin_net.get((ref, str(pin))) and (ref, str(pin)) not in assigned_req:
                     refused.append(f"{ref}.{pin}: no distinct compatible capacitor")
+            for pin, return_pin, _kind, _max_mm, _source in \
+                    cec_device_bypass.rail_to_rail_requirements_for_value(
+                        comp.value, 3.5):
+                if (pin_net.get((ref, str(pin)))
+                        and pin_net.get((ref, str(return_pin)))
+                        and (ref, str(pin)) not in assigned_req):
+                    refused.append(
+                        f"{ref}.{pin}->{return_pin}: no distinct compatible capacitor")
 
         def part_box(ref, pos=None):
             q = pos or P[ref]
@@ -10079,6 +10106,26 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             return _pad_box_path_length(
                 owner_pad, cap_pad, obstacles, max_lane_offset=2.0)
 
+        def bypass_loop_path_length(cap, req, owner_pos, cap_pos,
+                                    owner_pad, cap_pad):
+            """Prove every explicit local leg named by the bypass contract."""
+            supply = bypass_path_length(
+                cap, req["owner"], req["rail"], owner_pos, cap_pos,
+                owner_pad, cap_pad)
+            return_pin = req.get("return_pin")
+            return_rail = req.get("return_rail") or "GND"
+            if not return_pin or _is_gnd_net(return_rail):
+                return supply
+            cap_return_pin = pad_num_on(cap, return_rail)
+            if cap_return_pin is None:
+                return float("inf")
+            owner_return = pad_at(req["owner"], return_pin, owner_pos)
+            cap_return = pad_at(cap, cap_return_pin, cap_pos)
+            return_path = bypass_path_length(
+                cap, req["owner"], return_rail, owner_pos, cap_pos,
+                owner_return, cap_return)
+            return supply + return_path
+
         for cap, req in ordered_assignments:
             owner = req["owner"]
             # A multi-rail IC's caps form one placement problem. Leaving every
@@ -10098,7 +10145,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if cap not in P or owner not in P:
                 continue
             cap_pin = pad_num_on(cap, req["rail"])
-            gnd_pin = pad_num_on(cap, "", ground=True)
+            return_rail = req.get("return_rail") or "GND"
+            gnd_pin = (pad_num_on(cap, "", ground=True)
+                       if _is_gnd_net(return_rail)
+                       else pad_num_on(cap, return_rail))
             if cap_pin is None:
                 refused.append(f"{cap}->{owner}: no rail pad")
                 continue
@@ -10109,7 +10159,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 overlaps(owner_box, obstacle, margin=0.10)
                 for name, *obstacle in avoid_named
                 if not reservation_owned_by(name, owner))
-            owner_gnd = ground_points(owner)
+            owner_gnd = ([pad_at(owner, req["return_pin"], P[owner])]
+                         if req.get("return_pin") else ground_points(owner))
             owner_sibling_pads = sibling_pad_obstacles(
                 owner, req["pin"], req["rail"])
             old = P[cap]
@@ -10210,9 +10261,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             chosen.sort(key=lambda row: row[0])
             best = None
             for key, pos, box, pad_point, gdist in chosen:
-                path_length = bypass_path_length(
-                    cap, owner, req["rail"], P[owner], pos,
-                    target, pad_point)
+                path_length = bypass_loop_path_length(
+                    cap, req, P[owner], pos, target, pad_point)
                 if not math.isfinite(path_length):
                     continue
                 # The detailed guarded path, not centre-to-centre distance,
@@ -10240,9 +10290,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 current_dist = math.hypot(current_pad[0] - target[0],
                                           current_pad[1] - target[1])
                 current_box = part_box(cap, P[cap])
-                current_path = bypass_path_length(
-                    cap, owner, req["rail"], P[owner], P[cap],
-                    target, current_pad)
+                current_path = bypass_loop_path_length(
+                    cap, req, P[owner], P[cap], target, current_pad)
                 if (current_dist <= req["max_mm"] + 1e-9
                         and clear(current_box, {cap}, margin=0.10)
                         and owner_clear_of_avoid
@@ -10273,7 +10322,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                          reservation_owner=owner):
                                 continue
                             otarget = pad_at(owner, req["pin"], opos)
-                            ognd = ground_points(owner, opos)
+                            ognd = ([pad_at(owner, req["return_pin"], opos)]
+                                    if req.get("return_pin") else
+                                    ground_points(owner, opos))
                             osibling = sibling_pad_obstacles(
                                 owner, req["pin"], req["rail"], opos)
                             for rot in (0.0, 90.0, 180.0, 270.0):
@@ -10330,8 +10381,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 if joint is not None:
                     joint_target = pad_at(owner, req["pin"], joint[1])
                     joint_cap_pad = pad_at(cap, cap_pin, joint[3])
-                    if not math.isfinite(bypass_path_length(
-                            cap, owner, req["rail"], joint[1], joint[3],
+                    if not math.isfinite(bypass_loop_path_length(
+                            cap, req, joint[1], joint[3],
                             joint_target, joint_cap_pad)):
                         joint = None
                 if joint is None:
@@ -15075,6 +15126,51 @@ def _decoupler_tangent_target(owner, cap, owner_supply, cap_supply,
     }
 
 
+def _decoupler_return_gate(return_rail, supply_mm, return_mm, tangent,
+                           *, ground_max_mm=2.5,
+                           loop_excess_max_mm=0.25):
+    """Evaluate a bypass return without imposing impossible package geometry.
+
+    An ordinary rail-to-ground bypass can and should place its return land next
+    to a package ground pin, so the absolute ground distance remains the hard
+    gate.  Some devices instead specify a capacitor between two supply pins
+    (for example, a transceiver VIO pin decoupled to VCC).  Those pins may be on
+    opposite package edges; applying the ground distance limit to that return
+    makes the placement problem unsatisfiable even at the closest legal seat.
+
+    For such rail-to-rail cells, compare the complete measured two-leg loop to
+    the isolated courtyard-tangent optimum for the actual package and capacitor
+    geometry.  The supply-pin proximity gate remains independent, so a long
+    supply leg cannot be hidden by improving only the return leg.
+    """
+    if _is_gnd_net(return_rail):
+        bad = return_mm is None or return_mm > ground_max_mm + 1e-9
+        return {
+            "bad": bad,
+            "mode": "absolute_ground_distance",
+            "loop_mm": (None if supply_mm is None or return_mm is None
+                        else float(supply_mm) + float(return_mm)),
+            "ideal_loop_mm": None,
+            "loop_excess_mm": None,
+            "limit_mm": float(ground_max_mm),
+        }
+    best_loop = ((tangent or {}).get("best_loop") or {}).get(
+        "loop_proxy_mm")
+    loop_mm = (None if supply_mm is None or return_mm is None
+               else float(supply_mm) + float(return_mm))
+    excess = (None if loop_mm is None or best_loop is None
+              else max(0.0, loop_mm - float(best_loop)))
+    return {
+        "bad": excess is None or excess > loop_excess_max_mm + 1e-9,
+        "mode": "rail_to_rail_tangent_loop",
+        "loop_mm": loop_mm,
+        "ideal_loop_mm": (float(best_loop)
+                          if best_loop is not None else None),
+        "loop_excess_mm": excess,
+        "limit_mm": float(loop_excess_max_mm),
+    }
+
+
 def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
     """Placement gate using one-to-one, selected-device bypass ownership.
 
@@ -15109,6 +15205,8 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         "decoupler_tangent_gap_mm", 0.10))
     supply_excess_max_mm = float((cfg.params if cfg else {}).get(
         "decoupler_supply_excess_max_mm", 0.25))
+    loop_excess_max_mm = float((cfg.params if cfg else {}).get(
+        "decoupler_loop_excess_max_mm", 0.25))
     violations = []
     details = []
 
@@ -15118,13 +15216,19 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
 
     def _placement_geometry(req, cap):
         owner = board.FindFootprintByReference(req.get("ref"))
+        return_rail = req.get("return_rail") or "GND"
         cap_rail = next((pad for pad in cap.Pads()
                          if pad.GetNetname() == req.get("rail")), None) \
             if cap else None
         cap_gnd = next((pad for pad in cap.Pads()
-                        if pad.GetNetname() == "GND"), None) if cap else None
-        owner_gnds = ([pad for pad in owner.Pads()
-                       if pad.GetNetname() == "GND"] if owner else [])
+                        if pad.GetNetname() == return_rail), None) \
+            if cap else None
+        owner_gnds = ([req.get("return_pad")]
+                      if req.get("return_pad") is not None else
+                      ([pad for pad in owner.Pads()
+                        if pad.GetNetname() == return_rail]
+                       if owner else []))
+        owner_gnds = [pad for pad in owner_gnds if pad is not None]
         nearest_ground = None
         if cap_gnd is not None and owner_gnds:
             nearest_ground = min(owner_gnds, key=lambda pad: math.hypot(
@@ -15134,6 +15238,8 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             "owner_position_mm": _xy(owner) if owner else None,
             "owner_supply_position_mm": _xy(req["pad"])
                 if req.get("pad") is not None else None,
+            "return_rail": return_rail,
+            "owner_return_pin": req.get("return_pin"),
             "owner_ground_position_mm": _xy(nearest_ground)
                 if nearest_ground is not None else None,
             # Retain every package ground pad.  Choosing whichever ground pad
@@ -15150,6 +15256,8 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                 if cap_rail is not None else None,
             "cap_ground_position_mm": _xy(cap_gnd)
                 if cap_gnd is not None else None,
+            "cap_return_position_mm": _xy(cap_gnd)
+                if cap_gnd is not None else None,
             "cap_orientation_deg": (round(cap.GetOrientationDegrees(), 6)
                                     if cap else None),
         }
@@ -15158,10 +15266,16 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         req = item["requirement"]
         cap = board.FindFootprintByReference(item.get("cap_ref"))
         owner = board.FindFootprintByReference(req.get("ref"))
+        return_rail = req.get("return_rail") or "GND"
         cap_gnd = next((pad for pad in cap.Pads()
-                        if pad.GetNetname() == "GND"), None) if cap else None
-        owner_gnds = ([pad for pad in owner.Pads()
-                       if pad.GetNetname() == "GND"] if owner else [])
+                        if pad.GetNetname() == return_rail), None) \
+            if cap else None
+        owner_gnds = ([req.get("return_pad")]
+                      if req.get("return_pad") is not None else
+                      ([pad for pad in owner.Pads()
+                        if pad.GetNetname() == return_rail]
+                       if owner else []))
+        owner_gnds = [pad for pad in owner_gnds if pad is not None]
         ground_mm = None
         ground_pin = None
         if cap_gnd is not None and owner_gnds:
@@ -15172,13 +15286,17 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                 ground_pad.GetPosition().x - cap_gnd.GetPosition().x,
                 ground_pad.GetPosition().y - cap_gnd.GetPosition().y) / 1e6
             ground_pin = ground_pad.GetPadName()
-        ground_bad = ground_mm is None or ground_mm > ground_max_mm + 1e-9
         tangent = _decoupler_tangent_target(
             owner, cap, req.get("pad"),
             next((pad for pad in cap.Pads()
                   if pad.GetNetname() == req.get("rail")), None)
             if cap else None,
             owner_gnds, cap_gnd, gap_mm=tangent_gap_mm)
+        return_gate = _decoupler_return_gate(
+            return_rail, item.get("distance_mm"), ground_mm, tangent,
+            ground_max_mm=ground_max_mm,
+            loop_excess_max_mm=loop_excess_max_mm)
+        ground_bad = bool(return_gate["bad"])
         # Proximity is measured against the closest *complete-loop* tangent
         # seat.  The absolute supply-only minimum can put a two-terminal
         # capacitor's GND land on the far side of the package and enlarge the
@@ -15205,12 +15323,25 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             "owner_ref": req.get("ref"),
             "owner_pin": req.get("pin"),
             "rail": req.get("rail"),
+            "return_rail": return_rail,
+            "owner_return_pin": req.get("return_pin"),
             "distance_mm": round(float(item.get("distance_mm") or 0.0), 3),
             "ground_pin": ground_pin,
             "ground_distance_mm": (round(float(ground_mm), 3)
                                    if ground_mm is not None else None),
             "loop_proxy_mm": round(float(item.get("distance_mm") or 0.0)
                                    + float(ground_mm or 0.0), 3),
+            "return_gate_mode": return_gate["mode"],
+            "ideal_loop_proxy_mm": (
+                round(float(return_gate["ideal_loop_mm"]), 3)
+                if return_gate["ideal_loop_mm"] is not None else None),
+            "loop_excess_mm": (
+                round(float(return_gate["loop_excess_mm"]), 3)
+                if return_gate["loop_excess_mm"] is not None else None),
+            "loop_excess_limit_mm": (
+                loop_excess_max_mm
+                if return_gate["mode"] == "rail_to_rail_tangent_loop"
+                else None),
             "status": "assigned",
             # Hard-failing rows always generate repair moves.  Passing rows
             # remain eligible for the separately bounded clean-margin search:
@@ -15238,12 +15369,24 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         }
         detail.update(_placement_geometry(req, cap))
         details.append(detail)
-        if ground_bad:
+        if ground_bad and return_gate["mode"] == "absolute_ground_distance":
             distance = ground_mm if ground_mm is not None else -1
             violations.append((
                 item.get("cap_ref") or "unassigned-cap",
-                "%s.GND[%s]" % (req.get("ref"), req.get("rail")),
+                "%s.%s[%s]" % (
+                    req.get("ref"), return_rail, req.get("rail")),
                 round(distance, 2) if distance >= 0 else -1,
+            ))
+        elif ground_bad:
+            excess = return_gate["loop_excess_mm"]
+            violations.append((
+                item.get("cap_ref") or "unassigned-cap",
+                "%s.%s->%s.%s rail-to-rail loop excess %s > %.2fmm" % (
+                    req.get("ref"), req.get("pin"), req.get("ref"),
+                    req.get("return_pin"),
+                    ("unavailable" if excess is None else "%.2fmm" % excess),
+                    loop_excess_max_mm),
+                round(float(excess), 2) if excess is not None else -1,
             ))
         if proximity_bad:
             violations.append((
@@ -15273,6 +15416,8 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             "owner_ref": req.get("ref"),
             "owner_pin": req.get("pin"),
             "rail": req.get("rail"),
+            "return_rail": req.get("return_rail") or "GND",
+            "owner_return_pin": req.get("return_pin"),
             "distance_mm": (round(float(distance), 3)
                             if distance is not None else None),
             "status": "missing",
@@ -15308,6 +15453,7 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         "assigned": len(measured["assigned"]),
         "requirements": len(measured["requirements"]),
         "ground_pin_max_mm": ground_max_mm,
+        "rail_to_rail_loop_excess_max_mm": loop_excess_max_mm,
         "tangent_gap_mm": tangent_gap_mm,
         "supply_excess_max_mm": supply_excess_max_mm,
         "supply_access": supply_access,
@@ -30923,12 +31069,78 @@ def _ensure_netlist_path(cfg):
     return out
 
 
+def _materialize_rehydrated_board(cand, cfg, out):
+    """Clone an existing unrouted board and apply a repaired placement.
+
+    A candidate reconstructed by :func:`placement_candidate_from_board` owns
+    more than a schematic netlist: it may contain logos, tooling, test-only
+    connectors, or provisional mechanical footprints with no netlist record.
+    Rebuilding that candidate through ``build_board`` silently deleted those
+    objects.  Clone the exact board document instead, move every named
+    footprint in place, and preserve all other board-level geometry.
+    """
+    import pcbnew
+
+    source_path = os.path.abspath(str(cand.source_board))
+    source = pcbnew.LoadBoard(source_path)
+    if source is None:
+        raise ValueError("cannot load rehydrated source board: %s" % source_path)
+    if any(True for _track in source.GetTracks()):
+        raise ValueError(
+            "rehydrated placement materialization refuses routed copper: %s"
+            % source_path)
+    expected_refs = set(cand.P)
+    actual_refs = {fp.GetReference() for fp in source.GetFootprints()}
+    missing = sorted(expected_refs - actual_refs)
+    if missing:
+        raise ValueError(
+            "rehydrated source is missing candidate footprint(s): %s" %
+            ", ".join(missing[:12]))
+    desired_back = set(getattr(cand, "back_refs", ()) or ())
+    for ref, placement in sorted(cand.P.items()):
+        footprint = source.FindFootprintByReference(str(ref))
+        if footprint is None:
+            continue
+        position = pcbnew.VECTOR2I(
+            pcbnew.FromMM(float(placement[0])),
+            pcbnew.FromMM(float(placement[1])))
+        if bool(footprint.IsFlipped()) != (str(ref) in desired_back):
+            footprint.Flip(footprint.GetPosition(), False)
+        footprint.SetPosition(position)
+        footprint.SetOrientationDegrees(float(placement[2]))
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    pcbnew.SaveBoard(out, source)
+    source_stem = (source_path[:-len(".kicad_pcb")]
+                   if source_path.endswith(".kicad_pcb") else
+                   os.path.splitext(source_path)[0])
+    out_stem = (out[:-len(".kicad_pcb")]
+                if out.endswith(".kicad_pcb") else os.path.splitext(out)[0])
+    for extension in (".kicad_pro", ".kicad_dru", ".kicad_prl"):
+        sidecar = source_stem + extension
+        if os.path.isfile(sidecar):
+            shutil.copy(sidecar, out_stem + extension)
+    try:
+        import cec_pourplan
+        plan = cec_pourplan.PourPlan.from_board(
+            out, asks=tuple((cfg.params if cfg else {}).get(
+                "pour_asks") or ()))
+        with open(out_stem + ".pourplan.json", "w") as output:
+            json.dump(plan.to_dict(), output, indent=1, sort_keys=True)
+    except Exception as exc:                              # noqa: BLE001
+        _tc.warn_once(
+            "rehydrated_pourplan_write",
+            "rehydrated-board pourplan not written (%s)" % exc)
+    return out
+
+
 def materialize(cand, cfg, out, *, logo=None):
     """Write a placement candidate to a REAL .kicad_pcb (cec_pcb.build_board): every netlist
     footprint at its synth position + edge cuts at the candidate size + the GND zone. Mount
     refs (H1..) feed build_board's mount list; the rest place from the netlist footprints. The
     board is self-contained (footprints embedded) so kicad-cli can render + DRC it. Returns out."""
     import cec_pcb
+    if getattr(cand, "source_board", None):
+        return _materialize_rehydrated_board(cand, cfg, out)
     def _is_mount(r):
         return r.startswith("H") and r[1:].isdigit()
     # Sorted by ref so build_board's H{i} re-enumeration maps H1->H1 (dict order

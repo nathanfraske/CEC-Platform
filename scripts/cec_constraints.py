@@ -3192,13 +3192,25 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
         pads = list(fp.Pads())
         if len(pads) != 2:
             continue
-        grounded = [pad for pad in pads if _ground_net(pad.GetNetname())]
-        powered = [pad for pad in pads if pad.GetNetname() and not _ground_net(pad.GetNetname())]
+        connected = [pad for pad in pads if pad.GetNetname()]
+        net_pads = {pad.GetNetname(): pad for pad in connected}
         farads = _capacitance_f_board(_val(fp))
-        if len(grounded) == 1 and len(powered) == 1 and farads is not None:
+        if (len(connected) == 2 and len(net_pads) == 2
+                and farads is not None):
+            grounded = [pad for pad in connected
+                        if _ground_net(pad.GetNetname())]
+            powered = [pad for pad in connected
+                       if not _ground_net(pad.GetNetname())]
             caps.append({
-                "ref": fp.GetReference(), "fp": fp, "pad": powered[0],
-                "rail": powered[0].GetNetname(), "farads": farads,
+                "ref": fp.GetReference(), "fp": fp,
+                "net_pads": net_pads, "farads": farads,
+                # Compatibility fields for diagnostics which display the
+                # ordinary rail/GND orientation.  Matching below uses
+                # net_pads, so a rail-to-rail capacitor has no ambiguous
+                # synthetic "ground" terminal.
+                "pad": powered[0] if len(grounded) == 1 and powered else None,
+                "rail": (powered[0].GetNetname()
+                         if len(grounded) == 1 and powered else None),
                 # A nearby hold-up or distribution electrolytic is not the
                 # high-frequency local bypass named by this contract.  Keep
                 # bulk energy storage available to the PDN/hold-up audits,
@@ -3225,18 +3237,40 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                     "id": "%s:%s:%s" % (ref, pin_number, kind),
                     "ref": ref, "pin": pin_number, "pad": pad,
                     "rail": pad.GetNetname(), "kind": kind,
+                    "return_rail": "GND", "return_pin": None,
+                    "return_pad": None,
+                    "max_mm": max_mm, "source": source,
+                })
+        for pin_number, return_pin, kind, max_mm, source in \
+                cec_device_bypass.rail_to_rail_requirements_for_value(
+                    value, project_max_mm):
+            pad = _numbered_pad(fp, pin_number)
+            return_pad = _numbered_pad(fp, return_pin)
+            if (pad and return_pad and pad.GetNetname()
+                    and return_pad.GetNetname()
+                    and pad.GetNetname() != return_pad.GetNetname()):
+                requirements.append({
+                    "id": "%s:%s:%s:%s" % (
+                        ref, pin_number, return_pin, kind),
+                    "ref": ref, "pin": pin_number, "pad": pad,
+                    "rail": pad.GetNetname(), "kind": kind,
+                    "return_pin": return_pin,
+                    "return_pad": return_pad,
+                    "return_rail": return_pad.GetNetname(),
                     "max_mm": max_mm, "source": source,
                 })
 
     def compatible(req, cap):
-        if cap["rail"] != req["rail"]:
+        if (req["rail"] not in cap["net_pads"]
+                or req.get("return_rail", "GND") not in cap["net_pads"]):
             return False
         if not cap.get("local_bypass_technology", True):
             return False
         return cec_device_bypass.kind_compatible(req["kind"], cap["farads"])
 
     def distance(req, cap):
-        a, b = req["pad"].GetPosition(), cap["pad"].GetPosition()
+        a = req["pad"].GetPosition()
+        b = cap["net_pads"][req["rail"]].GetPosition()
         return math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
 
     edges = {}

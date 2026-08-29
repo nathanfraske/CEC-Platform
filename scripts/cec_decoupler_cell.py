@@ -20,6 +20,7 @@ import json
 import math
 import heapq
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -64,6 +65,8 @@ def _missing_assignment_report(row):
     report = {
         "owner": row.get("ref"), "pin": row.get("pin"),
         "rail": row.get("rail"), "cap": nearest_ref,
+        "return_rail": row.get("return_rail") or "GND",
+        "owner_return_pin": row.get("return_pin"),
         "status": "refused",
         "nearest_compatible_ref": nearest_ref,
         "nearest_compatible_mm": (round(float(nearest_mm), 3)
@@ -89,6 +92,57 @@ def _missing_assignment_report(row):
         report["assignment_failure"] = "distinct_component_contention"
         report["assignment_gap_mm"] = 0.0
     return report
+
+
+def _ordered_assigned_cells(board, assignment):
+    """Return a serialization-independent local-cell reservation order.
+
+    KiCad preserves footprint insertion order, but that order is not electrical
+    authority and can change after an otherwise lossless save.  A simple
+    package usually exposes an easy plane portal which a denser neighbouring
+    package can then share.  Reserve those portal-forming cells first, followed
+    by natural owner/pin order; ordinary rail/GND cells precede a same-owner
+    rail-to-rail EMC cell.  Every generation and audit stage consumes this one
+    order so a board cannot pass merely because pcbnew rewrote its file.
+    """
+    def natural(value):
+        return tuple(int(part) if part.isdigit() else part.lower()
+                     for part in re.split(r"(\d+)", str(value)))
+
+    def key(row):
+        requirement = row.get("requirement") or {}
+        owner_ref = str(requirement.get("ref") or "")
+        owner = board.FindFootprintByReference(owner_ref)
+        pad_count = len(list(owner.Pads())) if owner is not None else 1 << 20
+        rail_to_rail = ((requirement.get("return_rail") or "GND") != "GND")
+        return (pad_count, natural(owner_ref), rail_to_rail,
+                natural(requirement.get("pin") or ""),
+                natural(row.get("cap_ref") or ""))
+
+    return sorted((assignment.get("assigned") or {}).values(), key=key)
+
+
+def _cell_return_pads(requirement, owner, cap):
+    """Resolve the capacitor and owner terminals for the second loop leg.
+
+    Most bypass cells return to the owner's nearest GND pad.  Device-specific
+    EMC contracts may instead name another supply pin (for example the NXP
+    TJA1051/3 VIO-to-VCC capacitor).  Keeping the topology in the requirement
+    prevents a generic ground-return generator from silently rewriting a
+    rail-to-rail bypass into the wrong circuit.
+    """
+    return_rail = requirement.get("return_rail") or "GND"
+    cap_return = next((pad for pad in cap.Pads()
+                       if pad.GetNetname() == return_rail), None) \
+        if cap is not None else None
+    if requirement.get("return_pad") is not None:
+        owner_returns = [requirement["return_pad"]]
+    else:
+        owner_returns = ([pad for pad in owner.Pads()
+                          if pad.GetNetname() == return_rail]
+                         if owner is not None else [])
+    owner_returns = [pad for pad in owner_returns if pad is not None]
+    return return_rail, cap_return, owner_returns
 
 
 def _netclass(board, net):
@@ -774,7 +828,7 @@ def audit_supply_access_board(board, *, max_assignment_mm=3.5):
     rows = []
     for missing in assignment.get("missing") or ():
         rows.append(_missing_assignment_report(missing))
-    for assigned in assignment.get("assigned", {}).values():
+    for assigned in _ordered_assigned_cells(board, assignment):
         requirement = assigned["requirement"]
         cap = board.FindFootprintByReference(assigned.get("cap_ref"))
         cap_rail = next(
@@ -1364,7 +1418,7 @@ def ripup_foreign_local_copper(board, *, max_assignment_mm=3.5,
         if (item.IsLocked() and item.GetNetname()
             and item.GetNetname() not in demotable))
     regions = []
-    for assigned in assignment.get("assigned", {}).values():
+    for assigned in _ordered_assigned_cells(board, assignment):
         requirement = assigned["requirement"]
         cap = board.FindFootprintByReference(assigned.get("cap_ref"))
         owner = board.FindFootprintByReference(requirement.get("ref"))
@@ -1658,7 +1712,7 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
     generated = []
     missing = [_missing_assignment_report(row)
                for row in assignment.get("missing") or ()]
-    for assigned in assignment.get("assigned", {}).values():
+    for assigned in _ordered_assigned_cells(board, assignment):
         requirement = assigned["requirement"]
         cap = board.FindFootprintByReference(assigned["cap_ref"])
         owner = board.FindFootprintByReference(requirement["ref"])
@@ -1666,15 +1720,13 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
         cap_rail = next(
             (pad for pad in cap.Pads()
              if pad.GetNetname() == requirement["rail"]), None)
-        cap_gnd = next(
-            (pad for pad in cap.Pads()
-             if pad.GetNetname() == "GND"), None)
-        owner_gnd_pads = ([pad for pad in owner.Pads()
-                           if pad.GetNetname() == "GND"]
-                          if owner is not None else [])
+        return_rail, cap_gnd, owner_gnd_pads = _cell_return_pads(
+            requirement, owner, cap)
         row = {
             "owner": requirement["ref"], "pin": requirement["pin"],
             "rail": requirement["rail"], "cap": assigned["cap_ref"],
+            "return_rail": return_rail,
+            "owner_return_pin": requirement.get("return_pin"),
             "placement_distance_mm": round(
                 float(assigned["distance_mm"]), 3),
         }
@@ -1682,8 +1734,8 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
         if cap_rail is None or cap_gnd is None or not owner_gnd_pads:
             row.update({
                 "status": "refused",
-                "reason": ("assigned capacitor lacks rail/GND pad or owner "
-                           "has no GND pin")})
+                "reason": ("assigned capacitor lacks rail/return pad or owner "
+                           "has no return pin")})
             rows.append(row)
             continue
         owner_gnd = min(owner_gnd_pads, key=lambda pad: math.hypot(
@@ -1698,12 +1750,22 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
             board, owner_pad, cap_rail, lock=lock,
             diagnostics=diagnostic,
             group_neckdowns=group_neckdowns)
-        if error is None:
+        return_supply = None
+        if error is None and return_rail == "GND":
             owner_ground, ground, ground_link, error = (
                 _add_ground_return_pair(
                     board, owner_gnd, cap_gnd, board_path=board_path,
                     reach_mm=ground_reach_mm, lock=lock,
                     group_neckdowns=group_neckdowns))
+        elif error is None:
+            return_diagnostic = {}
+            return_supply, error = _add_supply_link(
+                board, owner_gnd, cap_gnd, lock=lock,
+                diagnostics=return_diagnostic,
+                group_neckdowns=group_neckdowns)
+            owner_ground = ground = ground_link = None
+            if error is not None:
+                diagnostic["return_link"] = return_diagnostic
         else:
             owner_ground = ground = ground_link = None
         if error is not None:
@@ -1713,6 +1775,7 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
             row.update({"status": "refused", "reason": error,
                         "certificate": diagnostic or None,
                         "supply": _report_only(supply),
+                        "return_supply": _report_only(return_supply),
                         "ground_return": _report_only(ground),
                         "owner_ground_return": _report_only(owner_ground),
                         "ground_link": _report_only(ground_link)})
@@ -1730,12 +1793,15 @@ def synthesize_board(board, *, board_path="", max_assignment_mm=3.5,
             "status": "owned", "supply": {
                 key: value for key, value in supply.items()
                 if key != "items"},
-            "ground_return": {
+            "return_supply": ({
+                key: value for key, value in return_supply.items()
+                if key != "items"} if return_supply else None),
+            "ground_return": ({
                 key: value for key, value in ground.items()
-                if key != "items"},
-            "owner_ground_return": {
+                if key != "items"} if ground else None),
+            "owner_ground_return": ({
                 key: value for key, value in owner_ground.items()
-                if key != "items"},
+                if key != "items"} if owner_ground else None),
             "ground_link": ground_link,
             "generated": len(created),
         })
@@ -1805,18 +1871,27 @@ def synthesize_ground_returns_board(
     rows, generated = [], []
     for missing in assignment.get("missing") or ():
         rows.append(_missing_assignment_report(missing))
-    for assigned in assignment.get("assigned", {}).values():
+    for assigned in _ordered_assigned_cells(board, assignment):
         req = assigned["requirement"]
         cap = board.FindFootprintByReference(assigned["cap_ref"])
         owner = board.FindFootprintByReference(req["ref"])
-        cap_gnd = next((pad for pad in cap.Pads()
-                        if pad.GetNetname() == "GND"), None) if cap else None
-        owner_gnds = ([pad for pad in owner.Pads()
-                       if pad.GetNetname() == "GND"] if owner else [])
+        return_rail, cap_gnd, owner_gnds = _cell_return_pads(
+            req, owner, cap)
         row = {"owner": req["ref"], "pin": req["pin"],
                "rail": req["rail"], "cap": assigned["cap_ref"],
+               "return_rail": return_rail,
+               "owner_return_pin": req.get("return_pin"),
                "placement_distance_mm": round(
                    float(assigned["distance_mm"]), 3)}
+        if return_rail != "GND":
+            # This priority stage owns plane entries only.  The complete-cell
+            # stage lays both explicit rail legs transactionally before
+            # final admission; fabricating a GND via here would change the
+            # device-specific circuit.
+            row.update({"status": "owned", "generated": 0,
+                        "deferred": "rail-to-rail local return"})
+            rows.append(row)
+            continue
         if cap_gnd is None or not owner_gnds:
             row.update({"status": "refused",
                         "reason": "missing capacitor or owner GND pad"})
@@ -2521,24 +2596,23 @@ def audit_board(board, *, board_path="", max_assignment_mm=3.5,
     rows = []
     for missing in assignment.get("missing") or ():
         rows.append(_missing_assignment_report(missing))
-    for assigned in assignment.get("assigned", {}).values():
+    for assigned in _ordered_assigned_cells(board, assignment):
         req = assigned["requirement"]
         cap = board.FindFootprintByReference(assigned["cap_ref"])
         owner = board.FindFootprintByReference(req["ref"])
         cap_rail = next((pad for pad in cap.Pads()
                          if pad.GetNetname() == req["rail"]), None)
-        cap_gnd = next((pad for pad in cap.Pads()
-                        if pad.GetNetname() == "GND"), None)
-        owner_gnds = ([pad for pad in owner.Pads()
-                       if pad.GetNetname() == "GND"]
-                      if owner is not None else [])
+        return_rail, cap_gnd, owner_gnds = _cell_return_pads(
+            req, owner, cap)
         row = {"owner": req["ref"], "pin": req["pin"],
                "rail": req["rail"], "cap": assigned["cap_ref"],
+               "return_rail": return_rail,
+               "owner_return_pin": req.get("return_pin"),
                "placement_distance_mm": round(
                    float(assigned["distance_mm"]), 3)}
         if cap_rail is None or cap_gnd is None or not owner_gnds:
             row.update({"status": "refused",
-                        "reason": "missing rail/GND pad geometry"})
+                        "reason": "missing rail/return pad geometry"})
             rows.append(row); continue
         owner_gnd = min(owner_gnds, key=lambda pad: math.hypot(
             pad.GetPosition().x - cap_gnd.GetPosition().x,
@@ -2552,15 +2626,7 @@ def audit_board(board, *, board_path="", max_assignment_mm=3.5,
             direct, float(supply_spec["width"]) / MM,
             max(pcbnew.FromMM(0.20),
                 int(supply_spec["clearance"])) / MM)
-        cap_return = _existing_return(board, cap_gnd, ground_reach_mm)
-        owner_return = _existing_return(board, owner_gnd, ground_reach_mm)
-        cap_shared = (None if cap_return is not None else
-                      _shared_ground_return(
-                          board, cap_gnd, owner_gnd, ground_reach_mm))
-        owner_shared = (None if owner_return is not None else
-                        _shared_ground_return(
-                            board, owner_gnd, cap_gnd, ground_reach_mm))
-        ground_gap = math.hypot(
+        return_gap = math.hypot(
             owner_gnd.GetPosition().x - cap_gnd.GetPosition().x,
             owner_gnd.GetPosition().y - cap_gnd.GetPosition().y) / MM
         reasons = []
@@ -2569,23 +2635,63 @@ def audit_board(board, *, board_path="", max_assignment_mm=3.5,
         elif supply_path > supply_limit + 1e-9:
             reasons.append("supply copper %.3fmm exceeds local limit %.3fmm" %
                            (supply_path, supply_limit))
-        if cap_return is None and cap_shared is None:
-            reasons.append("capacitor GND has no connected via within %.2fmm" %
-                           ground_reach_mm)
-        if owner_return is None and owner_shared is None:
-            reasons.append("owner GND pin has no connected via within %.2fmm" %
-                           ground_reach_mm)
-        if ground_gap > ground_pin_max_mm + 1e-9:
-            reasons.append("cap-to-owner GND gap %.3fmm exceeds %.3fmm" %
-                           (ground_gap, ground_pin_max_mm))
+        cap_return = owner_return = cap_shared = owner_shared = None
+        return_path = return_limit = None
+        if return_rail == "GND":
+            cap_return = _existing_return(board, cap_gnd, ground_reach_mm)
+            owner_return = _existing_return(
+                board, owner_gnd, ground_reach_mm)
+            cap_shared = (None if cap_return is not None else
+                          _shared_ground_return(
+                              board, cap_gnd, owner_gnd, ground_reach_mm))
+            owner_shared = (None if owner_return is not None else
+                            _shared_ground_return(
+                                board, owner_gnd, cap_gnd,
+                                ground_reach_mm))
+            if cap_return is None and cap_shared is None:
+                reasons.append(
+                    "capacitor GND has no connected via within %.2fmm" %
+                    ground_reach_mm)
+            if owner_return is None and owner_shared is None:
+                reasons.append(
+                    "owner GND pin has no connected via within %.2fmm" %
+                    ground_reach_mm)
+            if return_gap > ground_pin_max_mm + 1e-9:
+                reasons.append(
+                    "cap-to-owner GND gap %.3fmm exceeds %.3fmm" %
+                    (return_gap, ground_pin_max_mm))
+        else:
+            return_direct = return_gap
+            return_path = _shortest_track_path_mm(
+                board, owner_gnd, cap_gnd)
+            return_spec = _netclass(board, return_rail)
+            return_limit = _local_supply_limit_mm(
+                return_direct, float(return_spec["width"]) / MM,
+                max(pcbnew.FromMM(0.20),
+                    int(return_spec["clearance"])) / MM)
+            if return_path is None:
+                reasons.append("no explicit local %s return copper" %
+                               return_rail)
+            elif return_path > return_limit + 1e-9:
+                reasons.append(
+                    "%s return copper %.3fmm exceeds local limit %.3fmm" %
+                    (return_rail, return_path, return_limit))
         row.update({
             "status": "owned" if not reasons else "refused",
             "reason": "; ".join(reasons) if reasons else None,
             "supply_path_mm": (round(supply_path, 3)
                                if supply_path is not None else None),
             "supply_local_limit_mm": round(supply_limit, 3),
-            "ground_pin_distance_mm": round(ground_gap, 3),
-            "owner_ground_pin": owner_gnd.GetPadName(),
+            "return_pin_distance_mm": round(return_gap, 3),
+            "ground_pin_distance_mm": (round(return_gap, 3)
+                                       if return_rail == "GND" else None),
+            "owner_ground_pin": (owner_gnd.GetPadName()
+                                 if return_rail == "GND" else None),
+            "owner_return_pin": owner_gnd.GetPadName(),
+            "return_path_mm": (round(return_path, 3)
+                               if return_path is not None else None),
+            "return_local_limit_mm": (round(return_limit, 3)
+                                      if return_limit is not None else None),
             "cap_ground_return_mm": (round(cap_return[0], 3)
                                      if cap_return else
                                      (cap_shared.get("path_mm")
@@ -2594,12 +2700,14 @@ def audit_board(board, *, board_path="", max_assignment_mm=3.5,
                                        if owner_return else
                                        (owner_shared.get("path_mm")
                                         if owner_shared else None)),
-            "cap_ground_return_status": (
+            "cap_ground_return_status": ((
                 "immediate-via" if cap_return else
-                ("shared-ground-entry" if cap_shared else "missing")),
-            "owner_ground_return_status": (
+                ("shared-ground-entry" if cap_shared else "missing"))
+                if return_rail == "GND" else None),
+            "owner_ground_return_status": ((
                 "immediate-via" if owner_return else
-                ("shared-ground-entry" if owner_shared else "missing")),
+                ("shared-ground-entry" if owner_shared else "missing"))
+                if return_rail == "GND" else None),
             "cap_ground_return_evidence": cap_shared,
             "owner_ground_return_evidence": owner_shared,
         })

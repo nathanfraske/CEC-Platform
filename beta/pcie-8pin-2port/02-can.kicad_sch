@@ -1277,7 +1277,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:GND")
+		(lib_id "cec-power:+5VSB")
 		(at 201.93 114.3 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -1286,7 +1286,7 @@
 		(dnp no)
 		(uuid "e4e2ffde-97eb-465e-be2d-45a37518a9ab")
 		(property "Reference" "#PWR202" (at 201.93 111.76 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 201.93 119.38 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5VSB" (at 201.93 119.38 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "953f56a2-e183-43e5-8e07-a405dd6d1bb0"))
 		(instances
 			(project "pcie8pin-2port-module"

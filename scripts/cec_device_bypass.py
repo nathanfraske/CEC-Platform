@@ -18,6 +18,21 @@ FIXED_DEVICE_RULES = (
 )
 
 
+# Some devices require a high-frequency capacitor between two supply domains,
+# not from one domain to ground.  Keep this separate from FIXED_DEVICE_RULES:
+# both contracts apply to a TJA1051T/3 (VCC-to-GND on pin 3 and VIO-to-VCC
+# between pins 5 and 3), and treating the second capacitor as an ordinary
+# ground bypass encodes the wrong EMC circuit.
+RAIL_TO_RAIL_DEVICE_RULES = (
+    ("TJA1051T/3", "5", "3", "100n",
+     "NXP AH1014 Rev. 1.5 sec. 8.9: VIO-to-VCC"),
+    ("TJA1051TK/3", "5", "3", "100n",
+     "NXP AH1014 Rev. 1.5 sec. 8.9: VIO-to-VCC"),
+    ("TJA1042/3", "5", "3", "100n",
+     "NXP AH1014 Rev. 1.5 sec. 8.9: VIO-to-VCC"),
+)
+
+
 def reference_affinity(cap_ref, owner_ref):
     """Whether two reference designators declare the same numbered cell.
 
@@ -108,3 +123,18 @@ def requirements_for_value(value, project_max_mm=3.5):
     if "TPS2121" in value:
         for pin, role in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
             yield pin, "any", project_max_mm, "TPS2121:" + role
+
+
+def rail_to_rail_requirements_for_value(value, project_max_mm=3.5):
+    """Yield local two-supply bypass contracts.
+
+    Rows are ``(supply_pin, return_pin, kind, max_mm, source)``.  "return"
+    identifies the capacitor's other terminal and does not imply ground.
+    Callers resolve both actual pad net names from the fitted device, so the
+    rule stays valid when projects rename their 3.3 V or 5 V domains.
+    """
+    value = value or ""
+    for token, supply_pin, return_pin, kind, source in \
+            RAIL_TO_RAIL_DEVICE_RULES:
+        if token in value:
+            yield supply_pin, return_pin, kind, project_max_mm, source

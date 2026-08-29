@@ -2310,6 +2310,32 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertEqual(runtime["worker_generations"], 5)
         self.assertTrue(all(row.get("ok") for row in results), results)
 
+    def test_rehydrated_materialization_preserves_board_only_footprints(self):
+        import pcbnew
+
+        cfg = synth.Config.load("beta/pcie-8pin-2port")
+        if not os.path.isfile(cfg.pcb):
+            self.skipTest("current-beta placement fixture unavailable")
+        candidate = synth.placement_candidate_from_board(cfg, cfg.pcb)
+        source = pcbnew.LoadBoard(cfg.pcb)
+        source_refs = {
+            footprint.GetReference() for footprint in source.GetFootprints()}
+        moved_ref = sorted(candidate.P)[0]
+        old_x, old_y, old_rotation = candidate.P[moved_ref]
+        candidate.P[moved_ref] = (old_x + 0.25, old_y, old_rotation)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = os.path.join(directory, "rehydrated.kicad_pcb")
+            synth.materialize(candidate, cfg, output)
+            repaired = pcbnew.LoadBoard(output)
+            repaired_refs = {
+                footprint.GetReference()
+                for footprint in repaired.GetFootprints()}
+            moved = repaired.FindFootprintByReference(moved_ref)
+
+        self.assertEqual(repaired_refs, source_refs)
+        self.assertAlmostEqual(moved.GetPosition().x / 1e6, old_x + 0.25)
+
     def test_pair_launch_blocker_gets_topology_directed_reseat(self):
         candidate = SimpleNamespace(P={
             "D6": (10.0, 10.0, 0.0),

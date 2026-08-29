@@ -4775,7 +4775,7 @@
 			(size 0.56 0.62)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
-			(net "GND")
+			(net "+5VSB")
 			(uuid "191d6d88-91e9-4bf5-8934-40212c054182")
 		)
 		(embedded_fonts no)

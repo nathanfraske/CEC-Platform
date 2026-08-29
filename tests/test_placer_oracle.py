@@ -1555,6 +1555,55 @@ class TestIndependentDecouplerBatches(unittest.TestCase):
                 current, finalists), [])
 
 
+class TestRailToRailBypassPlacementAuthority(unittest.TestCase):
+    def test_tja1051_vio_to_vcc_cap_is_owned_before_placement(self):
+        nl = _nl({
+            "U2": ("TJA1051T/3", "Package_SO:SOIC-8"),
+            "C4": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+            "C8": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+        }, {
+            "GND": [("U2", "2"), ("C4", "2")],
+            "+5VSB": [("U2", "3"), ("C4", "1"), ("C8", "2")],
+            "+3V3": [("U2", "5"), ("C8", "1")],
+        })
+
+        owned = sp._device_bypass_specs(
+            nl, {"C4", "C8"}, ["U2"])
+
+        self.assertEqual(set(owned), {"C4", "C8"})
+        self.assertEqual(owned["C4"]["pin"], "3")
+        self.assertEqual(owned["C4"]["return_rail"], "GND")
+        self.assertEqual(owned["C8"]["pin"], "5")
+        self.assertEqual(owned["C8"]["return_pin"], "3")
+        self.assertEqual(owned["C8"]["return_rail"], "+5VSB")
+
+    def test_rail_to_rail_return_uses_achievable_package_loop(self):
+        tangent = {"best_loop": {"loop_proxy_mm": 6.25}}
+
+        passing = sp._decoupler_return_gate(
+            "+5VSB", 1.45, 4.95, tangent,
+            ground_max_mm=2.5, loop_excess_max_mm=0.25)
+        failing = sp._decoupler_return_gate(
+            "+5VSB", 2.10, 5.20, tangent,
+            ground_max_mm=2.5, loop_excess_max_mm=0.25)
+
+        self.assertEqual(passing["mode"], "rail_to_rail_tangent_loop")
+        self.assertFalse(passing["bad"])
+        self.assertAlmostEqual(passing["loop_excess_mm"], 0.15)
+        self.assertTrue(failing["bad"])
+        self.assertAlmostEqual(failing["loop_excess_mm"], 1.05)
+
+    def test_ground_return_retains_absolute_pin_limit(self):
+        result = sp._decoupler_return_gate(
+            "GND", 1.0, 2.6,
+            {"best_loop": {"loop_proxy_mm": 9.0}},
+            ground_max_mm=2.5, loop_excess_max_mm=0.25)
+
+        self.assertEqual(result["mode"], "absolute_ground_distance")
+        self.assertTrue(result["bad"])
+        self.assertIsNone(result["loop_excess_mm"])
+
+
 class TestDecouplerTangentTarget(unittest.TestCase):
     class Item:
         def __init__(self, x, y, rotation=0.0):
