@@ -14970,6 +14970,111 @@ def _oracle_sense_side(board_path):
     return {"applicable": True, "ok": not viol, "violations": viol[:12]}
 
 
+def _decoupler_tangent_target(owner, cap, owner_supply, cap_supply,
+                              owner_grounds, cap_ground, *, gap_mm=0.10):
+    """Return the isolated closest legal supply-pin seat for a bypass cap.
+
+    A datasheet maximum is an electrical rejection limit, not a placement
+    target.  Measure the target from the actual package courtyards and pad
+    offsets instead: rotate the two-terminal part through its four assembly
+    orientations and make its courtyard tangent to each owner side.  The
+    supply land is aligned with the named owner pin on the free axis.  Other
+    components are intentionally absent from this reference solve; if they
+    occupy the closest seat, the placer must move the local neighbourhood
+    rather than silently accepting a longer bypass loop.
+
+    ``gap_mm`` is additional body clearance beyond the authored courtyards.
+    The result is diagnostic authority only.  Every proposed placement still
+    faces the ordinary complete-board courtyard, outline, power and route
+    admission gates.
+    """
+    if any(item is None for item in
+           (owner, cap, owner_supply, cap_supply, cap_ground)):
+        return None
+    owner_grounds = list(owner_grounds or ())
+    if not owner_grounds:
+        return None
+
+    def xy(item):
+        point = item.GetPosition()
+        return point.x / _MM, point.y / _MM
+
+    def rotate(point, radians):
+        cosine, sine = math.cos(radians), math.sin(radians)
+        return (point[0] * cosine + point[1] * sine,
+                -point[0] * sine + point[1] * cosine)
+
+    cx, cy = xy(cap)
+    supply_xy = xy(owner_supply)
+    cap_supply_xy = xy(cap_supply)
+    cap_ground_xy = xy(cap_ground)
+    ground_points = [xy(pad) for pad in owner_grounds]
+    owner_box = _footprint_courtyard_box(owner)
+    cap_box = _footprint_courtyard_box(cap)
+    cap_corners = (
+        (cap_box[0] - cx, cap_box[2] - cy),
+        (cap_box[0] - cx, cap_box[3] - cy),
+        (cap_box[1] - cx, cap_box[2] - cy),
+        (cap_box[1] - cx, cap_box[3] - cy),
+    )
+    rail_offset = (cap_supply_xy[0] - cx, cap_supply_xy[1] - cy)
+    ground_offset = (cap_ground_xy[0] - cx, cap_ground_xy[1] - cy)
+    candidates = []
+    for delta_deg in (0.0, 90.0, 180.0, 270.0):
+        angle = math.radians(delta_deg)
+        corners = [rotate(point, angle) for point in cap_corners]
+        rel = (min(point[0] for point in corners),
+               max(point[0] for point in corners),
+               min(point[1] for point in corners),
+               max(point[1] for point in corners))
+        rail = rotate(rail_offset, angle)
+        ground = rotate(ground_offset, angle)
+        # left/right seats align the two supply lands in Y; top/bottom seats
+        # align them in X.  The other coordinate is fixed by courtyard
+        # tangency, which is the actual closest legal component relationship.
+        poses = (
+            ("left", owner_box[0] - gap_mm - rel[1],
+             supply_xy[1] - rail[1]),
+            ("right", owner_box[1] + gap_mm - rel[0],
+             supply_xy[1] - rail[1]),
+            ("top", supply_xy[0] - rail[0],
+             owner_box[2] - gap_mm - rel[3]),
+            ("bottom", supply_xy[0] - rail[0],
+             owner_box[3] + gap_mm - rel[2]),
+        )
+        for side, nx, ny in poses:
+            supply_mm = math.hypot(
+                nx + rail[0] - supply_xy[0],
+                ny + rail[1] - supply_xy[1])
+            ground_mm = min(math.hypot(
+                nx + ground[0] - point[0],
+                ny + ground[1] - point[1])
+                for point in ground_points)
+            candidates.append({
+                "side": side,
+                "position_mm": [round(nx, 6), round(ny, 6)],
+                "orientation_deg": round(
+                    (float(cap.GetOrientationDegrees()) + delta_deg) % 360.0,
+                    6),
+                "supply_mm": supply_mm,
+                "ground_mm": ground_mm,
+                "loop_proxy_mm": supply_mm + ground_mm,
+            })
+    if not candidates:
+        return None
+    best_supply = min(candidates, key=lambda row: (
+        row["supply_mm"], row["loop_proxy_mm"], row["ground_mm"],
+        row["orientation_deg"], row["side"]))
+    best_loop = min(candidates, key=lambda row: (
+        row["loop_proxy_mm"], row["supply_mm"], row["ground_mm"],
+        row["orientation_deg"], row["side"]))
+    return {
+        "gap_mm": float(gap_mm),
+        "best_supply": best_supply,
+        "best_loop": best_loop,
+    }
+
+
 def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
     """Placement gate using one-to-one, selected-device bypass ownership.
 
@@ -15000,6 +15105,10 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
     }
     ground_max_mm = float((cfg.params if cfg else {}).get(
         "decoupler_ground_pin_max_mm", 2.5))
+    tangent_gap_mm = float((cfg.params if cfg else {}).get(
+        "decoupler_tangent_gap_mm", 0.10))
+    supply_excess_max_mm = float((cfg.params if cfg else {}).get(
+        "decoupler_supply_excess_max_mm", 0.25))
     violations = []
     details = []
 
@@ -15064,6 +15173,30 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                 ground_pad.GetPosition().y - cap_gnd.GetPosition().y) / 1e6
             ground_pin = ground_pad.GetPadName()
         ground_bad = ground_mm is None or ground_mm > ground_max_mm + 1e-9
+        tangent = _decoupler_tangent_target(
+            owner, cap, req.get("pad"),
+            next((pad for pad in cap.Pads()
+                  if pad.GetNetname() == req.get("rail")), None)
+            if cap else None,
+            owner_gnds, cap_gnd, gap_mm=tangent_gap_mm)
+        # Proximity is measured against the closest *complete-loop* tangent
+        # seat.  The absolute supply-only minimum can put a two-terminal
+        # capacitor's GND land on the far side of the package and enlarge the
+        # actual high-di/dt loop.  That would make the pin-proximity and return
+        # gates demand mutually exclusive placements.  Retain the absolute
+        # minimum as diagnostic evidence, but gate the supply leg at the
+        # isolated seat that minimizes supply + nearest package-GND distance.
+        ideal_supply_mm = ((tangent or {}).get("best_loop") or {}).get(
+            "supply_mm")
+        absolute_supply_mm = ((tangent or {}).get("best_supply") or {}).get(
+            "supply_mm")
+        supply_excess_mm = (max(
+            0.0, float(item.get("distance_mm") or 0.0)
+            - float(ideal_supply_mm))
+            if ideal_supply_mm is not None else None)
+        proximity_bad = (supply_excess_mm is not None
+                         and supply_excess_mm >
+                         supply_excess_max_mm + 1e-9)
         supply_row = supply_by_cell.get((
             req.get("ref"), str(req.get("pin")), item.get("cap_ref"))) or {}
         supply_bad = supply_row.get("status") == "refused"
@@ -15085,7 +15218,19 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             # still box the later full-width rail launch.  The caller selects
             # only the worst few clean rows, so a healthy population cannot
             # consume an unbounded placement budget.
-            "actionable": bool(ground_bad or supply_bad),
+            "actionable": bool(ground_bad or supply_bad or proximity_bad),
+            "pin_proximity_ok": not proximity_bad,
+            "ideal_supply_distance_mm": (
+                round(float(ideal_supply_mm), 3)
+                if ideal_supply_mm is not None else None),
+            "absolute_min_supply_distance_mm": (
+                round(float(absolute_supply_mm), 3)
+                if absolute_supply_mm is not None else None),
+            "supply_excess_mm": (
+                round(float(supply_excess_mm), 3)
+                if supply_excess_mm is not None else None),
+            "supply_excess_limit_mm": supply_excess_max_mm,
+            "tangent_target": tangent,
             "supply_access_ok": not supply_bad,
             "supply_access_reason": supply_row.get("reason"),
             "supply_access": supply_row.get("supply"),
@@ -15099,6 +15244,14 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                 item.get("cap_ref") or "unassigned-cap",
                 "%s.GND[%s]" % (req.get("ref"), req.get("rail")),
                 round(distance, 2) if distance >= 0 else -1,
+            ))
+        if proximity_bad:
+            violations.append((
+                item.get("cap_ref") or "unassigned-cap",
+                "%s.%s[%s] pin-proximity excess %.2fmm > %.2fmm" % (
+                    req.get("ref"), req.get("pin"), req.get("rail"),
+                    supply_excess_mm, supply_excess_max_mm),
+                round(float(supply_excess_mm), 2),
             ))
         if supply_bad:
             violations.append((
@@ -15155,6 +15308,8 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         "assigned": len(measured["assigned"]),
         "requirements": len(measured["requirements"]),
         "ground_pin_max_mm": ground_max_mm,
+        "tangent_gap_mm": tangent_gap_mm,
+        "supply_excess_max_mm": supply_excess_max_mm,
         "supply_access": supply_access,
     }
 
@@ -22599,7 +22754,22 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                             "power_corridor_relief_envelope_reseat",
                             "power_corridor_relief_joint_envelope_pack",
                         })
-                    if macro_window_move and len(introduced) <= 8:
+                    # A multi-rail IC and all of its bypass capacitors are a
+                    # placement macro.  The closest tangent seat for one cap
+                    # can be occupied by a chain of two or three small local
+                    # support parts; one-step eviction then repeatedly fixes
+                    # two rails by reopening the third.  Reuse the same finite
+                    # overlap-graph legalizer as corridor repair for these
+                    # measured decoupler moves.  It may move only electrically
+                    # complete owner/cap cells or small unconstrained local
+                    # roots, and every result still faces exact full-board
+                    # craft and power admission below.
+                    decoupler_macro_move = (
+                        move_kind.startswith("decoupler_")
+                        and len(placements) >= 1)
+                    macro_limit = 8 if macro_window_move else 6
+                    if ((macro_window_move or decoupler_macro_move)
+                            and len(introduced) <= macro_limit):
                         for legalized, roots, tag in \
                                 _placement_bounded_macro_legalizations(
                                     current, placements, baseline_pairs,

@@ -1555,5 +1555,58 @@ class TestIndependentDecouplerBatches(unittest.TestCase):
                 current, finalists), [])
 
 
+class TestDecouplerTangentTarget(unittest.TestCase):
+    class Item:
+        def __init__(self, x, y, rotation=0.0):
+            self._position = SimpleNamespace(
+                x=round(float(x) * 1e6), y=round(float(y) * 1e6))
+            self._rotation = float(rotation)
+
+        def GetPosition(self):
+            return self._position
+
+        def GetOrientationDegrees(self):
+            return self._rotation
+
+    def test_target_is_courtyard_tangent_to_named_supply_pin(self):
+        owner = self.Item(0.0, 0.0)
+        cap = self.Item(4.0, 0.0)
+        owner_supply = self.Item(1.8, 0.0)
+        owner_ground = self.Item(1.8, 1.0)
+        cap_supply = self.Item(3.6, 0.0)
+        cap_ground = self.Item(4.4, 0.0)
+
+        def courtyard(item):
+            if item is owner:
+                return (-2.0, 2.0, -2.0, 2.0)
+            if item is cap:
+                return (3.5, 4.5, -0.5, 0.5)
+            raise AssertionError("unexpected item")
+
+        with mock.patch.object(sp, "_footprint_courtyard_box",
+                               side_effect=courtyard):
+            target = sp._decoupler_tangent_target(
+                owner, cap, owner_supply, cap_supply,
+                [owner_ground], cap_ground, gap_mm=0.10)
+
+        self.assertEqual(target["best_supply"]["side"], "right")
+        self.assertAlmostEqual(
+            target["best_supply"]["position_mm"][0], 2.6)
+        self.assertAlmostEqual(target["best_supply"]["supply_mm"], 0.4)
+        # The absolute shortest supply leg leaves the return land on the far
+        # side.  Complete-loop authority must prefer the rotated seat even
+        # though its supply leg is slightly longer.
+        self.assertEqual(target["best_loop"]["side"], "right")
+        self.assertEqual(target["best_loop"]["orientation_deg"], 270.0)
+        self.assertAlmostEqual(target["best_loop"]["supply_mm"], 0.8)
+        self.assertLess(target["best_loop"]["loop_proxy_mm"],
+                        target["best_supply"]["loop_proxy_mm"])
+
+    def test_missing_ground_authority_refuses_target(self):
+        item = self.Item(0.0, 0.0)
+        self.assertIsNone(sp._decoupler_tangent_target(
+            item, item, item, item, [], item))
+
+
 if __name__ == "__main__":
     unittest.main()
