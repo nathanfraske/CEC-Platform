@@ -19,6 +19,20 @@ import cec_full_pipeline as pipeline
 
 
 class FullPipelineJournalTests(unittest.TestCase):
+    def test_dashboard_stage_declares_pipeline_lineage_authority(self):
+        cfg = SimpleNamespace(board="pcie-8pin-2port")
+        with mock.patch(
+                "cec_dashboard.archive_board",
+                return_value={
+                    "id": "archive-id", "verdict": "FAILED",
+                    "panel_urls": {},
+                }) as archive:
+            result = pipeline._dashboard_stage(
+                Path("winner.kicad_pcb"), cfg, Path("oracle.json"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(archive.call_args.kwargs["archive_role"], "pipeline")
+
     @staticmethod
     def _outline_row(*, area, hard_route, soft_route=0.0):
         return (

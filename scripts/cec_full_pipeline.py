@@ -3529,7 +3529,7 @@ def _dashboard_stage(board, cfg, route_report):
 
     summary = cec_dashboard.archive_board(
         str(board), "%s-full-pipeline" % cfg.board,
-        provenance_path=str(route_report)
+        provenance_path=str(route_report), archive_role="pipeline"
     )
     summary_path = Path(cec_dashboard.ARCHIVE_ROOT) / summary["id"] / "summary.json"
     return {

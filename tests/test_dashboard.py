@@ -23,6 +23,117 @@ import cec_render  # noqa: E402
 
 
 class TestDashboard(unittest.TestCase):
+    def _write_review_board(self, path, refs, *, routed):
+        body = ["(kicad_pcb"]
+        for ref in refs:
+            body.extend([
+                '  (footprint "Test:Part"',
+                f'    (property "Reference" "{ref}")',
+                "  )",
+            ])
+        if routed:
+            body.append(
+                "  (segment (start 0 0) (end 1 0) (width 0.2) "
+                "(layer \"F.Cu\") (net 1))"
+            )
+        body.append(")")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(body) + "\n")
+
+    def _write_pipeline_authority(self, directory):
+        aid = "20260829T1534-pcie-8pin-2port-full-pipeline"
+        archive = os.path.join(directory, aid)
+        os.makedirs(archive)
+        board = os.path.join(archive, "board.kicad_pcb")
+        self._write_review_board(board, ("U1", "U2", "C1", "C2"),
+                                 routed=True)
+        with open(os.path.join(archive, "summary.json"), "w",
+                  encoding="utf-8") as handle:
+            json.dump({
+                "schema": 1,
+                "id": aid,
+                "name": "pcie-8pin-2port-full-pipeline",
+                "epoch": 100.0,
+                "source": (
+                    "build/full-pipeline/current/04-route/"
+                    "winner.kicad_pcb"
+                ),
+                "board": "board.kicad_pcb",
+            }, handle)
+        return aid
+
+    def test_archive_lineage_rejects_old_placement_seed(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(dashboard, "ARCHIVE_ROOT", directory):
+            aid = self._write_pipeline_authority(directory)
+            old = os.path.join(directory, "pcie-8pin-2port-old.kicad_pcb")
+            self._write_review_board(old, ("U1",), routed=False)
+
+            lineage = dashboard._assess_archive_lineage(
+                old, "pcie-8pin-2port-decap-closed-placement")
+
+            self.assertTrue(lineage["blocked"])
+            self.assertTrue(lineage["stage_regression"])
+            self.assertTrue(lineage["reference_regression"])
+            self.assertEqual(lineage["authority_id"], aid)
+            with self.assertRaisesRegex(RuntimeError,
+                                        "archive lineage admission refused"):
+                dashboard.archive_board(
+                    old, "pcie-8pin-2port-decap-closed-placement")
+
+    def test_archive_lineage_allows_routed_continuous_derivative(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(dashboard, "ARCHIVE_ROOT", directory):
+            self._write_pipeline_authority(directory)
+            current = os.path.join(
+                directory, "pcie-8pin-2port-current.kicad_pcb")
+            self._write_review_board(
+                current, ("U1", "U2", "C1", "C2", "C3"), routed=True)
+
+            lineage = dashboard._assess_archive_lineage(
+                current, "pcie-8pin-2port-decap-repaired")
+            diagnostic = dashboard._assess_archive_lineage(
+                current, "pcie-8pin-2port-diagnostic",
+                archive_role="diagnostic")
+
+            self.assertFalse(lineage["blocked"])
+            self.assertEqual(lineage["status"], "compatible-derivative")
+            self.assertFalse(diagnostic["blocked"])
+
+    def test_pipeline_role_cannot_publish_placement_regression(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(dashboard, "ARCHIVE_ROOT", directory):
+            self._write_pipeline_authority(directory)
+            placement = os.path.join(directory, "placement.kicad_pcb")
+            self._write_review_board(
+                placement, ("U1", "U2", "C1", "C2"), routed=False)
+
+            lineage = dashboard._assess_archive_lineage(
+                placement, "pcie-8pin-2port-full-pipeline",
+                archive_role="pipeline")
+
+            self.assertTrue(lineage["blocked"])
+            self.assertTrue(lineage["stage_regression"])
+
+    def test_pipeline_role_may_establish_new_routed_topology(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(dashboard, "ARCHIVE_ROOT", directory):
+            self._write_pipeline_authority(directory)
+            routed = os.path.join(directory, "routed.kicad_pcb")
+            self._write_review_board(routed, ("U1",), routed=True)
+
+            lineage = dashboard._assess_archive_lineage(
+                routed, "pcie-8pin-2port-full-pipeline",
+                archive_role="pipeline")
+
+            self.assertFalse(lineage["blocked"])
+            self.assertTrue(lineage["reference_regression"])
+            self.assertEqual(lineage["status"], "pipeline-candidate")
+
+    def test_dashboard_marks_diagnostic_lineage_visibly(self):
+        self.assertIn("STALE SOURCE", dashboard.PAGE)
+        self.assertIn("analyze diagnostic", dashboard.PAGE)
+
     def test_archive_contract_keeps_executable_route_ownership_sidecars(self):
         self.assertIn(".pourplan.json", dashboard.ARCHIVE_BOARD_SIDECARS)
         self.assertIn(".pourfirst-state.json",

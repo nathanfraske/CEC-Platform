@@ -42,6 +42,7 @@
 # ============================================================================
 import argparse
 import glob
+import hashlib
 import json
 import os
 import queue
@@ -493,6 +494,178 @@ def _thermal_board_hint(path):
     return None
 
 
+_PCB_REFERENCE_RE = re.compile(
+    r'\(property\s+"Reference"\s+"([^"]+)"|'
+    r'\(fp_text\s+reference\s+"([^"]+)"')
+_PCB_ROUTE_ITEM_RE = re.compile(r"(?m)^\s*\((?:segment|arc|via)\b")
+_PCB_ZONE_RE = re.compile(r"(?m)^\s*\(zone\b")
+
+
+def _review_board_signature(path):
+    """Return cheap, deterministic generation evidence for archive admission.
+
+    The dashboard used to accept any plausible ``*.kicad_pcb`` path.  That
+    allowed an obsolete placement seed to be presented immediately after a
+    routed full-pipeline winner.  A text-level signature is intentional here:
+    it works before the heavy pcbnew/container analyzer starts and therefore
+    fails closed without spending several minutes rendering the wrong board.
+    """
+    path = os.path.abspath(path)
+    with open(path, "rb") as handle:
+        payload = handle.read()
+    text = payload.decode("utf-8", errors="replace")
+    refs = sorted({left or right for left, right in
+                   _PCB_REFERENCE_RE.findall(text) if left or right})
+    route_items = len(_PCB_ROUTE_ITEM_RE.findall(text))
+    zones = len(_PCB_ZONE_RE.findall(text))
+    return {
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "footprint_refs": refs,
+        "footprint_count": len(refs),
+        "route_item_count": route_items,
+        "zone_count": zones,
+        "stage": "routed" if route_items else "placement",
+        "stage_rank": 2 if route_items else 1,
+    }
+
+
+def _summary_board_path(summary):
+    aid = str(summary.get("id") or "")
+    filename = os.path.basename(str(summary.get("board") or
+                                    "board.kicad_pcb"))
+    if not aid or not filename.endswith(".kicad_pcb"):
+        return None
+    candidate = os.path.join(ARCHIVE_ROOT, aid, filename)
+    return candidate if os.path.isfile(candidate) else None
+
+
+def _latest_pipeline_review_authority(board_family):
+    """Find the newest durable full-pipeline review board for one family."""
+    candidates = []
+    for summary_path in glob.glob(os.path.join(
+            ARCHIVE_ROOT, "*", "summary.json")):
+        try:
+            with open(summary_path, encoding="utf-8") as handle:
+                summary = json.load(handle)
+        except (OSError, ValueError):
+            continue
+        source = str(summary.get("source") or "")
+        name = str(summary.get("name") or "")
+        family = ((summary.get("lineage") or {}).get("board_family")
+                  or _thermal_board_hint(source)
+                  or _thermal_board_hint(name))
+        if family != board_family:
+            continue
+        # Only the bounded full-pipeline dashboard stage is an automatic
+        # review authority.  Ad-hoc archives and placement studies cannot
+        # promote themselves merely by being newer.
+        if (name != "%s-full-pipeline" % board_family
+                or "build/full-pipeline/" not in
+                source.replace("\\", "/")):
+            continue
+        board_path = _summary_board_path(summary)
+        if board_path is None:
+            continue
+        try:
+            signature = _review_board_signature(board_path)
+        except OSError:
+            continue
+        if signature["stage"] != "routed":
+            continue
+        candidates.append((float(summary.get("epoch") or 0.0), summary,
+                           board_path, signature))
+    if not candidates:
+        return None
+    _epoch, summary, board_path, signature = max(
+        candidates, key=lambda row: row[0])
+    return {"summary": summary, "board_path": board_path,
+            "signature": signature}
+
+
+def _assess_archive_lineage(pcb_path, name, *, archive_role="candidate"):
+    """Reject accidental review-stage or component-generation regression.
+
+    ``pipeline`` may establish a new routed review candidate after its own
+    source-intake/signoff transaction.  ``diagnostic`` may intentionally show
+    older geometry, but the result is labelled stale and cannot be mistaken
+    for current.  Ordinary candidate publication fails closed.
+    """
+    if archive_role not in {"candidate", "pipeline", "diagnostic"}:
+        raise ValueError("unknown archive role: %s" % archive_role)
+    proposed = _review_board_signature(pcb_path)
+    family = _thermal_board_hint(pcb_path) or _thermal_board_hint(name)
+    report = {
+        "schema": 1,
+        "board_family": family,
+        "archive_role": archive_role,
+        "status": "unanchored",
+        "blocked": False,
+        "would_block": False,
+        "proposed": {key: value for key, value in proposed.items()
+                     if key != "footprint_refs"},
+    }
+    if not family:
+        report["reason"] = "board family could not be resolved"
+        return report
+    authority = _latest_pipeline_review_authority(family)
+    if authority is None:
+        report["reason"] = "no routed full-pipeline review authority exists"
+        return report
+    incumbent = authority["signature"]
+    summary = authority["summary"]
+    missing = sorted(set(incumbent["footprint_refs"])
+                     - set(proposed["footprint_refs"]))
+    added = sorted(set(proposed["footprint_refs"])
+                   - set(incumbent["footprint_refs"]))
+    stage_regression = proposed["stage_rank"] < incumbent["stage_rank"]
+    reference_regression = len(missing) > max(
+        2, int(round(0.05 * max(1, incumbent["footprint_count"]))))
+    same_content = proposed["sha256"] == incumbent["sha256"]
+    would_block = bool(stage_regression or reference_regression)
+    report.update({
+        "authority_id": summary.get("id"),
+        "authority_source": summary.get("source"),
+        "authority": {key: value for key, value in incumbent.items()
+                      if key != "footprint_refs"},
+        "missing_authority_refs": missing,
+        "added_refs": added,
+        "stage_regression": stage_regression,
+        "reference_regression": reference_regression,
+        "same_content": same_content,
+        "would_block": would_block,
+    })
+    if same_content:
+        report.update({"status": "current-authority",
+                       "reason": "content matches routed review authority"})
+    elif would_block:
+        reasons = []
+        if stage_regression:
+            reasons.append("routed-to-placement stage regression")
+        if reference_regression:
+            reasons.append("missing %d authority footprint(s)" % len(missing))
+        # A full-pipeline run may intentionally establish a new routed
+        # topology (and therefore remove references), but it may never publish
+        # a placement-only board over a routed review authority.  Diagnostics
+        # remain viewable solely because the UI labels them as stale.
+        blocked = archive_role != "diagnostic" and (
+            stage_regression or archive_role != "pipeline")
+        report.update({
+            "status": ("diagnostic-stale" if archive_role == "diagnostic"
+                       else ("pipeline-candidate"
+                             if archive_role == "pipeline" and not blocked
+                             else "stale-regression")),
+            "blocked": blocked,
+            "reason": "; ".join(reasons),
+        })
+    elif archive_role == "pipeline":
+        report.update({"status": "pipeline-candidate",
+                       "reason": "full pipeline supplied routed lineage"})
+    else:
+        report.update({"status": "compatible-derivative",
+                       "reason": "routed stage and reference continuity retained"})
+    return report
+
+
 def _thermal_injection_report(result):
     """Summarize whether every configured current path actually injected."""
     requested = dict(getattr(result, "nets_requested", None) or {})
@@ -830,7 +1003,8 @@ def _verdict(gates, thermal):
     return ("CLEAN" if not failing else "FAILED"), failing
 
 
-def archive_board(pcb_path, name, provenance_path=None):
+def archive_board(pcb_path, name, provenance_path=None, *,
+                  archive_role="candidate"):
     """Snapshot ONE board into its own timestamped archive dir, render its two analysis panels, evaluate
     its gates, and write summary.json. Returns the summary dict (also appended to the live _archive).
 
@@ -846,6 +1020,13 @@ def archive_board(pcb_path, name, provenance_path=None):
     pcb_path = os.path.abspath(pcb_path)
     if not os.path.exists(pcb_path):
         raise FileNotFoundError(pcb_path)
+    lineage = _assess_archive_lineage(
+        pcb_path, name, archive_role=archive_role)
+    if lineage.get("blocked"):
+        raise RuntimeError(
+            "archive lineage admission refused %s: %s; current authority %s"
+            % (os.path.relpath(pcb_path, ROOT), lineage.get("reason"),
+               lineage.get("authority_id")))
     ts = time.strftime("%Y%m%dT%H%M")
     aid = f"{ts}-{_slug(name)}"
     adir = os.path.join(ARCHIVE_ROOT, aid)
@@ -877,6 +1058,7 @@ def archive_board(pcb_path, name, provenance_path=None):
     summary = {"schema": 1, "id": aid, "name": name, "timestamp": ts,
                "ts_human": time.strftime("%Y-%m-%d %H:%M"), "epoch": time.time(),
                "source": os.path.relpath(pcb_path, ROOT), "board": "board.kicad_pcb",
+               "lineage": lineage,
                "panels": {}, "gates": {"ok": False, "error": "not run"},
                "thermal": {"ok": False, "error": "not run"},
                "issues": {"ok": False, "error": "not run"},
@@ -1176,10 +1358,12 @@ def _archive_worker():
         job = _jobs.get()
         pcb, name = job[:2]
         provenance = job[2] if len(job) > 2 else None
+        archive_role = job[3] if len(job) > 3 else "candidate"
         _seed_status["active"] = name
         _seed_status["pending"] = _jobs.qsize()
         try:
-            archive_board(pcb, name, provenance_path=provenance)
+            archive_board(pcb, name, provenance_path=provenance,
+                          archive_role=archive_role)
             _seed_status["done"].append(name)
         except Exception as e:                                     # noqa: BLE001
             _seed_status["errors"].append(f"{name}: {type(e).__name__}: {e}")
@@ -1306,7 +1490,11 @@ class H(BaseHTTPRequestHandler):
                 self._json({"error": "bad src (must be an existing repo-relative .kicad_pcb)"}, 400)
             else:
                 name = _slug(params.get("name") or os.path.splitext(os.path.basename(src))[0])
-                _jobs.put((src, name))
+                archive_role = params.get("role") or "candidate"
+                if archive_role not in {"candidate", "diagnostic"}:
+                    self._json({"error": "bad archive role"}, 400)
+                    return
+                _jobs.put((src, name, None, archive_role))
                 _seed_status["pending"] = _jobs.qsize()
                 self._json({"ok": True, "queued": name, "pending": _jobs.qsize()})
         elif path == "/img":
@@ -1393,12 +1581,18 @@ let secOpen={act:true,beta:true,fresh:true,snaps:true};
 function displayText(v){if(v===null||v===undefined)return'';if(typeof v==='string')return v;if(typeof v==='object'){try{return JSON.stringify(v);}catch(_){}}return String(v);}
 function esc(s){return displayText(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function vpill(v){const cl=v==='CLEAN'?'ok':'bad';return `<span class="pill ${cl}">${esc(v)}</span>`;}
+function lineageBadge(b){
+ const l=(b&&b.lineage)||{}, stale=(l.status||'').includes('stale');
+ if(stale)return `<span class="pill bad" title="${esc(l.reason||'older than routed review authority')}">STALE SOURCE</span>`;
+ if(l.archive_role==='diagnostic')return `<span class="pill warn" title="diagnostic archive; not current review authority">DIAGNOSTIC</span>`;
+ return '';
+}
 function ago(mt){if(!mt)return'';const s=Date.now()/1000-mt;
  if(s<90)return Math.round(s)+'s ago';if(s<5400)return Math.round(s/60)+'m ago';
  if(s<172800)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}
 function toggleSec(k){secOpen[k]=!secOpen[k];renderList();}
-async function enqueue(src,name,ev){ev.stopPropagation();
- await fetch(`/api/enqueue?src=${encodeURIComponent(src)}&name=${encodeURIComponent(name)}`);tick();}
+async function enqueue(src,name,ev,role='candidate'){ev.stopPropagation();
+ await fetch(`/api/enqueue?src=${encodeURIComponent(src)}&name=${encodeURIComponent(name)}&role=${encodeURIComponent(role)}`);tick();}
 // ---- sidebar: LIBRARY explorer (beta line + fresh runs) + snapshot timeline ---
 function sec(k,title,count){
  return `<div class="sec" onclick="toggleSec('${k}')">${secOpen[k]?'▾':'▸'} ${title} <span class="dim">${count}</span></div>`;}
@@ -1419,7 +1613,7 @@ function renderList(){
  if(secOpen.beta) h+=lib.beta.map(b=>{
   const badges=(b.draft?'<span class="pill warn">DRAFT</span>':'')
    +(b.pcb?'':'<span class="pill bad">no pcb</span>');
-  const act=b.pcb?`<button class="pill act" onclick="enqueue('${esc(b.pcb)}','${esc(b.name)}',event)">analyze ▶</button>`:'';
+  const act=b.pcb?`<button class="pill act" onclick="enqueue('${esc(b.pcb)}','${esc(b.name)}',event,'diagnostic')">analyze diagnostic ▶</button>`:'';
   return `<div class="row"><div class="nm">${esc(b.name)} ${badges}${act}</div>
     <div class="tsx">${esc(b.dir)}${b.mtime?(' · pcb '+ago(b.mtime)):''}</div></div>`;
  }).join('');
@@ -1439,7 +1633,7 @@ function renderList(){
    const badge=`<span class="pill ${b.verdict==='CLEAN'?'ok':'bad'}">${b.verdict}${b.verdict==='CLEAN'?'':esc(fg)}</span>`;
    const np=Object.keys(b.panels||{}).length;
    return `<div class="row ${cur&&cur.id===b.id?'sel':''}" onclick="pick('${b.id}')">
-     <div class="nm">${esc(b.name)} ${badge}</div>
+     <div class="nm">${esc(b.name)} ${lineageBadge(b)} ${badge}</div>
      <div class="tsx">${esc(b.ts_human||b.timestamp||'')} · ${np} panel${np===1?'':'s'}</div></div>`;
   }).join('');
  }
@@ -1452,7 +1646,7 @@ function renderBadges(){
  const el=document.getElementById('badges');
  if(!cur){el.innerHTML='';return;}
  const g=cur.gates||{}, t=cur.thermal||{}, rt=cur.routing||{}, fp=g.foreign||{}, rv=g.reserved_corridor||{}, rq=g.route_sanity||{};
- if(!g.ok){el.innerHTML=`<span class="pill bad" title="${esc(g.error||'')}">gate-eval n/a</span>`+verdictPill();return;}
+ if(!g.ok){el.innerHTML=lineageBadge(cur)+`<span class="pill bad" title="${esc(g.error||'')}">gate-eval n/a</span>`+verdictPill();return;}
  const fclean=(fp.status==='na')||(fp.status==='ok'&&!fp.n_parts&&!fp.n_tracks&&!fp.n_vias);
  const fok=(fp.status==='na')?null:fclean;
  const fext=fp.status==='ok'?`${fp.n_parts||0}P/${fp.n_tracks}T/${fp.n_vias}V`:(fp.status||'');
@@ -1481,7 +1675,7 @@ function renderBadges(){
  else if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal on source-declared copper only, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;
  else if(t.geometry_source==='INVALID') h+=`<span class="pill bad" title="${esc(t.error||'FEM geometry parity failed')}">thermal INVALID · geometry parity</span>`;
  else h+=`<span class="pill dim" title="${esc(t.error||'')}">thermal n/a</span>`;
- el.innerHTML=h+verdictPill();
+ el.innerHTML=lineageBadge(cur)+h+verdictPill();
 }
 function verdictPill(){return cur?(' '+vpill(cur.verdict)):'';}
 const PANEL_LABEL={
@@ -1647,6 +1841,9 @@ def main():
     ap.add_argument("--name", default=None, help="name for --archive (default: derived from the path)")
     ap.add_argument("--provenance", default=None,
                     help="oracle/wave JSON whose blocker stage trace belongs to --archive")
+    ap.add_argument("--archive-role", choices=("candidate", "diagnostic"),
+                    default="candidate",
+                    help="candidate fails closed on lineage regression; diagnostic is visibly stale")
     # ---- in-container analysis mode (internal; run INSIDE the routing container) ----
     ap.add_argument("--analyze-board", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--analyze-gates", action="store_true", help=argparse.SUPPRESS)
@@ -1695,7 +1892,8 @@ def main():
         _jobs.put((os.path.abspath(a.archive),
                    a.name or _slug(os.path.splitext(
                        os.path.basename(a.archive))[0]),
-                   os.path.abspath(a.provenance) if a.provenance else None))
+                   os.path.abspath(a.provenance) if a.provenance else None,
+                   a.archive_role))
     if a.seed:
         _enqueue_seed()
     with _archive_lock:
