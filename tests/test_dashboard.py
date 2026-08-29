@@ -359,13 +359,15 @@ class TestDashboard(unittest.TestCase):
         self.assertIn('"--analyze-gates"', analyzer)
         self.assertIn('encoding="utf-8", errors="replace"', analyzer)
 
-    def test_foreign_pour_badge_uses_isolated_combined_authority(self):
+    def test_foreign_pour_badge_separates_laid_and_reserved_authorities(self):
         source = open(os.path.join(ROOT, "scripts", "cec_dashboard.py"),
                       encoding="utf-8").read()
         gate = source[source.index("def _gate_issue_analysis"):
                       source.index("def _analyze_in_container")]
         self.assertIn("import cec_pour_clearance", gate)
         self.assertIn("cec_pour_clearance.inspect_file(board)", gate)
+        self.assertIn('laid = dict(fp.get("laid") or {})', gate)
+        self.assertIn('"reserved_corridor"', gate)
         self.assertNotIn("foreign_on_pour_summary(board)", gate)
 
 

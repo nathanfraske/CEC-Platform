@@ -126,6 +126,31 @@ class StagedRouterCleanupTests(unittest.TestCase):
                          [["/ONLY"]])
         self.assertEqual(staged.adaptive_retry_chunks([]), [])
 
+    def test_staged_delta_restores_every_parent_net_outside_active_tier(self):
+        def track(net):
+            item = mock.Mock()
+            item.GetNetname.return_value = net
+            return item
+
+        board = mock.Mock()
+        board.GetTracks.return_value = [
+            track("/ACTIVE"), track("/ORDINARY"), track("/LOCKED"),
+            track(""),
+        ]
+
+        self.assertEqual(
+            staged.parent_copper_nets_outside_tier(board, {"/ACTIVE"}),
+            {"/ORDINARY", "/LOCKED"})
+
+    def test_empty_tier_delta_skips_import_sanitation(self):
+        with mock.patch.dict(sys.modules, {"cec_synth_pipeline": None}):
+            report, score = staged.sanitize_tier_import(
+                "candidate.kicad_pcb", "parent.kicad_pcb", set())
+
+        self.assertTrue(report["accepted"])
+        self.assertEqual(report["reason"], "no_generated_copper")
+        self.assertIsNone(score)
+
     def test_dsn_tier_filter_never_rewrites_wiring_net_references(self):
         deck = (
             "(pcb sample\n"
@@ -170,6 +195,52 @@ class StagedRouterCleanupTests(unittest.TestCase):
             self.assertRegex(text, r'\(layer PWR \(type power\)\)')
             self.assertRegex(text,
                              r'\(layer "Inner Power" \(type power\)\)')
+
+    def test_dsn_boundary_rejects_truncation_before_freerouting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            valid = os.path.join(tmp, "valid.dsn")
+            with open(valid, "w", encoding="utf-8") as handle:
+                handle.write('(pcb board (property "quoted ( text )"))\n')
+            self.assertTrue(cec_fr.validate_dsn_structure(valid)["ok"])
+
+            truncated = os.path.join(tmp, "truncated.dsn")
+            with open(truncated, "w", encoding="utf-8") as handle:
+                handle.write('(pcb board (structure (layer F.Cu (type signal)))\n')
+            with self.assertRaisesRegex(RuntimeError, "truncated/unbalanced"):
+                cec_fr.validate_dsn_structure(truncated)
+
+    def test_dsn_boundary_accepts_specctra_quote_declaration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            valid = os.path.join(tmp, "valid-parser.dsn")
+            with open(valid, "w", encoding="utf-8") as handle:
+                handle.write(
+                    '(pcb "board.dsn"\n'
+                    '  (parser\n'
+                    '    (string_quote ")\n'
+                    '    (space_in_quoted_tokens on)\n'
+                    '  )\n'
+                    ')\n')
+            report = cec_fr.validate_dsn_structure(valid)
+        self.assertTrue(report["ok"])
+
+    def test_dsn_rewriters_commit_by_atomic_replace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            deck = os.path.join(tmp, "route.dsn")
+            with open(deck, "w", encoding="utf-8") as handle:
+                handle.write(
+                    '(pcb board\n'
+                    ' (network (net /KEEP (pins A-1 B-1)))\n'
+                    ' (wiring (wire (path F.Cu 100 0 0 1 0) '
+                    '(net /KEEP) (type fix))))\n')
+            cec_fr02.force_protect_in_dsn(deck, ["/KEEP"])
+            cec_fr02.exclude_net_pins_in_dsn(deck, ["/KEEP"])
+            self.assertTrue(cec_fr.validate_dsn_structure(deck)["ok"])
+            with open(deck, encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn("(type protect)", text)
+            self.assertIn("(pins A-1)", text)
+            self.assertFalse(any(
+                name.startswith(".cec-dsn-") for name in os.listdir(tmp)))
 
     def test_new_tier_relocks_every_prior_owned_net(self):
         locked_calls = []
@@ -300,6 +371,35 @@ class StagedRouterCleanupTests(unittest.TestCase):
                 "board.kicad_pcb", {"/CONTROL"}, {"/USB_D_P"},
                 hints=[fiducial])
         self.assertEqual(rows, [locked, fiducial, edge, via, artwork])
+
+    def test_tier_keepouts_can_ablate_locked_geometry_but_keep_reservations(self):
+        frozen_via = {
+            "net": "/PWR", "kind": "bridge_via", "layer": "In2.Cu",
+            "x0": 4.35, "y0": 5.35, "x1": 5.65, "y1": 6.65,
+        }
+        with mock.patch.dict(
+                os.environ, {"CEC_LOCKED_COPPER_KEEPOUTS": "0"}), \
+                mock.patch.object(cec_fr, "locked_copper_keepouts") as locked, \
+                mock.patch.object(
+                    cec_route_preflight, "compile_route_reservations",
+                    return_value={"enabled": True,
+                                  "corridors": [frozen_via]}), \
+                mock.patch.object(cec_fr, "edge_keepout", return_value=[]), \
+                mock.patch.object(cec_fr, "smd_via_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "decorative_copper_keepouts",
+                                  return_value=[]), \
+                mock.patch.object(cec_fr, "fiducial_keepouts", return_value=[]):
+            rows = staged.compile_tier_keepouts(
+                "board.kicad_pcb", {"/CONTROL"}, {"/LOCKED"})
+
+        locked.assert_not_called()
+        self.assertEqual(rows, [{
+            "name": "route_reservation_bridge_via_0",
+            "layers": ("In2.Cu",),
+            "allow_tracks": False,
+            "allow_vias": False,
+            "x0": 4.35, "y0": 5.35, "x1": 5.65, "y1": 6.65,
+        }])
 
     def test_tier_keepouts_include_exact_foreign_route_reservations(self):
         frozen_via = {

@@ -2530,6 +2530,148 @@ def _net_pad_mst_mm(board, net_name):
     return length
 
 
+def _pair_contract_stations(board, pnet, nnet, *, split_limit_mm=8.0):
+    """Return the endpoint geometry needed by the coupled-length contract.
+
+    A pair normally terminates on one footprint at each end.  Series or split
+    termination networks instead end on two adjacent, matching footprints.
+    That split is a physical fan-out requirement, not an arbitrary routing
+    choice.  Preserve only the small geometry vocabulary needed by admission;
+    the precision router retains the richer placement certificate.
+    """
+    by_net = {pnet: collections.defaultdict(list),
+              nnet: collections.defaultdict(list)}
+    footprints = {}
+    for footprint in board.GetFootprints():
+        ref = str(footprint.GetReference())
+        footprints[ref] = footprint
+        for pad in footprint.Pads():
+            net = str(pad.GetNetname() or "")
+            if net not in by_net:
+                continue
+            at = pad.GetPosition()
+            by_net[net][ref].append((at.x / 1e6, at.y / 1e6))
+
+    def centre(points):
+        return (sum(row[0] for row in points) / len(points),
+                sum(row[1] for row in points) / len(points))
+
+    def station(kind, refs, p_points, n_points):
+        pc, nc = centre(p_points), centre(n_points)
+        center = ((pc[0] + nc[0]) / 2.0, (pc[1] + nc[1]) / 2.0)
+        return {
+            "kind": kind, "physical_refs": sorted(refs),
+            "center": [round(center[0], 6), round(center[1], 6)],
+            "member_pitch_mm": round(math.hypot(
+                pc[0] - nc[0], pc[1] - nc[1]), 6),
+        }
+
+    p_by_ref, n_by_ref = by_net[pnet], by_net[nnet]
+    stations = [
+        station("same-footprint-pair", (ref,), p_by_ref[ref], n_by_ref[ref])
+        for ref in sorted(set(p_by_ref) & set(n_by_ref))]
+    unmatched_p = sorted(set(p_by_ref) - set(n_by_ref))
+    unmatched_n = sorted(set(n_by_ref) - set(p_by_ref))
+
+    def signature(ref):
+        prefix = re.match(r"[A-Za-z]+", ref)
+        try:
+            item = str(footprints[ref].GetFPID().GetLibItemName())
+        except Exception:                              # noqa: BLE001
+            item = ""
+        return ((prefix.group(0).upper() if prefix else ""), item)
+
+    candidates = []
+    for p_ref in unmatched_p:
+        if len(p_by_ref[p_ref]) != 1:
+            continue
+        for n_ref in unmatched_n:
+            if len(n_by_ref[n_ref]) != 1:
+                continue
+            ps, ns = signature(p_ref), signature(n_ref)
+            if (not ps[0] or ps[0] != ns[0]
+                    or (ps[1] and ns[1] and ps[1] != ns[1])):
+                continue
+            distance = math.hypot(
+                p_by_ref[p_ref][0][0] - n_by_ref[n_ref][0][0],
+                p_by_ref[p_ref][0][1] - n_by_ref[n_ref][0][1])
+            if distance <= float(split_limit_mm) + 1e-9:
+                candidates.append((round(distance, 6), p_ref, n_ref))
+    used_p, used_n = set(), set()
+    for _distance, p_ref, n_ref in sorted(candidates):
+        if p_ref in used_p or n_ref in used_n:
+            continue
+        used_p.add(p_ref); used_n.add(n_ref)
+        stations.append(station(
+            "split-member-footprints", (p_ref, n_ref),
+            p_by_ref[p_ref], n_by_ref[n_ref]))
+    return sorted(stations, key=lambda row: (
+        row["center"][0], row["center"][1], row["physical_refs"]))
+
+
+def pair_coupling_contract(kind, coupling, member_lengths,
+                           *, endpoint_stations=None,
+                           local_cell_limit_mm=8.0):
+    """Apply one coupled-length contract to routing and final signoff.
+
+    USB always retains its strict percentage/absolute limit.  CAN permits a
+    geometry-derived local-cell exception only when exactly two endpoint
+    stations are present, at least one station is a split-member termination,
+    and their centres are within the bounded local fan-out radius.  The
+    effective uncoupled budget is then the same 2x endpoint-span detour bound
+    enforced independently on both members.  This admits unavoidable package
+    fan-out without waiving coupling on a real trunk or on an arbitrary short
+    route that lacks the physical split-terminal witness.
+    """
+    kind = str(kind or "diff").lower()
+    minimum_fraction = 0.60 if kind == "can" else 0.80
+    base_budget_mm = 2.0 if kind == "can" else 0.75
+    fraction = float((coupling or {}).get("fraction") or 0.0)
+    maximum_length = max(
+        (float(value) for value in (member_lengths or {}).values()),
+        default=0.0)
+    uncoupled_mm = maximum_length * (1.0 - fraction)
+    stations = [row for row in (endpoint_stations or ())
+                if isinstance(row, dict)
+                and isinstance(row.get("center"), (list, tuple))
+                and len(row["center"]) >= 2]
+    local_span = None
+    forced_local_fanout = False
+    effective_budget_mm = base_budget_mm
+    if kind == "can" and len(stations) == 2 and any(
+            row.get("kind") == "split-member-footprints"
+            for row in stations):
+        local_span = math.hypot(
+            float(stations[1]["center"][0])
+            - float(stations[0]["center"][0]),
+            float(stations[1]["center"][1])
+            - float(stations[0]["center"][1]))
+        if local_span <= float(local_cell_limit_mm) + 1e-9:
+            forced_local_fanout = True
+            effective_budget_mm = max(base_budget_mm, 2.0 * local_span)
+    sampled = int((coupling or {}).get("total_samples") or 0) > 0
+    ok = bool(sampled and (
+        fraction + 1e-9 >= minimum_fraction
+        or uncoupled_mm <= effective_budget_mm + 1e-9))
+    return {
+        "schema": 2, "ok": ok, "kind": kind,
+        "coupled_coverage_pct": round(100.0 * fraction, 1),
+        "minimum_coupled_coverage_pct": round(
+            100.0 * minimum_fraction, 1),
+        "member_lengths_mm": {
+            str(net): round(float(length), 6)
+            for net, length in sorted((member_lengths or {}).items())},
+        "uncoupled_length_mm": round(uncoupled_mm, 6),
+        "base_uncoupled_length_budget_mm": base_budget_mm,
+        "uncoupled_length_budget_mm": round(effective_budget_mm, 6),
+        "forced_endpoint_fanout": forced_local_fanout,
+        "endpoint_station_span_mm": (
+            None if local_span is None else round(local_span, 6)),
+        "local_cell_limit_mm": float(local_cell_limit_mm),
+        "sampled": sampled,
+    }
+
+
 def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
     """Physical USB/CAN route-quality verdict for the final filled board.
 
@@ -2778,25 +2920,22 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                         coupled += 1
         ref_fraction = ref_covered / max(1, ref_total)
         coupled_fraction = coupled / max(1, coupled_total)
-        min_coupled = 0.80 if kind == "usb" else 0.60
-        # Coupling is a field-control objective, not a percentage contest on a
-        # millimetre-scale endpoint cell.  A short connector/PHY escape can be
-        # entirely inside the component fanout and legitimately have no
-        # parallel sampled interval.  Bound that exception by *absolute*
-        # uncoupled electrical length (stricter for USB) so it cannot waive a
-        # long separated route merely because its percentage is inconvenient.
-        # This also keeps the independent final-board gate consistent with the
-        # precision router's geometry-driven ``short-pair-local-cell`` mode;
-        # no route provenance or board/reference name is trusted here.
-        uncoupled_budget_mm = 0.75 if kind == "usb" else 2.0
-        uncoupled_mm = max(p_len, n_len) * (1.0 - coupled_fraction)
+        coupling_admission = pair_coupling_contract(
+            kind, {"fraction": coupled_fraction,
+                   "total_samples": coupled_total},
+            {pnet: p_len, nnet: n_len},
+            endpoint_stations=_pair_contract_stations(b, pnet, nnet))
+        uncoupled_budget_mm = coupling_admission[
+            "uncoupled_length_budget_mm"]
+        uncoupled_mm = coupling_admission["uncoupled_length_mm"]
         if ref_total and ref_fraction < 0.95:
             violations.append("filled adjacent-GND coverage %.1f%% is below 95%%" %
                               (100.0 * ref_fraction))
-        if (coupled_total and coupled_fraction < min_coupled
-                and uncoupled_mm > uncoupled_budget_mm + 1e-9):
+        if coupled_total and not coupling_admission["ok"]:
             violations.append("coupled-route coverage %.1f%% is below %.0f%%" %
-                              (100.0 * coupled_fraction, 100.0 * min_coupled))
+                              (100.0 * coupled_fraction,
+                               coupling_admission[
+                                   "minimum_coupled_coverage_pct"]))
 
         stackups = {}
         for layer in sorted(used_layers):
@@ -2827,6 +2966,7 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                "coupled_coverage_pct": round(100.0 * coupled_fraction, 1),
                "uncoupled_length_mm": round(uncoupled_mm, 3),
                "uncoupled_length_budget_mm": uncoupled_budget_mm,
+               "coupling_admission": coupling_admission,
                "stackups": stackups, "violations": violations}
         pair_rows.append(row)
         all_violations.extend("%s %s/%s: %s" % (kind.upper(), pnet, nnet, msg)
@@ -4462,6 +4602,13 @@ POST_ROUTE_EXCLUSIONS = frozenset({
     # Routed artifacts live in build/run directories without a sibling schematic,
     # so re-running this path-based checker here would be a false release failure.
     "sch-pcb-sync",
+    # These two rows are future-route reservation authorities.  Their geometry
+    # is derived before the final orthogonal pour outline exists and may cover
+    # a deliberate hook pocket that contains no fabricated copper.  Final
+    # release is instead fail-closed on high-current-pour-integrity,
+    # no-incursion-in-laid-pour, current cross-section, and thermal evidence.
+    "high-current-corridor-keepout",
+    "no-foreign-on-high-current-pour",
 })
 
 

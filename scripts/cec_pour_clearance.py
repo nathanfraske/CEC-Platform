@@ -30,7 +30,8 @@ import cec_fr
 
 
 def _summary_counts(summary):
-    return (int(summary.get("n_tracks", 0)),
+    return (int(summary.get("n_parts", 0)),
+            int(summary.get("n_tracks", 0)),
             int(summary.get("n_vias", 0)))
 
 
@@ -109,7 +110,19 @@ def _combined_summary(board_path):
     }
 
 
-def evacuate_board(board, board_path, *, protected_nets=()):
+def _laid_summary(board_or_path):
+    """Normalize the actual zone-outline authority for release admission."""
+    report = dict(cec_constraints.laid_pour_incursion_summary(board_or_path))
+    report.setdefault("schema", 1)
+    report.setdefault("n_parts", 0)
+    report.setdefault("n_tracks", 0)
+    report.setdefault("n_vias", 0)
+    report.setdefault("items", [])
+    return report
+
+
+def evacuate_board(board, board_path, *, protected_nets=(),
+                   authority="combined"):
     """Remove exact foreign-on-pour primitives from an already loaded board.
 
     Safety ownership dominates stale lock flags: a locked track produced by an
@@ -118,21 +131,29 @@ def evacuate_board(board, board_path, *, protected_nets=()):
     transaction so authored/contract copper is never silently edited.
     """
     protected = {str(net) for net in (protected_nets or ()) if str(net)}
-    try:
-        tracks, vias = cec_constraints._foreign_pour_records(
-            board, board_path)
-    except cec_constraints.PourRegionError as exc:
-        return {
-            "schema": 1, "ok": False, "status": "error",
-            "reason": "pour_region_unverifiable", "error": str(exc),
-            "removed_count": 0, "removed_nets": [], "removed_items": [],
-        }
-    laid = cec_constraints.laid_pour_incursion_summary(
-        board, item_limit=None)
-    conflicts = _merge_records(tracks, vias, laid.get("items"))
+    if authority not in ("combined", "laid"):
+        raise ValueError("unknown pour authority %r" % authority)
+    if authority == "laid":
+        tracks, vias = [], []
+        laid = _laid_summary(board)
+        conflicts = _merge_records(laid_items=laid.get("items"))
+    else:
+        try:
+            tracks, vias = cec_constraints._foreign_pour_records(
+                board, board_path)
+        except cec_constraints.PourRegionError as exc:
+            return {
+                "schema": 1, "ok": False, "status": "error",
+                "reason": "pour_region_unverifiable", "error": str(exc),
+                "removed_count": 0, "removed_nets": [], "removed_items": [],
+            }
+        laid = cec_constraints.laid_pour_incursion_summary(
+            board, item_limit=None)
+        conflicts = _merge_records(tracks, vias, laid.get("items"))
     if tracks is None and not conflicts:
         return {
             "schema": 1, "ok": True, "status": "na", "applicable": False,
+            "authority": authority,
             "removed_count": 0, "removed_nets": [], "removed_items": [],
         }
 
@@ -157,6 +178,7 @@ def evacuate_board(board, board_path, *, protected_nets=()):
     missing = sorted(doomed - {row.get("uuid") for row in removed})
     return {
         "schema": 1, "ok": not missing, "status": "ok" if not missing else "error",
+        "authority": authority,
         "applicable": True, "protected_nets": sorted(protected),
         "detected_tracks": sum(
             row.get("kind") == "track" for row in conflicts),
@@ -176,10 +198,11 @@ def evacuate_board(board, board_path, *, protected_nets=()):
     }
 
 
-def _worker(board_path, report_path, protected_nets):
+def _worker(board_path, report_path, protected_nets, authority):
     board = pcbnew.LoadBoard(board_path)
     report = evacuate_board(
-        board, board_path, protected_nets=protected_nets)
+        board, board_path, protected_nets=protected_nets,
+        authority=authority)
     if report.get("ok"):
         pcbnew.SaveBoard(board_path, board)
     with open(report_path, "w", encoding="utf-8") as sink:
@@ -187,14 +210,15 @@ def _worker(board_path, report_path, protected_nets):
         sink.write("\n")
 
 
-def _inspect_worker(board_path, report_path):
-    summary = _combined_summary(board_path)
+def _inspect_worker(board_path, report_path, authority):
+    summary = (_laid_summary(board_path) if authority == "laid"
+               else _combined_summary(board_path))
     with open(report_path, "w", encoding="utf-8") as sink:
         json.dump(summary, sink, indent=2, sort_keys=True)
         sink.write("\n")
 
 
-def inspect_file(board_path, *, timeout=180):
+def inspect_file(board_path, *, timeout=180, authority="combined"):
     """Measure foreign copper against both pour authorities in fresh pcbnew.
 
     KiCad's legacy SWIG bindings retain process-global board/connectivity
@@ -207,6 +231,7 @@ def inspect_file(board_path, *, timeout=180):
         dir=os.path.dirname(board_path))
     os.close(fd)
     command = [sys.executable, os.path.abspath(__file__), "--inspect",
+               "--authority", authority,
                "--board", board_path, "--report", report_path]
     try:
         completed = subprocess.run(
@@ -237,7 +262,19 @@ def inspect_file(board_path, *, timeout=180):
             pass
 
 
-def evacuate_file(source, destination, *, protected_nets=(), refill=True):
+def inspect_laid_file(board_path, *, timeout=180):
+    """Inspect only copper inside zone outlines actually present on the PCB.
+
+    The derived shunt corridor is a useful future-route reservation, but it is
+    not fabricated copper.  Release/fab admission must therefore use this
+    authority, together with cross-section and thermal gates, rather than
+    treating a planning rectangle as a hidden slab.
+    """
+    return inspect_file(board_path, timeout=timeout, authority="laid")
+
+
+def evacuate_file(source, destination, *, protected_nets=(), refill=True,
+                  authority="combined"):
     """Copy ``source`` and transactionally clear every convicted primitive.
 
     The result is a legal *repair base*, not a connectivity waiver: removed
@@ -250,7 +287,7 @@ def evacuate_file(source, destination, *, protected_nets=(), refill=True):
     os.makedirs(os.path.dirname(destination), exist_ok=True)
     shutil.copy2(source, destination)
     cec_fr.copy_project_sidecars(source, destination)
-    before = inspect_file(source)
+    before = inspect_file(source, authority=authority)
     # A clean inspection is already the desired transactional postcondition.
     # Do not load and re-save an unchanged board in another pcbnew process:
     # aside from needless work, KiCad's legacy SWIG/property registries can
@@ -259,6 +296,7 @@ def evacuate_file(source, destination, *, protected_nets=(), refill=True):
             and sum(_summary_counts(before)) == 0):
         return {
             "schema": 1, "ok": True, "status": "ok",
+            "authority": authority,
             "reason": "already_clear",
             "applicable": bool(before.get("applicable")),
             "protected_nets": sorted({
@@ -278,6 +316,7 @@ def evacuate_file(source, destination, *, protected_nets=(), refill=True):
         dir=os.path.dirname(destination))
     os.close(fd)
     command = [sys.executable, os.path.abspath(__file__), "--worker",
+               "--authority", authority,
                "--board", destination, "--report", report_path]
     for net in sorted({str(net) for net in protected_nets if str(net)}):
         command.extend(["--protected-net", net])
@@ -302,7 +341,8 @@ def evacuate_file(source, destination, *, protected_nets=(), refill=True):
             report.update({"ok": False, "status": "error",
                            "reason": "zone_refill_failed"})
 
-    after = inspect_file(destination) if report.get("ok") else before
+    after = (inspect_file(destination, authority=authority)
+             if report.get("ok") else before)
     post_clean = (after.get("status") != "error"
                   and sum(_summary_counts(after)) == 0)
     report.update({
@@ -328,6 +368,8 @@ def main(argv=None):
     parser.add_argument("--inspect", action="store_true")
     parser.add_argument("--board")
     parser.add_argument("--report")
+    parser.add_argument("--authority", choices=("combined", "laid"),
+                        default="combined")
     parser.add_argument("--protected-net", action="append", default=[])
     parser.add_argument("source", nargs="?")
     parser.add_argument("destination", nargs="?")
@@ -335,7 +377,7 @@ def main(argv=None):
     if args.inspect:
         if not args.board or not args.report:
             parser.error("--inspect requires --board and --report")
-        _inspect_worker(args.board, args.report)
+        _inspect_worker(args.board, args.report, args.authority)
         # pcbnew's deprecated SWIG bindings can fault while finalizing child
         # proxies even after a read-only inspection. The private worker has
         # already closed its durable JSON output, so skip unsafe finalizers.
@@ -343,7 +385,8 @@ def main(argv=None):
     if args.worker:
         if not args.board or not args.report:
             parser.error("--worker requires --board and --report")
-        _worker(args.board, args.report, args.protected_net)
+        _worker(args.board, args.report, args.protected_net,
+                args.authority)
         # Remove() invalidates unrelated child proxies. Saving and reporting
         # succeeded; exiting here is the process-isolation contract, matching
         # the other pcbnew mutation workers in this pipeline.
@@ -352,7 +395,8 @@ def main(argv=None):
         parser.error("source and destination are required")
     print(json.dumps(evacuate_file(
         args.source, args.destination,
-        protected_nets=args.protected_net), indent=2, sort_keys=True))
+        protected_nets=args.protected_net,
+        authority=args.authority), indent=2, sort_keys=True))
     return 0
 
 

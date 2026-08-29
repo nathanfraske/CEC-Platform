@@ -480,10 +480,13 @@ class DecouplerCellTests(unittest.TestCase):
             with mock.patch.object(
                     cell, "synthesize_board",
                     return_value=synthesized), mock.patch(
-                        "cec_score.score", return_value=score):
+                        "cec_score.score", return_value=score), \
+                    mock.patch.object(
+                        cell.cec_fr, "refill_zones") as refill:
                 report = cell.synthesize_pre_route(source, destination)
         self.assertTrue(report["ok"], report.get("reason"))
         self.assertTrue(report["priority_complete"])
+        refill.assert_called_once_with(destination)
         self.assertEqual(report["protected_nets"], ["GND"])
         self.assertEqual(report["partial_supply_nets"], ["+3V3"])
         self.assertEqual(len(report["required_via_uuids"]), 2)

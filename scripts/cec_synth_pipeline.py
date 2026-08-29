@@ -15414,17 +15414,33 @@ def _select_fiducial_sites_global(
         if all(math.hypot(point[0] - fixed[0], point[1] - fixed[1])
                >= float(minimum_separation) for fixed in retained)
     ]
+    # These geometric terms depend only on one site, yet the original global
+    # combination loop recomputed them for every candidate triple.  A normal
+    # edge grid can retain 64 sites (41,664 triples), turning a late mechanical
+    # datum choice into minutes of repeated footprint/route scans.  Precompute
+    # once per site; only pair separation and complete-set spread belong in the
+    # combinatorial loop.
+    corner_by_site = {
+        point: int(corner_index(point)) for point in available}
+    pressure_by_site = {
+        point: tuple(route_pressure(point)) for point in available}
+    openness_by_site = {
+        point: float(site_openness(point)) for point in available}
+    corner_distance_by_site = {
+        point: math.hypot(
+            point[0] - corners[corner_by_site[point]][0],
+            point[1] - corners[corner_by_site[point]][1])
+        for point in available}
     by_corner = defaultdict(list)
     for point in available:
-        by_corner[int(corner_index(point))].append(point)
+        by_corner[corner_by_site[point]].append(point)
     reduced = []
     for sector in sorted(by_corner):
-        cx, cy = corners[sector]
         ranked = sorted(by_corner[sector], key=lambda point: (
-            int(route_pressure(point)[0]),
-            round(float(route_pressure(point)[1]), 9),
-            -round(float(site_openness(point)), 9),
-            round(math.hypot(point[0] - cx, point[1] - cy), 9),
+            int(pressure_by_site[point][0]),
+            round(float(pressure_by_site[point][1]), 9),
+            -round(openness_by_site[point], 9),
+            round(corner_distance_by_site[point], 9),
             round(point[1], 9), round(point[0], 9)))
         reduced.extend(ranked[:max(1, int(per_corner_limit))])
     if len(reduced) < count:
@@ -15451,14 +15467,12 @@ def _select_fiducial_sites_global(
         if distances and min(distances) < float(minimum_separation):
             continue
         sectors = retained_sectors + [
-            int(corner_index(point)) for point in chosen]
+            corner_by_site[point] for point in chosen]
         repeats = len(sectors) - len(set(sectors))
-        pressures = [route_pressure(point) for point in chosen]
-        openness = [float(site_openness(point)) for point in chosen]
-        corner_distance = sum(math.hypot(
-            point[0] - corners[corner_index(point)][0],
-            point[1] - corners[corner_index(point)][1])
-            for point in chosen)
+        pressures = [pressure_by_site[point] for point in chosen]
+        openness = [openness_by_site[point] for point in chosen]
+        corner_distance = sum(
+            corner_distance_by_site[point] for point in chosen)
         key = (
             repeats,
             sum(int(row[0]) for row in pressures),
@@ -19638,6 +19652,7 @@ def _placement_craft_move_specs(candidate, evidence, *,
         if bottleneck.get("kind") != "via_field_access":
             continue
         moves = []
+        atomic_moves = []
         seen = set()
         for field in bottleneck.get("fields") or ():
             centre = field.get("centre_mm") or ()
@@ -19658,20 +19673,36 @@ def _placement_craft_move_specs(candidate, evidence, *,
                 if owner not in {row[1] for row in owners}:
                     owners.append((rank, owner))
             owners.sort(key=lambda row: row[0])
+            atomic_members = []
             for _rank, owner in owners[:4]:
-                ox, oy, rotation = map(float, candidate.P[owner])
-                vx, vy = ox - field_x, oy - field_y
+                root = str(assigned_owner_by_cap.get(owner, owner))
+                if (not root or root in fixed or root not in candidate.P
+                        or (comps is not None and root not in comps)):
+                    continue
+                obstacle_x, obstacle_y, _obstacle_rotation = map(
+                    float, candidate.P[owner])
+                ox, oy, rotation = map(float, candidate.P[root])
+                vx, vy = obstacle_x - field_x, obstacle_y - field_y
                 norm = math.hypot(vx, vy)
                 if norm <= 1e-9:
                     ux, uy = 1.0, 0.0
                 else:
                     ux, uy = vx / norm, vy / norm
+                cell_refs = tuple([root] + sorted(
+                    ref for ref in assigned_caps_by_owner.get(root, ())
+                    if ref in candidate.P))
+                if root not in {row["root"] for row in atomic_members}:
+                    atomic_members.append({
+                        "root": root, "obstacle_owner": owner,
+                        "away": (ux, uy), "cell_refs": cell_refs,
+                    })
                 directions = (
                     (ux, uy), (-uy, ux), (uy, -ux), (-ux, -uy),
                     (1.0, 0.0), (-1.0, 0.0),
                     (0.0, 1.0), (0.0, -1.0))
                 owned_caps = sorted(
-                    assigned_caps_by_owner.get(owner, ()))
+                    ref for ref in assigned_caps_by_owner.get(root, ())
+                    if ref in candidate.P)
                 # Interleave spatial scale before consuming another compass
                 # direction. A bounded diverse selector may grant only a few
                 # slots per owner; distance-major ordering spent every slot on
@@ -19690,7 +19721,7 @@ def _placement_craft_move_specs(candidate, evidence, *,
                         if signature in seen:
                             continue
                         seen.add(signature)
-                        placements = {owner: position}
+                        placements = {root: position}
                         for cap in owned_caps:
                             cap_x, cap_y, cap_rotation = map(
                                 float, candidate.P[cap])
@@ -19698,7 +19729,8 @@ def _placement_craft_move_specs(candidate, evidence, *,
                                 cap_x + dx, cap_y + dy, cap_rotation)
                         move = {
                             "kind": "power_via_field_access_reseat",
-                            "ref": owner, "owner_ref": owner,
+                            "ref": root, "owner_ref": root,
+                            "obstacle_owner": owner,
                             "net": net,
                             "field_index": field.get("field_index"),
                             "field_centre_mm": [field_x, field_y],
@@ -19713,8 +19745,53 @@ def _placement_craft_move_specs(candidate, evidence, *,
                             move["kind"] = \
                                 "power_via_field_access_cell_reseat"
                         moves.append(move)
-        if moves:
-            families.append(moves)
+            # A heavily loaded terminal field can be occluded by several
+            # independent local cells. Moving any one still leaves the same
+            # via-count failure and is therefore correctly non-monotonic.
+            # Translate bounded nearest-owner prefixes radially away from the
+            # certified field as one transaction. Prefixes of two through
+            # four expose useful capacity scales without an exponential
+            # subset search; exact board admission remains authoritative.
+            for count in range(2, min(4, len(atomic_members)) + 1):
+                members = atomic_members[:count]
+                ref_sets = [set(member["cell_refs"])
+                            for member in members]
+                if any(ref_sets[first] & ref_sets[second]
+                       for first in range(len(ref_sets))
+                       for second in range(first + 1, len(ref_sets))):
+                    continue
+                for distance in (1.0, 2.0, 3.5, 5.0, 7.0):
+                    placements = {}
+                    translations = {}
+                    for member in members:
+                        dx = member["away"][0] * distance
+                        dy = member["away"][1] * distance
+                        translations[member["root"]] = [dx, dy]
+                        for ref in member["cell_refs"]:
+                            placements[ref] = (
+                                candidate.P[ref][0] + dx,
+                                candidate.P[ref][1] + dy,
+                                candidate.P[ref][2])
+                    lead = members[0]["root"]
+                    atomic_moves.append({
+                        "kind": "power_via_field_access_atomic_batch",
+                        "ref": lead, "owner_ref": lead, "net": net,
+                        "field_index": field.get("field_index"),
+                        "field_centre_mm": [field_x, field_y],
+                        "terminal_refs": sorted(terminal_refs),
+                        "cell_roots": [member["root"]
+                                       for member in members],
+                        "obstacle_owners": [member["obstacle_owner"]
+                                            for member in members],
+                        "translations_mm": translations,
+                        "distance_mm": distance,
+                        "position": placements[lead],
+                        "placements": placements,
+                        "budget_group": "via-field-atomic:%s:%d" %
+                                        (net, count),
+                    })
+        if atomic_moves or moves:
+            families.append(atomic_moves + moves)
 
     # A fully realized parallel bundle can pass path search and then clip one
     # nearby courtyard by a small exact amount.  That is a different
@@ -19728,6 +19805,7 @@ def _placement_craft_move_specs(candidate, evidence, *,
             continue
         moves = []
         seen = set()
+        atomic_roots = {}
         for clash_index, clash in enumerate(
                 (bottleneck.get("clashes") or ())[:8]):
             owner = str(clash.get("owner") or "")
@@ -19784,6 +19862,16 @@ def _placement_craft_move_specs(candidate, evidence, *,
                     ux, uy = 0.0, 1.0
             else:
                 ux, uy = vx / norm, vy / norm
+            atomic_roots.setdefault(root, {
+                "root": root,
+                "owners": [],
+                "cell_refs": tuple(cell_refs),
+                "away": (ux, uy),
+                "intersection_bounds_mm": [],
+            })
+            atomic_roots[root]["owners"].append(owner)
+            atomic_roots[root]["intersection_bounds_mm"].append(
+                [x0, y0, x1, y1])
             directions = (
                 ("away", ux, uy),
                 ("orthogonal", -uy, ux),
@@ -19822,6 +19910,81 @@ def _placement_craft_move_specs(candidate, evidence, *,
                             "position": placements[root],
                             "placements": placements,
                         })
+        # One realized bundle can clip several independent cells at once.
+        # Moving only one leaves the same net failed, so strict monotonic
+        # admission correctly rejects every single-owner proposal.  Express
+        # the professional repair as one atomic, evidence-derived batch:
+        # translate all named cells either along their individual measured
+        # escape vectors or as one rigid pack along the aggregate vector.
+        # No reference names or board coordinates enter the proposal, and
+        # exact courtyard/craft/pour evaluation still owns admission.
+        roots = tuple(sorted(atomic_roots))
+        if 2 <= len(roots) <= 8:
+            root_ref_sets = [set(atomic_roots[root]["cell_refs"])
+                             for root in roots]
+            disjoint = all(
+                not (root_ref_sets[first] & root_ref_sets[second])
+                for first in range(len(root_ref_sets))
+                for second in range(first + 1, len(root_ref_sets)))
+            if disjoint:
+                aggregate_x = sum(
+                    atomic_roots[root]["away"][0] for root in roots)
+                aggregate_y = sum(
+                    atomic_roots[root]["away"][1] for root in roots)
+                aggregate_norm = math.hypot(aggregate_x, aggregate_y)
+                aggregate = ((aggregate_x / aggregate_norm,
+                              aggregate_y / aggregate_norm)
+                             if aggregate_norm > 1e-9 else None)
+                atomic_moves = []
+                atomic_seen = set()
+                for distance in (0.25, 0.5, 1.0, 2.0, 3.5):
+                    vector_sets = [("independent_away", {
+                        root: atomic_roots[root]["away"]
+                        for root in roots})]
+                    if aggregate is not None:
+                        vector_sets.insert(0, ("rigid_away", {
+                            root: aggregate for root in roots}))
+                    for basis, vectors in vector_sets:
+                        placements = {}
+                        translations = {}
+                        for root in roots:
+                            dx = vectors[root][0] * distance
+                            dy = vectors[root][1] * distance
+                            translations[root] = [dx, dy]
+                            for ref in atomic_roots[root]["cell_refs"]:
+                                placements[ref] = (
+                                    candidate.P[ref][0] + dx,
+                                    candidate.P[ref][1] + dy,
+                                    candidate.P[ref][2])
+                        signature = tuple(sorted(
+                            (ref, round(float(position[0]), 6),
+                             round(float(position[1]), 6),
+                             round(float(position[2]), 6))
+                            for ref, position in placements.items()))
+                        if signature in atomic_seen:
+                            continue
+                        atomic_seen.add(signature)
+                        atomic_moves.append({
+                            "kind":
+                                "power_corridor_exact_clearance_atomic_batch",
+                            "ref": roots[0], "owner_ref": roots[0],
+                            "net": net, "cell_roots": list(roots),
+                            "clearance_owners": sorted({
+                                owner for root in roots
+                                for owner in atomic_roots[root]["owners"]}),
+                            "intersection_bounds_mm": [
+                                bounds for root in roots
+                                for bounds in atomic_roots[root][
+                                    "intersection_bounds_mm"]],
+                            "escape_basis": basis,
+                            "translations_mm": translations,
+                            "distance_mm": distance,
+                            "position": placements[roots[0]],
+                            "placements": placements,
+                            "budget_group":
+                                "exact-clearance-atomic:%s" % net,
+                        })
+                moves = atomic_moves + moves
         if moves:
             families.append(moves)
     # The transient-detection comparator is a local functional cell, not an
@@ -21993,13 +22156,40 @@ def _placement_atomic_multirail_transition(
     if kind and not kind.startswith("power_corridor_"):
         return None
     newly_failed = (trial_failed - baseline_failed) & baseline_successful
-    if not newly_failed:
+    same_net_progress = set()
+    if (not newly_failed and trial_failed == baseline_failed
+            and kind ==
+            "power_corridor_exact_clearance_atomic_batch"):
+        baseline_reports = baseline_body.get("planner_failures") or {}
+        trial_reports = trial_body.get("planner_failures") or {}
+        for net in sorted(baseline_failed):
+            baseline_kind = str(((baseline_reports.get(net) or {}).get(
+                "planner_bottleneck") or {}).get("kind") or "")
+            trial_kind = str(((trial_reports.get(net) or {}).get(
+                "planner_bottleneck") or {}).get("kind") or "")
+            # Realized-body clearance is an outer solve. Clearing every
+            # named body can expose the terminal-via packing constraint that
+            # was previously occluded.  Preserve that exact certificate as a
+            # bounded lookahead seed; the child plus parent must still close
+            # or improve the original complete-craft key before admission.
+            if (baseline_kind == "realized_exact_clearance"
+                    and trial_kind == "via_field_access"):
+                same_net_progress.add(net)
+    progressed = newly_failed or same_net_progress
+    if not progressed:
         return None
     return {
         "baseline_failed_nets": sorted(baseline_failed),
         "baseline_successful_nets": sorted(baseline_successful),
         "trial_failed_nets": sorted(trial_failed),
-        "newly_failed_nets": sorted(newly_failed),
+        # Existing bounded lookahead consumes this field as the child-repair
+        # scope.  A same-net certificate progression is intentionally scoped
+        # to that same net, not treated as an admitted placement regression.
+        "newly_failed_nets": sorted(progressed),
+        "same_net_progression": sorted(same_net_progress),
+        "transition_kind": (
+            "same_net_clearance_to_via_field"
+            if same_net_progress else "new_exact_failure"),
         "original_failures_cleared": sorted(
             baseline_failed - trial_failed),
     }
@@ -22011,6 +22201,7 @@ def _placement_atomic_multirail_primary(move, baseline_evidence):
     if not (body.get("planner_failures") and body.get("successful_nets")):
         return False
     return str((move or {}).get("kind") or "") in {
+        "power_corridor_exact_clearance_atomic_batch",
         "power_corridor_relief_envelope_reseat",
         "power_corridor_relief_joint_cell_reseat",
         "power_corridor_relief_joint_envelope_pack",
@@ -25596,7 +25787,8 @@ def _admit_priority_power_candidate(board_path, frozen_nets, baseline):
 
 def _admit_priority_power_candidate_isolated(board_path, frozen_nets,
                                               baseline_board_path,
-                                              *, timeout=300):
+                                              *, timeout=300,
+                                              worker_attempts=3):
     """Exact-admit one generated power prefix in a fresh KiCad process.
 
     pcbnew's legacy SWIG bindings retain process-global board/connectivity
@@ -25608,36 +25800,57 @@ def _admit_priority_power_candidate_isolated(board_path, frozen_nets,
     """
     import cec_power_artifact_worker
 
-    fd, report_path = tempfile.mkstemp(
-        prefix="cec-priority-power-admit-", suffix=".json")
-    os.close(fd)
-    try:
-        command = [
-            sys.executable,
-            cec_power_artifact_worker.__file__,
-            "admit",
-            board_path,
-            "--nets-json", json.dumps(list(frozen_nets or ())),
-            "--baseline-board", baseline_board_path,
-            "--report", report_path,
-        ]
-        process = subprocess.run(
-            command, capture_output=True, text=True, timeout=float(timeout))
-        if process.stderr:
-            print(process.stderr.rstrip(), file=sys.stderr)
-        if process.returncode:
-            raise RuntimeError(
-                "priority-power admission worker failed (%d): %s" % (
-                    process.returncode,
-                    (process.stderr or process.stdout or
-                     "no diagnostic")[-2000:]))
-        with open(report_path, encoding="utf-8") as source:
-            return json.load(source)
-    finally:
+    attempts = max(1, int(worker_attempts))
+    failures = []
+    for attempt in range(1, attempts + 1):
+        fd, backup = tempfile.mkstemp(
+            prefix="cec-priority-power-admit-input-",
+            suffix=".kicad_pcb",
+            dir=os.path.dirname(os.path.abspath(board_path)))
+        os.close(fd)
+        fd, report_path = tempfile.mkstemp(
+            prefix="cec-priority-power-admit-", suffix=".json")
+        os.close(fd)
+        shutil.copy2(board_path, backup)
         try:
-            os.unlink(report_path)
-        except OSError:
-            pass
+            command = [
+                sys.executable,
+                cec_power_artifact_worker.__file__,
+                "admit",
+                board_path,
+                "--nets-json", json.dumps(list(frozen_nets or ())),
+                "--baseline-board", baseline_board_path,
+                "--report", report_path,
+            ]
+            process = subprocess.run(
+                command, capture_output=True, text=True,
+                timeout=float(timeout))
+            if process.stderr:
+                print(process.stderr.rstrip(), file=sys.stderr)
+            if process.returncode:
+                raise RuntimeError(
+                    "worker exited %d: %s" % (
+                        process.returncode,
+                        (process.stderr or process.stdout or
+                         "no diagnostic")[-2000:]))
+            with open(report_path, encoding="utf-8") as source:
+                return json.load(source)
+        except Exception as exc:                       # noqa: BLE001
+            shutil.copy2(backup, board_path)
+            failures.append(
+                "attempt %d/%d %s: %s" % (
+                    attempt, attempts, type(exc).__name__, exc))
+            if attempt >= attempts:
+                raise RuntimeError(
+                    "priority-power admission worker failed after %d "
+                    "bounded attempt(s): %s" % (
+                        attempts, "; ".join(failures))) from exc
+        finally:
+            for temporary in (backup, report_path):
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
 
 
 def _prune_priority_current_artifact_isolated(board_path, current_nets,
@@ -25745,6 +25958,8 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
             board, list(frozen_state.get("pours") or ()), fill=False)
         pcbnew.SaveBoard(out_board_path, board)
         cec_fr.copy_project_sidecars(board_path, out_board_path)
+        generated_zone_canonicalization = (
+            cec_fr.canonicalize_generated_zone_file(out_board_path))
         admission = _admit_priority_power_candidate_isolated(
             out_board_path, frozen_nets, board_path)
         if not admission.get("passed"):
@@ -25761,6 +25976,8 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
             "stage": "post_priority_power", "source": board_path,
             "board": out_board_path, "prelaid": True,
             "exact_admission": admission,
+            "generated_zone_canonicalization":
+                generated_zone_canonicalization,
             "candidate_selection": {
                 "schema": 1, "source": "frozen_full_board",
                 "state_path": state_path,
@@ -25823,6 +26040,22 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
                             board_path, trial_pours, candidate_state,
                             out_board_path=candidate_board,
                             cell_mm=cell_mm, clearance_mm=clearance_mm)
+                        # Exact fill can create a dead zone/via cycle even
+                        # when the raster current topology is connected: the
+                        # zone keeps a one-layer barrel alive and the barrel
+                        # keeps an otherwise unseeded island alive.  The same
+                        # bounded fixed-point cleanup already protects final
+                        # imported artifacts; run it at the candidate boundary
+                        # so ``isolated_copper`` cannot make every valid power
+                        # ensemble look impossible.  It is topology-scoped to
+                        # the generated frozen rails and exact admission below
+                        # still rejects any lost source/sink authority.
+                        power_artifact_settlement = (
+                            cec_fr.settle_generated_power_artifact(
+                                candidate_board,
+                                state.get("frozen_nets") or ()))
+                        row["power_artifact_settlement"] = (
+                            power_artifact_settlement)
                         admission = _admit_priority_power_candidate_isolated(
                             candidate_board,
                             state.get("frozen_nets") or (), board_path)
@@ -25988,7 +26221,8 @@ def _reconcile_locked_nets_transactionally(board_path, rules=None):
 
 
 def _remove_structural_dangling_uuids_isolated(board_path, targets, *,
-                                                timeout=120):
+                                                timeout=120,
+                                                refill_zones=False):
     """Remove one exact UUID set in a fresh pcbnew process."""
     fd, report_path = tempfile.mkstemp(
         prefix="cec-dangling-remove-", suffix=".json")
@@ -26002,6 +26236,8 @@ def _remove_structural_dangling_uuids_isolated(board_path, targets, *,
             "--targets-json", json.dumps(list(targets or ())),
             "--report", report_path,
         ]
+        if refill_zones:
+            command.append("--refill-zones")
         process = subprocess.run(
             command, capture_output=True, text=True, timeout=float(timeout))
         if process.stderr:
@@ -26017,6 +26253,202 @@ def _remove_structural_dangling_uuids_isolated(board_path, targets, *,
     finally:
         try:
             os.unlink(report_path)
+        except OSError:
+            pass
+
+
+def _repair_route_import_open_nets_isolated(
+        board_path, nets, *, timeout=240, max_mm=80.0,
+        maze_max_mm=25.0, maze_margin_mm=8.0, attempts=12):
+    """Try exact completion for nets newly exposed by import sanitation.
+
+    This is deliberately a fresh pcbnew process.  The caller owns the
+    before/after DRC, ratline, Kelvin, and pair admission and will restore the
+    byte-for-byte route proposal if the compound remove+repair transaction is
+    not monotonic.
+    """
+    fd, report_path = tempfile.mkstemp(
+        prefix="cec-route-import-repair-", suffix=".json")
+    os.close(fd)
+    try:
+        command = [
+            sys.executable,
+            os.path.join(os.path.dirname(__file__),
+                         "cec_route_import_repair_worker.py"),
+            board_path,
+            "--nets-json", json.dumps(sorted({str(net) for net in nets if net})),
+            "--report", report_path,
+            "--max-mm", str(float(max_mm)),
+            "--maze-max-mm", str(float(maze_max_mm)),
+            "--maze-margin-mm", str(float(maze_margin_mm)),
+            "--attempts", str(int(attempts)),
+        ]
+        process = subprocess.run(
+            command, capture_output=True, text=True, timeout=float(timeout))
+        if process.stderr:
+            print(process.stderr.rstrip(), file=sys.stderr)
+        if process.returncode:
+            raise RuntimeError(
+                "route import repair worker failed (%d): %s" % (
+                    process.returncode,
+                    (process.stderr or process.stdout or
+                     "no diagnostic")[-2000:]))
+        with open(report_path, encoding="utf-8") as source:
+            return json.load(source)
+    finally:
+        try:
+            os.unlink(report_path)
+        except OSError:
+            pass
+
+
+def _sanitize_imported_route_transactionally(
+        board_path, baseline_board_path, generated_uuids, *, rules=None,
+        max_rounds=16):
+    """Keep only imported copper that is monotonic against its route prefix.
+
+    An autorouter is a proposal engine, not an acceptance authority.  A dense
+    imported SES can connect many nets while also creating shorts, crossings,
+    or clearances against an immutable precision/power prefix.  Discarding the
+    whole proposal loses every legal route; accepting it poisons every later
+    repair stage.  This transaction removes only proposal-owned track/via
+    UUIDs that KiCad names in a *new* structural DRC identity, refills the
+    actual zones after each bounded removal round, gives only nets newly
+    stranded by that removal one bounded exact-completion attempt, and then
+    applies the same topology/identity admission used by every other physical
+    mutation.
+
+    The baseline board is never edited.  Pre-existing, precision, pair,
+    Kelvin, current, and placement-owned UUIDs are outside ``generated_uuids``
+    and therefore cannot be removed even when the backend routes across them.
+    Any new fault with no proposal-owned item fails closed and restores the
+    candidate byte-for-byte.
+    """
+    generated = {str(uuid) for uuid in (generated_uuids or ()) if uuid}
+    fd, backup = tempfile.mkstemp(
+        prefix="cec-route-import-sanitize-", suffix=".kicad_pcb")
+    os.close(fd)
+    shutil.copy2(board_path, backup)
+    baseline = cec_score.score(baseline_board_path, rules=rules)
+    baseline_faults = set(
+        cec_stage_admission.structural_drc_identities(baseline))
+    current = cec_score.score(board_path, rules=rules)
+    rounds = []
+    removed = []
+    blocked = []
+    repair = {"schema": 1, "skipped": "not_required"}
+    try:
+        for round_index in range(max(1, int(max_rounds))):
+            current_faults = set(
+                cec_stage_admission.structural_drc_identities(current))
+            new_faults = current_faults - baseline_faults
+            if not new_faults:
+                break
+            targets = {}
+            blocked_this_round = []
+            for violation in (current.detail.get(
+                    "structural_violations") or ()):
+                identities = cec_stage_admission.structural_drc_identities({
+                    "detail": {"structural_violations": [violation]}})
+                if not identities or identities[0] not in new_faults:
+                    continue
+                owned = []
+                for item in (violation.get("items") or ()):
+                    uuid = str(item.get("uuid") or "")
+                    if uuid and uuid in generated:
+                        targets[uuid] = str(violation.get("type") or "")
+                        owned.append(uuid)
+                if not owned:
+                    blocked_this_round.append(identities[0])
+            if blocked_this_round:
+                blocked.extend(sorted(set(blocked_this_round)))
+            if not targets:
+                break
+            mutation = _remove_structural_dangling_uuids_isolated(
+                board_path,
+                [{"uuid": uuid, "kind": kind}
+                 for uuid, kind in sorted(targets.items())],
+                refill_zones=True)
+            removed_now = list(mutation.get("removed") or ())
+            removed.extend(removed_now)
+            generated -= {str(row.get("uuid")) for row in removed_now}
+            current = cec_score.score(board_path, rules=rules)
+            rounds.append({
+                "round": round_index + 1,
+                "targets": len(targets),
+                "removed": len(removed_now),
+                "drc": int(current.drc),
+                "unconnected": int(current.unconnected),
+                "new_faults": len(set(
+                    cec_stage_admission.structural_drc_identities(current))
+                    - baseline_faults),
+            })
+            if not removed_now:
+                break
+
+        remaining_new = sorted(
+            set(cec_stage_admission.structural_drc_identities(current))
+            - baseline_faults)
+        admission = cec_stage_admission.evaluate(baseline, current)
+        # Removing every illegal proposal owner can split a net that appeared
+        # connected only through that illegal copper.  It is unsafe to accept
+        # the split, but equally wasteful to throw away all other legal global
+        # routes before an exact local completer gets one bounded chance.  The
+        # completer is limited to the newly exposed net identities; strict
+        # whole-board admission below remains unchanged.
+        repair_nets = sorted(set(admission.get("new_unconnected_nets") or ()))
+        repair_safe = (
+            not remaining_new
+            and not admission.get("new_kelvin_topology_faults")
+            and not admission.get("new_route_topology_fault_nets")
+            and int(current.drc) <= int(baseline.drc)
+            and int(current.unconnected) < int(baseline.unconnected))
+        if repair_nets and repair_safe:
+            repair = _repair_route_import_open_nets_isolated(
+                board_path, repair_nets)
+            current = cec_score.score(board_path, rules=rules)
+            remaining_new = sorted(
+                set(cec_stage_admission.structural_drc_identities(current))
+                - baseline_faults)
+            admission = cec_stage_admission.evaluate(baseline, current)
+        accepted = bool(admission["accepted"] and not remaining_new)
+        reason = ("imported_copper_monotonic" if accepted else
+                  "unowned_new_structural_drc" if blocked else
+                  admission["decision"])
+        report = {
+            "schema": 1,
+            "accepted": accepted,
+            "rolled_back": not accepted,
+            "reason": reason,
+            "generated_before": len({str(uuid) for uuid in
+                                      (generated_uuids or ()) if uuid}),
+            "generated_after": len(generated),
+            "removed": removed,
+            "removed_count": len(removed),
+            "repair": repair,
+            "blocked_new_structural_drc_identities": sorted(set(blocked)),
+            "remaining_new_structural_drc_identities": remaining_new,
+            "rounds": rounds,
+            "admission": admission,
+            "before": {
+                "drc": int(baseline.drc),
+                "unconnected": int(baseline.unconnected),
+            },
+            "after": {
+                "drc": int(current.drc),
+                "unconnected": int(current.unconnected),
+            },
+        }
+        if not accepted:
+            shutil.copy2(backup, board_path)
+            return report, cec_score.score(board_path, rules=rules)
+        return report, current
+    except Exception:
+        shutil.copy2(backup, board_path)
+        raise
+    finally:
+        try:
+            os.unlink(backup)
         except OSError:
             pass
 
@@ -26526,8 +26958,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
     The verdict is the conjunction -- ALL must hold (never a subset; kelvin_ok+drc is a false summit):
       * gates_pass        = the complete configured cec_score topology, DRC, and ratline contract
-      * foreign_ok        = cec_constraints.foreign_on_pour_summary (status ok, 0 foreign track/via; run
-                            with CEC_SHUNT_GAP=1 -- status 'error' FAILS, 'na' is a clean N/A on shared-bus)
+      * foreign_ok        = no foreign copper inside a zone outline actually laid on the PCB. The
+                            derived shunt rectangle remains a planning reservation, not fabricated copper.
       * incursion_ok      = no foreign pad, track copper, or via copper inside an actual laid pour outline
       * thermal_ok        = the 2.5D field solve dT <= gate_dt (FAIL-CLOSED on solver error)
       * routing_complete  = zero unconnected ratlines. The legacy unconn_finish_tol argument is retained
@@ -26691,6 +27123,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             ground_plane_fill = {"schema": 1, "skipped": "route_disabled"}
             decoupler_finish = {"schema": 1, "skipped": "route_disabled"}
             locked_reconcile = {"schema": 1, "skipped": "route_disabled"}
+            route_import_sanitation = {
+                "schema": 1, "skipped": "route_disabled"}
             corner_finish = {"schema": 1, "skipped": "route_disabled"}
             corner_score = None
             certificate_repair = {"schema": 1, "changed": False,
@@ -27099,8 +27533,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         "deferred": "after_precision_and_critical_routes",
                         "priority_contract": [
                             "precision_and_critical_escape",
-                            "local_power_integrity",
                             "pre_power_signal_access",
+                            "local_power_integrity",
                             "routed_power_and_current_domains",
                             "global_ground_access_and_plane_fill",
                         ],
@@ -27131,22 +27565,24 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             route_input))
                     _pair_priority_policy = (
                         cec_route_preflight.route_priority_policy())
-                    # Kelvin taps are themselves precision routes, but unlike
-                    # differential pairs each member shares a net with a
-                    # broad current domain.  They must see the exact frozen
-                    # reservations of the *other* current nets even under the
-                    # critical-first owner order; otherwise a low-side tap can
-                    # take a perfectly DRC-clean path through the future
-                    # high-side bundle and make power replanning impossible.
-                    # The synthesizer exempts only the tap's own net.
-                    _kelvin_avoid = tuple(
-                        _pair_reservations.get("corridors") or ()) \
-                        if _pair_reservations.get("enabled") else ()
+                    # Kelvin and coupled pairs must execute the same owner
+                    # order that placement proved.  In critical-first mode
+                    # both claim clean copper before exact power is reconciled
+                    # around the locked prefix below.  If that reconciliation
+                    # cannot preserve the current domains it refuses closed;
+                    # production must not pre-emptively reverse the order only
+                    # for Kelvin and thereby disagree with preflight.
+                    _kelvin_avoid = (
+                        cec_route_preflight.priority_kelvin_avoid(
+                            _pair_reservations,
+                            policy=_pair_priority_policy))
                     _avoid = cec_route_preflight.priority_pair_avoid(
                         route_input,
                         (_pair_reservations
                          if _pair_reservations.get("enabled") else None),
                         policy=_pair_priority_policy)
+                    _precision_before_score = cec_score.score(
+                        route_input, rules)
                     try:
                         prec_report = cec_precision_route.precision_route(
                             route_input, prec, verbose=verbose, avoid=_avoid,
@@ -27167,6 +27603,59 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                     _kelvin_avoid),
                                 "precision": exc.report,
                             })
+                    # Exact KiCad DRC is the independent admission boundary
+                    # for a constructive precision solver.  Topology and
+                    # centerline guards cannot fully model a wider via land or
+                    # every custom pad.  The only deferred identity is a GND
+                    # return via generated by this stage: it is intentionally
+                    # one-layer until the mandatory ground-plane fill later in
+                    # the same transaction.  Every other new fault refuses
+                    # before its copper can become immutable ownership.
+                    _precision_after_score = cec_score.score(prec, rules)
+                    _precision_exact = cec_stage_admission.evaluate(
+                        _precision_before_score, _precision_after_score,
+                        allow_unconnected_growth=True)
+                    _generated_ground_vias = {
+                        str(row.get("uuid"))
+                        for row in (prec_report.get("generated_items") or ())
+                        if row.get("uuid") and row.get("net") == "GND"
+                        and row.get("kind") == "PCB_VIA"}
+                    _precision_deferred_drc = []
+                    _precision_blocking_drc = []
+                    for _identity in _precision_exact.get(
+                            "new_structural_drc_identities") or ():
+                        try:
+                            _parts = json.loads(_identity)
+                        except (TypeError, ValueError):
+                            _parts = []
+                        _kind = str(_parts[0]) if _parts else ""
+                        _uuids = set(
+                            _parts[2] if (len(_parts) > 2
+                                          and _parts[1] == "uuid") else ())
+                        if (_kind == "via_dangling" and _uuids
+                                and _uuids <= _generated_ground_vias):
+                            _precision_deferred_drc.append(_identity)
+                        else:
+                            _precision_blocking_drc.append(_identity)
+                    prec_report["exact_drc_admission"] = {
+                        "schema": 1,
+                        "accepted": not _precision_blocking_drc,
+                        "before_drc": _precision_before_score.drc,
+                        "after_drc": _precision_after_score.drc,
+                        "deferred_ground_return_identities":
+                            _precision_deferred_drc,
+                        "blocking_identities": _precision_blocking_drc,
+                        "stage_admission": _precision_exact,
+                    }
+                    if _precision_blocking_drc:
+                        return _fail(
+                            "precision_exact_drc_admission",
+                            "precision route introduced exact structural "
+                            "DRC identities",
+                            route_s=round(time.monotonic() - t0, 1),
+                            artifact=str(prec),
+                            authority="cec_score+cec_stage_admission",
+                            evidence=prec_report["exact_drc_admission"])
                     _precision_refused = list(
                         (prec_report.get("pairs") or {}).get("refused") or ())
                     _precision_routed = list(
@@ -27574,8 +28063,21 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         authority="cec_slab_pour",
                         detail=_critical_power_replan)
 
-                # LOCAL PI RESERVATION PRECEDES OPPORTUNISTIC SIGNAL ACCESS
-                # AND BROAD POWER OBJECTS.  Precision pairs and declared
+                # A bounded signal-access prefix normally precedes LOCAL PI.
+                # Dense IC signal pins can have fewer exits than the nearby
+                # bypass cell, while the bypass transaction already knows how
+                # to demote and release any speculative signal copper that it
+                # truly needs to replace.  Keep a compatibility switch for
+                # audits of the former PI-first schedule.
+                _signal_access_precedes_local_pi = bool(
+                    _pre_power_compile_enabled and cfg is not None
+                    and (cfg.params or {}).get(
+                        "signal_access_before_local_pi", True)
+                    and (cfg.params or {}).get(
+                        "automatic_pin_escape_tier", True))
+
+                # LOCAL PI RESERVATION PRECEDES BROAD POWER OBJECTS.
+                # Precision pairs and declared
                 # safety controls have fewer legal launch geometries, so they
                 # retain first ownership.  Once those are fixed, however, a
                 # proved owner/capacitor loop is no longer merely a placement
@@ -27592,7 +28094,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # schedule was disproved by exact certificates in which a
                 # power pour occupied every legal exit of an otherwise valid
                 # bypass cell.
-                if (craft_gates and
+                if (craft_gates and not _signal_access_precedes_local_pi and
                         (cfg is None or (cfg.params or {}).get(
                             "decoupler_cell_pre_route", True))):
                     (route_input, _protect, decoupler_ground,
@@ -27786,14 +28288,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             _access_pair_after = (
                                 cec_constraints.high_speed_pair_summary(
                                     _access_board))
-                            _access_rows = list(
-                                _access_staged.get("tiers") or ())
-                            _access_result = (_access_rows[-1]
-                                              if _access_rows else {})
-                            _access_complete = set(
-                                _access_result.get("completed_nets") or ())
-                            _access_incomplete = set(
-                                _access_result.get("incomplete_nets") or ())
+                            (_access_complete, _access_incomplete) = (
+                                _tier_completion_partition(
+                                    _access_staged, _local_access_nets))
                             _access_pair_regression = bool(
                                 _access_pair_before.get("ok")
                                 and not _access_pair_after.get("ok"))
@@ -27865,6 +28362,117 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                           "accepted") else str(route_input)),
                             authority="cec_route_preflight+cec_staged_fr",
                             detail=pre_power_escape_priority)
+
+                # Materialize the mandatory local-PI cells after the clean-
+                # board access prefix.  Completed access nets are explicitly
+                # demotable at this one higher-priority boundary: if a cell
+                # needs their copper, the repair transaction removes it,
+                # reports the affected nets, and releases them to residual
+                # routing.  This gives constrained pins first opportunity
+                # without ever weakening the bypass-cell requirement.
+                if (craft_gates and _signal_access_precedes_local_pi and
+                        (cfg is None or (cfg.params or {}).get(
+                            "decoupler_cell_pre_route", True))):
+                    _pre_pi_access_complete = set(
+                        pre_power_escape_priority.get(
+                            "completed_nets") or ())
+                    (route_input, _protect, decoupler_ground,
+                     ground_plane_fill, _decap_failure) = (
+                        _reserve_decoupler_priority(
+                            route_input, _protect,
+                            complete_ground=False,
+                            local_repair_protected=(
+                                _priority_repair_protected(
+                                    _protect, _pre_pi_access_complete)),
+                            local_demotable_nets=_pre_pi_access_complete))
+                    if _decap_failure is not None:
+                        return _decap_failure
+                    _pre_pi_demoted = set(
+                        decoupler_ground.get("demoted_nets") or ())
+                    if _pre_pi_demoted:
+                        pre_power_escape_priority[
+                            "demoted_by_local_pi"] = sorted(
+                                _pre_pi_demoted)
+                        pre_power_escape_priority["completed_nets"] = sorted(
+                            _pre_pi_access_complete - _pre_pi_demoted)
+                        pre_power_escape_priority["incomplete_nets"] = sorted(
+                            set(pre_power_escape_priority.get(
+                                "incomplete_nets") or ())
+                            | _pre_pi_demoted)
+
+                    # Reconcile the placement-time exact current authority
+                    # around the now-final critical/access/PI prefix.  This is
+                    # the same bounded clip-then-replan admission used by the
+                    # compatibility PI-first schedule above.
+                    if (_pre_power_compile_enabled and
+                            (cfg is None or (cfg.params or {}).get(
+                                "replan_power_after_local_pi", True))):
+                        _local_pi_clip_error = None
+                        try:
+                            _local_pi_power_replan = (
+                                _reconcile_frozen_power_authority_around_locked_prefix(
+                                    route_input, pours, work_dir,
+                                    label="local-pi-after-access"))
+                        except Exception as _local_pi_replan_error:  # noqa: BLE001
+                            _local_pi_clip_error = "%s: %s" % (
+                                type(_local_pi_replan_error).__name__,
+                                _local_pi_replan_error)
+                            if (cfg is not None and not (cfg.params or {}).get(
+                                    "full_replan_after_local_pi_clip_failure",
+                                    True)):
+                                return _fail(
+                                    "local_pi_power_authority",
+                                    "power authority could not be reconciled "
+                                    "around mandatory local PI copper: %s" %
+                                    _local_pi_clip_error,
+                                    route_s=round(time.monotonic() - t0, 1),
+                                    artifact=str(route_input),
+                                    authority="cec_slab_pour",
+                                    evidence={
+                                        "decoupler": decoupler_ground,
+                                        "local_clip_error":
+                                            _local_pi_clip_error,
+                                    })
+                            try:
+                                _local_pi_power_replan = (
+                                    _replan_power_authority_around_locked_prefix(
+                                        route_input, pours, work_dir,
+                                        label="local-pi-after-access-full-replan"))
+                                _local_pi_power_replan["fallback_after"] = (
+                                    _local_pi_clip_error)
+                                _local_pi_power_replan["strategy"] = (
+                                    "bounded_full_replan")
+                            except Exception as _local_pi_full_error:  # noqa: BLE001
+                                return _fail(
+                                    "local_pi_power_authority",
+                                    "power authority could not be reconciled "
+                                    "or replanned around mandatory local PI "
+                                    "copper: clip=%s; replan=%s: %s" % (
+                                        _local_pi_clip_error,
+                                        type(_local_pi_full_error).__name__,
+                                        _local_pi_full_error),
+                                    route_s=round(time.monotonic() - t0, 1),
+                                    artifact=str(route_input),
+                                    authority="cec_slab_pour",
+                                    evidence={
+                                        "decoupler": decoupler_ground,
+                                        "local_clip_error":
+                                            _local_pi_clip_error,
+                                        "full_replan_error": "%s: %s" % (
+                                            type(_local_pi_full_error).__name__,
+                                            _local_pi_full_error),
+                                    })
+                        decoupler_ground = dict(decoupler_ground)
+                        decoupler_ground["power_authority_replan"] = (
+                            _local_pi_power_replan)
+                        _trace(
+                            "local_pi_power_authority", "passed",
+                            "future current authority reconciled around locked local PI",
+                            nets=_local_pi_power_replan.get("frozen_nets") or (),
+                            artifact=str(
+                                _local_pi_power_replan["preview_board"]),
+                            authority="cec_slab_pour",
+                            detail=_local_pi_power_replan)
                 # IMPORTANT NON-POUR CURRENT DOMAINS PRECEDE POUR GEOMETRY.
                 # A neighboring rail pour can legally consume the only escape
                 # from a mux/regulator pin unless the source-to-sink current
@@ -28578,14 +29186,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 route_input, _escape_board)
                             _escape_after = cec_score.score(
                                 _escape_board, rules)
-                            _tier_rows = list(
-                                _escape_staged.get("tiers") or ())
-                            _tier_result = (_tier_rows[-1]
-                                            if _tier_rows else {})
-                            _escape_complete = set(
-                                _tier_result.get("completed_nets") or ())
-                            _escape_incomplete = set(
-                                _tier_result.get("incomplete_nets") or ())
+                            (_escape_complete, _escape_incomplete) = (
+                                _tier_completion_partition(
+                                    _escape_staged, _escape_nets))
                             _escape_admission = _route_score_admission(
                                 _escape_before, _escape_after)
                             _escape_monotonic = bool(
@@ -28852,14 +29455,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # stages can polish it.  Safety ownership dominates a stale or
                 # newly generated lock flag; the independent immutable-copper
                 # contract below still detects any disturbed critical route.
-                _post_route_foreign = cec_pour_clearance.inspect_file(routed)
+                _post_route_foreign = (
+                    cec_pour_clearance.inspect_laid_file(routed))
                 if (_post_route_foreign.get("status") == "error"
                         or int(_post_route_foreign.get("n_tracks", 0))
                         or int(_post_route_foreign.get("n_vias", 0))):
                     _route_clean = os.path.join(
                         work_dir, "detailed-route-pour-clean.kicad_pcb")
                     _route_evacuation = cec_pour_clearance.evacuate_file(
-                        routed, _route_clean)
+                        routed, _route_clean, authority="laid")
                     if not _route_evacuation.get("ok"):
                         return _fail(
                             "detailed_route_pour_admission",
@@ -28889,6 +29493,61 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                      "net": item.GetNetname(), "kind": item.GetClass()}
                     for item in _route_post_board.GetTracks()
                     if item.m_Uuid.AsString() not in _route_pre_ids]
+                # SES import is a proposal boundary.  Retain its legal copper,
+                # but remove only proposal-owned primitives participating in
+                # new KiCad structural faults before certificate completion or
+                # cosmetic passes spend effort on a poisoned artifact.
+                try:
+                    (route_import_sanitation,
+                     _route_sanitized_score) = (
+                        _sanitize_imported_route_transactionally(
+                            routed, route_input,
+                            [row["uuid"] for row in _route_generated],
+                            rules=rules))
+                except Exception as _sanitize_error:       # noqa: BLE001
+                    return _fail(
+                        "detailed_route_import_sanitation",
+                        "imported route sanitation failed closed: %s: %s" % (
+                            type(_sanitize_error).__name__, _sanitize_error),
+                        route_s=round(time.monotonic() - t0, 1),
+                        uuids={row.get("uuid") for row in _route_generated
+                               if row.get("uuid")},
+                        artifact=str(routed),
+                        authority="cec_synth_pipeline",
+                        evidence={"error": "%s: %s" % (
+                            type(_sanitize_error).__name__, _sanitize_error)})
+                if not route_import_sanitation.get("accepted"):
+                    return _fail(
+                        "detailed_route_import_sanitation",
+                        "imported route could not be made monotonic against "
+                        "the protected prefix",
+                        route_s=round(time.monotonic() - t0, 1),
+                        uuids={row.get("uuid") for row in _route_generated
+                               if row.get("uuid")},
+                        artifact=str(routed),
+                        authority="cec_stage_admission",
+                        evidence=route_import_sanitation)
+                _route_post_board = _pcbnew.LoadBoard(routed)
+                _remaining_generated = {
+                    item.m_Uuid.AsString()
+                    for item in _route_post_board.GetTracks()
+                    if item.m_Uuid.AsString() not in _route_pre_ids}
+                _route_generated = [
+                    row for row in _route_generated
+                    if row["uuid"] in _remaining_generated]
+                _trace(
+                    "detailed_route_import_sanitation", "passed",
+                    "proposal-owned structural conflicts removed before "
+                    "route completion",
+                    nets={row.get("net") for row in
+                          (route_import_sanitation.get("removed") or ())
+                          if row.get("net")},
+                    uuids={row.get("uuid") for row in
+                           (route_import_sanitation.get("removed") or ())
+                           if row.get("uuid")},
+                    artifact=str(routed),
+                    authority="cec_stage_admission",
+                    detail=route_import_sanitation)
                 _trace(
                     "detailed_route", "passed",
                     "residual detailed router produced a board",
@@ -29159,7 +29818,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 # failed candidate may retain opens for diagnosis, but it may
                 # never retain a route over a high-current pour in the artifact
                 # offered to the dashboard or the next wave.
-                _final_foreign = cec_pour_clearance.inspect_file(routed)
+                _final_foreign = (
+                    cec_pour_clearance.inspect_laid_file(routed))
                 if (_final_foreign.get("status") == "error"
                         or int(_final_foreign.get("n_tracks", 0))
                         or int(_final_foreign.get("n_vias", 0))):
@@ -29167,7 +29827,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         work_dir, "final-pour-clean.kicad_pcb")
                     foreign_pour_final_enforcement = (
                         cec_pour_clearance.evacuate_file(
-                            routed, _final_clean))
+                            routed, _final_clean, authority="laid"))
                     if not foreign_pour_final_enforcement.get("ok"):
                         return _fail(
                             "final_pour_enforcement",
@@ -29331,9 +29991,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             gates_pass = (bool(m.gates_pass)
                           and bool(critical_contract_result["ok"]))
 
-            fsum = cec_pour_clearance.inspect_file(routed)
+            # Release authority is the copper that will exist in Gerbers, not
+            # a rectangular future-route reservation.  The latter is still
+            # enforced during placement and route generation, while final
+            # admission combines actual zone geometry with current-section
+            # and thermal gates.
+            fsum = cec_pour_clearance.inspect_laid_file(routed)
             foreign_ok = (fsum.get("status") != "error"
-                          and fsum.get("n_tracks", 0) == 0 and fsum.get("n_vias", 0) == 0)
+                          and fsum.get("n_parts", 0) == 0
+                          and fsum.get("n_tracks", 0) == 0
+                          and fsum.get("n_vias", 0) == 0)
             # LAID-POUR INCURSION (owner ruling 2026-07-25: "prevent anything from
             # ever placing inside a pour"). Measured against the pours ON THE BOARD,
             # which is what the rule is about -- foreign_on_pour above re-derives a
@@ -29341,11 +30008,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # foreign pads, 7 tracks and 4 vias. This is a hard gate. If the placer
             # cannot honor it, the candidate must fail and the pour or placement must
             # be changed. Automatic acceptance cannot bend the rule.
-            incur = dict(fsum.get("laid") or {
-                "applicable": True, "status": "error",
-                "error": "isolated laid-pour evidence missing",
-                "n_parts": 0, "n_tracks": 0, "n_vias": 0,
-            })
+            incur = dict(fsum)
             incursion_ok = (not incur.get("applicable")) or (
                 incur.get("status") == "ok"
                 and (incur.get("n_parts", 0) + incur.get("n_tracks", 0)
@@ -29725,6 +30388,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "foreign_pour_final_enforcement":
                     foreign_pour_final_enforcement,
                 "certificate_repair": certificate_repair,
+                "route_import_sanitation": route_import_sanitation,
                 "final_dangling_cleanup": final_dangling_cleanup,
                 "critical_copper_contract": critical_contract_result,
                 "critical_route_priority": critical_route_priority,
@@ -29748,6 +30412,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "incursion": {k: incur.get(k) for k in
                               ("status", "n_parts", "n_tracks", "n_vias")},
                 "foreign_ok": foreign_ok, "foreign": {"status": fsum.get("status"),
+                    "parts": fsum.get("n_parts", 0),
                     "tracks": fsum.get("n_tracks", 0), "vias": fsum.get("n_vias", 0),
                     "pours": fsum.get("n_pours", 0)},
                 "thermal_ok": thermal_ok, "thermal": therm,
@@ -29867,8 +30532,9 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if m.drc != 0:
         r.append(f"structural DRC={m.drc} (not finishing-only): {dict(m.drc_types)}")
     if not foreign_ok:
-        r.append(f"foreign_on_pour status={fsum.get('status')} "
-                 f"tracks={fsum.get('n_tracks')} vias={fsum.get('n_vias')} (must be 0/0)")
+        r.append(f"actual_laid_pour status={fsum.get('status')} "
+                 f"parts={fsum.get('n_parts')} tracks={fsum.get('n_tracks')} "
+                 f"vias={fsum.get('n_vias')} (must be 0/0/0)")
     if (incur is not None and incur.get("applicable", True)
             and (incur.get("status") != "ok"
                  or int(incur.get("n_parts", 0))

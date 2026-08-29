@@ -1579,7 +1579,8 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
             # physically overlap or cross it.  This matters when an inline
             # package tie or an earlier topology edge is already present.
             "partner_copper": _partner_tracks_clear(
-                board, a, b, width_nm, layer_id, partner_code),
+                board, a, b, width_nm, layer_id, partner_code,
+                clearance_nm=clearance_nm),
         }
         if not value["foreign_copper"]:
             identified = blocker_shapes()
@@ -3317,7 +3318,8 @@ def _pair_coupling_summary(board, pair, created_ids=None, *, sample_mm=0.5):
     }
 
 
-def _pair_coupling_contract(pair, coupling, member_lengths):
+def _pair_coupling_contract(pair, coupling, member_lengths,
+                            endpoint_stations=None):
     """Apply the final-board coupled-length contract to one routed pair.
 
     A millimetre-scale package escape may legitimately spend a bounded absolute
@@ -3326,32 +3328,9 @@ def _pair_coupling_contract(pair, coupling, member_lengths):
     final-board checker so precision success cannot become a signoff failure
     without any intervening geometry change.
     """
-    kind = str(pair.get("kind") or "diff").lower()
-    minimum_fraction = 0.60 if kind == "can" else 0.80
-    uncoupled_budget_mm = 2.0 if kind == "can" else 0.75
-    fraction = float((coupling or {}).get("fraction") or 0.0)
-    maximum_length = max(
-        (float(value) for value in (member_lengths or {}).values()),
-        default=0.0)
-    uncoupled_mm = maximum_length * (1.0 - fraction)
-    sampled = int((coupling or {}).get("total_samples") or 0) > 0
-    ok = bool(sampled and (
-        fraction + 1e-9 >= minimum_fraction
-        or uncoupled_mm <= uncoupled_budget_mm + 1e-9))
-    return {
-        "schema": 1,
-        "ok": ok,
-        "kind": kind,
-        "coupled_coverage_pct": round(100.0 * fraction, 1),
-        "minimum_coupled_coverage_pct": round(
-            100.0 * minimum_fraction, 1),
-        "member_lengths_mm": {
-            str(net): round(float(length), 6)
-            for net, length in sorted((member_lengths or {}).items())},
-        "uncoupled_length_mm": round(uncoupled_mm, 6),
-        "uncoupled_length_budget_mm": uncoupled_budget_mm,
-        "sampled": sampled,
-    }
+    return cec_constraints.pair_coupling_contract(
+        pair.get("kind"), coupling, member_lengths,
+        endpoint_stations=endpoint_stations)
 
 
 def _polys_no_cross(p_pts, n_pts):
@@ -3426,17 +3405,20 @@ def _partner_pads_clear(board, a, b, width_nm, layer_id, partner_code, clr_nm,
     return True
 
 
-def _partner_tracks_clear(board, a, b, width_nm, layer_id, partner_code):
-    """Reject physical overlap with already-established partner copper.
+def _partner_tracks_clear(board, a, b, width_nm, layer_id, partner_code,
+                          *, clearance_nm=0):
+    """Reject clearance infringement with established partner copper.
 
     A differential pair's opposite member is intentionally closer than the
-    ordinary netclass clearance, so treating it as generic foreign copper
-    over-refuses every valid coupled run.  Conversely, excluding both pair
-    nets entirely permits a later flow-through leg or tree edge to cross an
-    earlier member.  Use zero-clearance effective-shape collision here: legal
-    adjacent copper remains admissible, while crossings, shorts, and via-land
-    overlaps are refused before materialization.  Same-member copper is not
-    inspected so a new leg may intentionally rejoin its existing topology.
+    ordinary foreign-copper index is therefore allowed to exclude both pair
+    nets.  The pair members must still meet their requested edge clearance,
+    however, including where a wider transition-via land replaces a track.
+    A centerline-only check cannot see that extra radius.  Apply the exact
+    shape collision at the caller's pair/netclass clearance; legal adjacent
+    copper at the requested gap remains admissible, while crossings and
+    track-to-via infringements are refused before materialization.  Same-
+    member copper is not inspected so a new leg may intentionally rejoin its
+    existing topology.
     """
     if a == b:
         return True
@@ -3450,7 +3432,11 @@ def _partner_tracks_clear(board, a, b, width_nm, layer_id, partner_code):
                     continue
             elif item.GetLayer() != layer_id:
                 continue
-            if item.GetEffectiveShape(layer_id).Collide(segment, 0):
+            # One-nanometre epsilon admits exact boundary contact despite
+            # integer rounding while preserving every meaningful clearance.
+            exact_clearance = max(0, int(clearance_nm) - 1)
+            if item.GetEffectiveShape(layer_id).Collide(
+                    segment, exact_clearance):
                 return False
         except Exception:                           # noqa: BLE001
             # Retain the existing exact-geometry guard convention: a malformed
@@ -6231,7 +6217,13 @@ def _route_coupled_endpoint_pofv(
     # rollback both if no compliant reference-return field remains.
     transitions = []
     for pending in pending_transitions:
-        return_reach = 2.0 if pair.get("kind") == "can" else 1.5
+        # Use the same reach authority as final pair signoff.  The former CAN
+        # exception allowed a transition return as far as 2.0 mm away while
+        # the independent physics gate required 1.5 mm, so generation could
+        # report success and deterministically fail at the end of the same
+        # run.  A larger search radius is useful for finding candidates, but
+        # it must never relax the admitted electrical reach.
+        return_reach = 1.5
         return_vias, return_status = _add_pair_transition_returns(
             board, pending["center"], pending["pair_vector"],
             route_axis=pending["axis"],
@@ -6355,7 +6347,8 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                 and _partner_pads_clear(
                     board, a, b, width_nm, lay_id, partner, clr_nm)
                 and _partner_tracks_clear(
-                    board, a, b, width_nm, lay_id, partner))
+                    board, a, b, width_nm, lay_id, partner,
+                    clearance_nm=clr_nm))
 
     def escape(src, dst, partner, max_radius=3.2):
         """Shortest clear monotonic pad->lane path with at most one bend.
@@ -7642,7 +7635,8 @@ def precision_route_board(board, *, board_path=None, kelvin_width=0.25,
                                  or track.m_Uuid.AsString()
                                  in pair_created_ids)))
                 coupling_admission = _pair_coupling_contract(
-                    pair, coupling, member_lengths)
+                    pair, coupling, member_lengths,
+                    endpoint_stations=endpoint_stations)
                 rep["physical_coupling_admission"] = coupling_admission
                 rep["coupled_coverage_pct"] = coupling[
                     "coverage_pct"]

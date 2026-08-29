@@ -1296,6 +1296,42 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertEqual(len(saved.GetTracks()), 0)
         self.assertEqual(len(saved.Zones()), 0)
 
+    def test_power_settlement_retries_empty_worker_report_from_clean_input(self):
+        import cec_fr
+
+        calls = []
+        with tempfile.TemporaryDirectory() as td:
+            board_path = os.path.join(td, "candidate.kicad_pcb")
+            with open(board_path, "w", encoding="utf-8") as sink:
+                sink.write("ORIGINAL")
+
+            def worker(command, **_kwargs):
+                phase = command[2]
+                calls.append(phase)
+                with open(board_path, encoding="utf-8") as source:
+                    self.assertEqual(source.read(), "ORIGINAL")
+                report_path = command[command.index("--report") + 1]
+                if calls == ["via"]:
+                    with open(board_path, "w", encoding="utf-8") as sink:
+                        sink.write("PARTIAL")
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                value = ({"vias": 0, "detail": []}
+                         if phase == "via" else {"removed": 0})
+                with open(report_path, "w", encoding="utf-8") as sink:
+                    json.dump(value, sink)
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(
+                    cec_fr.subprocess, "run", side_effect=worker):
+                report = cec_fr.settle_generated_power_artifact(
+                    board_path, ["RAIL"], max_rounds=1)
+
+            with open(board_path, encoding="utf-8") as source:
+                self.assertEqual(source.read(), "ORIGINAL")
+
+        self.assertEqual(calls, ["via", "via", "floating", "nowhere"])
+        self.assertTrue(report["converged"])
+
     def test_post_fill_pickup_uses_filled_shape_not_zone_bbox(self):
         import pcbnew
         import cec_fr
@@ -1605,6 +1641,12 @@ class TestLaidPipelinePourKeepouts(unittest.TestCase):
 
 
 class TestRouteArtifactContracts(unittest.TestCase):
+    @staticmethod
+    def _export_stub(_board_path, dsn_path, **_kwargs):
+        with open(dsn_path, "w", encoding="utf-8") as handle:
+            handle.write("(pcb board)\n")
+        return dsn_path
+
     def _hub_board(self):
         import pcbnew
 
@@ -1623,7 +1665,8 @@ class TestRouteArtifactContracts(unittest.TestCase):
                 mock.patch.object(cec_fr, "smd_via_keepouts", return_value=[]), \
                 mock.patch.object(cec_fr, "decorative_copper_keepouts", return_value=[]), \
                 mock.patch.object(cec_fr, "bake_hints") as bake, \
-                mock.patch.object(cec_fr, "export_dsn"), \
+                mock.patch.object(cec_fr, "export_dsn",
+                                  side_effect=self._export_stub), \
                 mock.patch.object(cec_fr, "run_freerouting"), \
                 mock.patch.object(cec_fr, "import_ses"):
             candidate = cec_fr.route_once(
@@ -1651,7 +1694,8 @@ class TestRouteArtifactContracts(unittest.TestCase):
                 mock.patch.object(cec_fr, "partial_locked_keepouts", return_value=[]), \
                 mock.patch.object(cec_fr, "owned_locked_nets", return_value=set()), \
                 mock.patch.object(cec_fr, "bake_hints"), \
-                mock.patch.object(cec_fr, "export_dsn"), \
+                mock.patch.object(cec_fr, "export_dsn",
+                                  side_effect=self._export_stub), \
                 mock.patch.object(cec_fr, "run_freerouting"), \
                 mock.patch.object(cec_fr02, "force_protect_in_dsn") as protect, \
                 mock.patch.object(cec_fr02, "exclude_net_pins_in_dsn",
@@ -1668,6 +1712,42 @@ class TestRouteArtifactContracts(unittest.TestCase):
             os.path.join(work, "board.dsn"), ["GND"])
         self.assertEqual(import_ses.call_args.kwargs["completed_nets"],
                          {"GND"})
+
+    def test_route_once_can_ablate_geometry_keepouts_without_dropping_protect(self):
+        import cec_fr
+        import cec_fr02
+
+        source = os.path.join(
+            ROOT, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        with tempfile.TemporaryDirectory() as work, \
+                mock.patch.dict(os.environ,
+                                {"CEC_LOCKED_COPPER_KEEPOUTS": "0"}), \
+                mock.patch.object(cec_fr, "ensure_jar", return_value="fake.jar"), \
+                mock.patch.object(cec_fr, "smd_via_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "decorative_copper_keepouts", return_value=[]), \
+                mock.patch.object(cec_fr, "locked_copper_keepouts") as locked, \
+                mock.patch.object(cec_fr, "partial_locked_keepouts") as partial, \
+                mock.patch.object(cec_fr, "owned_locked_nets",
+                                  return_value={"GND"}), \
+                mock.patch.object(cec_fr, "bake_hints"), \
+                mock.patch.object(cec_fr, "export_dsn",
+                                  side_effect=self._export_stub), \
+                mock.patch.object(cec_fr, "run_freerouting"), \
+                mock.patch.object(cec_fr02, "force_protect_in_dsn") as protect, \
+                mock.patch.object(cec_fr02, "exclude_net_pins_in_dsn",
+                                  return_value=1), \
+                mock.patch.object(cec_fr, "import_ses"):
+            candidate = cec_fr.route_once(
+                source, os.path.join(work, "out.kicad_pcb"),
+                completed_nets={"GND"}, workdir=work)
+
+        self.assertTrue(candidate.ok)
+        self.assertFalse(candidate.params["locked_copper_keepouts"])
+        locked.assert_not_called()
+        partial.assert_not_called()
+        protect.assert_called_once_with(
+            os.path.join(work, "board.dsn"), ["GND"])
 
     def test_reverse_led_aperture_waiver_is_pad_only_and_geometry_bounded(self):
         import cec_score

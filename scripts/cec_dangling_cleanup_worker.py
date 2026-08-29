@@ -19,6 +19,7 @@ def main():
     parser.add_argument("board")
     parser.add_argument("--targets-json", required=True)
     parser.add_argument("--report", required=True)
+    parser.add_argument("--refill-zones", action="store_true")
     args = parser.parse_args()
 
     targets = {
@@ -46,6 +47,10 @@ def main():
             "was_locked": bool(item.IsLocked()),
         })
         board.Remove(item)
+    if removed and args.refill_zones:
+        for zone in board.Zones():
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     if removed:
         pcbnew.SaveBoard(os.path.abspath(args.board), board)
     payload = {
@@ -53,6 +58,7 @@ def main():
         "removed": removed,
         "removed_count": len(removed),
         "missing": missing,
+        "zones_refilled": bool(removed and args.refill_zones),
     }
     with open(args.report, "w", encoding="utf-8") as sink:
         json.dump(payload, sink, indent=2, sort_keys=True)

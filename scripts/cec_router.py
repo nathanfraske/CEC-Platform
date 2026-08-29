@@ -1265,14 +1265,15 @@ def independent_drc(final, rules, *, weights=None):
         verdict["gates_pass"] = False
         reasons.append("via-on-pad gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
 
-    # FOREIGN-ON-POUR gate (cec_constraints.foreign_on_pour_summary): THE absolute high-current-pour
-    # keepout (owner directive 2026-06-27). A foreign-net track on the pour layer (or a via in the pour)
-    # forces the zone filler to carve an antipad that necks/fragments the 40A fill -- and KiCad DRC is
-    # BLIND to it (no clearance error), so 'drc==0' can NEVER catch foreign-through-pour (~80% of the
-    # crossings are silent). The verdict MUST fail or a board with 50+ foreign crossings ships silently
-    # at finishing DRC. ONE region (derive_power_pours) -- the same the placer body-keepout and the
-    # router corridor keepout obey. Per-cable interposer scope (EPS/PCIe); shared-bus boards report
-    # applicable=False (vacuous). Mirrors the via_on_pad fold; fail-safe (a verdict never breaks on it).
+    # DERIVED HIGH-CURRENT CORRIDOR: planning authority only.  These rectangles
+    # reserve future route area before the pour planner has selected its final
+    # orthogonal outline.  They are intentionally conservative and are still
+    # consumed by the placer/router, but they are not copper in a Gerber and
+    # must not masquerade as a hidden slab in release/FEM admission.  The
+    # actual laid-pour gate below remains fail-closed, and cross-section plus
+    # thermal gates prove that any admitted hook around this reservation is
+    # electrically adequate.
+    fop = None
     try:
         import cec_constraints
         fop = cec_constraints.foreign_on_pour_summary(final)
@@ -1280,26 +1281,25 @@ def independent_drc(final, rules, *, weights=None):
                                       "error": fop.get("error"), "tracks": fop["n_tracks"],
                                       "vias": fop["n_vias"], "pours": fop["n_pours"],
                                       "by_pour": fop["by_pour"]}
+        verdict["foreign_on_pour"]["authority"] = "planning_advisory"
         if fop.get("status") == "error":
-            # FAIL-CLOSED: the board HAS SENSEC pours but the region-finder raised/returned empty.
-            # The keepout cannot be verified, so the verdict must FAIL -- never pass silently on a
-            # board with unprotectable high-current pour copper (owner-flagged fail-open, 2026-06-28).
-            verdict["gates_pass"] = False
-            reasons.append("foreign-on-pour FAIL-CLOSED: the high-current pour region-finder errored on "
-                           "a board WITH SENSEC pours -- the absolute keepout cannot be verified: %s"
-                           % fop.get("error"))
+            verdict.setdefault("advisories", []).append(
+                "derived high-current corridor could not be inspected: %s"
+                % fop.get("error"))
         elif fop["applicable"] and (fop["n_tracks"] or fop["n_vias"]):
-            verdict["gates_pass"] = False
-            reasons.append("foreign-on-pour (ABSOLUTE keepout): %d foreign track(s) + %d via(s) cross a "
-                           "high-current pour -- KiCad DRC is blind to the antipad; re-place corridor-clean "
-                           "or run the two-pass corridor protect -- %s"
-                           % (fop["n_tracks"], fop["n_vias"],
-                              "; ".join("%s<-%s" % (p, c) for p, c in sorted(fop["by_pour"].items()))[:200]))
+            verdict.setdefault("advisories", []).append(
+                "derived high-current reservation contains %d track(s) + %d via(s); "
+                "final authority is the actual laid-pour outline -- %s"
+                % (fop["n_tracks"], fop["n_vias"],
+                   "; ".join("%s<-%s" % (p, c) for p, c in
+                             sorted(fop["by_pour"].items()))[:200]))
     except Exception as _e:                              # noqa: BLE001
-        # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
-        verdict["foreign_on_pour"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
-        verdict["gates_pass"] = False
-        reasons.append("foreign-on-pour gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
+        verdict["foreign_on_pour"] = {
+            "authority": "planning_advisory",
+            "error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict.setdefault("advisories", []).append(
+            "derived high-current corridor checker failed: %s: %s"
+            % (type(_e).__name__, _e))
 
     # KELVIN-SENSE DRC gate (tapshort hardening 2026-06-27): kelvin_ok (cec_score._check_pairs) is
     # structurally BLIND to shorts -- it passes a pair on routed>=1 track + 0 ratlines only -- so a
@@ -1360,7 +1360,13 @@ def independent_drc(final, rules, *, weights=None):
             ("applicable", "status", "n_parts", "n_tracks", "n_vias")}
         n_inc = (int(inc.get("n_parts", 0)) + int(inc.get("n_tracks", 0))
                  + int(inc.get("n_vias", 0)))
-        if inc.get("status") == "error" or n_inc:
+        expected_laid = bool((fop or {}).get("applicable"))
+        if expected_laid and not inc.get("applicable"):
+            verdict["gates_pass"] = False
+            reasons.append(
+                "actual laid-pour incursion: derived high-current domains exist "
+                "but no fabricated pour outline is present")
+        elif inc.get("status") == "error" or n_inc:
             verdict["gates_pass"] = False
             reasons.append("actual laid-pour incursion: status=%s pads=%s tracks=%s vias=%s"
                            % (inc.get("status"), inc.get("n_parts"),

@@ -97,11 +97,15 @@ class TestForeignOnPourFailClosed(unittest.TestCase):
         ok, detail = K.CHECKERS[CID](pcbnew.LoadBoard(p), p, {})[:2]
         self.assertIs(ok, False, detail)
         self.assertIn("FAIL-CLOSED", detail)
-        # router INDEPENDENT verdict: gates_pass forced False with the fail-closed reason
+        # The route planner's checker remains fail-closed.  Independent fab
+        # admission records the derived error as advisory and relies on the
+        # separate actual-zone checker for fabricated copper.
         v = cec_router.independent_drc(p, cec_score.Rules.from_board(p))
-        self.assertFalse(v["gates_pass"], "region-finder error on a pours-board must fail the verdict")
         self.assertEqual(v["foreign_on_pour"]["status"], "error")
-        self.assertTrue(any("FAIL-CLOSED" in r for r in v["reasons"]), v["reasons"])
+        self.assertEqual(v["foreign_on_pour"]["authority"],
+                         "planning_advisory")
+        self.assertTrue(any("could not be inspected" in r
+                            for r in v.get("advisories", [])))
 
     def test_derive_empty_with_pours_fails_closed(self):
         p = _eps_with_pours(self.tmp)

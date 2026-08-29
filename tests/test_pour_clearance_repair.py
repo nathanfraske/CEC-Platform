@@ -181,6 +181,15 @@ class PourClearanceEvacuationTests(unittest.TestCase):
             (direct["status"], direct["n_tracks"],
              direct["n_vias"], direct["by_pour"]))
 
+    def test_laid_release_authority_ignores_phantom_planning_rectangle(self):
+        derived = cec_pour_clearance.inspect_file(self.source)
+        laid = cec_pour_clearance.inspect_laid_file(self.source)
+
+        self.assertGreaterEqual(derived["n_tracks"], 1)
+        self.assertEqual(laid["status"], "na")
+        self.assertEqual((laid["n_parts"], laid["n_tracks"],
+                          laid["n_vias"]), (0, 0, 0))
+
     def test_exact_locked_primitive_is_evacuated_without_mutating_source(self):
         before = cec_constraints.foreign_on_pour_summary(self.source)
         self.assertGreaterEqual(before["n_tracks"], 1)

@@ -173,13 +173,31 @@ def _project_netclass_resolver(board_path):
 def _pair_mates(left, right):
     """True for the two intended members of one named differential pair."""
     a, b = _leaf(left), _leaf(right)
-    forms = (("_P", "_N"), ("_DP", "_DM"), ("D+", "D-"),
-             ("CAN_H", "CAN_L"), ("CAN_H_BUS", "CAN_L_BUS"))
-    for p_suffix, n_suffix in forms:
-        if a.endswith(p_suffix) and b == a[:-len(p_suffix)] + n_suffix:
+    # Port-qualified generators commonly emit CAN_H_J1/CAN_L_J1 (and
+    # PCIe_TX_P0/PCIe_TX_N0), so suffix-only matching is insufficient.  Build
+    # a role-neutral signature from explicit electrical pair markers.  The
+    # same hierarchy leaf and all text surrounding the marker must match;
+    # this cannot exempt two unrelated fast nets merely because both contain
+    # CAN or USB somewhere in their names.
+    forms = (("USB_D_P", "USB_D_N"), ("USB_DP", "USB_DM"),
+             ("CAN_H", "CAN_L"), ("D+", "D-"))
+    for p_marker, n_marker in forms:
+        if ((p_marker in a and a.replace(p_marker, "<PAIR>", 1)
+             == b.replace(n_marker, "<PAIR>", 1))
+                or (p_marker in b and b.replace(p_marker, "<PAIR>", 1)
+                    == a.replace(n_marker, "<PAIR>", 1))):
             return True
-        if b.endswith(p_suffix) and a == b[:-len(p_suffix)] + n_suffix:
-            return True
+    # Conventional generic _P/_N markers may precede a lane number or a port
+    # qualifier.  Requiring an identical numeric/underscore suffix avoids a
+    # broad single-letter substitution.
+    p_sig = re.sub(r"_P(?=(?:[0-9]|_|$))", "_<PAIR>", a, count=1)
+    n_sig = re.sub(r"_N(?=(?:[0-9]|_|$))", "_<PAIR>", b, count=1)
+    if p_sig != a and p_sig == n_sig:
+        return True
+    p_sig = re.sub(r"_P(?=(?:[0-9]|_|$))", "_<PAIR>", b, count=1)
+    n_sig = re.sub(r"_N(?=(?:[0-9]|_|$))", "_<PAIR>", a, count=1)
+    if p_sig != b and p_sig == n_sig:
+        return True
     return False
 
 

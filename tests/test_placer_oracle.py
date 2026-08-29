@@ -194,6 +194,36 @@ class TestSortKey(unittest.TestCase):
 
         self.assertEqual(selected, [(5.0, 45.0)])
 
+    def test_fiducial_single_site_costs_are_cached_before_set_search(self):
+        corners = ((0.0, 0.0), (100.0, 0.0),
+                   (0.0, 50.0), (100.0, 50.0))
+        sites = [(float(x), float(y))
+                 for x in (5, 10, 90, 95)
+                 for y in (5, 10, 40, 45)]
+        calls = {"pressure": 0, "openness": 0}
+
+        def corner_index(point):
+            return min(range(4), key=lambda index: math.hypot(
+                point[0] - corners[index][0],
+                point[1] - corners[index][1]))
+
+        def pressure(point):
+            calls["pressure"] += 1
+            return 0, point[0] / 1000.0
+
+        def openness(point):
+            calls["openness"] += 1
+            return 20.0 - point[1] / 10.0
+
+        selected = sp._select_fiducial_sites_global(
+            sites, [], 3, corners, corner_index=corner_index,
+            route_pressure=pressure, site_openness=openness,
+            minimum_separation=12.0, per_corner_limit=4)
+
+        self.assertEqual(len(selected), 3)
+        self.assertEqual(calls["pressure"], len(sites))
+        self.assertEqual(calls["openness"], len(sites))
+
     def test_fiducial_open_space_clearance_is_zero_inside_rectangle(self):
         self.assertEqual(
             sp._point_rect_clearance((2.0, 3.0), (1.0, 1.0, 4.0, 5.0)),

@@ -778,9 +778,13 @@ class AggregateReleaseGateTest(unittest.TestCase):
         return C.Constraint(cid, cid, "test", severity, checkable, "none",
                             "rule", "test", status=status)
 
-    def test_post_route_excludes_only_path_based_schematic_sync(self):
+    def test_post_route_excludes_non_fabricated_planning_authorities(self):
         rows = [
             (self._constraint("sch-pcb-sync"), "FAIL", "no sibling schematic", None),
+            (self._constraint("high-current-corridor-keepout"), "FAIL",
+             "derived reservation", None),
+            (self._constraint("no-foreign-on-high-current-pour"), "FAIL",
+             "derived reservation", None),
             (self._constraint("decoupling-cap-owner"), "FAIL", "shared bypass", None),
             (self._constraint("soft-one", severity="soft"), "FAIL", "soft", None),
             (self._constraint("proposed-one", status="proposed"), "FAIL", "draft", None),
@@ -1523,6 +1527,45 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertEqual(after, before)
             self.assertEqual(
                 cec_fr.ensure_unique_board_file_uuids(path)["rewritten"], 0)
+
+    def test_generated_zone_uuid_and_order_are_semantic_and_stable(self):
+        authored_uuid = "11111111-1111-4111-8111-111111111111"
+        zone_a = """\n  (zone (net 2) (net_name \"/A\") (layer \"F.Cu\")
+    (uuid aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa)
+    (name \"orthofill:/A:F.Cu:1\") (priority 3)
+    (polygon (pts (xy 1 1) (xy 2 1) (xy 2 2) (xy 1 2))))"""
+        zone_b = """\n  (zone (net 3) (net_name \"/B\") (layer \"B.Cu\")
+    (uuid bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb)
+    (name \"pourplan:/B\") (priority 2)
+    (polygon (pts (xy 3 3) (xy 4 3) (xy 4 4) (xy 3 4))))"""
+        authored = """\n  (zone (net 1) (net_name \"GND\") (layer \"F.Cu\")
+    (uuid %s) (name \"authored-ground\")
+    (polygon (pts (xy 0 0) (xy 5 0) (xy 5 5) (xy 0 5))))""" % authored_uuid
+
+        with tempfile.TemporaryDirectory() as directory:
+            first = os.path.join(directory, "first.kicad_pcb")
+            second = os.path.join(directory, "second.kicad_pcb")
+            with open(first, "w", encoding="utf-8") as handle:
+                handle.write("(kicad_pcb" + zone_b + authored + zone_a + ")\n")
+            with open(second, "w", encoding="utf-8") as handle:
+                # Different random UUIDs and creation order, same semantics.
+                handle.write("(kicad_pcb" + zone_a.replace(
+                    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "cccccccc-cccc-4ccc-8ccc-cccccccccccc") + authored
+                    + zone_b.replace(
+                        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "dddddddd-dddd-4ddd-8ddd-dddddddddddd") + ")\n")
+
+            report = cec_fr.canonicalize_generated_zone_file(first)
+            cec_fr.canonicalize_generated_zone_file(second)
+            one = open(first, encoding="utf-8").read()
+            two = open(second, encoding="utf-8").read()
+            self.assertEqual(one, two)
+            self.assertEqual(report["zones"], 2)
+            self.assertIn(authored_uuid, one)
+            self.assertEqual(
+                cec_fr.canonicalize_generated_zone_file(first)[
+                    "uuid_rewritten"], 0)
 
     def test_ses_import_reads_netclasses_from_staged_source_project(self):
         with tempfile.TemporaryDirectory() as directory:

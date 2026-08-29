@@ -1095,6 +1095,68 @@ def _transactional_fiducial_edge_repair(cfg, board, *, reconsider_all=False):
         return repair
 
 
+def _bounded_post_fiducial_craft_repair(
+        cfg, board, fiducial_repair, *, max_trials, rounds, epochs):
+    """Give a changed fiducial layout one bounded electrical legalization.
+
+    Global fiducial selection intentionally runs after ordinary placement
+    craft.  Moving a datum can expose the next exact current-corridor cut even
+    when the aggregate craft key does not regress, so merely re-measuring the
+    board leaves that newly actionable cut stranded at admission.  On an open
+    placement only, run the normal generic craft repair once against the
+    post-fiducial artifact.  The existing repair engine is transactional and
+    monotonic; this wrapper adds a strict one-shot ordering boundary rather
+    than an unbounded placement/fiducial loop.
+    """
+    import pcbnew
+    import cec_synth_pipeline as synth
+
+    board = Path(board).resolve()
+    if not (fiducial_repair or {}).get("ok"):
+        return {"schema": 1, "ok": False, "changed": False,
+                "applicable": False, "reason": "fiducial_repair_failed"}
+    if not (fiducial_repair or {}).get("changed"):
+        return {"schema": 1, "ok": True, "changed": False,
+                "applicable": False, "reason": "fiducials_unchanged"}
+    loaded = pcbnew.LoadBoard(str(board))
+    if loaded is None:
+        return {"schema": 1, "ok": False, "changed": False,
+                "applicable": False, "reason": "board_unloadable"}
+    if any(True for _item in loaded.GetTracks()):
+        return {"schema": 1, "ok": True, "changed": False,
+                "applicable": False,
+                "reason": "routed_board_preserved"}
+
+    before = synth.placement_craft_evidence(str(board), cfg=cfg)
+    if before.get("ok"):
+        return {"schema": 1, "ok": True, "changed": False,
+                "applicable": True, "reason": "post_fiducial_craft_clean",
+                "before_key": list(synth.placement_craft_key(before))}
+
+    signature_before = _placement_position_signature(board)
+    candidate = synth.placement_candidate_from_board(cfg, str(board))
+    candidate, repair = synth.repair_placement_craft_epochs(
+        cfg, candidate, max_trials=int(max_trials), rounds=int(rounds),
+        epochs=int(epochs))
+    if repair.get("changed"):
+        synth.materialize(candidate, cfg, str(board))
+    after = synth.placement_craft_evidence(str(board), cfg=cfg)
+    signature_after = _placement_position_signature(board)
+    result = dict(repair)
+    result.update({
+        "schema": 1,
+        "applicable": True,
+        "one_shot": True,
+        "before_key": list(synth.placement_craft_key(before)),
+        "after_key": list(synth.placement_craft_key(after)),
+        "after_ok": bool(after.get("ok")),
+        "placement_signature_before": signature_before,
+        "placement_signature_after": signature_after,
+        "repeated_placement": signature_after == signature_before,
+    })
+    return result
+
+
 def _finalize_fiducials_after_route_authority(
         cfg, board, *, priority_applicable=False):
     """Seat optical datums after constrained placement and exact power.
@@ -2399,6 +2461,12 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
     placement["fiducial_edge_repair"] = fiducial_repair
     if not fiducial_repair.get("ok"):
         placement["fiducial_edge_repair_blocked"] = True
+    post_fiducial_craft_repair = _bounded_post_fiducial_craft_repair(
+        cfg, output_board, fiducial_repair,
+        max_trials=int(craft_trials), rounds=int(craft_rounds),
+        epochs=int(craft_epochs))
+    placement["post_fiducial_craft_repair"] = \
+        post_fiducial_craft_repair
 
     service_clearance_mm = float(cfg.params.get(
         "service_interface_clearance_mm", 0.0) or 0.0)
@@ -3095,6 +3163,30 @@ def _route_stage(board, output_dir, cfg, *, passes, opt, seed, timeout,
     else:
         copied = []
 
+    # Production parity with fresh-wave publication: run the deterministic
+    # fabrication polish on the exact selected artifact, not merely as part of
+    # the code signature.  The actuator evaluates isolated variants and only
+    # adopts a monotonic winner.  Its admission also covers foreign-pour
+    # ownership, so a cosmetic/DFM improvement cannot create a hidden power
+    # corridor incursion.  Signoff below independently re-scores the resulting
+    # bytes; a repair exception is retained as evidence without destroying an
+    # otherwise valid routed artifact.
+    fab_repair = {"schema": 1, "skipped": "route_not_gate_clean"}
+    if result.get("gate") and os.environ.get("CEC_FAB_REPAIR", "1") == "1":
+        try:
+            import cec_fab_repair
+            fab_repair = cec_fab_repair.repair_admitted(result["routed"])
+            after = dict(fab_repair.get("after") or {})
+            for key in ("drc", "unconnected", "kelvin_ok", "diffpair_ok"):
+                if key in after:
+                    result[key] = after[key]
+        except Exception as exc:                         # noqa: BLE001
+            fab_repair = {
+                "schema": 1, "skipped": "repair_error",
+                "error": "%s: %s" % (type(exc).__name__, exc),
+            }
+    result["fab_repair"] = fab_repair
+
     report = output_dir / "oracle.json"
     atomic_json(report, result)
     atomic_json(batch_report, {
@@ -3116,6 +3208,7 @@ def _route_stage(board, output_dir, cfg, *, passes, opt, seed, timeout,
         "candidate_budget": len(seeds),
         "winner_seed": result.get("seed"),
         "candidate_summary": str(batch_report),
+        "fab_repair": fab_repair,
         "gate": bool(result.get("gate")),
         "board": str(Path(routed).resolve()) if routed else None,
         "report": str(report),

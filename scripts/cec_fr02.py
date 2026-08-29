@@ -42,10 +42,30 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 _SENSE_NET_RE = re.compile(r"/?SENSEC\d+_(HI|LO)$", re.I)
+
+
+def _atomic_replace_text(path, text):
+    """Replace a DSN rewrite only after its complete bytes are durable."""
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, temporary = tempfile.mkstemp(prefix=".cec-dsn-", suffix=".tmp",
+                                     dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        except OSError:
+            pass
 
 STUB_LEN_MM = 1.2          # bench proved 2.0; shortened so stubs FIT near pad
                            # fields (full-extent legality rejects long stubs in
@@ -289,7 +309,7 @@ def exclude_net_pins_in_dsn(dsn_path, nets):
                     txt = txt[:m.start()] + m.group(1) + pins[0] + m.group(3) + txt[m.end():]
                 n_done += 1
                 break
-    open(dsn_path, "w", encoding="utf-8").write(txt)
+    _atomic_replace_text(dsn_path, txt)
     return n_done
 
 
@@ -326,7 +346,7 @@ def force_protect_in_dsn(dsn_path, nets):
                         n += 1
                     break
     out.append(text[last:])
-    open(dsn_path, "w").write("".join(out))
+    _atomic_replace_text(dsn_path, "".join(out))
     return n
 
 

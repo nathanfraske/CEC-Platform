@@ -73,6 +73,7 @@ class StagedCompletionTests(unittest.TestCase):
             protected = next(item for item in source.GetTracks()
                              if item.GetNetname() == "/A")
             protected.SetLocked(True)
+            protected_uuid = protected.m_Uuid.AsString()
             pcbnew.SaveBoard(source_path, source)
 
             candidate = pcbnew.LoadBoard(source_path)
@@ -103,6 +104,11 @@ class StagedCompletionTests(unittest.TestCase):
                 sum(item.GetNetname() == "/B"
                     for item in restored.GetTracks()), 1,
                 "tier-owned delta must survive prefix restoration")
+            restored_ids = {
+                item.m_Uuid.AsString() for item in restored.GetTracks()
+                if item.GetNetname() == "/A"}
+            self.assertEqual(restored_ids, {protected_uuid},
+                             "delta restore must preserve exact ownership IDs")
 
     def test_incomplete_net_restore_discards_speculative_stub(self):
         with tempfile.TemporaryDirectory() as directory:

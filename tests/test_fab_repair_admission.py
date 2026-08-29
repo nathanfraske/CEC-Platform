@@ -143,6 +143,9 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     mock.patch.object(repair, "_fab_isolated", return_value={
                         "fab_blocking": 5, "fab_drc": 0,
                         "fab_unconnected": 0}), \
+                    mock.patch.object(repair, "_foreign_isolated", return_value={
+                        "foreign_status": "ok", "foreign_tracks": 0,
+                        "foreign_vias": 0, "foreign_blocking": 0}), \
                     mock.patch.object(repair, "_repair_isolated", side_effect=mutate), \
                     mock.patch.object(
                         repair, "_sliver_repair_isolated",
@@ -194,6 +197,9 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     mock.patch.object(repair, "_fab_isolated", return_value={
                         "fab_blocking": 5, "fab_drc": 0,
                         "fab_unconnected": 0}), \
+                    mock.patch.object(repair, "_foreign_isolated", return_value={
+                        "foreign_status": "ok", "foreign_tracks": 0,
+                        "foreign_vias": 0, "foreign_blocking": 0}), \
                     mock.patch.object(
                         repair, "_repair_isolated",
                         return_value={"backtracks": 1}), \
@@ -212,6 +218,46 @@ class FabRepairAdmissionTest(unittest.TestCase):
                 for row in report["variants"]))
             with open(board, encoding="utf-8") as handle:
                 self.assertEqual(handle.read(), "baseline")
+
+    def test_variant_that_introduces_foreign_pour_copper_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            board = os.path.join(td, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("baseline")
+
+            score = {
+                "drc": 0, "unconnected": 0,
+                "kelvin_ok": True, "diffpair_ok": True,
+                "route_blocking": 0, "route_advisory": 1,
+                "objective": 10.0,
+            }
+
+            def foreign(path):
+                if os.path.basename(path) == "board.kicad_pcb":
+                    return {"foreign_status": "ok", "foreign_tracks": 0,
+                            "foreign_vias": 0, "foreign_blocking": 0}
+                return {"foreign_status": "ok", "foreign_tracks": 1,
+                        "foreign_vias": 0, "foreign_blocking": 1}
+
+            with mock.patch.object(repair, "_score_isolated",
+                                   return_value=score), \
+                    mock.patch.object(repair, "_fab_isolated", return_value={
+                        "fab_blocking": 0, "fab_drc": 0,
+                        "fab_unconnected": 0}), \
+                    mock.patch.object(repair, "_foreign_isolated",
+                                      side_effect=foreign), \
+                    mock.patch.object(
+                        repair, "_repair_isolated",
+                        return_value={"backtracks": 1}), \
+                    mock.patch.object(
+                        repair, "_sliver_repair_isolated",
+                        return_value={"sliver_zones_removed": 0}):
+                report = repair.repair_admitted(board)
+
+            self.assertFalse(report["adopted"])
+            self.assertEqual(report["chosen"], "baseline")
+            self.assertTrue(all(not row["safe"]
+                                for row in report["variants"]))
 
 
 if __name__ == "__main__":

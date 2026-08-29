@@ -109,9 +109,10 @@ class TestForeignOnPourGate(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
-    def test_injected_track_forces_route_gate_fail(self):
-        # the wiring: a foreign-on-pour board can never pass route()'s INDEPENDENT accept verdict,
-        # even though KiCad DRC stays clean (the antipad is invisible to DRC).
+    def test_derived_corridor_is_advisory_but_missing_laid_pour_fails(self):
+        # A planning rectangle is not fabricated copper.  It remains visible
+        # in the verdict, while release fails here because this fixture has
+        # derived current domains but no actual laid pour outline.
         import cec_router
         import cec_score
         tmp = tempfile.mkdtemp()
@@ -119,10 +120,15 @@ class TestForeignOnPourGate(unittest.TestCase):
             dst = os.path.join(tmp, "inj.kicad_pcb")
             _inject_foreign_track(EPS, dst, foreign_net="GND")
             v = cec_router.independent_drc(dst, cec_score.Rules.from_board(dst))
-            self.assertFalse(v["gates_pass"], "foreign-on-pour must force gates_pass=False")
+            self.assertFalse(v["gates_pass"])
             self.assertTrue(v["foreign_on_pour"]["applicable"])
+            self.assertEqual(v["foreign_on_pour"]["authority"],
+                             "planning_advisory")
             self.assertGreaterEqual(v["foreign_on_pour"]["tracks"], 1)
-            self.assertTrue(any("foreign-on-pour" in r for r in v["reasons"]))
+            self.assertTrue(any("derived high-current reservation" in r
+                                for r in v.get("advisories", [])))
+            self.assertTrue(any("no fabricated pour outline" in r
+                                for r in v["reasons"]))
         finally:
             shutil.rmtree(tmp)
 

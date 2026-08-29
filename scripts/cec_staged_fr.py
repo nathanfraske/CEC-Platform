@@ -62,6 +62,23 @@ def _tier_admission(before, after):
     return cec_stage_admission.evaluate(before, after)
 
 
+def sanitize_tier_import(candidate_path, parent_path, generated_uuids):
+    """Apply the repository import transaction before tier ownership.
+
+    Kept as a late import to avoid coupling module initialization: the synth
+    orchestrator invokes staged routing, while this function is called only
+    after both modules are fully loaded.  A tier with no generated primitives
+    is already a no-op delta and needs no scoring subprocesses.
+    """
+    generated = {str(uuid) for uuid in generated_uuids if uuid}
+    if not generated:
+        return ({"schema": 1, "accepted": True,
+                 "reason": "no_generated_copper", "removed_count": 0}, None)
+    import cec_synth_pipeline
+    return cec_synth_pipeline._sanitize_imported_route_transactionally(
+        candidate_path, parent_path, generated)
+
+
 def _dsn_restrict_to_nets(dsn_path, keep_nets):
     """Strip non-tier pin lists from the DSN ``network`` section only.
 
@@ -178,6 +195,23 @@ def fully_connected_nets(board, nets):
     return complete, incomplete
 
 
+def parent_copper_nets_outside_tier(board, tier_nets):
+    """Return parent track/via nets a speculative tier does not own.
+
+    A tier-restricted DSN removes ordinary-net pins from the router's workset.
+    Some SES imports consequently omit or replace pre-existing copper on those
+    nets even though the tier never owned them.  Staged routing is a delta
+    transaction: every parent copper net outside the active tier must be
+    restored byte-for-byte before admission.
+    """
+    owned = {str(net) for net in (tier_nets or ()) if net}
+    return {
+        str(item.GetNetname())
+        for item in board.GetTracks()
+        if item.GetNetname() and str(item.GetNetname()) not in owned
+    }
+
+
 def restore_protected_copper_prefix(source_path, candidate_path, nets):
     """Replace backend echoes of immutable nets with their exact source copper.
 
@@ -202,11 +236,19 @@ def restore_protected_copper_prefix(source_path, candidate_path, nets):
     # release it before loading the candidate.  Keep the net name separately
     # and rebind each duplicate to the candidate's own NETINFO_ITEM below.
     source = pcbnew.LoadBoard(source_path)
-    restoration = [
-        (item.GetNetname(), item.Duplicate())
-        for item in source.GetTracks()
-        if item.GetNetname() in selected
-    ]
+    restoration = []
+    for item in source.GetTracks():
+        if item.GetNetname() not in selected:
+            continue
+        duplicate = item.Duplicate()
+        # ``Duplicate`` deliberately allocates a fresh KIID.  Geometry-only
+        # comparison hid that identity churn, but downstream transactions use
+        # exact UUIDs to prove that priority vias and locked prefixes survived.
+        # Restore the source KIID as part of the delta transaction: every
+        # selected candidate item is removed below, so the identity is unique
+        # in the destination and safe to retain.
+        duplicate.m_Uuid.Clone(item.m_Uuid)
+        restoration.append((item.GetNetname(), duplicate))
     del source
     candidate = pcbnew.LoadBoard(candidate_path)
     removed = 0
@@ -308,7 +350,8 @@ def foreign_pour_admission(board_path):
                      + list(summary.get("vias") or ())}
 
 
-def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=()):
+def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=(),
+                          include_locked_copper=None):
     """Compile every obstacle the staged router must see.
 
     A staged DSN strips foreign pin lists, so it cannot rely on the full-route
@@ -323,8 +366,13 @@ def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=()):
     import cec_route_preflight
 
     tier = set(tier_nets or ())
-    rows = list(cec_fr.locked_copper_keepouts(
-        board_path, only_nets=set(locked_nets or ()) - tier))
+    if include_locked_copper is None:
+        include_locked_copper = (
+            os.environ.get("CEC_LOCKED_COPPER_KEEPOUTS", "1") != "0")
+    rows = []
+    if include_locked_copper:
+        rows.extend(cec_fr.locked_copper_keepouts(
+            board_path, only_nets=set(locked_nets or ()) - tier))
     rows.extend(list(hints or ()))
     # Every routing backend consumes the same routed-object ownership map.
     # The old tier adapter received only caller ``hints`` (the legacy broad
@@ -469,6 +517,9 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         before_board = pcbnew.LoadBoard(cur)
         before_track_ids = {
             track.m_Uuid.AsString() for track in before_board.GetTracks()}
+        parent_delta_restore_nets = (
+            parent_copper_nets_outside_tier(before_board, tier)
+            if not final else set())
         tier_signal_layers = None
         dsn = os.path.join(work, f"t{i}.dsn")
         ses = os.path.join(work, f"t{i}.ses")
@@ -498,8 +549,12 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                     export_src = os.path.join(work, f"t{i}-hinted.kicad_pcb")
                     cec_fr.bake_hints(cur, export_src, keepouts=_ko)
                     if verbose:
-                        print(f"[staged-fr] tier {i}: {len(_ko)} locked-copper "
-                              f"keepout(s) baked for the tier route", flush=True)
+                        mode = ("full locked-copper geometry" if
+                                os.environ.get(
+                                    "CEC_LOCKED_COPPER_KEEPOUTS", "1") != "0"
+                                else "DSN protect plus reservations")
+                        print(f"[staged-fr] tier {i}: {len(_ko)} obstacle "
+                              f"keepout(s) baked ({mode})", flush=True)
             except Exception as e:                              # noqa: BLE001
                 raise RuntimeError(
                     "staged tier obstacle compilation failed closed: %s: %s"
@@ -627,6 +682,18 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                         pour_admission["vias"]), flush=True)
             continue
         if not final:
+            # A restricted tier owns only its declared nets.  Restore every
+            # other parent track/via net before connectivity or DRC admission;
+            # otherwise an SES backend that omits pin-less ordinary wiring can
+            # create a newly open net and make every useful tier look unsafe.
+            # This is broader than the immutable-prefix contract below: it
+            # protects ordinary already-routed copper too, without locking it
+            # into future ownership.
+            parent_delta_restore = None
+            if parent_delta_restore_nets:
+                parent_delta_restore = _spawn_apply(
+                    restore_protected_copper_prefix,
+                    (cur, nxt, tuple(sorted(parent_delta_restore_nets))))
             # Ownership is cumulative. FR imports protected wires as ordinary
             # unlocked copper; locking only the *new* tier silently released
             # every earlier pair/cell to the next pass. Verify geometry before
@@ -661,6 +728,33 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             route_quality = _spawn_apply(
                 _route_quality_stage_worker,
                 (nxt, tuple(sorted(tier)), tuple(sorted(before_track_ids))))
+            # Score under the real project/custom-rule authority.  The
+            # sanitizer below may need exact KiCad DRC identities before the
+            # ordinary admission block copies sidecars.
+            for ext in (".kicad_pro", ".kicad_dru"):
+                source = cur[:-len(".kicad_pcb")] + ext
+                if os.path.isfile(source):
+                    shutil.copy2(source, nxt[:-len(".kicad_pcb")] + ext)
+            tier_after_quality = pcbnew.LoadBoard(nxt)
+            tier_generated_ids = {
+                item.m_Uuid.AsString()
+                for item in tier_after_quality.GetTracks()
+                if item.m_Uuid.AsString() not in before_track_ids}
+            tier_import_sanitation, _tier_sanitized_score = (
+                sanitize_tier_import(nxt, cur, tier_generated_ids))
+            if not tier_import_sanitation.get("accepted"):
+                report["tiers"].append({
+                    "tier": sorted(tier), "refused": True,
+                    "reason": "tier_import_sanitation_failed",
+                    "import_sanitation": tier_import_sanitation,
+                    "parent_delta_restore": parent_delta_restore,
+                    "wall_s": round(time.monotonic() - t0, 1),
+                })
+                if verbose:
+                    print(
+                        f"[staged-fr] tier {i} REFUSED: imported copper "
+                        "could not be made monotonic", flush=True)
+                continue
             tier_complete, tier_incomplete = fully_connected_nets(
                 pcbnew.LoadBoard(nxt), tier)
             refused_quality_nets = set(
@@ -731,6 +825,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             if not final:
                 refused_row["incomplete_prefix_restore"] = (
                     incomplete_prefix_restore)
+                refused_row["parent_delta_restore"] = parent_delta_restore
             report["tiers"].append(refused_row)
             if verbose:
                 print(
@@ -773,6 +868,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             row["completed_nets"] = sorted(tier_complete)
             row["incomplete_nets"] = sorted(tier_incomplete)
             row["route_quality"] = route_quality
+            row["import_sanitation"] = tier_import_sanitation
             row["foreign_pour_admission"] = pour_admission
             if incomplete_prefix_restore is not None:
                 row["incomplete_prefix_restore"] = (
@@ -781,6 +877,8 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 row["foreign_pour_evacuation"] = pour_evacuation
             if protected_contract:
                 row["prefix_restore"] = prefix_restore
+            if parent_delta_restore is not None:
+                row["parent_delta_restore"] = parent_delta_restore
             if tier_signal_layers is not None:
                 row["signal_layers"] = tier_signal_layers
             if (tier_incomplete

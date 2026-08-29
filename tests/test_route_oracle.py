@@ -227,26 +227,68 @@ class TestOracleLogic(unittest.TestCase):
     def test_exact_power_admission_runs_in_single_load_worker(self):
         admitted = {"schema": 1, "passed": True, "open_after": []}
 
-        def worker(command, **_kwargs):
-            self.assertIn("cec_power_artifact_worker.py", command[1])
-            self.assertEqual(command[2], "admit")
-            self.assertEqual(command[3], "candidate.kicad_pcb")
-            self.assertEqual(
-                json.loads(command[command.index("--nets-json") + 1]),
-                ["RAIL"])
-            self.assertEqual(
-                command[command.index("--baseline-board") + 1],
-                "baseline.kicad_pcb")
-            report_path = command[command.index("--report") + 1]
-            with open(report_path, "w", encoding="utf-8") as sink:
-                json.dump(admitted, sink)
-            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        with tempfile.TemporaryDirectory() as td:
+            candidate = os.path.join(td, "candidate.kicad_pcb")
+            baseline = os.path.join(td, "baseline.kicad_pcb")
+            for path in (candidate, baseline):
+                with open(path, "w", encoding="utf-8") as sink:
+                    sink.write("BOARD")
 
-        with mock.patch.object(sp.subprocess, "run", side_effect=worker):
-            report = sp._admit_priority_power_candidate_isolated(
-                "candidate.kicad_pcb", ["RAIL"],
-                "baseline.kicad_pcb")
+            def worker(command, **_kwargs):
+                self.assertIn("cec_power_artifact_worker.py", command[1])
+                self.assertEqual(command[2], "admit")
+                self.assertEqual(command[3], candidate)
+                self.assertEqual(
+                    json.loads(command[command.index("--nets-json") + 1]),
+                    ["RAIL"])
+                self.assertEqual(
+                    command[command.index("--baseline-board") + 1],
+                    baseline)
+                report_path = command[command.index("--report") + 1]
+                with open(report_path, "w", encoding="utf-8") as sink:
+                    json.dump(admitted, sink)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
 
+            with mock.patch.object(sp.subprocess, "run", side_effect=worker):
+                report = sp._admit_priority_power_candidate_isolated(
+                    candidate, ["RAIL"], baseline)
+
+        self.assertEqual(report, admitted)
+
+    def test_exact_power_admission_retries_empty_worker_report_from_clean_input(self):
+        admitted = {"schema": 1, "passed": True, "open_after": []}
+        calls = []
+
+        with tempfile.TemporaryDirectory() as td:
+            candidate = os.path.join(td, "candidate.kicad_pcb")
+            baseline = os.path.join(td, "baseline.kicad_pcb")
+            with open(candidate, "w", encoding="utf-8") as sink:
+                sink.write("ORIGINAL")
+            with open(baseline, "w", encoding="utf-8") as sink:
+                sink.write("BASELINE")
+
+            def worker(command, **_kwargs):
+                calls.append(command)
+                with open(candidate, encoding="utf-8") as source:
+                    self.assertEqual(source.read(), "ORIGINAL")
+                report_path = command[command.index("--report") + 1]
+                if len(calls) == 1:
+                    with open(candidate, "w", encoding="utf-8") as sink:
+                        sink.write("PARTIAL")
+                    return SimpleNamespace(
+                        returncode=0, stdout="", stderr="")
+                with open(report_path, "w", encoding="utf-8") as sink:
+                    json.dump(admitted, sink)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(sp.subprocess, "run", side_effect=worker):
+                report = sp._admit_priority_power_candidate_isolated(
+                    candidate, ["RAIL"], baseline)
+
+            with open(candidate, encoding="utf-8") as source:
+                self.assertEqual(source.read(), "ORIGINAL")
+
+        self.assertEqual(len(calls), 2)
         self.assertEqual(report, admitted)
 
     def test_classify_unconnected_safety_vs_signal(self):

@@ -90,6 +90,55 @@ class FullPipelineJournalTests(unittest.TestCase):
                              "exact_craft_regression")
             self.assertFalse(report["craft_guard"]["accepted"])
 
+    def test_changed_fiducials_get_one_bounded_craft_repair(self):
+        with tempfile.TemporaryDirectory() as temp:
+            board = Path(temp) / "board.kicad_pcb"
+            board.write_bytes(b"open-placement")
+            cfg = SimpleNamespace()
+            loaded = SimpleNamespace(GetTracks=lambda: iter(()))
+            candidate = SimpleNamespace(P={"C1": (1.0, 2.0, 0.0)})
+            repair = {"schema": 1, "ok": True, "changed": True,
+                      "accepted_count": 1}
+
+            with mock.patch("pcbnew.LoadBoard", return_value=loaded), \
+                    mock.patch(
+                        "cec_synth_pipeline.placement_craft_evidence",
+                        side_effect=[{"ok": False, "rank": 1},
+                                     {"ok": True, "rank": 0}]), \
+                    mock.patch(
+                        "cec_synth_pipeline.placement_craft_key",
+                        side_effect=lambda row: (row["rank"],)), \
+                    mock.patch(
+                        "cec_synth_pipeline.placement_candidate_from_board",
+                        return_value=candidate), \
+                    mock.patch(
+                        "cec_synth_pipeline.repair_placement_craft_epochs",
+                        return_value=(candidate, repair)) as bounded, \
+                    mock.patch(
+                        "cec_synth_pipeline.materialize") as materialize, \
+                    mock.patch.object(
+                        pipeline, "_placement_position_signature",
+                        side_effect=["before", "after"]):
+                report = pipeline._bounded_post_fiducial_craft_repair(
+                    cfg, board,
+                    {"schema": 1, "ok": True, "changed": True},
+                    max_trials=7, rounds=2, epochs=1)
+
+            bounded.assert_called_once_with(
+                cfg, candidate, max_trials=7, rounds=2, epochs=1)
+            materialize.assert_called_once_with(candidate, cfg, str(board))
+            self.assertTrue(report["one_shot"])
+            self.assertTrue(report["after_ok"])
+            self.assertFalse(report["repeated_placement"])
+
+    def test_unchanged_fiducials_do_not_repeat_craft_search(self):
+        report = pipeline._bounded_post_fiducial_craft_repair(
+            SimpleNamespace(), Path("unused.kicad_pcb"),
+            {"schema": 1, "ok": True, "changed": False},
+            max_trials=64, rounds=4, epochs=2)
+        self.assertFalse(report["applicable"])
+        self.assertEqual(report["reason"], "fiducials_unchanged")
+
     def test_late_fiducial_reseat_rolls_back_if_power_must_rebuild(self):
         with tempfile.TemporaryDirectory() as temp:
             board = Path(temp) / "board.kicad_pcb"
@@ -1125,6 +1174,46 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             self.assertTrue(result["winner_completion_enabled"])
             self.assertTrue(result["artifact_produced"])
             self.assertFalse(result["ok"])
+
+    def test_gate_clean_route_runs_transactional_fab_polish(self):
+        import cec_fab_repair
+        import cec_synth_pipeline as synth
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            source = temp / "in.kicad_pcb"
+            routed = temp / "routed.kicad_pcb"
+            source.write_text("source", encoding="utf-8")
+            routed.write_text("routed", encoding="utf-8")
+            cfg = SimpleNamespace(
+                board="neutral-board", dir=str(temp),
+                params={"automatic_pin_escape_tier": True})
+            oracle = {
+                "gate": True, "routed": str(routed), "drc": 0,
+                "unconnected": 0, "kelvin_ok": True,
+                "diffpair_ok": True, "gate_terms": {},
+            }
+            polish = {
+                "schema": 1, "adopted": True, "chosen": "track_polish",
+                "after": {"drc": 0, "unconnected": 0,
+                          "kelvin_ok": True, "diffpair_ok": True},
+            }
+            with mock.patch.object(
+                    synth, "route_oracle_grade", return_value=oracle), \
+                    mock.patch.object(
+                        cec_fab_repair, "repair_admitted",
+                        return_value=polish) as repair_call:
+                result = pipeline._route_stage(
+                    source, temp / "work", cfg, passes=1, opt=1,
+                    seed=0, timeout=1, thermal="lazy")
+
+            repair_call.assert_called_once_with(str(routed))
+            self.assertEqual(result["fab_repair"]["chosen"],
+                             "track_polish")
+            oracle_report = json.loads(
+                (temp / "work" / "oracle.json").read_text())
+            self.assertEqual(oracle_report["fab_repair"]["chosen"],
+                             "track_polish")
 
 
 if __name__ == "__main__":

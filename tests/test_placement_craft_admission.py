@@ -2858,6 +2858,56 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertAlmostEqual(owner_dx, cap_dx)
         self.assertAlmostEqual(owner_dy, cap_dy)
 
+    def test_power_via_field_certificate_batches_nearest_owner_cells(self):
+        candidate = SimpleNamespace(P={
+            "R1": (12.0, 10.0, 0.0),
+            "C1": (10.0, 12.0, 90.0),
+            "R2": (8.0, 10.0, 0.0),
+            "RS_TERM": (10.0, 10.0, 0.0),
+        })
+        evidence = {
+            "power_body_clearance": {
+                "planner_failures": {"/RAIL": {
+                    "planner_bottleneck": {
+                        "kind": "via_field_access",
+                        "fields": [{
+                            "field_index": 0,
+                            "centre_mm": [10.0, 10.0],
+                            "terminal_refs": ["RS_TERM"],
+                            "nearest_pad_obstacles": [
+                                {"owner": "RS_TERM", "distance_mm": 0.0,
+                                 "fixed": False},
+                                {"owner": "R1", "distance_mm": 1.0,
+                                 "fixed": False},
+                                {"owner": "C1", "distance_mm": 1.1,
+                                 "fixed": False},
+                                {"owner": "R2", "distance_mm": 1.2,
+                                 "fixed": False},
+                            ],
+                        }],
+                    },
+                }},
+            },
+            "decoupler": {"details": []},
+            "pair_launch": {"violations": []},
+            "critical_terminal_order": {"violations": []},
+            "stranded": {"details": []},
+        }
+
+        moves = synth._placement_craft_move_specs(
+            candidate, evidence,
+            comps={ref: object() for ref in candidate.P},
+            required_stages=["power_via_field_access"])
+
+        batches = [move for move in moves if move["kind"] ==
+                   "power_via_field_access_atomic_batch"]
+        self.assertTrue(batches)
+        self.assertEqual(batches[0]["cell_roots"], ["R1", "C1"])
+        self.assertEqual(set(batches[0]["placements"]), {"R1", "C1"})
+        self.assertEqual(batches[0]["distance_mm"], 1.0)
+        self.assertTrue(any(len(move["cell_roots"]) == 3
+                            for move in batches))
+
     def test_power_corridor_relief_moves_complete_owned_cell_off_path(self):
         candidate = SimpleNamespace(P={
             "U_REG": (10.0, 10.0, 0.0),
@@ -3412,6 +3462,44 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertIsNone(synth._placement_atomic_multirail_transition(
             baseline, new_failure, {"kind": "decoupler_cell_reorient"}))
 
+    def test_atomic_transition_follows_same_rail_clearance_to_via_field(self):
+        baseline = {"power_body_clearance": {
+            "planner_failures": {"/C1_HI": {
+                "planner_bottleneck": {
+                    "kind": "realized_exact_clearance"}}},
+            "successful_nets": ["/C1_LO", "/C2_HI"],
+        }}
+        trial = {"power_body_clearance": {
+            "planner_failures": {"/C1_HI": {
+                "planner_bottleneck": {"kind": "via_field_access"}}},
+        }}
+
+        transition = synth._placement_atomic_multirail_transition(
+            baseline, trial, {"kind":
+                             "power_corridor_exact_clearance_atomic_batch"})
+
+        self.assertEqual(transition["newly_failed_nets"], ["/C1_HI"])
+        self.assertEqual(transition["same_net_progression"], ["/C1_HI"])
+        self.assertEqual(
+            transition["transition_kind"],
+            "same_net_clearance_to_via_field")
+
+    def test_atomic_transition_does_not_reverse_same_rail_progress(self):
+        baseline = {"power_body_clearance": {
+            "planner_failures": {"/C1_HI": {
+                "planner_bottleneck": {"kind": "via_field_access"}}},
+            "successful_nets": ["/C1_LO"],
+        }}
+        trial = {"power_body_clearance": {
+            "planner_failures": {"/C1_HI": {
+                "planner_bottleneck": {
+                    "kind": "realized_exact_clearance"}}},
+        }}
+
+        self.assertIsNone(synth._placement_atomic_multirail_transition(
+            baseline, trial, {"kind":
+                             "power_corridor_exact_clearance_atomic_batch"}))
+
     def test_atomic_multirail_primary_requires_exact_successful_peer(self):
         move = {"kind": "power_corridor_relief_joint_envelope_pack"}
         enabled = {"power_body_clearance": {
@@ -3425,6 +3513,9 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
 
         self.assertTrue(synth._placement_atomic_multirail_primary(
             move, enabled))
+        self.assertTrue(synth._placement_atomic_multirail_primary(
+            {"kind": "power_corridor_exact_clearance_atomic_batch"},
+            enabled))
         self.assertFalse(synth._placement_atomic_multirail_primary(
             move, isolated))
 
@@ -3622,6 +3713,47 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertEqual(repacks[0]["clearance_owner"], "C1")
         self.assertEqual(repacks[0]["placements"]["C1"],
                          (10.0, 12.0, 90.0))
+
+    def test_multiple_exact_bundle_clashes_get_atomic_reseat_batch(self):
+        candidate = SimpleNamespace(P={
+            "C1": (9.8, 10.0, 0.0),
+            "R1": (9.7, 12.0, 0.0),
+        })
+        evidence = {
+            "power_body_clearance": {"planner_failures": {"/RAIL": {
+                "planner_bottleneck": {
+                    "kind": "realized_exact_clearance",
+                    "clashes": [
+                        {"owner": "C1", "intersection_area_mm2": 0.04,
+                         "intersection_bounds_mm":
+                             [9.9, 9.5, 10.0, 10.5]},
+                        {"owner": "R1", "intersection_area_mm2": 0.03,
+                         "intersection_bounds_mm":
+                             [9.9, 11.5, 10.0, 12.5]},
+                    ],
+                },
+            }}},
+            "decoupler": {"details": []},
+            "pair_launch": {"violations": []},
+            "critical_terminal_order": {"violations": []},
+            "stranded": {"details": []},
+        }
+
+        moves = synth._placement_craft_move_specs(
+            candidate, evidence,
+            comps={ref: object() for ref in candidate.P},
+            required_stages=["power_corridor_access"])
+
+        batches = [move for move in moves if move["kind"] ==
+                   "power_corridor_exact_clearance_atomic_batch"]
+        self.assertTrue(batches)
+        self.assertEqual(batches[0]["cell_roots"], ["C1", "R1"])
+        self.assertEqual(set(batches[0]["placements"]), {"C1", "R1"})
+        self.assertEqual(
+            batches[0]["placements"]["C1"][0]
+            - candidate.P["C1"][0],
+            batches[0]["placements"]["R1"][0]
+            - candidate.P["R1"][0])
 
     def test_craft_key_rewards_each_restored_power_via_field(self):
         def evidence(failed):

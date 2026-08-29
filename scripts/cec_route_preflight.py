@@ -808,6 +808,22 @@ def priority_pair_avoid(board_path, reservations=None, *, policy=None):
     return ()
 
 
+def priority_kelvin_avoid(reservations=None, *, policy=None):
+    """Return future-power obstacles visible to the Kelvin owner.
+
+    Kelvin and coupled pairs share one executable priority decision.  Under
+    ``critical-first`` neither may be refused by replannable future-power
+    rectangles; the later exact power reconciliation must route around their
+    locked copper.  ``power-first`` retains the frozen corridor obstacles for
+    both.  Centralizing this prevents preflight and production from silently
+    implementing different owner orders.
+    """
+    selected = route_priority_policy(policy)
+    if selected == "power-first" and (reservations or {}).get("enabled"):
+        return tuple((reservations or {}).get("corridors") or ())
+    return ()
+
+
 def _probe_critical_pairs_on_board(board, board_path, *, avoid=(),
                                    kelvin_avoid=(), do_pairs=True,
                                    include_pair_names=None):
@@ -1043,9 +1059,9 @@ def probe_critical_pairs(board_path, reservations=None, *, do_pairs=True,
         else:
             avoid = priority_pair_avoid(
                 board_path, reservations, policy=priority_policy)
-        kelvin_avoid = tuple(
-            (reservations or {}).get("corridors") or ()) \
-            if (reservations or {}).get("enabled") else ()
+        selected_policy = route_priority_policy(priority_policy)
+        kelvin_avoid = priority_kelvin_avoid(
+            reservations, policy=selected_policy)
         return _probe_critical_pairs_on_board(
             board, board_path, avoid=avoid,
             kelvin_avoid=kelvin_avoid, do_pairs=do_pairs,
@@ -1111,8 +1127,8 @@ def compile_priority_routes(board_path, *, priority_policy=None):
     policy = route_priority_policy(priority_policy)
     avoid = priority_pair_avoid(
         board_path, reservations, policy=policy)
-    kelvin_avoid = tuple(reservations.get("corridors") or ()) \
-        if reservations.get("enabled") else ()
+    kelvin_avoid = priority_kelvin_avoid(
+        reservations, policy=policy)
     if policy == "power-first" and reservations.get("enabled"):
         critical = _probe_critical_pairs_on_board(
             board, board_path, avoid=avoid, kelvin_avoid=kelvin_avoid)
@@ -1275,7 +1291,13 @@ def prepare_incremental_access(board_path, *, critical_nets=(), grid_mm=0.5):
         if kind == "high_speed"}
     protected_nets.update(declaration["resolved"])
     import cec_future_congestion
-    _critical_routes, route_reservations = compile_priority_routes(board_path)
+    # Incremental access needs only the frozen routed-object reservations.
+    # Compiling priority routes here used to replay the complete Kelvin/CAN/
+    # USB precision solver even though none of its copper or verdict entered
+    # this context.  The baseline exact preflight already owns that proof; a
+    # placement delta receives a new exact proof only if it survives this
+    # cheap screen and becomes a finalist.
+    route_reservations = compile_route_reservations(board_path)
     future_congestion = cec_future_congestion.prepare(
         database, conns, stackup, critical_nets=protected_nets,
         reservations=route_reservations["corridors"],

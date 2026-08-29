@@ -524,6 +524,35 @@ def _fab_isolated(board_path):
     return json.loads(marker)
 
 
+def _foreign_isolated(board_path):
+    """Measure fabricated high-current-pour ownership in an isolated worker.
+
+    A derived shunt corridor is a planning reservation, not copper present in
+    Gerbers.  Final repair admission therefore uses the actual laid zone
+    outlines.  Current cross-section and thermal gates independently prove
+    that an orthogonal hook around a reserved planning rectangle remains
+    adequate.
+    """
+    import cec_pour_clearance
+
+    report = cec_pour_clearance.inspect_laid_file(board_path)
+    status = str(report.get("status") or "error")
+    parts = int(report.get("n_parts", 0) or 0)
+    tracks = int(report.get("n_tracks", 0) or 0)
+    vias = int(report.get("n_vias", 0) or 0)
+    return {
+        "foreign_status": status,
+        "foreign_parts": parts,
+        "foreign_tracks": tracks,
+        "foreign_vias": vias,
+        # An analysis error is itself blocking; otherwise every convicted
+        # primitive is a blocker.  Keeping the aggregate explicit gives the
+        # transactional selector one stable lexicographic term.
+        "foreign_blocking": (1 if status == "error"
+                             else parts + tracks + vias),
+    }
+
+
 def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
     argv = [sys.executable, os.path.abspath(__file__), candidate,
             "--apply", "--sliver", str(sliver_mm), "--json", report_path]
@@ -580,6 +609,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
     """
     baseline_row = _score_isolated(board_path)
     baseline_row.update(_fab_isolated(board_path))
+    baseline_row.update(_foreign_isolated(board_path))
     baseline = dict(baseline_row)
     parent = os.path.dirname(os.path.abspath(board_path)) or "."
     work = tempfile.mkdtemp(prefix=".cec-fab-admit-", dir=parent)
@@ -617,6 +647,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
                         report_path=sliver_report)
                 score_row = _score_isolated(candidate)
                 score_row.update(_fab_isolated(candidate))
+                score_row.update(_foreign_isolated(candidate))
                 snapshot = dict(score_row)
                 # Import here rather than at module load so dry-run repair
                 # primitives stay usable on hosts without the scoring stack.
@@ -626,6 +657,9 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
                 safe = (admission["accepted"]
                         and snapshot["route_blocking"]
                         <= baseline["route_blocking"]
+                        and snapshot["foreign_status"] != "error"
+                        and snapshot["foreign_blocking"]
+                        <= baseline["foreign_blocking"]
                         and snapshot["fab_blocking"]
                         <= baseline["fab_blocking"]
                         and snapshot["fab_drc"] <= baseline["fab_drc"]
@@ -647,7 +681,8 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
         # Prefer real topology cleanup, then electrical closure, then the
         # ordinary weighted objective.  Include the unchanged baseline as the
         # stable fallback so a neutral rewrite is never published gratuitously.
-        baseline_key = (baseline["fab_blocking"],
+        baseline_key = (baseline["foreign_blocking"],
+                        baseline["fab_blocking"],
                         baseline["route_blocking"], baseline["route_advisory"],
                         baseline["drc"], baseline["unconnected"],
                         float(baseline_row["objective"]), "baseline")
@@ -655,7 +690,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
         chosen_key = baseline_key
         for row in safe_variants:
             snap = row["metrics"]
-            key = (snap["fab_blocking"],
+            key = (snap["foreign_blocking"], snap["fab_blocking"],
                    snap["route_blocking"], snap["route_advisory"],
                    snap["drc"], snap["unconnected"], row["objective"], row["name"])
             if key < chosen_key:

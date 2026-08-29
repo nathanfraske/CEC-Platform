@@ -141,6 +141,17 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(long_can["minimum_coupled_coverage_pct"], 60.0)
         self.assertEqual(long_can["uncoupled_length_budget_mm"], 2.0)
 
+        forced_local = precision._pair_coupling_contract(
+            can, {"fraction": 0.0, "total_samples": 16},
+            {"/CAN_H": 6.4, "/CAN_L": 6.2},
+            endpoint_stations=[
+                {"kind": "same-footprint-pair", "center": [0.0, 0.0]},
+                {"kind": "split-member-footprints", "center": [4.0, 0.0]},
+            ])
+        self.assertTrue(forced_local["ok"], forced_local)
+        self.assertTrue(forced_local["forced_endpoint_fanout"])
+        self.assertEqual(forced_local["uncoupled_length_budget_mm"], 8.0)
+
     def test_short_pair_ribbon_normalizes_dissimilar_endpoint_pitch(self):
         pair = {"name": "CAN", "kind": "can",
                 "p": "/CAN_H", "n": "/CAN_L",
@@ -895,13 +906,15 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         endpoints = ((3.0, 5.0), (17.0, 5.0),
                      (3.0, 5.8), (17.0, 5.8))
         events = []
+        return_reaches = []
 
         def routed(*_args, **_kwargs):
             events.append("route")
             return {"route_mode": "paired-portals-shared-centreline"}
 
-        def returns(*_args, **_kwargs):
+        def returns(*_args, **kwargs):
             events.append("returns")
+            return_reaches.append(kwargs["return_reach_mm"])
             return [], "covered"
 
         with mock.patch.object(
@@ -935,6 +948,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
 
         self.assertFalse(report.get("refused"), report)
         self.assertEqual(events, ["route", "returns"])
+        self.assertEqual(return_reaches, [1.5])
         self.assertTrue(report["route_mode"].startswith(
             "paired-pofv-endpoint-"))
         signal_vias = [item for item in board.GetTracks()
@@ -1833,7 +1847,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(report["orientation_backtracking"][0]["retry_sign"],
                          -1)
 
-    def test_existing_partner_copper_is_crossing_obstacle_not_clearance_keepout(self):
+    def test_existing_partner_copper_uses_exact_pair_clearance(self):
         class Shape:
             def Collide(self, _segment, clearance):
                 self.clearance = clearance
@@ -1864,8 +1878,9 @@ class PrecisionFlowThroughTests(unittest.TestCase):
                 return [own, partner]
 
         self.assertFalse(precision._partner_tracks_clear(
-            Board(), (0.0, 0.0), (2.0, 0.0), 200000, 0, 2))
-        self.assertEqual(partner.shape.clearance, 0)
+            Board(), (0.0, 0.0), (2.0, 0.0), 200000, 0, 2,
+            clearance_nm=200000))
+        self.assertEqual(partner.shape.clearance, 199999)
         # The same-member trace is not the partner and remains reusable.
         self.assertTrue(precision._partner_tracks_clear(
             Board(), (0.0, 0.0), (2.0, 0.0), 200000, 0, 3))

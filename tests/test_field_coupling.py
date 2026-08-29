@@ -119,6 +119,32 @@ class FieldCouplingTest(unittest.TestCase):
         self.assertTrue(report["ok"], report)
         self.assertEqual(report["interaction_count"], 0)
 
+    def test_port_qualified_can_pair_members_are_not_mutual_faults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, [
+                ("/CAN_H_J1", "F.Cu", (4.0, 8.0), (20.0, 8.0)),
+                ("/CAN_L_J1", "F.Cu", (4.0, 8.33), (20.0, 8.33)),
+            ])
+            report = field.field_coupling_summary(path)
+
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["interaction_count"], 0)
+
+    def test_port_qualified_pair_does_not_hide_sensitive_neighbor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, [
+                ("/CAN_H_J1", "F.Cu", (4.0, 8.0), (20.0, 8.0)),
+                ("/CAN_L_J1", "F.Cu", (4.0, 8.33), (20.0, 8.33)),
+                ("/DETECT", "F.Cu", (4.0, 8.66), (20.0, 8.66)),
+            ])
+            report = field.field_coupling_summary(path)
+
+        self.assertFalse(report["ok"], report)
+        self.assertEqual(report["blocking_count"], 2)
+        self.assertNotIn(
+            {"/CAN_H_J1", "/CAN_L_J1"},
+            [set(row["nets"]) for row in report["interactions"]])
+
 
 if __name__ == "__main__":
     unittest.main()

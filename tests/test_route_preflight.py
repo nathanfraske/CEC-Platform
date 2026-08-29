@@ -185,11 +185,46 @@ class RoutePreflightTest(unittest.TestCase):
                 "board.kicad_pcb", priority_policy="critical-first")
 
         self.assertEqual(probe.call_args.kwargs["avoid"], ())
+        self.assertEqual(probe.call_args.kwargs["kelvin_avoid"], ())
         avoid_mock.assert_not_called()
         self.assertEqual(compiled["priority_order"], (
             "critical_pairs", "routed_power_objects", "residual_signals"))
         self.assertEqual(compiled["priority_policy"], "critical-first")
         self.assertEqual(compiled["critical_pair_avoid_count"], 0)
+        self.assertEqual(compiled["kelvin_avoid_count"], 0)
+
+    def test_kelvin_and_pair_owners_share_priority_policy(self):
+        reservation = {
+            "enabled": True,
+            "corridors": [{"net": "/PWR", "layer": "F.Cu"}],
+        }
+        self.assertEqual(rp.priority_kelvin_avoid(
+            reservation, policy="critical-first"), ())
+        self.assertEqual(rp.priority_kelvin_avoid(
+            reservation, policy="power-first"),
+            tuple(reservation["corridors"]))
+
+    def test_incremental_context_does_not_recompile_priority_routes(self):
+        with mock.patch.object(
+                rp, "compile_route_reservations",
+                return_value={"corridors": [], "report": {}}) as reserve, \
+                mock.patch.object(
+                    rp, "compile_priority_routes") as priority, \
+                mock.patch.dict(sys.modules, {
+                    "cec_boarddb": mock.Mock(**{
+                        "BoardDB.from_board.return_value": mock.Mock()}),
+                    "cec_coord_router": mock.Mock(**{
+                        "build_problem.return_value": (
+                            [], 1, 1, None, {"net_kinds": []})}),
+                    "cec_future_congestion": mock.Mock(**{
+                        "prepare.return_value": mock.Mock()}),
+                }):
+            context = rp.prepare_incremental_access(
+                "board.kicad_pcb", grid_mm=1.0)
+
+        reserve.assert_called_once_with("board.kicad_pcb")
+        priority.assert_not_called()
+        self.assertEqual(context.route_reservations["corridors"], [])
 
     def test_reservation_compiler_consumes_complete_frozen_state(self):
         with tempfile.TemporaryDirectory() as directory:

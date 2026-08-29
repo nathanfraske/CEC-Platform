@@ -949,9 +949,87 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
         if n:
             done.append(name)
     if done:
-        with open(dsn_path, "w", encoding="utf-8") as handle:
-            handle.write(text)
+        _atomic_replace_text(dsn_path, text)
     return done
+
+
+def _atomic_replace_text(path: str, text: str) -> None:
+    """Durably replace a generated text artifact without exposing truncation.
+
+    DSN post-processing is part of the router transaction.  Writing directly
+    to the live path leaves a zero-length or partial file if a worker exits
+    between truncate and close; FreeRouting then reports misleading parser
+    noise instead of an infrastructure failure.  Keep the old complete file
+    visible until the new bytes have been flushed and fsynced.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, temporary = tempfile.mkstemp(prefix=".cec-dsn-", suffix=".tmp",
+                                     dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        except OSError:
+            pass
+
+
+def validate_dsn_structure(dsn_path: str) -> dict:
+    """Fail closed on a truncated or lexically unbalanced Specctra file."""
+    import re
+
+    with open(dsn_path, "r", encoding="utf-8", errors="strict") as handle:
+        text = handle.read()
+    if not text or "\x00" in text:
+        raise RuntimeError("DSN is empty or contains a NUL byte: %r" % dsn_path)
+    # Specctra declares its quote delimiter as ``(string_quote ")``.  That
+    # literal is intentionally unmatched: it describes the lexer rather than
+    # opening a string.  Mask only this parser declaration, preserving length
+    # and every parenthesis so subsequent error offsets remain exact.
+    scan_text = re.sub(
+        r'(?m)^(\s*\(string_quote\s+)"(\s*\)\s*)$', r"\1Q\2", text)
+    depth = 0
+    quoted = False
+    escaped = False
+    for offset, char in enumerate(scan_text):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+            continue
+        if char == '"':
+            quoted = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                raise RuntimeError(
+                    "DSN closes an unopened scope at byte %d: %r" %
+                    (offset, dsn_path))
+    if quoted or depth:
+        raise RuntimeError(
+            "DSN truncated/unbalanced: path=%r quote_open=%s depth=%d bytes=%d"
+            % (dsn_path, quoted, depth, len(text.encode("utf-8"))))
+    if "(pcb " not in text:
+        raise RuntimeError("DSN lacks a pcb root scope: %r" % dsn_path)
+    return {"ok": True, "bytes": len(text.encode("utf-8")), "depth": 0}
+
+
+def _validate_dsn_after(dsn_path: str, transform: str) -> dict:
+    """Attribute a malformed DSN to the exact transactional boundary."""
+    try:
+        return validate_dsn_structure(dsn_path)
+    except Exception as exc:  # noqa: BLE001 - retain original parser evidence
+        raise RuntimeError("DSN invalid after %s: %s" % (transform, exc)) from exc
 
 
 def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=None) -> set:
@@ -1108,8 +1186,7 @@ def _dsn_exclude_pins(dsn_path: str, pins) -> int:
         text = re.sub(r"[ \t]{2,}", " ", text)
         text = re.sub(r"\(pins +", "(pins ", text)
         text = re.sub(r" +\)", ")", text)
-        with open(dsn_path, "w", encoding="utf-8") as f:
-            f.write(text)
+        _atomic_replace_text(dsn_path, text)
     return removed
 
 
@@ -1216,9 +1293,11 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         raise RuntimeError(
             f"cec_fr.export_dsn: DSN file missing or empty after export: {dsn_path!r}"
         )
+    _validate_dsn_after(dsn_path, "pcbnew.ExportSpecctraDSN")
     if plane_to_power:
         rewritten = _dsn_force_power_layers(dsn_path, plane_layers(board))
         if rewritten:
+            _validate_dsn_after(dsn_path, "plane-layer policy")
             print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
                   f"(FR signal routing excluded)", file=sys.stderr)
     # KELVIN POLICY (owner directive 2026-06-28, the kelvin-from-connector fix): the current-sense IC
@@ -1233,6 +1312,7 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         sense_pins = kelvin_sense_pins(board)
         if sense_pins:
             n = _dsn_exclude_pins(dsn_path, sense_pins)
+            _validate_dsn_after(dsn_path, "kelvin pin exclusion")
             print(f"[cec_fr] kelvin policy: excluded {len(sense_pins)} current-sense input pad(s) "
                   f"{sorted(sense_pins)} from FR routing ({n} DSN token(s) removed) -- the inner-edge "
                   f"tap is their only connection", file=sys.stderr)
@@ -1248,6 +1328,7 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         force_pins = sensec_force_connector_pins(board)
         if force_pins:
             n = _dsn_exclude_pins(dsn_path, force_pins)
+            _validate_dsn_after(dsn_path, "force-pour pin exclusion")
             print(f"[cec_fr] force-pour-only policy: excluded {len(force_pins)} cable-connector force "
                   f"pin(s) {sorted(force_pins)} from FR routing ({n} DSN token(s) removed) -- the "
                   f"post-route power pour is their only connection to the shunt", file=sys.stderr)
@@ -1264,6 +1345,7 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
             _tht = set(_tht_by_pin)
             _pnets = sorted(set(_tht_by_pin.values()))
             n = _dsn_exclude_pins(dsn_path, _tht)
+            _validate_dsn_after(dsn_path, "filled-plane THT exclusion")
             print(f"[cec_fr] plane-THT policy: excluded {len(_tht)} THT pad(s) on "
                   f"filled net(s) {_pnets} ({n} DSN token(s) removed) -- "
                   "saved inner-layer fill is their connection", file=sys.stderr)
@@ -5286,28 +5368,67 @@ def prune_dead_zone_via_pairs(board_path, power_nets, *, tol_mm=0.02):
     return {"vias": len(doomed), "detail": detail}
 
 
-def settle_generated_power_artifact(board_path, power_nets, *, max_rounds=4):
-    """Alternate via and zone liveness cleanup to a bounded fixed point."""
+def settle_generated_power_artifact(board_path, power_nets, *, max_rounds=4,
+                                    worker_attempts=3):
+    """Alternate via and zone liveness cleanup to a bounded fixed point.
+
+    Each legacy-pcbnew phase runs in a fresh process, but KiCad's deprecated
+    SWIG bindings can still abort during interpreter teardown after writing a
+    board or return an empty report.  Treat that as an infrastructure fault,
+    not a geometric refusal: restore the byte-exact phase input and retry a
+    small bounded number of times.  A real deterministic phase failure still
+    raises after the same attempts and can never admit a partial mutation.
+    """
     import cec_power_artifact_worker
 
     nets = sorted({str(net) for net in (power_nets or ()) if str(net)})
 
     def _phase(name):
-        command = [sys.executable, cec_power_artifact_worker.__file__,
-                   name, board_path, "--nets-json", json.dumps(nets)]
-        process = subprocess.run(
-            command, capture_output=True, text=True, timeout=120)
-        if process.stderr:
-            print(process.stderr.rstrip(), file=sys.stderr)
-        if process.returncode:
-            raise RuntimeError(
-                "power artifact %s phase failed (%d): %s" % (
-                    name, process.returncode,
-                    (process.stderr or process.stdout or "no diagnostic")[-2000:]))
-        lines = [line for line in process.stdout.splitlines() if line.strip()]
-        if not lines:
-            raise RuntimeError("power artifact %s phase returned no report" % name)
-        return json.loads(lines[-1])
+        attempts = max(1, int(worker_attempts))
+        failures = []
+        for attempt in range(1, attempts + 1):
+            fd, backup = tempfile.mkstemp(
+                prefix="cec-power-phase-input-", suffix=".kicad_pcb",
+                dir=os.path.dirname(os.path.abspath(board_path)))
+            os.close(fd)
+            fd, report_path = tempfile.mkstemp(
+                prefix="cec-power-phase-report-", suffix=".json")
+            os.close(fd)
+            shutil.copy2(board_path, backup)
+            try:
+                command = [
+                    sys.executable, cec_power_artifact_worker.__file__,
+                    name, board_path, "--nets-json", json.dumps(nets),
+                    "--report", report_path,
+                ]
+                process = subprocess.run(
+                    command, capture_output=True, text=True, timeout=120)
+                if process.stderr:
+                    print(process.stderr.rstrip(), file=sys.stderr)
+                if process.returncode:
+                    raise RuntimeError(
+                        "worker exited %d: %s" % (
+                            process.returncode,
+                            (process.stderr or process.stdout or
+                             "no diagnostic")[-2000:]))
+                with open(report_path, encoding="utf-8") as source:
+                    return json.load(source)
+            except Exception as exc:                   # noqa: BLE001
+                shutil.copy2(backup, board_path)
+                failures.append(
+                    "attempt %d/%d %s: %s" % (
+                        attempt, attempts, type(exc).__name__, exc))
+                if attempt >= attempts:
+                    raise RuntimeError(
+                        "power artifact %s phase failed after %d bounded "
+                        "attempt(s): %s" % (
+                            name, attempts, "; ".join(failures))) from exc
+            finally:
+                for temporary in (backup, report_path):
+                    try:
+                        os.unlink(temporary)
+                    except OSError:
+                        pass
 
     rounds = []
     for index in range(max(1, int(max_rounds))):
@@ -10736,6 +10857,156 @@ _BOARD_UUID_RE = re.compile(
     r'[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})("?)(\))')
 
 
+_GENERATED_ZONE_PREFIXES = (
+    "manifold:", "orthofill:", "overunder:", "patch:", "pofv:",
+    "pour:", "pourfirst:", "pourplan:", "slab:",
+)
+
+
+def _top_level_board_form_spans(text, symbol):
+    """Return ``(start, end)`` spans for root-level KiCad forms.
+
+    This is deliberately a tiny s-expression boundary scanner rather than a
+    regular expression over arbitrary nested zone geometry.  It understands
+    quoted strings and escapes, and only recognizes forms directly beneath
+    the root ``(kicad_pcb ...)`` expression.
+    """
+    spans = []
+    depth = 0
+    start = None
+    quoted = False
+    escaped = False
+    token = "(" + str(symbol)
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+            index += 1
+            continue
+        if char == '"':
+            quoted = True
+            index += 1
+            continue
+        if char == "(":
+            if (depth == 1 and text.startswith(token, index)
+                    and index + len(token) < len(text)
+                    and text[index + len(token)] in " \t\r\n("):
+                start = index
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if start is not None and depth == 1:
+                spans.append((start, index + 1))
+                start = None
+            if depth < 0:
+                raise ValueError("unbalanced KiCad board expression")
+        index += 1
+    if quoted or depth != 0 or start is not None:
+        raise ValueError("unterminated KiCad board expression")
+    return spans
+
+
+def canonicalize_generated_zone_file(board_path):
+    """Make generated-zone identity and fill order reproducible.
+
+    ``pcbnew.ZONE`` assigns a random UUID.  KiCad serializes zones in UUID
+    order, and equal-net microfill islands can consequently be evaluated in a
+    different order on otherwise byte-equivalent generated copper.  The
+    measured symptom was the same orthofill polygon alternating between clean
+    and ``isolated_copper`` across independent production runs.
+
+    Rewrite only pipeline-named zones.  Their UUIDv5 is derived from the full
+    semantic zone form with the old UUID removed, and their root-level slots
+    are populated in that same canonical order.  Authored zones retain both
+    their UUID and relative slot.  The transform is atomic and idempotent and
+    changes no geometry, net, layer, priority, or fill setting.
+    """
+    import hashlib
+    import uuid as _uuid
+
+    with open(board_path, "r", encoding="utf-8") as source:
+        original = source.read()
+    rows = []
+    for start, end in _top_level_board_form_spans(original, "zone"):
+        block = original[start:end]
+        name_match = re.search(r'\(name\s+"([^"\\]*(?:\\.[^"\\]*)*)"\)',
+                               block)
+        name = name_match.group(1) if name_match else ""
+        if not name.startswith(_GENERATED_ZONE_PREFIXES):
+            continue
+        uuid_match = _BOARD_UUID_RE.search(block)
+        if uuid_match is None:
+            raise RuntimeError(
+                "generated zone %r has no persistent UUID" % name)
+        semantic = _BOARD_UUID_RE.sub(r"\1\2<generated-zone>\4\5", block,
+                                      count=1)
+        digest = hashlib.sha256(semantic.encode("utf-8")).hexdigest()
+        rows.append({
+            "start": start, "end": end, "name": name,
+            "old_uuid": uuid_match.group(3).lower(),
+            "uuid_start": uuid_match.start(3),
+            "uuid_end": uuid_match.end(3),
+            "digest": digest, "key": (semantic, name),
+            "block": block,
+        })
+    if not rows:
+        return {"zones": 0, "uuid_rewritten": 0,
+                "order_changed": False, "status": "ok"}
+
+    # Identical duplicate generated zones are themselves suspicious, but this
+    # identity pass must never create a duplicate UUID while the independent
+    # DRC/reaper decides whether the geometry is legal.  Give equal semantic
+    # forms a deterministic occurrence suffix.
+    occurrences = {}
+    for row in sorted(rows, key=lambda item: item["key"]):
+        occurrence = occurrences.get(row["digest"], 0) + 1
+        occurrences[row["digest"]] = occurrence
+        fresh = str(_uuid.uuid5(
+            _uuid.NAMESPACE_OID,
+            "cec-generated-zone:%s:%d" % (row["digest"], occurrence)))
+        row["new_uuid"] = fresh
+        row["block"] = (row["block"][:row["uuid_start"]] + fresh
+                        + row["block"][row["uuid_end"]:])
+    ordered = sorted(rows, key=lambda row: row["key"])
+    replacements = iter(row["block"] for row in ordered)
+    pieces = []
+    cursor = 0
+    for row in rows:
+        pieces.extend((original[cursor:row["start"]], next(replacements)))
+        cursor = row["end"]
+    pieces.append(original[cursor:])
+    rewritten = "".join(pieces)
+    order_changed = [row["key"] for row in rows] != [
+        row["key"] for row in ordered]
+    uuid_rewritten = sum(
+        row["old_uuid"] != row["new_uuid"] for row in rows)
+    if rewritten != original:
+        directory = os.path.dirname(os.path.abspath(board_path)) or "."
+        fd, temporary = tempfile.mkstemp(
+            prefix=".%s.zone-order-" % os.path.basename(board_path),
+            dir=directory)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as target:
+                target.write(rewritten)
+                target.flush()
+                os.fsync(target.fileno())
+            os.chmod(temporary, os.stat(board_path).st_mode)
+            os.replace(temporary, board_path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+    return {
+        "zones": len(rows), "uuid_rewritten": uuid_rewritten,
+        "order_changed": bool(order_changed), "status": "canonicalized",
+    }
+
+
 def ensure_unique_board_file_uuids(board_path):
     """Atomically repair duplicate persistent UUID declarations in a PCB file.
 
@@ -13869,6 +14140,9 @@ def route_once(
     params = {"passes": passes, "opt_time": opt_time, "threads": threads,
               "fr_version": v, "stage_s": {},
               "completed_nets": sorted(_completed)}
+    _locked_keepout_mode = (
+        os.environ.get("CEC_LOCKED_COPPER_KEEPOUTS", "1") != "0")
+    params["locked_copper_keepouts"] = bool(_locked_keepout_mode)
     _route_started = _stage_started = time.monotonic()
 
     def _stage_done(name):
@@ -13899,7 +14173,7 @@ def route_once(
         if _protected:
             try:
                 _owned = owned_locked_nets(board_path) | _completed
-                if _owned:
+                if _owned and _locked_keepout_mode:
                     _lk = locked_copper_keepouts(board_path, only_nets=_owned)
                     hints = list(hints) + _lk
                     print("[cec_fr] locked-copper keepouts: %d zone(s) over %d owned "
@@ -13910,15 +14184,20 @@ def route_once(
             # PARTIALLY-owned locked nets (2026-07-14 residue (b)): their lane copper
             # bakes as keepouts too, with pad-access WINDOWS so FR can still finish
             # the net's remainder (/SENSEP6_HI divider tap, /FAN_12V fan-gate spur).
-            try:
-                _pk = partial_locked_keepouts(board_path, exclude_nets=_owned)
-                if _pk:
-                    hints = list(hints) + _pk
-                    print("[cec_fr] partial-locked keepouts: %d zone(s) (windowed "
-                          "pad access)" % len(_pk), flush=True)
-            except Exception as _e:                            # noqa: BLE001
-                print("[cec_fr] partial-locked keepouts failed (%s) -- owned-only"
-                      % _e, flush=True)
+            if _locked_keepout_mode:
+                try:
+                    _pk = partial_locked_keepouts(
+                        board_path, exclude_nets=_owned)
+                    if _pk:
+                        hints = list(hints) + _pk
+                        print("[cec_fr] partial-locked keepouts: %d zone(s) (windowed "
+                              "pad access)" % len(_pk), flush=True)
+                except Exception as _e:                        # noqa: BLE001
+                    print("[cec_fr] partial-locked keepouts failed (%s) -- owned-only"
+                          % _e, flush=True)
+            else:
+                print("[cec_fr] locked-copper keepouts disabled: DSN protect/fix "
+                      "ownership remains active", flush=True)
             # Residue (a) audit: lanes/cells never mutual-legality-check; report
             # locked-vs-locked collisions LOUD (43 measured on the wave-9 winner)
             # so a jank bake is visible at route time, not at the zoom review.
@@ -14084,6 +14363,7 @@ def route_once(
         if _protected:
             import cec_fr02
             cec_fr02.force_protect_in_dsn(dsn_path, sorted(_protected))
+            _validate_dsn_after(dsn_path, "owned-net protect rewrite")
             # OWNED-NET EXCLUSION (owner 2026-07-12: FR was re-routing the locked
             # lanes/taps at DSN class width -- 2.5mm B.Cu crossings under the bands;
             # reconcile stripped them AFTER, this stops the work happening at all):
@@ -14092,6 +14372,7 @@ def route_once(
             try:
                 if _owned:
                     n_x = cec_fr02.exclude_net_pins_in_dsn(dsn_path, sorted(_owned))
+                    _validate_dsn_after(dsn_path, "owned-net pin exclusion")
                     print("[cec_fr] owned-net exclusion: %d net(s) removed from FR routing"
                           % n_x, flush=True)
             except Exception as _e:                            # noqa: BLE001
@@ -14104,9 +14385,11 @@ def route_once(
         # keep their real net on the board; only the DSN forgets them.
         if _reserve_pins:
             _nrx = _dsn_exclude_pins(dsn_path, _reserve_pins)
+            _validate_dsn_after(dsn_path, "pour-reserve pin exclusion")
             print("[cec_fr] pour-reserve: excluded %d pour-owned pad(s) from "
                   "FR routing (%d DSN token(s) removed)"
                   % (len(_reserve_pins), _nrx), file=sys.stderr)
+        params["dsn_validation"] = validate_dsn_structure(dsn_path)
         _stage_done("export_dsn")
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)

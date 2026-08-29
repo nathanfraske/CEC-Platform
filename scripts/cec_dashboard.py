@@ -570,11 +570,14 @@ def _gate_issue_analysis(board, issues_svg=None):
                 os.unlink(drc_path)
             except OSError:
                 pass
-        # Use the same isolated, two-authority signoff as the route pipeline:
-        # canonical corridor geometry plus the zones actually laid in the PCB.
-        # A dashboard badge must never bless an incursion that only one of the
-        # two representations can see.
+        # Keep the two authorities visibly separate.  The derived corridor is
+        # a conservative placement/routing reservation; the laid outline is
+        # copper that will actually exist in Gerbers and is the release badge.
+        # Combining them recreated the phantom FEM slabs that are not present
+        # on the routed board.
         fp = cec_pour_clearance.inspect_file(board)
+        laid = dict(fp.get("laid") or {})
+        reserved = dict(fp.get("derived") or {})
         try:
             route_sanity = cec_synth_pipeline._oracle_route_sanity(board)
         except Exception as route_error:                       # noqa: BLE001
@@ -590,10 +593,19 @@ def _gate_issue_analysis(board, issues_svg=None):
             "gates_pass": bool(m.gates_pass),
             "route_sanity": route_sanity,
             "foreign": {
-                "status": fp.get("status"),
-                "applicable": fp.get("applicable"),
-                "n_tracks": int(fp.get("n_tracks") or 0),
-                "n_vias": int(fp.get("n_vias") or 0),
+                "authority": "actual_laid_pour",
+                "status": laid.get("status"),
+                "applicable": laid.get("applicable"),
+                "n_parts": int(laid.get("n_parts") or 0),
+                "n_tracks": int(laid.get("n_tracks") or 0),
+                "n_vias": int(laid.get("n_vias") or 0),
+            },
+            "reserved_corridor": {
+                "authority": "planning_advisory",
+                "status": reserved.get("status"),
+                "applicable": reserved.get("applicable"),
+                "n_tracks": int(reserved.get("n_tracks") or 0),
+                "n_vias": int(reserved.get("n_vias") or 0),
             },
         }
     except Exception as error:                                # noqa: BLE001
@@ -1439,13 +1451,15 @@ function gbadge(label,ok,extra){const cl=ok===true?'ok':(ok===false?'bad':'dim')
 function renderBadges(){
  const el=document.getElementById('badges');
  if(!cur){el.innerHTML='';return;}
- const g=cur.gates||{}, t=cur.thermal||{}, rt=cur.routing||{}, fp=g.foreign||{}, rq=g.route_sanity||{};
+ const g=cur.gates||{}, t=cur.thermal||{}, rt=cur.routing||{}, fp=g.foreign||{}, rv=g.reserved_corridor||{}, rq=g.route_sanity||{};
  if(!g.ok){el.innerHTML=`<span class="pill bad" title="${esc(g.error||'')}">gate-eval n/a</span>`+verdictPill();return;}
- const fclean=(fp.status==='na')||(fp.status==='ok'&&!fp.n_tracks&&!fp.n_vias);
+ const fclean=(fp.status==='na')||(fp.status==='ok'&&!fp.n_parts&&!fp.n_tracks&&!fp.n_vias);
  const fok=(fp.status==='na')?null:fclean;
- const fext=fp.status==='ok'?`${fp.n_tracks}T/${fp.n_vias}V`:(fp.status||'');
+ const fext=fp.status==='ok'?`${fp.n_parts||0}P/${fp.n_tracks}T/${fp.n_vias}V`:(fp.status||'');
+ const rvext=rv.status==='ok'?`${rv.n_tracks||0}T/${rv.n_vias||0}V`:(rv.status||'');
  let h=gbadge('kelvin',g.kelvin_ok)
-  +gbadge('foreign-on-pour',fok,fext)
+  +gbadge('actual-pour',fok,fext)
+  +gbadge('route-reserve',null,rvext)
  +gbadge('drc',g.drc===0,String(g.drc))
   +gbadge('unconnected',g.unconnected===0,String(g.unconnected));
  if(rt.ok){

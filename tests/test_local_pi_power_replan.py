@@ -211,6 +211,56 @@ class LocalPiPowerReplanTests(unittest.TestCase):
                 else:
                     os.environ["CEC_POURFIRST_STATE"] = previous
 
+    def test_fresh_power_candidate_is_settled_before_exact_admission(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            board = temp / "board.kicad_pcb"
+            board.write_text("board", encoding="utf-8")
+            out_state = temp / "chosen.json"
+            out_board = temp / "chosen.kicad_pcb"
+            events = []
+
+            def compile_candidate(_source, _pours, state_path,
+                                  out_board_path=None, **_kwargs):
+                Path(out_board_path).write_text("candidate", encoding="utf-8")
+                Path(state_path).write_text("{}", encoding="utf-8")
+                return {"frozen_nets": ["PWR"], "pours": [],
+                        "vias": [], "corridors": [], "solver": {}}
+
+            def settle(path, nets):
+                events.append(("settle", Path(path).name, tuple(nets)))
+                return {"schema": 1, "rounds": [], "converged": True}
+
+            def admit(path, nets, baseline):
+                events.append(("admit", Path(path).name, tuple(nets)))
+                return {"passed": True, "exact_after": {
+                    "drc": 0, "unconnected": 0}, "repair": {"legs": 0}}
+
+            modules = {
+                "cec_fab_profile": SimpleNamespace(
+                    enabled_copper_layers=lambda _board: ["F.Cu"]),
+                "cec_fr": SimpleNamespace(
+                    settle_generated_power_artifact=settle,
+                    copy_project_sidecars=lambda *_args: {}),
+                "cec_pour_plan": SimpleNamespace(
+                    power_layer_order=lambda: ["F.Cu"]),
+                "pcbnew": SimpleNamespace(LoadBoard=lambda _path: object()),
+            }
+            with mock.patch.dict(sys.modules, modules), mock.patch.object(
+                    synth, "_compile_post_priority_power_candidate",
+                    side_effect=compile_candidate), mock.patch.object(
+                        synth, "_admit_priority_power_candidate_isolated",
+                        side_effect=admit):
+                report = synth._compile_post_priority_power_state(
+                    board, [{"net": "PWR"}], out_state,
+                    out_board_path=out_board)
+
+            self.assertEqual([row[0] for row in events],
+                             ["settle", "admit"])
+            selection = report["candidate_selection"]["candidates"][0]
+            self.assertTrue(selection[
+                "power_artifact_settlement"]["converged"])
+
 
 if __name__ == "__main__":
     unittest.main()

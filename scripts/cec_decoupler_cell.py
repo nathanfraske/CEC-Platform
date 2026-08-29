@@ -2316,7 +2316,14 @@ def synthesize_ground_plane_access(source, destination, *, reach_mm=1.5,
     _prune_ground_access_drc_groups(
         board, report, before_drc, after_drc)
     pcbnew.SaveBoard(destination, board)
-    if repair_existing_copper and report.get("ok"):
+    # The local PI transaction can add through vias on any input, not only an
+    # already-routed seed.  A saved KiCad zone retains its previous fill until
+    # it is explicitly refilled; scoring newly-added foreign-net vias against
+    # that stale fill reports false via-to-plane clearance/hole-clearance
+    # regressions.  Refill after every successful cell mutation so placement,
+    # fresh production, and routed-repair paths all admit the same physical
+    # board state.
+    if report.get("ok") and report.get("generated_item_count"):
         try:
             cec_fr.refill_zones(destination)
         except Exception as exc:                         # noqa: BLE001
@@ -2436,7 +2443,11 @@ def synthesize_pre_route(source, destination, *, max_assignment_mm=3.5,
         rule_report = {**report, "endpoint_neckdown": recovered}
     report["endpoint_neckdown_rule"] = \
         _ensure_endpoint_neckdown_rule(destination, rule_report)
-    if repair_existing_copper and report.get("ok"):
+    # Fresh placements and routed seeds have the same saved-zone lifecycle:
+    # every generated PI via must be incorporated into a new zone fill before
+    # exact DRC admission.  Conditioning this on local rip-up mode left fresh
+    # production boards scored against stale plane copper.
+    if report.get("ok") and report.get("generated_item_count"):
         try:
             cec_fr.refill_zones(destination)
         except Exception as exc:                         # noqa: BLE001
