@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Teeth for certificate repair and convergence telemetry."""
 
+import copy
 import os
 import sys
 import json
 import tempfile
 import unittest
 from concurrent.futures import Future
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -16,6 +18,179 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 
 class TestCertificateWorkerLifecycle(unittest.TestCase):
+    def test_exact_pair_closure_defines_plane_authority_locally(self):
+        source = Path(os.path.join(ROOT, "scripts",
+                                   "cec_certificate_repair.py")).read_text(
+                                       encoding="utf-8")
+        function = source[source.index("def _close_certificate_pair"):
+                          source.index("def _close_negotiation_worker")]
+        self.assertIn("for layer_name in cec_fr.plane_layers(board)",
+                      function)
+        self.assertIn(
+            "((start_layers & end_layers) & same_layer_authority) - plane",
+            function)
+        self.assertIn("remaining_s / remaining_layers", function)
+        self.assertIn("same_layer_phase_deadline", function)
+        self.assertIn("bridge_ops(deadline)", function)
+
+    def test_helper_closed_target_preserves_pre_target_order_snapshot(self):
+        source = Path(os.path.join(ROOT, "scripts",
+                                   "cec_certificate_repair.py")).read_text(
+                                       encoding="utf-8")
+        relocation = source[
+            source.index("def _attempt_route_certificate_via_clearance"):
+            source.index("def _attempt_alternate_placement_route_order")]
+        parent = source[
+            source.index("def _attempt_footprint_relocation"):
+            source.index("def _relocation_support_nets")]
+
+        self.assertGreaterEqual(
+            relocation.count('"target_route_baseline_path"'), 3)
+        self.assertGreaterEqual(
+            parent.count('"target_route_baseline_path"'), 3)
+        self.assertIn('row["post_placement_dangling_cleanup"]', parent)
+        self.assertIn('row["target_net_completion"]', parent)
+
+    def test_broad_canonical_worker_uses_fast_breadth_before_negotiation(self):
+        import cec_certificate_repair as repair
+
+        board = mock.Mock()
+        report = {"closed": 0}
+        with mock.patch.object(
+                repair.pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(
+                    repair.cec_fr, "_project_netclass_resolver",
+                    return_value="resolver"), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    return_value=report) as synthesize:
+            got = repair._broad_canonical_worker(
+                "candidate.kicad_pcb", ("+3V3",))
+
+        self.assertIs(got, report)
+        self.assertTrue(synthesize.call_args.kwargs["bridge_fast"])
+        self.assertEqual(synthesize.call_args.kwargs["maze_max_mm"], 0.0)
+
+    def test_single_net_lastmile_uses_complete_caller_budget(self):
+        import cec_certificate_repair as repair
+
+        board = mock.Mock()
+        report = {"closed": 0}
+        with mock.patch.object(
+                repair.pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(
+                    repair.cec_fr, "_project_netclass_resolver",
+                    return_value="resolver"), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    return_value=report) as synthesize:
+            got = repair._lastmile_worker(
+                "candidate.kicad_pcb", ("+3V3",), 24, 8.0,
+                wall_timeout_s=90.0)
+
+        self.assertIs(got, report)
+        self.assertEqual(
+            synthesize.call_args.kwargs["per_net_timeout_s"], 90.0)
+        self.assertEqual(synthesize.call_args.kwargs["min_w"], 0.2)
+
+    def test_post_placement_whole_net_completion_uses_route_portfolio(self):
+        source = Path(os.path.join(ROOT, "scripts",
+                                   "cec_certificate_repair.py")).read_text(
+                                       encoding="utf-8")
+        parent = source[
+            source.index("def _attempt_footprint_relocation"):
+            source.index("def _relocation_support_nets")]
+
+        self.assertIn(
+            "(trial, (effective_target.target_net,), 24, 8.0, True,",
+            parent)
+
+    def test_deep_route_portfolio_precedes_destructive_negotiation(self):
+        source = Path(os.path.join(ROOT, "scripts",
+                                   "cec_certificate_repair.py")).read_text(
+                                       encoding="utf-8")
+        deep = source.index('"stage": "deep_route_portfolio"')
+        negotiate = source.index(
+            "# Always negotiate from the latest refusal certificates")
+
+        self.assertLess(deep, negotiate)
+        self.assertIn(
+            '"schedule": "additive_route_before_destructive_negotiation"',
+            source)
+
+    def test_route_portfolio_does_not_discard_deep_search_budget(self):
+        source = Path(os.path.join(ROOT, "scripts",
+                                   "cec_certificate_repair.py")).read_text(
+                                       encoding="utf-8")
+        worker = source[
+            source.index("def _lastmile_worker"):
+            source.index("def _exact_relocated_connections_worker")]
+
+        self.assertIn(
+            "4.0, remaining / max(1, len(unresolved))",
+            worker)
+        self.assertNotIn(
+            "min(35.0, remaining / max(1, len(unresolved)))",
+            worker)
+
+    def test_live_probe_worker_persists_proven_partial_closure(self):
+        import cec_certificate_repair as repair
+
+        board = mock.Mock()
+        board.Zones.return_value = []
+        report = {"closed": 2, "refused_details": []}
+        with mock.patch.object(
+                repair.pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(
+                    repair.cec_fr, "_project_netclass_resolver",
+                    return_value="resolver"), \
+                mock.patch.object(
+                    repair.cec_fr, "synthesize_lastmile",
+                    return_value=report), \
+                mock.patch.object(
+                    repair, "_save_with_reconciled_endpoint_neckdowns") \
+                as save:
+            got = repair._live_refusal_probe_worker(
+                "scratch.kicad_pcb", ("/I2C_SCL",))
+
+        self.assertIs(got, report)
+        save.assert_called_once_with("scratch.kicad_pcb", board, report)
+
+    def test_composite_save_rederives_group_minimum_before_sidecar_rule(self):
+        import cec_certificate_repair as repair
+
+        board = mock.Mock()
+        board.Zones.return_value = []
+        evidence = {
+            "applicable": True,
+            "group": repair.cec_fr.ENDPOINT_NECKDOWN_GROUP,
+            "tracks": 12,
+            "min_width_mm": 0.2,
+        }
+        report = {"closed": 4, "endpoint_neckdown": {
+            "group": repair.cec_fr.ENDPOINT_NECKDOWN_GROUP,
+            "tracks": 2,
+            "min_width_mm": 0.25,
+        }}
+        with mock.patch.object(
+                repair.cec_fr, "_project_netclass_resolver",
+                return_value="resolver"), mock.patch.object(
+                    repair.cec_fr, "reconcile_endpoint_neckdown_groups",
+                    return_value=evidence) as reconcile, mock.patch.object(
+                        repair.pcbnew, "SaveBoard") as save, mock.patch.object(
+                            repair.cec_fr, "ensure_endpoint_neckdown_rule",
+                            return_value={"min_width_mm": 0.2}) as ensure:
+            repair._save_with_reconciled_endpoint_neckdowns(
+                "candidate.kicad_pcb", board, report)
+
+        reconcile.assert_called_once_with(board, netclass_resolver="resolver")
+        save.assert_called_once_with("candidate.kicad_pcb", board)
+        self.assertEqual(report["zone_refill"], {
+            "performed": False, "zone_count": 0})
+        self.assertEqual(report["endpoint_neckdown"]["min_width_mm"], 0.2)
+        self.assertEqual(
+            ensure.call_args.args[1]["endpoint_neckdown"]["tracks"], 12)
+
     def test_spawn_apply_uses_bounded_shutdown_after_result(self):
         import cec_certificate_repair as repair
 
@@ -99,6 +274,594 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
 
 
 class TestCertificateRepairPolicy(unittest.TestCase):
+    def test_live_probe_replaces_nested_stale_refusal_geometry(self):
+        import cec_certificate_repair as repair
+
+        stale = {"completion_report": {
+            "final_completion": {"refused_details": [{
+                "net": "/OLD", "certificate": {"net": "/OLD"},
+            }]},
+            "lastmile": {"refused_details": [{
+                "net": "/ALSO_OLD", "certificate": {"net": "/ALSO_OLD"},
+            }]},
+        }}
+        live = {"refused_details": [{
+            "net": "/LIVE", "certificate": {"net": "/LIVE"},
+        }]}
+        payload = repair._planning_completion_with_live_report(
+            stale, ["/LIVE"], live)
+
+        self.assertEqual(payload["unconn_nets"], ["/LIVE"])
+        self.assertNotIn("lastmile", payload)
+        self.assertEqual(
+            [row["certificate"]["net"]
+             for row in repair.refusal_certificates(payload)],
+            ["/LIVE"])
+
+    def test_failed_live_probe_retains_supplied_certificate_for_admission(self):
+        import cec_certificate_repair as repair
+
+        supplied = {"refused_details": [{
+            "net": "/LIVE", "certificate": {"net": "/LIVE"},
+        }]}
+        payload = repair._planning_completion_with_live_report(
+            supplied, ["/LIVE"], None)
+
+        self.assertEqual(payload["unconn_nets"], ["/LIVE"])
+        self.assertEqual(
+            [row["certificate"]["net"]
+             for row in repair.refusal_certificates(payload)],
+            ["/LIVE"])
+
+    def test_exact_completion_worker_wrapper_exposes_refusal_certificate(self):
+        import cec_certificate_repair as repair
+
+        wrapped = {"completion": {"refused_details": [{
+            "net": "/TRAPPED", "certificate": {"net": "/TRAPPED"},
+        }]}}
+        self.assertEqual(
+            [row["certificate"]["net"]
+             for row in repair.refusal_certificates(wrapped)],
+            ["/TRAPPED"])
+
+    def test_atomic_timeout_certificate_survives_attempt_ledger(self):
+        import cec_certificate_repair as repair
+
+        report = {
+            "attempts": [{
+                "window": {"net": "/PIN_ESCAPE", "distance_mm": 3.25},
+                "phases": {"close": {
+                    "completion": {
+                        "closed": 0, "refused": 1, "timed_out": True,
+                        "refused_details": [],
+                    },
+                    "exact_pair_refusal": {
+                        "refusal": "certificate_pair_search_timeout",
+                        "certificate": {
+                            "net": "/PIN_ESCAPE",
+                            "endpoints": [{"kind": "pad", "ref": "U1",
+                                           "pad": "7", "x_mm": 1.0,
+                                           "y_mm": 2.0}],
+                        },
+                    },
+                }},
+            }],
+            "final": {"unconn_nets": ["/PIN_ESCAPE"]},
+            "plan": {},
+        }
+
+        payload = repair._repair_attempt_completion_payload(report)
+
+        self.assertEqual(payload["refused"], 1)
+        detail = payload["refused_details"][0]
+        self.assertEqual(detail["net"], "/PIN_ESCAPE")
+        self.assertEqual(detail["distance_mm"], 3.25)
+        self.assertEqual(detail["source"], "atomic_exact_pair_refusal")
+
+    def test_rejected_target_close_does_not_erase_live_refusal(self):
+        import cec_certificate_repair as repair
+
+        certificate = {
+            "net": "GND",
+            "endpoints": [{"kind": "via", "uuid": "gnd-via",
+                           "x_mm": 1.0, "y_mm": 2.0}],
+            "dominant_blockers": [{"kind": "via", "uuid": "sda-via"}],
+        }
+        report = {
+            "attempts": [
+                {"accepted": False, "completion": {
+                    "closed_details": [],
+                    "refused_details": [{"net": "GND",
+                                           "certificate": certificate}],
+                }},
+                {"accepted": False, "phases": {"close": {"completion": {
+                    "closed_details": [{"net": "GND"}],
+                    "refused_details": [],
+                }}}},
+            ],
+            "final": {"unconn_nets": ["GND"]},
+            "plan": {},
+        }
+
+        payload = repair._repair_attempt_completion_payload(report)
+
+        self.assertEqual(payload["refused"], 1)
+        self.assertEqual(
+            payload["refused_details"][0]["certificate"], certificate)
+
+    def test_single_net_closure_ranks_certified_short_residual_first(self):
+        import cec_certificate_repair as repair
+
+        completion = {"refused_details": [
+            {"net": "/FAR", "distance_mm": 12.0,
+             "certificate": {"net": "/FAR"}},
+            {"net": "/LOCAL", "distance_mm": 1.5,
+             "certificate": {"net": "/LOCAL"}},
+        ]}
+        self.assertEqual(
+            repair._rank_single_net_closure_targets(
+                ["/UNKNOWN", "/FAR", "/LOCAL"], completion),
+            ["/LOCAL", "/FAR", "/UNKNOWN"])
+
+    def test_single_net_timeout_preserves_supplied_live_certificate(self):
+        import cec_certificate_repair as repair
+
+        supplied = {"refused_details": [{
+            "net": "/TRAPPED", "distance_mm": 2.0,
+            "certificate": {"net": "/TRAPPED", "marker": "supplied"},
+        }]}
+        merged = repair._merge_single_net_completion_reports(
+            ["/TRAPPED"], [{
+                "net": "/TRAPPED", "timeout": True,
+                "error": "bounded worker timeout",
+            }], supplied)
+
+        self.assertEqual(merged["isolated_timeouts"][0]["net"], "/TRAPPED")
+        self.assertEqual(
+            merged["refused_details"][0]["certificate"]["marker"],
+            "supplied")
+
+    def test_fresh_single_net_refusal_replaces_stale_certificate(self):
+        import cec_certificate_repair as repair
+
+        supplied = {"refused_details": [{
+            "net": "/A", "certificate": {"net": "/A", "marker": "old"},
+        }]}
+        fresh = {"refused_details": [{
+            "net": "/A", "certificate": {"net": "/A", "marker": "new"},
+        }]}
+        merged = repair._merge_single_net_completion_reports(
+            ["/A"], [{"net": "/A", "completion": fresh}], supplied)
+
+        self.assertEqual(len(merged["refused_details"]), 1)
+        self.assertEqual(
+            merged["refused_details"][0]["certificate"]["marker"], "new")
+
+    def test_support_relocation_defers_to_smaller_route_transaction(self):
+        import cec_certificate_repair as repair
+
+        footprint = {"targets": [{"ref": "C42"}]}
+        negotiation = {"windows": [{
+            "net": "/SS", "blocker_uuids": ["route-1"],
+        }]}
+        self.assertTrue(
+            repair._defer_support_relocation(footprint, negotiation))
+        self.assertFalse(
+            repair._defer_support_relocation(footprint, {"windows": []}))
+
+    def test_support_relocation_runs_after_every_current_window_timed_out(self):
+        import cec_certificate_repair as repair
+
+        footprint = {"targets": [{"ref": "C1"}]}
+        negotiation = {"windows": [
+            {"net": "/A", "priority": [0]},
+            {"net": "/B", "priority": [1]},
+        ]}
+        prior = {"algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+                 "attempts": [
+            {"stage": "atomic_negotiation", "window": {"net": net},
+             "decision": "blocked_net_search_timeout",
+             "phases": {"close": {"completion": {"timed_out": True}}}}
+            for net in ("/A", "/B")
+        ]}
+
+        self.assertFalse(repair._defer_support_relocation(
+            footprint, negotiation, prior))
+
+    def test_prior_footprint_candidate_keys_survive_nested_wave_report(self):
+        import cec_certificate_repair as repair
+
+        report = {"algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+                  "plan": {"footprint_relocation": {"sweep": {
+            "attempts": [{
+                "stage": "footprint_relocation",
+                "target": {"ref": "C42"},
+                "candidate": {"rotation_delta_deg": 90.0,
+                              "dx_mm": 0.5, "dy_mm": -0.25},
+            }],
+        }}}}
+
+        self.assertEqual(repair._prior_footprint_candidate_keys(report), {
+            ("C42", 90.0, 0.5, -0.25),
+        })
+        self.assertTrue(repair._prior_has_footprint_attempts(report))
+        stale = {**report, "algorithm_revision": "older"}
+        self.assertEqual(repair._prior_footprint_candidate_keys(stale), set())
+        self.assertTrue(repair._prior_has_footprint_attempts(stale))
+
+        report["plan"]["placement_candidate_history"] = [
+            ["U4", 180.0, 0.0, 0.0]]
+        self.assertIn(("U4", 180.0, 0.0, 0.0),
+                      repair._prior_footprint_candidate_keys(report))
+
+        timed_out = copy.deepcopy(report)
+        timed_out["plan"]["endpoint_owner_relocation"] = {"sweep": {
+            "attempts": [{
+                "stage": "endpoint_owner_relocation",
+                "target": {"ref": "U4"},
+                "candidate": {"rotation_delta_deg": 180.0,
+                              "dx_mm": 0.0, "dy_mm": 0.0},
+                "decision": "component_transaction_worker_error",
+                "error": "WorkerPoolStalled: bounded support timeout",
+            }],
+        }}
+        self.assertNotIn(("U4", 180.0, 0.0, 0.0),
+                         repair._prior_footprint_candidate_keys(timed_out))
+        bounded_restore = copy.deepcopy(timed_out)
+        bounded_restore["plan"]["endpoint_owner_relocation"]["sweep"][
+            "attempts"][0][
+                "placement_copper_restoration_budget_s"] = 25.0
+        self.assertIn(
+            ("U4", 180.0, 0.0, 0.0),
+            repair._prior_footprint_candidate_keys(bounded_restore))
+
+        footprint = {"targets": [{"ref": "C42"}]}
+        negotiation = {"windows": [{"net": "/OPEN"}]}
+        self.assertFalse(repair._defer_support_relocation(
+            footprint, negotiation, {**report, "changed": False}))
+        self.assertTrue(repair._defer_support_relocation(
+            footprint, negotiation,
+            {**report, "algorithm_revision": "older", "changed": False}))
+
+    def test_exhausted_placement_frontier_falls_through_to_routing(self):
+        import cec_certificate_repair as repair
+
+        exhausted_support = {
+            "targets": [{"ref": "C1"}],
+            "attempts": [],
+            "accepted": [],
+        }
+        exhausted_owner = {
+            "targets": [{"ref": "U1"}],
+            "attempts": [],
+            "accepted": [],
+        }
+        self.assertFalse(repair._placement_frontier_advanced(
+            exhausted_support, exhausted_owner))
+        self.assertFalse(repair._placement_frontier_advanced(
+            {**exhausted_support, "attempts": [{"decision": "refused"}]},
+            exhausted_owner))
+        self.assertTrue(repair._placement_frontier_advanced(
+            exhausted_support,
+            {**exhausted_owner, "accepted": [{"ref": "U1"}]}))
+
+    def test_placement_candidate_history_merges_prior_and_partial_attempts(self):
+        import cec_certificate_repair as repair
+
+        prior = {("C1", 0.0, 0.25, 0.0)}
+        plan = {"footprint_relocation": {"sweep": {"attempts": [{
+            "stage": "footprint_relocation",
+            "target": {"ref": "C2"},
+            "candidate": {
+                "rotation_delta_deg": 180.0,
+                "dx_mm": -0.5,
+                "dy_mm": 0.75,
+            },
+        }]}}}
+
+        history = repair._persist_placement_candidate_history(plan, prior)
+
+        self.assertEqual({tuple(row) for row in history}, {
+            ("C1", 0.0, 0.25, 0.0),
+            ("C2", 180.0, -0.5, 0.75),
+        })
+        self.assertEqual(plan["placement_candidate_history"], history)
+
+    def test_mobility_cell_signature_prevents_candidate_aliasing(self):
+        import cec_certificate_repair as repair
+
+        pose = {"rotation_delta_deg": 180.0,
+                "dx_mm": 0.5, "dy_mm": -0.25}
+        base = repair._footprint_candidate_key("C42", pose)
+        expanded = repair._footprint_candidate_key("C42", {
+            **pose, "mobility_companion_refs": ["C43", "C6"],
+        })
+
+        self.assertNotEqual(base, expanded)
+        self.assertEqual(expanded[0], "C42|C43,C6")
+
+    def test_placement_conflict_classifier_separates_pipeline_copper(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        moved_net = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        blocker_net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(moved_net); board.Add(blocker_net)
+
+        def footprint(ref, x_mm, net):
+            item = pcbnew.FOOTPRINT(board)
+            item.SetReference(ref)
+            pad = pcbnew.PAD(item)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x_mm, 5.0))
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            item.Add(pad); board.Add(item)
+            return item, pad
+
+        _moved, moved_pad = footprint("C2", 5.0, moved_net)
+        _fixed, fixed_pad = footprint("U1", 6.0, blocker_net)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I_MM(4.0, 5.0))
+        track.SetEnd(pcbnew.VECTOR2I_MM(7.0, 5.0))
+        track.SetWidth(pcbnew.FromMM(0.25))
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetNet(blocker_net)
+        track.SetLocked(True)
+        board.Add(track)
+        track_uuid = repair._uuid(track)
+        drc = {"violations": [
+            {"type": "clearance", "items": [
+                {"uuid": repair._uuid(moved_pad), "description": "moved"},
+                {"uuid": track_uuid, "description": "generated route"},
+            ]},
+            {"type": "courtyards_overlap", "items": [
+                {"uuid": repair._uuid(moved_pad), "description": "moved"},
+                {"uuid": repair._uuid(fixed_pad), "description": "fixed"},
+            ]},
+        ]}
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C2", target_net="/OPEN", endpoint_ref="U1",
+            endpoint_pad="1", endpoint_x_mm=6.0, endpoint_y_mm=5.0,
+            hit_count=1, distance_mm=1.0, priority=(0,),
+            motion="toward_endpoint"))
+
+        with mock.patch.object(repair.pcbnew, "LoadBoard", return_value=board):
+            report = repair._classify_placement_conflicts_worker(
+                "candidate.kicad_pcb", drc, target, {}, (track_uuid,))
+
+        self.assertEqual(report["movable_track_uuids"], [track_uuid])
+        self.assertEqual(report["movable_via_uuids"], [])
+        self.assertEqual(report["fixed_conflict_count"], 1)
+        self.assertEqual(report["root_causes"], {
+            "pipeline_copper_collision": 1,
+            "stationary_component_collision": 1,
+        })
+
+    def test_placement_conflict_classifier_emits_via_displacement_target(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        moved_net = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        via_net = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(moved_net); board.Add(via_net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("R2")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("1")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.0, 1.0))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(moved_net)
+        footprint.Add(pad); board.Add(footprint)
+        via = pcbnew.PCB_VIA(board)
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetPosition(pcbnew.VECTOR2I_MM(7.0, 5.0))
+        via.SetWidth(pcbnew.FromMM(0.6))
+        via.SetDrill(pcbnew.FromMM(0.3))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(via_net)
+        via.SetLocked(True)
+        board.Add(via)
+        via_uuid = repair._uuid(via)
+        drc = {"violations": [{"type": "clearance", "items": [
+            {"uuid": repair._uuid(pad), "description": "moved pad"},
+            {"uuid": via_uuid, "description": "generated via"},
+        ]}]}
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="R2", target_net="/OPEN", endpoint_ref="U1",
+            endpoint_pad="1", endpoint_x_mm=4.0, endpoint_y_mm=5.0,
+            hit_count=1, distance_mm=1.0, priority=(0,),
+            motion="toward_endpoint"))
+
+        with mock.patch.object(repair.pcbnew, "LoadBoard", return_value=board):
+            report = repair._classify_placement_conflicts_worker(
+                "candidate.kicad_pcb", drc, target, {}, (via_uuid,))
+
+        self.assertEqual(report["movable_via_uuids"], [via_uuid])
+        self.assertEqual(len(report["movable_via_targets"]), 1)
+        via_target = report["movable_via_targets"][0]
+        self.assertEqual(via_target["uuid"], via_uuid)
+        self.assertEqual(via_target["counterpart_uuids"], (
+            repair._uuid(pad),))
+        self.assertEqual(via_target["drc_types"], ("clearance",))
+        self.assertEqual(via_target["away_dx"], pcbnew.FromMM(2.0))
+        self.assertEqual(via_target["away_dy"], 0)
+
+    def test_route_certificate_expands_only_eligible_support_obstacle(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        ground = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(net); board.Add(ground)
+
+        def support(ref, x_mm):
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference(ref)
+            footprint.SetPosition(pcbnew.VECTOR2I_MM(x_mm, 5.0))
+            for number, pad_net in (("1", net), ("2", ground)):
+                pad = pcbnew.PAD(footprint)
+                pad.SetPadName(number)
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+                pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(
+                    x_mm + (0.5 if number == "2" else 0.0), 5.0))
+                pad.SetLayerSet(pcbnew.PAD.SMDMask())
+                pad.SetNet(pad_net)
+                footprint.Add(pad)
+            board.Add(footprint)
+            return footprint
+
+        support("C2", 5.0)
+        support("C3", 6.5)
+        certificate = {
+            "endpoints": [
+                {"endpoint": "a", "ref": "U1", "pad": "1"},
+                {"endpoint": "b", "ref": "C2", "pad": "1"},
+            ],
+            "layers": [{"layer": "F.Cu", "endpoint_escape": [{
+                "endpoint": "a", "clear_rays": [], "ray_details": [
+                    {"status": "foreign_copper_blocked",
+                     "blockers": [{"kind": "pad", "ref": "C3",
+                                    "pad": "1"}]},
+                    {"status": "foreign_copper_blocked",
+                     "blockers": [{"kind": "pad", "ref": "C3",
+                                    "pad": "2"}]},
+                ],
+            }]}],
+        }
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C2", target_net="/OPEN", endpoint_ref="U1",
+            endpoint_pad="1", endpoint_x_mm=4.0, endpoint_y_mm=5.0,
+            hit_count=2, distance_mm=1.0, priority=(0,),
+            motion="toward_endpoint"))
+
+        with mock.patch.object(repair.pcbnew, "LoadBoard", return_value=board):
+            blockers = repair._route_certificate_soft_obstacle_refs(
+                "candidate.kicad_pcb", certificate, target)
+
+        self.assertEqual(blockers, [{
+            "ref": "C3", "hit_count": 2,
+            "distance_mm": 1.5, "pads": ["1", "2"],
+        }])
+
+    def test_route_certificate_track_ripup_respects_protected_net_policy(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+
+        def track(net_name, y_mm):
+            net = pcbnew.NETINFO_ITEM(board, net_name)
+            board.Add(net)
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(1.0, y_mm))
+            item.SetEnd(pcbnew.VECTOR2I_MM(4.0, y_mm))
+            item.SetWidth(pcbnew.FromMM(0.22))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net)
+            board.Add(item)
+            return item
+
+        movable = track("/ORDINARY", 2.0)
+        protected = track("/SENSEC1_HI", 3.0)
+        certificate = {"layers": [{"endpoint_escape": [{
+            "endpoint": "a", "clear_rays": [], "ray_details": [{
+                "status": "foreign_copper_blocked", "blockers": [
+                    {"kind": "track", "uuid": repair._uuid(movable)},
+                    {"kind": "track", "uuid": repair._uuid(protected)},
+                ],
+            }],
+        }]}]}
+
+        with mock.patch.object(repair.pcbnew, "LoadBoard", return_value=board):
+            uuids = repair._route_certificate_movable_track_uuids(
+                "candidate.kicad_pcb", certificate)
+
+        self.assertEqual(uuids, [repair._uuid(movable)])
+
+    def test_prior_repair_report_replays_latest_live_refusal_only(self):
+        import cec_certificate_repair as repair
+
+        def refusal(net, marker):
+            return {
+                "net": net,
+                "certificate": {
+                    "net": net, "marker": marker,
+                    "endpoints": [
+                        {"ref": "U1", "pad": "1", "x_mm": 1, "y_mm": 2},
+                        {"ref": "C1", "pad": "1", "x_mm": 3, "y_mm": 4},
+                    ],
+                },
+            }
+
+        report = {
+            "final": {"unconn_nets": ["/SS"]},
+            "attempts": [
+                {"completion": {"refused_details": [
+                    refusal("/SS", "old"), refusal("/DONE", "old"),
+                ]}},
+                {"phases": {"close": {"completion": {
+                    "closed": 1,
+                    "closed_details": [{"net": "/DONE"}],
+                    "refused_details": [],
+                }}}},
+                {"phases": {"close": {"completion": {
+                    "refused_details": [refusal("/SS", "fresh")],
+                }}}},
+            ],
+        }
+        rows = repair.refusal_certificates(report)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["certificate"]["net"], "/SS")
+        self.assertEqual(rows[0]["certificate"]["marker"], "fresh")
+
+    def test_placement_only_wave_preserves_fresh_probe_for_next_wave(self):
+        import cec_certificate_repair as repair
+
+        detail = {
+            "net": "/OPEN",
+            "certificate": {
+                "net": "/OPEN",
+                "endpoints": [
+                    {"kind": "pad", "ref": "U1", "pad": "1",
+                     "x_mm": 1.0, "y_mm": 2.0},
+                    {"kind": "trk", "uuid": "live", "x_mm": 3.0,
+                     "y_mm": 4.0},
+                ],
+            },
+        }
+        report = {
+            "final": {"unconn_nets": ["/OPEN"]},
+            "plan": {
+                "planning_refusal_evidence": {
+                    "refused_details": [detail]},
+                "live_refusal_probe": {
+                    "error": "bounded probe timeout",
+                    "refused_details": []},
+            },
+            "attempts": [{"stage": "footprint_relocation",
+                          "decision": "candidate_exhausted"}],
+        }
+
+        rows = repair.refusal_certificates(report)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["certificate"]["net"], "/OPEN")
+        self.assertEqual(rows[0]["certificate"]["endpoints"][1]["uuid"],
+                         "live")
+
     def test_escape_corridor_promotes_low_hit_stub_on_cheapest_surface_ray(self):
         import cec_certificate_repair as repair
 
@@ -298,6 +1061,413 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(report["stop_stage"], "via")
         self.assertEqual(report["attempts_started"], 0)
 
+    def test_effort_budget_reserve_stops_only_early_stage(self):
+        import cec_certificate_repair as repair
+
+        budget = repair.RepairEffortBudget(
+            max_attempts=10, wall_budget_s=100, started=10.0,
+            attempts_started=7)
+        with mock.patch.object(repair.time, "monotonic", return_value=75.0):
+            self.assertFalse(budget.claim_before_reserve(
+                "canonical", reserve_wall_s=30, reserve_attempts=2,
+                trial_wall_s=6))
+            self.assertTrue(budget.claim("negotiation", stage_limit=2))
+        report = budget.report()
+        self.assertEqual(report["stage_stops"]["canonical"],
+                         "later_stage_wall_reserve")
+        self.assertIsNone(report["stop_reason"])
+        self.assertEqual(report["stage_attempts"]["negotiation"], 1)
+
+    def test_effort_budget_attempt_reserve_preserves_later_claim(self):
+        import cec_certificate_repair as repair
+
+        budget = repair.RepairEffortBudget(
+            max_attempts=4, wall_budget_s=100, started=10.0,
+            attempts_started=2)
+        with mock.patch.object(repair.time, "monotonic", return_value=10.0):
+            self.assertFalse(budget.claim_before_reserve(
+                "canonical", reserve_attempts=2))
+            self.assertTrue(budget.claim("negotiation", stage_limit=2))
+        self.assertEqual(
+            budget.report()["stage_stops"]["canonical"],
+            "later_stage_attempt_reserve")
+
+    def test_atomic_close_timeout_is_smaller_than_transaction_allowance(self):
+        import cec_certificate_repair as repair
+
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_NEGOTIATION_TIMEOUT_S": "90",
+                 "CEC_CERTIFICATE_NEGOTIATION_CLOSE_TIMEOUT_S": "25"},
+                clear=False):
+            self.assertEqual(repair._atomic_close_timeout_s(12, 4.0), 25.0)
+            self.assertEqual(repair._atomic_close_timeout_s(24, 12.0), 45.0)
+            self.assertEqual(
+                repair._atomic_negotiation_timeout_s(12, 4.0), 90.0)
+
+    def test_placement_restoration_budget_preserves_wave_breadth(self):
+        import cec_certificate_repair as repair
+
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                repair._placement_restoration_timeout_s(1), 25.0)
+            self.assertEqual(
+                repair._placement_restoration_timeout_s(20), 45.0)
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_PLACEMENT_RESTORE_TIMEOUT_S": "40"},
+                clear=True):
+            self.assertEqual(
+                repair._placement_restoration_timeout_s(1), 40.0)
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_PLACEMENT_RESTORE_TIMEOUT_S": "invalid"},
+                clear=True):
+            self.assertEqual(
+                repair._placement_restoration_timeout_s(1), 25.0)
+
+    def test_prior_target_close_precedes_untried_and_timeout_windows(self):
+        import cec_certificate_repair as repair
+
+        windows = [
+            {"net": "/TIMEOUT", "priority": [0]},
+            {"net": "/UNTRIED", "priority": [1]},
+            {"net": "/PROVEN", "priority": [2]},
+        ]
+        prior = {
+            "algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+            "attempts": [
+            {"stage": "atomic_negotiation",
+             "window": {"net": "/TIMEOUT"},
+             "decision": "blocked_net_search_timeout",
+             "phases": {"close": {"completion": {"timed_out": True}}}},
+            {"stage": "atomic_negotiation",
+             "window": {"net": "/PROVEN"},
+             "decision": "drc_regressed",
+             "phases": {"close": {"completion": {"closed": 2}}}},
+        ]}
+
+        ordered, evidence = repair._prioritize_windows_by_proven_close(
+            windows, prior)
+
+        self.assertEqual([row["net"] for row in ordered],
+                         ["/PROVEN", "/UNTRIED", "/TIMEOUT"])
+        self.assertEqual(evidence["proven_close_nets"], ["/PROVEN"])
+
+    def test_prior_schedule_evidence_survives_bounded_wave(self):
+        import cec_certificate_repair as repair
+
+        prior = {
+            "algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+            "plan": {"negotiation": {"prior_schedule_evidence": {
+                "algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+                "policy": "proven_close_then_untried_then_prior_timeout",
+                "proven_close_nets": ["/PROVEN"],
+                "timed_out_nets": ["/TIMEOUT"],
+            }}}}
+        windows = [
+            {"net": "/TIMEOUT", "priority": [0]},
+            {"net": "/PROVEN", "priority": [1]},
+        ]
+
+        ordered, evidence = repair._prioritize_windows_by_proven_close(
+            windows, prior)
+
+        self.assertEqual([row["net"] for row in ordered],
+                         ["/PROVEN", "/TIMEOUT"])
+        self.assertEqual(evidence["proven_close_nets"], ["/PROVEN"])
+
+    def test_prior_route_plateau_is_invalidated_by_algorithm_revision(self):
+        import cec_certificate_repair as repair
+
+        prior = {
+            "algorithm_revision": "older-router",
+            "attempts": [{
+                "stage": "atomic_negotiation",
+                "window": {"net": "/TIMEOUT"},
+                "decision": "blocked_net_search_timeout",
+                "phases": {"close": {"completion": {"timed_out": True}}},
+            }],
+        }
+        windows = [
+            {"net": "/TIMEOUT", "priority": [0]},
+            {"net": "/UNTRIED", "priority": [1]},
+        ]
+
+        ordered, evidence = repair._prioritize_windows_by_proven_close(
+            windows, prior)
+
+        self.assertEqual([row["net"] for row in ordered],
+                         ["/TIMEOUT", "/UNTRIED"])
+        self.assertEqual(evidence["timed_out_nets"], [])
+
+    def test_footprint_candidate_cap_is_per_certified_target(self):
+        import cec_certificate_repair as repair
+
+        budget = repair.RepairEffortBudget(
+            max_attempts=4, wall_budget_s=60, started=10.0)
+        row = repair.asdict(repair.FootprintRepairTarget(
+            ref="R1", target_net="/OPEN", endpoint_ref="U1",
+            endpoint_pad="1", endpoint_x_mm=1.0, endpoint_y_mm=1.0,
+            hit_count=1, distance_mm=2.0, priority=(0,),
+            motion="toward_endpoint"))
+        with mock.patch.object(repair.time, "monotonic", return_value=10.0), \
+                mock.patch.object(
+                    repair, "_footprint_relocation_candidates",
+                    return_value=[{"rotation_delta_deg": 0.0,
+                                   "dx_mm": 0.0, "dy_mm": 0.0}]), \
+                mock.patch.object(repair, "_copy_board_family"), \
+                mock.patch.object(
+                    repair, "_spawn_apply",
+                    return_value=(False, {"refusal": "test"})):
+            first = repair._attempt_footprint_relocation(
+                "board.kicad_pcb", {}, row, work_dir="/tmp", token="00",
+                effort=budget, max_candidates=1)
+            second = repair._attempt_footprint_relocation(
+                "board.kicad_pcb", {}, row, work_dir="/tmp", token="01",
+                effort=budget, max_candidates=1)
+
+        self.assertEqual(len(first["attempts"]), 1)
+        self.assertEqual(len(second["attempts"]), 1)
+        self.assertEqual(first["attempts"][0]["elapsed_s"], 0.0)
+        self.assertEqual(second["attempts"][0]["elapsed_s"], 0.0)
+        self.assertEqual(budget.report()["attempts_started"], 2)
+
+    def test_pose_local_restoration_timeout_is_consumed_not_retried(self):
+        import cec_certificate_repair as repair
+
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C1", target_net="/OPEN", endpoint_ref="U1",
+            endpoint_pad="1", endpoint_x_mm=1.0, endpoint_y_mm=1.0,
+            hit_count=1, distance_mm=2.0, priority=(0,),
+            motion="toward_endpoint"))
+        candidate = {"rotation_delta_deg": 180.0,
+                     "dx_mm": 0.5, "dy_mm": 0.0}
+        classify_calls = 0
+
+        def fake_spawn(func, _args, **_kwargs):
+            nonlocal classify_calls
+            if func is repair._relocate_footprint_worker:
+                return True, {"affected_nets": ["/OPEN", "/SIDE"]}
+            if func is repair._refill_worker:
+                return True
+            if func is repair._classify_placement_conflicts_worker:
+                classify_calls += 1
+                if classify_calls == 1:
+                    return {"fixed_conflict_count": 0,
+                            "movable_track_uuids": ["track-1"],
+                            "movable_via_targets": []}
+                return {"fixed_conflict_count": 0,
+                        "movable_track_uuids": [],
+                        "movable_via_targets": []}
+            if func is repair._score_worker:
+                return {}
+            if func is repair._evacuate_placement_copper_worker:
+                return True, {"removed": 1}, [{"net": "/SIDE"}]
+            if func is repair._exact_relocated_connections_worker:
+                return {"target_closed": True,
+                        "support_closed_nets": ["/SIDE"],
+                        "refused": []}
+            if func is repair._restore_negotiation_worker:
+                raise repair.cec_process_pool.WorkerPoolStalled(
+                    "pose replay budget")
+            self.fail("unexpected worker %s" % func.__name__)
+
+        def fake_drc(_board, destination):
+            Path(destination).write_text(
+                '{"violations": []}', encoding="utf-8")
+            return {"violations": []}
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family"), \
+                mock.patch.object(repair, "_run_drc",
+                                  side_effect=fake_drc), \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn), \
+                mock.patch.object(
+                    repair, "_placement_preflight_accepts",
+                    side_effect=[
+                        (False, "placement_preflight_drc_regressed",
+                         ["fault"]),
+                        (True, "placement_preflight_clear", []),
+                    ]):
+            result = repair._attempt_footprint_relocation(
+                "board.kicad_pcb", {}, target, work_dir=directory,
+                token="bounded", max_candidates=1,
+                candidate_override=(candidate,))
+
+        self.assertFalse(result["adopted"])
+        attempt = result["attempts"][0]
+        self.assertEqual(
+            attempt["decision"],
+            "placement_copper_restoration_timeout")
+        self.assertEqual(
+            attempt["placement_copper_restoration"]["refusal"],
+            "placement_restoration_budget_exhausted")
+        self.assertGreaterEqual(attempt["elapsed_s"], 0.0)
+
+    def test_alternate_placement_route_order_requires_composite_closure(self):
+        import cec_certificate_repair as repair
+
+        calls = []
+
+        def fake_spawn(func, _args, **_kwargs):
+            calls.append(func)
+            if func is repair._restore_negotiation_worker:
+                return True, {"stage": "restore_blockers", "restored": [
+                    {"net": "/SIDE", "mode": "network_lastmile"}]}
+            if func is repair._exact_relocated_connections_worker:
+                return {"target_closed": True, "closed": 1,
+                        "support_closed_nets": ["/SIDE"]}
+            self.fail("unexpected worker %s" % func.__name__)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family") as copy, \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn):
+            accepted, evidence, exact = \
+                repair._attempt_alternate_placement_route_order(
+                    "before-target.kicad_pcb", "trial.kicad_pcb",
+                    [{"net": "/SIDE"}], {"target_net": "/OPEN"},
+                    {"affected_nets": ["/OPEN", "/SIDE"]},
+                    work_dir=directory, token="order",
+                    restoration_timeout_s=25.0)
+
+        self.assertTrue(accepted)
+        self.assertTrue(exact["target_closed"])
+        self.assertEqual(evidence["decision"],
+                         "alternate_order_composite_closed")
+        self.assertEqual(calls, [
+            repair._restore_negotiation_worker,
+            repair._exact_relocated_connections_worker,
+        ])
+        self.assertEqual(copy.call_count, 2)
+
+    def test_alternate_placement_route_order_rejects_target_failure(self):
+        import cec_certificate_repair as repair
+
+        def fake_spawn(func, _args, **_kwargs):
+            if func is repair._restore_negotiation_worker:
+                return True, {"stage": "restore_blockers"}
+            if func is repair._exact_relocated_connections_worker:
+                return {"target_closed": False, "refused": [
+                    {"net": "/OPEN"}]}
+            self.fail("unexpected worker %s" % func.__name__)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family") as copy, \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn):
+            accepted, evidence, exact = \
+                repair._attempt_alternate_placement_route_order(
+                    "before-target.kicad_pcb", "trial.kicad_pcb",
+                    [{"net": "/SIDE"}], {"target_net": "/OPEN"}, {},
+                    work_dir=directory, token="order",
+                    restoration_timeout_s=25.0)
+
+        self.assertFalse(accepted)
+        self.assertFalse(exact["target_closed"])
+        self.assertEqual(evidence["decision"],
+                         "alternate_target_still_refused")
+        self.assertEqual(copy.call_count, 1)
+
+    def test_via_move_retargets_only_exact_same_net_anchor(self):
+        import cec_certificate_repair as repair
+
+        anchors, evidence = \
+            repair._retarget_preserved_anchors_for_via_move([
+                {"ref": "R19", "pad": "2", "net": "/STRAP",
+                 "x_mm": 22.3512, "y_mm": 22.04},
+                {"ref": "R20", "pad": "2", "net": "/OTHER",
+                 "x_mm": 22.3512, "y_mm": 22.04},
+                {"ref": "R21", "pad": "2", "net": "/STRAP",
+                 "x_mm": 22.36, "y_mm": 22.04},
+            ], net="/STRAP", via_uuid="via-1",
+                old_mm=[22.3512, 22.04], new_mm=[20.9512, 22.04])
+
+        self.assertEqual((anchors[0]["x_mm"], anchors[0]["y_mm"]),
+                         (20.9512, 22.04))
+        self.assertEqual(anchors[0]["anchor_via_uuid"], "via-1")
+        self.assertEqual((anchors[1]["x_mm"], anchors[1]["y_mm"]),
+                         (22.3512, 22.04))
+        self.assertEqual((anchors[2]["x_mm"], anchors[2]["y_mm"]),
+                         (22.36, 22.04))
+        self.assertEqual(len(evidence), 1)
+
+    def test_via_move_with_invalid_geometry_preserves_anchors(self):
+        import cec_certificate_repair as repair
+
+        source = [{"net": "/STRAP", "x_mm": 1.0, "y_mm": 2.0}]
+        anchors, evidence = \
+            repair._retarget_preserved_anchors_for_via_move(
+                source, net="/STRAP", via_uuid="via-1",
+                old_mm=[], new_mm=[3.0, 4.0])
+
+        self.assertEqual(anchors, source)
+        self.assertEqual(evidence, [])
+
+    def test_placement_via_ladder_interleaves_owner_and_escape_radii(self):
+        import cec_certificate_repair as repair
+
+        target = repair.ViaRepairTarget(
+            uuid="via-1", net="/STRAP", x_nm=0, y_nm=0,
+            diameter_nm=350000, drill_nm=250000,
+            counterpart_uuids=(), drc_types=("clearance",),
+            away_dx=-1, away_dy=0, priority=(0,))
+        rows = list(repair._placement_via_offset_candidates(
+            target, owner_directions=((1, -1),)))[:8]
+
+        self.assertEqual([row[3] for row in rows], [
+            (1, -1), (-1, 0), (1, -1), (-1, 0),
+            (1, -1), (-1, 0), (1, -1), (-1, 0),
+        ])
+        self.assertEqual([row[2] for row in rows], [
+            0.20, 0.20, 0.45, 0.45, 0.80, 0.80, 1.40, 1.40,
+        ])
+
+    def test_placement_preflight_ignores_expected_opens_but_not_new_faults(self):
+        import cec_certificate_repair as repair
+
+        before = {
+            "unconnected": 2,
+            "structural_drc_identities": [
+                '["clearance","uuid",["old"]]'],
+            "diffpair_ok": True,
+            "kelvin_ok": True,
+            "route_topology_fault_nets": [],
+        }
+        open_only = {
+            **before,
+            "unconnected": 19,
+        }
+        self.assertEqual(
+            repair._placement_preflight_accepts(before, open_only),
+            (True, "placement_preflight_clear", []))
+
+        collision = {
+            **open_only,
+            "structural_drc_identities": [
+                '["clearance","uuid",["old"]]',
+                '["shorting_items","uuid",["new-short"]]'],
+        }
+        self.assertEqual(
+            repair._placement_preflight_accepts(before, collision),
+            (False, "placement_preflight_drc_regressed",
+             ['["shorting_items","uuid",["new-short"]]']))
+
+        transient_route_state = {
+            **open_only,
+            "diffpair_ok": False,
+            "kelvin_ok": False,
+            "route_topology_fault_nets": ["/MOVED"],
+            "structural_drc_identities": [
+                '["clearance","uuid",["old"]]',
+                '["track_dangling","uuid",["removed-branch"]]'],
+        }
+        self.assertEqual(
+            repair._placement_preflight_accepts(before, transient_route_state),
+            (True, "placement_preflight_clear", []))
+
     def test_close_negotiation_can_enumerate_surface_first_topology(self):
         import cec_certificate_repair as repair
 
@@ -323,6 +1493,26 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertTrue(changed, evidence)
         self.assertFalse(synthesize.call_args.kwargs["prefer_bridge"])
 
+    def test_atomic_negotiation_orders_surface_before_optional_bridge(self):
+        import cec_certificate_repair as repair
+
+        base = dict(
+            net="/OPEN", distance_mm=2.0, width_mm=0.25,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("/BLOCK",), blocker_hits=4,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,),
+            unlock_uuids=("blocker",))
+        local = repair.NegotiationWindow(**base, local_pin_escape=True)
+        ordinary = repair.NegotiationWindow(**base, local_pin_escape=False)
+
+        self.assertEqual(
+            repair._atomic_negotiation_variants(local, False),
+            [(12, 4.0, 2, False), (12, 4.0, 2, True)])
+        self.assertEqual(
+            repair._atomic_negotiation_variants(ordinary, False),
+            [(12, 4.0, 2, False)])
+
     def test_close_negotiation_keeps_power_trunk_width_out_of_escape_floor(self):
         import cec_certificate_repair as repair
 
@@ -346,6 +1536,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
         self.assertTrue(changed, evidence)
         self.assertEqual(synthesize.call_args.kwargs["min_w"], 0.25)
+        self.assertEqual(synthesize.call_args.kwargs["clearance"], 0.0)
         self.assertTrue(synthesize.call_args.kwargs["prefer_bridge"])
 
     def test_atomic_negotiation_accepts_proven_redundant_blocker_prune(self):
@@ -449,6 +1640,66 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(close_args[0][2:4], (12, 4.0))
         self.assertEqual(close_args[1][2:4], (1, 20.0))
         self.assertEqual(close_args[2][2:4], (4, 25.0))
+
+    def test_atomic_negotiation_can_reroute_displaced_nets_as_a_set(self):
+        import cec_certificate_repair as repair
+
+        window = repair.NegotiationWindow(
+            net="/OPEN", distance_mm=3.0, width_mm=0.25,
+            clearance_mm=0.2, blocker_uuids=("blocker",),
+            blocker_nets=("/MOVE",), blocker_hits=4,
+            omitted_movable_blockers=0, fixed_blocker_hits=0,
+            trapped_endpoints=0, endpoints=(), priority=(0,))
+        before = {
+            "drc": 0, "unconnected": 2,
+            "unconn_nets": ["/KEEP", "/OPEN"],
+            "structural_drc_identities": [],
+            "kelvin_topology_faults": [],
+            "route_topology_fault_nets": [],
+            "kelvin_ok": True, "diffpair_ok": True,
+        }
+        pruned = {**before, "unconnected": 3,
+                  "unconn_nets": ["/KEEP", "/MOVE", "/OPEN"]}
+        improved = {**before, "unconnected": 1,
+                    "unconn_nets": ["/KEEP"]}
+        score_rows = iter((pruned, improved))
+        calls = []
+
+        def fake_spawn(func, args, **_kwargs):
+            calls.append((func, args))
+            if func is repair._remove_negotiation_worker:
+                return True, {"stage": "remove_blockers"}, [
+                    {"net": "/MOVE", "saved": True}]
+            if func is repair._close_negotiation_worker:
+                return True, {"stage": "close_blocked_net"}
+            if func is repair._restore_negotiation_worker:
+                return False, {"refusal": "displaced_net_unrestorable"}
+            if func is repair._lastmile_worker:
+                self.assertEqual(args[1], ("/MOVE",))
+                return {"closed": 1, "refused": 0}
+            if func is repair._refill_worker:
+                return True
+            if func is repair._drc_dangling_cleanup_worker:
+                return False, {"stop": "settled", "removed_count": 0}
+            if func is repair._score_worker:
+                return next(score_rows)
+            self.fail("unexpected worker %s" % func.__name__)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(repair, "_copy_board_family"), \
+                mock.patch.object(repair, "_run_drc", return_value={}), \
+                mock.patch.object(repair, "_spawn_apply",
+                                  side_effect=fake_spawn):
+            result = repair._attempt_atomic_negotiation(
+                os.path.join(directory, "board.kicad_pcb"), before,
+                repair.asdict(window), work_dir=directory, token="fallback",
+                deep_retry=False, max_detour_ratio=2.0)
+
+        self.assertTrue(result["adopted"], result)
+        accepted = result["accepted"]
+        fallback = accepted["phases"]["displaced_net_completion"]
+        self.assertTrue(fallback["accepted"], fallback)
+        self.assertEqual(fallback["nets"], ["/MOVE"])
 
     def test_restore_skips_track_fragment_wholly_inside_same_pad(self):
         import pcbnew
@@ -714,6 +1965,108 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual([row["ref"] for row in plan["targets"]], ["C6"])
         self.assertEqual(plan["immutable"], [])
 
+    def test_footprint_plan_can_move_refused_passive_endpoint_toward_owner(self):
+        import cec_certificate_repair as repair
+
+        def pad(net):
+            return mock.Mock(IsOnCopperLayer=mock.Mock(return_value=True),
+                             HasHole=mock.Mock(return_value=False),
+                             GetNetCode=mock.Mock(return_value=net))
+
+        cap = mock.Mock()
+        cap.GetReference.return_value = "C42"
+        cap.IsLocked.return_value = False
+        cap.Pads.return_value = [pad(1), pad(2)]
+        owner = mock.Mock()
+        owner.GetReference.return_value = "U4"
+        owner.IsLocked.return_value = False
+        owner.Pads.return_value = [pad(index + 10) for index in range(12)]
+        board = mock.Mock()
+        board.GetFootprints.return_value = [cap, owner]
+        payload = {"unconn_nets": ["/SS"], "final_completion": {
+            "refused_details": [{
+                "net": "/SS", "distance_mm": 3.7,
+                "certificate": {
+                    "net": "/SS",
+                    "endpoints": [
+                        {"endpoint": "a", "kind": "pad", "ref": "U4",
+                         "pad": "11", "x_mm": 66.2, "y_mm": 32.0},
+                        {"endpoint": "b", "kind": "pad", "ref": "C42",
+                         "pad": "1", "x_mm": 63.0, "y_mm": 33.7},
+                    ],
+                    "dominant_blockers": [{"kind": "track",
+                                              "hit_count": 4}],
+                },
+            }],
+        }}
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(
+                    repair, "_trapped_foreign_pad_blockers",
+                    return_value=[]):
+            plan = repair.plan_footprint_repairs(
+                "board.kicad_pcb", payload)
+
+        self.assertEqual([row["ref"] for row in plan["targets"]], ["C42"])
+        self.assertEqual(plan["targets"][0]["motion"], "toward_endpoint")
+        self.assertEqual(plan["targets"][0]["endpoint_ref"], "U4")
+
+    def test_exclusive_support_can_move_beside_trapped_owner(self):
+        import cec_certificate_repair as repair
+
+        def pad(number, net):
+            return mock.Mock(
+                IsOnCopperLayer=mock.Mock(return_value=True),
+                HasHole=mock.Mock(return_value=False),
+                GetNumber=mock.Mock(return_value=str(number)),
+                GetNetCode=mock.Mock(return_value=net))
+
+        cap = mock.Mock()
+        cap.GetReference.return_value = "C42"
+        cap.GetPosition.return_value = SimpleNamespace(x=63_000_000,
+                                                       y=34_000_000)
+        cap.IsLocked.return_value = False
+        cap.Pads.return_value = [pad(1, 1), pad(2, 2)]
+        owner = mock.Mock()
+        owner.GetReference.return_value = "U4"
+        owner.GetPosition.return_value = SimpleNamespace(x=66_000_000,
+                                                         y=32_000_000)
+        owner.IsLocked.return_value = False
+        owner.Pads.return_value = [pad(11, 1)] + [
+            pad(index, index + 10) for index in range(1, 12)]
+        board = mock.Mock()
+        board.GetFootprints.return_value = [cap, owner]
+        board.GetNetcodeFromNetname.return_value = 1
+        payload = {"unconn_nets": ["/SS"], "final_completion": {
+            "refused_details": [{
+                "net": "/SS", "distance_mm": 6.3,
+                "certificate": {
+                    "net": "/SS",
+                    "endpoints": [
+                        {"endpoint": "a", "kind": "pad", "ref": "U4",
+                         "pad": "11", "x_mm": 66.2, "y_mm": 32.0},
+                        {"endpoint": "b", "kind": "pad", "ref": "C42",
+                         "pad": "1", "x_mm": 63.0, "y_mm": 34.0},
+                    ],
+                    "layers": [{"layer": "F.Cu"}],
+                    "dominant_blockers": [{"kind": "track",
+                                              "hit_count": 4}],
+                },
+            }],
+        }}
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(
+                    repair, "_trapped_foreign_pad_blockers",
+                    return_value=[]), \
+                mock.patch.object(
+                    repair, "_surface_trapped_endpoint_labels",
+                    return_value={"a"}):
+            plan = repair.plan_footprint_repairs(
+                "board.kicad_pcb", payload)
+
+        self.assertIn("C42", [row["ref"] for row in plan["targets"]])
+
     def test_footprint_relocation_ladder_contains_quarter_turn_away_seat(self):
         import cec_certificate_repair as repair
 
@@ -732,6 +2085,238 @@ class TestCertificateRepairPolicy(unittest.TestCase):
                 "board.kicad_pcb", target)
         self.assertIn({"rotation_delta_deg": 90.0,
                        "dx_mm": -0.5, "dy_mm": -0.75}, rows)
+
+    def test_footprint_relocation_ladder_moves_endpoint_toward_owner(self):
+        import cec_certificate_repair as repair
+
+        footprint = mock.Mock()
+        footprint.GetPosition.return_value = SimpleNamespace(
+            x=63_000_000, y=34_000_000)
+        board = mock.Mock()
+        board.FindFootprintByReference.return_value = footprint
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C42", target_net="/SS", endpoint_ref="U4",
+            endpoint_pad="11", endpoint_x_mm=66.0, endpoint_y_mm=32.0,
+            hit_count=2, distance_mm=3.7, priority=(0,),
+            motion="toward_endpoint"))
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board):
+            rows = repair._footprint_relocation_candidates(
+                "board.kicad_pcb", target)
+
+        self.assertEqual(rows[0], {"rotation_delta_deg": 180.0,
+                                   "dx_mm": 0.0, "dy_mm": -0.0})
+        self.assertGreater(rows[1]["dx_mm"], 0.0)
+        self.assertLess(rows[1]["dy_mm"], 0.0)
+
+    def test_support_cluster_ladder_includes_rigid_lane_reversal(self):
+        import cec_certificate_repair as repair
+
+        footprint = mock.Mock()
+        footprint.GetPosition.return_value = SimpleNamespace(
+            x=66_000_000, y=36_000_000)
+        board = mock.Mock()
+        board.FindFootprintByReference.return_value = footprint
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="R15", target_net="/OV", endpoint_ref="U4",
+            endpoint_pad="5", endpoint_x_mm=66.0, endpoint_y_mm=29.0,
+            hit_count=4, distance_mm=7.0, priority=(0,),
+            motion="toward_endpoint", companion_refs=("R16",)))
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board):
+            rows = repair._footprint_relocation_candidates(
+                "board.kicad_pcb", target)
+
+        self.assertEqual(len(rows), 16)
+        self.assertEqual({row["rotation_delta_deg"] for row in rows},
+                         {0.0, 180.0})
+        self.assertTrue(all(row["dy_mm"] < 0.0 for row in rows))
+
+    def test_relocated_support_cell_must_reconnect_ground(self):
+        import cec_certificate_repair as repair
+
+        self.assertEqual(
+            repair._relocation_support_nets(
+                {"affected_nets": ["/SS", "GND", "+3V3"]}, "/SS"),
+            ("+3V3", "GND"))
+
+    def test_certificate_node_at_exact_smd_pad_keeps_pin_escape(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "+3V3")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U10")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("6")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.45, 0.30))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        track.SetEnd(pcbnew.VECTOR2I_MM(4.5, 5.5))
+        track.SetWidth(pcbnew.FromMM(0.20))
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetNet(net)
+        board.Add(track)
+
+        anchor = repair._certificate_endpoint_anchor(
+            board, {"kind": "node", "x_mm": 5.0, "y_mm": 5.0},
+            net.GetNetCode(), pcbnew.FromMM(0.50), pcbnew.FromMM(0.20),
+            pcbnew.FromMM(0.20))
+
+        self.assertIsNotNone(anchor)
+        self.assertEqual(anchor[3].GetClass(), "PAD")
+        self.assertEqual(str(anchor[3].GetNumber()), "6")
+        self.assertEqual(anchor[2][0], pcbnew.FromMM(0.20))
+        self.assertGreater(anchor[2][1], pcbnew.FromMM(0.6))
+
+    def test_target_endpoint_retreat_is_bounded_to_a_live_leaf_prefix(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/OPEN")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U1")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("1")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.4))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(4.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+
+        track_uuids = []
+        for x0, x1 in ((1.0, 2.0), (2.0, 3.0), (3.0, 4.0)):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(x0, 5.0))
+            item.SetEnd(pcbnew.VECTOR2I_MM(x1, 5.0))
+            item.SetWidth(pcbnew.FromMM(0.20))
+            item.SetLayer(pcbnew.F_Cu)
+            item.SetNet(net)
+            board.Add(item)
+            track_uuids.append(repair._uuid(item))
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="C1", target_net="/OPEN", endpoint_ref="",
+            endpoint_pad="", endpoint_x_mm=1.0, endpoint_y_mm=5.0,
+            hit_count=2, distance_mm=3.0, priority=(0,)))
+        certificate = {"endpoints": [
+            {"kind": "node", "x_mm": 1.0, "y_mm": 5.0},
+            {"kind": "pad", "ref": "C1", "pad": "1",
+             "x_mm": 0.0, "y_mm": 5.0},
+        ]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "retreat.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            access = repair._target_endpoint_access_candidates_worker(
+                path, target, certificate, max_hops=4)
+            plan = repair._target_endpoint_retreat_candidates_worker(
+                path, target, certificate, max_hops=4)
+            changed, evidence = repair._apply_target_endpoint_retreat_worker(
+                path, "/OPEN", plan["candidates"][1])
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertEqual(len(access["candidates"]), 3)
+        self.assertEqual(
+            access["candidates"][0]["access_path_uuids"], track_uuids[:1])
+        self.assertEqual(
+            access["candidates"][2]["endpoint"]["kind"], "pad")
+        self.assertEqual(len(plan["candidates"]), 3)
+        self.assertEqual(
+            plan["candidates"][0]["removed_uuids"], track_uuids[:1])
+        self.assertEqual(
+            plan["candidates"][1]["removed_uuids"], track_uuids[:2])
+        self.assertEqual(plan["candidates"][2]["endpoint"]["kind"], "pad")
+        self.assertEqual(plan["candidates"][2]["endpoint"]["ref"], "U1")
+        self.assertTrue(changed, evidence)
+        self.assertEqual(len(saved.GetTracks()), 1)
+
+        target["endpoint_x_mm"] = 4.0
+        pad_certificate = {"endpoints": [
+            {"kind": "node", "x_mm": 4.0, "y_mm": 5.0},
+            certificate["endpoints"][1],
+        ]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pad-origin.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            refusal = repair._target_endpoint_retreat_candidates_worker(
+                path, target, pad_certificate)
+        self.assertEqual(refusal["refusal"], "retreat_origin_is_pad")
+
+    def test_connected_endpoint_access_generates_route_aware_support_seat(self):
+        import cec_certificate_repair as repair
+
+        target = repair.asdict(repair.FootprintRepairTarget(
+            ref="R19", target_net="+3V3", endpoint_ref="U10",
+            endpoint_pad="6", endpoint_x_mm=5.0, endpoint_y_mm=5.0,
+            hit_count=4, distance_mm=3.0, priority=(0,),
+            motion="toward_endpoint"))
+        owner = mock.Mock()
+        owner.GetPosition.return_value = SimpleNamespace(
+            x=2_000_000, y=2_000_000)
+        board = mock.Mock()
+        board.FindFootprintByReference.return_value = owner
+        board.GetFootprints.return_value = [owner]
+        board.Groups.return_value = []
+
+        def seats(_path, row, limit=32):
+            endpoint = float(row["endpoint_x_mm"])
+            return [{
+                "rotation_delta_deg": 90.0,
+                "dx_mm": endpoint, "dy_mm": 0.0,
+                "occupancy_score": {
+                    "outside_mm2": 0.0, "footprint_overlap_count": 0,
+                    "footprint_overlap_mm2": 0.0, "copper_hits": 0,
+                    "endpoint_distance_mm": 1.0,
+                },
+            }]
+
+        access = {"candidates": [{
+            "endpoint": {"kind": "node", "x_mm": 6.0, "y_mm": 5.0},
+            "access_path_uuids": ["stub"], "hops": 1,
+        }]}
+        with mock.patch.object(repair.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(
+                    repair, "_occupancy_relocation_candidates",
+                    side_effect=seats), \
+                mock.patch.object(
+                    repair, "_target_endpoint_access_candidates_worker",
+                    return_value=access), \
+                mock.patch.object(
+                    repair, "_footprint_relocation_candidates",
+                    return_value=[]):
+            rows = repair._combined_footprint_relocation_candidates(
+                "board.kicad_pcb", target)
+
+        route_row = next(row for row in rows
+                         if row.get("route_access_endpoint"))
+        self.assertEqual(route_row["generator"],
+                         "occupancy_connected_endpoint")
+        self.assertEqual(route_row["route_access_path_uuids"], ["stub"])
+        self.assertEqual(route_row["route_access_endpoint"]["x_mm"], 6.0)
+
+    def test_board_rotation_uses_kicad_clockwise_positive_convention(self):
+        import cec_certificate_repair as repair
+
+        x, y = repair._rotate_board_vector(1.0, 0.0, 90.0)
+        self.assertAlmostEqual(x, 0.0, places=9)
+        self.assertAlmostEqual(y, -1.0, places=9)
+        x, y = repair._rotate_board_vector(0.0, 1.0, 90.0)
+        self.assertAlmostEqual(x, 1.0, places=9)
+        self.assertAlmostEqual(y, 0.0, places=9)
 
     def test_footprint_reseat_preserves_copper_beyond_direct_pad_stub(self):
         import pcbnew
@@ -791,6 +2376,117 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertIn(preserved_uuid, remaining)
         self.assertEqual(evidence["preserved_anchors"][0]["x_mm"], 6.0)
 
+    def test_passive_cluster_reseat_translates_every_member(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/DIV")
+        board.Add(net)
+        for ref, x in (("R15", 5.0), ("R16", 6.5)):
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference(ref)
+            footprint.SetPosition(pcbnew.VECTOR2I_MM(x, 5.0))
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x, 5.0))
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            footprint.Add(pad)
+            board.Add(footprint)
+        internal = pcbnew.PCB_TRACK(board)
+        internal.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        internal.SetEnd(pcbnew.VECTOR2I_MM(6.5, 5.0))
+        internal.SetWidth(pcbnew.FromMM(0.2))
+        internal.SetLayer(pcbnew.F_Cu)
+        internal.SetNet(net)
+        board.Add(internal)
+        internal_uuid = repair._uuid(internal)
+        target = repair.FootprintRepairTarget(
+            ref="R15", target_net="/DIV", endpoint_ref="U4",
+            endpoint_pad="5", endpoint_x_mm=5.0, endpoint_y_mm=2.0,
+            hit_count=3, distance_mm=3.0, priority=(0,),
+            motion="toward_endpoint", companion_refs=("R16",))
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "cluster.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 0.0,
+                    "dx_mm": 0.5,
+                    "dy_mm": -1.0,
+                })
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["companion_refs"], ["R16"])
+        self.assertEqual(evidence["moved_internal_tracks"], 1)
+        self.assertEqual(evidence["removed_tracks"], 0)
+        self.assertAlmostEqual(
+            saved.FindFootprintByReference("R15").GetPosition().x / 1e6,
+            5.5)
+        self.assertAlmostEqual(
+            saved.FindFootprintByReference("R16").GetPosition().x / 1e6,
+            7.0)
+        self.assertAlmostEqual(
+            saved.FindFootprintByReference("R16").GetPosition().y / 1e6,
+            4.0)
+        moved = next(item for item in saved.GetTracks()
+                     if repair._uuid(item) == internal_uuid)
+        self.assertAlmostEqual(moved.GetStart().x / 1e6, 5.5)
+        self.assertAlmostEqual(moved.GetStart().y / 1e6, 4.0)
+        self.assertAlmostEqual(moved.GetEnd().x / 1e6, 7.0)
+        self.assertAlmostEqual(moved.GetEnd().y / 1e6, 4.0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "cluster-rotated.kicad_pcb")
+            pcbnew.SaveBoard(path, saved)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 180.0,
+                    "dx_mm": 0.0,
+                    "dy_mm": 0.0,
+                })
+            rotated = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        self.assertAlmostEqual(
+            rotated.FindFootprintByReference("R15").GetPosition().x / 1e6,
+            5.5)
+        self.assertAlmostEqual(
+            rotated.FindFootprintByReference("R16").GetPosition().x / 1e6,
+            4.0)
+        rotated_track = next(item for item in rotated.GetTracks()
+                             if repair._uuid(item) == internal_uuid)
+        self.assertAlmostEqual(rotated_track.GetStart().x / 1e6, 5.5)
+        self.assertAlmostEqual(rotated_track.GetEnd().x / 1e6, 4.0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "cluster-quarter-turn.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 90.0,
+                    "dx_mm": 0.0,
+                    "dy_mm": 0.0,
+                })
+            quarter = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        self.assertAlmostEqual(
+            quarter.FindFootprintByReference("R16").GetPosition().x / 1e6,
+            5.0)
+        self.assertAlmostEqual(
+            quarter.FindFootprintByReference("R16").GetPosition().y / 1e6,
+            3.5)
+        quarter_track = next(item for item in quarter.GetTracks()
+                             if repair._uuid(item) == internal_uuid)
+        self.assertAlmostEqual(quarter_track.GetEnd().x / 1e6, 5.0)
+        self.assertAlmostEqual(quarter_track.GetEnd().y / 1e6, 3.5)
+
     def test_refusal_named_generated_via_is_relocation_target(self):
         import pcbnew
         import cec_certificate_repair as repair
@@ -805,11 +2501,19 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         via.SetNet(blocker)
         via.SetLocked(True)
         board.Add(via)
+        branch = pcbnew.PCB_TRACK(board)
+        branch.SetStart(pcbnew.VECTOR2I_MM(5, 5))
+        branch.SetEnd(pcbnew.VECTOR2I_MM(4, 4))
+        branch.SetWidth(pcbnew.FromMM(0.25))
+        branch.SetLayer(pcbnew.F_Cu)
+        branch.SetNet(blocker)
+        board.Add(branch)
         with tempfile.TemporaryDirectory() as work:
             path = os.path.join(work, "via.kicad_pcb")
             pcbnew.SaveBoard(path, board)
             saved = pcbnew.LoadBoard(path)
-            uid = repair._uuid(next(iter(saved.GetTracks())))
+            uid = repair._uuid(next(item for item in saved.GetTracks()
+                                    if item.GetClass() == "PCB_VIA"))
             payload = {"unconn_nets": ["/OPEN"], "final_completion": {
                 "refused_details": [{
                     "net": "/OPEN", "distance_mm": 4.0,
@@ -834,6 +2538,8 @@ class TestCertificateRepairPolicy(unittest.TestCase):
                          "authored_locked_via")
         self.assertEqual(allowed["targets"][0]["via"]["uuid"], uid)
         self.assertGreater(allowed["targets"][0]["via"]["away_dx"], 0)
+        self.assertEqual(allowed["targets"][0]["owner_directions"],
+                         [[-1, -1]])
 
     def test_surgery_policy_protects_authored_and_sensitive_copper(self):
         import cec_certificate_repair as repair
@@ -1108,6 +2814,230 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             dx = abs(row["end"][0] - row["start"][0])
             dy = abs(row["end"][1] - row["start"][1])
             self.assertTrue(dx == 0 or dy == 0 or abs(dx - dy) < 1e-6)
+
+    def test_composite_via_recovery_selects_only_exact_generated_tracks(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        generated_net = pcbnew.NETINFO_ITEM(board, "/GENERATED")
+        target_net = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(generated_net); board.Add(target_net)
+        generated = pcbnew.PCB_TRACK(board)
+        generated.SetStart(pcbnew.VECTOR2I_MM(1, 1))
+        generated.SetEnd(pcbnew.VECTOR2I_MM(5, 1))
+        generated.SetWidth(pcbnew.FromMM(0.2))
+        generated.SetLayer(pcbnew.F_Cu)
+        generated.SetNet(generated_net)
+        generated.SetLocked(True)
+        board.Add(generated)
+        authored = pcbnew.PCB_TRACK(board)
+        authored.SetStart(pcbnew.VECTOR2I_MM(1, 2))
+        authored.SetEnd(pcbnew.VECTOR2I_MM(5, 2))
+        authored.SetWidth(pcbnew.FromMM(0.2))
+        authored.SetLayer(pcbnew.F_Cu)
+        authored.SetNet(target_net)
+        authored.SetLocked(True)
+        board.Add(authored)
+        identity = json.dumps([
+            "clearance", "uuid",
+            sorted([repair._uuid(generated), repair._uuid(authored)]),
+        ], separators=(",", ":"))
+        before = {"structural_drc_identities": []}
+        after = {"structural_drc_identities": [identity]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "composite.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            evidence = repair._new_generated_track_conflicts_worker(
+                path, before, after, (repair._uuid(generated),), ("GND",))
+
+        self.assertEqual(evidence["generated_track_uuids"],
+                         [repair._uuid(generated)])
+        self.assertEqual(
+            evidence["repairable_identities"][0]["generated_track_uuids"],
+            [repair._uuid(generated)])
+
+    def test_unattached_stitch_via_requires_explicit_mode(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        gnd = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(gnd)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        via.SetWidth(pcbnew.FromMM(0.6))
+        via.SetDrill(pcbnew.FromMM(0.3))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(gnd)
+        board.Add(via)
+        target = repair.ViaRepairTarget(
+            uuid=repair._uuid(via), net="GND",
+            x_nm=via.GetPosition().x, y_nm=via.GetPosition().y,
+            diameter_nm=via.GetWidth(pcbnew.F_Cu),
+            drill_nm=via.GetDrillValue(), counterpart_uuids=(),
+            drc_types=(), away_dx=1, away_dy=0,
+            priority=(0, repair._uuid(via)))
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "stitch.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            refused, refusal = repair._relocate_via_worker(
+                path, repair.asdict(target), pcbnew.FromMM(0.2), 0)
+            changed, evidence = repair._relocate_via_worker(
+                path, repair.asdict(target), pcbnew.FromMM(0.2), 0,
+                (), True)
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertFalse(refused)
+        self.assertEqual(refusal["refusal"], "no_incident_route_stub")
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["mode"], "unattached_stitch_via")
+        moved = next(item for item in saved.GetTracks()
+                     if repair._uuid(item) == target.uuid)
+        self.assertAlmostEqual(moved.GetPosition().x / repair.MM,
+                               5.2, places=3)
+
+    def test_pad_owned_oversized_via_normalizes_to_declared_pofv(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        properties = board.GetProperties()
+        properties["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(properties)
+        gnd = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(gnd)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U1")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("12")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(gnd)
+        footprint.Add(pad)
+        board.Add(footprint)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        via.SetWidth(pcbnew.FromMM(0.9))
+        via.SetDrill(pcbnew.FromMM(0.5))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(gnd)
+        board.Add(via)
+        via_uuid = repair._uuid(via)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pofv.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = \
+                repair._normalize_pad_owned_via_to_profile_worker(
+                    path, via_uuid)
+            saved = pcbnew.LoadBoard(path)
+            normalized = next(item for item in saved.GetTracks()
+                              if repair._uuid(item) == via_uuid)
+            for group in list(saved.Groups()):
+                saved.Remove(group)
+            pcbnew.SaveBoard(path, saved)
+            rule_path = os.path.splitext(path)[0] + ".kicad_dru"
+            if os.path.exists(rule_path):
+                os.remove(rule_path)
+            refreshed, refresh_evidence = \
+                repair._refresh_transaction_pofv_rule_worker(
+                    path, (via_uuid,))
+            drc = repair._run_drc(
+                path, os.path.join(directory, "pofv-drc.json"))
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["owner_ref"], "U1")
+        self.assertEqual(evidence["owner_pad"], "12")
+        self.assertTrue(evidence["rule"]["written"])
+        self.assertTrue(refreshed, refresh_evidence)
+        self.assertTrue(refresh_evidence["rule"]["written"])
+        self.assertAlmostEqual(normalized.GetWidth(normalized.TopLayer()) /
+                               repair.MM, 0.3, places=3)
+        self.assertAlmostEqual(normalized.GetDrillValue() / repair.MM,
+                               0.2, places=3)
+        self.assertTrue(normalized.IsLocked())
+        pofv_faults = {
+            row.get("type") for row in drc.get("violations") or ()
+            if any(item.get("uuid") == via_uuid
+                   for item in row.get("items") or ())}
+        self.assertFalse(
+            pofv_faults.intersection({"via_diameter", "drill_out_of_range"}),
+            pofv_faults)
+
+    def test_short_smd_dogbone_via_normalizes_to_declared_pofv(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        properties = board.GetProperties()
+        properties["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+        board.SetProperties(properties)
+        gnd = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(gnd)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("U1")
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("12")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.2))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(gnd)
+        footprint.Add(pad)
+        board.Add(footprint)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(5.95, 5.0))
+        via.SetWidth(pcbnew.FromMM(0.9))
+        via.SetDrill(pcbnew.FromMM(0.5))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(gnd)
+        board.Add(via)
+        stub = pcbnew.PCB_TRACK(board)
+        stub.SetStart(pad.GetPosition())
+        stub.SetEnd(via.GetPosition())
+        stub.SetWidth(pcbnew.FromMM(0.2))
+        stub.SetLayer(pcbnew.F_Cu)
+        stub.SetNet(gnd)
+        board.Add(stub)
+        via_uuid = repair._uuid(via)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "dogbone.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = \
+                repair._normalize_pad_owned_via_to_profile_worker(
+                    path, via_uuid)
+            saved = pcbnew.LoadBoard(path)
+            normalized = next(item for item in saved.GetTracks()
+                              if repair._uuid(item) == via_uuid)
+
+            board.Remove(stub)
+            evacuated_path = os.path.join(
+                directory, "evacuated-dogbone.kicad_pcb")
+            pcbnew.SaveBoard(evacuated_path, board)
+            snapshot = {
+                "net": "GND",
+                "start_xy": [pad.GetPosition().x, pad.GetPosition().y],
+                "end_xy": [via.GetPosition().x, via.GetPosition().y],
+            }
+            evacuated_changed, evacuated_evidence = \
+                repair._normalize_pad_owned_via_to_profile_worker(
+                    evacuated_path, via_uuid, (snapshot,))
+
+        self.assertTrue(changed, evidence)
+        self.assertEqual(evidence["ownership_mode"], "local_dogbone")
+        self.assertAlmostEqual(normalized.GetWidth(normalized.TopLayer()) /
+                               repair.MM, 0.3, places=3)
+        self.assertAlmostEqual(normalized.GetDrillValue() / repair.MM,
+                               0.2, places=3)
+        self.assertTrue(evacuated_changed, evacuated_evidence)
+        self.assertEqual(evacuated_evidence["ownership_mode"],
+                         "evacuated_local_dogbone")
 
     def test_structural_identity_filter_ignores_nonroute_geometry_noise(self):
         import cec_certificate_repair as repair
@@ -1669,6 +3599,120 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(order, ["/NARROW", "/WIDE"])
         self.assertEqual(evidence["order_mode"], "easiest_first")
 
+    def test_restore_tries_exact_boundaries_before_grouped_net_fallback(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        def row(uid, length_mm):
+            return {
+                "requested_uuid": uid, "net": "/SCL", "net_code": 1,
+                "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.25),
+                "start_escape": None, "end_escape": None,
+                "source_length_nm": pcbnew.FromMM(length_mm),
+                "removed_uuids": (uid,), "relock": True,
+                "endpoint_neckdown_group": False,
+                "start_xy": [pcbnew.FromMM(1), pcbnew.FromMM(1)],
+                "end_xy": [pcbnew.FromMM(2), pcbnew.FromMM(1)],
+            }
+
+        board = mock.Mock()
+        with mock.patch.object(
+                repair, "_restore_displaced_net",
+                return_value=(True, {"net": "/SCL",
+                                     "mode": "network_lastmile"})) as live, \
+                mock.patch.object(
+                    repair, "_restore_displaced_branch",
+                    return_value=(True, {"net": "/SCL",
+                                         "mode": "same_layer"})) as exact:
+            restored, evidence = repair._restore_negotiation_blockers(
+                board, [row("a", 1.0), row("b", 2.0)],
+                board_path="board.kicad_pcb", maze_margin_mm=4.0,
+                max_detour_ratio=2.0)
+
+        self.assertTrue(restored, evidence)
+        self.assertEqual(exact.call_count, 2)
+        live.assert_not_called()
+        self.assertEqual(evidence["restored"][0]["snapshot_count"], 2)
+        self.assertEqual(evidence["restored"][0]["mode"],
+                         "boundary_group_lastmile")
+
+    def test_restore_groups_live_topology_only_after_boundary_refusal(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        def row(uid, x_mm):
+            return {
+                "requested_uuid": uid, "net": "/SCL", "net_code": 1,
+                "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.25),
+                "start_escape": None, "end_escape": None,
+                "source_length_nm": pcbnew.FromMM(1.0),
+                "removed_uuids": (uid,), "relock": False,
+                "endpoint_neckdown_group": False,
+                "start_xy": [pcbnew.FromMM(x_mm), pcbnew.FromMM(1)],
+                "end_xy": [pcbnew.FromMM(x_mm + 1), pcbnew.FromMM(1)],
+            }
+
+        board = mock.Mock()
+        with mock.patch.object(
+                repair, "_restore_displaced_branch",
+                side_effect=[
+                    (True, {"net": "/SCL", "mode": "same_layer"}),
+                    (False, {"net": "/SCL",
+                             "refusal": "displaced_branch_unrestorable"}),
+                ]) as exact, mock.patch.object(
+                    repair, "_restore_displaced_net",
+                    return_value=(True, {"net": "/SCL",
+                                         "mode": "network_lastmile"})) as live:
+            restored, evidence = repair._restore_negotiation_blockers(
+                board, [row("a", 1.0), row("b", 3.0)],
+                board_path="board.kicad_pcb", maze_margin_mm=4.0,
+                max_detour_ratio=2.0)
+
+        self.assertTrue(restored, evidence)
+        self.assertEqual(exact.call_count, 2)
+        live.assert_called_once()
+        combined = live.call_args.args[1]
+        self.assertEqual(set(combined["removed_uuids"]), {"a", "b"})
+        self.assertEqual(evidence["restored"][0]["snapshot_count"], 2)
+        self.assertEqual(evidence["restored"][0]["mode"],
+                         "network_group_lastmile")
+
+    def test_restore_prioritizes_pin_boundary_inside_same_net_group(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        def row(uid, length_mm, escape=None):
+            return {
+                "requested_uuid": uid, "net": "/SDA", "net_code": 1,
+                "layer": pcbnew.F_Cu, "width": pcbnew.FromMM(0.22),
+                "start_escape": escape, "end_escape": None,
+                "source_length_nm": pcbnew.FromMM(length_mm),
+                "removed_uuids": (uid,), "relock": False,
+                "endpoint_neckdown_group": bool(escape),
+                "start_xy": [pcbnew.FromMM(1), pcbnew.FromMM(1)],
+                "end_xy": [pcbnew.FromMM(2), pcbnew.FromMM(1)],
+            }
+
+        order = []
+
+        def exact(_board, item, **_kwargs):
+            order.append(item["requested_uuid"])
+            return True, {"net": item["net"], "mode": "same_layer"}
+
+        board = mock.Mock()
+        with mock.patch.object(
+                repair, "_restore_displaced_branch", side_effect=exact), \
+                mock.patch.object(repair, "_restore_displaced_net") as live:
+            restored, evidence = repair._restore_negotiation_blockers(
+                board, [row("long", 20.0),
+                        row("pin", 2.0, (150_000, 1_000_000))],
+                board_path="board.kicad_pcb", maze_margin_mm=4.0,
+                max_detour_ratio=2.0)
+
+        self.assertTrue(restored, evidence)
+        self.assertEqual(order, ["pin", "long"])
+        live.assert_not_called()
+
     def test_negotiation_plan_drops_intermediate_refusal_after_final_close(self):
         import cec_certificate_repair as repair
 
@@ -1882,6 +3926,9 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             self.assertIn("--max-attempts", command)
             self.assertIn("--wall-budget-s", command)
             self.assertIn("--no-deep-retry", command)
+            child_env = run_mock.call_args.kwargs["env"]
+            self.assertGreaterEqual(
+                float(child_env["CEC_CERTIFICATE_WORKER_TIMEOUT_S"]), 120.0)
 
     def test_production_hook_forwards_authored_baseline(self):
         import cec_synth_pipeline as pipeline
@@ -1941,6 +3988,44 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertEqual(output, "board.kicad_pcb")
         self.assertEqual(report["skipped"], "no_refusal_certificates")
         run.assert_not_called()
+
+    def test_atomic_negotiation_inherits_coordinated_worker_budget(self):
+        import cec_certificate_repair as repair
+
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_WORKER_TIMEOUT_S": "120"}, clear=False):
+            self.assertEqual(
+                repair._atomic_negotiation_timeout_s(12, 4.0), 120.0)
+            self.assertEqual(
+                repair._atomic_negotiation_timeout_s(4, 12.0), 120.0)
+
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_NEGOTIATION_TIMEOUT_S": "35"}, clear=False):
+            self.assertEqual(
+                repair._atomic_negotiation_timeout_s(12, 4.0), 35.0)
+            self.assertEqual(
+                repair._atomic_negotiation_timeout_s(4, 12.0), 45.0)
+
+    def test_moved_cell_support_budget_scales_past_single_net_cap(self):
+        import cec_certificate_repair as repair
+
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_WORKER_TIMEOUT_S": "240"}, clear=False):
+            self.assertEqual(
+                repair._support_completion_timeout_s(1, 24, 8.0), 240.0)
+            self.assertEqual(
+                repair._support_completion_timeout_s(9, 24, 8.0), 255.0)
+
+        with mock.patch.dict(
+                os.environ,
+                {"CEC_CERTIFICATE_WORKER_TIMEOUT_S": "90"}, clear=False):
+            self.assertEqual(
+                repair._support_completion_timeout_s(1, 24, 8.0), 90.0)
+            self.assertEqual(
+                repair._support_completion_timeout_s(9, 24, 8.0), 255.0)
 
 
 class TestNegotiationTelemetry(unittest.TestCase):
@@ -2065,6 +4150,41 @@ class TestIterativePlacementRepair(unittest.TestCase):
         self.assertEqual([row.get("move", {}).get("ref")
                           for row in result.route_repair_history[:2]],
                          ["R1", "R2"])
+
+
+class TestViaCandidateScheduling(unittest.TestCase):
+    def test_finite_prefix_covers_full_radius_ladder_away_from_conflict(self):
+        import cec_certificate_repair as repair
+
+        target = repair.ViaRepairTarget(
+            uuid="via", net="/S", x_nm=0, y_nm=0,
+            diameter_nm=600_000, drill_nm=300_000,
+            away_dx=0, away_dy=1, counterpart_uuids=(),
+            drc_types=(), priority=())
+        candidates = list(repair._via_offset_candidates(target))
+
+        self.assertEqual(
+            [row[2] for row in candidates[:7]],
+            [0.20, 0.30, 0.45, 0.60, 0.80, 1.00, 1.40])
+        self.assertEqual(
+            {row[3] for row in candidates[:7]}, {(0, 1)})
+        self.assertNotEqual(candidates[7][3], (0, 1))
+
+    def test_congestion_prefix_includes_anisotropic_owner_escape(self):
+        import cec_certificate_repair as repair
+
+        target = repair.ViaRepairTarget(
+            uuid="via", net="/SDA", x_nm=0, y_nm=0,
+            diameter_nm=350_000, drill_nm=250_000,
+            away_dx=1, away_dy=-1, counterpart_uuids=(),
+            drc_types=(), priority=())
+        candidates = list(repair._congestion_via_offset_candidates(
+            target, owner_directions=((-1, -1), (0, -1))))
+
+        self.assertIn((-800_000, -450_000),
+                      [(row[0], row[1]) for row in candidates[:8]])
+        self.assertIn((-450_000, -800_000),
+                      [(row[0], row[1]) for row in candidates[:8]])
 
 
 if __name__ == "__main__":

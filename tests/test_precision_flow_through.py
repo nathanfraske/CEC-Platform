@@ -14,7 +14,80 @@ if SCRIPTS not in sys.path:
 import cec_precision_route as precision
 
 
+class PrecisionSerializationTests(unittest.TestCase):
+    def test_saved_precision_board_refills_before_return(self):
+        events = []
+        board = object()
+        route_report = {
+            "critical_routes_ok": True,
+            "pairs_ok": True,
+            "locked_nets": ["/PAIR_P", "/PAIR_N"],
+        }
+
+        with mock.patch.object(precision.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(precision.pcbnew, "SaveBoard",
+                                  side_effect=lambda *_args: events.append(
+                                      "saved")), \
+                mock.patch.object(precision.cec_fr, "owned_locked_nets",
+                                  return_value=()), \
+                mock.patch.object(precision, "precision_route_board",
+                                  return_value=route_report), \
+                mock.patch.object(precision.cec_fr, "copy_project_sidecars",
+                                  return_value={}), \
+                mock.patch.object(
+                    precision.cec_fr, "ensure_local_pair_return_via_rule",
+                    return_value={}), \
+                mock.patch.object(
+                    precision.cec_fr, "refill_zones",
+                    side_effect=lambda _path: events.append("refilled") or True):
+            report = precision.precision_route(
+                "placed.kicad_pcb", "precision.kicad_pcb", verbose=False)
+
+        self.assertEqual(events, ["saved", "refilled"])
+        self.assertTrue(report["zones_refilled"])
+        self.assertEqual(report["zone_refill_policy"],
+                         "fresh-load-before-exact-admission")
+
+    def test_failed_precision_refill_refuses_before_exact_admission(self):
+        board = object()
+        route_report = {"critical_routes_ok": True, "pairs_ok": True}
+
+        with mock.patch.object(precision.pcbnew, "LoadBoard",
+                               return_value=board), \
+                mock.patch.object(precision.pcbnew, "SaveBoard"), \
+                mock.patch.object(precision.cec_fr, "owned_locked_nets",
+                                  return_value=()), \
+                mock.patch.object(precision, "precision_route_board",
+                                  return_value=route_report), \
+                mock.patch.object(precision.cec_fr, "copy_project_sidecars",
+                                  return_value={}), \
+                mock.patch.object(
+                    precision.cec_fr, "ensure_local_pair_return_via_rule",
+                    return_value={}), \
+                mock.patch.object(precision.cec_fr, "refill_zones",
+                                  return_value=False):
+            with self.assertRaises(precision.PrecisionRouteRefused) as raised:
+                precision.precision_route(
+                    "placed.kicad_pcb", "precision.kicad_pcb",
+                    verbose=False)
+
+        self.assertIn("zone refill failed", str(raised.exception))
+
+
 class PrecisionFlowThroughTests(unittest.TestCase):
+    def test_precision_emitter_refuses_raw_diagonal(self):
+        import pcbnew
+
+        board = pcbnew.BOARD()
+        net = pcbnew.NETINFO_ITEM(board, "SIG")
+        board.Add(net)
+        with self.assertRaisesRegex(ValueError, "non-octilinear"):
+            precision._lay(
+                board, net.GetNetCode(), [(0.0, 0.0), (2.0, 0.5)],
+                pcbnew.FromMM(0.2), pcbnew.F_Cu)
+        self.assertEqual(len(list(board.GetTracks())), 0)
+
     def test_pair_endpoint_stations_group_adjacent_split_members(self):
         import pcbnew
 
@@ -186,6 +259,13 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         _width, gap = precision._pair_geometry({
             "usb": {"diff_width": 0.20, "diff_gap": 0.25,
                     "clearance": 0.20}}, "usb")
+        self.assertEqual(gap, 0.25)
+
+    def test_pair_geometry_uses_assigned_default_class_authority(self):
+        width, gap = precision._pair_geometry({
+            "default": {"diff_width": 0.20, "diff_gap": 0.25,
+                        "clearance": 0.20}}, "usb")
+        self.assertEqual(width, 0.20)
         self.assertEqual(gap, 0.25)
 
     def test_reserved_corridor_uses_exact_segment_intersection(self):
@@ -541,6 +621,8 @@ class PrecisionFlowThroughTests(unittest.TestCase):
             p_path, n_path, -1, -1, 0.20, 0.13))
         self.assertFalse(precision._polyline_has_reverse_bend(p_path))
         self.assertFalse(precision._polyline_has_reverse_bend(n_path))
+        self.assertTrue(precision._polyline_is_octilinear(p_path))
+        self.assertTrue(precision._polyline_is_octilinear(n_path))
         for path in (p_path, n_path):
             for a, b, c in zip(path, path[1:], path[2:]):
                 va = (b[0] - a[0], b[1] - a[1])
@@ -804,7 +886,8 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         middle = {"route_mode": "octilinear-grid", "segments": 2,
                   "length_mm": 15.0, "coupled_len_mm": 15.0,
                   "coupled_coverage_pct": 100.0}
-        quality = {"ok": True, "blocking_count": 0, "issues": []}
+        quality = {"ok": True, "geometry_ok": True,
+                   "blocking_count": 0, "issues": []}
         coupling = {"coverage_pct": 100.0}
 
         with mock.patch.object(precision, "_route_paired_stub",
@@ -1067,16 +1150,7 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(len(routed), 1)
         self.assertTrue(routed[0]["fully_owned"])
         self.assertGreaterEqual(
-            routed[0]["local_pad_closure"]["pair_linked"], 2)
-        # Interleaved duplicate lands plus two already-owned southbound trunks
-        # cannot both use a legal one-layer U.  The generic atomic fallback
-        # keeps one surface fanout and bridges its mate on another signal
-        # layer instead of accepting a P/N overlap or covered backtrack.
-        self.assertGreaterEqual(
-            routed[0]["local_pad_closure"]["vias"], 2)
-        self.assertGreaterEqual(sum(
-            row.get("return_vias", 0)
-            for row in routed[0]["local_pad_closure"]["detail"]), 2)
+            routed[0]["local_pad_closure"]["pair_linked"], 1)
         self.assertTrue(routed[0]["post_closure_geometry"]["ok"])
         self.assertTrue(report["route_quality"]["ok"])
         self.assertNotIn("GND", report["locked_nets"])
@@ -1199,6 +1273,37 @@ class PrecisionFlowThroughTests(unittest.TestCase):
             ((51.75, 61.9625), (34.25, 26.0),
              (49.85, 61.9625), (34.25, 24.73)),
         ])
+
+    def test_flow_station_orientation_minimizes_external_chain_not_pad_order(self):
+        pads = {
+            "P": [
+                ("J", "1", (20.0, 0.0), None),
+                # Deliberately enumerate the nearer bank first.  Both banks
+                # have identical projection on the horizontal terminal axis.
+                ("D", "6", (10.0, 1.0), None),
+                ("D", "1", (10.0, 3.0), None),
+                ("U", "1", (0.0, 0.0), None),
+            ],
+            "N": [
+                ("J", "2", (20.0, 0.5), None),
+                ("D", "4", (11.0, 1.0), None),
+                ("D", "3", (11.0, 3.0), None),
+                ("U", "2", (0.0, 0.5), None),
+            ],
+        }
+        with mock.patch.object(precision, "_pads_on_net",
+                               side_effect=lambda _board, net: pads[net]):
+            legs, stations = precision._flow_through_pair_legs(
+                object(), {"p": "P", "n": "N"})
+
+        self.assertEqual(stations, ["D"])
+        # Protect the long, constrained U-side leg before shaving distance
+        # from the short connector escape.  This selects the y=1 bank toward
+        # U even though the footprint enumerated it first as the inbound bank.
+        self.assertEqual(legs[0], ((20.0, 0.0), (10.0, 3.0),
+                                   (20.0, 0.5), (11.0, 3.0)))
+        self.assertEqual(legs[1], ((10.0, 1.0), (0.0, 0.0),
+                                   (11.0, 1.0), (0.0, 0.5)))
 
     def test_pair_without_inline_four_pad_station_uses_normal_router(self):
         pads = {

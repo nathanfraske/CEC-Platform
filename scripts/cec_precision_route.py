@@ -109,7 +109,13 @@ def _pair_geometry(classes, kind):
     from the same-named netclass. Falls back to sane per-kind defaults when the class
     (or its diff geometry) is absent -- the 24-pin CAN netclass_patterns are stale, so
     the CAN nets currently fall into Default; keying by class NAME avoids that trap."""
-    spec = classes.get(kind, {})
+    # A pair kind is a semantic role, not necessarily the KiCad netclass
+    # name.  Many current boards intentionally assign USB/CAN to Default and
+    # carry their complete differential contract there.  Falling straight to
+    # the historical per-kind literals in that case silently undercuts both
+    # the assigned clearance and diff-pair gap.  Prefer a role-named class
+    # when present, otherwise consume the project's actual Default authority.
+    spec = classes.get(kind) or classes.get("default") or {}
     width = spec.get("diff_width") or spec.get("width")
     # Two pair members are still different nets. A nominal impedance gap may
     # therefore never undercut the class/fabrication copper clearance. The old
@@ -157,7 +163,7 @@ def derive_coupled_pairs(board_path, *, board=None):
         w, g = _pair_geometry(classes, kind)
         row = {"name": name, "kind": kind, "p": p, "n": n,
                "width": w, "gap": g, "ztarget": ztarget}
-        spec = classes.get(kind, {})
+        spec = classes.get(kind) or classes.get("default") or {}
         if spec:
             row.update({
                 "clearance": float(spec.get("clearance") or 0.20),
@@ -458,11 +464,13 @@ def _flow_through_pair_legs(board, pair):
         crossed = _dist(ps[0][2], ns[1][2]) + _dist(ps[1][2], ns[0][2])
         matched = ((ps[0], ns[0]), (ps[1], ns[1])) if direct <= crossed else \
                   ((ps[0], ns[1]), (ps[1], ns[0]))
-        return sorted(matched, key=lambda pn: projection((
-            (pn[0][2][0] + pn[1][2][0]) / 2.0,
-            (pn[0][2][1] + pn[1][2][1]) / 2.0)))
+        return tuple(matched)
 
-    ports = [station_ports(ref) for ref in station_refs]
+    unoriented_ports = [station_ports(ref) for ref in station_refs]
+
+    def port_center(port):
+        return ((port[0][2][0] + port[1][2][0]) / 2.0,
+                (port[0][2][1] + port[1][2][1]) / 2.0)
 
     def terminal_port(ref, target):
         # Reversible connectors can expose duplicate pads on a member.  Select
@@ -477,6 +485,51 @@ def _flow_through_pair_legs(board, pair):
                                 pp[1], np[1], pp, np))
         best = min(choices)
         return best[-2], best[-1]
+
+    # Projection alone cannot orient a station whose two pad banks are
+    # perpendicular to the terminal axis (both banks then have the same
+    # projection).  Enumeration order is not physical intent and, on a dense
+    # ESD/CMC footprint, choosing the far bank can fence off the short external
+    # escape.  Solve the two possible orientations of every station as a tiny
+    # deterministic minimax chain dynamic program: minimize the longest
+    # external leg first, then total length.  This preserves the most
+    # constrained route while the short leg retains more detour freedom.  The
+    # solve is linear in station count and applies to any two-bank footprint.
+    orientations = [((row[0], row[1]), (row[1], row[0]))
+                    for row in unoriented_ports]
+    states = []
+    for orientation_index, orientation in enumerate(orientations[0]):
+        inbound, _outbound = orientation
+        terminal = terminal_port(a_ref, port_center(inbound))
+        span = _dist(port_center(terminal), port_center(inbound))
+        states.append(((span, span), (orientation_index,), (orientation,)))
+    for station_index in range(1, len(orientations)):
+        next_states = []
+        for orientation_index, orientation in enumerate(
+                orientations[station_index]):
+            inbound, _outbound = orientation
+            candidates = []
+            for cost, selected_indices, selected_ports in states:
+                previous_outbound = selected_ports[-1][1]
+                span = _dist(port_center(previous_outbound),
+                             port_center(inbound))
+                candidates.append((
+                    (max(cost[0], span), cost[1] + span),
+                    selected_indices + (orientation_index,),
+                    selected_ports + (orientation,)))
+            next_states.append(min(candidates, key=lambda row: (
+                round(row[0][0], 9), round(row[0][1], 9), row[1])))
+        states = next_states
+    completed = []
+    for cost, selected_indices, selected_ports in states:
+        outbound = selected_ports[-1][1]
+        terminal = terminal_port(b_ref, port_center(outbound))
+        span = _dist(port_center(outbound), port_center(terminal))
+        completed.append(((max(cost[0], span), cost[1] + span),
+                          selected_indices, selected_ports))
+    _cost, _indices, selected = min(completed, key=lambda row: (
+        round(row[0][0], 9), round(row[0][1], 9), row[1]))
+    ports = list(selected)
 
     first_port = ports[0][0]
     first_target = ((first_port[0][2][0] + first_port[1][2][0]) / 2.0,
@@ -1606,6 +1659,8 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
     p_direct_admission = member_admission(p_start, p_end, n_code)
     n_direct_admission = member_admission(n_start, n_end, p_code)
     direct_crossing_free = _polys_no_cross(p_direct, n_direct)
+    direct_octilinear = (_polyline_is_octilinear(p_direct)
+                         and _polyline_is_octilinear(n_direct))
     strict_terminal_gap = bool(
         strict_pair_gap
         or (float(minimum_coupled_fraction) > 0.0
@@ -1630,6 +1685,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
             "p": p_direct_admission,
             "n": n_direct_admission,
             "crossing_free": direct_crossing_free,
+            "octilinear": direct_octilinear,
             "pair_spacing": direct_spacing_ok,
             "heading_alignment": round(direct_heading_alignment, 6),
             "heading_compatible": direct_heading_ok,
@@ -1646,6 +1702,8 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
         if _deadline_expired(deadline):
             break
         p_points, n_points = ribbon["p"], ribbon["n"]
+        octilinear = (_polyline_is_octilinear(p_points)
+                      and _polyline_is_octilinear(n_points))
         p_admissions = [member_admission(a, b, n_code)
                         for a, b in zip(p_points, p_points[1:])]
         n_admissions = [member_admission(a, b, p_code)
@@ -1671,6 +1729,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
             p_clear and n_clear and crossing_free and pair_spacing
             and not reservation
             and ribbon["coupling_contract"]["ok"]
+            and octilinear
             and turn_quality
             and ribbon_heading + 1e-9 >= minimum_heading_alignment)
         public = {key: value for key, value in ribbon.items()
@@ -1678,6 +1737,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
         public.update({
             "p_clear": p_clear, "n_clear": n_clear,
             "crossing_free": crossing_free,
+            "octilinear": octilinear,
             "pair_spacing": pair_spacing,
             "reservation": reservation,
             "heading_alignment": round(ribbon_heading, 6),
@@ -1720,6 +1780,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
     elif (p_direct_admission["ok"]
             and n_direct_admission["ok"]
             and direct_crossing_free and direct_spacing_ok
+            and direct_octilinear
             and direct_heading_ok):
         solved = (p_direct, n_direct)
     elif allow_detour:
@@ -1746,6 +1807,13 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
                             else "no clear bounded paired terminal stub"),
                 "admission": admission}
     p_points, n_points = solved
+    if (not _polyline_is_octilinear(p_points)
+            or not _polyline_is_octilinear(n_points)):
+        return {
+            "name": pair["name"], "p": pair["p"], "n": pair["n"],
+            "refused": "paired terminal path contains a non-octilinear segment",
+            "admission": admission,
+        }
     heading_alignment = min(
         _path_end_heading_alignment(
             p_points, preferred_end_direction),
@@ -2813,11 +2881,14 @@ def _route_layered_multidrop_pair_tree(board, pair, plan, *, avoid=(),
     route_quality = (cec_route_quality.analyze_board(
         board, critical_nets=(pair["p"], pair["n"]),
         track_uuid_scope=created) if created else {
-            "ok": True, "issue_count": 0, "blocking_count": 0,
+            "ok": True, "geometry_ok": True,
+            "non_octilinear_count": 0, "non_octilinear": [],
+            "issue_count": 0, "blocking_count": 0,
             "advisory_count": 0, "critical_nets": sorted(
                 (pair["p"], pair["n"])), "issues": [],
         })
-    if not route_quality["ok"]:
+    if not (route_quality["ok"]
+            and route_quality.get("geometry_ok", False)):
         rollback()
         return {
             "name": pair["name"], "p": pair["p"], "n": pair["n"],
@@ -2994,6 +3065,21 @@ def flow_through_launch_evidence(board_path, *, board=None, length_mm=3.0,
 
 def _dist(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def _segment_is_octilinear(a, b, *, tolerance_mm=0.001):
+    """Whether a segment is cardinal or 45 degrees within endpoint tolerance."""
+    dx, dy = abs(float(b[0]) - float(a[0])), abs(float(b[1]) - float(a[1]))
+    if math.hypot(dx, dy) <= 1.0e-12:
+        return True
+    miss = min(dx, dy, abs(dx - dy) / math.sqrt(2.0))
+    return miss <= max(0.0, float(tolerance_mm))
+
+
+def _polyline_is_octilinear(points, *, tolerance_mm=0.001):
+    """Apply the pipeline's straight-copper heading policy to a polyline."""
+    return all(_segment_is_octilinear(a, b, tolerance_mm=tolerance_mm)
+               for a, b in zip(points, points[1:]))
 
 
 def _escape_candidate_quality(points):
@@ -3470,6 +3556,12 @@ def _measured_gap(p_pts, n_pts, width):
 
 def _lay(board, net_code, pts, width_nm, layer_id):
     """Lay a polyline as PCB_TRACK segments; return the laid track objects."""
+    if not _polyline_is_octilinear(pts):
+        bad = [(a, b) for a, b in zip(pts, pts[1:])
+               if not _segment_is_octilinear(a, b)]
+        raise ValueError(
+            "precision route emitter refused non-octilinear copper: %r" %
+            (bad[:3],))
     laid = []
     for a, b in zip(pts, pts[1:]):
         if a == b:
@@ -3736,7 +3828,10 @@ def _chamfer_axis_path(points, chamfer=0.35):
         l0, l1 = math.hypot(*v0), math.hypot(*v1)
         cross = v0[0] * v1[1] - v0[1] * v1[0]
         dot = v0[0] * v1[0] + v0[1] * v1[1]
-        if l0 <= 1e-9 or l1 <= 1e-9 or abs(cross) <= 1e-9 or dot < -1e-9:
+        axis0 = abs(v0[0]) <= 1e-9 or abs(v0[1]) <= 1e-9
+        axis1 = abs(v1[0]) <= 1e-9 or abs(v1[1]) <= 1e-9
+        if (l0 <= 1e-9 or l1 <= 1e-9 or abs(cross) <= 1e-9
+                or dot < -1e-9 or not (axis0 and axis1)):
             out.append(corner)
             continue
         trim = min(float(chamfer), 0.35 * l0, 0.35 * l1)
@@ -3972,6 +4067,21 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
         rows = [[start, end],
                 [start, (ex, sy), end],
                 [start, (sx, ey), end]]
+        # Exact octilinear visibility bends.  The historical direct segment
+        # could enter a compact protector at an arbitrary angle; deleting it
+        # without adding the canonical equivalent made an otherwise simple
+        # terminal leg appear impossible.  Each row below is one cardinal and
+        # one 45-degree segment, derived only from endpoint geometry.
+        dx, dy = ex - sx, ey - sy
+        ax, ay = abs(dx), abs(dy)
+        if ax > 1e-9 and ay > 1e-9:
+            for polarity in (-1.0, 1.0):
+                rows.extend((
+                    [start, (ex + polarity * ay, sy), end],
+                    [start, (sx + polarity * ay, ey), end],
+                    [start, (sx, ey + polarity * ax), end],
+                    [start, (ex, sy + polarity * ax), end],
+                ))
         # A two-leg L turns at the destination coordinate.  That is often
         # exactly where an adjacent pad blocks the approach, while a legal
         # escape exists if the turn happens earlier in the open channel
@@ -4001,6 +4111,26 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
                 [start, (sx, hi_y + distance),
                  (ex, hi_y + distance), end],
             ))
+            # Compound visibility hooks leave a dense pin row through an
+            # interior channel, move outside the blocker silhouette, then
+            # approach the destination from its free side.  The earlier
+            # perimeter forms began their detour at the pad coordinate; on a
+            # connector that first vertical leg can be fenced by adjacent
+            # lands.  These candidates remain bounded, cardinal before
+            # chamfering, monotone on the main axis, and contain no >90-degree
+            # hairpin.  They generalize to any pad row / inline protector
+            # orientation without inspecting references or net names.
+            for fraction in (0.25, 0.5, 0.75):
+                x_mid = sx + (ex - sx) * fraction
+                y_mid = sy + (ey - sy) * fraction
+                for y_detour in (lo_y - distance, hi_y + distance):
+                    rows.append([
+                        start, (x_mid, sy), (x_mid, y_detour),
+                        (ex, y_detour), end])
+                for x_detour in (lo_x - distance, hi_x + distance):
+                    rows.append([
+                        start, (sx, y_mid), (x_detour, y_mid),
+                        (x_detour, ey), end])
             # Four-bend "go around the end" forms. These matter when the
             # lane order and package pad-row order differ: a simple L or
             # three-leg dogleg is topologically forced to cross its sibling.
@@ -4043,6 +4173,7 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
             len(path), tuple(path)))
         accepted = []
         reverse_rejected = 0
+        non_octilinear_rejected = 0
         clearance_rejected = 0
         for path in raw:
             if _deadline_expired(deadline):
@@ -4050,6 +4181,9 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
                 break
             if _polyline_has_reverse_bend(path):
                 reverse_rejected += 1
+                continue
+            if not _polyline_is_octilinear(path):
+                non_octilinear_rejected += 1
                 continue
             if not all(clear(a, b) for a, b in zip(path, path[1:])):
                 clearance_rejected += 1
@@ -4061,6 +4195,7 @@ def _joint_endpoint_escape(p_start, n_start, p_end, n_end, *,
             "generated": len(raw),
             "admitted": len(accepted),
             "reverse_bend_rejected": reverse_rejected,
+            "non_octilinear_rejected": non_octilinear_rejected,
             "clearance_rejected": clearance_rejected,
         }
 
@@ -4448,8 +4583,25 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
         if tx * wx + ty * wy < 0:
             tx, ty = -tx, -ty
         tx, ty = tx * sign, ty * sign
-        return (center[0] + tx * distance + ax * lateral,
-                center[1] + ty * distance + ay * lateral)
+        # Package pin rows may be rotated or carry tiny placement rounding.
+        # Their mathematical normal is therefore not a legal trace heading.
+        # Snap the *route* launch to the nearest octilinear direction while
+        # retaining the package geometry only to choose its polarity.  Keep a
+        # requested lateral search displacement perpendicular to that snapped
+        # heading; the joint endpoint solver owns the canonical pad-to-lane
+        # fan-in, so the centreline does not need a raw diagonal here.
+        raw_directions = ((1, 0), (1, 1), (0, 1), (-1, 1),
+                          (-1, 0), (-1, -1), (0, -1), (1, -1))
+        direction = max(raw_directions, key=lambda row: (
+            (tx * row[0] + ty * row[1]) / math.hypot(*row)))
+        tx, ty = (direction[0] / math.hypot(*direction),
+                  direction[1] / math.hypot(*direction))
+        lx, ly = -ty, tx
+        if lx * ax + ly * ay < 0:
+            lx, ly = -lx, -ly
+        return ((center[0] + tx * distance + lx * lateral,
+                 center[1] + ty * distance + ly * lateral),
+                (tx, ty))
 
     if portal_mode:
         # The endpoint pin fields have already been reduced to two aligned
@@ -4465,16 +4617,13 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
                         end_center[1] - start_center[1])
         end_vector = start_vector
     else:
-        route_start = launch(
+        route_start, start_vector = launch(
             start_center, p_start, n_start, end_center, start_sign,
             float(launch_distance), float(start_lateral))
-        route_end = launch(
+        route_end, end_heading = launch(
             end_center, p_end, n_end, start_center, end_sign,
             float(launch_distance), float(end_lateral))
-        start_vector = (route_start[0] - start_center[0],
-                        route_start[1] - start_center[1])
-        end_vector = (end_center[0] - route_end[0],
-                      end_center[1] - route_end[1])
+        end_vector = (-end_heading[0], -end_heading[1])
 
     def extend(value, vector, distance):
         length = math.hypot(*vector) or 1.0
@@ -4951,14 +5100,18 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
         no_cross = _polys_no_cross(p_points, n_points)
         min_clear = _pair_min_clear(
             p_points, n_points, -1, -1, width, gap)
+        octilinear = (_polyline_is_octilinear(p_points)
+                      and _polyline_is_octilinear(n_points))
         no_hairpin = not (_polyline_has_reverse_bend(p_points)
                           or _polyline_has_reverse_bend(n_points))
-        if material_clear and no_cross and min_clear and no_hairpin:
+        if (material_clear and no_cross and min_clear and no_hairpin
+                and octilinear):
             if diagnostics is not None:
                 diagnostics.update({
                     "status": "accepted", "visited": visited,
                     "centre_vertices": len(compact),
                     "member_vertices": [len(p_points), len(n_points)],
+                    "octilinear": True,
                     "portal_taper": bool(
                         portal_mode and alignment_error > 1e-5),
                 })
@@ -4970,6 +5123,7 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
                   "material_clear=", material_clear,
                   "no_cross=", no_cross, "min_clear=", min_clear,
                   "no_hairpin=", no_hairpin,
+                  "octilinear=", octilinear,
                       "P=", p_points, "N=", n_points, file=sys.stderr)
     if diagnostics is not None:
         diagnostics.setdefault("status", "offset_geometry_refused")
@@ -5680,6 +5834,7 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                 track_uuid_scope=created)
             admitted = (
                 geometry["ok"] and quality["ok"]
+                and quality.get("geometry_ok", False)
                 and coupling["coverage_pct"] + 1e-9
                 >= 100.0 * float(minimum_coupled_fraction))
             attempt = {
@@ -6359,7 +6514,8 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         """
         candidates = []
         direct = [src, dst]
-        if seg_clear(src, dst, partner):
+        if (_polyline_is_octilinear(direct)
+                and seg_clear(src, dst, partner)):
             quality = _escape_candidate_quality(direct)
             if quality is not None:
                 candidates.append((quality, direct))
@@ -6374,7 +6530,8 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                 if seg_clear(src, mid, partner) and seg_clear(mid, dst, partner):
                     points = [src, mid, dst]
                     quality = _escape_candidate_quality(points)
-                    if quality is not None:
+                    if (quality is not None
+                            and _polyline_is_octilinear(points)):
                         candidates.append((quality, points))
         return min(candidates, key=lambda row: row[0])[1] if candidates else None
 
@@ -6494,6 +6651,7 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         "candidates": 0, "middle_guard_refused": 0,
         "endpoint_escape_refused": 0, "member_crossing_refused": 0,
         "pair_gap_refused": 0, "coupling_refused": 0,
+        "non_octilinear_refused": 0,
         "reservation_barrier_refused": 0,
         "reservation_hits": [],
     }
@@ -6524,6 +6682,10 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                 continue
             p_pts = eP0 + [Ple] + list(reversed(eP1))[1:]
             n_pts = eN0 + [Nle] + list(reversed(eN1))[1:]
+            if (not _polyline_is_octilinear(p_pts)
+                    or not _polyline_is_octilinear(n_pts)):
+                conventional_diagnostics["non_octilinear_refused"] += 1
+                continue
             if not _polys_no_cross(p_pts, n_pts):
                 conventional_diagnostics["member_crossing_refused"] += 1
                 continue
@@ -6806,7 +6968,10 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
                       for a, b in zip(n_pts, n_pts[1:]))
         p_avoid = _crosses_avoid(p_pts, avoid, width)
         n_avoid = _crosses_avoid(n_pts, avoid, width)
+        octilinear = (_polyline_is_octilinear(p_pts)
+                      and _polyline_is_octilinear(n_pts))
         if (p_clear and n_clear and not p_avoid and not n_avoid
+                and octilinear
                 and strict_pair_gap
                 and coupling["fraction"] + 1e-9
                 >= float(minimum_coupled_fraction)):
@@ -6850,6 +7015,7 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         grid_diagnostics["member_guard"] = {
             "p_clear": bool(p_clear), "n_clear": bool(n_clear),
             "p_reservation": p_avoid, "n_reservation": n_avoid,
+            "octilinear": bool(octilinear),
             "strict_pair_gap": bool(strict_pair_gap),
             "coupled_coverage_pct": coupling["coverage_pct"],
             "minimum_coupled_coverage_pct": round(
@@ -7713,6 +7879,12 @@ def precision_route_board(board, *, board_path=None, kelvin_width=0.25,
     import cec_route_quality
     created_ids = {t.m_Uuid.AsString() for t in board.GetTracks()
                    if t.m_Uuid.AsString() not in pre_ids}
+    local_pair_return_vias = cec_fr.group_local_pair_return_vias(
+        board, [
+            item for item in board.GetTracks()
+            if item.m_Uuid.AsString() in created_ids
+            and item.GetClass() == "PCB_VIA"
+            and item.GetNetname() == "GND"])
     generated_items = [
         {"uuid": t.m_Uuid.AsString(), "net": t.GetNetname(),
          "kind": t.GetClass()}
@@ -7726,7 +7898,8 @@ def precision_route_board(board, *, board_path=None, kelvin_width=0.25,
         track_uuid_scope=created_ids)
 
     pairs_ok = (len(refused_pairs) == 0
-                and route_quality.get("ok", False))
+                and route_quality.get("ok", False)
+                and route_quality.get("geometry_ok", False))
     kelvin_ok = not any((kelvin.get("refused") or {}).values())
     report = {
         "locked_nets": sorted(locked_nets),
@@ -7734,6 +7907,7 @@ def precision_route_board(board, *, board_path=None, kelvin_width=0.25,
         "n_new_locked_segments": n_new_locked,
         "generated_items": generated_items,
         "generated_item_count": len(generated_items),
+        "local_pair_return_vias": local_pair_return_vias,
         "kelvin": kelvin,
         "pairs": {"routed": routed_pairs, "refused": refused_pairs,
                   "schedule": pair_schedule},
@@ -7787,6 +7961,14 @@ def precision_route(placed_board, out_board, *, kelvin_width=0.25,
         pcbnew.SaveBoard(out_board, board)
         report["copied_sidecars"] = cec_fr.copy_project_sidecars(
             placed_board, out_board)
+        report["local_pair_return_rule"] = (
+            cec_fr.ensure_local_pair_return_via_rule(out_board, report))
+        # Precision can add vias after the input board's zones were last
+        # filled.  Preserve a reviewable refusal artifact whose plane antipads
+        # match its new copper; otherwise its DRC evidence contains phantom
+        # zone/via collisions and sends the next repair rung in the wrong
+        # direction.
+        report["zones_refilled"] = bool(cec_fr.refill_zones(out_board))
         report["out"] = out_board
         raise PrecisionRouteRefused(message, report)
     pcbnew.SaveBoard(out_board, board)
@@ -7796,7 +7978,21 @@ def precision_route(placed_board, out_board, *, kelvin_width=0.25,
     # project filename rebind while other pipeline stages preserve them.
     report["copied_sidecars"] = cec_fr.copy_project_sidecars(
         placed_board, out_board)
+    report["local_pair_return_rule"] = (
+        cec_fr.ensure_local_pair_return_via_rule(out_board, report))
+    # A precision transaction is not serialized until every pre-existing zone
+    # has been rebuilt around the tracks and vias it just added.  Exact DRC is
+    # the next pipeline boundary, so stale fill must fail here rather than be
+    # misclassified as a constructive routing defect.  Fresh-load refill is
+    # intentionally delegated to cec_fr.refill_zones; it also avoids pcbnew's
+    # in-memory double-fill instability.
+    report["zones_refilled"] = bool(cec_fr.refill_zones(out_board))
+    report["zone_refill_policy"] = "fresh-load-before-exact-admission"
     report["out"] = out_board
+    if not report["zones_refilled"]:
+        raise PrecisionRouteRefused(
+            "precision route zone refill failed before exact admission",
+            report)
     return report
 
 

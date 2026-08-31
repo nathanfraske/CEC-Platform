@@ -29,6 +29,27 @@ class StagedCompletionTests(unittest.TestCase):
         self.assertEqual((report["tracks"], report["vias"]), (2, 1))
         self.assertEqual(report["items"], [{"uuid": "t"}])
 
+    def test_foreign_pour_delta_allows_only_inherited_identity(self):
+        inherited = {"kind": "via", "uuid": "v1", "net": "/GPIO0",
+                     "pour": "/SENSE", "pour_net": ""}
+        report = cec_staged_fr.foreign_pour_delta_admission(
+            {"status": "ok", "items": [inherited]},
+            {"status": "ok", "items": [dict(inherited)]})
+        self.assertTrue(report["ok"])
+        self.assertEqual((report["inherited_count"], report["new_count"]),
+                         (1, 0))
+
+    def test_foreign_pour_delta_rejects_new_identity(self):
+        inherited = {"kind": "via", "uuid": "v1", "net": "/GPIO0",
+                     "pour": "/SENSE", "pour_net": ""}
+        introduced = {"kind": "track", "uuid": "t2", "net": "/SIG",
+                      "pour": "patch:/SENSE", "pour_net": "/SENSE"}
+        report = cec_staged_fr.foreign_pour_delta_admission(
+            {"status": "ok", "items": [inherited]},
+            {"status": "ok", "items": [inherited, introduced]})
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["new_items"], [introduced])
+
     def _board(self):
         board = pcbnew.BOARD()
         net_a = pcbnew.NETINFO_ITEM(board, "/A")
@@ -74,6 +95,10 @@ class StagedCompletionTests(unittest.TestCase):
                              if item.GetNetname() == "/A")
             protected.SetLocked(True)
             protected_uuid = protected.m_Uuid.AsString()
+            rule_group = pcbnew.PCB_GROUP(source)
+            rule_group.SetName("CEC_TEST_OBJECT_RULE")
+            source.Add(rule_group)
+            rule_group.AddItem(protected)
             pcbnew.SaveBoard(source_path, source)
 
             candidate = pcbnew.LoadBoard(source_path)
@@ -109,6 +134,15 @@ class StagedCompletionTests(unittest.TestCase):
                 if item.GetNetname() == "/A"}
             self.assertEqual(restored_ids, {protected_uuid},
                              "delta restore must preserve exact ownership IDs")
+            restored_group = next(
+                group for group in restored.Groups()
+                if group.GetName() == "CEC_TEST_OBJECT_RULE")
+            restored_protected = next(
+                item for item in restored.GetTracks()
+                if item.m_Uuid.AsString() == protected_uuid)
+            self.assertTrue(restored_group.ContainsItem(restored_protected),
+                            "object-scoped rule membership must survive SES")
+            self.assertIn("CEC_TEST_OBJECT_RULE", report["restored_groups"])
 
     def test_incomplete_net_restore_discards_speculative_stub(self):
         with tempfile.TemporaryDirectory() as directory:

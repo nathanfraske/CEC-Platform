@@ -80,6 +80,20 @@ class TestRouteCornerChamfer(unittest.TestCase):
         self.assertEqual(sensitive["chamfered"], 0, sensitive)
         self.assertEqual(sensitive["skipped"]["sensitive"], 1)
 
+    def test_locked_generated_corner_requires_exact_uuid_provenance(self):
+        first, second = self._corner(locked=True)
+        second.SetLocked(True)
+        partial = cec_fr.chamfer_unlocked_right_angles(
+            self.board,
+            allow_locked_track_uuids={first.m_Uuid.AsString()})
+        self.assertEqual(partial["chamfered"], 0, partial)
+
+        complete = cec_fr.chamfer_unlocked_right_angles(
+            self.board,
+            allow_locked_track_uuids={
+                first.m_Uuid.AsString(), second.m_Uuid.AsString()})
+        self.assertEqual(complete["chamfered"], 1, complete)
+
     def test_t_junction_is_not_cut(self):
         self._corner()
         self._track((10, 10), (13, 10))

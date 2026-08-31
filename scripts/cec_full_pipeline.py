@@ -257,7 +257,164 @@ def _copy_sidecars(source_board, destination_board, cfg=None):
             if source.resolve() != destination.resolve():
                 shutil.copy2(source, destination)
             copied.append(str(destination))
+    authority_pcb = getattr(cfg, "pcb", None) if cfg is not None else None
+    if authority_pcb:
+        authority = Path(authority_pcb).resolve().with_suffix(".kicad_pro")
+        destination = destination_board.with_suffix(".kicad_pro")
+        project_authority = _merge_project_rule_authority(
+            authority, destination)
+        if not project_authority.get("ok"):
+            raise RuntimeError(
+                "project rule authority could not be staged: %s" %
+                project_authority.get("reason", "unknown"))
+        if project_authority.get("applicable"):
+            copied.append(str(destination))
     return list(dict.fromkeys(copied))
+
+
+def _project_rule_authority_delta(authority_path, target_path):
+    """Compare a candidate project with the current manifest project rules.
+
+    A PCB is not a complete route artifact without its sibling project.  In
+    particular, silently replacing a seven-class project with KiCad's lone
+    ``Default`` class changes track/via geometry while leaving the board bytes
+    untouched.  The manifest PCB's project is therefore the minimum authority:
+    derived candidates may add classes and bindings, but cannot omit or mutate
+    the current ones.
+    """
+    authority_path = Path(authority_path).resolve()
+    target_path = Path(target_path).resolve()
+    if not authority_path.is_file():
+        return {"schema": 1, "applicable": False, "ok": True,
+                "reason": "manifest_project_sidecar_absent",
+                "authority": str(authority_path), "target": str(target_path)}
+    try:
+        authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        return {"schema": 1, "applicable": True, "ok": False,
+                "reason": "manifest_project_sidecar_unreadable",
+                "authority": str(authority_path), "target": str(target_path),
+                "error": "%s: %s" % (type(exc).__name__, exc)}
+    target = {}
+    target_missing = not target_path.is_file()
+    if not target_missing:
+        try:
+            target = json.loads(target_path.read_text(encoding="utf-8"))
+        except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return {"schema": 1, "applicable": True, "ok": False,
+                    "reason": "candidate_project_sidecar_unreadable",
+                    "authority": str(authority_path),
+                    "target": str(target_path),
+                    "error": "%s: %s" % (type(exc).__name__, exc)}
+
+    authority_ns = authority.get("net_settings") or {}
+    target_ns = target.get("net_settings") or {}
+    authority_classes = {
+        str(row.get("name")): row
+        for row in authority_ns.get("classes") or () if row.get("name")}
+    target_classes = {
+        str(row.get("name")): row
+        for row in target_ns.get("classes") or () if row.get("name")}
+    missing_classes = sorted(set(authority_classes) - set(target_classes))
+    mismatched_classes = sorted(
+        name for name in set(authority_classes) & set(target_classes)
+        if authority_classes[name] != target_classes[name])
+
+    authority_patterns = {
+        (str(row.get("netclass")), str(row.get("pattern")))
+        for row in authority_ns.get("netclass_patterns") or ()
+        if row.get("netclass") and row.get("pattern")}
+    target_patterns = {
+        (str(row.get("netclass")), str(row.get("pattern")))
+        for row in target_ns.get("netclass_patterns") or ()
+        if row.get("netclass") and row.get("pattern")}
+    missing_patterns = sorted(authority_patterns - target_patterns)
+    canonical_by_pattern = {
+        pattern: netclass for netclass, pattern in authority_patterns}
+    conflicting_patterns = sorted(
+        (netclass, pattern, canonical_by_pattern[pattern])
+        for netclass, pattern in target_patterns
+        if pattern in canonical_by_pattern
+        and canonical_by_pattern[pattern] != netclass)
+    repair_required = bool(
+        target_missing or missing_classes or mismatched_classes
+        or missing_patterns or conflicting_patterns)
+    return {
+        "schema": 1, "applicable": True, "ok": True,
+        "reason": ("manifest_project_rules_need_staging" if repair_required
+                   else "manifest_project_rules_present"),
+        "authority": str(authority_path), "target": str(target_path),
+        "target_missing": target_missing,
+        "repair_required": repair_required,
+        "missing_classes": missing_classes,
+        "mismatched_classes": mismatched_classes,
+        "missing_patterns": [list(row) for row in missing_patterns],
+        "conflicting_patterns": [list(row) for row in conflicting_patterns],
+    }
+
+
+def _merge_project_rule_authority(authority_path, target_path):
+    """Stage the current manifest rule floor without dropping derived extras."""
+    report = _project_rule_authority_delta(authority_path, target_path)
+    if not report.get("ok") or not report.get("applicable"):
+        return report
+    authority_path = Path(authority_path).resolve()
+    target_path = Path(target_path).resolve()
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    target = ({} if not target_path.is_file() else
+              json.loads(target_path.read_text(encoding="utf-8")))
+    before = json.dumps(target, sort_keys=True, separators=(",", ":"))
+
+    authority_ns = authority.get("net_settings") or {}
+    target_ns = target.setdefault("net_settings", {})
+    authority_classes = list(authority_ns.get("classes") or ())
+    authority_names = {
+        str(row.get("name")) for row in authority_classes if row.get("name")}
+    target_extras = [
+        row for row in target_ns.get("classes") or ()
+        if str(row.get("name")) not in authority_names]
+    target_ns["classes"] = authority_classes + target_extras
+
+    authority_patterns = list(authority_ns.get("netclass_patterns") or ())
+    canonical_pattern_text = {
+        str(row.get("pattern")) for row in authority_patterns
+        if row.get("pattern")}
+    target_pattern_extras = [
+        row for row in target_ns.get("netclass_patterns") or ()
+        if str(row.get("pattern")) not in canonical_pattern_text]
+    target_ns["netclass_patterns"] = (
+        authority_patterns + target_pattern_extras)
+    if "meta" in authority_ns:
+        target_ns["meta"] = authority_ns["meta"]
+    if "net_colors" in authority_ns and "net_colors" not in target_ns:
+        target_ns["net_colors"] = authority_ns["net_colors"]
+    authority_assignments = authority_ns.get("netclass_assignments")
+    target_assignments = target_ns.get("netclass_assignments")
+    if isinstance(authority_assignments, dict):
+        merged_assignments = dict(target_assignments or {})
+        merged_assignments.update(authority_assignments)
+        target_ns["netclass_assignments"] = merged_assignments
+    elif "netclass_assignments" not in target_ns:
+        target_ns["netclass_assignments"] = authority_assignments
+
+    authority_rules = (((authority.get("board") or {}).get(
+        "design_settings") or {}).get("rules"))
+    if authority_rules is not None:
+        target.setdefault("board", {}).setdefault(
+            "design_settings", {})["rules"] = authority_rules
+    if authority.get("tuning_profiles") is not None:
+        target["tuning_profiles"] = authority["tuning_profiles"]
+    target.setdefault("meta", {})["filename"] = target_path.name
+    after = json.dumps(target, sort_keys=True, separators=(",", ":"))
+    written = after != before
+    if written:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(
+            json.dumps(target, indent=2) + "\n", encoding="utf-8")
+    report.update({"written": written,
+                   "reason": ("manifest_project_rules_staged" if written
+                              else "manifest_project_rules_present")})
+    return report
 
 
 def _route_params_for_board(cfg, board):
@@ -685,6 +842,12 @@ def _source_intake(cfg, input_board, report_path, *, allow_derived_input=False):
         )
 
     route_geometry_deferred = bool(allow_derived_input and not canonical_input)
+    project_rule_authority = _project_rule_authority_delta(
+        (canonical_board.with_suffix(".kicad_pro")
+         if canonical_board is not None else
+         Path(input_board).resolve().with_suffix(".kicad_pro")),
+        Path(input_board).resolve().with_suffix(".kicad_pro"),
+    )
     intake = cec_constraints.intake_gate(
         str(input_board), {"sch": str(cfg.sch)},
         defer_route_geometry=route_geometry_deferred,
@@ -739,11 +902,13 @@ def _source_intake(cfg, input_board, report_path, *, allow_derived_input=False):
         "canonical_input": canonical_input,
         "derived_input_allowed": bool(allow_derived_input),
         "route_geometry_deferred": route_geometry_deferred,
+        "project_rule_authority": project_rule_authority,
         "intake": intake,
         "electrical_source_audit": electrical,
         "generalization_gate": generalization,
         "draft": cfg.is_draft,
-        "ok": (not manifest_errors and bool(intake.get("ok"))
+        "ok": (not manifest_errors and bool(project_rule_authority.get("ok"))
+               and bool(intake.get("ok"))
                and bool(electrical.get("ok"))
                and bool(generalization.get("ok"))),
     }
@@ -2191,8 +2356,13 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
         for variant, width, height, follow in outline_variants:
             rows = []
             if outline_policy.get("include_incremental", True):
+                # --replace-placement is the explicit authority boundary that
+                # permits discarding incumbent copper.  Rehydration normally
+                # refuses routed inputs so an audit cannot erase them by
+                # accident; this replacement path must be able to preserve
+                # their exact component poses as the incremental baseline.
                 base = synth.placement_candidate_from_board(
-                    variant, str(input_board))
+                    variant, str(input_board), allow_routed=True)
                 moved, incremental_follow = (
                     cec_outline_compaction.edge_follow_positions(
                         base.P, (source.W, source.H), (width, height),
@@ -3171,8 +3341,11 @@ def _route_stage(board, output_dir, cfg, *, passes, opt, seed, timeout,
     # corridor incursion.  Signoff below independently re-scores the resulting
     # bytes; a repair exception is retained as evidence without destroying an
     # otherwise valid routed artifact.
-    fab_repair = {"schema": 1, "skipped": "route_not_gate_clean"}
-    if result.get("gate") and os.environ.get("CEC_FAB_REPAIR", "1") == "1":
+    fab_repair = {"schema": 1, "skipped": "route_artifact_missing"}
+    _has_routed_artifact = bool(
+        result.get("routed") and os.path.isfile(result["routed"]))
+    if (_has_routed_artifact
+            and os.environ.get("CEC_FAB_REPAIR", "1") == "1"):
         try:
             import cec_fab_repair
             fab_repair = cec_fab_repair.repair_admitted(result["routed"])
@@ -3185,6 +3358,8 @@ def _route_stage(board, output_dir, cfg, *, passes, opt, seed, timeout,
                 "schema": 1, "skipped": "repair_error",
                 "error": "%s: %s" % (type(exc).__name__, exc),
             }
+    elif _has_routed_artifact:
+        fab_repair = {"schema": 1, "skipped": "policy_disabled"}
     result["fab_repair"] = fab_repair
 
     report = output_dir / "oracle.json"
@@ -3232,6 +3407,7 @@ def _independent_signoff(board, cfg, route_report, output_path):
     import cec_constraints
     import cec_fab_check
     import cec_fab_profile
+    import cec_route_quality
     import cec_score
     import cec_synth_pipeline as synth
     import pcbnew
@@ -3243,6 +3419,7 @@ def _independent_signoff(board, cfg, route_report, output_path):
         str(board), {"sch": str(cfg.sch)}, phase="post_route"
     )
     board_db = pcbnew.LoadBoard(str(board))
+    route_geometry = cec_route_quality.analyze_board(board_db)
     profile_name = cec_fab_profile.active_profile_name(
         board_db, hint=cfg.board
     )
@@ -3264,6 +3441,11 @@ def _independent_signoff(board, cfg, route_report, output_path):
         "independent_score": bool(metrics.gates_pass),
         "drc_zero": int(metrics.drc) == 0,
         "connectivity_zero": int(metrics.unconnected) == 0,
+        # Intermediate routing may carry inherited advisory geometry while it
+        # monotonically improves connectivity.  Release may not: require the
+        # whole-board craft verdict so ordinary-net covered overlaps and acute
+        # backtracks are just as withholding as arbitrary headings or arcs.
+        "route_geometry": bool(route_geometry.get("craft_ok", False)),
         "constraint_release": constraint_gate.get("ok") is True,
         "fabrication": fab_blockers == 0,
         "source_not_draft": not cfg.is_draft,
@@ -3286,6 +3468,7 @@ def _independent_signoff(board, cfg, route_report, output_path):
             "length_mm": round(float(metrics.length), 3),
         },
         "constraint_gate": constraint_gate,
+        "route_geometry": route_geometry,
         "fabrication": fab,
         "fab_blocker_count": fab_blockers,
         "oracle_report": str(Path(route_report).resolve()),
@@ -3632,6 +3815,10 @@ def run_full_pipeline(
         raise PipelineBlocked(
             "source intake refused: %s" % (
                 (intake.get("manifest_errors") or [])
+                + ([((intake.get("project_rule_authority") or {}).get(
+                    "reason") or "project rule authority failed")]
+                   if not (intake.get("project_rule_authority") or {}).get(
+                       "ok", True) else [])
                 + ((intake.get("intake") or {}).get("reasons") or [])
                 + ((intake.get("electrical_source_audit") or {}).get(
                     "reasons") or [])
@@ -3841,13 +4028,50 @@ def run_route_probe(*, board_name, placement_board, out_dir, passes=16,
             "route-only probe requires matching frozen route authority: %s" %
             (authority.get("reason") or "not bound"))
 
+    # A sibling placement report is a record of the code and policy that
+    # produced it, not permanent admission authority.  New generic gates can
+    # legitimately prove that an older open placement cannot construct a
+    # mandatory local cell (for example, no legal decoupler return via).  A
+    # route-only probe must re-evaluate that exact board before spending the
+    # detailed-router budget; otherwise a stale ``ok`` report can be shown as
+    # the current candidate and fail only after several routing tiers.
+    #
+    # Deferral is legal only for a board that actually contains copper.  The
+    # CLI's ``--allow-derived-input`` is intake provenance, not evidence that
+    # a clean placement has old routes which the repair transaction may rip
+    # up.  Conflating the two hid placement-owned local-PI failures behind a
+    # route-owned label.
+    import pcbnew
+    loaded = pcbnew.LoadBoard(str(placement_board))
+    if loaded is None:
+        raise PipelineBlocked(
+            "route-only probe could not load placement: %s" %
+            placement_board)
+    routed_input = any(True for _item in loaded.GetTracks())
+    current_craft = synth.placement_craft_evidence(
+        str(placement_board), cfg=cfg, relief_diagnostics=False)
+    current_gate = _placement_craft_gate(
+        current_craft,
+        routed_input=bool(routed_input and allow_route_access_repair))
+    if not current_gate.get("ok"):
+        decoupler = current_craft.get("decoupler") or {}
+        raise PipelineBlocked(
+            "route-only probe refused stale/non-admitted placement under "
+            "current rules: %s" % (
+                (decoupler.get("violations") or
+                 current_gate.get("blockers") or
+                 current_craft.get("errors") or
+                 ["placement craft gate failed"])[:6],
+            ))
+
     out_dir = Path(out_dir).resolve()
     return _route_stage(
         placement_board, out_dir / "04-route", cfg,
         passes=passes, opt=opt, seed=route_seed, timeout=route_timeout,
         thermal=thermal, candidates=route_candidates,
         route_workers=route_workers,
-        allow_route_access_repair=allow_route_access_repair)
+        allow_route_access_repair=bool(
+            routed_input and allow_route_access_repair))
 
 
 def main(argv=None):

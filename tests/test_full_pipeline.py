@@ -972,6 +972,83 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                                  kind)
                 self.assertIn(str(sidecar), copied)
 
+    def test_stage_copy_restores_manifest_netclass_authority(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            canonical = temp / "canonical.kicad_pcb"
+            canonical.write_text("canonical", encoding="utf-8")
+            canonical.with_suffix(".kicad_pro").write_text(json.dumps({
+                "meta": {"filename": "canonical.kicad_pro"},
+                "net_settings": {
+                    "classes": [
+                        {"name": "Default", "clearance": 0.2},
+                        {"name": "USB", "clearance": 0.2,
+                         "diff_pair_gap": 0.13}],
+                    "netclass_patterns": [
+                        {"netclass": "USB", "pattern": "/USB_D_P"},
+                        {"netclass": "USB", "pattern": "/USB_D_N"}],
+                    "netclass_assignments": None,
+                },
+            }), encoding="utf-8")
+            source = temp / "source.kicad_pcb"
+            source.write_text("board", encoding="utf-8")
+            source.with_suffix(".kicad_pro").write_text(json.dumps({
+                "meta": {"filename": "source.kicad_pro"},
+                "net_settings": {
+                    "classes": [
+                        {"name": "Default", "clearance": 0.25},
+                        {"name": "Derived", "clearance": 0.3}],
+                    "netclass_patterns": [
+                        {"netclass": "Wrong", "pattern": "/USB_D_P"},
+                        {"netclass": "Derived", "pattern": "/EXTRA"}],
+                },
+            }), encoding="utf-8")
+            destination = temp / "stage" / "board.kicad_pcb"
+            cfg = SimpleNamespace(pcb=str(canonical), dir=str(temp))
+
+            pipeline._copy_sidecars(source, destination, cfg=cfg)
+
+            project = json.loads(
+                destination.with_suffix(".kicad_pro").read_text())
+            classes = {
+                row["name"]: row
+                for row in project["net_settings"]["classes"]}
+            self.assertEqual(classes["Default"]["clearance"], 0.2)
+            self.assertEqual(classes["USB"]["diff_pair_gap"], 0.13)
+            self.assertIn("Derived", classes)
+            patterns = {
+                (row["netclass"], row["pattern"])
+                for row in project["net_settings"]["netclass_patterns"]}
+            self.assertIn(("USB", "/USB_D_P"), patterns)
+            self.assertNotIn(("Wrong", "/USB_D_P"), patterns)
+            self.assertIn(("Derived", "/EXTRA"), patterns)
+            self.assertEqual(project["meta"]["filename"],
+                             "board.kicad_pro")
+
+    def test_project_authority_reports_silent_default_only_regression(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            authority = temp / "authority.kicad_pro"
+            target = temp / "target.kicad_pro"
+            authority.write_text(json.dumps({"net_settings": {
+                "classes": [{"name": "Default"}, {"name": "USB"}],
+                "netclass_patterns": [
+                    {"netclass": "USB", "pattern": "/USB_D_*"}],
+            }}), encoding="utf-8")
+            target.write_text(json.dumps({"net_settings": {
+                "classes": [{"name": "Default"}],
+                "netclass_patterns": [],
+            }}), encoding="utf-8")
+
+            report = pipeline._project_rule_authority_delta(
+                authority, target)
+
+            self.assertTrue(report["ok"])
+            self.assertTrue(report["repair_required"])
+            self.assertEqual(report["missing_classes"], ["USB"])
+            self.assertEqual(report["missing_patterns"],
+                             [["USB", "/USB_D_*"]])
+
     def test_parallel_route_worker_enables_real_seed_axis_and_restores(self):
         import cec_synth_pipeline as synth
 
@@ -1072,6 +1149,7 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                 json.dumps({"ok": True}), encoding="utf-8")
             cfg = SimpleNamespace(board="neutral-board", params={})
             expected = {"ok": True, "board": str(board)}
+            loaded_board = SimpleNamespace(GetTracks=lambda: [object()])
             with mock.patch.object(
                     synth.Config, "load", return_value=cfg) as load, \
                     mock.patch.object(
@@ -1079,6 +1157,11 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                         return_value=(cfg, {
                             "ok": True, "applicable": True, "bound": True,
                         })) as bind, \
+                    mock.patch(
+                        "pcbnew.LoadBoard", return_value=loaded_board), \
+                    mock.patch.object(
+                        synth, "placement_craft_evidence",
+                        return_value={"ok": True}) as current_craft, \
                     mock.patch.object(
                         pipeline, "_route_stage",
                         return_value=expected) as route:
@@ -1092,12 +1175,58 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             self.assertEqual(result, expected)
             load.assert_called_once_with("neutral-board")
             bind.assert_called_once_with(cfg, str(board.resolve()))
+            current_craft.assert_called_once_with(
+                str(board.resolve()), cfg=cfg, relief_diagnostics=False)
             self.assertEqual(route.call_args.args[0], board.resolve())
             self.assertEqual(
                 route.call_args.args[1],
                 (temp / "probe" / "04-route").resolve())
             self.assertTrue(
                 route.call_args.kwargs["allow_route_access_repair"])
+
+    def test_route_probe_revalidates_clean_placement_without_route_deferral(self):
+        import cec_synth_pipeline as synth
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            board = temp / "board.kicad_pcb"
+            board.write_text("placement", encoding="utf-8")
+            (temp / "board.placement.json").write_text(
+                json.dumps({"ok": True}), encoding="utf-8")
+            cfg = SimpleNamespace(board="neutral-board", params={})
+            evidence = {
+                "ok": False, "errors": [],
+                "stranded": {"ok": True}, "pair_launch": {"ok": True},
+                "critical_terminal_order": {"ok": True},
+                "pour_territory": {"ok": True},
+                "power_body_clearance": {"ok": True},
+                "detection_cell": {"ok": True},
+                "decoupler": {"ok": False, "violations": [
+                    ("C1", "U1.3[+3V3] local-cell-access", 1.2),
+                ]},
+            }
+            loaded_board = SimpleNamespace(GetTracks=lambda: [])
+            with mock.patch.object(
+                    synth.Config, "load", return_value=cfg), \
+                    mock.patch.object(
+                        synth, "config_with_board_route_authority",
+                        return_value=(cfg, {
+                            "ok": True, "applicable": True, "bound": True,
+                        })), \
+                    mock.patch(
+                        "pcbnew.LoadBoard", return_value=loaded_board), \
+                    mock.patch.object(
+                        synth, "placement_craft_evidence",
+                        return_value=evidence), \
+                    mock.patch.object(pipeline, "_route_stage") as route:
+                with self.assertRaisesRegex(
+                        pipeline.PipelineBlocked,
+                        "stale/non-admitted placement"):
+                    pipeline.run_route_probe(
+                        board_name="neutral-board", placement_board=board,
+                        out_dir=temp / "probe",
+                        allow_route_access_repair=True)
+            route.assert_not_called()
 
     def test_verified_existing_placement_is_byte_preserved(self):
         import cec_synth_pipeline as synth
@@ -1228,6 +1357,44 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                 (temp / "work" / "oracle.json").read_text())
             self.assertEqual(oracle_report["fab_repair"]["chosen"],
                              "track_polish")
+
+    def test_incomplete_route_still_runs_monotonic_fab_polish(self):
+        import cec_fab_repair
+        import cec_synth_pipeline as synth
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            source = temp / "in.kicad_pcb"
+            routed = temp / "routed.kicad_pcb"
+            source.write_text("source", encoding="utf-8")
+            routed.write_text("routed", encoding="utf-8")
+            cfg = SimpleNamespace(
+                board="neutral-board", dir=str(temp),
+                params={"automatic_pin_escape_tier": True})
+            oracle = {
+                "gate": False, "routed": str(routed), "drc": 0,
+                "unconnected": 3, "kelvin_ok": True,
+                "diffpair_ok": True,
+                "gate_terms": {"routing_complete": False},
+            }
+            polish = {
+                "schema": 1, "adopted": True,
+                "chosen": "fab_polish",
+                "after": {"drc": 0, "unconnected": 3,
+                          "kelvin_ok": True, "diffpair_ok": True},
+            }
+            with mock.patch.object(
+                    synth, "route_oracle_grade", return_value=oracle), \
+                    mock.patch.object(
+                        cec_fab_repair, "repair_admitted",
+                        return_value=polish) as repair_call:
+                result = pipeline._route_stage(
+                    source, temp / "work", cfg, passes=1, opt=1,
+                    seed=0, timeout=1, thermal="lazy")
+
+            repair_call.assert_called_once_with(str(routed))
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["fab_repair"]["chosen"], "fab_polish")
 
 
 if __name__ == "__main__":

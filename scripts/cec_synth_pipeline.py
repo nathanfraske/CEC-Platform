@@ -54,7 +54,7 @@ import itertools
 from enum import Enum
 from contextlib import contextmanager
 from collections import defaultdict, OrderedDict
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, wait
 from dataclasses import dataclass, field, asdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15123,6 +15123,15 @@ def _decoupler_tangent_target(owner, cap, owner_supply, cap_supply,
         "gap_mm": float(gap_mm),
         "best_supply": best_supply,
         "best_loop": best_loop,
+        # Preserve the complete finite tangent menu for the joint macro
+        # placer.  Two adjacent supply pins commonly prefer the same isolated
+        # seat; retaining only each capacitor's individual optimum makes that
+        # shared seat look like an unsatisfiable placement.  The collective
+        # solver can instead assign different package sides while checking
+        # every cap/courtyard interaction exactly.
+        "candidates": sorted(candidates, key=lambda row: (
+            row["loop_proxy_mm"], row["supply_mm"], row["ground_mm"],
+            row["orientation_deg"], row["side"])),
     }
 
 
@@ -15342,6 +15351,7 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                 loop_excess_max_mm
                 if return_gate["mode"] == "rail_to_rail_tangent_loop"
                 else None),
+            "return_limit_mm": return_gate["limit_mm"],
             "status": "assigned",
             # Hard-failing rows always generate repair moves.  Passing rows
             # remain eligible for the separately bounded clean-margin search:
@@ -15406,6 +15416,56 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
     for req in measured["missing"]:
         cap_ref = req.get("nearest_ref") or "unassigned-cap"
         distance = req.get("nearest_mm")
+        cap = board.FindFootprintByReference(cap_ref)
+        owner = board.FindFootprintByReference(req.get("ref"))
+        return_rail = req.get("return_rail") or "GND"
+        cap_supply = next((pad for pad in cap.Pads()
+                           if pad.GetNetname() == req.get("rail")), None) \
+            if cap else None
+        cap_return = next((pad for pad in cap.Pads()
+                           if pad.GetNetname() == return_rail), None) \
+            if cap else None
+        owner_returns = ([req.get("return_pad")]
+                         if req.get("return_pad") is not None else
+                         ([pad for pad in owner.Pads()
+                           if pad.GetNetname() == return_rail]
+                          if owner else []))
+        owner_returns = [pad for pad in owner_returns if pad is not None]
+        ground_mm = None
+        ground_pin = None
+        if cap_return is not None and owner_returns:
+            ground_pad = min(owner_returns, key=lambda pad: math.hypot(
+                pad.GetPosition().x - cap_return.GetPosition().x,
+                pad.GetPosition().y - cap_return.GetPosition().y))
+            ground_mm = math.hypot(
+                ground_pad.GetPosition().x - cap_return.GetPosition().x,
+                ground_pad.GetPosition().y - cap_return.GetPosition().y) / 1e6
+            ground_pin = ground_pad.GetPadName()
+
+        # A compatible capacitor outside the assignment radius is still the
+        # exact component the placement repair must move.  The old oracle
+        # emitted only its stale position, so the mover fell back to a coarse
+        # radial cloud and discarded the finite package-derived tangent seats
+        # used for already-assigned capacitors.  Compute the same target menu
+        # here without weakening the assignment gate: the row remains
+        # ``missing`` until a materialized proposal actually moves the part
+        # inside the required distance and passes the full return-path checks.
+        tangent = _decoupler_tangent_target(
+            owner, cap, req.get("pad"), cap_supply,
+            owner_returns, cap_return, gap_mm=tangent_gap_mm)
+        return_gate = _decoupler_return_gate(
+            return_rail, distance, ground_mm, tangent,
+            ground_max_mm=ground_max_mm,
+            loop_excess_max_mm=loop_excess_max_mm)
+        ideal_supply_mm = ((tangent or {}).get("best_loop") or {}).get(
+            "supply_mm")
+        absolute_supply_mm = ((tangent or {}).get("best_supply") or {}).get(
+            "supply_mm")
+        supply_excess_mm = (max(
+            0.0, float(distance) - float(ideal_supply_mm))
+            if distance is not None and ideal_supply_mm is not None else None)
+        supply_row = supply_by_cell.get((
+            req.get("ref"), str(req.get("pin")), cap_ref)) or {}
         violations.append((
             cap_ref,
             "%s.%s[%s]" % (req["ref"], req["pin"], req["rail"]),
@@ -15432,9 +15492,44 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
                           - float(req.get("max_mm"))), 3)
                 if distance is not None and req.get("max_mm") is not None
                 else None),
+            "ground_pin": ground_pin,
+            "ground_distance_mm": (round(float(ground_mm), 3)
+                                   if ground_mm is not None else None),
+            "loop_proxy_mm": (
+                round(float(distance) + float(ground_mm or 0.0), 3)
+                if distance is not None else None),
+            "return_gate_mode": return_gate["mode"],
+            "ideal_loop_proxy_mm": (
+                round(float(return_gate["ideal_loop_mm"]), 3)
+                if return_gate["ideal_loop_mm"] is not None else None),
+            "loop_excess_mm": (
+                round(float(return_gate["loop_excess_mm"]), 3)
+                if return_gate["loop_excess_mm"] is not None else None),
+            "loop_excess_limit_mm": (
+                loop_excess_max_mm
+                if return_gate["mode"] == "rail_to_rail_tangent_loop"
+                else None),
+            "return_limit_mm": return_gate["limit_mm"],
+            "pin_proximity_ok": (
+                supply_excess_mm is not None
+                and supply_excess_mm <= supply_excess_max_mm + 1e-9),
+            "ideal_supply_distance_mm": (
+                round(float(ideal_supply_mm), 3)
+                if ideal_supply_mm is not None else None),
+            "absolute_min_supply_distance_mm": (
+                round(float(absolute_supply_mm), 3)
+                if absolute_supply_mm is not None else None),
+            "supply_excess_mm": (
+                round(float(supply_excess_mm), 3)
+                if supply_excess_mm is not None else None),
+            "supply_excess_limit_mm": supply_excess_max_mm,
+            "tangent_target": tangent,
+            "supply_access_ok": supply_row.get("status") != "refused",
+            "supply_access_reason": supply_row.get("reason"),
+            "supply_access": supply_row.get("supply"),
+            "supply_access_certificate": supply_row.get("certificate"),
         }
-        detail.update(_placement_geometry(
-            req, board.FindFootprintByReference(cap_ref)))
+        detail.update(_placement_geometry(req, cap))
         details.append(detail)
     violations.sort(key=lambda item: -item[2])
     details.sort(key=lambda item: (
@@ -15527,10 +15622,10 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
     (kelvin-pair) nets -- the 12vhpwr's mirrored high-current LANES are plain tracks,
     no zone, and legitimately stitch 10 vias onto 3-pad /SENSEP* nets (measured; GND
     fields 209); the shipped 12vhpwr's /SB_CBL_PRES sideband hops 8 vias (the accepted
-    signal-net max, hence base 10). Also reports unlocked generated tracks that
-    are outside the canonical 0/45/90-degree set; locked authored launches are
-    excluded. That angle count is quality telemetry, not part of ``ok`` because
-    a controlled arbitrary-angle launch can be legitimate even when unlocked.
+    signal-net max, hence base 10). Also reports every track outside the
+    canonical 0/45/90-degree set, including locked copper.  Lock state is
+    mutability, not proof that an angle was intentionally authored.  Curves
+    require an explicit caller policy and are never inferred from a net name.
     ADVISORY -- no real board fails today; it back-stops absurd routes (the
     synthetic 41-via chain and 53.8x meander fail)."""
     import pcbnew
@@ -15563,10 +15658,9 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             dx = t.GetEnd().x - t.GetStart().x
             dy = t.GetEnd().y - t.GetStart().y
             tlen[nn] = tlen.get(nn, 0.0) + math.hypot(dx / 1e6, dy / 1e6)
-            # Authored/locked differential geometry can intentionally use a
-            # non-octilinear launch. Report only unlocked generated copper so
-            # this metric catches router/postprocessor regressions across every
-            # board without condemning controlled high-speed pad entries.
+            # Retain the legacy unlocked-only counter for archive compatibility.
+            # The hard geometry authority below audits locked and unlocked
+            # copper alike; lock state cannot waive a generated defect.
             if dx or dy:
                 angle = abs(math.degrees(math.atan2(dy, dx))) % 90.0
                 delta = min(angle, abs(45.0 - angle), abs(90.0 - angle))
@@ -15617,9 +15711,22 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             layers_by_net.setdefault(nn, set()).add(t.GetLayer())
     nlayers = sorted(((len(v), n) for n, v in layers_by_net.items()), reverse=True)
     mean_layers = round(sum(c for c, _n in nlayers) / max(1, len(nlayers)), 2)
+    import cec_route_quality
+    geometry = cec_route_quality.analyze_board(board)
     return {"ok": not viol, "violations": viol[:10],
             "worst_ratio": round(worst_ratio, 2),
             "vias_total": sum(nvias.values()),
+            "geometry_ok": bool(geometry.get("geometry_ok")),
+            "craft_ok": bool(geometry.get("craft_ok", False)),
+            "craft_issue_count": int(geometry.get("issue_count") or 0),
+            "craft_issue_examples": list((geometry.get("issues") or ())[:8]),
+            "angle_policy": geometry.get("angle_policy"),
+            "non_octilinear_tracks": int(
+                geometry.get("non_octilinear_count") or 0),
+            "non_octilinear_examples": list(
+                (geometry.get("non_octilinear") or ())[:8]),
+            "curved_trace_count": int(
+                geometry.get("curved_trace_count") or 0),
             "unlocked_off45_tracks": len(off45),
             "unlocked_off45_examples": off45[:8],
             "mean_layers_per_net": mean_layers,
@@ -17451,6 +17558,41 @@ def _clear_placement_craft_cache():
         _PLACEMENT_CRAFT_EVIDENCE_CACHE_STATS[key] = 0
 
 
+@contextmanager
+def _future_power_authority_released():
+    """Temporarily release replannable future-power geometry.
+
+    Under the production critical-first policy, a frozen pour state is a
+    planning authority, not materialized copper.  Precision routes already
+    claim their mandatory geometry before that authority is reconciled.  The
+    same must be true for complete local PI cells; otherwise a future pour can
+    veto the dogbone/via portal that the following exact clip-or-replan stage
+    is specifically responsible for preserving.
+    """
+    previous = os.environ.pop("CEC_POURFIRST_STATE", None)
+    try:
+        yield previous
+    finally:
+        if previous is not None:
+            os.environ["CEC_POURFIRST_STATE"] = previous
+
+
+def _decoupler_craft_evidence(placed_board_path, cfg=None):
+    """Evaluate local PI under the same board authority as production.
+
+    Generated/derived PCB filenames do not reliably contain the board key.
+    Current, stackup, and qualified POFV policy therefore travel in the scoped
+    oracle environment.  Placement search happened to keep that environment
+    active around this call, while standalone route-probe revalidation did
+    not; byte-identical boards could receive opposite local-cell verdicts.
+    Make the checker boundary self-contained so every caller is reproducible.
+    """
+    with _oracle_env(cfg.params if cfg else None):
+        with _future_power_authority_released():
+            return _oracle_decoupler_adjacency(
+                placed_board_path, cfg=cfg)
+
+
 def _placement_craft_evidence_uncached(
         placed_board_path, cfg=None, *, relief_diagnostics=True):
     """Return board-agnostic electrical placement evidence.
@@ -17464,7 +17606,7 @@ def _placement_craft_evidence_uncached(
     evidence = {"schema": 1, "board": os.path.basename(str(placed_board_path))}
     errors = []
     try:
-        evidence["decoupler"] = _oracle_decoupler_adjacency(
+        evidence["decoupler"] = _decoupler_craft_evidence(
             placed_board_path, cfg=cfg)
     except Exception as exc:                              # noqa: BLE001
         evidence["decoupler"] = {
@@ -17704,6 +17846,28 @@ def placement_craft_admission(evidence, *, allow_route_access_repair=False):
         "deferred_to_route": route_only if ok else [],
         "blockers": other_blockers,
     }
+
+
+def clean_route_bypass_admission(*, connectivity_closed, craft_gates,
+                                 craft_evidence=None,
+                                 allow_route_access_repair=False):
+    """Decide whether a geometrically closed input may skip route repair.
+
+    Zero DRC and zero ratlines prove only geometric connectivity.  When craft
+    gates are enabled, a clean input that still fails local-PI, pair-launch,
+    return-path, or other craft evidence must stay in the repair pipeline
+    whenever repair was requested.  Explicit grade-as-is calls may still skip
+    mutation; the final conjunction then reports the failed craft term.
+    """
+    if not connectivity_closed:
+        return {"bypass": False, "reason": "connectivity_open"}
+    if not craft_gates:
+        return {"bypass": True, "reason": "geometric_closure"}
+    if bool((craft_evidence or {}).get("ok")):
+        return {"bypass": True, "reason": "geometric_and_craft_closure"}
+    if allow_route_access_repair:
+        return {"bypass": False, "reason": "craft_repair_required"}
+    return {"bypass": True, "reason": "grade_as_is_without_repair"}
 
 
 PLACEMENT_CRAFT_SCORE_DECIMALS = 2
@@ -18123,7 +18287,8 @@ def _worsens_existing_outline_overhang(box, baseline_box, width, height,
 def _select_local_cell_placements(
         candidate, owner, owner_position, options_by_cap, comps, *,
         drop_antenna=False, beam_width=64, max_variants=8,
-        max_candidates_per_cap=96, clearance_mm=0.05, bbox_fn=None):
+        max_candidates_per_cap=96, clearance_mm=0.05, bbox_fn=None,
+        max_external_blockers=1):
     """Jointly legalize one owner and its local bypass-capacitor macro.
 
     Independent best-seat selection makes every capacitor choose the same
@@ -18132,10 +18297,13 @@ def _select_local_cell_placements(
     courtyard state after every choice.  Candidate seats that intersect the
     owner are projected to the nearest owner-courtyard tangents first.
 
-    At most one external blocker may survive.  The caller's existing bounded
-    local-passive eviction can then trade that single seat; arbitrary cascades
-    remain impossible.  No board identity, reference exception, or absolute
-    coordinate participates in the search.
+    A caller-selected bounded number of external blockers may survive.  The
+    production caller uses one for ordinary cells and a small finite allowance
+    for an already-failed multi-rail macro; its downstream overlap-graph
+    legalizer then relocates only qualified local roots.  Arbitrary cascades
+    remain impossible, and every result still faces exact full-board craft
+    admission.  No board identity, reference exception, or absolute coordinate
+    participates in the search.
     """
     if owner not in candidate.P or not options_by_cap:
         return []
@@ -18181,8 +18349,9 @@ def _select_local_cell_placements(
         return {fixed_ref for fixed_ref, fixed_box in fixed_boxes.items()
                 if same_face(ref, fixed_ref) and overlaps(box, fixed_box)}
 
+    blocker_limit = max(0, int(max_external_blockers))
     owner_blockers = external_blockers(owner, owner_box)
-    if len(owner_blockers) > 1:
+    if len(owner_blockers) > blocker_limit:
         return []
 
     # Normalize and geometrically expand each electrical seat.  A mathematical
@@ -18269,7 +18438,7 @@ def _select_local_cell_placements(
                     continue
                 combined_blockers = set(blockers)
                 combined_blockers.update(external_blockers(cap, cap_box))
-                if len(combined_blockers) > 1:
+                if len(combined_blockers) > blocker_limit:
                     continue
                 path = rank[3] + ((cap, option_rank[3], option_rank[4]),)
                 next_rank = (
@@ -18324,6 +18493,24 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
         placements = dict(move.get("placements") or {
             move["ref"]: move["position"]})
         if any(ref in fixed for ref in placements):
+            return
+        # Incremental waves rehydrate the last admitted incumbent.  A joint
+        # cell solver can legitimately rediscover that exact arrangement as
+        # its first-ranked option; evaluating it again spends a scarce exact
+        # trial while proving nothing.  Drop only complete geometric no-ops.
+        # Any partial or changed transform continues to exact admission.
+        def same_position(value, incumbent):
+            if (abs(float(value[0]) - float(incumbent[0])) > 1e-6
+                    or abs(float(value[1]) - float(incumbent[1])) > 1e-6):
+                return False
+            delta = ((float(value[2]) - float(incumbent[2]) + 180.0)
+                     % 360.0) - 180.0
+            return abs(delta) <= 1e-6
+
+        if placements and all(
+                ref in candidate.P
+                and same_position(value, candidate.P[ref])
+                for ref, value in placements.items()):
             return
         signature = tuple(sorted(
             (str(ref), round(float(value[0]), 6),
@@ -18437,6 +18624,70 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                 outward_x /= outward_norm
                 outward_y /= outward_norm
                 options = []
+
+                # Feed the complete package-derived tangent menu into the
+                # collective solver.  The isolated checker already proves
+                # these are the closest legal component relationships, but
+                # the old mover discarded that finite menu and regenerated a
+                # coarse radial cloud.  On a multi-rail IC, two capacitors can
+                # then compete for the same side while a different legal side
+                # is never proposed.  Rotate each absolute pose with the
+                # owner, rank electrically admitted seats ahead of heuristic
+                # ones, and let the bounded beam choose a non-overlapping
+                # assignment across all owned caps.
+                tangent = row.get("tangent_target") or {}
+                tangent_rows = list(tangent.get("candidates") or ())
+                if not tangent_rows:
+                    tangent_rows = [item for item in (
+                        tangent.get("best_loop"),
+                        tangent.get("best_supply")) if item]
+                ideal_supply = ((tangent.get("best_loop") or {}).get(
+                    "supply_mm"))
+                ideal_loop = ((tangent.get("best_loop") or {}).get(
+                    "loop_proxy_mm"))
+                supply_limit = float(
+                    row.get("supply_excess_limit_mm") or 0.25)
+                return_mode = row.get("return_gate_mode")
+                return_limit = float(row.get("return_limit_mm") or (
+                    row.get("loop_excess_limit_mm")
+                    if return_mode == "rail_to_rail_tangent_loop"
+                    else 2.5) or 0.25)
+                for tangent_index, tangent_row in enumerate(tangent_rows):
+                    position = tangent_row.get("position_mm")
+                    if (not isinstance(position, (list, tuple))
+                            or len(position) < 2):
+                        continue
+                    tx, ty = rotate_owner_point(position)
+                    new_rotation = (
+                        float(tangent_row.get("orientation_deg") or 0.0)
+                        + delta) % 360.0
+                    tangent_supply = float(
+                        tangent_row.get("supply_mm") or 0.0)
+                    tangent_ground = float(
+                        tangent_row.get("ground_mm") or 0.0)
+                    tangent_loop = float(tangent_row.get(
+                        "loop_proxy_mm") or
+                        (tangent_supply + tangent_ground))
+                    supply_excess = max(
+                        0.0, tangent_supply
+                        - float(ideal_supply if ideal_supply is not None
+                                else tangent_supply)
+                        - supply_limit)
+                    if return_mode == "rail_to_rail_tangent_loop":
+                        return_excess = max(
+                            0.0, tangent_loop
+                            - float(ideal_loop if ideal_loop is not None
+                                    else tangent_loop)
+                            - return_limit)
+                    else:
+                        return_excess = max(
+                            0.0, tangent_ground - return_limit)
+                    hard_excess = max(supply_excess, return_excess)
+                    options.append((
+                        (round(hard_excess, 6),
+                         round(tangent_loop, 6), -1.0,
+                         tangent_index, round(new_rotation, 6)),
+                        (tx, ty, new_rotation)))
                 cap_deltas = (delta, delta + 180.0,
                               delta + 90.0, delta + 270.0)
                 for cap_delta in cap_deltas:
@@ -18653,6 +18904,10 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                 if unique:
                     cell_options[cap] = unique
             if cell_options:
+                collective_access = False
+                actionable_multi_cap = (
+                    len(cell_options) > 1
+                    and any(row.get("actionable") for row in owner_rows))
                 if comps is not None:
                     collective_access = (
                         abs(delta) < 1e-9
@@ -18669,7 +18924,16 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                         # wider beam is far cheaper than routing a placement
                         # that can never fan out.
                         beam_width=(512 if collective_access else 64),
-                        max_variants=(64 if collective_access else 8))
+                        max_variants=(64 if collective_access else 8),
+                        # Dense multi-rail cells may require moving two or
+                        # three tiny control/passive parts before every bypass
+                        # can occupy a legal pin-adjacent seat.  The exact
+                        # macro legalizer below is already bounded to six
+                        # overlap edges; admit only half that many geometric
+                        # witnesses here so the two stages express the same
+                        # finite repair language.
+                        max_external_blockers=(
+                            3 if actionable_multi_cap else 1))
                 else:
                     # Geometry-free callers retain a deterministic diagnostic
                     # fallback; production always supplies the real courtyard
@@ -18688,7 +18952,7 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                         })
                 for option_index, joint in enumerate(joint_variants):
                     reoriented = joint["placements"]
-                    add({
+                    move = {
                         "kind": "decoupler_cell_reorient", "ref": owner,
                         "owner_ref": owner, "delta_deg": delta,
                         "option": option_index,
@@ -18697,7 +18961,24 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                         "joint_rank": joint["joint_rank"],
                         "position": reoriented[owner],
                         "placements": reoriented,
-                    })
+                    }
+                    if collective_access or actionable_multi_cap:
+                        # A certified local-access failure is a macro defect:
+                        # moving only the named capacitor can leave the owner
+                        # and its other bypasses occupying every legal launch.
+                        # Mark the already-joint, independently legalized cell
+                        # repair so a very small bounded wave probes it before
+                        # spending its only slot on a partial transform.  This
+                        # is proposal scheduling only; exact full-board craft
+                        # admission remains unchanged.
+                        move.update({
+                            "budget_priority": 0,
+                            "priority_basis": (
+                                "certified_atomic_local_access_repair"
+                                if collective_access else
+                                "actionable_multicap_atomic_repair"),
+                        })
+                    add(move)
 
         # A package can expose the correct pins yet leave no legal exterior
         # landing for the owned capacitor because an adjacent package, shunt,
@@ -21315,7 +21596,7 @@ def _placement_craft_move_specs(candidate, evidence, *,
     return merged
 
 
-def placement_candidate_from_board(cfg, board_path):
+def placement_candidate_from_board(cfg, board_path, *, allow_routed=False):
     """Rehydrate an unrouted materialized board for incremental craft repair.
 
     Placement closure is deliberately iterative, but the former API could only
@@ -21330,7 +21611,8 @@ def placement_candidate_from_board(cfg, board_path):
     board = pcbnew.LoadBoard(board_path)
     if board is None:
         raise ValueError("cannot load placement board: %s" % board_path)
-    if any(True for _track in board.GetTracks()):
+    routed = any(True for _track in board.GetTracks())
+    if routed and not allow_routed:
         raise ValueError(
             "placement candidate rehydration refuses routed copper: %s" %
             board_path)
@@ -21354,6 +21636,7 @@ def placement_candidate_from_board(cfg, board_path):
             back_refs=back_refs),
         proxy=placement_proxy(placement), back_refs=back_refs)
     candidate.source_board = os.path.abspath(board_path)
+    candidate.source_had_routed_copper = bool(routed)
     return candidate
 
 
@@ -21532,6 +21815,8 @@ MAX_PLACEMENT_CRAFT_TASKS_PER_WORKER_GENERATION = 4
 MAX_PLACEMENT_CRAFT_TRIALS_PER_ROUND = 256
 MAX_PLACEMENT_CRAFT_ROUNDS_PER_EPOCH = 16
 MAX_PLACEMENT_CRAFT_EPOCHS = 4
+DEFAULT_PLACEMENT_CRAFT_GENERATION_TIMEOUT_S = 600.0
+MAX_PLACEMENT_CRAFT_GENERATION_TIMEOUT_S = 3600.0
 
 
 def _bounded_move_group_quotas(groups, order, budget):
@@ -21596,6 +21881,22 @@ def _bounded_diverse_move_specs(moves, budget):
             groups[ref] = []
             order.append(ref)
         groups[ref].append((index, move))
+    # Explicit priorities are rare and evidence-derived.  They let an atomic
+    # repair reserve compute ahead of a partial move which cannot express the
+    # measured defect.  With no priorities this is exactly the historical
+    # insertion order, preserving ordinary round-robin fairness.
+    original_order = {ref: index for index, ref in enumerate(order)}
+
+    def priority(row):
+        raw = row[1].get("budget_priority")
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return float("inf")
+
+    order = sorted(order, key=lambda ref: (
+        min(priority(row) for row in groups[ref]),
+        original_order[ref]))
     quota = _bounded_move_group_quotas(groups, order, budget)
     selected = []
     for ref in order:
@@ -21603,7 +21904,28 @@ def _bounded_diverse_move_specs(moves, budget):
         count = min(quota[ref], len(group))
         if count <= 0:
             continue
-        if count == 1:
+        prioritized = [index for index, row in enumerate(group)
+                       if row[1].get("budget_priority") is not None]
+        if prioritized:
+            head = min(prioritized, key=lambda index: (
+                priority(group[index]), group[index][0]))
+            if count == 1:
+                indices = [head]
+            else:
+                remaining_indices = [index for index in range(len(group))
+                                     if index != head]
+                tail_count = count - 1
+                if len(remaining_indices) <= tail_count:
+                    sampled = remaining_indices
+                elif tail_count == 1:
+                    sampled = [remaining_indices[-1]]
+                else:
+                    sampled = [remaining_indices[int(round(
+                        i * (len(remaining_indices) - 1)
+                        / float(tail_count - 1)))]
+                        for i in range(tail_count)]
+                indices = sorted({head, *sampled})
+        elif count == 1:
             indices = [0]
         else:
             indices = sorted({
@@ -22364,6 +22686,8 @@ def _evaluate_placement_craft_trials(cfg, jobs):
             "workers": 0, "tasks_per_worker_generation": 0,
             "jobs_per_generation": 0, "worker_generations": 0,
             "jobs": 0, "isolated": False,
+            "generation_timeout_s": 0.0,
+            "timed_out_jobs": 0, "timed_out_indices": [],
         }
     requested = int(cfg.params.get(
         "placement_craft_eval_workers",
@@ -22379,12 +22703,21 @@ def _evaluate_placement_craft_trials(cfg, jobs):
             "placement_craft_tasks_per_child",
             MAX_PLACEMENT_CRAFT_TASKS_PER_WORKER_GENERATION) or 1)),
     )
+    generation_timeout_s = min(
+        MAX_PLACEMENT_CRAFT_GENERATION_TIMEOUT_S,
+        max(0.01, float(cfg.params.get(
+            "placement_craft_generation_timeout_s",
+            DEFAULT_PLACEMENT_CRAFT_GENERATION_TIMEOUT_S)
+            or DEFAULT_PLACEMENT_CRAFT_GENERATION_TIMEOUT_S)),
+    )
     if workers == 1:
         results = [_placement_craft_trial_worker(job) for job in jobs]
         return results, {
             "workers": 1, "tasks_per_worker_generation": 0,
             "jobs_per_generation": len(jobs), "worker_generations": 1,
             "jobs": len(jobs), "isolated": False,
+            "generation_timeout_s": generation_timeout_s,
+            "timed_out_jobs": 0, "timed_out_indices": [],
         }
 
     import multiprocessing as mp
@@ -22397,20 +22730,68 @@ def _evaluate_placement_craft_trials(cfg, jobs):
     jobs_per_generation = workers * tasks_per_worker_generation
     results = []
     generations = 0
+    timed_out_indices = []
     for offset in range(0, len(jobs), jobs_per_generation):
         generation = jobs[offset:offset + jobs_per_generation]
         generation_workers = min(workers, len(generation))
         with _placement_craft_spawn_output_capture() as native_capture:
+            pool = None
             try:
-                with ProcessPoolExecutor(
-                        max_workers=generation_workers,
-                        mp_context=context,
-                        initializer=_placement_craft_worker_init) as pool:
-                    # executor.map preserves proposal order, keeping selection
-                    # deterministic regardless of worker completion timing.
-                    results.extend(pool.map(
-                        _placement_craft_trial_worker, generation))
+                pool = ProcessPoolExecutor(
+                    max_workers=generation_workers,
+                    mp_context=context,
+                    initializer=_placement_craft_worker_init)
+                futures = [pool.submit(
+                    _placement_craft_trial_worker, job)
+                    for job in generation]
+                done, pending = wait(
+                    futures, timeout=generation_timeout_s)
+                generation_results = []
+                for local_index, future in enumerate(futures):
+                    if future in pending:
+                        global_index = offset + local_index
+                        timed_out_indices.append(global_index)
+                        generation_results.append({
+                            "ok": False,
+                            "timed_out": True,
+                            "error": (
+                                "placement craft evaluation timed out "
+                                "after %.1fs" % generation_timeout_s),
+                        })
+                        future.cancel()
+                    else:
+                        generation_results.append(future.result())
+                results.extend(generation_results)
+                if pending:
+                    # ``shutdown(wait=False)`` does not stop a Future that is
+                    # already executing.  Capture and terminate only this
+                    # disposable generation's private workers so a wedged
+                    # native KiCad solve cannot strand the coordinator or
+                    # leak memory.  Every timed-out proposal is a hard reject;
+                    # no gate is bypassed and result order remains the exact
+                    # proposal order.
+                    processes = list((getattr(
+                        pool, "_processes", {}) or {}).values())
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    pool = None
+                    for process in processes:
+                        if process.is_alive():
+                            process.terminate()
+                    for process in processes:
+                        process.join(timeout=2.0)
+                else:
+                    pool.shutdown(wait=True)
+                    pool = None
             except Exception as exc:                    # noqa: BLE001
+                if pool is not None:
+                    processes = list((getattr(
+                        pool, "_processes", {}) or {}).values())
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    for process in processes:
+                        if process.is_alive():
+                            process.terminate()
+                    for process in processes:
+                        process.join(timeout=2.0)
                 tail = _placement_craft_native_tail(native_capture)
                 detail = ("; native diagnostic tail: %s" % tail[-4096:]) \
                     if tail else ""
@@ -22424,6 +22805,9 @@ def _evaluate_placement_craft_trials(cfg, jobs):
         "jobs_per_generation": jobs_per_generation,
         "worker_generations": generations,
         "jobs": len(jobs), "isolated": True,
+        "generation_timeout_s": generation_timeout_s,
+        "timed_out_jobs": len(timed_out_indices),
+        "timed_out_indices": timed_out_indices,
     }
 
 
@@ -24952,7 +25336,7 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
                                      max_attempts=64,
                                      wall_budget_s=240.0,
                                      authored_baseline=None,
-                                     deep_retry=False, timeout_s=180,
+                                     deep_retry=False, timeout_s=300,
                                      verbose=False):
     """Run guarded certificate repair in an isolated production subprocess.
 
@@ -25000,11 +25384,35 @@ def _route_oracle_certificate_repair(routed, completion, work_dir, *,
         command.append("--no-deep-retry")
     command.append("--quiet")
     started = time.monotonic()
+    # The parent subprocess watchdog must not expire before the repair
+    # transaction's own bounded wall clock.  The production default is longer
+    # than the 240-second transaction; an explicit caller/environment value
+    # remains authoritative for deliberately shorter probes and tests.
     timeout = int(os.environ.get(
         "CEC_CERTIFICATE_REPAIR_TIMEOUT", str(int(timeout_s))))
+    # Coordinate the per-search watchdog with the transaction wall budget.
+    # A small inherited worker timeout used to kill the exact deep maze/rip-up
+    # transactions this stage exists to run, while the parent still retained
+    # minutes of unused budget.  Retain a caller-requested larger limit, but
+    # give every worker at least half of the bounded transaction (up to five
+    # minutes) and never let it outlive that transaction.
+    child_env = os.environ.copy()
+    try:
+        inherited_worker_timeout = float(child_env.get(
+            "CEC_CERTIFICATE_WORKER_TIMEOUT_S", "0"))
+    except (TypeError, ValueError):
+        inherited_worker_timeout = 0.0
+    coordinated_worker_timeout = max(
+        1.0, min(300.0, float(wall_budget_s),
+                 max(60.0, float(wall_budget_s) / 2.0)))
+    worker_timeout_s = min(
+        float(wall_budget_s),
+        max(inherited_worker_timeout, coordinated_worker_timeout))
+    child_env["CEC_CERTIFICATE_WORKER_TIMEOUT_S"] = str(worker_timeout_s)
     try:
         process = subprocess.run(
-            command, capture_output=True, text=True, timeout=timeout)
+            command, capture_output=True, text=True, timeout=timeout,
+            env=child_env)
     except subprocess.TimeoutExpired:
         return routed, {
             "schema": 1, "changed": False, "skipped": "timeout",
@@ -25350,59 +25758,136 @@ def _compile_priority_current_prefix(board_path, current_nets, domains,
     import cec_fr
     import pcbnew
 
-    nets = tuple(dict.fromkeys(str(net) for net in current_nets if net))
+    requested = tuple(dict.fromkeys(
+        str(net) for net in current_nets if net))
+
+    # Route a cascaded current path from external source toward its load.  The
+    # sink footprint of one domain is often the source footprint of the next
+    # (connector -> fuse -> bead -> mux).  Topological ordering makes that
+    # relationship explicit and deterministic without knowing any refdes or
+    # net names; unrelated domains retain lexical order.
+    edges = {net: set() for net in requested}
+    indegree = {net: 0 for net in requested}
+    for left in requested:
+        left_sinks = set((domains.get(left) or {}).get("sink_refs") or ())
+        for right in requested:
+            if left == right:
+                continue
+            right_sources = set(
+                (domains.get(right) or {}).get("source_refs") or ())
+            if left_sinks & right_sources and right not in edges[left]:
+                edges[left].add(right)
+                indegree[right] += 1
+    ready = sorted(net for net in requested if indegree[net] == 0)
+    ordered = []
+    while ready:
+        net = ready.pop(0)
+        ordered.append(net)
+        for child in sorted(edges[net]):
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                ready.append(child)
+                ready.sort()
+    # A cyclic declaration is malformed direction authority, but connectivity
+    # can still be proved safely; append it deterministically and expose the
+    # cycle in the report rather than hanging a scheduler.
+    cyclic = sorted(set(requested) - set(ordered))
+    nets = tuple(ordered + cyclic)
     before = cec_score.score(board_path, rules)
     seed_path = os.path.splitext(out_path)[0] + "-pruned.kicad_pcb"
     shutil.copy2(board_path, seed_path)
     cec_fr.copy_project_sidecars(board_path, seed_path)
+    netclass_materialization = \
+        cec_fr.materialize_hierarchical_netclass_assignments(
+            seed_path, current_nets=nets)
+    # The exception is defined relative to the carried project rules.  A
+    # Default-only generated input can otherwise report no narrow sections and
+    # make the prune delete the only legal fine-pitch connector launches.
     legal_neckdowns = cec_constraints._legal_neckdown_uuids(
-        board_path, {})
+        seed_path, {})
     prune = _prune_priority_current_artifact_isolated(
+        seed_path, nets, legal_neckdowns)
+    # KiCad 10 may retain deleted SWIG children until a fresh load/save
+    # boundary.  The idempotent second worker is a compaction boundary and an
+    # exact assertion that the first prune left no additional unsafe trunk.
+    prune_settle = _prune_priority_current_artifact_isolated(
         seed_path, nets, legal_neckdowns)
 
     board = pcbnew.LoadBoard(seed_path)
+    owned_neckdowns = cec_fr.group_endpoint_neckdown_uuids(
+        board, legal_neckdowns)
+    seed_pofv = cec_fr.group_local_pofv_signal_vias(
+        board, list(board.GetTracks()))
+    pcbnew.SaveBoard(seed_path, board)
+    cec_fr.ensure_endpoint_neckdown_rule(
+        seed_path, {"repair": {"endpoint_neckdown": owned_neckdowns}})
+    cec_fr.ensure_local_pofv_signal_via_rule(
+        seed_path, {"local_pofv_signal_vias": seed_pofv})
     board.BuildConnectivity()
-    bounds = board.GetBoardEdgesBoundingBox()
-    diagonal_mm = math.hypot(
-        bounds.GetWidth(), bounds.GetHeight()) / 1e6
-    pad_count = sum(1 for fp in board.GetFootprints() for _ in fp.Pads())
     terminal_refs = {
         net: tuple((domains.get(net) or {}).get("authority_refs") or ())
         for net in nets}
-    authority_refs = {ref for refs in terminal_refs.values() for ref in refs}
     width_contracts = cec_current_topology.route_width_contracts(
         board, board_hint=board_path)
-    base_resolver = cec_fr._project_netclass_resolver(board_path)
 
-    def resolver(net):
-        spec = dict(base_resolver(net) or {})
-        base_width = float(spec.get("track_width") or 0.0)
-        contract = width_contracts.get(net) or {}
-        spec["track_width_by_layer_mm"] = {
-            layer: max(base_width, float(required))
-            for layer, required in (
-                contract.get("required_by_layer_mm") or {}).items()}
-        return spec
-
-    local = cec_fr.synthesize_same_footprint_links(
-        board, max_mm=3.0, min_w=0.2, clearance=0.25, lock=True,
-        connector_power_max_mm=max(6.0, diagonal_mm),
-        netclass_resolver=resolver, include_nets=nets,
-        include_refs=authority_refs)
-    board.BuildConnectivity()
-    repair = cec_fr.synthesize_lastmile(
-        board, max_mm=max(5.0, diagonal_mm), min_w=0.25,
-        clearance=0.25, cap=max(40, pad_count),
-        netclass_resolver=resolver, include_nets=nets, lock=True,
-        attempts_per_pair=48, maze_max_mm=max(5.0, diagonal_mm),
-        maze_margin_mm=8.0, terminal_refs_by_net=terminal_refs)
+    local_rows = {}
+    repair_rows = {}
+    # Isolate nets inside the transaction.  A reversible connector can expose
+    # dozens of anchor combinations; handing every domain to one all-pairs
+    # maze made a three-net USB cell consume unbounded minutes before the
+    # second domain even ran.  Each domain receives a fixed canonical/bridge
+    # budget, while the whole-board admission below remains atomic.
+    domain_attempts = {}
+    working_path = seed_path
+    per_net_timeout = max(5.0, float(os.environ.get(
+        "CEC_PRIORITY_CURRENT_NET_TIMEOUT_S", "45")))
+    exact_net_timeout = max(per_net_timeout, float(os.environ.get(
+        "CEC_PRIORITY_CURRENT_EXACT_NET_TIMEOUT_S", "120")))
+    for index, net in enumerate(nets):
+        trial = "%s-current-%02d-fast.kicad_pcb" % (
+            os.path.splitext(out_path)[0], index + 1)
+        shutil.copy2(working_path, trial)
+        cec_fr.copy_project_sidecars(working_path, trial)
+        fast = _route_priority_current_domain_isolated(
+            trial, net, timeout=per_net_timeout,
+            effort="fast", passes=1)
+        selected = fast
+        exact_attempt = None
+        if not fast.get("connected"):
+            exact_trial = "%s-current-%02d-exact.kicad_pcb" % (
+                os.path.splitext(out_path)[0], index + 1)
+            shutil.copy2(working_path, exact_trial)
+            cec_fr.copy_project_sidecars(working_path, exact_trial)
+            exact_attempt = _route_priority_current_domain_isolated(
+                exact_trial, net, timeout=exact_net_timeout,
+                effort="exact", passes=2)
+            selected = exact_attempt
+            trial = exact_trial
+        domain_attempts[net] = {
+            "fast": fast,
+            "exact": exact_attempt,
+            "selected_effort": selected.get("effort"),
+        }
+        local_rows[net] = selected.get("local_pin_access") or {}
+        repair_rows[net] = selected.get("repair") or {}
+        if selected.get("connected"):
+            working_path = trial
+    local = {"schema": 1, "order": list(nets), "domains": local_rows}
+    repair = {"schema": 1, "order": list(nets), "domains": repair_rows}
+    board = pcbnew.LoadBoard(working_path)
     for zone in board.Zones():
         zone.UnFill()
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.SaveBoard(out_path, board)
-    cec_fr.copy_project_sidecars(board_path, out_path)
+    cec_fr.copy_project_sidecars(working_path, out_path)
     cec_fr.ensure_endpoint_neckdown_rule(
         out_path, {"local_pin_access": local, "repair": repair})
+    final_group_board = pcbnew.LoadBoard(out_path)
+    final_pofv = cec_fr.group_local_pofv_signal_vias(
+        final_group_board, list(final_group_board.GetTracks()))
+    pcbnew.SaveBoard(out_path, final_group_board)
+    cec_fr.ensure_local_pofv_signal_via_rule(
+        out_path, {"local_pofv_signal_vias": final_pofv})
 
     after = cec_score.score(out_path, rules)
     exact = pcbnew.LoadBoard(out_path)
@@ -25424,9 +25909,18 @@ def _compile_priority_current_prefix(board_path, current_nets, domains,
     return {
         "schema": 1,
         "candidate_nets": list(nets),
+        "requested_nets": list(requested),
+        "topology_order": list(nets),
+        "topology_cycles": cyclic,
+        "netclass_materialization": netclass_materialization,
         "undersized_prefix_prune": prune,
+        "undersized_prefix_settle": prune_settle,
+        "owned_legal_neckdowns": owned_neckdowns,
         "local_pin_access": local,
         "repair": repair,
+        "domain_attempts": domain_attempts,
+        "per_net_timeout_s": per_net_timeout,
+        "exact_net_timeout_s": exact_net_timeout,
         "terminal_refs": {
             net: list(refs) for net, refs in sorted(terminal_refs.items())},
         "width_contracts": width_contracts,
@@ -26208,6 +26702,69 @@ def _prune_priority_current_artifact_isolated(board_path, current_nets,
             pass
 
 
+def _route_priority_current_domain_isolated(
+        board_path, net, *, timeout=45, effort="fast", passes=1):
+    """Route one rated source/sink domain in a disposable pcbnew process.
+
+    The caller supplies a trial copy and promotes it only when the worker's
+    exact connectivity proof is true.  A hard timeout is a normal refusal
+    certificate, not an exception that strands the entire route stage.
+    """
+    import cec_power_artifact_worker
+
+    fd, report_path = tempfile.mkstemp(
+        prefix="cec-priority-current-route-", suffix=".json")
+    os.close(fd)
+    started = time.monotonic()
+    command = [
+        sys.executable,
+        cec_power_artifact_worker.__file__,
+        "route-current",
+        board_path,
+        "--net", str(net),
+        "--effort", str(effort),
+        "--passes", str(max(1, int(passes))),
+        "--report", report_path,
+    ]
+    try:
+        try:
+            process = subprocess.run(
+                command, capture_output=True, text=True,
+                timeout=float(timeout))
+        except subprocess.TimeoutExpired as exc:
+            return {
+                "schema": 1, "net": str(net), "changed": False,
+                "connected": False, "timed_out": True,
+                "timeout_s": float(timeout),
+                "wall_s": round(time.monotonic() - started, 3),
+                "reason": "bounded_current_domain_route_timeout",
+                "stderr": str(exc.stderr or "")[-1000:],
+                "stdout": str(exc.stdout or "")[-1000:],
+            }
+        if process.stderr:
+            print(process.stderr.rstrip(), file=sys.stderr)
+        if process.returncode or not os.path.isfile(report_path):
+            return {
+                "schema": 1, "net": str(net), "changed": False,
+                "connected": False,
+                "returncode": int(process.returncode),
+                "wall_s": round(time.monotonic() - started, 3),
+                "reason": "current_domain_route_worker_failed",
+                "stderr": (process.stderr or "")[-1000:],
+                "stdout": (process.stdout or "")[-1000:],
+            }
+        with open(report_path, encoding="utf-8") as source:
+            report = json.load(source)
+        report["wall_s"] = round(time.monotonic() - started, 3)
+        report["timed_out"] = False
+        return report
+    finally:
+        try:
+            os.unlink(report_path)
+        except OSError:
+            pass
+
+
 def _compile_post_priority_power_state(board_path, power_pours, out_path,
                                        out_board_path=None, *,
                                        cell_mm=0.8, clearance_mm=0.3):
@@ -26217,9 +26774,11 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
     based on exact filled-copper connectivity and structural DRC.  Failed
     candidates stay in a temporary directory and cannot leak into routing.
     """
+    import cec_constraints
     import cec_fab_profile
     import cec_fr
     import cec_pour_plan
+    import cec_slab_pour
     import pcbnew
 
     source_board = pcbnew.LoadBoard(board_path)
@@ -26265,13 +26824,38 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
             os.path.dirname(out_path), "post-priority-power.kicad_pcb")
         os.makedirs(os.path.dirname(os.path.abspath(out_board_path)),
                     exist_ok=True)
+        # Frozen power corridors are already physical routing authority.  A
+        # prior deterministic current/last-mile stage must route around them;
+        # never let fill slot a high-current rail around inherited foreign
+        # copper and call the resulting weakened shape a valid realization.
+        foreign = cec_constraints.foreign_on_pour_summary(board_path)
+        if foreign.get("status") == "error":
+            raise RuntimeError(
+                "frozen power foreign-incursion proof failed: %s" %
+                (foreign.get("error") or "unknown checker error"))
+        if (int(foreign.get("n_tracks") or 0)
+                or int(foreign.get("n_vias") or 0)):
+            raise RuntimeError(
+                "route crossed frozen power authority: %s" %
+                json.dumps({
+                    "tracks": (foreign.get("tracks") or ())[:12],
+                    "vias": (foreign.get("vias") or ())[:12],
+                }, sort_keys=True, default=str))
         board = pcbnew.LoadBoard(board_path)
+        frozen_pours = list(frozen_state.get("pours") or ())
+        frozen_vias = list(frozen_state.get("vias") or ())
+        frozen_vias, via_reseat = cec_fr.reseat_overunder_vias(
+            board, frozen_vias, frozen_pours)
+        if not via_reseat.get("ok"):
+            raise RuntimeError(
+                "frozen power via reseat refused: %s" %
+                json.dumps(via_reseat, sort_keys=True, default=str))
         added_vias = list(cec_fr.add_overunder_vias(
-            board, list(frozen_state.get("vias") or ())) or ())
-        if len(added_vias) != len(frozen_state.get("vias") or ()):
+            board, frozen_vias) or ())
+        if len(added_vias) != len(frozen_vias):
             raise RuntimeError("frozen power via materialization was not exact")
         cec_fr.add_power_pours(
-            board, list(frozen_state.get("pours") or ()), fill=False)
+            board, frozen_pours, fill=False)
         pcbnew.SaveBoard(out_board_path, board)
         cec_fr.copy_project_sidecars(board_path, out_board_path)
         generated_zone_canonicalization = (
@@ -26287,6 +26871,17 @@ def _compile_post_priority_power_state(board_path, power_pours, out_path,
                     "exact_after": admission.get("exact_after"),
                 }, sort_keys=True, default=str))
         chosen = dict(frozen_state)
+        chosen["vias"] = frozen_vias
+        chosen["frozen_via_reseat"] = via_reseat
+        if via_reseat.get("changed"):
+            # Retain the old reservations as conservative dead space and add
+            # exact keepouts for every moved barrel.  No downstream router can
+            # consume a stale slot exposed by the local repair.
+            chosen["corridors"] = list(
+                chosen.get("corridors") or ()) + \
+                cec_slab_pour.bridge_via_reservations(
+                    frozen_vias, cec_fab_profile.routing_layers(
+                        board, hint=board_path, include_power=True))
         chosen.update({
             "schema": max(3, int(frozen_state.get("schema") or 0)),
             "stage": "post_priority_power", "source": board_path,
@@ -26883,6 +27478,76 @@ def _prune_structural_dangling_transactionally(board_path, *, rules=None,
             pass
 
 
+def _prune_degenerate_tracks_transactionally(board_path, *, rules=None,
+                                              max_length_mm=0.001):
+    """Remove serialization-scale track fragments after every copper mutator.
+
+    The SES importer already performs this sanitation, but decoupler,
+    certificate, and corner finishers run later and can create a one-nanometre
+    echo while reconciling coincident endpoints.  Remove only exact straight
+    tracks no longer than one micrometre in an isolated pcbnew worker, then
+    retain the edit only if whole-board structural/topology admission is
+    monotonic.  This is geometry sanitation, never an unconnected-net waiver.
+    """
+    import pcbnew
+
+    board = pcbnew.LoadBoard(board_path)
+    limit_nm = max(0.0, float(max_length_mm)) * 1_000_000
+    targets = []
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_TRACK":
+            continue
+        start, end = item.GetStart(), item.GetEnd()
+        if math.hypot(end.x - start.x, end.y - start.y) <= limit_nm:
+            targets.append({
+                "uuid": item.m_Uuid.AsString(),
+                "kind": "degenerate_track",
+            })
+    if not targets:
+        score = cec_score.score(board_path, rules=rules)
+        return ({"schema": 1, "removed": [], "removed_count": 0,
+                 "rolled_back": False, "skipped": "already_clean",
+                 "max_length_mm": float(max_length_mm)}, score)
+
+    fd, backup = tempfile.mkstemp(prefix="cec-degenerate-prune-",
+                                  suffix=".kicad_pcb")
+    os.close(fd)
+    shutil.copy2(board_path, backup)
+    before = cec_score.score(board_path, rules=rules)
+    try:
+        mutation = _remove_structural_dangling_uuids_isolated(
+            board_path, targets)
+        after = cec_score.score(board_path, rules=rules)
+        admission = cec_stage_admission.evaluate(
+            before, after, preserve_unconnected=True)
+        accepted = bool(mutation.get("removed_count")
+                        and admission["accepted"])
+        report = {
+            "schema": 1,
+            "removed": list(mutation.get("removed") or ()),
+            "removed_count": int(mutation.get("removed_count") or 0),
+            "missing": list(mutation.get("missing") or ()),
+            "max_length_mm": float(max_length_mm),
+            "admission": admission,
+            "rolled_back": not accepted,
+        }
+        if not accepted:
+            shutil.copy2(backup, board_path)
+            report["reason"] = (admission["decision"]
+                                if not admission["accepted"] else
+                                "no_degenerate_track_removed")
+            return report, before
+        return report, after
+    except Exception:
+        shutil.copy2(backup, board_path)
+        raise
+    finally:
+        try:
+            os.unlink(backup)
+        except OSError:
+            pass
+
+
 def _chamfer_routes_transactionally(board_path, *, rules=None,
                                      exclude_nets=(), params=None):
     """Apply cosmetic 45-degree bends only when board quality is monotonic.
@@ -27060,6 +27725,36 @@ def _complete_placement_snapshot(board_path):
     }
 
 
+def _power_authority_failure_feedback(work_dir, label):
+    """Return actionable exact-planner feedback from a failed power solve.
+
+    The compiler writes its complete refusal authority before raising.  Keep
+    the route verdict compact, but carry each failed net's structured planner
+    bottleneck across the stage boundary so a bounded placement repair can
+    move the named generic obstacles on the next wave.
+    """
+    import cec_completion_evidence
+
+    safe_label = re.sub(
+        r"[^A-Za-z0-9_.-]+", "-", str(label)).strip("-") or "prefix"
+    authority_path = os.path.abspath(os.path.join(
+        str(work_dir), "%s-power-authority.json" % safe_label))
+    result = {"power_failure_authority": authority_path}
+    if not os.path.isfile(authority_path):
+        result["power_failure_evidence_error"] = "authority artifact missing"
+        return result
+    try:
+        with open(authority_path, encoding="utf-8") as source:
+            authority = json.load(source)
+        failures = cec_completion_evidence.power_planner_failures(authority)
+        result["power_planner_failures"] = failures
+        result["power_planner_failure_nets"] = sorted(failures)
+    except Exception as exc:                              # noqa: BLE001
+        result["power_failure_evidence_error"] = "%s: %s" % (
+            type(exc).__name__, exc)
+    return result
+
+
 def _replan_power_authority_around_locked_prefix(
         board_path, power_pours, work_dir, *, label="local-pi"):
     """Re-negotiate frozen power corridors around newly locked copper.
@@ -27196,9 +27891,16 @@ def _reconcile_frozen_power_authority_around_locked_prefix(
             "corridors=%s" % (missing_pours, missing_corridors))
 
     revised_state = json.loads(json.dumps(previous_state))
+    revised_vias, via_reseat = cec_fr.reseat_overunder_vias(
+        board, previous_state.get("vias") or (), revised_pours)
+    if not via_reseat.get("ok"):
+        raise RuntimeError(
+            "local power clipping could not reseat blocked frozen vias: %s" %
+            json.dumps(via_reseat, sort_keys=True, default=str))
     revised_state.update({
         "pours": revised_pours,
         "corridors": revised_corridors,
+        "vias": revised_vias,
         "placement_scope": "complete",
         "placements": _complete_placement_snapshot(board_path),
         "reservation_source": safe_label + "-local-clip",
@@ -27214,7 +27916,8 @@ def _reconcile_frozen_power_authority_around_locked_prefix(
             "corridors_after": len(revised_corridors),
             "corridor_polygons_clipped": int(clipped_corridors),
             "vias_before": len(previous_state.get("vias") or ()),
-            "vias_after": len(previous_state.get("vias") or ()),
+            "vias_after": len(revised_vias),
+            "via_reseat": via_reseat,
             "unseeded_pour_prune": prune_report,
         },
     })
@@ -27227,7 +27930,7 @@ def _reconcile_frozen_power_authority_around_locked_prefix(
             board_path, power_pours, state_path, preview_path)
         if (not (admitted.get("exact_admission") or {}).get("passed")
                 or len(admitted.get("vias") or ())
-                != len(previous_state.get("vias") or ())):
+                != len(revised_vias)):
             raise RuntimeError(
                 "locally clipped power authority was not exactly admitted "
                 "with its original via count")
@@ -27258,6 +27961,27 @@ def _reconcile_frozen_power_authority_around_locked_prefix(
     except Exception:
         os.environ["CEC_POURFIRST_STATE"] = previous_state_path
         raise
+
+
+def _access_before_local_pi_enabled(cfg, pre_power_compile_enabled):
+    """Return whether speculative signal access may precede mandatory PI.
+
+    Local bypass copper is a required electrical object, while the bounded
+    access tier is deliberately speculative and may leave a net for residual
+    closure.  The former default inverted those ownership classes and relied
+    on a later local rip-up to recover the bypass cell.  A partial rip-up can
+    strand a via or short track at the exact dogbone/via-in-pad portal, making
+    a placement that passed the complete-cell oracle fail only after routing.
+
+    Commit local PI first by default so every later router sees its real copper
+    and ordinary DRC clearance.  Keep access-first only as an explicit
+    diagnostic/ablation policy for experiments that also inspect the complete
+    transactional repair evidence.
+    """
+    return bool(
+        pre_power_compile_enabled and cfg is not None
+        and (cfg.params or {}).get("signal_access_before_local_pi", False)
+        and (cfg.params or {}).get("automatic_pin_escape_tier", True))
 
 
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
@@ -27410,15 +28134,34 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # pre-routed/current board.
             if route:
                 _input_score = cec_score.score(placed)
-                if (_input_score.unconnected == 0
-                        and _input_score.drc == 0):
+                _connectivity_closed = (
+                    _input_score.unconnected == 0 and _input_score.drc == 0)
+                _bypass_craft = None
+                if _connectivity_closed and craft_gates:
+                    _bypass_craft = placement_craft_evidence(placed, cfg=cfg)
+                _bypass = clean_route_bypass_admission(
+                    connectivity_closed=_connectivity_closed,
+                    craft_gates=craft_gates,
+                    craft_evidence=_bypass_craft,
+                    allow_route_access_repair=allow_route_access_repair)
+                if _bypass["bypass"]:
                     route = False
                     route_bypassed = True
                     _trace(
                         "clean_route_bypass", "passed",
-                        "exact input connectivity and structural DRC already closed",
+                        "exact input closure admitted for read-only grading",
                         artifact=str(placed), authority="cec_score",
-                        detail={"unconnected": 0, "drc": 0})
+                        detail={"unconnected": 0, "drc": 0,
+                                "reason": _bypass["reason"],
+                                "craft": _bypass_craft})
+                elif (_connectivity_closed
+                      and _bypass["reason"] == "craft_repair_required"):
+                    _trace(
+                        "clean_route_bypass", "deferred",
+                        "geometric closure retained in repair pipeline because craft gates fail",
+                        artifact=str(placed), authority="cec_synth_pipeline",
+                        detail={"reason": _bypass["reason"],
+                                "craft": _bypass_craft})
 
             # PROTECT-LIST helper (P4, docs/pass-form-plan.md §4, S3): a stamped blueprint cell's
             # LOCKED internal copper must SURVIVE Freerouting -- add its nets to protect_nets
@@ -27435,6 +28178,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             # ---- 2. route it with the gate-clean recipe (ONE route_once), or grade as-is ----
             t0 = time.monotonic()
             prec_report = None
+            # Precision pair routes may create nearby GND return barrels
+            # before the fabrication-profile planes are declared and filled.
+            # KiCad therefore reports those exact barrels as one-layer
+            # dangling until the later plane transaction.  Carry their UUID
+            # ownership across every interim cleanup just like local-PI
+            # return vias; otherwise an ordinary residual cleanup silently
+            # deletes the physical return-path contract while preserving the
+            # signal pair itself.
+            _precision_ground_return_uuids = set()
             decoupler_ground = {"schema": 1, "skipped": "route_disabled"}
             ground_plane_fill = {"schema": 1, "skipped": "route_disabled"}
             decoupler_finish = {"schema": 1, "skipped": "route_disabled"}
@@ -27446,6 +28198,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             certificate_repair = {"schema": 1, "changed": False,
                                   "skipped": "route_disabled"}
             final_dangling_cleanup = {
+                "schema": 1, "skipped": "route_disabled",
+                "removed_count": 0,
+            }
+            final_degenerate_cleanup = {
                 "schema": 1, "skipped": "route_disabled",
                 "removed_count": 0,
             }
@@ -27600,20 +28356,28 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     if local_report is None:
                         priority_board = os.path.join(
                             work_dir, "decoupler-cell-priority.kicad_pcb")
-                        report = cec_decoupler_cell.synthesize_pre_route(
-                            input_board, priority_board,
-                            ground_reach_mm=float(
-                                (cfg.params if cfg else {}).get(
-                                    "decoupler_ground_reach_mm", 1.5)),
-                            ground_pin_max_mm=float(
-                                (cfg.params if cfg else {}).get(
-                                    "decoupler_ground_pin_max_mm", 2.5)),
-                            repair_existing_copper=bool(
-                                allow_route_access_repair),
-                            protected_nets=tuple(
-                                protected if local_repair_protected is None
-                                else local_repair_protected),
-                            demotable_nets=tuple(local_demotable_nets))
+                        # Future power is not fabricated copper in the
+                        # critical-first schedule.  Let the mandatory local
+                        # PI transaction claim its exact geometry, then the
+                        # caller's immediately following authority
+                        # reconciliation must clip or completely replan every
+                        # declared-current object around this locked prefix.
+                        with _future_power_authority_released():
+                            report = cec_decoupler_cell.synthesize_pre_route(
+                                input_board, priority_board,
+                                ground_reach_mm=float(
+                                    (cfg.params if cfg else {}).get(
+                                        "decoupler_ground_reach_mm", 1.5)),
+                                ground_pin_max_mm=float(
+                                    (cfg.params if cfg else {}).get(
+                                        "decoupler_ground_pin_max_mm", 2.5)),
+                                repair_existing_copper=bool(
+                                    allow_route_access_repair),
+                                protected_nets=tuple(
+                                    protected
+                                    if local_repair_protected is None
+                                    else local_repair_protected),
+                                demotable_nets=tuple(local_demotable_nets))
                     else:
                         priority_board = input_board
                         report = dict(local_report)
@@ -27936,6 +28700,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         for row in (prec_report.get("generated_items") or ())
                         if row.get("uuid") and row.get("net") == "GND"
                         and row.get("kind") == "PCB_VIA"}
+                    _precision_ground_return_uuids.update(
+                        _generated_ground_vias)
                     _precision_deferred_drc = []
                     _precision_blocking_drc = []
                     for _identity in _precision_exact.get(
@@ -28350,6 +29116,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                     _critical_power_clip_error,
                             })
                         except Exception as _critical_power_error:  # noqa: BLE001
+                            _critical_power_feedback = (
+                                _power_authority_failure_feedback(
+                                    work_dir,
+                                    "critical-prefix-fallback"))
                             return _fail(
                                 "critical_prefix_power_authority",
                                 "power could not be reconciled or exact-"
@@ -28367,6 +29137,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                     "fallback_error": "%s: %s" % (
                                         type(_critical_power_error).__name__,
                                         _critical_power_error),
+                                    **_critical_power_feedback,
                                 })
                     _trace(
                         "critical_prefix_power_authority", "passed",
@@ -28379,18 +29150,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         authority="cec_slab_pour",
                         detail=_critical_power_replan)
 
-                # A bounded signal-access prefix normally precedes LOCAL PI.
-                # Dense IC signal pins can have fewer exits than the nearby
-                # bypass cell, while the bypass transaction already knows how
-                # to demote and release any speculative signal copper that it
-                # truly needs to replace.  Keep a compatibility switch for
-                # audits of the former PI-first schedule.
-                _signal_access_precedes_local_pi = bool(
-                    _pre_power_compile_enabled and cfg is not None
-                    and (cfg.params or {}).get(
-                        "signal_access_before_local_pi", True)
-                    and (cfg.params or {}).get(
-                        "automatic_pin_escape_tier", True))
+                # Mandatory LOCAL PI normally precedes the bounded signal-
+                # access prefix.  Exact field evidence showed that recovering
+                # a bypass portal after speculative routing is not equivalent
+                # to reserving it: a partial local rip-up can strand a via or
+                # track at the only legal immediate GND return.  Access-first
+                # remains an explicit diagnostic policy, never an implicit
+                # production default.
+                _signal_access_precedes_local_pi = (
+                    _access_before_local_pi_enabled(
+                        cfg, _pre_power_compile_enabled))
 
                 # LOCAL PI RESERVATION PRECEDES BROAD POWER OBJECTS.
                 # Precision pairs and declared
@@ -28469,6 +29238,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 _local_pi_power_replan["strategy"] = (
                                     "bounded_full_replan")
                             except Exception as _local_pi_full_error:  # noqa: BLE001
+                                _local_pi_power_feedback = (
+                                    _power_authority_failure_feedback(
+                                        work_dir,
+                                        "local-pi-full-replan"))
                                 return _fail(
                                     "local_pi_power_authority",
                                     "power authority could not be reconciled "
@@ -28487,6 +29260,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                         "full_replan_error": "%s: %s" % (
                                             type(_local_pi_full_error).__name__,
                                             _local_pi_full_error),
+                                        **_local_pi_power_feedback,
                                     })
                         decoupler_ground = dict(decoupler_ground)
                         decoupler_ground["power_authority_replan"] = (
@@ -28759,6 +29533,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                 _local_pi_power_replan["strategy"] = (
                                     "bounded_full_replan")
                             except Exception as _local_pi_full_error:  # noqa: BLE001
+                                _local_pi_power_feedback = (
+                                    _power_authority_failure_feedback(
+                                        work_dir,
+                                        "local-pi-after-access-full-replan"))
                                 return _fail(
                                     "local_pi_power_authority",
                                     "power authority could not be reconciled "
@@ -28777,6 +29555,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                         "full_replan_error": "%s: %s" % (
                                             type(_local_pi_full_error).__name__,
                                             _local_pi_full_error),
+                                        **_local_pi_power_feedback,
                                     })
                         decoupler_ground = dict(decoupler_ground)
                         decoupler_ground["power_authority_replan"] = (
@@ -28982,7 +29761,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                             (_distribution_dangling,
                              _distribution_after) = (
                                 _prune_structural_dangling_transactionally(
-                                    _distribution_out, rules=rules))
+                                    _distribution_out, rules=rules,
+                                    # Local-PI vias intentionally remain
+                                    # dangling until the dedicated planes are
+                                    # admitted after routed-power ownership.
+                                    # They are an exact upstream contract, not
+                                    # disposable backend residue.
+                                    preserve_uuids=tuple(sorted(
+                                        _precision_ground_return_uuids |
+                                        set(decoupler_ground.get(
+                                            "required_via_uuids") or ())))))
                             (_distribution_complete,
                              _distribution_incomplete) = (
                                 _tier_completion_partition(
@@ -30176,6 +30964,43 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         "before": _final_foreign,
                         "removed_count": 0, "removed_nets": [],
                     }
+                # All post-import copper producers have now run.  Sanitize
+                # serialization-scale echoes here as well as inside the SES
+                # importer so a later decoupler/certificate repair cannot
+                # reintroduce a one-nanometre, full-width DRC object.
+                try:
+                    (final_degenerate_cleanup,
+                     _degenerate_score) = (
+                        _prune_degenerate_tracks_transactionally(
+                            routed, rules=rules))
+                    if (final_degenerate_cleanup.get("removed_count")
+                            and not final_degenerate_cleanup.get(
+                                "rolled_back")):
+                        corner_score = _degenerate_score
+                        certificate_score = _degenerate_score
+                        _trace(
+                            "final_degenerate_cleanup", "repaired",
+                            "sub-micron endpoint echoes pruned monotonically",
+                            nets={row.get("net") for row in
+                                  (final_degenerate_cleanup.get(
+                                      "removed") or ())
+                                  if row.get("net")},
+                            uuids={row.get("uuid") for row in
+                                   (final_degenerate_cleanup.get(
+                                       "removed") or ())
+                                   if row.get("uuid")},
+                            artifact=str(routed),
+                            authority="cec_fr+cec_stage_admission",
+                            detail=final_degenerate_cleanup)
+                except Exception as _dte:              # noqa: BLE001
+                    final_degenerate_cleanup = {
+                        "schema": 1, "rolled_back": True,
+                        "removed_count": 0,
+                        "error": "%s: %s" %
+                        (type(_dte).__name__, _dte),
+                    }
+                    print("[route] degenerate cleanup FAILED: %s" % _dte,
+                          file=sys.stderr)
                 # A refused residual/completion route can leave electrically
                 # useless one-ended tracks or one-layer vias.  Consume KiCad's
                 # exact dangling UUIDs only after every copper mutator, and
@@ -30191,7 +31016,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     if _dangling_types & {"track_dangling", "via_dangling"}:
                         final_dangling_cleanup, _dangling_score = (
                             _prune_structural_dangling_transactionally(
-                                routed, rules=rules))
+                                routed, rules=rules,
+                                preserve_uuids=tuple(sorted(
+                                    _precision_ground_return_uuids |
+                                    set(decoupler_ground.get(
+                                        "required_via_uuids") or ()) |
+                                    set((decoupler_ground.get(
+                                        "ground_plane_access") or {}).get(
+                                            "required_via_uuids") or ())))))
                         if not final_dangling_cleanup.get("rolled_back"):
                             corner_score = _dangling_score
                             certificate_score = _dangling_score
@@ -30705,6 +31537,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     foreign_pour_final_enforcement,
                 "certificate_repair": certificate_repair,
                 "route_import_sanitation": route_import_sanitation,
+                "final_degenerate_cleanup": final_degenerate_cleanup,
                 "final_dangling_cleanup": final_dangling_cleanup,
                 "critical_copper_contract": critical_contract_result,
                 "critical_route_priority": critical_route_priority,
@@ -31044,6 +31877,108 @@ EPS_ANSWERS = {"antenna_keepout": False, "placement_handoff": "handoff",
 
 
 # ============================================================ materialize + placement handoff
+def _carry_project_rule_authority(cfg, board_path, *, source_board=None):
+    """Overlay the richest live project rules onto a renamed board artifact.
+
+    Rehydrated placement candidates return before the ordinary ``materialize``
+    carriage block.  If their immediate source is itself a generated scratch
+    board, blindly copying its minimal project JSON propagates Default-only
+    geometry forever.  Resolve candidate donors from the explicit config,
+    current candidate directory, committed board directory, and source, then
+    choose the one with the most netclass bindings/classes.  Board geometry is
+    never read from these donors; this function carries only project rule
+    authority and the matching custom DRC file.
+    """
+    board_path = os.path.abspath(str(board_path))
+    out_stem = (board_path[:-len(".kicad_pcb")]
+                if board_path.endswith(".kicad_pcb")
+                else os.path.splitext(board_path)[0])
+    candidates = []
+
+    def add_board(board):
+        board = str(board or "")
+        if not board:
+            return
+        stem = (board[:-len(".kicad_pcb")]
+                if board.endswith(".kicad_pcb")
+                else os.path.splitext(board)[0])
+        candidates.append(stem + ".kicad_pro")
+
+    add_board(getattr(cfg, "pcb", None) if cfg is not None else None)
+    add_board(source_board)
+    identity = str(getattr(cfg, "board", "") or "")
+    if identity:
+        for parent in (os.path.join(ROOT, "beta", identity, "candidate"),
+                       os.path.join(ROOT, "beta", identity),
+                       os.path.join(ROOT, "hubs", identity),
+                       os.path.join(ROOT, "modules", identity)):
+            candidates.extend(sorted(glob.glob(
+                os.path.join(parent, "*.kicad_pro"))))
+
+    seen = set()
+    donors = []
+    for order, path in enumerate(candidates):
+        path = os.path.abspath(path)
+        if path in seen or not os.path.isfile(path):
+            continue
+        seen.add(path)
+        try:
+            with open(path, encoding="utf-8") as source:
+                payload = json.load(source)
+        except (OSError, ValueError, TypeError):
+            continue
+        settings = payload.get("net_settings") or {}
+        classes = list(settings.get("classes") or ())
+        patterns = list(settings.get("netclass_patterns") or ())
+        assignments = list(settings.get("netclass_assignments") or ())
+        # Bindings are the strongest evidence: many named classes without a
+        # pattern/assignment still resolve every board net to Default.
+        score = (len(patterns) + len(assignments), len(classes), -order)
+        donors.append((score, path, payload))
+    if not donors:
+        return {"carried": False, "reason": "no_project_rule_donor"}
+    _score, donor_path, donor = max(donors, key=lambda row: row[0])
+    donor_settings = donor.get("net_settings") or {}
+    if not donor_settings.get("classes"):
+        return {"carried": False, "reason": "donor_has_no_netclasses",
+                "donor": donor_path}
+
+    out_pro = out_stem + ".kicad_pro"
+    if os.path.isfile(out_pro):
+        try:
+            with open(out_pro, encoding="utf-8") as source:
+                output = json.load(source)
+        except (OSError, ValueError, TypeError):
+            output = {}
+    else:
+        output = {}
+    output.setdefault("meta", {})["filename"] = os.path.basename(out_pro)
+    output["net_settings"] = copy.deepcopy(donor_settings)
+    donor_rules = (((donor.get("board") or {}).get("design_settings")
+                    or {}).get("rules"))
+    if donor_rules:
+        output.setdefault("board", {}).setdefault(
+            "design_settings", {})["rules"] = copy.deepcopy(donor_rules)
+    with open(out_pro, "w", encoding="utf-8", newline="\n") as sink:
+        json.dump(output, sink, indent=2)
+        sink.write("\n")
+
+    donor_stem = donor_path[:-len(".kicad_pro")]
+    donor_dru = donor_stem + ".kicad_dru"
+    out_dru = out_stem + ".kicad_dru"
+    if (os.path.isfile(donor_dru)
+            and os.path.abspath(donor_dru) != os.path.abspath(out_dru)):
+        shutil.copy2(donor_dru, out_dru)
+    return {
+        "carried": True,
+        "donor": donor_path,
+        "project": out_pro,
+        "class_count": len(donor_settings.get("classes") or ()),
+        "pattern_count": len(
+            donor_settings.get("netclass_patterns") or ()),
+    }
+
+
 def _ensure_netlist_path(cfg):
     """Return a usable .net path for cfg (MV1): its committed netlist if present, else export it ONCE
     from the schematic to a temp file. Boards like the Hub ship no committed *.net, so Config.load sets
@@ -31085,10 +32020,37 @@ def _materialize_rehydrated_board(cand, cfg, out):
     source = pcbnew.LoadBoard(source_path)
     if source is None:
         raise ValueError("cannot load rehydrated source board: %s" % source_path)
-    if any(True for _track in source.GetTracks()):
+    source_tracks = sum(1 for _item in source.GetTracks())
+    routed_replacement = bool(
+        source_tracks and getattr(cand, "source_had_routed_copper", False))
+    if source_tracks and not routed_replacement:
         raise ValueError(
             "rehydrated placement materialization refuses routed copper: %s"
             % source_path)
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    if routed_replacement:
+        # KiCad 10's legacy SWIG bindings corrupt later board handles when a
+        # large set of child proxies is removed in a long-lived placement
+        # worker.  Perform the explicitly authorized destructive copper strip
+        # in the repository's isolated schematic-sync process.  This also
+        # refreshes every pad net from the live hierarchy before the new
+        # placement is evaluated, so a current schematic delta cannot inherit
+        # an obsolete routed pad assignment.
+        shutil.copy2(source_path, out)
+        process = subprocess.run([
+            sys.executable,
+            os.path.join(ROOT, "scripts", "cec_sync_pcb_from_schematic.py"),
+            "--schematic", str(cfg.sch), "--pcb", str(out),
+            "--rip-all-copper",
+        ], text=True, capture_output=True)
+        if process.returncode:
+            raise RuntimeError(
+                "routed replacement copper strip/topology sync failed: %s" %
+                ((process.stderr or process.stdout or "no diagnostic")[-2000:]))
+        source = pcbnew.LoadBoard(out)
+        if source is None or any(True for _item in source.GetTracks()):
+            raise RuntimeError(
+                "routed replacement worker did not produce an unrouted board")
     expected_refs = set(cand.P)
     actual_refs = {fp.GetReference() for fp in source.GetFootprints()}
     missing = sorted(expected_refs - actual_refs)
@@ -31108,7 +32070,6 @@ def _materialize_rehydrated_board(cand, cfg, out):
             footprint.Flip(footprint.GetPosition(), False)
         footprint.SetPosition(position)
         footprint.SetOrientationDegrees(float(placement[2]))
-    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     pcbnew.SaveBoard(out, source)
     source_stem = (source_path[:-len(".kicad_pcb")]
                    if source_path.endswith(".kicad_pcb") else
@@ -31117,8 +32078,16 @@ def _materialize_rehydrated_board(cand, cfg, out):
                 if out.endswith(".kicad_pcb") else os.path.splitext(out)[0])
     for extension in (".kicad_pro", ".kicad_dru", ".kicad_prl"):
         sidecar = source_stem + extension
-        if os.path.isfile(sidecar):
-            shutil.copy(sidecar, out_stem + extension)
+        destination = out_stem + extension
+        if (os.path.isfile(sidecar)
+                and os.path.abspath(sidecar) != os.path.abspath(destination)):
+            shutil.copy2(sidecar, destination)
+    rule_authority = _carry_project_rule_authority(
+        cfg, out, source_board=source_path)
+    if not rule_authority.get("carried"):
+        raise RuntimeError(
+            "rehydrated board lost project rule authority: %s" %
+            rule_authority.get("reason", "unknown"))
     try:
         import cec_pourplan
         plan = cec_pourplan.PourPlan.from_board(
@@ -31250,6 +32219,11 @@ def materialize(cand, cfg, out, *, logo=None):
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
             shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+    rule_authority = _carry_project_rule_authority(cfg, out)
+    if not rule_authority.get("carried"):
+        raise RuntimeError(
+            "materialized board lost project rule authority: %s" %
+            rule_authority.get("reason", "unknown"))
     # BLUEPRINT CELLS (P4, docs/pass-form-plan.md §4, S3): the placement is on the board (build_board
     # placed the cell parts at their p4b positions); now lay each cell's INTERNAL copper as real LOCKED
     # tracks/vias -- guard-checked against foreign copper (whole-cell refusal). Placement candidates
@@ -36636,8 +37610,19 @@ _SPEC_NET_CURRENTS = {
     # EPS/PCIe cable rails keep the owner's per-cable design basis (§2.8):
     # EPS ~13A/pin continuous -> ~52A/cable; PCIe ~13A/pin over 3x12V -> ~39A/cable.
     "eps-8pin": {"/SENSEC": 52.0, "+3V3": 0.25, "+5VSB": 0.5},
-    "pcie-8pin-2port": {"/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5},
-    "pcie-8pin-3port": {"/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5},
+    # The service-USB path is protected by a 750 mA hold / 1.5 A trip PTC.
+    # Every node from the reversible connector bank through that fuse and its
+    # ferrite to the TPS2121 input therefore owns the same 0.75 A continuous
+    # routing contract.  VBUS_F is a leaf-name pattern because KiCad saves the
+    # local sheet path (for example /07-usb-flash/VBUS_F) in the board.
+    "pcie-8pin-2port": {
+        "/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5,
+        "/VBUS_J5": 0.75, "/VBUS_F": 0.75, "/VBUS": 0.75,
+    },
+    "pcie-8pin-3port": {
+        "/SENSEC": 39.0, "+3V3": 0.25, "+5VSB": 0.5,
+        "/VBUS_J5": 0.75, "/VBUS_F": 0.75, "/VBUS": 0.75,
+    },
     # 12VHPWR is per-PIN sensing: 600W/6 pins = 8.33A balanced, 9.2A at the
     # connector's own per-pin rating (§6.1 / the routing plan's design basis).
     # Cross-check: 6 x 9.2 = 55.2A against 600W/12V = 50A sustained -- the per-pin
@@ -36757,7 +37742,14 @@ def spec_net_current_contract(board, net):
     tbl = _spec_current_table(board)
     best = None
     for pat, amps in tbl.items():
-        if net == pat or net.startswith(pat):
+        # Hierarchical local labels are saved with their sheet prefix.  An
+        # exact leaf-name match is authoritative too; requiring the generated
+        # sheet path in this table made an otherwise identical power cell lose
+        # its current contract when it moved between hierarchy partitions.
+        leaf_match = (str(pat).startswith("/")
+                      and str(net).rsplit("/", 1)[-1]
+                      == str(pat).lstrip("/"))
+        if net == pat or net.startswith(pat) or leaf_match:
             if best is None or len(pat) > len(best[0]):
                 best = (pat, amps)
     if best is None:

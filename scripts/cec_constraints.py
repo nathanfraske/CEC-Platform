@@ -2712,7 +2712,8 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
     pair_nets = {net for _kind, pnet, nnet in pairs for net in (pnet, nnet)}
     topology = cec_route_quality.analyze_board(b, critical_nets=pair_nets)
     topology_by_net = collections.defaultdict(list)
-    for issue in topology.get("issues", ()):
+    for issue in (list(topology.get("issues", ()))
+                  + list(topology.get("non_octilinear", ()))):
         if issue.get("severity") == "blocking":
             topology_by_net[issue.get("net")].append(issue)
 
@@ -3622,6 +3623,202 @@ def _legal_neckdown_uuids(path, ctx):
     return legal
 
 
+def _validated_local_pair_return_uuids(board, path, ctx):
+    """Re-prove exact group-owned high-frequency return barrels.
+
+    A GND-net membership or a group name alone is never enough.  Every owned
+    item must be an ordinary fab-legal through via placed beside a real matched
+    P/N transition, and the local return field must cover both members of that
+    transition.  Invalid or stale group members simply receive no exception.
+    """
+    key = "_validated_local_pair_returns::" + os.path.abspath(path)
+    if key in ctx:
+        return set(ctx[key])
+    try:
+        import cec_fr
+        group = next((candidate for candidate in board.Groups()
+                      if candidate.GetName()
+                      == cec_fr.LOCAL_PAIR_RETURN_VIA_GROUP), None)
+    except Exception:                                  # noqa: BLE001
+        group = None
+    if group is None:
+        ctx[key] = []
+        return set()
+
+    grouped = [item for item in board.GetTracks()
+               if item.GetClass() == "PCB_VIA"
+               and group.ContainsItem(item)]
+    settings = board.GetDesignSettings()
+    min_diameter = _mm(getattr(
+        settings, "m_ViasMinSize", pcbnew.FromMM(0.50)))
+    min_drill = _mm(getattr(
+        settings, "m_MinThroughDrill", pcbnew.FromMM(0.20)))
+    min_annular = _mm(getattr(
+        settings, "m_ViasMinAnnularWidth", pcbnew.FromMM(0.10)))
+
+    def xy(item):
+        point = item.GetPosition()
+        return _mm(point.x), _mm(point.y)
+
+    geometrically_legal = []
+    for via in grouped:
+        diameter = _via_width_mm(via)
+        drill = _mm(via.GetDrillValue())
+        if (via.GetNetname() != "GND"
+                or int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH)
+                or diameter < min_diameter - 0.001
+                or drill < min_drill - 0.001
+                or (diameter - drill) / 2.0 < min_annular - 0.001):
+            continue
+        geometrically_legal.append(via)
+
+    signal_vias = collections.defaultdict(list)
+    all_gnd_vias = []
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_VIA":
+            continue
+        if item.GetNetname() == "GND":
+            all_gnd_vias.append(item)
+        else:
+            signal_vias[item.GetNetname()].append(item)
+
+    # A board-scale paired transition is held to 1.50 mm by the physical pair
+    # gate.  A connector launch can inherit a wider fixed terminal pitch, so
+    # independently re-prove its two locally referenced barrels as one bounded
+    # pair field instead of pretending the package geometry is a route defect.
+    # Four millimetres covers the declared USB/CAN terminal fields while still
+    # refusing unrelated transitions elsewhere on the board.
+    pair_field_span_mm = 4.00
+    return_reach_mm = 1.50
+    transitions = []
+    for _kind, p_name, n_name in _coupled_pair_names(board):
+        for p_via in signal_vias.get(p_name, ()):
+            for n_via in signal_vias.get(n_name, ()):
+                if math.dist(xy(p_via), xy(n_via)) <= pair_field_span_mm + 1e-9:
+                    transitions.append((p_via, n_via))
+
+    legal = set()
+    for via in geometrically_legal:
+        point = xy(via)
+        for p_via, n_via in transitions:
+            p_point, n_point = xy(p_via), xy(n_via)
+            if min(math.dist(point, p_point),
+                   math.dist(point, n_point)) > return_reach_mm + 1e-9:
+                continue
+            p_covered = any(math.dist(p_point, xy(gnd))
+                            <= return_reach_mm + 1e-9
+                            for gnd in all_gnd_vias)
+            n_covered = any(math.dist(n_point, xy(gnd))
+                            <= return_reach_mm + 1e-9
+                            for gnd in all_gnd_vias)
+            if p_covered and n_covered:
+                legal.add(via.m_Uuid.AsString())
+                break
+    ctx[key] = sorted(legal)
+    return legal
+
+
+def _validated_local_pofv_signal_uuids(board, path, ctx):
+    """Re-prove exact generated POFV dogbones below ordinary via minima.
+
+    A fabrication profile and a PCB group are necessary provenance, but they
+    are not sufficient authority for a smaller signal via.  Each exception is
+    accepted only when the barrel is a profile-legal through via and is joined
+    by a short, same-net copper path to an actual SMD land.  This prevents a
+    stale group, a copied UUID, or a board-wide small-via setting from silently
+    weakening ordinary routing geometry.
+    """
+    key = "_validated_local_pofv_signal::" + os.path.abspath(path)
+    if key in ctx:
+        return set(ctx[key])
+    try:
+        import cec_fr
+        profile_name = cec_fab.board_profile_name(board)
+        profile = cec_fab.get_profile(profile_name) if profile_name else None
+        group = next((candidate for candidate in board.Groups()
+                      if candidate.GetName()
+                      == cec_fr.LOCAL_POFV_SIGNAL_VIA_GROUP), None)
+    except Exception:                                  # noqa: BLE001
+        profile = group = None
+    if not profile or not profile.get("pofv") or group is None:
+        ctx[key] = []
+        return set()
+
+    settings = board.GetDesignSettings()
+    ordinary_diameter = _mm(getattr(
+        settings, "m_ViasMinSize", pcbnew.FromMM(0.50)))
+    ordinary_drill = _mm(getattr(
+        settings, "m_MinThroughDrill", pcbnew.FromMM(0.20)))
+    reach_mm = 1.50
+    endpoint_tol_mm = 0.005
+
+    def point_mm(point):
+        return _mm(point.x), _mm(point.y)
+
+    def same_point(a, b):
+        return math.dist(point_mm(a), point_mm(b)) <= endpoint_tol_mm
+
+    pads_by_net = collections.defaultdict(list)
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            if (pad.GetNetCode() > 0
+                    and int(pad.GetAttribute())
+                    == int(pcbnew.PAD_ATTRIB_SMD)):
+                pads_by_net[pad.GetNetCode()].append(pad)
+
+    tracks_by_net = collections.defaultdict(list)
+    for item in board.GetTracks():
+        if item.Type() == pcbnew.PCB_TRACE_T and item.GetNetCode() > 0:
+            tracks_by_net[item.GetNetCode()].append(item)
+
+    legal = set()
+    for via in board.GetTracks():
+        if (via.GetClass() != "PCB_VIA" or not group.ContainsItem(via)
+                or int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH)):
+            continue
+        diameter = _via_width_mm(via)
+        drill = _mm(via.GetDrillValue())
+        if (diameter >= ordinary_diameter - 0.001
+                and drill >= ordinary_drill - 0.001):
+            continue                         # ordinary geometry needs no waiver
+        valid, _reason = cec_fab.pofv_dimensions(
+            profile, diameter, drill)
+        if not valid:
+            continue
+        via_point = via.GetPosition()
+        nearby_pads = [
+            pad for pad in pads_by_net.get(via.GetNetCode(), ())
+            if math.dist(point_mm(via_point), point_mm(pad.GetPosition()))
+            <= reach_mm + GEOMETRY_COMPARISON_TOLERANCE_MM]
+        if not nearby_pads:
+            continue
+        # The generator emits a direct pad-to-seat dogbone.  Requiring that
+        # exact bounded edge is intentionally stricter than mere same-net
+        # connectivity elsewhere on the board.
+        joined = False
+        for track in tracks_by_net.get(via.GetNetCode(), ()):
+            if same_point(track.GetStart(), via_point):
+                other = track.GetEnd()
+            elif same_point(track.GetEnd(), via_point):
+                other = track.GetStart()
+            else:
+                continue
+            for pad in nearby_pads:
+                try:
+                    lands_on_pad = bool(pad.HitTest(other))
+                except Exception:                       # noqa: BLE001
+                    lands_on_pad = same_point(other, pad.GetPosition())
+                if lands_on_pad:
+                    joined = True
+                    break
+            if joined:
+                break
+        if joined:
+            legal.add(via.m_Uuid.AsString())
+    ctx[key] = sorted(legal)
+    return legal
+
+
 @checker("trace-width-high-current")
 def _chk_tw(board, path, ctx):
     if _track_count(board) == 0:
@@ -3715,7 +3912,11 @@ def _chk_tw(board, path, ctx):
             continue
         contract = current_contract(n)
         amps = contract.get("amps") if contract else None
-        if amps is None or amps < 1.0:
+        # Explicit current authority, rather than a historical 1 A heuristic,
+        # decides whether copper must be proven.  This keeps fused USB/service
+        # rails from escaping the width gate merely because their continuous
+        # rating is 750 mA.
+        if amps is None or amps <= 0.0:
             continue
         checked += 1
         if n in distributed_ground_nets:
@@ -3808,7 +4009,7 @@ def _chk_tw(board, path, ctx):
                     "reason": reason}
                    for net, required, count, reason in domain_bad[:20]])
     if checked == 0:
-        return None, "no routed net with a ratified >=1A current model"
+        return None, "no routed net with a ratified current model"
     return True, ("%d current-model trace segment(s) checked against %s; %d embedded in "
                   "their own filled zone; %d bounded pin neck-down(s); %d "
                   "topology-proven filtered Kelvin stub(s); %d "
@@ -4025,6 +4226,10 @@ def _chk_netclass_geom(board, path, ctx):
     # normalization without duplicating (and eventually drifting from) its graph
     # distance and collision logic.  Any classifier error fails closed below.
     legal_neckdowns = _legal_neckdown_uuids(path, ctx)
+    legal_pair_returns = _validated_local_pair_return_uuids(
+        board, path, ctx)
+    legal_pofv_signals = _validated_local_pofv_signal_uuids(
+        board, path, ctx)
     bad = collections.defaultdict(lambda: collections.Counter())
     qualified_pofv = 0
     for t in board.GetTracks():
@@ -4034,6 +4239,10 @@ def _chk_netclass_geom(board, path, ctx):
         cls = resolve(net)
         minima = classes.get(cls, {})
         if isinstance(t, pcbnew.PCB_VIA):
+            if t.m_Uuid.AsString() in legal_pofv_signals:
+                continue                  # exact, locally re-proven POFV dogbone
+            if t.m_Uuid.AsString() in legal_pair_returns:
+                continue                  # exact, independently re-proven HF return
             blocking, allowed = cec_fab.via_at_pad_conflicts(
                 board, t.GetPosition(), t.GetWidth(t.TopLayer()),
                 t.GetDrillValue(), t.GetNetCode())
@@ -4065,11 +4274,15 @@ def _chk_netclass_geom(board, path, ctx):
         payload = [{"net": net, "class": cls, "kind": k, "count": n}
                    for (net, cls), cnt in bad.items() for k, n in cnt.items()]
         return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
-    return True, ("all tracks/vias meet assigned track/diff/via minima (%d classes; "
-                  "%d physical pair net(s); sense-stub exemption on %d net(s); "
-                  "%d bounded pin-neckdown track(s); %d profile-qualified POFV)" %
-                  (len(classes), len(pair_nets), len(sense),
-                   len(legal_neckdowns), qualified_pofv))
+    return True, (
+        "all tracks/vias meet assigned track/diff/via minima (%d classes; "
+        "%d physical pair net(s); sense-stub exemption on %d net(s); "
+        "%d bounded pin-neckdown track(s); %d profile-qualified POFV; "
+        "%d validated local pair-return via(s); "
+        "%d validated local POFV signal via(s))" %
+        (len(classes), len(pair_nets), len(sense),
+         len(legal_neckdowns), qualified_pofv, len(legal_pair_returns),
+         len(legal_pofv_signals)))
 
 
 # bom-field-lint: assembly-irrelevant refs + the DOCUMENTED-open sourcing gaps.

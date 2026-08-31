@@ -36,6 +36,69 @@ class RouteQualityTest(unittest.TestCase):
             board.Add(track)
         return board
 
+    def test_cardinal_and_forty_five_degree_segments_pass_heading_policy(self):
+        board = self._board([(0, 0), (2, 0), (3, 1), (3, 3)])
+        report = quality.analyze_board(board)
+        self.assertTrue(report["geometry_ok"])
+        self.assertTrue(report["craft_ok"])
+        self.assertEqual(report["non_octilinear_count"], 0)
+
+    def test_raw_diagonal_is_named_and_refused(self):
+        board = self._board([(0, 0), (2, 0.5)])
+        track = next(iter(board.GetTracks()))
+        track.SetLocked(True)
+        report = quality.analyze_board(board)
+        self.assertFalse(report["geometry_ok"])
+        self.assertFalse(report["craft_ok"])
+        self.assertEqual(report["non_octilinear_count"], 1)
+        self.assertTrue(report["non_octilinear"][0]["locked"])
+        self.assertEqual(report["non_octilinear"][0]["net"], "/USB_D_P")
+
+    def test_curved_trace_requires_explicit_per_net_policy(self):
+        board = pcbnew.BOARD()
+        # Deliberately use a high-frequency-looking name: naming must never
+        # silently waive the straight 0/45/90-degree copper policy.
+        net = pcbnew.NETINFO_ITEM(board, "/PCIE_REFCLK_P", 1)
+        board.Add(net)
+        arc = pcbnew.PCB_ARC(board)
+        arc.SetNet(net)
+        arc.SetLayer(pcbnew.F_Cu)
+        arc.SetWidth(int(0.2e6))
+        arc.SetStart(pcbnew.VECTOR2I(0, 0))
+        arc.SetMid(pcbnew.VECTOR2I(int(1.0e6), int(1.0e6)))
+        arc.SetEnd(pcbnew.VECTOR2I(int(2.0e6), 0))
+        board.Add(arc)
+
+        refused = quality.analyze_board(board)
+        admitted = quality.analyze_board(
+            board, allow_curved_nets={"/PCIE_REFCLK_P"})
+
+        self.assertFalse(refused["geometry_ok"])
+        self.assertEqual(refused["curved_trace_count"], 1)
+        self.assertFalse(
+            refused["curved_traces"][0]["allowed_by_explicit_policy"])
+        self.assertTrue(admitted["geometry_ok"])
+        self.assertTrue(admitted["craft_ok"])
+        self.assertTrue(
+            admitted["curved_traces"][0]["allowed_by_explicit_policy"])
+
+    def test_nanometre_quantization_does_not_create_a_false_angle(self):
+        board = self._board([(0, 0), (0, 0.534)])
+        track = next(iter(board.GetTracks()))
+        track.SetEnd(pcbnew.VECTOR2I(25, 534000))
+        report = quality.analyze_board(board)
+        self.assertTrue(report["geometry_ok"])
+
+    def test_heading_scope_checks_only_created_tracks(self):
+        board = self._board([(0, 0), (2, 0.5)])
+        track = next(iter(board.GetTracks()))
+        ignored = quality.analyze_board(
+            board, track_uuid_scope={"not-present"})
+        checked = quality.analyze_board(
+            board, track_uuid_scope={track.m_Uuid.AsString()})
+        self.assertTrue(ignored["geometry_ok"])
+        self.assertFalse(checked["geometry_ok"])
+
     def test_connected_135_degree_turn_is_blocking_on_critical_net(self):
         board = self._board([(0, 0), (2, 0), (1, 1)])
         report = quality.analyze_board(board, critical_nets={"/USB_D_P"})
@@ -48,6 +111,8 @@ class RouteQualityTest(unittest.TestCase):
         board = self._board([(0, 0), (2, 0), (1, 1)])
         report = quality.analyze_board(board)
         self.assertTrue(report["ok"])
+        self.assertTrue(report["geometry_ok"])
+        self.assertFalse(report["craft_ok"])
         self.assertEqual(report["advisory_count"], 1)
 
     def test_normal_ninety_degree_corner_passes(self):
@@ -117,6 +182,20 @@ class RouteQualityTest(unittest.TestCase):
 
         self.assertEqual(report["refused_nets"], ["/USB_D_P"])
         self.assertEqual(report["removed_generated_items"], 2)
+        self.assertEqual(len(list(repaired.GetTracks())), 0)
+
+    def test_staged_admission_drops_generated_raw_diagonal(self):
+        board = self._board([(0, 0), (2, 0.5)])
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "raw-diagonal.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            report = staged._route_quality_stage_worker(
+                path, ("/USB_D_P",), ())
+            repaired = pcbnew.LoadBoard(path)
+
+        self.assertFalse(report["geometry_ok"])
+        self.assertEqual(report["refused_nets"], ["/USB_D_P"])
+        self.assertEqual(report["removed_generated_items"], 1)
         self.assertEqual(len(list(repaired.GetTracks())), 0)
 
 

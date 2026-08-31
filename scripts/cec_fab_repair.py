@@ -135,8 +135,6 @@ def repair_backtracks(board, *, angle_deg=5.0):
                     first, second = lst[i], lst[j]
                     t1, p1, q1, _start1 = first
                     t2, p2, q2, _start2 = second
-                    if t1.GetWidth() != t2.GetWidth():
-                        continue
                     v1 = (q1.x - p1.x, q1.y - p1.y)
                     v2 = (q2.x - p2.x, q2.y - p2.y)
                     n1, n2 = math.hypot(*v1), math.hypot(*v2)
@@ -158,8 +156,17 @@ def repair_backtracks(board, *, angle_deg=5.0):
                     if abs(n1 - n2) <= tolerance_nm:
                         continue
                     short, long = (first, second) if n1 < n2 else (second, first)
-                    _short_t, _origin, short_far, _short_at_start = short
+                    short_t, _origin, short_far, _short_at_start = short
                     long_t, _long_origin, _long_far, long_at_start = long
+                    # Width transitions commonly arrive as a wide trunk and a
+                    # narrower continuation emitted from the same vertex.  The
+                    # same trim is copper-union preserving precisely when the
+                    # shorter segment is at least as wide as the longer one:
+                    # it already covers the complete overlap.  Refuse the
+                    # inverse case because trimming a wider long segment would
+                    # remove copper beside the narrow short segment.
+                    if short_t.GetWidth() < long_t.GetWidth():
+                        continue
                     # Trim the long segment to begin at the explicit shorter
                     # endpoint.  Keeping the short prefix preserves any branch,
                     # pad, or via attached there and leaves the copper union
@@ -411,10 +418,12 @@ def repair_sliver_only_orthofill(board_path, *, sliver_mm=0.10,
     zones = sliver_only_orthofill_zones(board, sliver_mm=sliver_mm)
     names = sorted(zone.GetZoneName() or "" for zone in zones)
     if apply:
-        # No proxy is accessed after the removals except Save(), avoiding the
-        # KiCad SWIG invalidation that motivated the isolated repair process.
+        # Delete transfers ownership through KiCad's native board API.  The
+        # older Remove call left nine live Python zone proxies dangling on a
+        # mixed orthofill board and the worker segfaulted during Save/destruct,
+        # so the supposedly safe sliver pass was never adoptable.
         for zone in zones:
-            board.Remove(zone)
+            board.Delete(zone)
         board.Save(board_path)
     return {"board": os.path.relpath(board_path),
             "sliver_zones_removed": len(zones),
@@ -423,7 +432,8 @@ def repair_sliver_only_orthofill(board_path, *, sliver_mm=0.10,
 
 def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
            do_island=True, do_starved=True, do_acute=True,
-           do_backtrack=True):
+           do_backtrack=True, do_chamfer=False,
+           allow_locked_track_uuids=()):
     """ONE board load, with removals strictly LAST.
 
     Two SWIG constraints on this KiCad-10 build drive the ordering, both
@@ -448,6 +458,15 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
                             do_island=do_island))
     rep["starved"] = repair_starved_thermal(b) if do_starved else 0
     rep["acute_vertices"] = repair_acute_vertices(b) if do_acute else 0
+    if do_chamfer:
+        sensitive = set(cec_fr.coupled_pair_nets(b))
+        sensitive |= {net for pair in cec_fr._board_kelvin_pairs(b)
+                      for net in pair}
+        rep["chamfers"] = cec_fr.chamfer_unlocked_right_angles(
+            b, exclude_nets=sensitive,
+            allow_locked_track_uuids=allow_locked_track_uuids)
+    else:
+        rep["chamfers"] = {"chamfered": 0, "skipped": "disabled"}
     if apply:
         for z in b.Zones():
             z.UnFill()
@@ -481,6 +500,7 @@ def _score_isolated(board_path):
         "s=cec_stage_admission.snapshot(m);s.update({"
         "'route_blocking':int(q.get('blocking_count',0)),"
         "'route_advisory':int(q.get('advisory_count',0)),"
+        "'route_non_octilinear':int(q.get('non_octilinear_count',0)),"
         "'objective':float(cec_score.objective(m))});"
         "print('CEC_FAB_SCORE='+json.dumps(s,sort_keys=True))")
     proc = subprocess.run(
@@ -564,6 +584,11 @@ def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
         argv.append("--no-acute")
     if not kwargs.get("do_backtrack", True):
         argv.append("--no-backtrack")
+    if kwargs.get("do_chamfer", False):
+        argv.append("--chamfer")
+    uuid_file = kwargs.get("generated_track_uuid_file")
+    if uuid_file:
+        argv.extend(("--generated-track-uuid-file", uuid_file))
     proc = subprocess.run(argv, capture_output=True, text=True,
                           encoding="utf-8", errors="replace")
     if proc.returncode or not os.path.isfile(report_path):
@@ -593,7 +618,8 @@ def _sliver_repair_isolated(candidate, *, sliver_mm, report_path):
     return rows[0]
 
 
-def repair_admitted(board_path, *, sliver_mm=0.10):
+def repair_admitted(board_path, *, sliver_mm=0.10,
+                    allow_locked_track_uuids=()):
     """Try repair slices transactionally and publish only a no-regression winner.
 
     The old wave publisher applied every repair in one mutation and only scored
@@ -610,22 +636,41 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
     baseline_row = _score_isolated(board_path)
     baseline_row.update(_fab_isolated(board_path))
     baseline_row.update(_foreign_isolated(board_path))
+    # Older score adapters and third-party callers predate the explicit angle
+    # counter.  Absence means no reported non-octilinear copper, not an unknown
+    # regression; normalize once so admission/ranking stays schema-compatible.
+    baseline_row.setdefault("route_non_octilinear", 0)
     baseline = dict(baseline_row)
     parent = os.path.dirname(os.path.abspath(board_path)) or "."
     work = tempfile.mkdtemp(prefix=".cec-fab-admit-", dir=parent)
     stem = os.path.splitext(os.path.basename(board_path))[0]
     variants = []
     try:
+        generated_uuid_file = os.path.join(
+            work, "generated-track-uuids.json")
+        with open(generated_uuid_file, "w", encoding="utf-8") as handle:
+            json.dump(sorted({str(value) for value in
+                              (allow_locked_track_uuids or ()) if value}),
+                      handle)
         for name, kwargs in (
                 ("copper_cleanup", {"do_priority": False,
                                     "do_starved": False,
                                     "do_acute": False}),
+                ("corner_polish", {"do_priority": False,
+                                   "do_starved": False,
+                                   "do_acute": False,
+                                   "do_backtrack": False,
+                                   "do_chamfer": True}),
                 ("track_polish", {"do_priority": False,
-                                  "do_starved": False}),
+                                  "do_starved": False,
+                                  "do_chamfer": True}),
                 ("fab_polish", {"do_priority": False,
                                 "do_starved": False,
-                                "sliver_cleanup": True}),
-                ("full", {})):
+                                "sliver_cleanup": True,
+                                "do_chamfer": True}),
+                ("full", {"do_chamfer": True})):
+            kwargs = dict(kwargs)
+            kwargs["generated_track_uuid_file"] = generated_uuid_file
             candidate = os.path.join(work, "%s-%s.kicad_pcb" % (stem, name))
             shutil.copy2(board_path, candidate)
             for ext in (".kicad_pro", ".kicad_dru", ".kicad_prl"):
@@ -648,6 +693,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
                 score_row = _score_isolated(candidate)
                 score_row.update(_fab_isolated(candidate))
                 score_row.update(_foreign_isolated(candidate))
+                score_row.setdefault("route_non_octilinear", 0)
                 snapshot = dict(score_row)
                 # Import here rather than at module load so dry-run repair
                 # primitives stay usable on hosts without the scoring stack.
@@ -655,6 +701,8 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
                 admission = cec_stage_admission.evaluate(
                     baseline, snapshot)
                 safe = (admission["accepted"]
+                        and snapshot["route_non_octilinear"]
+                        <= baseline["route_non_octilinear"]
                         and snapshot["route_blocking"]
                         <= baseline["route_blocking"]
                         and snapshot["foreign_status"] != "error"
@@ -683,6 +731,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
         # stable fallback so a neutral rewrite is never published gratuitously.
         baseline_key = (baseline["foreign_blocking"],
                         baseline["fab_blocking"],
+                        baseline["route_non_octilinear"],
                         baseline["route_blocking"], baseline["route_advisory"],
                         baseline["drc"], baseline["unconnected"],
                         float(baseline_row["objective"]), "baseline")
@@ -691,6 +740,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10):
         for row in safe_variants:
             snap = row["metrics"]
             key = (snap["foreign_blocking"], snap["fab_blocking"],
+                   snap["route_non_octilinear"],
                    snap["route_blocking"], snap["route_advisory"],
                    snap["drc"], snap["unconnected"], row["objective"], row["name"])
             if key < chosen_key:
@@ -721,6 +771,8 @@ def main():
     ap.add_argument("--no-starved", action="store_true")
     ap.add_argument("--no-acute", action="store_true")
     ap.add_argument("--no-backtrack", action="store_true")
+    ap.add_argument("--chamfer", action="store_true")
+    ap.add_argument("--generated-track-uuid-file")
     ap.add_argument("--sliver-only-orthofill", action="store_true")
     ap.add_argument("--json", default="")
     a = ap.parse_args()
@@ -733,12 +785,19 @@ def main():
             r = repair_sliver_only_orthofill(
                 bp, sliver_mm=a.sliver, apply=a.apply)
         else:
+            generated_uuids = ()
+            if a.generated_track_uuid_file:
+                with open(a.generated_track_uuid_file,
+                          encoding="utf-8") as source:
+                    generated_uuids = json.load(source)
             r = repair(bp, sliver_mm=a.sliver, apply=a.apply,
                        do_priority=not a.no_priority,
                        do_island=not a.no_island,
                        do_starved=not a.no_starved,
                        do_acute=not a.no_acute,
-                       do_backtrack=not a.no_backtrack)
+                       do_backtrack=not a.no_backtrack,
+                       do_chamfer=a.chamfer,
+                       allow_locked_track_uuids=generated_uuids)
         out.append(r)
         if a.sliver_only_orthofill:
             print("%-46s sliver_zones=%-3d %s"
@@ -747,10 +806,11 @@ def main():
                      "APPLIED" if r["applied"] else "(dry run)"),
                   flush=True)
         else:
-            print("%-46s tracks=%-3d backtracks=%-3d acute=%-3d min_thick=%-3d islands=%-3d "
+            print("%-46s tracks=%-3d backtracks=%-3d acute=%-3d chamfers=%-3d min_thick=%-3d islands=%-3d "
                   "priority=%-3d starved=%-3d %s"
                   % (os.path.basename(bp)[:46], r["track_width"],
                      r["backtracks"], r["acute_vertices"],
+                     int((r.get("chamfers") or {}).get("chamfered", 0)),
                      r["min_thickness"], r["island_mode"], r["priority"],
                      r.get("starved", 0),
                      "APPLIED" if r["applied"] else "(dry run)"),

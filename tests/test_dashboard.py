@@ -314,8 +314,8 @@ class TestDashboard(unittest.TestCase):
             dashboard.WATCH_GLOBS)
 
     def test_route_angle_quality_is_visible(self):
-        self.assertIn("unlocked_off45_tracks", dashboard.PAGE)
-        self.assertIn("off-45", dashboard.PAGE)
+        self.assertIn("non_octilinear_tracks", dashboard.PAGE)
+        self.assertIn("angle 0/45/90", dashboard.PAGE)
 
     def test_routing_congestion_is_visible(self):
         self.assertIn("routing-congestion.png",
@@ -417,6 +417,18 @@ class TestDashboard(unittest.TestCase):
                     "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE})
         self.assertEqual((verdict, failing), ("CLEAN", []))
         self.assertIn("geometry unproven", dashboard.PAGE)
+
+    def test_route_craft_defect_is_a_dashboard_failure(self):
+        gates = {"ok": True, "kelvin_ok": True, "drc": 0,
+                 "unconnected": 0, "foreign": {"status": "na"},
+                 "route_sanity": {"geometry_ok": True,
+                                  "craft_ok": False,
+                                  "craft_issue_count": 1}}
+        verdict, failing = dashboard._verdict(
+            gates, {"ok": True, "verdict": "PASS",
+                    "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE})
+        self.assertEqual((verdict, failing), ("FAILED", ["route-craft"]))
+        self.assertIn("route craft", dashboard.PAGE)
 
     @unittest.skipUnless(shutil.which("kicad-cli") and shutil.which("rsvg-convert"),
                          "KiCad and rsvg-convert required for the real wave tile")

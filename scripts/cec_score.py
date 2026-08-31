@@ -1149,6 +1149,9 @@ def score(
     topology_fault_nets = {
         row.get("net") for row in route_quality.get("issues", ())
         if row.get("severity") == "blocking" and row.get("net")}
+    topology_fault_nets |= {
+        row.get("net") for row in route_quality.get("non_octilinear", ())
+        if row.get("severity") == "blocking" and row.get("net")}
     if route_quality.get("error") and watch_nets:
         topology_reason = (
             "protected-route topology audit errored (fail-closed): %s"
@@ -1169,7 +1172,8 @@ def score(
                 continue
             messages = [
                 "%s topology gate: %s" % (label, row["message"])
-                for row in route_quality.get("issues", ())
+                for row in (list(route_quality.get("issues", ()))
+                            + list(route_quality.get("non_octilinear", ())))
                 if row.get("net") in affected
                 and row.get("severity") == "blocking"]
             if label == "kelvin":

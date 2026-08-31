@@ -130,6 +130,27 @@ def final_blockers(drc_data, *, topology=None, structural_filter=None):
                                      {str(issue["net"])})
             blocker["causal_chain"][0]["nets"] = blocker["nets"]
         blockers.append(blocker)
+    for issue in (topology or {}).get("non_octilinear") or ():
+        start, end = issue.get("start_mm") or (), issue.get("end_mm") or ()
+        pos = None
+        if len(start) == 2 and len(end) == 2:
+            pos = {"x": (float(start[0]) + float(end[0])) / 2.0,
+                   "y": (float(start[1]) + float(end[1])) / 2.0}
+        items = [{"uuid": issue.get("uuid"),
+                  "description": issue.get("message"), "pos": pos}]
+        blocker = _final_blocker(
+            ("route_geometry" if issue.get("severity") == "blocking"
+             else "route_geometry_advisory"),
+            str(issue.get("type") or "non_octilinear_segment"),
+            str(issue.get("message") or "non-octilinear route segment"),
+            items, authority="cec_route_quality",
+            severity=("blocking" if issue.get("severity") == "blocking"
+                      else "advisory"))
+        if issue.get("net"):
+            blocker["nets"] = sorted(set(blocker["nets"]) |
+                                     {str(issue["net"])})
+            blocker["causal_chain"][0]["nets"] = blocker["nets"]
+        blockers.append(blocker)
     blockers.sort(key=lambda row: (row["kind"], row["rule"], row["id"]))
     return blockers
 

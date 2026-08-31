@@ -75,6 +75,49 @@ class FabRepairAdmissionTest(unittest.TestCase):
         self.assertEqual(branch.GetStart(), short.GetEnd())
         self.assertEqual(len(list(board.GetTracks())), 3)
 
+    def test_wide_short_trunk_safely_absorbs_narrow_overlap(self):
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIG")
+        board.Add(net)
+
+        def track(end, width):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(1, 1))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(width))
+            item.SetLayer(board.GetLayerID("F.Cu"))
+            item.SetNet(net)
+            board.Add(item)
+            return item
+
+        wide_short = track((3, 1), 0.50)
+        narrow_long = track((5, 1), 0.25)
+
+        self.assertEqual(repair.repair_backtracks(board), 1)
+        self.assertEqual(narrow_long.GetStart(), wide_short.GetEnd())
+        self.assertEqual(narrow_long.GetWidth(), pcbnew.FromMM(0.25))
+
+    def test_narrow_short_segment_cannot_absorb_wide_overlap(self):
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIG")
+        board.Add(net)
+
+        def track(end, width):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(1, 1))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(width))
+            item.SetLayer(board.GetLayerID("F.Cu"))
+            item.SetNet(net)
+            board.Add(item)
+            return item
+
+        narrow_short = track((3, 1), 0.25)
+        wide_long = track((5, 1), 0.50)
+
+        self.assertEqual(repair.repair_backtracks(board), 0)
+        self.assertEqual(wide_long.GetStart(), narrow_short.GetStart())
+
     def test_near_collinear_fork_is_not_treated_as_covered_copper(self):
         board = pcbnew.CreateEmptyBoard()
         net = pcbnew.NETINFO_ITEM(board, "/SIG")
@@ -180,7 +223,8 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     "route_blocking": 0, "route_advisory": 5,
                     "objective": 100.0,
                 }
-                if ("copper_cleanup" in name or "track_polish" in name
+                if ("copper_cleanup" in name or "corner_polish" in name
+                        or "track_polish" in name
                         or "fab_polish" in name or "full" in name):
                     row.update({
                         "drc": 1,

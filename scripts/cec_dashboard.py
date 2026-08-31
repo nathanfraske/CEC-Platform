@@ -166,13 +166,23 @@ def _write_issue_overlay(board_path, svg_path, drc_data, metrics=None):
     if topology is None:
         import cec_route_quality
         topology = cec_route_quality.analyze_board(board)
-    topology_issues = list(topology.get("issues") or ())
+    topology_issues = (list(topology.get("issues") or ())
+                       + list(topology.get("non_octilinear") or ()))
     topology_nets = {row.get("net") for row in topology_issues if row.get("net")}
-    topology_uuids = {uuid for row in topology_issues
-                      for uuid in (row.get("track_uuids") or ())}
+    topology_uuids = {
+        uuid for row in topology_issues
+        for uuid in (list(row.get("track_uuids") or ())
+                     + ([row.get("uuid")] if row.get("uuid") else []))}
     topology_positions = [
         (float(row["at_mm"][0]), float(row["at_mm"][1]), row.get("message", ""))
         for row in topology_issues if len(row.get("at_mm") or ()) == 2]
+    topology_positions.extend([
+        ((float(row["start_mm"][0]) + float(row["end_mm"][0])) / 2.0,
+         (float(row["start_mm"][1]) + float(row["end_mm"][1])) / 2.0,
+         row.get("message", ""))
+        for row in topology_issues
+        if (len(row.get("start_mm") or ()) == 2
+            and len(row.get("end_mm") or ()) == 2)])
     # One exact DRC authority feeds both the visible overlay and the durable
     # blocker ledger.  The ledger intentionally starts with origin_known=False:
     # a final KiCad error proves the bad geometry, not which earlier pass made
@@ -306,7 +316,7 @@ def _write_issue_overlay(board_path, svg_path, drc_data, metrics=None):
         f'<line x1="{lx+24:.3f}" y1="{ly+4.9:.3f}" x2="{lx+27:.3f}" '
         f'y2="{ly+4.9:.3f}" stroke="{cyan}" stroke-width="0.65"/>',
         f'<text x="{lx+27.7:.3f}" y="{ly+5.35:.3f}" fill="#e8f1f5" '
-        f'font-family="monospace" font-size="1.15">route topology ({len(topology_issues)})</text>',
+        f'font-family="monospace" font-size="1.15">route topology / angle ({len(topology_issues)})</text>',
     ])
     if not structural and not unconnected and not topology_issues:
         lines.append(
@@ -321,12 +331,14 @@ def _write_issue_overlay(board_path, svg_path, drc_data, metrics=None):
         "drc_nets": sorted(drc["nets"]),
         "unconnected_nets": sorted(unc["nets"]),
         "route_topology": len(topology_issues),
+        "route_non_octilinear": int(
+            topology.get("non_octilinear_count") or 0),
         "route_topology_nets": sorted(topology_nets),
         "components": sorted(problem_refs),
         "blockers": blockers,
         "blocker_summary": blocker_summary,
         "legend": {"structural_drc": red, "unconnected": amber,
-                   "route_topology": cyan, "component": magenta},
+                   "route_geometry": cyan, "component": magenta},
     }
 
 # The 3 key boards the archive is seeded with (newest under a glob is taken).
@@ -994,6 +1006,12 @@ def _verdict(gates, thermal):
         failing.append("unconnected")
     if gates.get("drc"):
         failing.append("drc")
+    route_sanity = gates.get("route_sanity") or {}
+    # Missing on historical archives is unknown/legacy, not retroactive proof
+    # of failure.  Every newly analyzed board carries the explicit whole-board
+    # craft verdict and fails visibly on any route backtrack/overlap/angle arc.
+    if route_sanity.get("craft_ok") is False:
+        failing.append("route-craft")
     geometry_source = thermal.get("geometry_source")
     if geometry_source == "INVALID" or (
             thermal.get("ok") and geometry_source != THERMAL_GEOMETRY_SOURCE):
@@ -1668,8 +1686,10 @@ function renderBadges(){
    h+=`<span class="pill ${clean?'ok':'warn'}" title="Incremental future-route forecast: protected-corridor conflicts ${esc(fc.critical_corridor_conflicts)}, fixed-point overflow ${esc(fc.overflow_units)}, expected vias ${esc(fc.expected_via_count)}, obstacle crossings ${esc(fc.corridor_obstacle_crossings)} across ${(fc.layers||[]).length} route layers">forecast ${esc(fc.critical_corridor_conflicts)}/${esc(fc.overflow_units)}</span>`;
   }
  }else h+=`<span class="pill dim" title="${esc(rt.error||'')}">congestion n/a</span>`;
- const off45=Number.isInteger(rq.unlocked_off45_tracks)?rq.unlocked_off45_tracks:null;
- if(off45!==null) h+=`<span class="pill ${off45===0?'ok':'warn'}" title="Unlocked generated trace segments outside 0/45/90 degrees; locked authored launches excluded">off-45 ${off45}</span>`;
+ const off45=Number.isInteger(rq.non_octilinear_tracks)?rq.non_octilinear_tracks:null;
+ if(off45!==null) h+=`<span class="pill ${off45===0?'ok':'bad'}" title="All straight copper, locked or unlocked, must use 0/45/90-degree headings; curves require an explicit net policy">angle 0/45/90 · ${off45}</span>`;
+ const craft=Number.isInteger(rq.craft_issue_count)?rq.craft_issue_count:null;
+ if(craft!==null) h+=`<span class="pill ${rq.craft_ok?'ok':'bad'}" title="Whole-board route craft: no acute backtracks, covered duplicate segments, arbitrary headings, or unauthorized curved copper">route craft · ${craft}</span>`;
  const geomOk=t.geometry_source==='source-declared-copper-only:v1';
  if(t.ok&&!geomOk) h+=`<span class="pill bad" title="Legacy or unproven FEM geometry; re-run this board with source-only copper verification">thermal INVALID · geometry unproven</span>`;
  else if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal on source-declared copper only, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;

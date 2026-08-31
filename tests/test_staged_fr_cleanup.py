@@ -126,6 +126,14 @@ class StagedRouterCleanupTests(unittest.TestCase):
                          [["/ONLY"]])
         self.assertEqual(staged.adaptive_retry_chunks([]), [])
 
+    def test_adaptive_retry_requires_retained_topology_change(self):
+        self.assertFalse(staged.adaptive_retry_warranted(
+            ["/OPEN"], [], retry_depth=0, max_depth=2))
+        self.assertTrue(staged.adaptive_retry_warranted(
+            ["/OPEN"], ["/CLOSED"], retry_depth=0, max_depth=2))
+        self.assertFalse(staged.adaptive_retry_warranted(
+            ["/OPEN"], ["/CLOSED"], retry_depth=2, max_depth=2))
+
     def test_staged_delta_restores_every_parent_net_outside_active_tier(self):
         def track(net):
             item = mock.Mock()
@@ -261,6 +269,8 @@ class StagedRouterCleanupTests(unittest.TestCase):
             if worker is staged._route_quality_stage_worker:
                 return {"ok": True, "issues": [], "refused_nets": [],
                         "removed_generated_items": 0}
+            if worker is staged._refill_stage_worker:
+                return True
             self.fail("unexpected staged worker")
 
         def export(_board, dsn):

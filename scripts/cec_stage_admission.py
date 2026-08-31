@@ -98,6 +98,12 @@ def snapshot(metrics):
             for row in kelvin_topology}),
         "route_topology_fault_nets": sorted({
             str(net) for net in route_topology_nets if net}),
+        "foreign_on_laid_pour": int(
+            _value(metrics, "foreign_on_laid_pour", 0) or 0),
+        "foreign_on_laid_pour_identities": sorted({
+            str(identity) for identity in (
+                _value(metrics, "foreign_on_laid_pour_identities", ())
+                or ())}),
         "unconn_signature_sha256": str(
             _value(metrics, "unconn_signature_sha256", None)
             or detail.get("unconn_signature_sha256") or ""),
@@ -134,6 +140,9 @@ def evaluate(before, after, *, require_strict=False,
     new_route_topology_nets = sorted(
         set(new["route_topology_fault_nets"])
         - set(old["route_topology_fault_nets"]))
+    new_foreign_pour_identities = sorted(
+        set(new["foreign_on_laid_pour_identities"])
+        - set(old["foreign_on_laid_pour_identities"]))
     allowed_nets = {str(net) for net in allowed_new_unconnected_nets if net}
     allowed_drc = {str(kind) for kind in allowed_new_drc_types if kind}
     all_new_unconnected_nets = sorted(new_nets - old_nets)
@@ -158,6 +167,10 @@ def evaluate(before, after, *, require_strict=False,
         reasons.append("new_kelvin_topology_fault")
     if new_route_topology_nets:
         reasons.append("new_route_topology_fault_nets")
+    if new["foreign_on_laid_pour"] > old["foreign_on_laid_pour"]:
+        reasons.append("foreign_on_laid_pour_regressed")
+    if new_foreign_pour_identities:
+        reasons.append("new_foreign_on_laid_pour_identity")
     if (new["unconnected"] > old["unconnected"]
             and not allow_unconnected_growth):
         reasons.append("unconnected_regressed")
@@ -172,8 +185,10 @@ def evaluate(before, after, *, require_strict=False,
     if new_drc_identities:
         reasons.append("new_structural_drc_identity")
     if (require_strict and not reasons
-            and (new["unconnected"], new["drc"])
-            >= (old["unconnected"], old["drc"])):
+            and (new["unconnected"], new["drc"],
+                 new["foreign_on_laid_pour"])
+            >= (old["unconnected"], old["drc"],
+                old["foreign_on_laid_pour"])):
         reasons.append("no_structural_improvement")
 
     decision = (reasons[0] if reasons else
@@ -194,6 +209,8 @@ def evaluate(before, after, *, require_strict=False,
             set(all_new_drc_identities) - set(new_drc_identities)),
         "new_kelvin_topology_faults": new_kelvin_topology,
         "new_route_topology_fault_nets": new_route_topology_nets,
+        "new_foreign_on_laid_pour_identities":
+            new_foreign_pour_identities,
         # Endpoint hashes remain useful forensic evidence even though they are
         # intentionally not a hard gate (see module docstring).
         "unconn_endpoint_signature_changed": bool(

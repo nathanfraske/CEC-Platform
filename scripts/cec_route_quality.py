@@ -4,7 +4,9 @@
 Connectivity and DRC are necessary but not sufficient route checks.  A trace
 can be electrically connected and clearance-clean while doubling back through
 an acute vertex, creating the connected ``pseudo-stub`` that escaped the Hub
-USB review.  This module turns that visual defect into deterministic evidence.
+USB review.  It can also be emitted at an arbitrary heading that is neither
+cardinal nor 45 degrees.  This module turns both visual defects into
+deterministic evidence.
 
 The audit is deliberately conservative:
 
@@ -13,6 +15,10 @@ The audit is deliberately conservative:
 * a normal 90-degree or gentler route is accepted;
 * an opening angle below 90 degrees is an acute backtrack;
 * collinear/covered duplicates are reported separately.
+* straight copper is limited to the 0/45/90-degree heading family, within a
+  physical endpoint tolerance for KiCad nanometre quantization;
+* curved copper is refused unless its net is named by an explicit caller
+  policy -- a net name never silently implies a high-frequency waiver.
 
 No board is mutated here.  Generators use the result as a fail-closed admission
 check and candidate scorers use it to reject protected-net regressions or rank
@@ -61,8 +67,43 @@ def _track_row(track):
     }
 
 
+def canonical_heading(start, end, *, tolerance_nm=1000):
+    """Classify one segment against the cardinal/45-degree heading family.
+
+    The tolerance is an endpoint *distance*, not an angular waiver.  That
+    keeps a long, visibly arbitrary diagonal illegal while accepting a 25 nm
+    serialization delta on an otherwise vertical half-millimetre segment.
+    Returned ``heading_deg`` is normalized to the undirected 0..180 range.
+    """
+    sx, sy = _point(start) if hasattr(start, "x") else tuple(start)
+    ex, ey = _point(end) if hasattr(end, "x") else tuple(end)
+    dx, dy = int(ex) - int(sx), int(ey) - int(sy)
+    length_nm = math.hypot(dx, dy)
+    if length_nm <= 0:
+        return {
+            "ok": True, "family": "degenerate", "heading_deg": 0.0,
+            "error_nm": 0.0, "length_mm": 0.0,
+        }
+    # Perpendicular miss distance to the nearest undirected canonical line.
+    candidates = (
+        ("0", abs(dy)),
+        ("90", abs(dx)),
+        ("45", abs(abs(dx) - abs(dy)) / math.sqrt(2.0)),
+    )
+    family, error_nm = min(candidates, key=lambda row: row[1])
+    heading = abs(math.degrees(math.atan2(dy, dx))) % 180.0
+    return {
+        "ok": error_nm <= max(0, int(tolerance_nm)),
+        "family": family,
+        "heading_deg": round(heading, 6),
+        "error_nm": round(error_nm, 3),
+        "length_mm": round(length_nm / 1e6, 6),
+    }
+
+
 def analyze_board(board, *, critical_nets=(), min_open_angle_deg=89.0,
-                  track_uuid_scope=None):
+                  track_uuid_scope=None, heading_tolerance_nm=1000,
+                  allow_curved_nets=()):
     """Return deterministic acute-backtrack evidence for an open board.
 
     ``critical_nets`` promotes matching rows to blocking issues.  When
@@ -72,14 +113,63 @@ def analyze_board(board, *, critical_nets=(), min_open_angle_deg=89.0,
     """
     critical = set(critical_nets or ())
     scope = None if track_uuid_scope is None else set(track_uuid_scope)
+    curved_allowed = set(allow_curved_nets or ())
     rows = []
+    non_octilinear = []
+    curved = []
     for item in board.GetTracks():
-        if item.GetClass() != "PCB_TRACK":
+        item_class = item.GetClass()
+        item_uuid = _uuid(item)
+        if scope is not None and item_uuid not in scope:
+            continue
+        if item_class == "PCB_ARC":
+            net_name = item.GetNetname() or ""
+            row = {
+                "type": "curved_trace",
+                "uuid": item_uuid,
+                "net": net_name,
+                "layer": _layer_name(board, int(item.GetLayer())),
+                "allowed_by_explicit_policy": (
+                    net_name in curved_allowed),
+                "severity": "blocking" if net_name in critical else "advisory",
+                "message": (
+                    f"{net_name} uses curved copper without an explicit "
+                    "curved-route policy"),
+            }
+            curved.append(row)
+            if not row["allowed_by_explicit_policy"]:
+                non_octilinear.append(row)
+            continue
+        if item_class != "PCB_TRACK":
             continue
         row = _track_row(item)
         if not row["net"] or row["start"] == row["end"]:
             continue
         rows.append(row)
+        heading = canonical_heading(
+            row["start"], row["end"], tolerance_nm=heading_tolerance_nm)
+        if not heading["ok"]:
+            non_octilinear.append({
+                "type": "non_octilinear_segment",
+                "uuid": row["uuid"],
+                "net": row["net"],
+                "layer": _layer_name(board, row["layer_id"]),
+                "start_mm": [round(value / 1e6, 6)
+                             for value in row["start"]],
+                "end_mm": [round(value / 1e6, 6)
+                           for value in row["end"]],
+                "heading_deg": heading["heading_deg"],
+                "nearest_family": heading["family"],
+                "heading_error_nm": heading["error_nm"],
+                "length_mm": heading["length_mm"],
+                "locked": bool(item.IsLocked()),
+                "severity": (
+                    "blocking" if row["net"] in critical else "advisory"),
+                "message": (
+                    f"{row['net']} has a {heading['heading_deg']:.3f}deg "
+                    f"segment on {_layer_name(board, row['layer_id'])}; "
+                    "straight copper must be 0/45/90 degrees"),
+            })
 
     junctions = defaultdict(list)
     for row in rows:
@@ -220,8 +310,29 @@ def analyze_board(board, *, critical_nets=(), min_open_angle_deg=89.0,
     issues.sort(key=lambda row: (row["net"], row["layer"], row["at_mm"],
                                  row["type"], row["track_uuids"]))
     blocking = [row for row in issues if row["severity"] == "blocking"]
+    non_octilinear.sort(key=lambda row: (
+        row.get("net", ""), row.get("layer", ""), row.get("uuid", ""),
+        row.get("type", "")))
+    geometry_ok = not non_octilinear
+    # ``ok`` deliberately remains the scoped in-flight admission verdict:
+    # ordinary-net craft findings may be carried while a staged router is
+    # monotonically reducing an incomplete board.  ``craft_ok`` is the
+    # release-grade whole-board verdict.  This split prevents an intermediate
+    # repair from being deadlocked by inherited residue while ensuring that a
+    # final candidate cannot ship with covered overlaps, acute backtracks, raw
+    # diagonals, or unauthorized arcs on *any* net.
+    craft_ok = geometry_ok and not issues
     return {
         "ok": not blocking,
+        "geometry_ok": geometry_ok,
+        "craft_ok": craft_ok,
+        "angle_policy": "straight-0/45/90-only; curves-explicit-policy-only",
+        "heading_tolerance_nm": int(heading_tolerance_nm),
+        "non_octilinear_count": len(non_octilinear),
+        "non_octilinear": non_octilinear,
+        "curved_trace_count": len(curved),
+        "curved_traces": curved,
+        "allow_curved_nets": sorted(curved_allowed),
         "issue_count": len(issues),
         "blocking_count": len(blocking),
         "advisory_count": len(issues) - len(blocking),
@@ -231,13 +342,16 @@ def analyze_board(board, *, critical_nets=(), min_open_angle_deg=89.0,
 
 
 def analyze(board_path, *, critical_nets=(), min_open_angle_deg=89.0,
-            track_uuid_scope=None, board=None):
+            track_uuid_scope=None, heading_tolerance_nm=1000,
+            allow_curved_nets=(), board=None):
     import pcbnew
     loaded = board or pcbnew.LoadBoard(board_path)
     result = analyze_board(
         loaded, critical_nets=critical_nets,
         min_open_angle_deg=min_open_angle_deg,
-        track_uuid_scope=track_uuid_scope)
+        track_uuid_scope=track_uuid_scope,
+        heading_tolerance_nm=heading_tolerance_nm,
+        allow_curved_nets=allow_curved_nets)
     result["board"] = os.path.abspath(board_path)
     return result
 
@@ -256,7 +370,7 @@ def main(argv=None):
         with open(args.json, "w", encoding="utf-8") as handle:
             handle.write(payload + "\n")
     print(payload)
-    return 0 if result["ok"] else 2
+    return 0 if result["craft_ok"] else 2
 
 
 if __name__ == "__main__":

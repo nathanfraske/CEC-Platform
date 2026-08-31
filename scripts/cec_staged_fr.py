@@ -212,6 +212,133 @@ def parent_copper_nets_outside_tier(board, tier_nets):
     }
 
 
+def _serialized_group_records(board_path):
+    """Read PCB_GROUP identity without retaining pcbnew SWIG proxies.
+
+    KiCad 10's legacy Python wrapper can return bare ``SwigPyObject`` values
+    when two group-bearing boards are loaded in one interpreter.  The group
+    records in a .kicad_pcb are small, stable S-expressions, so carry their
+    plain name/UUID/member identities across the transaction instead.
+    """
+    text = open(board_path, encoding="utf-8", errors="replace").read()
+    records = []
+    pattern = re.compile(
+        r'(?m)^(?P<indent>[ \t]*)(?P<open>\(group\s+"(?P<name>[^"]*)")')
+    for match in pattern.finditer(text):
+        start = match.start("open")
+        block, end = _carve(text, start)
+        uuid_match = re.search(r'\(uuid\s+"([^"]+)"\)', block)
+        members_match = re.search(r'\(members\s+([^)]*)\)', block, re.S)
+        if not uuid_match or not members_match:
+            continue
+        records.append({
+            "name": match.group("name"),
+            "uuid": uuid_match.group(1),
+            "members": re.findall(r'"([0-9a-fA-F-]{36})"',
+                                  members_match.group(1)),
+            "start": match.start(),
+            "end": end,
+            "indent": match.group("indent"),
+        })
+    return text, records
+
+
+def _group_block(name, uuid, members, indent="\t"):
+    escaped = str(name).replace("\\", "\\\\").replace('"', '\\"')
+    member_text = " ".join('"%s"' % member for member in sorted(members))
+    return (f'{indent}(group "{escaped}"\n'
+            f'{indent}\t(uuid "{uuid}")\n'
+            f'{indent}\t(members {member_text})\n'
+            f'{indent})')
+
+
+def _restore_serialized_group_memberships(
+        board_path, source_records, candidate_item_uuids):
+    """Merge source object-rule memberships into one saved candidate file."""
+    text, existing = _serialized_group_records(board_path)
+    by_name = {record["name"]: record for record in existing}
+    replacements = []
+    insertions = []
+    restored_memberships = 0
+    restored_groups = []
+    present = set(candidate_item_uuids or ())
+    for source in source_records:
+        wanted = set(source["members"]) & present
+        if not wanted:
+            continue
+        restored_groups.append(source["name"])
+        current = by_name.get(source["name"])
+        old_members = set(current["members"]) if current else set()
+        merged = old_members | wanted
+        restored_memberships += len(wanted - old_members)
+        if current:
+            if merged != old_members:
+                replacements.append((
+                    current["start"], current["end"],
+                    _group_block(current["name"], current["uuid"], merged,
+                                 current["indent"])))
+        else:
+            insertions.append(_group_block(
+                source["name"], source["uuid"], merged))
+    for start, end, replacement in sorted(replacements, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    if insertions:
+        marker = text.rfind("\n)")
+        if marker < 0:
+            raise RuntimeError("candidate board has no closing root expression")
+        text = text[:marker] + "\n" + "\n".join(insertions) + text[marker:]
+    if replacements or insertions:
+        with open(board_path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    return {"restored_group_memberships": restored_memberships,
+            "restored_groups": sorted(set(restored_groups))}
+
+
+def _unescape_sexpr_string(value):
+    return str(value).replace('\\"', '"').replace('\\\\', '\\')
+
+
+def _serialized_copper_records(board_path):
+    """Return root-level track/via records and net identity from a PCB file."""
+    text = open(board_path, encoding="utf-8", errors="replace").read()
+    net_names = {
+        int(match.group(1)): _unescape_sexpr_string(match.group(2))
+        for match in re.finditer(
+            r'(?m)^[ \t]+\(net\s+(\d+)\s+"((?:\\.|[^"])*)"\s*\)',
+            text)
+    }
+    bindings = {name: str(code) for code, name in net_names.items()}
+    for match in re.finditer(r'\(net\s+"((?:\\.|[^"])*)"\s*\)', text):
+        raw = match.group(1)
+        bindings[_unescape_sexpr_string(raw)] = '"' + raw + '"'
+    records = []
+    pattern = re.compile(
+        r'(?m)^(?P<indent>\t)(?P<open>\((?P<kind>segment|arc|via)\b)')
+    for match in pattern.finditer(text):
+        block, end = _carve(text, match.start("open"))
+        net_match = re.search(
+            r'\(net\s+(?:"((?:\\.|[^"])*)"|(\d+))\)', block)
+        uuid_match = re.search(r'\(uuid\s+"([^"]+)"\)', block)
+        if not net_match or not uuid_match:
+            continue
+        if net_match.group(1) is not None:
+            net_name = _unescape_sexpr_string(net_match.group(1))
+            token = '"' + net_match.group(1) + '"'
+        else:
+            token = net_match.group(2)
+            net_name = net_names.get(int(token), "")
+        records.append({
+            "kind": match.group("kind"),
+            "net_token": token,
+            "net_name": net_name,
+            "uuid": uuid_match.group(1),
+            "block": block,
+            "start": match.start(),
+            "end": end,
+        })
+    return text, bindings, records
+
+
 def restore_protected_copper_prefix(source_path, candidate_path, nets):
     """Replace backend echoes of immutable nets with their exact source copper.
 
@@ -224,46 +351,60 @@ def restore_protected_copper_prefix(source_path, candidate_path, nets):
     comparison.  New tier-net copper remains untouched and still faces the
     structural DRC and connectivity gates below.
     """
-    import pcbnew
-
     selected = {str(net) for net in (nets or ()) if str(net)}
     if not selected:
         return {"nets": [], "removed": 0, "restored": 0}
-    # KiCad's SWIG wrapper owns a process-global current board: loading the
-    # candidate invalidates an already loaded source BOARD handle on real
-    # project files (small synthetic BOARDs do not reliably expose this).
-    # Detach the authoritative items while the source is still current, then
-    # release it before loading the candidate.  Keep the net name separately
-    # and rebind each duplicate to the candidate's own NETINFO_ITEM below.
-    source = pcbnew.LoadBoard(source_path)
-    restoration = []
-    for item in source.GetTracks():
-        if item.GetNetname() not in selected:
-            continue
-        duplicate = item.Duplicate()
-        # ``Duplicate`` deliberately allocates a fresh KIID.  Geometry-only
-        # comparison hid that identity churn, but downstream transactions use
-        # exact UUIDs to prove that priority vias and locked prefixes survived.
-        # Restore the source KIID as part of the delta transaction: every
-        # selected candidate item is removed below, so the identity is unique
-        # in the destination and safe to retain.
-        duplicate.m_Uuid.Clone(item.m_Uuid)
-        restoration.append((item.GetNetname(), duplicate))
-    del source
-    candidate = pcbnew.LoadBoard(candidate_path)
-    removed = 0
-    for item in list(candidate.GetTracks()):
-        if item.GetNetname() in selected:
-            candidate.Remove(item)
-            removed += 1
-    restored = 0
-    for net_name, item in restoration:
-        item.SetNet(candidate.FindNet(net_name))
-        candidate.Add(item)
-        restored += 1
-    pcbnew.SaveBoard(candidate_path, candidate)
-    return {"nets": sorted(selected), "removed": removed,
-            "restored": restored}
+    # Do this as a serialized delta, not by loading two BOARD objects. KiCad's
+    # legacy SWIG wrapper has a process-global current-board owner and returns
+    # unusable bare pointers on sufficiently complex group-bearing boards after
+    # the second LoadBoard. Root-level segment/arc/via records are already the
+    # exact fabrication identity we need to restore; only their local net code
+    # must be rebound to the candidate's net table.
+    _source_text, _source_nets, source_records = (
+        _serialized_copper_records(source_path))
+    candidate_text, candidate_nets, candidate_records = (
+        _serialized_copper_records(candidate_path))
+    candidate_bindings = dict(candidate_nets)
+    missing = sorted(name for name in selected if name not in candidate_bindings)
+    if missing:
+        raise RuntimeError("candidate lost selected net identity: %s" %
+                           ", ".join(missing))
+    restoration = [record for record in source_records
+                   if record["net_name"] in selected]
+    doomed = [record for record in candidate_records
+              if record["net_name"] in selected]
+    for record in sorted(doomed, key=lambda row: row["start"], reverse=True):
+        candidate_text = (candidate_text[:record["start"]]
+                          + candidate_text[record["end"]:])
+    restored_blocks = []
+    for record in restoration:
+        token = candidate_bindings[record["net_name"]]
+        block = re.sub(
+            r'(\(net\s+)(?:"(?:\\.|[^"])*"|\d+)(\))',
+            lambda match: match.group(1) + token + match.group(2),
+            record["block"], count=1)
+        restored_blocks.append("\t" + block)
+    if restored_blocks:
+        markers = [candidate_text.find(token) for token in (
+            "\n\t(zone ", "\n\t(group ", "\n\t(embedded_fonts ")]
+        markers = [index + 1 for index in markers if index >= 0]
+        marker = min(markers) if markers else candidate_text.rfind("\n)") + 1
+        if marker <= 0:
+            raise RuntimeError("candidate board has no copper insertion point")
+        payload = "\n".join(restored_blocks) + "\n"
+        candidate_text = candidate_text[:marker] + payload + candidate_text[marker:]
+    with open(candidate_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(candidate_text)
+    _final_text, _final_nets, final_records = (
+        _serialized_copper_records(candidate_path))
+    candidate_track_uuids = {record["uuid"] for record in final_records}
+    _source_group_text, source_group_records = (
+        _serialized_group_records(source_path))
+    group_restore = _restore_serialized_group_memberships(
+        candidate_path, source_group_records, candidate_track_uuids)
+    return {"nets": sorted(selected), "removed": len(doomed),
+            "restored": len(restoration),
+            **group_restore}
 
 
 def _import_stage_worker(cur, ses, nxt, final, pours, skip_locked_taps):
@@ -295,6 +436,14 @@ def _lock_stage_worker(board_path, nets):
     return n
 
 
+def _refill_stage_worker(board_path):
+    """Refresh zone fills after exact parent copper/group restoration."""
+    import cec_fr
+    if not cec_fr.refill_zones(board_path):
+        raise RuntimeError("staged candidate zone refill failed")
+    return True
+
+
 def _route_quality_stage_worker(board_path, tier_nets, pre_track_ids):
     """Remove newly generated acute/backtracking copper before ownership.
 
@@ -318,6 +467,9 @@ def _route_quality_stage_worker(board_path, tier_nets, pre_track_ids):
         track_uuid_scope=generated)
     bad_nets = {
         row.get("net") for row in (report.get("issues") or ())
+        if row.get("severity") == "blocking" and row.get("net")}
+    bad_nets |= {
+        row.get("net") for row in (report.get("non_octilinear") or ())
         if row.get("severity") == "blocking" and row.get("net")}
     removed = 0
     if bad_nets:
@@ -348,6 +500,44 @@ def foreign_pour_admission(board_path):
             "by_pour": summary.get("by_pour") or {},
             "items": list(summary.get("tracks") or ())
                      + list(summary.get("vias") or ())}
+
+
+def foreign_pour_delta_admission(before, after):
+    """Reject only pour incursions introduced by the current transaction.
+
+    An intermediate tier is not the release authority for inherited copper.
+    In particular, derived future-pour envelopes can conservatively overlap a
+    protected prefix even when no laid pour does.  Requiring absolute cleanup
+    here makes every unrelated tier impossible: it cannot delete protected
+    parent copper and therefore re-refuses the same inherited identity.  Keep
+    the full absolute reports for provenance, but admit a tier only when it
+    introduces no new stable item identity.  Final board signoff remains an
+    absolute check against actual laid copper.
+    """
+    before = before if isinstance(before, dict) else {}
+    after = after if isinstance(after, dict) else {}
+
+    def identity(item):
+        return (
+            str(item.get("kind") or ""), str(item.get("uuid") or ""),
+            str(item.get("net") or ""), str(item.get("pour") or ""),
+            str(item.get("pour_net") or ""),
+        )
+
+    prior = {identity(item) for item in (before.get("items") or ())}
+    new_items = [item for item in (after.get("items") or ())
+                 if identity(item) not in prior]
+    status_ok = (before.get("status") != "error"
+                 and after.get("status") != "error")
+    return {
+        "ok": bool(status_ok and not new_items),
+        "status": "ok" if status_ok else "error",
+        "inherited_count": len(prior),
+        "new_count": len(new_items),
+        "new_items": new_items,
+        "before": before,
+        "after": after,
+    }
 
 
 def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=(),
@@ -462,7 +652,10 @@ def adaptive_retry_chunks(incomplete_nets):
     Successful nets are already promoted to immutable ownership by the caller.
     Retrying only the residual set preserves that work while giving failed
     nets a smaller simultaneous search problem.  The split is deliberately
-    bounded and board-agnostic; a singleton receives one solo retry.
+    bounded and board-agnostic; the default two-level ladder takes a four-net
+    collision group through pairs to singleton solves instead of declaring a
+    plateau merely because two adjacent escapes still contend.  A singleton
+    receives one solo retry.
     """
     names = sorted({str(net) for net in (incomplete_nets or ()) if net})
     if len(names) <= 1:
@@ -471,10 +664,27 @@ def adaptive_retry_chunks(incomplete_nets):
     return [names[:pivot], names[pivot:]]
 
 
+def adaptive_retry_warranted(incomplete_nets, completed_nets, retry_depth,
+                              max_depth):
+    """Retry only after the parent retained a real topology improvement.
+
+    Incomplete-net copper is transactionally removed before the next stage.
+    Therefore a tier that completed no net leaves the child with the exact same
+    board and obstacle field; bisecting or repeating it cannot expose new
+    routing room and merely recreates a plateau.  A parent that *did* complete
+    at least one net is different: that new immutable prefix can change the
+    residual search problem, so the bounded retry ladder remains useful.
+    """
+    return bool(
+        {str(net) for net in (incomplete_nets or ()) if net}
+        and {str(net) for net in (completed_nets or ()) if net}
+        and int(retry_depth) < max(0, int(max_depth)))
+
+
 def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8,
                           opt=10, threads=1, seed=None, timeout=900, verbose=True,
                           pre_locked_nets=(), hints=(), skip_locked_taps=False,
-                          include_residual=True, adaptive_retry_depth=1):
+                          include_residual=True, adaptive_retry_depth=2):
     """The tiered ladder. tiers = list of net-name lists; a final residual pass over
     everything else is implicit. Returns a report dict (per-tier stats + total wall).
 
@@ -517,6 +727,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         before_board = pcbnew.LoadBoard(cur)
         before_track_ids = {
             track.m_Uuid.AsString() for track in before_board.GetTracks()}
+        parent_pour_admission = foreign_pour_admission(cur)
         parent_delta_restore_nets = (
             parent_copper_nets_outside_tier(before_board, tier)
             if not final else set())
@@ -524,6 +735,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         dsn = os.path.join(work, f"t{i}.dsn")
         ses = os.path.join(work, f"t{i}.ses")
         export_src = cur
+        zone_refill = None
         if not final:
             # BLINDNESS CURE (2026-07-14, convicted by the M4 ablation + the pre-tier
             # DRC jump 13 -> 219 structural): _dsn_restrict_to_nets strips foreign
@@ -642,8 +854,10 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         # pair or residual route crossed a corridor, was locked, and only then
         # appeared as a final-dashboard warning.
         pour_admission = foreign_pour_admission(nxt)
+        pour_delta_admission = foreign_pour_delta_admission(
+            parent_pour_admission, pour_admission)
         pour_evacuation = None
-        if not pour_admission.get("ok") and not final:
+        if not pour_delta_admission.get("ok") and not final:
             # Do not throw away every legal net in a multi-net tier because a
             # few newly generated primitives entered an immutable pour. Remove
             # only the exact convicted UUIDs in an isolated transaction,
@@ -659,26 +873,31 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             if pour_evacuation.get("ok"):
                 nxt = evacuated
                 pour_admission = foreign_pour_admission(nxt)
+                pour_delta_admission = foreign_pour_delta_admission(
+                    parent_pour_admission, pour_admission)
                 if verbose:
                     print(
                         "[staged-fr] tier %d evacuated %d foreign pour "
                         "item(s); clean subset continues to ownership" % (
                             i, int(pour_evacuation.get(
                                 "removed_count", 0))), flush=True)
-        if not pour_admission.get("ok"):
+        if not pour_delta_admission.get("ok"):
             report["tiers"].append({
                 "tier": (sorted(tier) if tier else "RESIDUAL"),
                 "refused": True,
                 "reason": "foreign_on_high_current_pour",
                 "foreign_pour_admission": pour_admission,
+                "foreign_pour_delta_admission": pour_delta_admission,
                 "foreign_pour_evacuation": pour_evacuation,
                 "wall_s": round(time.monotonic() - t0, 1),
             })
             if verbose:
                 print(
                     "[staged-fr] tier %d REFUSED: foreign-on-pour "
-                    "%dt/%dv -- result dropped before ownership" % (
-                        i, pour_admission["tracks"],
+                    "%d new item(s) (%dt/%dv absolute) -- result dropped "
+                    "before ownership" % (
+                        i, pour_delta_admission["new_count"],
+                        pour_admission["tracks"],
                         pour_admission["vias"]), flush=True)
             continue
         if not final:
@@ -794,6 +1013,29 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                             f"[staged-fr] tier {i} REFUSED: incomplete-net "
                             "copper could not be restored", flush=True)
                     continue
+            # SES imports fill zones before the staged transaction restores
+            # exact parent/protected/incomplete copper.  Scoring that stale
+            # fill makes restored vias appear to short the surrounding plane
+            # and turns a clean parent into dozens of phantom clearances.
+            # Refill once, after every copper mutation and before DRC.  Keep
+            # this in an isolated pcbnew process for the same SWIG-lifetime
+            # reason as SES import and exact-prefix restoration.
+            try:
+                zone_refill = _spawn_apply(_refill_stage_worker, (nxt,))
+            except Exception as exc:                     # noqa: BLE001
+                report["tiers"].append({
+                    "tier": sorted(tier), "refused": True,
+                    "reason": "post_restore_zone_refill_failed",
+                    "error": "%s: %s" % (type(exc).__name__, exc),
+                    "parent_delta_restore": parent_delta_restore,
+                    "incomplete_prefix_restore": incomplete_prefix_restore,
+                    "wall_s": round(time.monotonic() - t0, 1),
+                })
+                if verbose:
+                    print(
+                        f"[staged-fr] tier {i} REFUSED: post-restore zone "
+                        "refill failed", flush=True)
+                continue
         # The imported board must be scored under the same project/custom-rule
         # authority as its parent.  Copy sidecars before DRC, not only after a
         # candidate has already been admitted.
@@ -870,6 +1112,8 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             row["route_quality"] = route_quality
             row["import_sanitation"] = tier_import_sanitation
             row["foreign_pour_admission"] = pour_admission
+            row["foreign_pour_delta_admission"] = pour_delta_admission
+            row["post_restore_zone_refill"] = bool(zone_refill)
             if incomplete_prefix_restore is not None:
                 row["incomplete_prefix_restore"] = (
                     incomplete_prefix_restore)
@@ -881,8 +1125,9 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 row["parent_delta_restore"] = parent_delta_restore
             if tier_signal_layers is not None:
                 row["signal_layers"] = tier_signal_layers
-            if (tier_incomplete
-                    and retry_depth < max(0, int(adaptive_retry_depth))):
+            if adaptive_retry_warranted(
+                    tier_incomplete, tier_complete, retry_depth,
+                    adaptive_retry_depth):
                 chunks = adaptive_retry_chunks(tier_incomplete)
                 retry_rows = [
                     {"tier": set(chunk),
@@ -895,6 +1140,11 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 stages[i + 1:i + 1] = retry_rows
                 row["adaptive_retry_children"] = [
                     sorted(child["tier"]) for child in retry_rows]
+            elif (tier_incomplete
+                  and retry_depth < max(0, int(adaptive_retry_depth))
+                  and not tier_complete):
+                row["adaptive_retry_stopped"] = (
+                    "no_retained_topology_change")
         report["tiers"].append(row)
         if verbose:
             print(f"[staged-fr] pass {i}: {row}", flush=True)
@@ -909,7 +1159,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
 def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10,
                  threads=1, seed=None,
                  timeout=900, verbose=True, pre_locked_nets=(), hints=(), skip_locked_taps=False,
-                 include_residual=True, adaptive_retry_depth=1):
+                 include_residual=True, adaptive_retry_depth=2):
     """Run the tiered ladder in disposable scratch storage.
 
     The output board and its project/rule files are copied out before cleanup. Set
