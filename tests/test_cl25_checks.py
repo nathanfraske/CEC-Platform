@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -23,6 +24,7 @@ try:
     import pcbnew  # noqa: F401
     HAVE_PCBNEW = True
     import cec_constraints as K
+    import cec_fr
 except ImportError:
     HAVE_PCBNEW = False
     K = None
@@ -93,6 +95,163 @@ class TestHostUnits(unittest.TestCase):
 # ---------------------------------------------------------------------------
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (run in the routing container)")
 class TestCheckPack(unittest.TestCase):
+    def test_local_pofv_signal_rule_is_exact_and_revalidated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "local-pofv.kicad_pcb")
+            pro = path[:-len(".kicad_pcb")] + ".kicad_pro"
+            board = pcbnew.CreateEmptyBoard()
+            board.SetCopperLayerCount(6)
+            props = board.GetProperties()
+            props["CEC_FAB_PROFILE"] = "jlcpcb_6l_pofv_signal"
+            board.SetProperties(props)
+            settings = board.GetDesignSettings()
+            settings.m_MinThroughDrill = pcbnew.FromMM(0.30)
+            settings.m_ViasMinSize = pcbnew.FromMM(0.50)
+            settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.10)
+            net = pcbnew.NETINFO_ITEM(board, "/CTRL")
+            board.Add(net)
+
+            footprint = pcbnew.FOOTPRINT(board)
+            footprint.SetReference("U1")
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName("1")
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(10.0, 10.0))
+            layers = pcbnew.LSET()
+            layers.AddLayer(pcbnew.F_Cu)
+            pad.SetLayerSet(layers)
+            pad.SetNet(net)
+            footprint.Add(pad)
+            board.Add(footprint)
+
+            via = pcbnew.PCB_VIA(board)
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetPosition(pcbnew.VECTOR2I_MM(10.625, 10.0))
+            via.SetWidth(pcbnew.FromMM(0.35))
+            via.SetDrill(pcbnew.FromMM(0.25))
+            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            via.SetNetCode(net.GetNetCode())
+            board.Add(via)
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pad.GetPosition())
+            track.SetEnd(via.GetPosition())
+            track.SetWidth(pcbnew.FromMM(0.20))
+            track.SetLayer(pcbnew.F_Cu)
+            track.SetNetCode(net.GetNetCode())
+            board.Add(track)
+
+            evidence = cec_fr.group_local_pofv_signal_vias(board, [via])
+            self.assertEqual(evidence["vias"], 1)
+            pcbnew.SaveBoard(path, board)
+            with open(pro, "w", encoding="utf-8") as handle:
+                json.dump({"net_settings": {
+                    "classes": [{
+                        "name": "Default", "track_width": 0.20,
+                        "via_diameter": 0.50, "via_drill": 0.30}],
+                    "netclass_assignments": {},
+                    "netclass_patterns": [],
+                }}, handle)
+            rule = cec_fr.ensure_local_pofv_signal_via_rule(
+                path, {"local_pofv_signal_vias": evidence})
+            self.assertTrue(rule["applicable"])
+            with open(rule["path"], encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn(
+                "memberOfGroup('CEC_LOCAL_POFV_SIGNAL_VIA')", text)
+            self.assertIn("via_diameter (min 0.350mm)", text)
+            self.assertIn("hole_size (min 0.250mm)", text)
+            self.assertIn("annular_width (min 0.050mm)", text)
+
+            loaded = pcbnew.LoadBoard(path)
+            ok, detail = K.CHECKERS["netclass-geometry-conformance"](
+                loaded, path, {})[:2]
+            self.assertTrue(ok, detail)
+            self.assertIn("1 validated local POFV signal via", detail)
+
+            moved = next(item for item in loaded.GetTracks()
+                         if item.GetClass() == "PCB_VIA")
+            moved.SetPosition(pcbnew.VECTOR2I_MM(20.0, 20.0))
+            pcbnew.SaveBoard(path, loaded)
+            ok, detail = K.CHECKERS["netclass-geometry-conformance"](
+                pcbnew.LoadBoard(path), path, {})[:2]
+            self.assertFalse(ok, detail)
+            self.assertIn("via_dia", detail)
+
+    def test_local_pair_return_via_rule_is_exact_and_revalidated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pair-return.kicad_pcb")
+            pro = path[:-len(".kicad_pcb")] + ".kicad_pro"
+            board = pcbnew.CreateEmptyBoard()
+            settings = board.GetDesignSettings()
+            settings.m_MinThroughDrill = pcbnew.FromMM(0.30)
+            settings.m_ViasMinSize = pcbnew.FromMM(0.50)
+            settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.10)
+            nets = {}
+            for name in ("GND", "/USB_D_P", "/USB_D_N"):
+                net = pcbnew.NETINFO_ITEM(board, name)
+                board.Add(net)
+                nets[name] = net
+
+            def add_via(name, x, y, diameter, drill):
+                via = pcbnew.PCB_VIA(board)
+                via.SetViaType(pcbnew.VIATYPE_THROUGH)
+                via.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                via.SetWidth(pcbnew.FromMM(diameter))
+                via.SetDrill(pcbnew.FromMM(drill))
+                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                via.SetNetCode(nets[name].GetNetCode())
+                board.Add(via)
+                return via
+
+            add_via("/USB_D_P", 10.0, 10.0, 0.60, 0.30)
+            add_via("/USB_D_N", 10.8, 10.0, 0.60, 0.30)
+            returned = add_via("GND", 10.4, 11.0, 0.60, 0.30)
+            evidence = cec_fr.group_local_pair_return_vias(
+                board, [returned])
+            pcbnew.SaveBoard(path, board)
+            def write_project_rules():
+                with open(pro, "w", encoding="utf-8") as handle:
+                    json.dump({"net_settings": {
+                    "classes": [
+                        {"name": "Default", "track_width": 0.20,
+                         "via_diameter": 0.60, "via_drill": 0.30},
+                        {"name": "GND", "track_width": 0.50,
+                         "via_diameter": 0.90, "via_drill": 0.50},
+                    ],
+                    "netclass_assignments": {"GND": "GND"},
+                    "netclass_patterns": [],
+                    }}, handle)
+            write_project_rules()
+            rule = cec_fr.ensure_local_pair_return_via_rule(
+                path, {"local_pair_return_vias": evidence})
+            self.assertTrue(rule["applicable"])
+            with open(rule["path"], encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn(
+                "memberOfGroup('CEC_LOCAL_PAIR_RETURN_VIA')", text)
+            self.assertIn("hole_size (min 0.300mm)", text)
+            self.assertIn("annular_width (min 0.150mm)", text)
+
+            loaded = pcbnew.LoadBoard(path)
+            ok, detail = K.CHECKERS["netclass-geometry-conformance"](
+                loaded, path, {})[:2]
+            self.assertTrue(ok, detail)
+            self.assertIn("1 validated local pair-return via", detail)
+
+            remote = next(
+                item for item in loaded.GetTracks()
+                if item.GetClass() == "PCB_VIA"
+                and item.GetNetname() == "GND")
+            remote.SetPosition(pcbnew.VECTOR2I_MM(20.0, 20.0))
+            pcbnew.SaveBoard(path, loaded)
+            write_project_rules()
+            ok, detail = K.CHECKERS["netclass-geometry-conformance"](
+                pcbnew.LoadBoard(path), path, {})[:2]
+            self.assertFalse(ok, detail)
+            self.assertIn("via_dia", detail)
+
     def test_cl25_classes_all_resolve(self):
         """Every CL-25 class maps to registered checker IDs (stable-ID contract)."""
         by_id = {c.id for c in K.REGISTRY}
@@ -158,7 +317,7 @@ class TestCheckPack(unittest.TestCase):
         board = pcbnew.LoadBoard(PCIE2_BETA)
         ok, detail = K.CHECKERS["sch-pcb-sync"](board, PCIE2_BETA, {})[:2]
         self.assertTrue(ok, detail)
-        self.assertIn("66 refs", detail)
+        self.assertIn("68 refs", detail)
 
     def test_detect_resistor_hub_vs_module(self):
         hub = pcbnew.LoadBoard(HUB)

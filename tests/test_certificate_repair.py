@@ -161,6 +161,7 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
 
         board = mock.Mock()
         board.Zones.return_value = []
+        board.GetTracks.return_value = []
         evidence = {
             "applicable": True,
             "group": repair.cec_fr.ENDPOINT_NECKDOWN_GROUP,
@@ -177,9 +178,15 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
                 return_value="resolver"), mock.patch.object(
                     repair.cec_fr, "reconcile_endpoint_neckdown_groups",
                     return_value=evidence) as reconcile, mock.patch.object(
+                        repair.cec_fr, "group_local_pofv_signal_vias",
+                        return_value={"vias": 2, "uuids": ["a", "b"]}
+                    ) as group_pofv, mock.patch.object(
                         repair.pcbnew, "SaveBoard") as save, mock.patch.object(
                             repair.cec_fr, "ensure_endpoint_neckdown_rule",
-                            return_value={"min_width_mm": 0.2}) as ensure:
+                            return_value={"min_width_mm": 0.2}) as ensure, \
+                mock.patch.object(
+                    repair.cec_fr, "ensure_local_pofv_signal_via_rule",
+                    return_value={"applicable": True}) as ensure_pofv:
             repair._save_with_reconciled_endpoint_neckdowns(
                 "candidate.kicad_pcb", board, report)
 
@@ -190,6 +197,10 @@ class TestCertificateWorkerLifecycle(unittest.TestCase):
         self.assertEqual(report["endpoint_neckdown"]["min_width_mm"], 0.2)
         self.assertEqual(
             ensure.call_args.args[1]["endpoint_neckdown"]["tracks"], 12)
+        group_pofv.assert_called_once()
+        self.assertEqual(
+            ensure_pofv.call_args.args[1]["local_pofv_signal_vias"]["vias"],
+            2)
 
     def test_spawn_apply_uses_bounded_shutdown_after_result(self):
         import cec_certificate_repair as repair
@@ -465,6 +476,31 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             for net in ("/A", "/B")
         ]}
 
+        self.assertFalse(repair._defer_support_relocation(
+            footprint, negotiation, prior))
+
+    def test_support_relocation_runs_after_finite_route_portfolio_exhausts(self):
+        import cec_certificate_repair as repair
+
+        footprint = {"targets": [{"ref": "C42"}]}
+        negotiation = {"windows": [{"net": "/SS", "priority": [0]}]}
+        prior = {
+            "algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
+            "plan": {"negotiation_sweep": {
+                "stop": "no_admissible_negotiation"}},
+            "attempts": [
+                {"stage": "atomic_negotiation", "variant": variant,
+                 "window": {"net": "/SS"},
+                 "decision": "blocked_net_still_refused",
+                 "phases": {"close": {"completion": {"closed": 0}}}}
+                for variant in range(4)
+            ],
+        }
+
+        ordered, evidence = repair._prioritize_windows_by_proven_close(
+            negotiation["windows"], prior)
+        self.assertEqual([row["net"] for row in ordered], ["/SS"])
+        self.assertEqual(evidence["exhausted_nets"], ["/SS"])
         self.assertFalse(repair._defer_support_relocation(
             footprint, negotiation, prior))
 
@@ -1104,6 +1140,13 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             self.assertEqual(repair._atomic_close_timeout_s(24, 12.0), 45.0)
             self.assertEqual(
                 repair._atomic_negotiation_timeout_s(12, 4.0), 90.0)
+
+    def test_live_probe_budget_reserves_transaction_time(self):
+        import cec_certificate_repair as repair
+
+        self.assertEqual(repair._live_probe_budget_s(60, 60, 90), 12.0)
+        self.assertEqual(repair._live_probe_budget_s(240, 15, 90), 15.0)
+        self.assertEqual(repair._live_probe_budget_s(10, 60, 90), 4.0)
 
     def test_placement_restoration_budget_preserves_wave_breadth(self):
         import cec_certificate_repair as repair
@@ -2109,6 +2152,25 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertGreater(rows[1]["dx_mm"], 0.0)
         self.assertLess(rows[1]["dy_mm"], 0.0)
 
+    def test_occupancy_candidates_rank_locked_copper_before_total_hits(self):
+        source = Path(os.path.join(
+            ROOT, "scripts", "cec_certificate_repair.py")).read_text(
+                encoding="utf-8")
+        occupancy = source[
+            source.index("def _occupancy_relocation_candidates"):
+            source.index("def _combined_footprint_relocation_candidates")]
+        combined = source[
+            source.index("def _combined_footprint_relocation_candidates"):
+            source.index("def _relocate_footprint_worker")]
+
+        self.assertIn('"locked_copper_hits": locked_copper_hits', occupancy)
+        self.assertLess(
+            occupancy.index("locked_copper_hits,\n                 copper_hits"),
+            occupancy.index("round(endpoint_distance, 6)"))
+        self.assertLess(
+            combined.index('int(score.get("locked_copper_hits") or 0)'),
+            combined.index('int(score.get("copper_hits") or 0)'))
+
     def test_support_cluster_ladder_includes_rigid_lane_reversal(self):
         import cec_certificate_repair as repair
 
@@ -2375,6 +2437,119 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertNotIn(pad_stub_uuid, remaining)
         self.assertIn(preserved_uuid, remaining)
         self.assertEqual(evidence["preserved_anchors"][0]["x_mm"], 6.0)
+
+    def test_footprint_reseat_preserves_locked_pad_via_as_route_anchor(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        signal = pcbnew.NETINFO_ITEM(board, "/SIGNAL")
+        ground = pcbnew.NETINFO_ITEM(board, "GND")
+        board.Add(signal)
+        board.Add(ground)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("C42")
+        footprint.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        for number, net, x in (("1", signal, 5.0), ("2", ground, 6.0)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetPadName(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x, 5.0))
+            pad.SetLayerSet(pcbnew.PAD.SMDMask())
+            pad.SetNet(net)
+            footprint.Add(pad)
+        board.Add(footprint)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(6, 5))
+        via.SetWidth(pcbnew.FromMM(0.5))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(ground)
+        via.SetLocked(True)
+        board.Add(via)
+        via_uuid = repair._uuid(via)
+        target = repair.FootprintRepairTarget(
+            ref="C42", target_net="/SIGNAL", endpoint_ref="U4",
+            endpoint_pad="11", endpoint_x_mm=8.0, endpoint_y_mm=5.0,
+            hit_count=3, distance_mm=3.0, priority=(0,))
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "locked-pad-via.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 0.0,
+                    "dx_mm": 1.0,
+                    "dy_mm": 0.0,
+                })
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        saved_via = next(item for item in saved.GetTracks()
+                         if repair._uuid(item) == via_uuid)
+        self.assertAlmostEqual(saved_via.GetPosition().x / repair.MM, 6.0)
+        self.assertEqual(
+            evidence["preserved_locked_pad_via_uuids"], [via_uuid])
+        self.assertTrue(any(
+            row.get("kind") == "authored_locked_pad_via"
+            and row.get("net") == "GND"
+            for row in evidence["preserved_anchors"]))
+
+    def test_footprint_reseat_preserves_locked_incident_trace_as_anchor(self):
+        import pcbnew
+        import cec_certificate_repair as repair
+
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIGNAL")
+        board.Add(net)
+        footprint = pcbnew.FOOTPRINT(board)
+        footprint.SetReference("C46")
+        footprint.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        pad = pcbnew.PAD(footprint)
+        pad.SetPadName("1")
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.6, 0.4))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(5, 5))
+        pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetNet(net)
+        footprint.Add(pad)
+        board.Add(footprint)
+        trace = pcbnew.PCB_TRACK(board)
+        trace.SetStart(pcbnew.VECTOR2I_MM(5, 5))
+        trace.SetEnd(pcbnew.VECTOR2I_MM(8, 5))
+        trace.SetWidth(pcbnew.FromMM(0.2))
+        trace.SetLayer(pcbnew.F_Cu)
+        trace.SetNet(net)
+        trace.SetLocked(True)
+        board.Add(trace)
+        trace_uuid = repair._uuid(trace)
+        target = repair.FootprintRepairTarget(
+            ref="C46", target_net="/SIGNAL", endpoint_ref="U4",
+            endpoint_pad="1", endpoint_x_mm=9.0, endpoint_y_mm=5.0,
+            hit_count=2, distance_mm=4.0, priority=(0,))
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "locked-trace-anchor.kicad_pcb")
+            pcbnew.SaveBoard(path, board)
+            changed, evidence = repair._relocate_footprint_worker(
+                path, repair.asdict(target), {
+                    "rotation_delta_deg": 0.0,
+                    "dx_mm": 1.0,
+                    "dy_mm": 0.0,
+                })
+            saved = pcbnew.LoadBoard(path)
+
+        self.assertTrue(changed, evidence)
+        saved_trace = next(item for item in saved.GetTracks()
+                           if repair._uuid(item) == trace_uuid)
+        self.assertAlmostEqual(saved_trace.GetStart().x / repair.MM, 5.0)
+        self.assertEqual(evidence["removed_tracks"], 0)
+        self.assertTrue(any(
+            row.get("kind") == "authored_locked_incident_branch"
+            and row.get("track_uuid") == trace_uuid
+            and row.get("x_mm") == 5.0
+            for row in evidence["preserved_anchors"]))
 
     def test_passive_cluster_reseat_translates_every_member(self):
         import pcbnew

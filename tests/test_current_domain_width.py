@@ -128,6 +128,72 @@ class CurrentDomainWidthTests(unittest.TestCase):
                         {"current_domain_include_nets": ["+5VSB"]})[:2]
             self.assertTrue(ok, detail)
 
+    def test_explicit_subamp_domain_is_not_demoted_to_signal_geometry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pcie-8pin-2port-usb.kicad_pcb")
+            board = self._aggregate_board(path)
+
+            def subamp(*_args, **_kwargs):
+                return ({"+5VSB": 0.75}, None, {
+                    "+5VSB": {"refs_src": ["U7"],
+                               "refs_sink": ["F1"]},
+                }, None)
+
+            with mock.patch(
+                    "cec_thermal_overlay.board_thermal_config",
+                    side_effect=subamp):
+                ok, detail = constraints.CHECKERS[
+                    "trace-width-high-current"](board, path, {})[:2]
+            self.assertTrue(ok, detail)
+            self.assertIn("current-model trace segment", detail)
+            self.assertNotIn("no routed net", detail)
+
+    def test_current_prune_honors_project_width_above_ipc_width(self):
+        import json
+        import cec_current_topology
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pcie-8pin-2port-usb.kicad_pcb")
+            board = self._aggregate_board(path)
+            # Make the first source-trunk segment smaller than the declared
+            # Power class while retaining ample IPC width for a 750 mA outer
+            # trace.  Project intent must still win.
+            first = next(item for item in board.GetTracks()
+                         if item.GetClass() != "PCB_VIA")
+            first.SetWidth(pcbnew.FromMM(0.20))
+            pcbnew.SaveBoard(path, board)
+            with open(path.replace(".kicad_pcb", ".kicad_pro"),
+                      "w", encoding="utf-8") as sink:
+                json.dump({"net_settings": {
+                    "classes": [
+                        {"name": "Default", "track_width": 0.2,
+                         "clearance": 0.2, "via_diameter": 0.6,
+                         "via_drill": 0.3},
+                        {"name": "Power", "track_width": 0.5,
+                         "clearance": 0.2, "via_diameter": 0.8,
+                         "via_drill": 0.4},
+                    ],
+                    "netclass_patterns": [
+                        {"pattern": "+5VSB", "netclass": "Power"}],
+                }}, sink)
+
+            def subamp(*_args, **_kwargs):
+                return ({"+5VSB": 0.75}, None, {
+                    "+5VSB": {"refs_src": ["U7"],
+                               "refs_sink": ["F1"]},
+                }, None)
+
+            board = pcbnew.LoadBoard(path)
+            with mock.patch(
+                    "cec_thermal_overlay.board_thermal_config",
+                    side_effect=subamp):
+                report = cec_current_topology.prune_undersized_current_tracks(
+                    board, ["+5VSB"], board_hint=path)
+            self.assertGreaterEqual(report["removed_count"], 1)
+            row = next(item for item in report["removed"]
+                       if item["actual_mm"] == 0.20)
+            self.assertEqual(0.5, row["project_required_mm"])
+            self.assertEqual(0.5, row["required_mm"])
+
     def test_power_terminal_raster_excludes_local_loads_from_aggregate_tree(self):
         import cec_slab_pour
         with tempfile.TemporaryDirectory() as directory:

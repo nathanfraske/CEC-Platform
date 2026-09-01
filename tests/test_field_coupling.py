@@ -31,19 +31,19 @@ class FieldCouplingTest(unittest.TestCase):
     def _board(self, directory, rows):
         netlist = os.path.join(directory, "field.net")
         path = os.path.join(directory, "field.kicad_pcb")
+        names = list(dict.fromkeys(
+            ["GND"] + [row[0] for row in rows]))
         with open(netlist, "w", encoding="utf-8") as handle:
-            handle.write('(export (nets (net (code "1") (name "GND"))))\n')
+            handle.write("(export (nets\n")
+            for code, name in enumerate(names, 1):
+                handle.write(
+                    '  (net (code "%d") (name "%s"))\n' % (code, name))
+            handle.write("))\n")
         self.assertTrue(cec_pcb.build_board(
             path, netlist, {}, [(5.0, 5.0)], None, 30.0, 20.0,
             force_argv=False, stackup_profile="jlcpcb_6l_pofv_signal"))
         board = pcbnew.LoadBoard(path)
-        nets = {}
-        for name, _layer, _start, _end in rows:
-            if name in nets:
-                continue
-            net = pcbnew.NETINFO_ITEM(board, name)
-            board.Add(net)
-            nets[name] = net
+        nets = {name: board.FindNet(name) for name in names}
         for name, layer, start, end in rows:
             track = pcbnew.PCB_TRACK(board)
             track.SetStart(pcbnew.VECTOR2I_MM(*start))
@@ -107,6 +107,53 @@ class FieldCouplingTest(unittest.TestCase):
         self.assertFalse(report["ok"], report)
         self.assertIn("not approximately perpendicular",
                       report["violations"][0])
+
+    def test_matched_pair_return_supports_only_the_signal_via_antipad(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, [
+                ("/CAN_H", "F.Cu", (9.5, 8.0), (10.5, 8.0)),
+                ("/CAN_L", "F.Cu", (2.0, 2.0), (2.1, 2.0)),
+                ("/ADC/DETECT", "In2.Cu", (9.5, 8.2), (10.5, 8.2)),
+                ("/ZZZ_DUMMY", "F.Cu", (2.0, 3.0), (2.1, 3.0)),
+            ])
+            board = pcbnew.LoadBoard(path)
+
+            def add_via(net_name, x, y):
+                via = pcbnew.PCB_VIA(board)
+                via.SetViaType(pcbnew.VIATYPE_THROUGH)
+                via.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                via.SetWidth(pcbnew.FromMM(0.60))
+                via.SetDrill(pcbnew.FromMM(0.30))
+                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                via.SetNetCode(board.GetNetcodeFromNetname(net_name))
+                board.Add(via)
+                return via
+
+            add_via("/CAN_H", 10.0, 8.0)
+            add_via("/CAN_L", 10.0, 8.8)
+            for zone in board.Zones():
+                zone.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            unsupported = field.field_coupling_summary(path, board=board)
+            self.assertFalse(unsupported["ok"], unsupported)
+
+            returned = pcbnew.PCB_VIA(board)
+            returned.SetViaType(pcbnew.VIATYPE_THROUGH)
+            returned.SetPosition(pcbnew.VECTOR2I_MM(11.0, 8.4))
+            returned.SetWidth(pcbnew.FromMM(0.60))
+            returned.SetDrill(pcbnew.FromMM(0.30))
+            returned.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            returned.SetNetCode(board.GetNetcodeFromNetname("GND"))
+            board.Add(returned)
+            for zone in board.Zones():
+                zone.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            supported = field.field_coupling_summary(path, board=board)
+
+        self.assertTrue(supported["ok"], supported)
+        shield = supported["interactions"][0]["shield"]
+        self.assertGreater(shield["transition_return_supported_samples"], 0)
+        self.assertTrue(shield["transition_return_evidence"])
 
     def test_intended_differential_pair_members_are_not_mutual_faults(self):
         with tempfile.TemporaryDirectory() as directory:

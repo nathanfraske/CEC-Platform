@@ -159,6 +159,7 @@ class DecouplerCellTests(unittest.TestCase):
                              " (constraint track_width (min 0.5mm)))\n")
             report = {"cells": [{"supply": {"endpoint_neckdown": {
                 "group": cell.ENDPOINT_NECKDOWN_GROUP,
+                "tracks": 1,
                 "min_width_mm": 0.2,
             }}}]}
 
@@ -269,6 +270,84 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(cap_return["status"], "via-in-pad")
         self.assertEqual(shared["portal_owner"], "cap")
         self.assertEqual(shared["length_mm"], 1.503)
+
+    def test_ground_pad_reuses_guarded_same_package_sibling_portal(self):
+        class Uuid:
+            def __init__(self, value):
+                self.value = value
+
+            def AsString(self):
+                return self.value
+
+        class Via:
+            m_Uuid = Uuid("peer-via")
+
+        class Pad:
+            def __init__(self, number, x):
+                self.number = number
+                self.position = pcbnew.VECTOR2I_MM(x, 10.0)
+                self.m_Uuid = Uuid("pad-" + number)
+                self.parent = None
+
+            def GetParentFootprint(self):
+                return self.parent
+
+            def GetNetCode(self):
+                return 1
+
+            def GetNetname(self):
+                return "GND"
+
+            def GetPosition(self):
+                return self.position
+
+            def GetPadName(self):
+                return self.number
+
+        class Footprint:
+            def __init__(self, pads):
+                self.pads = pads
+                for pad in pads:
+                    pad.parent = self
+
+            def Pads(self):
+                return list(self.pads)
+
+            def GetReference(self):
+                return "U1"
+
+        target, peer = Pad("4", 10.0), Pad("3", 10.5)
+        Footprint([target, peer])
+        link_item = object()
+        link = {
+            "status": "shared-ground-neckdown",
+            "length_mm": 0.5,
+            "items": [link_item],
+        }
+
+        def existing(_board, pad, _reach, **_kwargs):
+            return (0.0, Via()) if pad is peer else None
+
+        with mock.patch.object(
+                cell, "_existing_return", side_effect=existing), \
+                mock.patch.object(
+                    cell, "_add_supply_link",
+                    return_value=(link, None)) as add_link:
+            result, error = cell._add_ground_return(
+                object(), target, board_path="board.kicad_pcb",
+                reach_mm=1.5, lock=True)
+
+        self.assertIsNone(error)
+        self.assertEqual(result["status"],
+                         "shared-owner-ground-entry")
+        self.assertEqual(result["via_uuid"], "peer-via")
+        self.assertEqual(result["shared_with"]["ref"], "U1")
+        self.assertEqual(result["shared_with"]["pad"], "3")
+        self.assertEqual(result["items"], [link_item])
+        self.assertEqual(result["shared_link"]["length_mm"], 0.5)
+        add_link.assert_called_once_with(
+            object() if False else mock.ANY, target, peer,
+            lock=True, link_role="shared-ground-entry")
 
     def test_reference_affinity_prevents_distance_rematching(self):
         board = pcbnew.BOARD()
@@ -945,6 +1024,29 @@ class DecouplerCellTests(unittest.TestCase):
             cell.ENDPOINT_NECKDOWN_GROUP)
         self.assertTrue(all(item.IsLocked() for item in report["items"]))
 
+    def test_shared_ground_entry_refuses_before_multilayer_maze(self):
+        board, _assignment = self._board()
+        owner = board.FindFootprintByReference("U1").FindPadByNumber("1")
+        cap = board.FindFootprintByReference("C1").FindPadByNumber("2")
+        diagnostic = {}
+
+        with mock.patch.object(
+                cell.cec_fr, "_guarded_profiled_lastmile_legs",
+                return_value=None), \
+                mock.patch.object(
+                    cell.cec_fr, "_lastmile_bridge",
+                    side_effect=AssertionError(
+                        "shared GND must not enter multilayer maze")):
+            report, error = cell._add_supply_link(
+                board, owner, cap, lock=True, diagnostics=diagnostic,
+                link_role="shared-ground-entry")
+
+        self.assertIsNone(report)
+        self.assertEqual(error, "no guarded local shared-ground path")
+        self.assertEqual(
+            diagnostic["conclusion"],
+            "no_guarded_local_shared_ground_path")
+
     def test_supply_access_preflight_uses_generator_and_is_read_only(self):
         board, assignment = self._board()
         before = len(list(board.GetTracks()))
@@ -1197,6 +1299,15 @@ class DecouplerCellTests(unittest.TestCase):
         props = board.GetProperties()
         props["CEC_FAB_PROFILE"] = "jlcpcb_4l_standard"
         board.SetProperties(props)
+        ground = next(net for net in
+                      board.GetNetInfo().NetsByNetcode().values()
+                      if net.GetNetname() == "GND")
+        ground_class = pcbnew.NETCLASS("Ground")
+        ground_class.SetTrackWidth(pcbnew.FromMM(0.5))
+        ground_class.SetClearance(pcbnew.FromMM(0.20))
+        ground_class.SetViaDiameter(pcbnew.FromMM(0.6))
+        ground_class.SetViaDrill(pcbnew.FromMM(0.3))
+        ground.SetNetClass(ground_class)
         with mock.patch.object(
                 cell.cec_constraints, "_device_bypass_assignment",
                 return_value=assignment):
@@ -1210,6 +1321,60 @@ class DecouplerCellTests(unittest.TestCase):
             row["ground_return"]["distance_mm"] <= 1.5
             and row["owner_ground_return"]["distance_mm"] <= 1.5
             for row in report["cells"]))
+        dogbone_tracks = [
+            item for item in board.GetTracks()
+            if item.GetClass() == "PCB_TRACK"]
+        self.assertTrue(dogbone_tracks)
+        self.assertEqual(
+            {round(item.GetWidth() / cell.MM, 3)
+             for item in dogbone_tracks}, {0.5})
+
+    def test_ground_dogbone_neckdown_is_pad_limited_and_grouped(self):
+        board, _assignment = self._board()
+        props = board.GetProperties()
+        props["CEC_FAB_PROFILE"] = "jlcpcb_4l_standard"
+        board.SetProperties(props)
+        ground = next(net for net in
+                      board.GetNetInfo().NetsByNetcode().values()
+                      if net.GetNetname() == "GND")
+        ground_class = pcbnew.NETCLASS("Ground")
+        ground_class.SetTrackWidth(pcbnew.FromMM(0.5))
+        ground_class.SetClearance(pcbnew.FromMM(0.20))
+        ground_class.SetViaDiameter(pcbnew.FromMM(0.6))
+        ground_class.SetViaDrill(pcbnew.FromMM(0.3))
+        ground.SetNetClass(ground_class)
+        pad = board.FindFootprintByReference("U1").FindPadByNumber("1")
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.05, 0.4))
+        def pad_limited_clear(*args, **kwargs):
+            width = int(args[3])
+            return width <= pcbnew.FromMM(0.4)
+
+        with mock.patch.object(
+                cell.cec_fr, "_tap_foreign_clear",
+                side_effect=pad_limited_clear), \
+                mock.patch.object(
+                    cell.cec_fr, "_edge_leg_clear", return_value=True), \
+                mock.patch.object(
+                    cell.cec_fr, "_via_spot_clear", return_value=True), \
+                mock.patch.object(
+                    cell.cec_fr, "_tap_pair_overlap_clear",
+                    return_value=True), \
+                mock.patch.object(
+                    cell.cec_fab_profile, "via_at_pad_conflicts",
+                    return_value=(None, [])), \
+                mock.patch.object(
+                    cell, "_hole_to_hole_clear",
+                    return_value=(True, [])):
+            report, error = cell._add_ground_return(
+                board, pad, board_path="", reach_mm=1.5, lock=True)
+
+        self.assertIsNone(error)
+        self.assertEqual(report["status"], "dogbone")
+        self.assertEqual(report["width_mm"], 0.4)
+        self.assertEqual(report["class_width_mm"], 0.5)
+        self.assertEqual(
+            report["endpoint_neckdown"]["group"],
+            cell.ENDPOINT_NECKDOWN_GROUP)
 
     def test_ground_plane_access_owns_every_smd_ground_terminal(self):
         board, _assignment = self._board()

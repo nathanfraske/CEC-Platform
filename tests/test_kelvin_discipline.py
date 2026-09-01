@@ -142,6 +142,25 @@ class _Board:
 
 @unittest.skipUnless(HAVE, "needs pcbnew (run in the routing container)")
 class CoveredSkip(unittest.TestCase):
+    def test_different_sense_pad_requires_full_route_clearance(self):
+        """A different sense net is not ordinary foreign copper, but it still
+        must meet the board clearance; overlap-only checking is insufficient."""
+        w = _Board()
+        near_hi = _fp(w.b, "U98", "sense-neighbor")
+        _pad_smd(near_hi, "1", w.hi, 15.0, 10.0, 1.0, 1.0)
+        start = VECTOR2I(MM(13.0), MM(10.70))
+        end = VECTOR2I(MM(17.0), MM(10.70))
+
+        self.assertTrue(cec_fr._tap_pair_overlap_clear(
+            w.b, start, end, MM(0.20), pcbnew.F_Cu,
+            w.lo.GetNetCode(), {w.hi.GetNetCode(), w.lo.GetNetCode()}),
+            "the legacy overlap-only probe sees the 0.10 mm gap")
+        self.assertFalse(cec_fr._tap_pair_overlap_clear(
+            w.b, start, end, MM(0.20), pcbnew.F_Cu,
+            w.lo.GetNetCode(), {w.hi.GetNetCode(), w.lo.GetNetCode()},
+            clearance_nm=MM(0.20)),
+            "precision routing must reject the same sub-rule gap")
+
     def test_known_out_of_range_input_is_named_placement_refusal(self):
         """A router-excluded INA input may never disappear behind a distance filter."""
         w = _Board()

@@ -328,6 +328,107 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
 
     gnd_polys = {}
 
+    # Pre-prove the small GND-plane holes that belong to an intentional,
+    # matched signal transition with local return barrels.  Filled-zone
+    # polygons necessarily contain antipads at the signal vias; treating those
+    # few samples as a missing plane made a correctly referenced transition
+    # look like a broad unshielded crossing.  The support is deliberately
+    # bounded to the physical antipad and requires both members of a real pair
+    # to have a nearby, board-minimum-legal GND return.
+    settings = b.GetDesignSettings()
+    min_via_diameter = float(getattr(
+        settings, "m_ViasMinSize", pcbnew.FromMM(0.50))) / MM
+    min_via_drill = float(getattr(
+        settings, "m_MinThroughDrill", pcbnew.FromMM(0.20))) / MM
+    min_via_annular = float(getattr(
+        settings, "m_ViasMinAnnularWidth", pcbnew.FromMM(0.10))) / MM
+    vias_by_net = collections.defaultdict(list)
+    legal_gnd_vias = []
+    for item in b.GetTracks():
+        if item.GetClass() != "PCB_VIA" or not item.GetNetname():
+            continue
+        point = item.GetPosition()
+        diameter = item.GetWidth(item.TopLayer()) / MM
+        drill = item.GetDrillValue() / MM
+        row = {
+            "uuid": item.m_Uuid.AsString(), "net": item.GetNetname(),
+            "point": (point.x / MM, point.y / MM),
+            "diameter_mm": diameter, "drill_mm": drill,
+        }
+        vias_by_net[item.GetNetname()].append(row)
+        if (item.GetNetname() == "GND"
+                and diameter >= min_via_diameter - 1e-9
+                and drill >= min_via_drill - 1e-9
+                and (diameter - drill) / 2.0
+                >= min_via_annular - 1e-9):
+            legal_gnd_vias.append(row)
+
+    supported_antipads = []
+    via_nets = sorted(name for name in vias_by_net if name != "GND")
+    for left_index, left_name in enumerate(via_nets):
+        for right_name in via_nets[left_index + 1:]:
+            if not _pair_mates(left_name, right_name):
+                continue
+            for left_via in vias_by_net[left_name]:
+                for right_via in vias_by_net[right_name]:
+                    if math.dist(left_via["point"], right_via["point"]) \
+                            > 1.50 + 1e-9:
+                        continue
+                    left_returns = [row for row in legal_gnd_vias
+                                    if math.dist(row["point"],
+                                                 left_via["point"])
+                                    <= 1.50 + 1e-9]
+                    right_returns = [row for row in legal_gnd_vias
+                                     if math.dist(row["point"],
+                                                  right_via["point"])
+                                     <= 1.50 + 1e-9]
+                    if not left_returns or not right_returns:
+                        continue
+                    evidence = {
+                        "pair": [left_name, right_name],
+                        "signal_vias": [left_via["uuid"],
+                                        right_via["uuid"]],
+                        "return_vias": sorted(set(
+                            row["uuid"]
+                            for row in left_returns + right_returns)),
+                    }
+                    for signal in (left_via, right_via):
+                        supported_antipads.append({
+                            **evidence, "kind": "matched-pair",
+                            "net": signal["net"],
+                            "point": signal["point"],
+                            # Bound support to the local signal-via antipad;
+                            # never extend it along the routed segment.
+                            "radius_mm": max(
+                                0.60, signal["diameter_mm"] / 2.0 + 0.30),
+                        })
+
+    # Single-ended fast/sensitive transitions need the same local return-path
+    # treatment.  A through transition necessarily punches an antipad in the
+    # reference plane; a board-minimum-legal GND barrel within 1.5 mm is
+    # physical evidence that the image current can change layers locally.
+    # Support remains confined to the signal antipad radius and therefore
+    # cannot excuse a broad missing plane or an unrelated parallel run.
+    for signal_name in via_nets:
+        role = classifications.get(signal_name) or classify_net(signal_name)
+        if not (role["aggressor"] or role["victim"]):
+            continue
+        for signal in vias_by_net[signal_name]:
+            returns = [row for row in legal_gnd_vias
+                       if math.dist(row["point"], signal["point"])
+                       <= 1.50 + 1e-9]
+            if not returns:
+                continue
+            supported_antipads.append({
+                "kind": "single-ended",
+                "net": signal["net"],
+                "point": signal["point"],
+                "signal_vias": [signal["uuid"]],
+                "return_vias": sorted(row["uuid"] for row in returns),
+                "radius_mm": max(
+                    0.60, signal["diameter_mm"] / 2.0 + 0.30),
+            })
+
     def filled_gnd(layer):
         if layer in gnd_polys:
             return gnd_polys[layer]
@@ -355,25 +456,54 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
         candidates = [layers[index] for index in range(lo + 1, hi)
                       if roles.get(layers[index]) == "GND"]
         best_layer, best_fraction = None, 0.0
+        best_plane_covered = best_return_covered = 0
+        best_return_evidence = []
         for layer in candidates:
             polys = filled_gnd(layer)
-            covered = 0
+            plane_covered = 0
+            return_covered = 0
+            return_evidence = []
             for x, y in samples:
                 point = pcbnew.VECTOR2I(int(round(x * MM)),
                                         int(round(y * MM)))
                 if any(poly.Contains(point) for poly in polys):
-                    covered += 1
-            fraction = covered / max(1, len(samples))
+                    plane_covered += 1
+                    continue
+                support = next((row for row in supported_antipads
+                                if row["net"] in (first["net"], second["net"])
+                                and math.dist((x, y), row["point"])
+                                <= row["radius_mm"] + 1e-9), None)
+                if support is not None:
+                    return_covered += 1
+                    return_evidence.append({
+                        "kind": support.get("kind", "matched-pair"),
+                        "net": support["net"],
+                        "pair": support.get("pair", []),
+                        "signal_vias": support["signal_vias"],
+                        "return_vias": support["return_vias"],
+                    })
+            fraction = ((plane_covered + return_covered)
+                        / max(1, len(samples)))
             if fraction > best_fraction:
                 best_layer, best_fraction = layer, fraction
+                best_plane_covered = plane_covered
+                best_return_covered = return_covered
+                best_return_evidence = return_evidence
         shielded = best_fraction >= 0.95
         return {
             "shielded": shielded,
-            "reason": ("continuous filled GND plane" if shielded else
+            "reason": (("continuous filled GND plane with "
+                        "matched-return-supported transition antipads")
+                       if shielded and best_return_covered else
+                       "continuous filled GND plane" if shielded else
                        "no continuous filled GND plane between routes"),
             "layers": candidates,
             "selected_layer": best_layer,
             "coverage_pct": round(100.0 * best_fraction, 1),
+            "plane_covered_samples": int(best_plane_covered),
+            "transition_return_supported_samples": int(
+                best_return_covered),
+            "transition_return_evidence": best_return_evidence,
         }
 
     checked = 0

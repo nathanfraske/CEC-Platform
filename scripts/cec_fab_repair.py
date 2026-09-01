@@ -36,6 +36,12 @@ copper moved, which is the router's job) it is REPORTED and left alone -- silent
                                  thinner than the process floor. Electrical,
                                  topology, and fab admission still decide whether
                                  that redundant filler can be published.
+  R8 octilinear track polish -- replace a provenance-authorized free-angle
+                                 straight segment by the first clearance-safe
+                                 0/45/90-degree path with identical endpoints,
+                                 width, net, layer, and lock state. The outer
+                                 admission gate rejects any DRC, connectivity,
+                                 pair, or constraint regression.
 
 Usage:
     python3 scripts/cec_fab_repair.py BOARD [--sliver 0.10] [--apply] [--json OUT]
@@ -71,6 +77,104 @@ def _seg_key(t):
     a = (round(s.x / 1e6, 4), round(s.y / 1e6, 4))
     b = (round(e.x / 1e6, 4), round(e.y / 1e6, 4))
     return (min(a, b), max(a, b), t.GetLayer(), t.GetNetname())
+
+
+def repair_non_octilinear_segments(board, board_path, *,
+                                    allow_locked_track_uuids=()):
+    """R8: canonicalize owned straight copper without moving graph nodes.
+
+    Existing routes can predate the route generator's octilinear policy. A
+    free-angle segment is replaced only when it is unlocked or its UUID is in
+    the caller's generated-copper authority. The replacement uses the same
+    collision, board-edge, netclass-clearance, and future-reservation guards as
+    last-mile routing. Group-owned exception copper is left to its dedicated
+    reconciler because replacing it would otherwise discard rule ownership.
+
+    The original object is shortened into the first canonical leg and any
+    remaining legs are added. This preserves its UUID and avoids pcbnew's
+    removal-induced SWIG invalidation. The enclosing :func:`repair_admitted`
+    transaction remains the authoritative whole-board validator.
+    """
+
+    import pcbnew
+    import cec_fr
+    import cec_route_quality
+
+    allowed = {str(value) for value in allow_locked_track_uuids if value}
+    grouped = {
+        str(item.m_Uuid.AsString())
+        for group in board.Groups() for item in group.GetItems()
+        if item.GetClass() in ("PCB_TRACK", "PCB_ARC")
+    }
+    resolve = cec_fr._project_netclass_resolver(board_path)
+    targets = []
+    refused = []
+    for item in list(board.GetTracks()):
+        if item.GetClass() != "PCB_TRACK":
+            continue
+        uid = str(item.m_Uuid.AsString())
+        if cec_route_quality.canonical_heading(
+                item.GetStart(), item.GetEnd()).get("ok"):
+            continue
+        if uid in grouped:
+            refused.append({"uuid": uid, "net": item.GetNetname() or "",
+                            "reason": "rule_group_owned"})
+            continue
+        if item.IsLocked() and uid not in allowed:
+            refused.append({"uuid": uid, "net": item.GetNetname() or "",
+                            "reason": "authored_locked_track"})
+            continue
+        targets.append(item)
+
+    rows = []
+    for item in targets:
+        uid = str(item.m_Uuid.AsString())
+        net = item.GetNetname() or ""
+        spec = resolve(net) or {}
+        clearance_nm = int(round(
+            max(0.0, float(spec.get("clearance") or 0.2)) * 1e6))
+        legs = cec_fr._guarded_lastmile_legs(
+            board, item.GetStart(), item.GetEnd(), item.GetWidth(),
+            item.GetLayer(), clearance_nm, item.GetNetCode(),
+            lambda start, end, half: cec_fr._edge_leg_clear(
+                board, start, end, half),
+            allow_maze=False)
+        if not legs:
+            refused.append({"uuid": uid, "net": net,
+                            "reason": "no_clear_octilinear_path"})
+            continue
+        original_start = item.GetStart()
+        original_end = item.GetEnd()
+        item.SetStart(legs[0][0])
+        item.SetEnd(legs[0][1])
+        new_items = [item]
+        for start, end in legs[1:]:
+            replacement = pcbnew.PCB_TRACK(board)
+            replacement.SetStart(start)
+            replacement.SetEnd(end)
+            replacement.SetWidth(item.GetWidth())
+            replacement.SetLayer(item.GetLayer())
+            replacement.SetNetCode(item.GetNetCode())
+            replacement.SetLocked(item.IsLocked())
+            board.Add(replacement)
+            new_items.append(replacement)
+        rows.append({
+            "uuid": uid,
+            "net": net,
+            "layer": board.GetLayerName(item.GetLayer()),
+            "old_start_mm": [round(original_start.x / 1e6, 6),
+                              round(original_start.y / 1e6, 6)],
+            "old_end_mm": [round(original_end.x / 1e6, 6),
+                            round(original_end.y / 1e6, 6)],
+            "replacement_uuids": sorted(
+                str(item.m_Uuid.AsString()) for item in new_items),
+            "legs": len(new_items),
+        })
+    return {
+        "canonicalized": len(rows),
+        "replacements": rows,
+        "refused": refused,
+    }
 
 
 def repair_backtracks(board, *, angle_deg=5.0):
@@ -294,6 +398,137 @@ def repair_acute_vertices(board, *, angle_min_deg=5.0,
     return changed
 
 
+def repair_via_acute_fanouts(board, *, inset_mm=0.20):
+    """Replace a 45-degree same-layer via backtrack by two 45-degree bends.
+
+    A cardinal segment and a diagonal segment can leave the same via only 45
+    degrees apart.  The via land covers the concavity electrically, but the
+    resulting hook is still poor release-grade route craft and is easy to
+    avoid.  For an unlocked, ordinary single-ended net, replace the diagonal
+    leg by ``perpendicular -> diagonal -> parallel`` legs inside its original
+    bounding box.  This makes the two via departures orthogonal while keeping
+    every new heading octilinear and both added bends at 45 degrees.
+
+    The transformation is deliberately local and conservative: it requires an
+    exact via-centred degree-two junction, equal track widths, one cardinal and
+    one 45-degree leg, no group ownership, and enough length for a useful
+    inset.  Whole-board transactional admission remains responsible for DRC,
+    connectivity, pair, field, and fabrication proof.
+    """
+    import pcbnew
+    import cec_fr
+
+    tracks = [item for item in board.GetTracks()
+              if item.GetClass() == "PCB_TRACK"]
+    excluded_nets = set(cec_fr.coupled_pair_nets(board))
+    grouped = {
+        str(item.m_Uuid.AsString())
+        for group in board.Groups() for item in group.GetItems()
+        if item.GetClass() in ("PCB_TRACK", "PCB_ARC")
+    }
+    via_points = set()
+    routed_layers = {track.GetLayer() for track in tracks}
+    for item in board.GetTracks():
+        if item.GetClass() != "PCB_VIA":
+            continue
+        point = item.GetPosition()
+        # KiCad copper layer IDs are sparse (F.Cu=0, inner layers are even,
+        # B.Cu=31); ``range(GetCopperLayerCount())`` silently omitted deeper
+        # inner layers such as PWR.  Interrogate only layers carrying tracks.
+        for layer in routed_layers:
+            if item.IsOnLayer(layer):
+                via_points.add((point.x, point.y, layer,
+                                item.GetNetname() or ""))
+
+    ends = {}
+    for track in tracks:
+        for point, other, at_start in (
+                (track.GetStart(), track.GetEnd(), True),
+                (track.GetEnd(), track.GetStart(), False)):
+            key = (point.x, point.y, track.GetLayer(),
+                   track.GetNetname() or "")
+            ends.setdefault(key, []).append((track, point, other, at_start))
+
+    targets = []
+    for key, rows in sorted(ends.items()):
+        if key not in via_points or len(rows) != 2 or key[3] in excluded_nets:
+            continue
+        first, second = rows
+        if (first[0].GetWidth() != second[0].GetWidth()
+                or first[0].IsLocked() or second[0].IsLocked()):
+            continue
+        ids = {str(first[0].m_Uuid.AsString()),
+               str(second[0].m_Uuid.AsString())}
+        if ids & grouped:
+            continue
+
+        cardinal = diagonal = None
+        for row in rows:
+            _track, common, outer, _at_start = row
+            dx, dy = outer.x - common.x, outer.y - common.y
+            if (dx == 0) ^ (dy == 0):
+                cardinal = row
+            elif abs(dx) == abs(dy) and dx and dy:
+                diagonal = row
+        if cardinal is None or diagonal is None:
+            continue
+        _card_track, common, card_outer, _card_at_start = cardinal
+        diag_track, _common2, diag_outer, diag_at_start = diagonal
+        cdx, cdy = card_outer.x - common.x, card_outer.y - common.y
+        ddx, ddy = diag_outer.x - common.x, diag_outer.y - common.y
+        # The detector only targets the same-quadrant 45-degree hook.  A
+        # cardinal leg pointing away from the diagonal already opens to 135
+        # degrees and needs no rewrite.
+        if ((cdx and (cdx > 0) != (ddx > 0))
+                or (cdy and (cdy > 0) != (ddy > 0))):
+            continue
+        length = min(abs(ddx), abs(ddy))
+        inset = min(pcbnew.FromMM(inset_mm), length // 4)
+        if inset < pcbnew.FromMM(0.05):
+            continue
+        sx = 1 if ddx > 0 else -1
+        sy = 1 if ddy > 0 else -1
+        # Begin perpendicular to the cardinal neighbour, follow the original
+        # diagonal heading, then rejoin the unchanged outer endpoint parallel
+        # to that neighbour.
+        if cdx:
+            bend1 = pcbnew.VECTOR2I(common.x, common.y + sy * inset)
+            bend2 = pcbnew.VECTOR2I(diag_outer.x - sx * inset,
+                                   diag_outer.y)
+        else:
+            bend1 = pcbnew.VECTOR2I(common.x + sx * inset, common.y)
+            bend2 = pcbnew.VECTOR2I(diag_outer.x,
+                                   diag_outer.y - sy * inset)
+        # Store value copies, never SWIG point proxies.  Mutating the original
+        # track rewrites its GetStart/GetEnd proxy in place; retaining that
+        # proxy made a later leg collapse back onto the middle leg.
+        legs = tuple(
+            (pcbnew.VECTOR2I(start.x, start.y),
+             pcbnew.VECTOR2I(end.x, end.y))
+            for start, end in ((common, bend1), (bend1, bend2),
+                               (bend2, diag_outer)))
+        if any(start == end for start, end in legs):
+            continue
+        targets.append((diag_track, legs))
+
+    # Select every target before adding copper.  Growing BOARD.GetTracks()
+    # during the discovery loop can invalidate pending SWIG collection
+    # proxies, making the result depend on UUID/coordinate ordering.
+    for diag_track, legs in targets:
+        diag_track.SetStart(legs[0][0])
+        diag_track.SetEnd(legs[0][1])
+        for start, end in legs[1:]:
+            replacement = pcbnew.PCB_TRACK(board)
+            replacement.SetStart(start)
+            replacement.SetEnd(end)
+            replacement.SetWidth(diag_track.GetWidth())
+            replacement.SetLayer(diag_track.GetLayer())
+            replacement.SetNetCode(diag_track.GetNetCode())
+            replacement.SetLocked(False)
+            board.Add(replacement)
+    return len(targets)
+
+
 def repair_zones(board, *, sliver_mm=0.10, do_priority=True, do_island=True):
     """R3/R4/R5: sliver floor, island removal, priority deconfliction."""
     import pcbnew
@@ -432,7 +667,7 @@ def repair_sliver_only_orthofill(board_path, *, sliver_mm=0.10,
 
 def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
            do_island=True, do_starved=True, do_acute=True,
-           do_backtrack=True, do_chamfer=False,
+           do_backtrack=True, do_chamfer=False, do_octilinear=True,
            allow_locked_track_uuids=()):
     """ONE board load, with removals strictly LAST.
 
@@ -458,6 +693,8 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
                             do_island=do_island))
     rep["starved"] = repair_starved_thermal(b) if do_starved else 0
     rep["acute_vertices"] = repair_acute_vertices(b) if do_acute else 0
+    rep["via_acute_fanouts"] = (
+        repair_via_acute_fanouts(b) if do_acute else 0)
     if do_chamfer:
         sensitive = set(cec_fr.coupled_pair_nets(b))
         sensitive |= {net for pair in cec_fr._board_kelvin_pairs(b)
@@ -467,6 +704,10 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
             allow_locked_track_uuids=allow_locked_track_uuids)
     else:
         rep["chamfers"] = {"chamfered": 0, "skipped": "disabled"}
+    rep["octilinear"] = (repair_non_octilinear_segments(
+        b, board_path,
+        allow_locked_track_uuids=allow_locked_track_uuids)
+        if do_octilinear else {"canonicalized": 0, "skipped": "disabled"})
     if apply:
         for z in b.Zones():
             z.UnFill()
@@ -586,6 +827,8 @@ def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
         argv.append("--no-backtrack")
     if kwargs.get("do_chamfer", False):
         argv.append("--chamfer")
+    if not kwargs.get("do_octilinear", True):
+        argv.append("--no-octilinear")
     uuid_file = kwargs.get("generated_track_uuid_file")
     if uuid_file:
         argv.extend(("--generated-track-uuid-file", uuid_file))
@@ -616,6 +859,56 @@ def _sliver_repair_isolated(candidate, *, sliver_mm, report_path):
     if not rows:
         raise RuntimeError("isolated sliver repair produced no report")
     return rows[0]
+
+
+def _dangling_cleanup_isolated(candidate):
+    """Settle only DRC-proven dangling copper after graph simplification.
+
+    Collapsing a covered backtrack can reveal that the shorter overlapping
+    leg was a redundant dead stub.  Run the exact UUID-driven cleanup in its
+    own process before admission; a real connection regression is still
+    rejected by the subsequent whole-board score.
+    """
+    code = (
+        "import json,sys;sys.path.insert(0,sys.argv[2]);"
+        "import cec_certificate_repair as c;"
+        "changed,report=c._drc_dangling_cleanup_worker(sys.argv[1]);"
+        "print('CEC_DANGLING='+json.dumps({"
+        "'changed':changed,'report':report},sort_keys=True))")
+    proc = subprocess.run(
+        [sys.executable, "-c", code, os.path.abspath(candidate), HERE],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    marker = next((line[len("CEC_DANGLING="):]
+                   for line in reversed(proc.stdout.splitlines())
+                   if line.startswith("CEC_DANGLING=")), None)
+    if proc.returncode or marker is None:
+        raise RuntimeError("isolated dangling cleanup failed rc=%d: %s" %
+                           (proc.returncode,
+                            (proc.stderr or proc.stdout)[-1200:]))
+    return json.loads(marker)
+
+
+def _post_backtrack_acute_isolated(candidate):
+    """Polish acute vertices exposed only after dead-stub retirement."""
+    code = (
+        "import json,sys;sys.path.insert(0,sys.argv[2]);"
+        "import cec_fab_repair as f;"
+        "r=f.repair(sys.argv[1],apply=True,do_priority=False,"
+        "do_island=False,do_starved=False,do_acute=True,"
+        "do_backtrack=False,do_chamfer=False,do_octilinear=False);"
+        "print('CEC_ACUTE='+json.dumps(r,sort_keys=True))")
+    proc = subprocess.run(
+        [sys.executable, "-c", code, os.path.abspath(candidate), HERE],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    marker = next((line[len("CEC_ACUTE="):]
+                   for line in reversed(proc.stdout.splitlines())
+                   if line.startswith("CEC_ACUTE=")), None)
+    if proc.returncode or marker is None:
+        raise RuntimeError("isolated post-backtrack acute cleanup failed "
+                           "rc=%d: %s" %
+                           (proc.returncode,
+                            (proc.stderr or proc.stdout)[-1200:]))
+    return json.loads(marker)
 
 
 def repair_admitted(board_path, *, sliver_mm=0.10,
@@ -683,6 +976,12 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
                 changes = _repair_isolated(
                     candidate, sliver_mm=sliver_mm, kwargs=kwargs,
                     report_path=report_path)
+                if int((changes or {}).get("backtracks", 0)) > 0:
+                    changes = dict(changes)
+                    changes["dangling_cleanup"] = \
+                        _dangling_cleanup_isolated(candidate)
+                    changes["post_backtrack_acute"] = \
+                        _post_backtrack_acute_isolated(candidate)
                 if kwargs.get("sliver_cleanup"):
                     sliver_report = os.path.join(
                         work, "%s-%s-slivers.json" % (stem, name))
@@ -772,6 +1071,7 @@ def main():
     ap.add_argument("--no-acute", action="store_true")
     ap.add_argument("--no-backtrack", action="store_true")
     ap.add_argument("--chamfer", action="store_true")
+    ap.add_argument("--no-octilinear", action="store_true")
     ap.add_argument("--generated-track-uuid-file")
     ap.add_argument("--sliver-only-orthofill", action="store_true")
     ap.add_argument("--json", default="")
@@ -797,6 +1097,7 @@ def main():
                        do_acute=not a.no_acute,
                        do_backtrack=not a.no_backtrack,
                        do_chamfer=a.chamfer,
+                       do_octilinear=not a.no_octilinear,
                        allow_locked_track_uuids=generated_uuids)
         out.append(r)
         if a.sliver_only_orthofill:
@@ -806,11 +1107,13 @@ def main():
                      "APPLIED" if r["applied"] else "(dry run)"),
                   flush=True)
         else:
-            print("%-46s tracks=%-3d backtracks=%-3d acute=%-3d chamfers=%-3d min_thick=%-3d islands=%-3d "
+            print("%-46s tracks=%-3d backtracks=%-3d acute=%-3d chamfers=%-3d octilinear=%-3d min_thick=%-3d islands=%-3d "
                   "priority=%-3d starved=%-3d %s"
                   % (os.path.basename(bp)[:46], r["track_width"],
                      r["backtracks"], r["acute_vertices"],
                      int((r.get("chamfers") or {}).get("chamfered", 0)),
+                     int((r.get("octilinear") or {}).get(
+                         "canonicalized", 0)),
                      r["min_thickness"], r["island_mode"], r["priority"],
                      r.get("starved", 0),
                      "APPLIED" if r["applied"] else "(dry run)"),

@@ -94,6 +94,13 @@ def kind_compatible(kind, farads):
         return farads + 1e-15 >= 1e-6
     if kind == "at-least-10u":
         return farads + 1e-15 >= 10e-6
+    if kind == "local-hf":
+        # A large ceramic reservoir is still useful for load-step energy, but
+        # it must not own the device's high-frequency pin-bypass role.  Keep
+        # the value ceiling intentionally broad enough for 100 nF or 1 uF
+        # X5R/X7R implementations; footprint technology is checked
+        # independently by ``local_bypass_technology``.
+        return 0 < farads <= 1e-6 + 1e-15
     return farads > 0
 
 
@@ -122,7 +129,7 @@ def requirements_for_value(value, project_max_mm=3.5):
             yield pin, "at-least-1u", 2.0, "TLV75533:" + role
     if "TPS2121" in value:
         for pin, role in (("7", "IN1"), ("2", "IN2"), ("1", "OUT")):
-            yield pin, "any", project_max_mm, "TPS2121:" + role
+            yield pin, "local-hf", project_max_mm, "TPS2121:" + role
 
 
 def rail_to_rail_requirements_for_value(value, project_max_mm=3.5):

@@ -7,6 +7,8 @@ import sys
 import tempfile
 import unittest
 
+import pcbnew
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "scripts", "cec_sync_pcb_from_schematic.py")
 
@@ -37,6 +39,50 @@ def _carve(text, start):
 
 
 class TestSyncPcbFromSchematic(unittest.TestCase):
+    def test_replace_mismatched_footprint_preserves_placement_and_nets(self):
+        schematic = os.path.join(
+            ROOT, "beta", "pcie-8pin-2port",
+            "pcie8pin-2port-module.kicad_sch")
+        source = os.path.join(
+            ROOT, "beta", "pcie-8pin-2port", "candidate",
+            "pcie-8pin-2port-candidate.kicad_pcb")
+        with tempfile.TemporaryDirectory() as directory:
+            board_path = os.path.join(directory, "candidate.kicad_pcb")
+            board = pcbnew.LoadBoard(source)
+            cap = board.FindFootprintByReference("C6")
+            before = cap.GetPosition()
+            cap.SetFPID(pcbnew.LIB_ID(
+                "cec-Capacitor_SMD", "C_0603_1608Metric"))
+            for item in list(board.GetTracks()):
+                board.Remove(item)
+            zone_count = len(list(board.Zones()))
+            self.assertGreater(zone_count, 0)
+            pcbnew.SaveBoard(board_path, board)
+
+            proc = subprocess.run(
+                [sys.executable, SCRIPT, "--schematic", schematic,
+                 "--pcb", board_path,
+                 "--replace-mismatched-footprints", "--add-missing"],
+                text=True, capture_output=True, check=False)
+
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            report = {}
+            for line in proc.stdout.splitlines():
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                report[key] = ast.literal_eval(value)
+            self.assertEqual(report["zones_refilled"], zone_count)
+            synced = pcbnew.LoadBoard(board_path)
+            replaced = synced.FindFootprintByReference("C6")
+            self.assertEqual(
+                replaced.GetFPID().GetUniStringLibId(),
+                "cec-Capacitor_SMD:C_0805_2012Metric")
+            self.assertEqual(replaced.GetPosition(), before)
+            self.assertEqual(
+                {pad.GetNetname() for pad in replaced.Pads()},
+                {"+5VSB", "GND"})
+
     def test_add_missing_materializes_connected_nonoverlapping_footprints(self):
         schematic = os.path.join(
             ROOT, "beta", "pcie-8pin-3port",

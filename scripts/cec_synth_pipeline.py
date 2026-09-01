@@ -15952,9 +15952,11 @@ def repair_fiducials_to_edge_band(board_path, out_path=None, *,
         return {"schema": 1, "ok": True, "changed": False,
                 "skipped": "no_front_fiducials"}
 
-    bounds = board.GetBoardEdgesBoundingBox()
-    left, top = bounds.GetLeft() / _MM, bounds.GetTop() / _MM
-    right, bottom = bounds.GetRight() / _MM, bounds.GetBottom() / _MM
+    # Placement must use the manufactured Edge.Cuts centreline, not the
+    # painted-stroke bounding box (which expands every edge by half the line
+    # width and produced nominal 5.0 mm sites that were really 4.95 mm).
+    import cec_board_geometry
+    left, top, right, bottom = cec_board_geometry.outline_bbox_mm(board)
     inset = float(edge_min_mm)
     radius = pcbnew.FromMM(float(optical_radius_mm))
     other_footprints = [

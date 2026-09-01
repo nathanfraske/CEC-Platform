@@ -47,6 +47,9 @@ class SixLayerGenerationTest(unittest.TestCase):
                              "jlcpcb_6l_pofv_high_current")
             self.assertEqual(FAB.routing_layers(board),
                              ("F.Cu", "In2.Cu", "In3.Cu", "B.Cu"))
+            self.assertEqual(FAB.routing_layers(
+                board, include_power=False),
+                ("F.Cu", "In2.Cu", "B.Cu"))
             self.assertEqual(FAB.referenced_signal_layers(board),
                              ("F.Cu", "In2.Cu", "B.Cu"))
             with open(path, encoding="utf-8") as source:
@@ -60,6 +63,27 @@ class SixLayerGenerationTest(unittest.TestCase):
                                         for lid in zone.GetLayerSet().CuStack()
                                         if int(lid) in FAB.COPPER_LAYER_IDS)
             self.assertEqual(plane_layers, {"In1.Cu", "In4.Cu"})
+
+    def test_lastmile_uses_empty_power_role_only_for_power_netclass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(
+                directory, "jlcpcb_6l_pofv_high_current")
+            board = pcbnew.LoadBoard(path)
+
+            power_layers = cec_fr._lastmile_route_layers(
+                board, net_name="+3V3", spec={"name": "Power"},
+                exclude_front=True)
+            signal_layers = cec_fr._lastmile_route_layers(
+                board, net_name="/SS", spec={"name": "Default"},
+                exclude_front=True)
+            coupled_layers = cec_fr._lastmile_route_layers(
+                board, net_name="/USB_D_P", spec={"name": "Default"},
+                exclude_front=True)
+
+            self.assertIn(8, power_layers)
+            self.assertNotIn(8, signal_layers)
+            self.assertNotIn(8, coupled_layers)
+            self.assertEqual(set(coupled_layers), {2, 6})
 
     def test_exported_router_deck_exposes_four_route_layers(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -273,10 +297,35 @@ class SixLayerGenerationTest(unittest.TestCase):
             unlocked.SetDrill(pcbnew.FromMM(0.30))
             unlocked.SetNet(net)
             board.Add(unlocked)
+
             report = cec_fr._restore_locked_via_geometry(board, snapshot)
             self.assertEqual(report["restored"], 0, report)
-            self.assertAlmostEqual(unlocked.GetWidth(unlocked.TopLayer()) / 1e6,
-                                   0.60, places=6)
+            self.assertAlmostEqual(
+                unlocked.GetWidth(unlocked.TopLayer()) / 1e6,
+                0.60, places=6)
+
+    def test_annular_normalizer_never_grows_locked_offset_via(self):
+        """A locked process-owned dogbone must not become a clearance fault."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory, "jlcpcb_6l_pofv_signal")
+            board = pcbnew.LoadBoard(path)
+            net = board.FindNet("GND")
+            via = pcbnew.PCB_VIA(board)
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetPosition(pcbnew.VECTOR2I_MM(12.0, 12.0))
+            via.SetWidth(pcbnew.FromMM(0.35))
+            via.SetDrill(pcbnew.FromMM(0.25))
+            via.SetLayerPair(board.GetLayerID("F.Cu"),
+                             board.GetLayerID("B.Cu"))
+            via.SetNet(net)
+            via.SetLocked(True)
+            board.Add(via)
+
+            self.assertEqual(cec_fr.normalize_via_annular(board), 0)
+            self.assertAlmostEqual(
+                via.GetWidth(via.TopLayer()) / 1e6, 0.35, places=6)
+            self.assertAlmostEqual(via.GetDrillValue() / 1e6, 0.25,
+                                   places=6)
 
     def test_locked_via_restore_recreates_omitted_ses_barrel(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -634,6 +634,74 @@ def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
             "max_local_mm": round(local_limit, 3),
         }, None
 
+    def _shared_ground_neckdown():
+        """Try the explicitly bounded fine-pitch GND bridge in place."""
+        if link_role != "shared-ground-entry":
+            return None
+        endpoint_minor = min(
+            owner_pad.GetSize().x, owner_pad.GetSize().y,
+            cap_pad.GetSize().x, cap_pad.GetSize().y)
+        local_width = min(width, max(int(board_min), int(endpoint_minor)))
+        if local_width >= width:
+            return None
+        for layer in common:
+            path = cec_fr._guarded_profiled_lastmile_legs(
+                board, start, end, local_width, layer, clearance,
+                net_code,
+                lambda a, b, half: cec_fr._edge_leg_clear(
+                    board, a, b, half))
+            if not path:
+                continue
+            path_length = _legs_length_mm(path)
+            if not _within_locality(
+                    "shared-ground-neckdown", path_length):
+                continue
+            items = []
+            for a, b, leg_width in path:
+                item = pcbnew.PCB_TRACK(board)
+                item.SetStart(a); item.SetEnd(b)
+                item.SetWidth(leg_width); item.SetLayer(layer)
+                item.SetNetCode(net_code); item.SetLocked(bool(lock))
+                board.Add(item); items.append(item)
+            endpoint_neckdown = (
+                _group_endpoint_neckdowns(board, items, width)
+                if group_neckdowns else None)
+            return {
+                "status": "shared-ground-neckdown",
+                "role": link_role,
+                "layer": board.GetLayerName(layer),
+                "width_mm": round(local_width / MM, 3),
+                "class_width_mm": round(width / MM, 3),
+                "length_mm": round(path_length, 3),
+                "endpoint_neckdown": endpoint_neckdown,
+                "items": items,
+                "direct_mm": round(direct, 3),
+                "max_local_mm": round(local_limit, 3),
+            }
+        return None
+
+    # Ground siblings on the same fine-pitch package should take the short,
+    # same-layer guarded bridge before the generic via/inner-layer maze.  The
+    # old ordering spent minutes exploring multilayer seats for a connection
+    # that is electrically and geometrically just one 0.5 mm segment.
+    shared_ground = _shared_ground_neckdown()
+    if shared_ground is not None:
+        return shared_ground, None
+    if link_role == "shared-ground-entry":
+        if diagnostics is not None:
+            diagnostics.update({
+                "schema": 1,
+                "conclusion": "no_guarded_local_shared_ground_path",
+                "owner": _pad_identity(owner_pad),
+                "cap": _pad_identity(cap_pad),
+                "locality": {
+                    "direct_mm": round(direct, 3),
+                    "max_local_mm": round(local_limit, 3),
+                    "rejected_candidates": locality_rejections,
+                },
+            })
+        return None, "no guarded local shared-ground path"
+
     # Adjacent fine-pitch power pins can be individually escapable yet unable
     # to support two class-width face-layer throats at once.  The generic
     # last-mile engine already owns a guarded two-via bridge for exactly that
@@ -743,56 +811,6 @@ def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
             "max_local_mm": round(local_limit, 3),
         }, None
 
-    # A shared GND entry is a different electrical primitive from a rail
-    # trunk.  Fine-pitch owner pads can be narrower than the GND netclass and
-    # may sit between adjacent package pins, so insisting on class width for
-    # the entire owner-to-capacitor link can make a physically sound local
-    # return impossible.  Only this explicitly requested role may use a
-    # bounded, full-cell neckdown, and only after the ordinary class-width and
-    # guarded multilayer searches above have both failed.  The resulting
-    # copper is still clearance-checked by the same last-mile engine, remains
-    # inside the existing locality bound, and is placed in the named endpoint
-    # exception group for exact DRC visibility.
-    if link_role == "shared-ground-entry":
-        endpoint_minor = min(
-            owner_pad.GetSize().x, owner_pad.GetSize().y,
-            cap_pad.GetSize().x, cap_pad.GetSize().y)
-        local_width = min(width, max(int(board_min), int(endpoint_minor)))
-        if local_width < width:
-            for layer in common:
-                path = cec_fr._guarded_profiled_lastmile_legs(
-                    board, start, end, local_width, layer, clearance,
-                    net_code,
-                    lambda a, b, half: cec_fr._edge_leg_clear(
-                        board, a, b, half))
-                if not path:
-                    continue
-                path_length = _legs_length_mm(path)
-                if not _within_locality(
-                        "shared-ground-neckdown", path_length):
-                    continue
-                items = []
-                for a, b, leg_width in path:
-                    item = pcbnew.PCB_TRACK(board)
-                    item.SetStart(a); item.SetEnd(b)
-                    item.SetWidth(leg_width); item.SetLayer(layer)
-                    item.SetNetCode(net_code); item.SetLocked(bool(lock))
-                    board.Add(item); items.append(item)
-                endpoint_neckdown = (
-                    _group_endpoint_neckdowns(board, items, width)
-                    if group_neckdowns else None)
-                return {
-                    "status": "shared-ground-neckdown",
-                    "role": link_role,
-                    "layer": board.GetLayerName(layer),
-                    "width_mm": round(local_width / MM, 3),
-                    "class_width_mm": round(width / MM, 3),
-                    "length_mm": round(path_length, 3),
-                    "endpoint_neckdown": endpoint_neckdown,
-                    "items": items,
-                    "direct_mm": round(direct, 3),
-                    "max_local_mm": round(local_limit, 3),
-                }, None
     if diagnostics is not None:
         certificate = cec_fr._lastmile_refusal_certificate(
             board, start, end, width, clearance, net_code,
@@ -1018,8 +1036,9 @@ def supply_access_reservations_file(board_path, *, max_assignment_mm=3.5,
             pass
 
 
-def _existing_return(board, pad, reach_mm):
-    board.BuildConnectivity()
+def _existing_return(board, pad, reach_mm, *, rebuild=True):
+    if rebuild:
+        board.BuildConnectivity()
     connected = {
         item.m_Uuid.AsString()
         for item in board.GetConnectivity().GetConnectedItems(pad)}
@@ -1086,6 +1105,69 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
         return {
             "status": "covered", "distance_mm": round(covered[0], 3),
             "via_uuid": existing_via.m_Uuid.AsString(), "items": [],
+        }, None
+
+    # A multi-rail IC can assign several bypass cells to different supply
+    # pins while exposing adjacent same-net GND lands.  Earlier cells may
+    # already have created a fabrication-qualified immediate return on one of
+    # those lands.  Requiring every sibling land to grow another barrel can
+    # make an otherwise excellent QFN cell impossible at fine pitch and is
+    # electrically worse than a short, visible link to the existing portal.
+    # Reuse only a pad on the *same footprint*, prove that the peer already
+    # owns a local via, and generate the link through the same guarded,
+    # locality-bounded shared-ground primitive used by owner/cap pairs.
+    try:
+        parent = pad.GetParentFootprint()
+        pad_uuid = pad.m_Uuid.AsString()
+    except Exception:                                  # noqa: BLE001
+        parent = None
+        pad_uuid = None
+    sibling_portals = []
+    if parent is not None:
+        for peer in parent.Pads():
+            try:
+                if (peer.m_Uuid.AsString() == pad_uuid
+                        or peer.GetNetCode() != pad.GetNetCode()
+                        or peer.GetNetname() != pad.GetNetname()):
+                    continue
+            except Exception:                          # noqa: BLE001
+                continue
+            # The target-pad lookup at function entry already rebuilt the
+            # graph. Rebuilding the complete board once per sibling turned a
+            # small QFN pad scan into minutes of duplicate native work.
+            portal = _existing_return(
+                board, peer, reach_mm, rebuild=False)
+            if portal is None:
+                continue
+            distance = math.hypot(
+                peer.GetPosition().x - pad.GetPosition().x,
+                peer.GetPosition().y - pad.GetPosition().y) / MM
+            # Reuse is an *immediate* package portal, not a license to route
+            # across the IC to whichever sibling happened to be processed
+            # first.  A remote portal must not preempt a legal local dogbone
+            # on this pad or trigger an expensive multilayer search.
+            if distance > float(reach_mm) + 1e-9:
+                continue
+            sibling_portals.append((
+                distance, str(peer.GetPadName()), peer, portal))
+    for distance, _pin_sort, peer, portal in sorted(
+            sibling_portals, key=lambda row: (row[0], row[1])):
+        ground_link, link_error = _add_supply_link(
+            board, pad, peer, lock=lock,
+            link_role="shared-ground-entry")
+        if link_error is not None:
+            continue
+        clean_link = {
+            key: value for key, value in (ground_link or {}).items()
+            if key != "items"}
+        return {
+            "status": "shared-owner-ground-entry",
+            "distance_mm": round(float(
+                clean_link.get("length_mm", distance)), 3),
+            "via_uuid": portal[1].m_Uuid.AsString(),
+            "shared_with": _pad_identity(peer),
+            "shared_link": clean_link,
+            "items": list((ground_link or {}).get("items") or ()),
         }, None
     gnd_code = pad.GetNetCode()
     pos = pad.GetPosition()
@@ -1157,10 +1239,25 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
         max(0.3, float(spec["via_drill"])))
     pad_minor = min(pad.GetSize().x, pad.GetSize().y) / MM
     try:
-        board_min = board.GetDesignSettings().m_TrackMinWidth / MM
+        board_min_nm = int(board.GetDesignSettings().m_TrackMinWidth)
     except Exception:                                    # noqa: BLE001
-        board_min = 0.20
-    stub_width = min(0.30, max(board_min, pad_minor / 2.0))
+        board_min_nm = pcbnew.FromMM(0.20)
+    class_width_nm = max(board_min_nm, int(spec["width"]))
+    class_width = class_width_nm / MM
+    # A GND dogbone is a current-return structure, not an arbitrary signal
+    # escape.  The old fixed 0.30 mm ceiling made *every* dogbone violate a
+    # wider GND netclass even when the full class width fit comfortably.  Try
+    # the electrical-authority width first.  Only when the endpoint land is
+    # genuinely narrower may the guarded search use a pad-limited local
+    # neckdown; unlike the former ``pad_minor / 2`` heuristic, the fallback
+    # consumes the available land width and is placed in the exact endpoint
+    # exception group for independent signoff.
+    endpoint_width_nm = min(
+        class_width_nm,
+        max(board_min_nm, pcbnew.FromMM(pad_minor)))
+    stub_widths_nm = [class_width_nm]
+    if endpoint_width_nm < class_width_nm:
+        stub_widths_nm.append(endpoint_width_nm)
     start_radius = max(
         0.45, pad_minor / 2.0 + diameter / 2.0 + 0.20)
     radii = sorted({
@@ -1178,68 +1275,75 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
         "via_hole_clearance": 0,
         "stub_pair_overlap": 0,
     }
-    for radius in radii:
-        for angle_deg in (0, 180, 90, 270, 45, 135, 225, 315,
-                          22.5, 67.5, 112.5, 157.5,
-                          202.5, 247.5, 292.5, 337.5):
-            angle = math.radians(angle_deg)
-            at = pcbnew.VECTOR2I(
-                int(round(pos.x + math.cos(angle) * radius * MM)),
-                int(round(pos.y + math.sin(angle) * radius * MM)))
-            tested_sites += 1
-            checks = (
-                ("stub_foreign_clearance", cec_fr._tap_foreign_clear(
-                    board, pos, at, pcbnew.FromMM(stub_width),
-                    layer, pcbnew.FromMM(0.20), {gnd_code})),
-                ("stub_edge_clearance", cec_fr._edge_leg_clear(
-                    board, pos, at, pcbnew.FromMM(stub_width) // 2)),
-                ("via_edge_clearance", cec_fr._edge_leg_clear(
-                    board, at, at, pcbnew.FromMM(diameter) // 2)),
-                ("via_spot_clearance", cec_fr._via_spot_clear(
-                    board, at, pcbnew.FromMM(diameter),
-                    pcbnew.FromMM(0.20), {gnd_code},
-                    drill_nm=pcbnew.FromMM(drill), net_code=gnd_code)),
-                # Same-net copper is exempt from the ordinary spot-clearance
-                # guard, but a standard dogbone barrel may still graze the
-                # edge of its source pad.  That is neither a legal separated
-                # dogbone nor a fully-contained, profile-qualified POFV seat.
-                # Apply the fabrication authority at the materialization
-                # boundary so every generated via is in exactly one class.
-                ("via_pad_qualification",
-                 cec_fab_profile.via_at_pad_conflicts(
-                     board, at, pcbnew.FromMM(diameter),
-                     pcbnew.FromMM(drill), gnd_code)[0] is None),
-                ("via_hole_clearance", _hole_to_hole_clear(
-                    board, at, drill)[0]),
-                ("stub_pair_overlap", cec_fr._tap_pair_overlap_clear(
-                    board, pos, at, pcbnew.FromMM(stub_width),
-                    layer, gnd_code, set())),
-            )
-            failed = [name for name, ok in checks if not ok]
-            if failed:
-                for name in failed:
-                    dogbone_rejections[name] += 1
-                continue
-            via = pcbnew.PCB_VIA(board)
-            via.SetPosition(at)
-            via.SetDrill(pcbnew.FromMM(drill))
-            via.SetWidth(pcbnew.FromMM(diameter))
-            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-            via.SetNetCode(gnd_code); via.SetLocked(bool(lock))
-            board.Add(via)
-            track = pcbnew.PCB_TRACK(board)
-            track.SetStart(pos); track.SetEnd(at)
-            track.SetWidth(pcbnew.FromMM(stub_width))
-            track.SetLayer(layer); track.SetNetCode(gnd_code)
-            track.SetLocked(bool(lock)); board.Add(track)
-            return {
-                "status": "dogbone", "distance_mm": round(radius, 3),
-                "via_uuid": via.m_Uuid.AsString(),
-                "items": [track, via], "fab_profile": profile_name,
-                "diameter_mm": round(diameter, 3),
-                "drill_mm": round(drill, 3),
-                "board_limits": board_limits,
-            }, None
+    for stub_width_nm in stub_widths_nm:
+        for radius in radii:
+            for angle_deg in (0, 180, 90, 270, 45, 135, 225, 315,
+                              22.5, 67.5, 112.5, 157.5,
+                              202.5, 247.5, 292.5, 337.5):
+                angle = math.radians(angle_deg)
+                at = pcbnew.VECTOR2I(
+                    int(round(pos.x + math.cos(angle) * radius * MM)),
+                    int(round(pos.y + math.sin(angle) * radius * MM)))
+                tested_sites += 1
+                checks = (
+                    ("stub_foreign_clearance", cec_fr._tap_foreign_clear(
+                        board, pos, at, stub_width_nm,
+                        layer, pcbnew.FromMM(0.20), {gnd_code})),
+                    ("stub_edge_clearance", cec_fr._edge_leg_clear(
+                        board, pos, at, stub_width_nm // 2)),
+                    ("via_edge_clearance", cec_fr._edge_leg_clear(
+                        board, at, at, pcbnew.FromMM(diameter) // 2)),
+                    ("via_spot_clearance", cec_fr._via_spot_clear(
+                        board, at, pcbnew.FromMM(diameter),
+                        pcbnew.FromMM(0.20), {gnd_code},
+                        drill_nm=pcbnew.FromMM(drill), net_code=gnd_code)),
+                    # Same-net copper is exempt from the ordinary
+                    # spot-clearance guard, but a standard dogbone barrel may
+                    # still graze the edge of its source pad.  That is neither
+                    # a legal separated dogbone nor a fully-contained,
+                    # profile-qualified POFV seat.
+                    ("via_pad_qualification",
+                     cec_fab_profile.via_at_pad_conflicts(
+                         board, at, pcbnew.FromMM(diameter),
+                         pcbnew.FromMM(drill), gnd_code)[0] is None),
+                    ("via_hole_clearance", _hole_to_hole_clear(
+                        board, at, drill)[0]),
+                    ("stub_pair_overlap", cec_fr._tap_pair_overlap_clear(
+                        board, pos, at, stub_width_nm,
+                        layer, gnd_code, set())),
+                )
+                failed = [name for name, ok in checks if not ok]
+                if failed:
+                    for name in failed:
+                        dogbone_rejections[name] += 1
+                    continue
+                via = pcbnew.PCB_VIA(board)
+                via.SetPosition(at)
+                via.SetDrill(pcbnew.FromMM(drill))
+                via.SetWidth(pcbnew.FromMM(diameter))
+                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                via.SetNetCode(gnd_code); via.SetLocked(bool(lock))
+                board.Add(via)
+                track = pcbnew.PCB_TRACK(board)
+                track.SetStart(pos); track.SetEnd(at)
+                track.SetWidth(stub_width_nm)
+                track.SetLayer(layer); track.SetNetCode(gnd_code)
+                track.SetLocked(bool(lock)); board.Add(track)
+                endpoint_neckdown = (
+                    _group_endpoint_neckdowns(
+                        board, [track], class_width_nm)
+                    if stub_width_nm < class_width_nm else None)
+                return {
+                    "status": "dogbone", "distance_mm": round(radius, 3),
+                    "via_uuid": via.m_Uuid.AsString(),
+                    "items": [track, via], "fab_profile": profile_name,
+                    "diameter_mm": round(diameter, 3),
+                    "drill_mm": round(drill, 3),
+                    "width_mm": round(stub_width_nm / MM, 3),
+                    "class_width_mm": round(class_width, 3),
+                    "endpoint_neckdown": endpoint_neckdown,
+                    "board_limits": board_limits,
+                }, None
     return None, (
         "no legal immediate GND return: via-in-pad %s; "
         "%d dogbone sites rejected (%s)" %
@@ -2385,7 +2489,17 @@ def synthesize_ground_plane_access(source, destination, *, reach_mm=1.5,
     board = pcbnew.LoadBoard(destination)
     report = synthesize_ground_plane_access_board(
         board, board_path=destination, reach_mm=reach_mm, lock=True)
+    report["endpoint_neckdown_reconcile"] = \
+        cec_fr.reconcile_endpoint_neckdown_groups(
+            board, netclass_resolver=cec_fr._project_netclass_resolver(
+                destination))
     pcbnew.SaveBoard(destination, board)
+    rule_report = report
+    recovered = report["endpoint_neckdown_reconcile"]
+    if recovered.get("min_width_mm") is not None:
+        rule_report = {**report, "endpoint_neckdown": recovered}
+    report["endpoint_neckdown_rule"] = \
+        _ensure_endpoint_neckdown_rule(destination, rule_report)
     after_drc = cec_certificate_repair._run_drc(
         destination, after_drc_path)
     _prune_ground_access_drc_groups(

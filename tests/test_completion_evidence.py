@@ -54,6 +54,45 @@ class CompletionEvidenceTest(unittest.TestCase):
         self.assertEqual(baseline["nested"]["x"], 1)
         self.assertEqual(augmented["completion_evidence"]["hint_count"], 2)
 
+    def test_power_authority_failure_enters_placement_power_evidence(self):
+        failure = {
+            "path_found": False,
+            "planner_reason": "terminal field incomplete",
+            "planner_bottleneck": {
+                "kind": "via_field_access", "net": "/RAIL",
+                "fields": [{
+                    "field_index": 0, "centre_mm": [10.0, 20.0],
+                    "minimum": 4, "placed": 1,
+                    "terminal_refs": ["J1"],
+                    "nearest_pad_obstacles": [{
+                        "owner": "C1", "pad": "1", "fixed": False,
+                        "distance_mm": 1.0,
+                    }],
+                }],
+            },
+        }
+        completion = {"candidates": [{"compile_failure": {
+            "report": {"/RAIL": failure},
+        }}]}
+        baseline = {"power_body_clearance": {
+            "planner_failures": {"/OLD": {
+                "planner_bottleneck": {"kind": "corridor", "net": "/OLD"},
+            }},
+        }}
+
+        augmented = evidence.augment_placement_evidence(
+            baseline, completion)
+
+        failures = augmented["power_body_clearance"]["planner_failures"]
+        self.assertEqual(set(failures), {"/OLD", "/RAIL"})
+        self.assertEqual(
+            failures["/RAIL"]["planner_bottleneck"]["kind"],
+            "via_field_access")
+        self.assertEqual(
+            augmented["completion_evidence"]
+            ["power_planner_failure_nets"], ["/RAIL"])
+        self.assertNotIn("error", baseline["power_body_clearance"])
+
     def test_projected_hints_enter_general_placement_move_ladder(self):
         import cec_synth_pipeline as pipeline
 

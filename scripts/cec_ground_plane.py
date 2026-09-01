@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Fill and admit dedicated GND planes before detailed routing.
+"""Declare, fill, and admit dedicated GND planes before detailed routing.
 
 The decoupler priority stage deliberately reserves local through-via barrels
 before a global router can occupy them.  Those vias are not electrically
@@ -11,7 +11,8 @@ stage owns that boundary and fails closed unless:
 * each dedicated plane fills as one broad connected component;
 * every required priority-via UUID touches filled GND copper on every plane it
   spans;
-* zone declarations and routed copper are unchanged by the fill; and
+* any missing profile-owned plane is derived from the exact Edge.Cuts polygon;
+* zone declarations and routed copper are unchanged by the fill itself; and
 * DRC, connectivity, Kelvin, and differential-pair state do not regress.
 """
 from __future__ import annotations
@@ -83,6 +84,111 @@ def _zone_declaration_signature(board):
             tuple(contours),
         ))
     return tuple(sorted(rows))
+
+
+def _copy_polygon_outline(source, destination):
+    """Copy a KiCad polygon set without sharing SWIG-owned point storage."""
+    for outline_index in range(source.OutlineCount()):
+        contour = source.Outline(outline_index)
+        new_outline = destination.NewOutline()
+        for point_index in range(contour.PointCount()):
+            point = contour.CPoint(point_index)
+            destination.Append(
+                int(point.x), int(point.y), new_outline)
+        for hole_index in range(source.HoleCount(outline_index)):
+            hole = source.Hole(outline_index, hole_index)
+            new_hole = destination.NewHole(new_outline)
+            for point_index in range(hole.PointCount()):
+                point = hole.CPoint(point_index)
+                destination.Append(
+                    int(point.x), int(point.y), new_outline, new_hole)
+
+
+def declare_profile_ground_planes(board, *, board_path="", gnd_net="GND",
+                                  clearance_mm=0.30,
+                                  minimum_thickness_mm=0.25):
+    """Add only missing fabrication-profile GND plane declarations.
+
+    Layer roles in the selected fabrication profile are design authority, not
+    an advisory label.  A board that declares an inner layer as ``GND`` but
+    contains no zone there must not reach routing as a plain signal layer.
+    Build one solid-connect, island-pruned GND zone per missing role from the
+    exact closed Edge.Cuts polygon (including cut-outs).  Existing zones are
+    never edited, and legacy boards without profile authority remain
+    inference-only.
+    """
+    layers, profile_name = _dedicated_ground_layers(board, board_path)
+    report = {
+        "schema": 1,
+        "ok": True,
+        "fab_profile": profile_name,
+        "added": [],
+        "existing": [],
+        "reasons": [],
+    }
+    if not profile_name:
+        report["skipped"] = "no fabrication-profile ground authority"
+        return report
+    if not layers:
+        report["ok"] = False
+        report["reasons"].append(
+            "fabrication profile declares no enabled GND plane layer")
+        return report
+    net = board.FindNet(gnd_net)
+    if net is None:
+        report["ok"] = False
+        report["reasons"].append("board has no %s net" % gnd_net)
+        return report
+
+    outline = pcbnew.SHAPE_POLY_SET()
+    if (not board.GetBoardPolygonOutlines(outline, False)
+            or outline.OutlineCount() < 1
+            or outline.FullPointCount() < 3):
+        report["ok"] = False
+        report["reasons"].append(
+            "Edge.Cuts do not form a valid closed board polygon")
+        return report
+
+    for layer_id, canonical in layers:
+        existing = [
+            zone for zone in board.Zones()
+            if (not zone.GetIsRuleArea()
+                and zone.GetNetname() == gnd_net
+                and zone.IsOnLayer(layer_id))
+        ]
+        if existing:
+            report["existing"].append({
+                "layer": canonical,
+                "board_layer_name": board.GetLayerName(layer_id),
+                "zone_count": len(existing),
+            })
+            continue
+        zone = pcbnew.ZONE(board)
+        layer_set = pcbnew.LSET()
+        layer_set.AddLayer(layer_id)
+        zone.SetLayerSet(layer_set)
+        zone.SetNet(net)
+        zone.SetZoneName("plane:GND:%s" % canonical)
+        zone.SetAssignedPriority(0)
+        zone.SetLocalClearance(pcbnew.FromMM(float(clearance_mm)))
+        zone.SetMinThickness(
+            pcbnew.FromMM(float(minimum_thickness_mm)))
+        zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+        zone.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        _copy_polygon_outline(outline, zone.Outline())
+        if zone.Outline().FullPointCount() < 3:
+            report["ok"] = False
+            report["reasons"].append(
+                "%s plane outline could not be materialized" % canonical)
+            continue
+        board.Add(zone)
+        report["added"].append({
+            "layer": canonical,
+            "board_layer_name": board.GetLayerName(layer_id),
+            "zone_name": zone.GetZoneName(),
+            "uuid": zone.m_Uuid.AsString(),
+        })
+    return report
 
 
 def _track_signature(board):
@@ -220,8 +326,20 @@ def audit_board(board, *, board_path="", required_via_uuids=(),
 
 
 def fill_board(board, *, board_path="", required_via_uuids=(),
-               minimum_coverage=0.50):
-    """Refill existing zones and audit without changing declared geometry."""
+               minimum_coverage=0.50, declare_missing=True):
+    """Declare missing profile planes, refill, and audit transactionally."""
+    declaration = (
+        declare_profile_ground_planes(board, board_path=board_path)
+        if declare_missing else {
+            "schema": 1, "ok": True, "added": [], "existing": [],
+            "skipped": "declaration disabled", "reasons": [],
+        })
+    if not declaration.get("ok"):
+        return {
+            "schema": 1, "ok": False,
+            "declaration": declaration,
+            "reasons": list(declaration.get("reasons") or ()),
+        }
     zones_before = _zone_declaration_signature(board)
     tracks_before = _track_signature(board)
     for zone in board.Zones():
@@ -238,6 +356,7 @@ def fill_board(board, *, board_path="", required_via_uuids=(),
         board, board_path=board_path,
         required_via_uuids=required_via_uuids,
         minimum_coverage=minimum_coverage)
+    audit["declaration"] = declaration
     audit["zone_declarations_unchanged"] = (
         zones_before == _zone_declaration_signature(board))
     audit["routed_copper_unchanged"] = (

@@ -21,6 +21,7 @@ import tempfile
 
 import pcbnew
 
+import cec_fr
 import cec_gnd_fanout
 import cec_precision_route
 import cec_score
@@ -170,6 +171,7 @@ def synthesize_board(board, *, board_path="", max_pair_spacing_mm=1.5,
     r_need = dia_mm / 2.0 + clearance_mm
     rows = []
     added = []
+    added_vias = []
     for pair in pairs:
         p_vias = list(by_net.get(pair["p"]) or ())
         n_vias = list(by_net.get(pair["n"]) or ())
@@ -288,11 +290,15 @@ def synthesize_board(board, *, board_path="", max_pair_spacing_mm=1.5,
                 transition["return_uuid"] = add["uuid"]
                 row["added"].append(add)
                 added.append(add)
+                added_vias.append(landed)
             row["transitions"].append(transition)
         rows.append(row)
+    local_pair_return_vias = cec_fr.group_local_pair_return_vias(
+        board, added_vias)
     return {
         "schema": 1, "ok": all(row.get("ok") for row in rows),
         "pairs": rows, "added": len(added), "generated_items": added,
+        "local_pair_return_vias": local_pair_return_vias,
         "signal_realignments": sum(
             len(row.get("signal_realignments") or ()) for row in rows),
     }
@@ -314,6 +320,8 @@ def _synthesize_once(board_path, out_path, **kwargs):
             source = board_path[:-len(".kicad_pcb")] + ext
             if os.path.isfile(source):
                 shutil.copy2(source, probe[:-len(".kicad_pcb")] + ext)
+        report["local_pair_return_rule"] = (
+            cec_fr.ensure_local_pair_return_via_rule(probe, report))
         try:
             _refill_saved_zones(probe)
             report["zones_refilled"] = True

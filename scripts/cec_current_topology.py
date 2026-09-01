@@ -132,7 +132,12 @@ def board_current_domains(board, board_hint=None):
             if net in domains:
                 continue
             contract = contracts.get(net)
-            if not contract or float(contract.get("amps") or 0.0) < 1.0:
+            # Any explicitly rated conductor is a current domain.  The former
+            # 1 A cutoff silently demoted fused USB and auxiliary rails to the
+            # ordinary signal router even when their required/project width
+            # exceeded the signal default.  IPC sizing itself determines
+            # whether a rated sub-amp path may use ordinary geometry.
+            if not contract or float(contract.get("amps") or 0.0) <= 0.0:
                 continue
             drilled = set()
             series = set()
@@ -244,7 +249,7 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
                                     preserve_uuids=()):
     """Remove unsafe pre-existing trunk candidates before priority routing.
 
-    This is deliberately scoped to complete >=1 A current domains selected by
+    This is deliberately scoped to complete rated current domains selected by
     the caller.  The independent width gate ignores bounded legal pin
     neck-downs; their UUIDs must be supplied in ``preserve_uuids`` so routing
     and signoff interpret the same physical exception.  Run this mutation in
@@ -257,6 +262,12 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
     preserved = {str(uuid) for uuid in (preserve_uuids or ()) if str(uuid)}
     domains = board_current_domains(board, board_hint=board_hint)
     contracts = route_width_contracts(board, board_hint=board_hint)
+    try:
+        import cec_fr
+        project_resolver = cec_fr._project_netclass_resolver(
+            board_hint or str(board.GetFileName() or ""))
+    except Exception:                                  # noqa: BLE001
+        project_resolver = lambda _net: {}             # noqa: E731
     items = list(board.GetTracks())
     removed = []
     remove_items = []
@@ -267,15 +278,22 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
         net = str(track.GetNetname() or "")
         domain = domains.get(net) or {}
         if (net not in wanted or not domain.get("complete")
-                or float(domain.get("amps") or 0.0) < 1.0):
+                or float(domain.get("amps") or 0.0) <= 0.0):
             continue
         uuid = str(track.m_Uuid.AsString())
         if uuid in preserved:
             continue
         canonical_layer = fab.COPPER_LAYER_IDS.get(
             int(track.GetLayer()), board.GetLayerName(track.GetLayer()))
-        required = float(((contracts.get(net) or {}).get(
+        ipc_required = float(((contracts.get(net) or {}).get(
             "required_by_layer_mm") or {}).get(canonical_layer) or 0.0)
+        project_spec = dict(project_resolver(net) or {})
+        project_by_layer = project_spec.get(
+            "track_width_by_layer_mm") or {}
+        project_required = max(
+            float(project_spec.get("track_width") or 0.0),
+            float(project_by_layer.get(canonical_layer) or 0.0))
+        required = max(ipc_required, project_required)
         actual = float(track.GetWidth()) / 1_000_000.0
         if required <= 0.0 or actual + 0.001 >= required:
             continue
@@ -286,6 +304,8 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
             "layer": canonical_layer,
             "actual_mm": actual,
             "required_mm": required,
+            "ipc_required_mm": ipc_required,
+            "project_required_mm": project_required,
             "start_mm": [start.x / 1_000_000.0, start.y / 1_000_000.0],
             "end_mm": [end.x / 1_000_000.0, end.y / 1_000_000.0],
             "locked": bool(track.IsLocked()),
@@ -316,7 +336,11 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
             qx, qy = start.x + ratio * vx, start.y + ratio * vy
             distance = ((point.x - qx) ** 2
                         + (point.y - qy) ** 2) ** 0.5
-        return distance <= (via.GetWidth() + track.GetWidth()) / 2.0
+        # KiCad 10 requires a layer when asking a via for its effective land
+        # diameter.  The no-argument legacy binding emits an assertion for
+        # every probe and can terminate a bulk-prune worker before it saves.
+        return distance <= (
+            via.GetWidth(track.GetLayer()) + track.GetWidth()) / 2.0
 
     def _touches_pad_or_zone(via):
         point = via.GetPosition()

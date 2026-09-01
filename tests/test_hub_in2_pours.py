@@ -163,6 +163,52 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
         self.assertEqual(len(added), 1)
         self.assertAlmostEqual(added[0].GetPosition().y / 1e6, 13.0)
 
+    def test_blocked_frozen_field_member_reseats_inside_two_layer_overlap(self):
+        try:
+            import pcbnew
+            import cec_fr
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        mm = lambda value: int(round(value * 1e6))
+        board = pcbnew.CreateEmptyBoard()
+        board.SetCopperLayerCount(6)
+        rail = pcbnew.NETINFO_ITEM(board, "+5V_TEST")
+        pair = pcbnew.NETINFO_ITEM(board, "/USB_D_N")
+        board.Add(rail)
+        board.Add(pair)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I(mm(5.0), mm(10.0)))
+        track.SetEnd(pcbnew.VECTOR2I(mm(25.0), mm(10.0)))
+        track.SetWidth(mm(0.2))
+        track.SetLayer(pcbnew.F_Cu)
+        track.SetNet(pair)
+        track.SetLocked(True)
+        board.Add(track)
+        polygon = [[5.0, 5.0], [25.0, 5.0],
+                   [25.0, 15.0], [5.0, 15.0]]
+        pours = [
+            {"net": "+5V_TEST", "layer": "F.Cu", "polygon": polygon},
+            {"net": "+5V_TEST", "layer": "B.Cu", "polygon": polygon},
+        ]
+        frozen = [
+            {"net": "+5V_TEST", "field_index": 0,
+             "field_kind": "terminal", "x_mm": 15.0, "y_mm": 10.0},
+            {"net": "+5V_TEST", "field_index": 0,
+             "field_kind": "terminal", "x_mm": 15.0, "y_mm": 13.0},
+        ]
+
+        reseated, report = cec_fr.reseat_overunder_vias(
+            board, frozen, pours)
+
+        self.assertTrue(report["ok"])
+        self.assertTrue(report["changed"])
+        self.assertEqual(report["reseated"], 1)
+        self.assertEqual(len(reseated), len(frozen))
+        self.assertNotEqual(reseated[0]["y_mm"], 10.0)
+        self.assertEqual(reseated[1], frozen[1])
+        self.assertEqual(len(cec_fr.add_overunder_vias(board, reseated)), 2)
+
     def test_stale_filled_ground_plane_cannot_steal_rail_via_net(self):
         try:
             import pcbnew
@@ -1072,6 +1118,60 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         again = cec_fr.synthesize_same_footprint_links(board)
         self.assertEqual(again["pair_linked"], 0)
         self.assertEqual(len(list(board.GetTracks())), len(tracks))
+
+    def test_preconnected_pair_member_allows_guarded_missing_member_completion(self):
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        p_net = pcbnew.NETINFO_ITEM(board, "/USB_D_P")
+        n_net = pcbnew.NETINFO_ITEM(board, "/USB_D_N")
+        board.Add(p_net); board.Add(n_net)
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("A6"); first.SetNet(p_net)
+        first.SetSize(pcbnew.VECTOR2I_MM(0.3, 1.15))
+        first.SetPosition(pcbnew.VECTOR2I_MM(5.0, 2.5))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        created = {"A6": first}
+        for number, net, x in (("B6", p_net, 6.0),
+                               ("B7", n_net, 4.5),
+                               ("A7", n_net, 5.5)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.3, 1.15))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x, 2.5))
+            pad.SetLayerSet(layers); pad.SetNet(net); footprint.Add(pad)
+            created[number] = pad
+
+        # Model a precision route that already joined the N duplicates around
+        # one side of the row.  P remains genuinely open.
+        n_points = [(4.5, 2.5), (4.5, 1.0),
+                    (5.5, 1.0), (5.5, 2.5)]
+        for a, b in zip(n_points, n_points[1:]):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I_MM(*a))
+            track.SetEnd(pcbnew.VECTOR2I_MM(*b))
+            track.SetWidth(pcbnew.FromMM(0.2))
+            track.SetLayer(pcbnew.F_Cu); track.SetNet(n_net)
+            track.SetLocked(True); board.Add(track)
+
+        result = cec_fr.synthesize_same_footprint_links(board)
+
+        self.assertEqual(result["pair_refused"], 0, result)
+        self.assertEqual(result["pair_linked"], 1, result)
+        completion = next(row for row in result["detail"]
+                          if row.get("asymmetric_completion"))
+        self.assertEqual(completion["net"], "/USB_D_P")
+        self.assertEqual(completion["preconnected_mate"], "/USB_D_N")
+        board.BuildConnectivity()
+        connectivity = board.GetConnectivity()
+        connected = connectivity.GetConnectedItems(created["A6"])
+        self.assertTrue(any(item.GetClass() == "PAD"
+                            and item.GetNumber() == "B6"
+                            for item in connected))
 
     def test_parallel_duplicate_pair_rows_are_joined_atomically(self):
         import pcbnew

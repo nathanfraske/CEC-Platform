@@ -102,13 +102,39 @@ class GroundPlaneTests(unittest.TestCase):
         self.assertTrue(report["zone_declarations_unchanged"])
         self.assertTrue(report["routed_copper_unchanged"])
 
-    def test_missing_profile_ground_layer_fails_closed(self):
+    def test_audit_missing_profile_ground_layer_fails_closed(self):
         board, via_uuid = self._board(include_in4=False)
-        report = ground_plane.fill_board(
+        report = ground_plane.audit_board(
             board, required_via_uuids=(via_uuid,))
         self.assertFalse(report["ok"])
         self.assertTrue(any("In4.Cu has no GND zone" in reason
                             for reason in report["reasons"]))
+
+    def test_fill_derives_missing_profile_plane_from_exact_outline(self):
+        board, via_uuid = self._board(include_in4=False)
+        report = ground_plane.fill_board(
+            board, required_via_uuids=(via_uuid,))
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(
+            [row["layer"] for row in report["declaration"]["added"]],
+            ["In4.Cu"])
+        self.assertEqual(report["connected_via_count"], 1)
+        self.assertEqual(
+            {row["layer"] for row in report["ground_layers"]},
+            {"In1.Cu", "In4.Cu"})
+        self.assertTrue(report["zone_declarations_unchanged"])
+        self.assertTrue(report["routed_copper_unchanged"])
+
+    def test_declaration_is_idempotent(self):
+        board, _via_uuid = self._board(include_in4=False)
+        first = ground_plane.declare_profile_ground_planes(board)
+        second = ground_plane.declare_profile_ground_planes(board)
+        self.assertEqual([row["layer"] for row in first["added"]],
+                         ["In4.Cu"])
+        self.assertEqual(second["added"], [])
+        self.assertEqual(
+            {row["layer"] for row in second["existing"]},
+            {"In1.Cu", "In4.Cu"})
 
     def test_missing_required_via_identity_fails_closed(self):
         board, _via_uuid = self._board()

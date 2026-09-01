@@ -158,6 +158,63 @@ class FabRepairAdmissionTest(unittest.TestCase):
         self.assertEqual(first.GetEnd(), pcbnew.VECTOR2I_MM(8, 10))
         self.assertEqual(second.GetEnd(), pcbnew.VECTOR2I_MM(7, 13))
 
+    def test_via_45_degree_hook_is_replaced_by_two_45_degree_bends(self):
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIG")
+        board.Add(net)
+
+        def track(start, end):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(*start))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(0.20))
+            item.SetLayer(board.GetLayerID("F.Cu"))
+            item.SetNet(net)
+            board.Add(item)
+            return item
+
+        track((10, 10), (13, 10))
+        diagonal = track((10, 10), (12, 8))
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(10, 10))
+        via.SetWidth(pcbnew.FromMM(0.60))
+        via.SetDrill(pcbnew.FromMM(0.30))
+        via.SetLayerPair(board.GetLayerID("F.Cu"),
+                         board.GetLayerID("B.Cu"))
+        via.SetNet(net)
+        board.Add(via)
+
+        self.assertEqual(repair.repair_via_acute_fanouts(board), 1)
+        routed = [item for item in board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+        self.assertEqual(len(routed), 4)
+        self.assertEqual(diagonal.GetStart(), pcbnew.VECTOR2I_MM(10, 10))
+        self.assertEqual(diagonal.GetEnd(), pcbnew.VECTOR2I_MM(10, 9.8))
+        headings = sorted(
+            (abs(item.GetEnd().x - item.GetStart().x),
+             abs(item.GetEnd().y - item.GetStart().y))
+            for item in routed)
+        self.assertTrue(all(dx == 0 or dy == 0 or dx == dy
+                            for dx, dy in headings))
+
+    def test_via_hook_repair_refuses_locked_or_unanchored_geometry(self):
+        board = pcbnew.CreateEmptyBoard()
+        net = pcbnew.NETINFO_ITEM(board, "/SIG")
+        board.Add(net)
+        for start, end, locked in (
+                ((10, 10), (13, 10), False),
+                ((10, 10), (12, 8), True)):
+            item = pcbnew.PCB_TRACK(board)
+            item.SetStart(pcbnew.VECTOR2I_MM(*start))
+            item.SetEnd(pcbnew.VECTOR2I_MM(*end))
+            item.SetWidth(pcbnew.FromMM(0.20))
+            item.SetLayer(board.GetLayerID("F.Cu"))
+            item.SetNet(net)
+            item.SetLocked(locked)
+            board.Add(item)
+
+        self.assertEqual(repair.repair_via_acute_fanouts(board), 0)
+
     def test_safe_slice_wins_and_regressive_full_slice_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             board = os.path.join(td, "board.kicad_pcb")
@@ -190,6 +247,12 @@ class FabRepairAdmissionTest(unittest.TestCase):
                         "foreign_status": "ok", "foreign_tracks": 0,
                         "foreign_vias": 0, "foreign_blocking": 0}), \
                     mock.patch.object(repair, "_repair_isolated", side_effect=mutate), \
+                    mock.patch.object(
+                        repair, "_dangling_cleanup_isolated",
+                        return_value={"removed": 0}), \
+                    mock.patch.object(
+                        repair, "_post_backtrack_acute_isolated",
+                        return_value={"acute_vertices": 0}), \
                     mock.patch.object(
                         repair, "_sliver_repair_isolated",
                         return_value={"sliver_zones_removed": 0}):
@@ -248,6 +311,12 @@ class FabRepairAdmissionTest(unittest.TestCase):
                         repair, "_repair_isolated",
                         return_value={"backtracks": 1}), \
                     mock.patch.object(
+                        repair, "_dangling_cleanup_isolated",
+                        return_value={"removed": 0}), \
+                    mock.patch.object(
+                        repair, "_post_backtrack_acute_isolated",
+                        return_value={"acute_vertices": 0}), \
+                    mock.patch.object(
                         repair, "_sliver_repair_isolated",
                         return_value={"sliver_zones_removed": 0}):
                 report = repair.repair_admitted(board)
@@ -293,6 +362,12 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     mock.patch.object(
                         repair, "_repair_isolated",
                         return_value={"backtracks": 1}), \
+                    mock.patch.object(
+                        repair, "_dangling_cleanup_isolated",
+                        return_value={"removed": 0}), \
+                    mock.patch.object(
+                        repair, "_post_backtrack_acute_isolated",
+                        return_value={"acute_vertices": 0}), \
                     mock.patch.object(
                         repair, "_sliver_repair_isolated",
                         return_value={"sliver_zones_removed": 0}):

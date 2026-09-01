@@ -1311,6 +1311,41 @@ def canonical_high_current_pours(path, *, board=None):
             raise ValueError(
                 "legacy uniform_stamp geometry is not route authority")
         return pours
+    # A fully routed artifact can outlive or be copied without its executable
+    # pour-first sidecar.  Its named pipeline zones are then stronger authority
+    # than a fresh pad-derived corridor estimate: they are the exact copper
+    # outline that KiCad, the dashboard, DRC, and the fab outputs consume.
+    # Recover every Manhattan contour separately so concave hook pockets stay
+    # empty instead of reappearing as phantom bounding slabs.
+    if board is not None:
+        recovered = []
+        for zone in board.Zones():
+            name = str(zone.GetZoneName() or "")
+            net = str(zone.GetNetname() or "")
+            if (zone.GetIsRuleArea()
+                    or not name.startswith(cec_fr.PIPELINE_POUR_PREFIXES)
+                    or not (net.endswith(("_HI", "_LO"))
+                            or "12V" in net.upper())):
+                continue
+            outline = zone.Outline()
+            for layer in zone.GetLayerSet().CuStack():
+                if layer not in (pcbnew.F_Cu, pcbnew.B_Cu):
+                    continue
+                for index in range(outline.OutlineCount()):
+                    contour = outline.COutline(index)
+                    polygon = [
+                        [_mm(contour.CPoint(point).x),
+                         _mm(contour.CPoint(point).y)]
+                        for point in range(contour.PointCount())]
+                    if len(polygon) >= 3:
+                        recovered.append({
+                            "name": name, "net": net,
+                            "layer": pcbnew.LayerName(layer),
+                            "polygon": polygon,
+                            "provenance": "board_zone_recovery",
+                        })
+        if recovered:
+            return recovered
     recipe = {
         "CEC_SHUNT_GAP": "1",
         "CEC_SHUNT_GAP_MM": "6.5",
@@ -2494,6 +2529,70 @@ def _partition_pair_vias(board, vias):
     return endpoint, route
 
 
+def _interleaved_duplicate_endpoint_fan_in(
+        board, pnet, nnet, p_endpoint_vias, n_endpoint_vias,
+        *, max_cell_span_mm=2.0):
+    """Prove a bounded USB-C duplicate-pad fan-in asymmetry.
+
+    Reversible USB-C receptacles interleave two D+ and two D- lands. A short
+    inner-layer join for one duplicated member can therefore be the only
+    collision-free escape while the other member joins on the surface. Those
+    endpoint-contained barrels are parallel fan-in branches, not serial pair
+    transitions. Admit the topology only when the complete count difference
+    is explained by exactly one small, four-pad, alternating endpoint cell;
+    route-transition symmetry, skew, coupling, and local return vias remain
+    independently mandatory.
+    """
+
+    def on_pad(via, pad):
+        try:
+            return bool(pad.HitTest(via.GetPosition()))
+        except Exception:                              # noqa: BLE001
+            return via.GetPosition() == pad.GetPosition()
+
+    global_delta = len(p_endpoint_vias) - len(n_endpoint_vias)
+    if global_delta == 0:
+        return None
+    for footprint in board.GetFootprints():
+        p_pads = [pad for pad in footprint.Pads()
+                  if pad.GetNetname() == pnet]
+        n_pads = [pad for pad in footprint.Pads()
+                  if pad.GetNetname() == nnet]
+        if len(p_pads) != 2 or len(n_pads) != 2:
+            continue
+        points = [
+            (pad.GetPosition().x / 1e6, pad.GetPosition().y / 1e6,
+             "P" if pad in p_pads else "N", pad)
+            for pad in p_pads + n_pads]
+        x_span = max(row[0] for row in points) - min(row[0] for row in points)
+        y_span = max(row[1] for row in points) - min(row[1] for row in points)
+        span = max(x_span, y_span)
+        if span > max_cell_span_mm + 1e-9:
+            continue
+        axis = 0 if x_span >= y_span else 1
+        labels = [row[2] for row in sorted(
+            points, key=lambda row: (row[axis], row[1 - axis], row[2]))]
+        if labels not in (["P", "N", "P", "N"],
+                          ["N", "P", "N", "P"]):
+            continue
+        local_p = sum(any(on_pad(via, pad) for pad in p_pads)
+                      for via in p_endpoint_vias)
+        local_n = sum(any(on_pad(via, pad) for pad in n_pads)
+                      for via in n_endpoint_vias)
+        if local_p - local_n != global_delta:
+            continue
+        if sorted((local_p, local_n)) != [0, 2]:
+            continue
+        return {
+            "reference": footprint.GetReference(),
+            "span_mm": round(span, 3),
+            "sequence": "".join(labels),
+            "endpoint_vias_p": local_p,
+            "endpoint_vias_n": local_n,
+        }
+    return None
+
+
 def _net_pad_mst_mm(board, net_name):
     """Return a topology-safe lower bound for one routed net's pad span.
 
@@ -2803,10 +2902,14 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
         # count it against the two series layer-change budget.
         p_endpoint_vias, p_route_vias = _partition_pair_vias(b, p_vias)
         n_endpoint_vias, n_route_vias = _partition_pair_vias(b, n_vias)
+        endpoint_fan_in = (_interleaved_duplicate_endpoint_fan_in(
+            b, pnet, nnet, p_endpoint_vias, n_endpoint_vias)
+            if kind == "usb" else None)
         matched_transition_spacing = []
-        if len(p_vias) != len(n_vias):
+        if len(p_vias) != len(n_vias) and endpoint_fan_in is None:
             violations.append("asymmetric via count P=%d N=%d" % (len(p_vias), len(n_vias)))
-        if len(p_endpoint_vias) != len(n_endpoint_vias):
+        if (len(p_endpoint_vias) != len(n_endpoint_vias)
+                and endpoint_fan_in is None):
             violations.append(
                 "asymmetric endpoint POFV fan-in P=%d N=%d" %
                 (len(p_endpoint_vias), len(n_endpoint_vias)))
@@ -2956,6 +3059,7 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                "vias_p": len(p_vias), "vias_n": len(n_vias),
                "endpoint_pofv_p": len(p_endpoint_vias),
                "endpoint_pofv_n": len(n_endpoint_vias),
+               "bounded_interleaved_endpoint_fan_in": endpoint_fan_in,
                "route_transition_vias_p": len(p_route_vias),
                "route_transition_vias_n": len(n_route_vias),
                "transition_pair_spacing_mm": [
@@ -3082,9 +3186,13 @@ def _chk_fid_protocol(board, path, ctx):
                      "(vision ambiguity) within %.1fmm" % tol)
     for fp, (x, y) in zip(fids, pts):
         m = min(x - L, R - x, y - T, B - y)
-        if m < edge_min:
+        # Board edges and footprint positions serialize on independent integer
+        # nanometre grids.  A nominal 5.000 mm inset can round a few femtometres
+        # below 5.0 in Python; use the same physical comparison tolerance as
+        # the other geometry contracts rather than inventing a false repair.
+        if m < edge_min - GEOMETRY_COMPARISON_TOLERANCE_MM:
             fails.append("%s %.1fmm from an edge (< %.1f)" % (fp.GetReference(), m, edge_min))
-        if m > edge_max:
+        if m > edge_max + GEOMETRY_COMPARISON_TOLERANCE_MM:
             fails.append("%s %.1fmm from nearest edge (> %.1f edge band)" %
                          (fp.GetReference(), m, edge_max))
         near = min((_min_pad_dist_mm(fp, o) for o in board.GetFootprints()
@@ -3718,6 +3826,60 @@ def _validated_local_pair_return_uuids(board, path, ctx):
     return legal
 
 
+def _validated_local_single_return_uuids(board, path, ctx):
+    """Re-prove group-owned return barrels at single-ended transitions."""
+    key = "_validated_local_single_returns::" + os.path.abspath(path)
+    if key in ctx:
+        return set(ctx[key])
+    try:
+        import cec_fr
+        import cec_field_coupling
+        group = next((candidate for candidate in board.Groups()
+                      if candidate.GetName()
+                      == cec_fr.LOCAL_SINGLE_RETURN_VIA_GROUP), None)
+    except Exception:                                  # noqa: BLE001
+        group = None
+    if group is None:
+        ctx[key] = []
+        return set()
+
+    settings = board.GetDesignSettings()
+    min_diameter = _mm(getattr(
+        settings, "m_ViasMinSize", pcbnew.FromMM(0.50)))
+    min_drill = _mm(getattr(
+        settings, "m_MinThroughDrill", pcbnew.FromMM(0.20)))
+    min_annular = _mm(getattr(
+        settings, "m_ViasMinAnnularWidth", pcbnew.FromMM(0.10)))
+    returns = [item for item in board.GetTracks()
+               if item.GetClass() == "PCB_VIA"
+               and group.ContainsItem(item)]
+    signals = [item for item in board.GetTracks()
+               if item.GetClass() == "PCB_VIA"
+               and item.GetNetname() not in ("", "GND")
+               and (lambda role: role["aggressor"] or role["victim"])(
+                   cec_field_coupling.classify_net(item.GetNetname()))]
+
+    def xy(item):
+        point = item.GetPosition()
+        return _mm(point.x), _mm(point.y)
+
+    legal = set()
+    for via in returns:
+        diameter = _via_width_mm(via)
+        drill = _mm(via.GetDrillValue())
+        if (via.GetNetname() != "GND"
+                or int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH)
+                or diameter < min_diameter - 0.001
+                or drill < min_drill - 0.001
+                or (diameter - drill) / 2.0 < min_annular - 0.001):
+            continue
+        if any(math.dist(xy(via), xy(signal)) <= 1.50 + 1e-9
+               for signal in signals):
+            legal.add(via.m_Uuid.AsString())
+    ctx[key] = sorted(legal)
+    return legal
+
+
 def _validated_local_pofv_signal_uuids(board, path, ctx):
     """Re-prove exact generated POFV dogbones below ordinary via minima.
 
@@ -3744,11 +3906,6 @@ def _validated_local_pofv_signal_uuids(board, path, ctx):
         ctx[key] = []
         return set()
 
-    settings = board.GetDesignSettings()
-    ordinary_diameter = _mm(getattr(
-        settings, "m_ViasMinSize", pcbnew.FromMM(0.50)))
-    ordinary_drill = _mm(getattr(
-        settings, "m_MinThroughDrill", pcbnew.FromMM(0.20)))
     reach_mm = 1.50
     endpoint_tol_mm = 0.005
 
@@ -3778,9 +3935,9 @@ def _validated_local_pofv_signal_uuids(board, path, ctx):
             continue
         diameter = _via_width_mm(via)
         drill = _mm(via.GetDrillValue())
-        if (diameter >= ordinary_diameter - 0.001
-                and drill >= ordinary_drill - 0.001):
-            continue                         # ordinary geometry needs no waiver
+        # A netclass can deliberately require more copper than the board-wide
+        # via floor.  Re-prove every owned barrel; the caller decides whether
+        # its particular class actually needs the narrowly scoped exception.
         valid, _reason = cec_fab.pofv_dimensions(
             profile, diameter, drill)
         if not valid:
@@ -4228,6 +4385,8 @@ def _chk_netclass_geom(board, path, ctx):
     legal_neckdowns = _legal_neckdown_uuids(path, ctx)
     legal_pair_returns = _validated_local_pair_return_uuids(
         board, path, ctx)
+    legal_single_returns = _validated_local_single_return_uuids(
+        board, path, ctx)
     legal_pofv_signals = _validated_local_pofv_signal_uuids(
         board, path, ctx)
     bad = collections.defaultdict(lambda: collections.Counter())
@@ -4243,6 +4402,8 @@ def _chk_netclass_geom(board, path, ctx):
                 continue                  # exact, locally re-proven POFV dogbone
             if t.m_Uuid.AsString() in legal_pair_returns:
                 continue                  # exact, independently re-proven HF return
+            if t.m_Uuid.AsString() in legal_single_returns:
+                continue                  # exact, independently re-proven SE return
             blocking, allowed = cec_fab.via_at_pad_conflicts(
                 board, t.GetPosition(), t.GetWidth(t.TopLayer()),
                 t.GetDrillValue(), t.GetNetCode())
@@ -4279,9 +4440,11 @@ def _chk_netclass_geom(board, path, ctx):
         "%d physical pair net(s); sense-stub exemption on %d net(s); "
         "%d bounded pin-neckdown track(s); %d profile-qualified POFV; "
         "%d validated local pair-return via(s); "
+        "%d validated local single-ended return via(s); "
         "%d validated local POFV signal via(s))" %
         (len(classes), len(pair_nets), len(sense),
          len(legal_neckdowns), qualified_pofv, len(legal_pair_returns),
+         len(legal_single_returns),
          len(legal_pofv_signals)))
 
 

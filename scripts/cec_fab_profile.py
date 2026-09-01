@@ -245,7 +245,12 @@ def routing_layers(board, *, hint=None, include_power=True):
         return tuple(layer for layer in COPPER_LAYERS
                      if layer in enabled
                      and roles[layer] != "GND"
-                     and (include_power or "PWR" not in roles[layer]))
+                     # SIG/PWR outer layers remain valid signal layers when a
+                     # caller excludes the dedicated power-routing role.  The
+                     # historical substring test removed F.Cu and B.Cu along
+                     # with pure PWR, leaving a six-layer signal search only
+                     # one inner layer to work with.
+                     and (include_power or roles[layer] != "PWR"))
     # Historical four-layer policy: In1 is the uninterrupted ground plane;
     # every other enabled copper layer may route.
     return tuple(layer for layer in COPPER_LAYERS
@@ -424,7 +429,64 @@ def via_pad_decision(board, pad, at, diameter_nm, drill_nm, net_code):
     return True, "%s POFV accepted" % profile["vendor_stackup"]
 
 
-def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
+def _via_pad_candidates(board, at, diameter_nm, cache=None):
+    """Return nearby ``(footprint, pad)`` rows for a via collision probe.
+
+    Last-mile bridge search can evaluate tens of thousands of candidate via
+    seats while footprints and pads remain fixed.  Rewalking every footprint
+    for every seat made the exact POFV guard dominate completion time.  Build
+    a conservative 2 mm spatial index from each pad's KiCad bounding box and
+    query every bucket touched by the proposed via land.  Exact ``Collide``
+    tests still decide admission, so this is only a candidate accelerator and
+    cannot turn a collision into a pass.
+
+    The cache is caller-owned because a PCB is mutable.  Route synthesis keeps
+    it only for one net search and discards it before another board or a pad
+    mutation can reuse stale geometry.
+    """
+    key = "__cec_via_pad_spatial_index_v1__"
+    cell_nm = int(2.0 * MM)
+    index = None if cache is None else cache.get(key)
+    if index is None:
+        buckets = {}
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if not pad.GetLayerSet().CuStack():
+                    continue
+                try:
+                    box = pad.GetBoundingBox()
+                    x0, x1 = sorted((int(box.GetLeft()), int(box.GetRight())))
+                    y0, y1 = sorted((int(box.GetTop()), int(box.GetBottom())))
+                except Exception:  # noqa: BLE001
+                    # A shape without a trustworthy box stays in an always-
+                    # checked fallback list, preserving fail-closed behavior.
+                    buckets.setdefault(None, []).append((fp, pad))
+                    continue
+                for gx in range(x0 // cell_nm, x1 // cell_nm + 1):
+                    for gy in range(y0 // cell_nm, y1 // cell_nm + 1):
+                        buckets.setdefault((gx, gy), []).append((fp, pad))
+        index = {"cell_nm": cell_nm, "buckets": buckets}
+        if cache is not None:
+            cache[key] = index
+
+    radius = max(0, int(diameter_nm) // 2)
+    x0, x1 = int(at.x) - radius, int(at.x) + radius
+    y0, y1 = int(at.y) - radius, int(at.y) + radius
+    rows = list(index["buckets"].get(None, ()))
+    seen = {id(pad) for _fp, pad in rows}
+    for gx in range(x0 // index["cell_nm"], x1 // index["cell_nm"] + 1):
+        for gy in range(y0 // index["cell_nm"], y1 // index["cell_nm"] + 1):
+            for fp, pad in index["buckets"].get((gx, gy), ()):
+                identity = id(pad)
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                rows.append((fp, pad))
+    return rows
+
+
+def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code, *,
+                         pad_cache=None):
     """Return (blocking_pad, allowed_records) for an intended through via.
 
     Any different-net overlap blocks. A same-net overlap blocks unless every
@@ -435,35 +497,35 @@ def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
     except ImportError:
         return None, []
     allowed = []
-    for fp in board.GetFootprints():
-        for pad in fp.Pads():
-            stack = pad.GetLayerSet().CuStack()
-            if not stack:
-                continue
-            try:
-                # Use the same point+radius overload as the post-route
-                # via-on-pad gate. SHAPE::Collide(other_shape) is not
-                # symmetric for every KiCad pad primitive: on the Hub U2.3
-                # oval it returned false for a 0.8 mm circle whose centre was
-                # only 0.55 mm from the pad centre, while the reverse query
-                # (and the physical copper) overlapped.
-                hit = pad.GetEffectiveShape(stack[0]).Collide(
-                    at, int(diameter_nm) // 2)
-            except Exception:  # noqa: BLE001
-                hit = False
-            if not hit:
-                continue
-            ok, why = via_pad_decision(
-                board, pad, at, diameter_nm, drill_nm, net_code)
-            rec = {
-                "ref": fp.GetReference(),
-                "pad": pad.GetPadName(),
-                "net": pad.GetNetname(),
-                "reason": why,
-            }
-            if not ok:
-                return pad, allowed + [rec]
-            allowed.append(rec)
+    for fp, pad in _via_pad_candidates(
+            board, at, diameter_nm, cache=pad_cache):
+        stack = pad.GetLayerSet().CuStack()
+        if not stack:
+            continue
+        try:
+            # Use the same point+radius overload as the post-route
+            # via-on-pad gate. SHAPE::Collide(other_shape) is not
+            # symmetric for every KiCad pad primitive: on the Hub U2.3
+            # oval it returned false for a 0.8 mm circle whose centre was
+            # only 0.55 mm from the pad centre, while the reverse query
+            # (and the physical copper) overlapped.
+            hit = pad.GetEffectiveShape(stack[0]).Collide(
+                at, int(diameter_nm) // 2)
+        except Exception:  # noqa: BLE001
+            hit = False
+        if not hit:
+            continue
+        ok, why = via_pad_decision(
+            board, pad, at, diameter_nm, drill_nm, net_code)
+        rec = {
+            "ref": fp.GetReference(),
+            "pad": pad.GetPadName(),
+            "net": pad.GetNetname(),
+            "reason": why,
+        }
+        if not ok:
+            return pad, allowed + [rec]
+        allowed.append(rec)
     return None, allowed
 
 

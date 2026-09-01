@@ -421,6 +421,44 @@ def _drop_profile_qualified_pofv_geometry(struct: list, board) -> list:
     return [row for row in struct if not _qualified(row)]
 
 
+def _drop_group_qualified_local_via_geometry(struct: list, board) -> list:
+    """Suppress via-size rows only for exact, independently re-proven groups.
+
+    The fab audit normalizes board-wide minima on a disposable copy, so KiCad
+    reports every deliberately local POFV/return barrel again.  Reuse the same
+    geometry validators as strict netclass signoff instead of relying on a
+    group name or maintaining a weaker second proof in the fab path.
+    """
+    qualified_types = {
+        "via_diameter", "annular_width", "drill_out_of_range"}
+    try:
+        import cec_constraints
+        context = {}
+        path = board.GetFileName() or "<in-memory-board>"
+        legal = set()
+        legal.update(cec_constraints._validated_local_pair_return_uuids(
+            board, path, context))
+        legal.update(cec_constraints._validated_local_single_return_uuids(
+            board, path, context))
+        legal.update(cec_constraints._validated_local_pofv_signal_uuids(
+            board, path, context))
+    except Exception:                                    # noqa: BLE001
+        legal = set()
+    if not legal:
+        return list(struct)
+
+    def qualified(row):
+        if row.get("type") not in qualified_types:
+            return False
+        items = row.get("items") or ()
+        via_items = [item for item in items
+                     if (item.get("description") or "").startswith("Via [")]
+        return (len(via_items) == 1
+                and str(via_items[0].get("uuid") or "") in legal)
+
+    return [row for row in struct if not qualified(row)]
+
+
 def _drop_qualified_endpoint_neckdown_geometry(struct: list, board) -> list:
     """Suppress only bounded, locked fine-pitch launch width findings.
 
@@ -556,6 +594,7 @@ def qualify_structural_violations(struct: list, board) -> list:
     """
     rows = _drop_impossible_pad_artifacts(list(struct), board)
     rows = _drop_profile_qualified_pofv_geometry(rows, board)
+    rows = _drop_group_qualified_local_via_geometry(rows, board)
     return _drop_qualified_endpoint_neckdown_geometry(rows, board)
 
 

@@ -59,7 +59,10 @@ class LocalPiPowerReplanTests(unittest.TestCase):
 
             modules = {
                 "cec_fr": SimpleNamespace(
-                    _pourfirst_state=lambda: self._frozen_state()),
+                    _pourfirst_state=lambda: self._frozen_state(),
+                    reseat_overunder_vias=lambda _b, vias, _pours:
+                        (list(vias), {"ok": True, "changed": False,
+                                      "reseated": 0})),
                 "cec_pour_clearance": SimpleNamespace(
                     inspect_file=lambda _path: {
                         "status": "ok", "n_tracks": 0, "n_vias": 0}),
@@ -109,7 +112,10 @@ class LocalPiPowerReplanTests(unittest.TestCase):
             previous_state.write_text(json.dumps(self._frozen_state()))
             modules = {
                 "cec_fr": SimpleNamespace(
-                    _pourfirst_state=lambda: self._frozen_state()),
+                    _pourfirst_state=lambda: self._frozen_state(),
+                    reseat_overunder_vias=lambda _b, vias, _pours:
+                        (list(vias), {"ok": True, "changed": False,
+                                      "reseated": 0})),
                 "cec_pour_clearance": SimpleNamespace(),
                 "cec_slab_pour": SimpleNamespace(
                     _clip_pours_around_foreign_copper=lambda _b, rows, **_kw:
@@ -210,6 +216,33 @@ class LocalPiPowerReplanTests(unittest.TestCase):
                     os.environ.pop("CEC_POURFIRST_STATE", None)
                 else:
                     os.environ["CEC_POURFIRST_STATE"] = previous
+
+    def test_failed_authority_feedback_recovers_planner_certificate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            authority = Path(temp) / "critical-prefix-power-authority.json"
+            authority.write_text(json.dumps({
+                "candidates": [{"compile_failure": {"report": {
+                    "/RAIL": {
+                        "path_found": False,
+                        "planner_bottleneck": {
+                            "kind": "via_field_access", "net": "/RAIL",
+                            "fields": [{"field_index": 0,
+                                        "centre_mm": [1.0, 2.0]}],
+                        },
+                    },
+                }}}],
+            }), encoding="utf-8")
+
+            feedback = synth._power_authority_failure_feedback(
+                temp, "critical-prefix")
+
+            self.assertEqual(feedback["power_planner_failure_nets"],
+                             ["/RAIL"])
+            self.assertEqual(
+                feedback["power_planner_failures"]["/RAIL"]
+                ["planner_bottleneck"]["kind"], "via_field_access")
+            self.assertEqual(feedback["power_failure_authority"],
+                             str(authority.resolve()))
 
     def test_fresh_power_candidate_is_settled_before_exact_admission(self):
         with tempfile.TemporaryDirectory() as temp:

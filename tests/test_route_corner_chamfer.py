@@ -2,6 +2,7 @@
 """General post-route 90-degree corner finishing regressions."""
 import os
 import sys
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,6 +14,8 @@ except ImportError as exc:  # pragma: no cover
     raise unittest.SkipTest("pcbnew required") from exc
 
 import cec_fr  # noqa: E402
+import cec_fab_repair  # noqa: E402
+import cec_route_quality  # noqa: E402
 
 
 class TestRouteCornerChamfer(unittest.TestCase):
@@ -35,6 +38,16 @@ class TestRouteCornerChamfer(unittest.TestCase):
         track.SetLocked(locked)
         self.board.Add(track)
         return track
+
+    def _outline(self):
+        for start, end in (((0, 0), (20, 0)), ((20, 0), (20, 20)),
+                           ((20, 20), (0, 20)), ((0, 20), (0, 0))):
+            edge = pcbnew.PCB_SHAPE(self.board)
+            edge.SetShape(pcbnew.SHAPE_T_SEGMENT)
+            edge.SetStart(self._pos(*start))
+            edge.SetEnd(self._pos(*end))
+            edge.SetLayer(pcbnew.Edge_Cuts)
+            self.board.Add(edge)
 
     def _corner(self, *, locked=False):
         a = self._track((5, 10), (10, 10), locked=locked)
@@ -93,6 +106,44 @@ class TestRouteCornerChamfer(unittest.TestCase):
             allow_locked_track_uuids={
                 first.m_Uuid.AsString(), second.m_Uuid.AsString()})
         self.assertEqual(complete["chamfered"], 1, complete)
+
+    def test_owned_free_angle_segment_is_replaced_by_canonical_legs(self):
+        self._outline()
+        original = self._track((5, 5), (9, 7), locked=True)
+        original_uuid = original.m_Uuid.AsString()
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "craft.kicad_pcb")
+            pcbnew.SaveBoard(path, self.board)
+            report = cec_fab_repair.repair_non_octilinear_segments(
+                self.board, path,
+                allow_locked_track_uuids={original_uuid})
+
+        self.assertEqual(report["canonicalized"], 1, report)
+        tracks = [item for item in self.board.GetTracks()
+                  if item.GetClass() == "PCB_TRACK"]
+        self.assertEqual(len(tracks), 2)
+        self.assertIn(original_uuid,
+                      {item.m_Uuid.AsString() for item in tracks})
+        self.assertTrue(all(
+            cec_route_quality.canonical_heading(
+                item.GetStart(), item.GetEnd()).get("ok")
+            for item in tracks))
+        self.assertTrue(all(item.IsLocked() for item in tracks))
+
+    def test_authored_locked_free_angle_segment_is_immutable(self):
+        self._outline()
+        original = self._track((5, 5), (9, 7), locked=True)
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "authored.kicad_pcb")
+            pcbnew.SaveBoard(path, self.board)
+            report = cec_fab_repair.repair_non_octilinear_segments(
+                self.board, path)
+
+        self.assertEqual(report["canonicalized"], 0, report)
+        self.assertEqual(report["refused"][0]["reason"],
+                         "authored_locked_track")
+        self.assertFalse(cec_route_quality.canonical_heading(
+            original.GetStart(), original.GetEnd()).get("ok"))
 
     def test_t_junction_is_not_cut(self):
         self._corner()

@@ -1159,12 +1159,34 @@ def plan_negotiations(board_path: str, completion: dict | None, *,
             unlock_uuids = tuple(
                 entry["uuid"] for entry in vertical_movable
                 if entry.get("generated_unlock"))
-            # Keep the tuple shape compatible with ordinary window priorities;
-            # the leading -1 makes this exact local proof precede broader
-            # planar congestion surgery for the same refused net.
-            priority = (-1, -len(vertical_movable), 0, 0, distance,
-                        0, 0, len(vertical_movable), 2, distance,
-                        -len(vertical_movable), net, chosen_ids)
+            # Keep the tuple shape compatible with ordinary window priorities.
+            # A vertical escape is an exact local proof, but it is not proof
+            # that the entire endpoint pair is local: globally sorting every
+            # POFV window ahead of every planar window made a 44 mm control
+            # path consume two timeout variants while a certified 3.7 mm
+            # trapped-pad repair waited behind it. Rank the endpoint escape in
+            # the same trapped/locality domain as ordinary windows, retaining
+            # the exact vertical preference only within comparable geometry.
+            vertical_upper = net.upper()
+            if (vertical_upper in {"GND", "AGND", "DGND", "PGND"}
+                    or vertical_upper.endswith("_GND")):
+                vertical_role_priority = 0
+            elif (net.startswith("+") or any(
+                    token in vertical_upper for token in
+                    ("VBUS", "VCC", "VDD", "VIN", "VOUT"))):
+                vertical_role_priority = 1
+            else:
+                vertical_role_priority = 2
+            escape_probe_mm = float(
+                (cert.get("search") or {}).get("escape_probe_mm") or 1.25)
+            vertical_local = distance <= max(2.0, 4.0 * escape_probe_mm)
+            priority = (
+                0, -1, 0 if unlock_uuids else 1,
+                vertical_role_priority,
+                0 if vertical_local else 1,
+                distance if vertical_local else 0.0,
+                0, 0, len(vertical_movable), vertical_role_priority,
+                distance, -len(vertical_movable), net, chosen_ids)
             windows.append(NegotiationWindow(
                 net=net, distance_mm=distance, width_mm=width_mm,
                 clearance_mm=float(cert.get("clearance_mm") or 0.25),
@@ -4898,7 +4920,8 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
                for point in (item.GetStart(), item.GetEnd())):
             incident_uuids.add(uid)
     copper_rects = [
-        (_uuid(item), inflated(rect_from_box(item.GetBoundingBox()), 0.10))
+        (_uuid(item), bool(item.IsLocked()),
+         inflated(rect_from_box(item.GetBoundingBox()), 0.10))
         for item in board.GetTracks()
         if (_uuid(item) and _uuid(item) not in incident_uuids
             and (item.GetClass() == "PCB_VIA"
@@ -4980,9 +5003,14 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
                                       for area in footprint_areas)
         footprint_overlap_mm2 = sum(footprint_areas)
         copper_hit_uuids = sorted({
-            uid for rect in transformed for uid, copper in copper_rects
+            uid for rect in transformed for uid, _locked, copper in copper_rects
             if overlap_area(rect, copper) > 1e-9})
+        locked_copper_hit_uuids = sorted({
+            uid for rect in transformed
+            for uid, locked, copper in copper_rects
+            if locked and overlap_area(rect, copper) > 1e-9})
         copper_hits = len(copper_hit_uuids)
+        locked_copper_hits = len(locked_copper_hit_uuids)
         moved_pad_x, moved_pad_y = transform_point(
             pad_x, pad_y, float(candidate["dx_mm"]),
             float(candidate["dy_mm"]),
@@ -4992,7 +5020,8 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
         movement = math.hypot(float(candidate["dx_mm"]),
                               float(candidate["dy_mm"]))
         score = (round(outside_mm2, 6), footprint_overlap_count,
-                 round(footprint_overlap_mm2, 6), copper_hits,
+                 round(footprint_overlap_mm2, 6), locked_copper_hits,
+                 copper_hits,
                  round(endpoint_distance, 6), round(movement, 6),
                  abs(float(candidate["rotation_delta_deg"])), key)
         candidate["occupancy_score"] = {
@@ -5002,6 +5031,8 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
             "footprint_overlap_refs": footprint_overlap_refs,
             "copper_hits": copper_hits,
             "copper_hit_uuids": copper_hit_uuids[:32],
+            "locked_copper_hits": locked_copper_hits,
+            "locked_copper_hit_uuids": locked_copper_hit_uuids[:32],
             "endpoint_distance_mm": round(endpoint_distance, 6),
             "movement_mm": round(movement, 6),
         }
@@ -5118,6 +5149,7 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
             float(score.get("outside_mm2") or 0.0),
             int(score.get("footprint_overlap_count") or 0),
             float(score.get("footprint_overlap_mm2") or 0.0),
+            int(score.get("locked_copper_hits") or 0),
             int(score.get("copper_hits") or 0),
             float(score.get("endpoint_distance_mm") or 1e9),
             len(row.get("mobility_companion_refs") or ()),
@@ -5196,9 +5228,17 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
             if item.GetNetCode() == net_code and point_key(
                     item.GetPosition()) == node:
                 pad_vias[(ref, pad_number)] = item
-    if any(via.IsLocked() and _uuid(via) not in generated_locked
-           for via in pad_vias.values()):
-        return False, {"refusal": "authored_locked_pad_via"}
+    # A locked authored via at an SMD pad is an immutable route boundary, not
+    # an immutable component pose.  Earlier versions refused the entire
+    # re-seat because the via could not follow the pad.  Preserve such a via
+    # at its authored coordinate and reconnect the moved pad to it inside the
+    # same transaction; only unlocked or explicitly generated pad vias may
+    # move with the footprint.  Whole-board DRC/connectivity admission still
+    # rejects any illegal reconstruction.
+    anchored_pad_vias = {
+        identity: via for identity, via in pad_vias.items()
+        if via.IsLocked() and _uuid(via) not in generated_locked
+    }
 
     tracks_by_node = {}
     for item in all_copper:
@@ -5232,30 +5272,70 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
         internal_tracks[uid] = item
 
     removed = {}
+    pad_row_by_identity = {
+        (ref, pad_number): (net_name, net_code, node)
+        for ref, pad_number, net_name, net_code, node in pad_rows
+    }
     anchors = []
+    anchor_keys = set()
+
+    def preserve_anchor(row):
+        key = (
+            str(row.get("ref") or ""), str(row.get("pad") or ""),
+            str(row.get("net") or ""),
+            round(float(row.get("x_mm") or 0.0), 6),
+            round(float(row.get("y_mm") or 0.0), 6),
+        )
+        if key not in anchor_keys:
+            anchor_keys.add(key)
+            anchors.append(row)
+
+    for (ref, pad_number), via in anchored_pad_vias.items():
+        net_name, _net_code, node = pad_row_by_identity[(ref, pad_number)]
+        preserve_anchor({
+            "ref": ref,
+            "pad": pad_number,
+            "net": net_name,
+            "x_mm": round(node[0] / MM, 6),
+            "y_mm": round(node[1] / MM, 6),
+            "track_uuid": _uuid(via),
+            "kind": "authored_locked_pad_via",
+        })
     for ref, pad_number, net_name, net_code, start in pad_rows:
         for item in tracks_by_node.get((net_code, start), ()):
             uid = _uuid(item)
             if not uid or uid in removed or uid in internal_tracks:
                 continue
             if item.IsLocked() and uid not in generated_locked:
-                return False, {
-                    "refusal": "authored_locked_incident_branch",
+                # Like a locked pad via, authored incident copper is a fixed
+                # route boundary.  Keep the trace untouched and reconnect the
+                # moved pad to its old contact point.  This preserves manual
+                # copper exactly while allowing a transactional component
+                # re-seat to repair pin access.
+                preserve_anchor({
+                    "ref": ref,
+                    "pad": pad_number,
+                    "net": net_name,
+                    "x_mm": round(start[0] / MM, 6),
+                    "y_mm": round(start[1] / MM, 6),
                     "track_uuid": uid,
-                }
+                    "kind": "authored_locked_incident_branch",
+                })
+                continue
             removed[uid] = item
             if len(removed) > max(1, int(max_branch_tracks)):
                 return False, {"refusal": "incident_branch_too_broad",
                                "track_count": len(removed)}
             a, b = point_key(item.GetStart()), point_key(item.GetEnd())
             far = b if a == start else a
-            anchors.append({
+            preserve_anchor({
                 "ref": ref,
                 "pad": pad_number,
                 "net": net_name,
                 "x_mm": round(far[0] / MM, 6),
                 "y_mm": round(far[1] / MM, 6),
                 "track_uuid": uid,
+                "kind": "removed_incident_branch_far_endpoint",
             })
 
     old_poses = {
@@ -5288,6 +5368,8 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
         for member in footprints for pad in member.Pads()}
     moved_vias = []
     for identity, via in pad_vias.items():
+        if identity in anchored_pad_vias:
+            continue
         via.SetPosition(new_pad_centers[identity])
         moved_vias.append(_uuid(via))
     for item in removed.values():
@@ -5309,6 +5391,8 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
         "moved_internal_track_uuids": sorted(internal_tracks),
         "removed_tracks": len(removed),
         "preserved_anchors": anchors,
+        "preserved_locked_pad_via_uuids": sorted(
+            _uuid(via) for via in anchored_pad_vias.values() if _uuid(via)),
         "moved_pad_via_uuids": sorted(uid for uid in moved_vias if uid),
         "affected_nets": sorted({name for _ref, _pad, name, _code, _node in pad_rows
                                  if name}),
@@ -5388,6 +5472,16 @@ def _save_with_reconciled_endpoint_neckdowns(board_path, board, report):
             "tracks": int(reconciliation["tracks"]),
             "min_width_mm": float(reconciliation["min_width_mm"]),
         }
+    # A composite transaction may emit POFV barrels in more than one phase
+    # (target closure plus displaced-branch restoration).  Phase-local reports
+    # name only their own vias, so writing rule authority from the outer report
+    # can omit the restored set and turn a geometrically valid improvement into
+    # via-diameter/drill DRC debt.  Re-derive the exact eligible group from the
+    # finished board just as the standalone transactional finisher does.
+    pofv = cec_fr.group_local_pofv_signal_vias(
+        board, list(board.GetTracks()))
+    if pofv:
+        report["local_pofv_signal_vias"] = pofv
     pcbnew.SaveBoard(board_path, board)
     report["endpoint_neckdown_rule"] = \
         cec_fr.ensure_endpoint_neckdown_rule(board_path, report)
@@ -5799,11 +5893,14 @@ def _defer_support_relocation(footprint_plan, negotiation_plan,
     current_nets = {str(row.get("net") or "") for row in windows
                     if row.get("net")}
     prior_timeouts = set(prior.get("timed_out_nets") or ())
+    prior_exhausted = set(prior.get("exhausted_nets") or ())
     # Once every current, freshly certified route window has already consumed
     # its bounded target search without a close, repeating those windows before
     # placement is a loop.  This changes only stage order: footprint motion is
     # still independently transactional and whole-board gated.
-    return not bool(current_nets and current_nets <= prior_timeouts)
+    return not bool(
+        current_nets
+        and current_nets <= (prior_timeouts | prior_exhausted))
 
 
 def _drc_dangling_targets(drc_data):
@@ -7735,6 +7832,26 @@ def _atomic_close_timeout_s(attempt_budget, margin):
                max(floor, configured))
 
 
+def _live_probe_budget_s(wall_budget_s, configured_timeout_s,
+                         negotiation_timeout_s):
+    """Reserve the majority of a repair wave for actual transactions.
+
+    The live probe is freshness evidence, not the repair itself. Giving it
+    the historical 60-second default inside a 60-second certificate wave let
+    one difficult but already-certified net consume the whole transaction at
+    attempt zero. Bound the probe to one fifth of the caller's finite wall
+    budget (with a useful 4-second floor), while still honoring both explicit
+    probe and worker ceilings. A timeout is safe: the coordinator already
+    filters and falls back to caller-supplied certificates for currently open
+    nets.
+    """
+
+    wall = max(1.0, float(wall_budget_s))
+    reserve_bound = max(4.0, wall * 0.20)
+    return max(1.0, min(float(configured_timeout_s),
+                        float(negotiation_timeout_s), reserve_bound))
+
+
 def _support_completion_timeout_s(net_count, attempt_budget, margin):
     """Scale a moved-cell support repair to the number of incident nets.
 
@@ -8161,6 +8278,7 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
 
     proven = set()
     timed_out = set()
+    exhausted = set()
 
     def absorb_schedule(value):
         if isinstance(value, dict):
@@ -8170,6 +8288,8 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
                               value.get("proven_close_nets") or () if net)
                 timed_out.update(str(net) for net in
                                  value.get("timed_out_nets") or () if net)
+                exhausted.update(str(net) for net in
+                                 value.get("exhausted_nets") or () if net)
             for child in value.values():
                 absorb_schedule(child)
         elif isinstance(value, (list, tuple)):
@@ -8190,6 +8310,8 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
         if str(carried.get("algorithm_revision") or "") == \
                 REPAIR_ALGORITHM_REVISION:
             absorb_schedule(carried)
+        terminal_variants = {}
+        retryable_nets = set()
         for row in (prior_report or {}).get("attempts") or ():
             if row.get("stage") != "atomic_negotiation":
                 continue
@@ -8203,10 +8325,31 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
             if (row.get("decision") == "blocked_net_search_timeout"
                     or completion.get("timed_out")):
                 timed_out.add(net)
+                retryable_nets.add(net)
+            elif row.get("decision") == "worker_error":
+                retryable_nets.add(net)
+            elif (int(completion.get("closed") or 0) == 0
+                  and row.get("decision") in {
+                      "blocked_net_still_refused",
+                      "blocked_net_unroutable",
+                      "blocked_net_search_exhausted",
+                  }):
+                terminal_variants.setdefault(net, set()).add(
+                    int(row.get("variant") or 0))
+        negotiation_stop = ((((prior_report or {}).get("plan") or {}).get(
+            "negotiation_sweep") or {}).get("stop"))
+        if negotiation_stop == "no_admissible_negotiation":
+            # Two or more distinct finite topologies that all return an exact
+            # geometric refusal constitute a route plateau for this algorithm
+            # revision. A timeout/worker error remains retryable and therefore
+            # cannot authorize placement escalation.
+            exhausted.update(
+                net for net, variants in terminal_variants.items()
+                if len(variants) >= 2 and net not in retryable_nets)
     rows = list(windows or ())
     rows.sort(key=lambda row: (
         0 if str(row.get("net") or "") in proven else
-        2 if str(row.get("net") or "") in timed_out else 1,
+        2 if str(row.get("net") or "") in (timed_out | exhausted) else 1,
         tuple(row.get("priority") or ()),
         str(row.get("net") or ""),
     ))
@@ -8214,6 +8357,7 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
         "algorithm_revision": REPAIR_ALGORITHM_REVISION,
         "proven_close_nets": sorted(proven),
         "timed_out_nets": sorted(timed_out - proven),
+        "exhausted_nets": sorted(exhausted - proven),
         "policy": "proven_close_then_untried_then_prior_timeout",
     }
 
@@ -8296,12 +8440,13 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             }
         else:
             try:
+                live_probe_budget_s = _live_probe_budget_s(
+                    wall_budget_s, live_probe_timeout_s,
+                    _atomic_negotiation_timeout_s(24, 8.0))
                 live_probe = _spawn_apply(
                     _live_refusal_probe_worker,
                     (live_probe_trial, live_probe_nets, 24, 8.0),
-                    timeout_s=min(
-                        live_probe_timeout_s,
-                        _atomic_negotiation_timeout_s(24, 8.0)))
+                    timeout_s=live_probe_budget_s)
             except Exception as exc:                     # noqa: BLE001
                 # A live all-open-net probe is freshness evidence, not the only
                 # source of repair authority.  Dense boards can exhaust this

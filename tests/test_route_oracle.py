@@ -565,6 +565,22 @@ class TestOracleLogic(unittest.TestCase):
             result["pairs"]["/SHEET/CAN_H|/SHEET/CAN_L"]
             ["coupled_coverage_pct"], 20.0)
 
+    def test_clean_route_bypass_requires_craft_closure_when_repair_enabled(self):
+        decision = sp.clean_route_bypass_admission(
+            connectivity_closed=True, craft_gates=True,
+            craft_evidence={"ok": False, "pair_launch": {"ok": False}},
+            allow_route_access_repair=True)
+        self.assertFalse(decision["bypass"])
+        self.assertEqual(decision["reason"], "craft_repair_required")
+
+    def test_clean_route_can_be_graded_as_is_when_repair_disabled(self):
+        decision = sp.clean_route_bypass_admission(
+            connectivity_closed=True, craft_gates=True,
+            craft_evidence={"ok": False},
+            allow_route_access_repair=False)
+        self.assertTrue(decision["bypass"])
+        self.assertEqual(decision["reason"], "grade_as_is_without_repair")
+
 
 # ===================================================================== construction invariant (pcbnew)
 @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(GOLDEN_EPS),

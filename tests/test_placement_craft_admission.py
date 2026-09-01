@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest import mock
 
@@ -19,6 +20,70 @@ import pcbnew  # noqa: E402
 
 
 class PlacementCraftAdmissionTests(unittest.TestCase):
+    def test_decoupler_craft_evidence_binds_board_profile_authority(self):
+        cfg = SimpleNamespace(params={
+            "thermal_board_hint": "generic-current-profile",
+            "stackup_profile": "generic-six-layer",
+            "pourfirst_state": "/tmp/future-power.json",
+        })
+        observed = {}
+
+        def checker(path, cfg=None):
+            observed.update({
+                "path": path,
+                "cfg": cfg,
+                "board_hint": os.environ.get("CEC_THERMAL_BOARD_HINT"),
+                "fab_profile": os.environ.get("CEC_FAB_PROFILE"),
+                "future_power": os.environ.get("CEC_POURFIRST_STATE"),
+            })
+            return {"ok": True}
+
+        with mock.patch.object(
+                synth, "_oracle_decoupler_adjacency",
+                side_effect=checker), mock.patch.dict(os.environ, {},
+                                                       clear=False):
+            old_hint = os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
+            old_fab = os.environ.pop("CEC_FAB_PROFILE", None)
+            old_state = os.environ.get("CEC_POURFIRST_STATE")
+            os.environ["CEC_POURFIRST_STATE"] = "outer-future-power.json"
+            try:
+                result = synth._decoupler_craft_evidence(
+                    "derived.kicad_pcb", cfg=cfg)
+                self.assertIsNone(os.environ.get("CEC_THERMAL_BOARD_HINT"))
+                self.assertIsNone(os.environ.get("CEC_FAB_PROFILE"))
+                self.assertEqual(
+                    os.environ.get("CEC_POURFIRST_STATE"),
+                    "outer-future-power.json")
+            finally:
+                if old_hint is not None:
+                    os.environ["CEC_THERMAL_BOARD_HINT"] = old_hint
+                if old_fab is not None:
+                    os.environ["CEC_FAB_PROFILE"] = old_fab
+                if old_state is None:
+                    os.environ.pop("CEC_POURFIRST_STATE", None)
+                else:
+                    os.environ["CEC_POURFIRST_STATE"] = old_state
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(observed["path"], "derived.kicad_pcb")
+        self.assertIs(observed["cfg"], cfg)
+        self.assertEqual(
+            observed["board_hint"], "generic-current-profile")
+        self.assertEqual(observed["fab_profile"], "generic-six-layer")
+        self.assertIsNone(observed["future_power"])
+
+    def test_mandatory_local_pi_precedes_speculative_access_by_default(self):
+        cfg = SimpleNamespace(params={"automatic_pin_escape_tier": True})
+        self.assertFalse(synth._access_before_local_pi_enabled(cfg, True))
+
+    def test_access_first_local_pi_schedule_requires_explicit_opt_in(self):
+        cfg = SimpleNamespace(params={
+            "automatic_pin_escape_tier": True,
+            "signal_access_before_local_pi": True,
+        })
+        self.assertTrue(synth._access_before_local_pi_enabled(cfg, True))
+        self.assertFalse(synth._access_before_local_pi_enabled(cfg, False))
+
     def test_route_monotonicity_accepts_boolean_gate_improvements_only(self):
         baseline = SimpleNamespace(
             drc=10, unconnected=20, kelvin_ok=False, diffpair_ok=False)
@@ -1873,6 +1938,61 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             for move in reoriented),
             "the cell solver must be able to repack caps without rotating IC")
 
+    def test_owner_cell_solver_consumes_complete_tangent_pose_menu(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (10.0, 10.0, 0.0),
+            "CAP": (14.0, 10.0, 0.0),
+        })
+        rows = [{
+            "owner_ref": "OWNER", "cap_ref": "CAP",
+            "actionable": True, "supply_access_ok": True,
+            "owner_position_mm": [10.0, 10.0],
+            "owner_supply_position_mm": [11.0, 10.0],
+            "owner_ground_position_mm": [9.0, 10.0],
+            "owner_ground_positions_mm": [
+                {"pin": "G", "position": [9.0, 10.0]}],
+            "cap_position_mm": [14.0, 10.0],
+            "cap_supply_position_mm": [13.5, 10.0],
+            "cap_ground_position_mm": [14.5, 10.0],
+            "return_gate_mode": "absolute_ground_distance",
+            "return_limit_mm": 2.5,
+            "supply_excess_limit_mm": 0.25,
+            "tangent_target": {
+                "best_loop": {
+                    "position_mm": [8.0, 10.0],
+                    "orientation_deg": 90.0,
+                    "supply_mm": 1.0, "ground_mm": 1.2,
+                    "loop_proxy_mm": 2.2,
+                },
+                "best_supply": {
+                    "position_mm": [10.0, 8.0],
+                    "orientation_deg": 0.0,
+                    "supply_mm": 0.9, "ground_mm": 2.0,
+                    "loop_proxy_mm": 2.9,
+                },
+                "candidates": [{
+                    "position_mm": [8.0, 10.0],
+                    "orientation_deg": 90.0,
+                    "supply_mm": 1.0, "ground_mm": 1.2,
+                    "loop_proxy_mm": 2.2,
+                }, {
+                    "position_mm": [10.0, 8.0],
+                    "orientation_deg": 0.0,
+                    "supply_mm": 0.9, "ground_mm": 2.0,
+                    "loop_proxy_mm": 2.9,
+                }],
+            },
+        }]
+
+        moves = synth._decoupler_owner_move_specs(candidate, rows)
+        repacked = [move for move in moves
+                    if move["kind"] == "decoupler_cell_reorient"
+                    and move["delta_deg"] == 0.0]
+
+        self.assertTrue(repacked)
+        self.assertIn((8.0, 10.0, 90.0), {
+            tuple(move["placements"]["CAP"]) for move in repacked})
+
     def test_blocked_cell_can_translate_owner_then_reseat_cap(self):
         candidate = SimpleNamespace(P={
             "OWNER": (10.0, 10.0, 0.0),
@@ -1977,6 +2097,30 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                          ["LOCAL_PASSIVE"])
         self.assertTrue(any(not row["external_blockers"]
                             for row in variants))
+
+    def test_joint_cell_legalizer_bounded_multi_blocker_macro(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (0.0, 0.0, 0.0),
+            "CAP": (3.0, 0.0, 0.0),
+            "R_A": (2.0, 0.0, 0.0),
+            "R_B": (2.2, 0.0, 0.0),
+        }, back_refs=())
+        options = {"CAP": [((0.1, 0.2), (2.1, 0.0, 0.0))]}
+
+        def bbox(_ref, position):
+            x, y, _rotation = position
+            return (x - 0.4, x + 0.4, y - 0.4, y + 0.4)
+
+        refused = synth._select_local_cell_placements(
+            candidate, "OWNER", candidate.P["OWNER"], options, {},
+            bbox_fn=bbox)
+        admitted = synth._select_local_cell_placements(
+            candidate, "OWNER", candidate.P["OWNER"], options, {},
+            bbox_fn=bbox, max_external_blockers=2)
+
+        self.assertEqual(refused, [])
+        self.assertTrue(admitted)
+        self.assertEqual(admitted[0]["external_blockers"], ["R_A", "R_B"])
 
     def test_owner_cooptimization_round_robins_failed_cells(self):
         candidate = SimpleNamespace(P={
@@ -2262,8 +2406,13 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             def __exit__(self, *_args):
                 return False
 
-            def map(self, fn, jobs):
-                return [fn(job) for job in jobs]
+            def submit(self, fn, job):
+                future = Future()
+                future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
 
         cfg = SimpleNamespace(params={
             "placement_craft_eval_workers": 999,
@@ -2286,7 +2435,42 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertEqual(runtime["jobs_per_generation"], 64)
         self.assertEqual(runtime["worker_generations"], 1)
         self.assertTrue(runtime["isolated"])
+        self.assertEqual(runtime["timed_out_jobs"], 0)
         self.assertEqual([row["evidence"] for row in results], list(range(40)))
+
+    def test_craft_trial_generation_timeout_is_ordered_hard_rejection(self):
+        class FakePool:
+            def __init__(self, **_kwargs):
+                self._calls = 0
+
+            def submit(self, fn, job):
+                self._calls += 1
+                future = Future()
+                if self._calls == 1:
+                    future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
+
+        cfg = SimpleNamespace(params={
+            "placement_craft_eval_workers": 2,
+            "placement_craft_generation_timeout_s": 0.01,
+        })
+        jobs = [{"sequence": 0}, {"sequence": 1}]
+        with mock.patch.object(synth, "ProcessPoolExecutor", FakePool), \
+                mock.patch.object(
+                    synth, "_placement_craft_trial_worker",
+                    side_effect=lambda job: {
+                        "ok": True, "evidence": job["sequence"]}):
+            results, runtime = synth._evaluate_placement_craft_trials(
+                cfg, jobs)
+
+        self.assertEqual(results[0]["evidence"], 0)
+        self.assertFalse(results[1]["ok"])
+        self.assertTrue(results[1]["timed_out"])
+        self.assertEqual(runtime["timed_out_jobs"], 1)
+        self.assertEqual(runtime["timed_out_indices"], [1])
 
     def test_real_craft_trials_run_in_recyclable_spawn_workers(self):
         cfg = synth.Config.load("pcie-out-db")
@@ -2335,6 +2519,75 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
 
         self.assertEqual(repaired_refs, source_refs)
         self.assertAlmostEqual(moved.GetPosition().x / 1e6, old_x + 0.25)
+
+    def test_out_of_range_bypass_keeps_exact_tangent_repair_menu(self):
+        """Missing assignment is a gate state, not missing geometry.
+
+        Every compatible physical capacitor named by the oracle must carry
+        the same package-derived legal target menu as an already-assigned
+        capacitor.  Otherwise the generic repair loop silently degrades to a
+        coarse radial search precisely when a part is farthest out of place.
+        """
+        cfg = synth.Config.load("pcie-8pin-2port")
+        if not os.path.isfile(cfg.pcb):
+            self.skipTest("current-beta placement fixture unavailable")
+
+        result = synth._oracle_decoupler_adjacency(cfg.pcb, cfg)
+        rows = [
+            row for row in result.get("details") or ()
+            if row.get("status") == "missing"
+            and row.get("nearest_compatible_ref")]
+
+        self.assertTrue(rows, result)
+        for row in rows:
+            tangent = row.get("tangent_target") or {}
+            self.assertTrue(tangent.get("candidates"), row)
+            self.assertIsNotNone(row.get("return_gate_mode"), row)
+            self.assertIsNotNone(row.get("supply_excess_limit_mm"), row)
+
+    def test_routed_rehydration_requires_explicit_replacement_authority(self):
+        cfg = synth.Config.load("pcie-8pin-2port")
+        with tempfile.TemporaryDirectory() as directory:
+            # Build the routed input from the current authoritative candidate
+            # instead of pinning this contract to an obsolete wave whose
+            # component set can lag a schematic update.
+            routed = os.path.join(directory, "routed.kicad_pcb")
+            board = pcbnew.LoadBoard(cfg.pcb)
+            pad = next(
+                pad for footprint in board.GetFootprints()
+                for pad in footprint.Pads()
+                if pad.GetNetCode() > 0 and pad.IsOnLayer(pcbnew.F_Cu))
+            stub = pcbnew.PCB_TRACK(board)
+            stub.SetStart(pad.GetPosition())
+            stub.SetEnd(pcbnew.VECTOR2I(
+                pad.GetPosition().x + pcbnew.FromMM(0.20),
+                pad.GetPosition().y))
+            stub.SetWidth(pcbnew.FromMM(0.20))
+            stub.SetLayer(pcbnew.F_Cu)
+            stub.SetNetCode(pad.GetNetCode())
+            board.Add(stub)
+            pcbnew.SaveBoard(routed, board)
+
+            with self.assertRaisesRegex(ValueError,
+                                        "refuses routed copper"):
+                synth.placement_candidate_from_board(cfg, routed)
+
+            candidate = synth.placement_candidate_from_board(
+                cfg, routed, allow_routed=True)
+            self.assertTrue(candidate.source_had_routed_copper)
+            self.assertGreater(len(candidate.P), 0)
+            replacement = os.path.join(directory, "replacement.kicad_pcb")
+            synth.materialize(candidate, cfg, replacement)
+            board = pcbnew.LoadBoard(replacement)
+            self.assertEqual(len(list(board.GetTracks())), 0)
+            self.assertEqual(len(list(board.Zones())), 0)
+
+            # Incremental repair owns the same artifact in place.  Rewriting
+            # its poses must not attempt to copy project sidecars onto
+            # themselves.
+            in_place = synth.placement_candidate_from_board(cfg, replacement)
+            synth.materialize(in_place, cfg, replacement)
+            self.assertTrue(os.path.isfile(replacement))
 
     def test_pair_launch_blocker_gets_topology_directed_reseat(self):
         candidate = SimpleNamespace(P={
@@ -4162,6 +4415,38 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertEqual(report["removed_count"], 1)
         self.assertIs(final_score, after)
 
+    def test_dangling_cleanup_preserves_exact_upstream_via_owner(self):
+        violation = {
+            "type": "via_dangling",
+            "description": "Via is connected on one layer only",
+            "items": [{"uuid": "priority-return-via"}],
+        }
+        score = SimpleNamespace(
+            unconnected=2, drc=1, kelvin_ok=True, diffpair_ok=True,
+            detail={"unconn_nets": ["GND"],
+                    "structural_violations": [violation]})
+        with tempfile.TemporaryDirectory() as directory:
+            board = os.path.join(directory, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("original")
+            with mock.patch.object(
+                    synth, "_remove_structural_dangling_uuids_isolated",
+                    return_value={"removed": [], "removed_count": 0}) as remove, \
+                    mock.patch.object(synth.cec_score, "score",
+                                      return_value=score):
+                report, final_score = (
+                    synth._prune_structural_dangling_transactionally(
+                        board, preserve_uuids=("priority-return-via",)))
+        self.assertTrue(report["rolled_back"])
+        self.assertEqual(report["removed_count"], 0)
+        self.assertEqual(report["locked_refused"], [{
+            "uuid": "priority-return-via",
+            "kind": "via_dangling",
+            "reason": "explicit_uuid_owner",
+        }])
+        remove.assert_called_once_with(board, [])
+        self.assertIs(final_score, score)
+
     def test_edge_guard_has_no_implicit_connector_body_window(self):
         board = pcbnew.CreateEmptyBoard()
         for ax, ay, bx, by in ((0, 0, 20, 0), (20, 0, 20, 20),
@@ -4226,6 +4511,48 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                              for row in selected), 1)
         self.assertEqual(sum(row["ref"] == "U_LARGE"
                              for row in selected), 9)
+
+    def test_bounded_move_selection_reserves_atomic_evidence_priority(self):
+        moves = [
+            {"ref": "C1", "kind": "decoupler_pin_reseat", "ordinal": 0},
+            {"ref": "U1", "kind": "decoupler_owner_rotate", "ordinal": 1},
+            {"ref": "U1", "kind": "decoupler_cell_reorient", "ordinal": 2,
+             "placements": {"U1": (1.0, 1.0, 0.0),
+                            "C1": (2.0, 1.0, 0.0)},
+             "budget_priority": 0},
+        ]
+
+        selected = synth._bounded_diverse_move_specs(moves, 1)
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["kind"], "decoupler_cell_reorient")
+        self.assertEqual(selected[0]["ordinal"], 2)
+
+    def test_decoupler_owner_moves_drop_complete_geometric_noop(self):
+        candidate = SimpleNamespace(P={
+            "U1": (10.0, 10.0, -90.0),
+            "C1": (12.0, 10.0, 0.0),
+        })
+        rows = [{
+            "owner_ref": "U1", "cap_ref": "C1", "actionable": True,
+            "owner_supply_position_mm": [11.0, 10.0],
+            "owner_ground_positions_mm": [
+                {"pin": "2", "position": [9.0, 10.0]}],
+            "cap_position_mm": [12.0, 10.0],
+            "cap_supply_position_mm": [11.0, 10.0],
+            "cap_ground_position_mm": [13.0, 10.0],
+            "supply_access_ok": False,
+        }]
+
+        moves = synth._decoupler_owner_move_specs(candidate, rows)
+
+        self.assertFalse(any(all(
+            abs(float(position[0]) - candidate.P[ref][0]) <= 1e-6
+            and abs(float(position[1]) - candidate.P[ref][1]) <= 1e-6
+            and abs(((float(position[2]) - candidate.P[ref][2] + 180.0)
+                     % 360.0) - 180.0) <= 1e-6
+            for ref, position in (move.get("placements") or {}).items())
+            for move in moves))
 
     def test_assigned_ground_return_can_defer_to_mandatory_route_stage(self):
         evidence = {

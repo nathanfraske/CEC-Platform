@@ -129,6 +129,7 @@ def _load_missing_footprint(board, ref, part):
         os.path.dirname(path), os.path.splitext(os.path.basename(path))[0])
     if footprint is None:
         raise RuntimeError(f"pcbnew could not load {lib_id} for {ref}")
+    footprint.SetFPID(pcbnew.LIB_ID(nick, name))
     footprint.SetReference(ref)
     footprint.SetValue(str(part.get("value") or ""))
     footprint.SetDNP(bool(part.get("dnp", False)))
@@ -140,7 +141,8 @@ def _load_missing_footprint(board, ref, part):
 
 
 def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
-                extra_pad_nets=None, add_missing=False):
+                extra_pad_nets=None, add_missing=False,
+                replace_mismatched_footprints=False):
     """Apply the schematic netlist plus explicit board-only electrical lands.
 
     ``extra_pad_nets`` maps ``(reference, pad_number)`` to a net name.  This is
@@ -184,6 +186,8 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
         "assembly_flags_updated": 0,
         "added_refs": [],
         "added_placements_mm": {},
+        "replaced_footprints": [],
+        "zones_refilled": 0,
     }
 
     net_objects = {str(name): net for name, net in
@@ -206,6 +210,36 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
             continue
         board_refs.add(ref)
         expected_part = inventory.get(ref)
+        if expected_part and replace_mismatched_footprints:
+            expected_id = str(expected_part.get("footprint") or "").strip()
+            actual_id = footprint.GetFPID().GetUniStringLibId()
+            if expected_id and expected_id != actual_id:
+                # A footprint package change moves pad copper and invalidates
+                # any attached route/zone geometry.  Synchronization may make
+                # that destructive transition only when the caller has
+                # explicitly requested the existing copper be discarded.
+                if tracks and not rip_all_copper:
+                    raise RuntimeError(
+                        f"cannot replace routed footprint {ref}: "
+                        f"{actual_id} -> {expected_id}; use --rip-all-copper")
+                replacement = _load_missing_footprint(
+                    board, ref, expected_part)
+                position = footprint.GetPosition()
+                replacement.SetPosition(position)
+                if footprint.IsFlipped():
+                    replacement.Flip(position, False)
+                replacement.SetOrientation(footprint.GetOrientation())
+                replacement.SetPath(footprint.GetPath())
+                replacement.SetLocked(footprint.IsLocked())
+                for pad in replacement.Pads():
+                    expected = pad_nets.get((ref, pad.GetNumber()))
+                    if expected is not None:
+                        pad.SetNet(net_object(expected))
+                retired_footprints.append(footprint)
+                report["replaced_footprints"].append({
+                    "ref": ref, "before": actual_id, "after": expected_id,
+                })
+                footprint = replacement
         if expected_part:
             value = expected_part.get("value", "")
             if footprint.GetValue() != value:
@@ -270,8 +304,21 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     for footprint in retired_footprints:
         board.Remove(footprint)
 
+    # Zone polygons are authored routing authority, while their filled copper
+    # is a cache derived from pads and clearances.  Preserve the polygons and
+    # deterministically refill them after a package swap; unlike fixed tracks,
+    # this is the normal safe response to changed pad geometry.
+    if report["replaced_footprints"] and zones and not rip_all_copper:
+        for zone in zones:
+            zone.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        report["zones_refilled"] = len(zones)
+
     report["footprints_after"] = (
-        len(footprints) - len(retired_footprints) + len(report["added_refs"]))
+        len(footprints)
+        - len(retired_footprints)
+        + len(report["added_refs"])
+        + len(report["replaced_footprints"]))
     report["tracks_after"] = 0 if rip_all_copper else len(tracks)
     report["zones_after"] = 0 if rip_all_copper else len(zones)
 
@@ -298,6 +345,11 @@ def main(argv=None):
         help=("materialize missing schematic footprints at deterministic, "
               "connectivity-aware, non-overlapping staging positions"))
     parser.add_argument(
+        "--replace-mismatched-footprints", action="store_true",
+        help=("replace an existing PCB footprint whose library ID differs "
+              "from the live schematic; fixed-track boards also require "
+              "--rip-all-copper, while authored zones are refilled"))
+    parser.add_argument(
         "--extra-pad-net", action="append", default=[], metavar="REF.PAD=NET",
         help=("explicit net for a board-only electrical land; repeatable "
               "(example: H1.1=GND)"))
@@ -316,7 +368,8 @@ def main(argv=None):
             parser.error(f"conflicting --extra-pad-net values for {ref}.{pad}")
         extra_pad_nets[key] = net
     report = synchronize(args.schematic, args.pcb, args.remove_ref,
-                         args.rip_all_copper, extra_pad_nets, args.add_missing)
+                         args.rip_all_copper, extra_pad_nets, args.add_missing,
+                         args.replace_mismatched_footprints)
     for key, value in report.items():
         print(f"{key}={value}")
     if report["unexpected_board_refs"] or report["missing_schematic_refs"]:

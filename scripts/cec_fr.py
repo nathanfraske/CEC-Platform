@@ -266,6 +266,7 @@ ENDPOINT_NECKDOWN_RULE_END = "# END CEC LOCAL ENDPOINT NECKDOWN"
 LOCAL_PAIR_RETURN_VIA_GROUP = "CEC_LOCAL_PAIR_RETURN_VIA"
 LOCAL_PAIR_RETURN_VIA_RULE_BEGIN = "# BEGIN CEC LOCAL PAIR RETURN VIA"
 LOCAL_PAIR_RETURN_VIA_RULE_END = "# END CEC LOCAL PAIR RETURN VIA"
+LOCAL_SINGLE_RETURN_VIA_GROUP = "CEC_LOCAL_SINGLE_RETURN_VIA"
 LOCAL_POFV_SIGNAL_VIA_GROUP = "CEC_LOCAL_POFV_SIGNAL_VIA"
 LOCAL_POFV_SIGNAL_VIA_RULE_BEGIN = "# BEGIN CEC LOCAL POFV SIGNAL VIA"
 LOCAL_POFV_SIGNAL_VIA_RULE_END = "# END CEC LOCAL POFV SIGNAL VIA"
@@ -337,7 +338,8 @@ def _profiled_pofv_full_width_throat(board, via, incoming_layer,
     return False
 
 
-def _qualified_endpoint_neckdown_tracks(board, items, full_width):
+def _qualified_endpoint_neckdown_tracks(
+        board, items, full_width, *, required_clearance=0):
     """Independently prove generated sub-class copper is pad-local.
 
     A caller's label is never exemption authority.  Qualify the complete
@@ -482,7 +484,8 @@ def _qualified_endpoint_neckdown_tracks(board, items, full_width):
                         local_clearance = None
                     own_clearance = max(
                         float(own_clearance or 0),
-                        float(local_clearance or 0))
+                        float(local_clearance or 0),
+                        float(required_clearance or 0))
                     if own_clearance is None:
                         try:
                             own_clearance = (
@@ -560,7 +563,8 @@ def _qualified_endpoint_neckdown_tracks(board, items, full_width):
     return qualified, rejected
 
 
-def group_endpoint_neckdowns(board, items, full_width):
+def group_endpoint_neckdowns(
+        board, items, full_width, *, required_clearance=0):
     """Own generated sub-class endpoint copper in one portable rule group.
 
     Fine-pitch pads can be narrower than their netclass trunk.  The router may
@@ -575,7 +579,8 @@ def group_endpoint_neckdowns(board, items, full_width):
     if not narrow:
         return None
     qualified, rejected = _qualified_endpoint_neckdown_tracks(
-        board, narrow, full_width)
+        board, narrow, full_width,
+        required_clearance=required_clearance)
     if not qualified:
         return {"group": ENDPOINT_NECKDOWN_GROUP, "tracks": 0,
                 "uuids": [], "rejected": rejected}
@@ -732,12 +737,63 @@ def group_local_pair_return_vias(board, items):
         if not group.ContainsItem(via):
             group.AddItem(via)
         via.SetLocked(True)
-    diameters = [via.GetWidth(via.TopLayer()) / MM for via in vias]
-    drills = [via.GetDrillValue() / MM for via in vias]
+    members = [via for via in group.GetItems()
+               if via.GetClass() == "PCB_VIA"]
+    diameters = [via.GetWidth(via.TopLayer()) / MM for via in members]
+    drills = [via.GetDrillValue() / MM for via in members]
     return {
         "group": LOCAL_PAIR_RETURN_VIA_GROUP,
-        "vias": len(vias),
-        "uuids": sorted(via.m_Uuid.AsString() for via in vias),
+        "vias": len(members),
+        "added_vias": len(vias),
+        "uuids": sorted(via.m_Uuid.AsString() for via in members),
+        "min_diameter_mm": round(min(diameters), 3),
+        "min_drill_mm": round(min(drills), 3),
+        "min_annular_mm": round(min(
+            (diameter - drill) / 2.0
+            for diameter, drill in zip(diameters, drills)), 3),
+    }
+
+
+def group_local_single_return_vias(board, items):
+    """Own exact GND barrels synthesized beside single-ended transitions.
+
+    The group is provenance for netclass signoff, not a geometric waiver.
+    Independent constraints re-prove ordinary board-minimum geometry and
+    proximity to a classified signal transition before granting the local
+    return exception to a wider board-scale GND via default.
+    """
+    owned_elsewhere = {
+        item.m_Uuid.AsString()
+        for candidate in board.Groups()
+        if candidate.GetName() != LOCAL_SINGLE_RETURN_VIA_GROUP
+        for item in candidate.GetItems()
+    }
+    vias = [item for item in items
+            if item.GetClass() == "PCB_VIA"
+            and item.GetNetname() == "GND"
+            and item.m_Uuid.AsString() not in owned_elsewhere]
+    if not vias:
+        return None
+    group = next((candidate for candidate in board.Groups()
+                  if candidate.GetName()
+                  == LOCAL_SINGLE_RETURN_VIA_GROUP), None)
+    if group is None:
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(LOCAL_SINGLE_RETURN_VIA_GROUP)
+        board.Add(group)
+    for via in vias:
+        if not group.ContainsItem(via):
+            group.AddItem(via)
+        via.SetLocked(True)
+    members = [via for via in group.GetItems()
+               if via.GetClass() == "PCB_VIA"]
+    diameters = [via.GetWidth(via.TopLayer()) / MM for via in members]
+    drills = [via.GetDrillValue() / MM for via in members]
+    return {
+        "group": LOCAL_SINGLE_RETURN_VIA_GROUP,
+        "vias": len(members),
+        "added_vias": len(vias),
+        "uuids": sorted(via.m_Uuid.AsString() for via in members),
         "min_diameter_mm": round(min(diameters), 3),
         "min_drill_mm": round(min(drills), 3),
         "min_annular_mm": round(min(
@@ -816,20 +872,25 @@ def group_local_pofv_signal_vias(board, items):
     profile = _fab.get_profile(profile_name) if profile_name else None
     if not profile or not profile.get("pofv"):
         return None
-    settings = board.GetDesignSettings()
-    ordinary_diameter = int(getattr(
-        settings, "m_ViasMinSize", pcbnew.FromMM(0.50)))
-    ordinary_drill = int(getattr(
-        settings, "m_MinThroughDrill", pcbnew.FromMM(0.30)))
+    owned_elsewhere = {
+        item.m_Uuid.AsString()
+        for candidate in board.Groups()
+        if candidate.GetName() != LOCAL_POFV_SIGNAL_VIA_GROUP
+        for item in candidate.GetItems()
+    }
     qualified = []
     for item in items:
         if item.GetClass() != "PCB_VIA":
             continue
+        if item.m_Uuid.AsString() in owned_elsewhere:
+            continue
         diameter = item.GetWidth(item.TopLayer()) / MM
         drill = item.GetDrillValue() / MM
-        if (item.GetWidth(item.TopLayer()) >= ordinary_diameter
-                and item.GetDrillValue() >= ordinary_drill):
-            continue
+        # Netclass minima can be stricter than KiCad's board-wide minima (for
+        # example a short GND return dogbone on a high-current design).  Do not
+        # use the board-wide values as an ownership filter: the independent
+        # constraints pass re-proves every grouped barrel against its local
+        # pad/dogbone topology before granting any netclass exception.
         valid, _reason = _fab.pofv_dimensions(profile, diameter, drill)
         if valid:
             qualified.append(item)
@@ -846,13 +907,19 @@ def group_local_pofv_signal_vias(board, items):
         if not group.ContainsItem(via):
             group.AddItem(via)
         via.SetLocked(True)
-    diameters = [via.GetWidth(via.TopLayer()) / MM for via in qualified]
-    drills = [via.GetDrillValue() / MM for via in qualified]
+    # A caller may add one new barrel to an existing group.  The DRU applies
+    # to the whole group, so its geometry must be derived from every owned
+    # member rather than just this invocation's delta.
+    members = [via for via in group.GetItems()
+               if via.GetClass() == "PCB_VIA"]
+    diameters = [via.GetWidth(via.TopLayer()) / MM for via in members]
+    drills = [via.GetDrillValue() / MM for via in members]
     return {
         "group": LOCAL_POFV_SIGNAL_VIA_GROUP,
         "profile": profile_name,
-        "vias": len(qualified),
-        "uuids": sorted(via.m_Uuid.AsString() for via in qualified),
+        "vias": len(members),
+        "added_vias": len(qualified),
+        "uuids": sorted(via.m_Uuid.AsString() for via in members),
         "min_diameter_mm": round(min(diameters), 3),
         "min_drill_mm": round(min(drills), 3),
         "min_annular_mm": round(min(
@@ -6502,9 +6569,19 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
     # real pad centre.  Add a small endpoint-aligned lattice so a legal 45
     # degree fanout can leave either exact land without inventing an arbitrary
     # angle.  Bounds keep the search local and deterministic.
-    for point in (S, T):
+    # Endpoint-residue axes exist to carry an exact pad centre onto the global
+    # manufacturing grid.  Extending every residue across the *whole* maze
+    # margin creates their Cartesian product (quadratic in margin) even though
+    # the special alignment is only physically relevant inside the bounded
+    # pin escape.  Keep it local to that escape plus one grid hop; orthogonal
+    # crossings then transfer the route to the ordinary global lattice.
+    endpoint_rows = ((S, start_escape), (T, end_escape))
+    for point, escape in endpoint_rows:
+        alignment = min(
+            margin,
+            max(step, int(escape[1]) if escape else step))
         delta = 0
-        while delta <= margin:
+        while delta <= alignment:
             for x in (point.x - delta, point.x + delta):
                 if x_lo <= x <= x_hi:
                     xs.add(int(x))
@@ -6512,7 +6589,7 @@ def _maze_lastmile_legs(board, S, T, w, lay, clearance_nm, nc, leg_ok,
                 if y_lo <= y <= y_hi:
                     ys.add(int(y))
             delta += step
-    for point, escape in ((S, start_escape), (T, end_escape)):
+    for point, escape in endpoint_rows:
         if escape:
             budget = int(escape[1])
             xs.update((point.x - budget, point.x + budget))
@@ -7311,7 +7388,8 @@ def synthesize_same_footprint_links(
                         track.SetLocked(bool(lock)); board.Add(track)
                         if int(width) < int(_group_width(op_layer)):
                             endpoint_neckdown_tracks.append(
-                                (track, _group_width(op_layer)))
+                                (track, _group_width(op_layer),
+                                 local_clearance))
                         used_layers.add(op_layer)
                         legs_added += 1
                 layer_names = [board.GetLayerName(value)
@@ -7325,7 +7403,7 @@ def synthesize_same_footprint_links(
                     track.SetLocked(bool(lock)); board.Add(track)
                     if int(width) < int(_group_width(layer)):
                         endpoint_neckdown_tracks.append(
-                            (track, _group_width(layer)))
+                            (track, _group_width(layer), local_clearance))
                     legs_added += 1
                 layer_names = [board.GetLayerName(layer)]
                 path_legs = len(path)
@@ -8137,13 +8215,16 @@ def synthesize_same_footprint_links(
     endpoint_neckdown = None
     if endpoint_neckdown_tracks:
         rows = []
-        for full_width in sorted({value for _item, value
-                                  in endpoint_neckdown_tracks}):
+        for full_width, required_clearance in sorted({
+                (value, clearance) for _item, value, clearance
+                in endpoint_neckdown_tracks}):
             evidence = group_endpoint_neckdowns(
                 board,
-                [item for item, value in endpoint_neckdown_tracks
-                 if value == full_width],
-                full_width)
+                [item for item, value, clearance
+                 in endpoint_neckdown_tracks
+                 if (value, clearance) ==
+                 (full_width, required_clearance)],
+                full_width, required_clearance=required_clearance)
             if evidence:
                 rows.append(evidence)
         accepted = [row for row in rows if row.get("tracks")]
@@ -9672,7 +9753,11 @@ def synthesize_lastmile(board, *, max_mm=5.0, min_w=0.25, clearance=0.25, cap=40
                     route_clearance, drill=bridge_drill, dia=bridge_dia,
                     leg_ok=_lm_leg_ok, start_escape=ae, end_escape=be,
                     seat_limit=max(1, int(attempts_per_pair)),
-                    allow_maze=allow_maze,
+                    # The fast bridge portfolio is a breadth probe: examine
+                    # many canonical dogbone seats before allowing any one
+                    # local stub to consume the net's complete maze budget.
+                    # Exact mode retains the historical per-seat maze.
+                    allow_maze=(allow_maze and not bridge_fast),
                     maze_margin_mm=maze_margin_mm,
                     foreign_cache=foreign_cache,
                     width_for_layer=lambda layer: (
@@ -10620,7 +10705,8 @@ def _sense_in_pad(fp, role):
     return None
 
 
-def _via_pad_excluded(board, at, dia_nm, drill_nm=None, net_code=None):
+def _via_pad_excluded(board, at, dia_nm, drill_nm=None, net_code=None, *,
+                      pad_cache=None):
     """Return the pad blocking an intended through via, or None when clear.
 
     Legacy boards retain the blanket no-via-on-pad rule. A board whose own
@@ -10632,7 +10718,8 @@ def _via_pad_excluded(board, at, dia_nm, drill_nm=None, net_code=None):
     """
     if drill_nm is not None and net_code is not None:
         blocking, _allowed = _fab.via_at_pad_conflicts(
-            board, at, dia_nm, drill_nm, net_code)
+            board, at, dia_nm, drill_nm, net_code,
+            pad_cache=pad_cache)
         return blocking
     circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
     for fp in board.GetFootprints():
@@ -10663,7 +10750,9 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
     ALSO enforces the net-independent assembly-class pad exclusion
     (_via_pad_excluded, owner via-in-pad ruling 2026-07-25) so every caller
     -- pickups, force vias, lastmile, tap doglegs -- inherits it."""
-    if _via_pad_excluded(board, at, dia_nm, drill_nm, net_code) is not None:
+    if _via_pad_excluded(
+            board, at, dia_nm, drill_nm, net_code,
+            pad_cache=foreign_cache) is not None:
         return False
     # Pour-first corridors are physical future copper even before their zones
     # are materialized.  A through-via pierces every layer, so refuse a
@@ -10691,18 +10780,26 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
     # cannot see them.  A through via piercing exposed logo/artwork copper is
     # nevertheless a real short/clearance fault.  Probe exact graphical shapes
     # on every copper layer before allowing any synthesized barrel.
-    circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
-    for fp in board.GetFootprints():
-        for item in fp.GraphicalItems():
-            try:
-                if item.GetLayer() not in board.GetEnabledLayers().CuStack():
+    if foreign_cache is None:
+        # The indexed per-layer snapshot below already contains footprint
+        # copper graphics.  Rewalking every footprint for each candidate seat
+        # duplicated that exact test and dominated dense via-seat searches.
+        # Uncached callers retain the historical direct scan; cached callers
+        # still receive the same exact KiCad ``Collide`` test through
+        # ``_snapshot_foreign_clear`` on every non-contained copper layer.
+        circ = pcbnew.SHAPE_CIRCLE(at, dia_nm // 2)
+        copper_layers = set(board.GetEnabledLayers().CuStack())
+        for fp in board.GetFootprints():
+            for item in fp.GraphicalItems():
+                try:
+                    if item.GetLayer() not in copper_layers:
+                        continue
+                    if int(item.GetLayer()) in contained_layers:
+                        continue
+                    if item.GetEffectiveShape().Collide(circ, clearance_nm):
+                        return False
+                except Exception:                       # noqa: BLE001
                     continue
-                if int(item.GetLayer()) in contained_layers:
-                    continue
-                if item.GetEffectiveShape().Collide(circ, clearance_nm):
-                    return False
-            except Exception:                           # noqa: BLE001
-                continue
     # SHAPE_SEGMENT has no point-only overload.  Use a one-database-unit
     # centreline rather than the historical 10 um ray: that ray made a legal
     # via exactly at minimum clearance appear 10 um closer to whichever
@@ -10985,8 +11082,19 @@ def _bucket_foreign_shapes(rows, *, cell_nm=None, max_cells=4096):
                     buckets[(bx, by)].append(index)
         except Exception:                              # noqa: BLE001
             global_rows.append(index)
-    return {"rows": rows, "cell": cell, "buckets": dict(buckets),
-            "global": tuple(global_rows)}
+    return {
+        "rows": rows,
+        "cell": cell,
+        "buckets": dict(buckets),
+        "global": tuple(global_rows),
+        # Clearance authority belongs to each immutable snapshot row.  Cache
+        # its maximum once with the spatial index; maze search can evaluate
+        # hundreds of thousands of hops and must not rescan every board object
+        # merely to inflate the same query box each time.
+        "max_clearance": max(
+            (int(row[3]) if len(row) > 3 else 0 for row in rows),
+            default=0),
+    }
 
 
 def _indexed_shape_rows(index, query_box):
@@ -11016,13 +11124,15 @@ def _snapshot_foreign_clear(S, T, width_nm, clearance_nm, zones, copper):
     """Exact foreign-copper qualification against a shape snapshot."""
     segment = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
     zone_rows = zones.get("rows", ()) if isinstance(zones, dict) else zones
-    max_zone_clearance = max(
-        (int(row[3]) if len(row) > 3 else 0 for row in zone_rows),
-        default=0)
+    max_zone_clearance = (int(zones.get("max_clearance", 0))
+                          if isinstance(zones, dict) else max(
+                              (int(row[3]) if len(row) > 3 else 0
+                               for row in zone_rows), default=0))
     copper_rows = copper.get("rows", ()) if isinstance(copper, dict) else copper
-    max_copper_clearance = max(
-        (int(row[3]) if len(row) > 3 else 0 for row in copper_rows),
-        default=0)
+    max_copper_clearance = (int(copper.get("max_clearance", 0))
+                            if isinstance(copper, dict) else max(
+                                (int(row[3]) if len(row) > 3 else 0
+                                 for row in copper_rows), default=0))
     try:
         segment_box = segment.BBox()
         clearance_box = segment_box.GetInflated(max(
@@ -11067,13 +11177,15 @@ def _snapshot_foreign_blockers(S, T, width_nm, clearance_nm, zones, copper,
     """Return the exact foreign objects colliding with a candidate segment."""
     segment = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
     zone_rows = zones.get("rows", ()) if isinstance(zones, dict) else zones
-    max_zone_clearance = max(
-        (int(row[3]) if len(row) > 3 else 0 for row in zone_rows),
-        default=0)
+    max_zone_clearance = (int(zones.get("max_clearance", 0))
+                          if isinstance(zones, dict) else max(
+                              (int(row[3]) if len(row) > 3 else 0
+                               for row in zone_rows), default=0))
     copper_rows = copper.get("rows", ()) if isinstance(copper, dict) else copper
-    max_copper_clearance = max(
-        (int(row[3]) if len(row) > 3 else 0 for row in copper_rows),
-        default=0)
+    max_copper_clearance = (int(copper.get("max_clearance", 0))
+                            if isinstance(copper, dict) else max(
+                                (int(row[3]) if len(row) > 3 else 0
+                                 for row in copper_rows), default=0))
     try:
         segment_box = segment.BBox()
         clearance_box = segment_box.GetInflated(max(
@@ -13180,6 +13292,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001,
                 seen_pads.add(pad.m_Uuid.AsString())
 
     handled = set()
+    legal_neckdown_uuids = set()
     neckdown_sections = split_tracks = widened_sections = narrowed_sections = 0
     for net, rows in by_net.items():
         pads = fine_pads.get(net, ())
@@ -13251,6 +13364,7 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001,
             if row["locked"]:
                 if keep_a + keep_b + 1e-6 >= length:
                     handled.add(row["uuid"])
+                    legal_neckdown_uuids.add(row["uuid"])
                     neckdown_sections += 1
                 continue
             handled.add(row["uuid"])
@@ -13304,6 +13418,8 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001,
                     board.Add(piece)
                 if narrow:
                     neckdown_sections += 1
+                    legal_neckdown_uuids.add(
+                        str(piece.m_Uuid.AsString()))
                 if width > row["current"] + tol_mm:
                     widened_sections += 1
                 elif width < row["current"] - tol_mm:
@@ -13363,7 +13479,11 @@ def normalize_netclass_geometry(board, board_path, *, tol_mm=0.001,
             "qualified_pofv_vias": qualified_pofv,
             "preserved_locked_tracks": preserved_locked_tracks,
             "preserved_locked_vias": preserved_locked_vias,
-            "legal_neckdown_uuids": sorted(handled),
+            # Exact post-split identities only. ``handled`` is a mutation
+            # bookkeeping set keyed to the original segment; after a split,
+            # that UUID may name the wide body while a new UUID names the
+            # actual bounded neckdown. Rule ownership must follow the latter.
+            "legal_neckdown_uuids": sorted(legal_neckdown_uuids),
             "sense_exempt_nets": sorted(direct_sense),
             "preserved_nets": sorted(preserve_nets)}
 

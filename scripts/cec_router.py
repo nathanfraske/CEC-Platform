@@ -2276,25 +2276,33 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     # already used this guarded subprocess, but the production route-swarm
     # bridge stopped at its selected-board last-mile result.  Reuse that
     # result's exact refusal certificates here; the helper protects authored
-    # copper and adopts only a strict full-board improvement.  Unconnected-only
-    # boards still bypass surgery and feed placement/congestion learning.
+    # copper and adopts only a strict full-board improvement.  DRC-clean boards
+    # with open connectivity still require this stage: zero DRC does not make
+    # an unrouted net manufacturable.  Forward the actual pre-route floorplan
+    # so locked pipeline-generated copper remains eligible for certificate-
+    # named atomic negotiation while authored copper stays immutable.
     certificate_repair = {"schema": 1, "changed": False,
                           "skipped": "not_applicable"}
     if os.environ.get("CEC_CERTIFICATE_REPAIR", "1") != "0":
         try:
             pre_certificate = cec_score.score(spec.out, rules)
             completion = (selected_lastmile or {}).get("result") or {}
-            if pre_certificate.drc > 0 and completion.get("refused_details"):
+            if ((pre_certificate.drc > 0
+                 or pre_certificate.unconnected > 0)
+                    and completion.get("refused_details")):
                 import cec_synth_pipeline as _csp
                 repaired_path, certificate_repair = \
                     _csp._route_oracle_certificate_repair(
                         spec.out, {"final_completion": completion}, work_dir,
-                        max_targets=1, verbose=verbose)
+                        max_targets=1,
+                        authored_baseline=(spec.board or board0),
+                        verbose=verbose)
                 if repaired_path != spec.out:
                     shutil.copy2(repaired_path, spec.out)
                     cec_fr.copy_project_sidecars(repaired_path, spec.out)
-            elif pre_certificate.drc <= 0:
-                certificate_repair["skipped"] = "no_structural_drc"
+            elif (pre_certificate.drc <= 0
+                  and pre_certificate.unconnected <= 0):
+                certificate_repair["skipped"] = "no_open_connectivity"
             else:
                 certificate_repair["skipped"] = "no_refusal_certificates"
         except Exception as exc:                           # noqa: BLE001

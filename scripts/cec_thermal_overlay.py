@@ -206,6 +206,23 @@ def board_thermal_config(board_path, board_hint=None):
         }
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0,
                     "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+    if "pcie-8pin-2port" in name or "pcie-8pin-3port" in name:
+        # The current beta PCIe modules share one service-USB power cell:
+        # reversible USB-C bank -> 750 mA PTC -> ferrite -> TPS2121 IN2.
+        # These are explicit source/sink contracts, not a net-name guess.  A
+        # stale pre-mux board is consequently incomplete and cannot be waved
+        # into a fabrication candidate simply because its ratlines close.
+        board_nets = _board_net_names(board_path)
+        vbus_j5 = _resolve_hierarchical_net("/VBUS_J5", board_nets)
+        vbus_f = _resolve_hierarchical_net("/VBUS_F", board_nets)
+        vbus = _resolve_hierarchical_net("/VBUS", board_nets)
+        nc = {vbus_j5: 0.75, vbus_f: 0.75, vbus: 0.75}
+        ov = {
+            vbus_j5: {"refs_src": ["J5"], "refs_sink": ["F1"]},
+            vbus_f: {"refs_src": ["F1"], "refs_sink": ["FB1"]},
+            vbus: {"refs_src": ["FB1"], "refs_sink": ["U4"]},
+        }
+        return nc, profile_stackup, ov, None
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         # The current BETA sheet renamed lane 6's pre-shunt node to /FAN_12V
@@ -222,6 +239,18 @@ def board_thermal_config(board_path, board_hint=None):
             ov["/SENSEP%d_LO" % n] = {"refs_src": ["RS%d" % n], "refs_sink": ["J4"]}
         nc["GND"] = 50.0
         ov["GND"] = {"refs_src": ["J4"], "refs_sink": ["J3"]}
+        # Same fused service-USB cell as the PCIe modules, with the board's
+        # own refdes and raw-net names.  Keep it inside this board authority so
+        # high-current lane and auxiliary-power proofs are evaluated together.
+        vbus_raw = _resolve_hierarchical_net("/VBUS_RAW", board_nets)
+        vbus_f = _resolve_hierarchical_net("/VBUS_F", board_nets)
+        vbus = _resolve_hierarchical_net("/VBUS", board_nets)
+        nc.update({vbus_raw: 0.75, vbus_f: 0.75, vbus: 0.75})
+        ov.update({
+            vbus_raw: {"refs_src": ["J5"], "refs_sink": ["F1"]},
+            vbus_f: {"refs_src": ["F1"], "refs_sink": ["FB1"]},
+            vbus: {"refs_src": ["FB1"], "refs_sink": ["U5"]},
+        })
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
                    "label": "production: metal case (TIM on RS shunts + M3 mounts)"}
         return nc, profile_stackup, ov, cooling
